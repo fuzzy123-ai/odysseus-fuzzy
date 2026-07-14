@@ -1,0 +1,2508 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.abc_durable_run_state",
+  "run_id": "sar-12h-20260714t092106",
+  "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+  "roadmap_id": "SAR",
+  "roadmap_path": "docs/plans/system-assurance-runtime-hardening-roadmap.json",
+  "queue_scope": "named_roadmap",
+  "phase": "implementation",
+  "supervision": "interactive",
+  "mutation_authority": "repo_only",
+  "state": "running",
+  "revision": 122,
+  "resumed_at": "2026-07-14T20:27:39.3767912+02:00",
+  "resume_authority": "user_directed_serial_roadmap_execution_after_probe_45",
+  "paused_at": null,
+  "pause_authority": null,
+  "started_at": "2026-07-14T09:21:06.2586366+02:00",
+  "previous_deadline_at": "2026-07-14T21:21:06.2586366+02:00",
+  "deadline_at": null,
+  "timezone": "Europe/Berlin",
+  "last_timed_grant_expired_at": "2026-07-14T17:45:35.3959274+02:00",
+  "interactive_continuation": {
+    "granted_at": "2026-07-14T20:27:39.3767912+02:00",
+    "scope": "Park SAR-01 as blocked_environment; complete SAR-06P, SAR-04, SAR-05 and SAR-07 serially; then execute TLR-01 through TLR-06 and integrate Planning Definition Editor plus Planning MCP. Preserve all foreign hunks and keep unrelated regressions outside the active roadmap.",
+    "duration": "current interactive continuation; no unattended deadline inferred",
+    "max_parallel_workers": 1,
+    "ordinary_gate_policy": "Continue consuming only ordinary repo-only coordination gates after persisting a minimum-path claim and confirming no active same-checkout owner.",
+    "excluded_actions": [
+      "push",
+      "live or host mutation",
+      "Docker or service start",
+      "network or provider access",
+      "dependency installation",
+      "destructive git operations",
+      "multi-worker execution",
+      "Temporal start"
+    ]
+  },
+  "autonomous_repo_only_grant": {
+    "granted_at": "2026-07-14T12:45:35.3959274+02:00",
+    "expires_at": "2026-07-14T17:45:35.3959274+02:00",
+    "scope": "Named SAR roadmap execution in this checkout. /root may serially claim the minimum required repo-only source, test, roadmap and queue files when no active same-checkout owner exists, including files previously held behind ordinary coordination handoff gates.",
+    "preservation_contract": "Preserve all pre-existing foreign hunks and keep each mutation within the active claim's declared paths.",
+    "max_parallel_workers": 1,
+    "ordinary_gate_policy": "Ordinary repo-only coordination gates may be consumed without another user round-trip during the grant. Persist each claim before mutation and release it with evidence before opening the next claim.",
+    "excluded_actions": [
+      "commit",
+      "push",
+      "live or host mutation",
+      "Docker or service start",
+      "network or provider access",
+      "dependency installation",
+      "destructive git operations",
+      "multi-worker execution",
+      "Temporal start"
+    ],
+    "stop_conditions": [
+      "dangerous or irreversible action",
+      "live or external side effect",
+      "material product or architecture choice not fixed by the roadmap",
+      "grant deadline reached"
+    ]
+  },
+  "heartbeat": {
+    "kind": "thread_heartbeat",
+    "interval_minutes": 1,
+    "automation_id": "abc-sar-12h-controller",
+    "state": "deleted_after_timed_window",
+    "last_heartbeat_at": "2026-07-14T12:48:58.4629513+02:00",
+    "last_reported_revision": 25,
+    "deleted_at": "2026-07-14T17:47:36.2008079+02:00",
+    "delete_reason": "The five-hour unattended window expired; the user resumed interactively, so the stale timed heartbeat was removed instead of being extended without a new duration."
+  },
+  "execution_contract": {
+    "max_parallel_workers": 1,
+    "worker_model": "surface_default",
+    "model_route": {
+      "requested_standard": "5.6 Sol Max",
+      "ultra_allowed_only_for": [
+        "architecture review",
+        "security review",
+        "final integration review"
+      ],
+      "selected_by_user_at": "2026-07-14T20:40:54.4685534+02:00",
+      "actual": "surface_default_unverified",
+      "enforcement": "The current surface exposes no model-selection tool; never report 5.6 Sol Max as actual without surface evidence."
+    },
+    "worker_skill_route": [
+      "abc"
+    ],
+    "fallback": "native_tools",
+    "commit_authority": "granted_by_user_2026-07-14T20:40:54.4685534+02:00",
+    "commit_policy": "Commit after each green released slice or durable handoff. Stage only exact owned paths or owned hunks after reviewing staged diff; never include foreign hunks merely to make a file clean.",
+    "push_authority": "not_granted",
+    "live_authority": "not_granted",
+    "gate_policy": "Under the current explicit user directive, /root may consume ordinary repo-only coordination gates serially after persisting a minimum-path claim and confirming no active same-checkout owner. Never infer authority for excluded, dangerous, live, external or design gates. Stop on those gates; otherwise release the claim with focused evidence before opening the next slice."
+  },
+  "blocked_audit": {
+    "fingerprint": null,
+    "consecutive_goal_turns": 0,
+    "last_audited_at": "2026-07-14T12:46:41.6623826+02:00",
+    "state": "reset_by_five_hour_repo_only_delegation",
+    "evidence": [
+      "the user granted five hours of autonomous serial repo-only execution",
+      "ordinary file handoff gates may now be consumed without repeated approval",
+      "external, live, irreversible and multi-worker actions remain excluded",
+      "the archived-session test-only blocker is claimed as the first resumed slice"
+    ]
+  },
+  "active_claims": [],
+  "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-06P",
+      "slice_id": "SAR-06P-model-hint-hardlimit-propagation",
+      "owner": "/root",
+      "state": "released_green_committed",
+      "acquired_at": "2026-07-14T20:36:49.7787092+02:00",
+      "released_at": "2026-07-14T21:07:38.7000385+02:00",
+      "commit": "3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd",
+      "evidence": [
+        "19 focused tests passed and the final gate-inclusive focused run passed 26 tests",
+        "the complete declared compatibility block passed 264 tests",
+        "10 SAR roadmap contract tests passed",
+        "the AST audit found exactly the three approved model-neutral estimate calls",
+        "git diff --cached review preserved all pre-existing foreign hotfile hunks and git diff --cached --check passed",
+        "commit 3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd records the exact owned slice; no push, network, provider, service or Temporal runtime was used"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-HANDOFF-REGRESSION-QUEUE",
+      "slice_id": "SAR-HANDOFF-REGRESSION-QUEUE",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T20:27:39.3767912+02:00",
+      "released_at": "2026-07-14T20:33:36.3900347+02:00",
+      "evidence": [
+        "SAR-01 is parked as blocked_environment in both roadmap and durable run state",
+        "probe 45 failure is queued as REG-20260714-001 without diagnosis or roadmap promotion",
+        "full repository suites are limited to IP-SAR-SERIAL-CLOSEOUT, IP-TLR-06-CLOSEOUT and IP-PLANNING-INTEGRATION-CLOSEOUT",
+        "ten SAR roadmap contract tests passed and both durable JSON artifacts parse successfully",
+        "no product path, commit, push, live system, service, network, multi-worker or Temporal runtime was touched"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-RUNTIME-TOOL-STATUS-LIVE-MODULE-PATCHPOINT",
+      "slice_id": "SAR-RUNTIME-TOOL-STATUS-LIVE-MODULE-PATCHPOINT",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T20:14:11.6235044+02:00",
+      "released_at": "2026-07-14T20:15:54.5243740+02:00",
+      "evidence": [
+        "the test now imports routes.model_routes at execution time and patches require_admin plus settings on that same live module object",
+        "the router is built from the patched live module so earlier sys.modules replacement cannot split setup from its globals",
+        "all inventory redaction, schema and gate-class assertions remain unchanged",
+        "three focused status tests and the 55-test import-state, review-regression and route sequence passed",
+        "the production endpoint remains admin-only and scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-RUN-FOCUS-DRY-RUN-QUOTING-PORTABILITY",
+      "slice_id": "SAR-RUN-FOCUS-DRY-RUN-QUOTING-PORTABILITY",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T20:04:37.6502957+02:00",
+      "released_at": "2026-07-14T20:06:00.9322130+02:00",
+      "evidence": [
+        "all three dry-run expectations now render their explicit expected argv through shlex.join",
+        "Windows interpreter paths with spaces remain quoted while POSIX output semantics are unchanged",
+        "the assertions remain exact and executor non-invocation checks are unchanged",
+        "all 47 focused-runner tests passed with tests/run_focus.py unchanged",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-EDIT-FILE-TMP-FIXTURE-PORTABILITY",
+      "slice_id": "SAR-EDIT-FILE-TMP-FIXTURE-PORTABILITY",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T19:54:23.3254288+02:00",
+      "released_at": "2026-07-14T19:57:18.2177011+02:00",
+      "evidence": [
+        "all edit-file test artifacts now live under isolated pytest tmp_path roots exposed through the existing TMPDIR confinement input",
+        "manual shared /tmp files, the unused tempfile directory and manual unlink cleanup were removed",
+        "the execution-level non-admin gate remains fail-closed and all behavior assertions are unchanged",
+        "all seven edit-file tests passed with production tool, confinement and security files unchanged",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-COOKBOOK-BASH-SEMANTICS-WINDOWS-TEST-PORTABILITY",
+      "slice_id": "SAR-COOKBOOK-BASH-SEMANTICS-WINDOWS-TEST-PORTABILITY",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T19:41:29.2060030+02:00",
+      "released_at": "2026-07-14T19:49:55.2642192+02:00",
+      "evidence": [
+        "cookbook Bash behavior tests now select installed Git Bash on Windows and prepend its bin directory so nested bash wrappers do not fall back to the WSL launcher",
+        "the wrapper success, failure and stderr tests use shell-native true, false and printf commands, so no package installation or network access occurs",
+        "the fresh-HOME command resets HOME after Bash startup to a writable cwd-relative pytest directory",
+        "seven targeted shell behavior tests passed and the full cookbook helper module passed with 64 passed and its one pre-existing platform skip",
+        "production cookbook helpers and routes remained unchanged and scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-CODE-NAV-WINDOWS-TEMP-FIXTURE-PORTABILITY",
+      "slice_id": "SAR-CODE-NAV-WINDOWS-TEMP-FIXTURE-PORTABILITY",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T19:35:32.6221688+02:00",
+      "released_at": "2026-07-14T19:37:23.6316560+02:00",
+      "evidence": [
+        "the fixture now creates its repository under tempfile.gettempdir and exposes that root through the production contract's existing TMPDIR input",
+        "no production path-confinement, filesystem-tool or tool-dispatch code changed",
+        "the formerly hanging exact test passed in 1.03 seconds and all 19 code-navigation tests passed in 1.39 seconds",
+        "the adjacent unchanged confinement module produced 22 passes plus two pre-existing Windows environment failures in its own .ssh and tmp_path fixtures; neither is attributed to this slice",
+        "scoped git diff --check passed and all pre-existing foreign JSON serialization hunks were preserved"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-ROADMAP-GUIDANCE-REGISTRATION-SYNC",
+      "slice_id": "SAR-ROADMAP-GUIDANCE-REGISTRATION-SYNC",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T18:32:43.7153687+02:00",
+      "released_at": "2026-07-14T18:36:26.7577187+02:00",
+      "evidence": [
+        "the guidance audit is valid with 127 discovered and listed roadmaps, 120 docs/plans roadmaps and 7 structured specs",
+        "missing, unknown, duplicate and error collections are empty",
+        "PDE and Temporal Light are registered active_serial while SAR uses its declared active_parallel registration profile with a current-run serial constraint in the AI hint",
+        "JSON parsing and all five focused roadmap-guidance tests passed; the first focused attempt hit only a C:/tmp basetemp ACL error and the fresh user-temp rerun passed",
+        "the untracked foreign guidance artifact was changed only for the three registrations and their derived metadata; its script, test and source roadmaps remained unchanged"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-WEBHOOK-TOOL-ROUTE-VALIDATION-TEST-SYNC",
+      "slice_id": "SAR-WEBHOOK-TOOL-ROUTE-VALIDATION-TEST-SYNC",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T18:20:27.6924350+02:00",
+      "released_at": "2026-07-14T18:22:36.1865345+02:00",
+      "evidence": [
+        "the webhook regression now confirms the mutation and asserts authoritative route rejection of the unchanged private URL",
+        "production retains create-route validation plus delivery-time SSRF revalidation and remained unchanged",
+        "28 review regression tests and 10 focused webhook route/SSRF tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-RELEASE-ENVELOPE-CURRENT-STATUS-SYNC",
+      "slice_id": "SAR-RELEASE-ENVELOPE-CURRENT-STATUS-SYNC",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T18:11:21.9368776+02:00",
+      "released_at": "2026-07-14T18:12:28.1641626+02:00",
+      "evidence": [
+        "the current snapshot envelope now asserts the same blocked release status carried by its deterministic JSON payload",
+        "all clean envelope, payload, summary and digest production modules remained unchanged",
+        "32 envelope and payload contract tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-RELEASE-MORNING-BRIEF-CURRENT-GATE-SYNC",
+      "slice_id": "SAR-RELEASE-MORNING-BRIEF-CURRENT-GATE-SYNC",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T18:03:34.0536072+02:00",
+      "released_at": "2026-07-14T18:04:33.6567731+02:00",
+      "evidence": [
+        "the current morning brief now asserts the fail-closed REL-mvp-version-1-gate and rejects the superseded final-review marker",
+        "the clean local readiness bundle and morning-brief production renderers remained unchanged",
+        "12 release morning brief, bundle, summary and payload tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-RAG-REMOVE-PATH-TEST-PORTABILITY",
+      "slice_id": "SAR-RAG-REMOVE-PATH-TEST-PORTABILITY",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T17:55:20.7056280+02:00",
+      "released_at": "2026-07-14T17:56:41.0516154+02:00",
+      "evidence": [
+        "the path-boundary fixture now uses host-native absolute source and directory paths",
+        "the clean VectorRAG production implementation and foreign-dirty RAG manager remained unchanged",
+        "five targeted RAG deletion and inactive-lane tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-PR-AUDIT-WINDOWS-VT-TEST-ISOLATION",
+      "slice_id": "SAR-PR-AUDIT-WINDOWS-VT-TEST-ISOLATION",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T15:52:11.5670820+02:00",
+      "released_at": "2026-07-14T15:53:34.0506329+02:00",
+      "evidence": [
+        "the automatic-color test now explicitly simulates successful Windows VT capability alongside TTY and TERM support",
+        "the clean production PR audit script and its fail-closed Windows probe remained unchanged",
+        "all 58 PR blocker audit tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-PLUGIN-BOUNDARY-AST-IMPORT-FIX-2",
+      "slice_id": "SAR-PLUGIN-BOUNDARY-AST-IMPORT-FIX-2",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T15:44:27.9333175+02:00",
+      "released_at": "2026-07-14T15:45:48.4415852+02:00",
+      "evidence": [
+        "the second Core-to-Obsidian boundary test now inspects BOM-tolerant Python import nodes",
+        "all three clean Core report modules and the foreign-dirty existing boundary test remained unchanged",
+        "15 plugin-system and context-boundary tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-ODYSSEUS-DISPATCHER-XOK-PORTABILITY-FIX",
+      "slice_id": "SAR-ODYSSEUS-DISPATCHER-XOK-PORTABILITY-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T15:30:24.9640006+02:00",
+      "released_at": "2026-07-14T15:31:37.3599398+02:00",
+      "evidence": [
+        "the dispatcher unit contract now controls os.access directly instead of relying on unsupported Windows chmod transitions",
+        "the production dispatcher and its platform-native os.access behavior remained unchanged",
+        "the focused dispatcher test passed on Windows without a skip or quarantine",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-OBSIDIAN-PUBLIC-WRITE-CONTRACT-SYNC",
+      "slice_id": "SAR-OBSIDIAN-PUBLIC-WRITE-CONTRACT-SYNC",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T15:21:38.3286519+02:00",
+      "released_at": "2026-07-14T15:23:33.3513798+02:00",
+      "evidence": [
+        "the bridge contract now permits only read-only public Vault MCP access and rejects public Vault writes",
+        "the foreign-dirty production security policy remained unchanged and fail-closed",
+        "19 Obsidian bridge, Vault MCP and public-tool security tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-NON-UI-QUEUE-READINESS-TRUTH-FIX",
+      "slice_id": "SAR-NON-UI-QUEUE-READINESS-TRUTH-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T15:13:33.7555981+02:00",
+      "released_at": "2026-07-14T15:14:54.4741410+02:00",
+      "evidence": [
+        "the route test now asserts queue_exhausted exactly when safe_open_count is zero",
+        "all production readiness code and roadmap inputs remained unchanged",
+        "17 non-UI readiness and safe-queue audit tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-MOUNT-ADMIN-PATCH-ISOLATION-FIX",
+      "slice_id": "SAR-MOUNT-ADMIN-PATCH-ISOLATION-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T15:05:22.7619559+02:00",
+      "released_at": "2026-07-14T15:06:47.6091360+02:00",
+      "evidence": [
+        "the mount admin fixture now patches _owner_is_admin in the globals retained by the imported executor",
+        "all foreign-dirty tool-policy production files and mount production code remained unchanged",
+        "18 import-state and mount tests passed with one expected platform skip",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-MODEL-INTERACTION-OWNER-STUB-CONTRACT-FIX",
+      "slice_id": "SAR-MODEL-INTERACTION-OWNER-STUB-CONTRACT-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T14:58:08.8461634+02:00",
+      "released_at": "2026-07-14T14:59:17.4746032+02:00",
+      "evidence": [
+        "both model-interaction stubs now accept and assert owner, surface and prompt_type metadata",
+        "the clean production tool and foreign-dirty LLM core remained unchanged",
+        "11 model-interaction, owner-scope and AI activity-contract tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-CALENDAR-MCP-FUTURE-REMINDER-TEST-FIX",
+      "slice_id": "SAR-CALENDAR-MCP-FUTURE-REMINDER-TEST-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T14:50:52.9622450+02:00",
+      "released_at": "2026-07-14T14:52:06.7307275+02:00",
+      "evidence": [
+        "the reminder-creation contract now derives a future event two days from test execution",
+        "the production past-event reminder guard and both production modules remained unchanged",
+        "19 Calendar MCP and calendar owner-scope tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-MANAGE-CONTACT-MODULE-ISOLATION-FIX",
+      "slice_id": "SAR-MANAGE-CONTACT-MODULE-ISOLATION-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T14:43:06.0969814+02:00",
+      "released_at": "2026-07-14T14:44:16.1504867+02:00",
+      "evidence": [
+        "both contact confirmation tests now patch the current routes.contacts_routes module at execution time",
+        "both clean production modules remained unchanged",
+        "15 CardDAV import-state, confirmation and security tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-LOCAL-ENDPOINT-NODE-UTF8-FIX",
+      "slice_id": "SAR-LOCAL-ENDPOINT-NODE-UTF8-FIX",
+      "owner": "/root",
+      "state": "released_green_after_adjacent_claim_expansion",
+      "acquired_at": "2026-07-14T14:34:51.8430473+02:00",
+      "expanded_at": "2026-07-14T14:35:59.2384092+02:00",
+      "released_at": "2026-07-14T14:36:54.2353528+02:00",
+      "evidence": [
+        "both clean local-endpoint Node harnesses now encode stdin and decode output explicitly as UTF-8",
+        "the first focused pass made all 5 API-key tests green and exposed the identical adjacent classifier-harness defect before the claim was expanded",
+        "all 17 local-endpoint JavaScript tests passed on the second pass",
+        "both production frontend files remained unchanged and scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-LEGACY-CHAT-STATUS-CONTRACT-SYNC",
+      "slice_id": "SAR-LEGACY-CHAT-STATUS-CONTRACT-SYNC",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T14:28:05.1108892+02:00",
+      "released_at": "2026-07-14T14:29:08.0765541+02:00",
+      "evidence": [
+        "the contract test now preserves backend_ready_ui_gated for LC1 through LC9",
+        "the canonical legacy-chat roadmap and production contract module remained unchanged",
+        "23 legacy-chat, safe-queue and version-readiness tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-INTERACTIVE-RUNTIME-MCP-PATCH-ISOLATION-FIX",
+      "slice_id": "SAR-INTERACTIVE-RUNTIME-MCP-PATCH-ISOLATION-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T14:21:14.3038113+02:00",
+      "released_at": "2026-07-14T14:22:13.9281445+02:00",
+      "evidence": [
+        "all four MCP stubs now bind to the globals retained by the imported execute_tool_block function",
+        "all pre-existing foreign untracked test content was preserved and both foreign production modules remained unchanged",
+        "29 import-state, runtime-policy, runtime-gate and deliverable-dispatch tests passed",
+        "the edited untracked test compiled successfully"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-INTERACTIVE-DELIVERABLE-HANDLER-REGISTRY-ISOLATION-FIX",
+      "slice_id": "SAR-INTERACTIVE-DELIVERABLE-HANDLER-REGISTRY-ISOLATION-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T14:15:20.1459338+02:00",
+      "released_at": "2026-07-14T14:16:48.4016330+02:00",
+      "evidence": [
+        "both handler stubs now bind to the current src.agent_tools registry at test execution time",
+        "all pre-existing foreign untracked test content was preserved and both foreign production modules remained unchanged",
+        "the known agent-loop import-state setup followed by the dispatch module passed",
+        "15 dispatch, publication and headless-verification tests passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-HWFIT-MACOS-WINDOWS-ISOLATION-FIX",
+      "slice_id": "SAR-HWFIT-MACOS-WINDOWS-ISOLATION-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T14:08:58.1876745+02:00",
+      "released_at": "2026-07-14T14:09:57.7840897+02:00",
+      "evidence": [
+        "the unified-memory contract now explicitly neutralizes the local-Windows WMI fast path before exercising the mocked Metal probe",
+        "the clean production hardware module remained unchanged",
+        "21 macOS, CPU-architecture and unified-NVIDIA tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-HWFIT-CPU-ARCH-WINDOWS-ISOLATION-FIX",
+      "slice_id": "SAR-HWFIT-CPU-ARCH-WINDOWS-ISOLATION-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T14:02:45.9708409+02:00",
+      "released_at": "2026-07-14T14:03:58.9615840+02:00",
+      "evidence": [
+        "the generic-probe helper now explicitly neutralizes the local-Windows WMI fast path",
+        "the clean production hardware module remained unchanged",
+        "14 focused and adjacent HW Fit tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-GPU-STANDALONE-COMPOSE-SYNC",
+      "slice_id": "SAR-GPU-STANDALONE-COMPOSE-SYNC",
+      "owner": "/root",
+      "state": "released_green_after_second_pass_full_sync",
+      "acquired_at": "2026-07-14T13:48:21.8079274+02:00",
+      "released_at": "2026-07-14T13:52:00.8555371+02:00",
+      "evidence": [
+        "both standalone GPU compose files now semantically equal the current foreign base plus their matching overlay",
+        "the full accumulated drift was synchronized: two build args, one read-only inbox mount, 26 environment entries including the first-pass git metadata pair",
+        "the contract now treats absent base group_add as an empty list while retaining exact NVIDIA and AMD overlay semantics",
+        "source compose and both overlay files remained read-only and no Docker runtime action occurred",
+        "8 equivalence tests and 19 combined compose hardening tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-TOOL-ADMIN-MONKEYPATCH-ISOLATION-FIX",
+      "slice_id": "SAR-TOOL-ADMIN-MONKEYPATCH-ISOLATION-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T13:42:32.3423362+02:00",
+      "released_at": "2026-07-14T13:44:08.2200866+02:00",
+      "evidence": [
+        "all ten admin-predicate monkeypatches now target execute_tool_block.__globals__",
+        "foreign dirty and untracked test hunks outside those exact lines were preserved",
+        "both foreign production policy modules remained unchanged",
+        "all 41 tests across the six claimed modules passed",
+        "all six edited tests compiled and tracked-path git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-GALLERY-OWNER-SCOPE-EXTRACTION-TEST-FIX",
+      "slice_id": "SAR-GALLERY-OWNER-SCOPE-EXTRACTION-TEST-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T13:36:48.2650421+02:00",
+      "released_at": "2026-07-14T13:37:57.6856227+02:00",
+      "evidence": [
+        "the follow-up test asserts owner_filter injection at the route wrapper and application inside the extracted helper",
+        "both clean production modules remained unchanged",
+        "all 11 endpoint owner-scope follow-up tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-DELETED-SESSION-UTF8-TEST-FIX",
+      "slice_id": "SAR-DELETED-SESSION-UTF8-TEST-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T13:31:25.5750198+02:00",
+      "released_at": "2026-07-14T13:32:37.2010749+02:00",
+      "evidence": [
+        "all three frontend source reads now specify UTF-8 explicitly",
+        "both clean frontend production files remained unchanged",
+        "all 3 deleted-session sidebar regression tests passed",
+        "the next adjacent document-JS module also passed its 4 tests without mutation",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-PLUGIN-BOUNDARY-AST-IMPORT-FIX",
+      "slice_id": "SAR-PLUGIN-BOUNDARY-AST-IMPORT-FIX",
+      "owner": "/root",
+      "state": "released_green_after_second_pass_bom_support",
+      "acquired_at": "2026-07-14T13:25:58.8866810+02:00",
+      "released_at": "2026-07-14T13:27:28.5056785+02:00",
+      "evidence": [
+        "the boundary test now inspects only AST Import and ImportFrom modules",
+        "the first pass exposed an existing UTF-8 BOM source and the second pass added utf-8-sig compatibility",
+        "legitimate plugin evidence paths and classification strings no longer produce false import violations",
+        "all 14 boundary and context-orchestrator tests passed",
+        "all three reported core modules remained read-only and scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-COMMIT-TOOL-MONKEYPATCH-ISOLATION-FIX",
+      "slice_id": "SAR-COMMIT-TOOL-MONKEYPATCH-ISOLATION-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T13:21:35.5840772+02:00",
+      "released_at": "2026-07-14T13:22:58.0887522+02:00",
+      "evidence": [
+        "both adapter tests retain the imported project_commit_tools module object and patch it directly",
+        "the foreign untracked implementation and foreign package-facade hunks remained unchanged",
+        "all 22 commit-project tool tests passed",
+        "the edited untracked test compiled successfully"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-CODING-ROUTE-AUTH-ISOLATION-FIX",
+      "slice_id": "SAR-CODING-ROUTE-AUTH-ISOLATION-FIX",
+      "owner": "/root",
+      "state": "released_green_after_second_pass_gate_injection",
+      "acquired_at": "2026-07-14T13:16:52.0543454+02:00",
+      "released_at": "2026-07-14T13:18:26.9614139+02:00",
+      "evidence": [
+        "the first pass confirmed that AUTH_ENABLED=false alone correctly changes 401 to the remaining 403 admin or CSRF gate",
+        "the compatibility-only project client now injects a fixed test owner plus no-op admin and CSRF gates exactly like the canonical server-project route tests",
+        "production authorization defaults and the foreign-dirty server-project route remained unchanged",
+        "all 3 coding-route compatibility tests passed on the second pass",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-CODE-NAV-WINDOWS-JSON-PATH-FIX",
+      "slice_id": "SAR-CODE-NAV-WINDOWS-JSON-PATH-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T13:12:41.1658053+02:00",
+      "released_at": "2026-07-14T13:13:57.9468632+02:00",
+      "evidence": [
+        "all structured code-navigation test arguments now use json.dumps",
+        "Windows backslashes are escaped without changing the production parser or confinement policy",
+        "all 19 code-navigation tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-CHAT-HELPER-BG-TASK-TRACKING-FIX",
+      "slice_id": "SAR-CHAT-HELPER-BG-TASK-TRACKING-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T13:05:42.6923461+02:00",
+      "released_at": "2026-07-14T13:06:53.4695446+02:00",
+      "evidence": [
+        "only the consolidation scheduler changed from bare asyncio.create_task to the existing _spawn_bg helper",
+        "all foreign assistant-attachment hunks in routes/chat_helpers.py were preserved",
+        "37 background-task tracking and chat-helper regression tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-WINDOWS-NODE-IMPORT-URL-FIX",
+      "slice_id": "SAR-WINDOWS-NODE-IMPORT-URL-FIX",
+      "owner": "/root",
+      "state": "released_green_after_second_pass_encoding_fix",
+      "acquired_at": "2026-07-14T12:58:39.6162513+02:00",
+      "released_at": "2026-07-14T13:02:49.5926758+02:00",
+      "evidence": [
+        "all Node ESM import specifiers in the 17 claimed test files use cross-platform file URIs",
+        "the one fs.readFileSync filesystem path intentionally remains a normal as_posix path",
+        "all claimed Node subprocesses now exchange text explicitly as UTF-8",
+        "the first pass exposed Windows locale mojibake in five Unicode assertions and the second pass corrected it",
+        "46 claimed JS tests passed and scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-AUX-LLM-OWNER-PATCHPOINT-FIX",
+      "slice_id": "SAR-AUX-LLM-OWNER-PATCHPOINT-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T12:54:49.9052154+02:00",
+      "released_at": "2026-07-14T12:55:48.1920869+02:00",
+      "evidence": [
+        "the sole stale source assertion now targets _chat_effective_user",
+        "routes/session_routes.py remained read-only with its foreign clarification hunks preserved",
+        "all 6 auxiliary LLM owner-scope tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-SESSION-AUTH-PATCHPOINT-FIX",
+      "slice_id": "SAR-SESSION-AUTH-PATCHPOINT-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T12:50:11.7580815+02:00",
+      "released_at": "2026-07-14T12:52:08.3498560+02:00",
+      "evidence": [
+        "two fixtures and one source assertion now target the current _chat_effective_user seam",
+        "route selection in the shared global router is isolated to the newest setup invocation",
+        "routes/session_routes.py and routes/chat_routes.py remained read-only with all foreign hunks preserved",
+        "8 combined archived-session and owner-scope tests passed",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-ARCHIVED-SESSION-PATCHPOINT-FIX",
+      "slice_id": "SAR-ARCHIVED-SESSION-PATCHPOINT-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T12:46:41.6623826+02:00",
+      "released_at": "2026-07-14T12:50:11.7580815+02:00",
+      "evidence": [
+        "the fixture now patches the current _chat_effective_user seam",
+        "routes/session_routes.py remained read-only and its foreign clarification hunks were preserved",
+        "3 focused archived-session tests passed",
+        "the related owner-scope probe exposed two additional stale test-only auth seam references"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-LLM-API-DRIFT-STATUS-SYNC",
+      "slice_id": "SAR-LLM-API-DRIFT-STATUS-SYNC",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T12:13:28.8444751+02:00",
+      "released_at": "2026-07-14T12:16:19.1697017+02:00",
+      "evidence": [
+        "roadmap marks SAR-FULL-SUITE-FOREIGN-LLM-API-DRIFT satisfied",
+        "roadmap records SAR-FULL-SUITE-ARCHIVED-SESSION-PATCHPOINT-DRIFT as the next exact test-only handoff",
+        "9 roadmap contract tests and both JSON validations passed",
+        "scoped git diff --check and SAR queue audit passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-LLM-API-DRIFT-FIX",
+      "slice_id": "SAR-LLM-API-DRIFT-FIX",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T12:07:52.3928189+02:00",
+      "released_at": "2026-07-14T12:13:28.8444751+02:00",
+      "evidence": [
+        "only prompt_type and surface received backward-compatible None defaults in the handed-off async helper signature",
+        "all pre-existing scheduler and transport-control-flow hunks were preserved",
+        "42 immediate and 217 extended LLM, scheduler, security, concurrency and activity tests passed",
+        "py_compile and scoped git diff --check passed",
+        "diagnostic full-suite continuation reached 766 passed before a different out-of-scope archived-session test patchpoint error"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-DIAGNOSTIC-STATUS-SYNC",
+      "slice_id": "SAR-diagnostic-status-sync",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T10:29:43.7548484+02:00",
+      "released_at": "2026-07-14T10:30:44.6794928+02:00",
+      "evidence": [
+        "SAR-01 status now names both the environment and foreign-regression blockers",
+        "roadmap gate queue contains the exact owner-or-handoff resolution contract",
+        "9 roadmap contract tests passed",
+        "roadmap JSON validation and scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-STATUS-SYNC",
+      "slice_id": "SAR-implementation-status-sync",
+      "owner": "/root",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T10:12:26.0493612+02:00",
+      "released_at": "2026-07-14T10:18:29.7945439+02:00",
+      "evidence": [
+        "roadmap execution statuses and durable run-state pointer synchronized",
+        "9 roadmap contract tests and 218 combined focused tests passed",
+        "three JSON artifacts parsed and selected-path git diff --check passed",
+        "queue audit reports zero safe-open SAR slices"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-06P-CONTRACT",
+      "slice_id": "SAR-06P-model-hint-hardlimit-propagation-contract",
+      "owner": "/root/sar01_ci",
+      "state": "released_green_contract_only",
+      "acquired_at": "2026-07-14T10:02:53.1147554+02:00",
+      "released_at": "2026-07-14T10:12:26.0493612+02:00",
+      "evidence": [
+        "8 roadmap contract tests passed",
+        "JSON validation and queue audit passed",
+        "SAR-06P is explicitly non-runnable before four file-level handoffs",
+        "scoped git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-09",
+      "slice_id": "SAR-09-measured-optimization-decisions",
+      "owner": "/root/sar03_resolver",
+      "state": "released_green_after_two_review_corrections",
+      "acquired_at": "2026-07-14T09:29:55.4707397+02:00",
+      "released_at": "2026-07-14T10:00:10.8505887+02:00",
+      "evidence": [
+        "51 strict benchmark contract tests passed in root review",
+        "three synthetic CLI runs and strict semantic schema load passed",
+        "all decisions retain_current without measured evidence",
+        "claim-path git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-06",
+      "slice_id": "SAR-06-model-aware-token-estimation",
+      "owner": "/root/sar06_tokens",
+      "state": "released_partial_green_scope_gate",
+      "acquired_at": "2026-07-14T09:21:06.2586366+02:00",
+      "released_at": "2026-07-14T10:00:10.8505887+02:00",
+      "evidence": [
+        "29 focused and 99 extended context tests passed in root review",
+        "conservative no-asset model routes, wrapped RAG budget and provenance are green",
+        "main hard-limit callsite propagation remains blocked outside this claim",
+        "claim-path git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-08",
+      "slice_id": "SAR-08-canonical-rag-import",
+      "owner": "/root/sar01_ci",
+      "state": "released_green_after_second_pass_fix",
+      "acquired_at": "2026-07-14T09:33:50.6920620+02:00",
+      "released_at": "2026-07-14T09:44:43.7906780+02:00",
+      "evidence": [
+        "20 focused tests passed in worker and root review",
+        "module-body ImportError identity propagation proven after independent review",
+        "repository-root and services.docs import smoke passed",
+        "claim-path git diff --check passed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-01",
+      "slice_id": "SAR-01-binding-ci-and-publish-provenance",
+      "owner": "/root/sar01_ci",
+      "state": "released_implementation_green_acceptance_blocked_environment",
+      "acquired_at": "2026-07-14T09:21:06.2586366+02:00",
+      "released_at": "2026-07-14T09:32:38.6181063+02:00",
+      "evidence": [
+        "5 contract tests passed in worker and root review",
+        "workflow and quarantine files parsed",
+        "claim-path git diff --check passed",
+        "full suite reached 253 passed and 2 skipped before an unrelated Windows symlink privilege failure"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-03",
+      "slice_id": "SAR-03-tailscale-cache-expiry",
+      "owner": "/root/sar03_resolver",
+      "state": "released_green",
+      "acquired_at": "2026-07-14T09:21:06.2586366+02:00",
+      "released_at": "2026-07-14T09:29:55.4707397+02:00",
+      "evidence": [
+        "104 focused tests passed in root review",
+        "31 provider-detection tests passed in worker review",
+        "claim-path git diff --check passed"
+      ]
+    }
+  ],
+  "agent_leases": [
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-06P",
+      "state": "completed_green_committed",
+      "leased_at": "2026-07-14T20:36:49.7787092+02:00",
+      "lease_expires_at": "2026-07-14T22:36:49.7787092+02:00",
+      "released_at": "2026-07-14T21:07:38.7000385+02:00"
+    },
+    {
+      "agent": "/root/sar01_ci",
+      "claim_id": "sar-12h-20260714t092106:SAR-01",
+      "state": "completed_with_environment_gate",
+      "leased_at": "2026-07-14T09:25:26.9403190+02:00",
+      "lease_expires_at": "2026-07-14T10:51:06.2586366+02:00",
+      "released_at": "2026-07-14T09:32:38.6181063+02:00"
+    },
+    {
+      "agent": "/root/sar03_resolver",
+      "claim_id": "sar-12h-20260714t092106:SAR-03",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T09:25:26.9403190+02:00",
+      "lease_expires_at": "2026-07-14T10:51:06.2586366+02:00",
+      "released_at": "2026-07-14T09:29:55.4707397+02:00"
+    },
+    {
+      "agent": "/root/sar06_tokens",
+      "claim_id": "sar-12h-20260714t092106:SAR-06",
+      "state": "completed_partial_scope_gate",
+      "leased_at": "2026-07-14T09:25:26.9403190+02:00",
+      "lease_expires_at": "2026-07-14T10:51:06.2586366+02:00",
+      "released_at": "2026-07-14T10:00:10.8505887+02:00"
+    },
+    {
+      "agent": "/root/sar03_resolver",
+      "claim_id": "sar-12h-20260714t092106:SAR-09",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T09:31:19.5378605+02:00",
+      "lease_expires_at": "2026-07-14T10:51:06.2586366+02:00",
+      "released_at": "2026-07-14T10:00:10.8505887+02:00"
+    },
+    {
+      "agent": "/root/sar01_ci",
+      "claim_id": "sar-12h-20260714t092106:SAR-08",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T09:33:50.6920620+02:00",
+      "lease_expires_at": "2026-07-14T11:03:50.6920620+02:00",
+      "released_at": "2026-07-14T09:44:43.7906780+02:00"
+    },
+    {
+      "agent": "/root/sar01_ci",
+      "claim_id": "sar-12h-20260714t092106:SAR-06P-CONTRACT",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T10:02:53.1147554+02:00",
+      "lease_expires_at": "2026-07-14T11:02:53.1147554+02:00",
+      "released_at": "2026-07-14T10:12:26.0493612+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-ARCHIVED-SESSION-PATCHPOINT-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T12:46:41.6623826+02:00",
+      "lease_expires_at": "2026-07-14T13:46:41.6623826+02:00",
+      "released_at": "2026-07-14T12:50:11.7580815+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-SESSION-AUTH-PATCHPOINT-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T12:50:11.7580815+02:00",
+      "lease_expires_at": "2026-07-14T13:50:11.7580815+02:00",
+      "released_at": "2026-07-14T12:52:08.3498560+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-AUX-LLM-OWNER-PATCHPOINT-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T12:54:49.9052154+02:00",
+      "lease_expires_at": "2026-07-14T13:54:49.9052154+02:00",
+      "released_at": "2026-07-14T12:55:48.1920869+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-WINDOWS-NODE-IMPORT-URL-FIX",
+      "state": "completed_green_after_second_pass",
+      "leased_at": "2026-07-14T12:58:39.6162513+02:00",
+      "lease_expires_at": "2026-07-14T13:58:39.6162513+02:00",
+      "released_at": "2026-07-14T13:02:49.5926758+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-CHAT-HELPER-BG-TASK-TRACKING-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T13:05:42.6923461+02:00",
+      "lease_expires_at": "2026-07-14T14:05:42.6923461+02:00",
+      "released_at": "2026-07-14T13:06:53.4695446+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-CODE-NAV-WINDOWS-JSON-PATH-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T13:12:41.1658053+02:00",
+      "lease_expires_at": "2026-07-14T14:12:41.1658053+02:00",
+      "released_at": "2026-07-14T13:13:57.9468632+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-CODING-ROUTE-AUTH-ISOLATION-FIX",
+      "state": "completed_green_after_second_pass",
+      "leased_at": "2026-07-14T13:16:52.0543454+02:00",
+      "lease_expires_at": "2026-07-14T14:16:52.0543454+02:00",
+      "released_at": "2026-07-14T13:18:26.9614139+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-COMMIT-TOOL-MONKEYPATCH-ISOLATION-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T13:21:35.5840772+02:00",
+      "lease_expires_at": "2026-07-14T14:21:35.5840772+02:00",
+      "released_at": "2026-07-14T13:22:58.0887522+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-PLUGIN-BOUNDARY-AST-IMPORT-FIX",
+      "state": "completed_green_after_second_pass",
+      "leased_at": "2026-07-14T13:25:58.8866810+02:00",
+      "lease_expires_at": "2026-07-14T14:25:58.8866810+02:00",
+      "released_at": "2026-07-14T13:27:28.5056785+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-DELETED-SESSION-UTF8-TEST-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T13:31:25.5750198+02:00",
+      "lease_expires_at": "2026-07-14T14:31:25.5750198+02:00",
+      "released_at": "2026-07-14T13:32:37.2010749+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-GALLERY-OWNER-SCOPE-EXTRACTION-TEST-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T13:36:48.2650421+02:00",
+      "lease_expires_at": "2026-07-14T14:36:48.2650421+02:00",
+      "released_at": "2026-07-14T13:37:57.6856227+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-TOOL-ADMIN-MONKEYPATCH-ISOLATION-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T13:42:32.3423362+02:00",
+      "lease_expires_at": "2026-07-14T14:42:32.3423362+02:00",
+      "released_at": "2026-07-14T13:44:08.2200866+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-GPU-STANDALONE-COMPOSE-SYNC",
+      "state": "completed_green_after_second_pass",
+      "leased_at": "2026-07-14T13:48:21.8079274+02:00",
+      "lease_expires_at": "2026-07-14T14:48:21.8079274+02:00",
+      "released_at": "2026-07-14T13:52:00.8555371+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-HWFIT-CPU-ARCH-WINDOWS-ISOLATION-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T14:02:45.9708409+02:00",
+      "lease_expires_at": "2026-07-14T15:02:45.9708409+02:00",
+      "released_at": "2026-07-14T14:03:58.9615840+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-HWFIT-MACOS-WINDOWS-ISOLATION-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T14:08:58.1876745+02:00",
+      "lease_expires_at": "2026-07-14T15:08:58.1876745+02:00",
+      "released_at": "2026-07-14T14:09:57.7840897+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-INTERACTIVE-DELIVERABLE-HANDLER-REGISTRY-ISOLATION-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T14:15:20.1459338+02:00",
+      "lease_expires_at": "2026-07-14T15:15:20.1459338+02:00",
+      "released_at": "2026-07-14T14:16:48.4016330+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-INTERACTIVE-RUNTIME-MCP-PATCH-ISOLATION-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T14:21:14.3038113+02:00",
+      "lease_expires_at": "2026-07-14T15:21:14.3038113+02:00",
+      "released_at": "2026-07-14T14:22:13.9281445+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-LEGACY-CHAT-STATUS-CONTRACT-SYNC",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T14:28:05.1108892+02:00",
+      "lease_expires_at": "2026-07-14T15:28:05.1108892+02:00",
+      "released_at": "2026-07-14T14:29:08.0765541+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-LOCAL-ENDPOINT-NODE-UTF8-FIX",
+      "state": "completed_green_after_adjacent_claim_expansion",
+      "leased_at": "2026-07-14T14:34:51.8430473+02:00",
+      "lease_expires_at": "2026-07-14T15:34:51.8430473+02:00",
+      "released_at": "2026-07-14T14:36:54.2353528+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-MANAGE-CONTACT-MODULE-ISOLATION-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T14:43:06.0969814+02:00",
+      "lease_expires_at": "2026-07-14T15:43:06.0969814+02:00",
+      "released_at": "2026-07-14T14:44:16.1504867+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-CALENDAR-MCP-FUTURE-REMINDER-TEST-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T14:50:52.9622450+02:00",
+      "lease_expires_at": "2026-07-14T15:50:52.9622450+02:00",
+      "released_at": "2026-07-14T14:52:06.7307275+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-MODEL-INTERACTION-OWNER-STUB-CONTRACT-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T14:58:08.8461634+02:00",
+      "lease_expires_at": "2026-07-14T15:58:08.8461634+02:00",
+      "released_at": "2026-07-14T14:59:17.4746032+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-MOUNT-ADMIN-PATCH-ISOLATION-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T15:05:22.7619559+02:00",
+      "lease_expires_at": "2026-07-14T16:05:22.7619559+02:00",
+      "released_at": "2026-07-14T15:06:47.6091360+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-NON-UI-QUEUE-READINESS-TRUTH-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T15:13:33.7555981+02:00",
+      "lease_expires_at": "2026-07-14T16:13:33.7555981+02:00",
+      "released_at": "2026-07-14T15:14:54.4741410+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-OBSIDIAN-PUBLIC-WRITE-CONTRACT-SYNC",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T15:21:38.3286519+02:00",
+      "lease_expires_at": "2026-07-14T16:21:38.3286519+02:00",
+      "released_at": "2026-07-14T15:23:33.3513798+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-ODYSSEUS-DISPATCHER-XOK-PORTABILITY-FIX",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T15:30:24.9640006+02:00",
+      "lease_expires_at": "2026-07-14T16:30:24.9640006+02:00",
+      "released_at": "2026-07-14T15:31:37.3599398+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-PLUGIN-BOUNDARY-AST-IMPORT-FIX-2",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T15:44:27.9333175+02:00",
+      "lease_expires_at": "2026-07-14T16:44:27.9333175+02:00",
+      "released_at": "2026-07-14T15:45:48.4415852+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-PR-AUDIT-WINDOWS-VT-TEST-ISOLATION",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T15:52:11.5670820+02:00",
+      "lease_expires_at": "2026-07-14T16:52:11.5670820+02:00",
+      "released_at": "2026-07-14T15:53:34.0506329+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-RAG-REMOVE-PATH-TEST-PORTABILITY",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T17:55:20.7056280+02:00",
+      "lease_expires_at": "2026-07-14T18:55:20.7056280+02:00",
+      "released_at": "2026-07-14T17:56:41.0516154+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-RELEASE-MORNING-BRIEF-CURRENT-GATE-SYNC",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T18:03:34.0536072+02:00",
+      "lease_expires_at": "2026-07-14T19:03:34.0536072+02:00",
+      "released_at": "2026-07-14T18:04:33.6567731+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-RELEASE-ENVELOPE-CURRENT-STATUS-SYNC",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T18:11:21.9368776+02:00",
+      "lease_expires_at": "2026-07-14T19:11:21.9368776+02:00",
+      "released_at": "2026-07-14T18:12:28.1641626+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-WEBHOOK-TOOL-ROUTE-VALIDATION-TEST-SYNC",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T18:20:27.6924350+02:00",
+      "lease_expires_at": "2026-07-14T19:20:27.6924350+02:00",
+      "released_at": "2026-07-14T18:22:36.1865345+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-ROADMAP-GUIDANCE-REGISTRATION-SYNC",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T18:32:43.7153687+02:00",
+      "lease_expires_at": "2026-07-14T19:32:43.7153687+02:00",
+      "released_at": "2026-07-14T18:36:26.7577187+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-CODE-NAV-WINDOWS-TEMP-FIXTURE-PORTABILITY",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T19:35:32.6221688+02:00",
+      "lease_expires_at": "2026-07-14T20:35:32.6221688+02:00",
+      "released_at": "2026-07-14T19:37:23.6316560+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-COOKBOOK-BASH-SEMANTICS-WINDOWS-TEST-PORTABILITY",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T19:41:29.2060030+02:00",
+      "lease_expires_at": "2026-07-14T20:41:29.2060030+02:00",
+      "released_at": "2026-07-14T19:49:55.2642192+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-EDIT-FILE-TMP-FIXTURE-PORTABILITY",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T19:54:23.3254288+02:00",
+      "lease_expires_at": "2026-07-14T20:54:23.3254288+02:00",
+      "released_at": "2026-07-14T19:57:18.2177011+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-RUN-FOCUS-DRY-RUN-QUOTING-PORTABILITY",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T20:04:37.6502957+02:00",
+      "lease_expires_at": "2026-07-14T21:04:37.6502957+02:00",
+      "released_at": "2026-07-14T20:06:00.9322130+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-RUNTIME-TOOL-STATUS-LIVE-MODULE-PATCHPOINT",
+      "state": "completed_green",
+      "leased_at": "2026-07-14T20:14:11.6235044+02:00",
+      "lease_expires_at": "2026-07-14T21:14:11.6235044+02:00",
+      "released_at": "2026-07-14T20:15:54.5243740+02:00"
+    }
+  ],
+  "read_only_probes": [
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-45",
+      "agent": "/root",
+      "state": "completed_next_repo_gate_user_stop",
+      "started_at": "2026-07-14T20:15:54.5243740+02:00",
+      "completed_at": "2026-07-14T20:23:06.3653211+02:00",
+      "contract": "Repeat the repository suite after the runtime-tool status live-module patchpoint fix with the five documented Windows symlink-construction deselections and AMD platform ignore, using a new gitignored workspace-local basetemp; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "6208 tests passed, 19 skipped and 5 diagnostic-only symlink tests were deselected in 356.97 seconds",
+        "the runtime-tool live-module patchpoint passed and suite progress advanced beyond 72 percent",
+        "the next unresolved failure is tests/test_sandbox_resource_guard.py::test_resource_guard_blocks_rw_mount_without_approval",
+        "the test expected decision.allowed to be false for a read-write mount without approval but observed true",
+        "the user requested stopping after probe 45, so no diagnosis, claim, mutation or probe 46 was started"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-44",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T20:06:00.9322130+02:00",
+      "completed_at": "2026-07-14T20:14:11.6235044+02:00",
+      "contract": "Repeat the repository suite after the run-focus dry-run quoting portability fix with the five documented Windows symlink-construction deselections and AMD platform ignore, using a new gitignored workspace-local basetemp; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "6193 tests passed, 19 skipped and 5 diagnostic-only symlink tests were deselected in 386.31 seconds",
+        "the run-focus quoting tests passed and suite progress advanced beyond 72 percent",
+        "the next failure is tests/test_runtime_tool_status_routes.py::test_runtime_tool_status_route_returns_redacted_live_inventory",
+        "the clean test's top-level setup_model_routes reference can become stale after earlier tests replace or remove routes.model_routes in sys.modules, while its string monkeypatch targets the newly imported module",
+        "the live production endpoint correctly remains admin-gated; test setup and monkeypatch must use the same live module object"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-43",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T19:57:18.2177011+02:00",
+      "completed_at": "2026-07-14T20:04:37.6502957+02:00",
+      "contract": "Repeat the repository suite after the edit-file tmp fixture portability fix with the five documented Windows symlink-construction deselections and AMD platform ignore, using a new gitignored workspace-local basetemp; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "6125 tests passed, 19 skipped and 5 diagnostic-only symlink tests were deselected in 351.07 seconds",
+        "the edit-file tmp_path portability tests passed and suite progress advanced to 72 percent",
+        "the next failure is tests/test_run_focus.py::test_dry_run_prints_command_and_does_not_execute",
+        "the clean runner intentionally renders argv with shlex.join and safely quotes the Windows sys.executable path, while the clean test hardcodes an unquoted interpreter",
+        "three exact dry-run output assertions share the same platform-sensitive expectation and can be synchronized without changing command execution"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-42",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T19:49:55.2642192+02:00",
+      "completed_at": "2026-07-14T19:54:23.3254288+02:00",
+      "contract": "Repeat the repository suite after the cookbook Bash test portability fix with the five documented Windows symlink-construction deselections and AMD platform ignore, using a new gitignored workspace-local basetemp; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "1996 tests passed, 8 skipped and 5 diagnostic-only symlink tests were deselected in 164.05 seconds",
+        "the cookbook Bash portability tests passed and suite progress advanced to 22 percent",
+        "the next failure is tests/test_edit_file.py::test_edit_file_blocked_at_execution_for_non_admin",
+        "the clean test fails before production execution while opening /tmp\\ef_block.txt on the ACL-incompatible C:/tmp root",
+        "the file contains four shared hardcoded /tmp artifacts that can use pytest tmp_path plus the existing TMPDIR allowlist input without changing runtime policy"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-41",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T19:37:23.6316560+02:00",
+      "completed_at": "2026-07-14T19:41:29.2060030+02:00",
+      "contract": "Repeat the repository suite after the code-nav fixture portability fix with the five documented Windows symlink-construction deselections and AMD platform ignore, using a new gitignored workspace-local basetemp; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "1668 tests passed, 8 skipped and 5 diagnostic-only symlink tests were deselected in 120.61 seconds",
+        "the code-nav node that previously hung passed and progress continued from 15 to 19 percent",
+        "the next failure is tests/test_cookbook_helpers.py::test_pip_install_fallback_chain_tries_user_outside_venv",
+        "on Windows, shutil resolution selects the WSL bash.exe stub without an installed distribution and the script then observes its UTF-16 diagnostic output instead of Bash semantics",
+        "Git Bash is installed and can provide the required POSIX shell semantics without weakening or skipping the test"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-40",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T19:30:10.2208451+02:00",
+      "completed_at": "2026-07-14T19:35:32.6221688+02:00",
+      "contract": "Map the repeated probe-38/probe-39 progress boundary to the exact collection node and reproduce it with a bounded focused faulthandler run without mutating code.",
+      "evidence": [
+        "the identical selection contains 8491 collected nodes and the first uncompleted node after 1317 visible results is tests/test_code_nav_tools.py::test_grep_finds_match",
+        "the exact focused node timed out after 60 seconds before reaching its test body result",
+        "a ten-second faulthandler dump places the main thread in tempfile.mkdtemp at tests/test_code_nav_tools.py line 25",
+        "the fixture hardcodes /tmp, which resolves to the existing but mode-0o700-incompatible C:/tmp path under Python 3.14 on this Windows sandbox and triggers tempfile permission retries",
+        "the existing production contract already accepts an explicit TMPDIR root, so the minimal fix is test-only and does not expand runtime confinement"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-39",
+      "agent": "/root",
+      "state": "timeout_reproduced_same_progress_boundary",
+      "started_at": "2026-07-14T18:59:05.9423874+02:00",
+      "completed_at": "2026-07-14T19:30:10.2208451+02:00",
+      "contract": "Repeat the same diagnostic repository suite with the five documented Windows symlink-construction deselections and AMD platform ignore, using one new gitignored workspace-local .pytest-tmp-* basetemp to avoid the observed C:/tmp ACL error and AppData runtime deviation; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "the process reached the configured 1800-second timeout at the same visible 15-percent-plus-21-tests boundary as probe 38",
+        "all visible progress before timeout consisted of passes and skips and no test failure was emitted",
+        "the workspace-local basetemp was new and covered by the existing .pytest-tmp-* ignore rule",
+        "the identical boundary across AppData and workspace basetemps rules out the basetemp location as the primary cause and indicates a CPU-bound test at the next collection node",
+        "the timeout terminated both Python processes and no result beyond the visible boundary is inferred"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-38",
+      "agent": "/root",
+      "state": "timeout_without_failure",
+      "started_at": "2026-07-14T18:36:26.7577187+02:00",
+      "completed_at": "2026-07-14T18:57:46.8776412+02:00",
+      "contract": "Repeat the repository suite with the five documented Windows symlink-construction deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "the process reached the configured 1200-second timeout at 15 percent without emitting a test failure",
+        "all visible progress before timeout consisted of passes and skips",
+        "the real Python child remained responsive and CPU-active during the run",
+        "this attempt used an AppData basetemp after the focused C:/tmp path hit a Windows ACL creation error; no pass count, failure or SAR-01 acceptance is inferred",
+        "the timed-out process and its launcher were terminated by the command timeout and no Python test process remained"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-37",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T18:22:36.1865345+02:00",
+      "completed_at": "2026-07-14T18:32:43.7153687+02:00",
+      "contract": "Repeat the repository suite with the five documented Windows symlink-construction deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "6069 tests passed, 19 skipped and 5 diagnostic-only symlink tests were deselected",
+        "the confirmation-first webhook security regression passed",
+        "the next failure is tests/test_roadmap_multi_agent_guidance.py::test_repository_guidance_covers_every_discovered_roadmap",
+        "the validator discovered exactly three missing roadmap registrations, no unknown or duplicate paths, and stale derived counts of 124 total and 117 docs/plans versus 127 and 120 discovered"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-36",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T18:12:28.1641626+02:00",
+      "completed_at": "2026-07-14T18:20:27.6924350+02:00",
+      "contract": "Repeat the repository suite with the five documented Windows symlink-construction deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "6056 tests passed, 19 skipped and 5 diagnostic-only symlink tests were deselected",
+        "the release snapshot-envelope current-status fix passed",
+        "the next failure is tests/test_review_regressions.py::test_webhook_tool_reuses_private_url_validation",
+        "production is fail-closed at both authoritative create route and delivery time, with dedicated SSRF tests; the regression still exercises the retired direct-database tool path and mistakes confirmation_required exit_code 0 for URL acceptance instead of confirming and asserting route error propagation"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-35",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T18:04:33.6567731+02:00",
+      "completed_at": "2026-07-14T18:11:21.9368776+02:00",
+      "contract": "Repeat the repository suite with the five documented Windows symlink-construction deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "5707 tests passed, 18 skipped and 5 diagnostic-only symlink tests were deselected",
+        "the release morning brief current-gate fix passed",
+        "the next failure is tests/test_release_morning_snapshot_envelope.py::test_release_morning_snapshot_envelope_digest_matches_json_payload",
+        "the clean envelope preserves the current payload exactly, whose summary is intentionally blocked by the fail-closed Version 1 gate; the clean test still asserts the historical go status"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-34",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T17:56:41.0516154+02:00",
+      "completed_at": "2026-07-14T18:03:34.0536072+02:00",
+      "contract": "Repeat the repository suite with the five documented Windows symlink-construction deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "5679 tests passed, 18 skipped and 5 diagnostic-only symlink tests were deselected",
+        "the RAG path-boundary portability fix passed",
+        "the next failure is tests/test_release_morning_brief.py::test_current_release_morning_brief_uses_local_bundle",
+        "the clean local bundle and its dedicated tests intentionally report REL-mvp-version-1-gate and exclude REL-final-external-review while release readiness remains blocked; the clean morning-brief test still expects the superseded final-review marker"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-33",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T17:47:36.2008079+02:00",
+      "completed_at": "2026-07-14T17:55:20.7056280+02:00",
+      "contract": "Repeat the repository suite with the five documented Windows symlink-construction deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "5579 tests passed, 18 skipped and 5 diagnostic-only symlink tests were deselected",
+        "the PR-audit Windows VT isolation fix passed",
+        "the next failure is tests/test_rag_remove_directory_scope.py::test_vectorrag_remove_is_path_bounded",
+        "the clean test stores POSIX /a paths while the clean production code intentionally abspath-normalizes the requested directory to a Windows drive path; host-native absolute fixtures are required to test the boundary rather than cross-OS path migration"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-32",
+      "agent": "/root",
+      "state": "interrupted_result_unavailable",
+      "started_at": "2026-07-14T15:53:34.0506329+02:00",
+      "completed_at": "2026-07-14T17:47:36.2008079+02:00",
+      "contract": "Repeat the repository suite with the five documented Windows symlink-construction deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "the execution cell was unavailable after the thread interruption",
+        "no terminal result was received and no success or failure is inferred",
+        "the user explicitly requested continuation, so an identical read-only probe is started from the durable checkpoint"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-31",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T15:45:48.4415852+02:00",
+      "completed_at": "2026-07-14T15:52:11.5670820+02:00",
+      "contract": "Repeat the repository suite with the five documented Windows symlink-construction deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "5091 tests passed, 18 skipped and 5 diagnostic-only symlink tests were deselected",
+        "the second plugin boundary scanner passed",
+        "the next failure is tests/test_pr_blocker_audit.py::test_color_auto_requires_terminal_and_support",
+        "the clean production function correctly requires Windows VT-mode enablement for automatic ANSI output, while the clean test simulates TTY and TERM support but leaves the host-dependent VT probe real"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-30",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T15:37:46.1105233+02:00",
+      "completed_at": "2026-07-14T15:44:27.9333175+02:00",
+      "contract": "Repeat the repository suite with the five documented Windows symlink-construction deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "5026 tests passed, 18 skipped and 5 diagnostic-only symlink tests were deselected",
+        "the fifth symlink environment gate was passed only by diagnostic deselection and remains an acceptance blocker",
+        "the next failure is tests/test_plugin_system.py::test_core_has_no_direct_obsidian_imports",
+        "the three reported clean Core modules contain route labels, change-domain classifiers and release evidence paths, but no direct Obsidian Python imports; the substring scanner confuses data strings with import edges"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-29",
+      "agent": "/root",
+      "state": "completed_environment_gate",
+      "started_at": "2026-07-14T15:31:37.3599398+02:00",
+      "completed_at": "2026-07-14T15:37:46.1105233+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "4778 tests passed, 17 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the preceding CLI dispatcher portability blocker passed",
+        "tests/test_personal_dir_symlink_escape.py::test_realpath_catches_symlink_escape cannot create its directory symlink on this Windows host and fails with WinError 1314",
+        "the test and production confinement code remain unchanged; this fifth security test requires a symlink-capable runner for acceptance and is deselected only for diagnostic continuation"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-28",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T15:23:33.3513798+02:00",
+      "completed_at": "2026-07-14T15:30:24.9640006+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "4492 tests passed, 16 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the preceding Obsidian public-write contract blocker passed",
+        "the next failure is tests/test_odysseus_dispatcher.py::test_is_runnable_subcommand_requires_executable_file",
+        "Windows chmod does not expose POSIX executable-bit transitions through os.access; the clean dispatcher intentionally delegates platform-native executability to os.access and requires a platform-neutral unit seam"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-27",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T15:14:54.4741410+02:00",
+      "completed_at": "2026-07-14T15:21:38.3286519+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "4456 tests passed, 16 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the preceding non-UI queue-readiness blocker passed",
+        "the next failure is tests/test_obsidian_bridge_contract.py::test_public_users_can_use_owner_scoped_vault_mcp_but_not_foreign_mcp_servers",
+        "the clean bridge test expects a public Vault write to be allowed, while the existing production allowlist and two dedicated security suites intentionally permit read-only Vault MCP tools and block public writes"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-26",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T15:06:47.6091360+02:00",
+      "completed_at": "2026-07-14T15:13:33.7555981+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "4383 tests passed, 16 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the preceding mount authorization-isolation blocker passed",
+        "the next failure is tests/test_non_ui_gate_readiness_routes.py::test_non_ui_gate_readiness_route_returns_redacted_contract",
+        "the current read-only projection reports 20 safe open repo slices and correctly sets queue_exhausted false; the clean test hardcodes the historical empty-queue value true instead of asserting consistency with safe_open_count"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-25",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T14:59:17.4746032+02:00",
+      "completed_at": "2026-07-14T15:05:22.7619559+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "4168 tests passed, 15 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the preceding model-interaction owner-stub blocker passed",
+        "the next failure is tests/test_mount_points.py::test_read_file_uses_mount_owner_from_request",
+        "the clean admin fixture patches owner_is_admin_or_single_user on the current sys.modules module while its collection-time execute_tool_block may retain a replaced globals dict, so the full suite applies the real public-user read_file denial"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-24",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T14:52:06.7307275+02:00",
+      "completed_at": "2026-07-14T14:58:08.8461634+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "3929 tests passed, 15 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the preceding Calendar MCP future-reminder blocker passed",
+        "the next failure is tests/test_model_interaction_registry.py::test_chat_with_model_threads_owner_and_returns",
+        "the clean production model-interaction tool now intentionally sends owner, surface and prompt_type to llm_call_async, while both clean test stubs still expose the older signature without those keyword arguments"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-23",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T14:44:16.1504867+02:00",
+      "completed_at": "2026-07-14T14:50:52.9622450+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "3635 tests passed, 15 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the preceding contact module-isolation blocker passed",
+        "the next failure is tests/test_mcp_calendar_server.py::test_calendar_mcp_write_event_confirmed_creates_owner_scoped_event",
+        "the event is created successfully but its fixed 2026-07-04 reminder date is now in the past relative to 2026-07-14, so the production safety rule correctly returns no reminder note"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-22",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T14:36:54.2353528+02:00",
+      "completed_at": "2026-07-14T14:43:06.0969814+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "3397 tests passed, 14 skipped and 4 diagnostic-only symlink tests were deselected",
+        "both preceding local-endpoint UTF-8 blockers passed",
+        "the next failure is tests/test_manage_contact_confirmation.py::test_manage_contact_delete_runs_after_confirmation",
+        "the clean test passes alone but patches a collection-time routes.contacts_routes alias while do_manage_contact dynamically resolves the current route module; full-suite module replacement leaves the invoked delete helper unpatched"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-21",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T14:29:08.0765541+02:00",
+      "completed_at": "2026-07-14T14:34:51.8430473+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "3326 tests passed, 14 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the preceding legacy-chat status-contract blocker passed",
+        "the next failure is tests/test_local_endpoint_api_key_js.py::test_api_key_sent_when_filled for the Add handler",
+        "the clean test passes extracted UTF-8 JavaScript containing a right-arrow character to Node with text=True but no explicit encoding, so Windows cp1252 stdin encoding fails before product behavior runs"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-20",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T14:22:13.9281445+02:00",
+      "completed_at": "2026-07-14T14:28:05.1108892+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "3009 tests passed, 14 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the preceding interactive-runtime MCP patch blocker passed",
+        "the next failure is tests/test_legacy_chat_master_contract_sync.py::test_legacy_chat_master_roadmap_has_no_open_backend_contracts",
+        "the clean canonical roadmap marks LC1 through LC9 backend_ready_ui_gated, matching central-roadmap UI ownership, while the clean test still expects the less precise backend_ready value"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-19",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T14:16:48.4016330+02:00",
+      "completed_at": "2026-07-14T14:21:14.3038113+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "2916 tests passed, 14 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the preceding interactive-deliverable registry blocker passed",
+        "the next failure is tests/test_interactive_runtime_tool_gate.py::test_dummy_sdl_run_stays_headless_in_result_evidence",
+        "the untracked test patches _call_mcp_tool through the current sys.modules module while its imported execute_tool_block may retain a replaced module globals dict; permitted commands therefore reach the real executor in full-suite state"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-18",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T14:09:57.7840897+02:00",
+      "completed_at": "2026-07-14T14:15:20.1459338+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "2889 tests passed, 14 skipped and 4 diagnostic-only symlink tests were deselected",
+        "both preceding HW Fit isolation blockers passed",
+        "the next failure is the publish_artifact parameter in tests/test_interactive_deliverable_tool_dispatch.py::test_interactive_deliverable_tools_dispatch_through_central_executor",
+        "the untracked test passes alone but its collection-time TOOL_HANDLERS alias becomes stale after full-suite module reloads; the runtime dispatcher dynamically imports the current registry and reaches the real unconfigured publisher"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-17",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T14:03:58.9615840+02:00",
+      "completed_at": "2026-07-14T14:08:58.1876745+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "2732 tests passed, 14 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the preceding CPU-architecture blocker passed",
+        "the next failure is tests/test_hwfit_macos.py::test_detect_system_propagates_unified_memory on local Windows",
+        "the clean test mocks Metal and generic probes but not the earlier local-Windows WMI fast path, which returns real CUDA data; the clean production module remains read-only"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-16",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T13:57:48.6068529+02:00",
+      "completed_at": "2026-07-14T14:02:45.9708409+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance. Capture the final status in a bounded-output log because probe 15's terminal result became unavailable after output truncation.",
+      "evidence": [
+        "2702 tests passed, 14 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the next failure is tests/test_hwfit_cpu_arch_detection.py::test_detect_system_reports_cpu_arch_for_gpu_backends on local Windows",
+        "the clean test stubs generic probes but does not neutralize the earlier local-Windows _detect_windows fast path, so real x86_64 data bypasses its mocked aarch64 probe",
+        "the clean production module remains read-only and only the clean test is claimed"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-15",
+      "agent": "/root",
+      "state": "completed_result_unavailable_after_output_truncation",
+      "started_at": "2026-07-14T13:52:00.8555371+02:00",
+      "completed_at": "2026-07-14T13:57:48.6068529+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "the process cell ended, but its final exit status and tail were no longer retrievable after the tool output exceeded the retained context",
+        "no mutation claim was active and no suite result is inferred from missing output",
+        "an identical bounded-output diagnostic is started to obtain reproducible evidence"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-14",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T13:44:08.2200866+02:00",
+      "completed_at": "2026-07-14T13:48:21.8079274+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "2540 tests passed, 14 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the next failure is derived-compose drift after the foreign base compose added ODYSSEUS_GIT_LATEST_COMMIT and ODYSSEUS_GIT_RELATION",
+        "both clean standalone GPU compose files omit the two new base environment entries",
+        "the foreign base compose, both overlays and the contract test remain read-only; Docker start is neither needed nor authorized"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-13",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T13:37:57.6856227+02:00",
+      "completed_at": "2026-07-14T13:42:32.3423362+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "2530 tests passed, 14 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the next failure is a string-target admin monkeypatch applied to a reloaded module rather than the globals retained by the imported execute_tool_block function",
+        "five later test modules use the same fragile patch pattern and are included in one serial test-only claim",
+        "the foreign-dirty tool execution and security production modules remain read-only"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-12",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T13:32:37.2010749+02:00",
+      "completed_at": "2026-07-14T13:36:48.2650421+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "2198 tests passed, 10 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the next failure is a source assertion that still expects gallery owner filtering inside the route wrapper",
+        "the route now injects owner_filter into routes/gallery_endpoint_helpers.py where the actual scoped query is implemented",
+        "both production modules are clean and remain read-only; only the clean follow-up test is claimed"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-11",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T13:27:28.5056785+02:00",
+      "completed_at": "2026-07-14T13:31:25.5750198+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "1839 tests passed, 8 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the next failure is a default-locale Path.read_text call decoding UTF-8 JavaScript as cp1252 on Windows",
+        "both static JavaScript production files are clean and remain read-only",
+        "the clean regression test needs explicit UTF-8 on its three source reads"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-10",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T13:22:58.0887522+02:00",
+      "completed_at": "2026-07-14T13:25:58.8866810+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "1588 tests passed, 7 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the next failure is a plugin-boundary test that treats evidence paths and classification strings as Python imports",
+        "the three reported src modules contain no demonstrated plugin import and remain read-only",
+        "the clean boundary test should inspect AST Import and ImportFrom nodes instead of raw source substrings"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-9",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T13:18:26.9614139+02:00",
+      "completed_at": "2026-07-14T13:21:35.5840772+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "1420 tests passed, 7 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the next failure is a string-target monkeypatch that traverses a package attribute removed by earlier suite import-state churn",
+        "the untracked commit-project test and implementation are foreign work; only the test is claimed",
+        "the robust fix is to retain and patch the imported module object directly in both adapter tests"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-8",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T13:13:57.9468632+02:00",
+      "completed_at": "2026-07-14T13:16:52.0543454+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "1400 tests passed, 7 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the next failure is a server-project compatibility test that omits the auth-disabled isolation used by its two sibling tests",
+        "the foreign-dirty routes/server_project_routes.py remains read-only",
+        "the clean test-only fix is to set AUTH_ENABLED=false through monkeypatch for the affected test"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-7",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T13:06:53.4695446+02:00",
+      "completed_at": "2026-07-14T13:12:41.1658053+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "1310 tests passed, 7 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the next failure is caused by hand-built JSON containing an unescaped Windows temp path in tests/test_code_nav_tools.py",
+        "the production grep implementation and confinement policy remain read-only",
+        "the clean test file has 15 structured-argument callsites that should use json.dumps consistently"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-6",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T13:02:49.5926758+02:00",
+      "completed_at": "2026-07-14T13:05:42.6923461+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "1164 tests passed, 7 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the next failure is an untracked fire-and-forget consolidation task in routes/chat_helpers.py",
+        "the production module already provides _spawn_bg and all adjacent background schedules use it",
+        "the pre-existing assistant-attachment hunks in the same hotfile are foreign and must remain byte-preserved"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-5",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T12:55:48.1920869+02:00",
+      "completed_at": "2026-07-14T12:58:39.6162513+02:00",
+      "contract": "Repeat the repository suite with only the four documented Windows symlink deselections and the documented AMD platform ignore; do not treat it as SAR-01 acceptance.",
+      "evidence": [
+        "1104 tests passed, 7 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the next failure is a Windows-incompatible absolute ESM import specifier in test_canvas_coords_empty_touches_js.py",
+        "16 additional clean JS test files use the same Path.as_posix import pattern and are included in one mechanical portability claim",
+        "non-failing Windows auth-file atomicity warnings remain recorded for later diagnostic review"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-4",
+      "agent": "/root",
+      "state": "completed_next_repo_gate",
+      "started_at": "2026-07-14T12:52:08.3498560+02:00",
+      "completed_at": "2026-07-14T12:54:49.9052154+02:00",
+      "contract": "Run the repository suite with only the four already documented Windows symlink deselections and the already documented AMD platform ignore. Do not weaken required CI acceptance or mutate production as part of the probe.",
+      "evidence": [
+        "865 tests passed, 7 skipped and 4 diagnostic-only symlink tests were deselected",
+        "the next failure is a stale test-only effective_user source assertion in tests/test_aux_llm_owner_scope.py",
+        "the production route already uses the current _chat_effective_user seam",
+        "the Windows auth-file reader emitted a non-failing PermissionError warning that requires later diagnostic review"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-3",
+      "agent": "/root",
+      "state": "completed_next_foreign_gate",
+      "started_at": "2026-07-14T12:12:15+02:00",
+      "completed_at": "2026-07-14T12:13:28.8444751+02:00",
+      "evidence": [
+        "the resolved llm_call_async_impl security regression no longer fails",
+        "diagnostic continuation reached 766 passed, 6 skipped and 4 deselected",
+        "tests/test_archived_sessions_model_filter.py then failed in fixture setup because it patches effective_user while routes/session_routes.py exposes _chat_effective_user",
+        "the archived-session failure also reproduces against the checked-in route contract and is unrelated to the handed-off LLM change"
+      ],
+      "constraints": [
+        "diagnostic platform deselections remain non-acceptance evidence",
+        "routes/session_routes.py and tests/test_archived_sessions_model_filter.py were not handed off and remain read-only",
+        "no live, Docker, network, commit, push, multi-worker or Temporal action occurred"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-2",
+      "agent": "/root",
+      "state": "completed_multiple_blockers",
+      "started_at": "2026-07-14T10:23:59+02:00",
+      "completed_at": "2026-07-14T10:28:15.2228450+02:00",
+      "evidence": [
+        "first continuation run reached 253 passed, 2 skipped and 1 deselected before a second Windows symlink privilege failure",
+        "all four symlink-construction tests were then deselected only for diagnostic continuation; repository tests and CI remained unchanged",
+        "the next run reached 529 passed and 4 skipped before a Windows-to-bash path translation failure in tests/test_amd_gpu_check_args.py",
+        "after ignoring only that platform-wrapper module, the run reached 564 passed and 4 skipped before a real foreign API drift in tests/test_api_chat_security.py",
+        "src/llm_async_call.py now requires prompt_type and surface but the existing security test does not pass them"
+      ],
+      "constraints": [
+        "diagnostic deselection is not SAR-01 acceptance evidence",
+        "no source, test, workflow, host setting or external system was changed",
+        "do not edit src/llm_async_call.py or its caller tests without a separate owner handoff or scope grant"
+      ]
+    },
+    {
+      "probe_id": "SAR-01-FULL-SUITE-ENVIRONMENT-PROBE-1",
+      "agent": "/root/sar03_resolver",
+      "state": "completed_blocked",
+      "started_at": "2026-07-14T10:04:30.8959951+02:00",
+      "completed_at": "2026-07-14T10:06:50.1276308+02:00",
+      "evidence": [
+        "WSL2 is present with no installed distribution",
+        "Docker CLI is present but its service and backend are stopped",
+        "local Docker image suitability cannot be read without starting the engine",
+        "no service, container, distribution, mount, test or repository file was started or changed"
+      ],
+      "constraints": [
+        "no installation or image pull",
+        "no network or service start",
+        "no privilege or developer-mode change",
+        "no test skip, quarantine or source mutation"
+      ]
+    }
+  ],
+  "completed_slices": [
+    {
+      "slice_id": "SAR-06-model-aware-token-estimation",
+      "completion_layer": "repository_implemented_focused_compatibility_tested_and_committed",
+      "evidence": [
+        "src/token_estimator.py and the model-hint propagation callsites",
+        "19 focused tests and 264 compatibility tests passed",
+        "the final gate-inclusive focused run passed 26 tests",
+        "commit 3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd"
+      ]
+    },
+    {
+      "slice_id": "SAR-06P-model-hint-hardlimit-propagation",
+      "completion_layer": "repository_implemented_focused_compatibility_tested_and_committed",
+      "evidence": [
+        "selected model hints now reach compaction, provider, agent, chat, history and session budget boundaries",
+        "the AST audit permits exactly three explicitly model-neutral estimate calls",
+        "all pre-existing foreign hotfile hunks remain unstaged and uncommitted",
+        "commit 3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd"
+      ]
+    },
+    {
+      "slice_id": "SAR-00-verified-scope-contract",
+      "completion_layer": "roadmap_contract_authored",
+      "evidence": [
+        "docs/plans/system-assurance-runtime-hardening-roadmap.json",
+        "tests/test_system_assurance_runtime_hardening_roadmap.py"
+      ]
+    },
+    {
+      "slice_id": "SAR-03-tailscale-cache-expiry",
+      "completion_layer": "repository_implemented_and_focused_tested",
+      "evidence": [
+        "src/endpoint_resolver.py",
+        "tests/test_provider_endpoints.py",
+        "104 focused tests passed",
+        "31 additional provider-detection tests passed",
+        "git diff --check passed"
+      ]
+    },
+    {
+      "slice_id": "SAR-08-canonical-rag-import",
+      "completion_layer": "repository_implemented_and_focused_tested",
+      "evidence": [
+        "src/rag_manager.py",
+        "tests/test_rag_manager_import_contract.py",
+        "20 focused tests passed",
+        "package import smoke passed",
+        "git diff --check passed"
+      ]
+    },
+    {
+      "slice_id": "SAR-09-measured-optimization-decisions",
+      "completion_layer": "repository_implemented_and_focused_tested",
+      "evidence": [
+        "51 focused tests passed",
+        "three synthetic CLI runs passed",
+        "strict semantic schema load and JSON validation passed",
+        "git diff --check passed"
+      ]
+    },
+    {
+      "slice_id": "SAR-06P-model-hint-hardlimit-propagation-contract",
+      "completion_layer": "roadmap_contract_authored_implementation_gated",
+      "evidence": [
+        "docs/plans/system-assurance-runtime-hardening-roadmap.json",
+        "tests/test_system_assurance_runtime_hardening_roadmap.py",
+        "8 roadmap contract tests passed"
+      ]
+    },
+    {
+      "slice_id": "SAR-implementation-status-sync",
+      "completion_layer": "durable_resume_contract_synchronized",
+      "evidence": [
+        "roadmap statuses distinguish implemented, partial and gated work",
+        "9 roadmap contract tests passed",
+        "218 combined focused tests passed",
+        "queue audit reports zero safe-open SAR slices"
+      ]
+    },
+    {
+      "slice_id": "SAR-diagnostic-status-sync",
+      "completion_layer": "durable_gate_contract_synchronized",
+      "evidence": [
+        "diagnostic full-suite evidence recorded without weakening required acceptance",
+        "foreign LLM API drift recorded as an explicit owner-or-handoff gate",
+        "9 roadmap contract tests passed",
+        "roadmap and run-state JSON remain valid"
+      ]
+    },
+    {
+      "slice_id": "SAR-LLM-API-DRIFT-FIX",
+      "completion_layer": "repository_implemented_and_extended_tested",
+      "evidence": [
+        "src/llm_async_call.py",
+        "tests/test_api_chat_security.py remained byte-identical",
+        "42 immediate focused tests passed",
+        "217 extended LLM and activity tests passed",
+        "diagnostic suite passed the former failure and reached 766 passed"
+      ]
+    }
+  ],
+  "partial_slices": [
+    {
+      "slice_id": "SAR-01-binding-ci-and-publish-provenance",
+      "state": "blocked_environment",
+      "next_evidence": "Resume only at a declared integration point when the unchanged repository suite can run in a symlink-capable environment without diagnostic deselections. Do not request Docker repeatedly, quarantine the tests or continue probe cycles."
+    }
+  ],
+  "failed_attempts": [
+    {
+      "slice_id": "SAR-01-binding-ci-and-publish-provenance",
+      "attempt": "diagnostic full-suite continuation after the LLM API drift fix",
+      "result": "blocked_next_out_of_scope_test_contract",
+      "evidence": "tests/test_archived_sessions_model_filter.py::test_contains_match_returns_all_models_sharing_the_substring fails in fixture setup because it patches routes.session_routes.effective_user although the route contract exposes _chat_effective_user.",
+      "recorded_at": "2026-07-14T12:13:28.8444751+02:00"
+    },
+    {
+      "slice_id": "SAR-01-binding-ci-and-publish-provenance",
+      "attempt": "diagnostic full-suite continuation behind explicitly identified platform-only tests",
+      "result": "blocked_foreign_regression",
+      "evidence": "tests/test_api_chat_security.py::test_llm_async_call_uses_direct_pinned_transport_for_untrusted_url fails because foreign-dirty src/llm_async_call.py added required prompt_type and surface parameters without updating this direct-call test.",
+      "recorded_at": "2026-07-14T10:28:15.2228450+02:00"
+    },
+    {
+      "slice_id": "SAR-01-binding-ci-and-publish-provenance",
+      "attempt": "required full pytest suite",
+      "result": "blocked_environment",
+      "evidence": "tests/test_agent_migration_manifest.py::test_collect_skill_dir_skips_symlinked_skill_markdown fails before exercising product code because this Windows process lacks symlink privilege (WinError 1314).",
+      "recorded_at": "2026-07-14T09:32:38.6181063+02:00"
+    },
+    {
+      "slice_id": "SAR-09-measured-optimization-decisions",
+      "attempt": "initial second-pass acceptance review",
+      "result": "rework_required",
+      "evidence": "Fail-open schema/privacy aliases, rounded threshold decisions, missing cache decision receipt, non-discriminating cache trace and lost-update risk were found before claim release.",
+      "recorded_at": "2026-07-14T09:44:43.7906780+02:00"
+    },
+    {
+      "slice_id": "SAR-06-model-aware-token-estimation",
+      "attempt": "initial second-pass acceptance review",
+      "result": "rework_and_scope_gate_required",
+      "evidence": "Main compaction callers omit model_hint outside the declared claim, provider calibration evidence was tautological, the injected security wrapper exceeded the RAG budget, and direct TokenBudget provenance was inconsistent.",
+      "recorded_at": "2026-07-14T09:49:38.9792898+02:00"
+    }
+  ],
+  "gate_queue": [
+    {
+      "gate_id": "SAR-REGISTRATION-HANDOFF",
+      "state": "satisfied_by_timed_general_delegation",
+      "blocks": [
+        "generic Open Work visibility"
+      ],
+      "does_not_block": [
+        "explicit named SAR execution"
+      ],
+      "safe_default": "Claim only the minimum canonical queue paths if registration becomes dependency-safe; preserve every foreign hunk."
+    },
+    {
+      "gate_id": "SAR-RUNTIME-HOTFILE-HANDOFF",
+      "state": "satisfied_by_explicit_serial_roadmap_handoff",
+      "blocks": [
+        "SAR-04-runtime-topology-contract"
+      ],
+      "safe_default": "Claim app.py only when SAR-04 becomes the active serial slice and preserve every foreign hunk."
+    },
+    {
+      "gate_id": "SAR-LLM-HOTFILE-HANDOFF",
+      "state": "satisfied_by_explicit_serial_roadmap_handoff",
+      "blocks": [
+        "SAR-07-response-cache-lru-ttl"
+      ],
+      "safe_default": "Claim the two runtime files only when SAR-07 becomes the active serial slice and preserve every foreign hunk."
+    },
+    {
+      "gate_id": "SAR-RAG-HOTFILE-HANDOFF",
+      "state": "satisfied_path_unclaimed",
+      "blocks": [],
+      "safe_default": "The completed coordination thread no longer owns the clean path; SAR-08 has a new serialized claim."
+    },
+    {
+      "gate_id": "SAR-GITHUB-REMOTE-GO",
+      "state": "commit_granted_push_not_granted",
+      "blocks": [
+        "push",
+        "remote workflow readback",
+        "container publication"
+      ],
+      "does_not_block": [
+        "path-scoped local commits after green claim release evidence"
+      ],
+      "safe_default": "Create regular path-scoped local commits after green serialized slices. Never push or access remote workflows without separate authority."
+    },
+    {
+      "gate_id": "SAR-01-FULL-SUITE-ENVIRONMENT",
+      "state": "blocked_environment",
+      "blocks": [
+        "SAR-01 full acceptance",
+        "SAR-02-fresh-release-evidence"
+      ],
+      "does_not_block": [
+        "SAR-06P-model-hint-hardlimit-propagation",
+        "SAR-04-runtime-topology-contract",
+        "SAR-05-background-job-transaction-boundary",
+        "SAR-07-response-cache-lru-ttl"
+      ],
+      "safe_default": "Keep SAR-01 parked as blocked_environment. Do not request Docker repeatedly, continue diagnostic full-suite probes, quarantine tests or weaken the gate."
+    },
+    {
+      "gate_id": "SAR-06-MODEL-HINT-PROPAGATION",
+      "state": "satisfied_focused_and_compatibility_green",
+      "blocks": [],
+      "does_not_block": [
+        "SAR-04-runtime-topology-contract",
+        "SAR-05-background-job-transaction-boundary",
+        "SAR-07-response-cache-lru-ttl"
+      ],
+      "safe_default": "Keep commit 3c6e8ad5 as the immutable SAR-06/SAR-06P handoff and proceed serially to SAR-04."
+    },
+    {
+      "gate_id": "SAR-MODEL-HINT-HOTFILE-HANDOFF",
+      "state": "satisfied_green_committed",
+      "blocks": [],
+      "decision_needed": "None. The serialized claim was released after exact cached-diff review and commit.",
+      "safe_default": "Do not reopen SAR-06P unless a separately queued regression provides new evidence."
+    },
+    {
+      "gate_id": "SAR-01-DOCKER-LOCAL-TEST-GO",
+      "state": "parked_not_requested",
+      "blocks": [
+        "starting Docker Desktop or com.docker.service",
+        "inventorying engine-local images",
+        "running the symlink probe and unchanged full suite in an existing local Linux image"
+      ],
+      "decision_needed": "None while SAR-01 is parked. Reopen only if the user explicitly requests a symlink-capable acceptance run.",
+      "safe_default": "Keep Docker stopped and SAR-01 blocked_environment."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-FOREIGN-LLM-API-DRIFT",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "SAR-01 unchanged full-suite acceptance"
+      ],
+      "decision_needed": "None. The exact user handoff was consumed and the backward-compatible signature fix is extended-test green.",
+      "safe_default": "Keep the resolved LLM helper change local and uncommitted; no further edit is authorized by the consumed handoff."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-ARCHIVED-SESSION-PATCHPOINT-DRIFT",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "already green focused SAR and LLM contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the test-only fix.",
+      "safe_default": "Keep routes/session_routes.py read-only; the aligned archived-session fixture is focused-test green."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-SESSION-AUTH-PATCHPOINT-DRIFT",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the two test-only fixes.",
+      "safe_default": "Keep both route modules read-only; the aligned owner-scope tests are green."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-AUX-LLM-OWNER-PATCHPOINT-DRIFT",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the test-only fix.",
+      "safe_default": "Keep routes/session_routes.py read-only; the aligned test is green."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-WINDOWS-NODE-IMPORT-URL",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "Linux CI semantics",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the mechanical portability fix.",
+      "safe_default": "Retain file URIs plus explicit UTF-8 for Node ESM subprocesses and keep fs.readFileSync on a filesystem path."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-CHAT-HELPER-BG-TASK-TRACKING",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the one-call production fix.",
+      "safe_default": "Keep consolidation scheduling on _spawn_bg and preserve the foreign attachment work."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-CODE-NAV-WINDOWS-JSON-PATH",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "production code-navigation semantics",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the test-only portability fix.",
+      "safe_default": "Keep structured tool arguments serialized by json.dumps on every platform."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-CODING-ROUTE-AUTH-ISOLATION",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "production server-project authorization",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the test-only isolation fix.",
+      "safe_default": "Keep compatibility tests on injected test owner, admin and CSRF gates; keep production defaults fail-closed."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-COMMIT-TOOL-MONKEYPATCH-ISOLATION",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "commit-project implementation semantics",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the test-only isolation fix.",
+      "safe_default": "Keep monkeypatches bound to the retained submodule object rather than mutable package attributes."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-PLUGIN-BOUNDARY-AST-IMPORT",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "legitimate plugin evidence references in core reports",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the test-only boundary fix.",
+      "safe_default": "Enforce the boundary on BOM-tolerant parsed import nodes, not unrelated string literals."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-DELETED-SESSION-UTF8-TEST",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "frontend deletion semantics",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the test-only encoding fix.",
+      "safe_default": "Keep repository JavaScript reads explicitly UTF-8 in the test."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-GALLERY-OWNER-SCOPE-EXTRACTION-TEST",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "gallery owner-scope production behavior",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the test-only extraction alignment.",
+      "safe_default": "Keep asserting both route injection and extracted-helper application of owner filtering."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-TOOL-ADMIN-MONKEYPATCH-ISOLATION",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "production admin-tool policy",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the six-file test isolation fix.",
+      "safe_default": "Keep admin-predicate test hooks bound to the retained dispatcher globals."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-GPU-STANDALONE-COMPOSE-SYNC",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "Docker runtime because no runtime start is required",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the derived compose synchronization.",
+      "safe_default": "Keep both standalone files semantically regenerated from the base plus matching overlay and retain empty-list group_add defaults in the pure-YAML contract."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-HWFIT-CPU-ARCH-WINDOWS-ISOLATION",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "production HW Fit detection semantics",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the one-file test isolation fix.",
+      "safe_default": "Keep the CPU-architecture contract on the generic probe by neutralizing the local-Windows WMI fast path inside the test helper."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-HWFIT-MACOS-WINDOWS-ISOLATION",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "production HW Fit detection semantics",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the one-file test isolation fix.",
+      "safe_default": "Keep the unified-memory propagation contract on its mocked Metal probe by neutralizing the local-Windows WMI fast path in that test."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-INTERACTIVE-DELIVERABLE-HANDLER-REGISTRY-ISOLATION",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "production interactive-deliverable dispatch semantics",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the one-file test isolation fix.",
+      "safe_default": "Resolve the current src.agent_tools handler registry at test execution time so collection-time aliases cannot outlive module replacement."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-INTERACTIVE-RUNTIME-MCP-PATCH-ISOLATION",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "production interactive-runtime enforcement",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the one-file test isolation fix.",
+      "safe_default": "Bind MCP test stubs to execute_tool_block.__globals__ so permitted command paths cannot reach a replacement module's real executor."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-LEGACY-CHAT-STATUS-CONTRACT-SYNC",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "canonical legacy-chat roadmap UI ownership",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the one-file contract-test synchronization.",
+      "safe_default": "Preserve backend_ready_ui_gated for LC1-LC9 and backend_ready_live_gated for LC10; do not erase the remaining ownership gates."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-LOCAL-ENDPOINT-NODE-UTF8",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "frontend local-endpoint behavior",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the two-file test portability fix.",
+      "safe_default": "Keep extracted JavaScript Node harness I/O explicitly UTF-8 on every platform."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-MANAGE-CONTACT-MODULE-ISOLATION",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "production CardDAV contact semantics",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the one-file test isolation fix.",
+      "safe_default": "Patch the current routes.contacts_routes module at test execution time so module replacement cannot bypass contact-operation stubs."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-CALENDAR-MCP-FUTURE-REMINDER-TEST",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "production past-event reminder suppression",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the one-file time-stable test fix.",
+      "safe_default": "Use a future-relative event for reminder-creation contracts; never weaken the production guard that skips past-event reminders."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-MODEL-INTERACTION-OWNER-STUB-CONTRACT",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "production model interaction semantics",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the one-file test contract fix.",
+      "safe_default": "Keep model-interaction stubs aligned with owner and activity metadata and assert both endpoint-resolution and outbound-call owner scope."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-MOUNT-ADMIN-PATCH-ISOLATION",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "production public-tool policy",
+        "production mount confinement",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the one-file test isolation fix.",
+      "safe_default": "Patch the imported executor's _owner_is_admin seam in mount behavior tests; never relax production read_file/write_file policy."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-NON-UI-QUEUE-READINESS-TRUTH",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "truthful open-work reporting",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the one-file test truth fix.",
+      "safe_default": "Derive queue_exhausted from safe_open_count; never force an exhausted claim while repo-only work remains open."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-OBSIDIAN-PUBLIC-WRITE-CONTRACT-SYNC",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "production public Vault read-only access",
+        "production fail-closed Vault mutation policy",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the one-file security-contract synchronization.",
+      "safe_default": "Keep public Vault MCP access read-only and keep writes, deletes, batch operations, undo and rebuild actions admin-gated."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-ODYSSEUS-DISPATCHER-XOK-PORTABILITY",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "production CLI dispatch semantics",
+        "POSIX executable-bit enforcement",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the one-file platform-neutral unit seam.",
+      "safe_default": "Keep production executability delegated to os.access and test that predicate directly on platforms where chmod cannot model POSIX mode bits."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-PLUGIN-BOUNDARY-AST-IMPORT-2",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "route compatibility labels in Core reports",
+        "plugin evidence path references in Core reports",
+        "actual Core-to-plugin import enforcement"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the second one-file AST boundary-test fix.",
+      "safe_default": "Treat only real plugins.obsidian import nodes as boundary violations; retain route, classifier and evidence strings as data."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-PR-AUDIT-WINDOWS-VT-TEST-ISOLATION",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "production Windows VT capability detection",
+        "NO_COLOR and non-TTY suppression",
+        "already green focused SAR contracts"
+      ],
+      "decision_needed": "None. The timed grant was consumed for the one-file test-isolation fix.",
+      "safe_default": "Keep automatic ANSI output conditional on a real TTY and successful Windows VT enablement; simulate the capability result in unit tests."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-RAG-REMOVE-PATH-TEST-PORTABILITY",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "production absolute-path normalization",
+        "directory sibling-prefix protection",
+        "inactive embedding-lane cleanup"
+      ],
+      "decision_needed": "None. The interactive continuation consumed the one-file test portability fix.",
+      "safe_default": "Construct deletion fixtures with host-native absolute paths; do not relax exact-directory and separator-bounded source matching."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-RELEASE-MORNING-BRIEF-CURRENT-GATE-SYNC",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "fail-closed MVP Version 1 readiness reporting",
+        "historical final external review documentation",
+        "already green local release bundle contracts"
+      ],
+      "decision_needed": "None. The interactive continuation consumed the one-file current-contract synchronization.",
+      "safe_default": "Keep the current morning brief on REL-mvp-version-1-gate while readiness is blocked; never resurrect final-review language from historical handoff docs."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-RELEASE-ENVELOPE-CURRENT-STATUS-SYNC",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "deterministic payload digest validation",
+        "fail-closed release summary propagation",
+        "historical manual evidence models"
+      ],
+      "decision_needed": "None. The interactive continuation consumed the one-file envelope-contract synchronization.",
+      "safe_default": "Keep envelope status identical to the current payload summary; blocked remains blocked until the Version 1 gate is genuinely green."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-WEBHOOK-TOOL-ROUTE-VALIDATION-SYNC",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "does_not_block": [
+        "confirmation-first webhook mutations",
+        "authoritative route URL validation",
+        "delivery-time SSRF revalidation"
+      ],
+      "decision_needed": "None. The interactive continuation consumed the one-file route-parity regression fix.",
+      "safe_default": "Keep private URL validation authoritative in the create route and repeated before delivery; tool tests must confirm before asserting route errors."
+    }
+  ],
+  "live_go_ledger": [],
+  "pending_user_requests": [],
+  "progress": {
+    "last_durable_progress_at": "2026-07-14T21:07:38.7000385+02:00",
+    "summary": "SAR-06 and SAR-06P are green, committed as 3c6e8ad5 and released with all foreign hunks preserved. SAR-04 is the only next runnable slice. SAR-01 remains blocked_environment and REG-20260714-001 remains outside SAR.",
+    "resume_cursor": "claim_minimum_SAR-04_paths_after_fresh_owner_and_hash_check",
+    "resume_priority": [
+      "SAR-04-runtime-topology-contract",
+      "SAR-05-background-job-transaction-boundary",
+      "SAR-07-response-cache-lru-ttl"
+    ],
+    "next_runnable_slices": [
+      "SAR-04-runtime-topology-contract"
+    ],
+    "blocked_slices": [
+      "SAR-01-binding-ci-and-publish-provenance",
+      "SAR-02-fresh-release-evidence",
+      "SAR-05-background-job-transaction-boundary",
+      "SAR-10-release-truth-and-external-proof",
+      "SAR-11-integration-closeout"
+    ],
+    "regression_queue": "docs/plans/regression-queue.json",
+    "full_suite_integration_points": [
+      "IP-SAR-SERIAL-CLOSEOUT",
+      "IP-TLR-06-CLOSEOUT",
+      "IP-PLANNING-INTEGRATION-CLOSEOUT"
+    ]
+  },
+  "completion_layers": {
+    "implemented": [
+      "SAR-LLM-API-DRIFT-FIX",
+      "SAR-01-binding-ci-and-publish-provenance",
+      "SAR-03-tailscale-cache-expiry",
+      "SAR-06-model-aware-token-estimation",
+      "SAR-06P-model-hint-hardlimit-propagation",
+      "SAR-08-canonical-rag-import",
+      "SAR-09-measured-optimization-decisions"
+    ],
+    "tested": [
+      "SAR-LLM-API-DRIFT-FIX:217_extended_tests",
+      "SAR-01-binding-ci-and-publish-provenance:focused_only_full_suite_environment_gate",
+      "SAR-03-tailscale-cache-expiry:focused",
+      "SAR-06-model-aware-token-estimation:19_focused_264_compatibility_26_final_gate",
+      "SAR-06P-model-hint-hardlimit-propagation:ast_allowlist_and_10_roadmap_contract_tests",
+      "SAR-08-canonical-rag-import:focused",
+      "SAR-09-measured-optimization-decisions:focused_and_cli"
+    ],
+    "committed": [
+      "SAR-06-model-aware-token-estimation:3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd",
+      "SAR-06P-model-hint-hardlimit-propagation:3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd"
+    ],
+    "pushed": [],
+    "deployed": [],
+    "live_validated": [],
+    "temporal_validated": []
+  }
+}
