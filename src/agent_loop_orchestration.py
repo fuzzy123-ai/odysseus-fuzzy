@@ -187,6 +187,7 @@ def _inject_context_provider_messages(
     owner: Optional[str],
     query: str,
     context_length: int,
+    model_hint: Optional[str] = None,
     enabled: bool = True,
 ) -> List[Dict]:
     """Insert generic plugin provider context after the primary system prompt."""
@@ -209,6 +210,7 @@ def _inject_context_provider_messages(
             query=query,
             budget_tokens=budget.providers,
             mode="agent",
+            model_hint=model_hint,
         )
         injected = provider_messages(payloads) + provider_warning_messages(warnings)
         if not injected:

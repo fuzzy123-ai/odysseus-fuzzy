@@ -38,7 +38,13 @@ async def do_delegate(
     context_query = str(args.get("context_query") or task).strip()
     budget = _clamp_int(args.get("budget"), default=1200, minimum=256, maximum=4000)
 
-    provider_context = _provider_messages(owner=owner, query=context_query, budget=budget, context_length=context_length)
+    provider_context = _provider_messages(
+        owner=owner,
+        query=context_query,
+        budget=budget,
+        context_length=context_length,
+        model_hint=model,
+    )
     messages: List[Dict[str, str]] = [{"role": "system", "content": DELEGATE_SYSTEM_PROMPT}]
     messages.extend(provider_context)
     messages.append({
@@ -106,7 +112,14 @@ def _parse_args(content: str) -> Dict[str, Any]:
     return {"task": raw}
 
 
-def _provider_messages(*, owner: Optional[str], query: str, budget: int, context_length: int) -> List[Dict[str, str]]:
+def _provider_messages(
+    *,
+    owner: Optional[str],
+    query: str,
+    budget: int,
+    context_length: int,
+    model_hint: Optional[str] = None,
+) -> List[Dict[str, str]]:
     try:
         from src.context_orchestrator import preload_provider_context, provider_messages, provider_warning_messages
 
@@ -115,6 +128,7 @@ def _provider_messages(*, owner: Optional[str], query: str, budget: int, context
             query=query,
             budget_tokens=budget or max(256, min(context_length // 8, 1200)),
             mode="agent",
+            model_hint=model_hint,
         )
         for warning in warnings:
             logger.warning("[delegate] Context provider warning: %s", warning)

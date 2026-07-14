@@ -355,8 +355,11 @@ async def _build_context_owner_probe(monkeypatch, request_state):
         captured["preface_owner"] = kwargs["owner"]
         return [], [], []
 
-    async def fake_maybe_compact(sess, endpoint_url, model, messages, headers, owner=None):
+    async def fake_maybe_compact(
+        sess, endpoint_url, model, messages, headers, owner=None, model_hint=None,
+    ):
         captured["compact_owner"] = owner
+        captured["compact_model_hint"] = model_hint
         return messages, 8192, False
 
     monkeypatch.setattr(chat_helpers, "preprocess", fake_preprocess)
@@ -366,7 +369,11 @@ async def _build_context_owner_probe(monkeypatch, request_state):
     monkeypatch.setattr(chat_helpers, "_normalize_model_id_from_cache", lambda sess: None)
     monkeypatch.setattr(chat_helpers, "normalize_model_id", lambda endpoint_url, model, **kwargs: None)
     monkeypatch.setattr(chat_helpers, "maybe_compact", fake_maybe_compact)
-    monkeypatch.setattr(chat_helpers, "trim_for_context", lambda messages, context_length: messages)
+    monkeypatch.setattr(
+        chat_helpers,
+        "trim_for_context",
+        lambda messages, context_length, model_hint=None: messages,
+    )
 
     import src.user_time as user_time
 
@@ -416,6 +423,7 @@ async def test_build_chat_context_uses_api_token_owner_for_compaction_scope(monk
         "prefs_owner": "alice",
         "preface_owner": "alice",
         "compact_owner": "alice",
+        "compact_model_hint": "test-model",
     }
 
 
@@ -434,4 +442,5 @@ async def test_build_chat_context_keeps_cookie_user_owner_scope(monkeypatch):
         "prefs_owner": "bob",
         "preface_owner": "bob",
         "compact_owner": "bob",
+        "compact_model_hint": "test-model",
     }

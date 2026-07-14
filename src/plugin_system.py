@@ -101,6 +101,7 @@ class ContextProviderSpec:
     priority: int
     capabilities: tuple[str, ...]
     retrieve: Callable[..., Any]
+    accepts_model_hint: bool = False
     plugin_id: Optional[str] = None
 
 
@@ -173,6 +174,7 @@ def _normalize_provider_spec(spec: Any, *, plugin_id: Optional[str] = None) -> C
         priority=priority,
         capabilities=_normalize_capabilities(_spec_get(spec, "capabilities", ())),
         retrieve=retrieve,
+        accepts_model_hint=bool(_spec_get(spec, "accepts_model_hint", False)),
         plugin_id=plugin_id or _spec_get(spec, "plugin_id"),
     )
 

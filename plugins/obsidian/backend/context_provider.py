@@ -25,32 +25,51 @@ CANONICAL_PREFIXES = ("AI Memory/Canonical/",)
 SUMMARY_PREFIXES = ("AI Memory/Summaries/", "AI Memory/Clusters/")
 
 
-def _estimate_text_tokens(text: str) -> int:
+def _estimate_text_tokens(text: str, model_hint: Optional[str] = None) -> int:
     """Use the same token estimator as the Odysseus context pipeline."""
     from src.model_context import estimate_tokens
 
-    return estimate_tokens([{"role": "system", "content": text or ""}])
+    return estimate_tokens(
+        [{"role": "system", "content": text or ""}],
+        model_hint=model_hint,
+    )
 
 
-def _trim_text_to_token_budget(text: str, budget_tokens: int) -> Tuple[str, int]:
+def _trim_text_to_token_budget(
+    text: str,
+    budget_tokens: int,
+    model_hint: Optional[str] = None,
+) -> Tuple[str, int]:
     """Trim text until it fits the caller's token budget."""
     budget_tokens = max(0, int(budget_tokens or 0))
     if budget_tokens <= 0:
         return "", 0
     text = text or ""
-    tokens = _estimate_text_tokens(text)
+    tokens = _estimate_text_tokens(text, model_hint=model_hint)
     if tokens <= budget_tokens:
         return text, tokens
     # Start with the estimator's reciprocal, then tighten with exact checks.
-    candidate = text[:max(50, int(budget_tokens / 0.3))].rstrip()
-    tokens = _estimate_text_tokens(candidate)
+    if model_hint is not None and str(model_hint).strip():
+        from src.token_estimator import estimate_character_capacity
+
+        initial_chars = estimate_character_capacity(budget_tokens, model_hint=model_hint)
+    else:
+        initial_chars = max(50, int(budget_tokens / 0.3))
+    candidate = text[:initial_chars].rstrip()
+    tokens = _estimate_text_tokens(candidate, model_hint=model_hint)
     while candidate and tokens > budget_tokens:
         candidate = candidate[: max(0, int(len(candidate) * 0.85))].rstrip()
-        tokens = _estimate_text_tokens(candidate)
+        tokens = _estimate_text_tokens(candidate, model_hint=model_hint)
     return candidate, tokens
 
 
-def retrieve_vault_context(owner: Optional[str], query: str, budget: int, mode: str = "chat") -> Dict[str, Any]:
+def retrieve_vault_context(
+    owner: Optional[str],
+    query: str,
+    budget: int,
+    mode: str = "chat",
+    model_hint: Optional[str] = None,
+) -> Dict[str, Any]:
     warnings: List[str] = []
     try:
         vault_dir = vault_service.unlocked_vault_path_for_owner(owner)
@@ -163,7 +182,11 @@ def retrieve_vault_context(owner: Optional[str], query: str, budget: int, mode: 
             remaining = budget - used_tokens
             if remaining <= 0:
                 break
-            snippet, snippet_tokens = _trim_text_to_token_budget(snippet, remaining)
+            snippet, snippet_tokens = _trim_text_to_token_budget(
+                snippet,
+                remaining,
+                model_hint=model_hint,
+            )
             if not snippet:
                 break
             used_tokens += snippet_tokens
@@ -366,6 +389,7 @@ def provider_spec(provider_id: str = PROVIDER_ID) -> Dict[str, Any]:
             "hybrid_retrieval",
         ],
         "retrieve": retrieve_orca_vault_context if provider_id == ORCA_PROVIDER_ID else retrieve_vault_context,
+        "accepts_model_hint": True,
     }
 
 
@@ -373,8 +397,16 @@ def provider_alias_specs() -> List[Dict[str, Any]]:
     return [provider_spec(ORCA_PROVIDER_ID)]
 
 
-def retrieve_orca_vault_context(owner: Optional[str], query: str, budget: int, mode: str = "chat") -> Dict[str, Any]:
-    return decorate_orca_context_payload(retrieve_vault_context(owner, query, budget, mode))
+def retrieve_orca_vault_context(
+    owner: Optional[str],
+    query: str,
+    budget: int,
+    mode: str = "chat",
+    model_hint: Optional[str] = None,
+) -> Dict[str, Any]:
+    return decorate_orca_context_payload(
+        retrieve_vault_context(owner, query, budget, mode, model_hint=model_hint)
+    )
 
 
 def parse_frontmatter(content: str) -> Tuple[Dict[str, Any], str]:

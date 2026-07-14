@@ -766,7 +766,7 @@ async def build_chat_context(
             cap = DEFAULT_HARD_MAX
         if cap > 0:
             history_budget = min(history_budget or cap, cap)
-        preface_tokens = estimate_tokens(preface)
+        preface_tokens = estimate_tokens(preface, model_hint=sess.model)
         history_budget = max(1024, history_budget - preface_tokens)
         manager = get_session_manager_instance()
         if manager and hasattr(manager, "get_recent_context_messages"):
@@ -774,6 +774,7 @@ async def build_chat_context(
                 session_id,
                 history_budget,
                 reserve_tokens=1024,
+                model_hint=sess.model,
             )
     except Exception:
         logger.debug("Budgeted session context lookup skipped", exc_info=True)
@@ -805,9 +806,15 @@ async def build_chat_context(
 
     # Auto-compact
     messages, context_length, was_compacted = await maybe_compact(
-        sess, sess.endpoint_url, sess.model, messages, sess.headers, owner=user,
+        sess,
+        sess.endpoint_url,
+        sess.model,
+        messages,
+        sess.headers,
+        owner=user,
+        model_hint=sess.model,
     )
-    messages = trim_for_context(messages, context_length)
+    messages = trim_for_context(messages, context_length, model_hint=sess.model)
 
     return ChatContext(
         preface=preface,

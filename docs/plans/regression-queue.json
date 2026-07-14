@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.independent_regression_queue",
+  "queue_id": "independent-regressions",
+  "created_at": "2026-07-14T20:29:56.6847136+02:00",
+  "updated_at": "2026-07-14T20:29:56.6847136+02:00",
+  "status": "open",
+  "purpose": "Hold failures discovered outside the active roadmap slice so they remain visible without silently expanding that slice, changing its dependency graph or starting an unbounded probe-and-fix loop.",
+  "ownership_boundary": {
+    "current_roadmap_exclusion": "A queued item is not part of SAR, TLR, Planning Definition Editor or Planning MCP unless the user explicitly promotes it through a separate roadmap change.",
+    "mutation_rule": "Discovery records evidence only. Diagnosis, source edits and tests require a new serialized claim whose slice_id names the regression item.",
+    "priority_rule": "Queue order never preempts the explicit user-directed roadmap sequence. Severity may trigger a user notification but does not grant mutation authority.",
+    "completion_rule": "An item closes only with a dedicated claim, root-cause evidence, focused regression coverage and an explicit disposition of fixed, duplicate, invalid or accepted_risk."
+  },
+  "suite_policy": {
+    "full_suite_rule": "Run the repository-wide suite only at the declared integration points. Do not rerun it after each slice and do not start another probe solely to reveal the next unrelated failure.",
+    "failure_routing": {
+      "related_to_active_slice": "Keep the integration point red and return the owning slice to running or blocked with exact evidence.",
+      "independent_or_relationship_unproven": "Append one deduplicated regression item, leave the current roadmap membership unchanged and continue only when the integration point's declared gate permits it.",
+      "environment_only": "Record blocked_environment evidence without modifying tests, quarantines or product code."
+    },
+    "integration_points": [
+      {
+        "id": "IP-SAR-SERIAL-CLOSEOUT",
+        "after": [
+          "SAR-06P-model-hint-hardlimit-propagation",
+          "SAR-04-runtime-topology-contract",
+          "SAR-05-background-job-transaction-boundary",
+          "SAR-07-response-cache-lru-ttl"
+        ],
+        "run_once": "unchanged repository-wide suite in the best available local environment",
+        "acceptance_boundary": "Focused slice evidence remains authoritative for slice completion; independent failures are queued and do not become SAR work automatically. SAR-01 remains blocked_environment unless the run is symlink-capable and uses no diagnostic deselections."
+      },
+      {
+        "id": "IP-TLR-06-CLOSEOUT",
+        "after": [
+          "TLR-01",
+          "TLR-02",
+          "TLR-03",
+          "TLR-04",
+          "TLR-05",
+          "TLR-06"
+        ],
+        "run_once": "unchanged repository-wide suite after the TLR-01 through TLR-06 focused and integration tests are green",
+        "acceptance_boundary": "A TLR-related failure blocks the responsible TLR slice; every unrelated failure is routed here without expanding TLR."
+      },
+      {
+        "id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
+        "after": [
+          "Planning Definition Editor runtime handoff",
+          "Planning MCP definition integration"
+        ],
+        "run_once": "unchanged repository-wide suite after both Planning integrations pass their focused contracts",
+        "acceptance_boundary": "Planning-related failures block the integration handoff; unrelated failures are routed here without expanding either Planning roadmap."
+      }
+    ]
+  },
+  "deduplication_key": "normalized_test_node_or_component + normalized_failure_signature",
+  "allowed_states": [
+    "queued",
+    "claimed",
+    "running",
+    "blocked_environment",
+    "blocked_design",
+    "fixed",
+    "duplicate",
+    "invalid",
+    "accepted_risk"
+  ],
+  "items": [
+    {
+      "id": "REG-20260714-001",
+      "state": "queued",
+      "priority": "untriaged",
+      "source_run_id": "sar-12h-20260714t092106",
+      "source_probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-45",
+      "observed_at": "2026-07-14T20:23:06.3653211+02:00",
+      "test_node": "tests/test_sandbox_resource_guard.py::test_resource_guard_blocks_rw_mount_without_approval",
+      "failure_signature": "read-write mount without approval expected decision.allowed=false but observed true",
+      "relationship_to_active_roadmap": "not_established_and_outside_the_selected_SAR_slice",
+      "evidence": [
+        "Probe 45 reached 6208 passed, 19 skipped and 5 diagnostic-only Windows symlink deselections before this failure.",
+        "No diagnosis, source mutation, test mutation or probe 46 was performed.",
+        "The failure is not promoted into SAR by this queue entry."
+      ],
+      "next_action": "When explicitly selected from the regression queue, reproduce only this test under a dedicated serialized claim, classify source versus test drift and add focused regression evidence.",
+      "claim": null,
+      "disposition": null
+    }
+  ]
+}

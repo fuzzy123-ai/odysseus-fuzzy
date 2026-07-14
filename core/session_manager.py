@@ -603,6 +603,7 @@ class SessionManager:
         token_budget: int,
         reserve_tokens: int = 512,
         max_messages: Optional[int] = None,
+        model_hint: Optional[str] = None,
     ) -> list:
         """Return recent LLM-context messages bounded by count and token budget.
 
@@ -624,7 +625,15 @@ class SessionManager:
         selected = []
         selected_tokens = 0
         for msg in reversed(messages):
-            msg_tokens = _estimate_message_tokens_dict(msg)
+            if model_hint is not None and str(model_hint).strip():
+                from src.model_context import estimate_tokens
+
+                # The persisted scalar is deliberately model-neutral. A
+                # selected model must be estimated afresh without overwriting
+                # or reusing metadata.estimated_tokens.
+                msg_tokens = estimate_tokens([msg], model_hint=model_hint)
+            else:
+                msg_tokens = _estimate_message_tokens_dict(msg)
             if selected and selected_tokens + msg_tokens > budget:
                 break
             selected.insert(0, msg)
