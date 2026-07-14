@@ -9,12 +9,12 @@
   "phase": "implementation",
   "supervision": "interactive",
   "mutation_authority": "repo_only",
-  "state": "running",
-  "revision": 131,
+  "state": "paused",
+  "revision": 135,
   "resumed_at": "2026-07-14T20:27:39.3767912+02:00",
   "resume_authority": "user_directed_serial_roadmap_execution_after_probe_45",
-  "paused_at": null,
-  "pause_authority": null,
+  "paused_at": "2026-07-14T22:08:48.0084663+02:00",
+  "pause_authority": "user_requested_end_after_SAR_closeout",
   "started_at": "2026-07-14T09:21:06.2586366+02:00",
   "previous_deadline_at": "2026-07-14T21:21:06.2586366+02:00",
   "deadline_at": null,
@@ -110,6 +110,24 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:IP-SAR-SERIAL-CLOSEOUT",
+      "slice_id": "IP-SAR-SERIAL-CLOSEOUT",
+      "owner": "/root",
+      "state": "released_evidence_committed_independent_environment_blocker",
+      "acquired_at": "2026-07-14T22:03:08.2225834+02:00",
+      "released_at": "2026-07-14T22:07:34.9965760+02:00",
+      "commit": "9656d0187549988472fa2bdbd5f522c19e82f4ad",
+      "evidence": [
+        "the unchanged repository suite ran exactly once with pytest -q --maxfail=1",
+        "255 tests passed and 2 skipped before the first and only reported failure",
+        "tests/test_agent_migration_manifest.py::test_collect_skill_dir_skips_symlinked_skill_markdown failed in Path.symlink_to with Windows WinError 1314 before product code executed",
+        "the failure matches the existing SAR-01 blocked_environment gate and is not attributable to SAR-06P, SAR-04, SAR-05 or SAR-07",
+        "REG-20260714-002 records the independent environment blocker without expanding SAR",
+        "11 roadmap and regression-queue contract tests passed after evidence persistence",
+        "commit 9656d0187549988472fa2bdbd5f522c19e82f4ad contains only the integration receipt, independent regression item and contract update; no repeat suite, push, product mutation or external action occurred"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:SAR-07",
       "slice_id": "SAR-07-response-cache-lru-ttl",
@@ -885,6 +903,14 @@
     }
   ],
   "agent_leases": [
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:IP-SAR-SERIAL-CLOSEOUT",
+      "state": "completed_evidence_committed_independent_environment_blocker",
+      "leased_at": "2026-07-14T22:03:08.2225834+02:00",
+      "lease_expires_at": "2026-07-15T00:03:08.2225834+02:00",
+      "released_at": "2026-07-14T22:07:34.9965760+02:00"
+    },
     {
       "agent": "/root",
       "claim_id": "sar-12h-20260714t092106:SAR-07",
@@ -2551,14 +2577,14 @@
   "live_go_ledger": [],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-14T21:59:34.3395011+02:00",
-    "summary": "SAR-07 is focused- and compatibility-green, committed as 175e548c and released. All four serial SAR implementation slices are now ready for the single declared full-suite integration point; foreign llm_core hunks remain untouched.",
-    "resume_cursor": "run_IP-SAR-SERIAL-CLOSEOUT_once_then_route_independent_failures",
+    "last_durable_progress_at": "2026-07-14T22:08:48.0084663+02:00",
+    "summary": "The user ended the run after the committed SAR closeout. IP-SAR-SERIAL-CLOSEOUT is released, REG-20260714-002 contains the independent Windows environment blocker, no claim is active and no TLR work has started. Resume with a fresh TLR-01 preflight and minimum-path claim.",
+    "resume_cursor": "preflight_and_claim_TLR_01_deterministic_workflow_state",
     "resume_priority": [
-      "IP-SAR-SERIAL-CLOSEOUT"
+      "TLR-01"
     ],
     "next_runnable_slices": [
-      "IP-SAR-SERIAL-CLOSEOUT"
+      "TLR-01"
     ],
     "blocked_slices": [
       "SAR-01-binding-ci-and-publish-provenance",
@@ -2571,6 +2597,9 @@
       "IP-SAR-SERIAL-CLOSEOUT",
       "IP-TLR-06-CLOSEOUT",
       "IP-PLANNING-INTEGRATION-CLOSEOUT"
+    ],
+    "completed_full_suite_integration_points": [
+      "IP-SAR-SERIAL-CLOSEOUT"
     ]
   },
   "completion_layers": {
@@ -2595,6 +2624,7 @@
       "SAR-06-model-aware-token-estimation:19_focused_264_compatibility_26_final_gate",
       "SAR-06P-model-hint-hardlimit-propagation:ast_allowlist_and_10_roadmap_contract_tests",
       "SAR-07-response-cache-lru-ttl:14_focused_171_compatibility_11_roadmap_contract",
+      "IP-SAR-SERIAL-CLOSEOUT:single_run_255_passed_2_skipped_REG_20260714_002_blocked_environment",
       "SAR-08-canonical-rag-import:focused",
       "SAR-09-measured-optimization-decisions:focused_and_cli"
     ],
