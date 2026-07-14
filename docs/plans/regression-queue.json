@@ -3,7 +3,7 @@
   "kind": "odysseus.independent_regression_queue",
   "queue_id": "independent-regressions",
   "created_at": "2026-07-14T20:29:56.6847136+02:00",
-  "updated_at": "2026-07-14T20:29:56.6847136+02:00",
+  "updated_at": "2026-07-14T22:05:23.6690628+02:00",
   "status": "open",
   "purpose": "Hold failures discovered outside the active roadmap slice so they remain visible without silently expanding that slice, changing its dependency graph or starting an unbounded probe-and-fix loop.",
   "ownership_boundary": {
@@ -84,6 +84,26 @@
         "The failure is not promoted into SAR by this queue entry."
       ],
       "next_action": "When explicitly selected from the regression queue, reproduce only this test under a dedicated serialized claim, classify source versus test drift and add focused regression evidence.",
+      "claim": null,
+      "disposition": null
+    },
+    {
+      "id": "REG-20260714-002",
+      "state": "blocked_environment",
+      "priority": "environment_only",
+      "source_run_id": "sar-12h-20260714t092106",
+      "source_probe_id": "IP-SAR-SERIAL-CLOSEOUT",
+      "observed_at": "2026-07-14T22:04:50+02:00",
+      "test_node": "tests/test_agent_migration_manifest.py::test_collect_skill_dir_skips_symlinked_skill_markdown",
+      "failure_signature": "Windows os.symlink failed with WinError 1314 because the process lacks symlink privilege",
+      "relationship_to_active_roadmap": "independent_environment_precondition_not_attributable_to_SAR_06P_SAR_04_SAR_05_or_SAR_07",
+      "evidence": [
+        "The single unchanged IP-SAR-SERIAL-CLOSEOUT run reached 255 passed and 2 skipped before this first failure.",
+        "The failure occurs in the test fixture at Path.symlink_to before the migration implementation is invoked.",
+        "The signature matches the existing SAR-01 blocked_environment evidence and does not reopen or expand SAR.",
+        "No diagnostic deselection, repeated full-suite run, source mutation, test weakening, Docker start or external action was performed."
+      ],
+      "next_action": "Keep blocked_environment. Re-run only in a symlink-capable environment if SAR-01 is explicitly reopened; this item does not preempt TLR-01 through TLR-06.",
       "claim": null,
       "disposition": null
     }

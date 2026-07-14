@@ -498,7 +498,9 @@ def test_implementation_status_resume_contract_skips_verified_slices() -> None:
     assert "never rerun completed SAR-03, SAR-08 or SAR-09" in next_step
     assert "SAR-01 parked as blocked_environment" in next_step
     assert "SAR-06P, SAR-04, SAR-05 and SAR-07 are focused-green" in next_step
-    assert "Execute IP-SAR-SERIAL-CLOSEOUT exactly once" in next_step
+    assert "IP-SAR-SERIAL-CLOSEOUT consumed its single allowed" in next_step
+    assert "255 tests passed, 2 skipped" in next_step
+    assert "REG-20260714-002" in next_step
     assert "hand off serially to TLR-01" in next_step
     assert "IP-SAR-SERIAL-CLOSEOUT" in next_step
     assert "docs/plans/regression-queue.json" in next_step
@@ -557,6 +559,17 @@ def test_full_suite_policy_routes_independent_failures_to_regression_queue() -> 
     assert queue["items"][0]["state"] == "queued"
     assert queue["items"][0]["source_probe_id"] == (
         "SAR-01-FULL-SUITE-DIAGNOSTIC-45"
+    )
+    assert [item["id"] for item in queue["items"]] == [
+        "REG-20260714-001",
+        "REG-20260714-002",
+    ]
+    environment_item = queue["items"][1]
+    assert environment_item["state"] == "blocked_environment"
+    assert environment_item["source_probe_id"] == "IP-SAR-SERIAL-CLOSEOUT"
+    assert environment_item["test_node"] == (
+        "tests/test_agent_migration_manifest.py::"
+        "test_collect_skill_dir_skips_symlinked_skill_markdown"
     )
 
 
