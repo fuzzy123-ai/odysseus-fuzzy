@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only",
   "state": "running",
-  "revision": 126,
+  "revision": 129,
   "resumed_at": "2026-07-14T20:27:39.3767912+02:00",
   "resume_authority": "user_directed_serial_roadmap_execution_after_probe_45",
   "paused_at": null,
@@ -110,6 +110,24 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-05",
+      "slice_id": "SAR-05-background-job-transaction-boundary",
+      "owner": "/root",
+      "state": "released_green_committed",
+      "acquired_at": "2026-07-14T21:31:04.1720041+02:00",
+      "released_at": "2026-07-14T21:44:15.9457453+02:00",
+      "commit": "9edbea16226d02b26a4e3e355ec8a589135d8046",
+      "evidence": [
+        "18 declared SAR-05 focused tests passed",
+        "41 tests passed with all existing background-job tool contracts",
+        "the final background-job and roadmap contract group passed 52 tests",
+        "32 concurrent synthetic launches retained 32 distinct records and concurrent refresh, kill, completion and lease mutations preserved unrelated state",
+        "unexpired follow-up leases are exclusive while release and expiry retain one deterministic bg-followup:<job_id> identity",
+        "new and legacy local jobs are capped at 3600 seconds and static AST checks exclude Temporal imports and durable workflow/history/heartbeat/resume/fence state",
+        "commit 9edbea16226d02b26a4e3e355ec8a589135d8046 records the exact owned slice; no push, real process launch or kill, network, service, Docker or Temporal runtime was used"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:SAR-04",
       "slice_id": "SAR-04-runtime-topology-contract",
@@ -849,6 +867,14 @@
     }
   ],
   "agent_leases": [
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-05",
+      "state": "completed_green_committed",
+      "leased_at": "2026-07-14T21:31:04.1720041+02:00",
+      "lease_expires_at": "2026-07-14T23:31:04.1720041+02:00",
+      "released_at": "2026-07-14T21:44:15.9457453+02:00"
+    },
     {
       "agent": "/root",
       "claim_id": "sar-12h-20260714t092106:SAR-04",
@@ -1872,6 +1898,18 @@
   ],
   "completed_slices": [
     {
+      "slice_id": "SAR-05-background-job-transaction-boundary",
+      "completion_layer": "repository_implemented_focused_compatibility_tested_and_committed",
+      "evidence": [
+        "one process-wide RLock covers complete background-job store transactions",
+        "record revisions, deterministic follow-up identities and exclusive expiring leases are executable",
+        "32 concurrent launches and concurrent refresh, kill, completion and lease paths retain unrelated records",
+        "the local detached-job boundary is exactly 3600 seconds and contains no Temporal durable authority",
+        "18 focused, 41 compatibility and 52 final contract tests passed",
+        "commit 9edbea16226d02b26a4e3e355ec8a589135d8046"
+      ]
+    },
+    {
       "slice_id": "SAR-04-runtime-topology-contract",
       "completion_layer": "repository_implemented_focused_compatibility_tested_and_committed",
       "evidence": [
@@ -2487,15 +2525,14 @@
   "live_go_ledger": [],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-14T21:28:25.2839016+02:00",
-    "summary": "SAR-04 is green, committed as bbb58ce7 and released with every foreign app.py hunk preserved. SAR-05 is the only next runnable slice. SAR-01 remains blocked_environment and REG-20260714-001 remains outside SAR.",
-    "resume_cursor": "claim_minimum_SAR-05_paths_after_fresh_owner_dirty_tree_and_hash_check",
+    "last_durable_progress_at": "2026-07-14T21:44:15.9457453+02:00",
+    "summary": "SAR-05 is green, committed as 9edbea16 and released. The one-hour local detached-job boundary is now executable and durable 12-24 hour continuation remains reserved for Temporal Light. SAR-07 is the only next runnable SAR slice.",
+    "resume_cursor": "claim_minimum_SAR-07_paths_after_fresh_owner_dirty_tree_hotfile_and_hash_check",
     "resume_priority": [
-      "SAR-05-background-job-transaction-boundary",
       "SAR-07-response-cache-lru-ttl"
     ],
     "next_runnable_slices": [
-      "SAR-05-background-job-transaction-boundary"
+      "SAR-07-response-cache-lru-ttl"
     ],
     "blocked_slices": [
       "SAR-01-binding-ci-and-publish-provenance",
@@ -2516,6 +2553,7 @@
       "SAR-01-binding-ci-and-publish-provenance",
       "SAR-03-tailscale-cache-expiry",
       "SAR-04-runtime-topology-contract",
+      "SAR-05-background-job-transaction-boundary",
       "SAR-06-model-aware-token-estimation",
       "SAR-06P-model-hint-hardlimit-propagation",
       "SAR-08-canonical-rag-import",
@@ -2526,6 +2564,7 @@
       "SAR-01-binding-ci-and-publish-provenance:focused_only_full_suite_environment_gate",
       "SAR-03-tailscale-cache-expiry:focused",
       "SAR-04-runtime-topology-contract:27_focused_65_compatibility_40_final_contract",
+      "SAR-05-background-job-transaction-boundary:18_focused_41_compatibility_52_final_contract",
       "SAR-06-model-aware-token-estimation:19_focused_264_compatibility_26_final_gate",
       "SAR-06P-model-hint-hardlimit-propagation:ast_allowlist_and_10_roadmap_contract_tests",
       "SAR-08-canonical-rag-import:focused",
@@ -2534,7 +2573,8 @@
     "committed": [
       "SAR-06-model-aware-token-estimation:3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd",
       "SAR-06P-model-hint-hardlimit-propagation:3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd",
-      "SAR-04-runtime-topology-contract:bbb58ce7541391e073c33df4ac3a54422f3a66a1"
+      "SAR-04-runtime-topology-contract:bbb58ce7541391e073c33df4ac3a54422f3a66a1",
+      "SAR-05-background-job-transaction-boundary:9edbea16226d02b26a4e3e355ec8a589135d8046"
     ],
     "pushed": [],
     "deployed": [],
