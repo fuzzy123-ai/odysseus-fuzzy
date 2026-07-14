@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only",
   "state": "running",
-  "revision": 122,
+  "revision": 126,
   "resumed_at": "2026-07-14T20:27:39.3767912+02:00",
   "resume_authority": "user_directed_serial_roadmap_execution_after_probe_45",
   "paused_at": null,
@@ -110,6 +110,24 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-04",
+      "slice_id": "SAR-04-runtime-topology-contract",
+      "owner": "/root",
+      "state": "released_green_committed",
+      "acquired_at": "2026-07-14T21:11:59.9749761+02:00",
+      "released_at": "2026-07-14T21:28:25.2839016+02:00",
+      "commit": "bbb58ce7541391e073c33df4ac3a54422f3a66a1",
+      "evidence": [
+        "27 runtime-topology and rate-limiter tests passed; the readiness compatibility group passed 29 tests",
+        "65 launcher, Docker, authentication, roadmap and Docker-plan compatibility tests passed",
+        "the final roadmap, runtime-topology, limiter and readiness contract group passed 40 tests",
+        "a real app.py import rejected ODYSSEUS_WEB_WORKERS=2 before serving with the stable unsupported_web_worker_count reason",
+        "every shipped Docker, Windows, desktop, macOS and root systemd launcher explicitly selects one web worker",
+        "the cached app.py review and staged-blob compilation preserved every pre-existing foreign hotfile hunk",
+        "commit bbb58ce7541391e073c33df4ac3a54422f3a66a1 records the exact owned slice; no push, network, service, Docker, multi-worker or Temporal runtime was used"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:SAR-06P",
       "slice_id": "SAR-06P-model-hint-hardlimit-propagation",
@@ -831,6 +849,14 @@
     }
   ],
   "agent_leases": [
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-04",
+      "state": "completed_green_committed",
+      "leased_at": "2026-07-14T21:11:59.9749761+02:00",
+      "lease_expires_at": "2026-07-14T23:11:59.9749761+02:00",
+      "released_at": "2026-07-14T21:28:25.2839016+02:00"
+    },
     {
       "agent": "/root",
       "claim_id": "sar-12h-20260714t092106:SAR-06P",
@@ -1846,6 +1872,17 @@
   ],
   "completed_slices": [
     {
+      "slice_id": "SAR-04-runtime-topology-contract",
+      "completion_layer": "repository_implemented_focused_compatibility_tested_and_committed",
+      "evidence": [
+        "src/runtime_topology.py enforces exactly one supported web worker",
+        "all real shipped launchers explicitly select one worker",
+        "readiness names the process-local limiter and rotating log sink while keeping Temporal workers separate",
+        "27 focused, 65 compatibility and 40 final contract tests passed",
+        "commit bbb58ce7541391e073c33df4ac3a54422f3a66a1"
+      ]
+    },
+    {
       "slice_id": "SAR-06-model-aware-token-estimation",
       "completion_layer": "repository_implemented_focused_compatibility_tested_and_committed",
       "evidence": [
@@ -2004,11 +2041,9 @@
     },
     {
       "gate_id": "SAR-RUNTIME-HOTFILE-HANDOFF",
-      "state": "satisfied_by_explicit_serial_roadmap_handoff",
-      "blocks": [
-        "SAR-04-runtime-topology-contract"
-      ],
-      "safe_default": "Claim app.py only when SAR-04 becomes the active serial slice and preserve every foreign hunk."
+      "state": "satisfied_green_committed",
+      "blocks": [],
+      "safe_default": "Keep commit bbb58ce7 as the immutable SAR-04 handoff; do not reopen app.py for SAR work without a new serialized claim."
     },
     {
       "gate_id": "SAR-LLM-HOTFILE-HANDOFF",
@@ -2452,21 +2487,19 @@
   "live_go_ledger": [],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-14T21:07:38.7000385+02:00",
-    "summary": "SAR-06 and SAR-06P are green, committed as 3c6e8ad5 and released with all foreign hunks preserved. SAR-04 is the only next runnable slice. SAR-01 remains blocked_environment and REG-20260714-001 remains outside SAR.",
-    "resume_cursor": "claim_minimum_SAR-04_paths_after_fresh_owner_and_hash_check",
+    "last_durable_progress_at": "2026-07-14T21:28:25.2839016+02:00",
+    "summary": "SAR-04 is green, committed as bbb58ce7 and released with every foreign app.py hunk preserved. SAR-05 is the only next runnable slice. SAR-01 remains blocked_environment and REG-20260714-001 remains outside SAR.",
+    "resume_cursor": "claim_minimum_SAR-05_paths_after_fresh_owner_dirty_tree_and_hash_check",
     "resume_priority": [
-      "SAR-04-runtime-topology-contract",
       "SAR-05-background-job-transaction-boundary",
       "SAR-07-response-cache-lru-ttl"
     ],
     "next_runnable_slices": [
-      "SAR-04-runtime-topology-contract"
+      "SAR-05-background-job-transaction-boundary"
     ],
     "blocked_slices": [
       "SAR-01-binding-ci-and-publish-provenance",
       "SAR-02-fresh-release-evidence",
-      "SAR-05-background-job-transaction-boundary",
       "SAR-10-release-truth-and-external-proof",
       "SAR-11-integration-closeout"
     ],
@@ -2482,6 +2515,7 @@
       "SAR-LLM-API-DRIFT-FIX",
       "SAR-01-binding-ci-and-publish-provenance",
       "SAR-03-tailscale-cache-expiry",
+      "SAR-04-runtime-topology-contract",
       "SAR-06-model-aware-token-estimation",
       "SAR-06P-model-hint-hardlimit-propagation",
       "SAR-08-canonical-rag-import",
@@ -2491,6 +2525,7 @@
       "SAR-LLM-API-DRIFT-FIX:217_extended_tests",
       "SAR-01-binding-ci-and-publish-provenance:focused_only_full_suite_environment_gate",
       "SAR-03-tailscale-cache-expiry:focused",
+      "SAR-04-runtime-topology-contract:27_focused_65_compatibility_40_final_contract",
       "SAR-06-model-aware-token-estimation:19_focused_264_compatibility_26_final_gate",
       "SAR-06P-model-hint-hardlimit-propagation:ast_allowlist_and_10_roadmap_contract_tests",
       "SAR-08-canonical-rag-import:focused",
@@ -2498,7 +2533,8 @@
     ],
     "committed": [
       "SAR-06-model-aware-token-estimation:3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd",
-      "SAR-06P-model-hint-hardlimit-propagation:3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd"
+      "SAR-06P-model-hint-hardlimit-propagation:3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd",
+      "SAR-04-runtime-topology-contract:bbb58ce7541391e073c33df4ac3a54422f3a66a1"
     ],
     "pushed": [],
     "deployed": [],
