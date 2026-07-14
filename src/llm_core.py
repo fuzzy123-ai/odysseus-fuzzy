@@ -10,6 +10,7 @@ import contextvars
 from fastapi import HTTPException
 from typing import Optional, Dict, List, Tuple
 from src.model_context import get_context_length, DEFAULT_CONTEXT
+from src.llm_response_cache import LLMResponseCache
 
 logger = logging.getLogger(__name__)
 _ai_activity_cache_hit = contextvars.ContextVar("ai_activity_cache_hit", default=False)
@@ -41,7 +42,7 @@ def _stream_timeout(read_timeout) -> httpx.Timeout:
     """Per-request timeout for streaming LLM calls (connect from config)."""
     return _stream_timeout_impl(LLMConfig.CONNECT_TIMEOUT, read_timeout)
 
-_response_cache = {}
+_response_cache = LLMResponseCache()
 
 # When a connect to a host fails, we mark it dead for DEAD_HOST_COOLDOWN seconds so
 # subsequent calls fail instantly instead of waiting on the connect timeout. Keeps

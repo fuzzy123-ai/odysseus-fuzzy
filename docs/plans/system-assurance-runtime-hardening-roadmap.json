@@ -1120,7 +1120,7 @@
     },
     {
       "id": "SAR-07-response-cache-lru-ttl",
-      "execution_status": "planned_waiting_hotfile_handoff",
+      "execution_status": "implemented_focused_tested",
       "mutation_class": "repo_only",
       "priority": "P2",
       "owner": "Bob",
