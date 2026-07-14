@@ -37,6 +37,12 @@ from dotenv import load_dotenv
 # utf-8-sig reads plain UTF-8 (no BOM) identically, so this is safe everywhere.
 load_dotenv(encoding="utf-8-sig")
 
+from src.runtime_topology import assert_supported_runtime_topology
+
+# Fail during module startup before serving traffic if an operator represents
+# an unsupported multi-process web topology. Temporal workers are independent.
+RUNTIME_TOPOLOGY = assert_supported_runtime_topology(argv=sys.argv)
+
 import asyncio
 import logging
 import secrets
@@ -91,9 +97,9 @@ try:
     os.makedirs(_log_dir, exist_ok=True)
     _log_file = os.path.join(_log_dir, "app.log")
 
-    # RotatingFileHandler is not multi-process safe (e.g. if uvicorn is run with --workers N).
-    # Odysseus is single-process by convention, so this is acceptable, but be aware that
-    # concurrent log rotation issues can arise if multiple workers are configured.
+    # The startup topology contract enforces one web worker because this sink
+    # and the auth rate limiter are process-local. Multi-process web serving
+    # requires a queue/listener or external collector before it can be enabled.
     _file_h = logging.handlers.RotatingFileHandler(
         _log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
     )
@@ -1296,6 +1302,7 @@ async def readiness_check() -> JSONResponse:
     """
     from src.readiness import check_readiness
     result = check_readiness()
+    result["runtime_topology"] = RUNTIME_TOPOLOGY.readiness()
     return JSONResponse(status_code=200 if result.get("ready") else 503, content=result)
 
 @app.get("/api/runtime")
@@ -1316,6 +1323,7 @@ async def runtime_info() -> Dict[str, object]:
     return {
         "in_docker": in_docker,
         "ollama_base_url": ollama_url,
+        "runtime_topology": RUNTIME_TOPOLOGY.readiness(),
     }
 
 # ========= LIFECYCLE =========
@@ -1647,4 +1655,10 @@ if __name__ == "__main__":
     bind_host = os.getenv("APP_BIND", "127.0.0.1")
     bind_port = int(os.getenv("APP_PORT", "7000"))
 
-    uvicorn.run(app, host=bind_host, port=bind_port, log_level="info")
+    uvicorn.run(
+        app,
+        host=bind_host,
+        port=bind_port,
+        log_level="info",
+        workers=RUNTIME_TOPOLOGY.web_workers,
+    )

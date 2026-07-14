@@ -262,9 +262,10 @@ def test_slice_contract_is_complete_and_dormant_until_registration() -> None:
         assert "class" not in item
         assert item["execution_status"] in {
             "done_in_this_artifact",
-            "planned",
-            "planned_waiting_hotfile_handoff",
-            "blocked_environment",
+                "planned",
+                "planned_waiting_hotfile_handoff",
+                "in_progress_serial_claim_active",
+                "blocked_environment",
             "partial_implemented_waiting_SAR-06P",
             "partial_implemented_focused_tested_waiting_full_suite_environment_and_foreign_regression",
             "implemented_focused_tested",
@@ -476,6 +477,9 @@ def test_implementation_status_resume_contract_skips_verified_slices() -> None:
     assert statuses["SAR-03-tailscale-cache-expiry"] == (
         "implemented_focused_tested"
     )
+    assert statuses["SAR-04-runtime-topology-contract"] == (
+        "implemented_focused_tested"
+    )
     assert statuses["SAR-06-model-aware-token-estimation"] == "implemented_focused_tested"
     assert statuses[SAR_06P_ID] == "implemented_focused_tested"
     assert statuses["SAR-08-canonical-rag-import"] == (
@@ -489,10 +493,31 @@ def test_implementation_status_resume_contract_skips_verified_slices() -> None:
     assert "Resume from docs/plans/system-assurance-runtime-hardening-run-state.json" in next_step
     assert "never rerun completed SAR-03, SAR-08 or SAR-09" in next_step
     assert "SAR-01 parked as blocked_environment" in next_step
-    assert "SAR-06 and SAR-06P are focused- and compatibility-green" in next_step
-    assert "SAR-04, SAR-05, SAR-07" in next_step
+    assert "SAR-04, SAR-06 and SAR-06P are focused- and compatibility-green" in next_step
+    assert "SAR-05, SAR-07" in next_step
     assert "IP-SAR-SERIAL-CLOSEOUT" in next_step
     assert "docs/plans/regression-queue.json" in next_step
+
+
+def test_sar04_names_the_real_shipped_launcher_inventory() -> None:
+    roadmap = _load()
+    slices = {item["id"]: item for item in roadmap["slice_queue"]}
+    sar04 = slices["SAR-04-runtime-topology-contract"]
+
+    shipped_launchers = {
+        "Dockerfile",
+        "launch-windows.ps1",
+        "run-server-windows.ps1",
+        "launcher.py",
+        "build-macos-app.sh",
+        "start-macos.sh",
+        "odysseus-ui.service",
+    }
+    assert shipped_launchers <= set(sar04["allowed_paths"])
+    assert "ops/homeserver/odysseus-ui.service" not in sar04["allowed_paths"]
+    assert all((ROOT / path).is_file() for path in shipped_launchers)
+    diff_check = next(command for command in sar04["tests"] if command.startswith("git diff --check"))
+    assert all(path in diff_check for path in shipped_launchers)
 
 
 def test_full_suite_policy_routes_independent_failures_to_regression_queue() -> None:

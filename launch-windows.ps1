@@ -299,4 +299,4 @@ if (Test-Path $cudaBase) {
 Write-Step ("Starting Odysseus at http://{0}:{1}" -f $BindHost, $Port)
 Write-Host "Press Ctrl+C to stop."
 Write-Host ""
-& $venvPy -m uvicorn app:app --host $BindHost --port $Port
+& $venvPy -m uvicorn app:app --host $BindHost --port $Port --workers 1

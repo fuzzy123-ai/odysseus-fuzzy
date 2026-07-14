@@ -2,7 +2,11 @@
 import time
 import pytest
 
-from src.rate_limiter import RateLimiter
+from src.rate_limiter import RATE_LIMITER_STATE_SCOPE, RateLimiter
+
+
+def test_rate_limiter_state_is_explicitly_process_local():
+    assert RATE_LIMITER_STATE_SCOPE == "process_local"
 
 
 class TestRateLimiterAllow:

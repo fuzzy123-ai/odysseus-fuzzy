@@ -139,4 +139,4 @@ if __name__ == "__main__":
         # Start system tray manager thread
         threading.Thread(target=setup_system_tray, args=(url,), daemon=True).start()
 
-    uvicorn.run(app, host=bind_host, port=bind_port, log_level="info")
+    uvicorn.run(app, host=bind_host, port=bind_port, log_level="info", workers=1)

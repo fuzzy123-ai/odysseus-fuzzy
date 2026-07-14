@@ -413,8 +413,8 @@
     {
       "id": "SAR-DEP-RUNTIME-HOTFILES",
       "path": "app.py",
-      "state": "foreign_dirty",
-      "requirement": "SAR-04 must not start until app.py has an acknowledged handoff and its current diff is integrated or released."
+      "state": "satisfied_by_explicit_serial_roadmap_handoff",
+      "requirement": "SAR-04 owns only its topology hunks in app.py; every pre-existing clarification, project-versioning, dashboard, workspace-snapshot and Harbor One hunk remains foreign and unstaged."
     },
     {
       "id": "SAR-DEP-LLM-HOTFILES",
@@ -831,7 +831,7 @@
     },
     {
       "id": "SAR-04-runtime-topology-contract",
-      "execution_status": "planned_waiting_hotfile_handoff",
+      "execution_status": "implemented_focused_tested",
       "mutation_class": "repo_only",
       "priority": "P1",
       "owner": "Bob",
@@ -845,7 +845,10 @@
         "Dockerfile",
         "launch-windows.ps1",
         "run-server-windows.ps1",
-        "ops/homeserver/odysseus-ui.service",
+        "launcher.py",
+        "build-macos-app.sh",
+        "start-macos.sh",
+        "odysseus-ui.service",
         "tests/test_runtime_topology.py",
         "tests/test_rate_limiter.py"
       ],
@@ -863,7 +866,7 @@
       "tests": [
         "venv/Scripts/python.exe -m pytest tests/test_runtime_topology.py tests/test_rate_limiter.py -q --basetemp .pytest_tmp_sar_topology",
         "venv/Scripts/python.exe -m pytest tests/test_docker_runtime_plan_inputs.py -q --basetemp .pytest_tmp_sar_topology_docker",
-        "git diff --check -- app.py src/runtime_topology.py src/rate_limiter.py Dockerfile launch-windows.ps1 run-server-windows.ps1 ops/homeserver/odysseus-ui.service tests/test_runtime_topology.py tests/test_rate_limiter.py"
+        "git diff --check -- app.py src/runtime_topology.py src/rate_limiter.py Dockerfile launch-windows.ps1 run-server-windows.ps1 launcher.py build-macos-app.sh start-macos.sh odysseus-ui.service tests/test_runtime_topology.py tests/test_rate_limiter.py"
       ],
       "evidence_required": [
         "default and every shipped launcher use exactly one web worker",
@@ -1634,5 +1637,5 @@
     },
     "queue_audit_rule": "Because canonical Open Work registration is deliberately deferred, SAR slice entries use execution_status and mutation_class rather than the audit-active status and class keys. The broad audit must not expose them before registration."
   },
-  "recommended_next_step": "Resume from docs/plans/system-assurance-runtime-hardening-run-state.json. SAR-06 and SAR-06P are focused- and compatibility-green and must not be rerun. Keep SAR-01 parked as blocked_environment. Execute exactly one serialized claim at a time in this remaining order: SAR-04, SAR-05, SAR-07. Run only focused slice tests until IP-SAR-SERIAL-CLOSEOUT, then run the unchanged repository-wide suite once. Route every independent or not-yet-attributed failure to docs/plans/regression-queue.json without adding it to SAR. Preserve all foreign hunks and never rerun completed SAR-03, SAR-08 or SAR-09."
+  "recommended_next_step": "Resume from docs/plans/system-assurance-runtime-hardening-run-state.json. SAR-04, SAR-06 and SAR-06P are focused- and compatibility-green and must not be rerun. Keep SAR-01 parked as blocked_environment. Execute exactly one serialized claim at a time in this remaining order: SAR-05, SAR-07. Run only focused slice tests until IP-SAR-SERIAL-CLOSEOUT, then run the unchanged repository-wide suite once. Route every independent or not-yet-attributed failure to docs/plans/regression-queue.json without adding it to SAR. Preserve all foreign hunks and never rerun completed SAR-03, SAR-08 or SAR-09."
 }

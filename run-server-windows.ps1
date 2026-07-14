@@ -58,5 +58,5 @@ if ($DisableBuiltinMcp) {
 
 Repair-PathEnvironmentKeys
 Add-Content -LiteralPath $tracePath -Value ("uvicorn-start {0} pid={1}" -f (Get-Date -Format o), $PID)
-& $venvPy -m uvicorn app:app --host $BindHost --port $Port
+& $venvPy -m uvicorn app:app --host $BindHost --port $Port --workers 1
 Add-Content -LiteralPath $tracePath -Value ("uvicorn-exit {0} pid={1} exit={2}" -f (Get-Date -Format o), $PID, $LASTEXITCODE)

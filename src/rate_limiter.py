@@ -6,6 +6,9 @@ import time
 from typing import Dict, List
 
 
+RATE_LIMITER_STATE_SCOPE = "process_local"
+
+
 class RateLimiter:
     """Sliding-window rate limiter.
 
