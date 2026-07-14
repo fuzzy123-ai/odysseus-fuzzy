@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only",
   "state": "running",
-  "revision": 129,
+  "revision": 131,
   "resumed_at": "2026-07-14T20:27:39.3767912+02:00",
   "resume_authority": "user_directed_serial_roadmap_execution_after_probe_45",
   "paused_at": null,
@@ -110,6 +110,24 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:SAR-07",
+      "slice_id": "SAR-07-response-cache-lru-ttl",
+      "owner": "/root",
+      "state": "released_green_committed",
+      "acquired_at": "2026-07-14T21:47:04.3468303+02:00",
+      "released_at": "2026-07-14T21:59:34.3395011+02:00",
+      "commit": "175e548c49f5fd48e79a520ebe9b405c119d8015",
+      "evidence": [
+        "14 declared SAR-07 focused tests passed, including deterministic 32-thread stress",
+        "171 existing LLM-core and endpoint-cache compatibility tests passed",
+        "11 SAR roadmap contract tests passed and the required path-scoped git diff --check passed",
+        "hit and overwrite promote recency, entry 129 evicts exactly one least-recently-used entry, and locked size never exceeds 128",
+        "300-second default TTL, 3600-second hard configuration boundary, lazy expiry and content-free counters are deterministic and network-free",
+        "the existing dead-host counter test remains green and no dead-host code or semantics changed",
+        "commit 175e548c49f5fd48e79a520ebe9b405c119d8015 contains only owned SAR-07 hunks; all foreign prompt_type and surface llm_core hunks remain unstaged and no push occurred"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:SAR-05",
       "slice_id": "SAR-05-background-job-transaction-boundary",
@@ -867,6 +885,14 @@
     }
   ],
   "agent_leases": [
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:SAR-07",
+      "state": "completed_green_committed",
+      "leased_at": "2026-07-14T21:47:04.3468303+02:00",
+      "lease_expires_at": "2026-07-14T23:47:04.3468303+02:00",
+      "released_at": "2026-07-14T21:59:34.3395011+02:00"
+    },
     {
       "agent": "/root",
       "claim_id": "sar-12h-20260714t092106:SAR-05",
@@ -2525,14 +2551,14 @@
   "live_go_ledger": [],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-14T21:44:15.9457453+02:00",
-    "summary": "SAR-05 is green, committed as 9edbea16 and released. The one-hour local detached-job boundary is now executable and durable 12-24 hour continuation remains reserved for Temporal Light. SAR-07 is the only next runnable SAR slice.",
-    "resume_cursor": "claim_minimum_SAR-07_paths_after_fresh_owner_dirty_tree_hotfile_and_hash_check",
+    "last_durable_progress_at": "2026-07-14T21:59:34.3395011+02:00",
+    "summary": "SAR-07 is focused- and compatibility-green, committed as 175e548c and released. All four serial SAR implementation slices are now ready for the single declared full-suite integration point; foreign llm_core hunks remain untouched.",
+    "resume_cursor": "run_IP-SAR-SERIAL-CLOSEOUT_once_then_route_independent_failures",
     "resume_priority": [
-      "SAR-07-response-cache-lru-ttl"
+      "IP-SAR-SERIAL-CLOSEOUT"
     ],
     "next_runnable_slices": [
-      "SAR-07-response-cache-lru-ttl"
+      "IP-SAR-SERIAL-CLOSEOUT"
     ],
     "blocked_slices": [
       "SAR-01-binding-ci-and-publish-provenance",
@@ -2556,6 +2582,7 @@
       "SAR-05-background-job-transaction-boundary",
       "SAR-06-model-aware-token-estimation",
       "SAR-06P-model-hint-hardlimit-propagation",
+      "SAR-07-response-cache-lru-ttl",
       "SAR-08-canonical-rag-import",
       "SAR-09-measured-optimization-decisions"
     ],
@@ -2567,6 +2594,7 @@
       "SAR-05-background-job-transaction-boundary:18_focused_41_compatibility_52_final_contract",
       "SAR-06-model-aware-token-estimation:19_focused_264_compatibility_26_final_gate",
       "SAR-06P-model-hint-hardlimit-propagation:ast_allowlist_and_10_roadmap_contract_tests",
+      "SAR-07-response-cache-lru-ttl:14_focused_171_compatibility_11_roadmap_contract",
       "SAR-08-canonical-rag-import:focused",
       "SAR-09-measured-optimization-decisions:focused_and_cli"
     ],
@@ -2574,7 +2602,8 @@
       "SAR-06-model-aware-token-estimation:3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd",
       "SAR-06P-model-hint-hardlimit-propagation:3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd",
       "SAR-04-runtime-topology-contract:bbb58ce7541391e073c33df4ac3a54422f3a66a1",
-      "SAR-05-background-job-transaction-boundary:9edbea16226d02b26a4e3e355ec8a589135d8046"
+      "SAR-05-background-job-transaction-boundary:9edbea16226d02b26a4e3e355ec8a589135d8046",
+      "SAR-07-response-cache-lru-ttl:175e548c49f5fd48e79a520ebe9b405c119d8015"
     ],
     "pushed": [],
     "deployed": [],
