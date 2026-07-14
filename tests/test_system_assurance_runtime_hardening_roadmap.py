@@ -480,6 +480,9 @@ def test_implementation_status_resume_contract_skips_verified_slices() -> None:
     assert statuses["SAR-04-runtime-topology-contract"] == (
         "implemented_focused_tested"
     )
+    assert statuses["SAR-05-background-job-transaction-boundary"] == (
+        "implemented_focused_tested"
+    )
     assert statuses["SAR-06-model-aware-token-estimation"] == "implemented_focused_tested"
     assert statuses[SAR_06P_ID] == "implemented_focused_tested"
     assert statuses["SAR-08-canonical-rag-import"] == (
@@ -493,8 +496,8 @@ def test_implementation_status_resume_contract_skips_verified_slices() -> None:
     assert "Resume from docs/plans/system-assurance-runtime-hardening-run-state.json" in next_step
     assert "never rerun completed SAR-03, SAR-08 or SAR-09" in next_step
     assert "SAR-01 parked as blocked_environment" in next_step
-    assert "SAR-04, SAR-06 and SAR-06P are focused- and compatibility-green" in next_step
-    assert "SAR-05, SAR-07" in next_step
+    assert "SAR-04, SAR-05, SAR-06 and SAR-06P are focused- and compatibility-green" in next_step
+    assert "serialized claim next: SAR-07" in next_step
     assert "IP-SAR-SERIAL-CLOSEOUT" in next_step
     assert "docs/plans/regression-queue.json" in next_step
 

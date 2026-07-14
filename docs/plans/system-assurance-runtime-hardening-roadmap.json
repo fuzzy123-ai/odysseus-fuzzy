@@ -894,7 +894,7 @@
     },
     {
       "id": "SAR-05-background-job-transaction-boundary",
-      "execution_status": "planned",
+      "execution_status": "implemented_focused_tested",
       "mutation_class": "repo_only",
       "priority": "P1",
       "owner": "Bob",
@@ -1637,5 +1637,5 @@
     },
     "queue_audit_rule": "Because canonical Open Work registration is deliberately deferred, SAR slice entries use execution_status and mutation_class rather than the audit-active status and class keys. The broad audit must not expose them before registration."
   },
-  "recommended_next_step": "Resume from docs/plans/system-assurance-runtime-hardening-run-state.json. SAR-04, SAR-06 and SAR-06P are focused- and compatibility-green and must not be rerun. Keep SAR-01 parked as blocked_environment. Execute exactly one serialized claim at a time in this remaining order: SAR-05, SAR-07. Run only focused slice tests until IP-SAR-SERIAL-CLOSEOUT, then run the unchanged repository-wide suite once. Route every independent or not-yet-attributed failure to docs/plans/regression-queue.json without adding it to SAR. Preserve all foreign hunks and never rerun completed SAR-03, SAR-08 or SAR-09."
+  "recommended_next_step": "Resume from docs/plans/system-assurance-runtime-hardening-run-state.json. SAR-04, SAR-05, SAR-06 and SAR-06P are focused- and compatibility-green and must not be rerun. Keep SAR-01 parked as blocked_environment. Execute exactly one serialized claim next: SAR-07. Run only focused slice tests until IP-SAR-SERIAL-CLOSEOUT, then run the unchanged repository-wide suite once. Route every independent or not-yet-attributed failure to docs/plans/regression-queue.json without adding it to SAR. Preserve all foreign hunks and never rerun completed SAR-03, SAR-08 or SAR-09."
 }
