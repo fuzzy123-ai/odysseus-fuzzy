@@ -82,6 +82,40 @@ def _write_planning_roadmap(root: Path) -> None:
     }, indent=2), encoding="utf-8")
 
 
+def _write_approved_definition_snapshot(root: Path) -> None:
+    path = root / "data" / "planning" / "definitions" / "external-preview.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({
+        "schema_version": 1,
+        "kind": "harbor.planning.roadmap",
+        "project_id": "external-preview",
+        "roadmap_id": "external-map",
+        "revision": 3,
+        "created_at": "2026-07-15T06:00:00Z",
+        "updated_at": "2026-07-15T06:00:00Z",
+        "title": "External Planning Preview",
+        "goal": "Expose only immutable Planning definitions.",
+        "status": "approved",
+        "slice_queue": [{
+            "id": "definition-preview",
+            "title": "Definition preview",
+            "objective": "Keep Agent execution outside Planning.",
+            "status": "running",
+            "gate_ids": ["definition-go"],
+        }],
+        "gate_queue": [{
+            "id": "definition-go",
+            "class": "repo",
+            "state": "blocked",
+            "decision": "synthetic-runtime-decision",
+            "decision_needed": "Confirm the definition-only external preview.",
+            "safe_default": "Keep the preview read-only.",
+            "blocks": ["definition-preview"],
+        }],
+        "source_refs": ["plugins/mcp_server/plugin.py"],
+    }, indent=2), encoding="utf-8")
+
+
 def test_mcp_server_is_disabled_by_default(tmp_path, monkeypatch):
     monkeypatch.delenv("ODYSSEUS_MCP_SERVER_ENABLED", raising=False)
     client = _client(tmp_path)
@@ -367,7 +401,7 @@ def test_external_planning_tools_are_hidden_until_explicit_read_capability(tmp_p
     assert blocked["client_id"] == "external-mcp"
 
 
-def test_external_planning_read_capability_exposes_exact_six_tools_and_readiness(tmp_path, monkeypatch):
+def test_external_planning_read_capability_exposes_exact_definition_tool_inventory_and_readiness(tmp_path, monkeypatch):
     monkeypatch.delenv("ODYSSEUS_MCP_SERVER_ENABLED", raising=False)
     client = _client(tmp_path)
     config = client.post("/api/plugins/mcp/config", json={
@@ -381,7 +415,7 @@ def test_external_planning_read_capability_exposes_exact_six_tools_and_readiness
     })).json()["result"]["contents"][0]
 
     assert config["allow_planning_reads"] is True
-    assert names >= set(PLANNING_READONLY_TOOLS)
+    assert {name for name in names if name.startswith("planning_")} == set(PLANNING_READONLY_TOOLS)
     assert all(
         next(tool for tool in tools if tool["name"] == name)["inputSchema"]["additionalProperties"] is False
         for name in PLANNING_READONLY_TOOLS
@@ -393,7 +427,40 @@ def test_external_planning_read_capability_exposes_exact_six_tools_and_readiness
         "planning_propose_patch",
         "planning_apply_patch",
         "planning_delete_roadmap",
+        "planning_gate_status",
+        "planning_mark_status",
     })
+
+
+def test_external_deprecated_planning_tools_are_hidden_even_when_reads_are_enabled(tmp_path, monkeypatch):
+    monkeypatch.delenv("ODYSSEUS_MCP_SERVER_ENABLED", raising=False)
+    client = _client(tmp_path)
+    client.post("/api/plugins/mcp/config", json={
+        "enabled": True,
+        "allow_planning_reads": True,
+    })
+
+    for name in ("planning_gate_status", "planning_mark_status"):
+        result = client.post("/api/plugins/mcp", json=_rpc("tools/call", {
+            "name": name,
+            "arguments": {"runtime_status": "running", "decision": "go"},
+        })).json()["result"]
+        assert result["isError"] is True
+        assert "planning_deprecated_tool_hidden" in result["content"][0]["text"]
+
+    entries = [
+        json.loads(line)
+        for line in (tmp_path / "mcp_audit.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    deprecated = [entry for entry in entries if entry.get("tool_name") in {
+        "planning_gate_status",
+        "planning_mark_status",
+    }]
+    assert len(deprecated) == 2
+    assert all(entry["status"] == "blocked" for entry in deprecated)
+    assert all(entry["category"] == "planning_deprecated" for entry in deprecated)
+    assert all(entry["metadata"]["argument_values_stored"] == "" for entry in deprecated)
+    assert all(entry["raw_arguments_visible"] is False for entry in deprecated)
 
 
 def test_external_planning_dispatch_uses_pure_bounded_contract(tmp_path, monkeypatch):
@@ -428,6 +495,64 @@ def test_external_planning_dispatch_uses_pure_bounded_contract(tmp_path, monkeyp
     assert audit["argument_fields"] == ["limit", "query"]
     assert audit["argument_count"] == 2
     assert audit["argument_hash"].startswith("sha256:")
+
+
+def test_external_definition_gate_and_handoff_dispatch_never_emit_runtime_state_or_launch(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.delenv("ODYSSEUS_MCP_SERVER_ENABLED", raising=False)
+    monkeypatch.setenv("ODYSSEUS_ROOT", str(tmp_path))
+    monkeypatch.setenv("ODYSSEUS_SINGLE_USER_OWNER", "local-user")
+    _write_planning_roadmap(tmp_path)
+    _write_approved_definition_snapshot(tmp_path)
+    client = _client(tmp_path)
+    client.post("/api/plugins/mcp/config", json={
+        "enabled": True,
+        "allow_planning_reads": True,
+    })
+
+    gate_result = client.post("/api/plugins/mcp", json=_rpc("tools/call", {
+        "name": "planning_read_gate_definitions",
+        "arguments": {
+            "project_id": "external-preview",
+            "roadmap_id": "external-map",
+            "revision_or_latest_approved": 3,
+            "node_id": "definition-preview",
+        },
+    })).json()["result"]
+    handoff_result = client.post("/api/plugins/mcp", json=_rpc("tools/call", {
+        "name": "planning_create_agent_handoff",
+        "arguments": {
+            "project_id": "external-preview",
+            "roadmap_id": "external-map",
+            "revision_or_latest_approved": "latest_approved",
+        },
+    })).json()["result"]
+    gate = json.loads(gate_result["content"][0]["text"])
+    handoff = json.loads(handoff_result["content"][0]["text"])
+
+    assert gate_result["isError"] is False
+    assert gate["schema_id"] == "odysseus.planning.gate_definitions.v2"
+    assert gate["revision"] == 3
+    assert gate["gate_definitions"][0]["gate_id"] == "definition-go"
+    gate_text = json.dumps(gate, sort_keys=True)
+    assert "synthetic-runtime-decision" not in gate_text
+    assert '"state"' not in gate_text
+    assert '"decision"' not in gate_text
+    assert '"status"' not in gate_text
+
+    assert handoff_result["isError"] is False
+    assert handoff["schema_id"] == "odysseus.agent.plan_handoff.v1"
+    assert handoff["revision"] == 3
+    assert handoff["composer_text"] == (
+        f"/abc run roadmap:external-map@3 hash:{handoff['content_hash']}"
+    )
+    assert handoff["launch_authorized"] is False
+    assert handoff["read_only"] is True
+    assert set(handoff).isdisjoint(
+        {"skill", "model", "run_id", "workflow_id", "command", "auto_submit"}
+    )
 
 
 def test_external_planning_errors_and_audit_never_record_raw_arguments(tmp_path, monkeypatch):
