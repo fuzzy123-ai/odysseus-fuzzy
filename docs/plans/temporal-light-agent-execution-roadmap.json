@@ -5,7 +5,7 @@
   "title": "Temporal Light Agent Execution Roadmap",
   "created_at": "2026-07-13",
   "updated_at": "2026-07-15",
-  "status": "TLR_05_done_TLR_06_next",
+  "status": "TLR_06_done_TLR_07_design_gated_planning_integration_next",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
   "planning_dependency": "docs/plans/planning-definition-editor-roadmap.json",
@@ -943,7 +943,7 @@
     },
     {
       "id": "TLR-06-history-agent-projection-api",
-      "status": "planned",
+      "status": "complete",
       "class": "repo_only",
       "owner": "Bob",
       "depends_on": [
@@ -986,6 +986,24 @@
       "gate": {
         "id": "TLR-APP-ROUTER-HANDOFF",
         "safe_default": "Implement services and route tests first; register app.py only under a serial hotfile claim."
+      },
+      "completion_evidence": {
+        "commits": [
+          "2a3b7aac",
+          "f9c4e878"
+        ],
+        "focused_result": "31 passed across projection, owner-scoped routes, bounded history, SSE reconnect, default lazy registration and command readback",
+        "compatibility_result": "41 app/Planning registration tests and the complete 240-test TLR-01 through TLR-06 block passed",
+        "owner_result": "the durable run-start catalog validates manifest/receipt identity and returns the same 404 for a foreign-owner run as for a missing run",
+        "restart_result": "a second adapter instance reconstructed the same projection from the persisted run-start store and Temporal reader without a process-local run registry",
+        "history_result": "history pages reject limits above 200; Last-Event-ID resumed a 205-event stream with zero duplicate or missing ids",
+        "command_result": "the backend projection is authoritative for current-version commands; older duplicate requests reach Temporal idempotency and every accepted write returns a validated receipt plus reread current run version",
+        "privacy_result": "only allowlisted product events leave the SDK adapter; raw history/payload fields, credential-shaped values and unauthorized absolute paths are rejected",
+        "planning_boundary_result": "Planning responses contain no agent run, workflow, heartbeat, command or history-segment fields",
+        "app_result": "the six endpoints are registered once beside Planning through a lazy reader locked to 127.0.0.1:7233/default; app import performs no network or process action and public start remains fail-closed without an in-process authenticated /abc marker",
+        "real_sdk_result": "a short-lived local Temporal test server proved pending-Activity projection, sanitized history, pause Update/readback, resume and completed result; no Temporal process remained",
+        "integration_point_result": "IP-TLR-06-CLOSEOUT collected 9020 tests and completed once; its seven failures map to five already-known Windows symlink-privilege tests and two already-known AMD shell/platform tests, with no TLR failure. They remain separate regression/environment evidence and did not expand TLR.",
+        "foreign_hunk_result": "only the four-line Agent router registration was staged from foreign-dirty app.py; every pre-existing app, requirements and HWA hunk remained outside both commits"
       },
       "done_when": "PASS only if the Agent API reconstructs current execution from persisted truth after process restart, enforces owner scope and limits, and the Planning API remains definition-only.",
       "stop_rules": [
@@ -1296,7 +1314,7 @@
     {
       "id": "TEMPORAL-LIGHT-RUNTIME-CONTRACT-READY",
       "class": "contract_gate",
-      "status": "pending_contract_evidence",
+      "status": "satisfied_TLR_02_through_TLR_06_green",
       "blocks": [
         "TLR-06-history-agent-projection-api",
         "TLR-07-agent-screen-runtime-ui"
@@ -1386,5 +1404,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_tlr_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "TLR-02-abc-manifest-and-run-start through TLR-05-signals-updates-idempotency are complete. Claim TLR-06-history-agent-projection-api next and expose only owner-scoped, bounded Agent projections and command readback; never send raw Temporal history or private Activity payloads to the browser."
+  "recommended_next_step": "TLR-01 through TLR-06 are complete. Keep TLR-07 parked at HPA-AGENT-UX-ACCEPTANCE and follow the master queue to the next dependency-safe Planning Definition Editor or Planning MCP slice; never move runtime truth into Planning."
 }

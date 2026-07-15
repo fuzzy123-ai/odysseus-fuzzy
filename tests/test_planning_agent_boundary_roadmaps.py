@@ -130,7 +130,7 @@ def test_child_slice_contracts_are_complete_resolved_and_acyclic() -> None:
         if gate["id"] == "TEMPORAL-LIGHT-RUNTIME-CONTRACT-READY"
     )
     assert contract_gate["class"] == "contract_gate"
-    assert contract_gate["status"] == "pending_contract_evidence"
+    assert contract_gate["status"] == "satisfied_TLR_02_through_TLR_06_green"
     assert "TLR-02-abc-manifest-and-run-start" not in contract_gate["blocks"]
     assert set(contract_gate["depends_on"]) == {
         "TLR-02-abc-manifest-and-run-start",
@@ -264,7 +264,7 @@ def test_obsolete_v2_queue_is_archived_and_hwa_uses_temporal() -> None:
     assert "scheduler/effect queue is authorized" in hwa
 
 
-def test_tlr01_authorized_local_runtime_routes_to_tlr02_with_process_stopped() -> None:
+def test_tlr01_authorized_local_runtime_is_closed_through_tlr06_with_process_stopped() -> None:
     tlr = _load(TLR_PATH)
     slices = {item["id"]: item for item in tlr["slice_queue"]}
     gates = {item["id"]: item for item in tlr["gate_queue"]}
@@ -281,7 +281,9 @@ def test_tlr01_authorized_local_runtime_routes_to_tlr02_with_process_stopped() -
     assert local_gate["status"] == "used_for_TLR_01_process_stopped"
     assert local_gate["blocks"] == ["real process portions of TLR-08"]
     assert "Keep every Temporal process stopped" in local_gate["safe_default"]
-    assert "TLR-02-abc-manifest-and-run-start" in tlr["recommended_next_step"]
+    assert slices["TLR-06-history-agent-projection-api"]["status"] == "complete"
+    assert "TLR-01 through TLR-06 are complete" in tlr["recommended_next_step"]
+    assert "HPA-AGENT-UX-ACCEPTANCE" in tlr["recommended_next_step"]
 
 
 def test_pde01_completion_routes_serially_to_pde02() -> None:

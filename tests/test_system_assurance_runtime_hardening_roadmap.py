@@ -563,6 +563,7 @@ def test_full_suite_policy_routes_independent_failures_to_regression_queue() -> 
     assert [item["id"] for item in queue["items"]] == [
         "REG-20260714-001",
         "REG-20260714-002",
+        "REG-20260715-003",
     ]
     environment_item = queue["items"][1]
     assert environment_item["state"] == "blocked_environment"
@@ -571,6 +572,12 @@ def test_full_suite_policy_routes_independent_failures_to_regression_queue() -> 
         "tests/test_agent_migration_manifest.py::"
         "test_collect_skill_dir_skips_symlinked_skill_markdown"
     )
+    assert "all four" in environment_item["evidence"][-2]
+    amd_item = queue["items"][2]
+    assert amd_item["state"] == "blocked_environment"
+    assert amd_item["source_probe_id"] == "IP-TLR-06-CLOSEOUT"
+    assert amd_item["test_node"] == "tests/test_amd_gpu_check_args.py"
+    assert "does not preempt Planning integration" in amd_item["next_action"]
 
 
 def test_gates_and_long_run_authority_are_unambiguous() -> None:
