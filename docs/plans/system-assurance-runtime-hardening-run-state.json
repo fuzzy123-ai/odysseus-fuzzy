@@ -9,8 +9,8 @@
   "phase": "implementation",
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
-  "state": "waiting_on_user",
-  "revision": 204,
+  "state": "in_progress",
+  "revision": 206,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -129,13 +129,17 @@
         "git ref codex/deploy-fuzzy-dev-20260715",
         "git ref fuzzy/dev",
         "clean worktree C:/tmp/odysseus-deploy-integration-20260715",
+        "routes/agent_operation_routes.py",
+        "tests/test_agent_operation_routes.py",
         "configured SSH target odysseus-homeserver",
         "/opt/odysseus checkout and odysseus-auto-update.service"
       ],
-      "hotfiles": [],
-      "state": "waiting_on_user",
+      "hotfiles": [
+        "routes/agent_operation_routes.py"
+      ],
+      "state": "in_progress_startup_fix_green_pending_redeploy",
       "acquired_at": "2026-07-15T17:30:56.5901334+02:00",
-      "lease_expires_at": "2026-07-15T19:30:56.5901334+02:00",
+      "lease_expires_at": "2026-07-15T20:37:41.8696452+02:00",
       "handoff_required": true,
       "handoff_evidence": [
         "the user named fuzzy/dev followed by the Debian homeserver as the live target",
@@ -144,6 +148,12 @@
         "the dirty primary checkout will not be merged, rebased, reset or cleaned",
         "the repository-native updater requires a clean fast-forward, pre-update Restic snapshot, Podman rebuild and commit health readback",
         "deployment merge d9485cdfcd9e3b203072ed05c6a65c0cdb23b1dd was pushed fast-forward to fuzzy/dev",
+        "the foreign Debian changes were preserved in local-only backup commit 9889db366387e75b35e04e42e4036d03522fea8b and the dev checkout was returned clean",
+        "the pre-update Restic snapshot completed before the checkout fast-forwarded to 1b72ce2d",
+        "the first rebuild exposed a deterministic startup regression: default Agent route registration loaded Temporal server persistence config while container HOME=/app, correctly triggering the repository-persistence rejection",
+        "the minimum fix is limited to decoupling lazy localhost client registration from Temporal server persistence plus a container-HOME regression test",
+        "the Temporal persistence guard itself remains unchanged and covered by its original rejection test",
+        "31 focused Agent route and Temporal config tests passed after the fix",
         "the Debian checkout is healthy but contains 22 foreign Gemma and local-scheduler paths last changed on 2026-07-12",
         "no Git index lock, active editor or open /opt/odysseus file owned by the old Codex process was found",
         "the execution reviewer rejected preserving and clearing the foreign work without an explicit user grant"
@@ -152,7 +162,9 @@
         "docs/plans/system-assurance-runtime-hardening-run-state.json": "cd806e3f58d973acde85ccbe3f86292388de7664e02bafaa1d78acf85f9c7936",
         "local_dev_commit": "fbb495141d5925cfcf71b1080b29a76b78ddff9d",
         "remote_fuzzy_dev_commit": "6c06e82721f4960404836a3e953a59e45d031fbd",
-        "merge_base": "5f75df89f422259d7a6a5eacf10ebb3256548614"
+        "merge_base": "5f75df89f422259d7a6a5eacf10ebb3256548614",
+        "routes/agent_operation_routes.py": "4fb478b3953a22760bae6a3b45ef3d2cffcef972147bd704cd6596ac6a2a5c40",
+        "tests/test_agent_operation_routes.py": "c62e8d3ff767cc0e201317125c01ab895f34f018342e298eb728344eabd90b61"
       },
       "evidence_contract": {
         "source_branch": "dev",
@@ -178,6 +190,12 @@
         ],
         "rollback": "Because the deployment merge uses fuzzy/dev as first parent, create and push a non-force git revert -m 1 of the deployment merge, rerun the same backup-before-deploy updater, and use the recorded Restic snapshot only if persistent data changed.",
         "rollback_owner": "/root"
+      },
+      "startup_fix_evidence": {
+        "failure": "src.temporal_runtime.config.TemporalLightConfigError during app import because container HOME=/app resolved the server runtime below the repository root",
+        "fix": "default Agent route registration now constructs its lazy localhost-only reader from pinned constants without loading Temporal server persistence configuration",
+        "focused_tests": "tests/test_agent_operation_routes.py tests/test_temporal_runtime_config.py => 31 passed",
+        "redeploy_required": true
       },
       "forbidden_actions": [
         "force push",

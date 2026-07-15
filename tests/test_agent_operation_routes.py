@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import datetime, timezone
 import json
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -397,6 +398,18 @@ def test_default_router_registration_has_no_network_or_process_side_effect(
     assert len([route for route in router.routes if route.path == "/api/agent/runs"]) == 2
 
 
+def test_default_router_registration_does_not_load_server_persistence_config(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("ODYSSEUS_TEMPORAL_RUNTIME_DIR", str(Path.cwd()))
+
+    router = setup_default_agent_operation_routes(
+        run_store_path=tmp_path / "run-starts.json"
+    )
+
+    assert len([route for route in router.routes if route.path == "/api/agent/runs"]) == 2
+
+
 def test_lazy_reader_rejects_any_non_pinned_runtime_target():
     with pytest.raises(AgentOperationAdapterError) as caught:
         LazyTemporalSDKExecutionReader(address="temporal.example.com:7233")
@@ -404,8 +417,6 @@ def test_lazy_reader_rejects_any_non_pinned_runtime_target():
 
 
 def test_agent_router_is_registered_once_adjacent_to_planning():
-    from pathlib import Path
-
     source = (Path(__file__).resolve().parents[1] / "app.py").read_text(
         encoding="utf-8"
     )

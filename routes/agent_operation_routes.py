@@ -183,7 +183,7 @@ def setup_default_agent_operation_routes(
     from routes.project_versioning_routes import _same_origin_csrf_gate
     from src.auth_helpers import effective_user
     from src.constants import DATA_DIR
-    from src.temporal_runtime.config import load_temporal_light_config
+    from src.temporal_runtime.config import DEFAULT_NAMESPACE, GRPC_PORT, LOOPBACK_HOST
 
     local_owner = str(os.getenv("ODYSSEUS_SINGLE_USER_OWNER") or "local-user").strip()
     store_path = Path(
@@ -191,10 +191,9 @@ def setup_default_agent_operation_routes(
         or (Path(DATA_DIR) / "temporal_light" / "run-starts.json")
     )
     if temporal is None:
-        config = load_temporal_light_config()
         temporal = LazyTemporalSDKExecutionReader(
-            address=config.address,
-            namespace=config.namespace,
+            address=f"{LOOPBACK_HOST}:{GRPC_PORT}",
+            namespace=DEFAULT_NAMESPACE,
         )
     adapter = TemporalAgentOperationAdapter(
         catalog=PersistentRunCatalog(store_path),
