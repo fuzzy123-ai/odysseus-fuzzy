@@ -11,6 +11,57 @@
   const params = new URLSearchParams(window.location.search);
   const requestedScenario = String(params.get('planningScenario') || '').toLowerCase();
   const sourceMode = String(params.get('planningSource') || 'auto').toLowerCase();
+  const definitionNotificationEvents = new Set([
+    'project_created',
+    'project_deleted',
+    'roadmap_created',
+    'roadmap_deleted',
+    'roadmap_revision_approved',
+    'roadmap_revision_conflict',
+    'undo_available_after_structural_delete'
+  ]);
+  const revisionNotificationEvents = new Set([
+    'roadmap_revision_approved',
+    'roadmap_revision_conflict'
+  ]);
+  const executionNotificationEvents = new Set([
+    'activity_completed', 'activity_failed', 'activity_started',
+    'agent_run_completed', 'agent_run_failed', 'agent_run_started',
+    'claim_expired', 'gate_blocked', 'gate_unblocked_when_it_changes_available_work',
+    'heartbeat_late', 'heartbeat_recovered', 'human_decision_required',
+    'workflow_cancelled', 'workflow_paused', 'workflow_resumed'
+  ]);
+
+  function notificationId(value) {
+    const text = String(value || '');
+    return /^[a-z0-9][a-z0-9_-]{0,63}$/.test(text) ? text : '';
+  }
+
+  function parseNotificationRoute() {
+    const eventType = String(params.get('notificationEvent') || '');
+    if (!eventType) return null;
+    if (executionNotificationEvents.has(eventType)) {
+      return Object.freeze({ workspace: 'agent' });
+    }
+    if (!definitionNotificationEvents.has(eventType)) {
+      return Object.freeze({ workspace: 'invalid', message: 'The notification target was rejected.' });
+    }
+    const projectId = notificationId(params.get('notificationProject'));
+    const roadmapId = notificationId(params.get('notificationRoadmap'));
+    const needsRoadmap = !eventType.startsWith('project_');
+    const revisionText = String(params.get('notificationRevision') || '');
+    const revision = /^\d+$/.test(revisionText) && Number(revisionText) > 0 ? Number(revisionText) : null;
+    if (!projectId || (needsRoadmap && !roadmapId) || (revisionNotificationEvents.has(eventType) && !revision)) {
+      return Object.freeze({ workspace: 'invalid', message: 'The definition notification reference was incomplete.' });
+    }
+    return Object.freeze({
+      workspace: 'planning',
+      eventType,
+      projectId,
+      roadmapId: roadmapId || null,
+      revision
+    });
+  }
 
   const state = {
     catalog: null,
@@ -20,7 +71,9 @@
     draft: null,
     validation: { kind: 'unvalidated', errors: [] },
     undoSnapshot: null,
+    undoReadbackHash: '',
     localPreviewAccepted: false,
+    notification: parseNotificationRoute(),
     message: '',
     search: ''
   };
@@ -72,6 +125,22 @@
     return { tone: 'live', label: 'Canonical definition source', detail: 'approved revision read' };
   }
 
+  function renderDefinitionNotification() {
+    const notification = state.notification;
+    if (!notification || notification.workspace !== 'planning') return '';
+    const labels = {
+      project_created: 'Project definition created',
+      project_deleted: 'Project definition tombstoned',
+      roadmap_created: 'Roadmap definition created',
+      roadmap_deleted: 'Roadmap definition tombstoned',
+      roadmap_revision_approved: 'Roadmap revision approved',
+      roadmap_revision_conflict: 'Roadmap revision conflict',
+      undo_available_after_structural_delete: 'Definition undo available'
+    };
+    const revision = notification.revision ? ` · revision ${notification.revision}` : '';
+    return `<div class="pde-message" role="status" data-pde-notification-target="planning" data-pde-notification-event="${escapeHtml(notification.eventType)}"><strong>${escapeHtml(labels[notification.eventType])}</strong> · exact definition selected${escapeHtml(revision)}</div>`;
+  }
+
   function renderLoading() {
     root.dataset.planningScenario = 'loading';
     root.innerHTML = `
@@ -119,6 +188,7 @@
     const origin = state.catalog.readModel.origin || {};
     root.dataset.planningScenario = state.catalog.scenario || origin.state || state.catalog.source || 'live';
     root.dataset.originState = origin.state || 'unavailable';
+    root.dataset.notificationTarget = state.notification && state.notification.workspace || 'none';
     root.innerHTML = `
       <section class="pde-shell" aria-label="Planning definition editor">
         <header class="pde-source-bar" data-source-tone="${escapeHtml(source.tone)}">
@@ -126,6 +196,7 @@
           <span class="pde-source-copy"><strong>${escapeHtml(source.label)}</strong><small>${escapeHtml(source.detail)}</small></span>
           <span class="pde-source-boundary">Definition only</span>
         </header>
+        ${renderDefinitionNotification()}
         ${state.catalog.conflict ? `<div class="pde-conflict" role="alert"><strong>${escapeHtml(state.catalog.conflict.title)}</strong><span>${escapeHtml(state.catalog.conflict.detail)}</span></div>` : ''}
         ${state.message ? `<div class="pde-message" role="status" aria-live="polite">${escapeHtml(state.message)}</div>` : ''}
         <div class="pde-layout">
@@ -466,6 +537,7 @@
     };
     state.draft = null;
     state.editing = false;
+    state.undoReadbackHash = '';
     state.localPreviewAccepted = true;
     state.message = 'Preview accepted locally. No definition source was written.';
     render();
@@ -473,6 +545,7 @@
 
   function undoPreview() {
     if (!state.undoSnapshot) return;
+    const expectedHash = state.undoSnapshot.content_hash;
     state.catalog.readModel.roadmap = clone(state.undoSnapshot);
     state.catalog.readModel.graph = {
       nodes: clone(state.undoSnapshot.nodes),
@@ -482,7 +555,10 @@
     state.undoSnapshot = null;
     state.localPreviewAccepted = false;
     state.validation = { kind: 'unvalidated', errors: [] };
-    state.message = 'Preview undone. The approved source revision is selected.';
+    state.undoReadbackHash = state.catalog.readModel.roadmap.content_hash;
+    state.message = state.undoReadbackHash === expectedHash
+      ? `Preview undone. Approved source ${shortHash(state.undoReadbackHash)} reread locally.`
+      : 'Undo readback did not match the approved source hash.';
     render();
   }
 
@@ -493,6 +569,7 @@
     state.editing = false;
     state.localPreviewAccepted = false;
     state.undoSnapshot = null;
+    state.undoReadbackHash = '';
     state.validation = { kind: 'unvalidated', errors: [] };
     if (state.catalog.source === 'fixture') {
       const origin = state.catalog.readModel.origin && state.catalog.readModel.origin.state;
@@ -619,17 +696,96 @@
     }
   });
 
+  function applyFixtureNotification(catalog) {
+    const notification = state.notification;
+    if (!notification || notification.workspace !== 'planning') return catalog;
+    const project = catalog.project || catalog.readModel && catalog.readModel.project;
+    if (!project || project.project_id !== notification.projectId) {
+      throw new Error('The fixture does not contain the requested project definition.');
+    }
+    if (!notification.roadmapId) return catalog;
+    const summary = list(catalog.roadmaps).find(item => item.roadmap_id === notification.roadmapId);
+    if (!summary) throw new Error('The fixture does not contain the requested roadmap definition.');
+    const origin = catalog.readModel && catalog.readModel.origin && catalog.readModel.origin.state;
+    const readModel = fixtures.readModelFor(notification.roadmapId, origin);
+    if (notification.revision && readModel.roadmap.revision !== notification.revision) {
+      throw new Error('The fixture does not contain the requested definition revision.');
+    }
+    return { ...catalog, readModel };
+  }
+
+  async function applyLiveNotification(catalog) {
+    const notification = state.notification;
+    if (!notification || notification.workspace !== 'planning') return catalog;
+    const sameProject = catalog.project && catalog.project.project_id === notification.projectId;
+    const projectModel = sameProject ? { project: catalog.project } : await api.getProject(notification.projectId);
+    const roadmapPage = sameProject
+      ? { items: catalog.roadmaps }
+      : await api.listRoadmaps(notification.projectId);
+    const roadmaps = list(roadmapPage.items);
+    if (!notification.roadmapId) {
+      return { ...catalog, project: projectModel.project, roadmaps };
+    }
+    const summary = roadmaps.find(item => item.roadmap_id === notification.roadmapId);
+    if (!summary) throw new Error('The notification roadmap definition was not found.');
+    const revision = notification.revision || summary.latest_approved_revision || summary.newest_revision;
+    const readModel = await api.getRoadmap(notification.projectId, notification.roadmapId, revision);
+    if (
+      !readModel.roadmap ||
+      readModel.roadmap.project_id !== notification.projectId ||
+      readModel.roadmap.roadmap_id !== notification.roadmapId ||
+      (notification.revision && readModel.roadmap.revision !== notification.revision)
+    ) {
+      throw new Error('The definition notification resolved a different revision.');
+    }
+    return {
+      ...catalog,
+      project: projectModel.project,
+      roadmaps,
+      readModel,
+      scenario: readModel.origin && readModel.origin.state || 'live'
+    };
+  }
+
   async function boot() {
     renderLoading();
+    if (state.notification && state.notification.workspace === 'agent') {
+      window.dispatchEvent(new CustomEvent('harbor:notification-workspace-route', {
+        detail: { workspace: 'agent', acceptedByPlanning: false }
+      }));
+      state.catalog = {
+        source: 'notification', scenario: 'unavailable', projects: [], project: null,
+        roadmaps: [], readModel: null, message: 'Execution notifications are handled in Agent.'
+      };
+      root.dataset.notificationTarget = 'agent';
+      renderUnavailable();
+      return;
+    }
+    if (state.notification && state.notification.workspace === 'invalid') {
+      state.catalog = {
+        source: 'notification', scenario: 'error', projects: [], project: null,
+        roadmaps: [], readModel: null, message: state.notification.message
+      };
+      root.dataset.notificationTarget = 'invalid';
+      renderUnavailable();
+      return;
+    }
     const fixtureScenarios = new Set(['fixture', 'stale', 'unavailable', 'error', 'conflict', 'empty']);
     if (sourceMode === 'fixture' || fixtureScenarios.has(requestedScenario) || window.location.protocol === 'file:') {
-      state.catalog = fixtures.scenario(requestedScenario || 'fixture');
+      try {
+        state.catalog = applyFixtureNotification(fixtures.scenario(requestedScenario || 'fixture'));
+      } catch (error) {
+        state.catalog = {
+          source: 'fixture', scenario: 'error', projects: [], project: null,
+          roadmaps: [], readModel: null, message: error.message
+        };
+      }
       state.selectedNodeId = state.catalog.readModel && state.catalog.readModel.roadmap.nodes[0] && state.catalog.readModel.roadmap.nodes[0].node_id || '';
       render();
       return;
     }
     try {
-      state.catalog = await api.loadCatalog();
+      state.catalog = await applyLiveNotification(await api.loadCatalog());
       state.selectedNodeId = state.catalog.readModel && state.catalog.readModel.roadmap.nodes[0] && state.catalog.readModel.roadmap.nodes[0].node_id || '';
       render();
     } catch (error) {
