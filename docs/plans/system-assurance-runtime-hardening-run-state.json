@@ -3,16 +3,16 @@
   "kind": "odysseus.abc_durable_run_state",
   "run_id": "sar-12h-20260714t092106",
   "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
-  "roadmap_id": "harbor-planning-integration-master",
-  "roadmap_path": "docs/plans/harbor-planning-integration-master-roadmap.json",
-  "queue_scope": "master_frontier",
-  "phase": "gated_frontier",
+  "roadmap_id": "temporal-light-agent-execution",
+  "roadmap_path": "docs/plans/temporal-light-agent-execution-roadmap.json",
+  "queue_scope": "named_roadmap",
+  "phase": "implementation",
   "supervision": "interactive",
-  "mutation_authority": "repo_only",
-  "state": "waiting_on_user",
-  "revision": 147,
-  "resumed_at": "2026-07-15T07:08:35.5258180+02:00",
-  "resume_authority": "user_directed_goal_restart_TLR_then_next_roadmap",
+  "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
+  "state": "running",
+  "revision": 150,
+  "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
+  "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
   "pause_authority": "master_queue_exhausted_at_TLR_environment_and_PDE_design_gates",
   "started_at": "2026-07-14T09:21:06.2586366+02:00",
@@ -93,7 +93,7 @@
     "commit_authority": "granted_by_user_2026-07-14T20:40:54.4685534+02:00",
     "commit_policy": "Commit after each green released slice or durable handoff. Stage only exact owned paths or owned hunks after reviewing staged diff; never include foreign hunks merely to make a file clean.",
     "push_authority": "not_granted",
-    "live_authority": "not_granted",
+    "live_authority": "scoped_local_temporal_install_and_localhost_dev_server_only",
     "gate_policy": "Under the current explicit user directive, /root may consume ordinary repo-only coordination gates serially after persisting a minimum-path claim and confirming no active same-checkout owner. Never infer authority for excluded, dangerous, live, external or design gates. Stop on those gates; otherwise release the claim with focused evidence before opening the next slice."
   },
   "blocked_audit": {
@@ -110,6 +110,24 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:TLR-01-local-runtime",
+      "slice_id": "TLR-01-temporal-light-local-runtime",
+      "owner": "/root",
+      "state": "released_local_runtime_green_committed_processes_stopped",
+      "acquired_at": "2026-07-15T10:43:12.4991937+02:00",
+      "released_at": "2026-07-15T11:05:12.1259322+02:00",
+      "commit": "bdbb352d",
+      "evidence": [
+        "temporalio 1.30.0 imported from the repository venv",
+        "Temporal CLI 1.8.0 archive matched official SHA-256 8cf686dc5ae1280357509ad8d0f1e1b3647d1f3873d904a3e9fe20eb820cfbf4 before extraction",
+        "20 focused config tests and 29 combined config/boundary tests passed",
+        "Cluster health returned SERVING at 127.0.0.1:7233 and netstat observed no external bind",
+        "one sandboxed workflow retained its waiting state across a real server restart against the same local db and then completed exactly once",
+        "both slice-owned Temporal process ids were stopped and no 127.0.0.1:7233 listener remained",
+        "the foreign pygame-ce requirements hunk remains unstaged and absent from commit bdbb352d"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:PMCP-9-roadmap-closeout",
       "slice_id": "PMCP-9-definition-runtime-separation",
@@ -1080,10 +1098,19 @@
   "agent_leases": [
     {
       "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:TLR-01-local-runtime",
+      "state": "completed_local_runtime_green_committed_processes_stopped",
+      "leased_at": "2026-07-15T10:43:12.4991937+02:00",
+      "lease_expires_at": "2026-07-15T12:43:12.4991937+02:00",
+      "released_at": "2026-07-15T11:05:12.1259322+02:00"
+    },
+    {
+      "agent": "/root",
       "claim_id": "sar-12h-20260714t092106:PDE-04-agent-handoff",
-      "state": "active",
+      "state": "completed_green_committed_stale_lease_reconciled",
       "leased_at": "2026-07-15T08:09:38.1178667+02:00",
-      "lease_expires_at": "2026-07-15T10:09:38.1178667+02:00"
+      "lease_expires_at": "2026-07-15T10:09:38.1178667+02:00",
+      "released_at": "2026-07-15T10:43:12.4991937+02:00"
     },
     {
       "agent": "/root",
@@ -2172,6 +2199,17 @@
   ],
   "completed_slices": [
     {
+      "slice_id": "TLR-01-temporal-light-local-runtime",
+      "completion_layer": "repository_implemented_focused_boundary_and_real_restart_tested_committed_local_processes_stopped",
+      "evidence": [
+        "commit bdbb352d",
+        "20 focused config tests passed",
+        "29 combined config and Planning/Agent boundary tests passed",
+        "real localhost health, exact bind, db-backed restart and exactly-once workflow completion passed",
+        "no Temporal process or listener remained after cleanup"
+      ]
+    },
+    {
       "slice_id": "PMCP-9-definition-runtime-separation",
       "completion_layer": "repository_implemented_integrated_and_committed_roadmap_status_handoff_parked",
       "evidence": [
@@ -2385,16 +2423,14 @@
     },
     {
       "gate_id": "TLR-01-LOCAL-CAPABILITY-GATE",
-      "state": "blocked_environment",
-      "blocks": [
-        "TLR-01-temporal-light-local-runtime",
-        "TLR-02 through TLR-09"
-      ],
+      "state": "satisfied_TLR_01_green_processes_stopped",
+      "blocks": [],
       "does_not_block": [
         "completed PDE and PMCP repository work"
       ],
-      "decision_needed": "Provide or authorize the exact Temporal SDK, CLI and TLR-LOCAL-SERVICE-GO inputs.",
-      "safe_default": "Do not install dependencies, start Temporal or mutate TLR product paths."
+      "decision_needed": "None for TLR-01. A fresh bounded process window is required before the real-process portion of TLR-08.",
+      "safe_default": "Keep every Temporal process stopped while TLR-02 through TLR-07 use fakes or SDK test environments.",
+      "authorization_evidence": "User turn 2026-07-15: /abc TLR-LOCAL-SERVICE-GO with network, temporalio and Temporal CLI installation, and local Temporal development-server start; Docker, production/external access and push explicitly excluded."
     },
     {
       "gate_id": "SAR-REGISTRATION-HANDOFF",
@@ -2852,20 +2888,47 @@
       "safe_default": "Keep private URL validation authoritative in the create route and repeated before delivery; tool tests must confirm before asserting route errors."
     }
   ],
-  "live_go_ledger": [],
+  "live_go_ledger": [
+    {
+      "id": "TLR-SDK-CLI-INSTALL-GO-20260715",
+      "action": "host_change",
+      "target": "Odysseus repository venv and redacted per-user Temporal Light CLI location",
+      "artifact_or_inputs": "temporalio==1.30.0 from PyPI; Temporal CLI v1.8.0 official Windows amd64 zip with SHA-256 8cf686dc5ae1280357509ad8d0f1e1b3647d1f3873d904a3e9fe20eb820cfbf4",
+      "limits": "Install only the named SDK and CLI versions; no Docker, PATH-wide mutation, external service, provider access, push or unrelated dependency change.",
+      "rollback": "Remove the pinned SDK from the repository venv and delete the redacted per-user Temporal Light CLI directory if validation fails.",
+      "granted_by": "user turn 2026-07-15 TLR-LOCAL-SERVICE-GO",
+      "granted_at": "2026-07-15T10:38:00+02:00",
+      "expires_at": "run_end",
+      "status": "used",
+      "used_at": "2026-07-15T10:55:33+02:00"
+    },
+    {
+      "id": "TLR-LOCAL-SERVICE-GO-20260715",
+      "action": "host_change",
+      "target": "localhost Temporal CLI development server",
+      "artifact_or_inputs": "Temporal CLI v1.8.0; 127.0.0.1:7233; headless; redacted %LOCALAPPDATA%/Odysseus/TemporalLight/runtime/temporal.db; task queue odysseus-temporal-light",
+      "limits": "One local TLR-01 restart-persistence smoke in the current run, one Worker and one test Workflow; no external bind, production use, Docker, recurring scheduler or provider effect.",
+      "rollback": "The /root operator stops every process started by the slice after the restart evidence; the persistent development database remains local and uncommittable for later TLR recovery tests.",
+      "granted_by": "user turn 2026-07-15 TLR-LOCAL-SERVICE-GO",
+      "granted_at": "2026-07-15T10:38:00+02:00",
+      "expires_at": "TLR-01 evidence capture",
+      "status": "used_processes_stopped",
+      "used_at": "2026-07-15T11:00:42+02:00"
+    }
+  ],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T08:54:25.8125832+02:00",
-    "summary": "PMCP-9 is implemented, committed and integration-green. Its foreign-dirty roadmap status synchronization is parked without changing the pre-claim file. The Harbor Planning master now has no dependency-safe ungated child frontier: TLR-01 is blocked_environment and PDE-05 is blocked by the named Planning UX acceptance gate.",
-    "resume_cursor": "waiting_for_TLR_local_capabilities_or_HPA_Planning_UX_acceptance",
+    "last_durable_progress_at": "2026-07-15T11:05:12.1259322+02:00",
+    "summary": "TLR-01 is implemented, real-restart tested, committed as bdbb352d and released with every slice-owned process stopped. PDE-04 is already complete, so TLR-02 is the next dependency-safe named-roadmap slice.",
+    "resume_cursor": "TLR-02-abc-manifest-and-run-start",
     "resume_priority": [
-      "TLR-01-temporal-light-local-runtime",
+      "TLR-02-abc-manifest-and-run-start",
       "PDE-05-v3-planning-surface"
     ],
-    "next_runnable_slices": [],
+    "next_runnable_slices": [
+      "TLR-02-abc-manifest-and-run-start"
+    ],
     "blocked_slices": [
-      "TLR-01-temporal-light-local-runtime",
-      "TLR-02-deterministic-workflow-state-machine",
       "TLR-03-activity-history-heartbeats",
       "TLR-04-signals-updates-idempotency",
       "TLR-05-agent-operation-projection",
@@ -2889,6 +2952,7 @@
   },
   "completion_layers": {
     "implemented": [
+      "TLR-01-temporal-light-local-runtime",
       "PMCP-9-definition-runtime-separation",
       "PDE-01-definition-schema-validator",
       "PDE-02-definition-read-model-api",
@@ -2906,6 +2970,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "TLR-01-temporal-light-local-runtime:20_focused_29_combined_real_health_bind_restart_persistence_cleanup",
       "PMCP-9-definition-runtime-separation:92_service_28_internal_18_external_149_combined_1_expected_skip",
       "PDE-01-definition-schema-validator:92_focused_99_combined_boundary",
       "PDE-02-definition-read-model-api-service:35_focused_42_combined_boundary",
@@ -2925,6 +2990,7 @@
       "SAR-09-measured-optimization-decisions:focused_and_cli"
     ],
     "committed": [
+      "TLR-01-temporal-light-local-runtime:bdbb352d",
       "PMCP-9-definition-runtime-separation:a412f28f_cff55a36_acd7dfa4",
       "PDE-01-definition-schema-validator:7cfc9e8845b6bb2edfe9651007e2d6e87147376d",
       "PDE-02-definition-read-model-api-service:5d58ea7f70f64a0ab5a70269678b284bd57345cc",
@@ -2940,6 +3006,8 @@
     "pushed": [],
     "deployed": [],
     "live_validated": [],
-    "temporal_validated": []
+    "temporal_validated": [
+      "TLR-01-temporal-light-local-runtime:localhost_health_db_restart_exactly_once_process_cleanup"
+    ]
   }
 }
