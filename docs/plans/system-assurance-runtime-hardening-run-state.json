@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
   "state": "running",
-  "revision": 152,
+  "revision": 154,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -110,6 +110,25 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:TLR-03-deterministic-workflow",
+      "slice_id": "TLR-03-deterministic-workflow",
+      "owner": "/root",
+      "state": "released_replay_dag_timer_continue_as_new_green_committed",
+      "acquired_at": "2026-07-15T11:23:39.1855362+02:00",
+      "released_at": "2026-07-15T11:39:26.1308856+02:00",
+      "commit": "4f397925",
+      "evidence": [
+        "63 focused workflow and DAG tests passed",
+        "104 compatibility tests passed across Temporal configuration, manifest/start and workflow slices",
+        "five captured localhost histories replayed without nondeterminism",
+        "serial, fan-out, gate-deadline, paused-deadline and Continue-As-New paths passed",
+        "Worker registration rejected filesystem, network, process, wall-clock, random and mutable-global workflow capabilities",
+        "Continue-As-New retained the logical run identity and immutable manifest while incrementing history_segment exactly once",
+        "completion required verified evidence, a writeback receipt, required nodes and all runtime gates",
+        "no Temporal process or listener remained after both focused and compatibility runs"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:TLR-02-manifest-run-start",
       "slice_id": "TLR-02-abc-manifest-and-run-start",
@@ -1114,6 +1133,14 @@
     }
   ],
   "agent_leases": [
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:TLR-03-deterministic-workflow",
+      "state": "completed_replay_dag_timer_continue_as_new_green_committed",
+      "leased_at": "2026-07-15T11:23:39.1855362+02:00",
+      "lease_expires_at": "2026-07-15T13:23:39.1855362+02:00",
+      "released_at": "2026-07-15T11:39:26.1308856+02:00"
+    },
     {
       "agent": "/root",
       "claim_id": "sar-12h-20260714t092106:TLR-02-manifest-run-start",
@@ -2225,6 +2252,19 @@
   ],
   "completed_slices": [
     {
+      "slice_id": "TLR-03-deterministic-workflow",
+      "completion_layer": "repository_implemented_real_local_history_replay_tested_and_committed_processes_stopped",
+      "evidence": [
+        "commit 4f397925",
+        "63 focused workflow and DAG tests passed",
+        "104 prior-slice compatibility tests passed",
+        "five real localhost histories replayed deterministically",
+        "durable gate and pause deadline timers fired",
+        "Continue-As-New preserved logical identity and incremented one segment",
+        "no Temporal process or listener remained"
+      ]
+    },
+    {
       "slice_id": "TLR-02-abc-manifest-and-run-start",
       "completion_layer": "repository_implemented_focused_and_compatibility_tested_committed_fake_client_only",
       "evidence": [
@@ -2428,6 +2468,22 @@
     }
   ],
   "gate_queue": [
+    {
+      "gate_id": "TLR-04-HWA3A-HWA3B-DEPENDENCY",
+      "state": "blocked_external_roadmap_dependencies_not_user_gate",
+      "blocks": [
+        "TLR-04-activities-claims-heartbeats",
+        "TLR-05-signals-updates-idempotency",
+        "TLR-06-history-agent-projection-api"
+      ],
+      "does_not_block": [
+        "HWA3A durable capability, evidence and fence store",
+        "HWA3B durable scaling and admission integration after HWA3A",
+        "already completed TLR-01 through TLR-03"
+      ],
+      "decision_needed": "No user decision is required. Complete HWA3A first and HWA3B second under their exact repo-only fake-clock/fake-store contracts, then re-evaluate TLR-04.",
+      "safe_default": "Do not claim TLR-04 or create a real Activity effect. Return to the master queue and claim HWA3A only."
+    },
     {
       "gate_id": "PMCP-9-ROADMAP-FOREIGN-HUNK-HANDOFF",
       "state": "parked_foreign_uncommitted_hunks",
@@ -2954,20 +3010,23 @@
   ],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T11:20:18.9616940+02:00",
-    "summary": "TLR-02 is implemented, fake-only tested, committed as 262290a4 and released. TLR-03 deterministic Workflow and DAG state-machine work is now the next dependency-safe slice; every real Temporal process remains stopped.",
-    "resume_cursor": "TLR-03-deterministic-workflow",
+    "last_durable_progress_at": "2026-07-15T11:39:26.1308856+02:00",
+    "summary": "TLR-03 is green, committed as 4f397925 and released after deterministic replay, timer and Continue-As-New evidence. TLR-04 is not runnable until HWA3A and then HWA3B are complete; HWA3A is the only dependency-safe next slice.",
+    "resume_cursor": "HWA3A-durable-capability-evidence-fence-store",
     "resume_priority": [
-      "TLR-03-deterministic-workflow",
+      "HWA3A-durable-capability-evidence-fence-store",
+      "HWA3B-durable-scaling-admission-integration",
+      "TLR-04-activities-claims-heartbeats",
       "PDE-05-v3-planning-surface"
     ],
     "next_runnable_slices": [
-      "TLR-03-deterministic-workflow"
+      "HWA3A-durable-capability-evidence-fence-store"
     ],
     "blocked_slices": [
-      "TLR-04-signals-updates-idempotency",
-      "TLR-05-agent-operation-projection",
-      "TLR-06-recovery-replay-integration",
+      "HWA3B-durable-scaling-admission-integration",
+      "TLR-04-activities-claims-heartbeats",
+      "TLR-05-signals-updates-idempotency",
+      "TLR-06-history-agent-projection-api",
       "PDE-05-ui-states-and-accessibility",
       "PDE-07-e2e-verification-and-handoff",
       "SAR-01-binding-ci-and-publish-provenance",
@@ -2987,6 +3046,7 @@
   },
   "completion_layers": {
     "implemented": [
+      "TLR-03-deterministic-workflow",
       "TLR-02-abc-manifest-and-run-start",
       "TLR-01-temporal-light-local-runtime",
       "PMCP-9-definition-runtime-separation",
@@ -3006,6 +3066,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "TLR-03-deterministic-workflow:63_focused_104_compatibility_5_real_histories_replayed_processes_stopped",
       "TLR-02-abc-manifest-and-run-start:21_focused_56_planning_compatibility_fake_only",
       "TLR-01-temporal-light-local-runtime:20_focused_29_combined_real_health_bind_restart_persistence_cleanup",
       "PMCP-9-definition-runtime-separation:92_service_28_internal_18_external_149_combined_1_expected_skip",
@@ -3027,6 +3088,7 @@
       "SAR-09-measured-optimization-decisions:focused_and_cli"
     ],
     "committed": [
+      "TLR-03-deterministic-workflow:4f397925",
       "TLR-02-abc-manifest-and-run-start:262290a4",
       "TLR-01-temporal-light-local-runtime:bdbb352d",
       "PMCP-9-definition-runtime-separation:a412f28f_cff55a36_acd7dfa4",
@@ -3045,6 +3107,7 @@
     "deployed": [],
     "live_validated": [],
     "temporal_validated": [
+      "TLR-03-deterministic-workflow:localhost_history_replay_timer_pause_continue_as_new_cleanup",
       "TLR-01-temporal-light-local-runtime:localhost_health_db_restart_exactly_once_process_cleanup"
     ]
   }

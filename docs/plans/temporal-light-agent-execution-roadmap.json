@@ -5,7 +5,7 @@
   "title": "Temporal Light Agent Execution Roadmap",
   "created_at": "2026-07-13",
   "updated_at": "2026-07-15",
-  "status": "active_serial_TLR_03_ready",
+  "status": "TLR_03_done_TLR_04_blocked_on_HWA3A_HWA3B",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
   "planning_dependency": "docs/plans/planning-definition-editor-roadmap.json",
@@ -737,7 +737,7 @@
     },
     {
       "id": "TLR-03-deterministic-workflow",
-      "status": "planned",
+      "status": "done_replay_dag_timer_continue_as_new_tested",
       "class": "repo_only",
       "owner": "Bob",
       "depends_on": [
@@ -771,6 +771,19 @@
       "gate": {
         "id": "none",
         "safe_default": "Temporal test environment and fake Activities only."
+      },
+      "completion_evidence": {
+        "commit": "4f397925",
+        "focused_result": "63 passed",
+        "compatibility_result": "104 passed across TLR-01 configuration, TLR-02 manifest/start and TLR-03 workflow coverage",
+        "history_result": "five real localhost histories covered a serial DAG, three-way fan-out, a gate deadline, a paused deadline wait and Continue-As-New; every captured history replayed without nondeterminism",
+        "state_machine_result": "every declared run transition and every implemented slice transition is explicit; illegal transitions preserve state and run version",
+        "dag_result": "frontiers are identifier-sorted, dependency-safe and capped at immutable manifest parallelism 1 through 3; missing dependencies, cycles and unresolved gates fail before the initial run transition",
+        "completion_result": "a node succeeds only with verified evidence and a non-empty writeback receipt; required gates and nodes must all be satisfied before terminal completion",
+        "timer_result": "Temporal durable timers drove both waiting_gate and paused runs to the immutable deadline and timed_out",
+        "continue_as_new_result": "the logical agent_run_id, manifest_hash, run version, slice/gate state, deadline and cursors survived while history_segment incremented exactly once",
+        "sandbox_result": "the default sandbox remains enabled and Worker registration rejects direct filesystem, network, process, wall-clock, random and mutable-global capabilities",
+        "cleanup_result": "the SDK test server used the pinned local CLI on 127.0.0.1 and left no Temporal process or listener running"
       },
       "done_when": "PASS only if every declared state transition and DAG path replays deterministically, invalid transitions are rejected and workflow code performs zero external I/O.",
       "stop_rules": [
@@ -1340,5 +1353,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_tlr_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "Release and commit TLR-02, then claim TLR-03-deterministic-workflow. Use the Temporal SDK test environment and fake Activities only; prove replay-safe DAG transitions, durable timers, deadlines, pause waits and Continue-As-New state transfer without filesystem, network, process, system-time or random access in Workflow code."
+  "recommended_next_step": "TLR-02-abc-manifest-and-run-start and TLR-03-deterministic-workflow are complete. Do not claim TLR-04 yet. Its external prerequisites HWA3A Durable Capability, Evidence And Fence Store and HWA3B Durable Scaling And Admission Integration are both still pending in docs/plans/headless-write-agent-orchestration-roadmap.md. Return to the master queue and claim HWA3A only; after HWA3A is green and released, claim HWA3B only. Re-evaluate TLR-04 after both receipts exist. The TLR-04 safe default remains fake or isolated Activities with zero real repository, provider or external-worker effect."
 }
