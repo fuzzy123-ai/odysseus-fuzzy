@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
   "state": "handoff_ready",
-  "revision": 189,
+  "revision": 192,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -119,6 +119,63 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:TLR-08D-worker-shutdown-diagnostic",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "TLR-08D-worker-shutdown-diagnostic",
+      "owner": "/root",
+      "allowed_paths": [
+        "tests/test_temporal_worker_recovery.py",
+        "docs/plans/temporal-light-agent-execution-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [],
+      "state": "released_diagnostic_phase_isolated_sticky_recovery_handoff",
+      "acquired_at": "2026-07-15T16:33:38.3947484+02:00",
+      "lease_expires_at": "2026-07-15T17:33:38.3947484+02:00",
+      "handoff_required": true,
+      "handoff_evidence": [
+        "the old unbounded reproduction was not rerun",
+        "both instrumented runs proved Worker one shutdown and Worker two start",
+        "run one timed out at gate_update_applied",
+        "run two timed out earlier at second_worker_ready_query",
+        "the installed SDK default sticky schedule-to-start timeout equals the 10-second phase bound",
+        "both environments shut down with zero SDK processes and listeners"
+      ],
+      "path_fingerprints_sha256": {
+        "tests/test_temporal_worker_recovery.py": "2b5d9e2af04a52bbb5a9e4f7ef839a7c9851265c0c21047a4e98eb5fd85d2719",
+        "docs/plans/temporal-light-agent-execution-roadmap.json": "b6f53b338378f3bd4ce7edc397628dbbff2ecfca8b546bce2682d79dba71a0d5",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "3d50ad190c7b239cd1747d48905f795c11427853d8ef9d52a35822dc0fed856b"
+      },
+      "evidence_contract": {
+        "target_environment": "cached Temporal SDK time-skipping server on ephemeral loopback port",
+        "authority": "repo",
+        "mutation_class": "repo_only_diagnostic",
+        "maximum_runs": 2,
+        "runs_consumed": 2,
+        "positive_path_required": false
+      },
+      "forbidden_actions": [
+        "third diagnostic run",
+        "test skip, xfail or assertion weakening",
+        "product source mutation under this claim",
+        "real Temporal development-server start",
+        "repository-wide suite",
+        "push",
+        "foreign hunk commit"
+      ],
+      "released_at": "2026-07-15T16:38:45.6773547+02:00",
+      "release_evidence": {
+        "run_1": "first_worker_started, workflow_started, waiting_gate_observed, first_worker_shutdown, first_worker_run_completed and second_worker_started passed; gate_update_applied timed out; environment_shutdown passed",
+        "run_2": "the same pre-replacement phases passed; second_worker_ready_query timed out; environment_shutdown passed",
+        "sdk_contract": "temporalio 1.30.0 defaults sticky_queue_schedule_to_start_timeout to 10 seconds and moves an expired sticky task to the non-sticky queue",
+        "failure_boundary": "Worker two cannot receive a Query or Update inside a phase window equal to the dead Worker sticky timeout; workflow state and Worker one shutdown are intact.",
+        "process_cleanup": "Post-run checks found zero exact cached SDK test-server processes and zero listeners after both runs.",
+        "uncommitted_diagnostic_sha256": "37eb73c3281c4da2acc41f377c335a49d5ccc5a4cc12c4ae3b4697f80c6eae00",
+        "next_gate": "TLR-08-STICKY-RECOVERY-CONFIG"
+      }
+    },
     {
       "claim_id": "sar-12h-20260714t092106:TLR-07-agent-screen-runtime-ui",
       "run_id": "sar-12h-20260714t092106",
@@ -4348,15 +4405,15 @@
   ],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T16:30:10.3353846+02:00",
-    "summary": "TLR-07 Agent operations preview is implementation-green: standalone runtime UI, same-origin API adapter, complete state fixtures and 21 Agent/Planning browser contracts pass. Visual review is clean at desktop, mobile and 200 percent zoom. Completion remains behind HPA Agent UX acceptance and the foreign V3 index baseline handoff; TLR-08 remains independently parked at its Worker test-harness gate.",
-    "resume_cursor": "TLR-08-WORKER-RECOVERY-TEST-HARNESS",
+    "last_durable_progress_at": "2026-07-15T16:38:45.6773547+02:00",
+    "summary": "TLR-08D consumed its two-run budget and isolated the blocker: Worker one shuts down and Worker two starts, but a Query and Update cannot leave the dead Worker's sticky queue inside the SDK's default 10-second sticky schedule-to-start timeout. Both environments cleaned up completely. A fresh repo-only source claim may now configure a shorter bounded sticky timeout and verify takeover.",
+    "resume_cursor": "TLR-08-STICKY-RECOVERY-CONFIG",
     "resume_priority": [
-      "TLR-08-WORKER-RECOVERY-TEST-HARNESS",
+      "TLR-08-STICKY-RECOVERY-CONFIG",
       "HPA-AGENT-UX-ACCEPTANCE"
     ],
     "next_runnable_slices": [
-      "TLR-08-WORKER-RECOVERY-TEST-HARNESS:diagnostic_definition_only"
+      "TLR-08-STICKY-RECOVERY-CONFIG:repo_only_source_fix"
     ],
     "blocked_slices": [
       "PDE-05-clean-checkout-v3-baseline-integration-handoff",
@@ -4412,6 +4469,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "TLR-08D-worker-shutdown-diagnostic:two_bounded_runs_isolated_second_worker_sticky_queue_takeover_zero_process_leaks",
       "TLR-07-agent-screen-runtime-ui:6_agent_browser_green_21_agent_planning_integration_green_design_audit_zero_visual_desktop_mobile_zoom_green",
       "TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION:one_update_reproduction_timeout_64_seconds_process_and_listener_cleaned_test_harness_blocked",
       "TLR-08-replay-restart-recovery:1_replay_92_server_and_idempotency_green_worker_restart_test_handoff_after_two_timeouts",

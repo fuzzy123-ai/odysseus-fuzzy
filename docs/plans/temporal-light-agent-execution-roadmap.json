@@ -5,7 +5,7 @@
   "title": "Temporal Light Agent Execution Roadmap",
   "created_at": "2026-07-13",
   "updated_at": "2026-07-15",
-  "status": "TLR_07_preview_green_acceptance_pending_TLR_08_blocked_test_harness",
+  "status": "TLR_07_preview_green_acceptance_pending_TLR_08_sticky_recovery_fix_handoff",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
   "planning_dependency": "docs/plans/planning-definition-editor-roadmap.json",
@@ -547,7 +547,7 @@
     "TLR-03 + TLR-04 -> TLR-05",
     "TLR-03 + TLR-04 + TLR-05 -> TLR-06",
     "TLR-06 -> TLR-07",
-    "TLR-03 + TLR-04 + TLR-05 + TLR-06 -> TLR-08",
+    "TLR-03 + TLR-04 + TLR-05 + TLR-06 -> TLR-08D -> TLR-08",
     "TLR-07 + TLR-08 -> TLR-09",
     "TLR-09 -> TLR-10",
     "TLR-10 -> TLR-11"
@@ -1116,7 +1116,7 @@
     },
     {
       "id": "TLR-08-replay-restart-recovery",
-      "status": "blocked_test_harness",
+      "status": "blocked_repo_fix",
       "class": "repo_only",
       "owner": "Charlie",
       "depends_on": [
@@ -1180,21 +1180,98 @@
           "the cached Temporal SDK test server ran only on ephemeral loopback ports and shut down after green tests"
         ],
         "blocked": {
-          "gate_id": "TLR-08-WORKER-RECOVERY-TEST-HARNESS",
+          "gate_id": "TLR-08-STICKY-RECOVERY-CONFIG",
           "attempts": [
             "combined four-file run timed out after 184 seconds",
             "isolated worker-recovery run timed out after 64 seconds",
             "decomposed one-Update worker-recovery run timed out after 64 seconds"
           ],
-          "boundary": "The hang remains after duplicate concurrency is removed, so it is confined to the Worker replacement test harness or Worker shutdown/resume boundary rather than command deduplication. The bounded runs emitted no product traceback.",
+          "boundary": "Instrumented runs prove Worker one shuts down, Worker two starts, but neither a Query nor Update reaches Worker two inside the 10-second phase bound. The installed SDK default sticky_queue_schedule_to_start_timeout is also 10 seconds, so recovery is waiting on the dead Worker's sticky queue rather than command deduplication or workflow corruption.",
           "cleanup": "The final test-server process PID 1480 was identified by exact cached executable, creation time and loopback port 57188 and stopped; process and listener checks are empty.",
-          "next_safe_action": "Park this evidence lane. Resume only under a new diagnostic roadmap slice that instruments Worker shutdown and second-Worker polling without rerunning the existing reproduction or weakening assertions."
+          "next_safe_action": "Open one serialized product-source claim for src/temporal_runtime/worker.py plus the diagnostic test. Configure a bounded sticky schedule-to-start timeout below the 10-second recovery evidence limit, retain workflow caching, add a constructor contract assertion and run the instrumented recovery test once before the four-file TLR-08 block."
         },
         "path_fingerprints_sha256": {
           "tests/test_temporal_replay_compatibility.py": "268572f7363f8139559abd6b217105b0fa63a7865d6d3a3d214750e43d47b102",
           "tests/test_temporal_worker_recovery.py": "2b5d9e2af04a52bbb5a9e4f7ef839a7c9851265c0c21047a4e98eb5fd85d2719",
           "tests/test_temporal_server_recovery.py": "3bb1aec068f067138eb67cf40523fca00c9177f6788bddabe17caf69eabcd624"
         }
+      }
+    },
+    {
+      "id": "TLR-08D-worker-shutdown-diagnostic",
+      "status": "done_diagnostic_phase_isolated",
+      "class": "repo_only_diagnostic",
+      "owner": "Charlie",
+      "depends_on": [
+        "TLR-03-deterministic-workflow",
+        "TLR-04-activities-claims-heartbeats",
+        "TLR-05-signals-updates-idempotency",
+        "TLR-06-history-agent-projection-api"
+      ],
+      "allowed_paths": [
+        "tests/test_temporal_worker_recovery.py",
+        "docs/plans/temporal-light-agent-execution-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [],
+      "objective": "Replace the unbounded Worker-replacement reproduction with one instrumented contract that identifies the exact shutdown, polling, Update, result, history or environment-cleanup phase without changing product code or weakening recovery evidence.",
+      "required_phase_markers": [
+        "first_worker_started",
+        "waiting_gate_observed",
+        "first_worker_shutdown",
+        "second_worker_started",
+        "second_worker_ready_query",
+        "gate_update_applied",
+        "workflow_result_received",
+        "history_received",
+        "second_worker_shutdown",
+        "environment_shutdown"
+      ],
+      "implementation_rules": [
+        "Start each Worker through an explicit run task rather than an unbounded async-context exit.",
+        "Wrap every transition in an individual timeout of at most 10 seconds and name the failing phase in the assertion.",
+        "Use exactly one gate Update; concurrent duplicate coverage remains exclusively in its already-green command/message tests.",
+        "Require one read-only state Query through Worker two before sending the Update so worker polling readiness is observed rather than inferred from private start state.",
+        "Always request Worker shutdown in finally blocks and bound that cleanup separately.",
+        "Retain identical same-run, command-receipt-count, successful-slice, writeback-receipt and workflow-task-count assertions.",
+        "Do not commit the diagnostic test unless it passes; a stable failing phase is durable evidence for a new product-source claim."
+      ],
+      "tests": [
+        "ODYSSEUS_TEMPORAL_TEST_SERVER=<cached-sdk-test-server> venv\\Scripts\\python.exe -m pytest tests\\test_temporal_worker_recovery.py -vv -s -p no:cacheprovider --basetemp C:\\tmp\\pytest-tlr08d-worker"
+      ],
+      "run_budget": {
+        "maximum": 2,
+        "first": "diagnose one exact phase",
+        "second": "verify only a test-harness correction; product fixes require a new source-owning claim"
+      },
+      "evidence_required": [
+        "one exact phase marker or a fully green recovery result",
+        "no concurrent duplicate Update in this test",
+        "no surviving SDK test-server process or listener",
+        "digest of the uncommitted diagnostic reproduction when red"
+      ],
+      "done_when": "PASS diagnostically when the first bounded run either completes every phase with all original recovery assertions green or reports exactly one stable phase timeout and cleans up every process. A product-source fix is outside this slice.",
+      "stop_rules": [
+        "Stop after one stable phase timeout.",
+        "Stop before product source mutation.",
+        "Stop if cleanup cannot identify the exact process it would terminate."
+      ],
+      "forbidden_actions": [
+        "unchanged reproduction retry",
+        "test skip or xfail",
+        "assertion weakening",
+        "real development-server start",
+        "product source mutation"
+      ],
+      "diagnostic_evidence": {
+        "observed_at": "2026-07-15T16:38:45.6773547+02:00",
+        "run_1": "Worker one start, workflow start, waiting gate, Worker one shutdown and Worker two start passed; gate_update_applied timed out; environment shutdown passed.",
+        "run_2": "The same pre-update phases passed; second_worker_ready_query timed out before any Update; environment shutdown passed.",
+        "sdk_boundary": "temporalio 1.30.0 Worker defaults sticky_queue_schedule_to_start_timeout to 10 seconds and documents that expired sticky tasks then move to the non-sticky queue for any Worker.",
+        "conclusion": "Worker replacement recovery latency is governed by the sticky queue timeout. The 10-second default equals the evidence phase timeout and prevents deterministic bounded takeover evidence.",
+        "cleanup": "Both runs ended with zero cached SDK test-server processes and zero listeners.",
+        "uncommitted_diagnostic_sha256": "37eb73c3281c4da2acc41f377c335a49d5ccc5a4cc12c4ae3b4697f80c6eae00",
+        "next_gate": "TLR-08-STICKY-RECOVERY-CONFIG"
       }
     },
     {
@@ -1414,13 +1491,22 @@
     {
       "id": "TLR-08-WORKER-RECOVERY-TEST-HARNESS",
       "class": "repo_only_evidence_handoff",
-      "status": "blocked_after_three_bounded_timeouts",
+      "status": "resolved_by_TLR_08D_phase_isolation",
+      "blocks": [],
+      "decision_needed": "None. TLR-08D isolated second-Worker sticky-queue takeover as the failing boundary.",
+      "safe_default": "Do not rerun the prior uninstrumented reproductions.",
+      "risk_if_bypassed": "The resolved broad harness gate could obscure the narrower sticky recovery configuration handoff."
+    },
+    {
+      "id": "TLR-08-STICKY-RECOVERY-CONFIG",
+      "class": "repo_only_implementation_handoff",
+      "status": "handoff_ready",
       "blocks": [
         "TLR-08-replay-restart-recovery"
       ],
-      "decision_needed": "No product decision. Create an explicit diagnostic slice only after TLR-07 that instruments the Worker shutdown and replacement boundary; do not rerun the current reproduction unchanged.",
-      "safe_default": "Keep TLR-08 partial, all Temporal processes stopped and TLR-09 dependency-blocked. Preserve the one-Update reproduction by digest without committing a hanging test.",
-      "risk_if_bypassed": "Repeated retries can strand SDK test-server processes and cannot distinguish Worker shutdown, task polling or update delivery."
+      "decision_needed": "No product decision. Under one serialized source claim, set an explicit Worker sticky schedule-to-start timeout below the 10-second recovery evidence bound while retaining sticky workflow caching.",
+      "safe_default": "Keep TLR-08 partial and TLR-09 dependency-blocked until the constructor contract and instrumented replacement test are green.",
+      "risk_if_bypassed": "A stopped Worker can retain sticky ownership for the full SDK default, making bounded takeover appear hung and delaying operator readback."
     },
     {
       "id": "AGENT-12H-LIVE-GO",
@@ -1473,5 +1559,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_tlr_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "Obtain HPA-AGENT-UX-ACCEPTANCE for the green TLR-07 preview and consume the V3 index baseline handoff before root cutover. Independently open a diagnostic-only Worker shutdown/replacement slice for TLR-08-WORKER-RECOVERY-TEST-HARNESS; keep TLR-09 dependency-blocked and keep real development-server restart behind a fresh bounded TLR-LOCAL-SERVICE-GO."
+  "recommended_next_step": "Consume TLR-08-STICKY-RECOVERY-CONFIG through one serialized source claim, run the instrumented replacement proof and then the four-file TLR-08 block once. Separately obtain HPA-AGENT-UX-ACCEPTANCE and consume the V3 index baseline handoff before root cutover. Keep real development-server restart behind a fresh bounded TLR-LOCAL-SERVICE-GO."
 }
