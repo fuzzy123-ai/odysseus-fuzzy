@@ -5,7 +5,7 @@
   "title": "Temporal Light Agent Execution Roadmap",
   "created_at": "2026-07-13",
   "updated_at": "2026-07-15",
-  "status": "TLR_08_partial_replay_server_contract_green_worker_recovery_handoff",
+  "status": "TLR_08_partial_replay_server_green_worker_recovery_blocked_test_harness",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
   "planning_dependency": "docs/plans/planning-definition-editor-roadmap.json",
@@ -1082,7 +1082,7 @@
     },
     {
       "id": "TLR-08-replay-restart-recovery",
-      "status": "planned",
+      "status": "blocked_test_harness",
       "class": "repo_only",
       "owner": "Charlie",
       "depends_on": [
@@ -1139,25 +1139,26 @@
         "production service restart"
       ],
       "partial_evidence": {
-        "observed_at": "2026-07-15T16:05:18.6909668+02:00",
+        "observed_at": "2026-07-15T16:11:33.6386129+02:00",
         "green": [
           "Continue-As-New replay compatibility passed against both history segments with one logical Agent run",
           "server persistence and redacted recovery descriptor contracts plus command idempotency passed 92 tests",
           "the cached Temporal SDK test server ran only on ephemeral loopback ports and shut down after green tests"
         ],
         "blocked": {
-          "gate_id": "TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION",
+          "gate_id": "TLR-08-WORKER-RECOVERY-TEST-HARNESS",
           "attempts": [
             "combined four-file run timed out after 184 seconds",
-            "isolated worker-recovery run timed out after 64 seconds"
+            "isolated worker-recovery run timed out after 64 seconds",
+            "decomposed one-Update worker-recovery run timed out after 64 seconds"
           ],
-          "boundary": "The test combines Worker restart continuity with two concurrent duplicate gate Updates and does not drain before workflow completion. No product failure or traceback was observed.",
-          "cleanup": "The two test-server processes left by command timeout were identified by exact cached executable, start time and loopback port and were stopped; no Temporal test-server process remains.",
-          "next_safe_action": "Under a new serialized test-only claim, separate Worker restart continuity from the already-green duplicate-command contract, keep one gate Update in the Worker restart test and retain concurrent duplicate coverage in tests/test_temporal_command_idempotency.py and tests/test_temporal_workflow_messages.py."
+          "boundary": "The hang remains after duplicate concurrency is removed, so it is confined to the Worker replacement test harness or Worker shutdown/resume boundary rather than command deduplication. The bounded runs emitted no product traceback.",
+          "cleanup": "The final test-server process PID 1480 was identified by exact cached executable, creation time and loopback port 57188 and stopped; process and listener checks are empty.",
+          "next_safe_action": "Park this evidence lane. Resume only under a new diagnostic roadmap slice that instruments Worker shutdown and second-Worker polling without rerunning the existing reproduction or weakening assertions."
         },
         "path_fingerprints_sha256": {
           "tests/test_temporal_replay_compatibility.py": "268572f7363f8139559abd6b217105b0fa63a7865d6d3a3d214750e43d47b102",
-          "tests/test_temporal_worker_recovery.py": "4a117018b82c4aac1e82d41f4633bdf2aa219ccf3bc8d4c93967eb9da33b0a73",
+          "tests/test_temporal_worker_recovery.py": "2b5d9e2af04a52bbb5a9e4f7ef839a7c9851265c0c21047a4e98eb5fd85d2719",
           "tests/test_temporal_server_recovery.py": "3bb1aec068f067138eb67cf40523fca00c9177f6788bddabe17caf69eabcd624"
         }
       }
@@ -1377,15 +1378,15 @@
       "risk_if_bypassed": "Operations could become unreadable or drift into Planning."
     },
     {
-      "id": "TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION",
+      "id": "TLR-08-WORKER-RECOVERY-TEST-HARNESS",
       "class": "repo_only_evidence_handoff",
-      "status": "handoff_ready_after_two_bounded_timeouts",
+      "status": "blocked_after_three_bounded_timeouts",
       "blocks": [
         "TLR-08-replay-restart-recovery"
       ],
-      "decision_needed": "No product decision. Consume this ordinary repo-only handoff only through a fresh test-only claim that proves one Worker restart independently and leaves duplicate-update concurrency in its already-green dedicated contracts.",
-      "safe_default": "Do not start the combined hanging test a third time and do not weaken either recovery or idempotency assertions.",
-      "risk_if_bypassed": "Repeated broad retries can strand SDK test-server processes and still fail to identify whether restart or update-drain behavior is responsible."
+      "decision_needed": "No product decision. Create an explicit diagnostic slice only after TLR-07 that instruments the Worker shutdown and replacement boundary; do not rerun the current reproduction unchanged.",
+      "safe_default": "Keep TLR-08 partial, all Temporal processes stopped and TLR-09 dependency-blocked. Preserve the one-Update reproduction by digest without committing a hanging test.",
+      "risk_if_bypassed": "Repeated retries can strand SDK test-server processes and cannot distinguish Worker shutdown, task polling or update delivery."
     },
     {
       "id": "AGENT-12H-LIVE-GO",
@@ -1438,5 +1439,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_tlr_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "Consume TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION through one fresh test-only claim: prove Worker restart with one gate Update, retain duplicate concurrency in the dedicated green idempotency/message contracts, then run the four-file TLR-08 block once. Keep the real development-server restart behind a fresh bounded TLR-LOCAL-SERVICE-GO and keep TLR-07 behind HPA-AGENT-UX-ACCEPTANCE."
+  "recommended_next_step": "Proceed with the independent TLR-07 Agent-screen preview under HPA-AGENT-UX-ACCEPTANCE. Keep TLR-08 partial and TLR-09 dependency-blocked until a separately claimed Worker shutdown/replacement diagnostic slice resolves TLR-08-WORKER-RECOVERY-TEST-HARNESS. Keep the real development-server restart behind a fresh bounded TLR-LOCAL-SERVICE-GO."
 }

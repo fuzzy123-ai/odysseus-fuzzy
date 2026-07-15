@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
   "state": "handoff_ready",
-  "revision": 185,
+  "revision": 187,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -119,6 +119,58 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION",
+      "owner": "/root",
+      "allowed_paths": [
+        "tests/test_temporal_worker_recovery.py",
+        "docs/plans/temporal-light-agent-execution-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [],
+      "state": "released_blocked_test_harness_after_single_decomposed_run",
+      "acquired_at": "2026-07-15T16:07:04.5500907+02:00",
+      "lease_expires_at": "2026-07-15T16:37:04.5500907+02:00",
+      "handoff_required": true,
+      "handoff_evidence": [
+        "TLR-08 replay compatibility and server persistence contracts are green and committed as a38f74eb",
+        "duplicate concurrency was removed from the Worker replacement reproduction",
+        "the one-Update reproduction still timed out after 64 seconds without a product traceback",
+        "the exact orphaned SDK test-server process and listener were stopped",
+        "the unchanged reproduction may not be rerun outside a new instrumented diagnostic slice"
+      ],
+      "path_fingerprints_sha256": {
+        "tests/test_temporal_worker_recovery.py": "4a117018b82c4aac1e82d41f4633bdf2aa219ccf3bc8d4c93967eb9da33b0a73",
+        "docs/plans/temporal-light-agent-execution-roadmap.json": "17b2450b015f6b02b3555ceb28a8e027008de2216a6bfdfc071f95f024892447",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "6e8894c0cf44825926cb09615da079cf1b5230eedc6e1094bd1d9086f8f57396"
+      },
+      "evidence_contract": {
+        "target_environment": "cached Temporal SDK time-skipping server on ephemeral loopback port",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "maximum_runs": 1,
+        "positive_path_required": true
+      },
+      "forbidden_actions": [
+        "rerun of the unchanged reproduction",
+        "test weakening or skip",
+        "real Temporal development-server start",
+        "repository-wide suite",
+        "push",
+        "foreign hunk commit"
+      ],
+      "released_at": "2026-07-15T16:11:33.6386129+02:00",
+      "release_evidence": {
+        "bounded_command": "ODYSSEUS_TEMPORAL_TEST_SERVER=<cached-sdk-test-server> venv\\Scripts\\python.exe -m pytest tests\\test_temporal_worker_recovery.py -vv -s -p no:cacheprovider --basetemp C:\\tmp\\pytest-tlr08-worker-decomposed => timed out after 64 seconds",
+        "failure_boundary": "The hang remains with one gate Update, which removes duplicate-command concurrency as the cause and leaves the Worker shutdown/replacement test boundary unresolved.",
+        "process_cleanup": "PID 1480 and listener 127.0.0.1/IPv6 port 57188 were tied to the exact cached SDK test-server executable, stopped and verified absent.",
+        "uncommitted_reproduction_sha256": "2b5d9e2af04a52bbb5a9e4f7ef839a7c9851265c0c21047a4e98eb5fd85d2719",
+        "next_gate": "TLR-08-WORKER-RECOVERY-TEST-HARNESS"
+      }
+    },
     {
       "claim_id": "sar-12h-20260714t092106:TLR-08-replay-restart-recovery",
       "run_id": "sar-12h-20260714t092106",
@@ -4210,20 +4262,21 @@
   ],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T16:05:18.6909668+02:00",
-    "summary": "TLR-08 replay compatibility, external persistence contract and command idempotency are green (1 plus 92 tests). The combined Worker-restart/concurrent-Update test timed out twice without product traceback; both orphaned SDK test servers were stopped. A fresh test-only decomposition handoff is the sole safe TLR-08 frontier and the combined test may not run a third time.",
-    "resume_cursor": "TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION",
+    "last_durable_progress_at": "2026-07-15T16:11:33.6386129+02:00",
+    "summary": "TLR-08 remains partial: replay, server persistence and idempotency are green, but the minimal one-Update Worker replacement reproduction timed out after the third bounded occurrence. Its exact SDK process was stopped and the evidence lane is parked behind an instrumented test-harness diagnostic gate. The independent TLR-07 Agent preview is now the safe frontier.",
+    "resume_cursor": "TLR-07-agent-screen-runtime-ui",
     "resume_priority": [
-      "TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION",
-      "TLR-07-agent-screen-runtime-ui"
+      "TLR-07-agent-screen-runtime-ui",
+      "TLR-08-WORKER-RECOVERY-TEST-HARNESS"
     ],
     "next_runnable_slices": [
-      "TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION:test_only"
+      "TLR-07-agent-screen-runtime-ui:preview_only"
     ],
     "blocked_slices": [
       "PDE-05-clean-checkout-v3-baseline-integration-handoff",
       "PDE-08-real-save-undo-smoke",
-      "TLR-07-agent-screen-runtime-ui",
+      "TLR-08-replay-restart-recovery",
+      "TLR-09-24h-time-skipping-acceptance",
       "SAR-01-binding-ci-and-publish-provenance",
       "SAR-02-fresh-release-evidence",
       "SAR-10-release-truth-and-external-proof",
@@ -4271,6 +4324,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION:one_update_reproduction_timeout_64_seconds_process_and_listener_cleaned_test_harness_blocked",
       "TLR-08-replay-restart-recovery:1_replay_92_server_and_idempotency_green_worker_restart_test_handoff_after_two_timeouts",
       "IP-PLANNING-CLOSEOUT-CONTRACT-SYNC:21_roadmap_and_queue_contracts_green",
       "IP-PLANNING-INTEGRATION-CLOSEOUT:single_unchanged_9041_collection_run_exit_1_26_failure_2_error_markers_zero_Planning_nodes_20_new_independent_nodes_queued",
