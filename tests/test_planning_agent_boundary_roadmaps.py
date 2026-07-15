@@ -416,6 +416,19 @@ def test_pde05_and_pde06_completion_routes_to_pde07_closeout() -> None:
     ] == "agent_only"
     assert pde07["status"] == "implemented_roadmap_schema_route_DOM_acceptance_green"
     assert pde07["completion_evidence"]["browser_result"] == "15 passed"
-    assert pde["recommended_next_step"].startswith(
-        "Run IP-PLANNING-INTEGRATION-CLOSEOUT exactly once"
+    assert pde["status"] == (
+        "repo_only_PDE_01_through_PDE_07_complete_PDE_08_operator_gated_"
+        "integration_executed_red_independent_regressions_queued"
     )
+    closeout = pde["integration_closeout"]
+    assert closeout["id"] == "IP-PLANNING-INTEGRATION-CLOSEOUT"
+    assert closeout["maximum_runs"] == closeout["runs_consumed"] == 1
+    assert closeout["collection_count"] == 9041
+    assert closeout["planning_related_nodes"] == []
+    assert "REG-20260715-004 through REG-20260715-013" in closeout[
+        "planning_attribution"
+    ]
+    assert pde["recommended_next_step"].startswith(
+        "Do not rerun IP-PLANNING-INTEGRATION-CLOSEOUT"
+    )
+    assert "PLANNING-WRITE-GO" in pde["recommended_next_step"]

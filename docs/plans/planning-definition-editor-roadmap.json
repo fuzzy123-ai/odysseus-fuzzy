@@ -5,7 +5,7 @@
   "title": "Planning Definition Editor Roadmap",
   "created_at": "2026-07-13",
   "updated_at": "2026-07-15",
-  "status": "active_serial_PDE_07_frontier",
+  "status": "repo_only_PDE_01_through_PDE_07_complete_PDE_08_operator_gated_integration_executed_red_independent_regressions_queued",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
   "goal": "Make Harbor One Planning the authoritative editor and reader for versioned project and roadmap definitions while excluding every mutable execution concern from the Planning payload and screen.",
@@ -1132,5 +1132,30 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_pde_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "Run IP-PLANNING-INTEGRATION-CLOSEOUT exactly once after releasing PDE-07. Classify independent failures into the separate regression queue without expanding this roadmap, preserve the untracked V3 index/app clean-checkout handoff, and do not claim PDE-08 or perform any real save or undo without PLANNING-WRITE-GO."
+  "integration_closeout": {
+    "id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
+    "executed_at": "2026-07-15T15:15:25.0981890+02:00",
+    "completed_at": "2026-07-15T15:33:22.9458928+02:00",
+    "maximum_runs": 1,
+    "runs_consumed": 1,
+    "command": "venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider --basetemp C:\\tmp\\pytest-ip-planning-integration-closeout-20260715-1515",
+    "result": "exit_1_with_26_failure_markers_and_2_error_markers",
+    "wall_time_seconds": 483.7,
+    "collection_count": 9041,
+    "classification_method": "The bounded progress stream was mapped to the unchanged 9041-node pytest collection order with a read-only collect-only command. The suite itself was not repeated.",
+    "planning_related_nodes": [],
+    "planning_attribution": "None of the 28 mapped non-pass markers names a Planning product, Planning test or Planning roadmap path. Five Windows symlink nodes, two AMD path nodes and one sandbox node deduplicate to REG-20260714-002, REG-20260715-003 and REG-20260714-001. The remaining 20 nodes are relationship-unproven independent components queued as REG-20260715-004 through REG-20260715-013.",
+    "roadmap_effect": "The repository-wide integration result is red, but the declared acceptance boundary does not reopen PDE-01 through PDE-07 because no Planning-related failure was observed. No regression was promoted into this roadmap.",
+    "focused_contract_sync": {
+      "command": "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py tests\\test_system_assurance_runtime_hardening_roadmap.py -q -p no:cacheprovider --basetemp C:\\tmp\\pytest-planning-closeout-contract-sync-20260715-1538",
+      "result": "21 passed",
+      "scope": "roadmap status, consumed integration point, zero Planning attribution, exact queue ids and 20-node independent routing"
+    },
+    "preserved_boundaries": [
+      "The untracked V3 index/app clean-checkout handoff and owned browser-spec hash remain unchanged.",
+      "PDE-08 remains gated by PLANNING-WRITE-GO.",
+      "No root cutover, real Planning write, suite rerun, product diagnosis, test weakening, push or foreign-hunk commit occurred."
+    ]
+  },
+  "recommended_next_step": "Do not rerun IP-PLANNING-INTEGRATION-CLOSEOUT and do not expand this roadmap with its independent regressions. Keep PDE-08 gated until the user supplies PLANNING-WRITE-GO with one exact roadmap, revision, hash, diff and undo target. Separately resolve the pre-existing untracked V3 index/app clean-checkout handoff before committing the owned browser specification; regression items REG-20260714-001 through REG-20260715-013 are claimable only when explicitly selected from the regression queue."
 }

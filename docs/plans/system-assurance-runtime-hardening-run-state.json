@@ -6,11 +6,11 @@
   "roadmap_id": "planning-definition-editor",
   "roadmap_path": "docs/plans/planning-definition-editor-roadmap.json",
   "queue_scope": "named_roadmap",
-  "phase": "implementation",
+  "phase": "handoff",
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
-  "state": "running",
-  "revision": 179,
+  "state": "waiting_on_user",
+  "revision": 183,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -110,6 +110,161 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:IP-PLANNING-CLOSEOUT-CONTRACT-SYNC",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "IP-PLANNING-CLOSEOUT-CONTRACT-SYNC",
+      "owner": "/root",
+      "allowed_paths": [
+        "tests/test_planning_agent_boundary_roadmaps.py",
+        "tests/test_system_assurance_runtime_hardening_roadmap.py",
+        "docs/plans/regression-queue.json",
+        "docs/plans/planning-definition-editor-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [],
+      "state": "released_contract_sync_green",
+      "acquired_at": "2026-07-15T15:37:43.3198427+02:00",
+      "lease_expires_at": "2026-07-15T16:07:43.3198427+02:00",
+      "handoff_required": false,
+      "handoff_evidence": [
+        "the once-only Planning integration claim is released and may not rerun",
+        "the PDE roadmap recommendation now correctly describes the consumed integration point",
+        "the regression queue now contains the deduplicated integration result",
+        "the two clean tracked contract tests still assert the pre-closeout recommendation and three-item queue",
+        "only the current thread is active and no product path is claimed"
+      ],
+      "path_fingerprints_sha256": {
+        "tests/test_planning_agent_boundary_roadmaps.py": "f33b9253404452bd9f4d7bac127b562002e849e87abd91e43ecb014fe61eb5bf",
+        "tests/test_system_assurance_runtime_hardening_roadmap.py": "659295e29bd76b95b6dd419933e37ad73c8a7000a2d91591da28bebd75f50132",
+        "docs/plans/regression-queue.json": "989c8b9bb9bb3bb8c5b8ee131e7c4e31746682992a294e5590790ebfab9c8849",
+        "docs/plans/planning-definition-editor-roadmap.json": "243a08501804c692a94a3da58170f8d694ec7ac567deceaeb72868cbd67a1cf6",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "ed8e59c23763ff6519bc9b8236696f3002a47aaf2d395834141f3e8174c8489b"
+      },
+      "evidence_contract": {
+        "required": [
+          "assert the consumed once-only integration point",
+          "assert zero Planning-attributed nodes and explicit regression routing",
+          "assert the complete deduplicated queue ids without weakening prior entries",
+          "run only the two focused roadmap contracts"
+        ]
+      },
+      "forbidden_actions": [
+        "repository-wide suite rerun",
+        "product mutation",
+        "failure diagnosis or fix",
+        "test weakening",
+        "live or external action",
+        "push",
+        "foreign hunk commit"
+      ],
+      "released_at": "2026-07-15T15:40:26+02:00",
+      "release_evidence": {
+        "command": "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py tests\\test_system_assurance_runtime_hardening_roadmap.py -q -p no:cacheprovider --basetemp C:\\tmp\\pytest-planning-closeout-contract-sync-20260715-1538",
+        "result": "21 passed, 1 SQLAlchemy deprecation warning",
+        "assertions": [
+          "the Planning integration point consumed exactly one run",
+          "zero mapped Planning nodes and 20 newly queued independent nodes are explicit",
+          "all 13 deduplicated regression queue ids are exact",
+          "PDE-08 remains gated by PLANNING-WRITE-GO"
+        ],
+        "forbidden_action_check": "no suite rerun, product mutation, diagnosis, test weakening, live action, push or foreign hunk commit"
+      }
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:IP-PLANNING-INTEGRATION-CLOSEOUT",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
+      "owner": "/root",
+      "allowed_paths": [
+        "docs/plans/regression-queue.json",
+        "docs/plans/planning-definition-editor-roadmap.json",
+        "docs/plans/harbor-planning-integration-master-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [],
+      "state": "released_once_red_independent_regressions_queued_no_Planning_attribution",
+      "acquired_at": "2026-07-15T15:15:25.0981890+02:00",
+      "lease_expires_at": "2026-07-15T16:15:25.0981890+02:00",
+      "handoff_required": false,
+      "handoff_evidence": [
+        "PDE-01 through PDE-07 focused contracts are green and the PDE-07 acceptance claim is released",
+        "Planning MCP PMCP-9 definition/runtime separation and its external contract are green",
+        "IP-PLANNING-INTEGRATION-CLOSEOUT is the declared next and only remaining full-suite integration point",
+        "the current checkout has 335 pre-existing or roadmap-owned dirty status entries; the suite will run against this unchanged shared checkout",
+        "only the current thread is active and no product mutation is authorized during the suite"
+      ],
+      "path_fingerprints_sha256": {
+        "docs/plans/regression-queue.json": "9e5c08f407e90735007dc9699a9aef799bad53eea2d74c51f90b3da68afdd5a5",
+        "docs/plans/planning-definition-editor-roadmap.json": "d2a436f4eabb6b826b0907073f1b656bc62a5b5220f27c58a55b75bf26b5b7d7",
+        "docs/plans/harbor-planning-integration-master-roadmap.json": "990448f3934b547bb3ff6ec044607029cf4c13c3d011a8b44ae369878c7413f9",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "5db396a210b9fca383d753f9607c9089cf68c99ae829034e08f4e42793c30fdc"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "phase": "integration_verification",
+        "supervision": "interactive_serial",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "locator_or_version": "C:/Users/nkatz/.codex/skills/abc/SKILL.md",
+              "purpose": "single-run integration control and regression routing"
+            }
+          ],
+          "model": {
+            "value": "surface_default",
+            "reason": "test execution and evidence classification only"
+          }
+        }
+      },
+      "evidence_contract": {
+        "target_environment": "best_available_local_unchanged_repository_suite",
+        "observed_at": "2026-07-15T15:15:25.0981890+02:00",
+        "maximum_runs": 1,
+        "required": [
+          "unchanged_repository_wide_suite_once",
+          "identify_any_Planning_related_failure",
+          "deduplicate_independent_or_environment_failures_to_regression_queue",
+          "no_automatic_roadmap_expansion"
+        ]
+      },
+      "forbidden_actions": [
+        "suite rerun",
+        "diagnostic deselection or test weakening",
+        "product diagnosis or fix under this claim",
+        "live service or provider access",
+        "root cutover or Planning write",
+        "push",
+        "foreign hunk commit"
+      ],
+      "released_at": "2026-07-15T15:33:22.9458928+02:00",
+      "release_evidence": {
+        "suite_command": "venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider --basetemp C:\\tmp\\pytest-ip-planning-integration-closeout-20260715-1515",
+        "suite_runs_consumed": 1,
+        "suite_maximum_runs": 1,
+        "exit_code": 1,
+        "wall_time_seconds": 483.7,
+        "observed_markers": {
+          "failed": 26,
+          "errors": 2
+        },
+        "collection_command": "venv\\Scripts\\python.exe -m pytest --collect-only -q -p no:cacheprovider",
+        "collection_result": "9041 tests collected",
+        "classification": [
+          "all 28 non-pass progress markers were mapped to exact collection nodes without rerunning the suite",
+          "zero mapped nodes name a Planning product, Planning test or Planning roadmap path",
+          "five Windows symlink nodes deduplicate to REG-20260714-002",
+          "two AMD path nodes deduplicate to REG-20260715-003",
+          "the sandbox resource guard node deduplicates to REG-20260714-001",
+          "the remaining 20 relationship-unproven independent nodes are queued by component as REG-20260715-004 through REG-20260715-013"
+        ],
+        "boundary_result": "The integration point remains repository-red, but the Planning acceptance boundary is released because no Planning-related failure was observed and no independent failure was promoted into PDE or PMCP.",
+        "forbidden_action_check": "no suite rerun, diagnosis, fix, deselection, test weakening, live access, Planning write, root cutover, push or foreign-hunk commit"
+      }
+    },
     {
       "claim_id": "sar-12h-20260714t092106:PDE-07-boundary-browser-acceptance",
       "run_id": "sar-12h-20260714t092106",
@@ -3946,17 +4101,19 @@
   ],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T15:13:23.2163189+02:00",
-    "summary": "PDE-07 is green and released: 143 focused Python acceptance tests, 15 browser scenarios and the trackable acceptance commit 5f973257. IP-PLANNING-INTEGRATION-CLOSEOUT is the next and only full-suite integration point; the V3 baseline handoff remains preserved.",
-    "resume_cursor": "IP-PLANNING-INTEGRATION-CLOSEOUT",
+    "last_durable_progress_at": "2026-07-15T15:40:26+02:00",
+    "summary": "Planning repo-only closeout is durable: PDE-01 through PDE-07 and PMCP-9 are complete, the once-only 9041-test integration point is consumed with zero Planning-attributed nodes, independent failures are deduplicated in the regression queue, and the 21-test closeout contract is green. Remaining work is gated by the V3 clean-checkout handoff, PLANNING-WRITE-GO, Agent UX/live gates, external SAR evidence or explicit regression selection.",
+    "resume_cursor": "operator_and_clean_checkout_gates_after_Planning_repo_only_closeout",
     "resume_priority": [
-      "IP-PLANNING-INTEGRATION-CLOSEOUT"
+      "PDE-05-clean-checkout-v3-baseline-integration-handoff",
+      "PDE-08-real-save-undo-smoke",
+      "TLR-07-agent-screen-runtime-ui"
     ],
-    "next_runnable_slices": [
-      "IP-PLANNING-INTEGRATION-CLOSEOUT"
-    ],
+    "next_runnable_slices": [],
     "blocked_slices": [
       "PDE-05-clean-checkout-v3-baseline-integration-handoff",
+      "PDE-08-real-save-undo-smoke",
+      "TLR-07-agent-screen-runtime-ui",
       "SAR-01-binding-ci-and-publish-provenance",
       "SAR-02-fresh-release-evidence",
       "SAR-10-release-truth-and-external-proof",
@@ -3970,7 +4127,8 @@
     ],
     "completed_full_suite_integration_points": [
       "IP-SAR-SERIAL-CLOSEOUT",
-      "IP-TLR-06-CLOSEOUT"
+      "IP-TLR-06-CLOSEOUT",
+      "IP-PLANNING-INTEGRATION-CLOSEOUT"
     ]
   },
   "completion_layers": {
@@ -4003,6 +4161,8 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "IP-PLANNING-CLOSEOUT-CONTRACT-SYNC:21_roadmap_and_queue_contracts_green",
+      "IP-PLANNING-INTEGRATION-CLOSEOUT:single_unchanged_9041_collection_run_exit_1_26_failure_2_error_markers_zero_Planning_nodes_20_new_independent_nodes_queued",
       "PDE-07-boundary-browser-acceptance:143_python_15_browser_route_inventory_recursive_denylist_DOM_and_responsive_green",
       "PDE-06-definition-notification-undo:84_notification_14_browser_16_PMCP_taxonomy_static_and_boundary_green",
       "HPA-PDE06-next-frontier-contract-sync:9_roadmap_contract_passed",
