@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only",
   "state": "running",
-  "revision": 145,
+  "revision": 146,
   "resumed_at": "2026-07-15T07:08:35.5258180+02:00",
   "resume_authority": "user_directed_goal_restart_TLR_then_next_roadmap",
   "paused_at": null,
@@ -110,53 +110,45 @@
   },
   "active_claims": [
     {
-      "claim_id": "sar-12h-20260714t092106:PMCP-9-external-plugin-routes",
+      "claim_id": "sar-12h-20260714t092106:PMCP-9-roadmap-closeout",
       "run_id": "sar-12h-20260714t092106",
       "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
       "slice_id": "PMCP-9-definition-runtime-separation",
       "owner": "/root",
       "allowed_paths": [
         "docs/plans/system-assurance-runtime-hardening-run-state.json",
-        "plugins/mcp_server/plugin.py",
-        "routes/roadmap_routes.py",
-        "tests/test_mcp_server_plugin.py",
-        "tests/test_roadmap_routes.py"
+        "docs/plans/planning-mcp-roadmap.json"
       ],
       "hotfiles": [
-        "plugins/mcp_server/plugin.py",
-        "routes/roadmap_routes.py"
+        "docs/plans/planning-mcp-roadmap.json"
       ],
       "state": "active",
-      "acquired_at": "2026-07-15T08:45:25.1843350+02:00",
-      "lease_expires_at": "2026-07-15T10:45:25.1843350+02:00",
+      "acquired_at": "2026-07-15T08:50:48.4762631+02:00",
+      "lease_expires_at": "2026-07-15T10:50:48.4762631+02:00",
       "handoff_required": false,
       "handoff_evidence": [
-        "the PMCP-9 internal MCP transport and policy surface is green and committed as cff55a36",
-        "the external plugin, roadmap route and both focused test paths are tracked and clean at claim time",
+        "the external MCP definition contract is green and committed as acd7dfa4",
+        "the declared PMCP-9 integration command passed 149 tests with one expected skip",
         "the live agent inventory contains only /root; no parallel agent or same-checkout claimant is active",
         "the pre-existing foreign Planning service and test alias hunks remain unstaged with their original 10/3 and 21/1 numstat and are excluded from this claim",
-        "the external plugin must expose exactly the policy-approved seven-tool definition inventory and keep deprecated compatibility tools hidden",
-        "the HTTP route may provide compatibility/read wiring only; it may not start Agent or Temporal, mutate Planning, read runtime gate state, or select a runtime skill/model"
+        "docs/plans/planning-mcp-roadmap.json has a pre-existing foreign 155-added/53-removed working diff whose full fingerprint is recorded",
+        "this closeout owns only the PMCP-9 status, completion evidence and next-frontier handoff hunks; all pre-existing roadmap hunks must remain unstaged",
+        "no further product or runtime mutation is authorized by this documentation closeout"
       ],
       "path_fingerprints_sha256": {
-        "docs/plans/system-assurance-runtime-hardening-run-state.json": "6135b65b1b2b6f8ebdac33c26d24765484e8e5464713cb40528e04afb05d748d",
-        "plugins/mcp_server/plugin.py": "ccff00a7672977dd57a58d83eaff532062958af03f82de1badabb412cf0d6a36",
-        "routes/roadmap_routes.py": "ebb3a748a5c7f46f50a16516c84e498b36617c148abe9ba2e4b23d66838009af",
-        "tests/test_mcp_server_plugin.py": "38ab24fb654b15f1ee74f97d21a3a670942e65bc7d775019d264baf0e084192f",
-        "tests/test_roadmap_routes.py": "2d39e5b569078a6ce6a7e3d0aa1ed24e17fcf06e4ec8034582bcd97577c36af4"
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "2f89e8cca46c56fc64cfcef8827288454e112606692208568644f5515dce1eac",
+        "docs/plans/planning-mcp-roadmap.json": "3a5c6d38f528bef508318cbed0835f5ac9a791ac517bbbc801214c5e68aa5b09"
       },
       "evidence_contract": {
         "target_environment": "local",
-        "observed_at": "2026-07-15T08:45:25.1843350+02:00",
+        "observed_at": "2026-07-15T08:50:48.4762631+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
-          "external_tool_inventory_matches_policy",
-          "deprecated_tools_hidden_externally",
-          "definition_tool_dispatch_is_bounded",
-          "non_launching_handoff_preserved",
-          "roadmap_route_compatibility_has_no_runtime_read",
-          "no_agent_or_temporal_start_call"
+          "PMCP_9_status_and_evidence_only",
+          "foreign_roadmap_hunks_remain_unstaged",
+          "json_and_boundary_contract_green",
+          "next_frontier_is_truthfully_gated"
         ],
         "temporal_window": "none",
         "positive_path_required": true
@@ -164,6 +156,24 @@
     }
   ],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:PMCP-9-external-plugin-routes",
+      "slice_id": "PMCP-9-definition-runtime-separation",
+      "owner": "/root",
+      "state": "released_external_contract_green_committed_integration_green",
+      "acquired_at": "2026-07-15T08:45:25.1843350+02:00",
+      "released_at": "2026-07-15T08:50:48.4762631+02:00",
+      "commit": "acd7dfa4",
+      "evidence": [
+        "18 external MCP plugin tests passed",
+        "the externally visible Planning subset equals the exact seven-tool policy inventory",
+        "planning_gate_status and planning_mark_status stay hidden externally even when Planning reads are enabled",
+        "external definition gate projection drops legacy state, decision and status fields",
+        "external Agent handoff remains exact, hash-pinned and launch_authorized=false",
+        "the unchanged legacy roadmap route suite remained green",
+        "the declared combined PMCP-9 integration run passed 149 tests with one expected skip"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:PMCP-9-internal-transport-policy",
       "slice_id": "PMCP-9-definition-runtime-separation",
@@ -2318,8 +2328,8 @@
   "partial_slices": [
     {
       "slice_id": "PMCP-9-definition-runtime-separation",
-      "state": "service_and_internal_transport_green_external_claimed",
-      "next_evidence": "Wire the exact external plugin inventory and the definition-only HTTP compatibility route, then run the declared combined PMCP-9 integration test."
+      "state": "integration_green_roadmap_closeout_claimed",
+      "next_evidence": "Persist only the PMCP-9 roadmap status/evidence hunk, release the claim, then park at the next explicit master-queue design or environment gate."
     },
     {
       "slice_id": "SAR-01-binding-ci-and-publish-provenance",
@@ -2824,9 +2834,9 @@
   "live_go_ledger": [],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T08:45:25.1843350+02:00",
-    "summary": "The PMCP-9 service core and internal MCP transport/policy are green in separate commits. Foreign Planning alias hunks remain unstaged and unchanged. One new serialized claim owns only the clean external plugin and HTTP roadmap route paths needed for the final PMCP-9 integration surface.",
-    "resume_cursor": "implement_PMCP_9_external_plugin_and_definition_only_route",
+    "last_durable_progress_at": "2026-07-15T08:50:48.4762631+02:00",
+    "summary": "PMCP-9 is implementation- and integration-green across the service, internal transport, policy and external plugin contract. Foreign Planning alias and roadmap hunks remain unstaged and unchanged. One final documentation-only claim owns only the PMCP-9 status/evidence and truthful gated-frontier handoff.",
+    "resume_cursor": "close_PMCP_9_roadmap_then_park_at_next_master_gate",
     "resume_priority": [
       "PMCP-9-definition-runtime-separation"
     ],
