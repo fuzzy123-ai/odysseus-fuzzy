@@ -566,6 +566,9 @@ class ABCExecutionWorkflow:
             if _deadline_reached(state.deadline_at):
                 state.transition("deadline_reached")
                 break
+            if self._should_continue_as_new(state):
+                await self._wait_for_handlers()
+                workflow.continue_as_new(state.to_continue_start())
             if state.run_state != "running":
                 await self._wait_until_running_or_deadline()
                 continue
@@ -643,18 +646,26 @@ class ABCExecutionWorkflow:
 
     async def _wait_until_running_or_deadline(self) -> None:
         state = self._required_state()
-        remaining = _remaining_seconds(state.deadline_at)
-        if remaining <= 0:
+        deadline_remaining = _remaining_seconds(state.deadline_at)
+        if deadline_remaining <= 0:
             state.transition("deadline_reached")
+            return
+        segment_remaining = max(
+            0.0,
+            MAX_SEGMENT_SECONDS - (workflow.time() - self._segment_started_at),
+        )
+        wait_seconds = min(deadline_remaining, segment_remaining)
+        if wait_seconds <= 0:
             return
         try:
             await workflow.wait_condition(
                 lambda: state.run_state == "running",
-                timeout=remaining,
-                timeout_summary="abc-run-deadline",
+                timeout=wait_seconds,
+                timeout_summary="abc-run-state-or-segment-boundary",
             )
         except asyncio.TimeoutError:
-            state.transition("deadline_reached")
+            if _deadline_reached(state.deadline_at):
+                state.transition("deadline_reached")
 
     def _should_continue_as_new(self, state: DeterministicDagState) -> bool:
         if state.run_state in TERMINAL_RUN_STATES or state.is_complete():

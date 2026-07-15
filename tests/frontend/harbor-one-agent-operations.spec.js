@@ -120,6 +120,56 @@ test('history reconnect appends complete events once and remains bounded by cont
   expect(await page.evaluate(() => window.HarborAgentOperations.MAX_RENDERED_EVENTS)).toBe(300);
 });
 
+test('hour 6 and hour 18 reconnects follow history segments without duplicate or unbounded DOM rows', async ({ page }) => {
+  await openAgent(page);
+  await page.evaluate(() => {
+    const prototype = window.HarborAgentOperationFixtures.FixtureAgentOperationsApi.prototype;
+    prototype.getRun = function () {
+      this.reconnectCount = (this.reconnectCount || 0) + 1;
+      this.projection.run.history_segment = this.reconnectCount === 1 ? 1 : 3;
+      this.projection.run.version = this.reconnectCount === 1 ? 24 : 72;
+      return Promise.resolve(JSON.parse(JSON.stringify(this.projection)));
+    };
+    prototype.getHistory = function () {
+      const events = [];
+      for (let segment = 0; segment <= this.projection.run.history_segment; segment += 1) {
+        for (let eventId = 1; eventId <= 80; eventId += 1) {
+          events.push({
+            event_id: `h${segment}:${eventId}`,
+            event_type: 'heartbeat_opportunity_window',
+            occurred_at: `2026-07-15T${String(8 + segment).padStart(2, '0')}:00:00Z`,
+            node_id: 'TLR-09-24h-time-skipping-acceptance',
+            activity_id: 'activity-tlr09-acceptance',
+            summary: 'Bounded reconnect history event.',
+            ref_ids: [`segment-${segment}`]
+          });
+        }
+      }
+      return Promise.resolve({
+        cursor: '',
+        next_cursor: events.at(-1).event_id,
+        has_more: false,
+        events
+      });
+    };
+  });
+
+  const panel = page.locator('[data-agent-operations-panel]');
+  await panel.getByRole('button', { name: 'Refresh run projection' }).click();
+  await expect(panel.locator('[data-agent-segment]')).toContainText('segment 1');
+  await panel.getByRole('button', { name: 'Refresh run projection' }).click();
+  await expect(panel.locator('[data-agent-segment]')).toContainText('segment 3');
+
+  const rows = panel.locator('[data-agent-history-list] > li');
+  expect(await rows.count()).toBe(300);
+  const ids = await rows.evaluateAll(elements => elements.map(element => element.dataset.eventId));
+  expect(new Set(ids).size).toBe(ids.length);
+  expect(ids.at(-1)).toBe('h3:80');
+  const persisted = await page.evaluate(() => JSON.stringify(localStorage));
+  expect(persisted).not.toContain('history_segment');
+  expect(persisted).not.toContain('workflow_run_id');
+});
+
 test('Agent API rejects malformed projections before rendering', async ({ page }) => {
   await openAgent(page);
   const result = await page.evaluate(async () => {

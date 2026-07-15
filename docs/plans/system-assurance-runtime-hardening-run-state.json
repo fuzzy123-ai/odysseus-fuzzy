@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
   "state": "running",
-  "revision": 196,
+  "revision": 198,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -119,6 +119,75 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:TLR-09-24H-TIME-SKIPPING",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "TLR-09-24h-time-skipping-acceptance",
+      "owner": "/root",
+      "allowed_paths": [
+        "tests/test_agent_operation_24h.py",
+        "tests/frontend/harbor-one-agent-operations.spec.js",
+        "src/temporal_runtime/workflows.py",
+        "src/agent_operation_projection.py",
+        "docs/plans/temporal-light-agent-execution-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [
+        "src/temporal_runtime/workflows.py"
+      ],
+      "state": "released_green",
+      "acquired_at": "2026-07-15T17:05:24.3244509+02:00",
+      "lease_expires_at": "2026-07-15T19:05:24.3244509+02:00",
+      "handoff_required": true,
+      "handoff_evidence": [
+        "TLR-07 is visually accepted and TLR-08 is green in commit b21a57a7",
+        "the six-hour Continue-As-New boundary now also applies during gate, signal and pause waits",
+        "the exact 24-hour time-skipping scenario passed with three continuations",
+        "the existing Agent screen passed both reconnect checkpoints and its DOM bound",
+        "zero cached SDK test-server processes and listeners remain"
+      ],
+      "path_fingerprints_sha256": {
+        "tests/test_agent_operation_24h.py": "missing",
+        "tests/frontend/harbor-one-agent-operations.spec.js": "0e9879d5f8f788df813845aca4609b230e953a63a67cd75c1eefb0359097af4c",
+        "src/temporal_runtime/workflows.py": "3083e72e00632b1435aa8f8b2d3f1ff0d58bc5b1622734a966117777a1b7a688",
+        "src/agent_operation_projection.py": "1eda10171c16325dacdd1129906d6a887abf1037762a835181d4dbe6ce3da90a",
+        "docs/plans/temporal-light-agent-execution-roadmap.json": "fce9b7398d1eec84115936d529281f835619ee637e982357e5b39a09f739b5b8",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "0dea7c038ab3ac4209d59e2a7f05bc40a64510c99f2e88d8774c6c6d8629235a"
+      },
+      "evidence_contract": {
+        "target_environment": "cached Temporal SDK time-skipping server plus fake Agent adapters and existing browser fixture server",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "logical_duration_hours": 24,
+        "heartbeat_opportunities": 2880,
+        "continue_as_new_transitions": 3,
+        "history_page_limit": 200,
+        "dom_row_limit": 300,
+        "positive_activity_path_exercised": true
+      },
+      "forbidden_actions": [
+        "wall-clock 24-hour process",
+        "test skip, xfail or snapshot-only acceptance",
+        "unbounded event generation",
+        "real provider or repository effect",
+        "real Temporal development-server start",
+        "repository-wide suite",
+        "push",
+        "foreign hunk commit"
+      ],
+      "released_at": "2026-07-15T17:18:00+02:00",
+      "release_evidence": {
+        "python_acceptance": "tests/test_agent_operation_24h.py => 1 passed with every named phase",
+        "browser_acceptance": "harbor-one-agent-operations.spec.js => 7 passed",
+        "final_integration": "24-hour acceptance plus replay compatibility plus deterministic history families => 10 passed",
+        "worker_recovery": "5 hours 59 minutes of logical disconnect followed by Worker-two takeover before the hour-18 continuation",
+        "idempotency": "one Activity effect per key and one receipt for the two-client gate race",
+        "boundedness": "each raw history at most 200 events, public pages 200 plus 100, rendered DOM exactly 300 rows",
+        "process_cleanup": "zero exact cached SDK test-server processes and zero listeners",
+        "next_slice": "V3-BASELINE-INTEGRATION"
+      }
+    },
     {
       "claim_id": "sar-12h-20260714t092106:TLR-08-STICKY-A",
       "run_id": "sar-12h-20260714t092106",
@@ -4540,22 +4609,20 @@
     "LIVE-ACTIVATION-ENVELOPE: discover and record the exact final verified commit, repository-native Debian deployment mechanism, observation window, previous deployed artifact and rollback command before push or deployment"
   ],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T17:02:37+02:00",
-    "summary": "TLR-STICKY-A is implemented and green: Temporal Light disables sticky Workflow caching, Worker two takes over the same logical run, the replay/recovery/idempotency integration assertions are green and no SDK process remains. TLR-09 is now dependency-ready.",
-    "resume_cursor": "TLR-09-24h-time-skipping-acceptance",
+    "last_durable_progress_at": "2026-07-15T17:18:00+02:00",
+    "summary": "TLR-09 is green: exactly 24 logical hours, 2880 modeled heartbeat opportunities, three Continue-As-New transitions, Worker recovery, retry, two-client idempotency, bounded histories and hour-6/hour-18 Agent reconnects all passed. The complete V3 baseline handoff is the next serial repo slice.",
+    "resume_cursor": "V3-BASELINE-INTEGRATION",
     "resume_priority": [
-      "TLR-09-24h-time-skipping-acceptance",
       "PDE-05-clean-checkout-v3-baseline-integration-handoff",
       "LIVE-ACTIVATION-SCOPE"
     ],
     "next_runnable_slices": [
-      "TLR-09-24h-time-skipping-acceptance"
+      "V3-BASELINE-INTEGRATION"
     ],
     "blocked_slices": [
       "PDE-05-clean-checkout-v3-baseline-integration-handoff",
       "PDE-08-real-save-undo-smoke",
       "TLR-07-agent-screen-runtime-ui",
-      "TLR-09-24h-time-skipping-acceptance",
       "SAR-01-binding-ci-and-publish-provenance",
       "SAR-02-fresh-release-evidence",
       "SAR-10-release-truth-and-external-proof",
@@ -4575,6 +4642,7 @@
   },
   "completion_layers": {
     "implemented": [
+      "TLR-09-24h-time-skipping-acceptance",
       "TLR-08-replay-restart-recovery",
       "TLR-07-agent-screen-runtime-ui",
       "PDE-07-boundary-browser-acceptance",
@@ -4605,6 +4673,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "TLR-09-24h-time-skipping-acceptance:1_acceptance_7_browser_10_final_integration_zero_process_leaks",
       "TLR-08-STICKY-A:1_constant_1_worker_recovery_92_integration_assertions_2_environment_retry_green_zero_process_leaks",
       "TLR-08-STICKY-RECOVERY-CONFIG:constant_contract_green_runtime_query_takeover_red_source_fully_rolled_back_zero_process_leaks",
       "TLR-08D-worker-shutdown-diagnostic:two_bounded_runs_isolated_second_worker_sticky_queue_takeover_zero_process_leaks",
@@ -4646,6 +4715,7 @@
       "SAR-09-measured-optimization-decisions:focused_and_cli"
     ],
     "committed": [
+      "TLR-08-replay-restart-recovery:b21a57a7",
       "PDE-07-boundary-browser-acceptance:5f973257_python_acceptance_browser_spec_handoff",
       "PDE-06-definition-notification-undo:290f71b4",
       "HPA-PDE06-next-frontier-contract-sync:88719df2",

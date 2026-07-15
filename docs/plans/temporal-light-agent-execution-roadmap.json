@@ -5,7 +5,7 @@
   "title": "Temporal Light Agent Execution Roadmap",
   "created_at": "2026-07-13",
   "updated_at": "2026-07-15",
-  "status": "TLR_08_done_TLR_09_ready",
+  "status": "TLR_09_done_TLR_10_operator_gated",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
   "planning_dependency": "docs/plans/planning-definition-editor-roadmap.json",
@@ -1273,7 +1273,7 @@
     },
     {
       "id": "TLR-09-24h-time-skipping-acceptance",
-      "status": "planned",
+      "status": "done",
       "class": "repo_only",
       "owner": "Charlie",
       "depends_on": [
@@ -1326,7 +1326,20 @@
         "real long-running service",
         "live provider effect",
         "unbounded event generation"
-      ]
+      ],
+      "implementation_evidence": {
+        "observed_at": "2026-07-15T17:18:00+02:00",
+        "logical_duration": "exactly 24 hours under the SDK time-skipping clock",
+        "heartbeat_model": "2880 bounded 30-second opportunities without generating unbounded Temporal or DOM events",
+        "recovery": "Worker one stopped after hour 12, Worker two started one minute before hour 18 after a 5-hour-59-minute disconnect, and the same logical run continued on history segment 3",
+        "activities": "bootstrap succeeded once; after-gate failed once retryably and succeeded on attempt two; each idempotent effect key was recorded once",
+        "commands": "two clients submitted the same hour-18 gate command concurrently and received one identical persisted receipt",
+        "history": "four histories with three Continue-As-New transitions; every raw history stayed below the 200-event page bound",
+        "projection": "300 stable public events paged as 200 plus 100 with no duplicate or missing identifier; stale heartbeat and expired lease remained visible after reconnect",
+        "browser": "seven Agent contracts passed, including hour-6 and hour-18 reconnect, no duplicated rows, a 300-row DOM ceiling and no localStorage runtime truth",
+        "determinism": "the final focused Python integration point passed 10 tests across the 24-hour scenario, replay compatibility and five existing deterministic history families",
+        "cleanup": "zero exact cached SDK test-server processes and zero listeners remained"
+      }
     },
     {
       "id": "TLR-10-12h-wall-clock-soak",
@@ -1567,5 +1580,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_tlr_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "Execute TLR-09 with time skipping. Afterwards integrate the user-granted complete V3 baseline in a separate serial claim and prepare the exact fuzzy/dev to Debian-homeserver deployment envelope. Keep wall-clock soak and production Temporal activation behind their dedicated gates."
+  "recommended_next_step": "Integrate the user-granted complete V3 baseline in a separate serial claim, synchronize the master roadmap and prepare the exact fuzzy/dev to Debian-homeserver deployment envelope. Keep the 12-hour wall-clock soak and production Temporal activation behind AGENT-12H-LIVE-GO and TEMPORAL-PRODUCTION-ACTIVATION-GO."
 }
