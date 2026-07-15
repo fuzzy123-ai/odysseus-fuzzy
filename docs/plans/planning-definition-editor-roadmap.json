@@ -5,7 +5,7 @@
   "title": "Planning Definition Editor Roadmap",
   "created_at": "2026-07-13",
   "updated_at": "2026-07-15",
-  "status": "active_serial_PDE_03_ready",
+  "status": "active_serial_PDE_04_ready",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
   "goal": "Make Harbor One Planning the authoritative editor and reader for versioned project and roadmap definitions while excluding every mutable execution concern from the Planning payload and screen.",
@@ -580,7 +580,7 @@
     },
     {
       "id": "PDE-03-revision-proposal-apply",
-      "status": "planned",
+      "status": "implemented_temporary_repository_focused_tested",
       "class": "repo_only",
       "owner": "Bob",
       "depends_on": [
@@ -611,6 +611,28 @@
         "duplicate idempotency key returns the original receipt",
         "failed validation leaves the source unchanged"
       ],
+      "completion_evidence": {
+        "observed_at": "2026-07-15T08:15:00+02:00",
+        "focused_result": "38 passed, 1 unrelated SQLAlchemy deprecation warning",
+        "combined_contract_result": "154 passed across Definition v2, projection, temporary revision store, routes and Planning boundary contracts",
+        "temporary_write_boundary": [
+          "write composition requires the exact odysseus.planning.temporary_repository.v1 marker",
+          "definition files are confined to one JSON file directly below the resolved temporary root",
+          "the production default router constructs no PlanningRevisionRepository and all write routes fail closed",
+          "no docs/plans definition, named real roadmap or external target was written"
+        ],
+        "verified_invariants": [
+          "draft create, validation and discard do not mutate the definition source",
+          "accepted revisions use atomic replace plus canonical post-write readback",
+          "two concurrent repository instances serialize acceptance and exactly one stale base conflicts",
+          "create, accept and undo idempotency receipts survive repository reconstruction",
+          "validation or state-persistence failure leaves the source byte-identical",
+          "tombstone and restore append immutable revisions; undo restores the exact previous approved content hash while retaining the accepted revision",
+          "active draft references are projected from the sidecar without changing canonical source content",
+          "all three declared write endpoints require owner, admin and CSRF and use only accept or discard actions"
+        ],
+        "write_gate_state": "PLANNING-WRITE-GO remains gated for every real Planning definition"
+      },
       "gate": {
         "id": "PLANNING-WRITE-GO",
         "safe_default": "Temporary repositories and dry-run proposals only. No named real roadmap write."
@@ -925,5 +947,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_pde_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "Release PDE-02 with the isolated app.py registration evidence, then claim PDE-03 temporary-repository proposal/apply paths only. Do not perform a real Planning write; PLANNING-WRITE-GO remains gated."
+  "recommended_next_step": "Release PDE-03 with temporary-repository evidence, then claim PDE-04 Agent handoff envelope paths. Keep launch_authorized false, emit only an exact hash-pinned /abc composer draft and do not call a run-start endpoint."
 }

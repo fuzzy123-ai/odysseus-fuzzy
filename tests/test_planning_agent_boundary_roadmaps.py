@@ -294,5 +294,23 @@ def test_pde01_completion_routes_serially_to_pde02() -> None:
     assert pde02["depends_on"] == ["PDE-01-definition-schema-validator"]
     assert pde02["implementation_evidence"]["focused_result"].startswith("36 passed")
     assert pde02["implementation_evidence"]["remaining"] == "none"
-    assert "claim PDE-03" in pde["recommended_next_step"]
-    assert "real Planning write" in pde["recommended_next_step"]
+    assert slices["PDE-03-revision-proposal-apply"]["depends_on"] == [
+        "PDE-02-definition-read-model-api"
+    ]
+
+
+def test_pde03_temporary_write_boundary_routes_to_pde04_without_real_write() -> None:
+    pde = _load(PDE_PATH)
+    slices = {item["id"]: item for item in pde["slice_queue"]}
+
+    pde03 = slices["PDE-03-revision-proposal-apply"]
+    pde04 = slices["PDE-04-agent-handoff-envelope"]
+    assert pde03["status"] == "implemented_temporary_repository_focused_tested"
+    assert pde03["completion_evidence"]["focused_result"].startswith("38 passed")
+    assert pde03["completion_evidence"]["write_gate_state"].startswith(
+        "PLANNING-WRITE-GO remains gated"
+    )
+    assert pde04["status"] == "planned"
+    assert pde04["depends_on"] == ["PDE-03-revision-proposal-apply"]
+    assert "claim PDE-04" in pde["recommended_next_step"]
+    assert "launch_authorized false" in pde["recommended_next_step"]
