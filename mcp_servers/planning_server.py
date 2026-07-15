@@ -17,6 +17,7 @@ from mcp.types import TextContent, Tool
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.planning_mcp_service import PlanningMcpService, PlanningServiceError  # noqa: E402
+from src.planning_revision_store import PlanningRevisionStore  # noqa: E402
 
 
 server = Server("odysseus-planning")
@@ -28,7 +29,12 @@ PLANNING_TOOL_NAMES = (
     "planning_search_roadmaps",
     "planning_get_context_pack",
     "planning_graph_summary",
+    "planning_read_gate_definitions",
+    "planning_create_agent_handoff",
+)
+PLANNING_COMPATIBILITY_TOOL_NAMES = (
     "planning_gate_status",
+    "planning_mark_status",
 )
 
 _ALLOWED_ARGUMENTS = {
@@ -37,7 +43,17 @@ _ALLOWED_ARGUMENTS = {
     "planning_search_roadmaps": {"query", "filters", "limit"},
     "planning_get_context_pack": {"roadmap_ref", "task", "node_id", "max_items"},
     "planning_graph_summary": {"roadmap_ref", "depth", "limit"},
-    "planning_gate_status": {"roadmap_ref", "node_id", "limit"},
+    "planning_read_gate_definitions": {
+        "project_id",
+        "roadmap_id",
+        "revision_or_latest_approved",
+        "node_id",
+    },
+    "planning_create_agent_handoff": {
+        "project_id",
+        "roadmap_id",
+        "revision_or_latest_approved",
+    },
 }
 
 
@@ -54,14 +70,24 @@ def call_planning_tool_contract(
     arguments: Mapping[str, Any] | None = None,
     *,
     repo_root: str | os.PathLike[str] | None = None,
+    definition_store: PlanningRevisionStore | None = None,
+    definition_owner: str | None = None,
 ) -> dict[str, Any]:
     """Dispatch one bounded read-only Planning call without transport state."""
 
-    if name not in PLANNING_TOOL_NAMES:
+    if name not in PLANNING_TOOL_NAMES + PLANNING_COMPATIBILITY_TOOL_NAMES:
         return _error(name, "unknown_planning_tool", "Planning tool is not available")
     try:
+        root = _repo_root(repo_root)
+        owner = str(definition_owner or os.getenv("ODYSSEUS_SINGLE_USER_OWNER") or "local-user").strip()
+        service = PlanningMcpService(
+            root,
+            definition_store=definition_store or _definition_store(root),
+            definition_owner=owner,
+        )
+        if name in PLANNING_COMPATIBILITY_TOOL_NAMES:
+            return service.deprecated_tool_response(name)
         args = _validated_arguments(name, arguments or {})
-        service = PlanningMcpService(_repo_root(repo_root))
         if name == "planning_list_roadmaps":
             return service.list_roadmaps(
                 kind=args.get("kind") or None,
@@ -91,8 +117,24 @@ def call_planning_tool_contract(
         if name == "planning_graph_summary":
             read = service.read_roadmap(args["roadmap_ref"], include_nodes=True)
             return _graph_summary(read, depth=args.get("depth", 2), limit=args.get("limit", 50))
-        read = service.read_roadmap(args["roadmap_ref"], include_nodes=True)
-        return _gate_status(read, node_id=args.get("node_id", ""), limit=args.get("limit", 50))
+        if name == "planning_read_gate_definitions":
+            return service.read_gate_definitions(
+                args["project_id"],
+                args["roadmap_id"],
+                revision_or_latest_approved=args.get(
+                    "revision_or_latest_approved",
+                    "latest_approved",
+                ),
+                node_id=args.get("node_id", ""),
+            )
+        return service.create_agent_handoff(
+            args["project_id"],
+            args["roadmap_id"],
+            revision_or_latest_approved=args.get(
+                "revision_or_latest_approved",
+                "latest_approved",
+            ),
+        )
     except PlanningServiceError as exc:
         return _error(name, exc.code, exc.public_message)
     except (TypeError, ValueError) as exc:
@@ -106,6 +148,13 @@ def _repo_root(value: str | os.PathLike[str] | None) -> Path:
     return Path(configured).resolve(strict=True)
 
 
+def _definition_store(repo_root: Path) -> PlanningRevisionStore:
+    configured = os.getenv("ODYSSEUS_PLANNING_DEFINITIONS_ROOT")
+    root = Path(configured) if configured else repo_root / "data" / "planning" / "definitions"
+    owner = str(os.getenv("ODYSSEUS_SINGLE_USER_OWNER") or "local-user").strip()
+    return PlanningRevisionStore.from_directory(root, owner=owner)
+
+
 def _validated_arguments(name: str, arguments: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(arguments, Mapping):
         raise ValueError("arguments must be an object")
@@ -114,18 +163,41 @@ def _validated_arguments(name: str, arguments: Mapping[str, Any]) -> dict[str, A
         raise ValueError("unsupported argument field")
     args = dict(arguments)
     required = {
-        "planning_read_roadmap": "source_id_or_path",
-        "planning_search_roadmaps": "query",
-        "planning_get_context_pack": "roadmap_ref",
-        "planning_graph_summary": "roadmap_ref",
-        "planning_gate_status": "roadmap_ref",
+        "planning_read_roadmap": ("source_id_or_path",),
+        "planning_search_roadmaps": ("query",),
+        "planning_get_context_pack": ("roadmap_ref",),
+        "planning_graph_summary": ("roadmap_ref",),
+        "planning_read_gate_definitions": ("project_id", "roadmap_id"),
+        "planning_create_agent_handoff": ("project_id", "roadmap_id"),
     }
-    required_field = required.get(name)
-    if required_field:
-        args[required_field] = _bounded_string(args.get(required_field), required_field, maximum=500, required=True)
-    for field, maximum in (("kind", 120), ("status", 80), ("query", 500), ("task", 1_000), ("node_id", 120)):
+    for required_field in required.get(name, ()):
+        args[required_field] = _bounded_string(
+            args.get(required_field),
+            required_field,
+            maximum=500,
+            required=True,
+        )
+    for field, maximum in (
+        ("kind", 120),
+        ("status", 80),
+        ("query", 500),
+        ("task", 1_000),
+        ("node_id", 128),
+        ("project_id", 128),
+        ("roadmap_id", 128),
+    ):
         if field in args:
             args[field] = _bounded_string(args[field], field, maximum=maximum, required=field == "query" and name == "planning_search_roadmaps")
+    if "revision_or_latest_approved" in args:
+        revision = args["revision_or_latest_approved"]
+        if revision == "latest_approved":
+            pass
+        elif isinstance(revision, str) and revision.isdigit() and int(revision) >= 1:
+            args["revision_or_latest_approved"] = int(revision)
+        elif isinstance(revision, int) and not isinstance(revision, bool) and revision >= 1:
+            pass
+        else:
+            raise ValueError("revision_or_latest_approved must be latest_approved or a positive integer")
     for field, default, maximum in (
         ("limit", 20, 100),
         ("max_items", 24, 24),
@@ -194,13 +266,21 @@ def _tool_contract(name: str) -> dict[str, Any]:
             "limit": _integer_schema(1, 100, 50),
         }
         required = ["roadmap_ref"]
+    elif name == "planning_read_gate_definitions":
+        properties = {
+            "project_id": _string_schema("Exact Definition v2 project id.", 128),
+            "roadmap_id": _string_schema("Exact Definition v2 roadmap id.", 128),
+            "revision_or_latest_approved": _revision_schema(),
+            "node_id": _string_schema("Optional definition node id for gate filtering.", 128),
+        }
+        required = ["project_id", "roadmap_id"]
     else:
         properties = {
-            "roadmap_ref": _string_schema("Stable source id or allowlisted repo-relative roadmap path.", 500),
-            "node_id": _string_schema("Optional slice id for gate filtering.", 120),
-            "limit": _integer_schema(1, 100, 50),
+            "project_id": _string_schema("Exact Definition v2 project id.", 128),
+            "roadmap_id": _string_schema("Exact Definition v2 roadmap id.", 128),
+            "revision_or_latest_approved": _revision_schema(),
         }
-        required = ["roadmap_ref"]
+        required = ["project_id", "roadmap_id"]
     return {
         "name": name,
         "description": _description(name),
@@ -227,7 +307,6 @@ def _graph_summary(read: Mapping[str, Any], *, depth: int, limit: int) -> dict[s
         "id": roadmap_id,
         "kind": "roadmap",
         "label": _bounded_output(roadmap.get("title"), 180),
-        "status": _safe_id(roadmap.get("status"), fallback="unknown"),
     }]
     edges: list[dict[str, str]] = []
     slices = read.get("slices") if isinstance(read.get("slices"), list) else []
@@ -240,7 +319,6 @@ def _graph_summary(read: Mapping[str, Any], *, depth: int, limit: int) -> dict[s
             "id": node_id,
             "kind": "slice",
             "label": _bounded_output(item.get("title") or item.get("objective"), 180),
-            "status": _safe_id(item.get("status"), fallback="unknown"),
         })
         edges.append(_edge(roadmap_id, node_id, "contains"))
         for dependency in item.get("dependencies") or []:
@@ -254,7 +332,6 @@ def _graph_summary(read: Mapping[str, Any], *, depth: int, limit: int) -> dict[s
                 "id": gate_id,
                 "kind": "gate",
                 "label": _bounded_output(item.get("decision_needed") or gate_id, 180),
-                "status": _safe_id(item.get("status"), fallback="open"),
             })
             edges.append(_edge(roadmap_id, gate_id, "has_gate"))
             for blocked in item.get("blocks") or []:
@@ -277,60 +354,6 @@ def _graph_summary(read: Mapping[str, Any], *, depth: int, limit: int) -> dict[s
             "nodes": len(nodes),
             "edges": len(bounded_edges),
             "clipped": len(nodes) >= bounded_limit or len(bounded_edges) < len(edges),
-        },
-        "source_refs": (read.get("source_refs") or [])[:24],
-        "raw_content_included": False,
-        "absolute_paths_visible": False,
-    }
-
-
-def _gate_status(read: Mapping[str, Any], *, node_id: str, limit: int) -> dict[str, Any]:
-    bounded_limit = max(1, min(int(limit), 100))
-    gates = [item for item in (read.get("gates") or []) if isinstance(item, Mapping)]
-    if node_id:
-        gates = [item for item in gates if node_id in (item.get("blocks") or []) or item.get("id") == node_id]
-    gates = gates[:bounded_limit]
-    blockers = [
-        item for item in gates
-        if str(item.get("status") or "open").lower() not in {"go", "done", "resolved", "unblocked"}
-    ]
-    blocked_ids = {
-        _safe_id(blocked, fallback="slice")
-        for gate in blockers
-        for blocked in (gate.get("blocks") or [])
-    }
-    safe_actions: list[dict[str, str]] = []
-    for item in read.get("slices") or []:
-        if not isinstance(item, Mapping):
-            continue
-        slice_id = _safe_id(item.get("id"), fallback="slice")
-        slice_class = str(item.get("class") or "")
-        status = str(item.get("status") or "unknown")
-        if slice_id in blocked_ids or slice_class not in {"safe_offline", "repo_only"}:
-            continue
-        if status.lower() not in {"planned", "open", "ready", "running"}:
-            continue
-        safe_actions.append({
-            "slice_id": slice_id,
-            "class": _safe_id(slice_class, fallback="repo_only"),
-            "status": _safe_id(status, fallback="unknown"),
-            "objective": _bounded_output(item.get("objective") or item.get("title"), 240),
-        })
-        if len(safe_actions) >= bounded_limit:
-            break
-    return {
-        "schema": "odysseus.planning.gate_status.v1",
-        "read_only": True,
-        "writes_performed": False,
-        "roadmap_ref": read.get("logical_ids") or {},
-        "node_id": _safe_id(node_id, fallback="") if node_id else "",
-        "gates": gates,
-        "blockers": blockers,
-        "next_safe_actions": safe_actions,
-        "summary": {
-            "gates": len(gates),
-            "blockers": len(blockers),
-            "next_safe_actions": len(safe_actions),
         },
         "source_refs": (read.get("source_refs") or [])[:24],
         "raw_content_included": False,
@@ -412,6 +435,17 @@ def _integer_schema(minimum: int, maximum: int, default: int) -> dict[str, Any]:
     return {"type": "integer", "minimum": minimum, "maximum": maximum, "default": default}
 
 
+def _revision_schema() -> dict[str, Any]:
+    return {
+        "oneOf": [
+            {"type": "string", "enum": ["latest_approved"]},
+            {"type": "integer", "minimum": 1},
+        ],
+        "default": "latest_approved",
+        "description": "Exact positive revision or the current approved Definition v2 head.",
+    }
+
+
 def _description(name: str) -> str:
     descriptions = {
         "planning_list_roadmaps": "List bounded metadata for allowlisted repository roadmap JSON sources.",
@@ -419,7 +453,8 @@ def _description(name: str) -> str:
         "planning_search_roadmaps": "Search bounded roadmap metadata, slices, gates and source references.",
         "planning_get_context_pack": "Build a compact source-linked roadmap context pack for an agent handoff.",
         "planning_graph_summary": "Project one roadmap into bounded roadmap, slice and gate nodes and edges.",
-        "planning_gate_status": "Return gates, blockers and next safe roadmap actions from read-only planning data.",
+        "planning_read_gate_definitions": "Read immutable gate requirements and safe defaults without runtime decisions.",
+        "planning_create_agent_handoff": "Create a hash-pinned, non-launching /abc composer handoff.",
     }
     return descriptions[name]
 
@@ -448,6 +483,7 @@ if __name__ == "__main__":
 
 
 __all__ = [
+    "PLANNING_COMPATIBILITY_TOOL_NAMES",
     "PLANNING_SERVER_SCHEMA",
     "PLANNING_TOOL_NAMES",
     "build_planning_tool_contracts",

@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from mcp_servers.planning_server import (
+    PLANNING_COMPATIBILITY_TOOL_NAMES,
     PLANNING_TOOL_NAMES,
     build_planning_tool_contracts,
     call_planning_tool_contract,
@@ -87,6 +88,50 @@ def planning_repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
+@pytest.fixture
+def definition_store():
+    from src.planning_revision_store import PlanningRevisionStore
+
+    legacy_definition = {
+        "schema_version": 1,
+        "kind": "harbor.planning.roadmap",
+        "project_id": "demo-project",
+        "roadmap_id": "core-map",
+        "revision": 7,
+        "created_at": "2026-07-15T06:00:00Z",
+        "updated_at": "2026-07-15T06:00:00Z",
+        "title": "Core Planning Roadmap",
+        "goal": "Expose the Definition v2 MCP boundary.",
+        "status": "approved",
+        "slice_queue": [
+            {
+                "id": "definition-transport",
+                "title": "Definition transport",
+                "objective": "Expose immutable Planning intent.",
+                "status": "running",
+                "depends_on": [],
+                "gate_ids": ["definition-go"],
+            }
+        ],
+        "gate_queue": [
+            {
+                "id": "definition-go",
+                "class": "repo",
+                "state": "blocked",
+                "decision": "synthetic-runtime-decision",
+                "decision_needed": "Confirm the definition-only transport.",
+                "safe_default": "Keep the transport read-only.",
+                "blocks": ["definition-transport"],
+            }
+        ],
+        "source_refs": ["mcp_servers/planning_server.py"],
+    }
+    return PlanningRevisionStore(
+        [("owner-1", legacy_definition, "core-map.json")],
+        cursor_secret=b"planning-mcp-transport-test-secret",
+    )
+
+
 def test_planning_tool_surface_is_exact_bounded_and_read_only():
     contracts = build_planning_tool_contracts()
 
@@ -95,11 +140,22 @@ def test_planning_tool_surface_is_exact_bounded_and_read_only():
     assert all(item["inputSchema"]["additionalProperties"] is False for item in contracts)
     assert all(item["annotations"]["read_only"] is True for item in contracts)
     assert all(item["annotations"]["writes_performed"] is False for item in contracts)
+    assert PLANNING_TOOL_NAMES == (
+        "planning_list_roadmaps",
+        "planning_read_roadmap",
+        "planning_search_roadmaps",
+        "planning_get_context_pack",
+        "planning_graph_summary",
+        "planning_read_gate_definitions",
+        "planning_create_agent_handoff",
+    )
     assert not any(
         fragment in name
         for name in PLANNING_TOOL_NAMES
-        for fragment in ("create", "write", "apply", "delete", "shell", "python", "file")
+        for fragment in ("write", "apply", "delete", "shell", "python", "file")
     )
+    assert "planning_gate_status" not in PLANNING_TOOL_NAMES
+    assert "planning_mark_status" not in PLANNING_TOOL_NAMES
 
 
 def test_list_read_search_and_context_tools_use_injected_repo_and_redact_outputs(planning_repo: Path):
@@ -151,20 +207,92 @@ def test_graph_summary_is_a_bounded_projection_with_no_raw_source(planning_repo:
     assert result["raw_content_included"] is False
     assert result["absolute_paths_visible"] is False
     assert str(planning_repo) not in json.dumps(result)
+    assert '"status"' not in json.dumps(result, sort_keys=True)
 
 
-def test_gate_status_filters_blockers_and_returns_only_safe_next_actions(planning_repo: Path):
+def test_gate_definition_tool_drops_legacy_runtime_fields(
+    planning_repo: Path,
+    definition_store,
+):
     result = call_planning_tool_contract(
-        "planning_gate_status",
-        {"roadmap_ref": "docs/plans/core-roadmap.json", "node_id": "slice-two", "limit": 10},
+        "planning_read_gate_definitions",
+        {
+            "project_id": "demo-project",
+            "roadmap_id": "core-map",
+            "revision_or_latest_approved": 7,
+            "node_id": "definition-transport",
+        },
         repo_root=planning_repo,
+        definition_store=definition_store,
+        definition_owner="owner-1",
     )
 
-    assert result["schema"] == "odysseus.planning.gate_status.v1"
-    assert result["summary"]["gates"] == 1
-    assert result["summary"]["blockers"] == 1
-    assert result["blockers"][0]["id"] == "gate-live"
-    assert {item["slice_id"] for item in result["next_safe_actions"]} == {"slice-one"}
+    assert result["schema_id"] == "odysseus.planning.gate_definitions.v2"
+    assert result["revision"] == 7
+    assert result["gate_definitions"][0]["gate_id"] == "definition-go"
+    encoded = json.dumps(result, sort_keys=True)
+    assert "synthetic-runtime-decision" not in encoded
+    assert '"state"' not in encoded
+    assert '"decision"' not in encoded
+    assert '"status"' not in encoded
+    assert "blockers" not in result
+    assert "next_safe_actions" not in result
+    assert result["writes_performed"] is False
+
+
+def test_agent_handoff_tool_is_hash_pinned_and_cannot_launch(
+    planning_repo: Path,
+    definition_store,
+):
+    result = call_planning_tool_contract(
+        "planning_create_agent_handoff",
+        {
+            "project_id": "demo-project",
+            "roadmap_id": "core-map",
+            "revision_or_latest_approved": "latest_approved",
+        },
+        repo_root=planning_repo,
+        definition_store=definition_store,
+        definition_owner="owner-1",
+    )
+
+    assert result["schema_id"] == "odysseus.agent.plan_handoff.v1"
+    assert result["revision"] == 7
+    assert result["content_hash"].startswith("sha256:")
+    assert result["composer_text"] == (
+        f"/abc run roadmap:core-map@7 hash:{result['content_hash']}"
+    )
+    assert result["launch_authorized"] is False
+    assert result["read_only"] is True
+    assert set(result).isdisjoint(
+        {"skill", "skills", "model", "models", "run_id", "workflow_id", "command", "auto_submit"}
+    )
+
+
+@pytest.mark.parametrize("tool", PLANNING_COMPATIBILITY_TOOL_NAMES)
+def test_deprecated_runtime_tool_dispatch_is_hidden_and_performs_zero_reads_or_writes(
+    planning_repo: Path,
+    tool: str,
+):
+    class ExplodingDefinitionStore:
+        def get_roadmap(self, *args, **kwargs):
+            raise AssertionError("deprecated compatibility dispatch read the definition store")
+
+    result = call_planning_tool_contract(
+        tool,
+        {
+            "runtime_status": "running",
+            "gate_decision": "go",
+            "unknown": "ignored",
+        },
+        repo_root=planning_repo,
+        definition_store=ExplodingDefinitionStore(),
+        definition_owner="owner-1",
+    )
+
+    assert result["error"] == "deprecated_tool"
+    assert result["tool"] == tool
+    assert result["read_only"] is True
     assert result["writes_performed"] is False
 
 
@@ -176,6 +304,8 @@ def test_gate_status_filters_blockers_and_returns_only_safe_next_actions(plannin
         ("planning_list_roadmaps", {"limit": 101}),
         ("planning_get_context_pack", {"roadmap_ref": "docs/plans/core-roadmap.json", "unknown": True}),
         ("planning_read_roadmap", {"source_id_or_path": "docs/plans/core-roadmap.json", "include_nodes": "yes"}),
+        ("planning_read_gate_definitions", {"project_id": "demo-project", "roadmap_id": "core-map", "revision_or_latest_approved": 0}),
+        ("planning_create_agent_handoff", {"project_id": "demo-project"}),
     ],
 )
 def test_invalid_inputs_return_bounded_errors_without_rejected_values(planning_repo: Path, tool: str, arguments: dict):
@@ -221,3 +351,13 @@ def test_builtin_mcp_registers_planning_server_without_import_side_effects():
         "mcp_servers/planning_server.py",
         "Built-in: Planning",
     )
+
+
+def test_planning_transport_has_no_agent_or_temporal_execution_import():
+    source = Path("mcp_servers/planning_server.py").read_text(encoding="utf-8")
+
+    assert "routes.coding_agent_routes" not in source
+    assert "src.agent_loop" not in source
+    assert "temporalio" not in source
+    assert "start_workflow" not in source
+    assert "/api/agent/runs" not in source

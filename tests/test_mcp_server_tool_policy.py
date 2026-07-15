@@ -2,6 +2,7 @@ from src.mcp_server_tool_policy import (
     ALWAYS_DENIED_TOOLS,
     DEBUG_READONLY_TOOLS,
     McpToolPolicyOptions,
+    PLANNING_DEPRECATED_TOOLS,
     PLANNING_READONLY_TOOLS,
     classify_mcp_tool,
     exposed_mcp_tool_names,
@@ -138,7 +139,6 @@ def test_mcp_policy_exposes_exact_planning_read_surface_and_keeps_mutations_hidd
         "planning_validate_roadmap",
         "planning_propose_patch",
         "planning_apply_patch",
-        "planning_mark_status",
         "planning_delete_roadmap",
         "planning_emit_structural_event",
     }
@@ -150,3 +150,8 @@ def test_mcp_policy_exposes_exact_planning_read_surface_and_keeps_mutations_hidd
         decision = classify_mcp_tool(tool_name, options)
         assert decision.exposed is False
         assert decision.category == "unclassified"
+    for tool_name in PLANNING_DEPRECATED_TOOLS:
+        decision = classify_mcp_tool(tool_name, options)
+        assert decision.exposed is False
+        assert decision.category == "planning_deprecated"
+        assert decision.reason == "planning_deprecated_tool_hidden"
