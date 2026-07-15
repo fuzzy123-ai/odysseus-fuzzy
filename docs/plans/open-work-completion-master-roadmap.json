@@ -13,14 +13,14 @@
     "unique_live_gates": 39,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "uix13_semantics_gated_tax7_completed_tax8_selected_tua2_dependency_ready",
+    "queue_status": "uix13_semantics_gated_tax8_completed_tax9_selected_tua2_dependency_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
-      "tool_taxonomy_registry": "tax0_through_tax7_completed_tax8_selected_catalog_v2_not_activated",
+      "tool_taxonomy_registry": "tax0_through_tax8_completed_tax9_selected_catalog_v2_not_activated",
       "tool_usage_analytics": "tua0_tua1_completed_tua2_dependency_ready_capture_and_backfill_default_off"
     },
     "verification": {
@@ -61,14 +61,14 @@
         "reason": "UIX-ABC13 requires explicit product-semantics confirmation before claim",
         "slice": "UIX-ABC13",
         "user_decision_required": true,
-        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TAX8_then_TUA2"
+        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TAX9_then_TUA2"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-15"
     },
     "dependency_ready_repo_only_slices": [
-      "TAX8-dynamic-plugin-and-mcp-normalization",
+      "TAX9-settings-and-alias-migration",
       "TUA2-persistence-migration-retention"
     ],
     "product_semantics_gated_open_slices": [
@@ -1092,7 +1092,7 @@
       "id": "TAX8-dynamic-plugin-and-mcp-normalization",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
+      "status": "completed",
       "depends_on": [
         "TAX6-admin-runtime-api-projection"
       ],
@@ -1109,7 +1109,42 @@
         "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_registry.py tests\\test_dynamic_tool_catalog.py tests\\test_mcp_server_tool_policy.py"
       ],
       "gate": "none_before_live_activation",
-      "done_when": "Plugin and MCP registration produces normalized Descriptor-V2 projections; unknown families fail closed; collisions and reloads cannot leave stale projections; MCP policy remains the executing authority."
+      "done_when": "Plugin and MCP registration produces normalized Descriptor-V2 projections; unknown families fail closed; collisions and reloads cannot leave stale projections; MCP policy remains the executing authority.",
+      "completed_at": "2026-07-15T23:00:51.2270289+02:00",
+      "completion_evidence": {
+        "focused_tests": "27 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "direct_regression": "25 passed, 1 pre-existing SQLAlchemy deprecation warning with an isolated authorized Pytest temp directory",
+        "plugin_projection": "Plugin registration emits generation-bound Descriptor-V2 projections with normalized family, source_id, permission, availability, lifecycle and aliases; reload replaces legacy schemas and unregister invalidates exactly once",
+        "collision_policy": "Plugin names and aliases cannot collide with built-ins, another dynamic canonical ID or alias, or the reserved mcp__ namespace; unsafe source path identifiers are rejected",
+        "mcp_projection": "MCP inventory is deterministic and generation-tagged; source, source_id, Admin permission, availability and lifecycle are normalized; invalid identities, unknown families and duplicate qualified names fail closed and are absent from schemas/prompts/execution",
+        "policy_authority": "MCP catalog metadata never overrides the executing runtime/server exposure policy; disabled tools remain disabled_by_mcp_policy and catalog-blocked tools are rejected before session execution",
+        "redaction": "Dynamic catalog projections contain no raw schemas, arguments, results, secret-bearing descriptions or private source paths",
+        "resolved_baseline_failure": "The pre-existing ToolIndex fixture assumed no other legitimate dynamic registration; its expectation now deterministically preserves and indexes the existing registry set instead of deleting or masking sensitive_local_analysis",
+        "live_effects": "No Plugin install/reload against a live process, MCP connection, settings/database mutation, analytics capture/backfill, network, provider, deployment or live action occurred"
+      }
+    },
+    {
+      "id": "TAX9-settings-and-alias-migration",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "open",
+      "depends_on": [
+        "TAX4-operator-priority-defaults",
+        "TAX6-admin-runtime-api-projection"
+      ],
+      "source_roadmap": "docs/plans/tool-taxonomy-registration-roadmap.md",
+      "allowed_paths": [
+        "src/tool_catalog.py",
+        "src/settings.py",
+        "scripts/update_database.py",
+        "tests/test_tool_settings_migration.py",
+        "tests/test_update_database_script.py"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_settings_migration.py tests\\test_update_database_script.py"
+      ],
+      "gate": "none_before_live_activation",
+      "done_when": "The versioned disabled_tools and legacy-ID migration is idempotent and rollback-capable; manage_rag is explained without recreation; unknown IDs are quarantined and no deferred family is activated."
     }
   ],
   "recommended_execution_order": [

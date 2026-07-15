@@ -103,29 +103,30 @@ def build_tool_catalog_projection(
         name = str(getattr(tool, "name", "") or "").strip()
         if not _DYNAMIC_TOOL_ID_RE.fullmatch(name) or name in rows:
             continue
-        permission = str(getattr(tool, "permission", "") or "admin").strip().lower()
-        descriptor = _dynamic_descriptor(
-            tool_id=name,
-            description=getattr(tool, "description", ""),
-            source=ToolSource.PLUGIN,
-            permission=(
-                ToolPermission.OWNER if permission in {"owner", "user"} else ToolPermission.ADMIN
-            ),
+        from src.tool_registry import descriptor_for_tool
+
+        descriptor = descriptor_for_tool(tool)
+        catalog_mutable = bool(
+            descriptor.family != ToolFamily.UNCLASSIFIED_DYNAMIC
+            and descriptor.lifecycle in {ToolLifecycle.ACTIVE, ToolLifecycle.CONTEXTUAL}
+            and descriptor.availability == ToolAvailability.AVAILABLE
         )
         row = _descriptor_projection_row(
             descriptor,
-            enabled=name not in disabled,
-            runtime_availability="disabled_by_settings" if name in disabled else "enabled",
-            settings_mutable=True,
+            enabled=catalog_mutable and name not in disabled,
+            runtime_availability=(
+                "blocked_by_catalog"
+                if not catalog_mutable
+                else "disabled_by_settings"
+                if name in disabled
+                else "enabled"
+            ),
+            settings_mutable=catalog_mutable,
         )
         row.update(
             cat="Plugins",
             ctx="~plugin",
-            desc=_safe_dynamic_description(
-                getattr(tool, "description", ""),
-                source_label="plugin",
-                limit=300,
-            ),
+            source_id=str(getattr(tool, "source_id", "plugin:local")),
             policy_projection_source="dynamic_explicit_or_admin_default",
         )
         rows[name] = row
@@ -134,20 +135,47 @@ def build_tool_catalog_projection(
         name = str(tool.get("qualified_name") or "").strip()
         if not _DYNAMIC_TOOL_ID_RE.fullmatch(name) or name in rows:
             continue
+        family, lifecycle, availability, catalog_blocked = _mcp_catalog_metadata(tool)
         descriptor = _dynamic_descriptor(
             tool_id=name,
             description=tool.get("description", ""),
             source=ToolSource.MCP,
             permission=ToolPermission.ADMIN,
+            family=family,
+            lifecycle=lifecycle,
+            availability=availability,
+        )
+        catalog_capable = bool(
+            not catalog_blocked
+            and lifecycle in {ToolLifecycle.ACTIVE, ToolLifecycle.CONTEXTUAL}
+            and availability in {ToolAvailability.AVAILABLE, ToolAvailability.DISABLED}
         )
         mcp_disabled = bool(tool.get("is_disabled"))
         row = _descriptor_projection_row(
             descriptor,
-            enabled=not mcp_disabled,
-            runtime_availability="disabled_by_mcp_policy" if mcp_disabled else "enabled",
+            enabled=(
+                catalog_capable
+                and availability == ToolAvailability.AVAILABLE
+                and not mcp_disabled
+            ),
+            runtime_availability=(
+                "blocked_by_catalog"
+                if not catalog_capable
+                else "disabled_by_mcp_policy"
+                if mcp_disabled
+                else "blocked_by_catalog"
+                if availability != ToolAvailability.AVAILABLE
+                else "enabled"
+            ),
             settings_mutable=False,
         )
-        row.update(cat="Plugins", ctx="~mcp", policy_projection_source="dynamic_conservative")
+        row.update(
+            cat="Plugins",
+            ctx="~mcp",
+            source_id=str(tool.get("source_id") or "mcp:unknown"),
+            policy_authority=str(tool.get("policy_authority") or "mcp_runtime_policy"),
+            policy_projection_source="dynamic_conservative",
+        )
         rows[name] = row
 
     ordered = tuple(rows[name] for name in sorted(rows))
@@ -195,6 +223,9 @@ def _dynamic_descriptor(
     description: object,
     source: ToolSource,
     permission: ToolPermission,
+    family: ToolFamily = ToolFamily.UNCLASSIFIED_DYNAMIC,
+    lifecycle: ToolLifecycle = ToolLifecycle.CONTEXTUAL,
+    availability: ToolAvailability = ToolAvailability.AVAILABLE,
 ) -> ToolDescriptorV2:
     source_label = "plugin" if source == ToolSource.PLUGIN else "MCP"
     return ToolDescriptorV2.create(
@@ -202,18 +233,59 @@ def _dynamic_descriptor(
         analytics_id=_dynamic_analytics_id(tool_id),
         display_name=" ".join(part for part in re.split(r"[_:.-]+", tool_id) if part)[:80],
         description=_safe_dynamic_description(description, source_label=source_label),
-        family=ToolFamily.UNCLASSIFIED_DYNAMIC,
+        family=family,
         source=source,
-        lifecycle=ToolLifecycle.CONTEXTUAL,
-        availability=ToolAvailability.AVAILABLE,
+        lifecycle=lifecycle,
+        availability=availability,
         default_enabled=False,
-        default_visibility=ToolVisibility.REQUIRES_APPROVAL,
+        default_visibility=(
+            ToolVisibility.BLOCKED
+            if lifecycle == ToolLifecycle.BLOCKED
+            or availability != ToolAvailability.AVAILABLE
+            else ToolVisibility.REQUIRES_APPROVAL
+        ),
         risk_level=ToolRiskLevel.ELEVATED,
         permission=permission,
         effect_class=ToolEffectClass.CONTROL,
         requires_confirmation=True,
         introduced_in="dynamic",
     )
+
+
+def _mcp_catalog_metadata(
+    tool: Mapping[str, Any],
+) -> tuple[ToolFamily, ToolLifecycle, ToolAvailability, bool]:
+    raw_family = tool.get("family")
+    try:
+        family = ToolFamily(str(raw_family or ToolFamily.PLUGINS_MCP.value).lower())
+    except ValueError:
+        family = ToolFamily.UNCLASSIFIED_DYNAMIC
+    try:
+        lifecycle = ToolLifecycle(
+            str(tool.get("lifecycle") or ToolLifecycle.CONTEXTUAL.value).lower()
+        )
+    except ValueError:
+        lifecycle = ToolLifecycle.BLOCKED
+    try:
+        availability = ToolAvailability(
+            str(tool.get("availability") or ToolAvailability.AVAILABLE.value).lower()
+        )
+    except ValueError:
+        availability = ToolAvailability.BLOCKED
+    blocked = bool(tool.get("catalog_blocked")) or (
+        family == ToolFamily.UNCLASSIFIED_DYNAMIC
+        or lifecycle == ToolLifecycle.BLOCKED
+        or availability in {
+            ToolAvailability.BLOCKED,
+            ToolAvailability.UNAVAILABLE,
+            ToolAvailability.UNKNOWN,
+        }
+    )
+    if blocked:
+        family = ToolFamily.UNCLASSIFIED_DYNAMIC
+        lifecycle = ToolLifecycle.BLOCKED
+        availability = ToolAvailability.BLOCKED
+    return family, lifecycle, availability, blocked
 
 
 def _safe_dynamic_description(

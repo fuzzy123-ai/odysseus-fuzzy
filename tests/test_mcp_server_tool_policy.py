@@ -8,6 +8,7 @@ from src.mcp_server_tool_policy import (
     exposed_mcp_tool_names,
     filter_mcp_tools,
 )
+from src.mcp_manager import McpManager
 
 
 def test_mcp_policy_exposes_only_small_default_surface():
@@ -155,3 +156,23 @@ def test_mcp_policy_exposes_exact_planning_read_surface_and_keeps_mutations_hidd
         assert decision.exposed is False
         assert decision.category == "planning_deprecated"
         assert decision.reason == "planning_deprecated_tool_hidden"
+
+
+def test_catalog_metadata_does_not_override_mcp_server_exposure_policy():
+    manager = McpManager()
+    manager._connections["review"] = {"name": "Review", "status": "connected"}
+    manager._tools["review"] = [
+        {
+            "name": "create_document",
+            "description": "Create a document.",
+            "input_schema": {"type": "object", "properties": {}},
+        }
+    ]
+
+    catalog_row = manager.get_all_tools()[0]
+    server_decision = classify_mcp_tool("create_document")
+
+    assert catalog_row["policy_authority"] == "mcp_runtime_policy"
+    assert catalog_row["catalog_blocked"] is False
+    assert server_decision.exposed is False
+    assert server_decision.reason == "owner_scoped_write_hidden_by_default"

@@ -4,7 +4,7 @@ import json
 from src.agent_tools import ToolBlock
 from src.tool_execution import execute_tool_block
 from src.tool_parsing import parse_tool_blocks
-from src.tool_registry import ToolSpec, get_tool, register_tool, unregister_tool
+from src.tool_registry import ToolSpec, get_tool, register_tool, tool_names, unregister_tool
 from src.tool_schemas import FUNCTION_TOOL_SCHEMAS, function_call_to_tool_block
 
 
@@ -123,6 +123,8 @@ def test_registered_tool_appears_in_agent_prompt():
 
 
 def test_tool_index_indexes_and_prunes_plugin_tools():
+    existing_names = tool_names()
+
     class _Collection:
         def __init__(self):
             self.ids = ["plugin_stale"]
@@ -168,10 +170,13 @@ def test_tool_index_indexes_and_prunes_plugin_tools():
     ti.index_plugin_tools()
 
     lane = ti._lanes[0]
+    indexed_names = sorted(existing_names | {"plugin_echo"})
     assert lane.collection.deleted == ["plugin_stale"]
-    assert lane.collection.upserts[0]["ids"] == ["plugin_plugin_echo"]
+    assert lane.collection.upserts[0]["ids"] == [
+        f"plugin_{name}" for name in indexed_names
+    ]
     assert lane.collection.upserts[0]["metadatas"] == [
-        {"tool_name": "plugin_echo", "tool_type": "plugin"}
+        {"tool_name": name, "tool_type": "plugin"} for name in indexed_names
     ]
 
 
