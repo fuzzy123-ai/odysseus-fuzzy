@@ -46,6 +46,15 @@ def test_every_schema_tool_has_an_index_description():
     )
 
 
+def test_only_explicit_text_only_tool_has_index_without_native_schema():
+    schema_names = _schema_tool_names()
+    index_names = _indexed_tool_names()
+
+    assert len(schema_names) == 83
+    assert len(index_names) == 84
+    assert index_names - schema_names == {"generate_image"}
+
+
 def test_api_call_is_indexed_with_a_real_description():
     src = open(os.path.join(ROOT, "src", "tool_index.py"), encoding="utf-8").read()
     value = _assigned_value(ast.parse(src), "BUILTIN_TOOL_DESCRIPTIONS")
