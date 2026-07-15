@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
   "state": "running",
-  "revision": 156,
+  "revision": 158,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -110,6 +110,28 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:HWA3B-durable-admission",
+      "slice_id": "HWA3B-durable-scaling-admission-integration",
+      "owner": "/root",
+      "state": "released_atomic_admission_green_committed_foreign_docs_preserved",
+      "acquired_at": "2026-07-15T12:00:36.6773194+02:00",
+      "released_at": "2026-07-15T12:11:02.8354700+02:00",
+      "commit": "31ad9408",
+      "evidence": [
+        "44 focused HWA3B/HWA3A/scaling/claim-store tests passed",
+        "60 compatibility tests passed including HWA1 promotion contracts",
+        "assignment, path/hotfile locks, four quota checks and claim acquisition share one SQLite transaction",
+        "parent/child path overlaps and exact hotfile collisions fail closed across store instances",
+        "global, owner, project and agent active-claim quotas apply before claim mutation",
+        "bounded queue backpressure increments durable wait rounds and admits at most one request per call",
+        "fairness aging reaches maximum priority within a policy-reported finite number of rounds",
+        "bounded collision recovery can admit the next fair request without an unbounded loop",
+        "admission and recovery metrics contain bounded aggregates only and survive reopen",
+        "the admission module owns no second store, scheduler, worker or external-effect import",
+        "the foreign untracked HWA roadmap and handoff remained byte-identical"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:HWA3A-durable-authority-store",
       "slice_id": "HWA3A-durable-capability-evidence-fence-store",
@@ -1154,6 +1176,14 @@
     }
   ],
   "agent_leases": [
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:HWA3B-durable-admission",
+      "state": "completed_atomic_admission_green_committed_foreign_docs_preserved",
+      "leased_at": "2026-07-15T12:00:36.6773194+02:00",
+      "lease_expires_at": "2026-07-15T14:00:36.6773194+02:00",
+      "released_at": "2026-07-15T12:11:02.8354700+02:00"
+    },
     {
       "agent": "/root",
       "claim_id": "sar-12h-20260714t092106:HWA3A-durable-authority-store",
@@ -2281,6 +2311,18 @@
   ],
   "completed_slices": [
     {
+      "slice_id": "HWA3B-durable-scaling-admission-integration",
+      "completion_layer": "repository_implemented_focused_compatibility_tested_committed_single_authority_store",
+      "evidence": [
+        "commit 31ad9408",
+        "44 focused and 60 compatibility tests passed",
+        "atomic assignment, quota, path/hotfile and claim transaction passed",
+        "multi-instance collision and finite fairness/backpressure paths passed",
+        "bounded restart recovery metrics passed",
+        "existing scaling and legacy claim-store compatibility remained green"
+      ]
+    },
+    {
       "slice_id": "HWA3A-durable-capability-evidence-fence-store",
       "completion_layer": "repository_implemented_focused_tested_committed_foreign_roadmap_handoff_preserved",
       "evidence": [
@@ -2511,19 +2553,16 @@
   "gate_queue": [
     {
       "gate_id": "TLR-04-HWA3A-HWA3B-DEPENDENCY",
-      "state": "HWA3A_satisfied_HWA3B_pending_not_user_gate",
-      "blocks": [
-        "TLR-04-activities-claims-heartbeats",
-        "TLR-05-signals-updates-idempotency",
-        "TLR-06-history-agent-projection-api"
-      ],
+      "state": "satisfied_HWA3A_HWA3B_green_TLR04_fake_only_ready",
+      "blocks": [],
       "does_not_block": [
-        "HWA3B durable scaling and admission integration after HWA3A",
         "completed HWA3A durable capability, evidence and fence store",
+        "completed HWA3B durable scaling and admission integration",
+        "TLR-04 fake or isolated Activity implementation",
         "already completed TLR-01 through TLR-03"
       ],
-      "decision_needed": "No user decision is required. Complete HWA3B under its repo-only scaling/admission contract, then re-evaluate TLR-04.",
-      "safe_default": "Do not claim TLR-04 or create a real Activity effect. Claim HWA3B only."
+      "decision_needed": "None for the repo-only TLR-04 safe default. A real repository, process, external worker or provider effect still requires its separate target Go.",
+      "safe_default": "Claim TLR-04 with fake or isolated Activity adapters only; create zero real repository, provider or external-worker effect."
     },
     {
       "gate_id": "HWA3A-FOREIGN-ROADMAP-HANDOFF",
@@ -3065,19 +3104,17 @@
   ],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T11:56:52.2703584+02:00",
-    "summary": "HWA3A is green, committed as fd1cd4cd and released with its completion receipt in this runstate. The foreign untracked HWA documents remain byte-identical. HWA3B is now the only dependency-safe next slice; TLR-04 remains blocked until HWA3B completes.",
-    "resume_cursor": "HWA3B-durable-scaling-admission-integration",
+    "last_durable_progress_at": "2026-07-15T12:11:02.8354700+02:00",
+    "summary": "HWA3B is green, committed as 31ad9408 and released after atomic admission, collision, quota, fairness, backpressure and recovery evidence. HWA3A/HWA3B now satisfy TLR-04 dependencies; the next safe slice is TLR-04 with fake or isolated Activities only.",
+    "resume_cursor": "TLR-04-activities-claims-heartbeats",
     "resume_priority": [
-      "HWA3B-durable-scaling-admission-integration",
       "TLR-04-activities-claims-heartbeats",
       "PDE-05-v3-planning-surface"
     ],
     "next_runnable_slices": [
-      "HWA3B-durable-scaling-admission-integration"
+      "TLR-04-activities-claims-heartbeats"
     ],
     "blocked_slices": [
-      "TLR-04-activities-claims-heartbeats",
       "TLR-05-signals-updates-idempotency",
       "TLR-06-history-agent-projection-api",
       "PDE-05-ui-states-and-accessibility",
@@ -3099,6 +3136,7 @@
   },
   "completion_layers": {
     "implemented": [
+      "HWA3B-durable-scaling-admission-integration",
       "HWA3A-durable-capability-evidence-fence-store",
       "TLR-03-deterministic-workflow",
       "TLR-02-abc-manifest-and-run-start",
@@ -3120,6 +3158,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "HWA3B-durable-scaling-admission-integration:44_focused_60_HWA_compatibility_atomic_admission",
       "HWA3A-durable-capability-evidence-fence-store:33_focused_multi_instance_restart_fence_capability_control",
       "TLR-03-deterministic-workflow:63_focused_104_compatibility_5_real_histories_replayed_processes_stopped",
       "TLR-02-abc-manifest-and-run-start:21_focused_56_planning_compatibility_fake_only",
@@ -3143,6 +3182,7 @@
       "SAR-09-measured-optimization-decisions:focused_and_cli"
     ],
     "committed": [
+      "HWA3B-durable-scaling-admission-integration:31ad9408",
       "HWA3A-durable-capability-evidence-fence-store:fd1cd4cd",
       "TLR-03-deterministic-workflow:4f397925",
       "TLR-02-abc-manifest-and-run-start:262290a4",
