@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 from pathlib import Path
 
@@ -10,6 +11,8 @@ PDE_PATH = ROOT / "docs/plans/planning-definition-editor-roadmap.json"
 TLR_PATH = ROOT / "docs/plans/temporal-light-agent-execution-roadmap.json"
 PMCP_PATH = ROOT / "docs/plans/planning-mcp-roadmap.json"
 HWA_PATH = ROOT / "docs/plans/headless-write-agent-orchestration-roadmap.md"
+PLANNING_ROUTES_PATH = ROOT / "routes/planning_definition_routes.py"
+PLANNING_API_JS_PATH = ROOT / "static/frontpage-v3/api.js"
 
 REQUIRED_SLICE_FIELDS = {
     "id",
@@ -95,6 +98,27 @@ def _assert_gate_targets_resolve(roadmap: dict, known: set[str], prefix: str) ->
                 assert dependency in known, (
                     f"{gate['id']} depends on unknown slice {dependency}"
                 )
+
+
+def _planning_route_inventory() -> set[tuple[str, str]]:
+    tree = ast.parse(PLANNING_ROUTES_PATH.read_text(encoding="utf-8"))
+    inventory: set[tuple[str, str]] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for decorator in node.decorator_list:
+            if not isinstance(decorator, ast.Call) or not isinstance(
+                decorator.func, ast.Attribute
+            ):
+                continue
+            if not isinstance(decorator.func.value, ast.Name):
+                continue
+            method = decorator.func.attr.upper()
+            if decorator.func.value.id != "router" or method not in {"GET", "POST"}:
+                continue
+            assert decorator.args and isinstance(decorator.args[0], ast.Constant)
+            inventory.add((method, "/api/planning" + decorator.args[0].value))
+    return inventory
 
 
 def test_master_attaches_definition_and_execution_children() -> None:
@@ -204,6 +228,48 @@ def test_planning_contract_is_definition_only_and_cannot_launch() -> None:
     assert deprecated["planning_gate_status"]["status"] == (
         "deprecated_no_runtime_read"
     )
+
+
+def test_planning_route_inventory_matches_definition_contract_and_runtime_denylist() -> None:
+    pde = _load(PDE_PATH)
+    contract = pde["planning_api_contract"]
+    documented_reads = {
+        (entry.split(" ", 1)[0], entry.split(" ", 1)[1].split("?", 1)[0])
+        for entry in contract["read_endpoints"]
+    }
+    documented_writes = {
+        (entry["method"], entry["path"])
+        for entry in contract["write_endpoints"]
+    }
+    documented_handoff = {
+        (
+            "POST",
+            "/api/planning/projects/{project_id}/roadmaps/{roadmap_id}/agent-handoff",
+        ),
+    }
+    actual = _planning_route_inventory()
+
+    assert actual == documented_reads | documented_writes | documented_handoff
+    forbidden_path_tokens = {
+        "/runs",
+        "/history",
+        "/heartbeat",
+        "/pause",
+        "/resume",
+        "/cancel",
+        "/retry",
+        "/signals",
+        "/commands",
+    }
+    assert not {
+        (method, path)
+        for method, path in actual
+        if any(token in path for token in forbidden_path_tokens)
+    }
+
+    api_source = PLANNING_API_JS_PATH.read_text(encoding="utf-8")
+    for field in pde["recursive_runtime_field_denylist"]:
+        assert f"'{field}'" in api_source, f"V3 API denylist is missing {field}"
 
 
 def test_agent_owns_all_execution_state_and_only_abc_starts_runs() -> None:
@@ -319,13 +385,15 @@ def test_pde03_temporary_write_boundary_routes_to_pde04_without_real_write() -> 
     assert pde04["gate"]["safe_default"].startswith("Navigation envelope only")
 
 
-def test_pde05_completion_records_named_design_acceptance() -> None:
+def test_pde05_and_pde06_completion_routes_to_pde07_closeout() -> None:
     pde = _load(PDE_PATH)
     slices = {item["id"]: item for item in pde["slice_queue"]}
     gates = {item["id"]: item for item in pde["gate_queue"]}
 
     pde04 = slices["PDE-04-agent-handoff-envelope"]
     pde05 = slices["PDE-05-v3-planning-surface"]
+    pde06 = slices["PDE-06-definition-notification-undo"]
+    pde07 = slices["PDE-07-boundary-browser-acceptance"]
     design_gate = gates["HPA-PLANNING-UX-ACCEPTANCE"]
     assert pde04["status"] == "implemented_focused_tested"
     assert pde04["completion_evidence"]["focused_result"].startswith("51 passed")
@@ -338,7 +406,16 @@ def test_pde05_completion_records_named_design_acceptance() -> None:
     assert design_gate["status"] == "accepted_user_v3_calm_control_room_definition_only"
     assert design_gate["blocks"] == []
     assert design_gate["accepted_by"] == "user"
+    assert pde06["status"] == "implemented_focused_browser_tested_committed"
+    assert pde06["completion_evidence"]["commit"] == "290f71b4"
+    assert "84 user notification contract tests passed" in pde06[
+        "completion_evidence"
+    ]["focused_tests"]
+    assert pde06["completion_evidence"]["definition_notification_contract"][
+        "execution_destination"
+    ] == "agent_only"
+    assert pde07["status"] == "implemented_roadmap_schema_route_DOM_acceptance_green"
+    assert pde07["completion_evidence"]["browser_result"] == "15 passed"
     assert pde["recommended_next_step"].startswith(
-        "Claim PDE-06-definition-notification-undo serially"
+        "Run IP-PLANNING-INTEGRATION-CLOSEOUT exactly once"
     )
-    assert "route all execution events to Agent" in pde["recommended_next_step"]
