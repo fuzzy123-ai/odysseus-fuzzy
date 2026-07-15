@@ -9,11 +9,11 @@
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 0,
+    "safe_open_json_slices": 2,
     "unique_live_gates": 39,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "uix13_semantics_gated_json_queue_empty_detail_frontier_tua1_then_tax2",
+    "queue_status": "uix13_semantics_gated_tax2_selected_tua2_dependency_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,11 +21,11 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
       "tool_taxonomy_registry": "tax0_tax1_completed_tax2_dependency_ready_catalog_v2_not_activated",
-      "tool_usage_analytics": "tua0_completed_tua1_selected_capture_and_backfill_default_off"
+      "tool_usage_analytics": "tua0_tua1_completed_tua2_dependency_ready_capture_and_backfill_default_off"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 0,
+      "safe_open_count": 2,
       "other_open_count": 22,
       "unique_live_gate_count": 39,
       "unique_design_gate_count": 16,
@@ -61,15 +61,15 @@
         "reason": "UIX-ABC13 requires explicit product-semantics confirmation before claim",
         "slice": "UIX-ABC13",
         "user_decision_required": true,
-        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TUA1_then_TAX2"
+        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TAX2_then_TUA2"
       },
-      "queue_exhausted": true,
+      "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-15"
     },
     "dependency_ready_repo_only_slices": [
-      "TUA1-privacy-safe-event-contract",
-      "TAX2-canonical-built-in-catalog"
+      "TAX2-canonical-built-in-catalog",
+      "TUA2-persistence-migration-retention"
     ],
     "product_semantics_gated_open_slices": [
       "UIX-ABC13"
@@ -831,6 +831,84 @@
         "privacy": "raw records were not read; raw content and direct identifiers are explicitly not visible",
         "live_effects": "no capture, persistence, migration, backfill, export, activation, database, network, provider, deployment or live mutation"
       }
+    },
+    {
+      "id": "TUA1-privacy-safe-event-contract",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "completed",
+      "depends_on": [
+        "TAX1-descriptor-v2-contract",
+        "TUA0-source-overlap-baseline"
+      ],
+      "source_roadmap": "docs/plans/privacy-safe-tool-analytics-roadmap.md",
+      "allowed_paths": [
+        "src/tool_usage_events.py",
+        "tests/test_tool_usage_events.py",
+        "tests/test_tool_usage_privacy.py",
+        "docs/plans/tool-usage-event-contract.md"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_usage_events.py tests\\test_tool_usage_privacy.py"
+      ],
+      "gate": "none_before_live_activation",
+      "done_when": "The strict V1 builder is allowlist-only, pseudonymizes references with no raw fallback, stores only size buckets and bounded statuses, serializes deterministically with raw content hidden, and suppresses incognito persistence.",
+      "completed_at": "2026-07-15T21:11:28.6247316+02:00",
+      "completion_evidence": {
+        "focused_tests": "77 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "contract": "immutable strict dataclasses and controlled enums for started and terminal events",
+        "privacy": "unknown fields and unsafe identifiers fail closed; HMAC references have no raw fallback; safe serialization reports raw_content_visible=false",
+        "incognito": "incognito and nobody contexts return no event with persistence_allowed=false",
+        "live_effects": "no store, database, instrumentation, capture, backfill, API, UI, metric, deployment or live mutation"
+      }
+    },
+    {
+      "id": "TAX2-canonical-built-in-catalog",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "open",
+      "depends_on": [
+        "TAX1-descriptor-v2-contract"
+      ],
+      "source_roadmap": "docs/plans/tool-taxonomy-registration-roadmap.md",
+      "allowed_paths": [
+        "src/tool_catalog.py",
+        "src/builtin_tool_catalog.py",
+        "src/agent_tools/__init__.py",
+        "src/tool_schema_definitions.py",
+        "src/tool_index.py",
+        "src/agent_loop_prompts.py",
+        "tests/test_builtin_tool_catalog.py",
+        "tests/test_tool_index_schema_parity.py"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_builtin_tool_catalog.py tests\\test_tool_index_schema_parity.py tests\\test_tool_catalog.py"
+      ],
+      "gate": "none_before_live_activation",
+      "done_when": "One declarative built-in catalog produces or strictly validates runtime, schema, index and prompt projections with explicit non-native exceptions and no startup import cycle."
+    },
+    {
+      "id": "TUA2-persistence-migration-retention",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "pending",
+      "depends_on": [
+        "TUA1-privacy-safe-event-contract"
+      ],
+      "source_roadmap": "docs/plans/privacy-safe-tool-analytics-roadmap.md",
+      "allowed_paths": [
+        "src/database.py",
+        "src/tool_usage_store.py",
+        "scripts/update_database.py",
+        "tests/test_tool_usage_store.py",
+        "tests/test_database_migrations.py",
+        "tests/test_update_database_script.py"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_usage_store.py tests\\test_database_migrations.py tests\\test_update_database_script.py"
+      ],
+      "gate": "path_exact_hotfile_claim_required_no_live_activation",
+      "done_when": "Idempotent event and daily-aggregate persistence enforces uniqueness, safe transactions, failure isolation and dry-run 90/400-day retention without changing tool execution or private domain data."
     }
   ],
   "recommended_execution_order": [
