@@ -5,7 +5,7 @@
   "title": "Temporal Light Agent Execution Roadmap",
   "created_at": "2026-07-13",
   "updated_at": "2026-07-15",
-  "status": "TLR_03_done_TLR_04_blocked_on_HWA3A_HWA3B",
+  "status": "TLR_04_done_TLR_05_next",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
   "planning_dependency": "docs/plans/planning-definition-editor-roadmap.json",
@@ -800,7 +800,7 @@
     },
     {
       "id": "TLR-04-activities-claims-heartbeats",
-      "status": "planned",
+      "status": "complete",
       "class": "repo_only",
       "owner": "Bob",
       "depends_on": [
@@ -813,6 +813,8 @@
       "allowed_paths": [
         "src/temporal_runtime/activities.py",
         "src/temporal_runtime/authority_adapter.py",
+        "src/temporal_runtime/workflows.py",
+        "src/temporal_runtime/worker.py",
         "src/headless_write_agent_state.py",
         "src/agent_pool_scaling.py",
         "tests/test_temporal_activities.py",
@@ -843,6 +845,21 @@
       "gate": {
         "id": "HWA-HEADLESS-RUNNER-GO",
         "safe_default": "Fake or isolated Activity adapters only; no external worker or real repository effect."
+      },
+      "completion_evidence": {
+        "commit": "42b401e7",
+        "focused_result": "29 passed",
+        "compatibility_result": "93 passed across deterministic workflow replay, DAG, runtime configuration and execution-manifest coverage",
+        "catalog_result": "all seven logical Activity types are frozen with side-effect class, idempotency key and current-fence requirement",
+        "authority_result": "immutable pre-registration binds run, manifest, node, scope, backend and claimed paths; Activity payloads cannot select a provider, command, credential, backend or path",
+        "fence_result": "the existing HWA SQLite authority store atomically reserves terminal effect receipts; stale fences write zero terminal state and expired reservations recover only under a higher current fence",
+        "idempotency_result": "effect_id is agent_run_id:node_id:activity_type:attempt; an active duplicate is rejected and a completed duplicate returns the original receipt without executing the backend again",
+        "heartbeat_result": "heartbeat payload fields and 16384-byte maximum are enforced; worker throttling is 30 seconds and Activity heartbeat timeout is 90 seconds",
+        "retry_result": "a real localhost Temporal history proved maximum_attempts 3, initial interval 5 seconds, coefficient 2.0, maximum interval 300 seconds, start-to-close 5400 seconds and schedule-to-close 10800 seconds",
+        "release_result": "success, retryable failure and cancellation each persist a bounded receipt and release the exact claim; cancellation grace is 300 seconds",
+        "redaction_result": "secret-like artifact references fail non-retryably and raw backend output is never accepted into heartbeat or receipt state",
+        "safe_default_result": "only fake-/isolated- backend implementations were exercised; no real repository, provider, remote, Docker or production effect occurred",
+        "cleanup_result": "each short-lived local test server stopped and no Temporal process remained"
       },
       "done_when": "PASS only if fake and isolated tests prove bounded effects, current fencing, duplicate suppression, heartbeat recovery and claim release, while every real runner or repository effect remains gated.",
       "stop_rules": [
@@ -1353,5 +1370,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_tlr_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "TLR-02-abc-manifest-and-run-start and TLR-03-deterministic-workflow are complete. Do not claim TLR-04 yet. Its external prerequisites HWA3A Durable Capability, Evidence And Fence Store and HWA3B Durable Scaling And Admission Integration are both still pending in docs/plans/headless-write-agent-orchestration-roadmap.md. Return to the master queue and claim HWA3A only; after HWA3A is green and released, claim HWA3B only. Re-evaluate TLR-04 after both receipts exist. The TLR-04 safe default remains fake or isolated Activities with zero real repository, provider or external-worker effect."
+  "recommended_next_step": "TLR-02-abc-manifest-and-run-start, TLR-03-deterministic-workflow and TLR-04-activities-claims-heartbeats are complete. Claim TLR-05-signals-updates-idempotency next and keep every command idempotent through command_id, expected_run_version and durable receipt binding."
 }

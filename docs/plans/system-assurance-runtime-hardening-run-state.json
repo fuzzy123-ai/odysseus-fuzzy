@@ -3,14 +3,14 @@
   "kind": "odysseus.abc_durable_run_state",
   "run_id": "sar-12h-20260714t092106",
   "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
-  "roadmap_id": "headless-write-agent-orchestration",
-  "roadmap_path": "docs/plans/headless-write-agent-orchestration-roadmap.md",
+  "roadmap_id": "temporal-light-agent-execution",
+  "roadmap_path": "docs/plans/temporal-light-agent-execution-roadmap.json",
   "queue_scope": "named_roadmap",
   "phase": "implementation",
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
   "state": "running",
-  "revision": 158,
+  "revision": 161,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -110,6 +110,81 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:TLR-04-activities-authority",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "TLR-04-activities-claims-heartbeats",
+      "owner": "/root",
+      "allowed_paths": [
+        "src/temporal_runtime/activities.py",
+        "src/temporal_runtime/authority_adapter.py",
+        "src/temporal_runtime/workflows.py",
+        "src/temporal_runtime/worker.py",
+        "src/headless_write_agent_state.py",
+        "tests/test_temporal_activities.py",
+        "tests/test_temporal_authority_adapter.py",
+        "docs/plans/temporal-light-agent-execution-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [],
+      "state": "released_fenced_activity_green_committed_local_processes_stopped",
+      "acquired_at": "2026-07-15T12:14:40.7701031+02:00",
+      "lease_expires_at": "2026-07-15T14:14:40.7701031+02:00",
+      "released_at": "2026-07-15T12:31:35.7672134+02:00",
+      "commit": "42b401e7",
+      "handoff_required": false,
+      "handoff_evidence": [
+        "TLR-03, HWA3A and HWA3B are green, committed and released; every TLR-04 dependency is satisfied",
+        "the HWA-HEADLESS-RUNNER-GO safe default authorizes fake or isolated Activity adapters only and zero real effects",
+        "the two Activity modules and two matching test files are absent and have no foreign hunks",
+        "src/headless_write_agent_state.py is clean and included only for effect-receipt readback and higher-fence reserved-effect recovery inside the single authority store",
+        "src/temporal_runtime/workflows.py is clean and included for the roadmap-pinned Activity retry, heartbeat and timeout scheduling parameters only",
+        "src/temporal_runtime/worker.py is clean and added before mutation because the roadmap-pinned 300-second cancellation grace and 30-second heartbeat throttle are Worker construction policies",
+        "the TLR-04 roadmap omitted workflows.py although Temporal requires retry and heartbeat timeout to be set by workflow.execute_activity; this claim records the minimum necessary adjacent path explicitly",
+        "src/agent_pool_scaling.py is a clean compatibility dependency and its hotfile is deliberately not claimed or mutated",
+        "no real repository effect, external worker, provider, Git authority, arbitrary command, Docker, push or production access is authorized"
+      ],
+      "path_fingerprints_sha256": {
+        "src/temporal_runtime/activities.py": "absent",
+        "src/temporal_runtime/authority_adapter.py": "absent",
+        "src/temporal_runtime/workflows.py": "ddd550be0101320b2fb1b54ea70a600e66c6934caa81bbc11bc1dc69b2604931",
+        "src/temporal_runtime/worker.py": "53e9c8d97d021ef7db0a6a065873438dad57888c5df7ac66998971353e98c68e",
+        "src/headless_write_agent_state.py": "66e72c3fb5eac149360fd81622f0cf644171a505350e1298e283958c105af35c",
+        "tests/test_temporal_activities.py": "absent",
+        "tests/test_temporal_authority_adapter.py": "absent",
+        "docs/plans/temporal-light-agent-execution-roadmap.json": "1dd27a801c4549869509cf45f0dd1e22cb0ae492b8ffac8017ed26a70a5b555a",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "34ea30a4760a5be3dc081875bc7ff02187fe5984bb1d01986b8ebd4f783041e9"
+      },
+      "evidence_contract": {
+        "target_environment": "local",
+        "observed_at": "2026-07-15T12:14:40.7701031+02:00",
+        "authority": "repo_only_fake_or_isolated_activity",
+        "mutation_class": "single_authority_store_activity_integration",
+        "required": [
+          "typed_seven_activity_catalog",
+          "current_fence_before_effect_and_receipt",
+          "heartbeat_payload_under_16384_bytes_and_30_second_cadence",
+          "heartbeat_timeout_90_seconds",
+          "one_initial_plus_two_retries_with_pinned_backoff",
+          "stable_effect_receipt_deduplication",
+          "higher_fence_recovery_only_after_lease_expiry",
+          "release_on_success_failure_and_cancellation",
+          "secret_raw_output_redaction",
+          "no_real_or_external_effect"
+        ],
+        "temporal_window": "short_lived_local_test_environment_only",
+        "positive_path_required": true
+      },
+      "release_evidence": [
+        "product commit 42b401e7 contains only the seven claimed source and test paths",
+        "29 focused tests and 93 Temporal compatibility tests passed",
+        "one real localhost retry advanced from fence 1 to fence 2 under the pinned policy and completed once",
+        "the foreign HWA roadmap and handoff retained SHA-256 e2042122f60239d4127bc9aacce4b78177439260eb5fdb8a2f6571edf9635aa5 and d61ad539c3d9ef22704d376651f83de4a33c5c657a33a965ed72622beb24fa13",
+        "requirements.txt remained unstaged with its pre-existing pygame-ce hunk",
+        "no Docker, production, provider, push or real repository effect occurred and no Temporal process remained"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:HWA3B-durable-admission",
       "slice_id": "HWA3B-durable-scaling-admission-integration",
@@ -1176,6 +1251,14 @@
     }
   ],
   "agent_leases": [
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:TLR-04-activities-authority",
+      "state": "completed_fenced_activity_green_committed_local_processes_stopped",
+      "leased_at": "2026-07-15T12:14:40.7701031+02:00",
+      "lease_expires_at": "2026-07-15T14:14:40.7701031+02:00",
+      "released_at": "2026-07-15T12:31:35.7672134+02:00"
+    },
     {
       "agent": "/root",
       "claim_id": "sar-12h-20260714t092106:HWA3B-durable-admission",
@@ -2311,6 +2394,19 @@
   ],
   "completed_slices": [
     {
+      "slice_id": "TLR-04-activities-claims-heartbeats",
+      "completion_layer": "repository_implemented_fenced_activity_focused_compatibility_and_real_local_retry_tested_committed_processes_stopped",
+      "evidence": [
+        "commit 42b401e7",
+        "29 focused Activity, authority-adapter and HWA-state tests passed",
+        "93 deterministic workflow, DAG, runtime-configuration and execution-manifest compatibility tests passed",
+        "a real localhost Temporal retry persisted attempt 1 under fence 1 and completed attempt 2 under fence 2",
+        "real history proved heartbeat 90, start-to-close 5400, schedule-to-close 10800 and pinned 5/2/300 retry policy with maximum 3 attempts",
+        "duplicate effect execution, stale-fence zero-write, release on success/failure/cancel and secret redaction passed",
+        "only fake or isolated backends ran and no Temporal process remained"
+      ]
+    },
+    {
       "slice_id": "HWA3B-durable-scaling-admission-integration",
       "completion_layer": "repository_implemented_focused_compatibility_tested_committed_single_authority_store",
       "evidence": [
@@ -3104,18 +3200,17 @@
   ],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T12:11:02.8354700+02:00",
-    "summary": "HWA3B is green, committed as 31ad9408 and released after atomic admission, collision, quota, fairness, backpressure and recovery evidence. HWA3A/HWA3B now satisfy TLR-04 dependencies; the next safe slice is TLR-04 with fake or isolated Activities only.",
-    "resume_cursor": "TLR-04-activities-claims-heartbeats",
+    "last_durable_progress_at": "2026-07-15T12:31:35.7672134+02:00",
+    "summary": "TLR-04 is green, locally committed and released. Typed Activities now use the single HWA authority store for fenced claims and effect receipts; local Temporal history proved the pinned heartbeat, timeout and retry contract. TLR-05 is the next dependency-safe serial slice.",
+    "resume_cursor": "TLR-05-signals-updates-idempotency",
     "resume_priority": [
-      "TLR-04-activities-claims-heartbeats",
+      "TLR-05-signals-updates-idempotency",
       "PDE-05-v3-planning-surface"
     ],
     "next_runnable_slices": [
-      "TLR-04-activities-claims-heartbeats"
+      "TLR-05-signals-updates-idempotency"
     ],
     "blocked_slices": [
-      "TLR-05-signals-updates-idempotency",
       "TLR-06-history-agent-projection-api",
       "PDE-05-ui-states-and-accessibility",
       "PDE-07-e2e-verification-and-handoff",
@@ -3136,6 +3231,7 @@
   },
   "completion_layers": {
     "implemented": [
+      "TLR-04-activities-claims-heartbeats",
       "HWA3B-durable-scaling-admission-integration",
       "HWA3A-durable-capability-evidence-fence-store",
       "TLR-03-deterministic-workflow",
@@ -3158,6 +3254,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "TLR-04-activities-claims-heartbeats:29_focused_93_compatibility_real_local_retry_fence_history_cleanup",
       "HWA3B-durable-scaling-admission-integration:44_focused_60_HWA_compatibility_atomic_admission",
       "HWA3A-durable-capability-evidence-fence-store:33_focused_multi_instance_restart_fence_capability_control",
       "TLR-03-deterministic-workflow:63_focused_104_compatibility_5_real_histories_replayed_processes_stopped",
@@ -3182,6 +3279,7 @@
       "SAR-09-measured-optimization-decisions:focused_and_cli"
     ],
     "committed": [
+      "TLR-04-activities-claims-heartbeats:42b401e7",
       "HWA3B-durable-scaling-admission-integration:31ad9408",
       "HWA3A-durable-capability-evidence-fence-store:fd1cd4cd",
       "TLR-03-deterministic-workflow:4f397925",
@@ -3203,6 +3301,7 @@
     "deployed": [],
     "live_validated": [],
     "temporal_validated": [
+      "TLR-04-activities-claims-heartbeats:localhost_retry_attempt1_fence1_attempt2_fence2_pinned_policy_cleanup",
       "TLR-03-deterministic-workflow:localhost_history_replay_timer_pause_continue_as_new_cleanup",
       "TLR-01-temporal-light-local-runtime:localhost_health_db_restart_exactly_once_process_cleanup"
     ]
