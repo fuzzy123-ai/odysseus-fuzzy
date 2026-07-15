@@ -3,14 +3,14 @@
   "kind": "odysseus.abc_durable_run_state",
   "run_id": "sar-12h-20260714t092106",
   "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
-  "roadmap_id": "temporal-light-agent-execution",
-  "roadmap_path": "docs/plans/temporal-light-agent-execution-roadmap.json",
+  "roadmap_id": "planning-definition-editor",
+  "roadmap_path": "docs/plans/planning-definition-editor-roadmap.json",
   "queue_scope": "named_roadmap",
   "phase": "implementation",
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
   "state": "running",
-  "revision": 169,
+  "revision": 175,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -110,6 +110,305 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:HPA-PDE06-next-frontier-contract-sync",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "HPA-PDE06-next-frontier-contract-sync",
+      "owner": "/root",
+      "allowed_paths": [
+        "tests/test_planning_agent_boundary_roadmaps.py",
+        "docs/plans/planning-definition-editor-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [],
+      "state": "released_final_frontier_contract_green_committed_no_product_mutation",
+      "acquired_at": "2026-07-15T14:52:08.1498169+02:00",
+      "lease_expires_at": "2026-07-15T15:52:08.1498169+02:00",
+      "handoff_required": false,
+      "handoff_evidence": [
+        "the HPA acceptance assertions are green",
+        "the post-release roadmap correctly advances recommended_next_step to PDE-06",
+        "one assertion still names the already completed synchronization step",
+        "no product mutation is required and only the current thread is active"
+      ],
+      "path_fingerprints_sha256": {
+        "tests/test_planning_agent_boundary_roadmaps.py": "7ad78af709872aad4badc3480b6511f0b1fd42f49a69c92eefc040a7240d925c",
+        "docs/plans/planning-definition-editor-roadmap.json": "0a5a74a1961881f3420488e70b4db152a420b6ff651046f3d1a83adbd09701d3",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "4b66c71bd70a7049366d2aefde0748d963df31b64c7c475691d277570452c975"
+      },
+      "evidence_contract": {
+        "target_environment": "repo_only_roadmap_contract_test",
+        "observed_at": "2026-07-15T14:52:08.1498169+02:00",
+        "required": [
+          "assert_PDE_06_next_frontier",
+          "preserve_HPA_acceptance_assertions",
+          "no_product_mutation"
+        ]
+      },
+      "forbidden_actions": [
+        "product mutation",
+        "root cutover",
+        "live write",
+        "push",
+        "foreign hunk commit"
+      ],
+      "released_at": "2026-07-15T14:53:25.2350411+02:00",
+      "commit": "88719df2",
+      "release_path_fingerprints_sha256": {
+        "tests/test_planning_agent_boundary_roadmaps.py": "d2e5cdde76dd6476073c80e41ef62a2434fd031febad9722bb8462c26283c69f",
+        "docs/plans/planning-definition-editor-roadmap.json": "0a5a74a1961881f3420488e70b4db152a420b6ff651046f3d1a83adbd09701d3"
+      },
+      "release_evidence": [
+        "the roadmap contract passed 9 of 9 against the post-release PDE-06 recommendation",
+        "the accepted HPA/PDE-05 assertions remain intact",
+        "the one-line next-frontier correction is committed as 88719df2",
+        "no product source, runtime process, root cutover, live write, push or foreign hunk was touched"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:HPA-PLANNING-UX-ACCEPTANCE-contract-sync",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "HPA-PLANNING-UX-ACCEPTANCE-contract-sync",
+      "owner": "/root",
+      "allowed_paths": [
+        "tests/test_planning_agent_boundary_roadmaps.py",
+        "docs/plans/planning-definition-editor-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [],
+      "state": "released_contract_green_committed_no_product_mutation",
+      "acquired_at": "2026-07-15T14:49:07.5599003+02:00",
+      "lease_expires_at": "2026-07-15T15:49:07.5599003+02:00",
+      "handoff_required": false,
+      "handoff_evidence": [
+        "PDE-05 release evidence isolates exactly one stale roadmap contract expectation",
+        "the stale expectation still asserts that the now user-accepted HPA gate is pending and PDE-05 is planned",
+        "no product source mutation is required",
+        "only the current thread is active in this checkout"
+      ],
+      "path_fingerprints_sha256": {
+        "tests/test_planning_agent_boundary_roadmaps.py": "4def77a696468c7ab6ef68d47a016993f31fdc6142db9cd47b40ac5d8765486e",
+        "docs/plans/planning-definition-editor-roadmap.json": "6a5382c835538ac4af1376e8d3abd407c2c75cb5e98d2f24bc89024a8629f7ba",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "5322258ff0093cd20b309f055ce9b4cd98c7e04e94aec58475ed7654217e56e1"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "phase": "verification_contract_sync",
+        "supervision": "interactive_serial",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "locator_or_version": "C:/Users/nkatz/.codex/skills/abc/SKILL.md",
+              "purpose": "minimum-path claim, evidence and release"
+            }
+          ],
+          "model": {
+            "value": "surface_default",
+            "reason": "bounded expectation synchronization; no architecture judgment"
+          }
+        }
+      },
+      "evidence_contract": {
+        "target_environment": "repo_only_roadmap_contract_test",
+        "observed_at": "2026-07-15T14:49:07.5599003+02:00",
+        "required": [
+          "assert_user_accepted_HPA_gate",
+          "assert_PDE_05_implemented_and_tested_status",
+          "assert_PDE_06_is_next_serial_frontier",
+          "no_product_mutation"
+        ]
+      },
+      "forbidden_actions": [
+        "product source mutation",
+        "root cutover",
+        "live write",
+        "push",
+        "foreign hunk commit"
+      ],
+      "released_at": "2026-07-15T14:51:02.2211561+02:00",
+      "commit": "c980b644",
+      "release_path_fingerprints_sha256": {
+        "tests/test_planning_agent_boundary_roadmaps.py": "7ad78af709872aad4badc3480b6511f0b1fd42f49a69c92eefc040a7240d925c",
+        "docs/plans/planning-definition-editor-roadmap.json": "6a5382c835538ac4af1376e8d3abd407c2c75cb5e98d2f24bc89024a8629f7ba"
+      },
+      "release_evidence": [
+        "the roadmap contract now asserts the user-accepted V3 Calm Control Room definition-only gate state",
+        "the contract asserts PDE-05 implementation, its 12-browser-test evidence and module commit receipt 13104cc5",
+        "tests/test_planning_agent_boundary_roadmaps.py passed 9 of 9 with no product mutation",
+        "the contract-only change is committed as c980b644",
+        "a combined compatibility rerun reached 165 passes and three environment-only tmp_path setup errors after C:\\tmp basetemp creation was denied; no assertion failed"
+      ]
+    },
+    {
+      "claim_id": "sar-12h-20260714t092106:PDE-05-v3-planning-surface",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "PDE-05-v3-planning-surface",
+      "owner": "/root",
+      "allowed_paths": [
+        "static/frontpage-v3/planning.js",
+        "static/frontpage-v3/planning.css",
+        "static/frontpage-v3/planning-fixtures.js",
+        "static/frontpage-v3/index.html",
+        "static/frontpage-v3/app.js",
+        "static/frontpage-v3/api.js",
+        "tests/frontend/harbor-one-planning.spec.js",
+        "docs/plans/planning-definition-editor-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [
+        "static/frontpage-v3/index.html",
+        "static/frontpage-v3/app.js",
+        "static/frontpage-v3/api.js"
+      ],
+      "state": "released_implemented_browser_green_modules_committed_baseline_integration_preserved",
+      "acquired_at": "2026-07-15T13:55:12.1342745+02:00",
+      "lease_expires_at": "2026-07-15T15:55:12.1342745+02:00",
+      "handoff_required": false,
+      "handoff_evidence": [
+        "the user explicitly accepted the existing V3 Calm Control Room direction for Planning",
+        "the user explicitly reaffirmed that Planning is definition-only and all running operation belongs exclusively in Agent",
+        "only the current thread is active in this checkout",
+        "thread 019f5c7d-dddf-7252-8dca-254858f80408 is not loaded and its USI paths do not overlap PDE-05",
+        "the existing untracked V3 mockup paths have no active peer claim and their pre-claim hashes are recorded below"
+      ],
+      "path_fingerprints_sha256": {
+        "static/frontpage-v3/planning.js": "absent",
+        "static/frontpage-v3/planning.css": "absent",
+        "static/frontpage-v3/planning-fixtures.js": "absent",
+        "static/frontpage-v3/index.html": "394d7cd6f3d4e2c1e0a808fb06462e824e2dcc3f25b83cb8c123899bb8c37770",
+        "static/frontpage-v3/app.js": "a4340631bee489c49a9cb9a3e2a4013ef898cf672eaefe038182416e9af0096",
+        "static/frontpage-v3/api.js": "absent",
+        "tests/frontend/harbor-one-planning.spec.js": "absent",
+        "docs/plans/planning-definition-editor-roadmap.json": "4a1fbfeaa905bc013113ee864e76c0f0df0c4b5f8c3aa2c04470eecd3d79a677",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "035e7136b1900c053d9487a299b713ff6317fc970f72b6b801501374f0de19ed"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "phase": "implementation",
+        "supervision": "interactive_serial",
+        "recommended": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "parent queue, claim, evidence and commit authority"
+            },
+            {
+              "id": "impeccable",
+              "purpose": "approved V3 product UI implementation and accessibility guidance"
+            }
+          ],
+          "model": {
+            "tier": "balanced",
+            "preferred": "gpt-5.6-sol",
+            "reason": "bounded frontend implementation under an accepted design contract"
+          }
+        },
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "locator_or_version": "C:/Users/nkatz/.codex/skills/abc/SKILL.md",
+              "purpose": "serial roadmap orchestration"
+            },
+            {
+              "id": "impeccable",
+              "locator_or_version": "3.8.0",
+              "purpose": "Calm Control Room product UI implementation"
+            }
+          ],
+          "model": {
+            "value": "surface_default",
+            "reason": "the current root surface exposes no enforceable per-turn model selector"
+          }
+        },
+        "actual": {
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            },
+            {
+              "id": "impeccable",
+              "status": "loaded_used"
+            }
+          ],
+          "model": {
+            "value": "surface_default_unverified",
+            "evidence": "no model-selection control is exposed to root"
+          }
+        },
+        "fallback": "native_tools"
+      },
+      "evidence_contract": {
+        "target_environment": "local_v3_preview",
+        "observed_at": "2026-07-15T13:55:12.1342745+02:00",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static_checks",
+          "focused_frontend_contract",
+          "desktop_mobile_and_200_percent_visuals",
+          "recursive_runtime_field_and_DOM_denylist",
+          "exact_agent_composer_handoff_without_start"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true
+      },
+      "forbidden_actions": [
+        "root UI cutover",
+        "live Planning write",
+        "Agent run start or auto-submit",
+        "Temporal or Agent runtime fetch",
+        "runtime state in Planning payload, DOM or localStorage",
+        "commit of any pre-existing foreign hunk",
+        "push"
+      ],
+      "released_at": "2026-07-15T14:45:41.9228432+02:00",
+      "commit": "13104cc5",
+      "release_path_fingerprints_sha256": {
+        "static/frontpage-v3/planning.js": "306c11362f6690e641bbe3acd69e165dd0f1f0ebf59eccdeebf973c844a2984b",
+        "static/frontpage-v3/planning.css": "fd7a430fc5570cbc4568518e8ff411a5a1f03e54fc550f3d07126b1b81918265",
+        "static/frontpage-v3/planning-fixtures.js": "10f34d76822f475a741e948f7b623aa7134a2f9f94d906ea5854b065e68592d4",
+        "static/frontpage-v3/index.html": "22e88e0160ddc3aa1c443a5cef79f1c198c95ebb514e5fe422b9608c7bb59f56",
+        "static/frontpage-v3/app.js": "a456a1f6d0a938c268b36408c15af021869021659687f69eb469c5a97c7659e8",
+        "static/frontpage-v3/api.js": "931c65eeec55863103e96ba8033072167642baf4cde9b1a681667f12daaf2413",
+        "tests/frontend/harbor-one-planning.spec.js": "3d6b2a1a0817f85b17801f88de0ec5ce39a7bc947eabfadb047df61406ae5850",
+        "docs/plans/planning-definition-editor-roadmap.json": "af602efd8f215b3e5d1765fe3a70942c1c17e1c20b39cfb4bca3d074f454fa68"
+      },
+      "release_evidence": [
+        "four definition-only V3 Planning modules were committed as 13104cc5 without index.html, app.js or any foreign hunk",
+        "12 focused Playwright scenarios passed across definition states, recursive runtime rejection, draft lifecycle, exact non-submitting Agent handoff, accessibility and responsive viewports",
+        "desktop, mobile and 200-percent-equivalent screenshots were visually inspected and their hashes are persisted in the roadmap",
+        "167 focused Python Planning contract tests passed; one stale gate-state expectation is isolated for the next minimum-path contract-sync claim",
+        "the literal-color audit was refactored to local design tokens and the final detector found only three permitted full-pill radius advisories",
+        "root cutover, live writes, execution rendering, service start, push and foreign-baseline commit did not occur"
+      ],
+      "commit_scope": [
+        "static/frontpage-v3/planning.js",
+        "static/frontpage-v3/planning.css",
+        "static/frontpage-v3/planning-fixtures.js",
+        "static/frontpage-v3/api.js"
+      ],
+      "preserved_foreign_boundary": {
+        "paths": [
+          "static/frontpage-v3/index.html",
+          "static/frontpage-v3/app.js"
+        ],
+        "acquisition_hashes_sha256": {
+          "static/frontpage-v3/index.html": "394d7cd6f3d4e2c1e0a808fb06462e824e2dcc3f25b83cb8c123899bb8c37770",
+          "static/frontpage-v3/app.js": "a4340631bee489c49a9cb9a3e2a4013ef898cf672eaefe038182416e9af0096"
+        },
+        "release_hashes_sha256": {
+          "static/frontpage-v3/index.html": "22e88e0160ddc3aa1c443a5cef79f1c198c95ebb514e5fe422b9608c7bb59f56",
+          "static/frontpage-v3/app.js": "a456a1f6d0a938c268b36408c15af021869021659687f69eb469c5a97c7659e8"
+        },
+        "disposition": "preserved in worktree, excluded from commit, requires explicit baseline ownership handoff for a clean-checkout activation commit"
+      }
+    },
     {
       "claim_id": "sar-12h-20260714t092106:TLR-06-closeout-contract-sync",
       "run_id": "sar-12h-20260714t092106",
@@ -2938,18 +3237,20 @@
     },
     {
       "gate_id": "HPA-PLANNING-UX-ACCEPTANCE",
-      "state": "design_direction_locked_acceptance_pending",
-      "blocks": [
+      "state": "satisfied_user_accepted_v3_calm_control_room_definition_only",
+      "blocks": [],
+      "does_not_block": [
+        "completed PDE-01 through PDE-04",
+        "completed PMCP-9 definition/runtime separation",
         "PDE-05-v3-planning-surface",
         "PDE-06-definition-notification-undo",
         "PDE-07-boundary-browser-acceptance"
       ],
-      "does_not_block": [
-        "completed PDE-01 through PDE-04",
-        "completed PMCP-9 definition/runtime separation"
-      ],
-      "decision_needed": "Accept the named V3 Planning UX direction before mutating UI hotfiles.",
-      "safe_default": "Do not mutate the V3 Planning surface or claim dependent PDE slices."
+      "decision_needed": "None. Preserve the accepted V3 Calm Control Room direction and the definition-only Planning boundary.",
+      "safe_default": "Implement only the V3 preview surface; do not cut over root UI, perform live writes or render running operation.",
+      "accepted_at": "2026-07-15T13:55:12.1342745+02:00",
+      "accepted_by": "user",
+      "acceptance_scope": "Existing V3 Calm Control Room direction accepted for Planning. Planning remains definition-only; running operation remains exclusively in Agent."
     },
     {
       "gate_id": "TLR-01-LOCAL-CAPABILITY-GATE",
@@ -3448,19 +3749,18 @@
   ],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T13:47:40.5353864+02:00",
-    "summary": "TLR-06 closeout, regression classification and roadmap-contract synchronization are green and released. The next master frontier is PDE-05, whose HPA-PLANNING-UX-ACCEPTANCE design gate must be audited before any V3 UI hotfile mutation; after parking it, continue the next dependency-safe Planning MCP definition-only slice.",
-    "resume_cursor": "PDE-05-v3-planning-surface",
+    "last_durable_progress_at": "2026-07-15T14:53:25.2350411+02:00",
+    "summary": "The final HPA/PDE-05 post-release contract passes 9 of 9 and is committed as 88719df2. PDE-06 is the next serial repo-only frontier; the V3 clean-checkout baseline boundary remains explicit and preserved.",
+    "resume_cursor": "PDE-06-definition-notification-undo",
     "resume_priority": [
-      "PDE-05-v3-planning-surface",
-      "Planning-MCP-next-definition-only-slice"
+      "PDE-06-definition-notification-undo",
+      "PDE-07-boundary-browser-acceptance"
     ],
     "next_runnable_slices": [
-      "PDE-05-v3-planning-surface-gate-audit"
+      "PDE-06-definition-notification-undo"
     ],
     "blocked_slices": [
-      "PDE-05-ui-states-and-accessibility",
-      "PDE-07-e2e-verification-and-handoff",
+      "PDE-05-clean-checkout-v3-baseline-integration-handoff",
       "SAR-01-binding-ci-and-publish-provenance",
       "SAR-02-fresh-release-evidence",
       "SAR-10-release-truth-and-external-proof",
@@ -3479,6 +3779,7 @@
   },
   "completion_layers": {
     "implemented": [
+      "PDE-05-v3-planning-surface",
       "TLR-06-history-agent-projection-api",
       "TLR-05-signals-updates-idempotency",
       "TLR-04-activities-claims-heartbeats",
@@ -3504,6 +3805,9 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "HPA-PDE06-next-frontier-contract-sync:9_roadmap_contract_passed",
+      "HPA-PLANNING-UX-ACCEPTANCE-contract-sync:9_roadmap_contract_passed_165_compatibility_passed_3_environment_tmp_path_setup_errors",
+      "PDE-05-v3-planning-surface:12_browser_167_python_static_visual_accessibility_boundary_green_1_stale_gate_expectation",
       "TLR-06-history-agent-projection-api:31_focused_41_app_planning_compatibility_240_TLR_01_06_real_local_reader_cleanup",
       "IP-TLR-06-CLOSEOUT:single_unchanged_9020_collection_run_7_independent_known_environment_platform_failures_no_TLR_failure",
       "TLR-05-signals-updates-idempotency:93_focused_75_compatibility_real_two_client_updates_signals_cancel_cleanup",
@@ -3532,6 +3836,9 @@
       "SAR-09-measured-optimization-decisions:focused_and_cli"
     ],
     "committed": [
+      "HPA-PDE06-next-frontier-contract-sync:88719df2",
+      "HPA-PLANNING-UX-ACCEPTANCE-contract-sync:c980b644",
+      "PDE-05-v3-planning-surface:13104cc5_modules_only_preexisting_untracked_v3_integration_preserved",
       "TLR-06-history-agent-projection-api:2a3b7aac_f9c4e878",
       "TLR-05-signals-updates-idempotency:6a9aff46",
       "TLR-04-activities-claims-heartbeats:42b401e7",

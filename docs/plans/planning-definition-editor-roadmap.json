@@ -5,7 +5,7 @@
   "title": "Planning Definition Editor Roadmap",
   "created_at": "2026-07-13",
   "updated_at": "2026-07-15",
-  "status": "active_serial_PDE_05_design_gate",
+  "status": "active_serial_PDE_06_frontier",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
   "goal": "Make Harbor One Planning the authoritative editor and reader for versioned project and roadmap definitions while excluding every mutable execution concern from the Planning payload and screen.",
@@ -709,7 +709,7 @@
     },
     {
       "id": "PDE-05-v3-planning-surface",
-      "status": "planned",
+      "status": "implemented_browser_visual_tested_modules_committed_integration_handoff",
       "class": "repo_only",
       "owner": "Alice",
       "depends_on": [
@@ -766,7 +766,71 @@
         "Agent run fetch",
         "runtime overlay",
         "root cutover"
-      ]
+      ],
+      "completion_evidence": {
+        "completed_at": "2026-07-15T14:45:41.9228432+02:00",
+        "commit_receipt": {
+          "commit": "13104cc5",
+          "scope": [
+            "static/frontpage-v3/planning.js",
+            "static/frontpage-v3/planning.css",
+            "static/frontpage-v3/planning-fixtures.js",
+            "static/frontpage-v3/api.js"
+          ],
+          "boundary": "The pre-existing untracked V3 index.html and app.js baseline was preserved and not absorbed into this commit."
+        },
+        "static_checks": [
+          "node --check passed for app.js, planning-fixtures.js, api.js, planning.js and harbor-one-planning.spec.js",
+          "fresh Impeccable detector reported only three advisory 999px radii on intentional pill controls; zero prohibited-pattern findings"
+        ],
+        "browser_contract": {
+          "result": "12 passed",
+          "command": "npx.cmd playwright test --config C:\\tmp\\pde05-playwright.config.js",
+          "covered": [
+            "fixture labeling and recursive runtime denylist",
+            "draft diff, validate, accept preview, discard and undo",
+            "exact /abc Agent composer handoff without submit",
+            "canonical same-origin API read and fail-closed runtime payload rejection",
+            "fixture, live, stale, unavailable, error, conflict and empty states",
+            "WCAG AA visible text contrast and 44 by 44 CSS-pixel touch targets",
+            "desktop, mobile and 200 percent equivalent viewport rendering"
+          ],
+          "screenshots_sha256": {
+            "desktop": "cd8f8d4009e9ed5dae6285000e89d2c4f7662d84f4b2b4dbc8bf1711a355f9e3",
+            "mobile": "8b6a0072b5771d3f38648d212e497e8b45d08f5b50b013676a2e8a84241f044e",
+            "zoom_200_percent_equivalent": "85e23d8478cadabc7926117727f47fee67ef3c97ba0442b1f09ec0c97b8faa03"
+          }
+        },
+        "focused_python_contract": {
+          "result": "167 passed and one intentionally stale expectation isolated; replacement roadmap contract file then passed 9 of 9",
+          "resolved_by": "HPA-PLANNING-UX-ACCEPTANCE-contract-sync",
+          "commit": "c980b644",
+          "environment_note": "A later combined rerun produced 165 passes and three tmp_path setup errors because a new C:\\tmp basetemp could not be created; the isolated roadmap contract had no failure."
+        },
+        "definition_only_boundary": [
+          "Planning renders definitions, draft validation and gates as definition fields only.",
+          "No execution status, history, activity, heartbeat, claim, evidence receipt or run control is read, stored or rendered.",
+          "Open in Agent drafts the exact /abc handoff and never starts or submits a run."
+        ],
+        "preserved_worktree_boundary": {
+          "paths": [
+            "static/frontpage-v3/index.html",
+            "static/frontpage-v3/app.js"
+          ],
+          "state": "integration tested in the shared worktree but not committed because each file belonged to a pre-existing untracked V3 mockup baseline",
+          "implication": "The four committed modules are durable; clean-checkout V3 activation remains an explicit baseline handoff rather than an implicit foreign commit."
+        },
+        "final_next_frontier_contract": {
+          "result": "9 passed",
+          "command": "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q -p no:cacheprovider",
+          "commit": "88719df2",
+          "asserts": [
+            "accepted HPA V3 definition-only boundary",
+            "PDE-05 implementation and evidence receipt",
+            "PDE-06 as the current serial next frontier"
+          ]
+        }
+      }
     },
     {
       "id": "PDE-06-definition-notification-undo",
@@ -916,14 +980,14 @@
     {
       "id": "HPA-PLANNING-UX-ACCEPTANCE",
       "class": "needs_design",
-      "status": "design_direction_locked_acceptance_pending",
-      "blocks": [
-        "PDE-05-v3-planning-surface",
-        "PDE-07-boundary-browser-acceptance"
-      ],
-      "decision_needed": "Accept the definition-only Planning surface at desktop, mobile and 200 percent zoom using the existing V3 Calm Control Room system.",
-      "safe_default": "Preview implementation may remain fixture-labeled; no root cutover.",
-      "risk_if_bypassed": "Planning could visually reintroduce runtime semantics or become unreadable at non-default viewports."
+      "status": "accepted_user_v3_calm_control_room_definition_only",
+      "blocks": [],
+      "decision_needed": "None. Preserve the accepted definition-only Planning surface at desktop, mobile and 200 percent zoom using the existing V3 Calm Control Room system.",
+      "safe_default": "Preview implementation remains definition-only and clearly fixture-labeled; no root cutover, live write or runtime rendering.",
+      "risk_if_bypassed": "Planning could visually reintroduce runtime semantics or become unreadable at non-default viewports.",
+      "accepted_at": "2026-07-15T13:55:12.1342745+02:00",
+      "accepted_by": "user",
+      "acceptance_scope": "Existing V3 Calm Control Room direction accepted. Planning remains definition-only; running operation remains exclusively in Agent."
     },
     {
       "id": "PLANNING-WRITE-GO",
@@ -961,5 +1025,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_pde_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "Release PDE-04, park PDE-05 at HPA-PLANNING-UX-ACCEPTANCE without mutating V3 UI hotfiles, and follow the master roadmap to the next dependency-safe non-UI Planning MCP slice. Resume PDE-05 only after the named design acceptance is satisfied."
+  "recommended_next_step": "Claim PDE-06-definition-notification-undo serially. Implement only definition create, revision, conflict, tombstone and undo notification routing to Planning; route all execution events to Agent, preserve the V3 clean-checkout baseline handoff, and do not perform root cutover or live writes."
 }
