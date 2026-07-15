@@ -1,0 +1,238 @@
+from __future__ import annotations
+
+import json
+
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+import pytest
+
+from routes.planning_definition_routes import setup_planning_definition_routes
+from src.planning_revision_store import PlanningRevisionStore, PlanningRevisionStoreError
+from tests.test_planning_definition_projection import definition_fixture
+
+
+CURSOR_SECRET = b"0123456789abcdef0123456789abcdef"
+
+
+def _owner(request):
+    return request.headers.get("X-Test-Owner")
+
+
+def _admin(request):
+    return request.headers.get("X-Test-Admin") == "yes"
+
+
+def _headers(owner: str = "alice", *, admin: bool = True) -> dict[str, str]:
+    headers = {"X-Test-Owner": owner}
+    if admin:
+        headers["X-Test-Admin"] = "yes"
+    return headers
+
+
+def _store(*, projects: int = 1) -> PlanningRevisionStore:
+    records = [
+        (
+            "alice",
+            definition_fixture(f"project-{index}", f"roadmap-{index}"),
+            f"alice-{index}.json",
+        )
+        for index in range(projects)
+    ]
+    records.append(("bob", definition_fixture("project-b", "roadmap-b"), "bob.json"))
+    return PlanningRevisionStore(records, cursor_secret=CURSOR_SECRET)
+
+
+def _client(*, store: PlanningRevisionStore | None = None, fail_closed: bool = False):
+    selected = store or _store()
+    kwargs = {}
+    if not fail_closed:
+        kwargs = {"owner_resolver": _owner, "admin_gate": _admin}
+    app = FastAPI()
+    router = setup_planning_definition_routes(selected, **kwargs)
+    app.include_router(router)
+    return TestClient(app), selected, router
+
+
+def test_route_factory_declares_exactly_the_five_read_only_endpoints() -> None:
+    _client_instance, _selected, router = _client()
+    surface = {
+        (route.path, frozenset(route.methods or set()))
+        for route in router.routes
+    }
+
+    assert surface == {
+        ("/api/planning/projects", frozenset({"GET"})),
+        ("/api/planning/projects/{project_id}", frozenset({"GET"})),
+        ("/api/planning/projects/{project_id}/roadmaps", frozenset({"GET"})),
+        (
+            "/api/planning/projects/{project_id}/roadmaps/{roadmap_id}",
+            frozenset({"GET"}),
+        ),
+        (
+            "/api/planning/projects/{project_id}/roadmaps/{roadmap_id}/revisions",
+            frozenset({"GET"}),
+        ),
+    }
+
+
+def test_factory_defaults_fail_closed_without_owner_or_admin_integration() -> None:
+    client, _store_instance, _router = _client(fail_closed=True)
+
+    response = client.get("/api/planning/projects")
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Not authenticated"
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/planning/projects",
+        "/api/planning/projects/project-0",
+        "/api/planning/projects/project-0/roadmaps",
+        "/api/planning/projects/project-0/roadmaps/roadmap-0",
+        "/api/planning/projects/project-0/roadmaps/roadmap-0/revisions",
+    ],
+)
+def test_every_read_requires_owner_and_admin(path: str) -> None:
+    client, _store_instance, _router = _client()
+
+    assert client.get(path).status_code == 401
+    assert client.get(path, headers=_headers(admin=False)).status_code == 403
+
+
+def test_five_reads_share_one_owner_scoped_definition_model() -> None:
+    client, _store_instance, _router = _client()
+    headers = _headers()
+
+    projects = client.get("/api/planning/projects", headers=headers)
+    project = client.get("/api/planning/projects/project-0", headers=headers)
+    roadmaps = client.get(
+        "/api/planning/projects/project-0/roadmaps",
+        headers=headers,
+    )
+    approved = client.get(
+        "/api/planning/projects/project-0/roadmaps/roadmap-0",
+        headers=headers,
+    )
+    draft = client.get(
+        "/api/planning/projects/project-0/roadmaps/roadmap-0?revision=2",
+        headers=headers,
+    )
+    revisions = client.get(
+        "/api/planning/projects/project-0/roadmaps/roadmap-0/revisions",
+        headers=headers,
+    )
+
+    assert [response.status_code for response in (projects, project, roadmaps, approved, draft, revisions)] == [200] * 6
+    assert projects.json()["items"][0]["project_id"] == "project-0"
+    assert project.json()["project"]["project_id"] == "project-0"
+    assert roadmaps.json()["items"][0]["roadmap_id"] == "roadmap-0"
+    assert approved.json()["roadmap"]["revision"] == 1
+    assert draft.json()["roadmap"]["revision"] == 2
+    assert [item["revision"] for item in revisions.json()["items"]] == [1, 2]
+    assert approved.json()["roadmap"]["content_hash"] == revisions.json()["items"][0]["content_hash"]
+    assert set(approved.json()["origin"]) == {"state", "source", "reason", "as_of"}
+    assert approved.json()["launch_authorized"] is False
+
+
+def test_owner_cannot_resolve_another_owners_project() -> None:
+    client, _store_instance, _router = _client()
+
+    alice = client.get("/api/planning/projects/project-b", headers=_headers("alice"))
+    bob = client.get("/api/planning/projects/project-b", headers=_headers("bob"))
+
+    assert alice.status_code == 404
+    assert bob.status_code == 200
+    assert "bob" not in json.dumps(bob.json()).lower()
+
+
+def test_route_cursor_is_owner_collection_limit_bound_and_tamper_evident() -> None:
+    client, _store_instance, _router = _client(store=_store(projects=3))
+    first = client.get("/api/planning/projects?limit=1", headers=_headers()).json()
+    cursor = first["next_cursor"]
+
+    assert client.get(
+        f"/api/planning/projects?limit=1&cursor={cursor}",
+        headers=_headers(),
+    ).status_code == 200
+    for url, headers in (
+        (f"/api/planning/projects?limit=1&cursor={cursor}", _headers("bob")),
+        (f"/api/planning/projects?limit=2&cursor={cursor}", _headers()),
+        (
+            f"/api/planning/projects/project-0/roadmaps?limit=1&cursor={cursor}",
+            _headers(),
+        ),
+        (f"/api/planning/projects?limit=1&cursor={cursor[:-1]}0", _headers()),
+    ):
+        response = client.get(url, headers=headers)
+        assert response.status_code == 400
+        assert response.json()["error"] == "invalid_cursor"
+        assert "owner" not in json.dumps(response.json()).lower()
+
+
+@pytest.mark.parametrize("revision", ["0", "-1", "draft", "1.5"])
+def test_revision_selector_accepts_only_latest_approved_or_positive_integer(revision: str) -> None:
+    client, _store_instance, _router = _client()
+
+    response = client.get(
+        f"/api/planning/projects/project-0/roadmaps/roadmap-0?revision={revision}",
+        headers=_headers(),
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"] == "invalid_revision"
+
+
+@pytest.mark.parametrize("limit", [0, 101])
+def test_route_limit_is_bounded_by_the_declared_contract(limit: int) -> None:
+    client, _store_instance, _router = _client()
+
+    response = client.get(f"/api/planning/projects?limit={limit}", headers=_headers())
+
+    assert response.status_code == 422
+
+
+def test_expected_store_failure_returns_bounded_unavailable_origin(monkeypatch) -> None:
+    client, store, _router = _client()
+
+    def unavailable(*_args, **_kwargs):
+        raise PlanningRevisionStoreError(
+            "definition_source_unavailable",
+            "C:/private/source payload",
+            origin_state="unavailable",
+        )
+
+    monkeypatch.setattr(store, "list_projects", unavailable)
+    response = client.get("/api/planning/projects", headers=_headers())
+    serialized = json.dumps(response.json())
+
+    assert response.status_code == 503
+    assert response.json()["origin"]["state"] == "unavailable"
+    assert response.json()["raw_private_content_visible"] is False
+    assert "C:/private" not in serialized
+
+
+def test_unexpected_store_failure_is_redacted(monkeypatch) -> None:
+    client, store, _router = _client()
+
+    def fail(*_args, **_kwargs):
+        raise RuntimeError("Bearer private-token C:/private/path")
+
+    monkeypatch.setattr(store, "get_project", fail)
+    response = client.get(
+        "/api/planning/projects/project-0",
+        headers=_headers(),
+    )
+    serialized = json.dumps(response.json())
+
+    assert response.status_code == 503
+    assert response.json()["error"] == "planning_read_unavailable"
+    assert response.json()["origin"]["state"] == "error"
+    assert "private-token" not in serialized
+    assert "C:/private" not in serialized
+
+
+def test_invalid_store_factory_input_fails_before_router_registration() -> None:
+    with pytest.raises(ValueError, match="PlanningRevisionStore"):
+        setup_planning_definition_routes(object())  # type: ignore[arg-type]

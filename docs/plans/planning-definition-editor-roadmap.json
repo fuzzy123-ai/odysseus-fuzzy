@@ -508,7 +508,7 @@
     },
     {
       "id": "PDE-02-definition-read-model-api",
-      "status": "planned",
+      "status": "service_routes_green_router_pending",
       "class": "repo_only",
       "owner": "Bob",
       "depends_on": [
@@ -541,6 +541,27 @@
         "no Agent or Temporal provider is called",
         "pagination never returns raw private content"
       ],
+      "implementation_evidence": {
+        "observed_at": "2026-07-15T07:49:00+02:00",
+        "state": "focused_green_unregistered",
+        "focused_result": "35 passed, 1 unrelated SQLAlchemy deprecation warning",
+        "implemented_paths": [
+          "src/planning_definition_projection.py",
+          "src/planning_revision_store.py",
+          "routes/planning_definition_routes.py",
+          "tests/test_planning_definition_projection.py",
+          "tests/test_planning_v2_routes.py"
+        ],
+        "verified_invariants": [
+          "canonical and supported legacy definitions project deterministically without runtime fields",
+          "exact revision reads never substitute latest_approved",
+          "owner, collection and limit scoped cursors reject tampering and cross-owner replay",
+          "all five declared read endpoints are defined with fail-closed owner and admin gates",
+          "pagination summaries omit definition bodies, source paths and raw private content",
+          "app.py remains unchanged by this sub-slice"
+        ],
+        "remaining": "Register the read-only router under the separate PDE-APP-ROUTER-HANDOFF hotfile claim and rerun focused route acceptance."
+      },
       "gate": {
         "id": "PDE-APP-ROUTER-HANDOFF",
         "safe_default": "Implement service and route tests first; register app.py only under a serial hotfile claim."
@@ -903,5 +924,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_pde_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "Release PDE-01 with focused evidence, then claim PDE-02 service and route-test paths. Treat app.py as a separate serial hotfile sub-claim and stop on any overlapping foreign hunk."
+  "recommended_next_step": "Commit the green PDE-02 service and route factory, release its minimum-path claim, then claim only app.py plus orchestration evidence for PDE-APP-ROUTER-HANDOFF. Preserve all existing app.py hunks and stage only the new Planning router registration."
 }
