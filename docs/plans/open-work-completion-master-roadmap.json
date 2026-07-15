@@ -9,23 +9,23 @@
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 3,
+    "safe_open_json_slices": 2,
     "unique_live_gates": 39,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "uix13_semantics_gated_tax3_selected_tax4_tua2_dependency_ready",
+    "queue_status": "uix13_semantics_gated_tax3_completed_tax4_selected_tua2_dependency_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
-      "tool_taxonomy_registry": "tax0_tax1_tax2_completed_tax3_selected_tax4_dependency_ready_catalog_v2_not_activated",
+      "tool_taxonomy_registry": "tax0_through_tax3_completed_tax4_selected_catalog_v2_not_activated",
       "tool_usage_analytics": "tua0_tua1_completed_tua2_dependency_ready_capture_and_backfill_default_off"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 3,
+      "safe_open_count": 2,
       "other_open_count": 22,
       "unique_live_gate_count": 39,
       "unique_design_gate_count": 16,
@@ -61,14 +61,13 @@
         "reason": "UIX-ABC13 requires explicit product-semantics confirmation before claim",
         "slice": "UIX-ABC13",
         "user_decision_required": true,
-        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TAX3_then_TAX4_or_TUA2"
+        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TAX4_then_TUA2"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-15"
     },
     "dependency_ready_repo_only_slices": [
-      "TAX3-close-six-registration-gaps",
       "TAX4-operator-priority-defaults",
       "TUA2-persistence-migration-retention"
     ],
@@ -924,7 +923,7 @@
       "id": "TAX3-close-six-registration-gaps",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
+      "status": "completed",
       "depends_on": [
         "TAX2-canonical-built-in-catalog"
       ],
@@ -947,13 +946,22 @@
         "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_registration_parity.py tests\\test_self_control_prompt_contract.py tests\\test_manage_assistant_confirmed_route.py tests\\test_manage_embeddings_confirmed_route.py tests\\test_manage_personal_docs_confirmed_route.py tests\\test_manage_plugins_confirmed_route.py tests\\test_manage_presets_confirmed_route.py"
       ],
       "gate": "none_before_live_activation",
-      "done_when": "All six inventory gaps have an explicit tested catalog disposition; allowed active native and fenced calls are not rejected as unknown, deferred tools stay out of default prompts, and existing confirmation routes remain green."
+      "done_when": "All six inventory gaps have an explicit tested catalog disposition; allowed active native and fenced calls are not rejected as unknown, deferred tools stay out of default prompts, and existing confirmation routes remain green.",
+      "completed_at": "2026-07-15T21:38:00+02:00",
+      "completion_evidence": {
+        "focused_tests": "46 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "catalog_regression": "12 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "dispositions": "manage_embeddings, manage_personal_docs and manage_plugins are confirmed-route-only; manage_assistant and manage_presets remain deferred; tail_serve_output remains security-blocked until TAX5",
+        "parsing": "Native and fenced parsing admit only catalog-active or confirmed-route-only built-ins; unknown, deferred and security-blocked calls fail closed",
+        "prompt_and_confirmation": "All six gaps remain absent from default prompt sets and the existing owner/admin confirmation route tests remain green",
+        "live_effects": "No prompt-default expansion, feature activation, settings, UI, database, network, provider, deployment or live mutation"
+      }
     },
     {
       "id": "TAX4-operator-priority-defaults",
       "class": "repo_only",
       "owner": "/root",
-      "status": "pending",
+      "status": "open",
       "depends_on": [
         "TAX2-canonical-built-in-catalog"
       ],

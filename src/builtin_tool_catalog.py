@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any, Iterable, Mapping
 
 from src.tool_catalog import (
@@ -22,6 +23,13 @@ from src.tool_catalog import (
 
 class BuiltInCatalogError(ToolCatalogError):
     """Raised when a built-in declaration or consumer projection drifts."""
+
+
+class BuiltInRegistrationDisposition(StrEnum):
+    ACTIVE_RUNTIME = "active_runtime"
+    CONFIRMED_ROUTE_ONLY = "confirmed_route_only"
+    DEFERRED = "deferred"
+    SECURITY_BLOCKED = "security_blocked"
 
 
 CATALOG_TOOL_IDS = (
@@ -122,6 +130,10 @@ REGISTRATION_GAPS = frozenset(
     }
 )
 DEFERRED_REGISTRATION_GAPS = frozenset({"manage_assistant", "manage_presets"})
+CONFIRMED_ROUTE_REGISTRATION_GAPS = frozenset(
+    {"manage_embeddings", "manage_personal_docs", "manage_plugins"}
+)
+SECURITY_BLOCKED_REGISTRATION_GAPS = frozenset({"tail_serve_output"})
 NON_NATIVE_SCHEMA_TOOLS = frozenset({"generate_image"})
 RAG_ONLY_PROMPT_TOOLS = frozenset(
     {
@@ -434,6 +446,7 @@ class BuiltInToolSpec:
     risk_level: ToolRiskLevel
     permission: ToolPermission
     effect_class: ToolEffectClass
+    registration_disposition: BuiltInRegistrationDisposition
     runtime_registered: bool
     native_schema: bool
     searchable_index: bool
@@ -476,6 +489,12 @@ def _build_specs() -> tuple[BuiltInToolSpec, ...]:
         exceptions: list[str] = []
         if is_gap:
             exceptions.append("registration_gap_deferred_to_TAX3")
+            if tool_id in CONFIRMED_ROUTE_REGISTRATION_GAPS:
+                exceptions.append("legacy_tag_gap_closed_by_confirmed_catalog_route")
+            elif tool_id in DEFERRED_REGISTRATION_GAPS:
+                exceptions.append("deferred_by_catalog_policy")
+            else:
+                exceptions.append("blocked_until_TAX5_owner_session_binding")
         if tool_id in NON_NATIVE_SCHEMA_TOOLS:
             exceptions.append("text_only_no_native_schema")
         if tool_id in RAG_ONLY_PROMPT_TOOLS:
@@ -515,6 +534,15 @@ def _build_specs() -> tuple[BuiltInToolSpec, ...]:
                     else ToolPermission.OWNER
                 ),
                 effect_class=effect,
+                registration_disposition=(
+                    BuiltInRegistrationDisposition.CONFIRMED_ROUTE_ONLY
+                    if tool_id in CONFIRMED_ROUTE_REGISTRATION_GAPS
+                    else BuiltInRegistrationDisposition.DEFERRED
+                    if tool_id in DEFERRED_REGISTRATION_GAPS
+                    else BuiltInRegistrationDisposition.SECURITY_BLOCKED
+                    if tool_id in SECURITY_BLOCKED_REGISTRATION_GAPS
+                    else BuiltInRegistrationDisposition.ACTIVE_RUNTIME
+                ),
                 runtime_registered=not is_gap,
                 native_schema=tool_id not in NON_NATIVE_SCHEMA_TOOLS,
                 searchable_index=True,
@@ -527,6 +555,27 @@ def _build_specs() -> tuple[BuiltInToolSpec, ...]:
 
 
 BUILTIN_TOOL_SPECS = _build_specs()
+
+
+def builtin_spec(tool_id: str) -> BuiltInToolSpec | None:
+    normalized = str(tool_id or "").strip()
+    return next((spec for spec in BUILTIN_TOOL_SPECS if spec.tool_id == normalized), None)
+
+
+def catalog_call_allowed(tool_id: str) -> bool:
+    spec = builtin_spec(tool_id)
+    return bool(
+        spec
+        and spec.registration_disposition
+        in {
+            BuiltInRegistrationDisposition.ACTIVE_RUNTIME,
+            BuiltInRegistrationDisposition.CONFIRMED_ROUTE_ONLY,
+        }
+    )
+
+
+def catalog_fenced_tool_names() -> frozenset[str]:
+    return frozenset(spec.tool_id for spec in BUILTIN_TOOL_SPECS if catalog_call_allowed(spec.tool_id))
 
 
 def _as_set(values: Iterable[str]) -> set[str]:
@@ -632,6 +681,11 @@ def builtin_catalog_audit_summary() -> dict[str, Any]:
         "counts": counts,
         "tool_ids": CATALOG_TOOL_IDS,
         "registration_gap_ids": tuple(sorted(REGISTRATION_GAPS)),
+        "registration_dispositions": {
+            "confirmed_route_only": tuple(sorted(CONFIRMED_ROUTE_REGISTRATION_GAPS)),
+            "deferred": tuple(sorted(DEFERRED_REGISTRATION_GAPS)),
+            "security_blocked": tuple(sorted(SECURITY_BLOCKED_REGISTRATION_GAPS)),
+        },
         "raw_content_visible": False,
         "callable_visible": False,
         "tool_arguments_visible": False,

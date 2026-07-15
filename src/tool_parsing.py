@@ -29,6 +29,12 @@ _TOOL_BLOCK_RE = re.compile(
 def _known_tool_names() -> set[str]:
     names = set(TOOL_TAGS)
     try:
+        from src.builtin_tool_catalog import catalog_fenced_tool_names
+
+        names.update(catalog_fenced_tool_names())
+    except Exception:
+        pass
+    try:
         from src.tool_registry import tool_names
 
         names.update(tool_names())

@@ -128,11 +128,16 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
     if name in _BUILTIN_EMAIL_TOOLS:
         return ToolBlock(f"mcp__email__{name}", json.dumps(args) if args else "{}")
     if tool_type not in TOOL_TAGS:
-        feedback = invalid_tool_call_block(name, args)
-        if feedback:
-            return feedback
-        logger.warning(f"Unknown function call: {name}")
-        return None
+        from src.builtin_tool_catalog import catalog_call_allowed
+
+        if catalog_call_allowed(tool_type):
+            logger.info("Catalog-admitted confirmed-route tool call: %s", tool_type)
+        else:
+            feedback = invalid_tool_call_block(name, args)
+            if feedback:
+                return feedback
+            logger.warning(f"Unknown function call: {name}")
+            return None
 
     # Convert structured args back to the text format each tool expects
     if tool_type == "bash":
