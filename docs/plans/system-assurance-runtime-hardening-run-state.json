@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
   "state": "in_progress",
-  "revision": 208,
+  "revision": 210,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -135,13 +135,14 @@
         "data/skills/workflows/telegram-document-export-workflow/SKILL.md",
         "data/skills/workflows/telegram-web-research-memory-workflow/SKILL.md",
         "data/skills/workflows/universal-inbox-routing-review-workflow/SKILL.md",
+        "docs/plans/planning-mcp-roadmap.json",
         "configured SSH target odysseus-homeserver",
         "/opt/odysseus checkout and odysseus-auto-update.service"
       ],
       "hotfiles": [
         "routes/agent_operation_routes.py"
       ],
-      "state": "in_progress_worktree_reconciliation_green_pending_final_deploy",
+      "state": "in_progress_final_deploy_pending",
       "acquired_at": "2026-07-15T17:30:56.5901334+02:00",
       "lease_expires_at": "2026-07-15T20:37:41.8696452+02:00",
       "handoff_required": true,
@@ -163,6 +164,10 @@
         "commit f2f31a35 previously normalized the same workflow seeds to homebase specifically for the homeserver; broad checkpoint b730d64d later changed them back to fuzzy",
         "adopting only those four one-line owner normalizations preserves the existing runtime contract and makes subsequent homeserver starts worktree-clean",
         "22 focused workflow-skill and skill-owner-isolation tests passed with the four normalized seed owners",
+        "the safe-queue audit found PMCP-9 as the only repo-safe open item because its child-roadmap status remained planned while the implementation and master completion evidence already described it as complete",
+        "all 148 executable PMCP-9 tests passed and the single environment-specific external-server test remained intentionally skipped",
+        "PMCP-9 is now marked implemented in its canonical child roadmap; 10 master boundary tests pass and the safe queue is exhausted with zero repo-safe open slices",
+        "the b8b06852 runtime completed a 10 minute 26 second observation with zero container restarts, zero fatal startup signatures and healthy App, Chroma and Harbor One readbacks",
         "the Debian checkout is healthy but contains 22 foreign Gemma and local-scheduler paths last changed on 2026-07-12",
         "no Git index lock, active editor or open /opt/odysseus file owned by the old Codex process was found",
         "the execution reviewer rejected preserving and clearing the foreign work without an explicit user grant"
@@ -177,7 +182,8 @@
         "data/skills/workflows/telegram-document-analysis-workflow/SKILL.md": "c1519be7511431c60a7ffde9de5aea21c15f339fa171232920ee2ab715b25d0a",
         "data/skills/workflows/telegram-document-export-workflow/SKILL.md": "6807d8aeeadf30a4a2d48aefed1ec679dfd0b7e3048ec728527653cf5e56bfff",
         "data/skills/workflows/telegram-web-research-memory-workflow/SKILL.md": "40ce7df9da48235941b9e99e5687f1643c28346970b9388d20ae5f025bb37d80",
-        "data/skills/workflows/universal-inbox-routing-review-workflow/SKILL.md": "f85775a0f79aaacadf3fa6ea8d2b3f684f4b437b92c88bf6e33e11d7347e24ee"
+        "data/skills/workflows/universal-inbox-routing-review-workflow/SKILL.md": "f85775a0f79aaacadf3fa6ea8d2b3f684f4b437b92c88bf6e33e11d7347e24ee",
+        "docs/plans/planning-mcp-roadmap.json": "3a5c6d38f528bef508318cbed0835f5ac9a791ac517bbbc801214c5e68aa5b09"
       },
       "evidence_contract": {
         "source_branch": "dev",
@@ -215,6 +221,26 @@
         "historical_precedent": "f2f31a35 Normalize workflow skill seeds for homeserver",
         "focused_tests": "tests/test_workflow_skills.py tests/test_skills_manager_owner_isolation.py => 22 passed",
         "preserved_foreign_backup": "backup/pre-deploy-dirty-20260715-d9485cdf at 9889db366387e75b35e04e42e4036d03522fea8b remains local-only and untouched"
+      },
+      "pmcp9_closeout_evidence": {
+        "canonical_status": "implemented_definition_v2_boundary_focused_tested",
+        "roadmap_pinned_tests": "148 passed, 1 environment-specific external-server test skipped",
+        "master_boundary_tests": "10 passed",
+        "safe_queue_audit": "safe_open_count=0 and queue_exhausted=true",
+        "remaining_items": "Only separately classified live/design gates and the independent regression queue remain; none is an executable repo-safe slice in the named roadmap."
+      },
+      "live_observation_evidence": {
+        "deployed_commit": "b8b06852b038b82a207c3508fc0f9d72fa5ccda5",
+        "container_started_at": "2026-07-15T18:42:52.833290407+02:00",
+        "observation_completed_at": "2026-07-15T18:53:18+02:00",
+        "duration": "10 minutes 26 seconds",
+        "app_root": "302 authentication redirect",
+        "chroma_heartbeat": 200,
+        "harbor_one": "302 authentication redirect",
+        "static_assets": "app.js, planning.js and agent-operations.js returned 200",
+        "container_restart_count": 0,
+        "fatal_startup_signature_count": 0,
+        "next_action": "Deploy the already pushed 955d98d8 worktree reconciliation plus this PMCP-9 metadata closeout, then verify a clean checkout and current version."
       },
       "forbidden_actions": [
         "force push",
