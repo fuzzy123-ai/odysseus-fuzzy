@@ -1,0 +1,480 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odysseus.local/schemas/planning_definition.v2.schema.json",
+  "title": "Odysseus Planning Definition v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_id",
+    "project",
+    "roadmaps"
+  ],
+  "properties": {
+    "schema_id": {
+      "const": "odysseus.planning.definition.v2"
+    },
+    "project": {
+      "$ref": "#/$defs/project"
+    },
+    "roadmaps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/roadmap"
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "contentHash": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "textArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/text"
+      }
+    },
+    "identifierArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/identifier"
+      }
+    },
+    "repoPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    },
+    "repoPathArray": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/repoPath"
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "in",
+        "out"
+      ],
+      "properties": {
+        "in": {
+          "$ref": "#/$defs/textArray"
+        },
+        "out": {
+          "$ref": "#/$defs/textArray"
+        }
+      }
+    },
+    "approvedRevisionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "revision",
+        "content_hash"
+      ],
+      "properties": {
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "content_hash": {
+          "$ref": "#/$defs/contentHash"
+        }
+      }
+    },
+    "draftRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "draft_id",
+        "roadmap_id",
+        "base_revision",
+        "base_hash"
+      ],
+      "properties": {
+        "draft_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "roadmap_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "base_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "base_hash": {
+          "$ref": "#/$defs/contentHash"
+        }
+      }
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_id",
+        "title",
+        "objective",
+        "scope",
+        "constraints",
+        "roadmap_refs",
+        "latest_approved_revision",
+        "draft_refs"
+      ],
+      "properties": {
+        "project_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "objective": {
+          "$ref": "#/$defs/text"
+        },
+        "scope": {
+          "$ref": "#/$defs/scope"
+        },
+        "constraints": {
+          "$ref": "#/$defs/textArray"
+        },
+        "roadmap_refs": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/identifierArray"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "latest_approved_revision": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/identifier"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/approvedRevisionRef"
+          }
+        },
+        "draft_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/draftRef"
+          }
+        }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "kind",
+        "title",
+        "objective",
+        "depends_on",
+        "gate_ids",
+        "deliverables",
+        "allowed_paths",
+        "blocked_paths",
+        "capability_requirements",
+        "verification_rule_ids"
+      ],
+      "properties": {
+        "node_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "kind": {
+          "enum": [
+            "work",
+            "gate",
+            "milestone",
+            "group"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "objective": {
+          "$ref": "#/$defs/text"
+        },
+        "depends_on": {
+          "$ref": "#/$defs/identifierArray"
+        },
+        "gate_ids": {
+          "$ref": "#/$defs/identifierArray"
+        },
+        "deliverables": {
+          "$ref": "#/$defs/textArray"
+        },
+        "allowed_paths": {
+          "$ref": "#/$defs/repoPathArray"
+        },
+        "blocked_paths": {
+          "$ref": "#/$defs/repoPathArray"
+        },
+        "capability_requirements": {
+          "$ref": "#/$defs/textArray"
+        },
+        "verification_rule_ids": {
+          "$ref": "#/$defs/identifierArray"
+        }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "to",
+        "kind"
+      ],
+      "properties": {
+        "from": {
+          "$ref": "#/$defs/identifier"
+        },
+        "to": {
+          "$ref": "#/$defs/identifier"
+        },
+        "kind": {
+          "enum": [
+            "depends_on",
+            "blocks",
+            "unlocks"
+          ]
+        }
+      }
+    },
+    "gateDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gate_id",
+        "kind",
+        "title",
+        "blocks",
+        "decision_needed",
+        "safe_default",
+        "approval_scope_schema",
+        "required_verification_rule_ids"
+      ],
+      "properties": {
+        "gate_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "kind": {
+          "enum": [
+            "design",
+            "operator",
+            "repo",
+            "live",
+            "security",
+            "dependency"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "blocks": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/identifierArray"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "decision_needed": {
+          "$ref": "#/$defs/text"
+        },
+        "safe_default": {
+          "$ref": "#/$defs/text"
+        },
+        "approval_scope_schema": {
+          "type": "object"
+        },
+        "required_verification_rule_ids": {
+          "$ref": "#/$defs/identifierArray"
+        }
+      }
+    },
+    "verificationRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id",
+        "kind",
+        "description"
+      ],
+      "properties": {
+        "rule_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "kind": {
+          "enum": [
+            "static",
+            "test",
+            "integration",
+            "visual",
+            "temporal",
+            "manual"
+          ]
+        },
+        "description": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "doneContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_node_ids",
+        "required_gate_ids",
+        "verification_rules",
+        "completion_rule"
+      ],
+      "properties": {
+        "required_node_ids": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/identifierArray"
+            },
+            {
+              "minItems": 1
+            }
+          ]
+        },
+        "required_gate_ids": {
+          "$ref": "#/$defs/identifierArray"
+        },
+        "verification_rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/verificationRule"
+          }
+        },
+        "completion_rule": {
+          "const": "all_required_nodes_and_gates"
+        }
+      }
+    },
+    "roadmap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "roadmap_id",
+        "project_id",
+        "revision",
+        "content_hash",
+        "revision_state",
+        "title",
+        "objective",
+        "assumptions",
+        "constraints",
+        "nodes",
+        "edges",
+        "gates",
+        "done_contract",
+        "source_refs",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "roadmap_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "project_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "content_hash": {
+          "$ref": "#/$defs/contentHash"
+        },
+        "revision_state": {
+          "enum": [
+            "draft",
+            "in_review",
+            "approved",
+            "superseded",
+            "archived",
+            "tombstoned"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "objective": {
+          "$ref": "#/$defs/text"
+        },
+        "assumptions": {
+          "$ref": "#/$defs/textArray"
+        },
+        "constraints": {
+          "$ref": "#/$defs/textArray"
+        },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/node"
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/edge"
+          }
+        },
+        "gates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/gateDefinition"
+          }
+        },
+        "done_contract": {
+          "$ref": "#/$defs/doneContract"
+        },
+        "source_refs": {
+          "$ref": "#/$defs/textArray"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

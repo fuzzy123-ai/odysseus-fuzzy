@@ -279,3 +279,18 @@ def test_tlr01_environment_gate_routes_to_pde01_without_runtime_mutation() -> No
     assert local_gate["status"] == "gated_missing_capability_and_operator_go"
     assert "Do not install dependencies" in local_gate["safe_default"]
     assert "PDE-01-definition-schema-validator" in tlr["recommended_next_step"]
+
+
+def test_pde01_completion_routes_serially_to_pde02() -> None:
+    pde = _load(PDE_PATH)
+    slices = {item["id"]: item for item in pde["slice_queue"]}
+
+    pde01 = slices["PDE-01-definition-schema-validator"]
+    pde02 = slices["PDE-02-definition-read-model-api"]
+    assert pde01["status"] == "implemented_focused_tested"
+    assert pde01["hotfiles"] == []
+    assert pde01["completion_evidence"]["focused_result"].startswith("92 passed")
+    assert pde02["status"] == "planned"
+    assert pde02["depends_on"] == ["PDE-01-definition-schema-validator"]
+    assert "claim PDE-02" in pde["recommended_next_step"]
+    assert "app.py" in pde["recommended_next_step"]

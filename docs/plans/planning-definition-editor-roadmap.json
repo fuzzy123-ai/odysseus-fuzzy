@@ -1,0 +1,907 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.planning_definition_editor_roadmap",
+  "roadmap_id": "planning-definition-editor",
+  "title": "Planning Definition Editor Roadmap",
+  "created_at": "2026-07-13",
+  "updated_at": "2026-07-15",
+  "status": "active_serial_PDE_02_ready",
+  "abc_mode": "Standard ABC",
+  "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
+  "goal": "Make Harbor One Planning the authoritative editor and reader for versioned project and roadmap definitions while excluding every mutable execution concern from the Planning payload and screen.",
+  "queue_scope": "post_mvp_named_roadmap",
+  "mutation_authority": "repo_only_until_named_write_or_live_gate",
+  "authoring_record": {
+    "run_id": "planning-agent-temporal-roadmap-authoring-2026-07-13",
+    "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+    "slice_id": "PDE-00-boundary-contract",
+    "owner": "root",
+    "allowed_paths": [
+      "docs/plans/planning-definition-editor-roadmap.json",
+      "docs/plans/temporal-light-agent-execution-roadmap.json",
+      "docs/plans/harbor-planning-integration-master-roadmap.json",
+      "docs/plans/planning-mcp-roadmap.json",
+      "docs/plans/headless-write-agent-orchestration-roadmap.md",
+      "docs/plans/headless-write-agent-orchestration-handoff.md",
+      "tests/test_planning_agent_boundary_roadmaps.py"
+    ],
+    "hotfiles": [
+      "docs/plans/harbor-planning-integration-master-roadmap.json",
+      "docs/plans/planning-mcp-roadmap.json",
+      "docs/plans/headless-write-agent-orchestration-roadmap.md"
+    ],
+    "state": "released",
+    "acquired_at": "2026-07-13T22:21:18+02:00",
+    "lease_expires_at": null,
+    "released_at": "2026-07-13T22:50:32+02:00",
+    "handoff_required": false
+  },
+  "route": {
+    "entrypoint": "/abc",
+    "phase": "roadmap_authoring",
+    "supervision": "interactive",
+    "recommended": {
+      "skills": [
+        {
+          "id": "abc",
+          "purpose": "parent orchestrator, dependency and claim authority"
+        }
+      ],
+      "model": {
+        "tier": "high",
+        "preferred": "gpt-5.6-sol",
+        "reason": "cross-roadmap architecture and completion-contract authoring"
+      }
+    },
+    "selected": {
+      "skills": [
+        {
+          "id": "abc",
+          "locator_or_version": "C:/Users/nkatz/.codex/skills/abc/SKILL.md",
+          "purpose": "roadmap authoring and cross-thread coordination"
+        }
+      ],
+      "model": {
+        "value": "surface_default",
+        "reason": "the current execution surface did not expose a separate worker-model selection for root"
+      }
+    },
+    "fallback": "native_tools"
+  },
+  "frozen_decision": {
+    "planning_is": "The versioned definition plane for projects, roadmap revisions, DAG structure, requirements, gate definitions and completion contracts.",
+    "planning_is_not": "A monitor, dashboard, control plane or persistence location for a running agent execution.",
+    "agent_is": "The only Harbor One screen that renders mutable execution state and accepts run controls.",
+    "entrypoint_rule": "Planning may prepare an exact /abc command in the Agent composer, but Planning must not call a run-start endpoint, submit the composer or choose skills or models.",
+    "pinning_rule": "Every Agent run consumes one immutable approved Planning revision and content hash. A later Planning revision never changes an existing run.",
+    "projection_rule": "PlanningDefinitionProjector is a pure function of one Planning revision. It must not read Agent state, Temporal state, localStorage, chat text or a latest mutable roadmap after the requested revision is resolved."
+  },
+  "planning_screen_contract": {
+    "visible": [
+      "project identity and title",
+      "roadmap title, objective, assumptions, constraints and scope",
+      "approved revision, content hash and revision lifecycle",
+      "work, gate, milestone and group node definitions",
+      "dependency, block and unlock edges",
+      "deliverables, allowed paths and blocked paths",
+      "capability requirements without concrete skill or model selections",
+      "gate definitions, decision requirements and safe defaults without decisions",
+      "verification rules and done contract",
+      "source references",
+      "draft diff, validation errors, conflicts, accept, discard, tombstone, restore and undo",
+      "Open in Agent handoff for one exact approved revision"
+    ],
+    "forbidden": [
+      "run existence or current run status",
+      "Temporal workflow id or workflow run id",
+      "activities, attempts, retries, timers or history",
+      "heartbeat time, age, health or stale state",
+      "claims, leases, fencing tokens, workers or hotfile collisions",
+      "Signals, Updates, command receipts or allowed run commands",
+      "runtime gate decisions, approvers or decision timestamps",
+      "execution evidence receipts, changed files, commits, pushes, merges or deploys",
+      "pause, resume, cancel, terminate, retry, steer or decide-gate controls",
+      "selected skills, models or route history",
+      "progress bars or node colors derived from execution"
+    ],
+    "graph_semantics": {
+      "node_color_source": "node kind or definition validation state only",
+      "allowed_validation_states": [
+        "valid",
+        "invalid",
+        "conflict",
+        "unvalidated"
+      ],
+      "gate_node_semantics": "A gate node describes a requirement and safe default. It never shows pending, approved, rejected, expired or waived runtime state.",
+      "completeness_metric": "definition_completeness_percent may count populated required definition fields. It must not count completed work or passed runtime gates."
+    }
+  },
+  "canonical_definition_contract": {
+    "schema_id": "odysseus.planning.definition.v2",
+    "project": {
+      "required_fields": [
+        "project_id",
+        "title",
+        "objective",
+        "scope",
+        "constraints",
+        "roadmap_refs",
+        "latest_approved_revision",
+        "draft_refs"
+      ],
+      "scope_fields": [
+        "in",
+        "out"
+      ]
+    },
+    "roadmap": {
+      "required_fields": [
+        "roadmap_id",
+        "project_id",
+        "revision",
+        "content_hash",
+        "revision_state",
+        "title",
+        "objective",
+        "assumptions",
+        "constraints",
+        "nodes",
+        "edges",
+        "gates",
+        "done_contract",
+        "source_refs",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "node": {
+      "required_fields": [
+        "node_id",
+        "kind",
+        "title",
+        "objective",
+        "depends_on",
+        "gate_ids",
+        "deliverables",
+        "allowed_paths",
+        "blocked_paths",
+        "capability_requirements",
+        "verification_rule_ids"
+      ],
+      "allowed_kinds": [
+        "work",
+        "gate",
+        "milestone",
+        "group"
+      ]
+    },
+    "edge": {
+      "required_fields": [
+        "from",
+        "to",
+        "kind"
+      ],
+      "allowed_kinds": [
+        "depends_on",
+        "blocks",
+        "unlocks"
+      ]
+    },
+    "gate_definition": {
+      "required_fields": [
+        "gate_id",
+        "kind",
+        "title",
+        "blocks",
+        "decision_needed",
+        "safe_default",
+        "approval_scope_schema",
+        "required_verification_rule_ids"
+      ],
+      "allowed_kinds": [
+        "design",
+        "operator",
+        "repo",
+        "live",
+        "security",
+        "dependency"
+      ],
+      "runtime_fields_forbidden": [
+        "state",
+        "decision",
+        "actor",
+        "decided_at",
+        "expires_at",
+        "evidence_receipt"
+      ]
+    },
+    "done_contract": {
+      "required_fields": [
+        "required_node_ids",
+        "required_gate_ids",
+        "verification_rules",
+        "completion_rule"
+      ],
+      "completion_rule_literal": "all_required_nodes_and_gates"
+    }
+  },
+  "state_vocabulary": {
+    "revision_state": [
+      "draft",
+      "in_review",
+      "approved",
+      "superseded",
+      "archived",
+      "tombstoned"
+    ],
+    "draft_transaction_state": [
+      "editing",
+      "valid",
+      "invalid",
+      "conflict",
+      "accepted",
+      "discarded"
+    ],
+    "explicitly_forbidden_execution_states": [
+      "queued",
+      "starting",
+      "running",
+      "waiting",
+      "waiting_gate",
+      "waiting_signal",
+      "paused",
+      "blocked",
+      "retrying",
+      "failed",
+      "done",
+      "completed",
+      "cancelled",
+      "timed_out",
+      "terminated"
+    ]
+  },
+  "recursive_runtime_field_denylist": [
+    "agent_run_id",
+    "run_id",
+    "workflow_id",
+    "workflow_run_id",
+    "temporal_run_id",
+    "history_segment",
+    "history_event_id",
+    "activity_id",
+    "activity_attempt",
+    "attempt",
+    "max_attempts",
+    "retry_count",
+    "next_retry_at",
+    "heartbeat",
+    "heartbeat_at",
+    "last_heartbeat_at",
+    "heartbeat_age_seconds",
+    "heartbeat_timeout_seconds",
+    "heartbeat_health",
+    "signal",
+    "signal_id",
+    "update_id",
+    "command",
+    "command_id",
+    "allowed_commands",
+    "claim",
+    "claim_id",
+    "lease_id",
+    "lease_revision",
+    "lease_expires_at",
+    "fencing_token",
+    "worker_id",
+    "runtime_status",
+    "run_progress",
+    "waiting_reason",
+    "evidence",
+    "evidence_receipt",
+    "changed_files",
+    "commit",
+    "commit_id",
+    "started_at",
+    "completed_at"
+  ],
+  "agent_handoff_contract": {
+    "schema_id": "odysseus.agent.plan_handoff.v1",
+    "required_fields": [
+      "project_id",
+      "roadmap_id",
+      "revision",
+      "content_hash",
+      "title",
+      "requested_entrypoint"
+    ],
+    "requested_entrypoint_literal": "/abc",
+    "composer_text_format": "/abc run roadmap:<roadmap_id>@<revision> hash:<content_hash>",
+    "planning_ui_behavior": [
+      "Resolve and validate the exact approved revision before navigation.",
+      "Switch to the Agent screen.",
+      "Populate, but do not submit, the Agent composer with the exact /abc command.",
+      "Attach the handoff envelope as read-only composer context.",
+      "Do not call POST /api/agent/runs and do not choose skills or models."
+    ],
+    "launch_authorized": false,
+    "conflict_rule": "If revision or hash no longer matches, stay in Planning and render conflict. Never substitute latest_approved implicitly."
+  },
+  "planning_api_contract": {
+    "read_endpoints": [
+      "GET /api/planning/projects?cursor=<cursor>&limit=<1..100>",
+      "GET /api/planning/projects/{project_id}",
+      "GET /api/planning/projects/{project_id}/roadmaps?cursor=<cursor>&limit=<1..100>",
+      "GET /api/planning/projects/{project_id}/roadmaps/{roadmap_id}?revision=latest_approved|<positive_integer>",
+      "GET /api/planning/projects/{project_id}/roadmaps/{roadmap_id}/revisions?cursor=<cursor>&limit=<1..100>"
+    ],
+    "write_endpoints": [
+      {
+        "method": "POST",
+        "path": "/api/planning/projects/{project_id}/roadmaps/{roadmap_id}/drafts",
+        "body": [
+          "base_revision",
+          "base_hash",
+          "idempotency_key",
+          "changes"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/planning/projects/{project_id}/roadmaps/{roadmap_id}/drafts/{draft_id}/validate",
+        "body": [
+          "expected_draft_version"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/planning/projects/{project_id}/roadmaps/{roadmap_id}/drafts/{draft_id}/actions",
+        "body": [
+          "action=accept|discard",
+          "expected_draft_version",
+          "idempotency_key"
+        ]
+      }
+    ],
+    "write_authority_rule": "Accept remains blocked by the exact Planning apply authority. Discard is owner-scoped and idempotent. No Planning endpoint starts or controls a run.",
+    "prohibited_endpoints": [
+      "any /api/planning/.../runs endpoint",
+      "any Planning history or heartbeat stream",
+      "any Planning pause, resume, cancel, retry, steer or gate-decision endpoint"
+    ]
+  },
+  "legacy_projection": {
+    "input": "odysseus.planning.roadmap v1 and harbor.planning.roadmap legacy alias",
+    "rule": "Legacy files remain read-only compatibility input. A structural projector emits definition v2 and recursively drops runtime fields and runtime-like status values.",
+    "write_rule": "No v2 writer may re-emit a dropped legacy execution field.",
+    "migration_rule": "No mass rewrite is required. A roadmap becomes v2 canonical only through an explicit validated revision apply.",
+    "planning_mcp_changes_required": [
+      "Deprecate planning_mark_status for canonical v2 definitions.",
+      "Replace live gate status output with gate-definition reads on Planning surfaces.",
+      "Remove progress, todo-completion and agent-checkpoint semantics from the canonical definition projection.",
+      "Add planning_create_agent_handoff returning launch_authorized=false."
+    ],
+    "storage_contract_changes_required": [
+      "Replace roadmap running, blocked and done definition states with the revision lifecycle vocabulary.",
+      "Replace open, go and no_go gate records with odysseus.planning.gate_definition requirements.",
+      "Move runtime gate instances, progress, attempts, heartbeats, claims and evidence receipts outside the Planning root."
+    ]
+  },
+  "dependency_dag": [
+    "PDE-00 -> PDE-01",
+    "PDE-01 -> PDE-02",
+    "PDE-02 -> PDE-03",
+    "PDE-03 -> PDE-04",
+    "PDE-02 + PDE-03 + PDE-04 -> PDE-05",
+    "PDE-03 + PDE-05 -> PDE-06",
+    "PDE-04 + PDE-05 + PDE-06 -> PDE-07",
+    "PDE-07 -> PDE-08"
+  ],
+  "slice_queue": [
+    {
+      "id": "PDE-00-boundary-contract",
+      "status": "done_in_this_artifact",
+      "class": "safe_offline",
+      "owner": "Alice",
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/plans/planning-definition-editor-roadmap.json",
+        "docs/plans/harbor-planning-integration-master-roadmap.json",
+        "docs/plans/planning-mcp-roadmap.json"
+      ],
+      "hotfiles": [
+        "docs/plans/harbor-planning-integration-master-roadmap.json",
+        "docs/plans/planning-mcp-roadmap.json"
+      ],
+      "objective": "Freeze one definition-only Planning contract, one Agent handoff envelope and one recursive runtime-field denylist.",
+      "deliverables": [
+        "master attachment",
+        "canonical field and state vocabulary",
+        "screen ownership MUST and MUST NOT rules",
+        "local DAG and cross-roadmap dependency declarations"
+      ],
+      "tests": [
+        "python -m json.tool docs/plans/planning-definition-editor-roadmap.json",
+        "python -m json.tool docs/plans/harbor-planning-integration-master-roadmap.json"
+      ],
+      "evidence_required": [
+        "valid JSON",
+        "all child references resolve",
+        "obsolete V2 execution semantics are marked superseded in the master"
+      ],
+      "gate": {
+        "id": "none",
+        "safe_default": "Roadmap authoring only; do not implement code or UI in this slice."
+      },
+      "done_when": "PASS only if the master and this child unambiguously assign definition truth to Planning, execution truth to Agent and /abc as the only run entrypoint.",
+      "stop_rules": [
+        "Stop on a runtime field remaining allowed in Planning.",
+        "Stop on a shared master edit without current ownership."
+      ],
+      "forbidden_actions": [
+        "code implementation",
+        "UI implementation",
+        "run activation",
+        "external mutation"
+      ]
+    },
+    {
+      "id": "PDE-01-definition-schema-validator",
+      "status": "implemented_focused_tested",
+      "class": "repo_only",
+      "owner": "Bob",
+      "depends_on": [
+        "PDE-00-boundary-contract"
+      ],
+      "allowed_paths": [
+        "docs/plans/planning-definition-v2-contract.md",
+        "specs/planning_definition.v2.schema.json",
+        "src/planning_definition_contract.py",
+        "tests/test_planning_definition_contract.py"
+      ],
+      "hotfiles": [],
+      "objective": "Implement the definition v2 schema and fail-closed validator without routes, persistence or UI.",
+      "deliverables": [
+        "exact project, roadmap, node, edge, gate-definition and done-contract schemas",
+        "recursive runtime-field denylist",
+        "unique ID, missing reference, cycle, gate target and completion reference checks",
+        "approved revision immutability and deterministic content hash validation"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_planning_definition_contract.py -q --basetemp .pytest_tmp_pde_contract"
+      ],
+      "evidence_required": [
+        "positive canonical fixture",
+        "one negative fixture for every forbidden state and reference failure",
+        "hash determinism across key order"
+      ],
+      "completion_evidence": {
+        "completed_at": "2026-07-15T07:31:00+02:00",
+        "implementation_paths": [
+          "docs/plans/planning-definition-v2-contract.md",
+          "specs/planning_definition.v2.schema.json",
+          "src/planning_definition_contract.py",
+          "tests/test_planning_definition_contract.py"
+        ],
+        "focused_result": "92 passed, 1 unrelated SQLAlchemy deprecation warning",
+        "schema_result": "Draft 2020-12 meta-schema check and canonical fixture validation passed",
+        "invariants": [
+          "all recursive runtime keys and forbidden execution states are rejected",
+          "all declared reference, cycle, gate-target and completion failures have stable reason codes",
+          "approved revisions are checked against an immutable hash baseline",
+          "validator is standard-library-only and imports no Agent or Temporal module"
+        ]
+      },
+      "gate": {
+        "id": "none",
+        "safe_default": "Pure validation only; no file write outside test temporary directories."
+      },
+      "done_when": "PASS only if every canonical fixture validates and every runtime field, execution state, cycle, missing reference, invalid gate target or changed approved hash is rejected with a stable reason code.",
+      "stop_rules": [
+        "Stop if validation requires live Planning writes.",
+        "Stop if the implementation imports Agent or Temporal modules."
+      ],
+      "forbidden_actions": [
+        "route registration",
+        "roadmap apply",
+        "Agent run creation"
+      ]
+    },
+    {
+      "id": "PDE-02-definition-read-model-api",
+      "status": "planned",
+      "class": "repo_only",
+      "owner": "Bob",
+      "depends_on": [
+        "PDE-01-definition-schema-validator"
+      ],
+      "allowed_paths": [
+        "src/planning_definition_projection.py",
+        "src/planning_revision_store.py",
+        "routes/planning_definition_routes.py",
+        "tests/test_planning_definition_projection.py",
+        "tests/test_planning_v2_routes.py",
+        "app.py"
+      ],
+      "hotfiles": [
+        "app.py"
+      ],
+      "objective": "Expose one definition-only read model for project list, roadmap list, graph, document and revision history.",
+      "deliverables": [
+        "pure PlanningDefinitionProjector",
+        "owner-scoped cursor pagination",
+        "legacy v1 structural projection with dropped runtime fields",
+        "the five read endpoints declared in planning_api_contract",
+        "loading, live, stale, unavailable and error origin metadata"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_planning_definition_projection.py tests\\test_planning_v2_routes.py -q --basetemp .pytest_tmp_pde_read"
+      ],
+      "evidence_required": [
+        "same revision produces byte-stable normalized payload",
+        "no Agent or Temporal provider is called",
+        "pagination never returns raw private content"
+      ],
+      "gate": {
+        "id": "PDE-APP-ROUTER-HANDOFF",
+        "safe_default": "Implement service and route tests first; register app.py only under a serial hotfile claim."
+      },
+      "done_when": "PASS only if one service payload drives all Planning readers, contains no denylisted key recursively and returns the requested revision rather than an implicit mutable latest value.",
+      "stop_rules": [
+        "Stop on dirty overlapping app.py hunks.",
+        "Stop if a read endpoint exposes a run, heartbeat, claim, evidence receipt or command."
+      ],
+      "forbidden_actions": [
+        "run API",
+        "SSE runtime stream",
+        "localStorage persistence"
+      ]
+    },
+    {
+      "id": "PDE-03-revision-proposal-apply",
+      "status": "planned",
+      "class": "repo_only",
+      "owner": "Bob",
+      "depends_on": [
+        "PDE-02-definition-read-model-api"
+      ],
+      "allowed_paths": [
+        "src/planning_revision_store.py",
+        "src/planning_definition_contract.py",
+        "routes/planning_definition_routes.py",
+        "tests/test_planning_revision_store.py",
+        "tests/test_planning_v2_routes.py"
+      ],
+      "hotfiles": [],
+      "objective": "Implement draft creation, validation, conflict detection, accepted revision apply, tombstone, restore and undo with optimistic concurrency.",
+      "deliverables": [
+        "the three write endpoints declared in planning_api_contract",
+        "base revision, base hash, expected draft version and idempotency checks",
+        "bounded structural diff",
+        "atomic apply and post-write readback",
+        "undo metadata and immutable accepted revision"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_planning_revision_store.py tests\\test_planning_v2_routes.py -q --basetemp .pytest_tmp_pde_write"
+      ],
+      "evidence_required": [
+        "temporary-repository apply and restore",
+        "concurrent draft conflict",
+        "duplicate idempotency key returns the original receipt",
+        "failed validation leaves the source unchanged"
+      ],
+      "gate": {
+        "id": "PLANNING-WRITE-GO",
+        "safe_default": "Temporary repositories and dry-run proposals only. No named real roadmap write."
+      },
+      "done_when": "PASS only if temporary-repository tests prove atomic apply, readback, conflict refusal, duplicate suppression and full restoration while every real roadmap write remains gated.",
+      "stop_rules": [
+        "Stop before a real project or docs/plans write without exact PLANNING-WRITE-GO.",
+        "Stop if undo cannot restore the exact previous content hash."
+      ],
+      "forbidden_actions": [
+        "implicit latest overwrite",
+        "runtime-state write",
+        "irreversible delete"
+      ]
+    },
+    {
+      "id": "PDE-04-agent-handoff-envelope",
+      "status": "planned",
+      "class": "repo_only",
+      "owner": "Bob",
+      "depends_on": [
+        "PDE-03-revision-proposal-apply"
+      ],
+      "allowed_paths": [
+        "src/planning_agent_handoff.py",
+        "routes/planning_definition_routes.py",
+        "tests/test_planning_agent_handoff.py",
+        "tests/test_planning_v2_routes.py"
+      ],
+      "hotfiles": [],
+      "objective": "Produce a read-only, hash-pinned Agent handoff envelope that cannot start or authorize a run.",
+      "deliverables": [
+        "odysseus.agent.plan_handoff.v1 model and validator",
+        "exact /abc composer text",
+        "approved-revision and current-hash check",
+        "launch_authorized=false invariant"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_handoff.py tests\\test_planning_v2_routes.py -q --basetemp .pytest_tmp_pde_handoff"
+      ],
+      "evidence_required": [
+        "mismatched or superseded revision rejected",
+        "envelope contains no skill, model, run or command field",
+        "no Agent run endpoint called"
+      ],
+      "gate": {
+        "id": "none",
+        "safe_default": "Navigation envelope only; user submission of /abc remains required."
+      },
+      "done_when": "PASS only if one exact approved revision and hash produce the declared composer command, launch_authorized is always false and no Planning code can start a run.",
+      "stop_rules": [
+        "Stop if handoff silently resolves a newer revision.",
+        "Stop if the UI or route auto-submits /abc."
+      ],
+      "forbidden_actions": [
+        "skill selection",
+        "model selection",
+        "workflow start"
+      ]
+    },
+    {
+      "id": "PDE-05-v3-planning-surface",
+      "status": "planned",
+      "class": "repo_only",
+      "owner": "Alice",
+      "depends_on": [
+        "PDE-02-definition-read-model-api",
+        "PDE-03-revision-proposal-apply",
+        "PDE-04-agent-handoff-envelope"
+      ],
+      "allowed_paths": [
+        "static/frontpage-v3/planning.js",
+        "static/frontpage-v3/planning.css",
+        "static/frontpage-v3/planning-fixtures.js",
+        "static/frontpage-v3/index.html",
+        "static/frontpage-v3/app.js",
+        "static/frontpage-v3/api.js",
+        "tests/frontend/harbor-one-planning.spec.js"
+      ],
+      "hotfiles": [
+        "static/frontpage-v3/index.html",
+        "static/frontpage-v3/app.js",
+        "static/frontpage-v3/api.js"
+      ],
+      "objective": "Port the useful V2 project, graph, list and document-editor interactions into V3 with definition-only semantics.",
+      "deliverables": [
+        "separate planning.js and planning.css modules",
+        "project and roadmap definition readers",
+        "DAG with node-kind and validation styling only",
+        "objective, scope, dependencies, deliverables, gate definitions and done-contract detail",
+        "draft diff, validation, accept, discard and undo states",
+        "Open in Agent composer handoff without start"
+      ],
+      "tests": [
+        "node --check static\\frontpage-v3\\app.js",
+        "node --check static\\frontpage-v3\\planning.js",
+        "node --check static\\frontpage-v3\\api.js",
+        "npx.cmd playwright test tests\\frontend\\harbor-one-planning.spec.js --reporter=line"
+      ],
+      "evidence_required": [
+        "desktop, mobile and 200 percent zoom screenshots",
+        "fixture, live, stale, unavailable, error and conflict states",
+        "DOM assertion that every forbidden runtime label and control is absent"
+      ],
+      "gate": {
+        "id": "HPA-PLANNING-UX-ACCEPTANCE",
+        "safe_default": "Use the accepted V3 Calm Control Room system and V2 interaction reference; do not cut over root UI."
+      },
+      "done_when": "PASS only if V3 Planning can read and edit definitions and prepare an exact Agent handoff while browser tests prove it renders no execution state, status color, history, heartbeat, claim, evidence receipt or run control.",
+      "stop_rules": [
+        "Stop on an unapproved visual departure from V3 design tokens.",
+        "Stop if frontend fixtures can be mistaken for live data.",
+        "Stop if runtime truth enters localStorage."
+      ],
+      "forbidden_actions": [
+        "direct Temporal client",
+        "Agent run fetch",
+        "runtime overlay",
+        "root cutover"
+      ]
+    },
+    {
+      "id": "PDE-06-definition-notification-undo",
+      "status": "planned",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "depends_on": [
+        "PDE-03-revision-proposal-apply",
+        "PDE-05-v3-planning-surface"
+      ],
+      "allowed_paths": [
+        "src/user_notification_contract.py",
+        "static/frontpage-v3/planning.js",
+        "tests/test_user_notification_contract.py",
+        "tests/frontend/harbor-one-planning.spec.js"
+      ],
+      "hotfiles": [
+        "src/user_notification_contract.py"
+      ],
+      "objective": "Route definition create, revision, conflict, tombstone and undo notifications to Planning while routing every execution notification to Agent.",
+      "deliverables": [
+        "definition notification taxonomy",
+        "Planning deep links with project, roadmap and revision",
+        "undo readback",
+        "explicit rejection of heartbeat, activity, run failure and run completion targets in Planning"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_user_notification_contract.py -q --basetemp .pytest_tmp_pde_notify",
+        "npx.cmd playwright test tests\\frontend\\harbor-one-planning.spec.js --reporter=line"
+      ],
+      "evidence_required": [
+        "definition event opens the exact Planning revision",
+        "execution event target is Agent",
+        "undo restores and rereads the prior hash"
+      ],
+      "gate": {
+        "id": "none",
+        "safe_default": "Use fixtures and local route tests only."
+      },
+      "done_when": "PASS only if every definition notification resolves one Planning revision and every execution notification is rejected as a Planning target.",
+      "stop_rules": [
+        "Stop if routine reads or draft keystrokes emit notifications.",
+        "Stop if a notification contains raw private content."
+      ],
+      "forbidden_actions": [
+        "modal interruption for routine updates",
+        "Agent status in Planning"
+      ]
+    },
+    {
+      "id": "PDE-07-boundary-browser-acceptance",
+      "status": "planned",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "depends_on": [
+        "PDE-04-agent-handoff-envelope",
+        "PDE-05-v3-planning-surface",
+        "PDE-06-definition-notification-undo"
+      ],
+      "allowed_paths": [
+        "tests/test_planning_agent_boundary_roadmaps.py",
+        "tests/frontend/harbor-one-planning.spec.js",
+        "static/frontpage-v3/planning-fixtures.js"
+      ],
+      "hotfiles": [],
+      "objective": "Prove the Planning/Agent boundary at schema, route and rendered-DOM levels.",
+      "deliverables": [
+        "roadmap DAG and reference validator",
+        "recursive payload denylist assertions",
+        "Planning route inventory assertion",
+        "browser scenarios for empty, loading, live, fixture, stale, error, conflict, edit, handoff and undo"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py tests\\test_planning_definition_contract.py tests\\test_planning_definition_projection.py tests\\test_planning_v2_routes.py -q --basetemp .pytest_tmp_pde_accept",
+        "npx.cmd playwright test tests\\frontend\\harbor-one-planning.spec.js --reporter=line",
+        "git diff --check"
+      ],
+      "evidence_required": [
+        "zero unresolved dependencies and zero DAG cycles",
+        "zero denylisted fields in Planning API fixtures",
+        "zero runtime labels or controls in Planning DOM",
+        "exact revision and hash passed to Agent composer"
+      ],
+      "gate": {
+        "id": "HPA-PLANNING-UX-ACCEPTANCE",
+        "safe_default": "Preview only; root UI remains unchanged."
+      },
+      "done_when": "PASS only if all contract and browser tests are green, the positive definition-edit path is exercised, the /abc draft is not auto-submitted and every negative runtime-leak assertion is green.",
+      "stop_rules": [
+        "Stop on any runtime leak even if screenshots look correct.",
+        "Stop if visual evidence covers only one viewport."
+      ],
+      "forbidden_actions": [
+        "live Planning write",
+        "root cutover",
+        "run activation"
+      ]
+    },
+    {
+      "id": "PDE-08-real-save-undo-smoke",
+      "status": "gated",
+      "class": "needs_operator_go",
+      "owner": "Charlie",
+      "depends_on": [
+        "PDE-07-boundary-browser-acceptance"
+      ],
+      "allowed_paths": [
+        "one operator-named roadmap and its generated undo artifact"
+      ],
+      "hotfiles": [],
+      "objective": "Apply and restore one exact real Planning revision with operator-visible readback.",
+      "deliverables": [
+        "pre-write hash",
+        "approved bounded diff",
+        "post-write validation and readback",
+        "undo receipt",
+        "restored hash equal to pre-write hash"
+      ],
+      "tests": [
+        "operator-approved real save smoke for one named roadmap",
+        "operator-approved undo and hash readback"
+      ],
+      "evidence_required": [
+        "exact target and diff approval",
+        "write receipt",
+        "post-write readback",
+        "undo receipt",
+        "restoration hash equality"
+      ],
+      "gate": {
+        "id": "PLANNING-WRITE-GO",
+        "safe_default": "No real save, tombstone, restore or undo action."
+      },
+      "done_when": "PASS only if the named revision is applied once, read back, restored once and the final content hash equals the pre-smoke hash; otherwise the slice is failed, not partial.",
+      "stop_rules": [
+        "Stop on any target, hash or diff change after approval.",
+        "Stop if rollback evidence is missing."
+      ],
+      "forbidden_actions": [
+        "second target",
+        "bulk migration",
+        "Agent run start"
+      ]
+    }
+  ],
+  "gate_queue": [
+    {
+      "id": "HPA-PLANNING-UX-ACCEPTANCE",
+      "class": "needs_design",
+      "status": "design_direction_locked_acceptance_pending",
+      "blocks": [
+        "PDE-05-v3-planning-surface",
+        "PDE-07-boundary-browser-acceptance"
+      ],
+      "decision_needed": "Accept the definition-only Planning surface at desktop, mobile and 200 percent zoom using the existing V3 Calm Control Room system.",
+      "safe_default": "Preview implementation may remain fixture-labeled; no root cutover.",
+      "risk_if_bypassed": "Planning could visually reintroduce runtime semantics or become unreadable at non-default viewports."
+    },
+    {
+      "id": "PLANNING-WRITE-GO",
+      "class": "needs_operator_go",
+      "status": "gated",
+      "blocks": [
+        "PDE-08-real-save-undo-smoke"
+      ],
+      "decision_needed": "Name one exact roadmap, base revision, base hash, approved diff, undo target and observation window.",
+      "safe_default": "Dry-run and temporary-repository validation only.",
+      "risk_if_bypassed": "A real Planning definition could be overwritten or deleted without a reversible operator decision."
+    }
+  ],
+  "non_goals": [
+    "No run monitor, runtime overlay or control in Planning.",
+    "No concrete skill or model picker in Planning.",
+    "No direct Temporal client in Planning.",
+    "No auto-submit of the /abc composer draft.",
+    "No runtime state in canonical Planning JSON or localStorage.",
+    "No V2 fixture status or progress semantics copied into V3.",
+    "No automatic mass rewrite of legacy roadmaps.",
+    "No root UI cutover or real Planning write from repo-only slices."
+  ],
+  "global_stop_rules": [
+    "Stop on secrets, raw private content, raw provider output or absolute private paths in fixtures or logs.",
+    "Stop on a missing or cyclic dependency.",
+    "Stop on overlapping shared hotfiles without acknowledged handoff.",
+    "Stop if Planning reads mutable execution state from Agent, Temporal, localStorage or chat memory.",
+    "Stop before real write, delete, restore or root cutover without the exact matching gate."
+  ],
+  "verification": [
+    "python -m json.tool docs/plans/planning-definition-editor-roadmap.json",
+    "python -m json.tool docs/plans/harbor-planning-integration-master-roadmap.json",
+    "venv\\Scripts\\python.exe scripts\\roadmap_safe_queue_audit.py --format json",
+    "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_pde_roadmap",
+    "git diff --check"
+  ],
+  "recommended_next_step": "Release PDE-01 with focused evidence, then claim PDE-02 service and route-test paths. Treat app.py as a separate serial hotfile sub-claim and stop on any overlapping foreign hunk."
+}
