@@ -728,6 +728,10 @@ app.include_router(setup_recent_changes_routes())
 from routes.planning_definition_routes import setup_default_planning_definition_routes
 app.include_router(setup_default_planning_definition_routes())
 
+# Owner-scoped Temporal Light Agent operations (lazy localhost connection only)
+from routes.agent_operation_routes import setup_default_agent_operation_routes
+app.include_router(setup_default_agent_operation_routes())
+
 # Cleanup
 from routes.cleanup_routes import setup_cleanup_routes
 app.include_router(setup_cleanup_routes(session_manager))

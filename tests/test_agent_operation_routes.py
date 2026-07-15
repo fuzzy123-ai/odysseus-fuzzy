@@ -8,11 +8,16 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import pytest
 
-from routes.agent_operation_routes import setup_agent_operation_routes
+from routes.agent_operation_routes import (
+    setup_agent_operation_routes,
+    setup_default_agent_operation_routes,
+)
 from routes.planning_definition_routes import setup_planning_definition_routes
 from src.abc_execution_service import RUN_START_STORE_SCHEMA_ID
 from src.planning_revision_store import PlanningRevisionStore
 from src.temporal_agent_operation_adapter import (
+    AgentOperationAdapterError,
+    LazyTemporalSDKExecutionReader,
     PersistentRunCatalog,
     TemporalAgentOperationAdapter,
 )
@@ -370,3 +375,47 @@ def test_planning_routes_remain_definition_only():
         "history_segment",
     ):
         assert forbidden not in encoded
+
+
+def test_default_router_registration_has_no_network_or_process_side_effect(
+    tmp_path, monkeypatch
+):
+    calls = []
+
+    async def forbidden_connect(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise AssertionError("registration must stay lazy")
+
+    monkeypatch.setattr(
+        "src.temporal_agent_operation_adapter.Client.connect", forbidden_connect
+    )
+    router = setup_default_agent_operation_routes(
+        run_store_path=tmp_path / "run-starts.json"
+    )
+
+    assert calls == []
+    assert len([route for route in router.routes if route.path == "/api/agent/runs"]) == 2
+
+
+def test_lazy_reader_rejects_any_non_pinned_runtime_target():
+    with pytest.raises(AgentOperationAdapterError) as caught:
+        LazyTemporalSDKExecutionReader(address="temporal.example.com:7233")
+    assert caught.value.code == "invalid_temporal_address"
+
+
+def test_agent_router_is_registered_once_adjacent_to_planning():
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "app.py").read_text(
+        encoding="utf-8"
+    )
+    import_line = (
+        "from routes.agent_operation_routes import setup_default_agent_operation_routes"
+    )
+    include_line = "app.include_router(setup_default_agent_operation_routes())"
+
+    assert source.count(import_line) == 1
+    assert source.count(include_line) == 1
+    assert source.index("app.include_router(setup_default_planning_definition_routes())") < source.index(
+        include_line
+    )

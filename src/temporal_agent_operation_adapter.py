@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 from pathlib import Path
-from typing import Any, AsyncIterator, Callable, Mapping, Protocol, Sequence
+from typing import Any, AsyncIterator, Awaitable, Callable, Mapping, Protocol, Sequence
 
 from temporalio.api.enums.v1 import EventType, PendingActivityState, WorkflowExecutionStatus
 from temporalio.client import Client
@@ -487,6 +488,73 @@ class TemporalSDKExecutionReader:
                 "invalid_command_receipt", "Temporal returned no command receipt"
             )
         return dict(value)
+
+
+class LazyTemporalSDKExecutionReader:
+    """Connect once, on first request, to the pinned localhost-only runtime."""
+
+    def __init__(
+        self,
+        *,
+        address: str = "127.0.0.1:7233",
+        namespace: str = "default",
+        connect: Callable[..., Awaitable[Client]] | None = None,
+    ) -> None:
+        if address != "127.0.0.1:7233":
+            raise AgentOperationAdapterError(
+                "invalid_temporal_address", "Agent operations require 127.0.0.1:7233"
+            )
+        if namespace != "default":
+            raise AgentOperationAdapterError(
+                "invalid_temporal_namespace", "Agent operations require the default namespace"
+            )
+        self._address = address
+        self._namespace = namespace
+        self._connect = connect or Client.connect
+        self._reader: TemporalSDKExecutionReader | None = None
+        self._connect_lock = asyncio.Lock()
+
+    async def snapshot(self, workflow_id: str, workflow_run_id: str) -> Mapping[str, Any]:
+        return await (await self._active()).snapshot(workflow_id, workflow_run_id)
+
+    async def history(
+        self,
+        workflow_id: str,
+        workflow_run_id: str,
+        *,
+        history_segment: int,
+        after_event_id: int,
+        limit: int,
+    ) -> Sequence[Mapping[str, Any]]:
+        return await (await self._active()).history(
+            workflow_id,
+            workflow_run_id,
+            history_segment=history_segment,
+            after_event_id=after_event_id,
+            limit=limit,
+        )
+
+    async def execute_command(
+        self,
+        workflow_id: str,
+        workflow_run_id: str,
+        request: CommandRequest,
+    ) -> Mapping[str, Any]:
+        return await (await self._active()).execute_command(
+            workflow_id, workflow_run_id, request
+        )
+
+    async def _active(self) -> TemporalSDKExecutionReader:
+        if self._reader is not None:
+            return self._reader
+        async with self._connect_lock:
+            if self._reader is None:
+                client = await self._connect(
+                    self._address,
+                    namespace=self._namespace,
+                )
+                self._reader = TemporalSDKExecutionReader(client)
+        return self._reader
 
 
 def _pending_activity(value: Any) -> dict[str, Any]:

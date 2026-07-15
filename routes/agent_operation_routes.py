@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import inspect
 import json
+import os
+from pathlib import Path
 from typing import Any, Callable, Mapping
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -17,6 +19,9 @@ from src.agent_operation_projection import AgentOperationProjectionError
 from src.temporal_agent_operation_adapter import (
     AgentOperationAdapterError,
     TemporalAgentOperationAdapter,
+    LazyTemporalSDKExecutionReader,
+    PersistentRunCatalog,
+    TemporalExecutionReader,
 )
 
 
@@ -168,6 +173,55 @@ def setup_agent_operation_routes(
     return router
 
 
+def setup_default_agent_operation_routes(
+    *,
+    run_store_path: str | Path | None = None,
+    temporal: TemporalExecutionReader | None = None,
+) -> APIRouter:
+    """Compose the app router without connecting to or starting Temporal."""
+
+    from routes.project_versioning_routes import _same_origin_csrf_gate
+    from src.auth_helpers import effective_user
+    from src.constants import DATA_DIR
+    from src.temporal_runtime.config import load_temporal_light_config
+
+    local_owner = str(os.getenv("ODYSSEUS_SINGLE_USER_OWNER") or "local-user").strip()
+    store_path = Path(
+        run_store_path
+        or (Path(DATA_DIR) / "temporal_light" / "run-starts.json")
+    )
+    if temporal is None:
+        config = load_temporal_light_config()
+        temporal = LazyTemporalSDKExecutionReader(
+            address=config.address,
+            namespace=config.namespace,
+        )
+    adapter = TemporalAgentOperationAdapter(
+        catalog=PersistentRunCatalog(store_path),
+        temporal=temporal,
+    )
+
+    def resolve_owner(request: Request) -> str | None:
+        owner = str(effective_user(request) or "").strip()
+        if owner:
+            return owner
+        if os.getenv("AUTH_ENABLED", "true").strip().lower() == "false":
+            return local_owner
+        return None
+
+    def authenticated_abc_handler(request: Request) -> bool:
+        # No client header can grant this flag.  A future in-process /abc
+        # handler may stamp it only after authenticating and pinning the plan.
+        return getattr(request.state, "abc_handler_authorized", False) is True
+
+    return setup_agent_operation_routes(
+        adapter,
+        owner_resolver=resolve_owner,
+        abc_gate=authenticated_abc_handler,
+        csrf_gate=_same_origin_csrf_gate,
+    )
+
+
 async def _read(call: Callable[[], Any]) -> Any:
     try:
         value = call()
@@ -236,3 +290,9 @@ def _deny_owner(_request: Request) -> None:
 
 def _deny_gate(_request: Request) -> bool:
     return False
+
+
+__all__ = [
+    "setup_agent_operation_routes",
+    "setup_default_agent_operation_routes",
+]
