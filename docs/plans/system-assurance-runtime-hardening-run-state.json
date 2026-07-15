@@ -3,14 +3,14 @@
   "kind": "odysseus.abc_durable_run_state",
   "run_id": "sar-12h-20260714t092106",
   "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
-  "roadmap_id": "temporal-light-agent-execution",
-  "roadmap_path": "docs/plans/temporal-light-agent-execution-roadmap.json",
+  "roadmap_id": "headless-write-agent-orchestration",
+  "roadmap_path": "docs/plans/headless-write-agent-orchestration-roadmap.md",
   "queue_scope": "named_roadmap",
   "phase": "implementation",
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
   "state": "running",
-  "revision": 154,
+  "revision": 156,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -110,6 +110,27 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:HWA3A-durable-authority-store",
+      "slice_id": "HWA3A-durable-capability-evidence-fence-store",
+      "owner": "/root",
+      "state": "released_durable_authority_green_committed_foreign_docs_preserved",
+      "acquired_at": "2026-07-15T11:44:30.2764625+02:00",
+      "released_at": "2026-07-15T11:56:52.2703584+02:00",
+      "commit": "fd1cd4cd",
+      "evidence": [
+        "33 focused HWA3A and HWA1 contract tests passed",
+        "two independent store instances produced exactly one active claim winner",
+        "expired and released claims reclaimed with strictly higher fences",
+        "old-fence heartbeat, progress, evidence and promotion writes were rejected",
+        "capability nonces reserved and consumed once with exact scope, digest, stage and current-fence binding",
+        "heartbeat renewal preserved last_progress_at until an explicit progress receipt",
+        "owner, repo and run pause/kill controls survived restart and blocked new claims and effects",
+        "persisted claims, capabilities, evidence, fences and controls survived reopen",
+        "absolute paths and forbidden raw fields were rejected and no scheduler, thread, Git or provider dependency exists",
+        "the foreign untracked HWA roadmap and handoff retained their exact pre-claim SHA-256 fingerprints"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:TLR-03-deterministic-workflow",
       "slice_id": "TLR-03-deterministic-workflow",
@@ -1133,6 +1154,14 @@
     }
   ],
   "agent_leases": [
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:HWA3A-durable-authority-store",
+      "state": "completed_durable_authority_green_committed_foreign_docs_preserved",
+      "leased_at": "2026-07-15T11:44:30.2764625+02:00",
+      "lease_expires_at": "2026-07-15T13:44:30.2764625+02:00",
+      "released_at": "2026-07-15T11:56:52.2703584+02:00"
+    },
     {
       "agent": "/root",
       "claim_id": "sar-12h-20260714t092106:TLR-03-deterministic-workflow",
@@ -2252,6 +2281,18 @@
   ],
   "completed_slices": [
     {
+      "slice_id": "HWA3A-durable-capability-evidence-fence-store",
+      "completion_layer": "repository_implemented_focused_tested_committed_foreign_roadmap_handoff_preserved",
+      "evidence": [
+        "commit fd1cd4cd",
+        "33 focused HWA3A plus HWA1 tests passed",
+        "multi-instance CAS, monotonic fences and stale-worker rejection passed",
+        "one-shot capabilities, worktree evidence and promotion binding passed",
+        "separate heartbeat/progress time and owner/repo/run controls passed",
+        "restart persistence and forbidden raw-field/path checks passed"
+      ]
+    },
+    {
       "slice_id": "TLR-03-deterministic-workflow",
       "completion_layer": "repository_implemented_real_local_history_replay_tested_and_committed_processes_stopped",
       "evidence": [
@@ -2470,19 +2511,33 @@
   "gate_queue": [
     {
       "gate_id": "TLR-04-HWA3A-HWA3B-DEPENDENCY",
-      "state": "blocked_external_roadmap_dependencies_not_user_gate",
+      "state": "HWA3A_satisfied_HWA3B_pending_not_user_gate",
       "blocks": [
         "TLR-04-activities-claims-heartbeats",
         "TLR-05-signals-updates-idempotency",
         "TLR-06-history-agent-projection-api"
       ],
       "does_not_block": [
-        "HWA3A durable capability, evidence and fence store",
         "HWA3B durable scaling and admission integration after HWA3A",
+        "completed HWA3A durable capability, evidence and fence store",
         "already completed TLR-01 through TLR-03"
       ],
-      "decision_needed": "No user decision is required. Complete HWA3A first and HWA3B second under their exact repo-only fake-clock/fake-store contracts, then re-evaluate TLR-04.",
-      "safe_default": "Do not claim TLR-04 or create a real Activity effect. Return to the master queue and claim HWA3A only."
+      "decision_needed": "No user decision is required. Complete HWA3B under its repo-only scaling/admission contract, then re-evaluate TLR-04.",
+      "safe_default": "Do not claim TLR-04 or create a real Activity effect. Claim HWA3B only."
+    },
+    {
+      "gate_id": "HWA3A-FOREIGN-ROADMAP-HANDOFF",
+      "state": "parked_foreign_untracked_documents",
+      "blocks": [
+        "committing HWA3A status text inside the HWA roadmap and handoff files"
+      ],
+      "does_not_block": [
+        "the committed HWA3A authority-store implementation",
+        "the durable HWA3A completion receipt in this runstate",
+        "HWA3B repo-only scaling and admission integration"
+      ],
+      "decision_needed": "The owner of the two pre-existing untracked HWA documents must integrate the exact HWA3A receipt without asking /root to absorb their entire foreign files.",
+      "safe_default": "Keep both documents byte-identical at SHA-256 e2042122f60239d4127bc9aacce4b78177439260eb5fdb8a2f6571edf9635aa5 and d61ad539c3d9ef22704d376651f83de4a33c5c657a33a965ed72622beb24fa13; use this runstate as the authoritative completion receipt meanwhile."
     },
     {
       "gate_id": "PMCP-9-ROADMAP-FOREIGN-HUNK-HANDOFF",
@@ -3010,20 +3065,18 @@
   ],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T11:39:26.1308856+02:00",
-    "summary": "TLR-03 is green, committed as 4f397925 and released after deterministic replay, timer and Continue-As-New evidence. TLR-04 is not runnable until HWA3A and then HWA3B are complete; HWA3A is the only dependency-safe next slice.",
-    "resume_cursor": "HWA3A-durable-capability-evidence-fence-store",
+    "last_durable_progress_at": "2026-07-15T11:56:52.2703584+02:00",
+    "summary": "HWA3A is green, committed as fd1cd4cd and released with its completion receipt in this runstate. The foreign untracked HWA documents remain byte-identical. HWA3B is now the only dependency-safe next slice; TLR-04 remains blocked until HWA3B completes.",
+    "resume_cursor": "HWA3B-durable-scaling-admission-integration",
     "resume_priority": [
-      "HWA3A-durable-capability-evidence-fence-store",
       "HWA3B-durable-scaling-admission-integration",
       "TLR-04-activities-claims-heartbeats",
       "PDE-05-v3-planning-surface"
     ],
     "next_runnable_slices": [
-      "HWA3A-durable-capability-evidence-fence-store"
+      "HWA3B-durable-scaling-admission-integration"
     ],
     "blocked_slices": [
-      "HWA3B-durable-scaling-admission-integration",
       "TLR-04-activities-claims-heartbeats",
       "TLR-05-signals-updates-idempotency",
       "TLR-06-history-agent-projection-api",
@@ -3046,6 +3099,7 @@
   },
   "completion_layers": {
     "implemented": [
+      "HWA3A-durable-capability-evidence-fence-store",
       "TLR-03-deterministic-workflow",
       "TLR-02-abc-manifest-and-run-start",
       "TLR-01-temporal-light-local-runtime",
@@ -3066,6 +3120,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "HWA3A-durable-capability-evidence-fence-store:33_focused_multi_instance_restart_fence_capability_control",
       "TLR-03-deterministic-workflow:63_focused_104_compatibility_5_real_histories_replayed_processes_stopped",
       "TLR-02-abc-manifest-and-run-start:21_focused_56_planning_compatibility_fake_only",
       "TLR-01-temporal-light-local-runtime:20_focused_29_combined_real_health_bind_restart_persistence_cleanup",
@@ -3088,6 +3143,7 @@
       "SAR-09-measured-optimization-decisions:focused_and_cli"
     ],
     "committed": [
+      "HWA3A-durable-capability-evidence-fence-store:fd1cd4cd",
       "TLR-03-deterministic-workflow:4f397925",
       "TLR-02-abc-manifest-and-run-start:262290a4",
       "TLR-01-temporal-light-local-runtime:bdbb352d",
