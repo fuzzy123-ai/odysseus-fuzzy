@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 import pytest
 
 from routes.planning_definition_routes import setup_planning_definition_routes
+from src.planning_definition_contract import compute_roadmap_content_hash
 from src.planning_revision_store import (
     TEMPORARY_REPOSITORY_MARKER,
     TEMPORARY_REPOSITORY_SCHEMA,
@@ -106,7 +107,7 @@ def _write_repository(tmp_path: Path) -> tuple[PlanningRevisionRepository, dict]
     )
 
 
-def test_route_factory_declares_exactly_five_reads_and_three_writes() -> None:
+def test_route_factory_declares_five_reads_three_writes_and_one_handoff() -> None:
     _client_instance, _selected, router = _client()
     surface = {
         (route.path, frozenset(route.methods or set()))
@@ -135,6 +136,10 @@ def test_route_factory_declares_exactly_five_reads_and_three_writes() -> None:
         ),
         (
             "/api/planning/projects/{project_id}/roadmaps/{roadmap_id}/drafts/{draft_id}/actions",
+            frozenset({"POST"}),
+        ),
+        (
+            "/api/planning/projects/{project_id}/roadmaps/{roadmap_id}/agent-handoff",
             frozenset({"POST"}),
         ),
     }
@@ -199,6 +204,83 @@ def test_five_reads_share_one_owner_scoped_definition_model() -> None:
     assert approved.json()["roadmap"]["content_hash"] == revisions.json()["items"][0]["content_hash"]
     assert set(approved.json()["origin"]) == {"state", "source", "reason", "as_of"}
     assert approved.json()["launch_authorized"] is False
+
+
+def test_agent_handoff_route_returns_only_exact_non_launching_composer_envelope() -> None:
+    client, store, _router = _client()
+    roadmap = store.get_roadmap(
+        "alice",
+        "project-0",
+        "roadmap-0",
+        revision=1,
+    )["roadmap"]
+    path = "/api/planning/projects/project-0/roadmaps/roadmap-0/agent-handoff"
+
+    response = client.post(
+        path,
+        headers=_headers(),
+        json={"revision": 1, "content_hash": roadmap["content_hash"]},
+    )
+    mismatch = client.post(
+        path,
+        headers=_headers(),
+        json={"revision": 1, "content_hash": "sha256:" + ("f" * 64)},
+    )
+    non_approved = client.post(
+        path,
+        headers=_headers(),
+        json={
+            "revision": 2,
+            "content_hash": store.get_roadmap(
+                "alice", "project-0", "roadmap-0", revision=2
+            )["roadmap"]["content_hash"],
+        },
+    )
+    envelope = response.json()
+
+    assert response.status_code == 200
+    assert envelope["composer_text"] == (
+        f"/abc run roadmap:roadmap-0@1 hash:{roadmap['content_hash']}"
+    )
+    assert envelope["launch_authorized"] is False
+    assert envelope["read_only"] is True
+    assert not set(envelope) & {
+        "skill",
+        "skills",
+        "model",
+        "models",
+        "run",
+        "run_id",
+        "command",
+        "commands",
+    }
+    assert mismatch.status_code == 409
+    assert mismatch.json()["error"] == "handoff_hash_mismatch"
+    assert non_approved.status_code == 409
+    assert non_approved.json()["error"] == "handoff_revision_not_approved"
+
+
+def test_agent_handoff_route_rejects_superseded_revision_without_latest_substitution() -> None:
+    document = definition_fixture("project-0", "roadmap-0", include_draft=True)
+    newer = document["roadmaps"][1]
+    newer["revision_state"] = "approved"
+    newer["content_hash"] = compute_roadmap_content_hash(newer)
+    document["project"]["latest_approved_revision"]["roadmap-0"] = {
+        "revision": 2,
+        "content_hash": newer["content_hash"],
+    }
+    store = PlanningRevisionStore([("alice", document, "definition.json")])
+    client, _store_instance, _router = _client(store=store)
+    older = document["roadmaps"][0]
+
+    response = client.post(
+        "/api/planning/projects/project-0/roadmaps/roadmap-0/agent-handoff",
+        headers=_headers(),
+        json={"revision": 1, "content_hash": older["content_hash"]},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"] == "handoff_revision_superseded"
 
 
 def test_write_routes_fail_closed_without_auth_admin_csrf_or_configured_service() -> None:

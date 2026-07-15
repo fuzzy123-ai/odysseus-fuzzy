@@ -11,6 +11,10 @@ from typing import Any, Callable, Mapping
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
+from src.planning_agent_handoff import (
+    PlanningAgentHandoffError,
+    build_agent_plan_handoff,
+)
 from src.planning_definition_projection import origin_metadata
 from src.planning_revision_store import (
     PlanningRevisionRepository,
@@ -134,6 +138,37 @@ def setup_planning_definition_routes(
                 limit=limit,
             )
         )
+
+    @router.post("/projects/{project_id}/roadmaps/{roadmap_id}/agent-handoff")
+    async def create_agent_handoff(
+        project_id: str,
+        roadmap_id: str,
+        request: Request,
+    ):
+        owner = scope(request)
+        body = await _json_object(request, required={"revision", "content_hash"})
+
+        def build() -> dict[str, Any]:
+            try:
+                read_model = active_store().get_roadmap(
+                    owner,
+                    project_id,
+                    roadmap_id,
+                    revision=body["revision"],
+                )
+                return build_agent_plan_handoff(
+                    read_model,
+                    expected_revision=body["revision"],
+                    expected_hash=body["content_hash"],
+                )
+            except PlanningAgentHandoffError as exc:
+                raise PlanningRevisionStoreError(
+                    exc.code,
+                    exc.detail,
+                    origin_state="live",
+                ) from exc
+
+        return _read(build)
 
     @router.post("/projects/{project_id}/roadmaps/{roadmap_id}/drafts")
     async def create_draft(project_id: str, roadmap_id: str, request: Request):

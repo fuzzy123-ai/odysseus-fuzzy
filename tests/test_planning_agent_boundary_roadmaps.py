@@ -310,7 +310,23 @@ def test_pde03_temporary_write_boundary_routes_to_pde04_without_real_write() -> 
     assert pde03["completion_evidence"]["write_gate_state"].startswith(
         "PLANNING-WRITE-GO remains gated"
     )
-    assert pde04["status"] == "planned"
     assert pde04["depends_on"] == ["PDE-03-revision-proposal-apply"]
-    assert "claim PDE-04" in pde["recommended_next_step"]
-    assert "launch_authorized false" in pde["recommended_next_step"]
+    assert pde04["gate"]["safe_default"].startswith("Navigation envelope only")
+
+
+def test_pde04_completion_parks_pde05_at_named_design_gate() -> None:
+    pde = _load(PDE_PATH)
+    slices = {item["id"]: item for item in pde["slice_queue"]}
+    gates = {item["id"]: item for item in pde["gate_queue"]}
+
+    pde04 = slices["PDE-04-agent-handoff-envelope"]
+    pde05 = slices["PDE-05-v3-planning-surface"]
+    design_gate = gates["HPA-PLANNING-UX-ACCEPTANCE"]
+    assert pde04["status"] == "implemented_focused_tested"
+    assert pde04["completion_evidence"]["focused_result"].startswith("51 passed")
+    assert pde05["status"] == "planned"
+    assert pde05["gate"]["id"] == "HPA-PLANNING-UX-ACCEPTANCE"
+    assert design_gate["status"] == "design_direction_locked_acceptance_pending"
+    assert "PDE-05-v3-planning-surface" in design_gate["blocks"]
+    assert "park PDE-05" in pde["recommended_next_step"]
+    assert "Planning MCP" in pde["recommended_next_step"]

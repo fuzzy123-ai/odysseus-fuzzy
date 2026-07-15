@@ -5,7 +5,7 @@
   "title": "Planning Definition Editor Roadmap",
   "created_at": "2026-07-13",
   "updated_at": "2026-07-15",
-  "status": "active_serial_PDE_04_ready",
+  "status": "active_serial_PDE_05_design_gate",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
   "goal": "Make Harbor One Planning the authoritative editor and reader for versioned project and roadmap definitions while excluding every mutable execution concern from the Planning payload and screen.",
@@ -650,7 +650,7 @@
     },
     {
       "id": "PDE-04-agent-handoff-envelope",
-      "status": "planned",
+      "status": "implemented_focused_tested",
       "class": "repo_only",
       "owner": "Bob",
       "depends_on": [
@@ -678,6 +678,20 @@
         "envelope contains no skill, model, run or command field",
         "no Agent run endpoint called"
       ],
+      "completion_evidence": {
+        "observed_at": "2026-07-15T08:22:00+02:00",
+        "focused_result": "51 passed, 1 unrelated SQLAlchemy deprecation warning",
+        "combined_boundary_result": "60 passed across handoff, Planning routes and cross-roadmap boundary contracts",
+        "verified_invariants": [
+          "only the exact current approved revision and matching canonical content hash can produce an envelope",
+          "older approved, draft, in-review, superseded, archived, tombstoned, mismatched and tampered revisions are rejected",
+          "composer text is exactly /abc run roadmap:<roadmap_id>@<revision> hash:<content_hash>",
+          "launch_authorized is exactly false and read_only is exactly true",
+          "skill, model, run, workflow, command and auto-submit fields are forbidden",
+          "the Planning route reads one explicit positive revision and never resolves latest_approved implicitly",
+          "the handoff and route modules import no Agent, Temporal or HTTP execution client and contain no Agent run endpoint"
+        ]
+      },
       "gate": {
         "id": "none",
         "safe_default": "Navigation envelope only; user submission of /abc remains required."
@@ -947,5 +961,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_pde_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "Release PDE-03 with temporary-repository evidence, then claim PDE-04 Agent handoff envelope paths. Keep launch_authorized false, emit only an exact hash-pinned /abc composer draft and do not call a run-start endpoint."
+  "recommended_next_step": "Release PDE-04, park PDE-05 at HPA-PLANNING-UX-ACCEPTANCE without mutating V3 UI hotfiles, and follow the master roadmap to the next dependency-safe non-UI Planning MCP slice. Resume PDE-05 only after the named design acceptance is satisfied."
 }
