@@ -1,0 +1,1029 @@
+{
+  "baseline": {
+    "errors": [],
+    "expected_counts": {
+      "admin_metadata": 31,
+      "function_schemas": 83,
+      "runtime_tags": 78,
+      "runtime_without_admin_metadata": 48,
+      "runtime_without_function_schema": 1,
+      "schema_without_runtime_tag": 6,
+      "stale_admin_metadata": 1
+    },
+    "status": "matches"
+  },
+  "counts": {
+    "admin_metadata": 31,
+    "agent_handlers": 27,
+    "dispatcher_condition_ids": 80,
+    "function_schemas": 83,
+    "mcp_legacy_routes": 7,
+    "prompt_sections": 68,
+    "runtime_tags": 78,
+    "runtime_without_admin_metadata": 48,
+    "runtime_without_function_schema": 1,
+    "schema_without_runtime_tag": 6,
+    "stale_admin_metadata": 1,
+    "tool_index_entries": 83
+  },
+  "deterministic": true,
+  "drift": {
+    "prompt_without_runtime_tag": [
+      {
+        "classification": "missing",
+        "reason_code": "prompt_section_has_no_runtime_registration",
+        "tool_id": "manage_assistant"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "prompt_section_has_no_runtime_registration",
+        "tool_id": "manage_embeddings"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "prompt_section_has_no_runtime_registration",
+        "tool_id": "manage_personal_docs"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "prompt_section_has_no_runtime_registration",
+        "tool_id": "manage_plugins"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "prompt_section_has_no_runtime_registration",
+        "tool_id": "manage_presets"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "prompt_section_has_no_runtime_registration",
+        "tool_id": "tail_serve_output"
+      }
+    ],
+    "runtime_without_admin_metadata": [
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "adopt_served_model"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "app_api"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "archive_email"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "ask_user"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "bulk_email"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "cancel_download"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "commit_project"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "delegate"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "delete_email"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "download_model"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "edit_file"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "edit_image"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "get_workspace"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "glob"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "grep"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "list_cached_models"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "list_cookbook_servers"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "list_downloads"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "list_email_accounts"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "list_emails"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "list_serve_presets"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "list_served_models"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "ls"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "manage_bg_jobs"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "manage_calendar"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "manage_contact"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "manage_github_issues"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "manage_nextcloud_transfer"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "manage_notes"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "manage_repos"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "manage_research"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "manage_subagents"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "mark_email_read"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "publish_artifact"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "read_email"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "recent_changes"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "reply_to_email"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "resolve_contact"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "search_hf_models"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "send_email"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "serve_model"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "serve_preset"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "spawn_subagent"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "stop_served_model"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "trigger_research"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "update_plan"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "verify_pygame_headless"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_uses_generic_admin_fallback",
+        "tool_id": "web_fetch"
+      }
+    ],
+    "runtime_without_function_schema": [
+      {
+        "classification": "intentional",
+        "reason_code": "text_only_or_non_native_projection_requires_explicit_contract",
+        "tool_id": "generate_image"
+      }
+    ],
+    "runtime_without_prompt_section": [
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_has_no_dedicated_prompt_section",
+        "tool_id": "adopt_served_model"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_has_no_dedicated_prompt_section",
+        "tool_id": "api_call"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_has_no_dedicated_prompt_section",
+        "tool_id": "commit_project"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_has_no_dedicated_prompt_section",
+        "tool_id": "delegate"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_has_no_dedicated_prompt_section",
+        "tool_id": "edit_image"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_has_no_dedicated_prompt_section",
+        "tool_id": "glob"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_has_no_dedicated_prompt_section",
+        "tool_id": "grep"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_has_no_dedicated_prompt_section",
+        "tool_id": "list_cookbook_servers"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_has_no_dedicated_prompt_section",
+        "tool_id": "list_serve_presets"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_has_no_dedicated_prompt_section",
+        "tool_id": "ls"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_has_no_dedicated_prompt_section",
+        "tool_id": "manage_bg_jobs"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_has_no_dedicated_prompt_section",
+        "tool_id": "manage_nextcloud_transfer"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_has_no_dedicated_prompt_section",
+        "tool_id": "manage_subagents"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_has_no_dedicated_prompt_section",
+        "tool_id": "serve_preset"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_has_no_dedicated_prompt_section",
+        "tool_id": "spawn_subagent"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_has_no_dedicated_prompt_section",
+        "tool_id": "trigger_research"
+      }
+    ],
+    "runtime_without_tool_index": [
+      {
+        "classification": "missing",
+        "reason_code": "runtime_tag_has_no_searchable_index_entry",
+        "tool_id": "commit_project"
+      }
+    ],
+    "schema_without_runtime_tag": [
+      {
+        "classification": "missing",
+        "reason_code": "native_schema_rejected_before_dispatch_without_runtime_tag",
+        "tool_id": "manage_assistant"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "native_schema_rejected_before_dispatch_without_runtime_tag",
+        "tool_id": "manage_embeddings"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "native_schema_rejected_before_dispatch_without_runtime_tag",
+        "tool_id": "manage_personal_docs"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "native_schema_rejected_before_dispatch_without_runtime_tag",
+        "tool_id": "manage_plugins"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "native_schema_rejected_before_dispatch_without_runtime_tag",
+        "tool_id": "manage_presets"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "native_schema_rejected_before_dispatch_without_runtime_tag",
+        "tool_id": "tail_serve_output"
+      }
+    ],
+    "stale_admin_metadata": [
+      {
+        "classification": "stale",
+        "reason_code": "admin_metadata_has_no_runtime_registration",
+        "tool_id": "manage_rag"
+      }
+    ],
+    "tool_index_without_runtime_tag": [
+      {
+        "classification": "missing",
+        "reason_code": "index_entry_has_no_runtime_registration",
+        "tool_id": "manage_assistant"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "index_entry_has_no_runtime_registration",
+        "tool_id": "manage_embeddings"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "index_entry_has_no_runtime_registration",
+        "tool_id": "manage_personal_docs"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "index_entry_has_no_runtime_registration",
+        "tool_id": "manage_plugins"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "index_entry_has_no_runtime_registration",
+        "tool_id": "manage_presets"
+      },
+      {
+        "classification": "missing",
+        "reason_code": "index_entry_has_no_runtime_registration",
+        "tool_id": "tail_serve_output"
+      }
+    ]
+  },
+  "dynamic_sources": {
+    "mcp": {
+      "classification": "dynamic",
+      "legacy_routes": [
+        "bash",
+        "generate_image",
+        "python",
+        "read_file",
+        "web_fetch",
+        "web_search",
+        "write_file"
+      ],
+      "path": "src/mcp_manager.py",
+      "qualified_prefix": "mcp__",
+      "registration_mode": "qualified_mcp_tool_names"
+    },
+    "plugin_registration_sources": [
+      {
+        "classification": "dynamic",
+        "literal_tool_ids": [],
+        "path": "src/plugin_system.py",
+        "registration_call_count": 0
+      },
+      {
+        "classification": "dynamic",
+        "literal_tool_ids": [],
+        "path": "src/sensitive_local_worker.py",
+        "registration_call_count": 1
+      },
+      {
+        "classification": "dynamic",
+        "literal_tool_ids": [
+          "odysseus_notify_user",
+          "telegram_document_reply",
+          "telegram_reply"
+        ],
+        "path": "plugins/telegram/plugin.py",
+        "registration_call_count": 3
+      },
+      {
+        "classification": "dynamic",
+        "literal_tool_ids": [],
+        "path": "plugins/obsidian/plugin.py",
+        "registration_call_count": 1
+      }
+    ],
+    "registry": {
+      "classification": "dynamic",
+      "default_permission": "admin",
+      "path": "src/tool_registry.py",
+      "registration_mode": "runtime_ToolSpec_registry",
+      "static_runtime_count": null
+    }
+  },
+  "privacy": {
+    "private_paths_visible": false,
+    "prompt_text_visible": false,
+    "provider_output_visible": false,
+    "raw_content_visible": false,
+    "secret_values_visible": false,
+    "tool_arguments_visible": false,
+    "tool_results_visible": false
+  },
+  "projections": {
+    "admin_metadata": [
+      "api_call",
+      "ask_teacher",
+      "bash",
+      "chat_with_model",
+      "create_document",
+      "create_session",
+      "edit_document",
+      "generate_image",
+      "list_models",
+      "list_sessions",
+      "manage_documents",
+      "manage_endpoints",
+      "manage_mcp",
+      "manage_memory",
+      "manage_rag",
+      "manage_session",
+      "manage_settings",
+      "manage_skills",
+      "manage_tasks",
+      "manage_tokens",
+      "manage_webhooks",
+      "pipeline",
+      "python",
+      "read_file",
+      "search_chats",
+      "send_to_session",
+      "suggest_document",
+      "ui_control",
+      "update_document",
+      "web_search",
+      "write_file"
+    ],
+    "agent_handlers": [
+      "ask_teacher",
+      "bash",
+      "chat_with_model",
+      "commit_project",
+      "create_document",
+      "create_session",
+      "edit_document",
+      "edit_file",
+      "get_workspace",
+      "glob",
+      "grep",
+      "list_models",
+      "list_sessions",
+      "ls",
+      "manage_bg_jobs",
+      "manage_documents",
+      "manage_session",
+      "publish_artifact",
+      "python",
+      "read_file",
+      "send_to_session",
+      "suggest_document",
+      "update_document",
+      "verify_pygame_headless",
+      "web_fetch",
+      "web_search",
+      "write_file"
+    ],
+    "dispatcher_condition_ids": [
+      "adopt_served_model",
+      "api_call",
+      "app_api",
+      "ask_teacher",
+      "ask_user",
+      "bash",
+      "cancel_download",
+      "chat_with_model",
+      "create_document",
+      "create_session",
+      "delegate",
+      "download_model",
+      "edit_document",
+      "edit_file",
+      "edit_image",
+      "generate_image",
+      "get_workspace",
+      "glob",
+      "grep",
+      "invalid_tool_call",
+      "json",
+      "list_cached_models",
+      "list_cookbook_servers",
+      "list_downloads",
+      "list_models",
+      "list_serve_presets",
+      "list_served_models",
+      "list_sessions",
+      "ls",
+      "manage_assistant",
+      "manage_bg_jobs",
+      "manage_calendar",
+      "manage_contact",
+      "manage_documents",
+      "manage_embeddings",
+      "manage_endpoints",
+      "manage_github_issues",
+      "manage_mcp",
+      "manage_memory",
+      "manage_nextcloud_transfer",
+      "manage_notes",
+      "manage_personal_docs",
+      "manage_plugins",
+      "manage_presets",
+      "manage_repos",
+      "manage_research",
+      "manage_session",
+      "manage_settings",
+      "manage_skills",
+      "manage_subagents",
+      "manage_tasks",
+      "manage_tokens",
+      "manage_webhooks",
+      "pipeline",
+      "publish_artifact",
+      "python",
+      "read_file",
+      "recent_changes",
+      "resolve_contact",
+      "search_chats",
+      "search_hf_models",
+      "send_to_session",
+      "serve_model",
+      "serve_preset",
+      "spawn_subagent",
+      "stop_served_model",
+      "suggest_document",
+      "tail_serve_output",
+      "trigger_research",
+      "ui_control",
+      "update_document",
+      "update_plan",
+      "vault_get",
+      "vault_search",
+      "vault_unlock",
+      "verify_pygame_headless",
+      "web_fetch",
+      "web_search",
+      "write_file",
+      "xml"
+    ],
+    "function_schemas": [
+      "adopt_served_model",
+      "api_call",
+      "app_api",
+      "archive_email",
+      "ask_teacher",
+      "ask_user",
+      "bash",
+      "bulk_email",
+      "cancel_download",
+      "chat_with_model",
+      "commit_project",
+      "create_document",
+      "create_session",
+      "delegate",
+      "delete_email",
+      "download_model",
+      "edit_document",
+      "edit_file",
+      "edit_image",
+      "get_workspace",
+      "glob",
+      "grep",
+      "list_cached_models",
+      "list_cookbook_servers",
+      "list_downloads",
+      "list_email_accounts",
+      "list_emails",
+      "list_models",
+      "list_serve_presets",
+      "list_served_models",
+      "list_sessions",
+      "ls",
+      "manage_assistant",
+      "manage_bg_jobs",
+      "manage_calendar",
+      "manage_contact",
+      "manage_documents",
+      "manage_embeddings",
+      "manage_endpoints",
+      "manage_github_issues",
+      "manage_mcp",
+      "manage_memory",
+      "manage_nextcloud_transfer",
+      "manage_notes",
+      "manage_personal_docs",
+      "manage_plugins",
+      "manage_presets",
+      "manage_repos",
+      "manage_research",
+      "manage_session",
+      "manage_settings",
+      "manage_skills",
+      "manage_subagents",
+      "manage_tasks",
+      "manage_tokens",
+      "manage_webhooks",
+      "mark_email_read",
+      "pipeline",
+      "publish_artifact",
+      "python",
+      "read_email",
+      "read_file",
+      "recent_changes",
+      "reply_to_email",
+      "resolve_contact",
+      "search_chats",
+      "search_hf_models",
+      "send_email",
+      "send_to_session",
+      "serve_model",
+      "serve_preset",
+      "spawn_subagent",
+      "stop_served_model",
+      "suggest_document",
+      "tail_serve_output",
+      "trigger_research",
+      "ui_control",
+      "update_document",
+      "update_plan",
+      "verify_pygame_headless",
+      "web_fetch",
+      "web_search",
+      "write_file"
+    ],
+    "mcp_legacy_routes": [
+      "bash",
+      "generate_image",
+      "python",
+      "read_file",
+      "web_fetch",
+      "web_search",
+      "write_file"
+    ],
+    "prompt_sections": [
+      "app_api",
+      "archive_email",
+      "ask_teacher",
+      "ask_user",
+      "bash",
+      "bulk_email",
+      "cancel_download",
+      "chat_with_model",
+      "create_document",
+      "create_session",
+      "delete_email",
+      "download_model",
+      "edit_document",
+      "edit_file",
+      "generate_image",
+      "get_workspace",
+      "list_cached_models",
+      "list_downloads",
+      "list_email_accounts",
+      "list_emails",
+      "list_models",
+      "list_served_models",
+      "list_sessions",
+      "manage_assistant",
+      "manage_calendar",
+      "manage_contact",
+      "manage_documents",
+      "manage_embeddings",
+      "manage_endpoints",
+      "manage_github_issues",
+      "manage_mcp",
+      "manage_memory",
+      "manage_notes",
+      "manage_personal_docs",
+      "manage_plugins",
+      "manage_presets",
+      "manage_repos",
+      "manage_research",
+      "manage_session",
+      "manage_settings",
+      "manage_skills",
+      "manage_tasks",
+      "manage_tokens",
+      "manage_webhooks",
+      "mark_email_read",
+      "pipeline",
+      "publish_artifact",
+      "python",
+      "read_email",
+      "read_file",
+      "recent_changes",
+      "reply_to_email",
+      "resolve_contact",
+      "search_chats",
+      "search_hf_models",
+      "send_email",
+      "send_to_session",
+      "serve_model",
+      "stop_served_model",
+      "suggest_document",
+      "tail_serve_output",
+      "ui_control",
+      "update_document",
+      "update_plan",
+      "verify_pygame_headless",
+      "web_fetch",
+      "web_search",
+      "write_file"
+    ],
+    "runtime_tags": [
+      "adopt_served_model",
+      "api_call",
+      "app_api",
+      "archive_email",
+      "ask_teacher",
+      "ask_user",
+      "bash",
+      "bulk_email",
+      "cancel_download",
+      "chat_with_model",
+      "commit_project",
+      "create_document",
+      "create_session",
+      "delegate",
+      "delete_email",
+      "download_model",
+      "edit_document",
+      "edit_file",
+      "edit_image",
+      "generate_image",
+      "get_workspace",
+      "glob",
+      "grep",
+      "list_cached_models",
+      "list_cookbook_servers",
+      "list_downloads",
+      "list_email_accounts",
+      "list_emails",
+      "list_models",
+      "list_serve_presets",
+      "list_served_models",
+      "list_sessions",
+      "ls",
+      "manage_bg_jobs",
+      "manage_calendar",
+      "manage_contact",
+      "manage_documents",
+      "manage_endpoints",
+      "manage_github_issues",
+      "manage_mcp",
+      "manage_memory",
+      "manage_nextcloud_transfer",
+      "manage_notes",
+      "manage_repos",
+      "manage_research",
+      "manage_session",
+      "manage_settings",
+      "manage_skills",
+      "manage_subagents",
+      "manage_tasks",
+      "manage_tokens",
+      "manage_webhooks",
+      "mark_email_read",
+      "pipeline",
+      "publish_artifact",
+      "python",
+      "read_email",
+      "read_file",
+      "recent_changes",
+      "reply_to_email",
+      "resolve_contact",
+      "search_chats",
+      "search_hf_models",
+      "send_email",
+      "send_to_session",
+      "serve_model",
+      "serve_preset",
+      "spawn_subagent",
+      "stop_served_model",
+      "suggest_document",
+      "trigger_research",
+      "ui_control",
+      "update_document",
+      "update_plan",
+      "verify_pygame_headless",
+      "web_fetch",
+      "web_search",
+      "write_file"
+    ],
+    "tool_index_entries": [
+      "adopt_served_model",
+      "api_call",
+      "app_api",
+      "archive_email",
+      "ask_teacher",
+      "ask_user",
+      "bash",
+      "bulk_email",
+      "cancel_download",
+      "chat_with_model",
+      "create_document",
+      "create_session",
+      "delegate",
+      "delete_email",
+      "download_model",
+      "edit_document",
+      "edit_file",
+      "edit_image",
+      "generate_image",
+      "get_workspace",
+      "glob",
+      "grep",
+      "list_cached_models",
+      "list_cookbook_servers",
+      "list_downloads",
+      "list_email_accounts",
+      "list_emails",
+      "list_models",
+      "list_serve_presets",
+      "list_served_models",
+      "list_sessions",
+      "ls",
+      "manage_assistant",
+      "manage_bg_jobs",
+      "manage_calendar",
+      "manage_contact",
+      "manage_documents",
+      "manage_embeddings",
+      "manage_endpoints",
+      "manage_github_issues",
+      "manage_mcp",
+      "manage_memory",
+      "manage_nextcloud_transfer",
+      "manage_notes",
+      "manage_personal_docs",
+      "manage_plugins",
+      "manage_presets",
+      "manage_repos",
+      "manage_research",
+      "manage_session",
+      "manage_settings",
+      "manage_skills",
+      "manage_subagents",
+      "manage_tasks",
+      "manage_tokens",
+      "manage_webhooks",
+      "mark_email_read",
+      "pipeline",
+      "publish_artifact",
+      "python",
+      "read_email",
+      "read_file",
+      "recent_changes",
+      "reply_to_email",
+      "resolve_contact",
+      "search_chats",
+      "search_hf_models",
+      "send_email",
+      "send_to_session",
+      "serve_model",
+      "serve_preset",
+      "spawn_subagent",
+      "stop_served_model",
+      "suggest_document",
+      "tail_serve_output",
+      "trigger_research",
+      "ui_control",
+      "update_document",
+      "update_plan",
+      "verify_pygame_headless",
+      "web_fetch",
+      "web_search",
+      "write_file"
+    ]
+  },
+  "schema_version": "odysseus.tool_taxonomy_inventory.v1",
+  "scope": "static_repository_metadata_only",
+  "source_digest_sha256": "80fc50107cbfb34e335ed6e225f5afe56e89ff7c71b04df335bb6d5177db36c8",
+  "source_hashes_sha256": {
+    "plugins/obsidian/plugin.py": "fe074b23c3e0f6fe6fa968011ba168e3a7eb95cf1acb992b10b5be425fb9e9f2",
+    "plugins/telegram/plugin.py": "7b5e17acd50fff107f69659dbda5aff8a010a31928c5a5ac14c5667a9babc9f6",
+    "src/agent_loop_prompts.py": "150680cd7288480e2f86d149ecd052a07569b406f1fde134cdbfb3e4a8cf9349",
+    "src/agent_tools/__init__.py": "50fdfbecbc0fa7d75f1ad828a4213873389317b17c13e2d9542e30fc4516aba5",
+    "src/mcp_manager.py": "ce10e9727d450419079ae340b1560d0389ba2b31065d47c0d2aa03553a064c4b",
+    "src/plugin_system.py": "cfaffce7f056f784956a697b16ff097c27a1c851ad7a0cf597f22608393e34c6",
+    "src/sensitive_local_worker.py": "4a8a947741805b4a5b605033021af3c85d7c2f27c82ffde1c054f1f5022afce1",
+    "src/tool_catalog.py": "2af2e8dfac71e0ac0854fdfa583e149b4708e8b9ab9bc3793821cd817018e3b9",
+    "src/tool_execution.py": "31849ef8c9a69b8a11666ec783c7f633c33e191550bf21fe089d223c13372afe",
+    "src/tool_index.py": "3886f2173d3e632365a7b9c447228e7dc75f55b92ca958849a2b1346a04020e9",
+    "src/tool_registry.py": "f4318429daf12b7aa42dfc0a73ba70446925d6b66945f094d7e337f847865aa2",
+    "src/tool_schema_definitions.py": "afff0af3a1d74bcf57cca6e91fa45e6394e7af4e01d98c62473b011b12e6d455",
+    "static/js/admin.js": "140a548be350f29386d1f060e4e52da0921a9fe3aef973fa8a5a125ff41a1374"
+  }
+}
