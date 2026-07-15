@@ -3,18 +3,18 @@
   "kind": "odysseus.abc_durable_run_state",
   "run_id": "sar-12h-20260714t092106",
   "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
-  "roadmap_id": "planning-mcp",
-  "roadmap_path": "docs/plans/planning-mcp-roadmap.json",
-  "queue_scope": "named_roadmap",
-  "phase": "implementation",
+  "roadmap_id": "harbor-planning-integration-master",
+  "roadmap_path": "docs/plans/harbor-planning-integration-master-roadmap.json",
+  "queue_scope": "master_frontier",
+  "phase": "gated_frontier",
   "supervision": "interactive",
   "mutation_authority": "repo_only",
-  "state": "running",
-  "revision": 146,
+  "state": "waiting_on_user",
+  "revision": 147,
   "resumed_at": "2026-07-15T07:08:35.5258180+02:00",
   "resume_authority": "user_directed_goal_restart_TLR_then_next_roadmap",
-  "paused_at": null,
-  "pause_authority": null,
+  "paused_at": "2026-07-15T08:54:25.8125832+02:00",
+  "pause_authority": "master_queue_exhausted_at_TLR_environment_and_PDE_design_gates",
   "started_at": "2026-07-14T09:21:06.2586366+02:00",
   "previous_deadline_at": "2026-07-14T21:21:06.2586366+02:00",
   "deadline_at": null,
@@ -108,54 +108,24 @@
       "the archived-session test-only blocker is claimed as the first resumed slice"
     ]
   },
-  "active_claims": [
+  "active_claims": [],
+  "released_claims": [
     {
       "claim_id": "sar-12h-20260714t092106:PMCP-9-roadmap-closeout",
-      "run_id": "sar-12h-20260714t092106",
-      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
       "slice_id": "PMCP-9-definition-runtime-separation",
       "owner": "/root",
-      "allowed_paths": [
-        "docs/plans/system-assurance-runtime-hardening-run-state.json",
-        "docs/plans/planning-mcp-roadmap.json"
-      ],
-      "hotfiles": [
-        "docs/plans/planning-mcp-roadmap.json"
-      ],
-      "state": "active",
+      "state": "released_runstate_evidence_green_foreign_roadmap_handoff_parked",
       "acquired_at": "2026-07-15T08:50:48.4762631+02:00",
-      "lease_expires_at": "2026-07-15T10:50:48.4762631+02:00",
-      "handoff_required": false,
-      "handoff_evidence": [
-        "the external MCP definition contract is green and committed as acd7dfa4",
-        "the declared PMCP-9 integration command passed 149 tests with one expected skip",
-        "the live agent inventory contains only /root; no parallel agent or same-checkout claimant is active",
-        "the pre-existing foreign Planning service and test alias hunks remain unstaged with their original 10/3 and 21/1 numstat and are excluded from this claim",
-        "docs/plans/planning-mcp-roadmap.json has a pre-existing foreign 155-added/53-removed working diff whose full fingerprint is recorded",
-        "this closeout owns only the PMCP-9 status, completion evidence and next-frontier handoff hunks; all pre-existing roadmap hunks must remain unstaged",
-        "no further product or runtime mutation is authorized by this documentation closeout"
-      ],
-      "path_fingerprints_sha256": {
-        "docs/plans/system-assurance-runtime-hardening-run-state.json": "2f89e8cca46c56fc64cfcef8827288454e112606692208568644f5515dce1eac",
-        "docs/plans/planning-mcp-roadmap.json": "3a5c6d38f528bef508318cbed0835f5ac9a791ac517bbbc801214c5e68aa5b09"
-      },
-      "evidence_contract": {
-        "target_environment": "local",
-        "observed_at": "2026-07-15T08:50:48.4762631+02:00",
-        "authority": "repo",
-        "mutation_class": "repo_only",
-        "required": [
-          "PMCP_9_status_and_evidence_only",
-          "foreign_roadmap_hunks_remain_unstaged",
-          "json_and_boundary_contract_green",
-          "next_frontier_is_truthfully_gated"
-        ],
-        "temporal_window": "none",
-        "positive_path_required": true
-      }
-    }
-  ],
-  "released_claims": [
+      "released_at": "2026-07-15T08:54:25.8125832+02:00",
+      "commit": "not_applicable_foreign_hotfile_preserved",
+      "evidence": [
+        "PMCP-9 implementation and integration evidence is durable in this runstate",
+        "the Planning MCP roadmap file returned to its exact pre-claim SHA-256 3a5c6d38f528bef508318cbed0835f5ac9a791ac517bbbc801214c5e68aa5b09",
+        "its pre-existing 155-added/53-removed foreign working diff remains unstaged and was not absorbed into a commit",
+        "no product, live, Agent or Temporal mutation occurred during closeout",
+        "the master queue now has no dependency-safe ungated child frontier"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:PMCP-9-external-plugin-routes",
       "slice_id": "PMCP-9-definition-runtime-separation",
@@ -2202,6 +2172,20 @@
   ],
   "completed_slices": [
     {
+      "slice_id": "PMCP-9-definition-runtime-separation",
+      "completion_layer": "repository_implemented_integrated_and_committed_roadmap_status_handoff_parked",
+      "evidence": [
+        "service core commit a412f28f",
+        "internal transport and policy commit cff55a36",
+        "external contract commit acd7dfa4",
+        "92 Planning service tests passed with one expected skip",
+        "28 internal transport and policy tests passed",
+        "18 external plugin tests passed",
+        "declared PMCP-9 integration run passed 149 tests with one expected skip",
+        "all pre-existing foreign source, test and roadmap hunks remain unstaged"
+      ]
+    },
+    {
       "slice_id": "SAR-05-background-job-transaction-boundary",
       "completion_layer": "repository_implemented_focused_compatibility_tested_and_committed",
       "evidence": [
@@ -2327,11 +2311,6 @@
   ],
   "partial_slices": [
     {
-      "slice_id": "PMCP-9-definition-runtime-separation",
-      "state": "integration_green_roadmap_closeout_claimed",
-      "next_evidence": "Persist only the PMCP-9 roadmap status/evidence hunk, release the claim, then park at the next explicit master-queue design or environment gate."
-    },
-    {
       "slice_id": "SAR-01-binding-ci-and-publish-provenance",
       "state": "blocked_environment",
       "next_evidence": "Resume only at a declared integration point when the unchanged repository suite can run in a symlink-capable environment without diagnostic deselections. Do not request Docker repeatedly, quarantine the tests or continue probe cycles."
@@ -2375,6 +2354,48 @@
     }
   ],
   "gate_queue": [
+    {
+      "gate_id": "PMCP-9-ROADMAP-FOREIGN-HUNK-HANDOFF",
+      "state": "parked_foreign_uncommitted_hunks",
+      "blocks": [
+        "synchronizing the PMCP-9 status inside docs/plans/planning-mcp-roadmap.json"
+      ],
+      "does_not_block": [
+        "PMCP-9 implementation",
+        "PMCP-9 integration evidence",
+        "future dependency-safe work after a fresh claim"
+      ],
+      "decision_needed": "Integrate the PMCP-9 completion receipt only after the pre-existing roadmap author owns or commits the 155-added/53-removed working diff.",
+      "safe_default": "Keep the roadmap byte-identical to its pre-claim working state and use the durable runstate completion receipt."
+    },
+    {
+      "gate_id": "HPA-PLANNING-UX-ACCEPTANCE",
+      "state": "design_direction_locked_acceptance_pending",
+      "blocks": [
+        "PDE-05-v3-planning-surface",
+        "PDE-06-definition-notification-undo",
+        "PDE-07-boundary-browser-acceptance"
+      ],
+      "does_not_block": [
+        "completed PDE-01 through PDE-04",
+        "completed PMCP-9 definition/runtime separation"
+      ],
+      "decision_needed": "Accept the named V3 Planning UX direction before mutating UI hotfiles.",
+      "safe_default": "Do not mutate the V3 Planning surface or claim dependent PDE slices."
+    },
+    {
+      "gate_id": "TLR-01-LOCAL-CAPABILITY-GATE",
+      "state": "blocked_environment",
+      "blocks": [
+        "TLR-01-temporal-light-local-runtime",
+        "TLR-02 through TLR-09"
+      ],
+      "does_not_block": [
+        "completed PDE and PMCP repository work"
+      ],
+      "decision_needed": "Provide or authorize the exact Temporal SDK, CLI and TLR-LOCAL-SERVICE-GO inputs.",
+      "safe_default": "Do not install dependencies, start Temporal or mutate TLR product paths."
+    },
     {
       "gate_id": "SAR-REGISTRATION-HANDOFF",
       "state": "satisfied_by_timed_general_delegation",
@@ -2834,16 +2855,21 @@
   "live_go_ledger": [],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T08:50:48.4762631+02:00",
-    "summary": "PMCP-9 is implementation- and integration-green across the service, internal transport, policy and external plugin contract. Foreign Planning alias and roadmap hunks remain unstaged and unchanged. One final documentation-only claim owns only the PMCP-9 status/evidence and truthful gated-frontier handoff.",
-    "resume_cursor": "close_PMCP_9_roadmap_then_park_at_next_master_gate",
+    "last_durable_progress_at": "2026-07-15T08:54:25.8125832+02:00",
+    "summary": "PMCP-9 is implemented, committed and integration-green. Its foreign-dirty roadmap status synchronization is parked without changing the pre-claim file. The Harbor Planning master now has no dependency-safe ungated child frontier: TLR-01 is blocked_environment and PDE-05 is blocked by the named Planning UX acceptance gate.",
+    "resume_cursor": "waiting_for_TLR_local_capabilities_or_HPA_Planning_UX_acceptance",
     "resume_priority": [
-      "PMCP-9-definition-runtime-separation"
+      "TLR-01-temporal-light-local-runtime",
+      "PDE-05-v3-planning-surface"
     ],
-    "next_runnable_slices": [
-      "PMCP-9-definition-runtime-separation"
-    ],
+    "next_runnable_slices": [],
     "blocked_slices": [
+      "TLR-01-temporal-light-local-runtime",
+      "TLR-02-deterministic-workflow-state-machine",
+      "TLR-03-activity-history-heartbeats",
+      "TLR-04-signals-updates-idempotency",
+      "TLR-05-agent-operation-projection",
+      "TLR-06-recovery-replay-integration",
       "PDE-05-ui-states-and-accessibility",
       "PDE-07-e2e-verification-and-handoff",
       "SAR-01-binding-ci-and-publish-provenance",
@@ -2863,6 +2889,7 @@
   },
   "completion_layers": {
     "implemented": [
+      "PMCP-9-definition-runtime-separation",
       "PDE-01-definition-schema-validator",
       "PDE-02-definition-read-model-api",
       "PDE-03-revision-proposal-apply",
@@ -2879,6 +2906,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "PMCP-9-definition-runtime-separation:92_service_28_internal_18_external_149_combined_1_expected_skip",
       "PDE-01-definition-schema-validator:92_focused_99_combined_boundary",
       "PDE-02-definition-read-model-api-service:35_focused_42_combined_boundary",
       "PDE-02-definition-read-model-api-registered:36_focused_43_combined_boundary",
@@ -2897,6 +2925,7 @@
       "SAR-09-measured-optimization-decisions:focused_and_cli"
     ],
     "committed": [
+      "PMCP-9-definition-runtime-separation:a412f28f_cff55a36_acd7dfa4",
       "PDE-01-definition-schema-validator:7cfc9e8845b6bb2edfe9651007e2d6e87147376d",
       "PDE-02-definition-read-model-api-service:5d58ea7f70f64a0ab5a70269678b284bd57345cc",
       "PDE-02-definition-read-model-api-registered:522dff385637602295703e98b83a7fd5169d0903",
