@@ -16,6 +16,8 @@ _MAX_SUMMARY_CHARS = 140
 _MAX_SCHEMA_REF_LENGTH = 120
 _NON_SLUG_CHARS_RE = re.compile(r"[^a-z0-9]+")
 _TOOL_ID_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,120}$")
+_STATIC_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,119}$")
+_WINDOWS_ABSOLUTE_REF_RE = re.compile(r"^[A-Za-z]:/")
 
 
 class ToolCatalogError(ValueError):
@@ -34,6 +36,64 @@ class ToolRiskLevel(StrEnum):
     SAFE = "safe"
     ELEVATED = "elevated"
     DANGEROUS = "dangerous"
+
+
+class ToolFamily(StrEnum):
+    CODE_FILESYSTEM = "code_filesystem"
+    SEARCH_WEB = "search_web"
+    KNOWLEDGE_MEMORY = "knowledge_memory"
+    DOCUMENTS_MEDIA = "documents_media"
+    MODEL_OPS = "model_ops"
+    PROJECTS_REPOSITORIES = "projects_repositories"
+    ORCHESTRATION_SESSIONS = "orchestration_sessions"
+    PLANNING_COMMUNICATION = "planning_communication"
+    ADMIN_SYSTEM = "admin_system"
+    PLUGINS_MCP = "plugins_mcp"
+    EXTERNAL_PROVIDERS = "external_providers"
+    EXPERIMENTAL = "experimental"
+    UNCLASSIFIED_DYNAMIC = "unclassified_dynamic"
+
+
+class ToolSource(StrEnum):
+    BUILTIN = "builtin"
+    PLUGIN = "plugin"
+    MCP = "mcp"
+    PROVIDER = "provider"
+    LEGACY = "legacy"
+    DYNAMIC = "dynamic"
+
+
+class ToolLifecycle(StrEnum):
+    ACTIVE = "active"
+    CONTEXTUAL = "contextual"
+    DEFERRED = "deferred"
+    EXPERIMENTAL = "experimental"
+    DEPRECATED = "deprecated"
+    BLOCKED = "blocked"
+
+
+class ToolAvailability(StrEnum):
+    AVAILABLE = "available"
+    UNAVAILABLE = "unavailable"
+    UNCONFIGURED = "unconfigured"
+    DISABLED = "disabled"
+    BLOCKED = "blocked"
+    UNKNOWN = "unknown"
+
+
+class ToolEffectClass(StrEnum):
+    READ = "read"
+    LOCAL_WRITE = "local_write"
+    EXTERNAL_WRITE = "external_write"
+    DESTRUCTIVE = "destructive"
+    CONTROL = "control"
+
+
+class ToolPermission(StrEnum):
+    PUBLIC = "public"
+    OWNER = "owner"
+    ADMIN = "admin"
+    SYSTEM = "system"
 
 
 def _normalize_slug(value: Any, *, field_name: str) -> str:
@@ -78,6 +138,444 @@ def _normalize_slug_list(values: Iterable[Any], *, field_name: str, allow_empty:
     if not allow_empty and not normalized:
         raise ToolCatalogError(f"{field_name} must not be empty")
     return tuple(sorted(normalized))
+
+
+def _strict_analytics_id(value: Any) -> str:
+    raw = str(value or "").strip()
+    normalized = _normalize_slug(raw, field_name="analytics_id")
+    if normalized != raw:
+        raise ToolCatalogError("analytics_id must already be a lowercase hyphenated slug")
+    return normalized
+
+
+def _enum_value(enum_type: type[StrEnum], value: Any, *, field_name: str) -> StrEnum:
+    try:
+        return value if isinstance(value, enum_type) else enum_type(str(value))
+    except ValueError as exc:
+        allowed = ", ".join(item.value for item in enum_type)
+        raise ToolCatalogError(f"{field_name} must be one of: {allowed}") from exc
+
+
+def _strict_bool(value: Any, *, field_name: str) -> bool:
+    if not isinstance(value, bool):
+        raise ToolCatalogError(f"{field_name} must be a boolean")
+    return value
+
+
+def _optional_ref(value: Any, *, field_name: str) -> str | None:
+    if value is None or not str(value).strip():
+        return None
+    normalized = _normalize_text(
+        value,
+        field_name=field_name,
+        allow_empty=False,
+        limit=_MAX_SCHEMA_REF_LENGTH,
+    )
+    if (
+        not _STATIC_REF_RE.fullmatch(normalized)
+        or normalized.startswith("/")
+        or _WINDOWS_ABSOLUTE_REF_RE.match(normalized)
+        or "://" in normalized
+    ):
+        raise ToolCatalogError(f"{field_name} must be a static non-absolute reference")
+    return normalized
+
+
+def _aliases(values: Iterable[Any], *, tool_id: str) -> tuple[str, ...]:
+    aliases = sorted(_normalize_tool_id(value, field_name="alias") for value in values)
+    if len(aliases) != len(set(aliases)):
+        raise ToolCatalogError("aliases must not contain duplicates")
+    if tool_id in aliases:
+        raise ToolCatalogError("aliases must not repeat the canonical tool_id")
+    return tuple(aliases)
+
+
+_DEFAULT_OFF_LIFECYCLES = {
+    ToolLifecycle.DEFERRED,
+    ToolLifecycle.EXPERIMENTAL,
+    ToolLifecycle.DEPRECATED,
+    ToolLifecycle.BLOCKED,
+}
+
+_ALLOWED_LIFECYCLE_TRANSITIONS = {
+    ToolLifecycle.ACTIVE: {
+        ToolLifecycle.ACTIVE,
+        ToolLifecycle.CONTEXTUAL,
+        ToolLifecycle.DEFERRED,
+        ToolLifecycle.DEPRECATED,
+        ToolLifecycle.BLOCKED,
+    },
+    ToolLifecycle.CONTEXTUAL: {
+        ToolLifecycle.ACTIVE,
+        ToolLifecycle.CONTEXTUAL,
+        ToolLifecycle.DEFERRED,
+        ToolLifecycle.DEPRECATED,
+        ToolLifecycle.BLOCKED,
+    },
+    ToolLifecycle.DEFERRED: {
+        ToolLifecycle.ACTIVE,
+        ToolLifecycle.CONTEXTUAL,
+        ToolLifecycle.DEFERRED,
+        ToolLifecycle.DEPRECATED,
+        ToolLifecycle.BLOCKED,
+    },
+    ToolLifecycle.EXPERIMENTAL: {
+        ToolLifecycle.ACTIVE,
+        ToolLifecycle.CONTEXTUAL,
+        ToolLifecycle.DEFERRED,
+        ToolLifecycle.EXPERIMENTAL,
+        ToolLifecycle.DEPRECATED,
+        ToolLifecycle.BLOCKED,
+    },
+    ToolLifecycle.DEPRECATED: {
+        ToolLifecycle.DEPRECATED,
+        ToolLifecycle.BLOCKED,
+    },
+    ToolLifecycle.BLOCKED: {
+        ToolLifecycle.BLOCKED,
+    },
+}
+
+
+def validate_tool_lifecycle_transition(
+    previous: ToolLifecycle | str,
+    next_value: ToolLifecycle | str,
+) -> ToolLifecycle:
+    previous_value = _enum_value(ToolLifecycle, previous, field_name="previous_lifecycle")
+    normalized_next = _enum_value(ToolLifecycle, next_value, field_name="next_lifecycle")
+    if normalized_next not in _ALLOWED_LIFECYCLE_TRANSITIONS[previous_value]:
+        raise ToolCatalogError(
+            f"lifecycle transition {previous_value.value}->{normalized_next.value} is not allowed"
+        )
+    return normalized_next
+
+
+_LEGACY_FAMILY_MAP = {
+    "filesystem": ToolFamily.CODE_FILESYSTEM,
+    "execution": ToolFamily.CODE_FILESYSTEM,
+    "network": ToolFamily.SEARCH_WEB,
+    "knowledge": ToolFamily.KNOWLEDGE_MEMORY,
+    "content": ToolFamily.DOCUMENTS_MEDIA,
+    "email": ToolFamily.PLANNING_COMMUNICATION,
+    "planning": ToolFamily.PLANNING_COMMUNICATION,
+    "orchestration": ToolFamily.ORCHESTRATION_SESSIONS,
+    "admin": ToolFamily.ADMIN_SYSTEM,
+    "mcp": ToolFamily.PLUGINS_MCP,
+    "general": ToolFamily.EXPERIMENTAL,
+}
+
+
+def _effect_from_capabilities(capabilities: Iterable[str]) -> ToolEffectClass:
+    values = set(capabilities)
+    if "destructive" in values:
+        return ToolEffectClass.DESTRUCTIVE
+    if "external-send" in values:
+        return ToolEffectClass.EXTERNAL_WRITE
+    if "write" in values:
+        return ToolEffectClass.LOCAL_WRITE
+    if {"execute", "manage", "schedule"} & values:
+        return ToolEffectClass.CONTROL
+    return ToolEffectClass.READ
+
+
+@dataclass(frozen=True, slots=True)
+class ToolDescriptorV2:
+    schema_version: str
+    tool_id: str
+    analytics_id: str
+    display_name: str
+    description: str
+    family: ToolFamily
+    source: ToolSource
+    lifecycle: ToolLifecycle
+    availability: ToolAvailability
+    default_enabled: bool
+    default_visibility: ToolVisibility
+    risk_level: ToolRiskLevel
+    permission: ToolPermission
+    effect_class: ToolEffectClass
+    requires_confirmation: bool
+    schema_ref: str | None
+    handler_ref: str | None
+    prompt_ref: str | None
+    aliases: tuple[str, ...]
+    feature_flag: str | None
+    introduced_in: str
+    deprecated_in: str | None
+
+    SCHEMA_VERSION = "odysseus.tool_descriptor.v2"
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        tool_id: Any,
+        analytics_id: Any,
+        display_name: Any,
+        description: Any,
+        family: ToolFamily | str,
+        source: ToolSource | str,
+        lifecycle: ToolLifecycle | str,
+        availability: ToolAvailability | str,
+        default_enabled: bool,
+        default_visibility: ToolVisibility | str,
+        risk_level: ToolRiskLevel | str,
+        permission: ToolPermission | str,
+        effect_class: ToolEffectClass | str,
+        requires_confirmation: bool,
+        schema_ref: Any = None,
+        handler_ref: Any = None,
+        prompt_ref: Any = None,
+        aliases: Iterable[Any] = (),
+        feature_flag: Any = None,
+        introduced_in: Any = "unknown",
+        deprecated_in: Any = None,
+    ) -> "ToolDescriptorV2":
+        normalized_tool_id = _normalize_tool_id(tool_id)
+        normalized_lifecycle = _enum_value(ToolLifecycle, lifecycle, field_name="lifecycle")
+        normalized_availability = _enum_value(
+            ToolAvailability,
+            availability,
+            field_name="availability",
+        )
+        normalized_visibility = _enum_value(
+            ToolVisibility,
+            default_visibility,
+            field_name="default_visibility",
+        )
+        normalized_risk = _enum_value(ToolRiskLevel, risk_level, field_name="risk_level")
+        normalized_effect = _enum_value(
+            ToolEffectClass,
+            effect_class,
+            field_name="effect_class",
+        )
+        enabled = _strict_bool(default_enabled, field_name="default_enabled")
+        confirmed = _strict_bool(requires_confirmation, field_name="requires_confirmation")
+
+        if enabled and normalized_lifecycle in _DEFAULT_OFF_LIFECYCLES:
+            raise ToolCatalogError(f"{normalized_lifecycle.value} tools must be default_enabled=false")
+        if enabled and normalized_availability != ToolAvailability.AVAILABLE:
+            raise ToolCatalogError("only available tools may be default_enabled")
+        if enabled and normalized_visibility in {
+            ToolVisibility.HIDDEN,
+            ToolVisibility.BLOCKED,
+            ToolVisibility.UNAVAILABLE,
+        }:
+            raise ToolCatalogError("enabled tools require a visible or approval-gated default visibility")
+        if normalized_risk == ToolRiskLevel.DANGEROUS and not confirmed:
+            raise ToolCatalogError("dangerous tools require confirmation")
+        if normalized_effect in {
+            ToolEffectClass.EXTERNAL_WRITE,
+            ToolEffectClass.DESTRUCTIVE,
+        } and not confirmed:
+            raise ToolCatalogError(f"{normalized_effect.value} tools require confirmation")
+
+        normalized_deprecated_in = _optional_ref(deprecated_in, field_name="deprecated_in")
+        if normalized_lifecycle == ToolLifecycle.DEPRECATED and not normalized_deprecated_in:
+            raise ToolCatalogError("deprecated tools require deprecated_in")
+        if normalized_lifecycle != ToolLifecycle.DEPRECATED and normalized_deprecated_in:
+            raise ToolCatalogError("deprecated_in is only valid for deprecated tools")
+
+        return cls(
+            schema_version=cls.SCHEMA_VERSION,
+            tool_id=normalized_tool_id,
+            analytics_id=_strict_analytics_id(analytics_id),
+            display_name=_normalize_text(
+                display_name,
+                field_name="display_name",
+                allow_empty=False,
+                limit=80,
+            ),
+            description=_normalize_text(
+                description,
+                field_name="description",
+                allow_empty=False,
+                limit=160,
+            ),
+            family=_enum_value(ToolFamily, family, field_name="family"),
+            source=_enum_value(ToolSource, source, field_name="source"),
+            lifecycle=normalized_lifecycle,
+            availability=normalized_availability,
+            default_enabled=enabled,
+            default_visibility=normalized_visibility,
+            risk_level=normalized_risk,
+            permission=_enum_value(ToolPermission, permission, field_name="permission"),
+            effect_class=normalized_effect,
+            requires_confirmation=confirmed,
+            schema_ref=_optional_ref(schema_ref, field_name="schema_ref"),
+            handler_ref=_optional_ref(handler_ref, field_name="handler_ref"),
+            prompt_ref=_optional_ref(prompt_ref, field_name="prompt_ref"),
+            aliases=_aliases(aliases, tool_id=normalized_tool_id),
+            feature_flag=_optional_ref(feature_flag, field_name="feature_flag"),
+            introduced_in=_normalize_text(
+                introduced_in,
+                field_name="introduced_in",
+                allow_empty=False,
+                limit=40,
+            ),
+            deprecated_in=normalized_deprecated_in,
+        )
+
+    @classmethod
+    def conservative_dynamic(
+        cls,
+        *,
+        tool_id: Any,
+        display_name: Any,
+        description: Any,
+    ) -> "ToolDescriptorV2":
+        normalized_tool_id = _normalize_tool_id(tool_id)
+        return cls.create(
+            tool_id=normalized_tool_id,
+            analytics_id=_normalize_slug(normalized_tool_id, field_name="analytics_id"),
+            display_name=display_name,
+            description=description,
+            family=ToolFamily.UNCLASSIFIED_DYNAMIC,
+            source=ToolSource.DYNAMIC,
+            lifecycle=ToolLifecycle.BLOCKED,
+            availability=ToolAvailability.UNKNOWN,
+            default_enabled=False,
+            default_visibility=ToolVisibility.HIDDEN,
+            risk_level=ToolRiskLevel.ELEVATED,
+            permission=ToolPermission.ADMIN,
+            effect_class=ToolEffectClass.CONTROL,
+            requires_confirmation=True,
+            introduced_in="dynamic",
+        )
+
+    @classmethod
+    def from_v1_manifest(
+        cls,
+        manifest: "ToolManifest",
+        *,
+        source: ToolSource | str = ToolSource.LEGACY,
+    ) -> "ToolDescriptorV2":
+        if not isinstance(manifest, ToolManifest):
+            raise ToolCatalogError("manifest must be a ToolManifest")
+        effect = _effect_from_capabilities(manifest.capabilities)
+        availability = (
+            ToolAvailability.UNAVAILABLE
+            if manifest.visibility_state == ToolVisibility.UNAVAILABLE
+            else ToolAvailability.BLOCKED
+            if manifest.visibility_state == ToolVisibility.BLOCKED
+            else ToolAvailability.AVAILABLE
+        )
+        confirmation = manifest.risk_level == ToolRiskLevel.DANGEROUS or effect in {
+            ToolEffectClass.EXTERNAL_WRITE,
+            ToolEffectClass.DESTRUCTIVE,
+        }
+        return cls.create(
+            tool_id=manifest.tool_id,
+            analytics_id=_normalize_slug(manifest.tool_id, field_name="analytics_id"),
+            display_name=manifest.tool_id.replace("_", " ").replace("-", " ").title(),
+            description=manifest.short_description,
+            family=_LEGACY_FAMILY_MAP.get(manifest.family, ToolFamily.EXPERIMENTAL),
+            source=source,
+            lifecycle=ToolLifecycle.CONTEXTUAL,
+            availability=availability,
+            default_enabled=False,
+            default_visibility=manifest.visibility_state,
+            risk_level=manifest.risk_level,
+            permission=(
+                ToolPermission.ADMIN
+                if manifest.risk_level == ToolRiskLevel.DANGEROUS
+                else ToolPermission.OWNER
+            ),
+            effect_class=effect,
+            requires_confirmation=confirmation,
+            schema_ref=manifest.schema_ref,
+            introduced_in="legacy-v1",
+        )
+
+    def audit_summary(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "tool_id": self.tool_id,
+            "analytics_id": self.analytics_id,
+            "family": self.family.value,
+            "source": self.source.value,
+            "lifecycle": self.lifecycle.value,
+            "availability": self.availability.value,
+            "default_enabled": self.default_enabled,
+            "default_visibility": self.default_visibility.value,
+            "risk_level": self.risk_level.value,
+            "permission": self.permission.value,
+            "effect_class": self.effect_class.value,
+            "requires_confirmation": self.requires_confirmation,
+            "schema_ref": self.schema_ref,
+            "handler_ref": self.handler_ref,
+            "prompt_ref": self.prompt_ref,
+            "aliases": self.aliases,
+            "feature_flag": self.feature_flag,
+            "introduced_in": self.introduced_in,
+            "deprecated_in": self.deprecated_in,
+            "raw_content_visible": False,
+            "callable_visible": False,
+            "tool_arguments_visible": False,
+            "tool_results_visible": False,
+            "secret_values_visible": False,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ToolDescriptorV2Index:
+    descriptors: tuple[ToolDescriptorV2, ...]
+    alias_targets: tuple[tuple[str, str], ...]
+
+    @classmethod
+    def build(cls, descriptors: Iterable[ToolDescriptorV2]) -> "ToolDescriptorV2Index":
+        values = tuple(descriptors)
+        if any(not isinstance(item, ToolDescriptorV2) for item in values):
+            raise ToolCatalogError("descriptor index accepts ToolDescriptorV2 values only")
+        ordered = tuple(sorted(values, key=lambda item: item.tool_id))
+
+        by_tool_id: dict[str, ToolDescriptorV2] = {}
+        analytics_ids: dict[str, str] = {}
+        for descriptor in ordered:
+            if descriptor.tool_id in by_tool_id:
+                raise ToolCatalogError(f"duplicate tool_id {descriptor.tool_id}")
+            by_tool_id[descriptor.tool_id] = descriptor
+            previous_tool = analytics_ids.get(descriptor.analytics_id)
+            if previous_tool:
+                raise ToolCatalogError(
+                    f"analytics_id {descriptor.analytics_id} collides between "
+                    f"{previous_tool} and {descriptor.tool_id}"
+                )
+            analytics_ids[descriptor.analytics_id] = descriptor.tool_id
+
+        alias_targets: dict[str, str] = {}
+        for descriptor in ordered:
+            for alias in descriptor.aliases:
+                if alias in by_tool_id:
+                    raise ToolCatalogError(f"alias {alias} collides with canonical tool_id")
+                if alias in alias_targets:
+                    raise ToolCatalogError(f"alias {alias} is assigned more than once")
+                alias_targets[alias] = descriptor.tool_id
+        return cls(
+            descriptors=ordered,
+            alias_targets=tuple(sorted(alias_targets.items())),
+        )
+
+    def resolve(self, tool_id_or_alias: Any) -> ToolDescriptorV2 | None:
+        value = _normalize_tool_id(tool_id_or_alias, field_name="tool_id_or_alias")
+        by_tool_id = {item.tool_id: item for item in self.descriptors}
+        if value in by_tool_id:
+            return by_tool_id[value]
+        alias_targets = dict(self.alias_targets)
+        target = alias_targets.get(value)
+        return by_tool_id.get(target) if target else None
+
+    def audit_summary(self) -> dict[str, Any]:
+        return {
+            "schema_version": ToolDescriptorV2.SCHEMA_VERSION,
+            "descriptor_count": len(self.descriptors),
+            "tool_ids": tuple(item.tool_id for item in self.descriptors),
+            "analytics_ids": tuple(item.analytics_id for item in self.descriptors),
+            "alias_targets": self.alias_targets,
+            "raw_content_visible": False,
+            "callable_visible": False,
+            "secret_values_visible": False,
+        }
 
 
 def _budget_for(tool: "ToolDescriptor") -> int:

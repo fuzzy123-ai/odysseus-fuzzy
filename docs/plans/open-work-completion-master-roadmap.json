@@ -9,23 +9,23 @@
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 3,
+    "safe_open_json_slices": 1,
     "unique_live_gates": 39,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "priority_queue_active_uix13_semantics_gated_tax1_dependency_ready",
+    "queue_status": "priority_queue_active_uix13_semantics_gated_tua0_dependency_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
-      "tool_taxonomy_registry": "tax0_completed_tax1_open_feature_default_off",
-      "tool_usage_analytics": "pending_after_tax1_capture_and_backfill_default_off"
+      "tool_taxonomy_registry": "tax0_tax1_completed_catalog_v2_not_activated",
+      "tool_usage_analytics": "tua0_open_capture_and_backfill_default_off"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 3,
+      "safe_open_count": 1,
       "other_open_count": 22,
       "unique_live_gate_count": 39,
       "unique_design_gate_count": 16,
@@ -61,13 +61,13 @@
         "reason": "UIX-ABC13 requires explicit product-semantics confirmation before claim",
         "slice": "UIX-ABC13",
         "user_decision_required": true,
-        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TAX1"
+        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TUA0"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-15"
     },
     "dependency_ready_repo_only_slices": [
-      "TAX1-descriptor-v2-contract"
+      "TUA0-source-overlap-baseline"
     ],
     "product_semantics_gated_open_slices": [
       "UIX-ABC13"
@@ -83,8 +83,7 @@
       "UIX-ABC21",
       "UIX-ABC22",
       "UIX-ABC23",
-      "UIX-ABC24",
-      "TUA0-source-overlap-baseline"
+      "UIX-ABC24"
     ]
   },
   "non_ui_execution_ledger": {
@@ -752,7 +751,7 @@
       "id": "TAX0-deterministic-inventory",
       "class": "safe_offline",
       "owner": "/root",
-      "status": "open",
+      "status": "completed",
       "source_roadmap": "docs/plans/tool-taxonomy-registration-roadmap.md",
       "allowed_paths": [
         "scripts/audit_tool_registry_drift.py",
@@ -778,7 +777,7 @@
       "id": "TAX1-descriptor-v2-contract",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
+      "status": "completed",
       "depends_on": [
         "TAX0-deterministic-inventory"
       ],
@@ -792,13 +791,21 @@
         "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_catalog.py"
       ],
       "gate": "none_before_live_activation",
-      "done_when": "Descriptor v2 has strict family/source/lifecycle/effect/risk/visibility enums, stable analytics identity and aliases, conservative dynamic defaults and content-free deterministic serialization."
+      "done_when": "Descriptor v2 has strict family/source/lifecycle/effect/risk/visibility enums, stable analytics identity and aliases, conservative dynamic defaults and content-free deterministic serialization.",
+      "completed_at": "2026-07-15T20:49:54.6176035+02:00",
+      "completion_evidence": {
+        "focused_tests": "57 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "contract": "Immutable odysseus.tool_descriptor.v2 values, controlled enums, conservative dynamic defaults and deterministic V1 compatibility read",
+        "fail_closed": "Invalid enum values, IDs, policy flags, lifecycle transitions, static references and alias or analytics collisions are rejected",
+        "privacy": "Audit summaries omit display text and descriptions and explicitly mark raw content, callables, arguments, results and secret values not visible",
+        "live_effects": "Catalog V2 is not activated; no runtime projection, registration, settings, provider, database, network, deployment or live mutation"
+      }
     },
     {
       "id": "TUA0-source-overlap-baseline",
       "class": "safe_offline",
       "owner": "/root",
-      "status": "pending",
+      "status": "open",
       "depends_on": [
         "TAX1-descriptor-v2-contract"
       ],
