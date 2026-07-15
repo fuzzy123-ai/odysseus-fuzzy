@@ -634,7 +634,7 @@
       "id": "PMCP-9-definition-runtime-separation",
       "class": "repo_only",
       "owner": "Bob",
-      "status": "implemented_definition_v2_boundary_focused_tested",
+      "status": "completed",
       "depends_on": [
         "PMCP-1-service-contract",
         "PMCP-2-readonly-stdio-server",
