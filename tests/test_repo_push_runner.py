@@ -8,7 +8,10 @@ import pytest
 
 from src.repo_push_runner import (
     RepoPushRunnerError,
+    build_repo_forge_ancestry_command,
+    build_repo_forge_git_transport_commands,
     build_repo_push_plan,
+    parse_repo_remote_head_sha,
     repo_push_command_is_allowed,
     run_repo_push,
 )
@@ -240,3 +243,62 @@ def test_source_uses_shell_false_and_no_provider_runtime():
     forbidden = ("requests", "httpx", "paramiko", "cloudflared", "--force")
     for fragment in forbidden:
         assert fragment not in source
+
+
+def test_forge_transport_commands_bind_full_sha_branch_and_remote_without_force():
+    sha = "a" * 40
+    commands = build_repo_forge_git_transport_commands(
+        remote_name="fuzzy",
+        branch_name="odysseus/version-sync",
+        commit_sha=sha,
+    )
+
+    assert commands.verify_commit == ("git", "rev-parse", "--verify", f"{sha}^{{commit}}")
+    assert commands.remote_url == ("git", "remote", "get-url", "--push", "--all", "fuzzy")
+    assert commands.remote_ref == (
+        "git",
+        "ls-remote",
+        "--heads",
+        "fuzzy",
+        "refs/heads/odysseus/version-sync",
+    )
+    assert commands.push == (
+        "git",
+        "push",
+        "fuzzy",
+        f"{sha}:refs/heads/odysseus/version-sync",
+    )
+    assert all(repo_push_command_is_allowed(argv) for argv in (
+        commands.verify_commit,
+        commands.remote_url,
+        commands.remote_ref,
+        commands.push,
+    ))
+    assert not any("force" in argument for argument in commands.push)
+    assert build_repo_forge_ancestry_command(
+        ancestor_sha="b" * 40,
+        descendant_sha=sha,
+    ) == ("git", "merge-base", "--is-ancestor", "b" * 40, sha)
+    assert repo_push_command_is_allowed(("git", "push", "fuzzy", "refs/tags/v1")) is False
+    assert repo_push_command_is_allowed(("git", "push", "fuzzy", "+main")) is False
+
+
+def test_remote_head_parser_is_exact_and_rejects_ambiguous_or_wrong_refs():
+    sha = "b" * 40
+    assert parse_repo_remote_head_sha("", branch_name="odysseus/version-sync") is None
+    assert parse_repo_remote_head_sha(
+        f"{sha}\trefs/heads/odysseus/version-sync\n",
+        branch_name="odysseus/version-sync",
+    ) == sha
+
+    with pytest.raises(RepoPushRunnerError, match="unexpected ref"):
+        parse_repo_remote_head_sha(
+            f"{sha}\trefs/heads/other\n",
+            branch_name="odysseus/version-sync",
+        )
+    with pytest.raises(RepoPushRunnerError, match="ambiguous"):
+        parse_repo_remote_head_sha(
+            f"{sha}\trefs/heads/odysseus/version-sync\n{sha}\trefs/heads/other\n",
+            branch_name="odysseus/version-sync",
+        )
+    assert repo_push_command_is_allowed(("git", "push", "fuzzy", "deadbee:refs/heads/work")) is False

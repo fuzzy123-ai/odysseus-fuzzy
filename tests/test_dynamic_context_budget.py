@@ -125,9 +125,10 @@ def test_agent_loop_passes_resolved_input_cap_to_trimmer_without_second_reserve(
         }
         return values.get(key, default)
 
-    def fake_trim(messages, context_length, reserve_tokens=512):
+    def fake_trim(messages, context_length, reserve_tokens=512, model_hint=None):
         captured["input_budget"] = context_length
         captured["reserve_tokens"] = reserve_tokens
+        captured["model_hint"] = model_hint
         return messages
 
     async def fake_stream(*args, **kwargs):
@@ -168,7 +169,11 @@ def test_agent_loop_passes_resolved_input_cap_to_trimmer_without_second_reserve(
         )]
 
     asyncio.run(collect())
-    assert captured == {"input_budget": 900, "reserve_tokens": 0}
+    assert captured == {
+        "input_budget": 900,
+        "reserve_tokens": 0,
+        "model_hint": MODEL,
+    }
 
 
 def test_cap_at_context_window_applies_reserve_exactly_once():

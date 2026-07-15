@@ -2,9 +2,9 @@
 (see src/bg_jobs.py) finishes.
 
 Reliability is the whole point: completion → agent re-invocation must never
-silently no-op. The monitor drains `bg_jobs.pending_followups()` every tick and
-only calls `mark_followed_up()` AFTER the agent run succeeds — so a transient
-failure is simply retried on the next tick. A timed-out/dead job still produces
+silently no-op. The monitor atomically leases pending follow-ups and only marks
+the stable completion identity AFTER the agent run succeeds. Failed attempts
+release their process-local lease for retry. A timed-out/dead job still produces
 a follow-up ("the job failed/timed out"), so the user always hears back.
 """
 
@@ -13,6 +13,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
+import uuid
 
 from src import bg_jobs
 
@@ -23,6 +25,7 @@ POLL_INTERVAL_S = 5
 # The follow-up agent run is allowed a few rounds to actually continue the task
 # (e.g. after `pip install` finishes, run the transcription).
 _FOLLOWUP_MAX_ROUNDS = 12
+_FOLLOWUP_LEASE_OWNER = f"bg-monitor:{os.getpid()}:{uuid.uuid4().hex}"
 
 
 async def _drain_agent(sess, messages):
@@ -135,12 +138,21 @@ async def _run_followup(rec: dict) -> bool:
 async def _loop():
     while True:
         try:
-            for rec in bg_jobs.pending_followups():
+            for rec in bg_jobs.lease_pending_followups(
+                lease_owner=_FOLLOWUP_LEASE_OWNER,
+            ):
+                lease_token = str((rec.get("followup_lease") or {}).get("token") or "")
                 try:
                     if await _run_followup(rec):
-                        bg_jobs.mark_followed_up(rec["id"])
+                        if not bg_jobs.mark_followed_up(
+                            rec["id"],
+                            lease_token=lease_token,
+                        ):
+                            logger.warning("bg-followup lease lost before completion mark for %s", rec.get("id"))
+                    else:
+                        bg_jobs.release_followup_lease(rec["id"], lease_token)
                 except Exception as e:
-                    # Idempotent: leave followed_up=False so the next tick retries.
+                    bg_jobs.release_followup_lease(rec["id"], lease_token)
                     logger.warning("bg-followup failed for %s (will retry): %s", rec.get("id"), e)
         except Exception as e:
             logger.warning("bg-monitor tick error: %s", e)

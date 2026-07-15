@@ -1,15 +1,30 @@
 import json
+import subprocess
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from routes.server_project_routes import setup_server_project_routes
+from src.agent_tools.project_commit_tools import build_default_commit_project_handler
+from src.project_forge_local import LocalProjectForge
+from src.project_forge_outbox import ProjectForgeOutbox
+from src.project_forge_policy import ProjectForgePolicyStore
+from src.repo_registry import RepoRegistry
 
 
-def _client(path: Path, *, projects_root: Path | None = None) -> TestClient:
+def _client(path: Path, *, projects_root: Path | None = None, forge_registry_path: Path | None = None) -> TestClient:
     app = FastAPI()
-    app.include_router(setup_server_project_routes(registry_path=path, projects_root=projects_root or path.parent / "server-projects"))
+    app.include_router(
+        setup_server_project_routes(
+            registry_path=path,
+            projects_root=projects_root or path.parent / "server-projects",
+            forge_registry_path=forge_registry_path or path.parent / "forge-repos.json",
+            owner_resolver=lambda _request: "test-owner",
+            admin_gate=lambda _request: True,
+            csrf_gate=lambda _request: True,
+        )
+    )
     return TestClient(app)
 
 
@@ -269,7 +284,7 @@ def test_project_routes_planner_task_run_adapts_to_task_plan_without_live_execut
     assert str(projects_root) not in json.dumps(body)
 
 
-def test_project_routes_commit_run_reports_gate_without_live_commit(tmp_path: Path):
+def test_project_routes_commit_run_is_retired_in_favor_of_single_commit_route(tmp_path: Path):
     registry_path = tmp_path / "projects.json"
     projects_root = tmp_path / "server-projects"
     client = _client(registry_path, projects_root=projects_root)
@@ -284,18 +299,12 @@ def test_project_routes_commit_run_reports_gate_without_live_commit(tmp_path: Pa
         },
     )
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["success"] is False
-    assert body["commit_run"]["executed"] is False
-    plan = body["commit_run"]["plan"]
-    assert plan["commit_message"] == "feat: add an app entrypoint"
-    assert plan["changed_paths"] == ["src/app.py"]
-    assert "task checks must be green before commit" in plan["blockers"]
-    assert str(projects_root) not in json.dumps(body)
+    assert response.status_code == 410
+    assert "/api/project-versioning/{repo_id}/commit" in response.json()["detail"]
+    assert str(projects_root) not in json.dumps(response.json())
 
 
-def test_project_routes_push_run_reports_gate_without_live_push(tmp_path: Path):
+def test_project_routes_push_run_is_retired_in_favor_of_policy_sync(tmp_path: Path):
     registry_path = tmp_path / "projects.json"
     projects_root = tmp_path / "server-projects"
     client = _client(registry_path, projects_root=projects_root)
@@ -310,15 +319,9 @@ def test_project_routes_push_run_reports_gate_without_live_push(tmp_path: Path):
         },
     )
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["success"] is False
-    assert body["push_run"]["executed"] is False
-    plan = body["push_run"]["plan"]
-    assert plan["remote_name"] == "fuzzy"
-    assert plan["branch"] == "project/kundenportal-mvp/work"
-    assert "local commit must be confirmed before push" in plan["blockers"]
-    assert str(projects_root) not in json.dumps(body)
+    assert response.status_code == 410
+    assert "project policy" in response.json()["detail"]
+    assert str(projects_root) not in json.dumps(response.json())
 
 
 def test_project_routes_reject_duplicate_and_unknown_project(tmp_path: Path):
@@ -352,11 +355,88 @@ def test_project_routes_reject_duplicate_and_unknown_project(tmp_path: Path):
     assert client.post(
         "/api/projects/missing/commit-run",
         json={"objective": "x", "changed_paths": [], "checks_passed": False},
-    ).status_code == 404
+    ).status_code == 410
     assert client.post(
         "/api/projects/missing/push-run",
         json={"branch": "project/demo/work", "commit_ref": "abc1234", "commit_confirmed": False},
-    ).status_code == 404
+    ).status_code == 410
+
+
+def test_repo_provision_binds_external_project_root_to_canonical_commit_handler(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("ODYSSEUS_PROJECT_PROVISIONER_LIVE_ENABLED", "true")
+    monkeypatch.setenv("ODYSSEUS_PROJECT_REPO_PROVISIONER_LIVE_ENABLED", "true")
+    registry_path = tmp_path / "projects.json"
+    forge_registry_path = tmp_path / "forge-repos.json"
+    projects_root = tmp_path / "external-data" / "server-projects"
+    client = _client(
+        registry_path,
+        projects_root=projects_root,
+        forge_registry_path=forge_registry_path,
+    )
+    assert client.post("/api/projects", json={"title": "Kundenportal MVP", "project_type": "app"}).status_code == 200
+    assert client.post(
+        "/api/projects/kundenportal-mvp/provision",
+        json={"live_enabled": True, "operator_decision": "go"},
+    ).json()["success"] is True
+    provisioned = client.post(
+        "/api/projects/kundenportal-mvp/repo-provision",
+        json={"live_enabled": True, "operator_decision": "go", "remote_provider": "none"},
+    )
+    assert provisioned.status_code == 200 and provisioned.json()["success"] is True
+
+    forge_registry = RepoRegistry.load_json(forge_registry_path)
+    bound = forge_registry.get("kundenportal-mvp")
+    assert bound.owner == "test-owner"
+    assert bound.path_ref == "kundenportal-mvp/repo"
+    assert bound.linked_project_slug == "kundenportal-mvp"
+
+    repo = projects_root / "kundenportal-mvp" / "repo"
+    subprocess.run(["git", "config", "user.name", "Odysseus Test"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "odysseus@example.test"], cwd=repo, check=True)
+    (repo / "README.md").write_text("durable project\n", encoding="utf-8")
+    workspace = tmp_path / "odysseus-workspace"
+    workspace.mkdir()
+    handler = build_default_commit_project_handler(
+        workspace=workspace,
+        server_projects_root=projects_root,
+        repo_registry_path=forge_registry_path,
+        repo_id="kundenportal-mvp",
+        local_forge=LocalProjectForge(
+            root=tmp_path / "local-forge",
+            source_roots=(workspace, projects_root),
+        ),
+        outbox=ProjectForgeOutbox(root=tmp_path / "outbox"),
+        policy_source=ProjectForgePolicyStore(root=tmp_path / "policies"),
+    )
+    result = handler.handle(
+        {
+            "repo_id": "kundenportal-mvp",
+            "title": "feat: retain server project",
+            "description": "Store the reviewed server project in the local Forge.",
+            "reviewed_paths": ["README.md"],
+            "checks_passed": True,
+            "content_reviewed": True,
+            "confirmed": True,
+            "idempotency_key": "server-project-route-e2e-1",
+        },
+        context={"is_authenticated": True, "authenticated_owner_id": "test-owner"},
+    )
+    assert result["status"] == "committed"
+    assert result["local_status"] == "committed"
+    assert result["provider_statuses"] == {}
+
+
+def test_server_project_factory_defaults_fail_closed(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("AUTH_ENABLED", "true")
+    app = FastAPI()
+    app.include_router(
+        setup_server_project_routes(
+            registry_path=tmp_path / "projects.json",
+            projects_root=tmp_path / "server-projects",
+            forge_registry_path=tmp_path / "forge-repos.json",
+        )
+    )
+    assert TestClient(app).get("/api/projects").status_code == 401
 
 
 def test_project_routes_reject_secret_like_input(tmp_path: Path):
@@ -374,3 +454,7 @@ def test_server_project_routes_source_has_no_live_runtime():
     forbidden = ("subprocess", "requests", "httpx", "paramiko", "podman", "docker", "systemctl", "cloudflared")
     for fragment in forbidden:
         assert fragment not in source
+    assert "run_project_local_commit" not in source
+    assert "run_project_push" not in source
+    assert "ProjectCommitRunRequest" not in source
+    assert "ProjectPushRunRequest" not in source

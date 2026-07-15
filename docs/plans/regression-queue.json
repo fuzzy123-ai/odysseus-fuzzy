@@ -1,0 +1,369 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.independent_regression_queue",
+  "queue_id": "independent-regressions",
+  "created_at": "2026-07-14T20:29:56.6847136+02:00",
+  "updated_at": "2026-07-15T15:33:22.9458928+02:00",
+  "status": "open",
+  "purpose": "Hold failures discovered outside the active roadmap slice so they remain visible without silently expanding that slice, changing its dependency graph or starting an unbounded probe-and-fix loop.",
+  "ownership_boundary": {
+    "current_roadmap_exclusion": "A queued item is not part of SAR, TLR, Planning Definition Editor or Planning MCP unless the user explicitly promotes it through a separate roadmap change.",
+    "mutation_rule": "Discovery records evidence only. Diagnosis, source edits and tests require a new serialized claim whose slice_id names the regression item.",
+    "priority_rule": "Queue order never preempts the explicit user-directed roadmap sequence. Severity may trigger a user notification but does not grant mutation authority.",
+    "completion_rule": "An item closes only with a dedicated claim, root-cause evidence, focused regression coverage and an explicit disposition of fixed, duplicate, invalid or accepted_risk."
+  },
+  "suite_policy": {
+    "full_suite_rule": "Run the repository-wide suite only at the declared integration points. Do not rerun it after each slice and do not start another probe solely to reveal the next unrelated failure.",
+    "failure_routing": {
+      "related_to_active_slice": "Keep the integration point red and return the owning slice to running or blocked with exact evidence.",
+      "independent_or_relationship_unproven": "Append one deduplicated regression item, leave the current roadmap membership unchanged and continue only when the integration point's declared gate permits it.",
+      "environment_only": "Record blocked_environment evidence without modifying tests, quarantines or product code."
+    },
+    "integration_points": [
+      {
+        "id": "IP-SAR-SERIAL-CLOSEOUT",
+        "after": [
+          "SAR-06P-model-hint-hardlimit-propagation",
+          "SAR-04-runtime-topology-contract",
+          "SAR-05-background-job-transaction-boundary",
+          "SAR-07-response-cache-lru-ttl"
+        ],
+        "run_once": "unchanged repository-wide suite in the best available local environment",
+        "acceptance_boundary": "Focused slice evidence remains authoritative for slice completion; independent failures are queued and do not become SAR work automatically. SAR-01 remains blocked_environment unless the run is symlink-capable and uses no diagnostic deselections."
+      },
+      {
+        "id": "IP-TLR-06-CLOSEOUT",
+        "after": [
+          "TLR-01",
+          "TLR-02",
+          "TLR-03",
+          "TLR-04",
+          "TLR-05",
+          "TLR-06"
+        ],
+        "run_once": "unchanged repository-wide suite after the TLR-01 through TLR-06 focused and integration tests are green",
+        "acceptance_boundary": "A TLR-related failure blocks the responsible TLR slice; every unrelated failure is routed here without expanding TLR."
+      },
+      {
+        "id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
+        "after": [
+          "Planning Definition Editor runtime handoff",
+          "Planning MCP definition integration"
+        ],
+        "run_once": "unchanged repository-wide suite after both Planning integrations pass their focused contracts",
+        "acceptance_boundary": "Planning-related failures block the integration handoff; unrelated failures are routed here without expanding either Planning roadmap."
+      }
+    ]
+  },
+  "deduplication_key": "normalized_test_node_or_component + normalized_failure_signature",
+  "allowed_states": [
+    "queued",
+    "claimed",
+    "running",
+    "blocked_environment",
+    "blocked_design",
+    "fixed",
+    "duplicate",
+    "invalid",
+    "accepted_risk"
+  ],
+  "items": [
+    {
+      "id": "REG-20260714-001",
+      "state": "queued",
+      "priority": "untriaged",
+      "source_run_id": "sar-12h-20260714t092106",
+      "source_probe_id": "SAR-01-FULL-SUITE-DIAGNOSTIC-45",
+      "observed_at": "2026-07-14T20:23:06.3653211+02:00",
+      "test_node": "tests/test_sandbox_resource_guard.py::test_resource_guard_blocks_rw_mount_without_approval",
+      "failure_signature": "read-write mount without approval expected decision.allowed=false but observed true",
+      "relationship_to_active_roadmap": "not_established_and_outside_the_selected_SAR_slice",
+      "evidence": [
+        "Probe 45 reached 6208 passed, 19 skipped and 5 diagnostic-only Windows symlink deselections before this failure.",
+        "No diagnosis, source mutation, test mutation or probe 46 was performed.",
+        "The failure is not promoted into SAR by this queue entry.",
+        "The once-only IP-PLANNING-INTEGRATION-CLOSEOUT run reproduced this node at collection position 6556 of 9041.",
+        "No Planning test node was present among the 28 mapped non-pass markers, so this existing regression remains outside the Planning roadmaps."
+      ],
+      "next_action": "When explicitly selected from the regression queue, reproduce only this test under a dedicated serialized claim, classify source versus test drift and add focused regression evidence.",
+      "claim": null,
+      "disposition": null
+    },
+    {
+      "id": "REG-20260714-002",
+      "state": "blocked_environment",
+      "priority": "environment_only",
+      "source_run_id": "sar-12h-20260714t092106",
+      "source_probe_id": "IP-SAR-SERIAL-CLOSEOUT",
+      "observed_at": "2026-07-14T22:04:50+02:00",
+      "test_node": "tests/test_agent_migration_manifest.py::test_collect_skill_dir_skips_symlinked_skill_markdown",
+      "failure_signature": "Windows os.symlink failed with WinError 1314 because the process lacks symlink privilege",
+      "relationship_to_active_roadmap": "independent_environment_precondition_not_attributable_to_SAR_06P_SAR_04_SAR_05_or_SAR_07",
+      "evidence": [
+        "The single unchanged IP-SAR-SERIAL-CLOSEOUT run reached 255 passed and 2 skipped before this first failure.",
+        "The failure occurs in the test fixture at Path.symlink_to before the migration implementation is invoked.",
+        "The signature matches the existing SAR-01 blocked_environment evidence and does not reopen or expand SAR.",
+        "No diagnostic deselection, repeated full-suite run, source mutation, test weakening, Docker start or external action was performed.",
+        "IP-TLR-06-CLOSEOUT reproduced the same Windows symlink-privilege signature in all four tests/test_agent_migration_manifest.py symlink fixtures and tests/test_personal_dir_symlink_escape.py::test_realpath_catches_symlink_escape.",
+        "Read-only collection-order mapping identified the five nodes after terminal output truncation; the complete 240-test TLR block was green and no TLR path is related to this environment blocker.",
+        "IP-PLANNING-INTEGRATION-CLOSEOUT reproduced the same five nodes at collection positions 269, 270, 272, 273 and 4918 of 9041.",
+        "The five nodes are independent of Planning and remain deduplicated under this environment item."
+      ],
+      "next_action": "Keep blocked_environment. Re-run only in a symlink-capable environment if SAR-01 is explicitly reopened; this item does not preempt TLR-01 through TLR-06.",
+      "claim": null,
+      "disposition": null
+    },
+    {
+      "id": "REG-20260715-003",
+      "state": "blocked_environment",
+      "priority": "environment_only",
+      "source_run_id": "sar-12h-20260714t092106",
+      "source_probe_id": "IP-TLR-06-CLOSEOUT",
+      "observed_at": "2026-07-15T13:42:39.5482795+02:00",
+      "test_node": "tests/test_amd_gpu_check_args.py",
+      "failure_signature": "Windows process passes a native C:/ checkout path to bash, so both check-docker-amd-gpu.sh subprocess checks fail before exercising TLR",
+      "relationship_to_active_roadmap": "independent_platform_wrapper_precondition_not_attributable_to_TLR_01_through_TLR_06",
+      "evidence": [
+        "The unchanged IP-TLR-06-CLOSEOUT run failed both tests/test_amd_gpu_check_args.py tests at collection-order positions 582 and 583.",
+        "Both tests invoke bash with the native Windows absolute path of scripts/check-docker-amd-gpu.sh; the failure family was already documented in the SAR diagnostic history and previously ignored only for diagnostic continuation.",
+        "The complete 240-test TLR-01 through TLR-06 block passed before the full-suite integration point.",
+        "No AMD script, test, platform wrapper, source path or TLR path was modified and the repository-wide suite was not repeated.",
+        "IP-PLANNING-INTEGRATION-CLOSEOUT reproduced both AMD nodes at collection positions 582 and 583 of 9041.",
+        "The two nodes are independent of Planning and remain deduplicated under this platform item."
+      ],
+      "next_action": "Keep blocked_environment. Validate only in a bash environment that resolves the checkout path, or select this item through a dedicated serialized portability claim; it does not preempt Planning integration.",
+      "claim": null,
+      "disposition": null
+    },
+    {
+      "id": "REG-20260715-004",
+      "state": "queued",
+      "priority": "untriaged",
+      "source_run_id": "sar-12h-20260714t092106",
+      "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
+      "observed_at": "2026-07-15T15:24:00+02:00",
+      "test_node": "tests/test_security_regressions.py",
+      "observed_nodes": [
+        "tests/test_security_regressions.py::test_email_thread_rendering_sanitizes_body_html",
+        "tests/test_security_regressions.py::test_gmail_mcp_preset_uses_contained_oauth_paths"
+      ],
+      "failure_signature": "once-only repository integration run emitted failure markers for two security regression contracts; traceback output was not retained after bounded tool truncation",
+      "relationship_to_active_roadmap": "relationship_unproven_and_no_Planning_path_overlap",
+      "evidence": [
+        "Read-only collection mapping resolved the failure markers to positions 6842 and 6852 of 9041.",
+        "No Planning product, test or roadmap path is named by either node.",
+        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
+      ],
+      "next_action": "Select REG-20260715-004 through a dedicated serialized claim before reproducing or diagnosing these nodes.",
+      "claim": null,
+      "disposition": null
+    },
+    {
+      "id": "REG-20260715-005",
+      "state": "queued",
+      "priority": "untriaged",
+      "source_run_id": "sar-12h-20260714t092106",
+      "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
+      "observed_at": "2026-07-15T15:24:00+02:00",
+      "test_node": "tests/test_self_control_prompt_contract.py",
+      "observed_nodes": [
+        "tests/test_self_control_prompt_contract.py::test_app_api_prompt_advertises_named_tool_mutation_guardrails"
+      ],
+      "failure_signature": "once-only repository integration run emitted a failure marker for the self-control prompt contract; traceback output was not retained after bounded tool truncation",
+      "relationship_to_active_roadmap": "relationship_unproven_and_no_Planning_path_overlap",
+      "evidence": [
+        "Read-only collection mapping resolved the marker to position 6884 of 9041.",
+        "No Planning product, test or roadmap path is named by this node.",
+        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
+      ],
+      "next_action": "Select REG-20260715-005 through a dedicated serialized claim before reproducing or diagnosing this node.",
+      "claim": null,
+      "disposition": null
+    },
+    {
+      "id": "REG-20260715-006",
+      "state": "queued",
+      "priority": "untriaged",
+      "source_run_id": "sar-12h-20260714t092106",
+      "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
+      "observed_at": "2026-07-15T15:24:00+02:00",
+      "test_node": "tests/test_sensitive_local_worker.py",
+      "observed_nodes": [
+        "tests/test_sensitive_local_worker.py::test_sensitive_local_worker_tool_is_registered_and_executable",
+        "tests/test_sensitive_local_worker.py::test_sensitive_local_worker_tool_blocks_raw_transcript"
+      ],
+      "failure_signature": "once-only repository integration run emitted failure markers for two sensitive-local-worker contracts; traceback output was not retained after bounded tool truncation",
+      "relationship_to_active_roadmap": "relationship_unproven_and_no_Planning_path_overlap",
+      "evidence": [
+        "Read-only collection mapping resolved the markers to positions 6895 and 6897 of 9041.",
+        "No Planning product, test or roadmap path is named by either node.",
+        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
+      ],
+      "next_action": "Select REG-20260715-006 through a dedicated serialized claim before reproducing or diagnosing these nodes.",
+      "claim": null,
+      "disposition": null
+    },
+    {
+      "id": "REG-20260715-007",
+      "state": "queued",
+      "priority": "untriaged",
+      "source_run_id": "sar-12h-20260714t092106",
+      "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
+      "observed_at": "2026-07-15T15:24:00+02:00",
+      "test_node": "session_owner_and_status_contracts",
+      "observed_nodes": [
+        "tests/test_session_owner_attribution.py::test_bearer_owner_A_cannot_verify_owner_B_session",
+        "tests/test_session_owner_attribution.py::test_owner_can_verify_their_own_session",
+        "tests/test_session_status_indicators.py::test_list_sessions_status_calculation"
+      ],
+      "failure_signature": "once-only repository integration run emitted failure markers for three session ownership/status contracts; traceback output was not retained after bounded tool truncation",
+      "relationship_to_active_roadmap": "relationship_unproven_and_no_Planning_path_overlap",
+      "evidence": [
+        "Read-only collection mapping resolved the markers to positions 7180, 7181 and 7200 of 9041.",
+        "No Planning product, test or roadmap path is named by these nodes.",
+        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
+      ],
+      "next_action": "Select REG-20260715-007 through a dedicated serialized claim before reproducing or diagnosing these nodes.",
+      "claim": null,
+      "disposition": null
+    },
+    {
+      "id": "REG-20260715-008",
+      "state": "queued",
+      "priority": "untriaged",
+      "source_run_id": "sar-12h-20260714t092106",
+      "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
+      "observed_at": "2026-07-15T15:24:00+02:00",
+      "test_node": "signature_parsing_and_route_hardening",
+      "observed_nodes": [
+        "tests/test_signature_fold_js.py::test_extract_quote_meta_keeps_outlook_headers",
+        "tests/test_signature_route_hardening.py::test_signature_png_normalization_rejects_invalid_inputs[oversized_A_parameter]",
+        "tests/test_signature_route_hardening.py::test_signature_dimensions_are_bounded[0]"
+      ],
+      "failure_signature": "once-only repository integration run emitted one failure and two error markers in signature parsing/route hardening; traceback output was not retained after bounded tool truncation",
+      "relationship_to_active_roadmap": "relationship_unproven_and_no_Planning_path_overlap",
+      "evidence": [
+        "Read-only collection mapping resolved the markers to positions 7344, 7353 and 7354 of 9041.",
+        "The first parameterized route node had a 2796306-character collected node id and is normalized here to an explicit oversized-parameter label.",
+        "No Planning product, test or roadmap path is named by these nodes, and no diagnosis, focused rerun or source mutation was performed."
+      ],
+      "next_action": "Select REG-20260715-008 through a dedicated serialized claim and use bounded-output reproduction before diagnosing these nodes.",
+      "claim": null,
+      "disposition": null
+    },
+    {
+      "id": "REG-20260715-009",
+      "state": "queued",
+      "priority": "untriaged",
+      "source_run_id": "sar-12h-20260714t092106",
+      "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
+      "observed_at": "2026-07-15T15:24:00+02:00",
+      "test_node": "task_shell_and_summary_contracts",
+      "observed_nodes": [
+        "tests/test_task_shell_tools.py::test_non_admin_owner_block_strips_shell_end_to_end",
+        "tests/test_task_summary_routes.py::test_task_summary_route_requires_auth_when_configured"
+      ],
+      "failure_signature": "once-only repository integration run emitted failure markers for task shell and summary contracts; traceback output was not retained after bounded tool truncation",
+      "relationship_to_active_roadmap": "relationship_unproven_and_no_Planning_path_overlap",
+      "evidence": [
+        "Read-only collection mapping resolved the markers to positions 7683 and 7688 of 9041.",
+        "No Planning product, test or roadmap path is named by either node.",
+        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
+      ],
+      "next_action": "Select REG-20260715-009 through a dedicated serialized claim before reproducing or diagnosing these nodes.",
+      "claim": null,
+      "disposition": null
+    },
+    {
+      "id": "REG-20260715-010",
+      "state": "queued",
+      "priority": "untriaged",
+      "source_run_id": "sar-12h-20260714t092106",
+      "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
+      "observed_at": "2026-07-15T15:24:00+02:00",
+      "test_node": "tests/test_telegram_plugin.py",
+      "observed_nodes": [
+        "tests/test_telegram_plugin.py::test_polling_cycle_calendar_reminder_create_and_update",
+        "tests/test_telegram_plugin.py::test_polling_cycle_universal_inbox_command_replies_without_agent_turn",
+        "tests/test_telegram_plugin.py::test_agent_bridge_workflow_context_classifies_export_without_raw_prompt"
+      ],
+      "failure_signature": "once-only repository integration run emitted failure markers for three Telegram plugin contracts; traceback output was not retained after bounded tool truncation",
+      "relationship_to_active_roadmap": "relationship_unproven_and_no_Planning_path_overlap",
+      "evidence": [
+        "Read-only collection mapping resolved the markers to positions 7834, 7836 and 7862 of 9041.",
+        "No Planning product, test or roadmap path is named by these nodes.",
+        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
+      ],
+      "next_action": "Select REG-20260715-010 through a dedicated serialized claim before reproducing or diagnosing these nodes.",
+      "claim": null,
+      "disposition": null
+    },
+    {
+      "id": "REG-20260715-011",
+      "state": "queued",
+      "priority": "untriaged",
+      "source_run_id": "sar-12h-20260714t092106",
+      "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
+      "observed_at": "2026-07-15T15:24:00+02:00",
+      "test_node": "tests/test_tls_overrides_scope.py",
+      "observed_nodes": [
+        "tests/test_tls_overrides_scope.py::test_tls_overrides_does_not_weaken_global_tls"
+      ],
+      "failure_signature": "once-only repository integration run emitted a failure marker for the TLS override scope contract; traceback output was not retained after bounded tool truncation",
+      "relationship_to_active_roadmap": "relationship_unproven_and_no_Planning_path_overlap",
+      "evidence": [
+        "Read-only collection mapping resolved the marker to position 8200 of 9041.",
+        "No Planning product, test or roadmap path is named by this node.",
+        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
+      ],
+      "next_action": "Select REG-20260715-011 through a dedicated serialized claim before reproducing or diagnosing this node.",
+      "claim": null,
+      "disposition": null
+    },
+    {
+      "id": "REG-20260715-012",
+      "state": "queued",
+      "priority": "untriaged",
+      "source_run_id": "sar-12h-20260714t092106",
+      "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
+      "observed_at": "2026-07-15T15:24:00+02:00",
+      "test_node": "tool_policy_and_registry_contracts",
+      "observed_nodes": [
+        "tests/test_tool_policy.py::test_commit_project_is_treated_as_effectful_and_plan_blocked",
+        "tests/test_tool_registry.py::test_execute_tool_keeps_legacy_dict_call_fallback"
+      ],
+      "failure_signature": "once-only repository integration run emitted failure markers for tool policy and registry compatibility contracts; traceback output was not retained after bounded tool truncation",
+      "relationship_to_active_roadmap": "relationship_unproven_and_no_Planning_path_overlap",
+      "evidence": [
+        "Read-only collection mapping resolved the markers to positions 8291 and 8322 of 9041.",
+        "No Planning product, test or roadmap path is named by either node.",
+        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
+      ],
+      "next_action": "Select REG-20260715-012 through a dedicated serialized claim before reproducing or diagnosing these nodes.",
+      "claim": null,
+      "disposition": null
+    },
+    {
+      "id": "REG-20260715-013",
+      "state": "queued",
+      "priority": "untriaged",
+      "source_run_id": "sar-12h-20260714t092106",
+      "source_probe_id": "IP-PLANNING-INTEGRATION-CLOSEOUT",
+      "observed_at": "2026-07-15T15:24:00+02:00",
+      "test_node": "tests/test_version_info_ancestry.py",
+      "observed_nodes": [
+        "tests/test_version_info_ancestry.py::test_classify_version_relation[same-same-ancestry0-expected0]"
+      ],
+      "failure_signature": "once-only repository integration run emitted a failure marker for the version ancestry relation contract; traceback output was not retained after bounded tool truncation",
+      "relationship_to_active_roadmap": "relationship_unproven_and_no_Planning_path_overlap",
+      "evidence": [
+        "Read-only collection mapping resolved the marker to position 8799 of 9041.",
+        "No Planning product, test or roadmap path is named by this node.",
+        "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
+      ],
+      "next_action": "Select REG-20260715-013 through a dedicated serialized claim before reproducing or diagnosing this node.",
+      "claim": null,
+      "disposition": null
+    }
+  ]
+}

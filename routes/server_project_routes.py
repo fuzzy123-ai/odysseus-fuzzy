@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+import os
+from typing import Any, Callable
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from core.constants import DATA_DIR
@@ -16,10 +17,6 @@ from src.server_project_chat_context import (
 )
 from src.project_intake import ProjectIntakeError, apply_project_intake_proposal, build_project_intake_preview
 from src.coding_lifecycle_adapters import identifiers_from_server_project
-from src.server_project_commit_runner import (
-    ServerProjectCommitRunnerError,
-    run_project_local_commit,
-)
 from src.server_project_intake_state import (
     ServerProjectIntakeStateError,
     load_project_intake_state,
@@ -29,10 +26,7 @@ from src.server_project_provisioner import (
     ServerProjectProvisioningError,
     provision_project_workspace,
 )
-from src.server_project_push_runner import (
-    ServerProjectPushRunnerError,
-    run_project_push,
-)
+from src.repo_registry import REPO_REGISTRY_FILE, RepoRecord, RepoRegistry, RepoRegistryError
 from src.server_project_registry import ServerProjectRegistry, ServerProjectRegistryError
 from src.server_project_repo_provisioner import (
     ServerProjectRepoProvisioningError,
@@ -104,25 +98,8 @@ class ProjectPlannerTaskRunRequest(BaseModel):
     check_profile: str = "auto"
     live_enabled: bool = False
     operator_decision: str = "missing"
-
-
-class ProjectCommitRunRequest(BaseModel):
-    objective: str = Field(min_length=1, max_length=500)
-    changed_paths: list[str] = Field(default_factory=list)
-    checks_passed: bool = False
-    commit_message: str | None = None
-    push_remote: str = "fuzzy"
-    live_enabled: bool = False
-    operator_decision: str = "missing"
-
-
-class ProjectPushRunRequest(BaseModel):
-    branch: str = Field(min_length=1, max_length=120)
-    commit_ref: str = Field(min_length=7, max_length=40)
-    commit_confirmed: bool = False
-    remote_name: str = "fuzzy"
-    live_enabled: bool = False
-    operator_decision: str = "missing"
+    clarification_ready_for_plan: bool = True
+    clarification_id: str = Field(default="", max_length=120)
 
 
 class ProjectIntakePreviewRequest(BaseModel):
@@ -146,18 +123,50 @@ def setup_server_project_routes(
     *,
     registry_path: str | Path = DEFAULT_PROJECT_REGISTRY_PATH,
     projects_root: str | Path = DEFAULT_PROJECTS_ROOT,
+    forge_registry_path: str | Path = REPO_REGISTRY_FILE,
+    owner_resolver: Callable[[Request], str | None] | None = None,
+    admin_gate: Callable[[Request], Any] | None = None,
+    csrf_gate: Callable[[Request], Any] | None = None,
 ) -> APIRouter:
+    from core.middleware import require_admin
+    from routes.project_versioning_routes import _same_origin_csrf_gate
+    from src.auth_helpers import effective_user
+
     router = APIRouter(prefix="/api/projects", tags=["server-projects"])
     registry_file = Path(registry_path)
     configured_projects_root = Path(projects_root)
+    configured_forge_registry = Path(forge_registry_path)
+
+    def default_owner(request: Request) -> str | None:
+        owner = str(effective_user(request) or "").strip()
+        if owner:
+            return owner
+        if os.getenv("AUTH_ENABLED", "true").strip().lower() == "false":
+            return str(os.getenv("ODYSSEUS_SINGLE_USER_OWNER") or "local-user").strip()
+        return None
+
+    resolve_owner = owner_resolver or default_owner
+    require_admin_gate = admin_gate or require_admin
+    require_csrf_gate = csrf_gate or _same_origin_csrf_gate
+
+    def scope(request: Request, *, mutate: bool = False) -> str:
+        owner = str(resolve_owner(request) or "").strip()
+        if not owner:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        _check_request_gate(require_admin_gate, request, detail="Admin only")
+        if mutate:
+            _check_request_gate(require_csrf_gate, request, detail="CSRF validation failed")
+        return owner
 
     @router.get("")
-    def list_projects() -> dict[str, Any]:
+    def list_projects(request: Request) -> dict[str, Any]:
+        scope(request)
         registry = _load_registry(registry_file)
         return registry.audit_summary()
 
     @router.post("")
-    def create_project(body: ProjectCreateRequest) -> dict[str, Any]:
+    def create_project(body: ProjectCreateRequest, request: Request) -> dict[str, Any]:
+        scope(request, mutate=True)
         registry = _load_registry(registry_file)
         try:
             record = registry.create_project(
@@ -173,7 +182,8 @@ def setup_server_project_routes(
         return {"success": True, "project": record.to_dict(), **_project_route_compatibility(record=record)}
 
     @router.post("/intake/preview")
-    def preview_project_intake(body: ProjectIntakePreviewRequest) -> dict[str, Any]:
+    def preview_project_intake(body: ProjectIntakePreviewRequest, request: Request) -> dict[str, Any]:
+        scope(request, mutate=True)
         registry = _load_registry(registry_file)
         try:
             proposal = build_project_intake_preview(
@@ -188,7 +198,8 @@ def setup_server_project_routes(
         return {"success": proposal.status != "blocked", "intake": proposal.to_dict()}
 
     @router.post("/{project_slug}/intake/preview")
-    def preview_project_intake_for_project(project_slug: str, body: ProjectIntakePreviewRequest) -> dict[str, Any]:
+    def preview_project_intake_for_project(project_slug: str, body: ProjectIntakePreviewRequest, request: Request) -> dict[str, Any]:
+        scope(request, mutate=True)
         registry = _load_registry(registry_file)
         try:
             proposal = build_project_intake_preview(
@@ -203,7 +214,8 @@ def setup_server_project_routes(
         return {"success": proposal.status != "blocked", "intake": proposal.to_dict()}
 
     @router.post("/{project_slug}/intake/apply")
-    def apply_project_intake(project_slug: str, body: ProjectIntakeApplyRequest) -> dict[str, Any]:
+    def apply_project_intake(project_slug: str, body: ProjectIntakeApplyRequest, request: Request) -> dict[str, Any]:
+        scope(request, mutate=True)
         registry = _load_registry(registry_file)
         try:
             report = apply_project_intake_proposal(
@@ -222,7 +234,8 @@ def setup_server_project_routes(
         return {"success": report.applied, "intake_apply": report.to_dict()}
 
     @router.get("/{project_slug}/intake/state")
-    def get_project_intake_state(project_slug: str) -> dict[str, Any]:
+    def get_project_intake_state(project_slug: str, request: Request) -> dict[str, Any]:
+        scope(request)
         registry = _load_registry(registry_file)
         try:
             record = registry.get(project_slug)
@@ -237,7 +250,8 @@ def setup_server_project_routes(
         return {"success": True, "intake_state": state}
 
     @router.post("/{project_slug}/intake/merge")
-    def merge_project_intake(project_slug: str, body: ProjectIntakeMergeRequest) -> dict[str, Any]:
+    def merge_project_intake(project_slug: str, body: ProjectIntakeMergeRequest, request: Request) -> dict[str, Any]:
+        scope(request, mutate=True)
         registry = _load_registry(registry_file)
         try:
             record = registry.get(project_slug)
@@ -255,7 +269,8 @@ def setup_server_project_routes(
         return {"success": report.merged, "intake_merge": report.to_dict()}
 
     @router.get("/{project_slug}")
-    def get_project(project_slug: str) -> dict[str, Any]:
+    def get_project(project_slug: str, request: Request) -> dict[str, Any]:
+        scope(request)
         registry = _load_registry(registry_file)
         try:
             record = registry.get(project_slug)
@@ -264,7 +279,8 @@ def setup_server_project_routes(
         return {"project": record.to_dict(), **_project_route_compatibility(record=record)}
 
     @router.post("/{project_slug}/chat-bind")
-    def bind_chat(project_slug: str, body: ProjectChatBindRequest) -> dict[str, Any]:
+    def bind_chat(project_slug: str, body: ProjectChatBindRequest, request: Request) -> dict[str, Any]:
+        scope(request, mutate=True)
         registry = _load_registry(registry_file)
         try:
             context = bind_project_chat_session(
@@ -280,7 +296,8 @@ def setup_server_project_routes(
         return {"success": True, "context": context.metadata(), "audit": context.audit_summary()}
 
     @router.post("/{project_slug}/provision")
-    def provision_workspace(project_slug: str, body: ProjectProvisionRequest) -> dict[str, Any]:
+    def provision_workspace(project_slug: str, body: ProjectProvisionRequest, request: Request) -> dict[str, Any]:
+        scope(request, mutate=True)
         registry = _load_registry(registry_file)
         try:
             record = registry.get(project_slug)
@@ -298,7 +315,8 @@ def setup_server_project_routes(
         return {"success": report.executed, "provisioning": report.to_dict()}
 
     @router.post("/{project_slug}/repo-provision")
-    def provision_repo(project_slug: str, body: ProjectRepoProvisionRequest) -> dict[str, Any]:
+    def provision_repo(project_slug: str, body: ProjectRepoProvisionRequest, request: Request) -> dict[str, Any]:
+        owner = scope(request, mutate=True)
         registry = _load_registry(registry_file)
         try:
             record = registry.get(project_slug)
@@ -315,10 +333,25 @@ def setup_server_project_routes(
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except ServerProjectRepoProvisioningError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if report.executed and report.status == "provisioned":
+            try:
+                _bind_forge_repository(
+                    forge_registry_path=configured_forge_registry,
+                    record=record,
+                    owner=owner,
+                    default_branch=report.plan.default_branch,
+                    created_at=_now_iso(),
+                )
+            except (RepoRegistryError, OSError, ValueError) as exc:
+                raise HTTPException(
+                    status_code=409,
+                    detail="repository was provisioned but Forge registry reconciliation is required",
+                ) from exc
         return {"success": report.executed and report.status == "provisioned", "repo_provisioning": report.to_dict()}
 
     @router.post("/{project_slug}/task-run")
-    def run_task(project_slug: str, body: ProjectTaskRunRequest) -> dict[str, Any]:
+    def run_task(project_slug: str, body: ProjectTaskRunRequest, request: Request) -> dict[str, Any]:
+        scope(request, mutate=True)
         registry = _load_registry(registry_file)
         try:
             record = registry.get(project_slug)
@@ -348,7 +381,8 @@ def setup_server_project_routes(
         }
 
     @router.post("/{project_slug}/planner-task-run")
-    def run_planned_task(project_slug: str, body: ProjectPlannerTaskRunRequest) -> dict[str, Any]:
+    def run_planned_task(project_slug: str, body: ProjectPlannerTaskRunRequest, request: Request) -> dict[str, Any]:
+        scope(request, mutate=True)
         registry = _load_registry(registry_file)
         try:
             record = registry.get(project_slug)
@@ -365,6 +399,8 @@ def setup_server_project_routes(
                 check_profile=body.check_profile,
                 live_enabled=body.live_enabled,
                 operator_decision=body.operator_decision,
+                clarification_ready_for_plan=body.clarification_ready_for_plan,
+                clarification_id=body.clarification_id,
             )
         except ServerProjectRegistryError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -381,55 +417,20 @@ def setup_server_project_routes(
         }
 
     @router.post("/{project_slug}/commit-run")
-    def run_commit(project_slug: str, body: ProjectCommitRunRequest) -> dict[str, Any]:
-        registry = _load_registry(registry_file)
-        try:
-            record = registry.get(project_slug)
-            report = run_project_local_commit(
-                record=record,
-                projects_root=configured_projects_root,
-                objective=body.objective,
-                changed_paths=body.changed_paths,
-                checks_passed=body.checks_passed,
-                commit_message=body.commit_message,
-                push_remote=body.push_remote,
-                live_enabled=body.live_enabled,
-                operator_decision=body.operator_decision,
-            )
-        except ServerProjectRegistryError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
-        except ServerProjectCommitRunnerError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return {
-            "success": report.executed and report.status == "committed",
-            "commit_run": report.to_dict(),
-            **_project_route_compatibility(record=record),
-        }
+    def run_commit(project_slug: str, request: Request) -> dict[str, Any]:
+        scope(request, mutate=True)
+        raise HTTPException(
+            status_code=410,
+            detail="Use the matching /api/project-versioning/{repo_id}/commit route",
+        )
 
     @router.post("/{project_slug}/push-run")
-    def run_push(project_slug: str, body: ProjectPushRunRequest) -> dict[str, Any]:
-        registry = _load_registry(registry_file)
-        try:
-            record = registry.get(project_slug)
-            report = run_project_push(
-                record=record,
-                projects_root=configured_projects_root,
-                branch=body.branch,
-                commit_ref=body.commit_ref,
-                commit_confirmed=body.commit_confirmed,
-                remote_name=body.remote_name,
-                live_enabled=body.live_enabled,
-                operator_decision=body.operator_decision,
-            )
-        except ServerProjectRegistryError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
-        except ServerProjectPushRunnerError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return {
-            "success": report.executed and report.status == "pushed",
-            "push_run": report.to_dict(),
-            **_project_route_compatibility(record=record),
-        }
+    def run_push(project_slug: str, request: Request) -> dict[str, Any]:
+        scope(request, mutate=True)
+        raise HTTPException(
+            status_code=410,
+            detail="Provider delivery is selected by project policy after commit_project",
+        )
 
     return router
 
@@ -448,6 +449,69 @@ def _save_registry(path: Path, registry: ServerProjectRegistry) -> None:
         registry.save_json(path)
     except Exception as exc:
         raise HTTPException(status_code=500, detail="project registry could not be saved") from exc
+
+
+def _check_request_gate(gate: Callable[[Request], Any], request: Request, *, detail: str) -> None:
+    try:
+        decision = gate(request)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=403, detail=detail) from exc
+    if decision is not True and decision is not None:
+        raise HTTPException(status_code=403, detail=detail)
+
+
+def _bind_forge_repository(
+    *,
+    forge_registry_path: Path,
+    record: Any,
+    owner: str,
+    default_branch: str,
+    created_at: str,
+) -> RepoRecord:
+    repo_id = record.project_slug
+    path_ref = f"{record.project_slug}/repo"
+    forge_record = RepoRecord.create(
+        repo_id=repo_id,
+        title=record.project_spec.project_title,
+        repo_kind="project",
+        owner=owner,
+        path_ref=path_ref,
+        workspace_root=record.project_slug,
+        project_root=path_ref,
+        default_branch=default_branch,
+        current_branch=default_branch,
+        privacy_class="private",
+        provider_scope="external_allowed",
+        allowed_actions=(
+            "status",
+            "log",
+            "diff_stat",
+            "changed_paths",
+            "remotes",
+            "changes",
+            "change_history",
+            "commit_plan",
+            "commit",
+        ),
+        linked_project_slug=record.project_slug,
+        created_at=created_at,
+    )
+    registry = RepoRegistry.load_or_empty(forge_registry_path)
+    existing = registry.repos.get(repo_id)
+    if existing is not None:
+        stable_existing = existing.to_dict()
+        stable_new = forge_record.to_dict()
+        for payload in (stable_existing, stable_new):
+            payload.pop("created_at", None)
+            payload.pop("updated_at", None)
+        if stable_existing != stable_new:
+            raise RepoRegistryError("Forge repository binding conflicts with an existing record")
+        return existing
+    registry.add(forge_record)
+    registry.save_json(forge_registry_path)
+    return forge_record
 
 
 def _project_route_compatibility(

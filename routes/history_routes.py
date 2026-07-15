@@ -546,7 +546,7 @@ def setup_history_routes(session_manager) -> APIRouter:
 
             ctx_len = get_context_length(session.endpoint_url, session.model)
             messages_before = session.get_context_messages()
-            used_before = estimate_tokens(messages_before)
+            used_before = estimate_tokens(messages_before, model_hint=session.model)
             pct_before = round((used_before / ctx_len) * 100, 1) if ctx_len else 0
             msg_count_before = len(session.history)
 
@@ -649,7 +649,10 @@ def setup_history_routes(session_manager) -> APIRouter:
 
             session_manager.save_sessions()
 
-            used_after = estimate_tokens(session.get_context_messages())
+            used_after = estimate_tokens(
+                session.get_context_messages(),
+                model_hint=session.model,
+            )
             pct_after = round((used_after / ctx_len) * 100, 1) if ctx_len else 0
 
             return {

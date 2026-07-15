@@ -8,6 +8,8 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from src.llm_response_cache import LLMResponseCache
+
 _model_activity: dict[str, float] = {}
 _http_client: Optional[httpx.AsyncClient] = None
 _http_limits = httpx.Limits(max_connections=100, max_keepalive_connections=30, keepalive_expiry=30.0)
@@ -104,17 +106,13 @@ def clear_host_dead(url: str, host_fails: dict[str, int], dead_hosts: dict[str, 
         host_fails.pop(key, None)
 
 
-def get_cached_response(cache: dict, cache_key: str, cache_hit_setter) -> Optional[str]:
+def get_cached_response(cache: LLMResponseCache, cache_key: str, cache_hit_setter) -> Optional[str]:
     """Return cached response and update the caller-owned cache-hit marker."""
     response = cache.get(cache_key)
     cache_hit_setter(response is not None)
     return response
 
 
-def set_cached_response(cache: dict, cache_key: str, response: str, *, max_size: int = 128, evict_count: int = 64) -> None:
-    """Store response while tolerating concurrent eviction of snapshotted keys."""
-    if len(cache) > max_size:
-        keys_to_remove = list(cache.keys())[:evict_count]
-        for key in keys_to_remove:
-            cache.pop(key, None)
-    cache[cache_key] = response
+def set_cached_response(cache: LLMResponseCache, cache_key: str, response: str) -> None:
+    """Store a response through the cache's locked capacity boundary."""
+    cache.set(cache_key, response)

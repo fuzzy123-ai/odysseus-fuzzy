@@ -3,48 +3,62 @@
   "kind": "odysseus.planning_mcp_roadmap",
   "title": "Planning MCP Roadmap",
   "created_at": "2026-07-08",
-  "updated_at": "2026-07-09",
-  "status": "repo_slices_done_live_gated",
+  "updated_at": "2026-07-13",
+  "status": "repo_slices_done_live_gated_definition_split_planned",
   "abc_mode": "Standard ABC",
-  "goal": "Expose Odysseus planning as a reliable JSON-first capability so internal agents, Codex and trusted external MCP clients can create, retrieve, update and contextualize roadmaps without losing provenance, gates or operator control.",
+  "goal": "Expose versioned Planning definitions as a reliable JSON-first capability so internal agents, Codex and trusted external MCP clients can create, retrieve, validate, revise and hand off roadmaps without storing or mutating any execution state in Planning.",
   "problem_statement": {
-    "user_need": "Every AI should be able to use the Planning feature to create roadmaps, find existing roadmaps, load the right context and hand back reliable planning state.",
-    "current_gap": "Planning exists as JSON roadmaps, HTTP routes, Roadmap Lens and planning-source memory capsules, but there is no dedicated Planning MCP tool surface for internal or external clients.",
-    "design_principle": "Planning truth stays JSON-first. Markdown may be a rendered view only. MCP tools return compact, bounded, source-linked payloads instead of raw planning dumps."
+    "user_need": "Every AI should be able to use Planning to create and revise roadmap definitions, find an exact approved revision, load definition context and prepare a pinned Agent handoff.",
+    "current_gap": "The existing MCP surface is implemented but still carries legacy status/progress and live-gate semantics. It lacks the canonical definition-v2 denylist and the exact non-launching Agent handoff.",
+    "design_principle": "Planning truth stays JSON-first and definition-only. Markdown may be a rendered view only. MCP tools return compact, bounded, source-linked payloads and reject runtime fields recursively."
+  },
+  "definition_runtime_boundary": {
+    "normative_child": "docs/plans/planning-definition-editor-roadmap.json",
+    "canonical_output_schema": "odysseus.planning.definition.v2",
+    "definition_reads": "Project identity, roadmap content, immutable revision/hash, DAG, dependencies, gate definitions, completion contracts, source refs and definition lifecycle only.",
+    "definition_writes": "Validated draft, revision proposal, apply, archive, tombstone, restore and undo operations only; every apply uses expected_revision and expected_content_hash.",
+    "runtime_exclusion": "Run status, progress, checkpoints, workflow or Activity data, retries, history, heartbeats, claims, leases, workers, Signals, Updates, commands, runtime gate decisions and evidence receipts are forbidden in inputs, outputs, resources, notifications and persisted Planning JSON.",
+    "deprecated_tool": "planning_mark_status is removed from the target tool surface. A compatibility handler may return deprecated_tool with replacement_surface=agent until callers migrate; it must perform no write.",
+    "gate_rule": "planning_read_gate_definitions returns requirements, targets and safe defaults only. Live go/no-go decisions are Agent/Odysseus runtime data.",
+    "handoff_rule": "planning_create_agent_handoff resolves one approved positive integer revision and content hash and returns launch_authorized=false. It neither selects skills/models nor calls a run-start endpoint.",
+    "execution_rule": "Only authenticated /abc submission in Agent may create an execution manifest. Temporal and Agent state never write back to the pinned Planning revision.",
+    "compatibility_rule": "Legacy progress/status/checkpoint fields may be accepted as read-only migration input, must be dropped from odysseus.planning.definition.v2 and must never be re-emitted by the canonical projector."
   },
   "workflow_alignment": {
     "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
     "operator_workflow": [
-      "A plan is developed in the Agent screen or by another AI.",
-      "The AI calls Planning MCP to create a validated JSON roadmap draft.",
-      "The roadmap is stored in the appropriate project structure and indexed as derived Planning context.",
-      "Raptor Memory receives source-linked roadmap summaries, gates and relationships, but not raw private content.",
-      "Harbor One receives a sparse structural notification only for creation, deletion, gate blockers or human decisions.",
-      "Clicking the notification opens Planning Overview and highlights the changed roadmap or gate.",
-      "Agents later retrieve the roadmap and context pack through MCP before executing work.",
-      "Routine progress updates are audit logged but do not notify the operator."
+      "A user or AI creates a Planning definition draft.",
+      "Planning MCP validates the full definition and dependency DAG before proposing or applying a new revision.",
+      "The approved revision is stored with an immutable content hash and indexed as derived Planning context.",
+      "Raptor Memory receives source-linked definition summaries, gate requirements and relationships, but not raw private content or runtime facts.",
+      "Harbor One emits sparse definition notifications for creation, approval, conflict, deletion or undo availability; those notifications open Planning.",
+      "Open in Agent calls planning_create_agent_handoff, switches to Agent and prepares the exact /abc command without submitting it.",
+      "The user submits /abc in Agent; execution state and execution notifications remain in Agent.",
+      "A structural execution-time change creates a new Planning revision proposal and never mutates the revision pinned by the active run."
     ],
-    "ui_boundary": "The MCP roadmap defines payloads, events and context contracts. Harbor V2 UI behavior is owned by the Harbor Planning Integration Master Roadmap."
+    "ui_boundary": "This MCP roadmap defines definition payloads, events, context and handoff contracts. Planning UI implementation is owned by PDE; all execution UI and control behavior is owned by TLR in the Agent screen."
   },
   "frontpage_v2_dependencies": {
-    "updated_at": "2026-07-09",
+    "updated_at": "2026-07-13",
+    "status": "reference_only_superseded",
     "current_ui_prototype": [
       "Harbor V2 can open a Roadmap Document Viewer from Roadmaps list or Overview graph selection.",
       "The viewer can show a readable roadmap view and a JSON Data mode.",
       "Spark buttons can switch to Agent and pin a roadmap or roadmap-section context bubble."
     ],
-    "service_gaps": [
+    "historical_service_gaps_closed_by_pmcp_5_series": [
       "Roadmap Document Viewer needs a read endpoint that returns one roadmap as readable sections plus canonical JSON.",
       "Editable summary, tasks and JSON need validate/draft/patch endpoints before any write becomes planning truth.",
       "Spark needs a context-pack endpoint scoped to full roadmap, summary, task or gate sections.",
       "Spark handoff needs redacted audit metadata so the user can later see why the Agent received that context.",
       "Notification deep links need stable project_id and roadmap_id references that resolve to the same service payload."
     ],
-    "related_master_slices": [
-      "HPIM-7-v2-roadmap-document-source",
-      "HPIM-8-roadmap-document-edit-persist",
-      "HPIM-9-spark-agent-context-pack",
-      "HPIM-10-notification-roadmap-document-deeplink"
+    "replacement_slices": [
+      "PDE-02-definition-read-model-api",
+      "PDE-03-revision-proposal-apply",
+      "PDE-04-agent-handoff-envelope",
+      "PDE-05-v3-planning-surface",
+      "PDE-06-definition-notification-undo"
     ]
   },
   "research_evidence": {
@@ -131,28 +145,25 @@
       "default_policy": "disabled by default; read-only Planning tools may be previewed; roadmap creation/apply requires owner-scoped write scope and explicit gate"
     },
     "ui_integration": {
-      "goal": "The V2 Planning UI can call the same service, but UI implementation is not part of this roadmap.",
-      "boundary": "No frontend changes in this roadmap unless a later UI-owned slice explicitly claims them."
+      "goal": "The V3 Planning definition editor calls the same definition service; Agent consumes only the pinned handoff reference and its own execution projection.",
+      "boundary": "No frontend changes in this roadmap. PDE owns Planning UI, TLR owns Agent execution UI, and this MCP surface exposes no run or control endpoint."
     }
   },
   "event_and_notification_policy": {
-    "principle": "Planning MCP calls are usually quiet infrastructure. Harbor One notifications are sparse and reserved for structural changes or decisions.",
+    "principle": "Planning MCP calls are usually quiet infrastructure. Planning notifications are sparse and reserved for definition structure, revision conflicts, deletion and undo. Runtime notifications are outside this contract.",
     "silent_events": [
       "planning_context_pack_read",
-      "planning_progress_updated",
-      "planning_todo_completed",
       "planning_summary_refreshed",
       "planning_raptor_memory_processed",
-      "planning_agent_checkpoint_written"
+      "planning_definition_validation_succeeded"
     ],
     "notify_events": [
       "project_created",
       "project_deleted",
       "roadmap_created",
       "roadmap_deleted",
-      "gate_blocked",
-      "gate_unblocked_when_it_changes_available_work",
-      "human_decision_required",
+      "roadmap_revision_approved",
+      "roadmap_revision_conflict",
       "undo_available_after_structural_delete"
     ],
     "notification_payload_contract": {
@@ -200,11 +211,20 @@
         "output_schema": "odysseus.planning.graph_summary.v1"
       },
       {
-        "name": "planning_gate_status",
+        "name": "planning_read_gate_definitions",
         "audience": "internal_and_external",
-        "purpose": "Return gates, blockers and next safe actions for a roadmap or node.",
+        "purpose": "Return declared gate requirements, target nodes and safe defaults for one exact roadmap revision; never return a runtime gate instance or decision.",
         "inputs": ["roadmap_ref", "node_id"],
-        "output_schema": "odysseus.planning.gate_status.v1"
+        "output_schema": "odysseus.planning.gate_definitions.v2"
+      },
+      {
+        "name": "planning_create_agent_handoff",
+        "audience": "internal_and_external",
+        "purpose": "Resolve one approved roadmap revision and content hash and create the bounded Agent composer handoff without starting a run.",
+        "inputs": ["project_id", "roadmap_id", "revision_or_latest_approved"],
+        "output_schema": "odysseus.agent.plan_handoff.v1",
+        "constant_output_fields": {"launch_authorized": false},
+        "forbidden_calls": ["Agent run start", "Temporal workflow start", "skill selection", "model selection"]
       }
     ],
     "write_or_mutation_tools": [
@@ -225,8 +245,8 @@
       {
         "name": "planning_propose_patch",
         "audience": "internal_first_external_later",
-        "purpose": "Produce an auditable patch proposal for nodes, gates, status or source refs without applying it.",
-        "inputs": ["roadmap_ref", "proposal", "reason"],
+        "purpose": "Produce an auditable definition-revision proposal for nodes, gate requirements or source refs without applying it.",
+        "inputs": ["roadmap_ref", "expected_revision", "expected_content_hash", "proposal", "reason"],
         "gate": "none_if_dry_run"
       },
       {
@@ -235,13 +255,6 @@
         "purpose": "Apply a previously validated and accepted roadmap patch.",
         "inputs": ["roadmap_ref", "patch_id", "confirmation_token"],
         "gate": "PLANNING-APPLY-GO"
-      },
-      {
-        "name": "planning_mark_status",
-        "audience": "internal_only_until_policy_ready",
-        "purpose": "Mark roadmap or node status after validated evidence.",
-        "inputs": ["roadmap_ref", "node_id", "status", "evidence_refs"],
-        "gate": "PLANNING-STATUS-WRITE-GO"
       },
       {
         "name": "planning_delete_roadmap",
@@ -256,6 +269,22 @@
         "purpose": "Classify a Planning change as silent or notify-worthy and return the safe Harbor notification payload when needed.",
         "inputs": ["event_type", "project_id", "roadmap_id", "gate_id", "reason", "undo_ref"],
         "gate": "none_for_dry_run_or_readonly_event_classification"
+      }
+    ],
+    "deprecated_tools": [
+      {
+        "name": "planning_mark_status",
+        "status": "deprecated_no_write",
+        "reason": "queued, running, blocked and done are execution-instance states owned by Agent, not Planning definition lifecycle states.",
+        "compatibility_response": {"error": "deprecated_tool", "replacement_surface": "agent"},
+        "removal_condition": "Remove the compatibility handler after all internal and external callers use Agent execution APIs; until removal it must perform no mutation."
+      },
+      {
+        "name": "planning_gate_status",
+        "status": "deprecated_no_runtime_read",
+        "reason": "The name conflates gate definitions with live gate decisions.",
+        "compatibility_response": {"error": "deprecated_tool", "replacement_tool": "planning_read_gate_definitions"},
+        "removal_condition": "Remove after caller migration; it must not proxy Agent/Odysseus runtime gate state."
       }
     ],
     "mcp_resources": [
@@ -406,7 +435,7 @@
       "tests": [
         "python -m pytest tests/test_mcp_server_plugin.py tests/test_mcp_server_tool_policy.py"
       ],
-      "done_when": "planning_list_roadmaps, planning_read_roadmap, planning_search_roadmaps, planning_get_context_pack, planning_graph_summary and planning_gate_status are policy-classified and visible only when MCP is enabled."
+      "done_when": "planning_list_roadmaps, planning_read_roadmap, planning_search_roadmaps, planning_get_context_pack, planning_graph_summary and the legacy planning_gate_status tool are policy-classified. PMCP-9 must replace the legacy gate tool with planning_read_gate_definitions before the V2 definition contract is accepted."
     },
     {
       "id": "PMCP-4-roadmap-draft-and-validation",
@@ -518,7 +547,7 @@
       "class": "repo_only",
       "owner": "Charlie",
       "status": "done",
-      "objective": "Classify Planning MCP events as silent updates or sparse Harbor notifications.",
+      "objective": "Classify Planning definition events as silent updates or sparse Planning notifications without accepting runtime events.",
       "allowed_paths": [
         "src/planning_mcp_service.py",
         "src/user_notification_contract.py",
@@ -529,7 +558,7 @@
       "tests": [
         "python -m pytest tests/test_planning_mcp_service.py tests/test_user_notification_contract.py"
       ],
-      "done_when": "Roadmap create/delete and gate decision events can produce safe notification payloads, while context reads and routine progress updates remain silent."
+      "done_when": "Roadmap create/delete events can produce safe notification payloads while context reads remain silent. PMCP-9 must remove legacy runtime progress and gate-decision event semantics before the V2 definition contract is accepted."
     },
     {
       "id": "PMCP-6c-project-storage-memory-bridge",
@@ -600,11 +629,84 @@
         "manual external MCP smoke after EXTERNAL-MCP-CLIENT-GO"
       ],
       "done_when": "Smoke evidence is redacted, no live write happens without PLANNING-APPLY-GO, and Codex can reliably retrieve Planning context."
+    },
+    {
+      "id": "PMCP-9-definition-runtime-separation",
+      "class": "repo_only",
+      "owner": "Bob",
+      "status": "planned",
+      "depends_on": [
+        "PMCP-1-service-contract",
+        "PMCP-2-readonly-stdio-server",
+        "PMCP-3-external-policy-exposure",
+        "PMCP-5b-roadmap-document-view",
+        "PMCP-5c-roadmap-edit-draft",
+        "PMCP-5d-spark-section-context-pack",
+        "PMCP-6b-structural-event-policy"
+      ],
+      "external_depends_on": [
+        "PDE-01-definition-schema-validator",
+        "PDE-04-agent-handoff-envelope"
+      ],
+      "allowed_paths": [
+        "src/planning_mcp_service.py",
+        "mcp_servers/planning_server.py",
+        "routes/roadmap_routes.py",
+        "plugins/mcp_server/plugin.py",
+        "src/mcp_server_tool_policy.py",
+        "tests/test_planning_mcp_service.py",
+        "tests/test_mcp_planning_server.py",
+        "tests/test_roadmap_routes.py",
+        "tests/test_mcp_server_plugin.py",
+        "tests/test_mcp_server_tool_policy.py"
+      ],
+      "hotfiles": [
+        "src/planning_mcp_service.py",
+        "routes/roadmap_routes.py",
+        "plugins/mcp_server/plugin.py"
+      ],
+      "objective": "Migrate every Planning MCP input, output, resource and event to the odysseus.planning.definition.v2 boundary and add the non-launching Agent handoff.",
+      "deliverables": [
+        "recursive rejection of the PDE runtime-field denylist",
+        "planning_read_gate_definitions with definition-only output",
+        "planning_create_agent_handoff with exact approved revision/hash and launch_authorized=false",
+        "planning_mark_status compatibility response with no mutation",
+        "planning_gate_status compatibility response with no runtime read",
+        "definition-only notifications and audit metadata",
+        "migration tests proving legacy runtime-like fields are not re-emitted"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_planning_mcp_service.py tests\\test_mcp_planning_server.py tests\\test_roadmap_routes.py tests\\test_mcp_server_plugin.py tests\\test_mcp_server_tool_policy.py --basetemp .pytest_tmp_pmcp_definition_split"
+      ],
+      "evidence_required": [
+        "recursive denylist fixture for every forbidden runtime key",
+        "handoff fixture with positive integer revision, matching content hash and launch_authorized=false",
+        "spy proof that no Planning handler calls Agent or Temporal start APIs",
+        "compatibility proof that both deprecated tools perform zero writes",
+        "before/after MCP tool inventory"
+      ],
+      "gate": {
+        "id": "none",
+        "safe_default": "Repository tests only; PLANNING-WRITE-GO still governs every real definition apply."
+      },
+      "done_when": "PASS only if all named tests exit zero, the target tool inventory contains no runtime mutation/read tool, the exact handoff is non-launching and canonical Planning payloads contain none of the PDE runtime-field denylist at any depth.",
+      "stop_rules": [
+        "Stop on an unclaimed shared hotfile or overlapping writer.",
+        "Stop if a compatibility requirement would reintroduce runtime state into canonical Planning output.",
+        "Stop if a handler can start a run directly or select a concrete runtime skill or model."
+      ],
+      "forbidden_actions": [
+        "no real Planning apply",
+        "no Agent or Temporal workflow start",
+        "no runtime gate lookup",
+        "no edits to Agent UI or Temporal runtime paths"
+      ]
     }
   ],
   "verification": {
     "docs_only_current_slice": [
-      "python -m json.tool docs/plans/planning-mcp-roadmap.json"
+      "python -m json.tool docs/plans/planning-mcp-roadmap.json",
+      "python -m pytest -q tests/test_planning_agent_boundary_roadmaps.py"
     ],
     "future_focused_tests": [
       "python -m pytest tests/test_planning_mcp_service.py",
@@ -619,11 +721,11 @@
     ]
   },
   "go_language": {
-    "go": "Planning MCP read-only tools exist internally and externally, context packs are bounded and source-linked, roadmap drafts validate, writes are gated and audited.",
-    "partial": "Read-only Planning MCP works, but roadmap draft writes or external client smoke remain deferred.",
-    "deferred": "External client live smoke, patch apply and status mutation wait for explicit operator Go.",
-    "no_go": "Any design exposes generic API, shell, Python, arbitrary file access, private raw content or direct ungated roadmap writes.",
-    "blocked": "Planning truth cannot be validated as JSON or the MCP tool surface cannot be classified safely."
+    "go": "Planning MCP definition tools exist internally and externally, context packs are bounded and source-linked, drafts validate, revisions are gated and audited, deprecated runtime tools perform no read or write, and Agent handoffs cannot launch runs.",
+    "partial": "Existing read-only Planning MCP works, but PMCP-9 definition/runtime separation or the Agent handoff remains incomplete.",
+    "deferred": "External client live smoke and real definition apply/delete remain behind their explicit operator gates.",
+    "no_go": "Any design exposes generic API, shell, Python, arbitrary file access, private raw content, runtime state, runtime gate decisions, direct run start or ungated definition writes.",
+    "blocked": "Planning truth cannot be validated as odysseus.planning.definition.v2, the runtime-field denylist fails or the MCP tool surface cannot be classified safely."
   },
-  "recommended_next_step": "Implement PMCP-1 service contract first. Do not start with the MCP server itself; the shared service gives HTTP, internal MCP and external MCP one reliable planning core."
+  "recommended_next_step": "After PDE-01 and PDE-04 are complete and shared hotfiles are freshly claimed, execute PMCP-9-definition-runtime-separation. Do not reopen completed PMCP slices and do not run a real Planning write during this migration."
 }

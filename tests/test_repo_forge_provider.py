@@ -6,9 +6,11 @@ from pathlib import Path
 import pytest
 
 from src.repo_forge_provider import (
+    GitHubRemoteIdentity,
     RepoForgeMetadata,
     RepoForgeProviderError,
     build_repo_forge_plan,
+    normalize_github_remote_identity,
     normalize_forge_metadata_payload,
     plan_repo_forge_metadata,
     run_repo_forge_metadata,
@@ -184,3 +186,35 @@ def test_source_has_no_live_provider_runtime():
     forbidden = ("import requests", "import httpx", "paramiko", "cloudflared", "gh repo create")
     for fragment in forbidden:
         assert fragment not in source
+
+
+@pytest.mark.parametrize(
+    "remote",
+    (
+        "https://github.com/Fuzzy123-AI/Demo.git",
+        "ssh://git@github.com/Fuzzy123-AI/Demo.git",
+        "git@github.com:Fuzzy123-AI/Demo.git",
+    ),
+)
+def test_github_remote_identity_is_transport_independent_and_redacted(remote):
+    identity = normalize_github_remote_identity(remote)
+
+    assert identity == GitHubRemoteIdentity(namespace="fuzzy123-ai", repo_name="demo")
+    assert identity.full_name == "fuzzy123-ai/demo"
+    assert "github.com" not in identity.full_name
+
+
+@pytest.mark.parametrize(
+    "remote",
+    (
+        "https://user:password@github.com/fuzzy/demo.git",
+        "https://oauth@github.com/fuzzy/demo.git",
+        "https://gitlab.com/fuzzy/demo.git",
+        "https://github.com/fuzzy/demo/extra.git",
+        "file:///private/repo.git",
+        "git@evil.example:fuzzy/demo.git",
+    ),
+)
+def test_github_remote_identity_rejects_credentials_other_hosts_and_bad_paths(remote):
+    with pytest.raises(RepoForgeProviderError):
+        normalize_github_remote_identity(remote)

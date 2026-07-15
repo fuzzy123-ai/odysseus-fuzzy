@@ -42,16 +42,36 @@ MAX_MESSAGE_CHARS = 1200
 MAX_EVENT_CHARS = 80
 MAX_METADATA_ITEMS = 12
 
-PLANNING_NOTIFICATION_SCHEMA = "odysseus.planning_notification_candidate.v1"
+PLANNING_NOTIFICATION_SCHEMA = "odysseus.planning.definition_notification_candidate.v2"
 PLANNING_NOTIFICATION_EVENTS = {
     "project_created",
     "project_deleted",
     "roadmap_created",
     "roadmap_deleted",
+    "roadmap_revision_approved",
+    "roadmap_revision_conflict",
+    "undo_available_after_structural_delete",
+}
+PLANNING_REVISION_NOTIFICATION_EVENTS = {
+    "roadmap_revision_approved",
+    "roadmap_revision_conflict",
+}
+EXECUTION_NOTIFICATION_EVENTS = {
+    "activity_completed",
+    "activity_failed",
+    "activity_started",
+    "agent_run_completed",
+    "agent_run_failed",
+    "agent_run_started",
+    "claim_expired",
     "gate_blocked",
     "gate_unblocked_when_it_changes_available_work",
+    "heartbeat_late",
+    "heartbeat_recovered",
     "human_decision_required",
-    "undo_available_after_structural_delete",
+    "workflow_cancelled",
+    "workflow_paused",
+    "workflow_resumed",
 }
 PLANNING_SILENT_EVENTS = {
     "roadmap_progress_updated",
@@ -72,14 +92,14 @@ PLANNING_SILENT_EVENTS = {
     "planning_derived_memory_lifecycle_planned",
     "planning_agent_checkpoint_written",
 }
-PLANNING_UI_HIGHLIGHT_KINDS = {"project", "roadmap", "gate"}
+PLANNING_UI_HIGHLIGHT_KINDS = {"project", "roadmap"}
 PLANNING_UI_HIGHLIGHT_MODES = {"focus", "expand_summary"}
 PLANNING_DOCUMENT_INTENTS = {"none", "open_roadmap_document"}
 MAX_PLANNING_REASON_CHARS = 240
 
 _PLANNING_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 _PLANNING_CANDIDATE_FIELDS = {
-    "event_type", "project_id", "roadmap_id", "gate_id", "severity", "reason", "created_at", "ui_target",
+    "event_type", "project_id", "roadmap_id", "revision", "content_hash", "severity", "reason", "created_at", "ui_target",
 }
 _PLANNING_UI_TARGET_FIELDS = {
     "workspace", "view", "highlight_kind", "highlight_mode", "document_view_intent",
@@ -93,6 +113,10 @@ _URL_RE = re.compile(r"(?i)\b[a-z][a-z0-9+.-]*://")
 
 class NotificationContractError(ValueError):
     """Raised when a notification request violates the safe boundary."""
+
+    def __init__(self, message: str, *, code: str = "notification_contract_error") -> None:
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass(frozen=True)
@@ -126,6 +150,9 @@ class UserNotificationDecision:
 class PlanningNotificationUiTarget:
     workspace: str
     view: str
+    project_id: str
+    roadmap_id: str | None
+    revision: int | None
     highlight_kind: str
     highlight_id: str
     highlight_mode: str
@@ -140,7 +167,8 @@ class PlanningNotificationCandidate:
     event_type: str
     project_id: str
     roadmap_id: str | None
-    gate_id: str | None
+    revision: int | None
+    content_hash: str
     severity: str
     reason: str
     created_at: str
@@ -158,7 +186,8 @@ class PlanningNotificationCandidate:
             "event_type": self.event_type,
             "project_id": self.project_id,
             "roadmap_id": self.roadmap_id,
-            "gate_id": self.gate_id,
+            "revision": self.revision,
+            "content_hash": self.content_hash,
             "severity": self.severity,
             "reason": self.reason,
             "created_at": self.created_at,
@@ -365,10 +394,35 @@ def build_user_notification_decision(
 
 
 def classify_planning_notification_event(event_type: Any) -> str:
-    event = _planning_event_type(event_type)
-    if event in PLANNING_SILENT_EVENTS:
+    workspace = notification_workspace_for_event(event_type)
+    if workspace == "agent":
+        raise NotificationContractError(
+            "Execution notifications are Agent-only and cannot target Planning",
+            code="execution_event_agent_only",
+        )
+    if workspace == "silent":
         return "silent"
     return "notification_candidate"
+
+
+def notification_workspace_for_event(event_type: Any) -> str:
+    """Return the only workspace allowed to receive one product event."""
+
+    if not isinstance(event_type, str):
+        raise NotificationContractError(
+            "Notification event_type must be text",
+            code="invalid_notification_event",
+        )
+    if event_type in PLANNING_NOTIFICATION_EVENTS:
+        return "planning"
+    if event_type in EXECUTION_NOTIFICATION_EVENTS:
+        return "agent"
+    if event_type in PLANNING_SILENT_EVENTS:
+        return "silent"
+    raise NotificationContractError(
+        "Notification event_type is invalid",
+        code="invalid_notification_event",
+    )
 
 
 def build_planning_notification_candidate(
@@ -393,13 +447,20 @@ def build_planning_notification_candidate(
         return None
 
     roadmap_id = _optional_planning_id(payload.get("roadmap_id"), field_name="roadmap_id")
-    gate_id = _optional_planning_id(payload.get("gate_id"), field_name="gate_id")
-    if event_type in {"roadmap_created", "roadmap_deleted"} and roadmap_id is None:
+    if event_type not in {"project_created", "project_deleted"} and roadmap_id is None:
         raise NotificationContractError("Roadmap structural events require roadmap_id")
-    if event_type in {
-        "gate_blocked", "gate_unblocked_when_it_changes_available_work", "human_decision_required",
-    } and gate_id is None:
-        raise NotificationContractError("Gate decision events require gate_id")
+
+    if event_type in PLANNING_REVISION_NOTIFICATION_EVENTS:
+        revision = _planning_revision(payload.get("revision"))
+        content_hash = _planning_content_hash(payload.get("content_hash"))
+    else:
+        if payload.get("revision") is not None or payload.get("content_hash") not in {None, ""}:
+            raise NotificationContractError(
+                "Revision metadata is accepted only for definition revision events",
+                code="unexpected_definition_revision",
+            )
+        revision = None
+        content_hash = ""
 
     severity = payload.get("severity") or _default_planning_severity(event_type)
     if severity not in ALLOWED_SEVERITIES:
@@ -410,13 +471,14 @@ def build_planning_notification_candidate(
         payload.get("ui_target"),
         project_id=project_id,
         roadmap_id=roadmap_id,
-        gate_id=gate_id,
+        revision=revision,
     )
     dedupe_key = _planning_dedupe_key(
         event_type=event_type,
         project_id=project_id,
         roadmap_id=roadmap_id,
-        gate_id=gate_id,
+        revision=revision,
+        content_hash=content_hash,
         reason=reason,
         document_view_intent=ui_target.document_view_intent,
     )
@@ -424,7 +486,8 @@ def build_planning_notification_candidate(
         event_type=event_type,
         project_id=project_id,
         roadmap_id=roadmap_id,
-        gate_id=gate_id,
+        revision=revision,
+        content_hash=content_hash,
         severity=severity,
         reason=reason,
         created_at=created_at,
@@ -434,10 +497,12 @@ def build_planning_notification_candidate(
 
 
 def _planning_event_type(value: Any) -> str:
-    if not isinstance(value, str):
-        raise NotificationContractError("Planning event_type must be text")
-    if value not in PLANNING_NOTIFICATION_EVENTS | PLANNING_SILENT_EVENTS:
-        raise NotificationContractError("Planning event_type is invalid")
+    workspace = notification_workspace_for_event(value)
+    if workspace == "agent":
+        raise NotificationContractError(
+            "Execution notifications are Agent-only and cannot target Planning",
+            code="execution_event_agent_only",
+        )
     return value
 
 
@@ -451,6 +516,24 @@ def _optional_planning_id(value: Any, *, field_name: str) -> str | None:
     if value is None:
         return None
     return _planning_id(value, field_name=field_name)
+
+
+def _planning_revision(value: Any) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise NotificationContractError(
+            "Definition notification requires an exact positive revision",
+            code="invalid_definition_revision",
+        )
+    return value
+
+
+def _planning_content_hash(value: Any) -> str:
+    if not isinstance(value, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", value):
+        raise NotificationContractError(
+            "Definition notification requires an exact content hash",
+            code="invalid_definition_content_hash",
+        )
+    return value
 
 
 def _planning_reason(value: Any) -> str:
@@ -483,7 +566,7 @@ def _planning_ui_target(
     *,
     project_id: str,
     roadmap_id: str | None,
-    gate_id: str | None,
+    revision: int | None,
 ) -> PlanningNotificationUiTarget:
     if value is None:
         target: Mapping[str, Any] = {}
@@ -499,15 +582,15 @@ def _planning_ui_target(
     view = target.get("view", "overview")
     if workspace != "planning" or view != "overview":
         raise NotificationContractError("Planning ui_target workspace/view is invalid")
-    default_kind = "gate" if gate_id else "roadmap" if roadmap_id else "project"
+    default_kind = "roadmap" if roadmap_id else "project"
     highlight_kind = target.get("highlight_kind", default_kind)
     if highlight_kind not in PLANNING_UI_HIGHLIGHT_KINDS:
         raise NotificationContractError("Planning ui_target highlight_kind is invalid")
-    refs = {"project": project_id, "roadmap": roadmap_id, "gate": gate_id}
+    refs = {"project": project_id, "roadmap": roadmap_id}
     highlight_id = refs[highlight_kind]
     if highlight_id is None:
         raise NotificationContractError("Planning ui_target highlight ref is missing")
-    default_mode = "expand_summary" if highlight_kind in {"roadmap", "gate"} else "focus"
+    default_mode = "expand_summary" if highlight_kind == "roadmap" else "focus"
     highlight_mode = target.get("highlight_mode", default_mode)
     if highlight_mode not in PLANNING_UI_HIGHLIGHT_MODES:
         raise NotificationContractError("Planning ui_target highlight_mode is invalid")
@@ -519,6 +602,9 @@ def _planning_ui_target(
     return PlanningNotificationUiTarget(
         workspace="planning",
         view="overview",
+        project_id=project_id,
+        roadmap_id=roadmap_id,
+        revision=revision,
         highlight_kind=highlight_kind,
         highlight_id=highlight_id,
         highlight_mode=highlight_mode,
@@ -527,9 +613,9 @@ def _planning_ui_target(
 
 
 def _default_planning_severity(event_type: str) -> str:
-    if event_type in {"project_created", "roadmap_created", "gate_unblocked_when_it_changes_available_work"}:
+    if event_type in {"project_created", "roadmap_created", "roadmap_revision_approved"}:
         return "success"
-    if event_type in {"project_deleted", "roadmap_deleted", "gate_blocked", "human_decision_required"}:
+    if event_type in {"project_deleted", "roadmap_deleted", "roadmap_revision_conflict"}:
         return "warning"
     return "info"
 
@@ -539,7 +625,8 @@ def _planning_dedupe_key(
     event_type: str,
     project_id: str,
     roadmap_id: str | None,
-    gate_id: str | None,
+    revision: int | None,
+    content_hash: str,
     reason: str,
     document_view_intent: str,
 ) -> str:
@@ -548,7 +635,8 @@ def _planning_dedupe_key(
             "event_type": event_type,
             "project_id": project_id,
             "roadmap_id": roadmap_id,
-            "gate_id": gate_id,
+            "revision": revision,
+            "content_hash": content_hash,
             "reason": reason,
             "document_view_intent": document_view_intent,
         },

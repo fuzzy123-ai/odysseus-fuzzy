@@ -564,6 +564,7 @@ async def stream_agent_loop(
         owner=owner,
         query=_retrieval_query or _last_user or "",
         context_length=context_length,
+        model_hint=model,
         enabled=not guide_only,
     )
     if _interactive_deliverable_decision is not None and not guide_only:
@@ -647,7 +648,7 @@ async def stream_agent_loop(
 
         soft_budget = int(get_setting("agent_input_token_budget", DEFAULT_BUDGET) or 0)
         if soft_budget > 0:
-            before_trim_tokens = estimate_tokens(messages)
+            before_trim_tokens = estimate_tokens(messages, model_hint=model)
             reserve_tokens = min(max(max_tokens or 1024, 512), 2048)
             # Ceiling for the auto-derived budget (no effect on an explicit budget;
             # see #1230). Falls back to DEFAULT_HARD_MAX on missing/malformed values
@@ -685,9 +686,14 @@ async def stream_agent_loop(
                 # The output reserve was already applied once against the real
                 # model window while resolving input_budget.
                 reserve_tokens=0,
+                model_hint=model,
             )
-            after_trim_tokens = estimate_tokens(trimmed_messages)
-            latest_pair_preserved = latest_dialog_pair_preserved(messages, trimmed_messages)
+            after_trim_tokens = estimate_tokens(trimmed_messages, model_hint=model)
+            latest_pair_preserved = latest_dialog_pair_preserved(
+                messages,
+                trimmed_messages,
+                model_hint=model,
+            )
             logger.info(
                 "[agent-context-budget] model=%s provider=%s source=%s input_budget=%s "
                 "output_reserve=%s before=%s after=%s latest_pair_preserved=%s",

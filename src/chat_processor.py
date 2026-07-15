@@ -423,6 +423,7 @@ class ChatProcessor:
                     query=message,
                     budget_tokens=budget.providers,
                     mode="agent" if agent_mode else "chat",
+                    model_hint=getattr(session, "model", None),
                 )
                 preface.extend(provider_messages(provider_payloads))
                 preface.extend(provider_warning_messages(provider_warnings))

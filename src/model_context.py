@@ -8,7 +8,7 @@ Provides token estimation for context usage tracking.
 import ipaddress
 import logging
 import sys
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from urllib.parse import urlparse
 
@@ -414,27 +414,38 @@ def _query_context_length(endpoint_url: str, model: str) -> Tuple[int, bool]:
     return DEFAULT_CONTEXT, False
 
 
-def estimate_tokens(messages: List[Dict]) -> int:
+def estimate_tokens(messages: List[Dict], model_hint: Optional[str] = None) -> int:
     """Rough token estimate for a list of messages.
 
-    Uses chars * 0.3 which is closer to real BPE tokenizer output
-    than the commonly-cited chars/4 (which underestimates by ~20-30%).
+    Without ``model_hint`` this preserves the historical chars * 0.3 behavior.
+    With a hint, message content and tool-call payloads use the deterministic
+    offline adapter registry in :mod:`src.token_estimator`.
     Also adds ~4 tokens per message for role/formatting overhead, and counts
     assistant tool_calls (name + arguments) — a tool-only turn carries
     content=None with the real payload in tool_calls, so ignoring them made the
     estimate (and the compaction/trim gates that rely on it) blind to large
     tool arguments.
     """
+    estimate_content: Optional[Callable[[str], int]] = None
+    if model_hint is not None and str(model_hint).strip():
+        from src.token_estimator import estimate_text_tokens
+
+        def routed_content_estimate(value: str) -> int:
+            return estimate_text_tokens(value, model_hint).count
+
+        estimate_content = routed_content_estimate
+
     total = 0
     for msg in messages:
         total += 4  # per-message overhead (role, separators)
         content = msg.get("content", "")
         if isinstance(content, str):
-            total += int(len(content) * 0.3)
+            total += estimate_content(content) if estimate_content else int(len(content) * 0.3)
         elif isinstance(content, list):
             for item in content:
                 if isinstance(item, dict) and item.get("type") == "text":
-                    total += int(len(item.get("text", "")) * 0.3)
+                    text = str(item.get("text", "") or "")
+                    total += estimate_content(text) if estimate_content else int(len(text) * 0.3)
         # Tool calls carry real payload too: a tool-only assistant turn is stored
         # with content=None and the actual args (e.g. a create_document body) in
         # tool_calls[].function.arguments. Ignoring them made large tool arguments
@@ -450,5 +461,6 @@ def estimate_tokens(messages: List[Dict]) -> int:
                 if not isinstance(args, str):
                     args = str(args)  # some shapes store arguments as a dict
                 total += 4  # per tool-call overhead (id, type, wrapper)
-                total += int((len(str(name)) + len(args)) * 0.3)
+                payload = str(name) + args
+                total += estimate_content(payload) if estimate_content else int(len(payload) * 0.3)
     return total

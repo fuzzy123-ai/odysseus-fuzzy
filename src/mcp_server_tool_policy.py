@@ -154,7 +154,13 @@ PLANNING_READONLY_TOOLS = frozenset({
     "planning_search_roadmaps",
     "planning_get_context_pack",
     "planning_graph_summary",
+    "planning_read_gate_definitions",
+    "planning_create_agent_handoff",
+})
+
+PLANNING_DEPRECATED_TOOLS = frozenset({
     "planning_gate_status",
+    "planning_mark_status",
 })
 
 
@@ -219,6 +225,13 @@ def classify_mcp_tool(
             "planning_read_explicitly_allowed"
             if options.allow_planning_reads
             else "planning_read_hidden_by_default",
+        )
+    if name in PLANNING_DEPRECATED_TOOLS:
+        return McpToolDecision(
+            name,
+            False,
+            "planning_deprecated",
+            "planning_deprecated_tool_hidden",
         )
     if name in OWNER_SCOPED_WRITE_TOOLS:
         return McpToolDecision(

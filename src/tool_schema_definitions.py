@@ -503,6 +503,12 @@ FUNCTION_TOOL_SCHEMAS = [
             "parameters": {
                 "type": "object",
                 "properties": {
+                    "schema": {"type": "string", "description": "Optional. Use `odysseus.clarification_request.v2` for structured multi-question clarification."},
+                    "scope": {"type": "string", "enum": ["conversation", "project", "coding_task"], "description": "V2 clarification scope."},
+                    "intent_summary": {"type": "string", "description": "V2 bounded statement of what is currently understood."},
+                    "questions": {"type": "array", "description": "V2 questions for project/coding intake and multi-question clarification."},
+                    "batch": {"type": "object", "description": "V2 visible batch metadata."},
+                    "defaults_visible": {"type": "boolean", "description": "V2: true when recommended defaults are visible but not yet accepted."},
                     "question": {"type": "string", "description": "The question to ask. Be specific and self-contained."},
                     "options": {
                         "type": "array",
@@ -518,7 +524,7 @@ FUNCTION_TOOL_SCHEMAS = [
                     },
                     "multi": {"type": "boolean", "description": "Set true ONLY when the question explicitly allows choosing more than one option. Otherwise omit it or set false. Default false."}
                 },
-                "required": ["question", "options"]
+                "required": []
             }
         }
     },
@@ -982,12 +988,12 @@ FUNCTION_TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "manage_repos",
-            "description": "Manage explicitly registered repositories, read Git facts, collect repo-scoped change intelligence, and run gated local commit/push/forge metadata flows. Read actions list/get/status/log/diff_stat/changed_paths/remotes/changes/change_history/commit_plan/push_plan/forge_plan need no confirmation. changes creates sanitized Project Context/Memory/RaptorGraph-ready snapshots without raw diffs; private repos stay local-only and sensitive repos expose only redacted metadata. Mutations register/forget/update_policy, commit, push, and live forge_metadata require confirmed=true. commit also requires exact changed_paths, checks_passed=true, and content_reviewed=true. push also requires remote policy approval, operator_go=true, live_enabled=true, matching branch_name, and matching commit_sha. forge_metadata requires secure auth readiness, operator_go=true, and live_enabled=true; never pass tokens in chat. Never reset, merge, delete repo files, or mutate Git history outside the gated runners.",
+            "description": "Manage explicitly registered repositories, read Git facts, collect repo-scoped change intelligence, and preview commit/push/forge plans. This tool never commits or delivers to a provider; use commit_project once for the sole commit-and-policy-sync workflow. Read actions list/get/status/log/diff_stat/changed_paths/remotes/changes/change_history/commit_plan/push_plan/forge_plan need no confirmation. Registry mutations register/forget/update_policy require confirmed=true.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "action": {"type": "string", "enum": ["list", "get", "status", "log", "diff_stat", "changed_paths", "remotes", "changes", "change_history", "commit_plan", "commit", "push_plan", "push", "forge_plan", "forge_metadata", "register", "forget", "update_policy"], "description": "list shows registered repos; get shows one registry record; status/log/diff_stat/changed_paths/remotes read Git facts; changes creates a sanitized repo change capsule for Project Context/Memory/RaptorGraph without raw diffs; change_history lists stored capsules; commit_plan explains a gated local commit; commit stages exact reviewed paths and commits them when all gates pass; push_plan explains a gated push; push runs only through remote policy and live gates; forge_plan explains GitHub/Gitea/Forgejo metadata gates; forge_metadata runs only through secure auth and live gates; register/forget/update_policy mutate only the registry."},
-                    "repo_id": {"type": "string", "description": "Repo id for get/status/log/diff_stat/changed_paths/remotes/changes/change_history/commit_plan/commit/push_plan/push/forge_plan/forge_metadata/forget/update_policy; optional for register when title/path can produce one."},
+                    "action": {"type": "string", "enum": ["list", "get", "status", "log", "diff_stat", "changed_paths", "remotes", "changes", "change_history", "commit_plan", "push_plan", "forge_plan", "register", "forget", "update_policy"], "description": "Read repository facts, preview commit/push/forge policy plans, or maintain the registry. Execution of commits and provider delivery belongs only to commit_project."},
+                    "repo_id": {"type": "string", "description": "Repo id for get/status/log/diff_stat/changed_paths/remotes/changes/change_history/commit_plan/push_plan/forge_plan/forget/update_policy; optional for register when title/path can produce one."},
                     "id": {"type": "string", "description": "Alias for repo_id."},
                     "title": {"type": "string", "description": "Human title for register."},
                     "owner": {"type": "string", "description": "Owner label for register."},
@@ -1004,7 +1010,7 @@ FUNCTION_TOOL_SCHEMAS = [
                     "allowed_actions": {"type": "array", "items": {"type": "string"}, "description": "Per-repo allowed action list for register/update_policy."},
                     "linked_project_slug": {"type": "string", "description": "Optional Project Runner slug for register."},
                     "operator_go": {"type": "boolean", "description": "Required true, in addition to confirmed=true, when registering outside allowed registry roots, executing a live push, or fetching live forge metadata."},
-                    "confirmed": {"type": "boolean", "description": "Required true for register, forget, update_policy, commit, push, and live forge_metadata after explicit user confirmation."},
+                    "confirmed": {"type": "boolean", "description": "Required true for registry mutations register, forget, and update_policy."},
                     "changed_paths": {"type": "array", "items": {"type": "string"}, "description": "Exact repo-relative file paths reviewed for commit_plan/commit. Directories, absolute paths, .git, .env, and key files are blocked."},
                     "paths": {"type": "array", "items": {"type": "string"}, "description": "Alias for changed_paths."},
                     "objective": {"type": "string", "description": "Short objective used for commit planning and default commit message."},
@@ -1014,15 +1020,15 @@ FUNCTION_TOOL_SCHEMAS = [
                     "content_reviewed": {"type": "boolean", "description": "Required true for commit to confirm no secret, private-content, or DSGVO risk is included."},
                     "remote_name": {"type": "string", "description": "Remote name for push_plan/push, e.g. fuzzy. The registry remote policy must allow push."},
                     "remote": {"type": "string", "description": "Alias for remote_name."},
-                    "provider": {"type": "string", "enum": ["github", "gitea", "forgejo"], "description": "Forge provider for forge_plan/forge_metadata."},
+                    "provider": {"type": "string", "enum": ["github", "gitea", "forgejo"], "description": "Forge provider considered by forge_plan only."},
                     "remote_provider": {"type": "string", "enum": ["github", "gitea", "forgejo"], "description": "Alias for provider."},
-                    "namespace": {"type": "string", "description": "Provider namespace/org/user for forge_plan/forge_metadata."},
+                    "namespace": {"type": "string", "description": "Provider namespace/org/user considered by forge_plan."},
                     "remote_namespace": {"type": "string", "description": "Alias for namespace."},
-                    "repo_name": {"type": "string", "description": "Provider repo name for forge_plan/forge_metadata; defaults to the registered repo path tail."},
+                    "repo_name": {"type": "string", "description": "Provider repo name considered by forge_plan; defaults to the registered repo path tail."},
                     "api_base_url": {"type": "string", "description": "Optional API base URL for self-hosted Gitea/Forgejo. Tokens or credentials must never be included."},
                     "integration_id": {"type": "string", "description": "Optional server-side integration id for existing forge credentials."},
-                    "auth_ready": {"type": "boolean", "description": "Required true for forge_metadata to confirm secure handoff or server-side credentials exist."},
-                    "create_repo_requested": {"type": "boolean", "description": "Marks that repo creation is desired; creation remains a separate confirmed provider action and is not executed by forge_metadata."},
+                    "auth_ready": {"type": "boolean", "description": "Readiness input for forge_plan; it never triggers provider access."},
+                    "create_repo_requested": {"type": "boolean", "description": "Planning input only; manage_repos never creates a provider repository."},
                     "branch_name": {"type": "string", "description": "Branch name for push_plan/push. Must match the current branch and pass remote policy."},
                     "branch": {"type": "string", "description": "Alias for branch_name."},
                     "commit_sha": {"type": "string", "description": "Expected current HEAD SHA for push_plan/push; must match the local repo HEAD."},
@@ -1034,6 +1040,30 @@ FUNCTION_TOOL_SCHEMAS = [
                     "limit": {"type": "integer", "description": "Commit count for log or stored capsule count for change_history, default 10 for log and 20 for change_history."}
                 },
                 "required": ["action"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "commit_project",
+            "description": "Create one reviewed local Git commit with a title and description, retain it in the owner-scoped local Forge, and queue the providers selected by the stored project policy. This is the only project commit/provider action. Do not choose a provider in this call.",
+            "parameters": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "repo_id": {"type": "string", "description": "Registered project repository id"},
+                    "title": {"type": "string", "description": "Git commit title"},
+                    "description": {"type": "string", "description": "Human-readable Git commit description/body"},
+                    "version_label": {"type": "string", "description": "Optional human version label"},
+                    "change_notes": {"type": "array", "items": {"type": "string"}, "description": "Optional reviewed change notes"},
+                    "reviewed_paths": {"type": "array", "minItems": 1, "items": {"type": "string"}, "description": "Exact repo-relative paths reviewed for this commit"},
+                    "checks_passed": {"type": "boolean", "description": "True only after required checks passed"},
+                    "content_reviewed": {"type": "boolean", "description": "True only after the staged content was reviewed"},
+                    "confirmed": {"type": "boolean", "description": "Explicit confirmation for this effectful commit"},
+                    "idempotency_key": {"type": "string", "description": "Stable unique key for safe replay of this logical commit request"}
+                },
+                "required": ["repo_id", "title", "description", "reviewed_paths", "checks_passed", "content_reviewed", "confirmed", "idempotency_key"]
             }
         }
     },
@@ -1578,5 +1608,3 @@ FUNCTION_TOOL_SCHEMAS = [
         }
     },
 ]
-
-

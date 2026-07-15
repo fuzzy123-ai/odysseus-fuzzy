@@ -1,0 +1,1641 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.system_assurance_runtime_hardening_roadmap",
+  "roadmap_id": "SAR",
+  "title": "System Assurance And Runtime Hardening Roadmap",
+  "created_at": "2026-07-14",
+  "updated_at": "2026-07-14",
+  "status": "implementation_in_progress_named_roadmap_registration_pending",
+  "abc_mode": "Standard ABC",
+  "master_roadmap": "docs/plans/system-optimization-master-roadmap.md",
+  "canonical_open_work_queue": "docs/plans/open-work-completion-master-roadmap.json",
+  "implementation_run_state": "docs/plans/system-assurance-runtime-hardening-run-state.json",
+  "goal": "Close the verified release-assurance, endpoint-resilience, local background-state and LLM budget/cache defects without reopening stale findings, duplicating Temporal, weakening privacy boundaries or enabling multi-worker and live release behavior without their own evidence gates.",
+  "queue_scope": {
+    "authoring": "named_roadmap",
+    "implementation_after_registration": "post_mvp_open_work",
+    "generic_open_work_visibility": "disabled_until_registration_handoff",
+    "explicit_named_execution": "An explicit /abc SAR request may use this roadmap after a fresh claim and dependency preflight; a generic Open Work run must ignore SAR until canonical registration is complete.",
+    "registration_state": "deferred_to_avoid_foreign_master_overlap",
+    "registration_blocker": "The canonical Open Work and human Post-MVP master files contain uncommitted work from another completed thread. This authoring slice must not alter or normalize those files.",
+    "coordination_thread_id": "019f5c7d-dddf-7252-8dca-254858f80408",
+    "required_registration_after_handoff": {
+      "open_work_lane": "next_free_OWM_lane_at_registration_time",
+      "human_post_mvp_track": "next_free_track_at_registration_time",
+      "multi_agent_guidance_profile": "active_parallel",
+      "abc_execution_queue_rule": "Register no implementation slice automatically. Expose only the dependency-safe frontier after the user explicitly starts SAR or Open Work selects the registered lane."
+    }
+  },
+  "mutation_authority": {
+    "default": "repo_only",
+    "live_actions": "needs_action_specific_live_go",
+    "forbidden_by_roadmap_authoring": [
+      "push",
+      "branch protection mutation",
+      "container publication",
+      "provider call",
+      "external host install or upgrade",
+      "Tailscale peer access",
+      "Temporal service start",
+      "multi-worker activation"
+    ]
+  },
+  "route": {
+    "entrypoint": "$abc",
+    "recommended": {
+      "skills": [
+        {
+          "id": "abc",
+          "purpose": "Own queue resolution, claims, gates, evidence and integration."
+        }
+      ],
+        "model": {
+          "tier": "high",
+          "preferred": "5.6 Sol Max",
+          "reason": "User-selected standard for bounded repository implementation; Ultra is reserved for architecture, security and final integration review."
+        }
+    },
+    "selected": {
+      "skills": [
+        {
+          "id": "abc",
+          "locator": "$CODEX_HOME/skills/abc/SKILL.md",
+          "purpose": "Sole orchestrator."
+        }
+      ],
+        "model": {
+          "value": "5.6 Sol Max",
+          "reason": "Explicit /abc routing instruction from the user; actual remains unverified when the surface exposes no model selector."
+        },
+      "fallback": "native_tools"
+    },
+      "actual": {
+      "skills": [
+        {
+          "id": "abc",
+          "status": "loaded_used"
+        }
+      ],
+      "model": {
+          "value": "surface_default",
+          "evidence": "The current root surface exposes no model-selection control, so the requested 5.6 Sol Max route cannot be claimed as actual."
+      },
+      "explorer_slices": [
+        "roadmap format and validation",
+        "master registration and foreign-work boundaries",
+        "remediation dependency DAG and acceptance"
+      ],
+        "fallback": "native_tools"
+      },
+      "ultra_policy": "Ultra may be used only for architecture review, security review and final integration review."
+  },
+  "authoring_execution": {
+    "run_id": "sar-roadmap-authoring-20260714",
+    "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+    "slice_id": "SAR-AUTHOR",
+    "owner": "root",
+    "phase": "roadmap_authoring",
+    "queue_scope": "named_roadmap",
+    "mutation_class": "repo_only",
+    "state": "released",
+    "acquired_at": "2026-07-14T08:00:38+02:00",
+    "lease_expires_at": "2026-07-14T09:00:38+02:00",
+    "released_at": "2026-07-14T08:17:45+02:00",
+    "allowed_paths": [
+      "docs/plans/system-assurance-runtime-hardening-roadmap.json",
+      "docs/plans/system-optimization-master-roadmap.md",
+      "tests/test_system_assurance_runtime_hardening_roadmap.py"
+    ],
+    "hotfiles": [
+      "docs/plans/system-optimization-master-roadmap.md"
+    ],
+    "handoff_required": false
+  },
+  "evidence_baseline": {
+    "verified_at": "2026-07-14",
+    "checkout": "dev@18c6dced",
+    "worktree_state": "dirty_with_foreign_changes_preserved",
+    "focused_regression": {
+      "result": "125 passed",
+      "scope": "release, resolver, rate limiter, context budget, token budget, RAG, orchestration, Universal Inbox, Telegram voice and background-job focused suites"
+    },
+    "runtime_followup_regression": {
+      "result": "82 passed plus 4 targeted live-voice adapter tests",
+      "scope": "rate, orchestration, inbox, voice and background-job modules"
+    },
+    "reviewed_sources": [
+      ".github/workflows/ci.yml",
+      ".github/workflows/docker-publish.yml",
+      "src/release_readiness_pipeline.py",
+      "src/release_evidence_snapshot.py",
+      "src/gate_evidence_core.py",
+      "src/endpoint_resolver.py",
+      "src/rate_limiter.py",
+      "src/bg_jobs.py",
+      "src/bg_monitor.py",
+      "src/token_budget.py",
+      "src/context_budget.py",
+      "src/llm_runtime_state.py",
+      "src/llm_core.py",
+      "src/rag_manager.py",
+      "src/universal_inbox_pipeline.py",
+      "src/telegram_voice_pipeline.py",
+      "docs/plans/temporal-light-agent-execution-roadmap.json",
+      "docs/plans/headless-write-agent-orchestration-roadmap.md"
+    ]
+  },
+  "disposition_values": [
+    "implement",
+    "enforce_boundary",
+    "measure_only",
+    "existing_roadmap_owner",
+    "documentation_correction",
+    "no_change"
+  ],
+  "finding_dispositions": [
+    {
+      "id": "SAR-F01-ci-absent",
+      "finding": "CI/CD is completely absent.",
+      "verdict": "stale_false",
+      "disposition": "implement",
+      "slice_ids": [
+        "SAR-01-binding-ci-and-publish-provenance"
+      ],
+      "required_outcome": "Keep the existing workflows, make regression tests blocking for PR, dev and main, and prohibit image publication without a same-commit successful quality gate."
+    },
+    {
+      "id": "SAR-F02-static-release-baseline",
+      "finding": "Release readiness reports static documented PASS baselines.",
+      "verdict": "accurate_by_design_with_process_risk",
+      "disposition": "implement",
+      "slice_ids": [
+        "SAR-02-fresh-release-evidence"
+      ],
+      "required_outcome": "Keep the snapshot side-effect free and replace automated PASS with validated, commit-bound, non-stale evidence receipts that fail closed."
+    },
+    {
+      "id": "SAR-F03-response-cache-fifo",
+      "finding": "The response cache evicts in insertion order instead of access order.",
+      "verdict": "accurate_efficiency_defect",
+      "disposition": "implement",
+      "slice_ids": [
+        "SAR-07-response-cache-lru-ttl"
+      ],
+      "required_outcome": "Use a capacity-exact, thread-safe LRU with bounded TTL and content-free metrics."
+    },
+    {
+      "id": "SAR-F04-dead-host-persistence",
+      "finding": "Dead-host cooldown state is not persisted.",
+      "verdict": "accurate_but_desired",
+      "disposition": "no_change",
+      "slice_ids": [],
+      "required_outcome": "Keep the twenty-second health cooldown process-local so restart re-probes provider health; collect only content-free health metrics if later required."
+    },
+    {
+      "id": "SAR-F05-tailscale-cache-no-ttl",
+      "finding": "Positive and negative Tailscale resolution results never expire.",
+      "verdict": "accurate_runtime_defect",
+      "disposition": "implement",
+      "slice_ids": [
+        "SAR-03-tailscale-cache-expiry"
+      ],
+      "required_outcome": "Use monotonic positive and negative TTLs, concurrency protection and explicit invalidation without real-network tests."
+    },
+    {
+      "id": "SAR-F06-http2-disabled",
+      "finding": "The shared HTTP client disables HTTP/2.",
+      "verdict": "accurate_benefit_unproven",
+      "disposition": "measure_only",
+      "slice_ids": [
+        "SAR-09-measured-optimization-decisions"
+      ],
+      "required_outcome": "Keep HTTP/2 disabled until the declared benchmark threshold and compatibility checks pass."
+    },
+    {
+      "id": "SAR-F07-agent-loop-db-query",
+      "finding": "The Agent loop opens a database session for every tool call.",
+      "verdict": "exaggerated_one_query_per_stream_start",
+      "disposition": "measure_only",
+      "slice_ids": [
+        "SAR-09-measured-optimization-decisions"
+      ],
+      "required_outcome": "Do not cache policy state unless a 1000-start benchmark crosses the declared latency threshold and invalidation remains synchronous."
+    },
+    {
+      "id": "SAR-F08-in-memory-rate-limiter",
+      "finding": "The authentication rate limiter is process-local.",
+      "verdict": "accurate_conditional_on_unsupported_multiworker_mode",
+      "disposition": "enforce_boundary",
+      "slice_ids": [
+        "SAR-04-runtime-topology-contract"
+      ],
+      "required_outcome": "Enforce one supported web worker and block multi-worker activation until shared rate limiting and logging are separately designed and tested."
+    },
+    {
+      "id": "SAR-F09-context-hard-max",
+      "finding": "The context hard maximum is 32000 tokens.",
+      "verdict": "accurate_configurable_conservative_default",
+      "disposition": "no_change",
+      "slice_ids": [],
+      "required_outcome": "Keep 32000 as the automatic default; retain explicit model, provider and operator overrides capped by the real context window."
+    },
+    {
+      "id": "SAR-F10-token-estimator",
+      "finding": "Token estimation ignores model_hint and uses one character ratio.",
+      "verdict": "accurate_budget_quality_defect",
+      "disposition": "implement",
+      "slice_ids": [
+        "SAR-06-model-aware-token-estimation",
+        "SAR-06P-model-hint-hardlimit-propagation"
+      ],
+      "required_outcome": "Route model_hint through deterministic tokenizer adapters and every productive hardlimit callsite while retaining a conservative offline fallback and the exact model-neutral legacy allowlist."
+    },
+    {
+      "id": "SAR-F11-rag-import-fallback",
+      "finding": "RAGManager retries three import paths under broad ImportError handling.",
+      "verdict": "accurate_legacy_import_shim",
+      "disposition": "implement",
+      "slice_ids": [
+        "SAR-08-canonical-rag-import"
+      ],
+      "required_outcome": "Use only src.rag_vector and propagate internal dependency ImportError without path retries."
+    },
+    {
+      "id": "SAR-F12-orchestration-dry-run",
+      "finding": "The orchestration runtime loop does not execute durable work.",
+      "verdict": "accurate_intentional_capability_gap",
+      "disposition": "existing_roadmap_owner",
+      "slice_ids": [],
+      "roadmap_refs": [
+        "docs/plans/temporal-light-agent-execution-roadmap.json",
+        "docs/plans/headless-write-agent-orchestration-roadmap.md"
+      ],
+      "required_outcome": "Temporal Event History, Activities, heartbeats, signals and retries remain the only durable 12-24 hour execution path; SAR must not create another scheduler."
+    },
+    {
+      "id": "SAR-F13-universal-inbox-offline",
+      "finding": "The Universal Inbox pipeline is an offline envelope.",
+      "verdict": "accurate_by_design_runtime_adapters_exist",
+      "disposition": "no_change",
+      "slice_ids": [],
+      "required_outcome": "Keep the canonical envelope and analysis worker pure; retain separately gated Nextcloud, Memory and Telegram effect executors."
+    },
+    {
+      "id": "SAR-F14-provider-proof-roadmap-stale",
+      "finding": "The old roadmap still reports provider proof as open.",
+      "verdict": "stale_documentation",
+      "disposition": "documentation_correction",
+      "slice_ids": [
+        "SAR-10-release-truth-and-external-proof"
+      ],
+      "required_outcome": "Mark the old entry superseded by the later redacted provider evidence without treating historical evidence as permanently fresh."
+    },
+    {
+      "id": "SAR-F15-source-view-open",
+      "finding": "Dedicated Source View provenance drilldown remains open.",
+      "verdict": "accurate_existing_feature_scope",
+      "disposition": "existing_roadmap_owner",
+      "slice_ids": [],
+      "roadmap_refs": [
+        "docs/plans/unified-source-index-implementation-roadmap.md",
+        "docs/plans/lens-code-graph-roadmap.md"
+      ],
+      "required_outcome": "USI and Lens own source metadata, locator, lineage, redaction and UI drilldown; SAR must not create an Obsidian-specific second source truth."
+    },
+    {
+      "id": "SAR-F16-nextcloud-roadmap-stale",
+      "finding": "The old roadmap still reports Nextcloud as unavailable.",
+      "verdict": "stale_blocker_partial_feature_scope_remains",
+      "disposition": "documentation_correction",
+      "slice_ids": [
+        "SAR-10-release-truth-and-external-proof"
+      ],
+      "required_outcome": "Link the later bounded live-copy evidence and keep only the distinct Source View/provider-field UI work open."
+    },
+    {
+      "id": "SAR-F17-external-install-upgrade-ambiguity",
+      "finding": "Fresh install and upgrade evidence does not clearly prove an external target.",
+      "verdict": "accurate_acceptance_ambiguity",
+      "disposition": "implement",
+      "slice_ids": [
+        "SAR-02-fresh-release-evidence",
+        "SAR-10-release-truth-and-external-proof"
+      ],
+      "required_outcome": "Release-grade proof requires an isolated Debian or Ubuntu target distinct from the development checkout, exact candidate identity, backup, rollback and remote readback."
+    },
+    {
+      "id": "SAR-F18-background-job-file-state",
+      "finding": "Background jobs use unlocked file-based read-modify-write state.",
+      "verdict": "accurate_same_process_concurrency_defect",
+      "disposition": "implement",
+      "slice_ids": [
+        "SAR-05-background-job-transaction-boundary"
+      ],
+      "required_outcome": "Serialize every same-process mutation and follow-up claim while retaining the one-web-worker constraint and excluding Temporal work."
+    },
+    {
+      "id": "SAR-F19-rotating-log-multiprocess",
+      "finding": "RotatingFileHandler is not multi-process safe.",
+      "verdict": "accurate_explicit_single_worker_constraint",
+      "disposition": "enforce_boundary",
+      "slice_ids": [
+        "SAR-04-runtime-topology-contract"
+      ],
+      "required_outcome": "Keep file rotation only in the supported one-worker topology; a future multi-worker design requires one queue/listener or external collector."
+    },
+    {
+      "id": "SAR-F20-telegram-voice-offline",
+      "finding": "Telegram voice has no runtime integration.",
+      "verdict": "stale_false_runtime_integration_exists",
+      "disposition": "no_change",
+      "slice_ids": [],
+      "required_outcome": "Keep the core fakeable and offline while transport download, STT, Agent turn and gated reply remain injected by polling and webhook adapters."
+    }
+  ],
+  "frozen_decisions": [
+    "Gate Evidence Core remains the sole canonical gate and evidence vocabulary. SAR may add a release receipt and adapter but not a second status model.",
+    "Release readiness remains a side-effect-free presentation layer. Tests, Git, providers and host commands run only in bounded producers outside the snapshot.",
+    "One Odysseus web worker is the supported topology. Long duration means durable Temporal workflows, not multiple web processes.",
+    "Background shell jobs remain local compatibility work with a maximum one-hour runtime. They never own Agent operation history, heartbeat, retry, claim, fence or resume state.",
+    "Temporal Light and HWA exclusively own deterministic 12-24 hour execution semantics.",
+    "Dead-host cooldown remains process-local and the automatic context hard maximum remains 32000.",
+    "Universal Inbox and Telegram voice core contracts remain pure; injected runtime adapters own all I/O.",
+    "Source View remains a USI and Lens responsibility.",
+    "No HTTP/2, Agent policy cache, multi-worker, external release or external-host action is authorized by this roadmap.",
+    "No receipt, benchmark, fixture, metric or handoff may contain secrets, private content, raw provider output, chat IDs or private host paths."
+  ],
+  "architecture_contract": {
+    "release_flow": [
+      "A reusable same-commit CI quality gate runs blocking syntax and regression checks.",
+      "Only a successful quality gate may create a canonical redacted release evidence receipt.",
+      "The pure release snapshot consumes a validated receipt and maps it through the existing Gate Evidence Core.",
+      "Missing, stale, mismatched or incomplete receipt data produces pending or blocked, never PASS.",
+      "Manual provider, external install, upgrade, deploy, tag and distribution actions remain independent gates."
+    ],
+    "runtime_flow": [
+      "Endpoint resolution uses bounded process-local cache entries and deterministic invalidation.",
+      "The web process remains single-worker while its rate limiter, log rotation and background file state are local.",
+      "Same-process background job mutations use one transaction lock and stable follow-up idempotency identity.",
+      "Temporal owns durable Agent operations; bg_jobs and bg_monitor cannot continue them."
+    ],
+    "llm_flow": [
+      "model_hint selects an exact or calibrated tokenizer adapter when available.",
+      "A deterministic conservative estimator remains available without downloads or network access.",
+      "Response caching is process-local, capacity-exact, TTL-bounded and content-free in its metrics.",
+      "Transport and Agent-start optimizations require threshold evidence before implementation."
+    ]
+  },
+  "external_dependencies": [
+    {
+      "id": "SAR-DEP-GATE-EVIDENCE",
+      "path": "src/gate_evidence_core.py",
+      "state": "available",
+      "requirement": "Reuse CanonicalGate, EvidenceItem, redaction assertions and safe-now aggregation."
+    },
+    {
+      "id": "SAR-DEP-TEMPORAL",
+      "path": "docs/plans/temporal-light-agent-execution-roadmap.json",
+      "state": "contract_available_implementation_open",
+      "requirement": "SAR-05 must hand off its authority boundary before TLR Activity and heartbeat integration; SAR does not edit Temporal runtime paths."
+    },
+    {
+      "id": "SAR-DEP-OPEN-WORK-REGISTRATION",
+      "path": "docs/plans/open-work-completion-master-roadmap.json",
+      "state": "waiting_for_foreign_handoff",
+      "requirement": "Required before generic Open Work execution, not before this named roadmap contract can be reviewed."
+    },
+    {
+      "id": "SAR-DEP-RAG-HOTFILE",
+      "path": "src/rag_manager.py",
+      "state": "shared_with_usi_runtime_integration",
+      "requirement": "SAR-08 requires a fresh serialized claim and acknowledged UIR handoff."
+    },
+    {
+      "id": "SAR-DEP-RUNTIME-HOTFILES",
+      "path": "app.py",
+      "state": "satisfied_by_explicit_serial_roadmap_handoff",
+      "requirement": "SAR-04 owns only its topology hunks in app.py; every pre-existing clarification, project-versioning, dashboard, workspace-snapshot and Harbor One hunk remains foreign and unstaged."
+    },
+    {
+      "id": "SAR-DEP-LLM-HOTFILES",
+      "path": "src/llm_core.py",
+      "state": "foreign_dirty",
+      "requirement": "SAR-07 must not start until llm_core and llm_runtime_state have one serialized owner."
+    }
+  ],
+  "dependency_dag": {
+    "nodes": [
+      "SAR-00-verified-scope-contract",
+      "SAR-01-binding-ci-and-publish-provenance",
+      "SAR-02-fresh-release-evidence",
+      "SAR-03-tailscale-cache-expiry",
+      "SAR-04-runtime-topology-contract",
+      "SAR-05-background-job-transaction-boundary",
+      "SAR-06-model-aware-token-estimation",
+      "SAR-06P-model-hint-hardlimit-propagation",
+      "SAR-07-response-cache-lru-ttl",
+      "SAR-08-canonical-rag-import",
+      "SAR-09-measured-optimization-decisions",
+      "SAR-10-release-truth-and-external-proof",
+      "SAR-11-integration-closeout"
+    ],
+    "edges": [
+      [
+        "SAR-00-verified-scope-contract",
+        "SAR-01-binding-ci-and-publish-provenance"
+      ],
+      [
+        "SAR-00-verified-scope-contract",
+        "SAR-03-tailscale-cache-expiry"
+      ],
+      [
+        "SAR-00-verified-scope-contract",
+        "SAR-04-runtime-topology-contract"
+      ],
+      [
+        "SAR-00-verified-scope-contract",
+        "SAR-06-model-aware-token-estimation"
+      ],
+      [
+        "SAR-06-model-aware-token-estimation",
+        "SAR-06P-model-hint-hardlimit-propagation"
+      ],
+      [
+        "SAR-00-verified-scope-contract",
+        "SAR-08-canonical-rag-import"
+      ],
+      [
+        "SAR-00-verified-scope-contract",
+        "SAR-09-measured-optimization-decisions"
+      ],
+      [
+        "SAR-01-binding-ci-and-publish-provenance",
+        "SAR-02-fresh-release-evidence"
+      ],
+      [
+        "SAR-04-runtime-topology-contract",
+        "SAR-05-background-job-transaction-boundary"
+      ],
+      [
+        "SAR-09-measured-optimization-decisions",
+        "SAR-07-response-cache-lru-ttl"
+      ],
+      [
+        "SAR-02-fresh-release-evidence",
+        "SAR-10-release-truth-and-external-proof"
+      ],
+      [
+        "SAR-01-binding-ci-and-publish-provenance",
+        "SAR-11-integration-closeout"
+      ],
+      [
+        "SAR-02-fresh-release-evidence",
+        "SAR-11-integration-closeout"
+      ],
+      [
+        "SAR-03-tailscale-cache-expiry",
+        "SAR-11-integration-closeout"
+      ],
+      [
+        "SAR-04-runtime-topology-contract",
+        "SAR-11-integration-closeout"
+      ],
+      [
+        "SAR-05-background-job-transaction-boundary",
+        "SAR-11-integration-closeout"
+      ],
+      [
+        "SAR-06-model-aware-token-estimation",
+        "SAR-11-integration-closeout"
+      ],
+      [
+        "SAR-06P-model-hint-hardlimit-propagation",
+        "SAR-11-integration-closeout"
+      ],
+      [
+        "SAR-07-response-cache-lru-ttl",
+        "SAR-11-integration-closeout"
+      ],
+      [
+        "SAR-08-canonical-rag-import",
+        "SAR-11-integration-closeout"
+      ],
+      [
+        "SAR-09-measured-optimization-decisions",
+        "SAR-11-integration-closeout"
+      ],
+      [
+        "SAR-10-release-truth-and-external-proof",
+        "SAR-11-integration-closeout"
+      ]
+    ],
+    "parallel_frontiers_after_registration": [
+      {
+        "frontier": 0,
+        "slice_ids": [
+          "SAR-00-verified-scope-contract"
+        ],
+        "state": "complete_in_this_artifact"
+      },
+      {
+        "frontier": 1,
+        "slice_ids": [
+          "SAR-01-binding-ci-and-publish-provenance",
+          "SAR-03-tailscale-cache-expiry",
+          "SAR-04-runtime-topology-contract",
+          "SAR-06-model-aware-token-estimation",
+          "SAR-08-canonical-rag-import",
+          "SAR-09-measured-optimization-decisions"
+        ],
+        "max_parallel_workers": 3,
+        "rule": "Select only paths with valid claims and no hotfile gate; SAR-04 and SAR-08 remain unavailable while their listed handoffs are unresolved."
+      },
+      {
+        "frontier": 2,
+        "slice_ids": [
+          "SAR-02-fresh-release-evidence",
+          "SAR-05-background-job-transaction-boundary",
+          "SAR-06P-model-hint-hardlimit-propagation",
+          "SAR-07-response-cache-lru-ttl"
+        ],
+        "max_parallel_workers": 3,
+        "rule": "SAR-06P was executed serially after the explicit file-level handoff and atomic single-owner claim. Do not rerun it unless a dedicated regression claim reopens the slice."
+      },
+      {
+        "frontier": 3,
+        "slice_ids": [
+          "SAR-10-release-truth-and-external-proof"
+        ],
+        "max_parallel_workers": 1
+      },
+      {
+        "frontier": 4,
+        "slice_ids": [
+          "SAR-11-integration-closeout"
+        ],
+        "max_parallel_workers": 1
+      }
+    ]
+  },
+  "slice_contract_fields": [
+    "id",
+    "execution_status",
+    "mutation_class",
+    "priority",
+    "owner",
+    "depends_on",
+    "allowed_paths",
+    "hotfiles",
+    "objective",
+    "deliverables",
+    "tests",
+    "evidence_required",
+    "gate",
+    "done_when",
+    "stop_rules",
+    "forbidden_actions"
+  ],
+  "slice_queue": [
+    {
+      "id": "SAR-00-verified-scope-contract",
+      "execution_status": "done_in_this_artifact",
+      "mutation_class": "safe_offline",
+      "priority": "P0",
+      "owner": "Alice",
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/plans/system-assurance-runtime-hardening-roadmap.json",
+        "docs/plans/system-optimization-master-roadmap.md",
+        "tests/test_system_assurance_runtime_hardening_roadmap.py"
+      ],
+      "hotfiles": [
+        "docs/plans/system-optimization-master-roadmap.md"
+      ],
+      "objective": "Freeze every verified finding, disposition, ownership boundary, dependency, gate and acceptance rule before any implementation claim.",
+      "deliverables": [
+        "one disposition for every verified claim",
+        "acyclic dependency graph",
+        "explicit Temporal, single-worker, evidence and privacy boundaries",
+        "machine validator",
+        "bounded master-roadmap link"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m json.tool docs/plans/system-assurance-runtime-hardening-roadmap.json",
+        "venv/Scripts/python.exe -m pytest tests/test_system_assurance_runtime_hardening_roadmap.py -q --basetemp .pytest_tmp_sar_roadmap",
+        "git diff --check -- docs/plans/system-assurance-runtime-hardening-roadmap.json docs/plans/system-optimization-master-roadmap.md tests/test_system_assurance_runtime_hardening_roadmap.py"
+      ],
+      "evidence_required": [
+        "valid JSON",
+        "all finding ids occur exactly once",
+        "all local roadmap references resolve",
+        "all dependencies and gate references resolve",
+        "no private paths or live authority"
+      ],
+      "gate": {
+        "id": "SAR-REGISTRATION-HANDOFF",
+        "safe_default": "The named roadmap contract may be reviewed, but generic Open Work must not claim an SAR implementation slice."
+      },
+      "done_when": "PASS only if every verified claim has exactly one justified disposition, the DAG is acyclic, all implementation and no-change boundaries are explicit, the master link exists and the canonical Open Work files remain untouched.",
+      "stop_rules": [
+        "Stop if a finding is omitted, duplicated or mapped to conflicting dispositions.",
+        "Stop if the authoring diff overlaps the foreign Open Work, MVP, USI, Codebase Memory, Code Lineage or Lens Code Graph changes.",
+        "Stop if any wording implies release, multi-worker or live authority."
+      ],
+      "forbidden_actions": [
+        "runtime implementation",
+        "Open Work registry edit",
+        "MVP master edit",
+        "commit",
+        "push",
+        "live action"
+      ]
+    },
+    {
+      "id": "SAR-01-binding-ci-and-publish-provenance",
+      "execution_status": "blocked_environment",
+      "mutation_class": "repo_only",
+      "priority": "P0",
+      "owner": "Charlie",
+      "depends_on": [
+        "SAR-00-verified-scope-contract"
+      ],
+      "allowed_paths": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/docker-publish.yml",
+        ".github/workflows/quality-gate.yml",
+        "tests/ci_quarantine.json",
+        "tests/test_ci_release_workflow_contract.py"
+      ],
+      "hotfiles": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/docker-publish.yml"
+      ],
+      "objective": "Make deterministic regression checks blocking for pull requests, dev and main, and prevent GHCR publication for a commit without the matching successful quality gate.",
+      "deliverables": [
+        "reusable same-commit quality gate",
+        "blocking compile, syntax and pytest jobs without continue-on-error",
+        "explicit temporary quarantine schema with owner, reason, issue and maximum 30-day expiry",
+        "Docker build and publication jobs that need the successful quality gate",
+        "workflow contract regression test"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_ci_release_workflow_contract.py -q --basetemp .pytest_tmp_sar_ci",
+        "venv/Scripts/python.exe -m pytest -q --maxfail=1",
+        "git diff --check -- .github/workflows/ci.yml .github/workflows/docker-publish.yml .github/workflows/quality-gate.yml tests/ci_quarantine.json tests/test_ci_release_workflow_contract.py"
+      ],
+      "evidence_required": [
+        "PR plus dev and main trigger coverage",
+        "required pytest conclusion for the exact commit",
+        "no continue-on-error on required jobs or steps",
+        "Docker publication depends on the exact quality-gate job result",
+        "quarantined tests still run visibly and every entry is unexpired"
+      ],
+      "gate": {
+        "id": "SAR-GITHUB-REMOTE-GO",
+        "safe_default": "Repository workflow files and local tests only; do not push, change branch protection or publish an image."
+      },
+      "done_when": "PASS only if local contract tests prove required same-commit checks for PR, dev and main, every blocking test is non-advisory, quarantine cannot silently become permanent and no image job can run after a failed or absent quality gate.",
+      "stop_rules": [
+        "Stop on any red required test; fix or record a bounded quarantine entry instead of weakening the gate.",
+        "Stop if Docker publication can run for a different commit than the tested commit.",
+        "Stop before GitHub settings, push or publication without action-specific Live-Go."
+      ],
+      "forbidden_actions": [
+        "push",
+        "branch protection change",
+        "container build publication",
+        "test exclusion without quarantine metadata"
+      ]
+    },
+    {
+      "id": "SAR-02-fresh-release-evidence",
+      "execution_status": "planned",
+      "mutation_class": "repo_only",
+      "priority": "P0",
+      "owner": "Bob",
+      "depends_on": [
+        "SAR-01-binding-ci-and-publish-provenance"
+      ],
+      "allowed_paths": [
+        ".github/workflows/quality-gate.yml",
+        "src/release_ci_evidence.py",
+        "src/release_evidence_snapshot.py",
+        "src/release_readiness_pipeline.py",
+        "src/release_readiness_report.py",
+        "src/gate_evidence_adapters.py",
+        "src/local_release_readiness_bundle.py",
+        "scripts/build_release_ci_evidence.py",
+        "tests/test_release_ci_evidence.py",
+        "tests/test_release_evidence_snapshot.py",
+        "tests/test_release_readiness_pipeline.py",
+        "tests/test_release_readiness_report.py",
+        "tests/test_gate_evidence_adapters.py",
+        "tests/test_local_release_readiness_bundle.py"
+      ],
+      "hotfiles": [
+        ".github/workflows/quality-gate.yml",
+        "src/release_evidence_snapshot.py",
+        "src/release_readiness_pipeline.py"
+      ],
+      "objective": "Produce one canonical, redacted, commit-bound CI evidence receipt and make the pure release snapshot fail closed when that receipt is missing, mismatched, incomplete or older than 24 hours.",
+      "deliverables": [
+        "deterministic release_ci_evidence.v1 schema and digest",
+        "producer that runs only after required jobs succeed",
+        "receipt fields commit_sha, workflow_run_id, workflow_attempt, observed_at, expires_at, required gate conclusions, suite identity, producer and artifact digest",
+        "Gate Evidence Core adapter",
+        "receipt injection into the side-effect-free release snapshot",
+        "blocked or pending default when no valid receipt exists"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_release_ci_evidence.py tests/test_release_evidence_snapshot.py tests/test_release_readiness_pipeline.py tests/test_release_readiness_report.py tests/test_gate_evidence_adapters.py tests/test_local_release_readiness_bundle.py -q --basetemp .pytest_tmp_sar_release",
+        "git diff --check -- src/release_ci_evidence.py src/release_evidence_snapshot.py src/release_readiness_pipeline.py src/release_readiness_report.py src/gate_evidence_adapters.py src/local_release_readiness_bundle.py scripts/build_release_ci_evidence.py tests/test_release_ci_evidence.py tests/test_release_evidence_snapshot.py tests/test_release_readiness_pipeline.py tests/test_release_readiness_report.py tests/test_gate_evidence_adapters.py tests/test_local_release_readiness_bundle.py"
+      ],
+      "evidence_required": [
+        "no receipt produces no automated PASS",
+        "wrong commit, expired receipt, unknown or missing gate, failed conclusion, malformed timestamp and digest mismatch are rejected",
+        "valid receipt younger than 24 hours maps to existing canonical evidence vocabulary",
+        "snapshot code executes no tests, Git, provider, network or host commands",
+        "manual, UI-live, deploy, tag and distribution gates remain independent"
+      ],
+      "gate": {
+        "id": "SAR-EXTERNAL-RELEASE-EVIDENCE-GO",
+        "safe_default": "Receipt schema, fake receipts and local tests only; do not call a provider or touch an external install or upgrade target."
+      },
+      "done_when": "PASS only if automated release PASS is impossible without a valid same-commit receipt younger than 24 hours, all invalid receipt classes fail closed, existing Gate Evidence Core is reused and the presentation layer remains side-effect free.",
+      "stop_rules": [
+        "Stop if a second gate vocabulary or evidence store is introduced.",
+        "Stop if a receipt contains raw logs, secrets, private content, raw provider output or private paths.",
+        "Stop if baseline evidence can still cause external release Go."
+      ],
+      "forbidden_actions": [
+        "provider proof",
+        "external install",
+        "external upgrade",
+        "deploy",
+        "tag",
+        "distribution"
+      ]
+    },
+    {
+      "id": "SAR-03-tailscale-cache-expiry",
+      "execution_status": "implemented_focused_tested",
+      "mutation_class": "repo_only",
+      "priority": "P1",
+      "owner": "Bob",
+      "depends_on": [
+        "SAR-00-verified-scope-contract"
+      ],
+      "allowed_paths": [
+        "src/endpoint_resolver.py",
+        "tests/test_endpoint_resolver.py",
+        "tests/test_provider_endpoints.py"
+      ],
+      "hotfiles": [
+        "src/endpoint_resolver.py"
+      ],
+      "objective": "Prevent stale positive and negative Tailscale endpoint decisions while preserving URL and port semantics.",
+      "deliverables": [
+        "timestamped cache entries using time.monotonic",
+        "exact 60-second positive IP TTL",
+        "exact 10-second DNS-success, peer-miss and resolver-error TTL",
+        "one lock around lookup and mutation",
+        "explicit invalidation API for connection-failure callers",
+        "fake-clock tests for expiry and IP changes"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_endpoint_resolver.py tests/test_provider_endpoints.py -q --basetemp .pytest_tmp_sar_endpoint",
+        "git diff --check -- src/endpoint_resolver.py tests/test_endpoint_resolver.py tests/test_provider_endpoints.py"
+      ],
+      "evidence_required": [
+        "no repeated DNS or Tailscale subprocess call before expiry",
+        "resolution reruns exactly at or after expiry",
+        "changed IP replaces prior value",
+        "negative result recovers when a peer appears",
+        "tests use fake DNS, fake subprocess and fake monotonic clock only"
+      ],
+      "gate": {
+        "id": "none",
+        "safe_default": "Pure resolver changes and fake tests only."
+      },
+      "done_when": "PASS only if positive entries expire at 60 seconds, all negative classes expire at 10 seconds, concurrent callers cannot corrupt the cache, invalidation is deterministic and no test requires a real peer, network or Tailscale executable.",
+      "stop_rules": [
+        "Stop if empty URL, scheme, host or port behavior changes.",
+        "Stop if a test accesses real DNS, network or Tailscale.",
+        "Stop if cache metrics expose hostnames or resolved addresses."
+      ],
+      "forbidden_actions": [
+        "real network call",
+        "real Tailscale command",
+        "persistent endpoint cache"
+      ]
+    },
+    {
+      "id": "SAR-04-runtime-topology-contract",
+      "execution_status": "implemented_focused_tested",
+      "mutation_class": "repo_only",
+      "priority": "P1",
+      "owner": "Bob",
+      "depends_on": [
+        "SAR-00-verified-scope-contract"
+      ],
+      "allowed_paths": [
+        "app.py",
+        "src/runtime_topology.py",
+        "src/rate_limiter.py",
+        "Dockerfile",
+        "launch-windows.ps1",
+        "run-server-windows.ps1",
+        "launcher.py",
+        "build-macos-app.sh",
+        "start-macos.sh",
+        "odysseus-ui.service",
+        "tests/test_runtime_topology.py",
+        "tests/test_rate_limiter.py"
+      ],
+      "hotfiles": [
+        "app.py"
+      ],
+      "objective": "Turn the existing one-web-worker convention into an explicit, testable supported-topology contract without pretending that local rate limiting and file rotation are multi-process safe.",
+      "deliverables": [
+        "runtime topology model with one_web_worker safe default",
+        "startup rejection when configured web worker count exceeds one",
+        "shipped launchers explicitly configured for one worker",
+        "readiness reason naming process-local limiter and rotating log sink",
+        "future multi-worker prerequisite checklist"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_runtime_topology.py tests/test_rate_limiter.py -q --basetemp .pytest_tmp_sar_topology",
+        "venv/Scripts/python.exe -m pytest tests/test_docker_runtime_plan_inputs.py -q --basetemp .pytest_tmp_sar_topology_docker",
+        "git diff --check -- app.py src/runtime_topology.py src/rate_limiter.py Dockerfile launch-windows.ps1 run-server-windows.ps1 launcher.py build-macos-app.sh start-macos.sh odysseus-ui.service tests/test_runtime_topology.py tests/test_rate_limiter.py"
+      ],
+      "evidence_required": [
+        "default and every shipped launcher use exactly one web worker",
+        "explicit worker count greater than one fails startup with stable reason",
+        "one-worker auth throttle regression remains green",
+        "no claim that Temporal workers are web workers",
+        "multi-worker readiness remains blocked"
+      ],
+      "gate": {
+        "id": "SAR-MULTIWORKER-GO",
+        "safe_default": "Exactly one Odysseus web worker; do not add shared limiter, shared log sink or multi-worker launch configuration in this slice."
+      },
+      "done_when": "PASS only if supported launch paths and startup checks enforce one web worker, current auth throttling and logging remain correct in that topology and a worker count greater than one cannot be represented as supported.",
+      "stop_rules": [
+        "Stop until app.py has an acknowledged handoff.",
+        "Stop if the change conflates Temporal workers with Uvicorn web workers.",
+        "Stop if the implementation silently enables multiple web processes."
+      ],
+      "forbidden_actions": [
+        "multi-worker activation",
+        "Redis or external limiter deployment",
+        "central log service deployment",
+        "broad app.py refactor"
+      ]
+    },
+    {
+      "id": "SAR-05-background-job-transaction-boundary",
+      "execution_status": "implemented_focused_tested",
+      "mutation_class": "repo_only",
+      "priority": "P1",
+      "owner": "Bob",
+      "depends_on": [
+        "SAR-04-runtime-topology-contract"
+      ],
+      "allowed_paths": [
+        "src/bg_jobs.py",
+        "src/bg_monitor.py",
+        "tests/test_bg_jobs_store.py",
+        "tests/test_bg_monitor_stream.py",
+        "tests/test_bg_jobs_concurrency.py",
+        "tests/test_bg_jobs_temporal_boundary.py"
+      ],
+      "hotfiles": [
+        "src/bg_jobs.py",
+        "src/bg_monitor.py"
+      ],
+      "objective": "Prevent same-process lost updates and duplicate follow-up claims while making the one-hour detached-shell boundary and the Temporal authority boundary executable.",
+      "deliverables": [
+        "one process-wide reentrant lock covering every complete load-mutate-save transaction",
+        "stable revision and follow-up idempotency identity",
+        "at most one active follow-up lease within the supported process",
+        "concurrency characterization for launch, refresh, kill and follow-up",
+        "static boundary test excluding Temporal state and imports",
+        "explicit one-hour maximum local detached-job runtime"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_bg_jobs_store.py tests/test_bg_monitor_stream.py tests/test_bg_jobs_concurrency.py tests/test_bg_jobs_temporal_boundary.py -q --basetemp .pytest_tmp_sar_bg",
+        "git diff --check -- src/bg_jobs.py src/bg_monitor.py tests/test_bg_jobs_store.py tests/test_bg_monitor_stream.py tests/test_bg_jobs_concurrency.py tests/test_bg_jobs_temporal_boundary.py"
+      ],
+      "evidence_required": [
+        "32 concurrent synthetic launches retain 32 distinct valid records",
+        "refresh and follow-up marking cannot lose terminal state or completion marker",
+        "two monitor attempts cannot hold the same unexpired follow-up lease",
+        "existing session, timeout, output and retention behavior remains green",
+        "bg_jobs contains no Temporal workflow, history, heartbeat, claim, fence or resume authority"
+      ],
+      "gate": {
+        "id": "SAR-TEMPORAL-LONG-RUN-EVIDENCE",
+        "safe_default": "Local one-process detached jobs only; never use bg_jobs or bg_monitor for a 12-24 hour Agent operation."
+      },
+      "done_when": "PASS only if every mutation is one same-process transaction, deterministic concurrency tests retain all unrelated records, follow-up leases suppress duplicate active claims and static tests prove that durable Agent continuation remains exclusively Temporal-owned.",
+      "stop_rules": [
+        "Stop if more than one Odysseus web process accesses the file store; that requires a separate shared-store design.",
+        "Stop if a proposed Agent operation longer than one hour uses bg_jobs.",
+        "Stop on any second heartbeat, retry, continuation or resume owner beside Temporal."
+      ],
+      "forbidden_actions": [
+        "Temporal workflow state in bg_jobs",
+        "12-hour bg job",
+        "multi-process safety claim",
+        "real process launch or kill in tests"
+      ]
+    },
+    {
+      "id": "SAR-06-model-aware-token-estimation",
+      "execution_status": "implemented_focused_tested",
+      "mutation_class": "repo_only",
+      "priority": "P1",
+      "owner": "Bob",
+      "depends_on": [
+        "SAR-00-verified-scope-contract"
+      ],
+      "allowed_paths": [
+        "src/token_budget.py",
+        "src/token_estimator.py",
+        "src/model_context.py",
+        "src/chat_processor.py",
+        "src/rag_text_chunking.py",
+        "requirements-optional.txt",
+        "tests/fixtures/token_budget/",
+        "tests/test_token_budget.py",
+        "tests/test_token_budget_model_aware.py",
+        "tests/test_chat_processor_rag_budget.py",
+        "tests/test_rag_text_chunking.py"
+      ],
+      "hotfiles": [
+        "src/model_context.py",
+        "src/chat_processor.py"
+      ],
+      "objective": "Make model_hint select deterministic exact or calibrated token estimators while retaining a conservative no-download fallback and the current 32000 automatic context default.",
+      "deliverables": [
+        "token estimator protocol and ordered model-pattern registry",
+        "estimator result with count, adapter id, adapter revision, exact-or-fallback flag and confidence",
+        "offline adapters only when their tokenizer assets or optional dependency are already present",
+        "deterministic conservative fallback",
+        "frozen content-safe corpus for German, English, code, JSON and tool-call shapes",
+        "compatibility wrapper preserving existing count_text_tokens callers"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_token_budget.py tests/test_token_budget_model_aware.py tests/test_chat_processor_rag_budget.py tests/test_rag_text_chunking.py -q --basetemp .pytest_tmp_sar_tokens",
+        "git diff --check -- src/token_budget.py src/token_estimator.py src/model_context.py src/chat_processor.py src/rag_text_chunking.py requirements-optional.txt tests/fixtures/token_budget tests/test_token_budget.py tests/test_token_budget_model_aware.py tests/test_chat_processor_rag_budget.py tests/test_rag_text_chunking.py"
+      ],
+      "evidence_required": [
+        "model_hint is used for deterministic adapter selection",
+        "exact adapters equal frozen ground truth",
+        "frozen corpus P95 absolute relative error is at most 10 percent and maximum undercount is at most 5 percent",
+        "missing adapter never downloads or accesses a provider",
+        "fallback is deterministic, conservative and identified in the result",
+        "chunk and prompt outputs do not exceed their selected budgets"
+      ],
+      "gate": {
+        "id": "none",
+        "safe_default": "Local fixtures and already-available optional tokenizer adapters only; keep the 32000 default."
+      },
+      "done_when": "PASS only if model_hint changes estimator routing deterministically, exact adapters match ground truth, the fallback meets the frozen error bounds without network access, existing callers remain compatible and the automatic context hard maximum stays 32000.",
+      "stop_rules": [
+        "Stop if an adapter downloads a model or tokenizer at runtime.",
+        "Stop if fixture text contains private content or raw user prompts.",
+        "Stop if core installation size grows without an approved optional-dependency boundary.",
+        "Stop if the change globally raises the context maximum."
+      ],
+      "forbidden_actions": [
+        "runtime tokenizer download",
+        "provider token-count call",
+        "private corpus",
+        "global context-window increase"
+      ]
+    },
+    {
+      "id": "SAR-06P-model-hint-hardlimit-propagation",
+      "execution_status": "implemented_focused_tested",
+      "mutation_class": "repo_only",
+      "priority": "P0",
+      "owner": "Bob",
+      "depends_on": [
+        "SAR-06-model-aware-token-estimation"
+      ],
+      "allowed_paths": [
+        "src/token_estimator.py",
+        "src/context_compactor.py",
+        "src/context_orchestrator.py",
+        "src/plugin_system.py",
+        "plugins/obsidian/backend/context_provider.py",
+        "src/chat_processor.py",
+        "src/agent_loop_orchestration.py",
+        "src/delegate_tool.py",
+        "src/agent_loop.py",
+        "routes/chat_helpers.py",
+        "routes/chat_routes.py",
+        "routes/history_routes.py",
+        "core/session_manager.py",
+        "tests/test_context_compactor_model_hint_propagation.py",
+        "tests/test_agent_loop_model_hint_budget.py",
+        "tests/test_chat_routes_model_hint_usage.py",
+        "tests/test_context_orchestrator_model_hint_budget.py",
+        "tests/test_history_routes_model_hint_usage.py",
+        "tests/test_chat_helpers_model_hint_budget.py",
+        "tests/test_session_manager_model_hint_budget.py",
+        "tests/test_context_provider_model_hint_budget.py",
+        "plugins/obsidian/tests/test_context_provider_model_hint_budget.py",
+        "tests/test_dynamic_context_budget.py",
+        "tests/test_chat_helpers.py",
+        "tests/test_kv_cache_invalidation_2927.py",
+        "tests/test_review_regressions.py",
+        "tests/test_compaction_summary_failure.py",
+        "tests/test_history_compact_tool_calls.py",
+        "tests/test_token_budget_model_aware.py",
+        "tests/test_plugin_system.py",
+        "tests/test_delegate_tool.py"
+      ],
+      "hotfiles": [
+        "src/agent_loop.py",
+        "routes/chat_helpers.py",
+        "routes/chat_routes.py",
+        "tests/test_chat_helpers.py"
+      ],
+      "objective": "Propagate the already selected model name through every productive token-estimation, context-trimming, compaction, SessionManager and provider-subbudget hardlimit decision without changing the model-neutral serialization cache, benchmark comparison calls, legacy no-hint behavior or the automatic 32000 context default.",
+      "deliverables": [
+        "optional backward-compatible model_hint parameters across trim_for_context, compaction helpers, context orchestration and recent-context selection",
+        "model-aware replacement of every len-times-0.3 truncation and hardlimit decision for text, Unicode, JSON and tool-call arguments",
+        "Agent loop propagation from stream_agent_loop model; Chat helper propagation from normalized sess.model; History propagation from session.model; Chat usage fallback priority _actual_model then _answered_by then _requested_model",
+        "SessionManager bypasses the model-neutral metadata.estimated_tokens scalar whenever model_hint is present and preserves the cached legacy path whenever model_hint is absent",
+        "backward-compatible provider ABI with ContextProviderSpec.accepts_model_hint default false; only opted-in providers receive model_hint exactly once and internal TypeError is never retried",
+        "Obsidian provider, chat_processor, agent_loop_orchestration and delegate_tool propagate the currently selected model into provider subbudgets",
+        "core/session_serialization.py remains model-neutral legacy, scripts/performance_baseline.py remains a no-hint non-production comparison and src/model_context.py remains unchanged because its API hook already exists",
+        "AST no-hint allowlist contains exactly core/session_serialization.py::estimate_message_tokens_dict, scripts/performance_baseline.py::profile_long_chat::estimate_probe and scripts/performance_baseline.py::profile_long_chat::after_tokens",
+        "MODEL_HINT_PROPAGATION_GATE changes state only after every focused and compatibility test is green"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest --import-mode=importlib tests/test_context_compactor_model_hint_propagation.py tests/test_agent_loop_model_hint_budget.py tests/test_chat_routes_model_hint_usage.py tests/test_context_orchestrator_model_hint_budget.py tests/test_history_routes_model_hint_usage.py tests/test_chat_helpers_model_hint_budget.py tests/test_session_manager_model_hint_budget.py tests/test_context_provider_model_hint_budget.py plugins/obsidian/tests/test_context_provider_model_hint_budget.py -q --basetemp .pytest_tmp_sar_model_hint",
+        "venv/Scripts/python.exe -m pytest tests/test_context_compactor.py tests/test_context_dialog_preservation.py tests/test_compact_truncate_tool_call_args.py tests/test_context_compactor_nonstring.py tests/test_compaction_summary_failure.py tests/test_dynamic_context_budget.py tests/test_chat_helpers.py tests/test_kv_cache_invalidation_2927.py tests/test_review_regressions.py tests/test_history_compact_tool_calls.py tests/test_session_manager.py tests/test_context_orchestrator.py tests/test_context_orchestrator_boundaries.py tests/test_memory_provenance_context_orchestrator.py tests/test_plugin_system.py tests/test_delegate_tool.py tests/test_model_context.py tests/test_estimate_tokens_tool_calls.py tests/test_context_budget.py tests/test_token_budget.py tests/test_token_budget_model_aware.py plugins/obsidian/tests/test_context_provider_backend.py tests/test_performance_baseline.py -q --basetemp .pytest_tmp_sar_model_hint_regression",
+        "git diff --check -- src/token_estimator.py src/context_compactor.py src/context_orchestrator.py src/plugin_system.py plugins/obsidian/backend/context_provider.py src/chat_processor.py src/agent_loop_orchestration.py src/delegate_tool.py src/agent_loop.py routes/chat_helpers.py routes/chat_routes.py routes/history_routes.py core/session_manager.py tests/test_context_compactor_model_hint_propagation.py tests/test_agent_loop_model_hint_budget.py tests/test_chat_routes_model_hint_usage.py tests/test_context_orchestrator_model_hint_budget.py tests/test_history_routes_model_hint_usage.py tests/test_chat_helpers_model_hint_budget.py tests/test_session_manager_model_hint_budget.py tests/test_context_provider_model_hint_budget.py plugins/obsidian/tests/test_context_provider_model_hint_budget.py tests/test_dynamic_context_budget.py tests/test_chat_helpers.py tests/test_kv_cache_invalidation_2927.py tests/test_review_regressions.py tests/test_compaction_summary_failure.py tests/test_history_compact_tool_calls.py tests/test_token_budget_model_aware.py tests/test_plugin_system.py tests/test_delegate_tool.py"
+      ],
+      "evidence_required": [
+        "AST contract proves every productive direct estimate_tokens call passes model_hint except exactly core/session_serialization.py::estimate_message_tokens_dict, scripts/performance_baseline.py::profile_long_chat::estimate_probe and scripts/performance_baseline.py::profile_long_chat::after_tokens",
+        "trim and compaction cover plain text, Unicode, JSON and tool calls; every trimmable result is at or below the selected model-aware budget",
+        "no-hint calls preserve legacy estimates, trimming behavior and the 32000 automatic default",
+        "dialog adjacency and assistant tool-call to tool-result pairing are preserved",
+        "Agent loop, Chat helper, Chat route and History route evidence records the exact selected model; Chat fallback priority is _actual_model then _answered_by then _requested_model",
+        "SessionManager ignores an intentionally wrong metadata.estimated_tokens cache when model_hint is present, reuses and persists the legacy scalar when model_hint is absent and never mutates that scalar during a model switch",
+        "legacy four-argument providers remain compatible; only accepts_model_hint opt-in providers receive exactly one keyword and an internal TypeError propagates without retry",
+        "Obsidian provider subbudgets are model-aware and bounded",
+        "all tests run offline without downloads, network access or provider calls"
+      ],
+      "gate": {
+        "id": "SAR-MODEL-HINT-HOTFILE-HANDOFF",
+        "safe_default": "The explicit handoff was consumed by one serialized owner and the slice is focused- and compatibility-green. Keep it closed unless a dedicated regression claim reopens it."
+      },
+      "done_when": "PASS only if the explicit four-file handoff and atomic single-owner claim are recorded, every productive hardlimit callsite selects the current model except the exact three-entry no-hint allowlist, trimming and provider subbudgets stay within the selected model budget, dialog and tool pairing remain intact, legacy no-hint and four-argument-provider behavior remain unchanged, SessionManager never persists a model-specific scalar, the automatic default remains 32000 and every declared focused and compatibility test is green.",
+      "stop_rules": [
+        "Stop before any write until explicit file-level handoff is acknowledged for src/agent_loop.py, routes/chat_helpers.py, routes/chat_routes.py and tests/test_chat_helpers.py and one serialized owner holds the full atomic claim.",
+        "Stop if any handoff hash changed, a foreign staged file exists or a foreign hunk overlaps an allowed path.",
+        "Stop if a model-specific token estimate is persisted in metadata.estimated_tokens.",
+        "Stop if the legacy four-argument provider ABI breaks or a broad TypeError retry is introduced.",
+        "Stop on any legacy no-hint regression, dialog or tool-pair loss, or trimmable result above its selected budget.",
+        "Stop if implementation requires a dependency, download, network or provider call, path expansion or change to the 32000 automatic default.",
+        "Leave MODEL_HINT_PROPAGATION_GATE unresolved if any focused, compatibility or AST contract check is red."
+      ],
+      "forbidden_actions": [
+        "editing any allowed path before the four-file handoff",
+        "model-specific metadata.estimated_tokens persistence",
+        "breaking the four-argument provider ABI",
+        "broad TypeError retry",
+        "runtime tokenizer download",
+        "provider token-count or network call",
+        "global context-window increase",
+        "unrelated refactor or path expansion",
+        "push",
+        "live action"
+      ]
+    },
+    {
+      "id": "SAR-07-response-cache-lru-ttl",
+      "execution_status": "implemented_focused_tested",
+      "mutation_class": "repo_only",
+      "priority": "P2",
+      "owner": "Bob",
+      "depends_on": [
+        "SAR-09-measured-optimization-decisions"
+      ],
+      "allowed_paths": [
+        "src/llm_response_cache.py",
+        "src/llm_runtime_state.py",
+        "src/llm_core.py",
+        "tests/test_llm_response_cache_lru.py",
+        "tests/test_llm_core_concurrency.py",
+        "tests/test_ai_activity_ledger.py"
+      ],
+      "hotfiles": [
+        "src/llm_runtime_state.py",
+        "src/llm_core.py"
+      ],
+      "objective": "Replace insertion-order eviction with a process-local, capacity-exact, thread-safe LRU whose response retention is TTL-bounded and whose metrics contain no keys or content.",
+      "deliverables": [
+        "dedicated locked LRU cache",
+        "default maximum 128 entries",
+        "default 300-second TTL with configured upper bound 3600 seconds",
+        "get and overwrite promote recency",
+        "strict capacity check without temporary overflow",
+        "content-free hit, miss, expiry and eviction counters"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_llm_response_cache_lru.py tests/test_llm_core_concurrency.py tests/test_ai_activity_ledger.py -q --basetemp .pytest_tmp_sar_cache",
+        "git diff --check -- src/llm_response_cache.py src/llm_runtime_state.py src/llm_core.py tests/test_llm_response_cache_lru.py tests/test_llm_core_concurrency.py tests/test_ai_activity_ledger.py"
+      ],
+      "evidence_required": [
+        "hit and overwrite promote the key",
+        "entry 129 evicts exactly the least recently used entry",
+        "size never exceeds 128",
+        "expired entries cannot be returned",
+        "32-thread deterministic stress has no exception or overflow",
+        "metrics expose no cache key, request content or response content",
+        "dead-host state behavior is unchanged"
+      ],
+      "gate": {
+        "id": "SAR-LLM-HOTFILE-HANDOFF",
+        "safe_default": "Do not edit llm_core or llm_runtime_state until one serialized owner accepts the handoff."
+      },
+      "done_when": "PASS only if deterministic and concurrent tests prove true LRU promotion, exact capacity, TTL expiry and content-free metrics while sync and async request semantics and dead-host cooldown behavior remain unchanged.",
+      "stop_rules": [
+        "Stop until llm_core and llm_runtime_state have an acknowledged handoff.",
+        "Stop if cache entries become persistent or cross-process.",
+        "Stop if metrics expose keys, messages, prompts or outputs."
+      ],
+      "forbidden_actions": [
+        "persistent response cache",
+        "distributed response cache",
+        "dead-host persistence",
+        "payload logging"
+      ]
+    },
+    {
+      "id": "SAR-08-canonical-rag-import",
+      "execution_status": "implemented_focused_tested",
+      "mutation_class": "repo_only",
+      "priority": "P2",
+      "owner": "Bob",
+      "depends_on": [
+        "SAR-00-verified-scope-contract"
+      ],
+      "allowed_paths": [
+        "src/rag_manager.py",
+        "tests/test_rag_manager_import_contract.py",
+        "tests/test_rag_manager_owner_compat.py",
+        "tests/test_ai_lens_instrumentation.py"
+      ],
+      "hotfiles": [
+        "src/rag_manager.py"
+      ],
+      "objective": "Remove legacy path retries so the supported package import is unique and internal dependency ImportError remains visible.",
+      "deliverables": [
+        "exact from src.rag_vector import VectorRAG import",
+        "no broad ImportError fallback",
+        "no sys.path mutation",
+        "supported-entrypoint smoke tests",
+        "internal ImportError propagation regression"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_rag_manager_import_contract.py tests/test_rag_manager_owner_compat.py tests/test_ai_lens_instrumentation.py -q --basetemp .pytest_tmp_sar_rag",
+        "venv/Scripts/python.exe -c \"import src.rag_manager; import services.docs\"",
+        "git diff --check -- src/rag_manager.py tests/test_rag_manager_import_contract.py tests/test_rag_manager_owner_compat.py tests/test_ai_lens_instrumentation.py"
+      ],
+      "evidence_required": [
+        "one canonical import statement",
+        "repository-root and services.docs imports succeed",
+        "scripts/index_documents supported import succeeds",
+        "an ImportError raised inside rag_vector propagates unchanged",
+        "owner compatibility and AI Lens instrumentation remain green"
+      ],
+      "gate": {
+        "id": "SAR-RAG-HOTFILE-HANDOFF",
+        "safe_default": "Do not edit rag_manager while USI Runtime Integration owns or claims it."
+      },
+      "done_when": "PASS only if every supported entrypoint imports the canonical src package, internal dependency failures are no longer masked and existing RAG owner and observability behavior remains unchanged.",
+      "stop_rules": [
+        "Stop until the UIR owner releases or hands off src/rag_manager.py.",
+        "Stop if a documented supported entrypoint demonstrably requires bare-module execution.",
+        "Stop if the fix expands into RAG behavior changes."
+      ],
+      "forbidden_actions": [
+        "sys.path mutation",
+        "broad RAG refactor",
+        "USI integration change"
+      ]
+    },
+    {
+      "id": "SAR-09-measured-optimization-decisions",
+      "execution_status": "implemented_focused_tested",
+      "mutation_class": "safe_offline",
+      "priority": "P2",
+      "owner": "Charlie",
+      "depends_on": [
+        "SAR-00-verified-scope-contract"
+      ],
+      "allowed_paths": [
+        "scripts/benchmark_llm_transport.py",
+        "scripts/benchmark_agent_policy_load.py",
+        "scripts/benchmark_llm_response_cache.py",
+        "tests/test_sar_benchmark_contracts.py",
+        "docs/plans/system-assurance-optimization-baseline.json"
+      ],
+      "hotfiles": [],
+      "objective": "Create reproducible, redacted baselines and binary decision receipts for HTTP/2, Agent policy-map caching and response-cache behavior before any speculative optimization.",
+      "deliverables": [
+        "local synthetic transport benchmark contract",
+        "1000-start Agent policy-map load benchmark",
+        "response-cache hit, churn and eviction baseline",
+        "content-free baseline JSON",
+        "threshold decision receipts with adopt or retain_current result"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_sar_benchmark_contracts.py -q --basetemp .pytest_tmp_sar_bench",
+        "venv/Scripts/python.exe scripts/benchmark_agent_policy_load.py --synthetic --iterations 1000 --output docs/plans/system-assurance-optimization-baseline.json",
+        "venv/Scripts/python.exe scripts/benchmark_llm_response_cache.py --synthetic --output docs/plans/system-assurance-optimization-baseline.json",
+        "git diff --check -- scripts/benchmark_llm_transport.py scripts/benchmark_agent_policy_load.py scripts/benchmark_llm_response_cache.py tests/test_sar_benchmark_contracts.py docs/plans/system-assurance-optimization-baseline.json"
+      ],
+      "evidence_required": [
+        "HTTP/2 adopt only if p95 latency improves at least 15 percent at concurrency 16, error rate does not worsen and TLS, proxy and local-provider checks remain green",
+        "Agent policy caching adopt only if 1000-start p95 query latency exceeds 10 milliseconds or 2 percent of start latency and synchronous invalidation is proven",
+        "cache baseline records hit, miss, churn and eviction counts without keys or content",
+        "all local default runs use synthetic data and no provider"
+      ],
+      "gate": {
+        "id": "SAR-HTTP2-BENCHMARK-GO",
+        "safe_default": "Synthetic local benchmark contracts only; keep http2 false and Agent policy loading uncached."
+      },
+      "done_when": "PASS only if benchmarks are deterministic, redact all payload identity, emit binary threshold decisions and retain current HTTP/2 and Agent-policy behavior whenever a threshold or compatibility criterion is not satisfied.",
+      "stop_rules": [
+        "Stop before any real provider benchmark without bounded Provider Live-Go.",
+        "Stop if a benchmark stores prompts, outputs, endpoints, credentials or private paths.",
+        "Stop if a measure-only slice changes runtime behavior."
+      ],
+      "forbidden_actions": [
+        "HTTP/2 runtime enablement",
+        "Agent policy cache implementation",
+        "provider call",
+        "private endpoint persistence"
+      ]
+    },
+    {
+      "id": "SAR-10-release-truth-and-external-proof",
+      "execution_status": "planned",
+      "mutation_class": "safe_offline",
+      "priority": "P1",
+      "owner": "Alice",
+      "depends_on": [
+        "SAR-02-fresh-release-evidence"
+      ],
+      "allowed_paths": [
+        "docs/obsidian/00-priorisierte-roadmap.md",
+        "docs/plans/1.0-manual-release-evidence-log.md",
+        "docs/plans/open-gates-status-2026-07-05.md",
+        "docs/plans/external-release-evidence-runbook.md",
+        "tests/test_release_roadmap_truth.py"
+      ],
+      "hotfiles": [],
+      "objective": "Remove stale release-roadmap statements and freeze one unambiguous external install, upgrade and provider evidence contract without performing a live action.",
+      "deliverables": [
+        "provider proof old marker linked to its superseding evidence and freshness state",
+        "Nextcloud old blocker linked to later infrastructure and bounded live-copy evidence",
+        "Source View explicitly delegated to USI and Lens",
+        "external release evidence runbook",
+        "documentation truth regression test"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_release_roadmap_truth.py -q --basetemp .pytest_tmp_sar_docs",
+        "venv/Scripts/python.exe -m pytest tests/test_manual_release_evidence.py tests/test_manual_release_evidence_readiness_summary.py -q --basetemp .pytest_tmp_sar_manual",
+        "git diff --check -- docs/obsidian/00-priorisierte-roadmap.md docs/plans/1.0-manual-release-evidence-log.md docs/plans/open-gates-status-2026-07-05.md docs/plans/external-release-evidence-runbook.md tests/test_release_roadmap_truth.py"
+      ],
+      "evidence_required": [
+        "no current entry says Provider Proof or Nextcloud infrastructure is still unproven when superseding evidence exists",
+        "historical proof remains labeled with its date and freshness status",
+        "release-grade fresh install and upgrade target is Debian or Ubuntu and distinct from the development checkout",
+        "candidate commit or image digest, target identity, backup, rollback, health and remote readback fields are mandatory",
+        "a local Windows temporary clone never satisfies the external-target gate",
+        "no external command is executed"
+      ],
+      "gate": {
+        "id": "SAR-EXTERNAL-RELEASE-EVIDENCE-GO",
+        "safe_default": "Runbook and fake evidence only; no provider call, external host, backup, upgrade or rollback action."
+      },
+      "done_when": "PASS only if every stale roadmap statement points to superseding evidence, historical and fresh status are distinct, the external target and rollback criteria are machine-testable and no document implies that local repository evidence authorizes an external release.",
+      "stop_rules": [
+        "Stop if a document embeds credentials, hostnames, private paths or raw provider output.",
+        "Stop before any provider or external-host action.",
+        "Stop if Source View scope is duplicated outside USI and Lens."
+      ],
+      "forbidden_actions": [
+        "provider call",
+        "host connection",
+        "backup",
+        "upgrade",
+        "rollback",
+        "Source View implementation"
+      ]
+    },
+    {
+      "id": "SAR-11-integration-closeout",
+      "execution_status": "planned",
+      "mutation_class": "repo_only",
+      "priority": "P0",
+      "owner": "Charlie",
+      "depends_on": [
+        "SAR-01-binding-ci-and-publish-provenance",
+        "SAR-02-fresh-release-evidence",
+        "SAR-03-tailscale-cache-expiry",
+        "SAR-04-runtime-topology-contract",
+        "SAR-05-background-job-transaction-boundary",
+        "SAR-06-model-aware-token-estimation",
+        "SAR-06P-model-hint-hardlimit-propagation",
+        "SAR-07-response-cache-lru-ttl",
+        "SAR-08-canonical-rag-import",
+        "SAR-09-measured-optimization-decisions",
+        "SAR-10-release-truth-and-external-proof"
+      ],
+      "allowed_paths": [
+        "tests/test_system_assurance_runtime_hardening_integration.py",
+        "docs/plans/system-assurance-runtime-hardening-handoff.md",
+        "docs/plans/system-assurance-runtime-hardening-roadmap.json",
+        "docs/plans/system-optimization-master-roadmap.md"
+      ],
+      "hotfiles": [
+        "docs/plans/system-assurance-runtime-hardening-roadmap.json",
+        "docs/plans/system-optimization-master-roadmap.md"
+      ],
+      "objective": "Run the combined repository acceptance, record every completion layer separately and hand long-run temporal validation to TLR without claiming deployment or production readiness.",
+      "deliverables": [
+        "combined integration test",
+        "redacted completion handoff",
+        "per-slice evidence references",
+        "repo-complete status distinct from push, live, external and temporal validation",
+        "next gate and dependency frontier"
+      ],
+      "tests": [
+        "venv/Scripts/python.exe -m pytest tests/test_system_assurance_runtime_hardening_integration.py -q --basetemp .pytest_tmp_sar_integration",
+        "venv/Scripts/python.exe -m pytest -q --maxfail=1",
+        "venv/Scripts/python.exe scripts/roadmap_safe_queue_audit.py --format json",
+        "git diff --check"
+      ],
+      "evidence_required": [
+        "all slice-focused suites pass",
+        "full required pytest gate passes",
+        "release receipt matches the integration commit when remote CI evidence exists",
+        "no foreign staged file or overlapping unresolved claim",
+        "completion matrix distinguishes implemented, tested, committed, pushed, deployed, live validated and temporal validated",
+        "12-hour soak and 24-hour canary remain owned by TLR-10 and TLR-11"
+      ],
+      "gate": {
+        "id": "SAR-RELEASE-EVIDENCE-CONTRACT-READY",
+        "safe_default": "Repository acceptance may complete; external release, multi-worker, live provider and Temporal production claims remain separate."
+      },
+      "done_when": "PASS only if every repository slice and combined required suite is green, completion layers are reported independently, invalid or stale release evidence still fails closed and the handoff makes no deployment, external-release or 12-24 hour production claim without the corresponding live and Temporal evidence.",
+      "stop_rules": [
+        "Stop on any required red test, unresolved hotfile claim or foreign staged file.",
+        "Stop if a same-commit release receipt is required but absent or mismatched.",
+        "Stop if repository completion is described as deployment, live validation or product completion.",
+        "Stop if SAR attempts to run or replace a Temporal soak."
+      ],
+      "forbidden_actions": [
+        "deploy",
+        "provider call",
+        "external host action",
+        "Temporal service start",
+        "12-hour soak",
+        "24-hour canary"
+      ]
+    }
+  ],
+  "gate_queue": [
+    {
+      "gate_id": "SAR-REGISTRATION-HANDOFF",
+      "gate_class": "coordination",
+      "state": "pending",
+      "blocks": [
+        "generic Open Work visibility"
+      ],
+      "does_not_block": [
+        "roadmap review",
+        "explicit named SAR execution after fresh preflight"
+      ],
+      "decision_needed": "Integrate or release the foreign Open Work, MVP Master and multi-agent-guidance changes, then append SAR without rewriting their work.",
+      "safe_default": "Do not edit those three canonical shared files in this authoring run."
+    },
+    {
+      "gate_id": "SAR-RELEASE-EVIDENCE-CONTRACT-READY",
+      "gate_class": "contract_gate",
+      "state": "not_satisfied",
+      "blocks": [
+        "automated release PASS from fresh evidence",
+        "SAR-11 repository closeout"
+      ],
+      "decision_needed": "No user decision. Satisfied only by green SAR-01 and SAR-02 focused evidence.",
+      "safe_default": "Release automation remains no-go when fresh receipt evidence is absent."
+    },
+    {
+      "gate_id": "SAR-GITHUB-REMOTE-GO",
+      "gate_class": "needs_live_go",
+      "state": "not_granted",
+      "blocks": [
+        "push",
+        "branch protection change",
+        "remote workflow readback",
+        "container publication"
+      ],
+      "decision_needed": "Approve one exact remote, branch, commit, workflow change/readback and publication scope with rollback.",
+      "safe_default": "Local workflow files and tests only."
+    },
+    {
+      "gate_id": "SAR-01-FULL-SUITE-ENVIRONMENT",
+      "gate_class": "blocked_environment",
+      "state": "blocked_environment",
+      "blocks": [
+        "SAR-01 unchanged full-suite acceptance",
+        "SAR-02-fresh-release-evidence"
+      ],
+      "decision_needed": "No repeated approval request. Resume SAR-01 only when an unchanged repository suite can run in a symlink-capable environment without diagnostic deselections.",
+      "safe_default": "Keep SAR-01 parked as blocked_environment; do not start Docker, install a Linux runner, weaken tests or continue diagnostic probe cycles."
+    },
+    {
+      "gate_id": "SAR-EXTERNAL-RELEASE-EVIDENCE-GO",
+      "gate_class": "needs_live_go",
+      "state": "not_granted",
+      "blocks": [
+        "provider proof refresh",
+        "external fresh install",
+        "external upgrade",
+        "backup and rollback drill"
+      ],
+      "decision_needed": "Approve one exact provider or isolated Debian/Ubuntu target, candidate identity, bounded action window, backup and rollback plan.",
+      "safe_default": "Schema, runbook and fake evidence only; external release remains no-go."
+    },
+    {
+      "gate_id": "SAR-MULTIWORKER-GO",
+      "gate_class": "needs_design_and_live_go",
+      "state": "not_requested",
+      "blocks": [
+        "more than one web worker",
+        "claiming process-local throttling or file rotation is distributed-safe"
+      ],
+      "decision_needed": "Select shared rate limiting, centralized logging and shared background state, then approve a bounded staging activation.",
+      "safe_default": "Exactly one web worker."
+    },
+    {
+      "gate_id": "SAR-HTTP2-BENCHMARK-GO",
+      "gate_class": "needs_live_go",
+      "state": "not_granted",
+      "blocks": [
+        "real provider transport benchmark",
+        "HTTP/2 runtime activation"
+      ],
+      "decision_needed": "Approve one provider, concurrency, request count, cost ceiling and redacted metric window after the local benchmark contract is green.",
+      "safe_default": "Keep http2 false."
+    },
+    {
+      "gate_id": "SAR-TEMPORAL-LONG-RUN-EVIDENCE",
+      "gate_class": "existing_roadmap_dependency",
+      "state": "owned_by_TLR",
+      "blocks": [
+        "12-hour wall-clock reliability claim",
+        "24-hour production capability claim"
+      ],
+      "decision_needed": "Follow TLR-09 time-skipping, TLR-10 operator-approved wall-clock soak and TLR-11 action-specific production canary in that order.",
+      "safe_default": "SAR runs no Temporal service or soak."
+    },
+    {
+      "gate_id": "SAR-RAG-HOTFILE-HANDOFF",
+      "gate_class": "coordination",
+      "state": "pending",
+      "blocks": [
+        "SAR-08"
+      ],
+      "decision_needed": "Receive an acknowledged src/rag_manager.py handoff from USI Runtime Integration or wait until the path is unclaimed.",
+      "safe_default": "Keep SAR-08 read-only."
+    },
+    {
+      "gate_id": "SAR-LLM-HOTFILE-HANDOFF",
+      "gate_class": "coordination",
+      "state": "pending",
+      "blocks": [
+        "SAR-07"
+      ],
+      "decision_needed": "Receive one serialized handoff for src/llm_core.py and src/llm_runtime_state.py.",
+      "safe_default": "Keep SAR-07 read-only."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-FOREIGN-LLM-API-DRIFT",
+      "gate_class": "coordination",
+      "state": "satisfied_repo_only_fix_green",
+      "blocks": [],
+      "decision_needed": "No user decision. The exact two-file handoff was consumed, optional metadata defaults were restored and 217 extended LLM tests are green.",
+      "safe_default": "Keep the resolved helper change local and uncommitted; the consumed handoff grants no further edit."
+    },
+    {
+      "gate_id": "SAR-FULL-SUITE-ARCHIVED-SESSION-PATCHPOINT-DRIFT",
+      "gate_class": "coordination",
+      "state": "pending_file_handoff",
+      "blocks": [
+        "SAR-01 unchanged full-suite acceptance",
+        "SAR-02-fresh-release-evidence"
+      ],
+      "decision_needed": "Grant one serialized repo-only handoff for tests/test_archived_sessions_model_filter.py so its fixture patches the current _chat_effective_user route seam. routes/session_routes.py remains read-only unless separately handed off.",
+      "safe_default": "Do not edit the archived-session test or foreign-dirty session route; keep full-suite acceptance pending."
+    },
+    {
+      "gate_id": "SAR-MODEL-HINT-HOTFILE-HANDOFF",
+      "gate_class": "coordination",
+      "state": "satisfied_explicit_serial_handoff_and_green_evidence",
+      "blocks": [],
+      "decision_needed": "None. The user selected SAR-06P explicitly, no active same-checkout owner existed, every path hash was recorded before mutation and one serialized owner completed the slice.",
+      "safe_default": "Keep SAR-06P closed. Reopen only through a dedicated regression claim; do not rerun it as part of unrelated roadmap work."
+    }
+  ],
+  "long_run_boundary": {
+    "system_requirement": "Odysseus must support deterministic 12-24 hour Agent operations.",
+    "sole_runtime_owner": "docs/plans/temporal-light-agent-execution-roadmap.json",
+    "SAR_responsibility": [
+      "Prevent local background state, topology and resolver defects from being misrepresented as durable coordination.",
+      "Keep release and optimization evidence fresh, redacted and commit-bound.",
+      "Hand the bg_jobs authority boundary to TLR before effectful Activities."
+    ],
+    "TLR_responsibility": [
+      "workflow history",
+      "deterministic state transitions",
+      "Activities",
+      "heartbeats",
+      "signals and updates",
+      "retries and timeouts",
+      "idempotency and fencing",
+      "Continue-As-New",
+      "24-hour time-skipping acceptance",
+      "12-hour wall-clock soak",
+      "24-hour production canary"
+    ],
+    "completion_rule": "SAR repository completion never satisfies temporal validation. Product-level 12-24 hour capability requires TLR-09, TLR-10 and TLR-11 evidence at their declared levels."
+  },
+  "non_goals": [
+    "No second durable scheduler, heartbeat loop, history store or Agent operation state machine.",
+    "No persistence of dead-host cooldown state.",
+    "No global increase of the automatic 32000-token context maximum.",
+    "No Universal Inbox or Telegram voice monolith.",
+    "No Source View implementation.",
+    "No multi-worker design or activation.",
+    "No Redis, external log collector or distributed cache deployment.",
+    "No HTTP/2 activation without measured threshold evidence.",
+    "No release, deploy, tag, distribution, provider or external-host action.",
+    "No edits to USI, Codebase Memory, Code Lineage, Lens Code Graph, Harbor Planning or Temporal roadmap artifacts."
+  ],
+  "global_stop_rules": [
+    "Stop for any secret, private content, raw provider output, chat ID, private path or private endpoint in a roadmap, receipt, fixture, benchmark, metric or handoff.",
+    "Stop for destructive Git, force push, reset, broad cleanup or foreign staged files.",
+    "Stop a slice on an unresolved path claim, overlapping foreign hunk or missing acknowledged handoff.",
+    "Stop before any external mutation without an exact action-specific Live-Go ledger entry.",
+    "Stop if a required test is weakened, skipped without an unexpired quarantine entry or made advisory.",
+    "Stop if a release PASS can be produced without fresh same-commit evidence.",
+    "Stop if more than one durable owner can heartbeat, retry, resume or complete the same Agent operation.",
+    "Stop if runtime behavior is changed by a measure-only slice."
+  ],
+  "completion_contract": {
+    "roadmap_contract_authored": "Requires SAR-00 evidence and master link.",
+    "repository_implemented": "Requires every SAR-01 through SAR-11 done_when condition, including SAR-06P, and all required local tests.",
+    "committed": "Requires a path-scoped commit after foreign staged-file and diff review.",
+    "pushed": "Requires verified dev to fuzzy/dev publication authority and successful remote readback.",
+    "release_evidence_live_validated": "Requires SAR-GITHUB-REMOTE-GO and a same-commit workflow artifact.",
+    "external_release_validated": "Requires SAR-EXTERNAL-RELEASE-EVIDENCE-GO for each provider, install or upgrade action.",
+    "multiworker_validated": "Not part of this roadmap; remains no.",
+    "temporal_validated": "Requires TLR-09, TLR-10 and TLR-11 evidence; SAR alone cannot set this yes.",
+    "product_complete": "No. This roadmap is one post-MVP hardening track."
+  },
+  "verification": {
+    "authoring": [
+      "venv/Scripts/python.exe -m json.tool docs/plans/system-assurance-runtime-hardening-roadmap.json",
+      "venv/Scripts/python.exe -m pytest tests/test_system_assurance_runtime_hardening_roadmap.py -q --basetemp .pytest_tmp_sar_roadmap",
+      "venv/Scripts/python.exe scripts/roadmap_safe_queue_audit.py --format json",
+      "git diff --check -- docs/plans/system-assurance-runtime-hardening-roadmap.json docs/plans/system-optimization-master-roadmap.md tests/test_system_assurance_runtime_hardening_roadmap.py"
+    ],
+    "implementation": "Run every slice's focused commands. Run the unchanged repository-wide suite only at IP-SAR-SERIAL-CLOSEOUT after SAR-06P, SAR-04, SAR-05 and SAR-07 are focused-green; route unrelated failures to docs/plans/regression-queue.json without adding them to SAR. A weaker test level cannot replace the evidence declared by a slice.",
+    "full_suite_integration_point": {
+      "id": "IP-SAR-SERIAL-CLOSEOUT",
+      "after": [
+        "SAR-06P-model-hint-hardlimit-propagation",
+        "SAR-04-runtime-topology-contract",
+        "SAR-05-background-job-transaction-boundary",
+        "SAR-07-response-cache-lru-ttl"
+      ],
+      "maximum_runs": 1,
+      "regression_queue": "docs/plans/regression-queue.json",
+      "routing_rule": "A failure attributable to one of the four slices blocks that slice. An independent or not-yet-attributed failure is queued and does not expand SAR automatically."
+    },
+    "queue_audit_rule": "Because canonical Open Work registration is deliberately deferred, SAR slice entries use execution_status and mutation_class rather than the audit-active status and class keys. The broad audit must not expose them before registration."
+  },
+  "recommended_next_step": "Resume from docs/plans/system-assurance-runtime-hardening-run-state.json. SAR-06P, SAR-04, SAR-05 and SAR-07 are focused-green, compatibility-tested and committed; do not rerun their slice suites. IP-SAR-SERIAL-CLOSEOUT consumed its single allowed unchanged full-suite run: 255 tests passed, 2 skipped and the first failure was the independent Windows symlink-privilege blocker queued as REG-20260714-002 in docs/plans/regression-queue.json. Do not rerun the SAR integration suite or expand SAR. Keep SAR-01 parked as blocked_environment and hand off serially to TLR-01. Preserve every foreign hunk and never rerun completed SAR-03, SAR-08 or SAR-09."
+}

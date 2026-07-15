@@ -105,6 +105,24 @@ def test_planner_bundle_blocks_incomplete_planner_output():
     assert "planner output should include acceptance criteria" in bundle.planner_blockers
 
 
+def test_planner_bundle_blocks_until_clarification_ready_for_plan():
+    record = _record()
+
+    bundle = build_planner_task_bundle(
+        record=record,
+        objective="Add a small app entrypoint",
+        file_writes=[{"path": "src/app.py", "content": "print('hi')\n"}],
+        acceptance_criteria=["app entrypoint exists"],
+        live_enabled=True,
+        operator_decision="go",
+        clarification_ready_for_plan=False,
+        clarification_id="clar-12345678",
+    )
+
+    assert bundle.ready_for_task_runner is False
+    assert "clarification must be ready_for_plan before planner task execution (clar-12345678)" in bundle.planner_blockers
+
+
 def test_run_planner_task_executes_through_task_runner_with_universal_check(tmp_path: Path):
     record = _record()
     _workspace_and_repo(record, tmp_path)

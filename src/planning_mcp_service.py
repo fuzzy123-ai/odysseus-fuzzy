@@ -8,6 +8,7 @@ reused by routes and MCP servers in later slices.
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import datetime
 import hashlib
 import json
 import ntpath
@@ -19,19 +20,27 @@ from typing import Any, Iterable, Mapping
 from urllib.parse import unquote
 
 from src.memory_lifecycle_adapters import plan_planning_memory_lifecycle
+from src.planning_agent_handoff import (
+    PlanningAgentHandoffError,
+    build_agent_plan_handoff,
+)
+from src.planning_definition_contract import (
+    GATE_RUNTIME_FIELD_DENYLIST,
+    PLANNING_DEFINITION_SCHEMA_ID,
+    RUNTIME_FIELD_DENYLIST,
+    PlanningDefinitionContractError,
+    validate_planning_definition,
+)
+from src.planning_revision_store import (
+    PlanningRevisionStore,
+    PlanningRevisionStoreError,
+)
 from src.planning_source_inventory import build_planning_source_inventory
 from src.planning_source_memory import (
     build_derived_planning_memory_records,
     build_planning_memory_capsules,
     project_accepted_planning_memory,
 )
-from src.user_notification_contract import (
-    NotificationContractError,
-    build_planning_notification_candidate,
-    classify_planning_notification_event,
-)
-
-
 PLANNING_ROOTS = ("docs/plans", "specs/roadmaps")
 MAX_SOURCE_BYTES = 2_000_000
 MAX_LIST_LIMIT = 100
@@ -85,6 +94,30 @@ class PlanningServiceError(ValueError):
         return {"code": self.code, "message": self.public_message}
 
 
+_DEFINITION_SILENT_EVENTS = frozenset(
+    {
+        "planning_context_pack_read",
+        "planning_summary_refreshed",
+        "planning_raptor_memory_processed",
+        "planning_definition_validation_succeeded",
+    }
+)
+_DEFINITION_NOTIFICATION_EVENTS = frozenset(
+    {
+        "project_created",
+        "project_deleted",
+        "roadmap_created",
+        "roadmap_deleted",
+        "roadmap_revision_approved",
+        "roadmap_revision_conflict",
+        "undo_available_after_structural_delete",
+    }
+)
+_REVISION_NOTIFICATION_EVENTS = frozenset(
+    {"roadmap_revision_approved", "roadmap_revision_conflict"}
+)
+
+
 class PlanningMcpService:
     """Read-only Planning operations rooted at one injected repository."""
 
@@ -94,6 +127,8 @@ class PlanningMcpService:
         *,
         preview_chars: int = 240,
         context_budget_bytes: int = MAX_CONTEXT_BYTES,
+        definition_store: PlanningRevisionStore | None = None,
+        definition_owner: str = "",
     ) -> None:
         self.repo_root = Path(repo_root).resolve(strict=True)
         if not self.repo_root.is_dir():
@@ -106,6 +141,8 @@ class PlanningMcpService:
             default=MAX_CONTEXT_BYTES,
         )
         self._allowed_roots = self._resolve_allowed_roots()
+        self._definition_store = definition_store
+        self._definition_owner = str(definition_owner or "").strip()
 
     def list_roadmaps(
         self,
@@ -842,33 +879,69 @@ class PlanningMcpService:
         project_id: str,
         roadmap_id: str | None = None,
         gate_id: str | None = None,
+        revision: int | None = None,
+        content_hash: str = "",
         reason: str,
         created_at: str = "1970-01-01T00:00:00Z",
     ) -> dict[str, Any]:
-        """Classify one allowlisted Planning event without authorizing delivery."""
+        """Classify one definition event without accepting execution events."""
 
         safe_project_id = _strict_document_id(project_id, field="project_id")
         safe_roadmap_id = _strict_document_id(roadmap_id, field="roadmap_id") if roadmap_id is not None else None
-        safe_gate_id = _strict_document_id(gate_id, field="gate_id") if gate_id is not None else None
+        if gate_id is not None:
+            raise PlanningServiceError(
+                "runtime_gate_event_forbidden",
+                "Planning event classification does not accept runtime gate events",
+            )
         if not isinstance(reason, str) or not reason.strip() or len(reason) > 240:
             raise PlanningServiceError("invalid_planning_event_reason", "Planning event reason is required and bounded")
         _assert_no_forbidden_content({"reason": reason})
         if re.search(r"(?i)\b[A-Za-z][A-Za-z0-9+.-]*://", reason):
             raise PlanningServiceError("invalid_planning_event_reason", "Planning event reason contains forbidden material")
-        try:
-            classification = classify_planning_notification_event(event_type)
-        except NotificationContractError as exc:
-            raise PlanningServiceError("invalid_planning_event", "Planning event type is not allowlisted") from exc
+        if event_type in _DEFINITION_SILENT_EVENTS:
+            classification = "silent"
+        elif event_type in _DEFINITION_NOTIFICATION_EVENTS:
+            classification = "notification_candidate"
+        else:
+            raise PlanningServiceError("invalid_planning_event", "Planning event type is not allowlisted")
+        if event_type not in {"project_created", "project_deleted"} and safe_roadmap_id is None:
+            raise PlanningServiceError(
+                "invalid_planning_event_metadata",
+                "Planning roadmap identity is required for this definition event",
+            )
+        if event_type in _REVISION_NOTIFICATION_EVENTS:
+            safe_revision = _definition_revision_selector(revision)
+            if safe_revision == "latest_approved":
+                raise PlanningServiceError(
+                    "invalid_revision",
+                    "Definition notification requires an exact positive revision",
+                )
+            if not re.fullmatch(r"sha256:[0-9a-f]{64}", str(content_hash or "")):
+                raise PlanningServiceError(
+                    "invalid_content_hash",
+                    "Definition notification requires an exact content hash",
+                )
+            safe_content_hash = str(content_hash)
+        else:
+            if revision is not None or content_hash:
+                raise PlanningServiceError(
+                    "invalid_planning_event_metadata",
+                    "Revision metadata is accepted only for definition revision events",
+                )
+            safe_revision = None
+            safe_content_hash = ""
+        safe_created_at = _definition_event_timestamp(created_at)
 
         refs = {
             "project_id": safe_project_id,
             **({"roadmap_id": safe_roadmap_id} if safe_roadmap_id is not None else {}),
-            **({"gate_id": safe_gate_id} if safe_gate_id is not None else {}),
+            **({"revision": safe_revision} if safe_revision is not None else {}),
+            **({"content_hash": safe_content_hash} if safe_content_hash else {}),
         }
-        category = "routine_planning_event" if classification == "silent" else "structural_planning_event"
-        reason_code = "planning_event_silent_by_policy" if classification == "silent" else "sparse_candidate_by_policy"
+        category = "routine_definition_event" if classification == "silent" else "structural_definition_event"
+        reason_code = "definition_event_silent_by_policy" if classification == "silent" else "sparse_definition_candidate_by_policy"
         audit = {
-            "schema": "odysseus.planning.event_classification_audit.v1",
+            "schema_id": "odysseus.planning.definition_event_audit.v2",
             "event_type": event_type,
             "category": category,
             "reason_code": reason_code,
@@ -884,27 +957,33 @@ class PlanningMcpService:
             candidate_payload: dict[str, Any] | None = None
             dedupe_key = _payload_hash({"event_type": event_type, "refs": refs, "category": category})
         else:
-            try:
-                candidate = build_planning_notification_candidate({
-                    "event_type": event_type,
-                    "project_id": safe_project_id,
-                    "roadmap_id": safe_roadmap_id,
-                    "gate_id": safe_gate_id,
-                    "reason": reason,
-                    "created_at": created_at,
-                    "ui_target": {},
-                })
-            except NotificationContractError as exc:
-                raise PlanningServiceError("invalid_planning_event_candidate", "Planning event candidate validation failed") from exc
-            if candidate is None:
-                raise PlanningServiceError("planning_event_policy_mismatch", "Planning event candidate policy is inconsistent")
-            candidate_payload = candidate.to_dict()
-            dedupe_key = candidate.dedupe_key
-            if candidate_payload.get("delivery_authorized") is not False or candidate_payload.get("live_delivery_performed") is not False:
-                raise PlanningServiceError("planning_event_delivery_boundary", "Planning event candidate crossed the delivery boundary")
+            dedupe_key = _payload_hash({"event_type": event_type, "refs": refs, "category": category})
+            highlight_id = safe_roadmap_id or safe_project_id
+            candidate_payload = {
+                "schema_id": "odysseus.planning.definition_notification_candidate.v2",
+                "classification": "notification_candidate",
+                "event_type": event_type,
+                "project_id": safe_project_id,
+                "roadmap_id": safe_roadmap_id,
+                "revision": safe_revision,
+                "content_hash": safe_content_hash,
+                "reason": reason.strip(),
+                "created_at": safe_created_at,
+                "ui_target": {
+                    "workspace": "planning",
+                    "view": "overview",
+                    "highlight_kind": "roadmap" if safe_roadmap_id else "project",
+                    "highlight_id": highlight_id,
+                    "highlight_mode": "expand_summary" if safe_roadmap_id else "focus",
+                    "document_view_intent": "open_roadmap_document" if safe_roadmap_id else "none",
+                },
+                "dedupe_key": dedupe_key,
+                "delivery_authorized": False,
+                "live_delivery_performed": False,
+            }
 
         result = {
-            "schema": "odysseus.planning.event_classification.v1",
+            "schema_id": "odysseus.planning.definition_event_classification.v2",
             "classification": classification,
             "candidate": candidate_payload,
             "dedupe_key": dedupe_key,
@@ -919,7 +998,160 @@ class PlanningMcpService:
             "live_delivery_performed": False,
         }
         result["payload_bytes"] = _json_size(result)
+        _assert_no_runtime_fields(result)
         return result
+
+    def read_gate_definitions(
+        self,
+        project_id: str,
+        roadmap_id: str,
+        *,
+        revision_or_latest_approved: str | int = "latest_approved",
+        node_id: str = "",
+    ) -> dict[str, Any]:
+        """Return immutable gate requirements without consulting runtime state."""
+
+        read_model = self._definition_revision(
+            project_id,
+            roadmap_id,
+            revision_or_latest_approved=revision_or_latest_approved,
+        )
+        roadmap = read_model["roadmap"]
+        safe_node_id = _strict_optional_definition_id(node_id, field="node_id")
+        gates = []
+        for raw_gate in roadmap.get("gates") or []:
+            if not isinstance(raw_gate, Mapping):
+                raise PlanningServiceError(
+                    "invalid_definition_read_model",
+                    "Planning gate definition is invalid",
+                )
+            gate = _definition_gate_projection(raw_gate)
+            if safe_node_id and safe_node_id not in gate["blocks"] and safe_node_id != gate["gate_id"]:
+                continue
+            gates.append(gate)
+        result = {
+            "schema_id": "odysseus.planning.gate_definitions.v2",
+            "project_id": roadmap["project_id"],
+            "roadmap_id": roadmap["roadmap_id"],
+            "revision": roadmap["revision"],
+            "content_hash": roadmap["content_hash"],
+            "node_id": safe_node_id,
+            "gate_definitions": gates,
+            "read_only": True,
+            "writes_performed": False,
+        }
+        _assert_no_runtime_fields(result)
+        return result
+
+    def create_agent_handoff(
+        self,
+        project_id: str,
+        roadmap_id: str,
+        *,
+        revision_or_latest_approved: str | int = "latest_approved",
+    ) -> dict[str, Any]:
+        """Create a hash-pinned composer envelope without launching an Agent run."""
+
+        read_model = self._definition_revision(
+            project_id,
+            roadmap_id,
+            revision_or_latest_approved=revision_or_latest_approved,
+        )
+        roadmap = read_model["roadmap"]
+        try:
+            envelope = build_agent_plan_handoff(
+                read_model,
+                expected_revision=roadmap["revision"],
+                expected_hash=roadmap["content_hash"],
+            )
+        except PlanningAgentHandoffError as exc:
+            raise PlanningServiceError(exc.code, "Planning Agent handoff was rejected") from exc
+        _assert_no_runtime_fields(envelope)
+        return envelope
+
+    def deprecated_tool_response(self, name: str) -> dict[str, Any]:
+        """Return a stable zero-side-effect response for legacy runtime tools."""
+
+        replacements = {
+            "planning_mark_status": {"replacement_surface": "agent"},
+            "planning_gate_status": {"replacement_tool": "planning_read_gate_definitions"},
+        }
+        if name not in replacements:
+            raise PlanningServiceError("unknown_deprecated_tool", "Planning tool is not deprecated")
+        return {
+            "schema_id": "odysseus.planning.deprecated_tool.v1",
+            "tool": name,
+            "error": "deprecated_tool",
+            **replacements[name],
+            "read_only": True,
+            "writes_performed": False,
+        }
+
+    def validate_definition(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        """Validate Definition v2 and return a bounded, content-free receipt."""
+
+        if not isinstance(payload, Mapping):
+            raise PlanningServiceError("invalid_definition", "Planning definition must be an object")
+        try:
+            receipt = validate_planning_definition(deepcopy(dict(payload))).to_dict()
+        except PlanningDefinitionContractError as exc:
+            raise PlanningServiceError(exc.reason_code, "Planning definition validation failed") from exc
+        result = {
+            "schema_id": "odysseus.planning.definition_validation.v2",
+            "validation": receipt,
+            "read_only": True,
+            "writes_performed": False,
+        }
+        _assert_no_runtime_fields(result)
+        return result
+
+    def _definition_revision(
+        self,
+        project_id: str,
+        roadmap_id: str,
+        *,
+        revision_or_latest_approved: str | int,
+    ) -> dict[str, Any]:
+        if self._definition_store is None or not self._definition_owner:
+            raise PlanningServiceError(
+                "definition_store_unavailable",
+                "Planning Definition v2 store is unavailable",
+            )
+        safe_project_id = _strict_definition_id(project_id, field="project_id")
+        safe_roadmap_id = _strict_definition_id(roadmap_id, field="roadmap_id")
+        revision = _definition_revision_selector(revision_or_latest_approved)
+        try:
+            read_model = self._definition_store.get_roadmap(
+                self._definition_owner,
+                safe_project_id,
+                safe_roadmap_id,
+                revision=revision,
+            )
+        except PlanningRevisionStoreError as exc:
+            raise PlanningServiceError(exc.code, "Planning definition revision was not resolved") from exc
+        if not isinstance(read_model, Mapping):
+            raise PlanningServiceError(
+                "invalid_definition_read_model",
+                "Planning definition read model is invalid",
+            )
+        project = read_model.get("project")
+        roadmap = read_model.get("roadmap")
+        if not isinstance(project, Mapping) or not isinstance(roadmap, Mapping):
+            raise PlanningServiceError(
+                "invalid_definition_read_model",
+                "Planning definition read model is invalid",
+            )
+        try:
+            validate_planning_definition(
+                {
+                    "schema_id": PLANNING_DEFINITION_SCHEMA_ID,
+                    "project": deepcopy(dict(project)),
+                    "roadmaps": [deepcopy(dict(roadmap))],
+                }
+            )
+        except PlanningDefinitionContractError as exc:
+            raise PlanningServiceError(exc.reason_code, "Planning definition read model is invalid") from exc
+        return deepcopy(dict(read_model))
 
     def _document_source(self, project_id: str, roadmap_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
         matches = [
@@ -2210,6 +2442,110 @@ def _strict_document_id(value: Any, *, field: str) -> str:
     if not _ID_RE.fullmatch(text):
         raise PlanningServiceError("invalid_document_id", f"Roadmap document {field} is invalid")
     return text
+
+
+def _strict_definition_id(value: Any, *, field: str) -> str:
+    text = str(value or "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", text):
+        raise PlanningServiceError("invalid_definition_id", f"Planning definition {field} is invalid")
+    return text
+
+
+def _strict_optional_definition_id(value: Any, *, field: str) -> str:
+    if value in {None, ""}:
+        return ""
+    return _strict_definition_id(value, field=field)
+
+
+def _definition_revision_selector(value: Any) -> str | int:
+    if value == "latest_approved":
+        return "latest_approved"
+    if isinstance(value, str) and value.isdigit():
+        value = int(value)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise PlanningServiceError(
+            "invalid_revision",
+            "Planning revision must be latest_approved or a positive integer",
+        )
+    return value
+
+
+def _definition_event_timestamp(value: Any) -> str:
+    text = str(value or "").strip()
+    if len(text) > 40 or not text:
+        raise PlanningServiceError(
+            "invalid_planning_event_timestamp",
+            "Planning event timestamp is invalid",
+        )
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise PlanningServiceError(
+            "invalid_planning_event_timestamp",
+            "Planning event timestamp is invalid",
+        ) from exc
+    if parsed.tzinfo is None:
+        raise PlanningServiceError(
+            "invalid_planning_event_timestamp",
+            "Planning event timestamp must include a timezone",
+        )
+    return text
+
+
+def _definition_gate_projection(value: Mapping[str, Any]) -> dict[str, Any]:
+    _assert_no_runtime_fields(value)
+    required = {
+        "gate_id",
+        "kind",
+        "title",
+        "blocks",
+        "decision_needed",
+        "safe_default",
+        "approval_scope_schema",
+        "required_verification_rule_ids",
+    }
+    if set(value) != required:
+        raise PlanningServiceError(
+            "invalid_gate_definition",
+            "Planning gate definition fields do not match Definition v2",
+        )
+    gate_id = _strict_definition_id(value["gate_id"], field="gate_id")
+    blocks = [
+        _strict_definition_id(item, field="gate block")
+        for item in value["blocks"]
+    ] if isinstance(value["blocks"], list) else None
+    rule_ids = [
+        _strict_definition_id(item, field="verification rule")
+        for item in value["required_verification_rule_ids"]
+    ] if isinstance(value["required_verification_rule_ids"], list) else None
+    if blocks is None or rule_ids is None:
+        raise PlanningServiceError("invalid_gate_definition", "Planning gate references must be arrays")
+    return {
+        "gate_id": gate_id,
+        "kind": _safe_token(value["kind"], fallback="gate", max_chars=80),
+        "title": _safe_text(value["title"], max_chars=200),
+        "blocks": blocks,
+        "decision_needed": _safe_text(value["decision_needed"], max_chars=4_000),
+        "safe_default": _safe_text(value["safe_default"], max_chars=4_000),
+        "approval_scope_schema": deepcopy(dict(value["approval_scope_schema"])),
+        "required_verification_rule_ids": rule_ids,
+    }
+
+
+def _assert_no_runtime_fields(value: Any, *, path: str = "$") -> None:
+    if isinstance(value, Mapping):
+        for key, nested in value.items():
+            key_text = str(key)
+            normalized = key_text.strip().lower()
+            if normalized in RUNTIME_FIELD_DENYLIST or normalized in GATE_RUNTIME_FIELD_DENYLIST:
+                raise PlanningServiceError(
+                    "runtime_field_forbidden",
+                    f"Planning definition boundary rejects field at {path}.{key_text}",
+                )
+            _assert_no_runtime_fields(nested, path=f"{path}.{key_text}")
+    elif isinstance(value, (list, tuple)):
+        for index, nested in enumerate(value):
+            _assert_no_runtime_fields(nested, path=f"{path}[{index}]")
 
 
 def _strict_budget(value: Any, *, field: str, minimum: int, maximum: int) -> int:

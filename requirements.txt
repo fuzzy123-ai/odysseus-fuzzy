@@ -46,6 +46,9 @@ mcp
 pyotp
 qrcode[pil]
 croniter
+# Durable workflow runtime for the localhost-only Temporal Light track.
+# Keep this exact pin replay-tested before upgrading.
+temporalio==1.30.0
 pytest
 pytest-asyncio
 # starlette.testclient prefers httpx2 since Starlette 1.2.0 and warns on every

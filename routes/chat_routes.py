@@ -1207,8 +1207,12 @@ def setup_chat_routes(
                             # Generate fallback metrics if LLM didn't send usage
                             if not last_metrics and full_response:
                                 _elapsed = time.time() - _chat_start
-                                _est_in = estimate_tokens(messages)
-                                _est_out = len(full_response) // 4
+                                _usage_model_hint = _actual_model or _answered_by or _requested_model
+                                _est_in = estimate_tokens(messages, model_hint=_usage_model_hint)
+                                _est_out = estimate_tokens(
+                                    [{"role": "assistant", "content": full_response}],
+                                    model_hint=_usage_model_hint,
+                                )
                                 _tps = round(_est_out / _elapsed, 2) if _elapsed > 0 else 0
                                 _ctx_pct = min(round((_est_in / ctx.context_length) * 100, 1), 100.0) if ctx.context_length else 0
                                 last_metrics = {

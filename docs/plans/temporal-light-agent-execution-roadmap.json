@@ -1,0 +1,1600 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.temporal_light_agent_execution_roadmap",
+  "roadmap_id": "temporal-light-agent-execution",
+  "title": "Temporal Light Agent Execution Roadmap",
+  "created_at": "2026-07-13",
+  "updated_at": "2026-07-15",
+  "status": "TLR_09_done_TLR_10_operator_gated",
+  "abc_mode": "Standard ABC",
+  "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
+  "planning_dependency": "docs/plans/planning-definition-editor-roadmap.json",
+  "headless_runtime_dependency": "docs/plans/headless-write-agent-orchestration-roadmap.md",
+  "goal": "Run /abc work for up to 24 hours through deterministic Temporal workflows while keeping all mutable execution state, activities, history, heartbeats, commands, claims and evidence exclusively in the Harbor One Agent screen.",
+  "queue_scope": "post_mvp_named_roadmap",
+  "mutation_authority": "repo_only_until_named_runtime_or_live_gate",
+  "route": {
+    "entrypoint": "/abc",
+    "parent_skill": "abc",
+    "skill_selection_rule": "ABC selects and bounds secondary skills and models before run start or through a recorded routing Activity. Planning never selects them.",
+    "model_record_rule": "The selected and actual route are execution history in Agent, not Planning fields."
+  },
+  "official_temporal_references": [
+    {
+      "topic": "local development server and persistent db filename",
+      "url": "https://docs.temporal.io/cli/command-reference/server",
+      "decision": "Use temporal server start-dev with --db-filename for the local pilot and label it non-production."
+    },
+    {
+      "topic": "Python workflow determinism and sandbox",
+      "url": "https://docs.temporal.io/develop/python/best-practices/python-sdk-sandbox",
+      "decision": "Keep the default sandbox and prohibit network, filesystem, process, random, wall-clock and mutable-global access in workflow code."
+    },
+    {
+      "topic": "Python workflow deterministic execution requirements",
+      "url": "https://docs.temporal.io/develop/python/workflows/basics",
+      "decision": "Workflow code orchestrates serializable state only; every external interaction is an Activity."
+    },
+    {
+      "topic": "Signals, Updates, Queries and message history",
+      "url": "https://docs.temporal.io/develop/python/workflows/message-passing",
+      "decision": "Use versioned Updates when the operator needs accepted or rejected readback, Signals only for asynchronous non-structural steering and Queries only for read-only workflow state."
+    },
+    {
+      "topic": "Activity boundaries and payload history",
+      "url": "https://docs.temporal.io/develop/python/activities/basics",
+      "decision": "Activities perform one bounded action and exchange references and digests instead of raw large payloads."
+    }
+  ],
+  "frozen_architecture": {
+    "planning_truth": "One immutable approved odysseus.planning.definition.v2 revision and content hash describe intent, DAG, gate requirements and done contract.",
+    "abc_truth": "ABC owns queue selection, skill and model routing, mutation authority, claims policy, live-go interpretation, evidence acceptance and completion language.",
+    "temporal_truth": "Temporal Event History owns deterministic run state, timers, Activity scheduling, retries, message processing and recovery.",
+    "odysseus_authority_truth": "Odysseus owner scope, claims, leases, fencing tokens, live-go entries, effect receipts, evidence receipts and Git/provider authority remain outside Temporal and are checked by Activities.",
+    "agent_screen_truth": "Agent renders one bounded projection joined from the pinned plan reference, Temporal execution history and Odysseus authority stores.",
+    "planning_screen_rule": "Planning never receives this projection and never displays whether a run exists.",
+    "scheduler_rule": "Do not build or activate a second durable heartbeat scheduler. Existing heartbeat and orchestration modules become adapters, compatibility readers or are retired after parity evidence.",
+    "writeback_rule": "Execution never mutates the pinned Planning revision. A deliberate structural change returns requires_plan_revision; a completed run may propose a new Planning revision through the separately gated Planning apply path.",
+    "production_rule": "The CLI development server is Temporal Light for local evaluation only. It must not be bound externally or represented as production-ready."
+  },
+  "pinned_workflow_input": {
+    "schema_id": "odysseus.abc.execution_manifest.v1",
+    "maximum_serialized_bytes": 262144,
+    "required_fields": [
+      "agent_run_id",
+      "owner_scope_ref",
+      "project_id",
+      "roadmap_id",
+      "planning_revision",
+      "planning_content_hash",
+      "normalized_dag",
+      "done_contract",
+      "queue_scope",
+      "supervision_mode",
+      "mutation_authority",
+      "selected_route",
+      "allowed_paths",
+      "blocked_paths",
+      "hotfiles",
+      "max_parallel_activities",
+      "retry_budget",
+      "deadline_at",
+      "start_request_id",
+      "manifest_hash"
+    ],
+    "normalization_rules": [
+      "Resolve latest_approved before workflow creation and replace it with a positive integer revision.",
+      "Read and validate the exact revision and content hash once before workflow start.",
+      "Reject missing dependencies, cycles, unresolved gate targets and an empty done contract.",
+      "Sort normalized node, edge, path and gate identifiers deterministically before hashing.",
+      "Store source and artifact references, never raw private document bodies, secrets or provider output.",
+      "The workflow must never reread a mutable Planning file."
+    ],
+    "start_rule": "Only the Agent-side /abc handler can create this manifest and call the Agent run service. Planning handoff has launch_authorized=false.",
+    "conflict_rule": "A revision or content-hash mismatch returns plan_revision_conflict and creates no workflow."
+  },
+  "run_state_machine": {
+    "states": [
+      "queued",
+      "starting",
+      "running",
+      "waiting_gate",
+      "waiting_signal",
+      "paused",
+      "cancelling",
+      "cancelled",
+      "completed",
+      "failed",
+      "timed_out",
+      "terminated"
+    ],
+    "initial_state": "queued",
+    "terminal_states": [
+      "cancelled",
+      "completed",
+      "failed",
+      "timed_out",
+      "terminated"
+    ],
+    "allowed_transitions": [
+      "queued -> starting on workflow_started",
+      "starting -> running on manifest_accepted",
+      "starting -> failed on manifest_rejected",
+      "running -> waiting_gate on unsatisfied_runtime_gate",
+      "running -> waiting_signal on explicit_external_input_required",
+      "running -> paused on pause_update_applied",
+      "waiting_gate -> running on gate_decision_approved",
+      "waiting_gate -> failed on gate_decision_rejected_when_required",
+      "waiting_signal -> running on steering_signal_applied",
+      "paused -> running on resume_update_applied",
+      "running|waiting_gate|waiting_signal|paused -> cancelling on cancel_update_applied",
+      "cancelling -> cancelled when all active Activities are cancelled or the cancellation grace expires",
+      "running -> completed only when every required node and runtime gate has verified evidence",
+      "running|waiting_gate|waiting_signal|paused -> timed_out when deadline_at is reached",
+      "starting|running|waiting_gate|waiting_signal|paused|cancelling -> failed on terminal unrecoverable error",
+      "any non-terminal state -> terminated only through an admin-only emergency action"
+    ],
+    "invalid_transition_rule": "Reject before history mutation with invalid_transition and return the current run version and allowed commands."
+  },
+  "slice_state_machine": {
+    "states": [
+      "pending",
+      "claiming",
+      "activity_scheduled",
+      "activity_running",
+      "waiting_gate",
+      "retry_wait",
+      "succeeded",
+      "failed",
+      "cancelled",
+      "skipped"
+    ],
+    "claimable_rule": "A pending slice is claimable only when every local dependency is succeeded, every required runtime gate is approved, the run is running, capacity is available and Odysseus grants a non-colliding fenced claim.",
+    "success_rule": "A slice becomes succeeded only after Activity result validation, required checks, evidence verification and claim-safe writeback receipt.",
+    "failure_rule": "After the initial attempt plus two retries, or after a material strategy change, the slice becomes failed or waiting_gate; it must not loop indefinitely."
+  },
+  "activity_contract": {
+    "catalog": [
+      {
+        "name": "resolve_execution_route",
+        "purpose": "Perform non-deterministic skill and model routing when the pre-start ABC route requires revision.",
+        "side_effect_class": "read_or_model",
+        "idempotency_required": true
+      },
+      {
+        "name": "acquire_slice_claim",
+        "purpose": "Ask the Odysseus authority store for exact repo-relative paths, hotfiles, lease revision and fencing token.",
+        "side_effect_class": "authority_write",
+        "idempotency_required": true
+      },
+      {
+        "name": "execute_slice",
+        "purpose": "Run one bounded worker against the claimed capsule and emit heartbeat checkpoints and a redacted handoff.",
+        "side_effect_class": "workspace_write",
+        "idempotency_required": true
+      },
+      {
+        "name": "verify_slice_evidence",
+        "purpose": "Run declared checks and validate scope, evidence, handoff and done conditions.",
+        "side_effect_class": "repo_read_or_test",
+        "idempotency_required": true
+      },
+      {
+        "name": "persist_execution_receipt",
+        "purpose": "Persist bounded Activity, command and evidence receipts with compare-before-update semantics.",
+        "side_effect_class": "authority_write",
+        "idempotency_required": true
+      },
+      {
+        "name": "release_slice_claim",
+        "purpose": "Release the exact fencing token after success, terminal failure or cancellation.",
+        "side_effect_class": "authority_write",
+        "idempotency_required": true
+      },
+      {
+        "name": "propose_planning_outcome_revision",
+        "purpose": "Create a dry-run Planning proposal after verified completion; never alter the pinned revision.",
+        "side_effect_class": "planning_proposal",
+        "idempotency_required": true
+      }
+    ],
+    "default_timeouts": {
+      "heartbeat_interval_seconds_max": 30,
+      "heartbeat_timeout_seconds": 90,
+      "start_to_close_seconds": 5400,
+      "schedule_to_close_seconds": 10800,
+      "cancellation_grace_seconds": 300
+    },
+    "retry_policy": {
+      "maximum_attempts": 3,
+      "meaning": "one initial attempt plus at most two retries",
+      "initial_interval_seconds": 5,
+      "backoff_coefficient": 2.0,
+      "maximum_interval_seconds": 300,
+      "non_retryable_reason_codes": [
+        "scope_violation",
+        "owner_mismatch",
+        "plan_revision_conflict",
+        "claim_collision",
+        "stale_fence",
+        "live_go_missing",
+        "secret_detected",
+        "invalid_manifest",
+        "cancelled_by_operator"
+      ]
+    },
+    "heartbeat_payload": {
+      "maximum_serialized_bytes": 16384,
+      "fields": [
+        "activity_id",
+        "node_id",
+        "attempt",
+        "phase",
+        "progress_cursor",
+        "last_durable_artifact_ref",
+        "lease_revision",
+        "observed_at"
+      ],
+      "forbidden": [
+        "secret",
+        "credential",
+        "raw provider output",
+        "raw private content",
+        "unredacted command output"
+      ]
+    }
+  },
+  "idempotency_and_fencing": {
+    "run_start": "The Agent API requires start_request_id. Odysseus persists start_request_id -> agent_run_id -> workflow_id before or atomically with dispatch. A retry returns the existing run receipt.",
+    "workflow_id_format": "odysseus-abc/<owner_scope_hash>/<agent_run_id>",
+    "workflow_id_policy": "Reject conflicting duplicate starts; never silently start a second workflow for the same start_request_id.",
+    "command": "Every command requires command_id, expected_run_version and idempotency_key. A duplicate returns the original receipt without applying twice.",
+    "activity_effect": "effect_id = agent_run_id:node_id:activity_type:attempt. Before every effect, read an existing receipt; after the effect, atomically persist the result under the same effect_id.",
+    "claim_fence": "Every workspace or authority write requires the current Odysseus lease revision and fencing token before, during and immediately before final receipt persistence.",
+    "continue_as_new": "One logical agent_run_id survives Continue-As-New. history_segment increments, workflow_run_id rotates and persisted command/effect receipts remain authoritative across segments.",
+    "planning_writeback": "A Planning proposal id is deterministic from agent_run_id, manifest_hash and completion_receipt_hash. Apply remains a separate Planning write gate."
+  },
+  "message_contract": {
+    "query": {
+      "name": "get_run_state",
+      "purpose": "Read deterministic workflow state only.",
+      "mutation": false
+    },
+    "updates": [
+      {
+        "name": "pause",
+        "allowed_from": [
+          "running",
+          "waiting_gate",
+          "waiting_signal"
+        ],
+        "result": "accepted state and new run version"
+      },
+      {
+        "name": "resume",
+        "allowed_from": [
+          "paused"
+        ],
+        "result": "accepted state and new run version"
+      },
+      {
+        "name": "cancel",
+        "allowed_from": [
+          "running",
+          "waiting_gate",
+          "waiting_signal",
+          "paused"
+        ],
+        "result": "cancelling state and new run version"
+      },
+      {
+        "name": "retry_activity",
+        "allowed_from": [
+          "running"
+        ],
+        "result": "new attempt receipt or rejection reason"
+      },
+      {
+        "name": "decide_gate",
+        "allowed_from": [
+          "waiting_gate"
+        ],
+        "result": "approved, rejected, expired or waived decision receipt"
+      },
+      {
+        "name": "steer_run",
+        "allowed_from": [
+          "running",
+          "waiting_signal",
+          "paused"
+        ],
+        "result": "accepted run-scoped steering or requires_plan_revision"
+      }
+    ],
+    "signals": [
+      {
+        "name": "operator_note",
+        "purpose": "Append a bounded asynchronous note that does not alter DAG, scope, paths, gates or done contract."
+      },
+      {
+        "name": "external_condition_changed",
+        "purpose": "Wake a waiting workflow so an Activity can re-evaluate an external condition. The signal itself does not assert the condition is true."
+      }
+    ],
+    "structural_steering_rule": "A request that changes DAG, dependencies, scope, allowed paths, blocked paths, gate definitions or done contract is rejected with requires_plan_revision and a Planning deep link.",
+    "terminate_rule": "Terminate is an admin-only emergency action, not a normal workflow Update. It requires separate authority and is always visible in Agent history."
+  },
+  "long_run_policy": {
+    "supported_requested_duration": "one minute through 24 hours",
+    "unattended_target_window": "12 through 24 hours",
+    "deadline_rule": "deadline_at is part of the immutable manifest. At deadline, dispatch stops, active Activities receive cancellation, the workflow waits up to 300 seconds, then becomes timed_out.",
+    "parallelism": {
+      "minimum": 1,
+      "default": 1,
+      "maximum": 3
+    },
+    "continue_as_new": {
+      "trigger": "the earlier of six elapsed workflow hours, the SDK history-size recommendation or 2000 projected execution events",
+      "precondition": "all Signal and Update handlers have finished",
+      "carry_forward": [
+        "agent_run_id",
+        "manifest_hash and immutable manifest reference",
+        "run version",
+        "slice states",
+        "active gate waits",
+        "deadline_at",
+        "history_segment plus one",
+        "event cursor",
+        "receipt store cursor"
+      ]
+    },
+    "recovery_rule": "Worker loss must not create a second logical run. Temporal retries after heartbeat timeout; Odysseus rejects the stale fence and grants a higher fence only after lease expiry or explicit release.",
+    "no_progress_rule": "A healthy heartbeat without durable progress may continue only until the manifest stale threshold; after that the workflow waits for operator input or fails according to the slice contract."
+  },
+  "agent_operation_projection": {
+    "schema_id": "odysseus.agent.operation_projection.v1",
+    "purity_rule": "AgentOperationProjection is a pure function of the pinned plan reference, persisted Temporal execution history and persisted Odysseus authority/evidence receipts. It must not read localStorage or chat prose.",
+    "run_fields": [
+      "agent_run_id",
+      "workflow_id",
+      "workflow_run_id",
+      "history_segment",
+      "plan_ref",
+      "state",
+      "version",
+      "started_at",
+      "updated_at",
+      "completed_at",
+      "deadline_at",
+      "current_node_ids",
+      "waiting_reason",
+      "allowed_commands"
+    ],
+    "activity_fields": [
+      "activity_id",
+      "node_id",
+      "type",
+      "state",
+      "attempt",
+      "max_attempts",
+      "retryable",
+      "next_retry_at",
+      "started_at",
+      "updated_at",
+      "completed_at",
+      "last_heartbeat_at",
+      "heartbeat_timeout_seconds",
+      "heartbeat_health",
+      "error_code"
+    ],
+    "heartbeat_health_values": [
+      "healthy",
+      "late",
+      "stale",
+      "not_expected"
+    ],
+    "heartbeat_health_rule": "The backend derives heartbeat health from observed server time and Activity policy. Frontend constants must not derive it.",
+    "history": {
+      "maximum_page_size": 200,
+      "fields": [
+        "cursor",
+        "next_cursor",
+        "has_more",
+        "events"
+      ],
+      "event_fields": [
+        "event_id",
+        "event_type",
+        "occurred_at",
+        "node_id",
+        "activity_id",
+        "summary",
+        "ref_ids"
+      ],
+      "rule": "Return a bounded product projection, never raw Temporal payloads or an unbounded Event History dump."
+    },
+    "claim_fields": [
+      "claim_id",
+      "node_id",
+      "repo_id",
+      "repo_relative_paths",
+      "hotfiles",
+      "state",
+      "lease_revision",
+      "lease_expires_at"
+    ],
+    "gate_decision_states": [
+      "pending",
+      "approved",
+      "rejected",
+      "expired",
+      "waived"
+    ],
+    "evidence_states": [
+      "pending",
+      "claimed",
+      "verified",
+      "rejected"
+    ],
+    "command_states": [
+      "requested",
+      "accepted",
+      "applied",
+      "rejected",
+      "duplicate"
+    ],
+    "privacy_rule": "Redact secrets, credentials, raw provider payloads, raw command output and unauthorized absolute paths before persistence and projection."
+  },
+  "agent_api_contract": {
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/api/agent/runs",
+        "caller": "authenticated /abc handler only",
+        "body": [
+          "project_id",
+          "roadmap_id",
+          "revision",
+          "content_hash",
+          "start_request_id"
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/api/agent/runs?project_id=<id>&state=<state>&cursor=<cursor>&limit=<1..100>"
+      },
+      {
+        "method": "GET",
+        "path": "/api/agent/runs/{agent_run_id}"
+      },
+      {
+        "method": "GET",
+        "path": "/api/agent/runs/{agent_run_id}/history?after=<cursor>&limit=<1..200>"
+      },
+      {
+        "method": "GET",
+        "path": "/api/agent/runs/{agent_run_id}/stream?after=<cursor>",
+        "transport": "SSE with Last-Event-ID resume"
+      },
+      {
+        "method": "POST",
+        "path": "/api/agent/runs/{agent_run_id}/commands",
+        "body": [
+          "command_id",
+          "command=pause|resume|cancel|retry_activity|decide_gate|steer_run",
+          "expected_run_version",
+          "idempotency_key",
+          "payload"
+        ]
+      }
+    ],
+    "authority_rule": "Every endpoint is owner-scoped. The projected allowed_commands list is authoritative; the frontend cannot enable an action by inference.",
+    "readback_rule": "Every accepted write returns and then rereads the persisted command receipt and current run version."
+  },
+  "agent_screen_contract": {
+    "visible": [
+      "read-only pinned plan title, revision and hash",
+      "logical Agent run and current Temporal history segment",
+      "run state, deadline, current frontier and waiting reason",
+      "Activities, attempts, retries, timers and heartbeat health",
+      "paged execution history and SSE reconnect state",
+      "claims, leases, collisions and fencing failures",
+      "runtime gate decisions and required authority",
+      "evidence receipts, changed paths and publication stages within owner scope",
+      "selected and actual skill/model route",
+      "backend-projected pause, resume, cancel, retry, decide-gate and steer controls"
+    ],
+    "forbidden": [
+      "editing the pinned Planning revision",
+      "silently rebasing to a newer Planning revision",
+      "choosing new allowed paths without a plan revision",
+      "enabling a command not returned by allowed_commands",
+      "storing runtime truth in localStorage",
+      "rendering raw Temporal history payloads",
+      "granting commit, push, merge, deploy or provider authority"
+    ],
+    "navigation_rule": "Agent links back to the exact pinned Planning revision for read-only inspection. A newer draft is a separate object and does not alter the run.",
+    "dom_limit": "Render at most 300 history or Activity rows at once; older events remain cursor-paged."
+  },
+  "external_dependencies": [
+    {
+      "roadmap": "docs/plans/planning-definition-editor-roadmap.json",
+      "slice_id": "PDE-04-agent-handoff-envelope",
+      "required_before": [
+        "TLR-02-abc-manifest-and-run-start"
+      ]
+    },
+    {
+      "roadmap": "docs/plans/headless-write-agent-orchestration-roadmap.md",
+      "slice_id": "HWA3A Durable Capability, Evidence And Fence Store",
+      "required_before": [
+        "TLR-04-activities-claims-heartbeats"
+      ]
+    },
+    {
+      "roadmap": "docs/plans/headless-write-agent-orchestration-roadmap.md",
+      "slice_id": "HWA3B Durable Scaling And Admission Integration",
+      "required_before": [
+        "TLR-04-activities-claims-heartbeats"
+      ]
+    }
+  ],
+  "dependency_dag": [
+    "TLR-00 -> TLR-01",
+    "TLR-01 + external PDE-04 -> TLR-02",
+    "TLR-02 -> TLR-03",
+    "TLR-03 + external HWA3A/HWA3B -> TLR-04",
+    "TLR-03 + TLR-04 -> TLR-05",
+    "TLR-03 + TLR-04 + TLR-05 -> TLR-06",
+    "TLR-06 -> TLR-07",
+    "TLR-03 + TLR-04 + TLR-05 + TLR-06 -> TLR-08D -> TLR-08",
+    "TLR-07 + TLR-08 -> TLR-09",
+    "TLR-09 -> TLR-10",
+    "TLR-10 -> TLR-11"
+  ],
+  "slice_queue": [
+    {
+      "id": "TLR-00-pinned-runtime-contract",
+      "status": "done_in_this_artifact",
+      "class": "safe_offline",
+      "owner": "Alice",
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/plans/temporal-light-agent-execution-roadmap.json",
+        "docs/plans/harbor-planning-integration-master-roadmap.json",
+        "docs/plans/headless-write-agent-orchestration-roadmap.md",
+        "docs/plans/headless-write-agent-orchestration-handoff.md"
+      ],
+      "hotfiles": [
+        "docs/plans/harbor-planning-integration-master-roadmap.json",
+        "docs/plans/headless-write-agent-orchestration-roadmap.md"
+      ],
+      "objective": "Freeze source-of-truth ownership, pinned input, deterministic states, Activity boundary, idempotency and Agent-only projection.",
+      "deliverables": [
+        "this roadmap",
+        "HWA scheduler supersession mapping",
+        "complete local DAG and cross-roadmap dependencies",
+        "exact 12-24 hour acceptance split"
+      ],
+      "tests": [
+        "python -m json.tool docs/plans/temporal-light-agent-execution-roadmap.json",
+        "git diff --check"
+      ],
+      "evidence_required": [
+        "valid JSON",
+        "all local dependencies resolve and are acyclic",
+        "Planning contains no execution ownership"
+      ],
+      "gate": {
+        "id": "none",
+        "safe_default": "Roadmap authoring only."
+      },
+      "done_when": "PASS only if this roadmap assigns deterministic execution to Temporal, action authority to Odysseus and every mutable visualization and control to Agent without introducing a second scheduler.",
+      "stop_rules": [
+        "Stop on an unresolved ownership overlap.",
+        "Stop on any implication that Temporal grants Git or provider authority."
+      ],
+      "forbidden_actions": [
+        "dependency install",
+        "service start",
+        "worker start",
+        "live mutation"
+      ]
+    },
+    {
+      "id": "TLR-01-temporal-light-local-runtime",
+      "status": "done_local_runtime_focused_and_restart_tested",
+      "class": "repo_only",
+      "owner": "Bob",
+      "depends_on": [
+        "TLR-00-pinned-runtime-contract"
+      ],
+      "allowed_paths": [
+        "requirements.txt",
+        "src/temporal_runtime/__init__.py",
+        "src/temporal_runtime/config.py",
+        "scripts/run_temporal_light.ps1",
+        "scripts/run_temporal_light.sh",
+        "docs/plans/temporal-light-local-runbook.md",
+        "tests/test_temporal_runtime_config.py"
+      ],
+      "hotfiles": [
+        "requirements.txt"
+      ],
+      "objective": "Add a pinned Python SDK dependency and a localhost-only persistent Temporal CLI development service configuration.",
+      "deliverables": [
+        "tested temporalio version pin",
+        "127.0.0.1:7233 local service configuration",
+        "repository-excluded persistent db path",
+        "health/readiness check",
+        "explicit non-production banner and failure state"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_temporal_runtime_config.py -q --basetemp .pytest_tmp_tlr_config",
+        "temporal server start-dev --db-filename <runtime-path>/temporal.db --headless --ip 127.0.0.1 --port 7233",
+        "temporal operator cluster health --address 127.0.0.1:7233"
+      ],
+      "evidence_required": [
+        "dependency import",
+        "local health response",
+        "workflow persistence across one development-server restart",
+        "no external network bind"
+      ],
+      "gate": {
+        "id": "TLR-LOCAL-SERVICE-GO",
+        "safe_default": "The TLR-01 process window is consumed and every slice-owned process is stopped; require a fresh bounded window for the real-process portion of TLR-08."
+      },
+      "authorization_evidence": [
+        "the user granted TLR-LOCAL-SERVICE-GO with network, SDK/CLI installation and a local development-server start",
+        "temporalio 1.30.0 was selected from the official PyPI release and installed in the repository venv",
+        "Temporal CLI 1.8.0 was selected from the official Windows amd64 release and its published SHA-256 was verified",
+        "the existing foreign pygame-ce requirements hunk remains protected under an exact owned-hunk claim"
+      ],
+      "completion_evidence": {
+        "sdk_import": "temporalio 1.30.0 imported from the repository venv",
+        "cli_install": "Temporal CLI 1.8.0 Windows amd64 archive matched the official SHA-256 before extraction",
+        "focused_result": "20 passed",
+        "health_readback": "SERVING at 127.0.0.1:7233",
+        "persistence_result": "workflow tlr01-persistence-sar12h-r148 was waiting before and after a real server restart against the same db, then completed exactly once",
+        "bind_result": "netstat observed only 127.0.0.1:7233 for the server listener",
+        "cleanup_result": "both slice-owned Temporal process ids were stopped and no 127.0.0.1:7233 listener remained",
+        "privacy": "only bounded status and redacted path evidence was persisted; raw history and private absolute paths were not stored"
+      },
+      "done_when": "PASS only if the pinned SDK imports, localhost health succeeds, a test workflow survives a server restart through the db file and the runbook states development-only without qualification.",
+      "stop_rules": [
+        "Stop if the CLI is unavailable and installing it exceeds the approved slice.",
+        "Stop if the server binds beyond localhost.",
+        "Stop if the persistence path can be committed."
+      ],
+      "forbidden_actions": [
+        "production deployment",
+        "external bind",
+        "automatic host service installation"
+      ]
+    },
+    {
+      "id": "TLR-02-abc-manifest-and-run-start",
+      "status": "done_manifest_and_idempotent_fake_start_tested",
+      "class": "repo_only",
+      "owner": "Bob",
+      "depends_on": [
+        "TLR-01-temporal-light-local-runtime"
+      ],
+      "external_depends_on": [
+        "PDE-04-agent-handoff-envelope"
+      ],
+      "allowed_paths": [
+        "src/temporal_runtime/contracts.py",
+        "src/temporal_runtime/manifest.py",
+        "src/temporal_runtime/client.py",
+        "src/abc_execution_service.py",
+        "tests/test_temporal_execution_manifest.py",
+        "tests/test_abc_execution_service.py"
+      ],
+      "hotfiles": [],
+      "objective": "Convert an authenticated /abc request and exact Planning handoff into one immutable execution manifest and idempotent run-start receipt.",
+      "deliverables": [
+        "execution manifest models and hash",
+        "DAG and deadline normalization",
+        "skill/model route record",
+        "start_request_id deduplication",
+        "plan revision conflict response",
+        "no workflow start from Planning"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_temporal_execution_manifest.py tests\\test_abc_execution_service.py -q --basetemp .pytest_tmp_tlr_manifest"
+      ],
+      "evidence_required": [
+        "same inputs yield same manifest hash",
+        "duplicate start_request_id yields one run",
+        "changed Planning hash creates no run",
+        "route selection recorded without entering Planning"
+      ],
+      "gate": {
+        "id": "none",
+        "safe_default": "This repository slice is allowed to use a fake Temporal client. It must not start a real worker or expose a live run API."
+      },
+      "completion_evidence": {
+        "focused_result": "21 passed",
+        "compatibility_result": "56 passed across manifest, execution service, Planning handoff and Planning/Agent boundary tests",
+        "manifest_result": "same bounded inputs produce one recursively immutable canonical manifest and sha256 hash",
+        "idempotency_result": "duplicate, concurrent and post-service-restart start requests return one original receipt and create one fake workflow",
+        "reservation_result": "the persistent local reservation is readable before fake client dispatch",
+        "conflict_result": "changed Planning head, tampered handoff, reused request id with changed policy and corrupt store all fail before a new dispatch",
+        "boundary_result": "Planning source has no ABC execution-service, start_workflow or Agent run API path",
+        "runtime_result": "RecordingTemporalClient only; no Worker, local service, route, provider or repository effect was started"
+      },
+      "done_when": "PASS only if one /abc submission creates at most one pinned manifest and run receipt, all conflicts fail before dispatch and Planning code has no start path.",
+      "stop_rules": [
+        "Stop if latest Planning state is read after pinning.",
+        "Stop if route selection can broaden user scope or mutation authority."
+      ],
+      "forbidden_actions": [
+        "live worker dispatch",
+        "Planning auto-start",
+        "unbounded manifest payload"
+      ]
+    },
+    {
+      "id": "TLR-03-deterministic-workflow",
+      "status": "done_replay_dag_timer_continue_as_new_tested",
+      "class": "repo_only",
+      "owner": "Bob",
+      "depends_on": [
+        "TLR-02-abc-manifest-and-run-start"
+      ],
+      "allowed_paths": [
+        "src/temporal_runtime/workflows.py",
+        "src/temporal_runtime/worker.py",
+        "tests/test_temporal_workflow_determinism.py",
+        "tests/test_temporal_workflow_dag.py"
+      ],
+      "hotfiles": [],
+      "objective": "Implement the replay-safe DAG workflow and state machines with no external I/O in workflow code.",
+      "deliverables": [
+        "sandboxed workflow",
+        "dependency frontier and maximum parallelism",
+        "durable timers and deadline",
+        "pause and wait conditions",
+        "Continue-As-New state transfer",
+        "terminal completion evaluation"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_temporal_workflow_determinism.py tests\\test_temporal_workflow_dag.py -q --basetemp .pytest_tmp_tlr_workflow"
+      ],
+      "evidence_required": [
+        "replay test after every event sequence fixture",
+        "sandbox rejects filesystem, network, process, wall-clock and global-state access",
+        "cycle and missing dependency never enter workflow",
+        "Continue-As-New preserves logical run and increments segment"
+      ],
+      "gate": {
+        "id": "none",
+        "safe_default": "Temporal test environment and fake Activities only."
+      },
+      "completion_evidence": {
+        "commit": "4f397925",
+        "focused_result": "63 passed",
+        "compatibility_result": "104 passed across TLR-01 configuration, TLR-02 manifest/start and TLR-03 workflow coverage",
+        "history_result": "five real localhost histories covered a serial DAG, three-way fan-out, a gate deadline, a paused deadline wait and Continue-As-New; every captured history replayed without nondeterminism",
+        "state_machine_result": "every declared run transition and every implemented slice transition is explicit; illegal transitions preserve state and run version",
+        "dag_result": "frontiers are identifier-sorted, dependency-safe and capped at immutable manifest parallelism 1 through 3; missing dependencies, cycles and unresolved gates fail before the initial run transition",
+        "completion_result": "a node succeeds only with verified evidence and a non-empty writeback receipt; required gates and nodes must all be satisfied before terminal completion",
+        "timer_result": "Temporal durable timers drove both waiting_gate and paused runs to the immutable deadline and timed_out",
+        "continue_as_new_result": "the logical agent_run_id, manifest_hash, run version, slice/gate state, deadline and cursors survived while history_segment incremented exactly once",
+        "sandbox_result": "the default sandbox remains enabled and Worker registration rejects direct filesystem, network, process, wall-clock, random and mutable-global capabilities",
+        "cleanup_result": "the SDK test server used the pinned local CLI on 127.0.0.1 and left no Temporal process or listener running"
+      },
+      "done_when": "PASS only if every declared state transition and DAG path replays deterministically, invalid transitions are rejected and workflow code performs zero external I/O.",
+      "stop_rules": [
+        "Stop on sandbox bypass.",
+        "Stop if a library import is not proven deterministic.",
+        "Stop if completion can occur without required gate and evidence receipts."
+      ],
+      "forbidden_actions": [
+        "filesystem access in workflow",
+        "network access in workflow",
+        "subprocess in workflow",
+        "system time or random in workflow"
+      ]
+    },
+    {
+      "id": "TLR-04-activities-claims-heartbeats",
+      "status": "complete",
+      "class": "repo_only",
+      "owner": "Bob",
+      "depends_on": [
+        "TLR-03-deterministic-workflow"
+      ],
+      "external_depends_on": [
+        "HWA3A Durable Capability, Evidence And Fence Store",
+        "HWA3B Durable Scaling And Admission Integration"
+      ],
+      "allowed_paths": [
+        "src/temporal_runtime/activities.py",
+        "src/temporal_runtime/authority_adapter.py",
+        "src/temporal_runtime/workflows.py",
+        "src/temporal_runtime/worker.py",
+        "src/headless_write_agent_state.py",
+        "src/agent_pool_scaling.py",
+        "tests/test_temporal_activities.py",
+        "tests/test_temporal_authority_adapter.py",
+        "tests/test_headless_write_agent_state.py"
+      ],
+      "hotfiles": [
+        "src/agent_pool_scaling.py"
+      ],
+      "objective": "Implement bounded Activities that use Odysseus claims, fencing, receipts, retries and heartbeats without duplicating authority stores.",
+      "deliverables": [
+        "typed Activity catalog",
+        "current-fence validation before every effect and receipt",
+        "30-second heartbeat and 90-second timeout policy",
+        "one initial attempt plus two retries",
+        "effect receipt deduplication",
+        "claim release on success, failure and cancellation"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_temporal_activities.py tests\\test_temporal_authority_adapter.py tests\\test_headless_write_agent_state.py -q --basetemp .pytest_tmp_tlr_activities"
+      ],
+      "evidence_required": [
+        "duplicate effect executes once",
+        "stale fence writes zero state",
+        "heartbeat timeout retries with a higher valid fence only after authority permits",
+        "secret and raw output redaction"
+      ],
+      "gate": {
+        "id": "HWA-HEADLESS-RUNNER-GO",
+        "safe_default": "Fake or isolated Activity adapters only; no external worker or real repository effect."
+      },
+      "completion_evidence": {
+        "commit": "42b401e7",
+        "focused_result": "29 passed",
+        "compatibility_result": "93 passed across deterministic workflow replay, DAG, runtime configuration and execution-manifest coverage",
+        "catalog_result": "all seven logical Activity types are frozen with side-effect class, idempotency key and current-fence requirement",
+        "authority_result": "immutable pre-registration binds run, manifest, node, scope, backend and claimed paths; Activity payloads cannot select a provider, command, credential, backend or path",
+        "fence_result": "the existing HWA SQLite authority store atomically reserves terminal effect receipts; stale fences write zero terminal state and expired reservations recover only under a higher current fence",
+        "idempotency_result": "effect_id is agent_run_id:node_id:activity_type:attempt; an active duplicate is rejected and a completed duplicate returns the original receipt without executing the backend again",
+        "heartbeat_result": "heartbeat payload fields and 16384-byte maximum are enforced; worker throttling is 30 seconds and Activity heartbeat timeout is 90 seconds",
+        "retry_result": "a real localhost Temporal history proved maximum_attempts 3, initial interval 5 seconds, coefficient 2.0, maximum interval 300 seconds, start-to-close 5400 seconds and schedule-to-close 10800 seconds",
+        "release_result": "success, retryable failure and cancellation each persist a bounded receipt and release the exact claim; cancellation grace is 300 seconds",
+        "redaction_result": "secret-like artifact references fail non-retryably and raw backend output is never accepted into heartbeat or receipt state",
+        "safe_default_result": "only fake-/isolated- backend implementations were exercised; no real repository, provider, remote, Docker or production effect occurred",
+        "cleanup_result": "each short-lived local test server stopped and no Temporal process remained"
+      },
+      "done_when": "PASS only if fake and isolated tests prove bounded effects, current fencing, duplicate suppression, heartbeat recovery and claim release, while every real runner or repository effect remains gated.",
+      "stop_rules": [
+        "Stop on a stale or missing fence.",
+        "Stop on an unknown Activity type.",
+        "Stop if an Activity can select a provider, remote or credential."
+      ],
+      "forbidden_actions": [
+        "raw Git authority",
+        "provider selection",
+        "unregistered command execution",
+        "second claim store"
+      ]
+    },
+    {
+      "id": "TLR-05-signals-updates-idempotency",
+      "status": "complete",
+      "class": "repo_only",
+      "owner": "Bob",
+      "depends_on": [
+        "TLR-03-deterministic-workflow",
+        "TLR-04-activities-claims-heartbeats"
+      ],
+      "allowed_paths": [
+        "src/temporal_runtime/workflows.py",
+        "src/temporal_runtime/commands.py",
+        "tests/test_temporal_workflow_messages.py",
+        "tests/test_temporal_command_idempotency.py"
+      ],
+      "hotfiles": [
+        "src/temporal_runtime/workflows.py"
+      ],
+      "objective": "Implement the exact Query, Update and Signal contracts with optimistic run versioning and command deduplication.",
+      "deliverables": [
+        "Update validators and legal transition matrix",
+        "command_id and expected_run_version receipts",
+        "operator_note and external_condition_changed Signals",
+        "requires_plan_revision structural-steering rejection",
+        "handler completion before Continue-As-New"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_temporal_workflow_messages.py tests\\test_temporal_command_idempotency.py -q --basetemp .pytest_tmp_tlr_messages"
+      ],
+      "evidence_required": [
+        "every legal and illegal transition",
+        "same command from two clients applies once",
+        "stale expected version rejected",
+        "structural steer leaves manifest hash unchanged",
+        "accepted Update appears in history"
+      ],
+      "gate": {
+        "id": "none",
+        "safe_default": "Test-environment messages only."
+      },
+      "completion_evidence": {
+        "commit": "6a9aff46",
+        "focused_result": "93 passed",
+        "compatibility_result": "75 passed across deterministic replay, DAG, TLR-04 Activities and authority-adapter coverage",
+        "matrix_result": "all 72 combinations of six Updates and twelve run states proved the complete legal/illegal transition matrix",
+        "idempotency_result": "two real localhost clients submitted distinct Temporal Update ids for the same command_id and idempotency_key; both received the original receipt and the run version advanced once",
+        "version_result": "a stale expected_run_version was rejected by the Update validator without projection mutation or a persisted rejected event",
+        "history_result": "accepted and completed Update events plus both bounded Signal events were present in real localhost Temporal history",
+        "steering_result": "structural steering returned requires_plan_revision while manifest hash and run version remained unchanged",
+        "signal_result": "operator_note persists bounded note ids/refs only; external_condition_changed records a wake revision without asserting the condition",
+        "continue_as_new_result": "command receipts, note refs and external-condition revisions survive Continue-As-New; duplicates after continuation return the original receipt",
+        "cancel_result": "cancel uses a cancellable Activity handle, WAIT_CANCELLATION_COMPLETED and heartbeat-delivered Activity cancellation before terminal workflow completion",
+        "handler_result": "the workflow waits for workflow.all_handlers_finished before Continue-As-New and terminal return",
+        "privacy_result": "secret/raw structural fields and absolute paths are rejected; receipts persist only binding digests and bounded refs",
+        "cleanup_result": "all short-lived local test servers stopped and no Temporal process remained"
+      },
+      "done_when": "PASS only if every command is versioned and idempotent, duplicates return the original receipt, invalid transitions do not mutate history and structural changes always require a new Planning revision.",
+      "stop_rules": [
+        "Stop if a Signal can broaden scope or authority.",
+        "Stop if an Update handler remains unfinished at completion or Continue-As-New."
+      ],
+      "forbidden_actions": [
+        "ungated terminate",
+        "plan mutation",
+        "frontend-derived command authority"
+      ]
+    },
+    {
+      "id": "TLR-06-history-agent-projection-api",
+      "status": "complete",
+      "class": "repo_only",
+      "owner": "Bob",
+      "depends_on": [
+        "TLR-03-deterministic-workflow",
+        "TLR-04-activities-claims-heartbeats",
+        "TLR-05-signals-updates-idempotency"
+      ],
+      "allowed_paths": [
+        "src/agent_operation_projection.py",
+        "src/temporal_agent_operation_adapter.py",
+        "src/agent_operation_commands.py",
+        "routes/agent_operation_routes.py",
+        "tests/test_agent_operation_projection.py",
+        "tests/test_agent_operation_routes.py",
+        "tests/test_agent_operation_commands.py",
+        "app.py"
+      ],
+      "hotfiles": [
+        "app.py"
+      ],
+      "objective": "Expose the owner-scoped Agent run, bounded history, resumable SSE and command APIs without leaking raw Temporal or private payloads.",
+      "deliverables": [
+        "odysseus.agent.operation_projection.v1",
+        "all six Agent API endpoints",
+        "server-derived heartbeat health and allowed commands",
+        "cursor pagination and Last-Event-ID resume",
+        "command write readback",
+        "exact pinned Planning reference"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_agent_operation_projection.py tests\\test_agent_operation_routes.py tests\\test_agent_operation_commands.py -q --basetemp .pytest_tmp_tlr_api"
+      ],
+      "evidence_required": [
+        "owner isolation",
+        "history page limit 200",
+        "SSE reconnect with zero duplicate or missing events",
+        "no raw Temporal payload, secret or unauthorized absolute path",
+        "Planning endpoints expose none of these fields"
+      ],
+      "gate": {
+        "id": "TLR-APP-ROUTER-HANDOFF",
+        "safe_default": "Implement services and route tests first; register app.py only under a serial hotfile claim."
+      },
+      "completion_evidence": {
+        "commits": [
+          "2a3b7aac",
+          "f9c4e878"
+        ],
+        "focused_result": "31 passed across projection, owner-scoped routes, bounded history, SSE reconnect, default lazy registration and command readback",
+        "compatibility_result": "41 app/Planning registration tests and the complete 240-test TLR-01 through TLR-06 block passed",
+        "owner_result": "the durable run-start catalog validates manifest/receipt identity and returns the same 404 for a foreign-owner run as for a missing run",
+        "restart_result": "a second adapter instance reconstructed the same projection from the persisted run-start store and Temporal reader without a process-local run registry",
+        "history_result": "history pages reject limits above 200; Last-Event-ID resumed a 205-event stream with zero duplicate or missing ids",
+        "command_result": "the backend projection is authoritative for current-version commands; older duplicate requests reach Temporal idempotency and every accepted write returns a validated receipt plus reread current run version",
+        "privacy_result": "only allowlisted product events leave the SDK adapter; raw history/payload fields, credential-shaped values and unauthorized absolute paths are rejected",
+        "planning_boundary_result": "Planning responses contain no agent run, workflow, heartbeat, command or history-segment fields",
+        "app_result": "the six endpoints are registered once beside Planning through a lazy reader locked to 127.0.0.1:7233/default; app import performs no network or process action and public start remains fail-closed without an in-process authenticated /abc marker",
+        "real_sdk_result": "a short-lived local Temporal test server proved pending-Activity projection, sanitized history, pause Update/readback, resume and completed result; no Temporal process remained",
+        "integration_point_result": "IP-TLR-06-CLOSEOUT collected 9020 tests and completed once; its seven failures map to five already-known Windows symlink-privilege tests and two already-known AMD shell/platform tests, with no TLR failure. They remain separate regression/environment evidence and did not expand TLR.",
+        "foreign_hunk_result": "only the four-line Agent router registration was staged from foreign-dirty app.py; every pre-existing app, requirements and HWA hunk remained outside both commits"
+      },
+      "done_when": "PASS only if the Agent API reconstructs current execution from persisted truth after process restart, enforces owner scope and limits, and the Planning API remains definition-only.",
+      "stop_rules": [
+        "Stop on overlapping app.py ownership.",
+        "Stop if projection depends on chat memory or localStorage.",
+        "Stop if raw Event History is returned."
+      ],
+      "forbidden_actions": [
+        "Planning runtime endpoint",
+        "unbounded history",
+        "frontend-computed freshness"
+      ]
+    },
+    {
+      "id": "TLR-07-agent-screen-runtime-ui",
+      "status": "done_accepted_preview",
+      "class": "repo_only",
+      "owner": "Alice",
+      "depends_on": [
+        "TLR-06-history-agent-projection-api"
+      ],
+      "allowed_paths": [
+        "static/frontpage-v3/agent-operations.js",
+        "static/frontpage-v3/agent-operations.css",
+        "static/frontpage-v3/agent-operation-fixtures.js",
+        "static/frontpage-v3/index.html",
+        "static/frontpage-v3/app.js",
+        "static/frontpage-v3/api.js",
+        "tests/frontend/harbor-one-agent-operations.spec.js"
+      ],
+      "hotfiles": [
+        "static/frontpage-v3/index.html",
+        "static/frontpage-v3/app.js",
+        "static/frontpage-v3/api.js"
+      ],
+      "objective": "Add execution status, history and controls to the existing Harbor One Agent screen without adding a separate dashboard or any runtime overlay to Planning.",
+      "deliverables": [
+        "pinned plan header",
+        "run state and deadline",
+        "current frontier and activity attempt list",
+        "heartbeat freshness and stale handling",
+        "runtime gates, claims and evidence drilldowns",
+        "paged history and SSE reconnect",
+        "backend-projected command bar",
+        "Planning deep link to the exact pinned revision"
+      ],
+      "tests": [
+        "node --check static\\frontpage-v3\\app.js",
+        "node --check static\\frontpage-v3\\agent-operations.js",
+        "node --check static\\frontpage-v3\\api.js",
+        "npx.cmd playwright test tests\\frontend\\harbor-one-agent-operations.spec.js --reporter=line"
+      ],
+      "evidence_required": [
+        "desktop, mobile and 200 percent zoom screenshots",
+        "each run and Activity state fixture",
+        "healthy, late, stale and not_expected heartbeat states",
+        "pause, resume, cancel, retry, gate and steering accepted and rejected paths",
+        "refresh and reconnect from backend without localStorage truth"
+      ],
+      "gate": {
+        "id": "HPA-AGENT-UX-ACCEPTANCE",
+        "safe_default": "Preview only in the existing Agent screen; no root cutover or live worker activation."
+      },
+      "done_when": "PASS only if Agent renders every declared execution state and control from backend projections, reconnects without loss or duplication and Planning remains free of all runtime UI.",
+      "stop_rules": [
+        "Stop if a control is enabled without allowed_commands.",
+        "Stop if visual density breaks mobile or 200 percent zoom.",
+        "Stop if runtime truth enters localStorage."
+      ],
+      "forbidden_actions": [
+        "separate Temporal dashboard",
+        "Planning runtime overlay",
+        "direct browser-to-Temporal connection",
+        "root cutover"
+      ],
+      "implementation_evidence": {
+        "observed_at": "2026-07-15T16:30:10.3353846+02:00",
+        "scope": "preview_only",
+        "deliverables": [
+          "existing Agent screen sidecar with pinned Planning revision, run state, deadline, frontier, activities, heartbeat health, gates, claims, evidence and bounded history",
+          "same-origin Agent API adapter for list, projection, history, reconnect and command receipt readback",
+          "server-projected command bar with run-version and idempotency inputs",
+          "explicit fixture catalog for every declared run state and healthy, late, stale and not_expected heartbeat states",
+          "responsive desktop, mobile and 200 percent zoom layouts with 44 pixel mobile controls"
+        ],
+        "verification": [
+          "node --check passed for api.js, agent-operation-fixtures.js, agent-operations.js and the browser contract",
+          "Impeccable deterministic design audit returned zero findings after token and radius alignment",
+          "6 focused Agent browser contracts passed",
+          "the corrected responsive contract passed after visual inspection removed the open-launcher overlap",
+          "21 Agent plus Planning integration contracts passed serially with zero Planning runtime overlay"
+        ],
+        "screenshots": [
+          "Windows temp/odysseus-tlr07-playwright/tlr07-desktop.png",
+          "Windows temp/odysseus-tlr07-playwright/tlr07-mobile.png",
+          "Windows temp/odysseus-tlr07-playwright/tlr07-zoom-200.png"
+        ],
+        "index_integration_handoff": {
+          "state": "integrated_green_commit_pending",
+          "baseline_sha256": "22e88e0160ddc3aa1c443a5cef79f1c198c95ebb514e5fe422b9608c7bb59f56",
+          "preview_sha256": "40e773c565fadd9f3f22d8ffcd4efbc9a457fe086f22f28829e0de79da777237",
+          "exact_additions": [
+            "agent-operations.css stylesheet reference",
+            "agent-operation-fixtures.js script reference",
+            "agent-operations.js script reference"
+          ],
+          "rule": "The user consumed the complete V3 baseline handoff on 2026-07-15. The complete baseline now loads the committed Planning and Agent modules from one fixed shell and is eligible for its dedicated scoped commit.",
+          "verification": [
+            "all seven V3 JavaScript modules passed node --check",
+            "11 preview-route and Planning/Agent roadmap boundary tests passed",
+            "22 combined Planning and Agent browser contracts passed serially",
+            "Planning stayed definition-only, Agent stayed runtime-only and localStorage contained no runtime truth"
+          ]
+        }
+      }
+    },
+    {
+      "id": "TLR-08-replay-restart-recovery",
+      "status": "done",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "depends_on": [
+        "TLR-03-deterministic-workflow",
+        "TLR-04-activities-claims-heartbeats",
+        "TLR-05-signals-updates-idempotency",
+        "TLR-06-history-agent-projection-api"
+      ],
+      "allowed_paths": [
+        "tests/test_temporal_replay_compatibility.py",
+        "tests/test_temporal_worker_recovery.py",
+        "tests/test_temporal_server_recovery.py",
+        "tests/test_temporal_command_idempotency.py",
+        "src/temporal_runtime/workflows.py",
+        "src/temporal_runtime/worker.py"
+      ],
+      "hotfiles": [
+        "src/temporal_runtime/workflows.py",
+        "src/temporal_runtime/worker.py"
+      ],
+      "objective": "Prove deterministic replay, Worker restart, development-server restart, heartbeat timeout, fenced retry, duplicate command and Continue-As-New recovery.",
+      "deliverables": [
+        "captured deterministic histories",
+        "replay test against current workflow code",
+        "Worker stop and restart scenario",
+        "Temporal Light server stop and db-backed restart scenario",
+        "stale fence and higher-fence recovery",
+        "logical Agent run continuity across history segments"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_temporal_replay_compatibility.py tests\\test_temporal_worker_recovery.py tests\\test_temporal_server_recovery.py tests\\test_temporal_command_idempotency.py -q --basetemp .pytest_tmp_tlr_recovery"
+      ],
+      "evidence_required": [
+        "same history produces same state after replay",
+        "one logical run after Worker restart",
+        "persisted workflow after server restart",
+        "zero duplicate effects",
+        "old fence rejected",
+        "Agent cursor resumes across Continue-As-New"
+      ],
+      "gate": {
+        "id": "TLR-LOCAL-SERVICE-GO",
+        "safe_default": "Use SDK test environment; real local process restart only inside the approved bounded test window."
+      },
+      "done_when": "PASS only if all restart and replay scenarios recover one logical run with identical state, no duplicate effect and no stale-fence acceptance.",
+      "stop_rules": [
+        "Stop if a test passes by deleting history or state.",
+        "Stop if replay requires sandbox bypass.",
+        "Stop if server restart loses a started workflow."
+      ],
+      "forbidden_actions": [
+        "state reset",
+        "history rewrite",
+        "production service restart"
+      ],
+      "partial_evidence": {
+        "observed_at": "2026-07-15T17:02:37+02:00",
+        "green": [
+          "Continue-As-New replay compatibility passed against both history segments with one logical Agent run",
+          "server persistence and redacted recovery descriptor contracts plus command idempotency passed 92 tests",
+          "the cached Temporal SDK test server ran only on ephemeral loopback ports and shut down after green tests"
+        ],
+        "resolved": {
+          "gate_id": "TLR-08-STICKY-CACHE-STRATEGY",
+          "decision": "TLR-STICKY-A selected by the user: disable sticky workflow caching with max_cached_workflows=0.",
+          "focused_recovery": "One bounded Worker-replacement run completed every phase from Worker one start through Worker two Query, gate Update, result, history and environment shutdown.",
+          "integration_point": "The four-file block completed 92 product assertions with two Windows basetemp setup errors; both affected server-recovery tests passed immediately with a workspace-local basetemp.",
+          "replay_tradeoff": "Every Workflow Task may replay history; the existing six-hour Continue-As-New rule bounds that CPU cost while deterministic takeover remains the Temporal Light default.",
+          "cleanup": "Post-run checks found zero exact cached SDK test-server processes and zero listeners."
+        },
+        "path_fingerprints_sha256": {
+          "tests/test_temporal_replay_compatibility.py": "268572f7363f8139559abd6b217105b0fa63a7865d6d3a3d214750e43d47b102",
+          "tests/test_temporal_worker_recovery.py": "2b5d9e2af04a52bbb5a9e4f7ef839a7c9851265c0c21047a4e98eb5fd85d2719",
+          "tests/test_temporal_server_recovery.py": "3bb1aec068f067138eb67cf40523fca00c9177f6788bddabe17caf69eabcd624"
+        }
+      }
+    },
+    {
+      "id": "TLR-08D-worker-shutdown-diagnostic",
+      "status": "done_diagnostic_phase_isolated",
+      "class": "repo_only_diagnostic",
+      "owner": "Charlie",
+      "depends_on": [
+        "TLR-03-deterministic-workflow",
+        "TLR-04-activities-claims-heartbeats",
+        "TLR-05-signals-updates-idempotency",
+        "TLR-06-history-agent-projection-api"
+      ],
+      "allowed_paths": [
+        "tests/test_temporal_worker_recovery.py",
+        "docs/plans/temporal-light-agent-execution-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [],
+      "objective": "Replace the unbounded Worker-replacement reproduction with one instrumented contract that identifies the exact shutdown, polling, Update, result, history or environment-cleanup phase without changing product code or weakening recovery evidence.",
+      "deliverables": [
+        "one phase-bounded Worker replacement diagnostic",
+        "one exact failing phase or a fully green recovery result",
+        "zero surviving SDK test-server process or listener",
+        "a durable fingerprinted handoff for the selected product-source strategy"
+      ],
+      "required_phase_markers": [
+        "first_worker_started",
+        "waiting_gate_observed",
+        "first_worker_shutdown",
+        "second_worker_started",
+        "second_worker_ready_query",
+        "gate_update_applied",
+        "workflow_result_received",
+        "history_received",
+        "second_worker_shutdown",
+        "environment_shutdown"
+      ],
+      "implementation_rules": [
+        "Start each Worker through an explicit run task rather than an unbounded async-context exit.",
+        "Wrap every transition in an individual timeout of at most 10 seconds and name the failing phase in the assertion.",
+        "Use exactly one gate Update; concurrent duplicate coverage remains exclusively in its already-green command/message tests.",
+        "Require one read-only state Query through Worker two before sending the Update so worker polling readiness is observed rather than inferred from private start state.",
+        "Always request Worker shutdown in finally blocks and bound that cleanup separately.",
+        "Retain identical same-run, command-receipt-count, successful-slice, writeback-receipt and workflow-task-count assertions.",
+        "Do not commit the diagnostic test unless it passes; a stable failing phase is durable evidence for a new product-source claim."
+      ],
+      "tests": [
+        "ODYSSEUS_TEMPORAL_TEST_SERVER=<cached-sdk-test-server> venv\\Scripts\\python.exe -m pytest tests\\test_temporal_worker_recovery.py -vv -s -p no:cacheprovider --basetemp C:\\tmp\\pytest-tlr08d-worker"
+      ],
+      "run_budget": {
+        "maximum": 2,
+        "first": "diagnose one exact phase",
+        "second": "verify only a test-harness correction; product fixes require a new source-owning claim"
+      },
+      "evidence_required": [
+        "one exact phase marker or a fully green recovery result",
+        "no concurrent duplicate Update in this test",
+        "no surviving SDK test-server process or listener",
+        "digest of the uncommitted diagnostic reproduction when red"
+      ],
+      "gate": {
+        "id": "none",
+        "safe_default": "Diagnostic only; stop before product-source mutation and open a new claim for any recovery strategy."
+      },
+      "done_when": "PASS only if the diagnostic first bounded run either completes every phase with all original recovery assertions green or reports exactly one stable phase timeout and cleans up every process. A product-source fix is outside this slice.",
+      "stop_rules": [
+        "Stop after one stable phase timeout.",
+        "Stop before product source mutation.",
+        "Stop if cleanup cannot identify the exact process it would terminate."
+      ],
+      "forbidden_actions": [
+        "unchanged reproduction retry",
+        "test skip or xfail",
+        "assertion weakening",
+        "real development-server start",
+        "product source mutation"
+      ],
+      "diagnostic_evidence": {
+        "observed_at": "2026-07-15T16:38:45.6773547+02:00",
+        "run_1": "Worker one start, workflow start, waiting gate, Worker one shutdown and Worker two start passed; gate_update_applied timed out; environment shutdown passed.",
+        "run_2": "The same pre-update phases passed; second_worker_ready_query timed out before any Update; environment shutdown passed.",
+        "sdk_boundary": "temporalio 1.30.0 Worker defaults sticky_queue_schedule_to_start_timeout to 10 seconds and documents that expired sticky tasks then move to the non-sticky queue for any Worker.",
+        "conclusion": "Worker replacement is blocked at sticky ownership or cache takeover. Reducing sticky_queue_schedule_to_start_timeout from the SDK default to five seconds did not release a Query within ten seconds, so timeout tuning alone is insufficient.",
+        "cleanup": "Both runs ended with zero cached SDK test-server processes and zero listeners.",
+        "uncommitted_diagnostic_sha256": "37eb73c3281c4da2acc41f377c335a49d5ccc5a4cc12c4ae3b4697f80c6eae00",
+        "next_gate": "TLR-08-STICKY-RECOVERY-CONFIG"
+      }
+    },
+    {
+      "id": "TLR-09-24h-time-skipping-acceptance",
+      "status": "done",
+      "class": "repo_only",
+      "owner": "Charlie",
+      "depends_on": [
+        "TLR-07-agent-screen-runtime-ui",
+        "TLR-08-replay-restart-recovery"
+      ],
+      "allowed_paths": [
+        "tests/test_agent_operation_24h.py",
+        "tests/frontend/harbor-one-agent-operations.spec.js",
+        "src/temporal_runtime/workflows.py",
+        "src/agent_operation_projection.py"
+      ],
+      "hotfiles": [
+        "src/temporal_runtime/workflows.py"
+      ],
+      "objective": "Prove 24-hour semantics with Temporal time skipping, 2880 heartbeat opportunities, recovery, retries, Continue-As-New and UI reconnects.",
+      "deliverables": [
+        "24-hour fake-time workflow",
+        "hour 6 and hour 18 UI/API reconnect",
+        "Worker disconnect and lease expiry",
+        "one retry and one gate wait",
+        "at least three Continue-As-New history segments under the six-hour rule",
+        "two-client duplicate command race",
+        "bounded history and DOM"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_agent_operation_24h.py -q --basetemp .pytest_tmp_tlr_24h",
+        "npx.cmd playwright test tests\\frontend\\harbor-one-agent-operations.spec.js --reporter=line"
+      ],
+      "evidence_required": [
+        "logical elapsed duration exactly 24 hours",
+        "2880 expected 30-second heartbeat opportunities modeled",
+        "zero duplicate or missing projected events",
+        "one effect per idempotency key",
+        "history pages at most 200 events",
+        "rendered rows at most 300",
+        "deadline stops new dispatch and reaches timed_out or completed deterministically"
+      ],
+      "gate": {
+        "id": "none",
+        "safe_default": "Time-skipping and fake adapters only; no 24-hour wall-clock process."
+      },
+      "done_when": "PASS only if the time-skipping suite reaches exactly 24 logical hours, survives all injected failures, preserves one logical run and produces zero duplicate effects, commands or projected events.",
+      "stop_rules": [
+        "Stop if the test uses wall-clock sleep.",
+        "Stop if any assertion is replaced by a snapshot-only check.",
+        "Stop if the positive Activity path is not exercised."
+      ],
+      "forbidden_actions": [
+        "real long-running service",
+        "live provider effect",
+        "unbounded event generation"
+      ],
+      "implementation_evidence": {
+        "observed_at": "2026-07-15T17:18:00+02:00",
+        "logical_duration": "exactly 24 hours under the SDK time-skipping clock",
+        "heartbeat_model": "2880 bounded 30-second opportunities without generating unbounded Temporal or DOM events",
+        "recovery": "Worker one stopped after hour 12, Worker two started one minute before hour 18 after a 5-hour-59-minute disconnect, and the same logical run continued on history segment 3",
+        "activities": "bootstrap succeeded once; after-gate failed once retryably and succeeded on attempt two; each idempotent effect key was recorded once",
+        "commands": "two clients submitted the same hour-18 gate command concurrently and received one identical persisted receipt",
+        "history": "four histories with three Continue-As-New transitions; every raw history stayed below the 200-event page bound",
+        "projection": "300 stable public events paged as 200 plus 100 with no duplicate or missing identifier; stale heartbeat and expired lease remained visible after reconnect",
+        "browser": "seven Agent contracts passed, including hour-6 and hour-18 reconnect, no duplicated rows, a 300-row DOM ceiling and no localStorage runtime truth",
+        "determinism": "the final focused Python integration point passed 10 tests across the 24-hour scenario, replay compatibility and five existing deterministic history families",
+        "cleanup": "zero exact cached SDK test-server processes and zero listeners remained"
+      }
+    },
+    {
+      "id": "TLR-10-12h-wall-clock-soak",
+      "status": "gated",
+      "class": "needs_operator_go",
+      "owner": "Charlie",
+      "depends_on": [
+        "TLR-09-24h-time-skipping-acceptance"
+      ],
+      "allowed_paths": [
+        "one operator-approved local Temporal Light namespace, worker and synthetic no-provider run",
+        "redacted soak evidence artifact"
+      ],
+      "hotfiles": [],
+      "objective": "Run one 12-hour wall-clock local soak with a synthetic no-provider workload and controlled Worker restart.",
+      "deliverables": [
+        "exact start and deadline",
+        "resource and concurrency limits",
+        "pause and kill owner",
+        "one planned Worker restart",
+        "heartbeat, history and projection observations",
+        "final redacted readback and cleanup state"
+      ],
+      "tests": [
+        "12-hour observed local soak with one-minute observation samples",
+        "post-soak Agent API readback",
+        "post-soak Temporal workflow status readback"
+      ],
+      "evidence_required": [
+        "720 one-minute observation samples",
+        "no lost logical run",
+        "no duplicate effect",
+        "no heartbeat stale interval longer than the injected restart window",
+        "bounded memory and history growth",
+        "operator-visible pause and cancel remain functional"
+      ],
+      "gate": {
+        "id": "AGENT-12H-LIVE-GO",
+        "safe_default": "Do not start the soak.",
+        "approval_must_name": [
+          "local backend and namespace",
+          "owner and project",
+          "synthetic workload",
+          "start and 12-hour deadline",
+          "worker and Activity limits",
+          "restart injection time",
+          "pause and kill owner",
+          "evidence path"
+        ]
+      },
+      "done_when": "PASS only if all 720 samples are accounted for, the planned restart recovers, no duplicate effect occurs, controls remain functional and the final readback is terminal and internally consistent.",
+      "stop_rules": [
+        "Stop immediately on secret, real provider target, resource limit breach, uncontrolled process, missing kill control or corrupted state.",
+        "Stop at the exact deadline even if incomplete."
+      ],
+      "forbidden_actions": [
+        "real repository write",
+        "provider action",
+        "merge",
+        "deploy",
+        "external bind"
+      ]
+    },
+    {
+      "id": "TLR-11-production-activation",
+      "status": "gated",
+      "class": "needs_live_go",
+      "owner": "Charlie",
+      "depends_on": [
+        "TLR-10-12h-wall-clock-soak"
+      ],
+      "allowed_paths": [
+        "operator-approved production Temporal deployment artifacts and exact Odysseus integration paths"
+      ],
+      "hotfiles": [],
+      "objective": "Replace Temporal Light with an approved production deployment and validate one 24-hour no-provider canary before enabling effectful Activities.",
+      "deliverables": [
+        "Postgres-backed Temporal service",
+        "namespace, retention, TLS, auth and network policy",
+        "backup, restore and rollback plan",
+        "Worker deployment and versioning policy",
+        "metrics and alerts",
+        "24-hour monitored no-provider canary",
+        "separate action-specific gates for every later effect"
+      ],
+      "tests": [
+        "production preflight and health readback",
+        "backup and restore rehearsal",
+        "24-hour canary with restart and alert observation",
+        "Agent API and UI readback"
+      ],
+      "evidence_required": [
+        "exact artifact and configuration hashes",
+        "health and metrics",
+        "backup and restore receipts",
+        "24-hour canary timeline",
+        "rollback readiness",
+        "zero real repo or provider effect"
+      ],
+      "gate": {
+        "id": "TEMPORAL-PRODUCTION-ACTIVATION-GO",
+        "safe_default": "Temporal Light remains local development only; no production service, host change or canary."
+      },
+      "done_when": "PASS only if the approved production service survives the full 24-hour no-provider canary, backup/restore and restart tests, Agent readback stays consistent and effectful Activities remain separately gated.",
+      "stop_rules": [
+        "Stop on target, artifact, network, auth, retention, backup, rollback or ownership drift.",
+        "Stop after two failed candidates or any transport strategy change."
+      ],
+      "forbidden_actions": [
+        "production use of temporal server start-dev",
+        "automatic effect enablement",
+        "implicit commit, push, merge, deploy or provider authority"
+      ]
+    }
+  ],
+  "gate_queue": [
+    {
+      "id": "TEMPORAL-LIGHT-RUNTIME-CONTRACT-READY",
+      "class": "contract_gate",
+      "status": "satisfied_TLR_02_through_TLR_06_green",
+      "blocks": [
+        "TLR-06-history-agent-projection-api",
+        "TLR-07-agent-screen-runtime-ui"
+      ],
+      "depends_on": [
+        "TLR-02-abc-manifest-and-run-start",
+        "TLR-03-deterministic-workflow",
+        "TLR-04-activities-claims-heartbeats",
+        "TLR-05-signals-updates-idempotency"
+      ],
+      "decision_needed": "No operator decision. This gate becomes satisfied only when the manifest, deterministic replay, Activity, heartbeat, message and idempotency contract tests named by TLR-02 through TLR-05 are green and their evidence refs are recorded.",
+      "pass_condition": "Every depended-on slice is done, every named test exits zero and no exception to determinism, fencing or duplicate-effect rules is open.",
+      "fail_condition": "Any depended-on slice is incomplete, any named test is red or any exception to determinism, fencing or duplicate-effect rules remains open.",
+      "safe_default": "Use fakes and do not expose a live run API.",
+      "risk_if_bypassed": "Agent could display inferred state or control a workflow whose replay and duplicate semantics are not proven."
+    },
+    {
+      "id": "TLR-LOCAL-SERVICE-GO",
+      "class": "needs_operator_go",
+      "status": "used_for_TLR_01_process_stopped",
+      "blocks": [
+        "real process portions of TLR-08"
+      ],
+      "decision_needed": "Provide a fresh bounded process window only when the real-process portion of TLR-08 becomes dependency-ready.",
+      "safe_default": "Keep every Temporal process stopped while TLR-02 through TLR-07 use fakes or SDK test environments.",
+      "risk_if_bypassed": "An unmanaged background service or externally reachable development server could remain running."
+    },
+    {
+      "id": "HPA-AGENT-UX-ACCEPTANCE",
+      "class": "needs_design",
+      "status": "accepted_by_user_20260715",
+      "blocks": [],
+      "decision_needed": "None. The user accepted the implemented execution sidecar within the existing Agent screen as HPA-AGENT-UX-ACCEPTED.",
+      "safe_default": "Preview only; no separate dashboard and no root cutover.",
+      "risk_if_bypassed": "Operations could become unreadable or drift into Planning."
+    },
+    {
+      "id": "TLR-08-WORKER-RECOVERY-TEST-HARNESS",
+      "class": "repo_only_evidence_handoff",
+      "status": "resolved_by_TLR_08D_phase_isolation",
+      "blocks": [],
+      "decision_needed": "None. TLR-08D isolated second-Worker sticky-queue takeover as the failing boundary.",
+      "safe_default": "Do not rerun the prior uninstrumented reproductions.",
+      "risk_if_bypassed": "The resolved broad harness gate could obscure the narrower sticky recovery configuration handoff."
+    },
+    {
+      "id": "TLR-08-STICKY-RECOVERY-CONFIG",
+      "class": "repo_only_implementation_handoff",
+      "status": "attempted_ineffective_rolled_back",
+      "blocks": [],
+      "decision_needed": "None. A five-second explicit timeout retained sticky caching but did not restore Worker-two Query readiness inside ten seconds.",
+      "safe_default": "Keep the failed source change rolled back and preserve the diagnostic test by digest only.",
+      "risk_if_bypassed": "Committing the ineffective configuration would create false recovery confidence.",
+      "evidence": {
+        "constant_contract": "The five-second constant contract passed before the runtime attempt.",
+        "runtime_result": "The sole positive recovery run again timed out at second_worker_ready_query after Worker one shutdown and Worker two start.",
+        "rollback": "src/temporal_runtime/worker.py and tests/test_temporal_activities.py match their clean pre-claim fingerprints; no source change was committed.",
+        "cleanup": "Environment shutdown passed and zero SDK test-server processes/listeners remained."
+      }
+    },
+    {
+      "id": "TLR-08-STICKY-CACHE-STRATEGY",
+      "class": "needs_architecture",
+      "status": "satisfied_branch_A_green",
+      "blocks": [],
+      "decision_needed": "None. The user selected TLR-STICKY-A: set max_cached_workflows=0 for deterministic Worker takeover and absorb replay CPU through the existing six-hour Continue-As-New bound.",
+      "safe_default": "Keep max_cached_workflows=0 for Temporal Light and bound replay through the six-hour Continue-As-New rule; do not reuse this development profile as a production Temporal policy without a new architecture gate.",
+      "risk_if_bypassed": "Disabling sticky caching can increase replay CPU on long runs; retaining it without understanding takeover leaves Worker-restart recovery unproven."
+    },
+    {
+      "id": "AGENT-12H-LIVE-GO",
+      "class": "needs_operator_go",
+      "status": "gated",
+      "blocks": [
+        "TLR-10-12h-wall-clock-soak"
+      ],
+      "decision_needed": "Approve the exact local synthetic workload, 12-hour window, resource limits, restart injection, pause/kill owner and evidence path.",
+      "safe_default": "No wall-clock soak.",
+      "risk_if_bypassed": "A long-running process could consume resources or outlive operator supervision."
+    },
+    {
+      "id": "TEMPORAL-PRODUCTION-ACTIVATION-GO",
+      "class": "needs_live_go",
+      "status": "gated",
+      "blocks": [
+        "TLR-11-production-activation"
+      ],
+      "decision_needed": "Approve exact infrastructure, namespace, database, network, auth, retention, backup, rollback, worker artifact, canary and observation window.",
+      "safe_default": "Local Temporal Light only.",
+      "risk_if_bypassed": "Development infrastructure could be treated as production or execute unapproved effects."
+    }
+  ],
+  "non_goals": [
+    "No separate Temporal dashboard in Harbor One.",
+    "No runtime state, heartbeat, history, claim, evidence receipt or control in Planning.",
+    "No replacement of /abc with a skill picker or direct UI launch.",
+    "No homegrown durable scheduler alongside Temporal.",
+    "No direct browser connection to Temporal.",
+    "No mutable Planning read during workflow replay.",
+    "No raw Temporal Event History in API or UI.",
+    "No secrets, credentials, raw private content or raw provider output in history, heartbeats or fixtures.",
+    "No commit, push, merge, deploy or provider authority granted by Temporal.",
+    "No production use of the Temporal CLI development server."
+  ],
+  "global_stop_rules": [
+    "Stop on secrets, destructive Git, ambiguous owner, stale fence, overlapping claim, corrupted history or missing rollback evidence.",
+    "Stop on a missing or cyclic dependency.",
+    "Stop on shared hotfile overlap without acknowledged handoff.",
+    "Stop if deterministic replay fails or requires sandbox bypass.",
+    "Stop if a duplicate command or Activity effect applies twice.",
+    "Stop before any local service, long soak, production deployment or external effect without the exact matching gate."
+  ],
+  "verification": [
+    "python -m json.tool docs/plans/temporal-light-agent-execution-roadmap.json",
+    "python -m json.tool docs/plans/planning-definition-editor-roadmap.json",
+    "python -m json.tool docs/plans/harbor-planning-integration-master-roadmap.json",
+    "venv\\Scripts\\python.exe scripts\\roadmap_safe_queue_audit.py --format json",
+    "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_tlr_roadmap",
+    "git diff --check"
+  ],
+  "recommended_next_step": "TLR-01 through TLR-06 are complete, HPA-AGENT-UX-ACCEPTANCE is satisfied for TLR-07, and TLR-08 through TLR-09 are green. Integrate the user-granted complete V3 baseline in a separate serial claim, synchronize the master roadmap and prepare the exact fuzzy/dev to Debian-homeserver deployment envelope. Keep the 12-hour wall-clock soak and production Temporal activation behind AGENT-12H-LIVE-GO and TEMPORAL-PRODUCTION-ACTIVATION-GO."
+}

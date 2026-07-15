@@ -72,7 +72,9 @@ def _build_context_harness(monkeypatch, chat_helpers, history):
     def fake_add_user_message(sess, chat_handler, preprocessed, incognito=False):
         sess.messages.append({"role": "user", "content": preprocessed.user_content})
 
-    async def fake_maybe_compact(sess, endpoint_url, model, messages, headers, owner=None):
+    async def fake_maybe_compact(
+        sess, endpoint_url, model, messages, headers, owner=None, model_hint=None,
+    ):
         return messages, 8192, False
 
     monkeypatch.setattr(chat_helpers, "preprocess", fake_preprocess)
@@ -82,7 +84,11 @@ def _build_context_harness(monkeypatch, chat_helpers, history):
     monkeypatch.setattr(chat_helpers, "effective_user", lambda request: "tester")
     monkeypatch.setattr(chat_helpers, "normalize_model_id", lambda endpoint_url, model, **kwargs: None)
     monkeypatch.setattr(chat_helpers, "maybe_compact", fake_maybe_compact)
-    monkeypatch.setattr(chat_helpers, "trim_for_context", lambda messages, context_length: messages)
+    monkeypatch.setattr(
+        chat_helpers,
+        "trim_for_context",
+        lambda messages, context_length, model_hint=None: messages,
+    )
 
     sess = SimpleNamespace(
         endpoint_url="http://192.168.1.50:1234/v1",

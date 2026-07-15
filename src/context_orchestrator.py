@@ -78,6 +78,7 @@ def preload_provider_context(
     query: str,
     budget_tokens: int,
     mode: str,
+    model_hint: Optional[str] = None,
 ) -> tuple[List[ProviderPayload], List[str]]:
     """Retrieve context from all providers that advertise the requested mode."""
     providers = get_context_providers(capability=mode)
@@ -94,7 +95,15 @@ def preload_provider_context(
         ))
     for provider in providers:
         try:
-            raw = provider.retrieve(owner=owner, query=query, budget=per_provider, mode=mode)
+            retrieve_kwargs = {
+                "owner": owner,
+                "query": query,
+                "budget": per_provider,
+                "mode": mode,
+            }
+            if getattr(provider, "accepts_model_hint", False):
+                retrieve_kwargs["model_hint"] = model_hint
+            raw = provider.retrieve(**retrieve_kwargs)
             payload = raw if isinstance(raw, dict) else {"snippets": raw}
             _record_retrieval(
                 owner=owner,
@@ -502,6 +511,7 @@ def assemble_context(
     query: str,
     total_budget: int,
     mode: str = "chat",
+    model_hint: Optional[str] = None,
 ) -> ContextAssembly:
     """Build an ordered prompt skeleton from core messages and plugin providers."""
     budget = split_context_budget(total_budget)
@@ -510,6 +520,7 @@ def assemble_context(
         query=query,
         budget_tokens=budget.providers,
         mode=mode,
+        model_hint=model_hint,
     )
     messages = (
         list(system_messages)
@@ -517,21 +528,30 @@ def assemble_context(
         + provider_warning_messages(warnings)
         + list(history_messages)
     )
-    messages = final_trim_guard(messages, max_tokens=max(0, budget.total - budget.response))
+    messages = final_trim_guard(
+        messages,
+        max_tokens=max(0, budget.total - budget.response),
+        model_hint=model_hint,
+    )
     return ContextAssembly(messages=messages, provider_payloads=payloads, warnings=warnings, budget=budget)
 
 
-def final_trim_guard(messages: List[Dict[str, Any]], *, max_tokens: int) -> List[Dict[str, Any]]:
+def final_trim_guard(
+    messages: List[Dict[str, Any]],
+    *,
+    max_tokens: int,
+    model_hint: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     """Drop oldest non-system turns until the prompt fits the final input budget."""
     limit = int(max_tokens or 0)
-    if limit <= 0 or estimate_tokens(messages) <= limit:
+    if limit <= 0 or estimate_tokens(messages, model_hint=model_hint) <= limit:
         return list(messages)
 
     system_messages = [msg for msg in messages if msg.get("role") == "system"]
     other_messages = [msg for msg in messages if msg.get("role") != "system"]
     current_user = _last_user_message(other_messages)
     kept = list(other_messages)
-    while kept and estimate_tokens(system_messages + kept) > limit:
+    while kept and estimate_tokens(system_messages + kept, model_hint=model_hint) > limit:
         if kept[0] is current_user and len(kept) == 1:
             break
         kept.pop(0)

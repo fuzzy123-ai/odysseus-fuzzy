@@ -37,6 +37,12 @@ from dotenv import load_dotenv
 # utf-8-sig reads plain UTF-8 (no BOM) identically, so this is safe everywhere.
 load_dotenv(encoding="utf-8-sig")
 
+from src.runtime_topology import assert_supported_runtime_topology
+
+# Fail during module startup before serving traffic if an operator represents
+# an unsupported multi-process web topology. Temporal workers are independent.
+RUNTIME_TOPOLOGY = assert_supported_runtime_topology(argv=sys.argv)
+
 import asyncio
 import logging
 import secrets
@@ -91,9 +97,9 @@ try:
     os.makedirs(_log_dir, exist_ok=True)
     _log_file = os.path.join(_log_dir, "app.log")
 
-    # RotatingFileHandler is not multi-process safe (e.g. if uvicorn is run with --workers N).
-    # Odysseus is single-process by convention, so this is acceptable, but be aware that
-    # concurrent log rotation issues can arise if multiple workers are configured.
+    # The startup topology contract enforces one web worker because this sink
+    # and the auth rate limiter are process-local. Multi-process web serving
+    # requires a queue/listener or external collector before it can be enabled.
     _file_h = logging.handlers.RotatingFileHandler(
         _log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
     )
@@ -674,6 +680,10 @@ app.include_router(setup_server_project_routes())
 from routes.repo_routes import setup_repo_routes
 app.include_router(setup_repo_routes())
 
+# Project versions and provider policy (local persistence/outbox only)
+from routes.project_versioning_routes import setup_default_project_versioning_routes
+app.include_router(setup_default_project_versioning_routes())
+
 # GitHub issue intelligence route contracts
 from routes.github_issue_routes import setup_github_issue_routes
 app.include_router(setup_github_issue_routes())
@@ -715,6 +725,14 @@ app.include_router(setup_system_update_routes())
 # Recent local patch-note snapshots
 from routes.recent_changes_routes import setup_recent_changes_routes
 app.include_router(setup_recent_changes_routes())
+
+# Immutable Planning Definition v2 reads
+from routes.planning_definition_routes import setup_default_planning_definition_routes
+app.include_router(setup_default_planning_definition_routes())
+
+# Owner-scoped Temporal Light Agent operations (lazy localhost connection only)
+from routes.agent_operation_routes import setup_default_agent_operation_routes
+app.include_router(setup_default_agent_operation_routes())
 
 # Cleanup
 from routes.cleanup_routes import setup_cleanup_routes
@@ -1231,6 +1249,16 @@ async def serve_index(request: Request):
         return serve_html_with_nonce(request, static_path)
     return serve_html_with_nonce(request, abs_join(BASE_DIR, "index.html"))
 
+
+@app.get("/harbor-one")
+@app.get("/harbor-one/{path:path}")
+async def serve_harbor_one(request: Request, path: str = ""):
+    static_path = abs_join(BASE_DIR, "static/frontpage-v3/index.html")
+    if not os.path.exists(static_path):
+        raise HTTPException(status_code=404, detail="Harbor One preview is not available")
+    return serve_html_with_nonce(request, static_path)
+
+
 @app.get("/notes")
 async def serve_notes(request: Request):
     return await serve_index(request)
@@ -1296,6 +1324,7 @@ async def readiness_check() -> JSONResponse:
     """
     from src.readiness import check_readiness
     result = check_readiness()
+    result["runtime_topology"] = RUNTIME_TOPOLOGY.readiness()
     return JSONResponse(status_code=200 if result.get("ready") else 503, content=result)
 
 @app.get("/api/runtime")
@@ -1316,6 +1345,7 @@ async def runtime_info() -> Dict[str, object]:
     return {
         "in_docker": in_docker,
         "ollama_base_url": ollama_url,
+        "runtime_topology": RUNTIME_TOPOLOGY.readiness(),
     }
 
 # ========= LIFECYCLE =========
@@ -1647,4 +1677,10 @@ if __name__ == "__main__":
     bind_host = os.getenv("APP_BIND", "127.0.0.1")
     bind_port = int(os.getenv("APP_PORT", "7000"))
 
-    uvicorn.run(app, host=bind_host, port=bind_port, log_level="info")
+    uvicorn.run(
+        app,
+        host=bind_host,
+        port=bind_port,
+        log_level="info",
+        workers=RUNTIME_TOPOLOGY.web_workers,
+    )

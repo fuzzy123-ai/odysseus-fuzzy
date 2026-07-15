@@ -1,26 +1,33 @@
 import pytest
 
 from src.user_notification_contract import (
+    EXECUTION_NOTIFICATION_EVENTS,
     NotificationContractError,
     PLANNING_NOTIFICATION_EVENTS,
+    PLANNING_REVISION_NOTIFICATION_EVENTS,
     PLANNING_SILENT_EVENTS,
     build_planning_notification_candidate,
     build_user_notification_decision,
     build_user_notification_request,
     classify_planning_notification_event,
+    notification_workspace_for_event,
     render_user_notification_text,
 )
 
 
 NOW = "2026-07-10T08:00:00Z"
+REVISION_HASH = "sha256:" + ("a" * 64)
 
 
 def planning_payload(event_type="roadmap_created", **overrides):
+    roadmap_event = event_type.startswith("roadmap_") or event_type == "undo_available_after_structural_delete"
+    revision_event = event_type in PLANNING_REVISION_NOTIFICATION_EVENTS
     value = {
         "event_type": event_type,
         "project_id": "project-001",
-        "roadmap_id": "roadmap-001" if event_type.startswith("roadmap_") else None,
-        "gate_id": "gate-001" if event_type.startswith("gate_") or event_type == "human_decision_required" else None,
+        "roadmap_id": "roadmap-001" if roadmap_event else None,
+        "revision": 3 if revision_event else None,
+        "content_hash": REVISION_HASH if revision_event else "",
         "severity": None,
         "reason": "A bounded structural Planning change is ready for review.",
         "created_at": NOW,
@@ -182,8 +189,10 @@ def test_planning_roadmap_candidate_has_logical_overview_target_and_no_delivery_
     assert candidate.event_type == "roadmap_created"
     assert candidate.project_id == "project-001"
     assert candidate.roadmap_id == "roadmap-001"
-    assert candidate.gate_id is None
+    assert candidate.revision is None
+    assert candidate.content_hash == ""
     assert candidate.severity == "success"
+    assert candidate.schema == "odysseus.planning.definition_notification_candidate.v2"
     assert candidate.classification == "notification_candidate"
     assert candidate.delivery_authorized is False
     assert candidate.live_delivery_performed is False
@@ -191,6 +200,9 @@ def test_planning_roadmap_candidate_has_logical_overview_target_and_no_delivery_
     assert candidate.ui_target.to_dict() == {
         "workspace": "planning",
         "view": "overview",
+        "project_id": "project-001",
+        "roadmap_id": "roadmap-001",
+        "revision": None,
         "highlight_kind": "roadmap",
         "highlight_id": "roadmap-001",
         "highlight_mode": "expand_summary",
@@ -204,15 +216,18 @@ def test_planning_roadmap_candidate_has_logical_overview_target_and_no_delivery_
     assert "query" not in public["ui_target"]
 
 
-def test_planning_gate_candidate_defaults_to_typed_gate_highlight():
+def test_planning_revision_conflict_targets_one_exact_definition_revision():
     candidate = build_planning_notification_candidate(planning_payload(
-        "gate_blocked",
-        roadmap_id="roadmap-001",
+        "roadmap_revision_conflict",
     ))
     assert candidate.severity == "warning"
-    assert candidate.gate_id == "gate-001"
-    assert candidate.ui_target.highlight_kind == "gate"
-    assert candidate.ui_target.highlight_id == "gate-001"
+    assert candidate.revision == 3
+    assert candidate.content_hash == REVISION_HASH
+    assert candidate.ui_target.highlight_kind == "roadmap"
+    assert candidate.ui_target.highlight_id == "roadmap-001"
+    assert candidate.ui_target.project_id == "project-001"
+    assert candidate.ui_target.roadmap_id == "roadmap-001"
+    assert candidate.ui_target.revision == 3
 
 
 def test_planning_candidate_supports_bounded_document_view_intent():
@@ -231,7 +246,7 @@ def test_planning_candidate_supports_bounded_document_view_intent():
 
 @pytest.mark.parametrize("event_type", sorted(PLANNING_SILENT_EVENTS))
 def test_routine_planning_events_are_quiet(event_type):
-    payload = planning_payload(event_type, roadmap_id=None, gate_id=None, reason=None, created_at=None)
+    payload = planning_payload(event_type, roadmap_id=None, reason=None, created_at=None)
     assert classify_planning_notification_event(event_type) == "silent"
     assert build_planning_notification_candidate(payload) is None
 
@@ -244,20 +259,21 @@ def test_structural_planning_events_classify_as_sparse_candidates(event_type):
 def test_planning_event_constraints_require_typed_refs():
     with pytest.raises(NotificationContractError):
         build_planning_notification_candidate(planning_payload("roadmap_deleted", roadmap_id=None))
-    with pytest.raises(NotificationContractError):
-        build_planning_notification_candidate(planning_payload("gate_blocked", gate_id=None))
-    with pytest.raises(NotificationContractError):
-        build_planning_notification_candidate(planning_payload("human_decision_required", gate_id=None))
+    with pytest.raises(NotificationContractError, match="exact positive revision"):
+        build_planning_notification_candidate(planning_payload("roadmap_revision_approved", revision=None))
+    with pytest.raises(NotificationContractError, match="exact content hash"):
+        build_planning_notification_candidate(planning_payload("roadmap_revision_approved", content_hash=""))
 
     project = build_planning_notification_candidate(planning_payload(
-        "project_created", roadmap_id=None, gate_id=None,
+        "project_created", roadmap_id=None,
     ))
     assert project.ui_target.highlight_kind == "project"
     assert project.ui_target.highlight_id == "project-001"
     undo = build_planning_notification_candidate(planning_payload(
-        "undo_available_after_structural_delete", roadmap_id=None, gate_id=None,
+        "undo_available_after_structural_delete",
     ))
     assert undo.severity == "info"
+    assert undo.roadmap_id == "roadmap-001"
 
 
 @pytest.mark.parametrize("event_type", ["roadmap_read", "progress", "ROADMAP_CREATED", None])
@@ -346,6 +362,55 @@ def test_planning_dedupe_key_is_deterministic_and_excludes_timestamp():
     assert first.dedupe_key != changed.dedupe_key
 
 
+@pytest.mark.parametrize("event_type", sorted(EXECUTION_NOTIFICATION_EVENTS))
+def test_execution_notifications_route_to_agent_and_planning_rejects_them(event_type):
+    assert notification_workspace_for_event(event_type) == "agent"
+    with pytest.raises(NotificationContractError) as classified:
+        classify_planning_notification_event(event_type)
+    assert classified.value.code == "execution_event_agent_only"
+    with pytest.raises(NotificationContractError) as candidate:
+        build_planning_notification_candidate(planning_payload(event_type))
+    assert candidate.value.code == "execution_event_agent_only"
+
+
+def test_definition_and_silent_events_have_one_explicit_destination():
+    for event_type in PLANNING_NOTIFICATION_EVENTS:
+        assert notification_workspace_for_event(event_type) == "planning"
+    for event_type in PLANNING_SILENT_EVENTS:
+        assert notification_workspace_for_event(event_type) == "silent"
+
+
+@pytest.mark.parametrize(
+    ("revision", "content_hash", "error_code"),
+    [
+        (0, REVISION_HASH, "invalid_definition_revision"),
+        (True, REVISION_HASH, "invalid_definition_revision"),
+        (3, "sha256:" + ("A" * 64), "invalid_definition_content_hash"),
+        (3, "sha256:short", "invalid_definition_content_hash"),
+    ],
+)
+def test_revision_notifications_require_exact_positive_revision_and_hash(
+    revision, content_hash, error_code,
+):
+    with pytest.raises(NotificationContractError) as caught:
+        build_planning_notification_candidate(planning_payload(
+            "roadmap_revision_approved",
+            revision=revision,
+            content_hash=content_hash,
+        ))
+    assert caught.value.code == error_code
+
+
+def test_non_revision_events_reject_revision_metadata():
+    with pytest.raises(NotificationContractError) as caught:
+        build_planning_notification_candidate(planning_payload(
+            "roadmap_created",
+            revision=2,
+            content_hash=REVISION_HASH,
+        ))
+    assert caught.value.code == "unexpected_definition_revision"
+
+
 def test_pmcp_read_proposal_section_and_memory_events_are_all_explicitly_silent():
     required = {
         "planning_read",
@@ -365,5 +430,5 @@ def test_pmcp_read_proposal_section_and_memory_events_are_all_explicitly_silent(
     for event_type in sorted(required):
         assert classify_planning_notification_event(event_type) == "silent"
         assert build_planning_notification_candidate(
-            planning_payload(event_type, roadmap_id=None, gate_id=None, reason=None, created_at=None)
+            planning_payload(event_type, roadmap_id=None, reason=None, created_at=None)
         ) is None
