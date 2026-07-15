@@ -1,8 +1,17 @@
 import json
+import time
 
 import pytest
 
 from src import tool_implementations as tools
+from src.tool_domains import cookbook_models
+
+
+@pytest.fixture(autouse=True)
+def _clear_tail_bindings():
+    cookbook_models._TAIL_SERVE_SESSION_BINDINGS.clear()
+    yield
+    cookbook_models._TAIL_SERVE_SESSION_BINDINGS.clear()
 
 
 class FakeResponse:
@@ -164,7 +173,9 @@ async def test_tail_serve_output_rejects_invalid_remote_host_before_shell(monkey
     posts = _install_httpx_client(monkeypatch)
 
     result = await tools.do_tail_serve_output(
-        json.dumps({"session_id": "serve-abc123", "remote_host": "-bad"})
+        json.dumps({"session_id": "serve-abc123", "remote_host": "-bad"}),
+        owner="admin-a",
+        caller_session_id="chat-a",
     )
 
     assert result["exit_code"] == 1
@@ -187,13 +198,115 @@ async def test_tail_serve_output_rejects_invalid_state_host_before_shell(monkeyp
         },
     )
 
+    assert cookbook_models.bind_serve_session_for_tail(
+        "serve-abc123",
+        owner="admin-a",
+        caller_session_id="chat-a",
+    )
     result = await tools.do_tail_serve_output(
-        json.dumps({"session_id": "serve-abc123"})
+        json.dumps({"session_id": "serve-abc123"}),
+        owner="admin-a",
+        caller_session_id="chat-a",
     )
 
     assert result["exit_code"] == 1
     assert "Invalid remote_host" in result["error"]
     assert posts == []
+
+
+@pytest.mark.asyncio
+async def test_tail_serve_output_requires_same_owner_and_caller_session(monkeypatch):
+    posts = _install_httpx_client(
+        monkeypatch,
+        state={
+            "tasks": [
+                {
+                    "sessionId": "serve-abc123",
+                    "type": "serve",
+                    "status": "running",
+                    "remoteHost": "",
+                }
+            ]
+        },
+    )
+    assert cookbook_models.bind_serve_session_for_tail(
+        "serve-abc123",
+        owner="admin-a",
+        caller_session_id="chat-a",
+    )
+
+    wrong_owner = await tools.do_tail_serve_output(
+        json.dumps({"session_id": "serve-abc123"}),
+        owner="admin-b",
+        caller_session_id="chat-a",
+    )
+    wrong_session = await tools.do_tail_serve_output(
+        json.dumps({"session_id": "serve-abc123"}),
+        owner="admin-a",
+        caller_session_id="chat-b",
+    )
+
+    assert wrong_owner["exit_code"] == 1
+    assert "not owned" in wrong_owner["error"]
+    assert wrong_session["exit_code"] == 1
+    assert "calling chat session" in wrong_session["error"]
+    assert posts == []
+
+
+@pytest.mark.asyncio
+async def test_tail_serve_output_rejects_expired_binding_before_shell(monkeypatch):
+    posts = _install_httpx_client(monkeypatch)
+    assert cookbook_models.bind_serve_session_for_tail(
+        "serve-abc123",
+        owner="admin-a",
+        caller_session_id="chat-a",
+        now=time.time() - cookbook_models.TAIL_SERVE_SESSION_MAX_AGE_SECONDS - 1,
+    )
+
+    result = await tools.do_tail_serve_output(
+        json.dumps({"session_id": "serve-abc123"}),
+        owner="admin-a",
+        caller_session_id="chat-a",
+    )
+
+    assert result["exit_code"] == 1
+    assert "expired" in result["error"]
+    assert posts == []
+
+
+@pytest.mark.asyncio
+async def test_tail_serve_output_reads_only_current_bound_serve_task(monkeypatch):
+    posts = _install_httpx_client(
+        monkeypatch,
+        state={
+            "tasks": [
+                {
+                    "sessionId": "serve-abc123",
+                    "type": "serve",
+                    "status": "running",
+                    "remoteHost": "",
+                }
+            ]
+        },
+    )
+    assert cookbook_models.bind_serve_session_for_tail(
+        "serve-abc123",
+        owner="admin-a",
+        caller_session_id="chat-a",
+    )
+
+    result = await tools.do_tail_serve_output(
+        json.dumps({"session_id": "serve-abc123", "tail": 40}),
+        owner="admin-a",
+        caller_session_id="chat-a",
+    )
+
+    assert result["exit_code"] == 0
+    assert result["session_id"] == "serve-abc123"
+    assert result["tail_lines"] == 40
+    assert len(posts) == 1
+    assert "/api/shell/exec" in posts[0][0]
+    assert "/tmp/odysseus-tmux/serve-abc123.log" in posts[0][1]["command"]
 
 
 @pytest.mark.asyncio

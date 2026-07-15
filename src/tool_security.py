@@ -3,7 +3,16 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional, Set
+import json
+from dataclasses import dataclass
+from typing import Any, Optional, Set
+
+from src.builtin_tool_catalog import builtin_spec
+from src.tool_catalog import (
+    ToolEffectClass,
+    ToolPermission,
+    ToolRiskLevel,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +39,186 @@ PUBLIC_VAULT_MCP_READONLY_TOOLS = {
     "obsidian_raptor_status",
     "obsidian_raptor_graph_view",
 }
+
+
+RUNTIME_ADMIN_TOOLS = frozenset(
+    {
+        "app_api",
+        "bash",
+        "download_model",
+        "manage_embeddings",
+        "manage_endpoints",
+        "manage_github_issues",
+        "manage_mcp",
+        "manage_personal_docs",
+        "manage_plugins",
+        "manage_presets",
+        "manage_repos",
+        "manage_settings",
+        "manage_tokens",
+        "manage_webhooks",
+        "python",
+        "recent_changes",
+        "serve_model",
+        "serve_preset",
+        "stop_served_model",
+        "cancel_download",
+        "tail_serve_output",
+    }
+)
+
+_READ_ACTIONS = {
+    "manage_plugins": frozenset(
+        {"list", "registry", "registries", "list_registries", "status"}
+    ),
+    "manage_tokens": frozenset({"list"}),
+    "manage_settings": frozenset(
+        {
+            "list",
+            "get",
+            "features",
+            "secret_handoffs",
+            "explain",
+            "list_tools",
+        }
+    ),
+    "manage_repos": frozenset(
+        {
+            "list",
+            "get",
+            "status",
+            "log",
+            "diff_stat",
+            "changed_paths",
+            "remotes",
+            "commit_plan",
+            "push_plan",
+            "forge_plan",
+            "changes",
+            "change_history",
+        }
+    ),
+}
+
+_ACTION_EFFECT_OVERRIDES = {
+    ("manage_settings", "delete"): ToolEffectClass.DESTRUCTIVE,
+    ("manage_settings", "reset"): ToolEffectClass.DESTRUCTIVE,
+    ("manage_tokens", "delete"): ToolEffectClass.DESTRUCTIVE,
+    ("manage_plugins", "uninstall"): ToolEffectClass.DESTRUCTIVE,
+    ("manage_plugins", "remove_registry"): ToolEffectClass.DESTRUCTIVE,
+    ("manage_plugins", "delete_registry"): ToolEffectClass.DESTRUCTIVE,
+    ("manage_repos", "forget"): ToolEffectClass.DESTRUCTIVE,
+    ("manage_repos", "commit"): ToolEffectClass.LOCAL_WRITE,
+    ("manage_repos", "register"): ToolEffectClass.LOCAL_WRITE,
+    ("manage_repos", "update_policy"): ToolEffectClass.LOCAL_WRITE,
+    ("manage_repos", "push"): ToolEffectClass.EXTERNAL_WRITE,
+    ("manage_repos", "forge_metadata"): ToolEffectClass.EXTERNAL_WRITE,
+}
+
+_PERMISSION_RANK = {
+    ToolPermission.OWNER: 0,
+    ToolPermission.ADMIN: 1,
+}
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeToolSecurityProfile:
+    tool_id: str
+    permission: ToolPermission
+    risk_level: ToolRiskLevel
+    effect_class: ToolEffectClass
+    requires_confirmation: bool
+    action: str
+    source: str
+
+
+def _json_action(content: object) -> str:
+    try:
+        payload = json.loads(str(content or "{}"))
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    return str(payload.get("action") or "").strip().lower()
+
+
+def runtime_tool_security_profile(
+    tool_id: object,
+    content: object = "",
+    *,
+    dynamic_permission: Optional[str] = None,
+) -> RuntimeToolSecurityProfile:
+    """Return the conservative runtime projection for a built-in or dynamic tool."""
+
+    normalized = str(tool_id or "").strip()
+    spec = builtin_spec(normalized)
+    action = _json_action(content)
+    if spec is None:
+        explicit_owner_policy = str(dynamic_permission or "").lower() in {
+            "owner",
+            "user",
+        }
+        return RuntimeToolSecurityProfile(
+            tool_id=normalized,
+            permission=(
+                ToolPermission.OWNER
+                if explicit_owner_policy
+                else ToolPermission.ADMIN
+            ),
+            risk_level=ToolRiskLevel.ELEVATED,
+            effect_class=ToolEffectClass.CONTROL,
+            requires_confirmation=True,
+            action=action,
+            source="dynamic_conservative",
+        )
+
+    permission = (
+        ToolPermission.ADMIN
+        if normalized in RUNTIME_ADMIN_TOOLS
+        else spec.permission
+    )
+    effect = spec.effect_class
+    if action and action in _READ_ACTIONS.get(normalized, frozenset()):
+        effect = ToolEffectClass.READ
+    elif action:
+        effect = _ACTION_EFFECT_OVERRIDES.get((normalized, action), effect)
+        if effect == ToolEffectClass.READ:
+            effect = ToolEffectClass.CONTROL
+    risk = (
+        ToolRiskLevel.SAFE
+        if effect == ToolEffectClass.READ
+        else ToolRiskLevel.ELEVATED
+        if effect == ToolEffectClass.CONTROL
+        else ToolRiskLevel.DANGEROUS
+    )
+    return RuntimeToolSecurityProfile(
+        tool_id=normalized,
+        permission=permission,
+        risk_level=risk,
+        effect_class=effect,
+        requires_confirmation=effect != ToolEffectClass.READ,
+        action=action,
+        source="builtin_catalog_runtime_overlay",
+    )
+
+
+def runtime_tool_requires_admin(tool_id: object) -> bool:
+    return runtime_tool_security_profile(tool_id).permission == ToolPermission.ADMIN
+
+
+def validate_catalog_runtime_security_projection() -> tuple[str, ...]:
+    """Return content-free drift errors when runtime is weaker than the catalog."""
+
+    errors = []
+    from src.builtin_tool_catalog import BUILTIN_TOOL_SPECS
+
+    for spec in BUILTIN_TOOL_SPECS:
+        profile = runtime_tool_security_profile(spec.tool_id)
+        if _PERMISSION_RANK[profile.permission] < _PERMISSION_RANK[spec.permission]:
+            errors.append(f"{spec.tool_id}:runtime_permission_weaker")
+        if spec.effect_class != ToolEffectClass.READ and not profile.requires_confirmation:
+            errors.append(f"{spec.tool_id}:runtime_confirmation_weaker")
+    return tuple(sorted(errors))
 
 
 # Tools regular/public users must not execute directly. These either expose
@@ -79,6 +268,7 @@ NON_ADMIN_BLOCKED_TOOLS = {
     "serve_model",
     "serve_preset",
     "stop_served_model",
+    "tail_serve_output",
     "cancel_download",
     "adopt_served_model",
 }

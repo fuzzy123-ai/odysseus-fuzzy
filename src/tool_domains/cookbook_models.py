@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import time
 from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
@@ -21,6 +22,55 @@ from src.tool_domains.app_api import (
 )
 
 logger = logging.getLogger(__name__)
+
+TAIL_SERVE_SESSION_MAX_AGE_SECONDS = 4 * 60 * 60
+_TAIL_SERVE_SESSION_BINDINGS: Dict[str, Dict[str, Any]] = {}
+
+
+def bind_serve_session_for_tail(
+    session_id: object,
+    *,
+    owner: Optional[str],
+    caller_session_id: Optional[str],
+    host: object = "",
+    now: Optional[float] = None,
+) -> bool:
+    """Bind a serve session to its initiating owner and chat session in memory."""
+
+    serve_session = str(session_id or "").strip()
+    caller_session = str(caller_session_id or "").strip()
+    if not re.fullmatch(r"[a-zA-Z0-9_-]+", serve_session):
+        return False
+    if not caller_session or len(caller_session) > 256:
+        return False
+    _TAIL_SERVE_SESSION_BINDINGS[serve_session] = {
+        "owner": str(owner or "__single_user__"),
+        "caller_session_id": caller_session,
+        "host": _string_arg(host),
+        "bound_at": float(time.time() if now is None else now),
+    }
+    return True
+
+
+def _authorized_tail_binding(
+    session_id: str,
+    *,
+    owner: Optional[str],
+    caller_session_id: Optional[str],
+    now: Optional[float] = None,
+) -> tuple[Optional[Dict[str, Any]], Optional[str]]:
+    binding = _TAIL_SERVE_SESSION_BINDINGS.get(session_id)
+    if not binding:
+        return None, "Serve output is available only for a current caller-bound session."
+    current = float(time.time() if now is None else now)
+    if current - float(binding.get("bound_at") or 0) > TAIL_SERVE_SESSION_MAX_AGE_SECONDS:
+        _TAIL_SERVE_SESSION_BINDINGS.pop(session_id, None)
+        return None, "Serve output binding has expired; start or adopt a current session."
+    if binding.get("owner") != str(owner or "__single_user__"):
+        return None, "Serve output session is not owned by the caller."
+    if not caller_session_id or binding.get("caller_session_id") != str(caller_session_id):
+        return None, "Serve output session is not bound to the calling chat session."
+    return dict(binding), None
 
 
 def _string_arg(value: Any) -> str:
@@ -207,7 +257,11 @@ async def do_download_model(content: str, owner: Optional[str] = None) -> Dict:
         return {"error": str(e), "exit_code": 1}
 
 
-async def do_serve_model(content: str, owner: Optional[str] = None) -> Dict:
+async def do_serve_model(
+    content: str,
+    owner: Optional[str] = None,
+    caller_session_id: Optional[str] = None,
+) -> Dict:
     """Start serving a model via the cookbook API."""
     import httpx
     try:
@@ -281,6 +335,12 @@ async def do_serve_model(content: str, owner: Optional[str] = None) -> Dict:
                 session_id=sid, model=repo_id,
                 host=host, cmd=cmd, task_type="serve",
                 endpoint_added=endpoint_added, endpoint_id=endpoint_id or "",
+            )
+            bind_serve_session_for_tail(
+                sid,
+                owner=owner,
+                caller_session_id=caller_session_id,
+                host=host,
             )
             note = "" if registered else " (state-write failed — task may not show in UI)"
             return {
@@ -522,7 +582,11 @@ async def do_stop_served_model(content: str, owner: Optional[str] = None) -> Dic
     )
 
 
-async def do_tail_serve_output(content: str, owner: Optional[str] = None) -> Dict:
+async def do_tail_serve_output(
+    content: str,
+    owner: Optional[str] = None,
+    caller_session_id: Optional[str] = None,
+) -> Dict:
     """Capture the last N lines of a cookbook task's tmux pane — remote-aware.
 
     Used by the agent to debug a failed/stuck serve: list_served_models tells
@@ -549,30 +613,70 @@ async def do_tail_serve_output(content: str, owner: Optional[str] = None) -> Dic
         tail = 400
     tail = max(20, min(tail, 4000))
     headers = _internal_headers()
-    remote = _string_arg(args.get("remote_host") or args.get("host"))
-    sport = _string_arg(args.get("ssh_port"))
+    requested_remote = _string_arg(args.get("remote_host") or args.get("host"))
+    requested_sport = _string_arg(args.get("ssh_port"))
+    if requested_remote:
+        try:
+            requested_remote, requested_sport = _validate_cookbook_ssh_target(
+                requested_remote, requested_sport
+            )
+        except HTTPException as e:
+            return {"error": str(getattr(e, "detail", e)), "exit_code": 1}
+
+    binding, binding_error = _authorized_tail_binding(
+        session_id,
+        owner=owner,
+        caller_session_id=caller_session_id,
+    )
+    if binding_error:
+        return {"error": binding_error, "exit_code": 1}
+
+    remote = ""
+    sport = ""
     # Resolve host from cookbook state if caller didn't pass one — same
     # lookup _cookbook_kill_session uses.
     if not remote:
         state: Dict[str, Any] = {}
+        matching_task: Optional[Dict[str, Any]] = None
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.get(f"{_INTERNAL_BASE}/api/cookbook/state", headers=headers)
                 state = resp.json() or {}
-        except Exception as e:
-            logger.debug(f"cookbook state lookup failed for {session_id}: {e}")
+        except Exception:
+            return {"error": "Cookbook state is unavailable; refusing log access.", "exit_code": 1}
         if isinstance(state, dict):
             for t in (state.get("tasks") or []):
                 if isinstance(t, dict) and (t.get("sessionId") == session_id or t.get("id") == session_id):
-                    remote = t.get("remoteHost") or ""
+                    matching_task = t
+                    remote = (
+                        t.get("remoteHost")
+                        or (t.get("payload") or {}).get("remote_host")
+                        or ""
+                    )
                     if not sport:
                         sport = t.get("sshPort") or ""
                     break
+        if matching_task is None:
+            return {"error": "Cookbook session is not present in current state.", "exit_code": 1}
     if remote:
         try:
             remote, sport = _validate_cookbook_ssh_target(remote, sport)
         except HTTPException as e:
             return {"error": str(getattr(e, "detail", e)), "exit_code": 1}
+
+    bound_host = _string_arg((binding or {}).get("host"))
+    if bound_host != remote:
+        return {"error": "Cookbook host no longer matches the caller binding.", "exit_code": 1}
+    if requested_remote and requested_remote != remote:
+        return {"error": "Requested host does not match the caller-bound session.", "exit_code": 1}
+    if requested_sport and sport and requested_sport != sport:
+        return {"error": "Requested SSH port does not match current Cookbook state.", "exit_code": 1}
+    task_type = str((matching_task or {}).get("type") or "").strip().lower()
+    if task_type != "serve":
+        return {"error": "Only current model-serving sessions expose logs.", "exit_code": 1}
+    task_status = str((matching_task or {}).get("status") or "").strip().lower()
+    if task_status in {"cancelled", "canceled", "stopped", "deleted"}:
+        return {"error": "Cookbook session is no longer current.", "exit_code": 1}
 
     # Prefer the persisted /tmp/odysseus-tmux/SESSION.log file over the
     # live tmux pane. The pane is what the user would see scrolling on
@@ -729,7 +833,11 @@ async def do_search_hf_models(content: str, owner: Optional[str] = None) -> Dict
         return {"error": str(e), "exit_code": 1}
 
 
-async def do_adopt_served_model(content: str, owner: Optional[str] = None) -> Dict:
+async def do_adopt_served_model(
+    content: str,
+    owner: Optional[str] = None,
+    caller_session_id: Optional[str] = None,
+) -> Dict:
     """Register an externally-launched model server (bash + tmux + ssh, or
     anything else) into the Cookbook so it appears in list_served_models,
     can be stopped via stop_served_model, and is added to the user's
@@ -869,6 +977,12 @@ async def do_adopt_served_model(content: str, owner: Optional[str] = None) -> Di
             except Exception as e:
                 endpoint_msg = f" Endpoint registration failed: {e}"
 
+    bind_serve_session_for_tail(
+        sess,
+        owner=owner,
+        caller_session_id=caller_session_id,
+        host=host,
+    )
     return {
         "output": (
             f"Adopted session {sess!r} ({model}) on {host or 'local'}:{port}. "
@@ -948,7 +1062,11 @@ async def do_list_serve_presets(content: str, owner: Optional[str] = None) -> Di
     return {"output": "\n".join(lines), "presets": presets, "exit_code": 0}
 
 
-async def do_serve_preset(content: str, owner: Optional[str] = None) -> Dict:
+async def do_serve_preset(
+    content: str,
+    owner: Optional[str] = None,
+    caller_session_id: Optional[str] = None,
+) -> Dict:
     """Launch a saved serve preset by name. Resolves the preset's
     cmd + host + model from cookbook_state.json, then calls the
     standard model/serve endpoint. Saves the agent from having to
@@ -1025,6 +1143,12 @@ async def do_serve_preset(content: str, owner: Optional[str] = None) -> Dict:
                 session_id=sid, model=repo_id, host=host,
                 cmd=cmd, task_type="serve",
                 endpoint_added=endpoint_added, endpoint_id=endpoint_id or "",
+            )
+            bind_serve_session_for_tail(
+                sid,
+                owner=owner,
+                caller_session_id=caller_session_id,
+                host=host,
             )
             note = "" if registered else " (state-write failed — task may not show in UI)"
             return {"output": f"Launched preset {chosen.get('name')!r}: {repo_id} on {host or 'local'} (session: {sid}){note}", "session_id": sid, "host": host, "endpoint_id": endpoint_id, "exit_code": 0}

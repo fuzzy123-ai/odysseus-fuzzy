@@ -13,14 +13,14 @@
     "unique_live_gates": 39,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "uix13_semantics_gated_tax4_completed_tax5_selected_tua2_dependency_ready",
+    "queue_status": "uix13_semantics_gated_tax5_completed_tax6_selected_tua2_dependency_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
-      "tool_taxonomy_registry": "tax0_through_tax4_completed_tax5_selected_catalog_v2_not_activated",
+      "tool_taxonomy_registry": "tax0_through_tax5_completed_tax6_selected_catalog_v2_not_activated",
       "tool_usage_analytics": "tua0_tua1_completed_tua2_dependency_ready_capture_and_backfill_default_off"
     },
     "verification": {
@@ -61,14 +61,14 @@
         "reason": "UIX-ABC13 requires explicit product-semantics confirmation before claim",
         "slice": "UIX-ABC13",
         "user_decision_required": true,
-        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TAX5_then_TUA2"
+        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TAX6_then_TUA2"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-15"
     },
     "dependency_ready_repo_only_slices": [
-      "TAX5-security-effect-class-closure",
+      "TAX6-admin-runtime-api-projection",
       "TUA2-persistence-migration-retention"
     ],
     "product_semantics_gated_open_slices": [
@@ -993,7 +993,7 @@
       "id": "TAX5-security-effect-class-closure",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
+      "status": "completed",
       "depends_on": [
         "TAX3-close-six-registration-gaps"
       ],
@@ -1012,7 +1012,38 @@
         "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_security_catalog.py tests\\test_effectful_tool_matrix.py tests\\test_cookbook_agent_tool_ssh_validation.py tests\\test_tool_policy.py"
       ],
       "gate": "none_before_live_activation",
-      "done_when": "Public or foreign-owner calls fail closed, read-only and mutation actions are distinguished, tail_serve_output is owner/session/current-log bound, and the catalog never advertises weaker policy than runtime enforcement."
+      "done_when": "Public or foreign-owner calls fail closed, read-only and mutation actions are distinguished, tail_serve_output is owner/session/current-log bound, and the catalog never advertises weaker policy than runtime enforcement.",
+      "completed_at": "2026-07-15T22:11:00+02:00",
+      "completion_evidence": {
+        "focused_tests": "37 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "catalog_regression": "33 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "permission_and_effect_projection": "The centralized runtime projection is never weaker than built-in descriptors; management reads, writes and destructive actions receive action-specific conservative effects and confirmation requirements; unknown dynamic tools default to elevated/Admin/control/confirmation until explicit narrower policy exists",
+        "tail_serve_output": "Admin execution is enforced before dispatch; access additionally requires the same owner, same caller chat session, an unexpired in-memory binding, a matching current Cookbook serve task, and a bounded allowed log path",
+        "live_effects": "No model serve, SSH, tmux, plugin, settings, token, repository, network, provider, feature activation, deployment or live mutation was executed; tail_serve_output remains catalog-security-blocked pending explicit activation"
+      }
+    },
+    {
+      "id": "TAX6-admin-runtime-api-projection",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "open",
+      "depends_on": [
+        "TAX4-operator-priority-defaults",
+        "TAX5-security-effect-class-closure"
+      ],
+      "source_roadmap": "docs/plans/tool-taxonomy-registration-roadmap.md",
+      "allowed_paths": [
+        "src/runtime_tool_status.py",
+        "routes/model_routes.py",
+        "tests/test_runtime_tool_status.py",
+        "tests/test_runtime_tool_status_routes.py",
+        "tests/test_tool_catalog_routes.py"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_runtime_tool_status.py tests\\test_runtime_tool_status_routes.py tests\\test_tool_catalog_routes.py"
+      ],
+      "gate": "none_before_live_activation",
+      "done_when": "Tool API payloads are deterministic, redacted and complete; owner/admin scope is tested; POST accepts only known allowed IDs while preserving disabled_tools compatibility; dynamic sources are explicit and conservative."
     }
   ],
   "recommended_execution_order": [

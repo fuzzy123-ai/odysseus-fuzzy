@@ -17,7 +17,11 @@ import sys
 import time
 from typing import Any, Awaitable, Callable, Dict, Optional, Tuple
 
-from src.tool_security import is_public_blocked_tool, owner_is_admin_or_single_user
+from src.tool_security import (
+    RUNTIME_ADMIN_TOOLS,
+    is_public_blocked_tool,
+    owner_is_admin_or_single_user,
+)
 from src.tool_policy import ToolPolicy
 from src.constants import MAX_OUTPUT_CHARS, MAX_READ_CHARS, MAX_DIFF_LINES
 from src.tool_utils import _truncate
@@ -50,26 +54,7 @@ _VAULT_MCP_RATE_LIMIT_MAX = 10
 _VAULT_MCP_RATE_LIMIT_WINDOW = 60
 
 
-_ADMIN_TOOLS = {
-    "app_api",
-    "manage_endpoints",
-    "manage_mcp",
-    "manage_webhooks",
-    "manage_tokens",
-    "manage_presets",
-    "manage_personal_docs",
-    "manage_embeddings",
-    "manage_plugins",
-    "manage_repos",
-    "manage_github_issues",
-    "manage_settings",
-    "recent_changes",
-    "download_model",
-    "serve_model",
-    "serve_preset",
-    "stop_served_model",
-    "cancel_download",
-}
+_ADMIN_TOOLS = set(RUNTIME_ADMIN_TOOLS)
 
 
 def _owner_is_admin(owner: Optional[str]) -> bool:
@@ -837,7 +822,9 @@ async def _execute_tool_block_impl(
         result = await do_download_model(content, owner=owner)
     elif tool == "serve_model":
         desc = "serve_model"
-        result = await do_serve_model(content, owner=owner)
+        result = await do_serve_model(
+            content, owner=owner, caller_session_id=session_id
+        )
     elif tool == "list_served_models":
         desc = "list_served_models"
         result = await do_list_served_models(content, owner=owner)
@@ -846,7 +833,9 @@ async def _execute_tool_block_impl(
         result = await do_stop_served_model(content, owner=owner)
     elif tool == "tail_serve_output":
         desc = "tail_serve_output"
-        result = await do_tail_serve_output(content, owner=owner)
+        result = await do_tail_serve_output(
+            content, owner=owner, caller_session_id=session_id
+        )
     elif tool == "list_downloads":
         desc = "list_downloads"
         result = await do_list_downloads(content, owner=owner)
@@ -867,10 +856,14 @@ async def _execute_tool_block_impl(
         result = await do_list_serve_presets(content, owner=owner)
     elif tool == "serve_preset":
         desc = "serve_preset"
-        result = await do_serve_preset(content, owner=owner)
+        result = await do_serve_preset(
+            content, owner=owner, caller_session_id=session_id
+        )
     elif tool == "adopt_served_model":
         desc = "adopt_served_model"
-        result = await do_adopt_served_model(content, owner=owner)
+        result = await do_adopt_served_model(
+            content, owner=owner, caller_session_id=session_id
+        )
     elif tool == "list_cookbook_servers":
         desc = "list_cookbook_servers"
         result = await do_list_cookbook_servers(content, owner=owner)
