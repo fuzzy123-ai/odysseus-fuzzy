@@ -264,21 +264,24 @@ def test_obsolete_v2_queue_is_archived_and_hwa_uses_temporal() -> None:
     assert "scheduler/effect queue is authorized" in hwa
 
 
-def test_tlr01_environment_gate_routes_to_pde01_without_runtime_mutation() -> None:
+def test_tlr01_authorized_local_runtime_routes_to_tlr02_with_process_stopped() -> None:
     tlr = _load(TLR_PATH)
     slices = {item["id"]: item for item in tlr["slice_queue"]}
     gates = {item["id"]: item for item in tlr["gate_queue"]}
 
     tlr01 = slices["TLR-01-temporal-light-local-runtime"]
-    assert tlr01["status"] == "blocked_environment"
+    assert tlr01["status"] == "done_local_runtime_focused_and_restart_tested"
     assert tlr01["gate"]["id"] == "TLR-LOCAL-SERVICE-GO"
-    assert "temporalio is absent" in " ".join(tlr01["blocking_evidence"])
-    assert "temporal CLI is unavailable" in " ".join(tlr01["blocking_evidence"])
+    assert tlr01["completion_evidence"]["focused_result"] == "20 passed"
+    assert tlr01["completion_evidence"]["health_readback"].startswith("SERVING")
+    assert "completed exactly once" in tlr01["completion_evidence"]["persistence_result"]
+    assert "no 127.0.0.1:7233 listener remained" in tlr01["completion_evidence"]["cleanup_result"]
 
     local_gate = gates["TLR-LOCAL-SERVICE-GO"]
-    assert local_gate["status"] == "gated_missing_capability_and_operator_go"
-    assert "Do not install dependencies" in local_gate["safe_default"]
-    assert "PDE-01-definition-schema-validator" in tlr["recommended_next_step"]
+    assert local_gate["status"] == "used_for_TLR_01_process_stopped"
+    assert local_gate["blocks"] == ["real process portions of TLR-08"]
+    assert "Keep every Temporal process stopped" in local_gate["safe_default"]
+    assert "TLR-02-abc-manifest-and-run-start" in tlr["recommended_next_step"]
 
 
 def test_pde01_completion_routes_serially_to_pde02() -> None:

@@ -5,7 +5,7 @@
   "title": "Temporal Light Agent Execution Roadmap",
   "created_at": "2026-07-13",
   "updated_at": "2026-07-15",
-  "status": "active_serial_TLR_01_environment_gate",
+  "status": "active_serial_TLR_02_ready",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
   "planning_dependency": "docs/plans/planning-definition-editor-roadmap.json",
@@ -603,7 +603,7 @@
     },
     {
       "id": "TLR-01-temporal-light-local-runtime",
-      "status": "blocked_environment",
+      "status": "done_local_runtime_focused_and_restart_tested",
       "class": "repo_only",
       "owner": "Bob",
       "depends_on": [
@@ -642,14 +642,24 @@
       ],
       "gate": {
         "id": "TLR-LOCAL-SERVICE-GO",
-        "safe_default": "Config and fake tests only; do not start a background service until the local process action is approved for the test window."
+        "safe_default": "The TLR-01 process window is consumed and every slice-owned process is stopped; require a fresh bounded window for the real-process portion of TLR-08."
       },
-      "blocking_evidence": [
-        "temporalio is absent from the repository venv",
-        "the temporal CLI is unavailable on PATH",
-        "dependency installation and local background-service start are outside the current repo-only authority",
-        "requirements.txt contains a pre-existing foreign pygame-ce hunk and remains read-only"
+      "authorization_evidence": [
+        "the user granted TLR-LOCAL-SERVICE-GO with network, SDK/CLI installation and a local development-server start",
+        "temporalio 1.30.0 was selected from the official PyPI release and installed in the repository venv",
+        "Temporal CLI 1.8.0 was selected from the official Windows amd64 release and its published SHA-256 was verified",
+        "the existing foreign pygame-ce requirements hunk remains protected under an exact owned-hunk claim"
       ],
+      "completion_evidence": {
+        "sdk_import": "temporalio 1.30.0 imported from the repository venv",
+        "cli_install": "Temporal CLI 1.8.0 Windows amd64 archive matched the official SHA-256 before extraction",
+        "focused_result": "20 passed",
+        "health_readback": "SERVING at 127.0.0.1:7233",
+        "persistence_result": "workflow tlr01-persistence-sar12h-r148 was waiting before and after a real server restart against the same db, then completed exactly once",
+        "bind_result": "netstat observed only 127.0.0.1:7233 for the server listener",
+        "cleanup_result": "both slice-owned Temporal process ids were stopped and no 127.0.0.1:7233 listener remained",
+        "privacy": "only bounded status and redacted path evidence was persisted; raw history and private absolute paths were not stored"
+      },
       "done_when": "PASS only if the pinned SDK imports, localhost health succeeds, a test workflow survives a server restart through the db file and the runbook states development-only without qualification.",
       "stop_rules": [
         "Stop if the CLI is unavailable and installing it exceeds the approved slice.",
@@ -1250,12 +1260,12 @@
     {
       "id": "TLR-LOCAL-SERVICE-GO",
       "class": "needs_operator_go",
-      "status": "gated_missing_capability_and_operator_go",
+      "status": "used_for_TLR_01_process_stopped",
       "blocks": [
-        "real process portions of TLR-01 and TLR-08"
+        "real process portions of TLR-08"
       ],
-      "decision_needed": "Provide or approve the exact temporalio SDK and Temporal CLI versions and their installation source, then approve localhost process, persistent db path, ports, time window and cleanup owner.",
-      "safe_default": "Do not install dependencies or start a Temporal process; keep TLR-01 blocked_environment and continue the dependency-safe PDE-01 frontier.",
+      "decision_needed": "Provide a fresh bounded process window only when the real-process portion of TLR-08 becomes dependency-ready.",
+      "safe_default": "Keep every Temporal process stopped while TLR-02 through TLR-07 use fakes or SDK test environments.",
       "risk_if_bypassed": "An unmanaged background service or externally reachable development server could remain running."
     },
     {
@@ -1320,5 +1330,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_tlr_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "TLR-01 is blocked_environment because temporalio and the Temporal CLI are absent and local installation or service authority is not granted. Do not mutate its product paths, install dependencies or start a process. Continue with PDE-01-definition-schema-validator under the Harbor Planning master; return to TLR-01 only after the exact SDK, CLI and TLR-LOCAL-SERVICE-GO inputs are authorized."
+  "recommended_next_step": "Release and commit TLR-01, then claim TLR-02-abc-manifest-and-run-start because PDE-04 is already complete. Use a fake Temporal client and do not start a real Worker or expose a live run API."
 }
