@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only",
   "state": "running",
-  "revision": 143,
+  "revision": 144,
   "resumed_at": "2026-07-15T07:08:35.5258180+02:00",
   "resume_authority": "user_directed_goal_restart_TLR_then_next_roadmap",
   "paused_at": null,
@@ -110,49 +110,50 @@
   },
   "active_claims": [
     {
-      "claim_id": "sar-12h-20260714t092106:PMCP-9-definition-service-contract",
+      "claim_id": "sar-12h-20260714t092106:PMCP-9-internal-transport-policy",
       "run_id": "sar-12h-20260714t092106",
       "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
       "slice_id": "PMCP-9-definition-runtime-separation",
       "owner": "/root",
       "allowed_paths": [
         "docs/plans/system-assurance-runtime-hardening-run-state.json",
-        "src/planning_mcp_service.py",
-        "tests/test_planning_mcp_service.py"
+        "mcp_servers/planning_server.py",
+        "src/mcp_server_tool_policy.py",
+        "tests/test_mcp_planning_server.py",
+        "tests/test_mcp_server_tool_policy.py"
       ],
-      "hotfiles": [
-        "src/planning_mcp_service.py"
-      ],
+      "hotfiles": [],
       "state": "active",
-      "acquired_at": "2026-07-15T08:22:38.5571767+02:00",
-      "lease_expires_at": "2026-07-15T10:22:38.5571767+02:00",
+      "acquired_at": "2026-07-15T08:38:25.1667099+02:00",
+      "lease_expires_at": "2026-07-15T10:38:25.1667099+02:00",
       "handoff_required": false,
       "handoff_evidence": [
-        "PDE-04 is green and committed as d8f89edc; PDE-05 is parked at the HPA-PLANNING-UX-ACCEPTANCE design gate",
-        "the Planning MCP roadmap explicitly selects PMCP-9 as the next dependency-safe non-UI slice after PDE-01 and PDE-04",
+        "the PMCP-9 definition service core is green and committed as a412f28f",
+        "all four internal transport and policy paths are tracked and clean at claim time",
         "the live agent inventory contains only /root; no parallel agent or same-checkout claimant is active",
-        "src/planning_mcp_service.py has a pre-existing foreign 10-added/3-removed canonical-kind alias diff whose full working-copy fingerprint is recorded",
-        "tests/test_planning_mcp_service.py has a pre-existing foreign 21-added/1-removed alias-contract diff whose full working-copy fingerprint is recorded",
-        "the foreign hunks must remain unstaged; this subclaim owns only new definition-boundary service and test hunks",
-        "PMCP-9 may expose a non-launching handoff but may not write real Planning data, read runtime state, start Agent or Temporal, or select a runtime skill/model"
+        "the pre-existing foreign Planning service and test alias hunks remain unstaged with their original 10/3 and 21/1 numstat and are excluded from this claim",
+        "the target inventory replaces planning_gate_status with planning_read_gate_definitions and planning_create_agent_handoff while retaining planning_gate_status and planning_mark_status only as zero-side-effect compatibility dispatch",
+        "no transport handler may start Agent or Temporal, mutate Planning, read runtime gate state, or select a runtime skill/model"
       ],
       "path_fingerprints_sha256": {
-        "docs/plans/system-assurance-runtime-hardening-run-state.json": "dcaa96a4c22deca3b97578c9c3fd51523b1cecda052a1bbfd9334b4dc0f96b18",
-        "src/planning_mcp_service.py": "71ed29a688a1c09326566a6d7770a1333066b3bc88d819d0daa57a8848d014c1",
-        "tests/test_planning_mcp_service.py": "2c308f2b1449c58e8dd12bc6c3b82b7e7f3fdfab21919d881cd537b3344ff377"
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "8303a32ce7ed196648cb1b1993f1ac7f4fc98743098b9a89575b0178a63cc86b",
+        "mcp_servers/planning_server.py": "62d2c944ea64abdcf23cedb8b3b0a6cdaf4e25fb096168436d8257cdb6086660",
+        "src/mcp_server_tool_policy.py": "d43db42b62c90f6c9b97301de0f5b1196b5890d0b69074b0c817ebb0f2b37da0",
+        "tests/test_mcp_planning_server.py": "56a7f2e9dd3f9667b62621ec7af68f016a245465f1b177c403d5b052a572b21a",
+        "tests/test_mcp_server_tool_policy.py": "237f38227e51f0b7ad94adc91ca6784b9581cf31866155e39779821102edfb7c"
       },
       "evidence_contract": {
         "target_environment": "local",
-        "observed_at": "2026-07-15T08:22:38.5571767+02:00",
+        "observed_at": "2026-07-15T08:38:25.1667099+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
-          "recursive_runtime_denylist_rejection",
-          "definition_only_gate_projection",
-          "exact_non_launching_handoff",
-          "deprecated_tool_zero_mutation",
-          "definition_only_event_metadata",
-          "foreign_hunks_remain_unstaged"
+          "target_tool_inventory",
+          "definition_store_fail_closed",
+          "definition_gate_transport_projection",
+          "non_launching_handoff_transport",
+          "deprecated_tool_zero_mutation_dispatch",
+          "policy_surface_matches_inventory"
         ],
         "temporal_window": "none",
         "positive_path_required": true
@@ -160,6 +161,24 @@
     }
   ],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:PMCP-9-definition-service-contract",
+      "slice_id": "PMCP-9-definition-runtime-separation",
+      "owner": "/root",
+      "state": "released_service_core_green_committed_transport_pending",
+      "acquired_at": "2026-07-15T08:22:38.5571767+02:00",
+      "released_at": "2026-07-15T08:38:25.1667099+02:00",
+      "commit": "a412f28f",
+      "evidence": [
+        "92 Planning service tests passed with one expected skip",
+        "every Definition v2 runtime denylist key and every gate runtime decision key is recursively rejected",
+        "gate reads return only immutable requirements, targets, safe defaults and exact revision/hash identity",
+        "Agent handoff output is exact, hash-pinned, launch_authorized=false and contains no skill, model, workflow or command field",
+        "legacy planning_mark_status and planning_gate_status responses are deterministic, read-only and perform zero writes",
+        "definition event inputs reject progress, checkpoint and runtime gate events while audit and notification candidates contain definition metadata only",
+        "the staged commit excluded all pre-existing foreign alias hunks; they remain unstaged with the original fingerprints"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:PDE-04-agent-handoff",
       "slice_id": "PDE-04-agent-handoff-envelope",
@@ -2278,6 +2297,11 @@
   ],
   "partial_slices": [
     {
+      "slice_id": "PMCP-9-definition-runtime-separation",
+      "state": "service_core_green_transport_claimed",
+      "next_evidence": "Wire the exact internal tool inventory and policy, then claim the external plugin and route surfaces serially before the declared combined PMCP-9 integration test."
+    },
+    {
       "slice_id": "SAR-01-binding-ci-and-publish-provenance",
       "state": "blocked_environment",
       "next_evidence": "Resume only at a declared integration point when the unchanged repository suite can run in a symlink-capable environment without diagnostic deselections. Do not request Docker repeatedly, quarantine the tests or continue probe cycles."
@@ -2780,9 +2804,9 @@
   "live_go_ledger": [],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T08:22:38.5571767+02:00",
-    "summary": "PDE-04 is green and committed. PDE-05 is parked at its explicit UX-acceptance design gate, so the master queue advanced to PMCP-9. One serialized subclaim now owns only the Planning MCP definition-boundary service and focused test hunks; pre-existing alias hunks are fingerprinted foreign work.",
-    "resume_cursor": "implement_PMCP_9_definition_service_contract_preserving_foreign_alias_hunks",
+    "last_durable_progress_at": "2026-07-15T08:38:25.1667099+02:00",
+    "summary": "The PMCP-9 Definition v2 service core is green and committed. Foreign Planning alias hunks remain unstaged and unchanged. One new serialized claim owns only the clean internal MCP transport and policy paths needed to expose definition gate reads, non-launching handoff and deprecated zero-side-effect compatibility dispatch.",
+    "resume_cursor": "implement_PMCP_9_internal_transport_and_policy_inventory",
     "resume_priority": [
       "PMCP-9-definition-runtime-separation"
     ],
