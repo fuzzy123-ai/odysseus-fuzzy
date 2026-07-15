@@ -154,6 +154,22 @@ class ControlRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class EffectRecord:
+    effect_id: str
+    scope: AuthorityScope
+    claim_id: str
+    activity_type: str
+    input_digest: str
+    attempt: int
+    lease_fence: int
+    status: str
+    reserved_at: str
+    completed_at: str | None
+    result_ref: str | None
+    failure_code: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class AdmissionLimits:
     max_global_active: int
     max_owner_active: int
@@ -360,6 +376,188 @@ class HeadlessWriteAgentStateStore:
                 "SELECT * FROM hwa_claims WHERE scope_key = ?", (scope.key,)
             ).fetchone()
             return self._claim_from_row(row) if row is not None else None
+
+    def get_effect(self, effect_id: str) -> EffectRecord | None:
+        normalized_effect = _effect_id(effect_id, "effect_id")
+        with self._read() as connection:
+            row = connection.execute(
+                "SELECT * FROM hwa_effect_receipts WHERE effect_id = ?",
+                (normalized_effect,),
+            ).fetchone()
+            return self._effect_from_row(row) if row is not None else None
+
+    def reserve_effect(
+        self,
+        scope: AuthorityScope,
+        *,
+        claim_id: str,
+        fence: int,
+        effect_id: str,
+        activity_type: str,
+        input_digest: str,
+        attempt: int,
+    ) -> EffectRecord:
+        """Reserve one idempotent effect under the current fenced claim.
+
+        A timed-out reservation may be recovered only by a later current fence.
+        Terminal receipts are immutable and returned for exact duplicate delivery.
+        """
+
+        normalized_claim = _effect_id(claim_id, "claim_id")
+        normalized_effect = _effect_id(effect_id, "effect_id")
+        normalized_type = _opaque_id(activity_type, "activity_type")
+        normalized_digest = _effect_id(input_digest, "input_digest")
+        normalized_attempt = _positive_attempt(attempt)
+        now = self._now()
+        with self._write() as connection:
+            self._assert_effect_allowed(connection, scope)
+            self._assert_current_claim(
+                connection,
+                scope,
+                normalized_claim,
+                fence,
+                now=now,
+            )
+            existing = connection.execute(
+                "SELECT * FROM hwa_effect_receipts WHERE effect_id = ?",
+                (normalized_effect,),
+            ).fetchone()
+            if existing is not None:
+                if (
+                    existing["scope_key"] != scope.key
+                    or existing["activity_type"] != normalized_type
+                    or existing["input_digest"] != normalized_digest
+                    or int(existing["attempt"]) != normalized_attempt
+                ):
+                    _fail("effect_conflict", "effect identity was rebound")
+                existing_fence = int(existing["lease_fence"])
+                if existing["status"] != "reserved":
+                    return self._effect_from_row(existing)
+                if existing_fence > fence:
+                    _fail("stale_fence", "effect is reserved by a later fence")
+                if existing_fence < fence:
+                    connection.execute(
+                        """
+                        UPDATE hwa_effect_receipts
+                        SET claim_id = ?, lease_fence = ?, reserved_at = ?
+                        WHERE effect_id = ?
+                        """,
+                        (
+                            normalized_claim,
+                            _positive_fence(fence),
+                            _format_time(now),
+                            normalized_effect,
+                        ),
+                    )
+                return self._effect_from_row(
+                    connection.execute(
+                        "SELECT * FROM hwa_effect_receipts WHERE effect_id = ?",
+                        (normalized_effect,),
+                    ).fetchone()
+                )
+            connection.execute(
+                """
+                INSERT INTO hwa_effect_receipts(
+                    effect_id, scope_key, owner_id, repo_id, task_id, plan_id,
+                    slice_id, agent_run_id, claim_id, activity_type,
+                    input_digest, attempt, lease_fence, status, reserved_at,
+                    completed_at, result_ref, failure_code
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?, NULL, NULL, NULL)
+                """,
+                (
+                    normalized_effect,
+                    scope.key,
+                    *self._scope_values(scope),
+                    normalized_claim,
+                    normalized_type,
+                    normalized_digest,
+                    normalized_attempt,
+                    _positive_fence(fence),
+                    _format_time(now),
+                ),
+            )
+            return self._effect_from_row(
+                connection.execute(
+                    "SELECT * FROM hwa_effect_receipts WHERE effect_id = ?",
+                    (normalized_effect,),
+                ).fetchone()
+            )
+
+    def complete_effect(
+        self,
+        scope: AuthorityScope,
+        *,
+        claim_id: str,
+        fence: int,
+        effect_id: str,
+        status: str,
+        result_ref: str | None = None,
+        failure_code: str | None = None,
+    ) -> EffectRecord:
+        """Persist a terminal receipt only while the completing fence is current."""
+
+        normalized_claim = _effect_id(claim_id, "claim_id")
+        normalized_effect = _effect_id(effect_id, "effect_id")
+        normalized_status = _literal(
+            status, ("succeeded", "failed", "cancelled"), "effect_status"
+        )
+        normalized_result = (
+            _opaque_id(result_ref, "result_ref") if result_ref is not None else None
+        )
+        normalized_failure = (
+            _opaque_id(failure_code, "failure_code") if failure_code is not None else None
+        )
+        if normalized_status == "succeeded" and normalized_result is None:
+            _fail("invalid_effect_receipt", "succeeded effect requires result_ref")
+        if normalized_status != "succeeded" and normalized_failure is None:
+            _fail("invalid_effect_receipt", "failed or cancelled effect requires failure_code")
+        now = self._now()
+        with self._write() as connection:
+            self._assert_current_claim(
+                connection,
+                scope,
+                normalized_claim,
+                fence,
+                now=now,
+            )
+            row = connection.execute(
+                "SELECT * FROM hwa_effect_receipts WHERE effect_id = ?",
+                (normalized_effect,),
+            ).fetchone()
+            if row is None:
+                _fail("effect_missing", "effect must be reserved before completion")
+            if row["scope_key"] != scope.key:
+                _fail("effect_conflict", "effect belongs to another scope")
+            if row["status"] != "reserved":
+                if (
+                    row["status"] == normalized_status
+                    and row["result_ref"] == normalized_result
+                    and row["failure_code"] == normalized_failure
+                ):
+                    return self._effect_from_row(row)
+                _fail("effect_terminal", "terminal effect receipt is immutable")
+            if row["claim_id"] != normalized_claim or int(row["lease_fence"]) != fence:
+                _fail("stale_fence", "effect reservation belongs to another fence")
+            connection.execute(
+                """
+                UPDATE hwa_effect_receipts
+                SET status = ?, completed_at = ?, result_ref = ?, failure_code = ?
+                WHERE effect_id = ?
+                """,
+                (
+                    normalized_status,
+                    _format_time(now),
+                    normalized_result,
+                    normalized_failure,
+                    normalized_effect,
+                ),
+            )
+            return self._effect_from_row(
+                connection.execute(
+                    "SELECT * FROM hwa_effect_receipts WHERE effect_id = ?",
+                    (normalized_effect,),
+                ).fetchone()
+            )
 
     def issue_capability(self, capability: ApprovalCapability) -> CapabilityRecord:
         if not isinstance(capability, ApprovalCapability):
@@ -885,6 +1083,28 @@ class HeadlessWriteAgentStateStore:
                     recorded_at TEXT NOT NULL,
                     payload_json TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS hwa_effect_receipts(
+                    effect_id TEXT PRIMARY KEY,
+                    scope_key TEXT NOT NULL,
+                    owner_id TEXT NOT NULL,
+                    repo_id TEXT NOT NULL,
+                    task_id TEXT NOT NULL,
+                    plan_id TEXT NOT NULL,
+                    slice_id TEXT NOT NULL,
+                    agent_run_id TEXT NOT NULL,
+                    claim_id TEXT NOT NULL,
+                    activity_type TEXT NOT NULL,
+                    input_digest TEXT NOT NULL,
+                    attempt INTEGER NOT NULL CHECK(attempt > 0),
+                    lease_fence INTEGER NOT NULL CHECK(lease_fence > 0),
+                    status TEXT NOT NULL CHECK(status IN ('reserved', 'succeeded', 'failed', 'cancelled')),
+                    reserved_at TEXT NOT NULL,
+                    completed_at TEXT,
+                    result_ref TEXT,
+                    failure_code TEXT
+                );
+                CREATE INDEX IF NOT EXISTS hwa_effect_scope_idx
+                    ON hwa_effect_receipts(scope_key, status, lease_fence);
                 CREATE TABLE IF NOT EXISTS hwa_controls(
                     control_key TEXT PRIMARY KEY,
                     level TEXT NOT NULL CHECK(level IN ('owner', 'repo', 'run')),
@@ -1232,6 +1452,22 @@ class HeadlessWriteAgentStateStore:
             consumed_at=row["consumed_at"],
         )
 
+    def _effect_from_row(self, row: sqlite3.Row) -> EffectRecord:
+        return EffectRecord(
+            effect_id=row["effect_id"],
+            scope=self._scope_from_row(row),
+            claim_id=row["claim_id"],
+            activity_type=row["activity_type"],
+            input_digest=row["input_digest"],
+            attempt=int(row["attempt"]),
+            lease_fence=int(row["lease_fence"]),
+            status=row["status"],
+            reserved_at=row["reserved_at"],
+            completed_at=row["completed_at"],
+            result_ref=row["result_ref"],
+            failure_code=row["failure_code"],
+        )
+
     @staticmethod
     def _control_from_row(row: sqlite3.Row) -> ControlRecord:
         return ControlRecord(
@@ -1379,6 +1615,12 @@ def _bounded_limit(value: Any, field: str) -> int:
 def _positive_fence(value: Any) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         _fail("invalid_fence", "fence must be a positive integer")
+    return value
+
+
+def _positive_attempt(value: Any) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 1_000:
+        _fail("invalid_attempt", "attempt must be an integer from 1 through 1000")
     return value
 
 

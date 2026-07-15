@@ -18,6 +18,17 @@ from temporalio.common import RetryPolicy
 
 WORKFLOW_NAME = "OdysseusABCExecutionWorkflow"
 EXECUTE_SLICE_ACTIVITY = "odysseus.temporal_light.execute_slice"
+ACTIVITY_NON_RETRYABLE_ERROR_TYPES = (
+    "scope_violation",
+    "owner_mismatch",
+    "plan_revision_conflict",
+    "claim_collision",
+    "stale_fence",
+    "live_go_missing",
+    "secret_detected",
+    "invalid_manifest",
+    "cancelled_by_operator",
+)
 EXECUTION_MANIFEST_SCHEMA_ID = "odysseus.abc.execution_manifest.v1"
 MAX_PROJECTED_EVENTS_PER_SEGMENT = 2_000
 MAX_SEGMENT_SECONDS = 6 * 60 * 60
@@ -358,8 +369,16 @@ class ABCExecutionWorkflow:
                             "node_id": node_id,
                             "history_segment": state.history_segment,
                         },
-                        start_to_close_timeout=timedelta(seconds=90),
-                        retry_policy=RetryPolicy(maximum_attempts=1),
+                        schedule_to_close_timeout=timedelta(seconds=10_800),
+                        start_to_close_timeout=timedelta(seconds=5_400),
+                        heartbeat_timeout=timedelta(seconds=90),
+                        retry_policy=RetryPolicy(
+                            initial_interval=timedelta(seconds=5),
+                            backoff_coefficient=2.0,
+                            maximum_interval=timedelta(seconds=300),
+                            maximum_attempts=3,
+                            non_retryable_error_types=ACTIVITY_NON_RETRYABLE_ERROR_TYPES,
+                        ),
                     )
                 )
                 state.mark_running(node_id)

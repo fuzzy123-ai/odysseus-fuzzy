@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+from datetime import timedelta
 import inspect
 from collections.abc import Callable, Sequence
 from types import ModuleType
@@ -37,6 +38,8 @@ FORBIDDEN_WORKFLOW_CALLS = (
     "datetime.utcnow",
     "open",
 )
+ACTIVITY_HEARTBEAT_THROTTLE = timedelta(seconds=30)
+ACTIVITY_CANCELLATION_GRACE = timedelta(seconds=300)
 
 
 class WorkflowRegistrationError(ValueError):
@@ -103,6 +106,9 @@ def create_temporal_worker(
         activities=list(activities),
         max_concurrent_activities=max_concurrent_activities,
         max_concurrent_workflow_tasks=3,
+        max_heartbeat_throttle_interval=ACTIVITY_HEARTBEAT_THROTTLE,
+        default_heartbeat_throttle_interval=ACTIVITY_HEARTBEAT_THROTTLE,
+        graceful_shutdown_timeout=ACTIVITY_CANCELLATION_GRACE,
     )
 
 
