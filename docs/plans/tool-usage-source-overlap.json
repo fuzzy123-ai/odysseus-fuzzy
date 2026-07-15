@@ -1,0 +1,271 @@
+{
+  "aggregate_only": true,
+  "classification_counts": {
+    "coverage_only": 2,
+    "domain_audit": 2,
+    "not_usage": 1,
+    "primary_candidate": 1
+  },
+  "counting_policy": {
+    "independent_invocation_total": null,
+    "legacy_counts_are_coverage_evidence": true,
+    "may_sum_across_sources": false,
+    "primary_signal_boundary": "execute_tool_block"
+  },
+  "privacy": {
+    "direct_identifiers_visible": false,
+    "raw_content_visible": false,
+    "raw_records_read": false
+  },
+  "schema_version": "odysseus.tool_usage_source_overlap.v1",
+  "snapshot_date": "2026-07-13",
+  "source_count": 6,
+  "sources": [
+    {
+      "classification": "coverage_only",
+      "historically_missing_fields": [
+        "canonical_analytics_id",
+        "consistent_invocation_id",
+        "normalized_terminal_status"
+      ],
+      "key_capabilities": [
+        "run_reference",
+        "tool_name"
+      ],
+      "observed_counts": {
+        "runs": 111,
+        "tool_names": 43,
+        "tool_outputs": 606,
+        "tool_starts": 607
+      },
+      "overlap": {
+        "may_sum_with_other_sources": false,
+        "risk": "high",
+        "with_sources": [
+          "ai_lens",
+          "chat_metadata"
+        ]
+      },
+      "privacy_capabilities": {
+        "aggregate_only": true,
+        "content_free": false,
+        "direct_identifiers_visible": false,
+        "raw_content_visible": false
+      },
+      "scope_capabilities": [
+        "agent_run_tool_outputs",
+        "agent_run_tool_starts"
+      ],
+      "source_id": "agent_run_ledger",
+      "status_capabilities": [
+        "output_observed",
+        "start_observed"
+      ],
+      "time_bounds": {
+        "end": "2026-07-05",
+        "start": "2026-06-13"
+      }
+    },
+    {
+      "classification": "not_usage",
+      "historically_missing_fields": [
+        "canonical_analytics_id",
+        "invocation_id",
+        "tool_effect_class",
+        "tool_terminal_status"
+      ],
+      "key_capabilities": [
+        "model_call_reference"
+      ],
+      "observed_counts": {},
+      "overlap": {
+        "may_sum_with_other_sources": false,
+        "risk": "not_applicable",
+        "with_sources": []
+      },
+      "privacy_capabilities": {
+        "aggregate_only": true,
+        "content_free": true,
+        "direct_identifiers_visible": false,
+        "raw_content_visible": false
+      },
+      "scope_capabilities": [
+        "llm_call_count",
+        "model_latency",
+        "token_count"
+      ],
+      "source_id": "ai_activity_ledger",
+      "status_capabilities": [
+        "model_call_status"
+      ],
+      "time_bounds": {
+        "end": null,
+        "start": null
+      }
+    },
+    {
+      "classification": "primary_candidate",
+      "historically_missing_fields": [
+        "complete_global_coverage",
+        "persistent_invocation_id",
+        "versioned_terminal_status"
+      ],
+      "key_capabilities": [
+        "hashed_tool_reference"
+      ],
+      "observed_counts": {},
+      "overlap": {
+        "may_sum_with_other_sources": false,
+        "risk": "high",
+        "with_sources": [
+          "agent_run_ledger",
+          "chat_metadata",
+          "mcp_audit"
+        ]
+      },
+      "privacy_capabilities": {
+        "aggregate_only": true,
+        "content_free": true,
+        "direct_identifiers_visible": false,
+        "raw_content_visible": false
+      },
+      "scope_capabilities": [
+        "execute_tool_block_boundary",
+        "optional_tool_lifecycle_events"
+      ],
+      "source_id": "ai_lens",
+      "status_capabilities": [
+        "tool_call_result",
+        "tool_call_started"
+      ],
+      "time_bounds": {
+        "end": null,
+        "start": null
+      }
+    },
+    {
+      "classification": "coverage_only",
+      "historically_missing_fields": [
+        "canonical_analytics_id",
+        "duration_ms",
+        "invocation_id",
+        "normalized_terminal_status"
+      ],
+      "key_capabilities": [
+        "message_reference",
+        "session_reference",
+        "tool_name"
+      ],
+      "observed_counts": {
+        "messages_with_tool_events": 84,
+        "sessions": 32,
+        "tool_events": 1104,
+        "tool_names": 46
+      },
+      "overlap": {
+        "may_sum_with_other_sources": false,
+        "risk": "high",
+        "with_sources": [
+          "agent_run_ledger",
+          "ai_lens"
+        ]
+      },
+      "privacy_capabilities": {
+        "aggregate_only": true,
+        "content_free": false,
+        "direct_identifiers_visible": false,
+        "raw_content_visible": false
+      },
+      "scope_capabilities": [
+        "chat_message_tool_metadata",
+        "session_coverage"
+      ],
+      "source_id": "chat_metadata",
+      "status_capabilities": [
+        "partial_tool_status"
+      ],
+      "time_bounds": {
+        "end": "2026-06-17",
+        "start": "2026-06-06"
+      }
+    },
+    {
+      "classification": "domain_audit",
+      "historically_missing_fields": [
+        "built_in_coverage",
+        "canonical_analytics_id",
+        "global_invocation_id",
+        "plugin_coverage"
+      ],
+      "key_capabilities": [
+        "argument_shape_hash",
+        "mcp_tool_name"
+      ],
+      "observed_counts": {},
+      "overlap": {
+        "may_sum_with_other_sources": false,
+        "risk": "high",
+        "with_sources": [
+          "ai_lens"
+        ]
+      },
+      "privacy_capabilities": {
+        "aggregate_only": true,
+        "content_free": true,
+        "direct_identifiers_visible": false,
+        "raw_content_visible": false
+      },
+      "scope_capabilities": [
+        "mcp_security_audit",
+        "mcp_tool_subset"
+      ],
+      "source_id": "mcp_audit",
+      "status_capabilities": [
+        "duration",
+        "status"
+      ],
+      "time_bounds": {
+        "end": null,
+        "start": null
+      }
+    },
+    {
+      "classification": "domain_audit",
+      "historically_missing_fields": [
+        "read_only_tool_coverage",
+        "usage_counting_semantics"
+      ],
+      "key_capabilities": [
+        "tool_name",
+        "transaction_reference"
+      ],
+      "observed_counts": {},
+      "overlap": {
+        "may_sum_with_other_sources": false,
+        "risk": "high",
+        "with_sources": [
+          "ai_lens",
+          "mcp_audit"
+        ]
+      },
+      "privacy_capabilities": {
+        "aggregate_only": true,
+        "content_free": true,
+        "direct_identifiers_visible": false,
+        "raw_content_visible": false
+      },
+      "scope_capabilities": [
+        "effectful_transaction_evidence",
+        "recovery_evidence"
+      ],
+      "source_id": "tool_transaction_ledger",
+      "status_capabilities": [
+        "transaction_outcome"
+      ],
+      "time_bounds": {
+        "end": null,
+        "start": null
+      }
+    }
+  ]
+}

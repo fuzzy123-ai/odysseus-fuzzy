@@ -9,23 +9,23 @@
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 1,
+    "safe_open_json_slices": 0,
     "unique_live_gates": 39,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "priority_queue_active_uix13_semantics_gated_tua0_dependency_ready",
+    "queue_status": "uix13_semantics_gated_json_queue_empty_detail_frontier_tua1_then_tax2",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
-      "tool_taxonomy_registry": "tax0_tax1_completed_catalog_v2_not_activated",
-      "tool_usage_analytics": "tua0_open_capture_and_backfill_default_off"
+      "tool_taxonomy_registry": "tax0_tax1_completed_tax2_dependency_ready_catalog_v2_not_activated",
+      "tool_usage_analytics": "tua0_completed_tua1_selected_capture_and_backfill_default_off"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 1,
+      "safe_open_count": 0,
       "other_open_count": 22,
       "unique_live_gate_count": 39,
       "unique_design_gate_count": 16,
@@ -61,13 +61,15 @@
         "reason": "UIX-ABC13 requires explicit product-semantics confirmation before claim",
         "slice": "UIX-ABC13",
         "user_decision_required": true,
-        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TUA0"
+        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TUA1_then_TAX2"
       },
-      "queue_exhausted": false,
+      "queue_exhausted": true,
+      "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-15"
     },
     "dependency_ready_repo_only_slices": [
-      "TUA0-source-overlap-baseline"
+      "TUA1-privacy-safe-event-contract",
+      "TAX2-canonical-built-in-catalog"
     ],
     "product_semantics_gated_open_slices": [
       "UIX-ABC13"
@@ -805,7 +807,7 @@
       "id": "TUA0-source-overlap-baseline",
       "class": "safe_offline",
       "owner": "/root",
-      "status": "open",
+      "status": "completed",
       "depends_on": [
         "TAX1-descriptor-v2-contract"
       ],
@@ -820,7 +822,15 @@
         "venv\\Scripts\\python.exe scripts\\audit_tool_usage_sources.py --aggregate-only --output docs\\plans\\tool-usage-source-overlap.json"
       ],
       "gate": "none_before_live_activation",
-      "done_when": "A content-free matrix classifies Chat, Agent Run, AI Lens, AI Activity, MCP audit and Tool Transaction sources by coverage and overlap without summing duplicated events or exposing raw records."
+      "done_when": "A content-free matrix classifies Chat, Agent Run, AI Lens, AI Activity, MCP audit and Tool Transaction sources by coverage and overlap without summing duplicated events or exposing raw records.",
+      "completed_at": "2026-07-15T20:59:20.7016288+02:00",
+      "completion_evidence": {
+        "focused_tests": "13 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "deterministic_check": "six sources classified; aggregate-only snapshot byte-matched the builder; no additive invocation total",
+        "historical_baselines": "chat 1104/46/84/32 for 2026-06-06 through 2026-06-17 and agent-run 607/606/43/111 for 2026-06-13 through 2026-07-05 remain separate coverage evidence",
+        "privacy": "raw records were not read; raw content and direct identifiers are explicitly not visible",
+        "live_effects": "no capture, persistence, migration, backfill, export, activation, database, network, provider, deployment or live mutation"
+      }
     }
   ],
   "recommended_execution_order": [
