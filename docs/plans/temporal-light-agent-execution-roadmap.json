@@ -5,7 +5,7 @@
   "title": "Temporal Light Agent Execution Roadmap",
   "created_at": "2026-07-13",
   "updated_at": "2026-07-15",
-  "status": "TLR_08_partial_replay_server_green_worker_recovery_blocked_test_harness",
+  "status": "TLR_07_preview_green_acceptance_pending_TLR_08_blocked_test_harness",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
   "planning_dependency": "docs/plans/planning-definition-editor-roadmap.json",
@@ -1019,7 +1019,7 @@
     },
     {
       "id": "TLR-07-agent-screen-runtime-ui",
-      "status": "planned",
+      "status": "implementation_green_acceptance_pending",
       "class": "repo_only",
       "owner": "Alice",
       "depends_on": [
@@ -1078,7 +1078,41 @@
         "Planning runtime overlay",
         "direct browser-to-Temporal connection",
         "root cutover"
-      ]
+      ],
+      "implementation_evidence": {
+        "observed_at": "2026-07-15T16:30:10.3353846+02:00",
+        "scope": "preview_only",
+        "deliverables": [
+          "existing Agent screen sidecar with pinned Planning revision, run state, deadline, frontier, activities, heartbeat health, gates, claims, evidence and bounded history",
+          "same-origin Agent API adapter for list, projection, history, reconnect and command receipt readback",
+          "server-projected command bar with run-version and idempotency inputs",
+          "explicit fixture catalog for every declared run state and healthy, late, stale and not_expected heartbeat states",
+          "responsive desktop, mobile and 200 percent zoom layouts with 44 pixel mobile controls"
+        ],
+        "verification": [
+          "node --check passed for api.js, agent-operation-fixtures.js, agent-operations.js and the browser contract",
+          "Impeccable deterministic design audit returned zero findings after token and radius alignment",
+          "6 focused Agent browser contracts passed",
+          "the corrected responsive contract passed after visual inspection removed the open-launcher overlap",
+          "21 Agent plus Planning integration contracts passed serially with zero Planning runtime overlay"
+        ],
+        "screenshots": [
+          "Windows temp/odysseus-tlr07-playwright/tlr07-desktop.png",
+          "Windows temp/odysseus-tlr07-playwright/tlr07-mobile.png",
+          "Windows temp/odysseus-tlr07-playwright/tlr07-zoom-200.png"
+        ],
+        "index_integration_handoff": {
+          "state": "local_preview_applied_foreign_baseline_not_commit_eligible",
+          "baseline_sha256": "22e88e0160ddc3aa1c443a5cef79f1c198c95ebb514e5fe422b9608c7bb59f56",
+          "preview_sha256": "40e773c565fadd9f3f22d8ffcd4efbc9a457fe086f22f28829e0de79da777237",
+          "exact_additions": [
+            "agent-operations.css stylesheet reference",
+            "agent-operation-fixtures.js script reference",
+            "agent-operations.js script reference"
+          ],
+          "rule": "Commit the tracked API adapter, standalone modules and browser contract only. Keep the complete untracked foreign index baseline outside commits until its owning V3 baseline handoff is consumed."
+        }
+      }
     },
     {
       "id": "TLR-08-replay-restart-recovery",
@@ -1369,11 +1403,11 @@
     {
       "id": "HPA-AGENT-UX-ACCEPTANCE",
       "class": "needs_design",
-      "status": "design_direction_locked_acceptance_pending",
+      "status": "implementation_green_visual_acceptance_pending",
       "blocks": [
         "TLR-07-agent-screen-runtime-ui"
       ],
-      "decision_needed": "Accept the execution surface within the existing Agent screen at desktop, mobile and 200 percent zoom.",
+      "decision_needed": "Accept the implemented execution sidecar within the existing Agent screen at desktop, mobile and 200 percent zoom. The preview is backed by the committed TLR-06 projection contract and keeps Planning definition-only.",
       "safe_default": "Preview only; no separate dashboard and no root cutover.",
       "risk_if_bypassed": "Operations could become unreadable or drift into Planning."
     },
@@ -1439,5 +1473,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_tlr_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "Proceed with the independent TLR-07 Agent-screen preview under HPA-AGENT-UX-ACCEPTANCE. Keep TLR-08 partial and TLR-09 dependency-blocked until a separately claimed Worker shutdown/replacement diagnostic slice resolves TLR-08-WORKER-RECOVERY-TEST-HARNESS. Keep the real development-server restart behind a fresh bounded TLR-LOCAL-SERVICE-GO."
+  "recommended_next_step": "Obtain HPA-AGENT-UX-ACCEPTANCE for the green TLR-07 preview and consume the V3 index baseline handoff before root cutover. Independently open a diagnostic-only Worker shutdown/replacement slice for TLR-08-WORKER-RECOVERY-TEST-HARNESS; keep TLR-09 dependency-blocked and keep real development-server restart behind a fresh bounded TLR-LOCAL-SERVICE-GO."
 }

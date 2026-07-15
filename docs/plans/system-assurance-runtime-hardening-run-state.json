@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
   "state": "handoff_ready",
-  "revision": 187,
+  "revision": 189,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -119,6 +119,92 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:TLR-07-agent-screen-runtime-ui",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "TLR-07-agent-screen-runtime-ui",
+      "owner": "/root",
+      "allowed_paths": [
+        "static/frontpage-v3/agent-operations.js",
+        "static/frontpage-v3/agent-operations.css",
+        "static/frontpage-v3/agent-operation-fixtures.js",
+        "static/frontpage-v3/index.html",
+        "static/frontpage-v3/api.js",
+        "tests/frontend/harbor-one-agent-operations.spec.js",
+        "docs/plans/temporal-light-agent-execution-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [
+        "static/frontpage-v3/index.html",
+        "static/frontpage-v3/api.js"
+      ],
+      "state": "released_implementation_green_acceptance_and_index_handoff",
+      "acquired_at": "2026-07-15T16:15:24.3231911+02:00",
+      "lease_expires_at": "2026-07-15T18:15:24.3231911+02:00",
+      "handoff_required": true,
+      "handoff_evidence": [
+        "TLR-06 backend projection and six owner-scoped routes are committed and green",
+        "the V3 Calm Control Room direction is the accepted product context",
+        "the tracked API path had no pre-existing dirty hunk",
+        "the untracked foreign V3 index baseline remains outside commits",
+        "only the current thread is active"
+      ],
+      "path_fingerprints_sha256": {
+        "static/frontpage-v3/agent-operations.js": "missing",
+        "static/frontpage-v3/agent-operations.css": "missing",
+        "static/frontpage-v3/agent-operation-fixtures.js": "missing",
+        "static/frontpage-v3/index.html": "22e88e0160ddc3aa1c443a5cef79f1c198c95ebb514e5fe422b9608c7bb59f56",
+        "static/frontpage-v3/api.js": "931c65eeec55863103e96ba8033072167642baf4cde9b1a681667f12daaf2413",
+        "tests/frontend/harbor-one-agent-operations.spec.js": "missing",
+        "docs/plans/temporal-light-agent-execution-roadmap.json": "16b13dbc5143879407823707cbdb7e3ef67474c5ed12059aa8bd782d70991a28",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "66da1a19ab0f97355a81d168a45204202cbc4722571389f452329975a5a64ef8"
+      },
+      "evidence_contract": {
+        "target_environment": "existing Harbor One V3 Agent screen preview",
+        "authority": "repo",
+        "mutation_class": "repo_only_preview",
+        "positive_path_required": true
+      },
+      "forbidden_actions": [
+        "localStorage runtime truth",
+        "direct browser-to-Temporal connection",
+        "Planning runtime overlay",
+        "root cutover",
+        "live worker activation",
+        "repository-wide suite",
+        "push",
+        "foreign baseline commit"
+      ],
+      "released_at": "2026-07-15T16:30:10.3353846+02:00",
+      "release_evidence": {
+        "green_commands": [
+          "node --check static/frontpage-v3/api.js static/frontpage-v3/agent-operation-fixtures.js static/frontpage-v3/agent-operations.js tests/frontend/harbor-one-agent-operations.spec.js => passed",
+          "impeccable detect static/frontpage-v3/agent-operations.css and index.html => zero deterministic findings",
+          "npx playwright test harbor-one-agent-operations.spec.js => 6 passed",
+          "responsive visual correction rerun => 1 passed",
+          "npx playwright test harbor-one-agent-operations.spec.js harbor-one-planning.spec.js => 21 passed"
+        ],
+        "visual_review": "Desktop keeps chat and operation rail separate; mobile and 200 percent zoom use a scroll-safe overlay with no launcher collision and 44 pixel interactive targets.",
+        "boundary": "Planning contains no heartbeat, command, Temporal run or claim projection; runtime truth is not stored in localStorage and browser traffic targets only /api/agent/runs.",
+        "index_handoff": {
+          "baseline_sha256": "22e88e0160ddc3aa1c443a5cef79f1c198c95ebb514e5fe422b9608c7bb59f56",
+          "preview_sha256": "40e773c565fadd9f3f22d8ffcd4efbc9a457fe086f22f28829e0de79da777237",
+          "commit_rule": "Keep the entire untracked index baseline outside this commit; its three local preview references are recorded in the roadmap."
+        },
+        "result_sha256": {
+          "static/frontpage-v3/agent-operations.js": "486f201c9dda060dccc5d78f2e410a04badf704771e0ad35ee1fdb5f76bfa9db",
+          "static/frontpage-v3/agent-operations.css": "a66438d7f94c40c8e510587f162d560a058d056101d53c0bdd6b7e42ef279c53",
+          "static/frontpage-v3/agent-operation-fixtures.js": "2ef4867b9a382225840cc8e5f5687bd3d9827bd1b28bc0ecb83a0526571b8b32",
+          "static/frontpage-v3/api.js": "38668d6ee45696b08c561cb194aa4284acf2b75295e94e3213c032f5f1f291db",
+          "tests/frontend/harbor-one-agent-operations.spec.js": "0e9879d5f8f788df813845aca4609b230e953a63a67cd75c1eefb0359097af4c"
+        },
+        "remaining_gates": [
+          "HPA-AGENT-UX-ACCEPTANCE",
+          "PDE-05-clean-checkout-v3-baseline-integration-handoff"
+        ]
+      }
+    },
     {
       "claim_id": "sar-12h-20260714t092106:TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION",
       "run_id": "sar-12h-20260714t092106",
@@ -4262,19 +4348,20 @@
   ],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T16:11:33.6386129+02:00",
-    "summary": "TLR-08 remains partial: replay, server persistence and idempotency are green, but the minimal one-Update Worker replacement reproduction timed out after the third bounded occurrence. Its exact SDK process was stopped and the evidence lane is parked behind an instrumented test-harness diagnostic gate. The independent TLR-07 Agent preview is now the safe frontier.",
-    "resume_cursor": "TLR-07-agent-screen-runtime-ui",
+    "last_durable_progress_at": "2026-07-15T16:30:10.3353846+02:00",
+    "summary": "TLR-07 Agent operations preview is implementation-green: standalone runtime UI, same-origin API adapter, complete state fixtures and 21 Agent/Planning browser contracts pass. Visual review is clean at desktop, mobile and 200 percent zoom. Completion remains behind HPA Agent UX acceptance and the foreign V3 index baseline handoff; TLR-08 remains independently parked at its Worker test-harness gate.",
+    "resume_cursor": "TLR-08-WORKER-RECOVERY-TEST-HARNESS",
     "resume_priority": [
-      "TLR-07-agent-screen-runtime-ui",
-      "TLR-08-WORKER-RECOVERY-TEST-HARNESS"
+      "TLR-08-WORKER-RECOVERY-TEST-HARNESS",
+      "HPA-AGENT-UX-ACCEPTANCE"
     ],
     "next_runnable_slices": [
-      "TLR-07-agent-screen-runtime-ui:preview_only"
+      "TLR-08-WORKER-RECOVERY-TEST-HARNESS:diagnostic_definition_only"
     ],
     "blocked_slices": [
       "PDE-05-clean-checkout-v3-baseline-integration-handoff",
       "PDE-08-real-save-undo-smoke",
+      "TLR-07-agent-screen-runtime-ui",
       "TLR-08-replay-restart-recovery",
       "TLR-09-24h-time-skipping-acceptance",
       "SAR-01-binding-ci-and-publish-provenance",
@@ -4296,6 +4383,7 @@
   },
   "completion_layers": {
     "implemented": [
+      "TLR-07-agent-screen-runtime-ui",
       "PDE-07-boundary-browser-acceptance",
       "PDE-06-definition-notification-undo",
       "PDE-05-v3-planning-surface",
@@ -4324,6 +4412,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "TLR-07-agent-screen-runtime-ui:6_agent_browser_green_21_agent_planning_integration_green_design_audit_zero_visual_desktop_mobile_zoom_green",
       "TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION:one_update_reproduction_timeout_64_seconds_process_and_listener_cleaned_test_harness_blocked",
       "TLR-08-replay-restart-recovery:1_replay_92_server_and_idempotency_green_worker_restart_test_handoff_after_two_timeouts",
       "IP-PLANNING-CLOSEOUT-CONTRACT-SYNC:21_roadmap_and_queue_contracts_green",

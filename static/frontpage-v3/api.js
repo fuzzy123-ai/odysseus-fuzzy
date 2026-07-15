@@ -157,11 +157,120 @@
     }
   }
 
+  class AgentOperationsApiError extends Error {
+    constructor(code, message, status) {
+      super(message);
+      this.name = 'AgentOperationsApiError';
+      this.code = code;
+      this.status = status || 0;
+    }
+  }
+
+  function assertAgentProjection(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new AgentOperationsApiError('invalid_projection', 'Agent returned an invalid projection.');
+    }
+    if (value.schema_id !== 'odysseus.agent.operation_projection.v1' || !value.run || typeof value.run !== 'object') {
+      throw new AgentOperationsApiError('invalid_projection', 'Agent projection schema is unsupported.');
+    }
+    const collections = ['activities', 'claims', 'gates', 'evidence'];
+    if (collections.some(key => !Array.isArray(value[key]))) {
+      throw new AgentOperationsApiError('invalid_projection', 'Agent projection collections are invalid.');
+    }
+    if (!Array.isArray(value.run.allowed_commands) || !Array.isArray(value.run.current_node_ids)) {
+      throw new AgentOperationsApiError('invalid_projection', 'Agent run controls are invalid.');
+    }
+    return value;
+  }
+
+  class AgentOperationsApi {
+    constructor(options) {
+      const settings = options || {};
+      this.baseUrl = String(settings.baseUrl || '/api/agent/runs').replace(/\/$/, '');
+      this.fetchImpl = settings.fetchImpl || window.fetch.bind(window);
+      this.eventSourceFactory = settings.eventSourceFactory || ((url) => new window.EventSource(url, { withCredentials: true }));
+    }
+
+    async request(path, options) {
+      const settings = options || {};
+      const { headers: requestedHeaders, ...requestOptions } = settings;
+      const response = await this.fetchImpl(this.baseUrl + path, {
+        credentials: 'same-origin',
+        ...requestOptions,
+        headers: { Accept: 'application/json', ...(requestedHeaders || {}) }
+      });
+      let payload;
+      try {
+        payload = await response.json();
+      } catch {
+        throw new AgentOperationsApiError('invalid_response', 'Agent returned a non-JSON response.', response.status);
+      }
+      if (!response.ok) {
+        const detail = payload && (payload.detail || payload.error);
+        throw new AgentOperationsApiError('request_failed', String(detail || `Agent request failed (${response.status}).`), response.status);
+      }
+      return payload;
+    }
+
+    listRuns(options) {
+      const settings = options || {};
+      const query = new URLSearchParams();
+      if (settings.projectId) query.set('project_id', String(settings.projectId));
+      if (settings.state) query.set('state', String(settings.state));
+      if (settings.cursor) query.set('cursor', String(settings.cursor));
+      query.set('limit', String(Math.min(100, Math.max(1, Number(settings.limit) || 50))));
+      return this.request(`?${query}`);
+    }
+
+    async getRun(agentRunId) {
+      return assertAgentProjection(await this.request(`/${identifier(agentRunId, 'agent_run_id')}`));
+    }
+
+    getHistory(agentRunId, options) {
+      const settings = options || {};
+      const query = new URLSearchParams();
+      if (settings.after) query.set('after', String(settings.after));
+      query.set('limit', String(Math.min(200, Math.max(1, Number(settings.limit) || 50))));
+      return this.request(`/${identifier(agentRunId, 'agent_run_id')}/history?${query}`);
+    }
+
+    executeCommand(agentRunId, body) {
+      return this.request(`/${identifier(agentRunId, 'agent_run_id')}/commands`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    }
+
+    streamHistory(agentRunId, options) {
+      const settings = options || {};
+      const query = new URLSearchParams();
+      if (settings.after) query.set('after', String(settings.after));
+      const source = this.eventSourceFactory(`${this.baseUrl}/${identifier(agentRunId, 'agent_run_id')}/stream?${query}`);
+      const onEvent = event => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload && typeof payload.event_id === 'string') settings.onEvent?.(payload);
+        } catch {
+          settings.onError?.(new AgentOperationsApiError('invalid_stream_event', 'Agent stream emitted invalid JSON.'));
+        }
+      };
+      source.addEventListener('agent_operation', onEvent);
+      source.addEventListener('error', () => settings.onError?.(new AgentOperationsApiError('stream_reconnecting', 'Agent history is reconnecting.')));
+      return () => source.close();
+    }
+  }
+
   window.HarborPlanningApi = Object.freeze({
     GATE_RUNTIME_KEYS,
     PlanningApiError,
     PlanningDefinitionApi,
     RUNTIME_KEYS,
     assertDefinitionPayload
+  });
+  window.HarborAgentApi = Object.freeze({
+    AgentOperationsApi,
+    AgentOperationsApiError,
+    assertAgentProjection
   });
 })();
