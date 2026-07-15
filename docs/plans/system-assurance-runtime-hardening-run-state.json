@@ -3,14 +3,14 @@
   "kind": "odysseus.abc_durable_run_state",
   "run_id": "sar-12h-20260714t092106",
   "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
-  "roadmap_id": "temporal-light-agent-execution",
-  "roadmap_path": "docs/plans/temporal-light-agent-execution-roadmap.json",
+  "roadmap_id": "planning-definition-editor",
+  "roadmap_path": "docs/plans/planning-definition-editor-roadmap.json",
   "queue_scope": "named_roadmap",
   "phase": "implementation",
   "supervision": "interactive",
   "mutation_authority": "repo_only",
   "state": "running",
-  "revision": 137,
+  "revision": 139,
   "resumed_at": "2026-07-15T07:08:35.5258180+02:00",
   "resume_authority": "user_directed_goal_restart_TLR_then_next_roadmap",
   "paused_at": null,
@@ -108,8 +108,83 @@
       "the archived-session test-only blocker is claimed as the first resumed slice"
     ]
   },
-  "active_claims": [],
+  "active_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:PDE-02-service-routes",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "PDE-02-definition-read-model-api",
+      "owner": "/root",
+      "allowed_paths": [
+        "docs/plans/system-assurance-runtime-hardening-run-state.json",
+        "docs/plans/planning-definition-editor-roadmap.json",
+        "src/planning_definition_projection.py",
+        "src/planning_revision_store.py",
+        "routes/planning_definition_routes.py",
+        "tests/test_planning_definition_projection.py",
+        "tests/test_planning_v2_routes.py",
+        "tests/test_planning_agent_boundary_roadmaps.py"
+      ],
+      "hotfiles": [],
+      "state": "active",
+      "acquired_at": "2026-07-15T07:31:16.6166628+02:00",
+      "lease_expires_at": "2026-07-15T09:31:16.6166628+02:00",
+      "handoff_required": false,
+      "handoff_evidence": [
+        "PDE-01 is focused green, released and committed as 7cfc9e8845b6bb2edfe9651007e2d6e87147376d",
+        "PDE-02 is the next dependency-safe Planning slice and its service-first safe default is explicit",
+        "the live agent inventory contains only /root; no parallel agent or same-checkout claimant is active",
+        "all five service, route and focused-test implementation paths were absent before claim",
+        "app.py has 20 added and 2 removed foreign lines and is deliberately excluded from this minimum-path claim",
+        "the shared Harbor master, Planning MCP, app.py and all other dirty paths remain read-only"
+      ],
+      "path_fingerprints_sha256": {
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "edd0342e95b585e34b1d6bbb6d19e3c4c34a673982ed5d1e4a3a46ddaf7f01e4",
+        "docs/plans/planning-definition-editor-roadmap.json": "fca92914460a8c02aacf08adac5a0022a29f0a09537626b107f111ae9128235e",
+        "src/planning_definition_projection.py": "missing_before_claim",
+        "src/planning_revision_store.py": "missing_before_claim",
+        "routes/planning_definition_routes.py": "missing_before_claim",
+        "tests/test_planning_definition_projection.py": "missing_before_claim",
+        "tests/test_planning_v2_routes.py": "missing_before_claim",
+        "tests/test_planning_agent_boundary_roadmaps.py": "8b497fa00d24eb6ac1f1b46e7537c8712cdbb19ff86b6c64fbc5ae976594ff2c"
+      },
+      "evidence_contract": {
+        "target_environment": "local",
+        "observed_at": "2026-07-15T07:31:16.6166628+02:00",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "pure_projection",
+          "owner_scoped_cursor_pagination",
+          "five_read_route_contracts",
+          "focused_test",
+          "runtime_denylist_scan",
+          "byte_stable_revision_payload"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true
+      }
+    }
+  ],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:PDE-01",
+      "slice_id": "PDE-01-definition-schema-validator",
+      "owner": "/root",
+      "state": "released_green_committed",
+      "acquired_at": "2026-07-15T07:15:32.6069185+02:00",
+      "released_at": "2026-07-15T07:31:16.6166628+02:00",
+      "commit": "7cfc9e8845b6bb2edfe9651007e2d6e87147376d",
+      "evidence": [
+        "92 focused Planning Definition contract tests passed",
+        "the combined contract and Planning boundary acceptance run passed 99 tests",
+        "the Draft 2020-12 schema passed meta-schema checking and validated the canonical fixture",
+        "every declared runtime key, forbidden execution state and gate-decision field is rejected recursively",
+        "reference, cycle, gate-target, completion, deterministic-hash and approved-immutability failures expose stable reason codes",
+        "the validator is standard-library-only and imports no Agent or Temporal module",
+        "commit 7cfc9e8845b6bb2edfe9651007e2d6e87147376d contains only PDE-01 and Planning boundary paths; no push occurred"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:TLR-01-capability-preflight",
       "slice_id": "TLR-01-temporal-light-local-runtime",
@@ -921,6 +996,21 @@
     }
   ],
   "agent_leases": [
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:PDE-02-service-routes",
+      "state": "active",
+      "leased_at": "2026-07-15T07:31:16.6166628+02:00",
+      "lease_expires_at": "2026-07-15T09:31:16.6166628+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:PDE-01",
+      "state": "completed_green_committed",
+      "leased_at": "2026-07-15T07:15:32.6069185+02:00",
+      "lease_expires_at": "2026-07-15T09:15:32.6069185+02:00",
+      "released_at": "2026-07-15T07:31:16.6166628+02:00"
+    },
     {
       "agent": "/root",
       "claim_id": "sar-12h-20260714t092106:TLR-01-capability-preflight",
@@ -2603,14 +2693,14 @@
   "live_go_ledger": [],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T07:12:04.2988275+02:00",
-    "summary": "TLR-01 reached its declared environment/operator gate before product mutation and is released with commit 95bcbb8e. The SDK, CLI, requirements and runtime paths remain untouched. Per user steering and the Harbor master, PDE-01 is the next dependency-safe roadmap frontier.",
-    "resume_cursor": "preflight_and_claim_PDE_01_definition_schema_validator",
+    "last_durable_progress_at": "2026-07-15T07:31:16.6166628+02:00",
+    "summary": "PDE-01 is green and committed. PDE-02 now has one serialized service-first claim for pure projection, owner-scoped revision reads and five read-route contracts; foreign-dirty app.py is excluded pending a later hotfile sub-claim.",
+    "resume_cursor": "implement_PDE_02_projection_store_and_unregistered_read_routes",
     "resume_priority": [
-      "PDE-01-definition-schema-validator"
+      "PDE-02-definition-read-model-api"
     ],
     "next_runnable_slices": [
-      "PDE-01-definition-schema-validator"
+      "PDE-02-definition-read-model-api"
     ],
     "blocked_slices": [
       "SAR-01-binding-ci-and-publish-provenance",
@@ -2630,6 +2720,7 @@
   },
   "completion_layers": {
     "implemented": [
+      "PDE-01-definition-schema-validator",
       "SAR-LLM-API-DRIFT-FIX",
       "SAR-01-binding-ci-and-publish-provenance",
       "SAR-03-tailscale-cache-expiry",
@@ -2642,6 +2733,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "PDE-01-definition-schema-validator:92_focused_99_combined_boundary",
       "SAR-LLM-API-DRIFT-FIX:217_extended_tests",
       "SAR-01-binding-ci-and-publish-provenance:focused_only_full_suite_environment_gate",
       "SAR-03-tailscale-cache-expiry:focused",
@@ -2655,6 +2747,7 @@
       "SAR-09-measured-optimization-decisions:focused_and_cli"
     ],
     "committed": [
+      "PDE-01-definition-schema-validator:7cfc9e8845b6bb2edfe9651007e2d6e87147376d",
       "SAR-06-model-aware-token-estimation:3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd",
       "SAR-06P-model-hint-hardlimit-propagation:3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd",
       "SAR-04-runtime-topology-contract:bbb58ce7541391e073c33df4ac3a54422f3a66a1",
