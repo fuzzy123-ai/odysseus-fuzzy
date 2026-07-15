@@ -3,14 +3,14 @@
   "kind": "odysseus.abc_durable_run_state",
   "run_id": "sar-12h-20260714t092106",
   "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
-  "roadmap_id": "planning-definition-editor",
-  "roadmap_path": "docs/plans/planning-definition-editor-roadmap.json",
+  "roadmap_id": "planning-mcp",
+  "roadmap_path": "docs/plans/planning-mcp-roadmap.json",
   "queue_scope": "named_roadmap",
   "phase": "implementation",
   "supervision": "interactive",
   "mutation_authority": "repo_only",
   "state": "running",
-  "revision": 142,
+  "revision": 143,
   "resumed_at": "2026-07-15T07:08:35.5258180+02:00",
   "resume_authority": "user_directed_goal_restart_TLR_then_next_roadmap",
   "paused_at": null,
@@ -110,54 +110,49 @@
   },
   "active_claims": [
     {
-      "claim_id": "sar-12h-20260714t092106:PDE-04-agent-handoff",
+      "claim_id": "sar-12h-20260714t092106:PMCP-9-definition-service-contract",
       "run_id": "sar-12h-20260714t092106",
       "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
-      "slice_id": "PDE-04-agent-handoff-envelope",
+      "slice_id": "PMCP-9-definition-runtime-separation",
       "owner": "/root",
       "allowed_paths": [
         "docs/plans/system-assurance-runtime-hardening-run-state.json",
-        "docs/plans/planning-definition-editor-roadmap.json",
-        "src/planning_agent_handoff.py",
-        "routes/planning_definition_routes.py",
-        "tests/test_planning_agent_handoff.py",
-        "tests/test_planning_v2_routes.py",
-        "tests/test_planning_agent_boundary_roadmaps.py"
+        "src/planning_mcp_service.py",
+        "tests/test_planning_mcp_service.py"
       ],
-      "hotfiles": [],
+      "hotfiles": [
+        "src/planning_mcp_service.py"
+      ],
       "state": "active",
-      "acquired_at": "2026-07-15T08:09:38.1178667+02:00",
-      "lease_expires_at": "2026-07-15T10:09:38.1178667+02:00",
+      "acquired_at": "2026-07-15T08:22:38.5571767+02:00",
+      "lease_expires_at": "2026-07-15T10:22:38.5571767+02:00",
       "handoff_required": false,
       "handoff_evidence": [
-        "PDE-03 is temporary-repository green and committed as a10c77f0d29888d905fc3e9d33342f961c54f578",
-        "PDE-04 is the next dependency-safe slice and has no live, write or design gate",
+        "PDE-04 is green and committed as d8f89edc; PDE-05 is parked at the HPA-PLANNING-UX-ACCEPTANCE design gate",
+        "the Planning MCP roadmap explicitly selects PMCP-9 as the next dependency-safe non-UI slice after PDE-01 and PDE-04",
         "the live agent inventory contains only /root; no parallel agent or same-checkout claimant is active",
-        "the handoff implementation and focused-test paths are absent; the route and existing route-test paths are tracked and clean",
-        "app.py still contains exactly 20 added and 2 removed foreign unstaged lines and is excluded from this claim",
-        "the envelope may prepare composer text only; it may not select skills or models, submit /abc or call any Agent run endpoint"
+        "src/planning_mcp_service.py has a pre-existing foreign 10-added/3-removed canonical-kind alias diff whose full working-copy fingerprint is recorded",
+        "tests/test_planning_mcp_service.py has a pre-existing foreign 21-added/1-removed alias-contract diff whose full working-copy fingerprint is recorded",
+        "the foreign hunks must remain unstaged; this subclaim owns only new definition-boundary service and test hunks",
+        "PMCP-9 may expose a non-launching handoff but may not write real Planning data, read runtime state, start Agent or Temporal, or select a runtime skill/model"
       ],
       "path_fingerprints_sha256": {
-        "docs/plans/system-assurance-runtime-hardening-run-state.json": "bc5c5b924ddd874da29ba3ae90accff9b833908c143d6d861f11f20862293782",
-        "docs/plans/planning-definition-editor-roadmap.json": "e0e9168039a9e0287451e0064f3b953942bdf193182bc10e88e463ce489ed332",
-        "src/planning_agent_handoff.py": "missing_before_claim",
-        "routes/planning_definition_routes.py": "68ac77b956cb4d090930be348e6361da62eb0f35ba27d326f9d4c3b788696425",
-        "tests/test_planning_agent_handoff.py": "missing_before_claim",
-        "tests/test_planning_v2_routes.py": "2a750294df5eab8bb2b168f9fad3647ac57c3dbd8e1ae99339e4607d84f5342f",
-        "tests/test_planning_agent_boundary_roadmaps.py": "e1a88b1d246792e542bbb7aa205511c86e7217cd1c7e59554d43867c9a0002aa"
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "dcaa96a4c22deca3b97578c9c3fd51523b1cecda052a1bbfd9334b4dc0f96b18",
+        "src/planning_mcp_service.py": "71ed29a688a1c09326566a6d7770a1333066b3bc88d819d0daa57a8848d014c1",
+        "tests/test_planning_mcp_service.py": "2c308f2b1449c58e8dd12bc6c3b82b7e7f3fdfab21919d881cd537b3344ff377"
       },
       "evidence_contract": {
         "target_environment": "local",
-        "observed_at": "2026-07-15T08:09:38.1178667+02:00",
+        "observed_at": "2026-07-15T08:22:38.5571767+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
-          "exact_approved_revision_and_hash_resolution",
-          "mismatch_and_superseded_rejection",
-          "exact_abc_composer_text",
-          "launch_authorized_false",
-          "forbidden_field_absence",
-          "no_agent_run_endpoint_call"
+          "recursive_runtime_denylist_rejection",
+          "definition_only_gate_projection",
+          "exact_non_launching_handoff",
+          "deprecated_tool_zero_mutation",
+          "definition_only_event_metadata",
+          "foreign_hunks_remain_unstaged"
         ],
         "temporal_window": "none",
         "positive_path_required": true
@@ -165,6 +160,23 @@
     }
   ],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:PDE-04-agent-handoff",
+      "slice_id": "PDE-04-agent-handoff-envelope",
+      "owner": "/root",
+      "state": "released_green_non_launching_committed",
+      "acquired_at": "2026-07-15T08:09:38.1178667+02:00",
+      "released_at": "2026-07-15T08:22:38.5571767+02:00",
+      "commit": "d8f89edc",
+      "evidence": [
+        "51 focused Agent-handoff tests passed",
+        "60 combined Agent-handoff and Planning boundary tests passed",
+        "only the exact current approved positive revision and recomputed canonical content hash produce the envelope",
+        "the exact composer text starts with /abc while launch_authorized is always false and the envelope contains no skill, model, workflow, command or auto-submit field",
+        "superseded, non-approved, mismatched and tampered definitions fail closed",
+        "the implementation imports no Agent run, Temporal or HTTP execution surface and commit d8f89edc contains only PDE-04 paths"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:PDE-03-temp-revision-apply",
       "slice_id": "PDE-03-revision-proposal-apply",
@@ -2768,16 +2780,18 @@
   "live_go_ledger": [],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T08:09:38.1178667+02:00",
-    "summary": "PDE-03 is temporary-repository green and committed with real writes gated. PDE-04 now has one serialized repo-only claim for an exact approved-revision, hash-pinned, composer-only /abc Agent handoff whose launch_authorized value is always false.",
-    "resume_cursor": "implement_PDE_04_hash_pinned_non_launching_agent_handoff",
+    "last_durable_progress_at": "2026-07-15T08:22:38.5571767+02:00",
+    "summary": "PDE-04 is green and committed. PDE-05 is parked at its explicit UX-acceptance design gate, so the master queue advanced to PMCP-9. One serialized subclaim now owns only the Planning MCP definition-boundary service and focused test hunks; pre-existing alias hunks are fingerprinted foreign work.",
+    "resume_cursor": "implement_PMCP_9_definition_service_contract_preserving_foreign_alias_hunks",
     "resume_priority": [
-      "PDE-04-agent-handoff-envelope"
+      "PMCP-9-definition-runtime-separation"
     ],
     "next_runnable_slices": [
-      "PDE-04-agent-handoff-envelope"
+      "PMCP-9-definition-runtime-separation"
     ],
     "blocked_slices": [
+      "PDE-05-ui-states-and-accessibility",
+      "PDE-07-e2e-verification-and-handoff",
       "SAR-01-binding-ci-and-publish-provenance",
       "SAR-02-fresh-release-evidence",
       "SAR-10-release-truth-and-external-proof",
@@ -2798,6 +2812,7 @@
       "PDE-01-definition-schema-validator",
       "PDE-02-definition-read-model-api",
       "PDE-03-revision-proposal-apply",
+      "PDE-04-agent-handoff-envelope",
       "SAR-LLM-API-DRIFT-FIX",
       "SAR-01-binding-ci-and-publish-provenance",
       "SAR-03-tailscale-cache-expiry",
@@ -2814,6 +2829,7 @@
       "PDE-02-definition-read-model-api-service:35_focused_42_combined_boundary",
       "PDE-02-definition-read-model-api-registered:36_focused_43_combined_boundary",
       "PDE-03-revision-proposal-apply:38_focused_154_combined_contract",
+      "PDE-04-agent-handoff-envelope:51_focused_60_combined_boundary",
       "SAR-LLM-API-DRIFT-FIX:217_extended_tests",
       "SAR-01-binding-ci-and-publish-provenance:focused_only_full_suite_environment_gate",
       "SAR-03-tailscale-cache-expiry:focused",
@@ -2831,6 +2847,7 @@
       "PDE-02-definition-read-model-api-service:5d58ea7f70f64a0ab5a70269678b284bd57345cc",
       "PDE-02-definition-read-model-api-registered:522dff385637602295703e98b83a7fd5169d0903",
       "PDE-03-revision-proposal-apply:a10c77f0d29888d905fc3e9d33342f961c54f578",
+      "PDE-04-agent-handoff-envelope:d8f89edc",
       "SAR-06-model-aware-token-estimation:3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd",
       "SAR-06P-model-hint-hardlimit-propagation:3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd",
       "SAR-04-runtime-topology-contract:bbb58ce7541391e073c33df4ac3a54422f3a66a1",
