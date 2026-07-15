@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
   "state": "running",
-  "revision": 161,
+  "revision": 163,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -110,6 +110,69 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:TLR-05-workflow-messages",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "TLR-05-signals-updates-idempotency",
+      "owner": "/root",
+      "allowed_paths": [
+        "src/temporal_runtime/workflows.py",
+        "src/temporal_runtime/commands.py",
+        "tests/test_temporal_workflow_messages.py",
+        "tests/test_temporal_command_idempotency.py",
+        "docs/plans/temporal-light-agent-execution-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [
+        "src/temporal_runtime/workflows.py"
+      ],
+      "state": "released_messages_idempotency_green_committed_local_processes_stopped",
+      "acquired_at": "2026-07-15T12:35:42.0409569+02:00",
+      "lease_expires_at": "2026-07-15T14:35:42.0409569+02:00",
+      "released_at": "2026-07-15T13:00:25.1593287+02:00",
+      "commit": "6a9aff46",
+      "handoff_required": false,
+      "handoff_evidence": [
+        "TLR-03 and TLR-04 are green, committed and released",
+        "only the current task is active in this checkout; task 019f5c7d-dddf-7252-8dca-254858f80408 is not loaded and remains untouched",
+        "workflows.py and both roadmap state files are clean at claim time; commands.py and both matching test files are absent",
+        "the slice has no runtime, provider, repository-effect, Docker, production or push gate",
+        "test-environment Query, Update and Signal messages are the only authorized effects"
+      ],
+      "path_fingerprints_sha256": {
+        "src/temporal_runtime/workflows.py": "f777a4e0165ba10bd5a5f29b94f8cdbb3f74789372176a6e25507ccfa054d0c6",
+        "src/temporal_runtime/commands.py": "absent",
+        "tests/test_temporal_workflow_messages.py": "absent",
+        "tests/test_temporal_command_idempotency.py": "absent",
+        "docs/plans/temporal-light-agent-execution-roadmap.json": "21e63363f2b2b8803e6c0cf68dc902c111370771a90d01b88ae7d2565324e2ea",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "582a26a8376dd3e55a01994df9aea7e130f17fcafb17634bc7ec53a5e161677e"
+      },
+      "evidence_contract": {
+        "target_environment": "local_test_only",
+        "observed_at": "2026-07-15T12:35:42.0409569+02:00",
+        "required": [
+          "every_legal_and_illegal_update_transition",
+          "command_id_expected_run_version_and_idempotency_key",
+          "duplicate_two_client_command_applies_once",
+          "stale_expected_version_rejected_without_mutation",
+          "bounded_operator_note_and_external_condition_changed_signals",
+          "structural_steer_requires_plan_revision_and_manifest_hash_unchanged",
+          "accepted_update_visible_in_temporal_history",
+          "message_handlers_finished_before_continue_as_new"
+        ]
+      },
+      "release_evidence": [
+        "product commit 6a9aff46 contains only the four claimed source and test paths",
+        "93 focused Query, Update, Signal and command-idempotency tests passed",
+        "75 deterministic workflow, DAG, Activity and authority-adapter compatibility tests passed",
+        "real localhost history contains accepted/completed Updates and both bounded Signals while stale validation left no rejected history event",
+        "two distinct Temporal client Update ids applied one logical command exactly once",
+        "cancel waited for heartbeat-delivered Activity cancellation completion",
+        "all local Temporal processes stopped; no Docker, production, provider, push or repository effect occurred",
+        "the foreign HWA roadmap and handoff remained byte-identical"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:TLR-04-activities-authority",
       "run_id": "sar-12h-20260714t092106",
@@ -1253,6 +1316,14 @@
   "agent_leases": [
     {
       "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:TLR-05-workflow-messages",
+      "state": "completed_messages_idempotency_green_committed_local_processes_stopped",
+      "leased_at": "2026-07-15T12:35:42.0409569+02:00",
+      "lease_expires_at": "2026-07-15T14:35:42.0409569+02:00",
+      "released_at": "2026-07-15T13:00:25.1593287+02:00"
+    },
+    {
+      "agent": "/root",
       "claim_id": "sar-12h-20260714t092106:TLR-04-activities-authority",
       "state": "completed_fenced_activity_green_committed_local_processes_stopped",
       "leased_at": "2026-07-15T12:14:40.7701031+02:00",
@@ -2394,6 +2465,20 @@
   ],
   "completed_slices": [
     {
+      "slice_id": "TLR-05-signals-updates-idempotency",
+      "completion_layer": "repository_implemented_complete_message_matrix_real_local_updates_signals_cancel_tested_committed_processes_stopped",
+      "evidence": [
+        "commit 6a9aff46",
+        "93 focused tests passed across the complete Update state matrix, idempotency, Query and Signals",
+        "75 TLR-03/TLR-04 compatibility tests passed",
+        "two real clients applied one logical command once and received the same receipt",
+        "stale expected version was rejected without state or persisted history mutation",
+        "structural steering required a Planning revision and kept the manifest hash unchanged",
+        "cancel waited for heartbeat-confirmed Activity cancellation",
+        "no Temporal process remained"
+      ]
+    },
+    {
       "slice_id": "TLR-04-activities-claims-heartbeats",
       "completion_layer": "repository_implemented_fenced_activity_focused_compatibility_and_real_local_retry_tested_committed_processes_stopped",
       "evidence": [
@@ -3200,18 +3285,17 @@
   ],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T12:31:35.7672134+02:00",
-    "summary": "TLR-04 is green, locally committed and released. Typed Activities now use the single HWA authority store for fenced claims and effect receipts; local Temporal history proved the pinned heartbeat, timeout and retry contract. TLR-05 is the next dependency-safe serial slice.",
-    "resume_cursor": "TLR-05-signals-updates-idempotency",
+    "last_durable_progress_at": "2026-07-15T13:00:25.1593287+02:00",
+    "summary": "TLR-05 is green, committed and released. Deterministic Query, Update and Signal handlers now enforce the complete run-state matrix, optimistic versions, durable duplicate receipts, structural Planning-revision rejection and cancellation completion. TLR-06 is the next dependency-safe serial slice.",
+    "resume_cursor": "TLR-06-history-agent-projection-api",
     "resume_priority": [
-      "TLR-05-signals-updates-idempotency",
+      "TLR-06-history-agent-projection-api",
       "PDE-05-v3-planning-surface"
     ],
     "next_runnable_slices": [
-      "TLR-05-signals-updates-idempotency"
+      "TLR-06-history-agent-projection-api"
     ],
     "blocked_slices": [
-      "TLR-06-history-agent-projection-api",
       "PDE-05-ui-states-and-accessibility",
       "PDE-07-e2e-verification-and-handoff",
       "SAR-01-binding-ci-and-publish-provenance",
@@ -3231,6 +3315,7 @@
   },
   "completion_layers": {
     "implemented": [
+      "TLR-05-signals-updates-idempotency",
       "TLR-04-activities-claims-heartbeats",
       "HWA3B-durable-scaling-admission-integration",
       "HWA3A-durable-capability-evidence-fence-store",
@@ -3254,6 +3339,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "TLR-05-signals-updates-idempotency:93_focused_75_compatibility_real_two_client_updates_signals_cancel_cleanup",
       "TLR-04-activities-claims-heartbeats:29_focused_93_compatibility_real_local_retry_fence_history_cleanup",
       "HWA3B-durable-scaling-admission-integration:44_focused_60_HWA_compatibility_atomic_admission",
       "HWA3A-durable-capability-evidence-fence-store:33_focused_multi_instance_restart_fence_capability_control",
@@ -3279,6 +3365,7 @@
       "SAR-09-measured-optimization-decisions:focused_and_cli"
     ],
     "committed": [
+      "TLR-05-signals-updates-idempotency:6a9aff46",
       "TLR-04-activities-claims-heartbeats:42b401e7",
       "HWA3B-durable-scaling-admission-integration:31ad9408",
       "HWA3A-durable-capability-evidence-fence-store:fd1cd4cd",
@@ -3301,6 +3388,7 @@
     "deployed": [],
     "live_validated": [],
     "temporal_validated": [
+      "TLR-05-signals-updates-idempotency:localhost_two_client_duplicate_stale_structural_signals_cancel_cleanup",
       "TLR-04-activities-claims-heartbeats:localhost_retry_attempt1_fence1_attempt2_fence2_pinned_policy_cleanup",
       "TLR-03-deterministic-workflow:localhost_history_replay_timer_pause_continue_as_new_cleanup",
       "TLR-01-temporal-light-local-runtime:localhost_health_db_restart_exactly_once_process_cleanup"

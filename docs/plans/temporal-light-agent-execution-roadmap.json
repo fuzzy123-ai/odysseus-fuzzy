@@ -5,7 +5,7 @@
   "title": "Temporal Light Agent Execution Roadmap",
   "created_at": "2026-07-13",
   "updated_at": "2026-07-15",
-  "status": "TLR_04_done_TLR_05_next",
+  "status": "TLR_05_done_TLR_06_next",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
   "planning_dependency": "docs/plans/planning-definition-editor-roadmap.json",
@@ -876,7 +876,7 @@
     },
     {
       "id": "TLR-05-signals-updates-idempotency",
-      "status": "planned",
+      "status": "complete",
       "class": "repo_only",
       "owner": "Bob",
       "depends_on": [
@@ -913,6 +913,22 @@
       "gate": {
         "id": "none",
         "safe_default": "Test-environment messages only."
+      },
+      "completion_evidence": {
+        "commit": "6a9aff46",
+        "focused_result": "93 passed",
+        "compatibility_result": "75 passed across deterministic replay, DAG, TLR-04 Activities and authority-adapter coverage",
+        "matrix_result": "all 72 combinations of six Updates and twelve run states proved the complete legal/illegal transition matrix",
+        "idempotency_result": "two real localhost clients submitted distinct Temporal Update ids for the same command_id and idempotency_key; both received the original receipt and the run version advanced once",
+        "version_result": "a stale expected_run_version was rejected by the Update validator without projection mutation or a persisted rejected event",
+        "history_result": "accepted and completed Update events plus both bounded Signal events were present in real localhost Temporal history",
+        "steering_result": "structural steering returned requires_plan_revision while manifest hash and run version remained unchanged",
+        "signal_result": "operator_note persists bounded note ids/refs only; external_condition_changed records a wake revision without asserting the condition",
+        "continue_as_new_result": "command receipts, note refs and external-condition revisions survive Continue-As-New; duplicates after continuation return the original receipt",
+        "cancel_result": "cancel uses a cancellable Activity handle, WAIT_CANCELLATION_COMPLETED and heartbeat-delivered Activity cancellation before terminal workflow completion",
+        "handler_result": "the workflow waits for workflow.all_handlers_finished before Continue-As-New and terminal return",
+        "privacy_result": "secret/raw structural fields and absolute paths are rejected; receipts persist only binding digests and bounded refs",
+        "cleanup_result": "all short-lived local test servers stopped and no Temporal process remained"
       },
       "done_when": "PASS only if every command is versioned and idempotent, duplicates return the original receipt, invalid transitions do not mutate history and structural changes always require a new Planning revision.",
       "stop_rules": [
@@ -1370,5 +1386,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_tlr_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "TLR-02-abc-manifest-and-run-start, TLR-03-deterministic-workflow and TLR-04-activities-claims-heartbeats are complete. Claim TLR-05-signals-updates-idempotency next and keep every command idempotent through command_id, expected_run_version and durable receipt binding."
+  "recommended_next_step": "TLR-02-abc-manifest-and-run-start through TLR-05-signals-updates-idempotency are complete. Claim TLR-06-history-agent-projection-api next and expose only owner-scoped, bounded Agent projections and command readback; never send raw Temporal history or private Activity payloads to the browser."
 }
