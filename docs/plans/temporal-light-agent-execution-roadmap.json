@@ -5,7 +5,7 @@
   "title": "Temporal Light Agent Execution Roadmap",
   "created_at": "2026-07-13",
   "updated_at": "2026-07-15",
-  "status": "TLR_06_done_TLR_07_design_gated_planning_integration_next",
+  "status": "TLR_08_partial_replay_server_contract_green_worker_recovery_handoff",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
   "planning_dependency": "docs/plans/planning-definition-editor-roadmap.json",
@@ -1137,7 +1137,30 @@
         "state reset",
         "history rewrite",
         "production service restart"
-      ]
+      ],
+      "partial_evidence": {
+        "observed_at": "2026-07-15T16:05:18.6909668+02:00",
+        "green": [
+          "Continue-As-New replay compatibility passed against both history segments with one logical Agent run",
+          "server persistence and redacted recovery descriptor contracts plus command idempotency passed 92 tests",
+          "the cached Temporal SDK test server ran only on ephemeral loopback ports and shut down after green tests"
+        ],
+        "blocked": {
+          "gate_id": "TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION",
+          "attempts": [
+            "combined four-file run timed out after 184 seconds",
+            "isolated worker-recovery run timed out after 64 seconds"
+          ],
+          "boundary": "The test combines Worker restart continuity with two concurrent duplicate gate Updates and does not drain before workflow completion. No product failure or traceback was observed.",
+          "cleanup": "The two test-server processes left by command timeout were identified by exact cached executable, start time and loopback port and were stopped; no Temporal test-server process remains.",
+          "next_safe_action": "Under a new serialized test-only claim, separate Worker restart continuity from the already-green duplicate-command contract, keep one gate Update in the Worker restart test and retain concurrent duplicate coverage in tests/test_temporal_command_idempotency.py and tests/test_temporal_workflow_messages.py."
+        },
+        "path_fingerprints_sha256": {
+          "tests/test_temporal_replay_compatibility.py": "268572f7363f8139559abd6b217105b0fa63a7865d6d3a3d214750e43d47b102",
+          "tests/test_temporal_worker_recovery.py": "4a117018b82c4aac1e82d41f4633bdf2aa219ccf3bc8d4c93967eb9da33b0a73",
+          "tests/test_temporal_server_recovery.py": "3bb1aec068f067138eb67cf40523fca00c9177f6788bddabe17caf69eabcd624"
+        }
+      }
     },
     {
       "id": "TLR-09-24h-time-skipping-acceptance",
@@ -1354,6 +1377,17 @@
       "risk_if_bypassed": "Operations could become unreadable or drift into Planning."
     },
     {
+      "id": "TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION",
+      "class": "repo_only_evidence_handoff",
+      "status": "handoff_ready_after_two_bounded_timeouts",
+      "blocks": [
+        "TLR-08-replay-restart-recovery"
+      ],
+      "decision_needed": "No product decision. Consume this ordinary repo-only handoff only through a fresh test-only claim that proves one Worker restart independently and leaves duplicate-update concurrency in its already-green dedicated contracts.",
+      "safe_default": "Do not start the combined hanging test a third time and do not weaken either recovery or idempotency assertions.",
+      "risk_if_bypassed": "Repeated broad retries can strand SDK test-server processes and still fail to identify whether restart or update-drain behavior is responsible."
+    },
+    {
       "id": "AGENT-12H-LIVE-GO",
       "class": "needs_operator_go",
       "status": "gated",
@@ -1404,5 +1438,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_tlr_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "TLR-01 through TLR-06 are complete. Keep TLR-07 parked at HPA-AGENT-UX-ACCEPTANCE and follow the master queue to the next dependency-safe Planning Definition Editor or Planning MCP slice; never move runtime truth into Planning."
+  "recommended_next_step": "Consume TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION through one fresh test-only claim: prove Worker restart with one gate Update, retain duplicate concurrency in the dedicated green idempotency/message contracts, then run the four-file TLR-08 block once. Keep the real development-server restart behind a fresh bounded TLR-LOCAL-SERVICE-GO and keep TLR-07 behind HPA-AGENT-UX-ACCEPTANCE."
 }

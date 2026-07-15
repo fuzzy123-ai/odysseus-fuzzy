@@ -3,14 +3,14 @@
   "kind": "odysseus.abc_durable_run_state",
   "run_id": "sar-12h-20260714t092106",
   "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
-  "roadmap_id": "planning-definition-editor",
-  "roadmap_path": "docs/plans/planning-definition-editor-roadmap.json",
+  "roadmap_id": "temporal-light-agent-execution",
+  "roadmap_path": "docs/plans/temporal-light-agent-execution-roadmap.json",
   "queue_scope": "named_roadmap",
-  "phase": "handoff",
+  "phase": "verification",
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
-  "state": "waiting_on_user",
-  "revision": 183,
+  "state": "handoff_ready",
+  "revision": 185,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -36,6 +36,15 @@
       "multi-worker execution",
       "Temporal start"
     ]
+  },
+  "current_user_directive": {
+    "granted_at": "2026-07-15T15:43:00+02:00",
+    "scope": "Finish the open SAR, Temporal Light, Agent, Planning, HWA handoff and regression layers named in the preceding status report, then take them live where the exact action-specific gates are satisfied.",
+    "supervision": "interactive",
+    "queue_interpretation": "Continue the currently named SAR/TLR/Planning/HWA tracks and their regression queue; do not silently absorb unrelated TAX, TUA or other Open Work lanes.",
+    "repo_authority": "All dependency-safe repo-only slices in the named scope may be claimed and completed serially with focused evidence and scoped commits.",
+    "live_intent": "The user requests eventual live activation, but target, artifact, limits, rollback and observation window must still be recorded separately for each push, deploy, provider write, host change, write smoke, long soak or production activation.",
+    "safe_default": "Prepare every live candidate completely; do not perform a live or external mutation under a broad cross-system instruction alone."
   },
   "autonomous_repo_only_grant": {
     "granted_at": "2026-07-14T12:45:35.3959274+02:00",
@@ -110,6 +119,106 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:TLR-08-replay-restart-recovery",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "TLR-08-replay-restart-recovery",
+      "owner": "/root",
+      "allowed_paths": [
+        "tests/test_temporal_replay_compatibility.py",
+        "tests/test_temporal_worker_recovery.py",
+        "tests/test_temporal_server_recovery.py",
+        "tests/test_temporal_command_idempotency.py",
+        "src/temporal_runtime/workflows.py",
+        "src/temporal_runtime/worker.py",
+        "docs/plans/temporal-light-agent-execution-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [
+        "src/temporal_runtime/workflows.py",
+        "src/temporal_runtime/worker.py"
+      ],
+      "state": "released_partial_replay_server_idempotency_green_worker_test_handoff",
+      "acquired_at": "2026-07-15T15:47:54.1632050+02:00",
+      "lease_expires_at": "2026-07-15T17:47:54.1632050+02:00",
+      "handoff_required": false,
+      "handoff_evidence": [
+        "TLR-03 through TLR-06 dependencies are green, committed and released",
+        "only the current thread is active in this checkout",
+        "all existing TLR-08 source and test paths are tracked and clean; three declared recovery tests do not exist yet",
+        "the prior TLR-LOCAL-SERVICE-GO was consumed by TLR-01 and every process is stopped",
+        "SDK test-environment recovery is authorized now; real local process restart remains behind a fresh bounded live-go entry"
+      ],
+      "path_fingerprints_sha256": {
+        "tests/test_temporal_replay_compatibility.py": "missing",
+        "tests/test_temporal_worker_recovery.py": "missing",
+        "tests/test_temporal_server_recovery.py": "missing",
+        "tests/test_temporal_command_idempotency.py": "ac43b5ed0cf4f0712ad6265a64afdf19e6e28b59bcce9b81845663e198c49b36",
+        "src/temporal_runtime/workflows.py": "3083e72e00632b1435aa8f8b2d3f1ff0d58bc5b1622734a966117777a1b7a688",
+        "src/temporal_runtime/worker.py": "2a58fd93c893acc389ec32a2b0ef9df9872896afab471906aa8108aa24125fce",
+        "docs/plans/temporal-light-agent-execution-roadmap.json": "8a96d6137daf217671a810a98efb6629dc3c7aacbbc87938b6ac1ec901287353",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "7a3e47b279f5fd4220800aa2828e8e28b6ace579af71aa10bf1646d0591ebfcb"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "phase": "implementation",
+        "supervision": "interactive_serial",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "locator_or_version": "C:/Users/nkatz/.codex/skills/abc/SKILL.md",
+              "purpose": "dependency, claim, gate, evidence and commit control"
+            }
+          ],
+          "model": {
+            "value": "surface_default",
+            "reason": "bounded backend recovery implementation; model selection is not exposed on this surface"
+          }
+        },
+        "fallback": "native_tools"
+      },
+      "evidence_contract": {
+        "target_environment": "Temporal SDK test environment first; localhost CLI only after a fresh bounded gate",
+        "observed_at": "2026-07-15T15:47:54.1632050+02:00",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "deterministic history replay",
+          "worker restart continuity",
+          "server persistence contract without production restart",
+          "heartbeat timeout and fenced retry",
+          "duplicate command idempotency",
+          "Continue-As-New cursor continuity"
+        ],
+        "positive_path_required": true
+      },
+      "forbidden_actions": [
+        "state reset or history rewrite",
+        "real local Temporal service start without fresh TLR-LOCAL-SERVICE-GO",
+        "production service restart",
+        "live provider effect",
+        "repository-wide suite",
+        "push",
+        "foreign hunk commit"
+      ],
+      "released_at": "2026-07-15T16:05:18.6909668+02:00",
+      "release_evidence": {
+        "green_commands": [
+          "ODYSSEUS_TEMPORAL_TEST_SERVER=<cached-sdk-test-server> venv\\Scripts\\python.exe -m pytest tests\\test_temporal_replay_compatibility.py -vv -s -p no:cacheprovider --basetemp C:\\tmp\\pytest-tlr08-replay-only-20260715-1606 => 1 passed",
+          "venv\\Scripts\\python.exe -m pytest tests\\test_temporal_server_recovery.py tests\\test_temporal_command_idempotency.py -q -p no:cacheprovider --basetemp C:\\tmp\\pytest-tlr08-static-recovery-20260715-1605 => 92 passed"
+        ],
+        "failed_attempts": [
+          "the combined four-file focused run timed out after 184 seconds",
+          "the isolated Worker restart plus two concurrent gate Updates timed out after 64 seconds"
+        ],
+        "failure_boundary": "Only tests/test_temporal_worker_recovery.py hangs; replay, persistence and command idempotency are green and no product traceback was emitted.",
+        "process_cleanup": "Temporal SDK test-server PIDs 2796 and 11392 were verified by exact cached executable, creation time and loopback port, then stopped; subsequent process and listener checks returned empty.",
+        "handoff": "TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION separates one Worker restart proof from already-green concurrent duplicate-command coverage before any third run.",
+        "uncommitted_reproduction_sha256": "4a117018b82c4aac1e82d41f4633bdf2aa219ccf3bc8d4c93967eb9da33b0a73"
+      }
+    },
     {
       "claim_id": "sar-12h-20260714t092106:IP-PLANNING-CLOSEOUT-CONTRACT-SYNC",
       "run_id": "sar-12h-20260714t092106",
@@ -4101,15 +4210,16 @@
   ],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T15:40:26+02:00",
-    "summary": "Planning repo-only closeout is durable: PDE-01 through PDE-07 and PMCP-9 are complete, the once-only 9041-test integration point is consumed with zero Planning-attributed nodes, independent failures are deduplicated in the regression queue, and the 21-test closeout contract is green. Remaining work is gated by the V3 clean-checkout handoff, PLANNING-WRITE-GO, Agent UX/live gates, external SAR evidence or explicit regression selection.",
-    "resume_cursor": "operator_and_clean_checkout_gates_after_Planning_repo_only_closeout",
+    "last_durable_progress_at": "2026-07-15T16:05:18.6909668+02:00",
+    "summary": "TLR-08 replay compatibility, external persistence contract and command idempotency are green (1 plus 92 tests). The combined Worker-restart/concurrent-Update test timed out twice without product traceback; both orphaned SDK test servers were stopped. A fresh test-only decomposition handoff is the sole safe TLR-08 frontier and the combined test may not run a third time.",
+    "resume_cursor": "TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION",
     "resume_priority": [
-      "PDE-05-clean-checkout-v3-baseline-integration-handoff",
-      "PDE-08-real-save-undo-smoke",
+      "TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION",
       "TLR-07-agent-screen-runtime-ui"
     ],
-    "next_runnable_slices": [],
+    "next_runnable_slices": [
+      "TLR-08-WORKER-RECOVERY-TEST-DECOMPOSITION:test_only"
+    ],
     "blocked_slices": [
       "PDE-05-clean-checkout-v3-baseline-integration-handoff",
       "PDE-08-real-save-undo-smoke",
@@ -4161,6 +4271,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "TLR-08-replay-restart-recovery:1_replay_92_server_and_idempotency_green_worker_restart_test_handoff_after_two_timeouts",
       "IP-PLANNING-CLOSEOUT-CONTRACT-SYNC:21_roadmap_and_queue_contracts_green",
       "IP-PLANNING-INTEGRATION-CLOSEOUT:single_unchanged_9041_collection_run_exit_1_26_failure_2_error_markers_zero_Planning_nodes_20_new_independent_nodes_queued",
       "PDE-07-boundary-browser-acceptance:143_python_15_browser_route_inventory_recursive_denylist_DOM_and_responsive_green",
