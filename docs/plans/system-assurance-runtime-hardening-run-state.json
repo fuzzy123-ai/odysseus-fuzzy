@@ -6,11 +6,11 @@
   "roadmap_id": "temporal-light-agent-execution",
   "roadmap_path": "docs/plans/temporal-light-agent-execution-roadmap.json",
   "queue_scope": "named_roadmap",
-  "phase": "implementation",
+  "phase": "closeout",
   "supervision": "interactive",
-  "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
-  "state": "in_progress",
-  "revision": 210,
+  "mutation_authority": "completed_repo_and_scoped_fuzzy_dev_debian_deploy",
+  "state": "completed",
+  "revision": 211,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -117,7 +117,8 @@
       "the archived-session test-only blocker is claimed as the first resumed slice"
     ]
   },
-  "active_claims": [
+  "active_claims": [],
+  "completed_deployment_claims": [
     {
       "claim_id": "sar-12h-20260714t092106:FUZZY-DEV-DEBIAN-DEPLOYMENT",
       "run_id": "sar-12h-20260714t092106",
@@ -142,7 +143,7 @@
       "hotfiles": [
         "routes/agent_operation_routes.py"
       ],
-      "state": "in_progress_final_deploy_pending",
+      "state": "released_green",
       "acquired_at": "2026-07-15T17:30:56.5901334+02:00",
       "lease_expires_at": "2026-07-15T20:37:41.8696452+02:00",
       "handoff_required": true,
@@ -230,7 +231,8 @@
         "remaining_items": "Only separately classified live/design gates and the independent regression queue remain; none is an executable repo-safe slice in the named roadmap."
       },
       "live_observation_evidence": {
-        "deployed_commit": "b8b06852b038b82a207c3508fc0f9d72fa5ccda5",
+        "initial_observed_commit": "b8b06852b038b82a207c3508fc0f9d72fa5ccda5",
+        "final_deployed_commit": "8a61cc16a9f36d85c3a9a8ea7a3d346c15cd68d8",
         "container_started_at": "2026-07-15T18:42:52.833290407+02:00",
         "observation_completed_at": "2026-07-15T18:53:18+02:00",
         "duration": "10 minutes 26 seconds",
@@ -240,7 +242,8 @@
         "static_assets": "app.js, planning.js and agent-operations.js returned 200",
         "container_restart_count": 0,
         "fatal_startup_signature_count": 0,
-        "next_action": "Deploy the already pushed 955d98d8 worktree reconciliation plus this PMCP-9 metadata closeout, then verify a clean checkout and current version."
+        "final_readback": "systemd Result=success; branch dev tracks fuzzy/dev; dirty=0; /api/version current/same at 8a61cc16; App and Harbor auth redirects healthy; Chroma and all three V3 assets returned 200; container running with restart_count=0.",
+        "next_action": "None in the named repo-safe queue. Separately gated Planning writes, long wall-clock soak and production Temporal activation remain deferred."
       },
       "forbidden_actions": [
         "force push",
@@ -252,7 +255,19 @@
         "PDE-08 real Planning write",
         "TLR-10 wall-clock soak",
         "deployment without a successful pre-update backup"
-      ]
+      ],
+      "released_at": "2026-07-15T19:02:00+02:00",
+      "release_evidence": {
+        "merge_commit": "d9485cdfcd9e3b203072ed05c6a65c0cdb23b1dd",
+        "startup_fix_commit": "b8b06852b038b82a207c3508fc0f9d72fa5ccda5",
+        "worktree_reconciliation_commit": "955d98d88d3c",
+        "deployed_commit": "8a61cc16a9f36d85c3a9a8ea7a3d346c15cd68d8",
+        "preserved_foreign_commit": "9889db366387e75b35e04e42e4036d03522fea8b on local-only backup/pre-deploy-dirty-20260715-d9485cdf",
+        "backup": "A successful Restic pre-update snapshot preceded every checkout fast-forward.",
+        "tests": "31 startup/config, 22 workflow-owner, 148 PMCP-9 executable and 10 master-boundary tests passed; safe_open_count=0.",
+        "observation": "The product runtime completed 10 minutes 26 seconds without restart or fatal signature; the final combined commit passed the same endpoint and version readbacks.",
+        "worktrees": "The clean integration worktree and Debian /opt/odysseus checkout are clean; the large primary Windows checkout was never mutated."
+      }
     }
   ],
   "released_claims": [
@@ -4891,27 +4906,18 @@
       "used_at": "2026-07-15T11:00:42+02:00"
     }
   ],
-  "pending_user_requests": [
-    "HOMESERVER-DIRTY-WORKTREE-PRESERVATION-GO: explicitly authorize committing the 22 listed foreign Homeserver paths to local branch backup/pre-deploy-dirty-20260715-d9485cdf, switching /opt/odysseus back to clean dev, and running odysseus-auto-update.service"
-  ],
+  "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T18:12:00+02:00",
-    "summary": "Deployment merge d9485cdf is tested and pushed to fuzzy/dev. Live activation is paused before host mutation because /opt/odysseus contains 22 preserved foreign Gemma/local-scheduler paths and the reviewer requires explicit authority to capture them on a local backup branch before cleaning the dev checkout.",
-    "resume_cursor": "HOMESERVER-DIRTY-WORKTREE-PRESERVATION-GO",
-    "resume_priority": [
-      "HOMESERVER-DIRTY-WORKTREE-PRESERVATION-GO",
-      "DEBIAN-HOMESERVER-AUTO-UPDATE",
-      "LIVE-OBSERVATION-AND-READBACK"
-    ],
+    "last_durable_progress_at": "2026-07-15T19:02:00+02:00",
+    "summary": "The named SAR, Temporal Light, Agent, Planning Definition, Planning MCP and HWA repo-safe queue is exhausted. fuzzy/dev and the Debian homeserver are unified at 8a61cc16, the runtime is healthy, both deployment worktrees are clean and all foreign Homeserver work remains preserved in local-only backup commit 9889db36.",
+    "resume_cursor": null,
+    "resume_priority": [],
     "next_runnable_slices": [],
     "blocked_slices": [
-      "DEBIAN-HOMESERVER-AUTO-UPDATE",
       "PDE-08-real-save-undo-smoke",
-      "TLR-07-agent-screen-runtime-ui",
       "SAR-01-binding-ci-and-publish-provenance",
-      "SAR-02-fresh-release-evidence",
-      "SAR-10-release-truth-and-external-proof",
-      "SAR-11-integration-closeout"
+      "TLR-10-12h-wall-clock-soak",
+      "TLR-11-production-activation"
     ],
     "regression_queue": "docs/plans/regression-queue.json",
     "full_suite_integration_points": [
@@ -5033,10 +5039,19 @@
       "SAR-07-response-cache-lru-ttl:175e548c49f5fd48e79a520ebe9b405c119d8015"
     ],
     "pushed": [
-      "FUZZY-DEV-DEBIAN-DEPLOYMENT:d9485cdfcd9e3b203072ed05c6a65c0cdb23b1dd_fast_forward"
+      "FUZZY-DEV-DEBIAN-DEPLOYMENT:d9485cdfcd9e3b203072ed05c6a65c0cdb23b1dd_fast_forward",
+      "FUZZY-DEV-DEBIAN-DEPLOYMENT:b8b06852_startup_fix_fast_forward",
+      "FUZZY-DEV-DEBIAN-DEPLOYMENT:955d98d8_worktree_reconciliation_fast_forward",
+      "FUZZY-DEV-DEBIAN-DEPLOYMENT:8a61cc16_pmcp9_closeout_fast_forward"
     ],
-    "deployed": [],
-    "live_validated": [],
+    "deployed": [
+      "FUZZY-DEV-DEBIAN-DEPLOYMENT:8a61cc16a9f36d85c3a9a8ea7a3d346c15cd68d8_via_backup_first_auto_updater"
+    ],
+    "live_validated": [
+      "FUZZY-DEV-DEBIAN-DEPLOYMENT:systemd_success_branch_dev_upstream_fuzzy_dev_dirty_zero_version_current_same",
+      "FUZZY-DEV-DEBIAN-DEPLOYMENT:app_and_harbor_auth_redirects_chroma_200_v3_assets_200_container_restart_zero",
+      "FUZZY-DEV-DEBIAN-DEPLOYMENT:10m26s_product_observation_zero_restart_zero_fatal_signature"
+    ],
     "temporal_validated": [
       "TLR-06-history-agent-projection-api:localhost_activity_projection_sanitized_history_pause_readback_resume_completion_cleanup",
       "TLR-05-signals-updates-idempotency:localhost_two_client_duplicate_stale_structural_signals_cancel_cleanup",
