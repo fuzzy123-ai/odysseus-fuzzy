@@ -319,7 +319,7 @@ def test_pde03_temporary_write_boundary_routes_to_pde04_without_real_write() -> 
     assert pde04["gate"]["safe_default"].startswith("Navigation envelope only")
 
 
-def test_pde04_completion_parks_pde05_at_named_design_gate() -> None:
+def test_pde05_completion_records_named_design_acceptance() -> None:
     pde = _load(PDE_PATH)
     slices = {item["id"]: item for item in pde["slice_queue"]}
     gates = {item["id"]: item for item in pde["gate_queue"]}
@@ -329,9 +329,16 @@ def test_pde04_completion_parks_pde05_at_named_design_gate() -> None:
     design_gate = gates["HPA-PLANNING-UX-ACCEPTANCE"]
     assert pde04["status"] == "implemented_focused_tested"
     assert pde04["completion_evidence"]["focused_result"].startswith("51 passed")
-    assert pde05["status"] == "planned"
+    assert pde05["status"] == (
+        "implemented_browser_visual_tested_modules_committed_integration_handoff"
+    )
+    assert pde05["completion_evidence"]["browser_contract"]["result"] == "12 passed"
+    assert pde05["completion_evidence"]["commit_receipt"]["commit"] == "13104cc5"
     assert pde05["gate"]["id"] == "HPA-PLANNING-UX-ACCEPTANCE"
-    assert design_gate["status"] == "design_direction_locked_acceptance_pending"
-    assert "PDE-05-v3-planning-surface" in design_gate["blocks"]
-    assert "park PDE-05" in pde["recommended_next_step"]
-    assert "Planning MCP" in pde["recommended_next_step"]
+    assert design_gate["status"] == "accepted_user_v3_calm_control_room_definition_only"
+    assert design_gate["blocks"] == []
+    assert design_gate["accepted_by"] == "user"
+    assert "Synchronize the accepted HPA-PLANNING-UX-ACCEPTANCE" in pde[
+        "recommended_next_step"
+    ]
+    assert "claim PDE-06 serially" in pde["recommended_next_step"]
