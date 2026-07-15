@@ -9,8 +9,8 @@
   "phase": "implementation",
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
-  "state": "running",
-  "revision": 203,
+  "state": "waiting_on_user",
+  "revision": 204,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -133,7 +133,7 @@
         "/opt/odysseus checkout and odysseus-auto-update.service"
       ],
       "hotfiles": [],
-      "state": "active",
+      "state": "waiting_on_user",
       "acquired_at": "2026-07-15T17:30:56.5901334+02:00",
       "lease_expires_at": "2026-07-15T19:30:56.5901334+02:00",
       "handoff_required": true,
@@ -142,7 +142,11 @@
         "fuzzy/dev was fetched at 6c06e82721f4960404836a3e953a59e45d031fbd",
         "local dev is 65 commits ahead and 7 commits behind with merge base 5f75df89f422259d7a6a5eacf10ebb3256548614",
         "the dirty primary checkout will not be merged, rebased, reset or cleaned",
-        "the repository-native updater requires a clean fast-forward, pre-update Restic snapshot, Podman rebuild and commit health readback"
+        "the repository-native updater requires a clean fast-forward, pre-update Restic snapshot, Podman rebuild and commit health readback",
+        "deployment merge d9485cdfcd9e3b203072ed05c6a65c0cdb23b1dd was pushed fast-forward to fuzzy/dev",
+        "the Debian checkout is healthy but contains 22 foreign Gemma and local-scheduler paths last changed on 2026-07-12",
+        "no Git index lock, active editor or open /opt/odysseus file owned by the old Codex process was found",
+        "the execution reviewer rejected preserving and clearing the foreign work without an explicit user grant"
       ],
       "path_fingerprints_sha256": {
         "docs/plans/system-assurance-runtime-hardening-run-state.json": "cd806e3f58d973acde85ccbe3f86292388de7664e02bafaa1d78acf85f9c7936",
@@ -4232,6 +4236,34 @@
   ],
   "gate_queue": [
     {
+      "gate_id": "HOMESERVER-DIRTY-WORKTREE-PRESERVATION-GO",
+      "state": "waiting_explicit_user_authority",
+      "blocks": [
+        "systemctl --user start odysseus-auto-update.service",
+        "live deployment of fuzzy/dev d9485cdf on /opt/odysseus"
+      ],
+      "does_not_block": [
+        "the completed fast-forward push to fuzzy/dev",
+        "read-only Homeserver inspection",
+        "the existing live runtime at 6c06e827"
+      ],
+      "decision_needed": "Explicitly authorize preserving the 22 foreign Gemma/local-scheduler paths in local branch backup/pre-deploy-dirty-20260715-d9485cdf, switching the shared /opt/odysseus checkout back to clean dev, and starting the repository-native updater.",
+      "safe_default": "Do not mutate, stash, delete, switch or clean the shared Homeserver checkout. Keep the existing 6c06e827 runtime live until explicit authority arrives.",
+      "evidence": {
+        "remote_target": "fuzzy/dev@d9485cdfcd9e3b203072ed05c6a65c0cdb23b1dd",
+        "homeserver_runtime": "6c06e827",
+        "foreign_path_count": 22,
+        "foreign_work_family": "Gemma memory benchmark, local model scheduler and workflow skill edits",
+        "latest_observed_mtime": "2026-07-12T18:34:02+02:00",
+        "index_lock": false,
+        "active_editor": false,
+        "backup_env": true,
+        "restic": true,
+        "auto_update_timer": "enabled_active",
+        "app_and_chroma": "healthy"
+      }
+    },
+    {
       "gate_id": "TLR-04-HWA3A-HWA3B-DEPENDENCY",
       "state": "satisfied_HWA3A_HWA3B_green_TLR04_fake_only_ready",
       "blocks": [],
@@ -4797,20 +4829,20 @@
     }
   ],
   "pending_user_requests": [
-    "LIVE-ACTIVATION-ENVELOPE: discover and record the exact final verified commit, repository-native Debian deployment mechanism, observation window, previous deployed artifact and rollback command before push or deployment"
+    "HOMESERVER-DIRTY-WORKTREE-PRESERVATION-GO: explicitly authorize committing the 22 listed foreign Homeserver paths to local branch backup/pre-deploy-dirty-20260715-d9485cdf, switching /opt/odysseus back to clean dev, and running odysseus-auto-update.service"
   ],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T17:31:00+02:00",
-    "summary": "The complete Harbor Planning master roadmap is synchronized and green. It now records the repo-complete definition, MCP, execution and screen-boundary layers while keeping the real Planning write, 12-hour wall-clock soak, production Temporal activation and exact deployment envelope separately gated.",
-    "resume_cursor": "DEPLOYMENT-ENVELOPE-DISCOVERY",
+    "last_durable_progress_at": "2026-07-15T18:12:00+02:00",
+    "summary": "Deployment merge d9485cdf is tested and pushed to fuzzy/dev. Live activation is paused before host mutation because /opt/odysseus contains 22 preserved foreign Gemma/local-scheduler paths and the reviewer requires explicit authority to capture them on a local backup branch before cleaning the dev checkout.",
+    "resume_cursor": "HOMESERVER-DIRTY-WORKTREE-PRESERVATION-GO",
     "resume_priority": [
-      "DEPLOYMENT-ENVELOPE-DISCOVERY",
-      "LIVE-ACTIVATION-SCOPE"
+      "HOMESERVER-DIRTY-WORKTREE-PRESERVATION-GO",
+      "DEBIAN-HOMESERVER-AUTO-UPDATE",
+      "LIVE-OBSERVATION-AND-READBACK"
     ],
-    "next_runnable_slices": [
-      "DEPLOYMENT-ENVELOPE-DISCOVERY"
-    ],
+    "next_runnable_slices": [],
     "blocked_slices": [
+      "DEBIAN-HOMESERVER-AUTO-UPDATE",
       "PDE-08-real-save-undo-smoke",
       "TLR-07-agent-screen-runtime-ui",
       "SAR-01-binding-ci-and-publish-provenance",
@@ -4937,7 +4969,9 @@
       "SAR-05-background-job-transaction-boundary:9edbea16226d02b26a4e3e355ec8a589135d8046",
       "SAR-07-response-cache-lru-ttl:175e548c49f5fd48e79a520ebe9b405c119d8015"
     ],
-    "pushed": [],
+    "pushed": [
+      "FUZZY-DEV-DEBIAN-DEPLOYMENT:d9485cdfcd9e3b203072ed05c6a65c0cdb23b1dd_fast_forward"
+    ],
     "deployed": [],
     "live_validated": [],
     "temporal_validated": [
