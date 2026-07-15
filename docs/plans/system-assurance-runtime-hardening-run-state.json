@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
   "state": "running",
-  "revision": 202,
+  "revision": 203,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -101,8 +101,8 @@
     "fallback": "native_tools",
     "commit_authority": "granted_by_user_2026-07-14T20:40:54.4685534+02:00",
     "commit_policy": "Commit after each green released slice or durable handoff. Stage only exact owned paths or owned hunks after reviewing staged diff; never include foreign hunks merely to make a file clean.",
-    "push_authority": "not_granted",
-    "live_authority": "scoped_local_temporal_install_and_localhost_dev_server_only",
+    "push_authority": "scoped_fuzzy_dev_granted_by_user_20260715",
+    "live_authority": "scoped_fuzzy_dev_to_configured_debian_homeserver_granted_by_user_20260715",
     "gate_policy": "Under the current explicit user directive, /root may consume ordinary repo-only coordination gates serially after persisting a minimum-path claim and confirming no active same-checkout owner. Never infer authority for excluded, dangerous, live, external or design gates. Stop on those gates; otherwise release the claim with focused evidence before opening the next slice."
   },
   "blocked_audit": {
@@ -117,7 +117,77 @@
       "the archived-session test-only blocker is claimed as the first resumed slice"
     ]
   },
-  "active_claims": [],
+  "active_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:FUZZY-DEV-DEBIAN-DEPLOYMENT",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "FUZZY-DEV-DEBIAN-DEPLOYMENT",
+      "owner": "/root",
+      "allowed_paths": [
+        "docs/plans/system-assurance-runtime-hardening-run-state.json",
+        "git ref codex/deploy-fuzzy-dev-20260715",
+        "git ref fuzzy/dev",
+        "clean worktree C:/tmp/odysseus-deploy-integration-20260715",
+        "configured SSH target odysseus-homeserver",
+        "/opt/odysseus checkout and odysseus-auto-update.service"
+      ],
+      "hotfiles": [],
+      "state": "active",
+      "acquired_at": "2026-07-15T17:30:56.5901334+02:00",
+      "lease_expires_at": "2026-07-15T19:30:56.5901334+02:00",
+      "handoff_required": true,
+      "handoff_evidence": [
+        "the user named fuzzy/dev followed by the Debian homeserver as the live target",
+        "fuzzy/dev was fetched at 6c06e82721f4960404836a3e953a59e45d031fbd",
+        "local dev is 65 commits ahead and 7 commits behind with merge base 5f75df89f422259d7a6a5eacf10ebb3256548614",
+        "the dirty primary checkout will not be merged, rebased, reset or cleaned",
+        "the repository-native updater requires a clean fast-forward, pre-update Restic snapshot, Podman rebuild and commit health readback"
+      ],
+      "path_fingerprints_sha256": {
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "cd806e3f58d973acde85ccbe3f86292388de7664e02bafaa1d78acf85f9c7936",
+        "local_dev_commit": "fbb495141d5925cfcf71b1080b29a76b78ddff9d",
+        "remote_fuzzy_dev_commit": "6c06e82721f4960404836a3e953a59e45d031fbd",
+        "merge_base": "5f75df89f422259d7a6a5eacf10ebb3256548614"
+      },
+      "evidence_contract": {
+        "source_branch": "dev",
+        "remote_target": "fuzzy/dev",
+        "integration_strategy": "create a clean branch at fuzzy/dev and merge dev with fuzzy/dev as first parent",
+        "push_rule": "fast-forward only; never force",
+        "host_target": "ssh alias odysseus-homeserver; /opt/odysseus",
+        "deploy_mechanism": "systemctl --user start odysseus-auto-update.service",
+        "preconditions": [
+          "SSH host key and configured identity authenticate",
+          "server checkout is clean and tracks fuzzy/dev",
+          "backup environment and Restic pre-update snapshot are available",
+          "no active auto-update run or conflicting checkout owner",
+          "candidate passes the named final integration tests in the clean worktree"
+        ],
+        "observation_window_minutes": 10,
+        "required_readback": [
+          "systemd auto-update success",
+          "app root healthy",
+          "Chroma heartbeat healthy",
+          "/api/version reports the deployed commit",
+          "V3 preview route and static assets return successfully"
+        ],
+        "rollback": "Because the deployment merge uses fuzzy/dev as first parent, create and push a non-force git revert -m 1 of the deployment merge, rerun the same backup-before-deploy updater, and use the recorded Restic snapshot only if persistent data changed.",
+        "rollback_owner": "/root"
+      },
+      "forbidden_actions": [
+        "force push",
+        "destructive git reset or checkout cleanup",
+        "primary dirty-worktree merge or rebase",
+        "secret output",
+        "provider or Telegram write smoke",
+        "Temporal production activation",
+        "PDE-08 real Planning write",
+        "TLR-10 wall-clock soak",
+        "deployment without a successful pre-update backup"
+      ]
+    }
+  ],
   "released_claims": [
     {
       "claim_id": "sar-12h-20260714t092106:MASTER-ROADMAP-SYNC-HANDOFF",
@@ -4691,13 +4761,13 @@
       "id": "ODYSSEUS-DEBIAN-HOMESERVER-LIVE-SCOPE-20260715",
       "action": "push_then_deploy",
       "target": "fuzzy/dev followed by the configured Debian homeserver",
-      "artifact_or_inputs": "exact final verified Git commit pending completion of the remaining named repo slices",
-      "limits": "No force push, no foreign-hunk commit, no deployment before a reproducible green commit and discovered repository-native rollback procedure; Temporal production activation and real provider effects remain separately gated.",
-      "rollback": "Resolve and record the existing Debian deployment mechanism, previous deployed commit or image, rollback command and observation window before consuming this entry.",
+      "artifact_or_inputs": "local dev fbb495141d5925cfcf71b1080b29a76b78ddff9d merged into fetched fuzzy/dev 6c06e82721f4960404836a3e953a59e45d031fbd through a clean first-parent deployment merge; final merge commit pending conflict-free integration",
+      "limits": "Fast-forward fuzzy/dev only; deploy only through the configured backup-before-update service; observe for 10 minutes; no force, provider write, real Planning write, 12-hour soak or production Temporal activation.",
+      "rollback": "Create a non-force revert -m 1 of the first-parent deployment merge, push the revert to fuzzy/dev, rerun odysseus-auto-update.service, and restore the pre-update Restic snapshot only if persistent data changed.",
       "granted_by": "user turn 2026-07-15: Live-Ziel fuzzy/dev to Debian-Homeserver",
       "granted_at": "2026-07-15T16:57:04.1331956+02:00",
       "expires_at": "run_end",
-      "status": "scope_confirmed_artifact_and_rollback_pending"
+      "status": "active_integration_candidate_pending"
     },
     {
       "id": "TLR-SDK-CLI-INSTALL-GO-20260715",
