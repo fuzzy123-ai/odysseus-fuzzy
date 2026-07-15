@@ -290,8 +290,9 @@ def test_pde01_completion_routes_serially_to_pde02() -> None:
     assert pde01["status"] == "implemented_focused_tested"
     assert pde01["hotfiles"] == []
     assert pde01["completion_evidence"]["focused_result"].startswith("92 passed")
-    assert pde02["status"] == "service_routes_green_router_pending"
+    assert pde02["status"] == "implemented_registered_focused_tested"
     assert pde02["depends_on"] == ["PDE-01-definition-schema-validator"]
-    assert pde02["implementation_evidence"]["focused_result"].startswith("35 passed")
-    assert "PDE-APP-ROUTER-HANDOFF" in pde["recommended_next_step"]
-    assert "app.py" in pde["recommended_next_step"]
+    assert pde02["implementation_evidence"]["focused_result"].startswith("36 passed")
+    assert pde02["implementation_evidence"]["remaining"] == "none"
+    assert "claim PDE-03" in pde["recommended_next_step"]
+    assert "real Planning write" in pde["recommended_next_step"]

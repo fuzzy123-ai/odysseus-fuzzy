@@ -724,6 +724,10 @@ app.include_router(setup_system_update_routes())
 from routes.recent_changes_routes import setup_recent_changes_routes
 app.include_router(setup_recent_changes_routes())
 
+# Immutable Planning Definition v2 reads
+from routes.planning_definition_routes import setup_default_planning_definition_routes
+app.include_router(setup_default_planning_definition_routes())
+
 # Cleanup
 from routes.cleanup_routes import setup_cleanup_routes
 app.include_router(setup_cleanup_routes(session_manager))

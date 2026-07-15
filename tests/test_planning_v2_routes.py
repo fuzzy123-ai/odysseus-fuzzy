@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -236,3 +237,15 @@ def test_unexpected_store_failure_is_redacted(monkeypatch) -> None:
 def test_invalid_store_factory_input_fails_before_router_registration() -> None:
     with pytest.raises(ValueError, match="PlanningRevisionStore"):
         setup_planning_definition_routes(object())  # type: ignore[arg-type]
+
+
+def test_application_registers_the_read_only_planning_router_once() -> None:
+    source = (Path(__file__).resolve().parents[1] / "app.py").read_text(encoding="utf-8")
+
+    assert source.count(
+        "from routes.planning_definition_routes import setup_default_planning_definition_routes"
+    ) == 1
+    assert source.count("app.include_router(setup_default_planning_definition_routes())") == 1
+    assert "setup_default_planning_definition_routes" not in source.split(
+        "# Immutable Planning Definition v2 reads", 1
+    )[0]
