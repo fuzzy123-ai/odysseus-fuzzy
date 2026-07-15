@@ -938,7 +938,7 @@
     },
     {
       "id": "PDE-07-boundary-browser-acceptance",
-      "status": "planned",
+      "status": "implemented_roadmap_schema_route_DOM_acceptance_green",
       "class": "repo_only",
       "owner": "Charlie",
       "depends_on": [
@@ -983,7 +983,58 @@
         "live Planning write",
         "root cutover",
         "run activation"
-      ]
+      ],
+      "completion_evidence": {
+        "completed_at": "2026-07-15T15:11:37.1422351+02:00",
+        "python_contract_result": "143 passed",
+        "python_contract_command": "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py tests\\test_planning_definition_contract.py tests\\test_planning_definition_projection.py tests\\test_planning_v2_routes.py -q -p no:cacheprovider --basetemp C:\\tmp\\pytest-pde07-accept-20260715-1511",
+        "browser_result": "15 passed",
+        "browser_command": "npx.cmd playwright test --config C:\\tmp\\pde05-playwright.config.js",
+        "browser_states": [
+          "empty",
+          "loading",
+          "live",
+          "fixture",
+          "stale",
+          "unavailable",
+          "error",
+          "conflict",
+          "edit",
+          "handoff",
+          "undo",
+          "definition notification",
+          "Agent-only execution notification"
+        ],
+        "roadmap_contract": [
+          "all PDE and TLR dependencies resolve and both local DAGs are acyclic",
+          "the actual FastAPI Planning route inventory equals the documented definition read, draft and handoff surface",
+          "the V3 recursive payload denylist contains every roadmap denylisted runtime field",
+          "the post-PDE-06 roadmap contract points to this PDE-07 closeout and the named integration point"
+        ],
+        "rendered_boundary": [
+          "zero runtime labels or controls in the definition surface",
+          "zero Planning runtime fields in localStorage",
+          "runtime-shaped API payloads fail closed recursively",
+          "the exact approved revision and hash are drafted in Agent without submit or start",
+          "desktop, mobile and 200-percent-equivalent viewports remain readable"
+        ],
+        "path_fingerprints_sha256": {
+          "tests/test_planning_agent_boundary_roadmaps.py": "f33b9253404452bd9f4d7bac127b562002e849e87abd91e43ecb014fe61eb5bf",
+          "tests/frontend/harbor-one-planning.spec.js": "014a1cc21442a4e88c8d4869b5116ca848b7e33542743d560127d748e9519011",
+          "static/frontpage-v3/planning-fixtures.js": "10f34d76822f475a741e948f7b623aa7134a2f9f94d906ea5854b065e68592d4"
+        },
+        "commit_boundary": "The tracked roadmap acceptance test can be committed. The owned browser specification remains untracked until the pre-existing V3 index/app baseline receives an explicit clean-checkout handoff; no foreign baseline file is absorbed.",
+        "commit_receipt": {
+          "commit": "5f973257",
+          "path": "tests/test_planning_agent_boundary_roadmaps.py"
+        },
+        "browser_spec_handoff": {
+          "path": "tests/frontend/harbor-one-planning.spec.js",
+          "sha256": "014a1cc21442a4e88c8d4869b5116ca848b7e33542743d560127d748e9519011",
+          "result": "15 passed",
+          "commit_state": "untracked_owned_test_preserved_until_v3_baseline_handoff"
+        }
+      }
     },
     {
       "id": "PDE-08-real-save-undo-smoke",
@@ -1081,5 +1132,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_pde_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "Claim PDE-07-boundary-browser-acceptance serially. Prove the Planning/Agent boundary at roadmap, schema, route and rendered-DOM levels; include the owned V3 browser specification without absorbing the pre-existing untracked V3 index.html or app.js baseline, and run the named Planning integration closeout only after PDE-07 is green."
+  "recommended_next_step": "Run IP-PLANNING-INTEGRATION-CLOSEOUT exactly once after releasing PDE-07. Classify independent failures into the separate regression queue without expanding this roadmap, preserve the untracked V3 index/app clean-checkout handoff, and do not claim PDE-08 or perform any real save or undo without PLANNING-WRITE-GO."
 }

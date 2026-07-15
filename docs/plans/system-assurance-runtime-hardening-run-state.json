@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
   "state": "running",
-  "revision": 177,
+  "revision": 179,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -110,6 +110,100 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:PDE-07-boundary-browser-acceptance",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "PDE-07-boundary-browser-acceptance",
+      "owner": "/root",
+      "allowed_paths": [
+        "tests/test_planning_agent_boundary_roadmaps.py",
+        "tests/frontend/harbor-one-planning.spec.js",
+        "static/frontpage-v3/planning-fixtures.js",
+        "docs/plans/planning-definition-editor-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [],
+      "state": "released_acceptance_green_python_committed_browser_spec_handoff",
+      "acquired_at": "2026-07-15T15:07:17.9575072+02:00",
+      "lease_expires_at": "2026-07-15T17:07:17.9575072+02:00",
+      "handoff_required": false,
+      "handoff_evidence": [
+        "PDE-04, PDE-05 and PDE-06 dependency layers are implemented, focused tested and committed",
+        "the sole current roadmap-contract failure is the intended post-PDE-06 next-frontier transition and belongs to this claim",
+        "the browser specification is an owned PDE-05/PDE-06 artifact whose exact hash is recorded",
+        "the V3 fixture module is tracked and clean; the pre-existing V3 index/app baseline remains outside this claim",
+        "only the current thread is active in this checkout"
+      ],
+      "path_fingerprints_sha256": {
+        "tests/test_planning_agent_boundary_roadmaps.py": "d2e5cdde76dd6476073c80e41ef62a2434fd031febad9722bb8462c26283c69f",
+        "tests/frontend/harbor-one-planning.spec.js": "8be4c7bd6c65e38a0a0ee1d86810a1591ce511eeac719dd18497dbac205f1f69",
+        "static/frontpage-v3/planning-fixtures.js": "10f34d76822f475a741e948f7b623aa7134a2f9f94d906ea5854b065e68592d4",
+        "docs/plans/planning-definition-editor-roadmap.json": "760ad3a697ed74b2df07c5dcaddfdaa4b8417210f34d9114f35fd28ccdaeebc2",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "7b10133578db9cf3176aff90560ca2f1c57cb06c340248506d9a014b6bc754da"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "phase": "verification",
+        "supervision": "interactive_serial",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "locator_or_version": "C:/Users/nkatz/.codex/skills/abc/SKILL.md",
+              "purpose": "serial acceptance claim, evidence, commit and release"
+            },
+            {
+              "id": "playwright",
+              "locator_or_version": "C:/Users/nkatz/.codex/skills/playwright/SKILL.md",
+              "purpose": "rendered-DOM and responsive boundary acceptance"
+            }
+          ],
+          "model": {
+            "value": "surface_default",
+            "reason": "bounded acceptance implementation; no live or architecture gate"
+          }
+        }
+      },
+      "evidence_contract": {
+        "target_environment": "repo_only_schema_route_roadmap_and_local_browser_acceptance",
+        "observed_at": "2026-07-15T15:07:17.9575072+02:00",
+        "required": [
+          "resolved_acyclic_PDE_dependency_DAG",
+          "recursive_payload_runtime_denylist",
+          "definition_only_Planning_route_inventory",
+          "empty_loading_live_fixture_stale_error_conflict_edit_handoff_undo_browser_states",
+          "exact_Agent_handoff_without_start",
+          "no_execution_state_in_Planning_DOM_or_storage"
+        ]
+      },
+      "forbidden_actions": [
+        "product source mutation outside the fixture-only allowance",
+        "root cutover",
+        "live write or execution start",
+        "full suite before IP-PLANNING-INTEGRATION-CLOSEOUT",
+        "V3 index/app baseline commit",
+        "push"
+      ],
+      "released_at": "2026-07-15T15:13:23.2163189+02:00",
+      "commit": "5f973257",
+      "release_path_fingerprints_sha256": {
+        "tests/test_planning_agent_boundary_roadmaps.py": "f33b9253404452bd9f4d7bac127b562002e849e87abd91e43ecb014fe61eb5bf",
+        "tests/frontend/harbor-one-planning.spec.js": "014a1cc21442a4e88c8d4869b5116ca848b7e33542743d560127d748e9519011",
+        "static/frontpage-v3/planning-fixtures.js": "10f34d76822f475a741e948f7b623aa7134a2f9f94d906ea5854b065e68592d4",
+        "docs/plans/planning-definition-editor-roadmap.json": "a0b01b69990020b23cd4e771f550cd2d9b9d9618d0aefe6610f776386694b0b9"
+      },
+      "release_evidence": [
+        "143 focused roadmap, schema, projection and route acceptance tests passed",
+        "15 focused Playwright scenarios passed for empty, loading, live, fixture, stale, unavailable, error, conflict, edit, handoff, undo, notification and responsive states",
+        "the actual FastAPI Planning route inventory equals the definition-only documented surface and contains no run, history, heartbeat or control endpoint",
+        "the V3 API recursively denies every runtime field listed by the roadmap",
+        "the exact approved revision and hash are drafted into Agent without submit or run start",
+        "the trackable acceptance test is committed as 5f973257",
+        "the owned browser specification remains untracked only because the pre-existing V3 index/app baseline is outside the commit boundary",
+        "no fixture mutation, live write, root cutover, run activation, push or foreign hunk commit occurred"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:PDE-06-definition-notification-undo",
       "run_id": "sar-12h-20260714t092106",
@@ -3852,15 +3946,14 @@
   ],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T15:05:47.0554883+02:00",
-    "summary": "PDE-06 is implemented, tested and committed as 290f71b4. Definition notifications resolve typed Planning references, execution notifications are Agent-only, and undo rereads the prior hash. PDE-07 is the next serial frontier; the untracked V3 baseline boundary remains preserved.",
-    "resume_cursor": "PDE-07-boundary-browser-acceptance",
+    "last_durable_progress_at": "2026-07-15T15:13:23.2163189+02:00",
+    "summary": "PDE-07 is green and released: 143 focused Python acceptance tests, 15 browser scenarios and the trackable acceptance commit 5f973257. IP-PLANNING-INTEGRATION-CLOSEOUT is the next and only full-suite integration point; the V3 baseline handoff remains preserved.",
+    "resume_cursor": "IP-PLANNING-INTEGRATION-CLOSEOUT",
     "resume_priority": [
-      "PDE-07-boundary-browser-acceptance",
       "IP-PLANNING-INTEGRATION-CLOSEOUT"
     ],
     "next_runnable_slices": [
-      "PDE-07-boundary-browser-acceptance"
+      "IP-PLANNING-INTEGRATION-CLOSEOUT"
     ],
     "blocked_slices": [
       "PDE-05-clean-checkout-v3-baseline-integration-handoff",
@@ -3882,6 +3975,7 @@
   },
   "completion_layers": {
     "implemented": [
+      "PDE-07-boundary-browser-acceptance",
       "PDE-06-definition-notification-undo",
       "PDE-05-v3-planning-surface",
       "TLR-06-history-agent-projection-api",
@@ -3909,6 +4003,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "PDE-07-boundary-browser-acceptance:143_python_15_browser_route_inventory_recursive_denylist_DOM_and_responsive_green",
       "PDE-06-definition-notification-undo:84_notification_14_browser_16_PMCP_taxonomy_static_and_boundary_green",
       "HPA-PDE06-next-frontier-contract-sync:9_roadmap_contract_passed",
       "HPA-PLANNING-UX-ACCEPTANCE-contract-sync:9_roadmap_contract_passed_165_compatibility_passed_3_environment_tmp_path_setup_errors",
@@ -3941,6 +4036,7 @@
       "SAR-09-measured-optimization-decisions:focused_and_cli"
     ],
     "committed": [
+      "PDE-07-boundary-browser-acceptance:5f973257_python_acceptance_browser_spec_handoff",
       "PDE-06-definition-notification-undo:290f71b4",
       "HPA-PDE06-next-frontier-contract-sync:88719df2",
       "HPA-PLANNING-UX-ACCEPTANCE-contract-sync:c980b644",
