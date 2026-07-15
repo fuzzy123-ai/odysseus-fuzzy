@@ -3,34 +3,61 @@
   "kind": "harbor.planning_integration_master_roadmap",
   "title": "Harbor Planning Integration Master Roadmap",
   "created_at": "2026-07-08",
-  "updated_at": "2026-07-09",
-  "status": "backend_contracts_ready_ui_live_gated",
+  "updated_at": "2026-07-15",
+  "status": "repo_integration_complete_live_gates_pending",
   "abc_mode": "Standard ABC",
-  "goal": "Make Planning the shared project truth between Harbor One UI, MCP-enabled agents, JSON roadmaps, Raptor Memory and sparse operator notifications.",
+  "goal": "Make Planning the immutable definition and revision truth for projects and roadmaps, then hand one approved revision to /abc so Temporal Light can execute it and Agent can show every mutable runtime fact for 12-24 hour shifts.",
   "user_workflow": [
-    "The user works in the Agent screen or with another AI and develops a plan.",
-    "The plan is converted into a validated JSON roadmap through Planning MCP.",
-    "The roadmap is stored in the right project directory with a predictable folder structure.",
-    "The roadmap is processed into Raptor Memory as derived planning context with provenance.",
-    "Harbor One shows one sparse notification that the project roadmaps changed.",
-    "Clicking the notification switches to Planning, opens Overview, highlights the new or changed roadmap and expands its summary.",
-    "When an AI is asked to work on the roadmap, it retrieves the roadmap plus context pack through MCP.",
-    "The AI updates roadmap progress through MCP while working, but routine progress updates stay silent.",
-    "Create and delete events notify the operator; delete events remain undoable from the interface."
+    "The user and an AI define project intent, slices, dependencies, gate requirements, verification and done conditions as a Planning draft.",
+    "Planning validates the complete definition, assigns a monotonically increasing revision and computes the canonical content hash.",
+    "Planning edits only definitions and revisions; it never creates, mutates or renders execution state.",
+    "Open in Agent resolves exactly one approved revision, switches to Agent and prepares the canonical /abc command without submitting it or starting a run.",
+    "The user submits /abc from Agent. /abc remains the sole intelligent entrypoint and selects the required secondary skills and models at runtime.",
+    "/abc authorizes the run, pins the exact roadmap revision and hash, and emits one immutable execution manifest.",
+    "Temporal Light executes the manifest deterministically through Activities while Odysseus retains claim, fencing, effect, evidence and live-go authority.",
+    "Agent displays run state, Activities, history, attempts, retries, timers, heartbeats, claims, leases, gates, commands and evidence.",
+    "A structural change never mutates the pinned revision; Agent proposes a new Planning draft and the current run either finishes against the old revision or stops with requires_plan_revision.",
+    "Definition notifications open Planning. Execution failures, stale heartbeats, runtime gate waits and run completion open Agent."
   ],
   "sub_roadmaps": [
     {
       "id": "HPIM-PMCP",
       "roadmap": "docs/plans/planning-mcp-roadmap.json",
-      "role": "MCP contract for create, read, update, context packs, event classification and gated writes.",
-      "status": "done"
+      "role": "Definition-only MCP contract for validated reads, drafts, revisions, context packs and Agent handoff creation. Legacy runtime progress writes are deprecated.",
+      "status": "definition_split_complete_repo_only_live_writes_gated"
     },
     {
       "id": "HPIM-UI",
       "roadmap": "docs/plans/abc-frontpage-v2-build-plan.md",
-      "role": "Harbor One V2 Planning UI, Overview graph, notification jump target and expanded roadmap summaries.",
-      "class": "needs_design",
+      "role": "Visual and interaction reference only. Its Planning/runtime semantics are explicitly superseded by HPIM-PDE and HPIM-TLR.",
+      "class": "reference_only",
+      "status": "prototype_reference_only"
+    },
+    {
+      "id": "HPIM-PDE",
+      "roadmap": "docs/plans/planning-definition-editor-roadmap.json",
+      "role": "Authoritative Planning-screen definition, revision, graph and editor track. It contains no execution state or controls.",
+      "class": "roadmap_child",
+      "execution_profile": "active_serial",
+      "status": "PDE_01_through_PDE_07_complete_PDE_08_operator_gated",
+      "depends_on": ["HPIM-PMCP"]
+    },
+    {
+      "id": "HPIM-HWA",
+      "roadmap": "docs/plans/headless-write-agent-orchestration-roadmap.md",
+      "role": "Odysseus authority, claim, fencing, effect, evidence and live-go boundary consumed by Temporal Activities.",
+      "class": "roadmap_child",
+      "execution_profile": "active_serial",
       "status": "in_progress"
+    },
+    {
+      "id": "HPIM-TLR",
+      "roadmap": "docs/plans/temporal-light-agent-execution-roadmap.json",
+      "role": "Temporal Light execution track shown exclusively in Agent. It consumes an immutable Planning revision and never writes runtime state back into Planning.",
+      "class": "roadmap_child",
+      "execution_profile": "active_serial",
+      "status": "TLR_01_through_TLR_09_complete_TLR_10_and_TLR_11_gated",
+      "depends_on": ["HPIM-PDE", "HPIM-HWA"]
     },
     {
       "id": "HPIM-MEM",
@@ -51,57 +78,106 @@
       "status": "repo_only_backend_complete"
     }
   ],
+  "screen_ownership_boundary": {
+    "decision": "The screen boundary is normative. Any field, endpoint or control not assigned below is rejected until this master roadmap is deliberately revised.",
+    "planning_screen_owns": [
+      "projects and roadmap definitions",
+      "roadmap revisions, hashes and definition lifecycle",
+      "slice DAG and declared dependencies",
+      "gate requirements, never live gate decisions",
+      "allowed paths, verification commands and done contracts",
+      "draft validation, diff, apply proposal, conflict resolution and undo",
+      "definition completeness and validation results",
+      "Open in Agent handoff preparation"
+    ],
+    "agent_screen_owns": [
+      "run creation through authenticated /abc submission and current run state",
+      "Temporal workflow ids and run ids",
+      "Activities, workflow history, attempts, retries and timers",
+      "heartbeats, stale detection, claims, leases and fencing",
+      "Signals, Updates and operator commands",
+      "runtime gate decisions and waits",
+      "evidence receipts, commits, provider stages and execution completion",
+      "secondary skill and model selections made by /abc"
+    ],
+    "planning_forbidden": [
+      "run status or progress",
+      "workflow or Activity identifiers",
+      "attempts, retries, timers or history events",
+      "heartbeats, claims, leases, workers or fencing tokens",
+      "Signals, Updates, commands or runtime gate decisions",
+      "evidence receipts, commits, provider stages or execution controls",
+      "concrete runtime skill or model choices"
+    ],
+    "agent_forbidden": [
+      "silent mutation of a pinned Planning revision",
+      "starting a run without authenticated /abc authorization",
+      "treating runtime history as a Planning definition revision",
+      "granting commit, push, merge, deploy or provider authority outside Odysseus gates"
+    ]
+  },
   "canonical_project_structure": {
-    "principle": "JSON roadmaps are the planning source of truth. Markdown is a rendered view or handoff only.",
+    "principle": "Versioned JSON definitions are the Planning source of truth. Markdown is a rendered view or handoff only. Runtime state is stored outside the Planning root and is joined only by the Agent read model.",
     "suggested_layout": [
       "projects/<project_id>/project.json",
       "projects/<project_id>/roadmaps/*.roadmap.json",
-      "projects/<project_id>/gates/*.gate.json",
+      "projects/<project_id>/gate-definitions/*.gate-definition.json",
       "projects/<project_id>/todos/*.todo.json",
-      "projects/<project_id>/events/*.jsonl",
+      "projects/<project_id>/definition-events/*.jsonl",
       "projects/<project_id>/memory/index.json"
     ],
     "notes": [
       "Roadmap files may be stored under docs/plans while the service is repo-only, but the logical project layout should already appear in metadata.",
       "Project, roadmap, gate, todo and event IDs must be stable enough for UI deep links and MCP context packs.",
-      "Delete operations must create undo metadata before removing or hiding the target."
+      "Delete operations must create undo metadata before removing or hiding the target.",
+      "Gate-definition files describe requirements and targets only; go/no-go decisions are runtime gate instances owned by Agent/Odysseus.",
+      "Todo objects in Planning describe intended work. Their queued, running, blocked and done instances are runtime records and are not written back into Planning."
     ]
   },
   "notification_policy": {
-    "principle": "Planning MCP is infrastructure, not a notification stream.",
+    "principle": "Notifications route by truth plane: definition changes open Planning; execution events open Agent. Neither screen mirrors the other screen's mutable state.",
     "silent_events": [
-      "roadmap_progress_updated",
-      "todo_completed",
       "context_pack_read",
       "raptor_memory_processed",
       "summary_refreshed",
-      "agent_checkpoint_written"
+      "definition_validation_succeeded",
+      "agent_heartbeat_received",
+      "agent_activity_progressed"
     ],
-    "notify_events": [
+    "planning_notify_events": [
       "project_created",
       "project_deleted",
       "roadmap_created",
       "roadmap_deleted",
-      "gate_blocked",
-      "gate_unblocked_when_it_changes_available_work",
-      "human_decision_required",
+      "roadmap_revision_approved",
+      "roadmap_revision_conflict",
       "undo_available_after_structural_delete"
+    ],
+    "agent_notify_events": [
+      "run_failed",
+      "run_completed",
+      "heartbeat_stale",
+      "runtime_gate_waiting",
+      "human_execution_decision_required",
+      "run_requires_plan_revision"
     ],
     "ui_behavior": [
       "Notifications appear in the Harbor header bell, not as modal interruptions.",
-      "Clicking a planning notification opens the Planning workspace, focuses Overview and highlights the referenced roadmap or gate.",
-      "A notification may expand the roadmap rectangle to show the short summary and source metadata.",
+      "A definition notification opens Planning and resolves an exact project, roadmap and revision reference.",
+      "An execution notification opens Agent and resolves an exact owner, workflow and run reference.",
+      "Planning notifications never carry workflow state; Agent notifications never claim that a Planning definition changed.",
       "Routine MCP calls must not create visible notifications."
     ]
   },
   "overview_ui_contract": {
     "graph_rules": [
       "Every visible line is an edge to a Roadmap or Gate node.",
-      "The edge color follows the target node state.",
+      "Node and edge colors encode definition kind or validation state only; they never encode a run state, attempt state or runtime gate decision.",
       "Roadmap rectangles show only the roadmap designation while collapsed.",
       "Expanded roadmap rectangles show a short full-roadmap summary.",
-      "Only gates that block progress between roadmaps are visible in Overview.",
-      "Hovering a gate dims unrelated nodes and highlights the affected roadmaps and direct gate edges."
+      "Gate nodes show declared requirements and their target slices, never live go/no-go decisions.",
+      "Hovering a gate dims unrelated nodes and highlights the affected roadmaps and direct gate edges.",
+      "Planning renders definition_completeness_percent only when it is computed from required definition fields; it renders no execution progress or completion overlay."
     ],
     "deep_link_target": {
       "workspace": "planning",
@@ -112,6 +188,7 @@
   },
   "v2_prototype_status": {
     "updated_at": "2026-07-09",
+    "semantic_status": "reference_only_superseded_by_pde_and_tlr",
     "visible_in_frontpage_v2": [
       "Planning workspace with Projects, Overview and Roadmaps windows.",
       "Roadmap list and graph selection highlight each other.",
@@ -121,56 +198,65 @@
       "Spark switches the active workspace to Agent and focuses the composer."
     ],
     "prototype_boundaries": [
+      "The V2 prototype is a visual interaction reference only; its mixed Planning/runtime ownership is not portable to V3.",
       "Roadmap Viewer content is derived from static demo graph data, not from real project JSON files.",
       "Editable fields are UI-only and do not persist through Planning MCP yet.",
       "Spark currently creates frontend context bubbles only; it does not yet request a service-backed context pack.",
       "Roadmap document JSON is a rendered draft view, not yet validated or written back as planning truth.",
       "Selection-to-document behavior is implemented for visible roadmap demo nodes only.",
-      "No Playwright regression flow exists yet for list selection, graph selection, viewer opening or Spark handoff."
+      "No Playwright regression flow exists yet for list selection, graph selection, viewer opening or Spark handoff.",
+      "Any V2 field representing progress, target run state, execution status, active worker, gate decision or evidence belongs exclusively to the Agent execution projection."
     ]
   },
   "open_integration_gaps": [
     {
       "id": "HPIM-GAP-real-roadmap-source",
-      "class": "needs_design",
-      "status": "planned",
+      "class": "archived",
+      "status": "superseded",
       "summary": "Replace static V2 roadmap demo data with service-backed project and roadmap JSON payloads.",
-      "owner_slice": "HPIM-7-v2-roadmap-document-source"
+      "owner_slice": "HPIM-7-v2-roadmap-document-source",
+      "superseded_by": ["PDE-02-definition-read-model-api", "PDE-05-v3-planning-surface"]
     },
     {
       "id": "HPIM-GAP-edit-persist",
-      "class": "needs_design",
-      "status": "planned",
+      "class": "archived",
+      "status": "superseded",
       "summary": "Persist Roadmap Document Viewer edits through validated Planning MCP draft or patch flow.",
-      "owner_slice": "HPIM-8-roadmap-document-edit-persist"
+      "owner_slice": "HPIM-8-roadmap-document-edit-persist",
+      "superseded_by": ["PDE-03-revision-proposal-apply", "PDE-05-v3-planning-surface"]
     },
     {
       "id": "HPIM-GAP-spark-context-pack",
-      "class": "needs_design",
-      "status": "planned",
+      "class": "archived",
+      "status": "superseded",
       "summary": "Turn Spark from frontend context bubble creation into a service-backed context-pack handoff.",
-      "owner_slice": "HPIM-9-spark-agent-context-pack"
+      "owner_slice": "HPIM-9-spark-agent-context-pack",
+      "superseded_by": ["PDE-04-agent-handoff-envelope"]
     },
     {
       "id": "HPIM-GAP-notification-document-deeplink",
-      "class": "needs_design",
-      "status": "planned",
+      "class": "archived",
+      "status": "superseded",
       "summary": "Let sparse Planning notifications open Overview, highlight the changed roadmap and optionally open its document viewer.",
-      "owner_slice": "HPIM-10-notification-roadmap-document-deeplink"
+      "owner_slice": "HPIM-10-notification-roadmap-document-deeplink",
+      "superseded_by": ["PDE-06-definition-notification-undo"]
     },
     {
       "id": "HPIM-GAP-visual-regression",
-      "class": "needs_design",
-      "status": "planned",
+      "class": "archived",
+      "status": "superseded",
       "summary": "Add Playwright coverage for roadmap selection, viewer opening, edit affordances and Spark handoff.",
-      "owner_slice": "HPIM-11-v2-planning-playwright-coverage"
+      "owner_slice": "HPIM-11-v2-planning-playwright-coverage",
+      "superseded_by": ["PDE-07-boundary-browser-acceptance", "TLR-07-agent-screen-runtime-ui"]
     }
   ],
   "mcp_contract_requirements": [
-    "Agents must load roadmap and context pack before executing roadmap work.",
-    "Roadmap creation writes must validate JSON schema and record source refs.",
-    "Roadmap progress updates should be audit logged but silent in the Harbor UI.",
-    "Roadmap creation/deletion emits a sparse notification event.",
+    "Planning MCP reads and writes definition objects only; runtime progress, checkpoints, heartbeats, claims, evidence and gate decisions are rejected.",
+    "Roadmap creation and revision writes validate the complete JSON schema, dependency DAG and runtime-field denylist before persistence.",
+    "planning_mark_status is deprecated and must not appear in the V2 definition tool surface.",
+    "The Agent handoff pins project_id, roadmap_id, revision and content_hash and always returns launch_authorized=false.",
+    "Only an authenticated /abc submission in Agent may convert that handoff into an execution manifest and start request.",
+    "Definition creation, revision, conflict and deletion events may emit sparse Planning notifications.",
     "Deletion returns undo metadata and never becomes irreversible without an operator-visible recovery path.",
     "Context packs may include Raptor Memory summaries and provenance, but not raw private content."
   ],
@@ -242,9 +328,10 @@
     },
     {
       "id": "HPIM-5-v2-overview-deeplink-ui",
-      "class": "needs_design",
+      "class": "archived",
       "owner": "Alice",
-      "status": "planned",
+      "status": "superseded",
+      "superseded_by": ["PDE-05-v3-planning-surface", "PDE-06-definition-notification-undo"],
       "objective": "Implement Harbor V2 behavior for notification click -> Planning Overview -> highlighted expanded roadmap summary.",
       "allowed_paths": ["static/frontpage-v2/*"],
       "tests": ["Playwright visual check"],
@@ -252,9 +339,10 @@
     },
     {
       "id": "HPIM-6-delete-undo-ui-contract",
-      "class": "needs_design",
+      "class": "archived",
       "owner": "Alice",
-      "status": "planned",
+      "status": "superseded",
+      "superseded_by": ["PDE-06-definition-notification-undo"],
       "objective": "Define the user-visible undo flow for roadmap/project deletion without making every routine update noisy.",
       "allowed_paths": [
         "docs/plans/harbor-planning-project-storage-contract.md",
@@ -265,9 +353,10 @@
     },
     {
       "id": "HPIM-7-v2-roadmap-document-source",
-      "class": "needs_design",
+      "class": "archived",
       "owner": "Bob",
-      "status": "planned",
+      "status": "superseded",
+      "superseded_by": ["PDE-02-definition-read-model-api", "PDE-05-v3-planning-surface"],
       "objective": "Replace static V2 roadmap demo data with a bounded Planning service payload that feeds Overview, Roadmaps list and Roadmap Document Viewer from the same project JSON source.",
       "dependency_gate": "HPIM-GATE-v2-planning-ui-integration",
       "backend_contract_refs": ["PMCP-5b-roadmap-document-view"],
@@ -288,9 +377,10 @@
     },
     {
       "id": "HPIM-8-roadmap-document-edit-persist",
-      "class": "needs_design",
+      "class": "archived",
       "owner": "Bob",
-      "status": "planned",
+      "status": "superseded",
+      "superseded_by": ["PDE-03-revision-proposal-apply", "PDE-05-v3-planning-surface"],
       "objective": "Persist Roadmap Document Viewer edits as validated JSON draft or patch proposals instead of UI-only text changes.",
       "dependency_gate": "HPIM-GATE-v2-planning-ui-integration",
       "backend_contract_refs": ["PMCP-5c-roadmap-edit-draft"],
@@ -310,9 +400,10 @@
     },
     {
       "id": "HPIM-9-spark-agent-context-pack",
-      "class": "needs_design",
+      "class": "archived",
       "owner": "Charlie",
-      "status": "planned",
+      "status": "superseded",
+      "superseded_by": ["PDE-04-agent-handoff-envelope"],
       "objective": "Upgrade Spark buttons from frontend-only context bubbles to service-backed Agent context handoffs.",
       "dependency_gate": "HPIM-GATE-v2-planning-ui-integration",
       "backend_contract_refs": ["PMCP-5d-spark-section-context-pack"],
@@ -332,9 +423,10 @@
     },
     {
       "id": "HPIM-10-notification-roadmap-document-deeplink",
-      "class": "needs_design",
+      "class": "archived",
       "owner": "Charlie",
-      "status": "planned",
+      "status": "superseded",
+      "superseded_by": ["PDE-06-definition-notification-undo"],
       "objective": "Extend sparse Planning notification deep links so roadmap-created and roadmap-updated notifications can open Planning, highlight the roadmap and optionally open the Roadmap Document Viewer.",
       "dependency_gate": "HPIM-GATE-v2-planning-ui-integration",
       "backend_contract_refs": [
@@ -355,9 +447,10 @@
     },
     {
       "id": "HPIM-11-v2-planning-playwright-coverage",
-      "class": "needs_design",
+      "class": "archived",
       "owner": "Charlie",
-      "status": "planned",
+      "status": "superseded",
+      "superseded_by": ["PDE-07-boundary-browser-acceptance", "TLR-07-agent-screen-runtime-ui"],
       "objective": "Add browser regression coverage for the Planning V2 interactions that are currently prototype-only.",
       "dependency_gate": "HPIM-GATE-v2-planning-ui-integration",
       "dependencies": [
@@ -379,12 +472,58 @@
         "Playwright: Spark switches to Agent and pins roadmap context"
       ],
       "done_when": "Focused browser tests cover roadmap list selection, graph selection, document viewer mode switch and Spark-to-Agent context handoff."
+    },
+    {
+      "id": "HPIM-12-definition-plane",
+      "class": "integration_milestone",
+      "owner": "Alice",
+      "status": "done_repo_only_PDE_01_through_PDE_07",
+      "claimable": false,
+      "depends_on": ["PDE-07-boundary-browser-acceptance"],
+      "delegated_to": "docs/plans/planning-definition-editor-roadmap.json",
+      "objective": "Accept the complete definition-only Planning plane without duplicating any child implementation work in the master queue.",
+      "allowed_paths": ["docs/plans/planning-definition-editor-roadmap.json"],
+      "tests": ["python -m pytest -q tests/test_planning_agent_boundary_roadmaps.py"],
+      "done_when": "PDE-01 through PDE-07 are done with evidence and the Planning boundary test passes.",
+      "stop_rules": ["Do not claim this milestone directly; execute the PDE child queue."],
+      "forbidden_actions": ["No runtime field, endpoint or control may be added to Planning."]
+    },
+    {
+      "id": "HPIM-13-execution-plane",
+      "class": "integration_milestone",
+      "owner": "Bob",
+      "status": "done_repo_only_TLR_01_through_TLR_09",
+      "claimable": false,
+      "depends_on": ["HPIM-12-definition-plane", "TLR-09-24h-time-skipping-acceptance"],
+      "delegated_to": "docs/plans/temporal-light-agent-execution-roadmap.json",
+      "objective": "Accept the Temporal Light and Agent execution plane without creating a second scheduler or authority system.",
+      "allowed_paths": ["docs/plans/temporal-light-agent-execution-roadmap.json"],
+      "tests": ["python -m pytest -q tests/test_planning_agent_boundary_roadmaps.py"],
+      "done_when": "TLR-01 through TLR-09 are done with evidence, replay/recovery tests pass and Planning remains byte-stable during execution.",
+      "stop_rules": ["Do not claim this milestone directly; execute the TLR child queue."],
+      "forbidden_actions": ["No separate dashboard, custom scheduler or Planning runtime write is permitted."]
+    },
+    {
+      "id": "HPIM-14-screen-boundary-acceptance",
+      "class": "integration_milestone",
+      "owner": "Charlie",
+      "status": "done_repo_only_contract_and_browser_acceptance",
+      "claimable": false,
+      "depends_on": ["HPIM-12-definition-plane", "HPIM-13-execution-plane"],
+      "objective": "Prove end to end that Planning owns definitions and Agent owns operations across empty, success, failure, recovery and revision-required cases.",
+      "allowed_paths": ["tests/test_planning_agent_boundary_roadmaps.py", "tests/e2e/planning-agent-boundary/*"],
+      "tests": ["python -m pytest -q tests/test_planning_agent_boundary_roadmaps.py", "Playwright: Planning definition to Agent run handoff boundary"],
+      "done_when": "The acceptance packet contains screenshots and machine-readable evidence for every owned and forbidden state on both screens.",
+      "stop_rules": ["Do not claim this milestone before both child milestones are complete."],
+      "forbidden_actions": ["No acceptance by screenshots alone; contract and browser evidence are both mandatory."]
     }
   ],
   "gate_queue": [
     {
       "id": "HPIM-GATE-v2-planning-ui-integration",
-      "class": "needs_design",
+      "class": "archived",
+      "status": "superseded",
+      "superseded_by": ["HPA-PLANNING-UX-ACCEPTANCE", "HPA-AGENT-UX-ACCEPTANCE"],
       "blocks": [
         "HPIM-7-v2-roadmap-document-source",
         "HPIM-8-roadmap-document-edit-persist",
@@ -395,7 +534,49 @@
       "decision_needed": "Hand the five V2 Planning integration/browser slices to the UI owner and approve their interaction sequence without changing backend contract ownership.",
       "safe_preparation_done": "HPIM-1 storage and HPIM-4 notification-candidate contracts are repository-ready. PMCP-5b, PMCP-5c, PMCP-5d and PMCP-6b remain independently completable backend contracts and do not pre-complete these UI slices.",
       "risk_if_bypassed": "A backend runner could edit active V2 UI hotfiles, claim UI done from route tests alone or add Playwright coverage before the intended interactions exist.",
-      "next_safe_slice": "PMCP-5b-roadmap-document-view"
+      "next_safe_slice": null
+    }
+  ],
+  "integration_gate_references": [
+    {
+      "id": "HPA-PLANNING-UX-ACCEPTANCE",
+      "owner_roadmap": "docs/plans/planning-definition-editor-roadmap.json",
+      "status": "accepted_user_v3_calm_control_room_definition_only",
+      "blocks": ["PDE-05-v3-planning-surface", "PDE-07-boundary-browser-acceptance"],
+      "safe_default": "no_go",
+      "decision": "Approve the definition-only Planning information architecture and browser acceptance packet."
+    },
+    {
+      "id": "PLANNING-WRITE-GO",
+      "owner_roadmap": "docs/plans/planning-definition-editor-roadmap.json",
+      "status": "gated_exact_write_envelope_missing",
+      "blocks": ["PDE-08-real-save-undo-smoke"],
+      "safe_default": "no_go",
+      "decision": "Authorize one named real-roadmap apply and exact restoration smoke."
+    },
+    {
+      "id": "HPA-AGENT-UX-ACCEPTANCE",
+      "owner_roadmap": "docs/plans/temporal-light-agent-execution-roadmap.json",
+      "status": "accepted_by_user_20260715",
+      "blocks": ["TLR-07-agent-screen-runtime-ui"],
+      "safe_default": "no_go",
+      "decision": "Approve the Agent operational information architecture and controls before runtime UI implementation."
+    },
+    {
+      "id": "AGENT-12H-LIVE-GO",
+      "owner_roadmap": "docs/plans/temporal-light-agent-execution-roadmap.json",
+      "status": "gated_exact_soak_envelope_missing",
+      "blocks": ["TLR-10-12h-wall-clock-soak"],
+      "safe_default": "no_go",
+      "decision": "Authorize the bounded 12-hour local wall-clock soak after time-skipping and recovery acceptance pass."
+    },
+    {
+      "id": "TEMPORAL-PRODUCTION-ACTIVATION-GO",
+      "owner_roadmap": "docs/plans/temporal-light-agent-execution-roadmap.json",
+      "status": "gated_exact_production_temporal_envelope_missing",
+      "blocks": ["TLR-11-production-activation"],
+      "safe_default": "no_go",
+      "decision": "Authorize a production-grade Temporal service and monitored canary; local Temporal Light remains the default until then."
     }
   ],
   "non_goals": [
@@ -403,13 +584,51 @@
     "No raw private content in roadmap memory entries, notifications, audit logs or context packs.",
     "No Markdown source of truth for planning state.",
     "No irreversible delete without undo metadata.",
-    "No automatic completion of roadmap work without evidence refs."
+    "No automatic completion of roadmap work without evidence refs.",
+    "No run state, runtime gate decision, heartbeat, Activity, history, claim, evidence or execution control in Planning.",
+    "No separate Temporal dashboard; Agent is the only operator surface for execution.",
+    "No direct run start from Planning and no run start that bypasses authenticated /abc authorization.",
+    "No custom scheduler alongside Temporal Light and no transfer of Odysseus claim, fencing, effect or live-go authority to Temporal."
   ],
   "verification": [
     "python -m json.tool docs/plans/harbor-planning-integration-master-roadmap.json",
+    "python -m json.tool docs/plans/planning-definition-editor-roadmap.json",
+    "python -m json.tool docs/plans/temporal-light-agent-execution-roadmap.json",
     "python -m json.tool docs/plans/planning-mcp-roadmap.json",
-    "Future: focused Planning MCP service tests",
-    "Future: Playwright notification deep-link UI check"
+    "python -m pytest -q tests/test_planning_agent_boundary_roadmaps.py",
+    "python scripts/roadmap_safe_queue_audit.py --format json",
+    "Future PDE-07: Playwright definition-only Planning acceptance",
+    "Future TLR-09: Temporal time-skipping, replay, restart, heartbeat and idempotency acceptance",
+    "Future HPIM-14: cross-screen browser acceptance packet"
   ],
-  "recommended_next_step": "Create HPIM-1 project storage contract, then implement HPIM-2 in the Planning MCP service before wiring the V2 notification deep-link UI."
+  "shared_router_handoff_required": {
+    "reason": "The repository-wide Open Work master and multi-agent guidance are single-writer shared routers owned by another active task.",
+    "deferred_files": [
+      "docs/plans/open-work-completion-master-roadmap.json",
+      "docs/plans/unified-odysseus-roadmap.md",
+      "docs/plans/central-abc-masterplan-2026-06-29.md",
+      "docs/plans/multi-agent-execution-guidance.json",
+      "specs/roadmaps/odysseus-multiagent-roadmap.v1.json"
+    ],
+    "handoff_action": "After the active single writer releases these files, register HPIM-PDE and HPIM-TLR as active_serial children under the existing Harbor/HWA lane; do not create a competing product line or add either child to the active ABC execution queue prematurely.",
+    "safe_default": "Use this HPIM roadmap as the immediate master and do not mutate a deferred router without a fresh claim."
+  },
+  "completion_evidence": {
+    "planning_definition_plane": "PDE-01 through PDE-07 are implemented and repository-tested; HPA-PLANNING-UX-ACCEPTANCE is accepted; PDE-08 remains behind PLANNING-WRITE-GO.",
+    "planning_mcp_plane": "PMCP-9 enforces definition-only Planning tools and rejects runtime progress, gate decision, heartbeat, claim and evidence writes.",
+    "execution_plane": "TLR-01 through TLR-09 are implemented and repository-tested, including deterministic replay, Worker recovery, idempotency and the exact 24-hour time-skipping acceptance.",
+    "screen_boundary": "The integrated V3 baseline passed 11 Python boundary tests and 22 combined Planning-plus-Agent browser contracts; Planning remained definition-only and Agent runtime-only.",
+    "commits": [
+      "b21a57a7 TLR-08 deterministic Worker recovery",
+      "07596c8a TLR-09 24-hour execution semantics",
+      "7251e4cc complete V3 baseline integration"
+    ],
+    "remaining_operator_gates": [
+      "PLANNING-WRITE-GO for one exact real definition apply and undo smoke",
+      "AGENT-12H-LIVE-GO for one exact 12-hour wall-clock synthetic soak",
+      "TEMPORAL-PRODUCTION-ACTIVATION-GO for production-grade Temporal infrastructure",
+      "deployment envelope for exact verified commit to fuzzy/dev and the configured Debian homeserver"
+    ]
+  },
+  "recommended_next_step": "Prepare the exact verified Git artifact, non-force fuzzy/dev reconciliation, Debian-homeserver deployment mechanism, observation window and rollback command. Do not run PDE-08, TLR-10 or TLR-11 until their separately named gates contain every required target, limit, owner and rollback field."
 }

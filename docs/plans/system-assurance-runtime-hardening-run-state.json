@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
   "state": "running",
-  "revision": 200,
+  "revision": 202,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -119,6 +119,63 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:MASTER-ROADMAP-SYNC-HANDOFF",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "MASTER-ROADMAP-SYNC-HANDOFF",
+      "owner": "/root",
+      "allowed_paths": [
+        "docs/plans/harbor-planning-integration-master-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [
+        "docs/plans/harbor-planning-integration-master-roadmap.json"
+      ],
+      "state": "released_green",
+      "acquired_at": "2026-07-15T17:25:19.1390606+02:00",
+      "lease_expires_at": "2026-07-15T18:25:19.1390606+02:00",
+      "handoff_required": true,
+      "handoff_evidence": [
+        "the complete pre-existing master-roadmap baseline was adopted without dropping a hunk",
+        "child statuses were read from their canonical roadmap files",
+        "repo completion and separately gated live work are explicit",
+        "no child, router, source or UI file changed"
+      ],
+      "path_fingerprints_sha256": {
+        "docs/plans/harbor-planning-integration-master-roadmap.json": "990448f3934b547bb3ff6ec044607029cf4c13c3d011a8b44ae369878c7413f9",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "603ddce7ed45bd6cf20948d928a2e916a7e07ce1e8a1d567453fe138d7694771"
+      },
+      "evidence_contract": {
+        "target_environment": "Harbor Planning integration master roadmap only",
+        "authority": "repo",
+        "mutation_class": "repo_only_serialized_handoff",
+        "master_boundary_tests_passed": 10,
+        "roadmap_safe_queue_audit_exit": 0
+      },
+      "forbidden_actions": [
+        "child-roadmap mutation",
+        "source or UI mutation",
+        "router-roadmap mutation",
+        "repository-wide suite",
+        "push",
+        "live deployment"
+      ],
+      "released_at": "2026-07-15T17:31:00+02:00",
+      "release_evidence": {
+        "json": "master roadmap parsed successfully",
+        "focused_test": "tests/test_planning_agent_boundary_roadmaps.py => 10 passed",
+        "queue_audit": "scripts/roadmap_safe_queue_audit.py --format json exited zero and preserved unrelated queue families",
+        "adopted_diff": "the complete pre-claim 270-addition/73-deletion baseline is retained",
+        "remaining_gates": [
+          "PLANNING-WRITE-GO",
+          "AGENT-12H-LIVE-GO",
+          "TEMPORAL-PRODUCTION-ACTIVATION-GO",
+          "exact deployment artifact and rollback envelope"
+        ],
+        "next_slice": "DEPLOYMENT-ENVELOPE-DISCOVERY"
+      }
+    },
     {
       "claim_id": "sar-12h-20260714t092106:V3-BASELINE-INTEGRATION",
       "run_id": "sar-12h-20260714t092106",
@@ -4673,15 +4730,15 @@
     "LIVE-ACTIVATION-ENVELOPE: discover and record the exact final verified commit, repository-native Debian deployment mechanism, observation window, previous deployed artifact and rollback command before push or deployment"
   ],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T17:26:00+02:00",
-    "summary": "The user-granted complete V3 baseline is integrated and green with seven JavaScript syntax checks, 11 Python boundary tests and 22 Planning-plus-Agent browser contracts. The pre-existing dirty master roadmap remains preserved outside the commit and needs its own serialized handoff decision.",
-    "resume_cursor": "MASTER-ROADMAP-SYNC-HANDOFF",
+    "last_durable_progress_at": "2026-07-15T17:31:00+02:00",
+    "summary": "The complete Harbor Planning master roadmap is synchronized and green. It now records the repo-complete definition, MCP, execution and screen-boundary layers while keeping the real Planning write, 12-hour wall-clock soak, production Temporal activation and exact deployment envelope separately gated.",
+    "resume_cursor": "DEPLOYMENT-ENVELOPE-DISCOVERY",
     "resume_priority": [
-      "MASTER-ROADMAP-SYNC-HANDOFF",
+      "DEPLOYMENT-ENVELOPE-DISCOVERY",
       "LIVE-ACTIVATION-SCOPE"
     ],
     "next_runnable_slices": [
-      "MASTER-ROADMAP-SYNC-HANDOFF"
+      "DEPLOYMENT-ENVELOPE-DISCOVERY"
     ],
     "blocked_slices": [
       "PDE-08-real-save-undo-smoke",
@@ -4705,6 +4762,7 @@
   },
   "completion_layers": {
     "implemented": [
+      "MASTER-ROADMAP-SYNC-HANDOFF",
       "V3-BASELINE-INTEGRATION",
       "TLR-09-24h-time-skipping-acceptance",
       "TLR-08-replay-restart-recovery",
@@ -4737,6 +4795,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "MASTER-ROADMAP-SYNC-HANDOFF:10_boundary_and_queue_audit_exit_zero",
       "V3-BASELINE-INTEGRATION:7_node_11_python_22_browser_green",
       "TLR-09-24h-time-skipping-acceptance:1_acceptance_7_browser_10_final_integration_zero_process_leaks",
       "TLR-08-STICKY-A:1_constant_1_worker_recovery_92_integration_assertions_2_environment_retry_green_zero_process_leaks",
@@ -4780,6 +4839,7 @@
       "SAR-09-measured-optimization-decisions:focused_and_cli"
     ],
     "committed": [
+      "V3-BASELINE-INTEGRATION:7251e4cc",
       "TLR-09-24h-time-skipping-acceptance:07596c8a",
       "TLR-08-replay-restart-recovery:b21a57a7",
       "PDE-07-boundary-browser-acceptance:5f973257_python_acceptance_browser_spec_handoff",
