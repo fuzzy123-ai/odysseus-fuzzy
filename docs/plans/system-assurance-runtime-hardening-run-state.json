@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
   "state": "running",
-  "revision": 150,
+  "revision": 152,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -110,6 +110,24 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:TLR-02-manifest-run-start",
+      "slice_id": "TLR-02-abc-manifest-and-run-start",
+      "owner": "/root",
+      "state": "released_manifest_idempotency_green_committed_fake_only",
+      "acquired_at": "2026-07-15T11:09:35.2471658+02:00",
+      "released_at": "2026-07-15T11:20:18.9616940+02:00",
+      "commit": "262290a4",
+      "evidence": [
+        "21 focused manifest and execution-service tests passed",
+        "56 compatibility tests passed across the Planning handoff and Planning/Agent boundary",
+        "same inputs produced one immutable canonical manifest hash",
+        "duplicate, concurrent and post-service-restart requests returned one original receipt and one fake workflow",
+        "the start reservation was durable before fake dispatch",
+        "changed Planning head, tampered handoff, changed policy under one request id and corrupt store failed before a new dispatch",
+        "no real Worker, local Temporal process, route, Planning start path or external effect was introduced"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:TLR-01-local-runtime",
       "slice_id": "TLR-01-temporal-light-local-runtime",
@@ -1096,6 +1114,14 @@
     }
   ],
   "agent_leases": [
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:TLR-02-manifest-run-start",
+      "state": "completed_manifest_idempotency_green_committed_fake_only",
+      "leased_at": "2026-07-15T11:09:35.2471658+02:00",
+      "lease_expires_at": "2026-07-15T13:09:35.2471658+02:00",
+      "released_at": "2026-07-15T11:20:18.9616940+02:00"
+    },
     {
       "agent": "/root",
       "claim_id": "sar-12h-20260714t092106:TLR-01-local-runtime",
@@ -2199,6 +2225,16 @@
   ],
   "completed_slices": [
     {
+      "slice_id": "TLR-02-abc-manifest-and-run-start",
+      "completion_layer": "repository_implemented_focused_and_compatibility_tested_committed_fake_client_only",
+      "evidence": [
+        "commit 262290a4",
+        "21 focused tests passed",
+        "56 Planning-handoff compatibility tests passed",
+        "persistent pre-dispatch reservation and one-run idempotency passed"
+      ]
+    },
+    {
       "slice_id": "TLR-01-temporal-light-local-runtime",
       "completion_layer": "repository_implemented_focused_boundary_and_real_restart_tested_committed_local_processes_stopped",
       "evidence": [
@@ -2918,18 +2954,17 @@
   ],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T11:05:12.1259322+02:00",
-    "summary": "TLR-01 is implemented, real-restart tested, committed as bdbb352d and released with every slice-owned process stopped. PDE-04 is already complete, so TLR-02 is the next dependency-safe named-roadmap slice.",
-    "resume_cursor": "TLR-02-abc-manifest-and-run-start",
+    "last_durable_progress_at": "2026-07-15T11:20:18.9616940+02:00",
+    "summary": "TLR-02 is implemented, fake-only tested, committed as 262290a4 and released. TLR-03 deterministic Workflow and DAG state-machine work is now the next dependency-safe slice; every real Temporal process remains stopped.",
+    "resume_cursor": "TLR-03-deterministic-workflow",
     "resume_priority": [
-      "TLR-02-abc-manifest-and-run-start",
+      "TLR-03-deterministic-workflow",
       "PDE-05-v3-planning-surface"
     ],
     "next_runnable_slices": [
-      "TLR-02-abc-manifest-and-run-start"
+      "TLR-03-deterministic-workflow"
     ],
     "blocked_slices": [
-      "TLR-03-activity-history-heartbeats",
       "TLR-04-signals-updates-idempotency",
       "TLR-05-agent-operation-projection",
       "TLR-06-recovery-replay-integration",
@@ -2952,6 +2987,7 @@
   },
   "completion_layers": {
     "implemented": [
+      "TLR-02-abc-manifest-and-run-start",
       "TLR-01-temporal-light-local-runtime",
       "PMCP-9-definition-runtime-separation",
       "PDE-01-definition-schema-validator",
@@ -2970,6 +3006,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "TLR-02-abc-manifest-and-run-start:21_focused_56_planning_compatibility_fake_only",
       "TLR-01-temporal-light-local-runtime:20_focused_29_combined_real_health_bind_restart_persistence_cleanup",
       "PMCP-9-definition-runtime-separation:92_service_28_internal_18_external_149_combined_1_expected_skip",
       "PDE-01-definition-schema-validator:92_focused_99_combined_boundary",
@@ -2990,6 +3027,7 @@
       "SAR-09-measured-optimization-decisions:focused_and_cli"
     ],
     "committed": [
+      "TLR-02-abc-manifest-and-run-start:262290a4",
       "TLR-01-temporal-light-local-runtime:bdbb352d",
       "PMCP-9-definition-runtime-separation:a412f28f_cff55a36_acd7dfa4",
       "PDE-01-definition-schema-validator:7cfc9e8845b6bb2edfe9651007e2d6e87147376d",
