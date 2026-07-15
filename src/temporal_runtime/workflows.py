@@ -14,6 +14,18 @@ from typing import Any, Mapping, Sequence
 
 from temporalio import workflow
 from temporalio.common import RetryPolicy
+from temporalio.exceptions import ActivityError, CancelledError as TemporalCancelledError
+
+from src.temporal_runtime.commands import (
+    MAX_SIGNAL_RECORDS,
+    CommandContractError,
+    CommandLedger,
+    CommandReceipt,
+    CommandRequest,
+    ExternalConditionSignal,
+    OperatorNoteSignal,
+    is_structural_steering,
+)
 
 
 WORKFLOW_NAME = "OdysseusABCExecutionWorkflow"
@@ -86,6 +98,9 @@ class WorkflowCarryState:
     event_cursor: int
     receipt_store_cursor: str
     projected_event_count: int = 0
+    command_receipts: tuple[dict[str, Any], ...] = ()
+    operator_notes: tuple[dict[str, str], ...] = ()
+    external_condition_revisions: tuple[tuple[str, int], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -126,6 +141,9 @@ class DeterministicDagState:
             self.event_cursor = 0
             self.receipt_store_cursor = ""
             self.projected_event_count = 0
+            self.command_ledger = CommandLedger()
+            self.operator_notes: dict[str, str] = {}
+            self.external_condition_revisions: dict[str, int] = {}
         else:
             _validate_carry(carry, self, gate_ids)
             self.run_state = carry.run_state
@@ -136,6 +154,12 @@ class DeterministicDagState:
             self.event_cursor = carry.event_cursor
             self.receipt_store_cursor = carry.receipt_store_cursor
             self.projected_event_count = carry.projected_event_count
+            self.command_ledger = CommandLedger(carry.command_receipts)
+            self.operator_notes = {
+                str(item["note_id"]): str(item["note_ref"])
+                for item in carry.operator_notes
+            }
+            self.external_condition_revisions = dict(carry.external_condition_revisions)
 
     def transition(self, event: str) -> str:
         current = self.run_state
@@ -150,7 +174,7 @@ class DeterministicDagState:
             target = "waiting_gate"
         elif current == "running" and event == "explicit_external_input_required":
             target = "waiting_signal"
-        elif current == "running" and event == "pause_update_applied":
+        elif current in ("running", "waiting_gate", "waiting_signal") and event == "pause_update_applied":
             target = "paused"
         elif current == "waiting_gate" and event == "gate_decision_approved":
             target = "running"
@@ -245,6 +269,8 @@ class DeterministicDagState:
             target = "failed"
         elif current == "retry_wait" and event == "retry_due":
             target = "claiming"
+        elif current == "retry_wait" and event == "operator_retry":
+            target = "pending"
         elif current == "waiting_gate" and event == "gate_approved":
             target = "pending"
         elif current == "waiting_gate" and event == "gate_rejected":
@@ -279,6 +305,117 @@ class DeterministicDagState:
             return
         raise WorkflowContractError("invalid_activity_result", f"unsupported status for {node_id}")
 
+    def validate_command(self, request: CommandRequest) -> CommandReceipt | None:
+        if not isinstance(request, CommandRequest):
+            raise CommandContractError("invalid_command", "CommandRequest is required")
+        normalized = request.normalized()
+        if normalized != request:
+            raise CommandContractError("invalid_command", "command fields are not normalized")
+        duplicate = self.command_ledger.duplicate_for(request)
+        if duplicate is not None:
+            return duplicate
+        if request.expected_run_version != self.run_version:
+            raise CommandContractError(
+                "stale_run_version",
+                f"expected {request.expected_run_version}, current {self.run_version}",
+            )
+        allowed_states = {
+            "pause": ("running", "waiting_gate", "waiting_signal"),
+            "resume": ("paused",),
+            "cancel": ("running", "waiting_gate", "waiting_signal", "paused"),
+            "retry_activity": ("running",),
+            "decide_gate": ("waiting_gate",),
+            "steer_run": ("running", "waiting_signal", "paused"),
+        }
+        if self.run_state not in allowed_states[request.command]:
+            raise CommandContractError(
+                "illegal_command_transition",
+                f"{request.command} is not allowed from {self.run_state}",
+            )
+        if request.command == "retry_activity":
+            node_id = request.payload["node_id"]
+            if node_id not in self.nodes:
+                raise CommandContractError("unknown_node", "retry target is not in the manifest")
+            if self.slice_states[node_id] != "retry_wait":
+                raise CommandContractError(
+                    "illegal_command_transition",
+                    "retry target is not waiting for an operator retry",
+                )
+        if request.command == "decide_gate":
+            gate_id = request.payload["gate_id"]
+            if gate_id not in self.gate_states:
+                raise CommandContractError("unknown_gate", "gate is not in the manifest")
+            if self.gate_states[gate_id] != "pending":
+                raise CommandContractError("gate_already_decided", "gate already has a decision")
+        self.command_ledger.ensure_capacity()
+        return None
+
+    def apply_command(self, request: CommandRequest) -> CommandReceipt:
+        duplicate = self.validate_command(request)
+        if duplicate is not None:
+            return duplicate
+        result_code = "applied"
+        if request.command == "pause":
+            self.transition("pause_update_applied")
+        elif request.command == "resume":
+            self.transition("resume_update_applied")
+        elif request.command == "cancel":
+            self.transition("cancel_update_applied")
+        elif request.command == "retry_activity":
+            node_id = request.payload["node_id"]
+            self.transition_slice(node_id, "operator_retry")
+            self.run_version += 1
+        elif request.command == "decide_gate":
+            gate_id = request.payload["gate_id"]
+            decision = request.payload["decision"]
+            self.gate_states[gate_id] = decision
+            if decision in ("approved", "waived"):
+                self.transition("gate_decision_approved")
+            else:
+                self.transition("gate_decision_rejected_when_required")
+        elif request.command == "steer_run" and is_structural_steering(request):
+            result_code = "requires_plan_revision"
+        elif request.command == "steer_run":
+            if self.run_state == "waiting_signal":
+                self.transition("steering_signal_applied")
+            else:
+                self.run_version += 1
+                self._record_event()
+        else:
+            raise CommandContractError("unknown_command", "command is not registered")
+        receipt = CommandReceipt.create(
+            request,
+            result_run_version=self.run_version,
+            result_code=result_code,
+            state=self.run_state,
+        )
+        return self.command_ledger.record(receipt)
+
+    def record_operator_note(self, signal: OperatorNoteSignal) -> None:
+        normalized = OperatorNoteSignal.create(
+            note_id=signal.note_id,
+            note_ref=signal.note_ref,
+        )
+        existing = self.operator_notes.get(normalized.note_id)
+        if existing is not None or len(self.operator_notes) >= MAX_SIGNAL_RECORDS:
+            return
+        self.operator_notes[normalized.note_id] = normalized.note_ref
+        self._record_event()
+
+    def record_external_condition(self, signal: ExternalConditionSignal) -> None:
+        normalized = ExternalConditionSignal.create(condition_ref=signal.condition_ref)
+        if (
+            normalized.condition_ref not in self.external_condition_revisions
+            and len(self.external_condition_revisions) >= MAX_SIGNAL_RECORDS
+        ):
+            return
+        self.external_condition_revisions[normalized.condition_ref] = (
+            self.external_condition_revisions.get(normalized.condition_ref, 0) + 1
+        )
+        self._record_event()
+        if self.run_state == "waiting_signal":
+            self.transition("steering_signal_applied")
+
     def is_complete(self) -> bool:
         required_nodes_done = all(state in ("succeeded", "skipped") for state in self.slice_states.values())
         gates_done = all(state in ("approved", "waived") for state in self.gate_states.values())
@@ -299,6 +436,14 @@ class DeterministicDagState:
             event_cursor=self.event_cursor,
             receipt_store_cursor=self.receipt_store_cursor,
             projected_event_count=0,
+            command_receipts=self.command_ledger.export(),
+            operator_notes=tuple(
+                {"note_id": note_id, "note_ref": note_ref}
+                for note_id, note_ref in self.operator_notes.items()
+            ),
+            external_condition_revisions=tuple(
+                sorted(self.external_condition_revisions.items())
+            ),
         )
         return WorkflowStart(manifest=dict(self.manifest), carry=carry)
 
@@ -314,6 +459,14 @@ class DeterministicDagState:
             "history_segment": self.history_segment,
             "event_cursor": self.event_cursor,
             "receipt_store_cursor": self.receipt_store_cursor,
+            "command_receipt_count": self.command_ledger.count,
+            "operator_notes": [
+                {"note_id": note_id, "note_ref": note_ref}
+                for note_id, note_ref in self.operator_notes.items()
+            ],
+            "external_condition_revisions": dict(
+                sorted(self.external_condition_revisions.items())
+            ),
         }
 
     def _record_event(self) -> None:
@@ -328,6 +481,74 @@ class ABCExecutionWorkflow:
     def __init__(self) -> None:
         self._state: DeterministicDagState | None = None
         self._segment_started_at = 0.0
+        self._active_handles: list[Any] = []
+
+    @workflow.query(name="get_run_state")
+    def get_run_state(self) -> dict[str, Any]:
+        return self._required_state().projection()
+
+    @workflow.update(name="pause")
+    def pause(self, request: CommandRequest) -> dict[str, Any]:
+        return self._apply_named_command("pause", request)
+
+    @pause.validator
+    def pause_validator(self, request: CommandRequest) -> None:
+        self._validate_named_command("pause", request)
+
+    @workflow.update(name="resume")
+    def resume(self, request: CommandRequest) -> dict[str, Any]:
+        return self._apply_named_command("resume", request)
+
+    @resume.validator
+    def resume_validator(self, request: CommandRequest) -> None:
+        self._validate_named_command("resume", request)
+
+    @workflow.update(name="cancel")
+    def cancel(self, request: CommandRequest) -> dict[str, Any]:
+        receipt = self._apply_named_command("cancel", request)
+        for handle in self._active_handles:
+            handle.cancel()
+        return receipt
+
+    @cancel.validator
+    def cancel_validator(self, request: CommandRequest) -> None:
+        self._validate_named_command("cancel", request)
+
+    @workflow.update(name="retry_activity")
+    def retry_activity(self, request: CommandRequest) -> dict[str, Any]:
+        return self._apply_named_command("retry_activity", request)
+
+    @retry_activity.validator
+    def retry_activity_validator(self, request: CommandRequest) -> None:
+        self._validate_named_command("retry_activity", request)
+
+    @workflow.update(name="decide_gate")
+    def decide_gate(self, request: CommandRequest) -> dict[str, Any]:
+        return self._apply_named_command("decide_gate", request)
+
+    @decide_gate.validator
+    def decide_gate_validator(self, request: CommandRequest) -> None:
+        self._validate_named_command("decide_gate", request)
+
+    @workflow.update(name="steer_run")
+    def steer_run(self, request: CommandRequest) -> dict[str, Any]:
+        return self._apply_named_command("steer_run", request)
+
+    @steer_run.validator
+    def steer_run_validator(self, request: CommandRequest) -> None:
+        self._validate_named_command("steer_run", request)
+
+    @workflow.signal(name="operator_note")
+    def operator_note(self, signal: OperatorNoteSignal) -> None:
+        if not isinstance(signal, OperatorNoteSignal):
+            return
+        self._required_state().record_operator_note(signal)
+
+    @workflow.signal(name="external_condition_changed")
+    def external_condition_changed(self, signal: ExternalConditionSignal) -> None:
+        if not isinstance(signal, ExternalConditionSignal):
+            return
+        self._required_state().record_external_condition(signal)
 
     @workflow.run
     async def run(self, start: WorkflowStart) -> dict[str, Any]:
@@ -339,6 +560,9 @@ class ABCExecutionWorkflow:
             state.transition("manifest_accepted")
 
         while state.run_state not in TERMINAL_RUN_STATES:
+            if state.run_state == "cancelling":
+                self._finish_cancellation(state)
+                break
             if _deadline_reached(state.deadline_at):
                 state.transition("deadline_reached")
                 break
@@ -361,7 +585,7 @@ class ABCExecutionWorkflow:
             for node_id in frontier:
                 state.schedule(node_id)
                 handles.append(
-                    workflow.execute_activity(
+                    workflow.start_activity(
                         EXECUTE_SLICE_ACTIVITY,
                         {
                             "agent_run_id": state.agent_run_id,
@@ -372,6 +596,7 @@ class ABCExecutionWorkflow:
                         schedule_to_close_timeout=timedelta(seconds=10_800),
                         start_to_close_timeout=timedelta(seconds=5_400),
                         heartbeat_timeout=timedelta(seconds=90),
+                        cancellation_type=workflow.ActivityCancellationType.WAIT_CANCELLATION_COMPLETED,
                         retry_policy=RetryPolicy(
                             initial_interval=timedelta(seconds=5),
                             backoff_coefficient=2.0,
@@ -383,7 +608,25 @@ class ABCExecutionWorkflow:
                 )
                 state.mark_running(node_id)
 
-            results = await asyncio.gather(*handles)
+            self._active_handles = handles
+            try:
+                results = await asyncio.gather(*handles)
+            except (asyncio.CancelledError, ActivityError, TemporalCancelledError) as exc:
+                is_activity_cancel = isinstance(exc, TemporalCancelledError) or (
+                    isinstance(exc, ActivityError)
+                    and isinstance(exc.cause, TemporalCancelledError)
+                )
+                if state.run_state != "cancelling" or (
+                    not isinstance(exc, asyncio.CancelledError) and not is_activity_cancel
+                ):
+                    raise
+                self._finish_cancellation(state)
+                break
+            finally:
+                self._active_handles = []
+            if state.run_state == "cancelling":
+                self._finish_cancellation(state)
+                break
             for node_id, result in zip(frontier, results):
                 if not isinstance(result, Mapping):
                     raise WorkflowContractError("invalid_activity_result", f"{node_id} result is not an object")
@@ -392,8 +635,10 @@ class ABCExecutionWorkflow:
                 state.transition("unrecoverable_error")
                 break
             if self._should_continue_as_new(state):
+                await self._wait_for_handlers()
                 workflow.continue_as_new(state.to_continue_start())
 
+        await self._wait_for_handlers()
         return state.projection()
 
     async def _wait_until_running_or_deadline(self) -> None:
@@ -424,6 +669,32 @@ class ABCExecutionWorkflow:
         if self._state is None:
             raise WorkflowContractError("workflow_not_started", "workflow state is unavailable")
         return self._state
+
+    def _validate_named_command(self, name: str, request: CommandRequest) -> CommandRequest:
+        if not isinstance(request, CommandRequest):
+            raise CommandContractError("invalid_command", "CommandRequest is required")
+        normalized = request.normalized()
+        if normalized.command != name:
+            raise CommandContractError(
+                "command_handler_mismatch",
+                f"{normalized.command} cannot be sent to {name}",
+            )
+        self._required_state().validate_command(normalized)
+        return normalized
+
+    def _apply_named_command(self, name: str, request: CommandRequest) -> dict[str, Any]:
+        normalized = self._validate_named_command(name, request)
+        return self._required_state().apply_command(normalized).to_payload()
+
+    def _finish_cancellation(self, state: DeterministicDagState) -> None:
+        for node_id, slice_state in tuple(state.slice_states.items()):
+            if slice_state in ("activity_scheduled", "activity_running"):
+                state.transition_slice(node_id, "activity_cancelled")
+        state.transition("activities_cancelled")
+
+    @staticmethod
+    async def _wait_for_handlers() -> None:
+        await workflow.wait_condition(workflow.all_handlers_finished)
 
 
 def _validate_manifest(value: Any) -> dict[str, Any]:
@@ -528,6 +799,28 @@ def _validate_carry(
             raise WorkflowContractError("invalid_continuation_counter", field_name)
     if not isinstance(carry.receipt_store_cursor, str):
         raise WorkflowContractError("invalid_continuation_cursor", "receipt cursor must be a string")
+    try:
+        CommandLedger(carry.command_receipts)
+        if len(carry.operator_notes) > MAX_SIGNAL_RECORDS:
+            raise CommandContractError("invalid_signal_state", "too many operator notes")
+        for item in carry.operator_notes:
+            if not isinstance(item, Mapping) or set(item) != {"note_id", "note_ref"}:
+                raise CommandContractError("invalid_signal_state", "operator note fields differ")
+            OperatorNoteSignal.create(note_id=item["note_id"], note_ref=item["note_ref"])
+        if len(carry.external_condition_revisions) > MAX_SIGNAL_RECORDS:
+            raise CommandContractError("invalid_signal_state", "too many condition records")
+        seen_conditions: set[str] = set()
+        for condition_ref, revision in carry.external_condition_revisions:
+            normalized = ExternalConditionSignal.create(condition_ref=condition_ref)
+            if normalized.condition_ref in seen_conditions:
+                raise CommandContractError("invalid_signal_state", "condition record is duplicated")
+            seen_conditions.add(normalized.condition_ref)
+            if isinstance(revision, bool) or not isinstance(revision, int) or revision < 1:
+                raise CommandContractError("invalid_signal_state", "condition revision is invalid")
+    except (CommandContractError, TypeError, ValueError) as exc:
+        raise WorkflowContractError(
+            "invalid_continuation_messages", "message carry state is invalid"
+        ) from exc
 
 
 def _deadline(value: Any) -> str:
