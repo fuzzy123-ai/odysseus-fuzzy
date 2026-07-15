@@ -28,6 +28,7 @@ MAX_LEASE_SECONDS = 15 * 60
 _OPAQUE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@-]{0,127}$")
 _EFFECT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{7,179}$")
 _ABSOLUTE_WINDOWS_RE = re.compile(r"^[A-Za-z]:[/\\]")
+_SAFE_REPO_PATH_RE = re.compile(r"^[A-Za-z0-9._/ -]{1,512}$")
 _FORBIDDEN_FIELD_PARTS = (
     "access_token",
     "api_key",
@@ -152,6 +153,37 @@ class ControlRecord:
     updated_at: str
 
 
+@dataclass(frozen=True, slots=True)
+class AdmissionLimits:
+    max_global_active: int
+    max_owner_active: int
+    max_project_active: int
+    max_agent_active: int
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        max_global_active: Any,
+        max_owner_active: Any,
+        max_project_active: Any,
+        max_agent_active: Any,
+    ) -> "AdmissionLimits":
+        values = {
+            "max_global_active": _bounded_limit(max_global_active, "max_global_active"),
+            "max_owner_active": _bounded_limit(max_owner_active, "max_owner_active"),
+            "max_project_active": _bounded_limit(max_project_active, "max_project_active"),
+            "max_agent_active": _bounded_limit(max_agent_active, "max_agent_active"),
+        }
+        if values["max_owner_active"] > values["max_global_active"]:
+            _fail("invalid_admission_limit", "owner limit exceeds global limit")
+        if values["max_project_active"] > values["max_owner_active"]:
+            _fail("invalid_admission_limit", "project limit exceeds owner limit")
+        if values["max_agent_active"] > values["max_global_active"]:
+            _fail("invalid_admission_limit", "agent limit exceeds global limit")
+        return cls(**values)
+
+
 Clock = Callable[[], datetime]
 
 
@@ -177,71 +209,79 @@ class HeadlessWriteAgentStateStore:
         claimant = _opaque_id(claimant_ref, "claimant_ref")
         duration = _lease_seconds(lease_seconds)
         now = self._now()
-        expires = now + timedelta(seconds=duration)
         with self._write() as connection:
             self._assert_effect_allowed(connection, scope)
-            existing = connection.execute(
-                "SELECT * FROM hwa_claims WHERE scope_key = ?", (scope.key,)
-            ).fetchone()
-            if existing is not None and existing["state"] == "active":
-                if _parse_time(existing["lease_expires_at"]) > now:
-                    _fail("claim_conflict", "an unexpired claim already owns this scope")
-            counter = connection.execute(
-                "SELECT last_fence FROM hwa_fences WHERE scope_key = ?", (scope.key,)
-            ).fetchone()
-            fence = (int(counter["last_fence"]) if counter is not None else 0) + 1
-            connection.execute(
+            if connection.execute(
+                "SELECT 1 FROM hwa_claim_paths WHERE scope_key = ? LIMIT 1", (scope.key,)
+            ).fetchone() is not None:
+                _fail(
+                    "admission_required",
+                    "a scope previously admitted with paths must be reclaimed through HWA3B",
+                )
+            return self._acquire_claim_locked(
+                connection,
+                scope,
+                claim_id=normalized_claim,
+                claimant_ref=claimant,
+                lease_seconds=duration,
+                now=now,
+            )
+
+    def acquire_admitted_claim(
+        self,
+        scope: AuthorityScope,
+        *,
+        claim_id: str,
+        claimant_ref: str,
+        lease_seconds: int,
+        claimed_paths: tuple[str, ...],
+        hotfiles: tuple[str, ...],
+        limits: AdmissionLimits,
+    ) -> ClaimRecord:
+        """Atomically enforce quotas/path locks and acquire the HWA3A claim."""
+
+        _require_scope(scope)
+        if not isinstance(limits, AdmissionLimits):
+            _fail("invalid_admission_limit", "AdmissionLimits is required")
+        normalized_claim = _effect_id(claim_id, "claim_id")
+        claimant = _opaque_id(claimant_ref, "claimant_ref")
+        duration = _lease_seconds(lease_seconds)
+        paths = _repo_paths(claimed_paths, "claimed_paths")
+        hot = _repo_paths(hotfiles, "hotfiles", allow_empty=True)
+        if not set(hot).issubset(paths):
+            _fail("invalid_hotfile", "hotfiles must be a subset of claimed_paths")
+        now = self._now()
+        with self._write() as connection:
+            self._assert_effect_allowed(connection, scope)
+            self._assert_admission_capacity(
+                connection,
+                scope,
+                claimant_ref=claimant,
+                paths=paths,
+                hotfiles=hot,
+                limits=limits,
+                now=now,
+            )
+            claim = self._acquire_claim_locked(
+                connection,
+                scope,
+                claim_id=normalized_claim,
+                claimant_ref=claimant,
+                lease_seconds=duration,
+                now=now,
+            )
+            connection.execute("DELETE FROM hwa_claim_paths WHERE scope_key = ?", (scope.key,))
+            connection.executemany(
                 """
-                INSERT INTO hwa_fences(scope_key, last_fence) VALUES (?, ?)
-                ON CONFLICT(scope_key) DO UPDATE SET last_fence = excluded.last_fence
+                INSERT INTO hwa_claim_paths(scope_key, owner_id, repo_id, path, is_hotfile)
+                VALUES (?, ?, ?, ?, ?)
                 """,
-                (scope.key, fence),
+                [
+                    (scope.key, scope.owner_id, scope.repo_id, path, int(path in hot))
+                    for path in paths
+                ],
             )
-            values = (
-                scope.key,
-                normalized_claim,
-                *self._scope_values(scope),
-                claimant,
-                fence,
-                "active",
-                _format_time(now),
-                _format_time(expires),
-                _format_time(now),
-                _format_time(now),
-                None,
-            )
-            connection.execute(
-                """
-                INSERT INTO hwa_claims(
-                    scope_key, claim_id, owner_id, repo_id, task_id, plan_id,
-                    slice_id, agent_run_id, claimant_ref, fence, state,
-                    acquired_at, lease_expires_at, last_heartbeat_at,
-                    last_progress_at, released_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(scope_key) DO UPDATE SET
-                    claim_id = excluded.claim_id,
-                    owner_id = excluded.owner_id,
-                    repo_id = excluded.repo_id,
-                    task_id = excluded.task_id,
-                    plan_id = excluded.plan_id,
-                    slice_id = excluded.slice_id,
-                    agent_run_id = excluded.agent_run_id,
-                    claimant_ref = excluded.claimant_ref,
-                    fence = excluded.fence,
-                    state = excluded.state,
-                    acquired_at = excluded.acquired_at,
-                    lease_expires_at = excluded.lease_expires_at,
-                    last_heartbeat_at = excluded.last_heartbeat_at,
-                    last_progress_at = excluded.last_progress_at,
-                    released_at = excluded.released_at
-                """,
-                values,
-            )
-            return self._claim_from_row(
-                connection.execute(
-                    "SELECT * FROM hwa_claims WHERE scope_key = ?", (scope.key,)
-                ).fetchone()
-            )
+            return claim
 
     def renew_claim(
         self,
@@ -709,6 +749,54 @@ class HeadlessWriteAgentStateStore:
         _assert_safe_payload(payload)
         return payload
 
+    def admission_metrics(self) -> dict[str, int]:
+        """Return bounded aggregate recovery/admission metrics without identifiers."""
+
+        now_text = _format_time(self._now())
+        with self._read() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    SUM(CASE WHEN state = 'active' AND lease_expires_at > ? THEN 1 ELSE 0 END) active_claims,
+                    SUM(CASE WHEN state = 'active' AND lease_expires_at <= ? THEN 1 ELSE 0 END) expired_claims,
+                    SUM(CASE WHEN state = 'released' THEN 1 ELSE 0 END) released_claims,
+                    SUM(CASE WHEN fence > 1 THEN 1 ELSE 0 END) recovered_scopes,
+                    COALESCE(MAX(fence), 0) max_fence
+                FROM hwa_claims
+                """,
+                (now_text, now_text),
+            ).fetchone()
+            path_row = connection.execute(
+                """
+                SELECT
+                    COUNT(*) active_paths,
+                    SUM(CASE WHEN p.is_hotfile = 1 THEN 1 ELSE 0 END) active_hotfiles
+                FROM hwa_claim_paths p
+                JOIN hwa_claims c ON c.scope_key = p.scope_key
+                WHERE c.state = 'active' AND c.lease_expires_at > ?
+                """,
+                (now_text,),
+            ).fetchone()
+            control_row = connection.execute(
+                """
+                SELECT
+                    SUM(CASE WHEN paused = 1 THEN 1 ELSE 0 END) paused_scopes,
+                    SUM(CASE WHEN killed = 1 THEN 1 ELSE 0 END) killed_scopes
+                FROM hwa_controls
+                """
+            ).fetchone()
+        return {
+            "active_claims": int(row["active_claims"] or 0),
+            "expired_claims": int(row["expired_claims"] or 0),
+            "released_claims": int(row["released_claims"] or 0),
+            "recovered_scopes": int(row["recovered_scopes"] or 0),
+            "max_fence": int(row["max_fence"] or 0),
+            "active_paths": int(path_row["active_paths"] or 0),
+            "active_hotfiles": int(path_row["active_hotfiles"] or 0),
+            "paused_scopes": int(control_row["paused_scopes"] or 0),
+            "killed_scopes": int(control_row["killed_scopes"] or 0),
+        }
+
     def _initialize(self) -> None:
         connection = self._connect()
         try:
@@ -741,6 +829,19 @@ class HeadlessWriteAgentStateStore:
                     last_progress_at TEXT NOT NULL,
                     released_at TEXT
                 );
+                CREATE INDEX IF NOT EXISTS hwa_claims_admission_idx
+                    ON hwa_claims(state, lease_expires_at, owner_id, repo_id, plan_id, claimant_ref);
+                CREATE TABLE IF NOT EXISTS hwa_claim_paths(
+                    scope_key TEXT NOT NULL,
+                    owner_id TEXT NOT NULL,
+                    repo_id TEXT NOT NULL,
+                    path TEXT NOT NULL,
+                    is_hotfile INTEGER NOT NULL CHECK(is_hotfile IN (0, 1)),
+                    PRIMARY KEY(scope_key, path),
+                    FOREIGN KEY(scope_key) REFERENCES hwa_claims(scope_key) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS hwa_claim_paths_collision_idx
+                    ON hwa_claim_paths(owner_id, repo_id, path);
                 CREATE TABLE IF NOT EXISTS hwa_capabilities(
                     capability_id TEXT PRIMARY KEY,
                     nonce TEXT NOT NULL UNIQUE,
@@ -843,6 +944,154 @@ class HeadlessWriteAgentStateStore:
         if not isinstance(value, datetime) or value.tzinfo is None:
             _fail("invalid_clock", "clock must return timezone-aware datetime")
         return value.astimezone(timezone.utc)
+
+    def _acquire_claim_locked(
+        self,
+        connection: sqlite3.Connection,
+        scope: AuthorityScope,
+        *,
+        claim_id: str,
+        claimant_ref: str,
+        lease_seconds: int,
+        now: datetime,
+    ) -> ClaimRecord:
+        existing_id = connection.execute(
+            "SELECT scope_key FROM hwa_claims WHERE claim_id = ?", (claim_id,)
+        ).fetchone()
+        if existing_id is not None and existing_id["scope_key"] != scope.key:
+            _fail("claim_id_conflict", "claim id already belongs to another scope")
+        existing = connection.execute(
+            "SELECT * FROM hwa_claims WHERE scope_key = ?", (scope.key,)
+        ).fetchone()
+        if (
+            existing is not None
+            and existing["state"] == "active"
+            and _parse_time(existing["lease_expires_at"]) > now
+        ):
+            _fail("claim_conflict", "an unexpired claim already owns this scope")
+        counter = connection.execute(
+            "SELECT last_fence FROM hwa_fences WHERE scope_key = ?", (scope.key,)
+        ).fetchone()
+        fence = (int(counter["last_fence"]) if counter is not None else 0) + 1
+        connection.execute(
+            """
+            INSERT INTO hwa_fences(scope_key, last_fence) VALUES (?, ?)
+            ON CONFLICT(scope_key) DO UPDATE SET last_fence = excluded.last_fence
+            """,
+            (scope.key, fence),
+        )
+        expires = now + timedelta(seconds=lease_seconds)
+        values = (
+            scope.key,
+            claim_id,
+            *self._scope_values(scope),
+            claimant_ref,
+            fence,
+            "active",
+            _format_time(now),
+            _format_time(expires),
+            _format_time(now),
+            _format_time(now),
+            None,
+        )
+        connection.execute(
+            """
+            INSERT INTO hwa_claims(
+                scope_key, claim_id, owner_id, repo_id, task_id, plan_id,
+                slice_id, agent_run_id, claimant_ref, fence, state,
+                acquired_at, lease_expires_at, last_heartbeat_at,
+                last_progress_at, released_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(scope_key) DO UPDATE SET
+                claim_id = excluded.claim_id,
+                owner_id = excluded.owner_id,
+                repo_id = excluded.repo_id,
+                task_id = excluded.task_id,
+                plan_id = excluded.plan_id,
+                slice_id = excluded.slice_id,
+                agent_run_id = excluded.agent_run_id,
+                claimant_ref = excluded.claimant_ref,
+                fence = excluded.fence,
+                state = excluded.state,
+                acquired_at = excluded.acquired_at,
+                lease_expires_at = excluded.lease_expires_at,
+                last_heartbeat_at = excluded.last_heartbeat_at,
+                last_progress_at = excluded.last_progress_at,
+                released_at = excluded.released_at
+            """,
+            values,
+        )
+        return self._claim_from_row(
+            connection.execute(
+                "SELECT * FROM hwa_claims WHERE scope_key = ?", (scope.key,)
+            ).fetchone()
+        )
+
+    def _assert_admission_capacity(
+        self,
+        connection: sqlite3.Connection,
+        scope: AuthorityScope,
+        *,
+        claimant_ref: str,
+        paths: tuple[str, ...],
+        hotfiles: tuple[str, ...],
+        limits: AdmissionLimits,
+        now: datetime,
+    ) -> None:
+        now_text = _format_time(now)
+        counts = connection.execute(
+            """
+            SELECT
+                SUM(CASE WHEN state = 'active' AND lease_expires_at > ? THEN 1 ELSE 0 END) global_count,
+                SUM(CASE WHEN state = 'active' AND lease_expires_at > ? AND owner_id = ? THEN 1 ELSE 0 END) owner_count,
+                SUM(CASE WHEN state = 'active' AND lease_expires_at > ? AND owner_id = ? AND repo_id = ? AND plan_id = ? THEN 1 ELSE 0 END) project_count,
+                SUM(CASE WHEN state = 'active' AND lease_expires_at > ? AND claimant_ref = ? THEN 1 ELSE 0 END) agent_count
+            FROM hwa_claims
+            """,
+            (
+                now_text,
+                now_text,
+                scope.owner_id,
+                now_text,
+                scope.owner_id,
+                scope.repo_id,
+                scope.plan_id,
+                now_text,
+                claimant_ref,
+            ),
+        ).fetchone()
+        dimensions = (
+            ("global", int(counts["global_count"] or 0), limits.max_global_active),
+            ("owner", int(counts["owner_count"] or 0), limits.max_owner_active),
+            ("project", int(counts["project_count"] or 0), limits.max_project_active),
+            ("agent", int(counts["agent_count"] or 0), limits.max_agent_active),
+        )
+        for dimension, active, maximum in dimensions:
+            if active >= maximum:
+                _fail("admission_backpressure", f"{dimension} active-claim quota is exhausted")
+
+        rows = connection.execute(
+            """
+            SELECT p.path, p.is_hotfile
+            FROM hwa_claim_paths p
+            JOIN hwa_claims c ON c.scope_key = p.scope_key
+            WHERE p.owner_id = ? AND p.repo_id = ?
+              AND c.state = 'active' AND c.lease_expires_at > ?
+            ORDER BY p.path
+            """,
+            (scope.owner_id, scope.repo_id, now_text),
+        ).fetchall()
+        hotfile_set = set(hotfiles)
+        for path in paths:
+            for row in rows:
+                existing_path = row["path"]
+                if path == existing_path and (path in hotfile_set or bool(row["is_hotfile"])):
+                    _fail("hotfile_collision", f"hotfile {path} already has an active claim")
+                if _paths_overlap(path, existing_path):
+                    _fail(
+                        "path_prefix_collision",
+                        f"path {path} overlaps active claim path {existing_path}",
+                    )
 
     def _assert_current_claim(
         self,
@@ -1021,6 +1270,42 @@ def _capability_payload(value: ApprovalCapability) -> dict[str, Any]:
     }
 
 
+def _repo_paths(
+    values: Any,
+    field: str,
+    *,
+    allow_empty: bool = False,
+) -> tuple[str, ...]:
+    if not isinstance(values, (list, tuple)):
+        _fail("invalid_repo_path", f"{field} must be an array")
+    normalized: set[str] = set()
+    for raw_value in values:
+        path = str(raw_value or "").strip().rstrip("/")
+        if (
+            not path
+            or "\\" in path
+            or path.startswith("/")
+            or _ABSOLUTE_WINDOWS_RE.match(path)
+            or ".." in path.split("/")
+            or not _SAFE_REPO_PATH_RE.fullmatch(path)
+        ):
+            _fail("invalid_repo_path", f"{field} contains an unsafe path")
+        normalized.add(path)
+    if not normalized and not allow_empty:
+        _fail("invalid_repo_path", f"{field} must not be empty")
+    if len(normalized) > 128:
+        _fail("invalid_repo_path", f"{field} exceeds 128 paths")
+    return tuple(sorted(normalized))
+
+
+def _paths_overlap(left: str, right: str) -> bool:
+    return (
+        left == right
+        or left.startswith(right.rstrip("/") + "/")
+        or right.startswith(left.rstrip("/") + "/")
+    )
+
+
 def _assert_safe_payload(value: Any, *, path: str = "$") -> None:
     if isinstance(value, Mapping):
         for key, item in value.items():
@@ -1082,6 +1367,12 @@ def _literal(value: Any, allowed: tuple[str, ...], field: str) -> str:
 def _lease_seconds(value: Any) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAX_LEASE_SECONDS:
         _fail("invalid_lease", f"lease_seconds must be 1 through {MAX_LEASE_SECONDS}")
+    return value
+
+
+def _bounded_limit(value: Any, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 1_000:
+        _fail("invalid_admission_limit", f"{field} must be 1 through 1000")
     return value
 
 
