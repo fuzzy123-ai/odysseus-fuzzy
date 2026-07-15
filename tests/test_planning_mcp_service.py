@@ -87,6 +87,268 @@ def planning_repo(tmp_path: Path) -> tuple[Path, Path]:
     return tmp_path, roadmap
 
 
+def _definition_v2() -> dict:
+    from src.planning_definition_contract import compute_roadmap_content_hash
+
+    roadmap = {
+        "roadmap_id": "core-map",
+        "project_id": "demo-project",
+        "revision": 1,
+        "content_hash": "sha256:" + ("0" * 64),
+        "revision_state": "approved",
+        "title": "Core Planning Roadmap",
+        "objective": "Ship a bounded definition service.",
+        "assumptions": [],
+        "constraints": ["Planning never stores Agent runtime state."],
+        "nodes": [
+            {
+                "node_id": "service-contract",
+                "kind": "work",
+                "title": "Definition service contract",
+                "objective": "Expose immutable planning intent.",
+                "depends_on": [],
+                "gate_ids": ["definition-go"],
+                "deliverables": ["Definition-only MCP response"],
+                "allowed_paths": ["src/planning_mcp_service.py"],
+                "blocked_paths": [],
+                "capability_requirements": [],
+                "verification_rule_ids": ["definition-tests"],
+            }
+        ],
+        "edges": [],
+        "gates": [
+            {
+                "gate_id": "definition-go",
+                "kind": "repo",
+                "title": "Definition contract gate",
+                "blocks": ["service-contract"],
+                "decision_needed": "Confirm the immutable definition contract.",
+                "safe_default": "Keep the definition read-only.",
+                "approval_scope_schema": {
+                    "type": "object",
+                    "properties": {"approved": {"type": "boolean"}},
+                    "required": ["approved"],
+                    "additionalProperties": False,
+                },
+                "required_verification_rule_ids": ["definition-tests"],
+            }
+        ],
+        "done_contract": {
+            "required_node_ids": ["service-contract"],
+            "required_gate_ids": ["definition-go"],
+            "verification_rules": [
+                {
+                    "rule_id": "definition-tests",
+                    "kind": "test",
+                    "description": "The focused definition contract tests pass.",
+                }
+            ],
+            "completion_rule": "all_required_nodes_and_gates",
+        },
+        "source_refs": ["src/planning_mcp_service.py"],
+        "created_at": "2026-07-15T06:00:00Z",
+        "updated_at": "2026-07-15T06:00:00Z",
+    }
+    roadmap["content_hash"] = compute_roadmap_content_hash(roadmap)
+    return {
+        "schema_id": "odysseus.planning.definition.v2",
+        "project": {
+            "project_id": "demo-project",
+            "title": "Demo project",
+            "objective": "Exercise the Planning MCP definition boundary.",
+            "scope": {"in": ["Planning definitions"], "out": ["Agent execution"]},
+            "constraints": ["No runtime state in Planning."],
+            "roadmap_refs": ["core-map"],
+            "latest_approved_revision": {
+                "core-map": {
+                    "revision": 1,
+                    "content_hash": roadmap["content_hash"],
+                }
+            },
+            "draft_refs": [],
+        },
+        "roadmaps": [roadmap],
+    }
+
+
+@pytest.fixture
+def definition_service(tmp_path: Path) -> tuple[PlanningMcpService, dict]:
+    from src.planning_revision_store import PlanningRevisionStore
+
+    definition = _definition_v2()
+    store = PlanningRevisionStore(
+        [("owner-1", definition, "demo-project.json")],
+        cursor_secret=b"definition-service-test-secret",
+    )
+    return (
+        PlanningMcpService(
+            tmp_path,
+            definition_store=store,
+            definition_owner="owner-1",
+        ),
+        definition,
+    )
+
+
+def _nested_keys(value: object) -> set[str]:
+    if isinstance(value, dict):
+        return {
+            *(str(key).lower() for key in value),
+            *(nested for item in value.values() for nested in _nested_keys(item)),
+        }
+    if isinstance(value, list):
+        return {nested for item in value for nested in _nested_keys(item)}
+    return set()
+
+
+def test_definition_v2_validation_is_content_free_and_recursively_rejects_runtime_fields(
+    tmp_path: Path,
+):
+    from copy import deepcopy
+
+    from src.planning_definition_contract import (
+        GATE_RUNTIME_FIELD_DENYLIST,
+        RUNTIME_FIELD_DENYLIST,
+    )
+
+    service = PlanningMcpService(tmp_path)
+    definition = _definition_v2()
+    result = service.validate_definition(definition)
+
+    assert result == {
+        "schema_id": "odysseus.planning.definition_validation.v2",
+        "validation": {
+            "schema_id": "odysseus.planning.definition.v2",
+            "project_id": "demo-project",
+            "roadmap_hashes": [
+                {
+                    "roadmap_id": "core-map",
+                    "revision": 1,
+                    "content_hash": definition["roadmaps"][0]["content_hash"],
+                }
+            ],
+        },
+        "read_only": True,
+        "writes_performed": False,
+    }
+    for forbidden in sorted(RUNTIME_FIELD_DENYLIST):
+        candidate = deepcopy(definition)
+        candidate["project"]["scope"]["deep"] = {forbidden: "synthetic"}
+        with pytest.raises(PlanningServiceError) as rejected:
+            service.validate_definition(candidate)
+        assert rejected.value.code == "runtime_field_forbidden"
+    for forbidden in sorted(GATE_RUNTIME_FIELD_DENYLIST):
+        candidate = deepcopy(definition)
+        candidate["roadmaps"][0]["gates"][0][forbidden] = "synthetic"
+        with pytest.raises(PlanningServiceError) as rejected:
+            service.validate_definition(candidate)
+        assert rejected.value.code == "runtime_field_forbidden"
+
+
+def test_definition_gate_read_returns_only_requirements_targets_and_safe_defaults(
+    definition_service,
+):
+    from src.planning_definition_contract import (
+        GATE_RUNTIME_FIELD_DENYLIST,
+        RUNTIME_FIELD_DENYLIST,
+    )
+
+    service, definition = definition_service
+    result = service.read_gate_definitions(
+        "demo-project",
+        "core-map",
+        revision_or_latest_approved=1,
+        node_id="service-contract",
+    )
+
+    assert result["schema_id"] == "odysseus.planning.gate_definitions.v2"
+    assert result["revision"] == 1
+    assert result["content_hash"] == definition["roadmaps"][0]["content_hash"]
+    assert result["gate_definitions"] == [definition["roadmaps"][0]["gates"][0]]
+    assert result["read_only"] is True
+    assert result["writes_performed"] is False
+    assert _nested_keys(result).isdisjoint(RUNTIME_FIELD_DENYLIST | GATE_RUNTIME_FIELD_DENYLIST)
+
+
+def test_definition_gate_read_filters_by_node_and_never_falls_back_to_runtime_status(
+    definition_service,
+):
+    service, _definition = definition_service
+
+    result = service.read_gate_definitions(
+        "demo-project",
+        "core-map",
+        node_id="unrelated-node",
+    )
+
+    assert result["gate_definitions"] == []
+    assert "blockers" not in result
+    assert "next_safe_actions" not in result
+    assert "status" not in json.dumps(result, sort_keys=True).lower()
+
+
+def test_definition_agent_handoff_is_exact_hash_pinned_and_non_launching(definition_service):
+    from src.planning_agent_handoff import FORBIDDEN_HANDOFF_FIELDS
+
+    service, definition = definition_service
+    expected_hash = definition["roadmaps"][0]["content_hash"]
+
+    result = service.create_agent_handoff(
+        "demo-project",
+        "core-map",
+        revision_or_latest_approved="latest_approved",
+    )
+
+    assert result["schema_id"] == "odysseus.agent.plan_handoff.v1"
+    assert result["revision"] == 1
+    assert result["content_hash"] == expected_hash
+    assert result["composer_text"] == f"/abc run roadmap:core-map@1 hash:{expected_hash}"
+    assert result["requested_entrypoint"] == "/abc"
+    assert result["launch_authorized"] is False
+    assert result["read_only"] is True
+    assert set(result).isdisjoint(FORBIDDEN_HANDOFF_FIELDS)
+
+
+@pytest.mark.parametrize(
+    ("tool", "replacement"),
+    [
+        ("planning_mark_status", {"replacement_surface": "agent"}),
+        ("planning_gate_status", {"replacement_tool": "planning_read_gate_definitions"}),
+    ],
+)
+def test_deprecated_runtime_tools_return_stable_zero_mutation_response(
+    tmp_path: Path,
+    tool: str,
+    replacement: dict,
+):
+    service = PlanningMcpService(tmp_path)
+
+    first = service.deprecated_tool_response(tool)
+    second = service.deprecated_tool_response(tool)
+
+    assert first == second
+    assert first == {
+        "schema_id": "odysseus.planning.deprecated_tool.v1",
+        "tool": tool,
+        "error": "deprecated_tool",
+        **replacement,
+        "read_only": True,
+        "writes_performed": False,
+    }
+
+
+def test_definition_tools_fail_closed_without_an_injected_owner_scoped_store(tmp_path: Path):
+    service = PlanningMcpService(tmp_path)
+
+    for operation in (
+        lambda: service.read_gate_definitions("demo-project", "core-map"),
+        lambda: service.create_agent_handoff("demo-project", "core-map"),
+    ):
+        with pytest.raises(PlanningServiceError) as unavailable:
+            operation()
+        assert unavailable.value.code == "definition_store_unavailable"
+
+
 def test_list_returns_only_roadmaps_with_stable_bounded_public_metadata(planning_repo):
     root, _roadmap = planning_repo
     service = PlanningMcpService(root, preview_chars=80)
@@ -1270,17 +1532,10 @@ def test_document_memory_bridge_bounds_existing_records_before_lifecycle_plannin
 @pytest.mark.parametrize(
     "event_type",
     [
-        "planning_read",
-        "planning_search",
-        "planning_validate",
-        "planning_draft_created",
-        "planning_patch_proposed",
         "planning_context_pack_read",
-        "planning_section_context_pack_read",
-        "planning_progress_updated",
-        "planning_todo_completed",
-        "planning_derived_memory_lifecycle_planned",
-        "planning_agent_checkpoint_written",
+        "planning_summary_refreshed",
+        "planning_raptor_memory_processed",
+        "planning_definition_validation_succeeded",
     ],
 )
 def test_planning_service_routine_events_are_explicitly_silent_without_candidate(tmp_path: Path, event_type: str):
@@ -1297,8 +1552,9 @@ def test_planning_service_routine_events_are_explicitly_silent_without_candidate
 
     assert result["classification"] == "silent"
     assert result["candidate"] is None
-    assert result["audit"]["category"] == "routine_planning_event"
-    assert result["audit"]["reason_code"] == "planning_event_silent_by_policy"
+    assert result["schema_id"] == "odysseus.planning.definition_event_classification.v2"
+    assert result["audit"]["category"] == "routine_definition_event"
+    assert result["audit"]["reason_code"] == "definition_event_silent_by_policy"
     assert result["audit"]["ref_fields"] == ["project_id", "roadmap_id"]
     assert result["audit"]["ref_count"] == 2
     assert result["audit"]["ref_hash"].startswith("sha256:")
@@ -1314,23 +1570,23 @@ def test_planning_service_routine_events_are_explicitly_silent_without_candidate
 
 
 @pytest.mark.parametrize(
-    ("event_type", "roadmap_id", "gate_id"),
+    ("event_type", "roadmap_id", "revision", "content_hash"),
     [
-        ("project_created", None, None),
-        ("project_deleted", None, None),
-        ("roadmap_created", "roadmap-001", None),
-        ("roadmap_deleted", "roadmap-001", None),
-        ("gate_blocked", "roadmap-001", "gate-001"),
-        ("gate_unblocked_when_it_changes_available_work", "roadmap-001", "gate-001"),
-        ("human_decision_required", "roadmap-001", "gate-001"),
-        ("undo_available_after_structural_delete", "roadmap-001", None),
+        ("project_created", None, None, ""),
+        ("project_deleted", None, None, ""),
+        ("roadmap_created", "roadmap-001", None, ""),
+        ("roadmap_deleted", "roadmap-001", None, ""),
+        ("roadmap_revision_approved", "roadmap-001", 3, "sha256:" + ("a" * 64)),
+        ("roadmap_revision_conflict", "roadmap-001", 3, "sha256:" + ("b" * 64)),
+        ("undo_available_after_structural_delete", "roadmap-001", None, ""),
     ],
 )
-def test_planning_service_structural_events_delegate_to_sparse_candidate_builder(
+def test_planning_service_structural_events_create_definition_only_candidates(
     tmp_path: Path,
     event_type: str,
     roadmap_id: str | None,
-    gate_id: str | None,
+    revision: int | None,
+    content_hash: str,
 ):
     service = PlanningMcpService(tmp_path)
     reason = "A bounded structural Planning change requires attention."
@@ -1339,7 +1595,8 @@ def test_planning_service_structural_events_delegate_to_sparse_candidate_builder
         event_type,
         project_id="project-001",
         roadmap_id=roadmap_id,
-        gate_id=gate_id,
+        revision=revision,
+        content_hash=content_hash,
         reason=reason,
         created_at="2026-07-10T08:00:00Z",
     )
@@ -1347,11 +1604,12 @@ def test_planning_service_structural_events_delegate_to_sparse_candidate_builder
     encoded_audit = json.dumps(result["audit"], sort_keys=True)
 
     assert result["classification"] == "notification_candidate"
-    assert candidate["schema"] == "odysseus.planning_notification_candidate.v1"
+    assert candidate["schema_id"] == "odysseus.planning.definition_notification_candidate.v2"
     assert candidate["event_type"] == event_type
     assert candidate["project_id"] == "project-001"
     assert candidate["roadmap_id"] == roadmap_id
-    assert candidate["gate_id"] == gate_id
+    assert candidate["revision"] == revision
+    assert candidate["content_hash"] == content_hash
     assert candidate["reason"] == reason
     assert candidate["dedupe_key"] == result["dedupe_key"]
     assert candidate["delivery_authorized"] is False
@@ -1359,8 +1617,8 @@ def test_planning_service_structural_events_delegate_to_sparse_candidate_builder
     assert result["delivery_authorized"] is False
     assert result["live_delivery_performed"] is False
     assert result["writes_performed"] is False
-    assert result["audit"]["category"] == "structural_planning_event"
-    assert result["audit"]["reason_code"] == "sparse_candidate_by_policy"
+    assert result["audit"]["category"] == "structural_definition_event"
+    assert result["audit"]["reason_code"] == "sparse_definition_candidate_by_policy"
     assert result["audit"]["derived_entries_visible"] is False
     assert reason not in encoded_audit
     assert "project-001" not in encoded_audit
@@ -1386,7 +1644,19 @@ def test_planning_service_candidate_dedupe_is_deterministic_and_ignores_timestam
     assert first["audit"] == second["audit"]
 
 
-@pytest.mark.parametrize("event_type", ["roadmap_read", "planning_unknown", "ROADMAP_CREATED", ""])
+@pytest.mark.parametrize(
+    "event_type",
+    [
+        "roadmap_read",
+        "planning_unknown",
+        "ROADMAP_CREATED",
+        "",
+        "planning_progress_updated",
+        "planning_agent_checkpoint_written",
+        "gate_blocked",
+        "human_decision_required",
+    ],
+)
 def test_planning_service_unknown_events_fail_closed_without_notification_fallback(tmp_path: Path, event_type: str):
     service = PlanningMcpService(tmp_path)
 
@@ -1417,7 +1687,7 @@ def test_planning_service_event_reason_is_bounded_and_rejects_private_or_deliver
 
     with pytest.raises(PlanningServiceError) as invalid:
         service.classify_planning_event(
-            "planning_section_context_pack_read",
+            "planning_context_pack_read",
             project_id="project-001",
             roadmap_id="roadmap-001",
             reason=reason,
@@ -1437,15 +1707,29 @@ def test_planning_service_candidate_requires_typed_event_refs_and_valid_timestam
             project_id="project-001",
             reason="Bounded delete reason.",
         )
-    assert missing_roadmap.value.code == "invalid_planning_event_candidate"
+    assert missing_roadmap.value.code == "invalid_planning_event_metadata"
 
     with pytest.raises(PlanningServiceError) as invalid_time:
+        service.classify_planning_event(
+            "roadmap_created",
+            project_id="project-001",
+            roadmap_id="roadmap-001",
+            reason="Bounded definition reason.",
+            created_at="not-a-time",
+        )
+    assert invalid_time.value.code == "invalid_planning_event_timestamp"
+
+
+def test_planning_service_rejects_runtime_gate_events_even_with_definition_gate_id(tmp_path: Path):
+    service = PlanningMcpService(tmp_path)
+
+    with pytest.raises(PlanningServiceError) as invalid:
         service.classify_planning_event(
             "gate_blocked",
             project_id="project-001",
             roadmap_id="roadmap-001",
             gate_id="gate-001",
             reason="Bounded gate reason.",
-            created_at="not-a-time",
         )
-    assert invalid_time.value.code == "invalid_planning_event_candidate"
+
+    assert invalid.value.code == "runtime_gate_event_forbidden"
