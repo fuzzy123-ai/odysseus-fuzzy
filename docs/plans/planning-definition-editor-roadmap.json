@@ -5,7 +5,7 @@
   "title": "Planning Definition Editor Roadmap",
   "created_at": "2026-07-13",
   "updated_at": "2026-07-15",
-  "status": "active_serial_PDE_06_frontier",
+  "status": "active_serial_PDE_07_frontier",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
   "goal": "Make Harbor One Planning the authoritative editor and reader for versioned project and roadmap definitions while excluding every mutable execution concern from the Planning payload and screen.",
@@ -834,7 +834,7 @@
     },
     {
       "id": "PDE-06-definition-notification-undo",
-      "status": "planned",
+      "status": "implemented_focused_browser_tested_committed",
       "class": "repo_only",
       "owner": "Charlie",
       "depends_on": [
@@ -878,7 +878,63 @@
       "forbidden_actions": [
         "modal interruption for routine updates",
         "Agent status in Planning"
-      ]
+      ],
+      "completion_evidence": {
+        "completed_at": "2026-07-15T15:05:47.0554883+02:00",
+        "commit": "290f71b4",
+        "committed_paths": [
+          "src/user_notification_contract.py",
+          "static/frontpage-v3/planning.js",
+          "tests/test_user_notification_contract.py"
+        ],
+        "definition_notification_contract": {
+          "schema": "odysseus.planning.definition_notification_candidate.v2",
+          "planning_events": [
+            "project_created",
+            "project_deleted",
+            "roadmap_created",
+            "roadmap_deleted",
+            "roadmap_revision_approved",
+            "roadmap_revision_conflict",
+            "undo_available_after_structural_delete"
+          ],
+          "exact_revision_fields": [
+            "project_id",
+            "roadmap_id",
+            "revision",
+            "content_hash"
+          ],
+          "execution_destination": "agent_only",
+          "delivery_authorized": false,
+          "live_delivery_performed": false
+        },
+        "focused_tests": [
+          "84 user notification contract tests passed",
+          "14 focused V3 Playwright scenarios passed",
+          "16 Planning MCP v2 taxonomy compatibility tests passed with 77 deselected",
+          "node --check passed for planning.js and the browser specification",
+          "Impeccable detector returned zero findings for the PDE-06 planning.js change",
+          "git diff --check passed for every claimed path"
+        ],
+        "browser_evidence": [
+          "one typed definition notification opens the exact project, roadmap and revision",
+          "one execution notification dispatches an Agent-only workspace route and renders no heartbeat data in Planning",
+          "undo restores the approved definition and rereads the exact prior content hash",
+          "routine reads and draft keystrokes emit no notification"
+        ],
+        "privacy_boundary": [
+          "typed identifiers and exact positive revisions are allowlisted",
+          "revision notifications require a canonical lowercase sha256 content hash",
+          "paths, URLs, secrets, delivery authority and raw private content fail closed",
+          "no live notification, source write, root cutover or runtime render occurred"
+        ],
+        "preserved_worktree_boundary": {
+          "path": "tests/frontend/harbor-one-planning.spec.js",
+          "sha256": "8be4c7bd6c65e38a0a0ee1d86810a1591ce511eeac719dd18497dbac205f1f69",
+          "state": "owned PDE-05/PDE-06 browser evidence remains untracked because the pre-existing V3 index/app baseline is not yet a clean-checkout commit",
+          "next_owner": "PDE-07-boundary-browser-acceptance"
+        }
+      }
     },
     {
       "id": "PDE-07-boundary-browser-acceptance",
@@ -1025,5 +1081,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_pde_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "Claim PDE-06-definition-notification-undo serially. Implement only definition create, revision, conflict, tombstone and undo notification routing to Planning; route all execution events to Agent, preserve the V3 clean-checkout baseline handoff, and do not perform root cutover or live writes."
+  "recommended_next_step": "Claim PDE-07-boundary-browser-acceptance serially. Prove the Planning/Agent boundary at roadmap, schema, route and rendered-DOM levels; include the owned V3 browser specification without absorbing the pre-existing untracked V3 index.html or app.js baseline, and run the named Planning integration closeout only after PDE-07 is green."
 }

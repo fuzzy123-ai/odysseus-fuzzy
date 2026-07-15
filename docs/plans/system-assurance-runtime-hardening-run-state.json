@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
   "state": "running",
-  "revision": 175,
+  "revision": 177,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -110,6 +110,109 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:PDE-06-definition-notification-undo",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "PDE-06-definition-notification-undo",
+      "owner": "/root",
+      "allowed_paths": [
+        "src/user_notification_contract.py",
+        "static/frontpage-v3/planning.js",
+        "tests/test_user_notification_contract.py",
+        "tests/frontend/harbor-one-planning.spec.js",
+        "docs/plans/planning-definition-editor-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [
+        "src/user_notification_contract.py"
+      ],
+      "state": "released_definition_notification_deeplink_undo_green_committed",
+      "acquired_at": "2026-07-15T14:56:11.5495515+02:00",
+      "lease_expires_at": "2026-07-15T16:56:11.5495515+02:00",
+      "handoff_required": false,
+      "handoff_evidence": [
+        "PDE-03 and PDE-05 dependency layers are implemented and tested",
+        "the existing notification contract and its tests are tracked and clean",
+        "planning.js is tracked at the PDE-05 module commit; the browser spec is the owned untracked PDE-05 test artifact",
+        "only the current thread is active in this checkout",
+        "the V3 index.html and app.js baseline is not in this claim and remains preserved"
+      ],
+      "path_fingerprints_sha256": {
+        "src/user_notification_contract.py": "ddc28721c3a5184b2f0ee33c75636cb165bce86472d6160ded1b3641756dba05",
+        "static/frontpage-v3/planning.js": "306c11362f6690e641bbe3acd69e165dd0f1f0ebf59eccdeebf973c844a2984b",
+        "tests/test_user_notification_contract.py": "d2de3a1798ada67f3d4c8ffc81840c6d1555860ab5f7a3aabeb66ada55d55577",
+        "tests/frontend/harbor-one-planning.spec.js": "3d6b2a1a0817f85b17801f88de0ec5ce39a7bc947eabfadb047df61406ae5850",
+        "docs/plans/planning-definition-editor-roadmap.json": "7c28b79a22f4bfd974da52fb005206dbba0547cb0cda09bf7933c2c89cbd6cb4",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "0a225339fa6761c1ccd7ba7e73cac03f490bd5df9f77fdb89aec6434a4328bcf"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "phase": "implementation",
+        "supervision": "interactive_serial",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "locator_or_version": "C:/Users/nkatz/.codex/skills/abc/SKILL.md",
+              "purpose": "serial claim, evidence, commit and release"
+            },
+            {
+              "id": "impeccable",
+              "locator_or_version": "3.8.0",
+              "purpose": "definition-only notification and undo UX"
+            },
+            {
+              "id": "playwright",
+              "locator_or_version": "C:/Users/nkatz/.codex/skills/playwright/SKILL.md",
+              "purpose": "focused V3 notification deep-link and undo browser verification"
+            }
+          ],
+          "model": {
+            "value": "surface_default",
+            "reason": "bounded repo implementation; no architecture or live security gate"
+          }
+        }
+      },
+      "evidence_contract": {
+        "target_environment": "repo_only_contract_and_local_v3_preview",
+        "observed_at": "2026-07-15T14:56:11.5495515+02:00",
+        "required": [
+          "definition_event_taxonomy_create_revision_conflict_tombstone_undo",
+          "exact_Planning_project_roadmap_revision_deep_link",
+          "execution_event_routes_to_Agent_and_is_rejected_by_Planning",
+          "undo_restores_and_rereads_prior_hash",
+          "no_routine_read_or_keystroke_notification",
+          "no_raw_private_content"
+        ]
+      },
+      "forbidden_actions": [
+        "live notification delivery",
+        "definition source write",
+        "execution notification render in Planning",
+        "root cutover",
+        "V3 baseline commit",
+        "push"
+      ],
+      "released_at": "2026-07-15T15:05:47.0554883+02:00",
+      "commit": "290f71b4",
+      "release_path_fingerprints_sha256": {
+        "src/user_notification_contract.py": "7e860f6c386bb70d0c8ac5b6ee8a17dac4772c7b75d2e35ee5591569ec3a9f66",
+        "static/frontpage-v3/planning.js": "133337fc656082466816856f883cf58c8f2fa66de978445d99bddb09715175af",
+        "tests/test_user_notification_contract.py": "4508e501001531f9692c64ff4c1d8468a21956a2208b69fb20de4ac65b0f6c5b",
+        "tests/frontend/harbor-one-planning.spec.js": "8be4c7bd6c65e38a0a0ee1d86810a1591ce511eeac719dd18497dbac205f1f69",
+        "docs/plans/planning-definition-editor-roadmap.json": "72b2e20fbb76687431d3f01ff0e8c465c170925909de8560326f827724c89349"
+      },
+      "release_evidence": [
+        "84 Python notification contract tests, 14 browser scenarios and 16 Planning MCP taxonomy compatibility tests passed",
+        "definition create, revision, conflict, tombstone and undo events target Planning with typed references",
+        "heartbeat, activity, run, claim and runtime gate events target Agent and fail closed in the Planning candidate builder",
+        "the V3 deep link loads one exact project, roadmap and revision; local undo rereads the prior approved hash",
+        "product and Python contract paths are committed as 290f71b4",
+        "the owned browser specification remains an explicit untracked V3 baseline boundary for PDE-07",
+        "no live delivery, source write, root cutover, push, service start or foreign hunk commit occurred"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:HPA-PDE06-next-frontier-contract-sync",
       "run_id": "sar-12h-20260714t092106",
@@ -3749,15 +3852,15 @@
   ],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T14:53:25.2350411+02:00",
-    "summary": "The final HPA/PDE-05 post-release contract passes 9 of 9 and is committed as 88719df2. PDE-06 is the next serial repo-only frontier; the V3 clean-checkout baseline boundary remains explicit and preserved.",
-    "resume_cursor": "PDE-06-definition-notification-undo",
+    "last_durable_progress_at": "2026-07-15T15:05:47.0554883+02:00",
+    "summary": "PDE-06 is implemented, tested and committed as 290f71b4. Definition notifications resolve typed Planning references, execution notifications are Agent-only, and undo rereads the prior hash. PDE-07 is the next serial frontier; the untracked V3 baseline boundary remains preserved.",
+    "resume_cursor": "PDE-07-boundary-browser-acceptance",
     "resume_priority": [
-      "PDE-06-definition-notification-undo",
-      "PDE-07-boundary-browser-acceptance"
+      "PDE-07-boundary-browser-acceptance",
+      "IP-PLANNING-INTEGRATION-CLOSEOUT"
     ],
     "next_runnable_slices": [
-      "PDE-06-definition-notification-undo"
+      "PDE-07-boundary-browser-acceptance"
     ],
     "blocked_slices": [
       "PDE-05-clean-checkout-v3-baseline-integration-handoff",
@@ -3779,6 +3882,7 @@
   },
   "completion_layers": {
     "implemented": [
+      "PDE-06-definition-notification-undo",
       "PDE-05-v3-planning-surface",
       "TLR-06-history-agent-projection-api",
       "TLR-05-signals-updates-idempotency",
@@ -3805,6 +3909,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "PDE-06-definition-notification-undo:84_notification_14_browser_16_PMCP_taxonomy_static_and_boundary_green",
       "HPA-PDE06-next-frontier-contract-sync:9_roadmap_contract_passed",
       "HPA-PLANNING-UX-ACCEPTANCE-contract-sync:9_roadmap_contract_passed_165_compatibility_passed_3_environment_tmp_path_setup_errors",
       "PDE-05-v3-planning-surface:12_browser_167_python_static_visual_accessibility_boundary_green_1_stale_gate_expectation",
@@ -3836,6 +3941,7 @@
       "SAR-09-measured-optimization-decisions:focused_and_cli"
     ],
     "committed": [
+      "PDE-06-definition-notification-undo:290f71b4",
       "HPA-PDE06-next-frontier-contract-sync:88719df2",
       "HPA-PLANNING-UX-ACCEPTANCE-contract-sync:c980b644",
       "PDE-05-v3-planning-surface:13104cc5_modules_only_preexisting_untracked_v3_integration_preserved",
