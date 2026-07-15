@@ -1532,28 +1532,47 @@ def setup_model_routes(model_discovery):
 
     # ── Tool management ──
 
+    def _connected_mcp_tools() -> list[dict]:
+        """Read the already-discovered MCP inventory without connecting or probing."""
+        try:
+            from src.tool_utils import get_mcp_manager
+
+            manager = get_mcp_manager()
+            return list(manager.get_all_tools()) if manager is not None else []
+        except Exception:
+            return []
+
     @router.get("/tools")
     def list_tools():
-        """List all available tools with their enabled/disabled status."""
+        """Return complete redacted descriptors and legacy-compatible tool rows."""
         from src.agent_tools import TOOL_TAGS
+        from src.runtime_tool_status import build_tool_catalog_projection
+        from src.tool_index import BUILTIN_TOOL_DESCRIPTIONS
         from src.tool_registry import list_tools as list_plugin_tools
         from src.tool_policy import operator_priority_disabled_tools
+
         settings = _load_settings()
-        disabled = set(operator_priority_disabled_tools(settings))
-        tools = []
-        for tag in sorted(TOOL_TAGS):
-            tools.append({"id": tag, "enabled": tag not in disabled})
-        for tool in list_plugin_tools():
-            tools.append({
-                "id": tool.name,
-                "name": tool.name,
-                "desc": tool.description,
-                "cat": "Plugins",
-                "ctx": "~plugin",
-                "permission": tool.permission,
-                "enabled": tool.name not in disabled,
-            })
-        return {"tools": tools}
+        projection = build_tool_catalog_projection(
+            disabled_tools=operator_priority_disabled_tools(settings),
+            builtin_descriptions=BUILTIN_TOOL_DESCRIPTIONS,
+            plugin_tools=list_plugin_tools(),
+            mcp_tools=_connected_mcp_tools(),
+        )
+        mutable_by_id = {item["id"]: item for item in projection["tools"]}
+        legacy_rows = [
+            mutable_by_id[tag]
+            for tag in sorted(TOOL_TAGS)
+            if tag in mutable_by_id
+        ]
+        legacy_rows.extend(
+            item
+            for item in projection["tools"]
+            if item["source"] == "plugin" and item["id"] not in TOOL_TAGS
+        )
+        legacy_rows.sort(key=lambda item: item["id"])
+        projection["tools"] = tuple(legacy_rows)
+        projection["mutable_tool_count"] = len(legacy_rows)
+        return projection
 
     @router.get("/system/runtime-tools")
     def runtime_tools_status(request: Request):
@@ -1571,6 +1590,7 @@ def setup_model_routes(model_discovery):
             builtin_descriptions=BUILTIN_TOOL_DESCRIPTIONS,
             function_schemas=FUNCTION_TOOL_SCHEMAS,
             plugin_tools=list_plugin_tools(),
+            mcp_tools=_connected_mcp_tools(),
         )
 
     class ToolsUpdate(BaseModel):
@@ -1578,11 +1598,58 @@ def setup_model_routes(model_discovery):
 
     @router.post("/tools")
     def update_tools(body: ToolsUpdate, request: Request):
-        """Update which tools are disabled."""
+        """Update known mutable tool IDs while preserving legacy settings entries."""
         require_admin(request)
+        from src.builtin_tool_catalog import (
+            BUILTIN_TOOL_SPECS,
+            catalog_call_allowed,
+        )
+        from src.tool_catalog import ToolAvailability
+        from src.tool_registry import list_tools as list_plugin_tools
+
+        requested = list(body.disabled or [])
+        if any(not isinstance(item, str) for item in requested):
+            raise HTTPException(422, "disabled must contain only tool ID strings")
+        known_mutable = {
+            spec.tool_id
+            for spec in BUILTIN_TOOL_SPECS
+            if catalog_call_allowed(spec.tool_id)
+            and spec.availability == ToolAvailability.AVAILABLE
+        }
+        known_mutable.update(
+            str(tool.name)
+            for tool in list_plugin_tools()
+            if str(getattr(tool, "name", "") or "")
+        )
+        normalized = [item.strip() for item in requested]
+        invalid = sorted({item for item in normalized if not item or item not in known_mutable})
+        if invalid:
+            raise HTTPException(
+                422,
+                {
+                    "error": "unknown_or_immutable_tool_ids",
+                    "tool_ids": invalid,
+                    "settings_written": False,
+                },
+            )
         settings = _load_settings()
-        settings["disabled_tools"] = body.disabled
+        existing = settings.get("disabled_tools")
+        preserved_legacy = (
+            {
+                item
+                for item in existing
+                if isinstance(item, str) and item not in known_mutable
+            }
+            if isinstance(existing, list)
+            else set()
+        )
+        stored = sorted(set(normalized) | preserved_legacy)
+        settings["disabled_tools"] = stored
         _save_settings(settings)
-        return {"ok": True, "disabled": body.disabled}
+        return {
+            "ok": True,
+            "disabled": tuple(sorted(set(normalized))),
+            "preserved_legacy_count": len(preserved_legacy),
+        }
 
     return router

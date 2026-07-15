@@ -13,14 +13,14 @@
     "unique_live_gates": 39,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "uix13_semantics_gated_tax5_completed_tax6_selected_tua2_dependency_ready",
+    "queue_status": "uix13_semantics_gated_tax6_completed_tax7_selected_tua2_dependency_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
-      "tool_taxonomy_registry": "tax0_through_tax5_completed_tax6_selected_catalog_v2_not_activated",
+      "tool_taxonomy_registry": "tax0_through_tax6_completed_tax7_selected_catalog_v2_not_activated",
       "tool_usage_analytics": "tua0_tua1_completed_tua2_dependency_ready_capture_and_backfill_default_off"
     },
     "verification": {
@@ -61,14 +61,14 @@
         "reason": "UIX-ABC13 requires explicit product-semantics confirmation before claim",
         "slice": "UIX-ABC13",
         "user_decision_required": true,
-        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TAX6_then_TUA2"
+        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TAX7_then_TUA2"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-15"
     },
     "dependency_ready_repo_only_slices": [
-      "TAX6-admin-runtime-api-projection",
+      "TAX7-existing-admin-ui-consumes-catalog",
       "TUA2-persistence-migration-retention"
     ],
     "product_semantics_gated_open_slices": [
@@ -1026,7 +1026,7 @@
       "id": "TAX6-admin-runtime-api-projection",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
+      "status": "completed",
       "depends_on": [
         "TAX4-operator-priority-defaults",
         "TAX5-security-effect-class-closure"
@@ -1043,7 +1043,40 @@
         "venv\\Scripts\\python.exe -m pytest -q tests\\test_runtime_tool_status.py tests\\test_runtime_tool_status_routes.py tests\\test_tool_catalog_routes.py"
       ],
       "gate": "none_before_live_activation",
-      "done_when": "Tool API payloads are deterministic, redacted and complete; owner/admin scope is tested; POST accepts only known allowed IDs while preserving disabled_tools compatibility; dynamic sources are explicit and conservative."
+      "done_when": "Tool API payloads are deterministic, redacted and complete; owner/admin scope is tested; POST accepts only known allowed IDs while preserving disabled_tools compatibility; dynamic sources are explicit and conservative.",
+      "completed_at": "2026-07-15T22:28:53.1044344+02:00",
+      "completion_evidence": {
+        "focused_tests": "6 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "direct_regression": "22 passed, 1 pre-existing SQLAlchemy deprecation warning with an isolated authorized Pytest temp directory",
+        "catalog_api": "GET /api/tools returns deterministic complete redacted Descriptor-V2 projections plus a backward-compatible settings-mutable tool list; blocked and MCP-only descriptors cannot be accidentally activated through disabled_tools",
+        "runtime_api": "GET /api/system/runtime-tools remains Admin-gated and now explains source, lifecycle, catalog/runtime availability, registration disposition, conservative policy and content-free drift codes without raw schemas or secrets",
+        "mutation_api": "POST /api/tools remains Admin-gated, rejects unknown or immutable IDs before writes, deduplicates deterministically and preserves unrecognized legacy disabled_tools entries for TAX9",
+        "dynamic_sources": "Discovered Plugin and MCP tools are source-explicit, default to elevated/control/confirmation and Admin unless a plugin declares an explicit narrower owner policy; descriptions are redacted and MCP inventory is read from already-discovered in-memory state only",
+        "resolved_environment_attempts": "Two preliminary Plugin regression attempts were blocked by the sandbox/system temp path; the same bounded tests passed with a fresh isolated C:/tmp basetemp. No product environment dependency remains.",
+        "live_effects": "No settings write outside mocked tests, feature activation, UI mutation, database change, network, MCP connection, provider action, deployment or live action occurred"
+      }
+    },
+    {
+      "id": "TAX7-existing-admin-ui-consumes-catalog",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "open",
+      "depends_on": [
+        "TAX6-admin-runtime-api-projection"
+      ],
+      "source_roadmap": "docs/plans/tool-taxonomy-registration-roadmap.md",
+      "allowed_paths": [
+        "static/js/admin.js",
+        "tests/test_admin_tool_catalog_ui.py",
+        "tests/test_admin_plugin_tools_ui.py"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_admin_tool_catalog_ui.py tests\\test_admin_plugin_tools_ui.py",
+        "node --check static\\js\\admin.js"
+      ],
+      "gate": "none_no_new_design_decision",
+      "required_skill": "impeccable",
+      "done_when": "The existing Admin UI consumes canonical catalog families and states without the 48-tool Other fallback, stale manage_rag activation, XSS regressions, toggle regressions or a general redesign."
     }
   ],
   "recommended_execution_order": [
