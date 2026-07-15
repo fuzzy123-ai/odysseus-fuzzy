@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
   "state": "running",
-  "revision": 198,
+  "revision": 200,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -119,6 +119,70 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:V3-BASELINE-INTEGRATION",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "V3-BASELINE-INTEGRATION",
+      "owner": "/root",
+      "allowed_paths": [
+        "static/frontpage-v3/README.md",
+        "static/frontpage-v3/app.js",
+        "static/frontpage-v3/data.js",
+        "static/frontpage-v3/index.html",
+        "static/frontpage-v3/v3-fixed.css",
+        "docs/plans/temporal-light-agent-execution-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [
+        "static/frontpage-v3/index.html",
+        "static/frontpage-v3/app.js"
+      ],
+      "state": "released_green",
+      "acquired_at": "2026-07-15T17:20:35.4354263+02:00",
+      "lease_expires_at": "2026-07-15T18:20:35.4354263+02:00",
+      "handoff_required": true,
+      "handoff_evidence": [
+        "the user explicitly granted V3-Baseline-Handoff",
+        "the user accepted both the Planning and Agent V3 UX directions",
+        "the complete five-file baseline is integrated with the already committed feature modules",
+        "the dirty master roadmap remained outside the claim and commit"
+      ],
+      "path_fingerprints_sha256": {
+        "static/frontpage-v3/README.md": "ba5bd0038928b6051459145450c88a56c2f0c74fa042462b3f7cacfbc640115e",
+        "static/frontpage-v3/app.js": "a456a1f6d0a938c268b36408c15af021869021659687f69eb469c5a97c7659e8",
+        "static/frontpage-v3/data.js": "d3c64f24ca418e64892c6a785162d39f43ed7bb6d301ea06384f8aa3ed073bf9",
+        "static/frontpage-v3/index.html": "40e773c565fadd9f3f22d8ffcd4efbc9a457fe086f22f28829e0de79da777237",
+        "static/frontpage-v3/v3-fixed.css": "f3b4d4b4958b8ab6bd48c93bf92e29638de7297bbcd4772267aa67e26015cf89",
+        "docs/plans/temporal-light-agent-execution-roadmap.json": "f1e5a02fdd90068bed11d89c4d341a2862935acad983b3722e18bdb636e063f0",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "9d4dbf9f0755e3d039862b0536236b635f2f61632f94972eef580799961bdaa2"
+      },
+      "evidence_contract": {
+        "target_environment": "complete Harbor One V3 static baseline with committed Planning and Agent feature modules",
+        "authority": "repo",
+        "mutation_class": "repo_only_handoff",
+        "javascript_modules_checked": 7,
+        "python_boundary_tests_passed": 11,
+        "browser_contracts_passed": 22
+      },
+      "forbidden_actions": [
+        "root route cutover",
+        "live worker activation",
+        "master-roadmap mutation or staging",
+        "repository-wide suite",
+        "push",
+        "foreign hunk commit"
+      ],
+      "released_at": "2026-07-15T17:26:00+02:00",
+      "release_evidence": {
+        "node_check": "README-independent executable V3 modules all passed node --check",
+        "python_contract": "test_harbor_one_preview_route.py plus test_planning_agent_boundary_roadmaps.py => 11 passed",
+        "browser_contract": "Planning plus Agent V3 specs => 22 passed serially",
+        "boundary": "Planning is definition-only, Agent is runtime-only and neither stores runtime truth in localStorage",
+        "master_roadmap": "pre-existing 270-addition/73-deletion dirty diff preserved and not staged",
+        "next_slice": "MASTER-ROADMAP-SYNC-HANDOFF"
+      }
+    },
     {
       "claim_id": "sar-12h-20260714t092106:TLR-09-24H-TIME-SKIPPING",
       "run_id": "sar-12h-20260714t092106",
@@ -4609,18 +4673,17 @@
     "LIVE-ACTIVATION-ENVELOPE: discover and record the exact final verified commit, repository-native Debian deployment mechanism, observation window, previous deployed artifact and rollback command before push or deployment"
   ],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T17:18:00+02:00",
-    "summary": "TLR-09 is green: exactly 24 logical hours, 2880 modeled heartbeat opportunities, three Continue-As-New transitions, Worker recovery, retry, two-client idempotency, bounded histories and hour-6/hour-18 Agent reconnects all passed. The complete V3 baseline handoff is the next serial repo slice.",
-    "resume_cursor": "V3-BASELINE-INTEGRATION",
+    "last_durable_progress_at": "2026-07-15T17:26:00+02:00",
+    "summary": "The user-granted complete V3 baseline is integrated and green with seven JavaScript syntax checks, 11 Python boundary tests and 22 Planning-plus-Agent browser contracts. The pre-existing dirty master roadmap remains preserved outside the commit and needs its own serialized handoff decision.",
+    "resume_cursor": "MASTER-ROADMAP-SYNC-HANDOFF",
     "resume_priority": [
-      "PDE-05-clean-checkout-v3-baseline-integration-handoff",
+      "MASTER-ROADMAP-SYNC-HANDOFF",
       "LIVE-ACTIVATION-SCOPE"
     ],
     "next_runnable_slices": [
-      "V3-BASELINE-INTEGRATION"
+      "MASTER-ROADMAP-SYNC-HANDOFF"
     ],
     "blocked_slices": [
-      "PDE-05-clean-checkout-v3-baseline-integration-handoff",
       "PDE-08-real-save-undo-smoke",
       "TLR-07-agent-screen-runtime-ui",
       "SAR-01-binding-ci-and-publish-provenance",
@@ -4642,6 +4705,7 @@
   },
   "completion_layers": {
     "implemented": [
+      "V3-BASELINE-INTEGRATION",
       "TLR-09-24h-time-skipping-acceptance",
       "TLR-08-replay-restart-recovery",
       "TLR-07-agent-screen-runtime-ui",
@@ -4673,6 +4737,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "V3-BASELINE-INTEGRATION:7_node_11_python_22_browser_green",
       "TLR-09-24h-time-skipping-acceptance:1_acceptance_7_browser_10_final_integration_zero_process_leaks",
       "TLR-08-STICKY-A:1_constant_1_worker_recovery_92_integration_assertions_2_environment_retry_green_zero_process_leaks",
       "TLR-08-STICKY-RECOVERY-CONFIG:constant_contract_green_runtime_query_takeover_red_source_fully_rolled_back_zero_process_leaks",
@@ -4715,6 +4780,7 @@
       "SAR-09-measured-optimization-decisions:focused_and_cli"
     ],
     "committed": [
+      "TLR-09-24h-time-skipping-acceptance:07596c8a",
       "TLR-08-replay-restart-recovery:b21a57a7",
       "PDE-07-boundary-browser-acceptance:5f973257_python_acceptance_browser_spec_handoff",
       "PDE-06-definition-notification-undo:290f71b4",

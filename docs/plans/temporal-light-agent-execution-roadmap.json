@@ -1102,7 +1102,7 @@
           "Windows temp/odysseus-tlr07-playwright/tlr07-zoom-200.png"
         ],
         "index_integration_handoff": {
-          "state": "user_granted_complete_v3_baseline_handoff_pending_serial_integration_claim",
+          "state": "integrated_green_commit_pending",
           "baseline_sha256": "22e88e0160ddc3aa1c443a5cef79f1c198c95ebb514e5fe422b9608c7bb59f56",
           "preview_sha256": "40e773c565fadd9f3f22d8ffcd4efbc9a457fe086f22f28829e0de79da777237",
           "exact_additions": [
@@ -1110,7 +1110,13 @@
             "agent-operation-fixtures.js script reference",
             "agent-operations.js script reference"
           ],
-          "rule": "The user consumed the complete V3 baseline handoff on 2026-07-15. Integrate and commit the baseline only in a separate serial claim after TLR-08 and TLR-09."
+          "rule": "The user consumed the complete V3 baseline handoff on 2026-07-15. The complete baseline now loads the committed Planning and Agent modules from one fixed shell and is eligible for its dedicated scoped commit.",
+          "verification": [
+            "all seven V3 JavaScript modules passed node --check",
+            "11 preview-route and Planning/Agent roadmap boundary tests passed",
+            "22 combined Planning and Agent browser contracts passed serially",
+            "Planning stayed definition-only, Agent stayed runtime-only and localStorage contained no runtime truth"
+          ]
         }
       }
     },
@@ -1212,6 +1218,12 @@
       ],
       "hotfiles": [],
       "objective": "Replace the unbounded Worker-replacement reproduction with one instrumented contract that identifies the exact shutdown, polling, Update, result, history or environment-cleanup phase without changing product code or weakening recovery evidence.",
+      "deliverables": [
+        "one phase-bounded Worker replacement diagnostic",
+        "one exact failing phase or a fully green recovery result",
+        "zero surviving SDK test-server process or listener",
+        "a durable fingerprinted handoff for the selected product-source strategy"
+      ],
       "required_phase_markers": [
         "first_worker_started",
         "waiting_gate_observed",
@@ -1247,7 +1259,11 @@
         "no surviving SDK test-server process or listener",
         "digest of the uncommitted diagnostic reproduction when red"
       ],
-      "done_when": "PASS diagnostically when the first bounded run either completes every phase with all original recovery assertions green or reports exactly one stable phase timeout and cleans up every process. A product-source fix is outside this slice.",
+      "gate": {
+        "id": "none",
+        "safe_default": "Diagnostic only; stop before product-source mutation and open a new claim for any recovery strategy."
+      },
+      "done_when": "PASS only if the diagnostic first bounded run either completes every phase with all original recovery assertions green or reports exactly one stable phase timeout and cleans up every process. A product-source fix is outside this slice.",
       "stop_rules": [
         "Stop after one stable phase timeout.",
         "Stop before product source mutation.",
@@ -1580,5 +1596,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_tlr_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "Integrate the user-granted complete V3 baseline in a separate serial claim, synchronize the master roadmap and prepare the exact fuzzy/dev to Debian-homeserver deployment envelope. Keep the 12-hour wall-clock soak and production Temporal activation behind AGENT-12H-LIVE-GO and TEMPORAL-PRODUCTION-ACTIVATION-GO."
+  "recommended_next_step": "TLR-01 through TLR-06 are complete, HPA-AGENT-UX-ACCEPTANCE is satisfied for TLR-07, and TLR-08 through TLR-09 are green. Integrate the user-granted complete V3 baseline in a separate serial claim, synchronize the master roadmap and prepare the exact fuzzy/dev to Debian-homeserver deployment envelope. Keep the 12-hour wall-clock soak and production Temporal activation behind AGENT-12H-LIVE-GO and TEMPORAL-PRODUCTION-ACTIVATION-GO."
 }
