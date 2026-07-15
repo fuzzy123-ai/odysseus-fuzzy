@@ -13,14 +13,14 @@
     "unique_live_gates": 39,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "uix13_semantics_gated_tax3_completed_tax4_selected_tua2_dependency_ready",
+    "queue_status": "uix13_semantics_gated_tax4_completed_tax5_selected_tua2_dependency_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
-      "tool_taxonomy_registry": "tax0_through_tax3_completed_tax4_selected_catalog_v2_not_activated",
+      "tool_taxonomy_registry": "tax0_through_tax4_completed_tax5_selected_catalog_v2_not_activated",
       "tool_usage_analytics": "tua0_tua1_completed_tua2_dependency_ready_capture_and_backfill_default_off"
     },
     "verification": {
@@ -61,14 +61,14 @@
         "reason": "UIX-ABC13 requires explicit product-semantics confirmation before claim",
         "slice": "UIX-ABC13",
         "user_decision_required": true,
-        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TAX4_then_TUA2"
+        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TAX5_then_TUA2"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-15"
     },
     "dependency_ready_repo_only_slices": [
-      "TAX4-operator-priority-defaults",
+      "TAX5-security-effect-class-closure",
       "TUA2-persistence-migration-retention"
     ],
     "product_semantics_gated_open_slices": [
@@ -961,7 +961,7 @@
       "id": "TAX4-operator-priority-defaults",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
+      "status": "completed",
       "depends_on": [
         "TAX2-canonical-built-in-catalog"
       ],
@@ -978,7 +978,41 @@
         "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_priority_defaults.py tests\\test_tool_policy.py"
       ],
       "gate": "none_before_live_activation",
-      "done_when": "Mail, calendar, contacts, assistant and presets are safely deferred and hidden by default without overwriting authenticated existing configuration or removing later explicit activation."
+      "done_when": "Mail, calendar, contacts, assistant and presets are safely deferred and hidden by default without overwriting authenticated existing configuration or removing later explicit activation.",
+      "completed_at": "2026-07-15T21:52:43.5637487+02:00",
+      "completion_evidence": {
+        "focused_tests": "23 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "catalog_regression": "25 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "catalog_defaults": "Ten mail/calendar tools are deferred_by_operator_priority, two contact tools are dependent_deferred, and Assistant plus Presets remain deferred; all 14 are default-off and hidden from normal prompts",
+        "settings_preservation": "A missing disabled_tools setting derives read-only safe defaults; any explicitly persisted list, including an empty list, is preserved without a settings write or migration",
+        "runtime_and_prompt": "Native and namespaced MCP email aliases share deny semantics; normal prompt sections and MCP schemas omit deferred families while explicit Admin activation remains possible",
+        "live_effects": "No settings migration, feature activation, email/calendar/contact action, UI, database, network, provider, deployment or live mutation"
+      }
+    },
+    {
+      "id": "TAX5-security-effect-class-closure",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "open",
+      "depends_on": [
+        "TAX3-close-six-registration-gaps"
+      ],
+      "source_roadmap": "docs/plans/tool-taxonomy-registration-roadmap.md",
+      "allowed_paths": [
+        "src/tool_security.py",
+        "src/tool_execution.py",
+        "src/effectful_tool_matrix.py",
+        "src/tool_domains/cookbook_models.py",
+        "tests/test_tool_security_catalog.py",
+        "tests/test_effectful_tool_matrix.py",
+        "tests/test_cookbook_agent_tool_ssh_validation.py",
+        "tests/test_tool_policy.py"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_security_catalog.py tests\\test_effectful_tool_matrix.py tests\\test_cookbook_agent_tool_ssh_validation.py tests\\test_tool_policy.py"
+      ],
+      "gate": "none_before_live_activation",
+      "done_when": "Public or foreign-owner calls fail closed, read-only and mutation actions are distinguished, tail_serve_output is owner/session/current-log bound, and the catalog never advertises weaker policy than runtime enforcement."
     }
   ],
   "recommended_execution_order": [

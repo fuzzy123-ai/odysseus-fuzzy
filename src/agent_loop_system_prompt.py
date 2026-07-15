@@ -14,6 +14,10 @@ from src.agent_tools import set_active_document, set_active_model
 from src.prompt_security import untrusted_context_message
 from src.runtime_snapshot import runtime_snapshot_context_message
 from src.settings import get_setting
+from src.tool_policy import (
+    expand_runtime_disabled_tool_names,
+    operator_priority_disabled_tools,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +43,9 @@ def _build_system_prompt(
     global _cached_base_prompt, _cached_base_prompt_key
     if suppress_local_context:
         active_document = None
+
+    disabled_tools = set(expand_runtime_disabled_tool_names(disabled_tools or ()))
+    disabled_tools.update(operator_priority_disabled_tools())
 
     # With RAG tools, cache key includes the selected tools
     _rt_key = frozenset(relevant_tools) if relevant_tools else None
@@ -80,6 +87,12 @@ def _build_system_prompt(
     mcp_schemas = []
     if mcp_mgr:
         mcp_schemas = mcp_mgr.get_all_openai_schemas(mcp_disabled_map or {})
+        mcp_schemas = [
+            schema
+            for schema in mcp_schemas
+            if (schema.get("function") or {}).get("name") not in disabled_tools
+            and schema.get("name") not in disabled_tools
+        ]
 
     set_active_model(model)
 

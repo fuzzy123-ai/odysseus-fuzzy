@@ -1537,8 +1537,9 @@ def setup_model_routes(model_discovery):
         """List all available tools with their enabled/disabled status."""
         from src.agent_tools import TOOL_TAGS
         from src.tool_registry import list_tools as list_plugin_tools
+        from src.tool_policy import operator_priority_disabled_tools
         settings = _load_settings()
-        disabled = set(settings.get("disabled_tools", []))
+        disabled = set(operator_priority_disabled_tools(settings))
         tools = []
         for tag in sorted(TOOL_TAGS):
             tools.append({"id": tag, "enabled": tag not in disabled})
@@ -1562,10 +1563,11 @@ def setup_model_routes(model_discovery):
         from src.tool_index import BUILTIN_TOOL_DESCRIPTIONS
         from src.tool_registry import list_tools as list_plugin_tools
         from src.tool_schema_definitions import FUNCTION_TOOL_SCHEMAS
+        from src.tool_policy import operator_priority_disabled_tools
 
         settings = _load_settings()
         return build_runtime_tool_status(
-            disabled_tools=settings.get("disabled_tools", []),
+            disabled_tools=operator_priority_disabled_tools(settings),
             builtin_descriptions=BUILTIN_TOOL_DESCRIPTIONS,
             function_schemas=FUNCTION_TOOL_SCHEMAS,
             plugin_tools=list_plugin_tools(),

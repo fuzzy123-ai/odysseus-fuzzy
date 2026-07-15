@@ -32,6 +32,13 @@ class BuiltInRegistrationDisposition(StrEnum):
     SECURITY_BLOCKED = "security_blocked"
 
 
+class BuiltInDefaultPolicy(StrEnum):
+    STANDARD = "standard"
+    DEFERRED_BY_OPERATOR_PRIORITY = "deferred_by_operator_priority"
+    DEPENDENT_DEFERRED = "dependent_deferred"
+    DEFERRED = "deferred"
+
+
 CATALOG_TOOL_IDS = (
     "adopt_served_model",
     "api_call",
@@ -167,6 +174,20 @@ EMAIL_DISPATCH_FAMILY = frozenset(
         "reply_to_email",
         "send_email",
     }
+)
+OPERATOR_PRIORITY_DEFERRED_TOOLS = EMAIL_DISPATCH_FAMILY | frozenset(
+    {"manage_calendar"}
+)
+DEPENDENT_CONTACT_DEFERRED_TOOLS = frozenset(
+    {"manage_contact", "resolve_contact"}
+)
+OTHER_DEFAULT_DEFERRED_TOOLS = frozenset(
+    {"manage_assistant", "manage_presets"}
+)
+DEFAULT_DEFERRED_TOOLS = (
+    OPERATOR_PRIORITY_DEFERRED_TOOLS
+    | DEPENDENT_CONTACT_DEFERRED_TOOLS
+    | OTHER_DEFAULT_DEFERRED_TOOLS
 )
 AGENT_HANDLER_TOOLS = frozenset(
     {
@@ -447,6 +468,7 @@ class BuiltInToolSpec:
     permission: ToolPermission
     effect_class: ToolEffectClass
     registration_disposition: BuiltInRegistrationDisposition
+    default_policy: BuiltInDefaultPolicy
     runtime_registered: bool
     native_schema: bool
     searchable_index: bool
@@ -467,7 +489,11 @@ class BuiltInToolSpec:
             availability=self.availability,
             default_enabled=False,
             default_visibility=(
-                ToolVisibility.VISIBLE if available else ToolVisibility.BLOCKED
+                ToolVisibility.HIDDEN
+                if available and self.default_policy != BuiltInDefaultPolicy.STANDARD
+                else ToolVisibility.VISIBLE
+                if available
+                else ToolVisibility.BLOCKED
             ),
             risk_level=self.risk_level,
             permission=self.permission,
@@ -495,6 +521,12 @@ def _build_specs() -> tuple[BuiltInToolSpec, ...]:
                 exceptions.append("deferred_by_catalog_policy")
             else:
                 exceptions.append("blocked_until_TAX5_owner_session_binding")
+        if tool_id in OPERATOR_PRIORITY_DEFERRED_TOOLS:
+            exceptions.append("deferred_by_operator_priority")
+        elif tool_id in DEPENDENT_CONTACT_DEFERRED_TOOLS:
+            exceptions.append("dependent_deferred_by_communications_priority")
+        elif tool_id in OTHER_DEFAULT_DEFERRED_TOOLS:
+            exceptions.append("default_deferred")
         if tool_id in NON_NATIVE_SCHEMA_TOOLS:
             exceptions.append("text_only_no_native_schema")
         if tool_id in RAG_ONLY_PROMPT_TOOLS:
@@ -513,7 +545,7 @@ def _build_specs() -> tuple[BuiltInToolSpec, ...]:
                 family=_FAMILY_BY_TOOL[tool_id],
                 lifecycle=(
                     ToolLifecycle.DEFERRED
-                    if tool_id in DEFERRED_REGISTRATION_GAPS
+                    if tool_id in DEFAULT_DEFERRED_TOOLS
                     else ToolLifecycle.BLOCKED
                     if is_gap
                     else ToolLifecycle.CONTEXTUAL
@@ -542,6 +574,15 @@ def _build_specs() -> tuple[BuiltInToolSpec, ...]:
                     else BuiltInRegistrationDisposition.SECURITY_BLOCKED
                     if tool_id in SECURITY_BLOCKED_REGISTRATION_GAPS
                     else BuiltInRegistrationDisposition.ACTIVE_RUNTIME
+                ),
+                default_policy=(
+                    BuiltInDefaultPolicy.DEFERRED_BY_OPERATOR_PRIORITY
+                    if tool_id in OPERATOR_PRIORITY_DEFERRED_TOOLS
+                    else BuiltInDefaultPolicy.DEPENDENT_DEFERRED
+                    if tool_id in DEPENDENT_CONTACT_DEFERRED_TOOLS
+                    else BuiltInDefaultPolicy.DEFERRED
+                    if tool_id in OTHER_DEFAULT_DEFERRED_TOOLS
+                    else BuiltInDefaultPolicy.STANDARD
                 ),
                 runtime_registered=not is_gap,
                 native_schema=tool_id not in NON_NATIVE_SCHEMA_TOOLS,
@@ -685,6 +726,13 @@ def builtin_catalog_audit_summary() -> dict[str, Any]:
             "confirmed_route_only": tuple(sorted(CONFIRMED_ROUTE_REGISTRATION_GAPS)),
             "deferred": tuple(sorted(DEFERRED_REGISTRATION_GAPS)),
             "security_blocked": tuple(sorted(SECURITY_BLOCKED_REGISTRATION_GAPS)),
+        },
+        "default_policies": {
+            "deferred_by_operator_priority": tuple(
+                sorted(OPERATOR_PRIORITY_DEFERRED_TOOLS)
+            ),
+            "dependent_deferred": tuple(sorted(DEPENDENT_CONTACT_DEFERRED_TOOLS)),
+            "deferred": tuple(sorted(OTHER_DEFAULT_DEFERRED_TOOLS)),
         },
         "raw_content_visible": False,
         "callable_visible": False,
