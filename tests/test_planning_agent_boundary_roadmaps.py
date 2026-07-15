@@ -338,7 +338,7 @@ def test_pde05_completion_records_named_design_acceptance() -> None:
     assert design_gate["status"] == "accepted_user_v3_calm_control_room_definition_only"
     assert design_gate["blocks"] == []
     assert design_gate["accepted_by"] == "user"
-    assert "Synchronize the accepted HPA-PLANNING-UX-ACCEPTANCE" in pde[
-        "recommended_next_step"
-    ]
-    assert "claim PDE-06 serially" in pde["recommended_next_step"]
+    assert pde["recommended_next_step"].startswith(
+        "Claim PDE-06-definition-notification-undo serially"
+    )
+    assert "route all execution events to Agent" in pde["recommended_next_step"]
