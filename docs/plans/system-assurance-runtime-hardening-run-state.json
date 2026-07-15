@@ -10,7 +10,7 @@
   "supervision": "interactive",
   "mutation_authority": "repo_only",
   "state": "running",
-  "revision": 139,
+  "revision": 140,
   "resumed_at": "2026-07-15T07:08:35.5258180+02:00",
   "resume_authority": "user_directed_goal_restart_TLR_then_next_roadmap",
   "paused_at": null,
@@ -110,7 +110,7 @@
   },
   "active_claims": [
     {
-      "claim_id": "sar-12h-20260714t092106:PDE-02-service-routes",
+      "claim_id": "sar-12h-20260714t092106:PDE-02-app-router-hotfile",
       "run_id": "sar-12h-20260714t092106",
       "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
       "slice_id": "PDE-02-definition-read-model-api",
@@ -118,48 +118,43 @@
       "allowed_paths": [
         "docs/plans/system-assurance-runtime-hardening-run-state.json",
         "docs/plans/planning-definition-editor-roadmap.json",
-        "src/planning_definition_projection.py",
-        "src/planning_revision_store.py",
-        "routes/planning_definition_routes.py",
-        "tests/test_planning_definition_projection.py",
+        "app.py",
         "tests/test_planning_v2_routes.py",
         "tests/test_planning_agent_boundary_roadmaps.py"
       ],
-      "hotfiles": [],
+      "hotfiles": [
+        "app.py"
+      ],
       "state": "active",
-      "acquired_at": "2026-07-15T07:31:16.6166628+02:00",
-      "lease_expires_at": "2026-07-15T09:31:16.6166628+02:00",
+      "acquired_at": "2026-07-15T07:47:07.2534079+02:00",
+      "lease_expires_at": "2026-07-15T09:47:07.2534079+02:00",
       "handoff_required": false,
       "handoff_evidence": [
-        "PDE-01 is focused green, released and committed as 7cfc9e8845b6bb2edfe9651007e2d6e87147376d",
-        "PDE-02 is the next dependency-safe Planning slice and its service-first safe default is explicit",
+        "the PDE-02 service and route factory are focused green and committed as 5d58ea7f70f64a0ab5a70269678b284bd57345cc",
+        "the PDE-APP-ROUTER-HANDOFF safe default now permits one serial app.py registration claim",
         "the live agent inventory contains only /root; no parallel agent or same-checkout claimant is active",
-        "all five service, route and focused-test implementation paths were absent before claim",
-        "app.py has 20 added and 2 removed foreign lines and is deliberately excluded from this minimum-path claim",
-        "the shared Harbor master, Planning MCP, app.py and all other dirty paths remain read-only"
+        "app.py still has exactly the preclaim 20 added and 2 removed foreign lines and its SHA-256 matches the service preflight",
+        "the new registration will be appended at a non-overlapping router boundary and only its exact hunk may be staged",
+        "all existing app.py hunks plus the shared Harbor master, Planning MCP and other dirty paths remain foreign and preserved"
       ],
       "path_fingerprints_sha256": {
-        "docs/plans/system-assurance-runtime-hardening-run-state.json": "edd0342e95b585e34b1d6bbb6d19e3c4c34a673982ed5d1e4a3a46ddaf7f01e4",
-        "docs/plans/planning-definition-editor-roadmap.json": "fca92914460a8c02aacf08adac5a0022a29f0a09537626b107f111ae9128235e",
-        "src/planning_definition_projection.py": "missing_before_claim",
-        "src/planning_revision_store.py": "missing_before_claim",
-        "routes/planning_definition_routes.py": "missing_before_claim",
-        "tests/test_planning_definition_projection.py": "missing_before_claim",
-        "tests/test_planning_v2_routes.py": "missing_before_claim",
-        "tests/test_planning_agent_boundary_roadmaps.py": "8b497fa00d24eb6ac1f1b46e7537c8712cdbb19ff86b6c64fbc5ae976594ff2c"
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "628c5f14dfde2d2e4eadaaadfee2ce9a8d73f204b235ae2c7dd264a8609f4f63",
+        "docs/plans/planning-definition-editor-roadmap.json": "3dae7e996f8ab3b37b90ab187a819943a0a8b2e7e15f1bfe36201de8363beb78",
+        "app.py": "2d5d8fd5f8b813a2d53229b4431199ae74929aac46234d37fabaad8cbc016cf6",
+        "tests/test_planning_v2_routes.py": "5e295d52320d750034cf2f6d2e453a02b1bb17a2d029b51cd6c0f45d1f9de5ee",
+        "tests/test_planning_agent_boundary_roadmaps.py": "dd1bd24f69474f73ee28f67bf6716b5a5ac548274644fdff4cf58e35fdce4365"
       },
       "evidence_contract": {
         "target_environment": "local",
-        "observed_at": "2026-07-15T07:31:16.6166628+02:00",
+        "observed_at": "2026-07-15T07:47:07.2534079+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
-          "pure_projection",
-          "owner_scoped_cursor_pagination",
-          "five_read_route_contracts",
+          "single_router_registration_hunk",
+          "foreign_hunk_preservation",
+          "app_route_inventory",
           "focused_test",
-          "runtime_denylist_scan",
-          "byte_stable_revision_payload"
+          "staged_hunk_review"
         ],
         "temporal_window": "none",
         "positive_path_required": true
@@ -167,6 +162,24 @@
     }
   ],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:PDE-02-service-routes",
+      "slice_id": "PDE-02-definition-read-model-api",
+      "owner": "/root",
+      "state": "released_service_green_committed_router_pending",
+      "acquired_at": "2026-07-15T07:31:16.6166628+02:00",
+      "released_at": "2026-07-15T07:47:07.2534079+02:00",
+      "commit": "5d58ea7f70f64a0ab5a70269678b284bd57345cc",
+      "evidence": [
+        "35 focused projection, revision-store and route tests passed",
+        "42 combined focused and Planning boundary tests passed",
+        "canonical and legacy projections are byte-stable and contain no denylisted runtime key",
+        "owner-scoped HMAC cursors reject tampering, cross-owner replay, cross-collection replay and limit changes",
+        "the route factory exposes exactly five GET endpoints with fail-closed owner and admin gates",
+        "expected and unexpected failures return bounded origin metadata without raw private content",
+        "commit 5d58ea7f70f64a0ab5a70269678b284bd57345cc excludes app.py and all foreign hunks"
+      ]
+    },
     {
       "claim_id": "sar-12h-20260714t092106:PDE-01",
       "slice_id": "PDE-01-definition-schema-validator",
@@ -998,10 +1011,18 @@
   "agent_leases": [
     {
       "agent": "/root",
-      "claim_id": "sar-12h-20260714t092106:PDE-02-service-routes",
+      "claim_id": "sar-12h-20260714t092106:PDE-02-app-router-hotfile",
       "state": "active",
+      "leased_at": "2026-07-15T07:47:07.2534079+02:00",
+      "lease_expires_at": "2026-07-15T09:47:07.2534079+02:00"
+    },
+    {
+      "agent": "/root",
+      "claim_id": "sar-12h-20260714t092106:PDE-02-service-routes",
+      "state": "completed_service_green_committed_router_pending",
       "leased_at": "2026-07-15T07:31:16.6166628+02:00",
-      "lease_expires_at": "2026-07-15T09:31:16.6166628+02:00"
+      "lease_expires_at": "2026-07-15T09:31:16.6166628+02:00",
+      "released_at": "2026-07-15T07:47:07.2534079+02:00"
     },
     {
       "agent": "/root",
@@ -2693,9 +2714,9 @@
   "live_go_ledger": [],
   "pending_user_requests": [],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T07:31:16.6166628+02:00",
-    "summary": "PDE-01 is green and committed. PDE-02 now has one serialized service-first claim for pure projection, owner-scoped revision reads and five read-route contracts; foreign-dirty app.py is excluded pending a later hotfile sub-claim.",
-    "resume_cursor": "implement_PDE_02_projection_store_and_unregistered_read_routes",
+    "last_durable_progress_at": "2026-07-15T07:47:07.2534079+02:00",
+    "summary": "The PDE-02 service and five-route factory are green and committed. One serialized app.py hotfile claim now permits only the read-only router registration plus focused inventory evidence; all pre-existing app.py hunks remain foreign.",
+    "resume_cursor": "register_PDE_02_read_router_preserve_foreign_app_hunks",
     "resume_priority": [
       "PDE-02-definition-read-model-api"
     ],
@@ -2734,6 +2755,7 @@
     ],
     "tested": [
       "PDE-01-definition-schema-validator:92_focused_99_combined_boundary",
+      "PDE-02-definition-read-model-api-service:35_focused_42_combined_boundary",
       "SAR-LLM-API-DRIFT-FIX:217_extended_tests",
       "SAR-01-binding-ci-and-publish-provenance:focused_only_full_suite_environment_gate",
       "SAR-03-tailscale-cache-expiry:focused",
@@ -2748,6 +2770,7 @@
     ],
     "committed": [
       "PDE-01-definition-schema-validator:7cfc9e8845b6bb2edfe9651007e2d6e87147376d",
+      "PDE-02-definition-read-model-api-service:5d58ea7f70f64a0ab5a70269678b284bd57345cc",
       "SAR-06-model-aware-token-estimation:3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd",
       "SAR-06P-model-hint-hardlimit-propagation:3c6e8ad5dd58ea08523dd6c7e77ea46987e5e5cd",
       "SAR-04-runtime-topology-contract:bbb58ce7541391e073c33df4ac3a54422f3a66a1",
