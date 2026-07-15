@@ -33,6 +33,7 @@ from src.temporal_runtime.config import load_temporal_light_config
 from src.temporal_runtime.worker import (
     ACTIVITY_CANCELLATION_GRACE,
     ACTIVITY_HEARTBEAT_THROTTLE,
+    TEMPORAL_LIGHT_MAX_CACHED_WORKFLOWS,
     create_temporal_worker,
 )
 from src.temporal_runtime.workflows import ABCExecutionWorkflow, WorkflowStart
@@ -126,6 +127,7 @@ def test_catalog_contains_exact_seven_typed_activity_contracts():
     assert {item.idempotency_key for item in ACTIVITY_CATALOG}
     assert ACTIVITY_HEARTBEAT_THROTTLE == timedelta(seconds=30)
     assert ACTIVITY_CANCELLATION_GRACE == timedelta(seconds=300)
+    assert TEMPORAL_LIGHT_MAX_CACHED_WORKFLOWS == 0
 
 
 @pytest.mark.asyncio

@@ -6,11 +6,11 @@
   "roadmap_id": "temporal-light-agent-execution",
   "roadmap_path": "docs/plans/temporal-light-agent-execution-roadmap.json",
   "queue_scope": "named_roadmap",
-  "phase": "verification",
+  "phase": "implementation",
   "supervision": "interactive",
   "mutation_authority": "repo_only_plus_scoped_local_temporal_go",
-  "state": "waiting_on_user",
-  "revision": 194,
+  "state": "running",
+  "revision": 196,
   "resumed_at": "2026-07-15T10:43:12.4991937+02:00",
   "resume_authority": "user_granted_TLR_LOCAL_SERVICE_GO_with_network_install_and_local_dev_server",
   "paused_at": "2026-07-15T08:54:25.8125832+02:00",
@@ -119,6 +119,68 @@
   },
   "active_claims": [],
   "released_claims": [
+    {
+      "claim_id": "sar-12h-20260714t092106:TLR-08-STICKY-A",
+      "run_id": "sar-12h-20260714t092106",
+      "thread_id": "019f5cb5-b208-7e80-8ea3-837286dda97c",
+      "slice_id": "TLR-08-STICKY-A",
+      "owner": "/root",
+      "allowed_paths": [
+        "src/temporal_runtime/worker.py",
+        "tests/test_temporal_activities.py",
+        "tests/test_temporal_worker_recovery.py",
+        "docs/plans/temporal-light-agent-execution-roadmap.json",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json"
+      ],
+      "hotfiles": [
+        "src/temporal_runtime/worker.py"
+      ],
+      "state": "released_green",
+      "acquired_at": "2026-07-15T16:58:46.6759578+02:00",
+      "lease_expires_at": "2026-07-15T18:58:46.6759578+02:00",
+      "handoff_required": true,
+      "handoff_evidence": [
+        "user selected TLR-STICKY-A",
+        "max_cached_workflows=0 is explicit in the shared Worker constructor",
+        "the focused Worker replacement proof reached every phase",
+        "the final integration point covered replay, Worker recovery, server recovery and command idempotency",
+        "zero cached SDK test-server processes and listeners remain"
+      ],
+      "path_fingerprints_sha256": {
+        "src/temporal_runtime/worker.py": "2a58fd93c893acc389ec32a2b0ef9df9872896afab471906aa8108aa24125fce",
+        "tests/test_temporal_activities.py": "b176472184e0afa4375ad34fe12362021bec1ad73ae89c571aa8419d84dc1647",
+        "tests/test_temporal_worker_recovery.py": "37eb73c3281c4da2acc41f377c335a49d5ccc5a4cc12c4ae3b4697f80c6eae00",
+        "docs/plans/temporal-light-agent-execution-roadmap.json": "6c1a9d8806a2e24eedf731afba4f46dc11a541ae83cd483126fdb5639f1434e2",
+        "docs/plans/system-assurance-runtime-hardening-run-state.json": "58893aba30e4360fcdac8dcd2c13ee81b74fbf47a18f5e64992cba401a1844ce"
+      },
+      "evidence_contract": {
+        "target_environment": "Temporal Worker constructor plus cached SDK time-skipping test server",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "strategy": "disable sticky workflow caching with max_cached_workflows=0",
+        "focused_recovery_runs_consumed": 1,
+        "final_four_file_runs_consumed": 1,
+        "positive_path_required": true
+      },
+      "forbidden_actions": [
+        "sticky timeout tuning",
+        "test timeout increase",
+        "test skip, xfail or assertion weakening",
+        "real Temporal development-server start",
+        "repository-wide suite",
+        "push",
+        "foreign hunk commit"
+      ],
+      "released_at": "2026-07-15T17:02:37+02:00",
+      "release_evidence": {
+        "constant_contract": "tests/test_temporal_activities.py::test_catalog_contains_exact_seven_typed_activity_contracts => 1 passed",
+        "focused_recovery": "1 passed; every named phase from first_worker_started through environment_shutdown completed",
+        "integration_point": "92 passed and 2 Windows basetemp setup errors; the two affected server-recovery tests then passed with a workspace-local basetemp",
+        "process_cleanup": "zero exact cached SDK test-server processes and zero listeners",
+        "environment_error_scope": "C:\\tmp\\pytest-tlr08-final creation returned WinError 5 only for two tmp_path fixtures; no product assertion failed",
+        "next_slice": "TLR-09-24h-time-skipping-acceptance"
+      }
+    },
     {
       "claim_id": "sar-12h-20260714t092106:TLR-08-STICKY-RECOVERY-CONFIG",
       "run_id": "sar-12h-20260714t092106",
@@ -4436,6 +4498,18 @@
   ],
   "live_go_ledger": [
     {
+      "id": "ODYSSEUS-DEBIAN-HOMESERVER-LIVE-SCOPE-20260715",
+      "action": "push_then_deploy",
+      "target": "fuzzy/dev followed by the configured Debian homeserver",
+      "artifact_or_inputs": "exact final verified Git commit pending completion of the remaining named repo slices",
+      "limits": "No force push, no foreign-hunk commit, no deployment before a reproducible green commit and discovered repository-native rollback procedure; Temporal production activation and real provider effects remain separately gated.",
+      "rollback": "Resolve and record the existing Debian deployment mechanism, previous deployed commit or image, rollback command and observation window before consuming this entry.",
+      "granted_by": "user turn 2026-07-15: Live-Ziel fuzzy/dev to Debian-Homeserver",
+      "granted_at": "2026-07-15T16:57:04.1331956+02:00",
+      "expires_at": "run_end",
+      "status": "scope_confirmed_artifact_and_rollback_pending"
+    },
+    {
       "id": "TLR-SDK-CLI-INSTALL-GO-20260715",
       "action": "host_change",
       "target": "Odysseus repository venv and redacted per-user Temporal Light CLI location",
@@ -4463,25 +4537,24 @@
     }
   ],
   "pending_user_requests": [
-    "TLR-08-STICKY-CACHE-STRATEGY: choose disable_sticky_cache for deterministic Temporal Light takeover or retain_sticky_cache_and_investigate_sdk with a new bounded run budget",
-    "HPA-AGENT-UX-ACCEPTANCE: accept or reject the green existing-Agent-screen sidecar at desktop, mobile and 200 percent zoom",
-    "LIVE-ACTIVATION-SCOPE: name the exact environment, artifact or commit, deployment mechanism, observation window and rollback owner"
+    "LIVE-ACTIVATION-ENVELOPE: discover and record the exact final verified commit, repository-native Debian deployment mechanism, observation window, previous deployed artifact and rollback command before push or deployment"
   ],
   "progress": {
-    "last_durable_progress_at": "2026-07-15T16:45:59.3123488+02:00",
-    "summary": "The five-second sticky-timeout hypothesis was tested once, remained blocked at second_worker_ready_query, and was fully rolled back; product source is clean and no SDK process remains. Safe repo work is exhausted. TLR-08 now requires a sticky-cache architecture choice, TLR-07 requires visual acceptance and any live activation requires an exact target/artifact/rollback envelope.",
-    "resume_cursor": "TLR-08-STICKY-CACHE-STRATEGY",
+    "last_durable_progress_at": "2026-07-15T17:02:37+02:00",
+    "summary": "TLR-STICKY-A is implemented and green: Temporal Light disables sticky Workflow caching, Worker two takes over the same logical run, the replay/recovery/idempotency integration assertions are green and no SDK process remains. TLR-09 is now dependency-ready.",
+    "resume_cursor": "TLR-09-24h-time-skipping-acceptance",
     "resume_priority": [
-      "TLR-08-STICKY-CACHE-STRATEGY",
-      "HPA-AGENT-UX-ACCEPTANCE",
+      "TLR-09-24h-time-skipping-acceptance",
+      "PDE-05-clean-checkout-v3-baseline-integration-handoff",
       "LIVE-ACTIVATION-SCOPE"
     ],
-    "next_runnable_slices": [],
+    "next_runnable_slices": [
+      "TLR-09-24h-time-skipping-acceptance"
+    ],
     "blocked_slices": [
       "PDE-05-clean-checkout-v3-baseline-integration-handoff",
       "PDE-08-real-save-undo-smoke",
       "TLR-07-agent-screen-runtime-ui",
-      "TLR-08-replay-restart-recovery",
       "TLR-09-24h-time-skipping-acceptance",
       "SAR-01-binding-ci-and-publish-provenance",
       "SAR-02-fresh-release-evidence",
@@ -4502,6 +4575,7 @@
   },
   "completion_layers": {
     "implemented": [
+      "TLR-08-replay-restart-recovery",
       "TLR-07-agent-screen-runtime-ui",
       "PDE-07-boundary-browser-acceptance",
       "PDE-06-definition-notification-undo",
@@ -4531,6 +4605,7 @@
       "SAR-09-measured-optimization-decisions"
     ],
     "tested": [
+      "TLR-08-STICKY-A:1_constant_1_worker_recovery_92_integration_assertions_2_environment_retry_green_zero_process_leaks",
       "TLR-08-STICKY-RECOVERY-CONFIG:constant_contract_green_runtime_query_takeover_red_source_fully_rolled_back_zero_process_leaks",
       "TLR-08D-worker-shutdown-diagnostic:two_bounded_runs_isolated_second_worker_sticky_queue_takeover_zero_process_leaks",
       "TLR-07-agent-screen-runtime-ui:6_agent_browser_green_21_agent_planning_integration_green_design_audit_zero_visual_desktop_mobile_zoom_green",

@@ -40,6 +40,7 @@ FORBIDDEN_WORKFLOW_CALLS = (
 )
 ACTIVITY_HEARTBEAT_THROTTLE = timedelta(seconds=30)
 ACTIVITY_CANCELLATION_GRACE = timedelta(seconds=300)
+TEMPORAL_LIGHT_MAX_CACHED_WORKFLOWS = 0
 
 
 class WorkflowRegistrationError(ValueError):
@@ -106,6 +107,7 @@ def create_temporal_worker(
         activities=list(activities),
         max_concurrent_activities=max_concurrent_activities,
         max_concurrent_workflow_tasks=3,
+        max_cached_workflows=TEMPORAL_LIGHT_MAX_CACHED_WORKFLOWS,
         max_heartbeat_throttle_interval=ACTIVITY_HEARTBEAT_THROTTLE,
         default_heartbeat_throttle_interval=ACTIVITY_HEARTBEAT_THROTTLE,
         graceful_shutdown_timeout=ACTIVITY_CANCELLATION_GRACE,

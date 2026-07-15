@@ -5,7 +5,7 @@
   "title": "Temporal Light Agent Execution Roadmap",
   "created_at": "2026-07-13",
   "updated_at": "2026-07-15",
-  "status": "TLR_07_preview_green_acceptance_pending_TLR_08_sticky_cache_strategy_gate",
+  "status": "TLR_08_done_TLR_09_ready",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
   "planning_dependency": "docs/plans/planning-definition-editor-roadmap.json",
@@ -1019,7 +1019,7 @@
     },
     {
       "id": "TLR-07-agent-screen-runtime-ui",
-      "status": "implementation_green_acceptance_pending",
+      "status": "done_accepted_preview",
       "class": "repo_only",
       "owner": "Alice",
       "depends_on": [
@@ -1102,7 +1102,7 @@
           "Windows temp/odysseus-tlr07-playwright/tlr07-zoom-200.png"
         ],
         "index_integration_handoff": {
-          "state": "local_preview_applied_foreign_baseline_not_commit_eligible",
+          "state": "user_granted_complete_v3_baseline_handoff_pending_serial_integration_claim",
           "baseline_sha256": "22e88e0160ddc3aa1c443a5cef79f1c198c95ebb514e5fe422b9608c7bb59f56",
           "preview_sha256": "40e773c565fadd9f3f22d8ffcd4efbc9a457fe086f22f28829e0de79da777237",
           "exact_additions": [
@@ -1110,13 +1110,13 @@
             "agent-operation-fixtures.js script reference",
             "agent-operations.js script reference"
           ],
-          "rule": "Commit the tracked API adapter, standalone modules and browser contract only. Keep the complete untracked foreign index baseline outside commits until its owning V3 baseline handoff is consumed."
+          "rule": "The user consumed the complete V3 baseline handoff on 2026-07-15. Integrate and commit the baseline only in a separate serial claim after TLR-08 and TLR-09."
         }
       }
     },
     {
       "id": "TLR-08-replay-restart-recovery",
-      "status": "blocked_architecture_decision",
+      "status": "done",
       "class": "repo_only",
       "owner": "Charlie",
       "depends_on": [
@@ -1173,22 +1173,19 @@
         "production service restart"
       ],
       "partial_evidence": {
-        "observed_at": "2026-07-15T16:11:33.6386129+02:00",
+        "observed_at": "2026-07-15T17:02:37+02:00",
         "green": [
           "Continue-As-New replay compatibility passed against both history segments with one logical Agent run",
           "server persistence and redacted recovery descriptor contracts plus command idempotency passed 92 tests",
           "the cached Temporal SDK test server ran only on ephemeral loopback ports and shut down after green tests"
         ],
-        "blocked": {
+        "resolved": {
           "gate_id": "TLR-08-STICKY-CACHE-STRATEGY",
-          "attempts": [
-            "combined four-file run timed out after 184 seconds",
-            "isolated worker-recovery run timed out after 64 seconds",
-            "decomposed one-Update worker-recovery run timed out after 64 seconds"
-          ],
-          "boundary": "Instrumented runs prove Worker one shuts down, Worker two starts, but neither a Query nor Update reaches Worker two inside the 10-second phase bound. The installed SDK default sticky_queue_schedule_to_start_timeout is also 10 seconds, so recovery is waiting on the dead Worker's sticky queue rather than command deduplication or workflow corruption.",
-          "cleanup": "The final test-server process PID 1480 was identified by exact cached executable, creation time and loopback port 57188 and stopped; process and listener checks are empty.",
-          "next_safe_action": "Choose whether Temporal Light disables sticky workflow caching for deterministic takeover or retains sticky caching and opens a deeper SDK/test-server recovery investigation. The bounded five-second timeout-only change was tested once, remained blocked at second_worker_ready_query and was fully rolled back."
+          "decision": "TLR-STICKY-A selected by the user: disable sticky workflow caching with max_cached_workflows=0.",
+          "focused_recovery": "One bounded Worker-replacement run completed every phase from Worker one start through Worker two Query, gate Update, result, history and environment shutdown.",
+          "integration_point": "The four-file block completed 92 product assertions with two Windows basetemp setup errors; both affected server-recovery tests passed immediately with a workspace-local basetemp.",
+          "replay_tradeoff": "Every Workflow Task may replay history; the existing six-hour Continue-As-New rule bounds that CPU cost while deterministic takeover remains the Temporal Light default.",
+          "cleanup": "Post-run checks found zero exact cached SDK test-server processes and zero listeners."
         },
         "path_fingerprints_sha256": {
           "tests/test_temporal_replay_compatibility.py": "268572f7363f8139559abd6b217105b0fa63a7865d6d3a3d214750e43d47b102",
@@ -1480,11 +1477,9 @@
     {
       "id": "HPA-AGENT-UX-ACCEPTANCE",
       "class": "needs_design",
-      "status": "implementation_green_visual_acceptance_pending",
-      "blocks": [
-        "TLR-07-agent-screen-runtime-ui"
-      ],
-      "decision_needed": "Accept the implemented execution sidecar within the existing Agent screen at desktop, mobile and 200 percent zoom. The preview is backed by the committed TLR-06 projection contract and keeps Planning definition-only.",
+      "status": "accepted_by_user_20260715",
+      "blocks": [],
+      "decision_needed": "None. The user accepted the implemented execution sidecar within the existing Agent screen as HPA-AGENT-UX-ACCEPTED.",
       "safe_default": "Preview only; no separate dashboard and no root cutover.",
       "risk_if_bypassed": "Operations could become unreadable or drift into Planning."
     },
@@ -1515,13 +1510,10 @@
     {
       "id": "TLR-08-STICKY-CACHE-STRATEGY",
       "class": "needs_architecture",
-      "status": "gated",
-      "blocks": [
-        "TLR-08-replay-restart-recovery",
-        "TLR-09-24h-time-skipping-acceptance"
-      ],
-      "decision_needed": "Choose one exact Temporal Light strategy: A) set max_cached_workflows=0 for deterministic Worker takeover with bounded-history replay overhead, or B) retain sticky caching and authorize a deeper SDK/test-server investigation with a new bounded run budget.",
-      "safe_default": "Keep the current production Worker constructor unchanged, TLR-08 partial and every Temporal process stopped.",
+      "status": "satisfied_branch_A_green",
+      "blocks": [],
+      "decision_needed": "None. The user selected TLR-STICKY-A: set max_cached_workflows=0 for deterministic Worker takeover and absorb replay CPU through the existing six-hour Continue-As-New bound.",
+      "safe_default": "Keep max_cached_workflows=0 for Temporal Light and bound replay through the six-hour Continue-As-New rule; do not reuse this development profile as a production Temporal policy without a new architecture gate.",
       "risk_if_bypassed": "Disabling sticky caching can increase replay CPU on long runs; retaining it without understanding takeover leaves Worker-restart recovery unproven."
     },
     {
@@ -1575,5 +1567,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_tlr_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "Resolve TLR-08-STICKY-CACHE-STRATEGY, then implement and verify only the selected branch. Separately obtain HPA-AGENT-UX-ACCEPTANCE and consume the V3 index baseline handoff before root cutover. Keep TLR-09 dependency-blocked and keep real development-server restart behind a fresh bounded TLR-LOCAL-SERVICE-GO."
+  "recommended_next_step": "Execute TLR-09 with time skipping. Afterwards integrate the user-granted complete V3 baseline in a separate serial claim and prepare the exact fuzzy/dev to Debian-homeserver deployment envelope. Keep wall-clock soak and production Temporal activation behind their dedicated gates."
 }
