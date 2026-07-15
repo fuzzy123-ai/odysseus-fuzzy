@@ -5,7 +5,7 @@
   "title": "Temporal Light Agent Execution Roadmap",
   "created_at": "2026-07-13",
   "updated_at": "2026-07-15",
-  "status": "active_serial_TLR_02_ready",
+  "status": "active_serial_TLR_03_ready",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/harbor-planning-integration-master-roadmap.json",
   "planning_dependency": "docs/plans/planning-definition-editor-roadmap.json",
@@ -674,7 +674,7 @@
     },
     {
       "id": "TLR-02-abc-manifest-and-run-start",
-      "status": "planned",
+      "status": "done_manifest_and_idempotent_fake_start_tested",
       "class": "repo_only",
       "owner": "Bob",
       "depends_on": [
@@ -713,6 +713,16 @@
       "gate": {
         "id": "none",
         "safe_default": "This repository slice is allowed to use a fake Temporal client. It must not start a real worker or expose a live run API."
+      },
+      "completion_evidence": {
+        "focused_result": "21 passed",
+        "compatibility_result": "56 passed across manifest, execution service, Planning handoff and Planning/Agent boundary tests",
+        "manifest_result": "same bounded inputs produce one recursively immutable canonical manifest and sha256 hash",
+        "idempotency_result": "duplicate, concurrent and post-service-restart start requests return one original receipt and create one fake workflow",
+        "reservation_result": "the persistent local reservation is readable before fake client dispatch",
+        "conflict_result": "changed Planning head, tampered handoff, reused request id with changed policy and corrupt store all fail before a new dispatch",
+        "boundary_result": "Planning source has no ABC execution-service, start_workflow or Agent run API path",
+        "runtime_result": "RecordingTemporalClient only; no Worker, local service, route, provider or repository effect was started"
       },
       "done_when": "PASS only if one /abc submission creates at most one pinned manifest and run receipt, all conflicts fail before dispatch and Planning code has no start path.",
       "stop_rules": [
@@ -1330,5 +1340,5 @@
     "venv\\Scripts\\python.exe -m pytest tests\\test_planning_agent_boundary_roadmaps.py -q --basetemp .pytest_tmp_tlr_roadmap",
     "git diff --check"
   ],
-  "recommended_next_step": "Release and commit TLR-01, then claim TLR-02-abc-manifest-and-run-start because PDE-04 is already complete. Use a fake Temporal client and do not start a real Worker or expose a live run API."
+  "recommended_next_step": "Release and commit TLR-02, then claim TLR-03-deterministic-workflow. Use the Temporal SDK test environment and fake Activities only; prove replay-safe DAG transitions, durable timers, deadlines, pause waits and Continue-As-New state transfer without filesystem, network, process, system-time or random access in Workflow code."
 }
