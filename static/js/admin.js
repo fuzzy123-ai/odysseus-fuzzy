@@ -1739,98 +1739,128 @@ const MCP_PRESETS = [
     help: "1. Go to todoist.com > Settings > Integrations > Developer\n2. Copy your API token" },
 ];
 // ── Built-in tools management ──
-const TOOL_META = {
-  bash:              { name: 'Shell',            desc: 'Execute bash commands',           cat: 'Code',       ctx: '~200' },
-  python:            { name: 'Python',           desc: 'Run Python scripts',              cat: 'Code',       ctx: '~200' },
-  read_file:         { name: 'Read File',        desc: 'Read files from disk',            cat: 'Code',       ctx: '~150' },
-  write_file:        { name: 'Write File',       desc: 'Write/create files',              cat: 'Code',       ctx: '~150' },
-  web_search:        { name: 'Web Search',       desc: 'Search the web via SearXNG',      cat: 'Search',     ctx: '~300' },
-  search_chats:      { name: 'Search Chats',     desc: 'Search conversation history',     cat: 'Search',     ctx: '~150' },
-  create_document:   { name: 'Create Document',  desc: 'Create new documents',            cat: 'Documents',  ctx: '~200' },
-  update_document:   { name: 'Update Document',  desc: 'Modify existing documents',       cat: 'Documents',  ctx: '~200' },
-  edit_document:     { name: 'Edit Document',    desc: 'Find & replace in documents',     cat: 'Documents',  ctx: '~200' },
-  suggest_document:  { name: 'Suggest Changes',  desc: 'Propose document edits',          cat: 'Documents',  ctx: '~200' },
-  manage_documents:  { name: 'Manage Documents', desc: 'List, delete, organize docs',     cat: 'Documents',  ctx: '~150' },
-  generate_image:    { name: 'Generate Image',   desc: 'Create images via AI',            cat: 'Media',      ctx: '~150' },
-  manage_memory:     { name: 'Memory',           desc: 'Save and recall memories',        cat: 'Knowledge',  ctx: '~200' },
-  manage_skills:     { name: 'Skills',           desc: 'Learn and use procedures',        cat: 'Knowledge',  ctx: '~200' },
-  manage_rag:        { name: 'RAG / Docs',       desc: 'Query indexed documents',         cat: 'Knowledge',  ctx: '~150' },
-  chat_with_model:   { name: 'Chat with Model',  desc: 'Talk to another AI model',        cat: 'Multi-Agent', ctx: '~200' },
-  pipeline:          { name: 'Pipeline',         desc: 'Multi-step AI workflows',         cat: 'Multi-Agent', ctx: '~200' },
-  ask_teacher:       { name: 'Ask Teacher',      desc: 'Query a more capable model',      cat: 'Multi-Agent', ctx: '~150' },
-  send_to_session:   { name: 'Send to Session',  desc: 'Send message to another chat',    cat: 'Sessions',   ctx: '~100' },
-  create_session:    { name: 'Create Session',   desc: 'Start a new chat session',        cat: 'Sessions',   ctx: '~100' },
-  list_sessions:     { name: 'List Sessions',    desc: 'Browse existing sessions',        cat: 'Sessions',   ctx: '~100' },
-  manage_session:    { name: 'Manage Session',   desc: 'Rename, archive, configure',      cat: 'Sessions',   ctx: '~100' },
-  list_models:       { name: 'List Models',      desc: 'Show available models',           cat: 'System',     ctx: '~100' },
-  ui_control:        { name: 'UI Control',       desc: 'Change theme, layout, settings',  cat: 'System',     ctx: '~150' },
-  manage_tasks:      { name: 'Tasks',            desc: 'Schedule automated tasks',        cat: 'System',     ctx: '~150' },
-  api_call:          { name: 'API Call',         desc: 'Make HTTP requests',              cat: 'System',     ctx: '~200' },
-  manage_endpoints:  { name: 'Endpoints',        desc: 'Add/remove model endpoints',      cat: 'System',     ctx: '~100' },
-  manage_mcp:        { name: 'MCP Servers',      desc: 'Manage MCP connections',          cat: 'System',     ctx: '~100' },
-  manage_webhooks:   { name: 'Webhooks',         desc: 'Configure webhook events',        cat: 'System',     ctx: '~100' },
-  manage_tokens:     { name: 'API Tokens',       desc: 'Manage API access tokens',        cat: 'System',     ctx: '~100' },
-  manage_settings:   { name: 'Settings',         desc: 'Change app settings',             cat: 'System',     ctx: '~100' },
-};
+const TOOL_FAMILY_PRESENTATION = Object.freeze({
+  code_filesystem: { label: 'Code & Files', order: 10 },
+  search_web: { label: 'Search & Web', order: 20 },
+  knowledge_memory: { label: 'Knowledge & Memory', order: 30 },
+  documents_media: { label: 'Documents & Media', order: 40 },
+  model_ops: { label: 'Model Operations', order: 50 },
+  projects_repositories: { label: 'Projects & Repositories', order: 60 },
+  orchestration_sessions: { label: 'Orchestration & Sessions', order: 70 },
+  planning_communication: { label: 'Planning & Communication', order: 80 },
+  admin_system: { label: 'Admin & System', order: 90 },
+  plugins_mcp: { label: 'Plugins & MCP', order: 100 },
+  external_providers: { label: 'External Providers', order: 110 },
+  experimental: { label: 'Experimental', order: 120 },
+  unclassified_dynamic: { label: 'Plugins', order: 130 },
+});
+
+const TOOL_STATE_PRESENTATION = Object.freeze({
+  available: { label: 'Available', order: 0 },
+  disabled: { label: 'Disabled', order: 0 },
+  deferred: { label: 'Deferred', order: 1000 },
+  experimental: { label: 'Experimental', order: 1100 },
+  unavailable: { label: 'Unavailable', order: 1200 },
+});
+
+function toolCatalogState(tool) {
+  const lifecycle = String(tool.lifecycle || '').toLowerCase();
+  const availability = String(tool.availability || '').toLowerCase();
+  const runtimeAvailability = String(tool.runtime_availability || '').toLowerCase();
+  if (lifecycle === 'deferred' || tool.default_policy === 'deferred_by_operator_priority') return 'deferred';
+  if (lifecycle === 'experimental') return 'experimental';
+  if (
+    lifecycle === 'blocked' || lifecycle === 'deprecated' ||
+    availability === 'blocked' || availability === 'unavailable' ||
+    runtimeAvailability === 'blocked_by_catalog' || tool.settings_mutable === false
+  ) return 'unavailable';
+  return tool.enabled ? 'available' : 'disabled';
+}
+
+function toolCatalogFamily(tool) {
+  if (tool.source === 'plugin') return TOOL_FAMILY_PRESENTATION.unclassified_dynamic;
+  return TOOL_FAMILY_PRESENTATION[tool.family] || TOOL_FAMILY_PRESENTATION.experimental;
+}
+
+function toolCatalogGroup(tool) {
+  const family = toolCatalogFamily(tool);
+  const stateKey = toolCatalogState(tool);
+  const state = TOOL_STATE_PRESENTATION[stateKey];
+  const separatedState = ['deferred', 'experimental', 'unavailable'].includes(stateKey);
+  return {
+    key: `${separatedState ? stateKey : 'active'}:${tool.family || tool.source || 'dynamic'}`,
+    label: separatedState ? `${state.label} · ${family.label}` : family.label,
+    order: (separatedState ? state.order : 0) + family.order,
+    stateKey,
+  };
+}
 
 async function loadBuiltinTools() {
   const list = el('adm-builtin-tools-list');
   if (!list) return;
   try {
     const res = await fetch('/api/tools', { credentials: 'same-origin' });
+    if (!res.ok) throw new Error(`Tool catalog request failed (${res.status})`);
     const data = await res.json();
-    const tools = data.tools || [];
+    const tools = (data.descriptors || data.tools || [])
+      .filter(tool => tool && tool.id && tool.source !== 'mcp');
     if (!tools.length) { list.innerHTML = '<div class="admin-empty">No tools found</div>'; return; }
 
-    // Group by category
-    const groups = {};
+    // Canonical families and lifecycle state come from Descriptor V2. MCP
+    // tools stay in the dedicated MCP panel; dynamic Plugins remain here.
+    const groups = new Map();
     for (const t of tools) {
-      const meta = TOOL_META[t.id] || {
-        name: t.name || t.id,
-        desc: t.desc || t.description || '',
-        cat: t.cat || t.category || 'Other',
-        ctx: t.ctx || '?'
+      const group = toolCatalogGroup(t);
+      const item = {
+        ...t,
+        name: t.display_name || t.name || t.id,
+        desc: t.description || t.desc || '',
+        stateKey: toolCatalogState(t),
       };
-      const cat = meta.cat;
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push({ ...t, ...meta });
+      if (!groups.has(group.key)) groups.set(group.key, { ...group, items: [] });
+      groups.get(group.key).items.push(item);
     }
 
-    // Category order
-    const catOrder = ['Code', 'Search', 'Documents', 'Media', 'Knowledge', 'Multi-Agent', 'Sessions', 'System', 'Plugins', 'Other'];
+    const orderedGroups = Array.from(groups.values()).sort((a, b) =>
+      a.order - b.order || a.label.localeCompare(b.label)
+    );
+    orderedGroups.forEach(group => group.items.sort((a, b) => a.name.localeCompare(b.name)));
     let html = '';
-    for (const cat of catOrder) {
-      const items = groups[cat];
-      if (!items) continue;
-      const enabledCount = items.filter(i => i.enabled).length;
-      const totalCount = items.length;
-      const catId = 'tool-cat-' + cat.replace(/[^a-zA-Z]/g, '');
-      const allEnabled = enabledCount === totalCount;
+    for (const group of orderedGroups) {
+      const items = group.items;
+      const mutableItems = items.filter(item => item.settings_mutable !== false);
+      const enabledCount = mutableItems.filter(item => item.enabled).length;
+      const mutableCount = mutableItems.length;
+      const catId = 'tool-cat-' + group.key.replace(/[^a-zA-Z0-9]/g, '-');
+      const allEnabled = mutableCount > 0 && enabledCount === mutableCount;
       html += `<div class="admin-tool-category">
-        <div class="admin-tool-cat-header" data-tool-cat="${catId}" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
-          <span>${esc(cat)}</span>
+        <div class="admin-tool-cat-header" data-tool-cat="${catId}" role="button" tabindex="0" aria-expanded="false" aria-controls="${catId}" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+          <span>${esc(group.label)}</span>
           <span style="display:flex;align-items:center;gap:6px;" class="admin-tool-cat-right">
-            <span class="admin-tool-cat-count" style="font-size:10px;opacity:0.5;">${enabledCount}/${totalCount}</span>
-            <label class="admin-switch" style="flex-shrink:0;">
-              <input type="checkbox" data-tool-cat-toggle="${catId}" ${allEnabled ? 'checked' : ''}>
+            <span class="admin-tool-cat-count" style="font-size:10px;opacity:0.72;">${mutableCount ? `${enabledCount}/${mutableCount} enabled` : `${items.length} listed`}</span>
+            ${mutableCount ? `<label class="admin-switch" style="flex-shrink:0;">
+              <input type="checkbox" data-tool-cat-toggle="${catId}" data-tool-cat-name="${esc(group.label)}" aria-label="${allEnabled ? 'Disable' : 'Enable'} all ${esc(group.label)} tools" ${allEnabled ? 'checked' : ''}>
               <span class="admin-slider"></span>
-            </label>
-            <svg class="admin-tool-cat-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.3;transition:transform 0.2s,opacity 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+            </label>` : ''}
+            <svg class="admin-tool-cat-chevron" aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.3;transition:transform 0.2s,opacity 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
           </span>
         </div>
         <div class="admin-tool-cat-body hidden" id="${catId}">`;
       for (const t of items) {
+        const state = TOOL_STATE_PRESENTATION[t.stateKey] || TOOL_STATE_PRESENTATION.unavailable;
+        const toggle = t.settings_mutable === false ? '' : `
+          <label class="admin-switch" style="flex-shrink:0;">
+            <input type="checkbox" data-tool-id="${esc(t.id)}" data-tool-name="${esc(t.name)}" aria-label="${esc(`${t.enabled ? 'Disable' : 'Enable'} ${t.name}`)}" ${t.enabled ? 'checked' : ''}>
+            <span class="admin-slider"></span>
+          </label>`;
         html += `
-        <div class="admin-tool-row">
+        <div class="admin-tool-row" data-tool-state="${esc(t.stateKey)}">
           <div class="admin-tool-info">
             <span class="admin-tool-name">${esc(t.name)}</span>
-            <span class="admin-tool-desc">${esc(t.desc)}</span>
+            <span class="admin-tool-desc" style="opacity:0.72;">${esc(t.desc)}</span>
           </div>
-          <span class="admin-tool-ctx" title="Approximate context tokens used">${esc(t.ctx)}</span>
-          <label class="admin-switch" style="flex-shrink:0;">
-            <input type="checkbox" data-tool-id="${esc(t.id)}" ${t.enabled ? 'checked' : ''}>
-            <span class="admin-slider"></span>
-          </label>
+          <span class="admin-tool-ctx" data-tool-status style="opacity:0.72;min-width:68px;">${esc(state.label)}</span>
+          ${toggle}
         </div>`;
       }
       html += '</div></div>';
@@ -1843,46 +1873,95 @@ async function loadBuiltinTools() {
     });
 
     // Wire category expand/collapse
+    function _setToolGroupOpen(header, isOpen) {
+      const body = el(header.dataset.toolCat);
+      if (!body) return;
+      body.classList.toggle('hidden', !isOpen);
+      header.setAttribute('aria-expanded', String(isOpen));
+      const chevron = header.querySelector('.admin-tool-cat-chevron');
+      if (chevron) {
+        chevron.style.transform = isOpen ? 'rotate(180deg)' : '';
+        chevron.style.opacity = isOpen ? '0.7' : '0.3';
+      }
+    }
     list.querySelectorAll('[data-tool-cat]').forEach(header => {
       header.addEventListener('click', () => {
         const body = el(header.dataset.toolCat);
         if (!body) return;
-        body.classList.toggle('hidden');
-        const chevron = header.querySelector('.admin-tool-cat-chevron');
-        const isOpen = !body.classList.contains('hidden');
-        if (chevron) {
-          chevron.style.transform = isOpen ? 'rotate(180deg)' : '';
-          chevron.style.opacity = isOpen ? '0.7' : '0.3';
-        }
+        _setToolGroupOpen(header, body.classList.contains('hidden'));
+      });
+      header.addEventListener('keydown', event => {
+        if (event.target !== header || (event.key !== 'Enter' && event.key !== ' ')) return;
+        event.preventDefault();
+        const body = el(header.dataset.toolCat);
+        if (body) _setToolGroupOpen(header, body.classList.contains('hidden'));
       });
     });
 
     // Helper: save disabled tools + update counters
+    function _setToolSaveError(message = '') {
+      let error = list.querySelector('[data-tool-save-error]');
+      if (!message) {
+        if (error) error.remove();
+        return;
+      }
+      if (!error) {
+        error = document.createElement('div');
+        error.className = 'admin-error';
+        error.dataset.toolSaveError = 'true';
+        error.setAttribute('role', 'alert');
+        list.prepend(error);
+      }
+      error.textContent = message;
+    }
     async function _saveToolState() {
       const allChecks = list.querySelectorAll('input[data-tool-id]');
       const disabled = [];
       allChecks.forEach(c => { if (!c.checked) disabled.push(c.dataset.toolId); });
-      await fetch('/api/tools', {
+      const response = await fetch('/api/tools', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ disabled }),
         credentials: 'same-origin',
       });
+      if (!response.ok) throw new Error(`Tool settings request failed (${response.status})`);
+    }
+    function _syncToolRowState(chk) {
+      const row = chk.closest('.admin-tool-row');
+      if (!row) return;
+      const stateKey = chk.checked ? 'available' : 'disabled';
+      const state = TOOL_STATE_PRESENTATION[stateKey];
+      row.dataset.toolState = stateKey;
+      const status = row.querySelector('[data-tool-status]');
+      if (status) status.textContent = state.label;
+      chk.setAttribute('aria-label', `${chk.checked ? 'Disable' : 'Enable'} ${chk.dataset.toolName}`);
     }
     function _updateCatCounter(catEl) {
       if (!catEl) return;
       const catChecks = catEl.querySelectorAll('input[data-tool-id]');
       const catEnabled = Array.from(catChecks).filter(c => c.checked).length;
       const counter = catEl.querySelector('.admin-tool-cat-count');
-      if (counter) counter.textContent = catEnabled + '/' + catChecks.length;
+      if (counter) counter.textContent = `${catEnabled}/${catChecks.length} enabled`;
       const catToggle = catEl.querySelector('input[data-tool-cat-toggle]');
-      if (catToggle) catToggle.checked = (catEnabled === catChecks.length);
+      if (catToggle) {
+        catToggle.checked = (catEnabled === catChecks.length);
+        catToggle.setAttribute('aria-label', `${catToggle.checked ? 'Disable' : 'Enable'} all ${catToggle.dataset.toolCatName} tools`);
+      }
     }
 
     // Wire individual tool toggles
     list.querySelectorAll('input[data-tool-id]').forEach(chk => {
       chk.addEventListener('change', async () => {
-        await _saveToolState();
+        const previous = !chk.checked;
+        _setToolSaveError();
+        try {
+          await _saveToolState();
+        } catch (error) {
+          chk.checked = previous;
+          _setToolSaveError('Could not save tool settings. Changes were reverted.');
+          console.error('Failed to save tool settings:', error);
+        }
+        _syncToolRowState(chk);
         _updateCatCounter(chk.closest('.admin-tool-category'));
       });
     });
@@ -1893,8 +1972,18 @@ async function loadBuiltinTools() {
         const catEl = chk.closest('.admin-tool-category');
         if (!catEl) return;
         const checked = chk.checked;
-        catEl.querySelectorAll('input[data-tool-id]').forEach(c => { c.checked = checked; });
-        await _saveToolState();
+        const toolChecks = Array.from(catEl.querySelectorAll('input[data-tool-id]'));
+        const previous = toolChecks.map(c => c.checked);
+        toolChecks.forEach(c => { c.checked = checked; });
+        _setToolSaveError();
+        try {
+          await _saveToolState();
+        } catch (error) {
+          toolChecks.forEach((c, index) => { c.checked = previous[index]; });
+          _setToolSaveError('Could not save tool settings. Changes were reverted.');
+          console.error('Failed to save tool settings:', error);
+        }
+        toolChecks.forEach(_syncToolRowState);
         _updateCatCounter(catEl);
       });
     });
