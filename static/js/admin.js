@@ -1763,6 +1763,11 @@ const TOOL_STATE_PRESENTATION = Object.freeze({
   unavailable: { label: 'Unavailable', order: 1200 },
 });
 
+const TOOL_USAGE_WINDOWS = Object.freeze([7, 30]);
+const TOOL_USAGE_MAX_CONCURRENT_REQUESTS = 4;
+let _toolUsageWindowDays = 7;
+let _toolUsageRequestGeneration = 0;
+
 function toolCatalogState(tool) {
   const lifecycle = String(tool.lifecycle || '').toLowerCase();
   const availability = String(tool.availability || '').toLowerCase();
@@ -1795,6 +1800,190 @@ function toolCatalogGroup(tool) {
   };
 }
 
+function _toolUsageCatalogState(tool) {
+  const declared = String(tool.analytics_state || tool.instrumentation_status || '').toLowerCase();
+  const lifecycle = String(tool.lifecycle || '').toLowerCase();
+  const defaultPolicy = String(tool.default_policy || '').toLowerCase();
+  if (
+    declared === 'deferred' || declared === 'default_off' ||
+    lifecycle === 'deferred' || defaultPolicy === 'deferred_by_operator_priority' ||
+    defaultPolicy === 'default_off'
+  ) return 'deferred_default_off';
+  if (declared === 'not_instrumented' || !tool.analytics_id) return 'not_instrumented';
+  return 'queryable';
+}
+
+function _toolUsageDateRange(days, now = new Date()) {
+  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const start = new Date(end);
+  start.setUTCDate(start.getUTCDate() - (days - 1));
+  return {
+    start: start.toISOString().slice(0, 10),
+    end: end.toISOString().slice(0, 10),
+  };
+}
+
+function _toolUsageNumber(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) return 0;
+  return Math.min(number, 1_000_000_000);
+}
+
+function _toolUsageOptionalNumber(value) {
+  if (value === null || value === undefined) return null;
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < 0) return null;
+  return Math.min(number, 1_000_000_000);
+}
+
+function _toolUsagePercent(value) {
+  const number = _toolUsageOptionalNumber(value);
+  if (number === null) return 'â€”';
+  return `${Math.round(Math.min(number, 1) * 100)}%`;
+}
+
+function _toolUsageDuration(value) {
+  const milliseconds = _toolUsageOptionalNumber(value);
+  if (milliseconds === null) return 'â€”';
+  if (milliseconds < 1000) return `${Math.round(milliseconds)} ms`;
+  if (milliseconds < 60_000) return `${(milliseconds / 1000).toFixed(milliseconds < 10_000 ? 1 : 0)} s`;
+  return `${(milliseconds / 60_000).toFixed(milliseconds < 600_000 ? 1 : 0)} min`;
+}
+
+function _toolUsageModel(tool, payload, state = null) {
+  const catalogState = _toolUsageCatalogState(tool);
+  if (catalogState !== 'queryable') return { state: catalogState };
+  if (state) return { state };
+  const summary = payload && typeof payload.summary === 'object' ? payload.summary : {};
+  const quality = payload && typeof payload.quality === 'object' ? payload.quality : {};
+  const statusCounts = summary && typeof summary.status_counts === 'object' ? summary.status_counts : {};
+  const statusRates = summary && typeof summary.status_rates === 'object' ? summary.status_rates : {};
+  const calls = _toolUsageNumber(summary.calls);
+  if (calls === 0) {
+    return {
+      state: 'zero_usage',
+      calls: 0,
+      queryComplete: quality.query_complete !== false,
+    };
+  }
+  return {
+    state: 'observed',
+    calls,
+    sessions: _toolUsageNumber(summary.pseudonymous_distinct_session_count),
+    succeeded: _toolUsageNumber(statusCounts.succeeded),
+    successRate: _toolUsageOptionalNumber(statusRates.succeeded),
+    p50: _toolUsageOptionalNumber(summary.duration_p50_ms),
+    p95: _toolUsageOptionalNumber(summary.duration_p95_ms),
+    coverage: _toolUsageOptionalNumber(summary.coverage_rate),
+    queryComplete: quality.query_complete !== false,
+  };
+}
+
+function _toolUsageStateHtml(model, days) {
+  const muted = 'color:color-mix(in srgb,var(--fg) 62%,transparent);';
+  const badge = 'padding:2px 5px;border-radius:5px;background:color-mix(in srgb,var(--fg) 7%,transparent);font-size:9px;font-weight:600;white-space:nowrap;';
+  if (model.state === 'loading') {
+    return `<span aria-label="Loading aggregate usage" style="display:inline-flex;gap:5px;align-items:center;">
+      <span aria-hidden="true" style="width:52px;height:7px;border-radius:3px;background:color-mix(in srgb,var(--fg) 12%,transparent);"></span>
+      <span aria-hidden="true" style="width:86px;height:7px;border-radius:3px;background:color-mix(in srgb,var(--fg) 7%,transparent);"></span>
+    </span>`;
+  }
+  if (model.state === 'pending') {
+    return `<span style="${badge}">Usage</span><span style="${muted}">Expand to load ${days}-day aggregates.</span>`;
+  }
+  if (model.state === 'deferred_default_off') {
+    return `<span style="${badge}">Deferred / default off</span><span style="${muted}">Usage collection remains inactive.</span>`;
+  }
+  if (model.state === 'not_instrumented') {
+    return `<span style="${badge}">Not instrumented</span><span style="${muted}">No aggregate contract is available.</span>`;
+  }
+  if (model.state === 'zero_usage') {
+    return `<span style="${badge}">Zero usage</span><span style="${muted}">No calls in ${days} days.</span>`;
+  }
+  if (model.state === 'analytics_unavailable') {
+    return `<span style="${badge}">Analytics unavailable</span><span style="${muted}">The aggregate view is locked or unavailable.</span>`;
+  }
+  const coverage = _toolUsagePercent(model.coverage);
+  const coverageTone = model.queryComplete && model.coverage !== null && model.coverage >= 0.98
+    ? 'var(--color-success,var(--fg))'
+    : 'var(--color-warning,var(--fg))';
+  return `<span><strong>${esc(Math.round(model.calls))}</strong> calls</span>
+    <span>${esc(Math.round(model.sessions))} sessions</span>
+    <span>${esc(_toolUsagePercent(model.successRate))} success</span>
+    <span>p50 ${esc(_toolUsageDuration(model.p50))}</span>
+    <span>p95 ${esc(_toolUsageDuration(model.p95))}</span>
+    <span title="Aggregate terminal-event coverage" style="${badge}color:${coverageTone};">${esc(coverage)} coverage</span>`;
+}
+
+function _renderToolUsageRow(row, model, days) {
+  const target = row.querySelector('[data-tool-usage-view]');
+  if (!target) return;
+  target.dataset.toolUsageState = model.state;
+  target.setAttribute('aria-busy', model.state === 'loading' ? 'true' : 'false');
+  target.innerHTML = _toolUsageStateHtml(model, days);
+}
+
+async function _fetchToolUsageAggregate(tool, days) {
+  const state = _toolUsageCatalogState(tool);
+  if (state !== 'queryable') return _toolUsageModel(tool, null);
+  const range = _toolUsageDateRange(days);
+  const params = new URLSearchParams({
+    start: range.start,
+    end: range.end,
+    tool: String(tool.analytics_id),
+    limit: '200',
+  });
+  try {
+    const response = await fetch(`/api/diagnostics/tool-usage?${params.toString()}`, {
+      credentials: 'same-origin',
+    });
+    if (!response.ok) return _toolUsageModel(tool, null, 'analytics_unavailable');
+    const payload = await response.json();
+    if (!payload || payload.schema_version !== 'odysseus.tool_usage_analytics.v1') {
+      return _toolUsageModel(tool, null, 'analytics_unavailable');
+    }
+    return _toolUsageModel(tool, payload);
+  } catch {
+    return _toolUsageModel(tool, null, 'analytics_unavailable');
+  }
+}
+
+async function _toolUsageMapBounded(items, worker) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  async function run() {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      results[index] = await worker(items[index], index);
+    }
+  }
+  const workerCount = Math.min(TOOL_USAGE_MAX_CONCURRENT_REQUESTS, items.length);
+  await Promise.all(Array.from({ length: workerCount }, run));
+  return results;
+}
+
+function _renderToolUsageCategorySummary(category, models) {
+  const target = category.querySelector('[data-tool-usage-category-summary]');
+  if (!target) return;
+  const observed = models.filter(model => model.state === 'observed');
+  const reporting = models.filter(model => ['observed', 'zero_usage'].includes(model.state));
+  const calls = observed.reduce((total, model) => total + model.calls, 0);
+  const succeeded = observed.reduce((total, model) => total + model.succeeded, 0);
+  if (calls > 0) {
+    const success = `${Math.round((succeeded / calls) * 100)}% success`;
+    target.textContent = `${Math.round(calls)} calls Â· ${success} Â· ${reporting.length}/${models.length} reporting`;
+  } else if (models.every(model => model.state === 'deferred_default_off')) {
+    target.textContent = 'Deferred / default off';
+  } else if (models.some(model => model.state === 'not_instrumented') && reporting.length === 0) {
+    target.textContent = 'Not instrumented';
+  } else if (models.some(model => model.state === 'analytics_unavailable') && reporting.length === 0) {
+    target.textContent = 'Analytics unavailable';
+  } else {
+    target.textContent = `0 calls Â· ${reporting.length}/${models.length} reporting`;
+  }
+  target.title = target.textContent;
+}
+
 async function loadBuiltinTools() {
   const list = el('adm-builtin-tools-list');
   if (!list) return;
@@ -1825,7 +2014,16 @@ async function loadBuiltinTools() {
       a.order - b.order || a.label.localeCompare(b.label)
     );
     orderedGroups.forEach(group => group.items.sort((a, b) => a.name.localeCompare(b.name)));
-    let html = '';
+    const usageItems = [];
+    let html = `<div data-tool-usage-controls style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:0 0 8px;padding:2px 0;">
+      <div style="display:flex;align-items:baseline;gap:6px;min-width:0;">
+        <strong style="font-size:11px;">Usage</strong>
+        <span style="font-size:9px;color:color-mix(in srgb,var(--fg) 58%,transparent);">Aggregate only Â· no raw-event drilldown</span>
+      </div>
+      <div role="group" aria-label="Tool usage period" style="display:flex;gap:4px;">
+        ${TOOL_USAGE_WINDOWS.map(days => `<button type="button" class="admin-btn-sm" data-tool-usage-window="${days}" aria-pressed="${days === _toolUsageWindowDays}" style="font-size:10px;min-height:28px;">${days} days</button>`).join('')}
+      </div>
+    </div>`;
     for (const group of orderedGroups) {
       const items = group.items;
       const mutableItems = items.filter(item => item.settings_mutable !== false);
@@ -1834,9 +2032,10 @@ async function loadBuiltinTools() {
       const catId = 'tool-cat-' + group.key.replace(/[^a-zA-Z0-9]/g, '-');
       const allEnabled = mutableCount > 0 && enabledCount === mutableCount;
       html += `<div class="admin-tool-category">
-        <div class="admin-tool-cat-header" data-tool-cat="${catId}" role="button" tabindex="0" aria-expanded="false" aria-controls="${catId}" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+        <div class="admin-tool-cat-header" data-tool-cat="${catId}" role="button" tabindex="0" aria-expanded="false" aria-controls="${catId}" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;">
           <span>${esc(group.label)}</span>
           <span style="display:flex;align-items:center;gap:6px;" class="admin-tool-cat-right">
+            <span data-tool-usage-category-summary role="status" aria-live="polite" title="Expand for usage" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;font-size:9px;color:color-mix(in srgb,var(--fg) 58%,transparent);white-space:nowrap;">Expand for usage</span>
             <span class="admin-tool-cat-count" style="font-size:10px;opacity:0.72;">${mutableCount ? `${enabledCount}/${mutableCount} enabled` : `${items.length} listed`}</span>
             ${mutableCount ? `<label class="admin-switch" style="flex-shrink:0;">
               <input type="checkbox" data-tool-cat-toggle="${catId}" data-tool-cat-name="${esc(group.label)}" aria-label="${allEnabled ? 'Disable' : 'Enable'} all ${esc(group.label)} tools" ${allEnabled ? 'checked' : ''}>
@@ -1847,6 +2046,8 @@ async function loadBuiltinTools() {
         </div>
         <div class="admin-tool-cat-body hidden" id="${catId}">`;
       for (const t of items) {
+        const usageIndex = usageItems.length;
+        usageItems.push(t);
         const state = TOOL_STATE_PRESENTATION[t.stateKey] || TOOL_STATE_PRESENTATION.unavailable;
         const toggle = t.settings_mutable === false ? '' : `
           <label class="admin-switch" style="flex-shrink:0;">
@@ -1854,10 +2055,11 @@ async function loadBuiltinTools() {
             <span class="admin-slider"></span>
           </label>`;
         html += `
-        <div class="admin-tool-row" data-tool-state="${esc(t.stateKey)}">
+        <div class="admin-tool-row" data-tool-state="${esc(t.stateKey)}" data-tool-usage-index="${usageIndex}">
           <div class="admin-tool-info">
             <span class="admin-tool-name">${esc(t.name)}</span>
             <span class="admin-tool-desc" style="opacity:0.72;">${esc(t.desc)}</span>
+            <span data-tool-usage-view role="group" aria-label="Aggregate usage" aria-busy="false" style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;min-height:14px;margin-top:2px;font-size:9px;color:color-mix(in srgb,var(--fg) 72%,transparent);"></span>
           </div>
           <span class="admin-tool-ctx" data-tool-status style="opacity:0.72;min-width:68px;">${esc(state.label)}</span>
           ${toggle}
@@ -1866,6 +2068,75 @@ async function loadBuiltinTools() {
       html += '</div></div>';
     }
     list.innerHTML = html;
+
+    const usageGeneration = ++_toolUsageRequestGeneration;
+    const usageCache = new Map();
+    const usageRows = Array.from(list.querySelectorAll('[data-tool-usage-index]'))
+      .map(row => ({ row, tool: usageItems[Number(row.dataset.toolUsageIndex)] }))
+      .filter(entry => entry.tool);
+
+    function _usageEntriesForCategory(category) {
+      return usageRows.filter(entry => entry.row.closest('.admin-tool-category') === category);
+    }
+
+    function _syncToolUsageWindowButtons() {
+      list.querySelectorAll('[data-tool-usage-window]').forEach(button => {
+        const active = Number(button.dataset.toolUsageWindow) === _toolUsageWindowDays;
+        button.setAttribute('aria-pressed', String(active));
+        button.style.color = active ? 'var(--accent,var(--red))' : '';
+        button.style.background = active ? 'color-mix(in srgb,var(--accent,var(--red)) 10%,transparent)' : '';
+      });
+    }
+
+    async function _loadToolUsageCategory(category) {
+      if (!category) return;
+      const entries = _usageEntriesForCategory(category);
+      const days = _toolUsageWindowDays;
+      entries.forEach(entry => {
+        const state = _toolUsageCatalogState(entry.tool);
+        const key = `${days}:${entry.tool.analytics_id || ''}`;
+        if (state === 'queryable' && !usageCache.has(key)) {
+          _renderToolUsageRow(entry.row, { state: 'loading' }, days);
+        }
+      });
+      const models = await _toolUsageMapBounded(entries, async entry => {
+        const state = _toolUsageCatalogState(entry.tool);
+        if (state !== 'queryable') return _toolUsageModel(entry.tool, null);
+        const key = `${days}:${entry.tool.analytics_id}`;
+        if (!usageCache.has(key)) {
+          usageCache.set(key, _fetchToolUsageAggregate(entry.tool, days));
+        }
+        return usageCache.get(key);
+      });
+      if (usageGeneration !== _toolUsageRequestGeneration || days !== _toolUsageWindowDays) return;
+      entries.forEach((entry, index) => _renderToolUsageRow(entry.row, models[index], days));
+      _renderToolUsageCategorySummary(category, models);
+    }
+
+    usageRows.forEach(entry => {
+      const state = _toolUsageCatalogState(entry.tool);
+      _renderToolUsageRow(
+        entry.row,
+        { state: state === 'queryable' ? 'pending' : state },
+        _toolUsageWindowDays,
+      );
+    });
+    _syncToolUsageWindowButtons();
+    list.querySelectorAll('[data-tool-usage-window]').forEach(button => {
+      button.addEventListener('click', () => {
+        const days = Number(button.dataset.toolUsageWindow);
+        if (!TOOL_USAGE_WINDOWS.includes(days) || days === _toolUsageWindowDays) return;
+        _toolUsageWindowDays = days;
+        _syncToolUsageWindowButtons();
+        usageRows.forEach(entry => {
+          const state = _toolUsageCatalogState(entry.tool);
+          _renderToolUsageRow(entry.row, { state: state === 'queryable' ? 'pending' : state }, days);
+        });
+        list.querySelectorAll('.admin-tool-cat-body:not(.hidden)').forEach(body => {
+          _loadToolUsageCategory(body.closest('.admin-tool-category'));
+        });
+      });
+    });
 
     // Prevent toggle clicks from expanding/collapsing
     list.querySelectorAll('.admin-tool-cat-right').forEach(span => {
@@ -1888,13 +2159,19 @@ async function loadBuiltinTools() {
       header.addEventListener('click', () => {
         const body = el(header.dataset.toolCat);
         if (!body) return;
-        _setToolGroupOpen(header, body.classList.contains('hidden'));
+        const opening = body.classList.contains('hidden');
+        _setToolGroupOpen(header, opening);
+        if (opening) _loadToolUsageCategory(header.closest('.admin-tool-category'));
       });
       header.addEventListener('keydown', event => {
         if (event.target !== header || (event.key !== 'Enter' && event.key !== ' ')) return;
         event.preventDefault();
         const body = el(header.dataset.toolCat);
-        if (body) _setToolGroupOpen(header, body.classList.contains('hidden'));
+        if (body) {
+          const opening = body.classList.contains('hidden');
+          _setToolGroupOpen(header, opening);
+          if (opening) _loadToolUsageCategory(header.closest('.admin-tool-category'));
+        }
       });
     });
 

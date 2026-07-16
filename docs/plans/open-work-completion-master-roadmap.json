@@ -13,7 +13,7 @@
     "unique_live_gates": 39,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "uix13_semantics_gated_tax12_repo_complete_live_activation_dormant_tua8_completed_tua9_next",
+    "queue_status": "uix13_semantics_gated_tax12_repo_complete_live_activation_dormant_tua9_completed_tua10_synthetic_dry_run_next",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,7 +21,7 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
-      "tool_usage_analytics": "tua0_through_tua8_completed_tua9_existing_admin_surface_next_capture_and_backfill_default_off"
+      "tool_usage_analytics": "tua0_through_tua9_completed_tua10_synthetic_metadata_only_dry_run_next_capture_and_real_backfill_default_off"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
@@ -61,14 +61,14 @@
         "reason": "UIX-ABC13 requires explicit product-semantics confirmation before claim",
         "slice": "UIX-ABC13",
         "user_decision_required": true,
-        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TUA9"
+        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TUA10_synthetic_dry_run_only"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-16"
     },
     "dependency_ready_repo_only_slices": [
-      "TUA9-existing-admin-surface-integration"
+      "TUA10-metadata-only-legacy-backfill-tool"
     ],
     "product_semantics_gated_open_slices": [
       "UIX-ABC13"
@@ -1128,7 +1128,7 @@
       "id": "TUA9-existing-admin-surface-integration",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
+      "status": "completed",
       "depends_on": [
         "TAX7-existing-admin-ui-consumes-catalog",
         "TUA7-admin-only-aggregate-api"
@@ -1143,7 +1143,42 @@
         "node --check static\\js\\admin.js"
       ],
       "gate": "path_exact_static_js_admin_hotfile_claim_and_impeccable_required_existing_surface_only",
-      "done_when": "The existing Admin tool surface shows aggregate 7/30-day calls, sessions, status rate, p50/p95 and coverage without direct identifiers or raw drilldown; deferred/default_off, zero_usage and not_instrumented remain distinct, empty analytics is safe, and existing toggles, syntax and escaping remain green."
+      "done_when": "The existing Admin tool surface shows aggregate 7/30-day calls, sessions, status rate, p50/p95 and coverage without direct identifiers or raw drilldown; deferred/default_off, zero_usage and not_instrumented remain distinct, empty analytics is safe, and existing toggles, syntax and escaping remain green.",
+      "completed_at": "2026-07-16T12:29:34.5950782+02:00",
+      "completion_evidence": {
+        "focused_tests": "4 passed with 1 pre-existing SQLAlchemy deprecation warning; node --check static/js/admin.js passed",
+        "catalog_toggle_regression": "14 passed with 1 pre-existing SQLAlchemy deprecation warning across Descriptor-V2 Admin rendering, Plugin projection, toggle rollback and catalog acceptance",
+        "admin_integration": "The existing disclosure rows retain their toggles and gain a compact aggregate status line; a native 7/30-day segmented control refreshes only open categories and family headers summarize calls, success rate and reporting coverage",
+        "safe_states": "deferred/default_off is resolved before any analytics request; zero_usage, not_instrumented and analytics_unavailable render distinct neutral states, so deferred email, calendar and contacts are never presented as failures",
+        "privacy": "Per-tool analytics IDs exist only in bounded Admin API query parameters and in-memory cache keys; no analytics ID, owner/session reference, raw record, warning detail or response-private field is copied into rendered markup",
+        "performance": "Categories load lazily on disclosure, requests are capped at four concurrent calls, period results are cached and stale refresh/period responses cannot overwrite current state",
+        "impeccable_audit": "Product register applied: existing tokens/radii, compact hierarchy, flex wrapping, bounded header ellipsis, keyboard disclosure, aria-busy rows and one family live region; detector returned 12 advisory color/radius findings, all proven baseline-only with none of their values in added lines",
+        "live_effects": "No UI design gate, live browser/server, production analytics store, capture, real backfill, provider, network, deployment or external mutation was opened or changed"
+      }
+    },
+    {
+      "id": "TUA10-metadata-only-legacy-backfill-tool",
+      "class": "safe_offline",
+      "owner": "/root",
+      "status": "open",
+      "depends_on": [
+        "TAX10-analytics-identity-contract",
+        "TUA2-persistence-migration-retention",
+        "TUA6-aggregation-quality-and-retention-service"
+      ],
+      "source_roadmap": "docs/plans/privacy-safe-tool-analytics-roadmap.md",
+      "allowed_paths": [
+        "scripts/backfill_tool_usage.py",
+        "src/tool_usage_backfill.py",
+        "tests/test_tool_usage_backfill.py",
+        "tests/fixtures/tool_usage/"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_usage_backfill.py",
+        "venv\\Scripts\\python.exe scripts\\backfill_tool_usage.py --source synthetic-fixture --dry-run"
+      ],
+      "gate": "synthetic_fixture_only_immutable_dry_run_no_apply_mode_no_real_legacy_source_read",
+      "done_when": "Repeated synthetic metadata-only dry-runs are idempotent and deduplicated, unsafe content is count-only rejected, historical duration remains null, source overlap is never summed, the report exposes counts only, and no real local inventory or destination store is read or changed."
     },
     {
       "id": "TAX3-close-six-registration-gaps",
