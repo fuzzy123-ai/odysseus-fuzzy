@@ -11,10 +11,13 @@ production diagnostic.
   `podman inspect … .Config.Env`, `docker inspect … .Config.Env`,
   `systemctl show Environment`, unredacted `compose config`, and equivalent
   commands that serialize values.
-- On the Debian homeserver, use
-  `python3 ops/homeserver/redacted_runtime_probe.py` for container credential
-  readiness. Its fixed JSON projection is the only agent-safe environment
-  readback.
+- For Debian credential readiness, use only
+  `ssh -F ops/homeserver/ssh_config odysseus-homeserver-probe`. This alias has a
+  fixed `ops/homeserver/redacted_runtime_probe.py` remote command and rejects
+  caller-supplied command overrides. Its JSON projection is the only agent-safe
+  environment readback.
+- Keep `odysseus-homeserver` for explicitly live-gated administration and
+  deployments. Do not use that unrestricted alias for environment diagnostics.
 - No credential value, prefix, suffix, length, or hash may be printed. Report
   only fixed-key boolean presence and bounded aggregate counts.
 - Do not forward raw subprocess stdout, stderr, exception text, journals, or

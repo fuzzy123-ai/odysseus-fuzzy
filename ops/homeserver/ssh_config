@@ -8,6 +8,23 @@
 # If this fails with "Permission denied", the local key exists but the server
 # does not accept its public key for the configured user.
 
+Host odysseus-homeserver-probe
+  HostName 192.168.178.122
+  User homebase
+  IdentityFile C:/Users/nkatz/odysseus/data/ssh/id_ed25519_odysseus_homeserver_20260620_host
+  IdentitiesOnly yes
+  BatchMode yes
+  ConnectTimeout 10
+  StrictHostKeyChecking accept-new
+  ServerAliveInterval 15
+  ServerAliveCountMax 2
+  RemoteCommand cd /opt/odysseus && exec python3 ops/homeserver/redacted_runtime_probe.py
+  RequestTTY no
+  ClearAllForwardings yes
+  ForwardAgent no
+  ForwardX11 no
+  StdinNull yes
+
 Host odysseus-homeserver
   HostName 192.168.178.122
   User homebase

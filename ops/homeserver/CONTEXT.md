@@ -27,15 +27,17 @@ Windows process state.
 Agents must use the fixed redacted runtime probe instead of serializing a
 container or service environment:
 
-```bash
-cd /opt/odysseus
-python3 ops/homeserver/redacted_runtime_probe.py
+```powershell
+ssh -F ops/homeserver/ssh_config odysseus-homeserver-probe
 ```
 
 The probe reports only fixed-key boolean credential presence, bounded counts,
 and explicit `secret_values_visible=false` / `raw_environment_visible=false`
 invariants. The host wrapper validates and reserializes the in-container result;
-it never forwards raw subprocess output or exception text.
+it never forwards raw subprocess output or exception text. The SSH alias uses a
+fixed `RemoteCommand`, disables forwarding and stdin, and rejects a command
+supplied by the caller. The existing `odysseus-homeserver` alias remains
+unchanged for explicitly live-gated administration and deployments.
 
 Do not use `env`, `printenv`, `.env` output, `podman inspect … .Config.Env`,
 `docker inspect … .Config.Env`, `systemctl show Environment`, or unredacted
@@ -70,12 +72,15 @@ For agent-operated incidents, start with the redacted probe and metadata-only
 service state:
 
 ```bash
-python3 ops/homeserver/redacted_runtime_probe.py
 systemctl --user --no-pager status odysseus-podman.service
 systemctl --user --no-pager status odysseus-auto-update.timer odysseus-auto-update.service
 systemctl --user --no-pager status odysseus-telegram-poll.timer odysseus-telegram-poll.service
 podman ps --format '{{.Names}} {{.Status}} {{.Ports}}'
 ```
+
+Run the credential-readiness projection separately from the workstation with
+`odysseus-homeserver-probe`; do not run it through the unrestricted deployment
+alias.
 
 Raw journals are for a trusted local human console only. Before any journal
 content enters an agent or tool transcript, add a repository-owned fixed-schema

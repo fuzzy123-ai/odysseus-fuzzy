@@ -8,6 +8,7 @@ from types import ModuleType
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULE_PATH = ROOT / "ops" / "homeserver" / "redacted_runtime_probe.py"
+SSH_CONFIG_PATH = ROOT / "ops" / "homeserver" / "ssh_config"
 
 
 def _load_module() -> ModuleType:
@@ -168,3 +169,26 @@ def test_repository_instructions_require_the_safe_probe_and_forbid_raw_sources()
     assert "podman inspect … .Config.Env" in combined
     assert "systemctl show Environment" in combined
     assert "No credential value, prefix, suffix, length, or hash" in combined
+
+
+def test_probe_only_ssh_alias_is_fixed_and_admin_alias_remains_unrestricted() -> None:
+    config = SSH_CONFIG_PATH.read_text(encoding="utf-8")
+    probe_marker = "Host odysseus-homeserver-probe\n"
+    admin_marker = "Host odysseus-homeserver\n"
+
+    assert config.count(probe_marker) == 1
+    assert config.count(admin_marker) == 1
+    probe_block = config.split(probe_marker, 1)[1].split(admin_marker, 1)[0]
+    admin_block = config.split(admin_marker, 1)[1]
+
+    assert (
+        "RemoteCommand cd /opt/odysseus && exec python3 "
+        "ops/homeserver/redacted_runtime_probe.py"
+    ) in probe_block
+    assert "RequestTTY no" in probe_block
+    assert "ClearAllForwardings yes" in probe_block
+    assert "ForwardAgent no" in probe_block
+    assert "StdinNull yes" in probe_block
+    assert "RemoteCommand" not in admin_block
+    assert "ClearAllForwardings" not in admin_block
+    assert "RequestTTY" not in admin_block
