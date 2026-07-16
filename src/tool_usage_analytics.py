@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from enum import StrEnum
 import math
 import re
@@ -22,6 +22,8 @@ from src.tool_usage_store import (
 
 
 TOOL_USAGE_ANALYTICS_SCHEMA_VERSION = "odysseus.tool_usage_analytics.v1"
+MAX_QUERY_SPAN_DAYS = 90
+MAX_QUERY_RESULT_ROWS = 200
 MAX_DURATION_MS = 7 * 24 * 60 * 60 * 1_000
 DURATION_HISTOGRAM_BOUNDS_MS = (
     1,
@@ -60,6 +62,15 @@ class ToolUsageObservedState(StrEnum):
     DEFERRED = "deferred"
     DEFAULT_OFF = "default_off"
     READ_FAILED = "read_failed"
+
+
+class ToolUsageQualityWarning(StrEnum):
+    INCOMPLETE_INVOCATIONS = "incomplete_invocations"
+    UNKNOWN_IDENTITY = "unknown_identity"
+    DUPLICATES_REJECTED = "duplicates_rejected"
+    WRITER_FAILURES = "writer_failures"
+    DETAIL_COVERAGE_PARTIAL = "detail_coverage_partial"
+    RESULT_TRUNCATED = "result_truncated"
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,6 +209,121 @@ class ToolUsageAggregationRetentionResult:
             "analytics": self.analytics.to_safe_dict(),
             "retention_attempted": self.retention_attempted,
             "retention": self.retention.to_safe_dict() if self.retention else None,
+            "raw_content_visible": False,
+            "direct_identifiers_visible": False,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ToolUsageRangeRow:
+    tool_analytics_id: str
+    tool_family: ToolFamily
+    tool_source: ToolSource
+    surface: ToolUsageSurface
+    status: ToolUsageAggregateStatus
+    calls: int
+
+    def to_safe_dict(self) -> dict[str, object]:
+        return {
+            "tool_analytics_id": self.tool_analytics_id,
+            "tool_family": self.tool_family.value,
+            "tool_source": self.tool_source.value,
+            "surface": self.surface.value,
+            "status": self.status.value,
+            "calls": self.calls,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ToolUsageRangeAnalytics:
+    start_day: date
+    end_day: date
+    rows: tuple[ToolUsageRangeRow, ...]
+    calls: int
+    active_days: int
+    terminal_invocations: int
+    retry_invocations: int
+    distinct_owner_count: int
+    distinct_session_count: int
+    duration_histogram_counts: tuple[int, ...]
+    duration_p50_ms: int | None
+    duration_p95_ms: int | None
+    coverage_rate: float | None
+    status_counts: tuple[int, ...]
+    incomplete: int
+    unknown_identity: int
+    duplicates_rejected: int
+    writer_failures: int
+    warnings: tuple[ToolUsageQualityWarning, ...]
+    result_truncated: bool
+    tool_filter: str | None
+    family_filter: ToolFamily | None
+    source_filter: ToolSource | None
+    surface_filter: ToolUsageSurface | None
+    status_filter: ToolUsageAggregateStatus | None
+
+    def to_safe_dict(self) -> dict[str, object]:
+        status_counts = {
+            status.value: count
+            for status, count in zip(ToolUsageAggregateStatus, self.status_counts)
+        }
+        status_rates = {
+            status: (
+                count / self.terminal_invocations
+                if self.terminal_invocations
+                and status != ToolUsageAggregateStatus.INCOMPLETE.value
+                else None
+            )
+            for status, count in status_counts.items()
+        }
+        return {
+            "schema_version": TOOL_USAGE_ANALYTICS_SCHEMA_VERSION,
+            "range": {
+                "start": self.start_day.isoformat(),
+                "end": self.end_day.isoformat(),
+                "days": (self.end_day - self.start_day).days + 1,
+            },
+            "filters": {
+                "tool": self.tool_filter,
+                "family": self.family_filter.value if self.family_filter else None,
+                "source": self.source_filter.value if self.source_filter else None,
+                "surface": self.surface_filter.value if self.surface_filter else None,
+                "status": self.status_filter.value if self.status_filter else None,
+            },
+            "summary": {
+                "calls": self.calls,
+                "active_days": self.active_days,
+                "pseudonymous_distinct_owner_count": self.distinct_owner_count,
+                "pseudonymous_distinct_session_count": self.distinct_session_count,
+                "status_counts": status_counts,
+                "status_rates": status_rates,
+                "duration_samples": sum(self.duration_histogram_counts),
+                "duration_p50_ms": self.duration_p50_ms,
+                "duration_p95_ms": self.duration_p95_ms,
+                "retry_invocations": self.retry_invocations,
+                "calls_per_session": (
+                    self.calls / self.distinct_session_count
+                    if self.distinct_session_count
+                    else None
+                ),
+                "coverage_rate": self.coverage_rate,
+            },
+            "quality": {
+                "incomplete": self.incomplete,
+                "duplicates_rejected": self.duplicates_rejected,
+                "writer_failures": self.writer_failures,
+                "unknown_identity": self.unknown_identity,
+                "warnings": [warning.value for warning in self.warnings],
+                "query_complete": ToolUsageQualityWarning.DETAIL_COVERAGE_PARTIAL
+                not in self.warnings,
+                "result_truncated": self.result_truncated,
+            },
+            "duration_histogram": {
+                "bounds_ms": list(DURATION_HISTOGRAM_BOUNDS_MS),
+                "counts": list(self.duration_histogram_counts),
+            },
+            "rows": [row.to_safe_dict() for row in self.rows],
+            "raw_records_visible": False,
             "raw_content_visible": False,
             "direct_identifiers_visible": False,
         }
@@ -490,3 +616,262 @@ class ToolUsageAnalyticsService:
             retention_attempted=True,
             retention=retention,
         )
+
+
+class ToolUsageAnalyticsQueryService:
+    """Read bounded recent aggregate projections without exposing source rows."""
+
+    def __init__(self, store: ToolUsageStore) -> None:
+        if not isinstance(store, ToolUsageStore):
+            raise ValueError("store must be a ToolUsageStore")
+        self._store = store
+
+    def query_range(
+        self,
+        *,
+        start_day: date,
+        end_day: date,
+        tool_filter: str | None = None,
+        family_filter: ToolFamily | None = None,
+        source_filter: ToolSource | None = None,
+        surface_filter: ToolUsageSurface | None = None,
+        status_filter: ToolUsageAggregateStatus | None = None,
+        limit: int = 100,
+    ) -> ToolUsageRangeAnalytics:
+        if any(
+            not isinstance(value, date) or isinstance(value, datetime)
+            for value in (start_day, end_day)
+        ):
+            raise ValueError("range bounds must be UTC calendar dates")
+        span_days = (end_day - start_day).days + 1
+        if span_days < 1:
+            raise ValueError("range start must not be after range end")
+        if span_days > MAX_QUERY_SPAN_DAYS:
+            raise ValueError(f"range must not exceed {MAX_QUERY_SPAN_DAYS} days")
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= MAX_QUERY_RESULT_ROWS:
+            raise ValueError(f"limit must be between 1 and {MAX_QUERY_RESULT_ROWS}")
+
+        all_events: list[ToolUsageStoredEvent] = []
+        read_failures = 0
+        current_day = start_day
+        while current_day <= end_day:
+            read = self._store.read_events_for_day(current_day)
+            all_events.extend(read.events)
+            read_failures += read.failures
+            current_day += timedelta(days=1)
+
+        by_invocation: dict[str, list[ToolUsageStoredEvent]] = defaultdict(list)
+        for event in all_events:
+            by_invocation[event.invocation_id].append(event)
+
+        row_counts: dict[
+            tuple[str, ToolFamily, ToolSource, ToolUsageSurface, ToolUsageAggregateStatus],
+            int,
+        ] = defaultdict(int)
+        status_counts = {status: 0 for status in ToolUsageAggregateStatus}
+        histogram_counts = [0] * len(DURATION_HISTOGRAM_BOUNDS_MS)
+        owners: set[str] = set()
+        sessions: set[str] = set()
+        active_days: set[date] = set()
+        calls = 0
+        terminal_invocations = 0
+        retry_invocations = 0
+        incomplete = 0
+        unknown_identity = 0
+
+        for invocation_events in by_invocation.values():
+            invocation_events.sort(key=lambda item: (item.occurred_at, item.event_id))
+            terminal = next(
+                (
+                    item
+                    for item in invocation_events
+                    if item.event_kind == ToolUsageEventKind.TERMINAL.value
+                ),
+                None,
+            )
+            representative = terminal or invocation_events[0]
+            built = _build_day(representative.occurred_at.date(), tuple(invocation_events))
+            if not built.rows:
+                continue
+            row = built.rows[0]
+            if tool_filter is not None and row.tool_analytics_id != tool_filter:
+                continue
+            if family_filter is not None and row.tool_family != family_filter:
+                continue
+            if source_filter is not None and row.tool_source != source_filter:
+                continue
+            if surface_filter is not None and row.surface != surface_filter:
+                continue
+            if status_filter is not None and row.status != status_filter:
+                continue
+
+            key = (
+                row.tool_analytics_id,
+                row.tool_family,
+                row.tool_source,
+                row.surface,
+                row.status,
+            )
+            row_counts[key] += 1
+            status_counts[row.status] += 1
+            calls += 1
+            terminal_invocations += built.terminal_invocations
+            retry_invocations += built.retry_invocations
+            incomplete += built.incomplete
+            unknown_identity += built.unknown_identity
+            active_days.add(representative.occurred_at.date())
+            owners.update(item.owner_ref for item in invocation_events if item.owner_ref)
+            sessions.update(item.session_ref for item in invocation_events if item.session_ref)
+            for index, count in enumerate(built.histogram_counts):
+                histogram_counts[index] += count
+
+        all_rows = tuple(
+            ToolUsageRangeRow(
+                tool_analytics_id=key[0],
+                tool_family=key[1],
+                tool_source=key[2],
+                surface=key[3],
+                status=key[4],
+                calls=count,
+            )
+            for key, count in sorted(
+                row_counts.items(),
+                key=lambda item: (
+                    -item[1],
+                    item[0][0],
+                    item[0][1].value,
+                    item[0][2].value,
+                    item[0][3].value,
+                    item[0][4].value,
+                ),
+            )
+        )
+        result_truncated = len(all_rows) > limit
+        bounded_rows = all_rows[:limit]
+        quality_counts = self._store.quality_counts()
+        warnings: list[ToolUsageQualityWarning] = []
+        for condition, warning in (
+            (incomplete > 0, ToolUsageQualityWarning.INCOMPLETE_INVOCATIONS),
+            (unknown_identity > 0, ToolUsageQualityWarning.UNKNOWN_IDENTITY),
+            (
+                quality_counts["duplicates_rejected"] > 0,
+                ToolUsageQualityWarning.DUPLICATES_REJECTED,
+            ),
+            (
+                quality_counts["writer_failures"] > 0,
+                ToolUsageQualityWarning.WRITER_FAILURES,
+            ),
+            (read_failures > 0, ToolUsageQualityWarning.DETAIL_COVERAGE_PARTIAL),
+            (result_truncated, ToolUsageQualityWarning.RESULT_TRUNCATED),
+        ):
+            if condition:
+                warnings.append(warning)
+        histogram = tuple(histogram_counts)
+        return ToolUsageRangeAnalytics(
+            start_day=start_day,
+            end_day=end_day,
+            rows=bounded_rows,
+            calls=calls,
+            active_days=len(active_days),
+            terminal_invocations=terminal_invocations,
+            retry_invocations=retry_invocations,
+            distinct_owner_count=len(owners),
+            distinct_session_count=len(sessions),
+            duration_histogram_counts=histogram,
+            duration_p50_ms=_histogram_percentile(histogram, 0.50),
+            duration_p95_ms=_histogram_percentile(histogram, 0.95),
+            coverage_rate=terminal_invocations / calls if calls else None,
+            status_counts=tuple(
+                status_counts[status] for status in ToolUsageAggregateStatus
+            ),
+            incomplete=incomplete,
+            unknown_identity=unknown_identity,
+            duplicates_rejected=quality_counts["duplicates_rejected"],
+            writer_failures=quality_counts["writer_failures"],
+            warnings=tuple(warnings),
+            result_truncated=result_truncated,
+            tool_filter=tool_filter,
+            family_filter=family_filter,
+            source_filter=source_filter,
+            surface_filter=surface_filter,
+            status_filter=status_filter,
+        )
+
+
+def _parse_query_day(value: str | None, *, field_name: str) -> date | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or len(value) != 10:
+        raise ValueError(f"invalid {field_name} date")
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError(f"invalid {field_name} date") from exc
+    if parsed.isoformat() != value:
+        raise ValueError(f"invalid {field_name} date")
+    return parsed
+
+
+def _parse_query_enum(enum_type, value: str | None, *, field_name: str):
+    if value is None:
+        return None
+    if not isinstance(value, str) or not 1 <= len(value) <= 64:
+        raise ValueError(f"invalid {field_name} filter")
+    try:
+        return enum_type(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"invalid {field_name} filter") from exc
+
+
+def read_tool_usage_analytics(
+    *,
+    start: str | None = None,
+    end: str | None = None,
+    tool: str | None = None,
+    family: str | None = None,
+    source: str | None = None,
+    surface: str | None = None,
+    status: str | None = None,
+    limit: int = 100,
+    session_factory=None,
+    now: datetime | None = None,
+) -> dict[str, object]:
+    """Return one bounded, aggregate-only Admin diagnostics projection."""
+
+    reference = now or datetime.now(timezone.utc)
+    if not isinstance(reference, datetime) or reference.tzinfo is None:
+        raise ValueError("now must be timezone-aware")
+    default_end = reference.astimezone(timezone.utc).date()
+    end_day = _parse_query_day(end, field_name="end") or default_end
+    start_day = _parse_query_day(start, field_name="start") or (
+        end_day - timedelta(days=29)
+    )
+    normalized_tool = None
+    if tool is not None:
+        if (
+            not isinstance(tool, str)
+            or len(tool) > 80
+            or not _ANALYTICS_ID_RE.fullmatch(tool)
+        ):
+            raise ValueError("invalid tool filter")
+        normalized_tool = tool
+    store = ToolUsageStore(session_factory)
+    result = ToolUsageAnalyticsQueryService(store).query_range(
+        start_day=start_day,
+        end_day=end_day,
+        tool_filter=normalized_tool,
+        family_filter=_parse_query_enum(ToolFamily, family, field_name="family"),
+        source_filter=_parse_query_enum(ToolSource, source, field_name="source"),
+        surface_filter=_parse_query_enum(
+            ToolUsageSurface,
+            surface,
+            field_name="surface",
+        ),
+        status_filter=_parse_query_enum(
+            ToolUsageAggregateStatus,
+            status,
+            field_name="status",
+        ),
+        limit=limit,
+    )
+    return result.to_safe_dict()

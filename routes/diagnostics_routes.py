@@ -85,6 +85,40 @@ def setup_diagnostics_routes(
             logger.error(f"AI activity diagnostics retrieval error: {e}")
             raise HTTPException(500, "Failed to retrieve AI activity diagnostics")
 
+    @router.get("/api/diagnostics/tool-usage")
+    async def get_tool_usage(
+        request: Request,
+        start: str | None = None,
+        end: str | None = None,
+        tool: str | None = None,
+        family: str | None = None,
+        source: str | None = None,
+        surface: str | None = None,
+        status: str | None = None,
+        limit: int = Query(100, ge=1, le=200),
+    ) -> Dict[str, Any]:
+        """Return bounded, aggregate-only privacy-safe tool usage diagnostics."""
+
+        require_admin(request)
+        try:
+            from src.tool_usage_analytics import read_tool_usage_analytics
+
+            return read_tool_usage_analytics(
+                start=start,
+                end=end,
+                tool=tool,
+                family=family,
+                source=source,
+                surface=surface,
+                status=status,
+                limit=limit,
+            )
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        except Exception:
+            logger.error("Tool usage diagnostics retrieval failed")
+            raise HTTPException(500, "Failed to retrieve tool usage diagnostics")
+
     @router.get("/api/diagnostics/memory-provenance")
     async def get_memory_provenance(
         request: Request,
