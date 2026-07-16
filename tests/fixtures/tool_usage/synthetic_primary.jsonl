@@ -1,0 +1,9 @@
+{"source_id":"synthetic_primary_legacy","legacy_event_id":"evt-001","tool_name":"read_file","occurred_at":"2026-06-01T08:00:00Z","status":"success","terminal":true}
+{"source_id":"synthetic_primary_legacy","legacy_event_id":"evt-001","tool_name":"read_file","occurred_at":"2026-06-01T08:00:00Z","status":"success","terminal":true}
+{"source_id":"synthetic_primary_legacy","legacy_event_id":"evt-002","tool_name":"removed_tool","occurred_at":"2026-06-01T08:01:00Z","status":"success","terminal":true}
+{"source_id":"synthetic_primary_legacy","legacy_event_id":"evt-003","tool_name":"read_file","occurred_at":"2026-06-01T08:02:00Z","status":"success","terminal":true,"secret":"synthetic-secret-marker"}
+{"source_id":"synthetic_primary_legacy","legacy_event_id":"evt-004","tool_name":"read_file","occurred_at":"2026-06-01T08:03:00Z","status":"success","terminal":true,"path":"synthetic/private/path-marker"}
+{"source_id":"synthetic_primary_legacy","legacy_event_id":"evt-005","tool_name":"read_file","occurred_at":"2026-06-01T08:04:00Z","status":"success","terminal":true,"email":"synthetic@example.invalid"}
+{"source_id":"synthetic_primary_legacy","legacy_event_id":"evt-006","tool_name":"read_file","occurred_at":"2026-06-01T08:05:00Z","status":"success","terminal":true,"command":"synthetic-command-marker"}
+{"source_id":"synthetic_primary_legacy","legacy_event_id":"evt-007","tool_name":"read_file","occurred_at":"2026-06-01T08:06:00Z","status":"success","terminal":false}
+{"source_id":"synthetic_primary_legacy","legacy_event_id":"evt-008","tool_name":"read_file","occurred_at":"2026-06-01T08:07:00Z","status":"error","terminal":true}
