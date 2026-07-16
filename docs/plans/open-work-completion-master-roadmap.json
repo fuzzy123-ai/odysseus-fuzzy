@@ -13,7 +13,7 @@
     "unique_live_gates": 39,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "uix13_semantics_gated_tax12_repo_complete_live_activation_dormant_tua2_next",
+    "queue_status": "uix13_semantics_gated_tax12_repo_complete_live_activation_dormant_tua2_completed_tua3_next",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,7 +21,7 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
-      "tool_usage_analytics": "tua0_tua1_completed_tua2_dependency_ready_capture_and_backfill_default_off"
+      "tool_usage_analytics": "tua0_through_tua2_completed_tua3_central_instrumentation_next_capture_and_backfill_default_off"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
@@ -68,7 +68,7 @@
       "verified_at": "2026-07-16"
     },
     "dependency_ready_repo_only_slices": [
-      "TUA2-persistence-migration-retention"
+      "TUA3-central-execution-boundary-instrumentation"
     ],
     "product_semantics_gated_open_slices": [
       "UIX-ABC13"
@@ -899,7 +899,7 @@
       "id": "TUA2-persistence-migration-retention",
       "class": "repo_only",
       "owner": "/root",
-      "status": "pending",
+      "status": "completed",
       "depends_on": [
         "TUA1-privacy-safe-event-contract"
       ],
@@ -916,7 +916,39 @@
         "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_usage_store.py tests\\test_database_migrations.py tests\\test_update_database_script.py"
       ],
       "gate": "path_exact_hotfile_claim_required_no_live_activation",
-      "done_when": "Idempotent event and daily-aggregate persistence enforces uniqueness, safe transactions, failure isolation and dry-run 90/400-day retention without changing tool execution or private domain data."
+      "done_when": "Idempotent event and daily-aggregate persistence enforces uniqueness, safe transactions, failure isolation and dry-run 90/400-day retention without changing tool execution or private domain data.",
+      "completed_at": "2026-07-16T08:23:55.8727005+02:00",
+      "completion_evidence": {
+        "focused_tests": "13 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "direct_regression": "86 passed, 1 pre-existing SQLAlchemy deprecation warning across the TUA1 event/privacy contract, TAX9 settings migration and update script",
+        "schema_and_migration": "Version 1 creates only tool_usage_events, tool_usage_daily_aggregates and tool_usage_schema_versions; repeated migration is a no-op and rollback preserves unrelated domain tables and rows",
+        "deduplication_and_transactions": "The unique invocation/event-kind constraint and SQLite conflict-no-op store at most one parallel record; invalid values and writer/retention failures return bounded count-only results without escaping",
+        "privacy": "Event and aggregate tables have exact allowlisted columns, no generic payload/metadata/args/result fields and no foreign keys to chats, sessions, tools, documents or private domains",
+        "retention": "90-day event and 400-day aggregate retention defaults are dry-run and count-only; only old events marked aggregated are eligible, while unaggregated and recent events remain intact",
+        "live_effects": "No production database migration was executed, no event capture/backfill or feature activation was enabled, and no tool execution, provider, network, deployment or live path was mutated"
+      }
+    },
+    {
+      "id": "TUA3-central-execution-boundary-instrumentation",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "open",
+      "depends_on": [
+        "TAX5-effect-permission-and-confirmation-matrix",
+        "TUA2-persistence-migration-retention"
+      ],
+      "source_roadmap": "docs/plans/privacy-safe-tool-analytics-roadmap.md",
+      "allowed_paths": [
+        "src/tool_execution.py",
+        "src/tool_usage_instrumentation.py",
+        "tests/test_tool_usage_instrumentation.py",
+        "tests/test_ai_lens_instrumentation.py"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_usage_instrumentation.py tests\\test_ai_lens_instrumentation.py tests\\test_tool_policy.py"
+      ],
+      "gate": "path_exact_tool_execution_hotfile_claim_required_capture_default_off",
+      "done_when": "One central wrapper emits at most one start and terminal event with monotonic duration and complete failure isolation while preserving every existing tool result and leaving persistence capture default-off."
     },
     {
       "id": "TAX3-close-six-registration-gaps",

@@ -20,6 +20,65 @@ from pathlib import Path
 import sqlite3
 
 
+def migrate_tool_usage_schema(engine):
+    """Create or verify the versioned TUA2 tables without touching domain data."""
+    from sqlalchemy import inspect, insert, select
+    from src.tool_usage_store import (
+        TOOL_USAGE_SCHEMA_COMPONENT,
+        TOOL_USAGE_SCHEMA_VERSION,
+        TOOL_USAGE_TABLES,
+        ToolUsageSchemaVersion,
+    )
+
+    before = set(inspect(engine).get_table_names())
+    ToolUsageSchemaVersion.metadata.create_all(bind=engine, tables=TOOL_USAGE_TABLES)
+    with engine.begin() as connection:
+        existing = connection.execute(
+            select(ToolUsageSchemaVersion.version).where(
+                ToolUsageSchemaVersion.component == TOOL_USAGE_SCHEMA_COMPONENT
+            )
+        ).scalar_one_or_none()
+        if existing is None:
+            from datetime import datetime, timezone
+
+            connection.execute(
+                insert(ToolUsageSchemaVersion).values(
+                    component=TOOL_USAGE_SCHEMA_COMPONENT,
+                    version=TOOL_USAGE_SCHEMA_VERSION,
+                    applied_at=datetime.now(timezone.utc).replace(tzinfo=None),
+                )
+            )
+        elif existing != TOOL_USAGE_SCHEMA_VERSION:
+            raise RuntimeError("unsupported tool usage schema version")
+    after = set(inspect(engine).get_table_names())
+    created = sorted(after - before)
+    return {
+        "schema_version": TOOL_USAGE_SCHEMA_VERSION,
+        "created_table_count": len(created),
+        "changed": bool(created),
+        "domain_tables_touched": False,
+        "raw_content_visible": False,
+    }
+
+
+def rollback_tool_usage_schema(engine):
+    """Drop only TUA2-owned tables; intended for explicit migration rollback."""
+    from sqlalchemy import inspect
+    from src.tool_usage_store import TOOL_USAGE_SCHEMA_VERSION, TOOL_USAGE_TABLES
+
+    before = set(inspect(engine).get_table_names())
+    for table in reversed(TOOL_USAGE_TABLES):
+        table.drop(bind=engine, checkfirst=True)
+    after = set(inspect(engine).get_table_names())
+    return {
+        "schema_version": TOOL_USAGE_SCHEMA_VERSION,
+        "dropped_table_count": len(before - after),
+        "rollback_applied": bool(before - after),
+        "domain_tables_touched": False,
+        "raw_content_visible": False,
+    }
+
+
 def _render_settings(settings):
     return json.dumps(settings, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
@@ -136,6 +195,12 @@ def update_database():
     )
     # Create engine from DATABASE_URL
     engine = create_engine(DATABASE_URL)
+    usage_schema_report = migrate_tool_usage_schema(engine)
+    print(
+        "Tool usage schema migration: "
+        f"version={usage_schema_report['schema_version']} "
+        f"created={usage_schema_report['created_table_count']}"
+    )
     
     # Extract database path from DATABASE_URL for SQLite
     db_path = None
