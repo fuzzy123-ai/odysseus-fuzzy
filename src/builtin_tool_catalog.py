@@ -8,6 +8,7 @@ from typing import Any, Iterable, Mapping
 
 from src.tool_catalog import (
     ToolAvailability,
+    ToolAnalyticsIdentityIndex,
     ToolCatalogError,
     ToolDescriptorV2,
     ToolDescriptorV2Index,
@@ -703,6 +704,20 @@ def build_builtin_descriptors(
         )
     return ToolDescriptorV2Index.build(
         spec.build_descriptor(descriptions[spec.tool_id]) for spec in BUILTIN_TOOL_SPECS
+    )
+
+
+def build_builtin_analytics_identity_contract(
+    descriptions: Mapping[str, str],
+    *,
+    historical_reservations: Mapping[str, str] | None = None,
+    historical_alias_targets: Mapping[str, str] | None = None,
+) -> ToolAnalyticsIdentityIndex:
+    """Project the canonical built-in catalog into the public TAX10 contract."""
+
+    return build_builtin_descriptors(descriptions).analytics_identity_contract(
+        historical_reservations=historical_reservations,
+        historical_alias_targets=historical_alias_targets,
     )
 
 

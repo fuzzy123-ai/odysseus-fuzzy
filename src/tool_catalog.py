@@ -600,6 +600,170 @@ class ToolDescriptorV2:
             "secret_values_visible": False,
         }
 
+    def analytics_identity(self) -> "ToolAnalyticsIdentity":
+        """Project this descriptor into the public TAX10 identity contract."""
+
+        return ToolAnalyticsIdentity.from_descriptor(self)
+
+
+@dataclass(frozen=True, slots=True)
+class ToolAnalyticsIdentity:
+    """Content-free public identity consumed by tool-usage analytics."""
+
+    schema_version: str
+    tool_id: str
+    analytics_id: str
+    family: ToolFamily
+    source: ToolSource
+    aliases: tuple[str, ...]
+    retired: bool
+
+    SCHEMA_VERSION = "odysseus.tool_analytics_identity.v1"
+
+    @classmethod
+    def from_descriptor(cls, descriptor: ToolDescriptorV2) -> "ToolAnalyticsIdentity":
+        if not isinstance(descriptor, ToolDescriptorV2):
+            raise ToolCatalogError("analytics identity requires a ToolDescriptorV2")
+        return cls(
+            schema_version=cls.SCHEMA_VERSION,
+            tool_id=descriptor.tool_id,
+            analytics_id=descriptor.analytics_id,
+            family=descriptor.family,
+            source=descriptor.source,
+            aliases=descriptor.aliases,
+            retired=descriptor.lifecycle == ToolLifecycle.DEPRECATED,
+        )
+
+    @property
+    def counting_key(self) -> str:
+        return self.analytics_id
+
+    def to_public_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "tool_id": self.tool_id,
+            "analytics_id": self.analytics_id,
+            "family": self.family.value,
+            "source": self.source.value,
+            "aliases": self.aliases,
+            "retired": self.retired,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ToolAnalyticsIdentityIndex:
+    """Versioned identity projection with alias and anti-recycling ledgers."""
+
+    schema_version: str
+    identities: tuple[ToolAnalyticsIdentity, ...]
+    alias_targets: tuple[tuple[str, str], ...]
+    analytics_id_reservations: tuple[tuple[str, str], ...]
+
+    SCHEMA_VERSION = ToolAnalyticsIdentity.SCHEMA_VERSION
+
+    @classmethod
+    def from_descriptor_index(
+        cls,
+        descriptor_index: "ToolDescriptorV2Index",
+        *,
+        historical_reservations: Mapping[Any, Any] | None = None,
+        historical_alias_targets: Mapping[Any, Any] | None = None,
+    ) -> "ToolAnalyticsIdentityIndex":
+        if not isinstance(descriptor_index, ToolDescriptorV2Index):
+            raise ToolCatalogError(
+                "analytics identity index requires a ToolDescriptorV2Index"
+            )
+
+        identities = tuple(
+            descriptor.analytics_identity()
+            for descriptor in descriptor_index.descriptors
+        )
+        by_tool_id = {identity.tool_id: identity for identity in identities}
+        alias_targets: dict[str, str] = {}
+        for alias, tool_id in (historical_alias_targets or {}).items():
+            normalized_alias = _normalize_tool_id(alias, field_name="historical_alias")
+            normalized_tool_id = _normalize_tool_id(
+                tool_id,
+                field_name="historical_alias_target",
+            )
+            if normalized_alias in by_tool_id:
+                raise ToolCatalogError(
+                    "historical alias collides with a canonical tool ID"
+                )
+            if normalized_tool_id not in by_tool_id:
+                raise ToolCatalogError(
+                    "historical alias target must remain a canonical identity"
+                )
+            alias_targets[normalized_alias] = normalized_tool_id
+
+        for alias, tool_id in descriptor_index.alias_targets:
+            historical_target = alias_targets.get(alias)
+            if historical_target is not None and historical_target != tool_id:
+                raise ToolCatalogError(
+                    f"historical alias {alias} is permanently assigned to "
+                    f"{historical_target}"
+                )
+            alias_targets[alias] = tool_id
+
+        reservations: dict[str, str] = {}
+        for analytics_id, tool_id in (historical_reservations or {}).items():
+            normalized_analytics_id = _strict_analytics_id(analytics_id)
+            normalized_tool_id = _normalize_tool_id(
+                tool_id,
+                field_name="reserved_tool_id",
+            )
+            reservations[normalized_analytics_id] = normalized_tool_id
+
+        for identity in identities:
+            reserved_owner = reservations.get(identity.analytics_id)
+            if reserved_owner is not None and reserved_owner != identity.tool_id:
+                raise ToolCatalogError(
+                    f"analytics_id {identity.analytics_id} is permanently reserved "
+                    f"for {reserved_owner}"
+                )
+            # Every published identity is reserved from introduction onward.
+            # Carrying this snapshot forward prevents reuse after deprecation.
+            reservations[identity.analytics_id] = identity.tool_id
+
+        return cls(
+            schema_version=cls.SCHEMA_VERSION,
+            identities=identities,
+            alias_targets=tuple(sorted(alias_targets.items())),
+            analytics_id_reservations=tuple(sorted(reservations.items())),
+        )
+
+    def resolve(self, tool_id_or_alias: Any) -> ToolAnalyticsIdentity | None:
+        value = _normalize_tool_id(
+            tool_id_or_alias,
+            field_name="tool_id_or_alias",
+        )
+        by_tool_id = {identity.tool_id: identity for identity in self.identities}
+        canonical_tool_id = value if value in by_tool_id else dict(
+            self.alias_targets
+        ).get(value)
+        return by_tool_id.get(canonical_tool_id) if canonical_tool_id else None
+
+    def counting_key_for(self, tool_id_or_alias: Any) -> str | None:
+        identity = self.resolve(tool_id_or_alias)
+        return identity.counting_key if identity else None
+
+    def to_public_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "identity_count": len(self.identities),
+            "alias_count": len(self.alias_targets),
+            "identities": tuple(
+                identity.to_public_dict() for identity in self.identities
+            ),
+            "alias_targets": self.alias_targets,
+            "analytics_id_reservations": self.analytics_id_reservations,
+            "raw_content_visible": False,
+            "owner_data_visible": False,
+            "session_data_visible": False,
+            "provider_payload_visible": False,
+            "secret_values_visible": False,
+        }
+
 
 @dataclass(frozen=True, slots=True)
 class ToolDescriptorV2Index:
@@ -648,6 +812,18 @@ class ToolDescriptorV2Index:
         alias_targets = dict(self.alias_targets)
         target = alias_targets.get(value)
         return by_tool_id.get(target) if target else None
+
+    def analytics_identity_contract(
+        self,
+        *,
+        historical_reservations: Mapping[Any, Any] | None = None,
+        historical_alias_targets: Mapping[Any, Any] | None = None,
+    ) -> ToolAnalyticsIdentityIndex:
+        return ToolAnalyticsIdentityIndex.from_descriptor_index(
+            self,
+            historical_reservations=historical_reservations,
+            historical_alias_targets=historical_alias_targets,
+        )
 
     def audit_summary(self) -> dict[str, Any]:
         return {
