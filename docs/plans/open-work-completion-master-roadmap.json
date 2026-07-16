@@ -13,7 +13,7 @@
     "unique_live_gates": 39,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "uix13_semantics_gated_tax12_repo_complete_live_activation_dormant_tua3_completed_tua4_next",
+    "queue_status": "uix13_semantics_gated_tax12_repo_complete_live_activation_dormant_tua4_completed_tua5_next",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,7 +21,7 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
-      "tool_usage_analytics": "tua0_through_tua3_completed_tua4_trusted_context_next_capture_and_backfill_default_off"
+      "tool_usage_analytics": "tua0_through_tua4_completed_tua5_source_adapters_next_capture_and_backfill_default_off"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
@@ -61,14 +61,14 @@
         "reason": "UIX-ABC13 requires explicit product-semantics confirmation before claim",
         "slice": "UIX-ABC13",
         "user_decision_required": true,
-        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TUA2"
+        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TUA5"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-16"
     },
     "dependency_ready_repo_only_slices": [
-      "TUA4-trusted-context-and-incognito-propagation"
+      "TUA5-source-adapters-and-double-count-prevention"
     ],
     "product_semantics_gated_open_slices": [
       "UIX-ABC13"
@@ -965,7 +965,7 @@
       "id": "TUA4-trusted-context-and-incognito-propagation",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
+      "status": "completed",
       "depends_on": [
         "TUA3-central-execution-boundary-instrumentation"
       ],
@@ -982,7 +982,43 @@
         "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_usage_context.py tests\\test_tool_usage_incognito.py tests\\test_chat_helpers.py"
       ],
       "gate": "path_exact_agent_loop_and_chat_hotfile_claim_required_capture_default_off",
-      "done_when": "Trusted runtime context supplies surface, mode, scope and HMAC references; tool arguments cannot forge identity, missing keys never fall back to raw values, and Incognito short-circuits every persistent consumer."
+      "done_when": "Trusted runtime context supplies surface, mode, scope and HMAC references; tool arguments cannot forge identity, missing keys never fall back to raw values, and Incognito short-circuits every persistent consumer.",
+      "completed_at": "2026-07-16T08:58:00.0599751+02:00",
+      "completion_evidence": {
+        "focused_tests": "44 passed with 1 pre-existing SQLAlchemy deprecation warning",
+        "direct_contract_regression": "98 passed with 1 pre-existing SQLAlchemy deprecation warning across instrumentation, AI Lens, event and privacy contracts",
+        "chat_and_agent_regression": "76 passed with 1 pre-existing SQLAlchemy deprecation warning across chat-route model hints, agent loop, round exhaustion and tool policy",
+        "trusted_context": "The server builds one immutable context for surface, agent mode, model scope, owner, session, run and Incognito; wrapper owner/session parameters and tool payload fields cannot override it",
+        "privacy_boundary": "Owner, session and run are HMAC-pseudonymized immediately before each event emission; a missing key yields null references and never raw fallback",
+        "incognito": "Success, failure, blockade, exception and cancellation short-circuit before HMAC work and before every callable or batch writer, producing zero persistent records",
+        "activation": "Capture remains default-off behind a server-owned application-state gate plus a matching trusted-context factory; no form field or tool argument can enable it",
+        "live_effects": "No event store, analytics capture, aggregation, backfill, database, provider, network, deployment or live action was enabled or mutated"
+      }
+    },
+    {
+      "id": "TUA5-source-adapters-and-double-count-prevention",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "open",
+      "depends_on": [
+        "TAX8-dynamic-plugin-and-mcp-normalization",
+        "TUA4-trusted-context-and-incognito-propagation"
+      ],
+      "source_roadmap": "docs/plans/privacy-safe-tool-analytics-roadmap.md",
+      "allowed_paths": [
+        "src/tool_usage_instrumentation.py",
+        "src/tool_registry.py",
+        "src/mcp_manager.py",
+        "src/task_scheduler.py",
+        "tests/test_tool_usage_sources.py",
+        "tests/test_tool_registry.py",
+        "tests/test_mcp_server_tool_policy.py"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_usage_sources.py tests\\test_tool_registry.py tests\\test_mcp_server_tool_policy.py"
+      ],
+      "gate": "path_exact_registry_mcp_scheduler_hotfile_claim_required_capture_default_off",
+      "done_when": "Built-in, plugin, MCP and proven Scheduler/System bypasses have explicit single-count source adapters; malformed identities are canonical rejected unknowns, previews never count as execution, and retry/correlation semantics are tested."
     },
     {
       "id": "TAX3-close-six-registration-gaps",

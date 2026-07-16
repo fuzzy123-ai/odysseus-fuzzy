@@ -14,9 +14,18 @@ from core.database import Session as DBSession, ModelEndpoint
 from src.llm_core import normalize_model_id
 from src.endpoint_resolver import normalize_base
 from src.context_compactor import maybe_compact, trim_for_context
-from src.model_context import get_context_length
+from src.model_context import get_context_length, is_local_endpoint
 from src.auth_helpers import effective_user
 from src.prompt_security import untrusted_context_message
+from src.tool_usage_events import (
+    ToolUsageAgentMode,
+    ToolUsageModelScope,
+    ToolUsageSurface,
+)
+from src.tool_usage_instrumentation import (
+    ToolUsageTrustedContext,
+    new_tool_usage_run_id,
+)
 from routes.prefs_routes import _load_for_user as load_prefs_for_user
 
 from fastapi import HTTPException
@@ -103,11 +112,44 @@ class ChatContext:
     uprefs: dict
     preset: PresetInfo
     preprocessed: PreprocessedMessage
+    tool_usage_context: ToolUsageTrustedContext
     # Documents auto-created server-side during preprocess (e.g. when an
     # attached fillable PDF gets rendered into a markdown editor doc).
     # The chat route emits a doc_update SSE event for each before streaming
     # begins, so the editor pane switches to the new doc immediately.
     auto_opened_docs: list = field(default_factory=list)
+
+
+def build_trusted_tool_usage_context(
+    sess,
+    *,
+    owner: str | None,
+    session_id: str | None,
+    agent_mode: bool,
+    incognito: bool,
+    run_id: str | None = None,
+) -> ToolUsageTrustedContext:
+    """Build telemetry policy only from server-resolved chat runtime state."""
+
+    endpoint_url = str(getattr(sess, "endpoint_url", "") or "").strip()
+    model_scope = ToolUsageModelScope.UNKNOWN
+    if endpoint_url:
+        model_scope = (
+            ToolUsageModelScope.LOCAL
+            if is_local_endpoint(endpoint_url)
+            else ToolUsageModelScope.REMOTE
+        )
+    return ToolUsageTrustedContext(
+        surface=ToolUsageSurface.AGENT if agent_mode else ToolUsageSurface.CHAT,
+        model_scope=model_scope,
+        agent_mode=(
+            ToolUsageAgentMode.AGENT if agent_mode else ToolUsageAgentMode.CHAT
+        ),
+        owner=owner,
+        session_id=session_id,
+        run_id=run_id or new_tool_usage_run_id(),
+        incognito=incognito,
+    )
 
 
 # ── Helpers ────────────────────────────────────────────────────────────── #
@@ -670,6 +712,13 @@ async def build_chat_context(
     # Resolve owner-scoped prefs/context. Browser requests keep the cookie user;
     # bearer-token chat requests use the token owner instead of the "api" sentinel.
     user = effective_user(request)
+    tool_usage_context = build_trusted_tool_usage_context(
+        sess,
+        owner=user,
+        session_id=session_id,
+        agent_mode=agent_mode,
+        incognito=incognito,
+    )
     uprefs = load_prefs_for_user(user)
 
     # Memory enabled?
@@ -828,6 +877,7 @@ async def build_chat_context(
         uprefs=uprefs,
         preset=preset,
         preprocessed=preprocessed,
+        tool_usage_context=tool_usage_context,
         auto_opened_docs=auto_opened_docs,
     )
 

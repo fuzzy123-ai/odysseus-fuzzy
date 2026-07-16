@@ -7,6 +7,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import re
+import secrets
 from threading import Lock
 import time
 from typing import Any, Callable
@@ -64,6 +65,52 @@ class ToolUsageTerminalOutcome:
     status: ToolUsageStatus
     error_class: ToolUsageErrorClass | None = None
     blocked_reason_code: ToolUsageBlockedReason | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ToolUsageTrustedContext:
+    """Server-owned invocation identity and privacy policy.
+
+    Tool payloads never participate in this object. Raw references remain
+    process-local and are converted to HMAC references only at the persistence
+    boundary.
+    """
+
+    surface: ToolUsageSurface
+    model_scope: ToolUsageModelScope
+    agent_mode: ToolUsageAgentMode
+    owner: str | None
+    session_id: str | None
+    run_id: str | None
+    incognito: bool
+    owner_is_nobody: bool = False
+
+    def __post_init__(self) -> None:
+        for field_name, value, enum_type in (
+            ("surface", self.surface, ToolUsageSurface),
+            ("model_scope", self.model_scope, ToolUsageModelScope),
+            ("agent_mode", self.agent_mode, ToolUsageAgentMode),
+        ):
+            if not isinstance(value, enum_type):
+                raise ValueError(f"{field_name} must be normalized")
+        for field_name, value in (
+            ("owner", self.owner),
+            ("session_id", self.session_id),
+            ("run_id", self.run_id),
+        ):
+            if value is not None and (not isinstance(value, str) or not value):
+                raise ValueError(f"{field_name} must be a non-empty string or null")
+        if not isinstance(self.incognito, bool) or not isinstance(
+            self.owner_is_nobody,
+            bool,
+        ):
+            raise ValueError("privacy flags must be booleans")
+
+
+def new_tool_usage_run_id() -> str:
+    """Create a process-local run identifier for later HMAC conversion."""
+
+    return f"run_{secrets.token_urlsafe(18)}"
 
 
 def build_tool_usage_call_metadata(block: Any) -> ToolUsageCallMetadata:
@@ -167,16 +214,18 @@ class ToolUsageInvocationSpan:
         metadata: ToolUsageCallMetadata,
         invocation_id: str,
         started_monotonic: float,
-        owner_ref: str | None,
-        session_ref: str | None,
+        owner: str | None,
+        session_id: str | None,
+        run_id: str | None,
         active: bool,
     ) -> None:
         self._instrumentation = instrumentation
         self._metadata = metadata
         self._invocation_id = invocation_id
         self._started_monotonic = started_monotonic
-        self._owner_ref = owner_ref
-        self._session_ref = session_ref
+        self._owner = owner
+        self._session_id = session_id
+        self._run_id = run_id
         self._active = active
         self._closed = False
         self._lock = Lock()
@@ -206,6 +255,13 @@ class ToolUsageInvocationSpan:
                     * 1_000
                 ),
             )
+            owner_ref, session_ref, run_ref = (
+                self._instrumentation._pseudonymize_before_store(
+                    owner=self._owner,
+                    session_id=self._session_id,
+                    run_id=self._run_id,
+                )
+            )
             built = ToolUsageEventBuilder.build(
                 event_kind=ToolUsageEventKind.TERMINAL,
                 invocation_id=self._invocation_id,
@@ -224,8 +280,9 @@ class ToolUsageInvocationSpan:
                 status=outcome.status,
                 error_class=outcome.error_class,
                 blocked_reason_code=outcome.blocked_reason_code,
-                owner_ref=self._owner_ref,
-                session_ref=self._session_ref,
+                owner_ref=owner_ref,
+                session_ref=session_ref,
+                run_ref=run_ref,
             )
             if built.persistence_allowed and built.event is not None:
                 self._instrumentation._emit(built.event, "terminal_events")
@@ -247,9 +304,21 @@ class ToolUsageInstrumentation:
         app_version: str = "unknown",
         incognito: bool = False,
         owner_is_nobody: bool = False,
+        trusted_context: ToolUsageTrustedContext | None = None,
         monotonic: Callable[[], float] = time.perf_counter,
         wall_clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
     ) -> None:
+        if trusted_context is not None and not isinstance(
+            trusted_context,
+            ToolUsageTrustedContext,
+        ):
+            raise ValueError("trusted_context must be a ToolUsageTrustedContext")
+        if trusted_context is not None:
+            surface = trusted_context.surface
+            model_scope = trusted_context.model_scope
+            agent_mode = trusted_context.agent_mode
+            incognito = trusted_context.incognito
+            owner_is_nobody = trusted_context.owner_is_nobody
         if not isinstance(surface, ToolUsageSurface):
             raise ValueError("surface must be normalized")
         if not isinstance(model_scope, ToolUsageModelScope):
@@ -268,6 +337,7 @@ class ToolUsageInstrumentation:
         self.app_version = app_version
         self.incognito = incognito
         self.owner_is_nobody = owner_is_nobody
+        self.trusted_context = trusted_context
         self._monotonic = monotonic
         self._wall_clock = wall_clock
         self._counts: Counter[str] = Counter()
@@ -289,6 +359,9 @@ class ToolUsageInstrumentation:
         }
 
     def _emit(self, event: ToolUsageEvent, counter: str) -> None:
+        if self.incognito or self.owner_is_nobody:
+            self._increment("suppressed_events")
+            return
         if self.sink is None:
             self._increment("discarded_events")
             return
@@ -305,6 +378,25 @@ class ToolUsageInstrumentation:
         except Exception:
             self._increment("sink_failures")
 
+    def _pseudonymize_before_store(
+        self,
+        *,
+        owner: str | None,
+        session_id: str | None,
+        run_id: str | None,
+    ) -> tuple[str | None, str | None, str | None]:
+        """Convert trusted raw references immediately before event emission."""
+
+        return (
+            pseudonymize_reference(owner, hmac_key=self.hmac_key, kind="owner"),
+            pseudonymize_reference(
+                session_id,
+                hmac_key=self.hmac_key,
+                kind="session",
+            ),
+            pseudonymize_reference(run_id, hmac_key=self.hmac_key, kind="run"),
+        )
+
     def begin(
         self,
         metadata: ToolUsageCallMetadata,
@@ -314,18 +406,28 @@ class ToolUsageInstrumentation:
     ) -> ToolUsageInvocationSpan:
         invocation_id = new_invocation_id()
         started_monotonic = self._monotonic()
-        owner_ref = None
-        session_ref = None
-        try:
-            owner_ref = pseudonymize_reference(
-                owner,
-                hmac_key=self.hmac_key,
-                kind="owner",
+        run_id = None
+        if self.trusted_context is not None:
+            owner = self.trusted_context.owner
+            session_id = self.trusted_context.session_id
+            run_id = self.trusted_context.run_id
+        if self.incognito or self.owner_is_nobody:
+            self._increment("suppressed_invocations")
+            return ToolUsageInvocationSpan(
+                self,
+                metadata=metadata,
+                invocation_id=invocation_id,
+                started_monotonic=started_monotonic,
+                owner=owner,
+                session_id=session_id,
+                run_id=run_id,
+                active=False,
             )
-            session_ref = pseudonymize_reference(
-                session_id,
-                hmac_key=self.hmac_key,
-                kind="session",
+        try:
+            owner_ref, session_ref, run_ref = self._pseudonymize_before_store(
+                owner=owner,
+                session_id=session_id,
+                run_id=run_id,
             )
             built = ToolUsageEventBuilder.build(
                 event_kind=ToolUsageEventKind.STARTED,
@@ -343,6 +445,7 @@ class ToolUsageInstrumentation:
                 occurred_at=self._wall_clock(),
                 owner_ref=owner_ref,
                 session_ref=session_ref,
+                run_ref=run_ref,
                 incognito=self.incognito,
                 owner_is_nobody=self.owner_is_nobody,
             )
@@ -356,8 +459,9 @@ class ToolUsageInstrumentation:
                 metadata=metadata,
                 invocation_id=invocation_id,
                 started_monotonic=started_monotonic,
-                owner_ref=owner_ref,
-                session_ref=session_ref,
+                owner=owner,
+                session_id=session_id,
+                run_id=run_id,
                 active=active,
             )
         except Exception:
@@ -367,8 +471,9 @@ class ToolUsageInstrumentation:
                 metadata=metadata,
                 invocation_id=invocation_id,
                 started_monotonic=started_monotonic,
-                owner_ref=None,
-                session_ref=None,
+                owner=owner,
+                session_id=session_id,
+                run_id=run_id,
                 active=False,
             )
 

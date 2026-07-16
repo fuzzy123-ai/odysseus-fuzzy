@@ -48,6 +48,7 @@ from routes.chat_helpers import (
 )
 from src.action_intents import classify_tool_intent as _classify_tool_intent
 from src.tool_policy import build_effective_tool_policy
+from src.tool_usage_instrumentation import ToolUsageInstrumentation
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,36 @@ _active_streams: Dict[str, dict] = {}
 
 def _chat_effective_user(request: Request) -> str | None:
     return scoped_effective_user(request, "chat")
+
+
+def _tool_usage_instrumentation_from_runtime(
+    request: Request,
+    trusted_context,
+) -> ToolUsageInstrumentation | None:
+    """Resolve the optional server-owned capture consumer.
+
+    Capture stays off unless application bootstrap supplies both the explicit
+    runtime gate and a factory. Request/form/tool values cannot enable it.
+    """
+
+    state = getattr(getattr(request, "app", None), "state", None)
+    if state is None or getattr(state, "tool_usage_capture_enabled", False) is not True:
+        return None
+    factory = getattr(state, "tool_usage_instrumentation_factory", None)
+    if not callable(factory):
+        return None
+    try:
+        instrumentation = factory(trusted_context)
+    except Exception:
+        logger.warning("Tool usage instrumentation factory failed", exc_info=True)
+        return None
+    if not isinstance(instrumentation, ToolUsageInstrumentation):
+        logger.warning("Tool usage instrumentation factory returned an invalid consumer")
+        return None
+    if instrumentation.trusted_context != trusted_context:
+        logger.warning("Tool usage instrumentation context mismatch")
+        return None
+    return instrumentation
 
 
 def _stream_set(session_id: str, **fields) -> None:
@@ -379,6 +410,10 @@ def setup_chat_routes(
             time_filter=time_filter,
             webhook_manager=webhook_manager,
             allow_tool_preprocessing=allow_tool_preprocessing,
+        )
+        tool_usage_instrumentation = _tool_usage_instrumentation_from_runtime(
+            request,
+            ctx.tool_usage_context,
         )
 
         deterministic_reply = build_deterministic_capability_self_report(message)
@@ -1311,6 +1346,7 @@ def setup_chat_routes(
                         workspace=workspace or None,
                         audit_surface=_agent_audit_surface,
                         audit_correlation_id=session,
+                        tool_usage_instrumentation=tool_usage_instrumentation,
                     ):
                         if chunk.startswith("data: ") and not chunk.startswith("data: [DONE]"):
                             try:

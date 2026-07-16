@@ -232,6 +232,7 @@ async def stream_agent_loop(
     audit_correlation_id: Optional[str] = None,
     audit_task_id: Optional[str] = None,
     audit_doc_id: Optional[str] = None,
+    tool_usage_instrumentation: Optional[object] = None,
 ) -> AsyncGenerator[str, None]:
     """Streaming agent loop generator.
 
@@ -1384,6 +1385,7 @@ async def stream_agent_loop(
                             model=model,
                             headers=headers or {},
                             context_length=context_length,
+                            tool_usage_instrumentation=tool_usage_instrumentation,
                         )
                     finally:
                         # Sentinel so the drainer knows to stop.
