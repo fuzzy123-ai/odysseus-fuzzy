@@ -22,6 +22,28 @@ If investigating production behavior, inspect this server first. Do not infer
 live Telegram behavior from `C:\Users\nkatz\odysseus`, local `.env`, or local
 Windows process state.
 
+## Agent-safe Runtime Diagnostics
+
+Agents must use the fixed redacted runtime probe instead of serializing a
+container or service environment:
+
+```bash
+cd /opt/odysseus
+python3 ops/homeserver/redacted_runtime_probe.py
+```
+
+The probe reports only fixed-key boolean credential presence, bounded counts,
+and explicit `secret_values_visible=false` / `raw_environment_visible=false`
+invariants. The host wrapper validates and reserializes the in-container result;
+it never forwards raw subprocess output or exception text.
+
+Do not use `env`, `printenv`, `.env` output, `podman inspect … .Config.Env`,
+`docker inspect … .Config.Env`, `systemctl show Environment`, or unredacted
+`compose config` in an agent-visible command. No credential value, prefix,
+suffix, length, or hash may be included in tool output, evidence, logs, tests,
+or handoffs. If the fixed projection is insufficient, stop and define a narrower
+redacted schema rather than falling back to raw output.
+
 ## Telegram Agent Chat
 
 The Telegram integration that has worked before is server-side on the Debian
@@ -44,16 +66,20 @@ Polling is driven by the user systemd timer created by
 
 ## First Commands For Incidents
 
-Run these on the Debian server:
+For agent-operated incidents, start with the redacted probe and metadata-only
+service state:
 
 ```bash
+python3 ops/homeserver/redacted_runtime_probe.py
 systemctl --user --no-pager status odysseus-podman.service
 systemctl --user --no-pager status odysseus-auto-update.timer odysseus-auto-update.service
 systemctl --user --no-pager status odysseus-telegram-poll.timer odysseus-telegram-poll.service
-journalctl --user -u odysseus-auto-update.service --no-pager -n 100
-journalctl --user -u odysseus-telegram-poll.service --no-pager -n 100
 podman ps --format '{{.Names}} {{.Status}} {{.Ports}}'
 ```
+
+Raw journals are for a trusted local human console only. Before any journal
+content enters an agent or tool transcript, add a repository-owned fixed-schema
+projection for the exact diagnostic question.
 
 ## Scheduled Updates
 
