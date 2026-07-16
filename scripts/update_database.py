@@ -14,14 +14,64 @@ Usage:
     python update_database.py
 """
 
-import sqlite3
+import json
 import os
-from datetime import datetime
-from sqlalchemy import create_engine, inspect, text
-from database import DATABASE_URL, SessionLocal, Base
+from pathlib import Path
+import sqlite3
+
+
+def _render_settings(settings):
+    return json.dumps(settings, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
+def _rendered_file_bytes(text):
+    """Match text-mode newline translation used by atomic_write_text."""
+    return text.replace("\n", os.linesep).encode("utf-8")
+
+
+def migrate_tool_settings_file(path):
+    """Apply TAX9 to one local JSON file and return redacted diagnostics."""
+    from core.atomic_io import atomic_write_text
+    from src.settings import migrate_tool_settings
+
+    target = Path(path)
+    if target.exists():
+        original_bytes = target.read_bytes()
+        settings = json.loads(original_bytes.decode("utf-8"))
+    else:
+        original_bytes = None
+        settings = {}
+    if not isinstance(settings, dict):
+        raise ValueError("settings file must contain a JSON object")
+
+    migrated, report = migrate_tool_settings(settings)
+    rendered = _render_settings(migrated)
+    file_changed = _rendered_file_bytes(rendered) != original_bytes
+    if file_changed:
+        atomic_write_text(str(target), rendered)
+    return {**report, "file_changed": file_changed}
+
+
+def rollback_tool_settings_file(path):
+    """Restore the pre-TAX9 settings shape in one local JSON file."""
+    from core.atomic_io import atomic_write_text
+    from src.settings import rollback_tool_settings
+
+    target = Path(path)
+    settings = json.loads(target.read_text(encoding="utf-8"))
+    if not isinstance(settings, dict):
+        raise ValueError("settings file must contain a JSON object")
+    restored = rollback_tool_settings(settings)
+    rendered = _render_settings(restored)
+    changed = target.read_bytes() != _rendered_file_bytes(rendered)
+    if changed:
+        atomic_write_text(str(target), rendered)
+    return {"schema_version": 1, "file_changed": changed, "rollback_applied": True}
 
 def check_column_exists(engine, table_name, column_name):
     """Check if a column exists in a table."""
+    from sqlalchemy import inspect
+
     inspector = inspect(engine)
     columns = inspector.get_columns(table_name)
     return any(col['name'] == column_name for col in columns)
@@ -72,6 +122,18 @@ def add_column_sqlite(db_path, table_name, column_name, column_type, default_val
 
 def update_database():
     """Update the database schema and populate new columns."""
+    from database import DATABASE_URL, SessionLocal
+    from sqlalchemy import create_engine, text
+    from src.constants import SETTINGS_FILE
+
+    settings_report = migrate_tool_settings_file(SETTINGS_FILE)
+    print(
+        "Tool settings migration: "
+        f"version={settings_report['schema_version']} "
+        f"changed={settings_report['file_changed']} "
+        f"aliases={settings_report['alias_migration_count']} "
+        f"quarantined={settings_report['quarantine_count']}"
+    )
     # Create engine from DATABASE_URL
     engine = create_engine(DATABASE_URL)
     
@@ -83,7 +145,7 @@ def update_database():
         if not os.path.isabs(db_path):
             db_path = os.path.join(os.path.dirname(__file__), db_path)
     
-    print(f"Updating database at: {DATABASE_URL}")
+    print("Updating database schema...")
     
     # Start a transaction
     db = SessionLocal()
@@ -158,7 +220,7 @@ def update_database():
         print("Database update completed successfully!")
         
     except Exception as e:
-        print(f"Error updating database: {e}")
+        print(f"Database update failed ({type(e).__name__}); details were redacted.")
         db.rollback()
         raise
     finally:

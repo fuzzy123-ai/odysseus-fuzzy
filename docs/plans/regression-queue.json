@@ -3,7 +3,7 @@
   "kind": "odysseus.independent_regression_queue",
   "queue_id": "independent-regressions",
   "created_at": "2026-07-14T20:29:56.6847136+02:00",
-  "updated_at": "2026-07-15T15:33:22.9458928+02:00",
+  "updated_at": "2026-07-16T07:25:16.6068750+02:00",
   "status": "open",
   "purpose": "Hold failures discovered outside the active roadmap slice so they remain visible without silently expanding that slice, changing its dependency graph or starting an unbounded probe-and-fix loop.",
   "ownership_boundary": {
@@ -362,6 +362,36 @@
         "No diagnosis, focused rerun or source mutation was performed under the integration-only claim."
       ],
       "next_action": "Select REG-20260715-013 through a dedicated serialized claim before reproducing or diagnosing this node.",
+      "claim": null,
+      "disposition": null
+    },
+    {
+      "id": "REG-20260716-014",
+      "state": "queued",
+      "priority": "untriaged",
+      "source_run_id": "abc-open-roadmaps-20260715t200224",
+      "source_probe_id": "TAX9-DIRECT-CATALOG-REGRESSION",
+      "observed_at": "2026-07-16T07:20:00+02:00",
+      "test_node": "tests/test_builtin_tool_catalog.py::static_admin_metadata_inventory",
+      "observed_nodes": [
+        "tests/test_builtin_tool_catalog.py::test_catalog_is_the_complete_unique_union_of_current_builtin_projections",
+        "tests/test_builtin_tool_catalog.py::test_all_consumer_projections_strictly_validate_against_the_catalog",
+        "tests/test_builtin_tool_catalog.py::test_removing_any_required_consumer_projection_fails_closed[runtime_tags-read_file]",
+        "tests/test_builtin_tool_catalog.py::test_removing_any_required_consumer_projection_fails_closed[function_schemas-read_file]",
+        "tests/test_builtin_tool_catalog.py::test_removing_any_required_consumer_projection_fails_closed[tool_index_entries-read_file]",
+        "tests/test_builtin_tool_catalog.py::test_removing_any_required_consumer_projection_fails_closed[prompt_sections-read_file]",
+        "tests/test_builtin_tool_catalog.py::test_runtime_tool_without_handler_or_dispatcher_fails_closed"
+      ],
+      "failure_signature": "InventoryError: static/js/admin.js has no static TOOL_META object",
+      "relationship_to_active_roadmap": "pre_existing_at_TAX9_HEAD_and_independent_of_all_TAX9_claimed_product_and_test_paths",
+      "evidence": [
+        "The bounded catalog/settings/policy regression attempt produced 99 passed and these 7 failures; all seven stop in scripts/audit_tool_registry_drift.py::_admin_metadata_keys before their catalog assertion.",
+        "Read-only HEAD inspection confirms static/js/admin.js already has no static TOOL_META object while scripts/audit_tool_registry_drift.py still raises when that object is absent.",
+        "TAX9 changed neither static/js/admin.js, scripts/audit_tool_registry_drift.py nor tests/test_builtin_tool_catalog.py.",
+        "The TAX9 focused suite passed 8 tests and the directly related catalog/settings/policy suite excluding this independent inventory contract passed 94 tests.",
+        "No source or test mutation, diagnosis expansion, full-suite rerun, live action or external action was performed for this regression."
+      ],
+      "next_action": "At the TAX integration barrier, select this item through a dedicated serialized claim, reconcile the legacy static TOOL_META audit with the canonical backend-driven Admin projection, and add focused acceptance evidence; it does not preempt TAX10.",
       "claim": null,
       "disposition": null
     }

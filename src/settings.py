@@ -5,10 +5,12 @@ Single source of truth for reading/writing data/settings.json and data/features.
 All modules should import from here instead of accessing files directly.
 """
 
+from collections import Counter
+from copy import deepcopy
 import json
 import time
 import logging
-from typing import Any
+from typing import Any, Mapping
 
 from src.constants import SETTINGS_FILE, FEATURES_FILE
 
@@ -235,6 +237,216 @@ DEFAULT_FEATURES = {
     "context_provider_preload": True,
     "consolidation_jobs": True,
 }
+
+
+TOOL_SETTINGS_MIGRATION_KEY = "_tool_settings_migration"
+TOOL_SETTINGS_MIGRATION_VERSION = 1
+
+
+class ToolSettingsMigrationError(ValueError):
+    """Raised when persisted tool settings cannot be migrated safely."""
+
+
+def _tool_settings_known_ids() -> frozenset[str]:
+    from src.builtin_tool_catalog import CATALOG_TOOL_IDS
+    from src.tool_policy import DEFAULT_DEFERRED_RUNTIME_TOOLS
+
+    return frozenset(CATALOG_TOOL_IDS) | DEFAULT_DEFERRED_RUNTIME_TOOLS
+
+
+def _tool_settings_report(
+    settings: Mapping[str, Any],
+    *,
+    changed: bool,
+) -> dict[str, Any]:
+    metadata = settings.get(TOOL_SETTINGS_MIGRATION_KEY)
+    if not isinstance(metadata, Mapping):
+        raise ToolSettingsMigrationError("tool settings migration metadata is missing")
+    quarantine = metadata.get("quarantine", ())
+    aliases = metadata.get("aliases", ())
+    if not isinstance(quarantine, (list, tuple)) or not isinstance(
+        aliases, (list, tuple)
+    ):
+        raise ToolSettingsMigrationError("tool settings migration metadata is malformed")
+    reason_counts = Counter(
+        str(item.get("reason", "invalid_quarantine_record"))
+        for item in quarantine
+        if isinstance(item, Mapping)
+    )
+    disabled_tools = settings.get("disabled_tools", ())
+    return {
+        "schema_version": TOOL_SETTINGS_MIGRATION_VERSION,
+        "changed": changed,
+        "rollback_available": isinstance(metadata.get("rollback"), Mapping),
+        "disabled_tool_count": (
+            len(disabled_tools)
+            if isinstance(disabled_tools, (list, tuple, set, frozenset))
+            else 0
+        ),
+        "alias_migration_count": len(aliases),
+        "quarantine_count": len(quarantine),
+        "quarantine_reason_counts": dict(sorted(reason_counts.items())),
+        "raw_values_visible": False,
+        "user_data_visible": False,
+        "provider_data_visible": False,
+    }
+
+
+def migrate_tool_settings(
+    settings: Mapping[str, Any],
+    *,
+    known_tool_ids: set[str] | frozenset[str] | None = None,
+    alias_targets: Mapping[str, str] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return the versioned, reversible TAX9 settings migration.
+
+    Unknown syntactically safe identifiers remain in ``disabled_tools`` so a
+    dynamic tool cannot become active by accident. They are also retained in
+    the private rollback/quarantine metadata. The returned report contains
+    counts and reason codes only; raw persisted values are never logged.
+    """
+
+    if not isinstance(settings, Mapping):
+        raise ToolSettingsMigrationError("settings must be an object")
+    migrated = deepcopy(dict(settings))
+    existing = migrated.get(TOOL_SETTINGS_MIGRATION_KEY)
+    if existing is not None:
+        if (
+            not isinstance(existing, Mapping)
+            or existing.get("schema_version") != TOOL_SETTINGS_MIGRATION_VERSION
+        ):
+            raise ToolSettingsMigrationError("unsupported tool settings migration version")
+        return migrated, _tool_settings_report(migrated, changed=False)
+
+    from src.tool_catalog import (
+        ToolCatalogError,
+        ToolIdentifierDisposition,
+        resolve_tool_identifier_for_migration,
+    )
+
+    known = frozenset(
+        _tool_settings_known_ids() if known_tool_ids is None else known_tool_ids
+    )
+    had_disabled_tools = "disabled_tools" in migrated
+    original_disabled_tools = deepcopy(migrated.get("disabled_tools"))
+    quarantine: list[dict[str, Any]] = []
+    aliases: list[dict[str, str]] = []
+    seen_aliases: set[tuple[str, str]] = set()
+
+    if not had_disabled_tools:
+        from src.tool_policy import DEFAULT_DEFERRED_RUNTIME_TOOLS
+
+        canonical_disabled = set(DEFAULT_DEFERRED_RUNTIME_TOOLS)
+    elif not isinstance(original_disabled_tools, (list, tuple, set, frozenset)):
+        from src.tool_policy import DEFAULT_DEFERRED_RUNTIME_TOOLS
+
+        canonical_disabled = set(DEFAULT_DEFERRED_RUNTIME_TOOLS)
+        quarantine.append(
+            {
+                "value": deepcopy(original_disabled_tools),
+                "reason": "invalid_disabled_tools_container",
+            }
+        )
+    else:
+        canonical_disabled: set[str] = set()
+        for value in original_disabled_tools:
+            if not isinstance(value, str):
+                quarantine.append(
+                    {
+                        "value": deepcopy(value),
+                        "reason": "non_string_tool_id",
+                    }
+                )
+                continue
+            try:
+                resolution = resolve_tool_identifier_for_migration(
+                    value,
+                    known_tool_ids=known,
+                    alias_targets=alias_targets,
+                )
+            except ToolCatalogError:
+                quarantine.append(
+                    {
+                        "value": value,
+                        "reason": "unsafe_tool_id",
+                    }
+                )
+                continue
+            if resolution.canonical_id is not None:
+                canonical_disabled.add(resolution.canonical_id)
+            if resolution.disposition == ToolIdentifierDisposition.ALIAS:
+                alias_pair = (
+                    resolution.supplied_id,
+                    resolution.canonical_id or "",
+                )
+                if alias_pair not in seen_aliases:
+                    seen_aliases.add(alias_pair)
+                    aliases.append(
+                        {
+                            "source": alias_pair[0],
+                            "target": alias_pair[1],
+                        }
+                    )
+            elif resolution.disposition == ToolIdentifierDisposition.LEGACY_NON_RUNTIME:
+                quarantine.append(
+                    {
+                        "value": resolution.supplied_id,
+                        "reason": resolution.reason_code,
+                    }
+                )
+            elif resolution.disposition == ToolIdentifierDisposition.UNKNOWN:
+                # Preserve the operator's deny decision as well as quarantining
+                # the ID; dropping it could activate a dynamic provider tool.
+                canonical_disabled.add(resolution.supplied_id)
+                quarantine.append(
+                    {
+                        "value": resolution.supplied_id,
+                        "reason": resolution.reason_code,
+                    }
+                )
+
+    quarantine.sort(
+        key=lambda item: (
+            item["reason"],
+            json.dumps(item["value"], ensure_ascii=False, sort_keys=True, default=str),
+        )
+    )
+    aliases.sort(key=lambda item: (item["source"], item["target"]))
+    migrated["disabled_tools"] = sorted(canonical_disabled)
+    migrated[TOOL_SETTINGS_MIGRATION_KEY] = {
+        "schema_version": TOOL_SETTINGS_MIGRATION_VERSION,
+        "rollback": {
+            "disabled_tools_present": had_disabled_tools,
+            "disabled_tools_value": original_disabled_tools,
+        },
+        "aliases": aliases,
+        "quarantine": quarantine,
+    }
+    return migrated, _tool_settings_report(migrated, changed=migrated != dict(settings))
+
+
+def rollback_tool_settings(settings: Mapping[str, Any]) -> dict[str, Any]:
+    """Restore the pre-TAX9 ``disabled_tools`` shape and remove metadata."""
+
+    if not isinstance(settings, Mapping):
+        raise ToolSettingsMigrationError("settings must be an object")
+    restored = deepcopy(dict(settings))
+    metadata = restored.pop(TOOL_SETTINGS_MIGRATION_KEY, None)
+    if (
+        not isinstance(metadata, Mapping)
+        or metadata.get("schema_version") != TOOL_SETTINGS_MIGRATION_VERSION
+    ):
+        raise ToolSettingsMigrationError("supported tool settings migration metadata is required")
+    rollback = metadata.get("rollback")
+    if not isinstance(rollback, Mapping) or not isinstance(
+        rollback.get("disabled_tools_present"), bool
+    ):
+        raise ToolSettingsMigrationError("tool settings rollback metadata is malformed")
+    if rollback["disabled_tools_present"]:
+        restored["disabled_tools"] = deepcopy(rollback.get("disabled_tools_value"))
+    else:
+        restored.pop("disabled_tools", None)
+    return restored
 
 
 # ── Settings (data/settings.json) ──

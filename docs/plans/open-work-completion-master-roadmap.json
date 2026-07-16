@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-15",
+  "updated_at": "2026-07-16",
   "status": "active_prioritized_repo_execution_design_and_live_gates_preserved",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal P0-Roadmap-Wahrheit abschliessen; danach abhaengigkeitsbereite repo-only UIX- und TAX/TUA-Slices seriell bis zum naechsten echten Gate fertigstellen.",
@@ -13,14 +13,14 @@
     "unique_live_gates": 39,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "uix13_semantics_gated_tax8_completed_tax9_selected_tua2_dependency_ready",
+    "queue_status": "uix13_semantics_gated_tax9_completed_tax10_next_tua2_dependency_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
-      "tool_taxonomy_registry": "tax0_through_tax8_completed_tax9_selected_catalog_v2_not_activated",
+      "tool_taxonomy_registry": "tax0_through_tax9_completed_tax10_next_catalog_v2_not_activated",
       "tool_usage_analytics": "tua0_tua1_completed_tua2_dependency_ready_capture_and_backfill_default_off"
     },
     "verification": {
@@ -61,14 +61,14 @@
         "reason": "UIX-ABC13 requires explicit product-semantics confirmation before claim",
         "slice": "UIX-ABC13",
         "user_decision_required": true,
-        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TAX9_then_TUA2"
+        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TAX10_then_TUA2"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
-      "verified_at": "2026-07-15"
+      "verified_at": "2026-07-16"
     },
     "dependency_ready_repo_only_slices": [
-      "TAX9-settings-and-alias-migration",
+      "TAX10-analytics-identity-contract",
       "TUA2-persistence-migration-retention"
     ],
     "product_semantics_gated_open_slices": [
@@ -1127,7 +1127,7 @@
       "id": "TAX9-settings-and-alias-migration",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
+      "status": "completed",
       "depends_on": [
         "TAX4-operator-priority-defaults",
         "TAX6-admin-runtime-api-projection"
@@ -1144,7 +1144,41 @@
         "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_settings_migration.py tests\\test_update_database_script.py"
       ],
       "gate": "none_before_live_activation",
-      "done_when": "The versioned disabled_tools and legacy-ID migration is idempotent and rollback-capable; manage_rag is explained without recreation; unknown IDs are quarantined and no deferred family is activated."
+      "done_when": "The versioned disabled_tools and legacy-ID migration is idempotent and rollback-capable; manage_rag is explained without recreation; unknown IDs are quarantined and no deferred family is activated.",
+      "completed_at": "2026-07-16T07:24:04.4346146+02:00",
+      "completion_evidence": {
+        "focused_tests": "8 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "direct_regression": "94 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "idempotence_and_rollback": "Pure and atomic-file migrations are versioned and semantically stable; the second file run is byte-stable and the stored pre-migration disabled_tools presence and value restore the old format exactly",
+        "legacy_and_quarantine": "manage_rag is classified as a legacy UI identifier without a runtime handler; evidence-backed aliases resolve only to known canonical IDs; unknown safe IDs remain disabled and are additionally quarantined rather than discarded",
+        "operator_defaults": "A missing or invalid disabled_tools setting materializes the established deferred runtime denylist, while an explicit empty operator choice remains empty; email, calendar and contact families are never activated by migration",
+        "redaction": "Migration diagnostics expose only aggregate counts, schema version and reason codes; raw rollback/quarantine values, user/provider content, database URLs and exception details are not logged",
+        "independent_regression_parked": "7 pre-existing test_builtin_tool_catalog inventory failures reproduce because HEAD has no static TOOL_META while the legacy audit still requires it; TAX9 changed neither path, 99 other tests in that attempted suite passed, and the issue is parked for the TAX integration barrier",
+        "live_effects": "No real database/settings migration or rollback, feature activation, analytics capture/backfill, network, provider, deployment or live action occurred"
+      }
+    },
+    {
+      "id": "TAX10-analytics-identity-contract",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "open",
+      "depends_on": [
+        "TAX1-descriptor-v2-contract",
+        "TAX8-dynamic-plugin-and-mcp-normalization",
+        "TAX9-settings-and-alias-migration"
+      ],
+      "source_roadmap": "docs/plans/tool-taxonomy-registration-roadmap.md",
+      "allowed_paths": [
+        "src/tool_catalog.py",
+        "src/builtin_tool_catalog.py",
+        "tests/test_tool_analytics_identity.py",
+        "docs/plans/tool-analytics-identity-contract.md"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_analytics_identity.py tests\\test_tool_catalog.py"
+      ],
+      "gate": "none_before_analytics_capture_or_backfill",
+      "done_when": "The public versioned analytics identity contract provides canonical analytics_id, family, source and lossless aliases without double counting, identifier recycling or owner/session/content data."
     }
   ],
   "recommended_execution_order": [
