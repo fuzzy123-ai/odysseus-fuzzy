@@ -9,11 +9,11 @@
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 1,
-    "unique_live_gates": 39,
+    "safe_open_json_slices": 0,
+    "unique_live_gates": 40,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "uix13_semantics_gated_tax12_repo_complete_live_activation_dormant_tua11_completed_tua12_synthetic_rollout_next",
+    "queue_status": "uix13_semantics_gated_tax12_and_tua12_repo_complete_live_activations_gated_no_safe_frontier",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,13 +21,13 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
-      "tool_usage_analytics": "tua0_through_tua11_completed_tua12_synthetic_staging_rollback_activation_packet_next_capture_and_real_backfill_default_off"
+      "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 1,
+      "safe_open_count": 0,
       "other_open_count": 22,
-      "unique_live_gate_count": 39,
+      "unique_live_gate_count": 40,
       "unique_design_gate_count": 16,
       "decision_packet_families": [
         "version_release",
@@ -61,15 +61,13 @@
         "reason": "UIX-ABC13 requires explicit product-semantics confirmation before claim",
         "slice": "UIX-ABC13",
         "user_decision_required": true,
-        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TUA12_synthetic_rollout_only"
+        "safe_default": "do_not_claim_UIX-ABC13_keep_TAX_and_TUA_live_controls_off_and_wait"
       },
-      "queue_exhausted": false,
-      "detail_roadmap_frontier_exists": true,
+      "queue_exhausted": true,
+      "detail_roadmap_frontier_exists": false,
       "verified_at": "2026-07-16"
     },
-    "dependency_ready_repo_only_slices": [
-      "TUA12-synthetic-staging-rollback-and-activation-packet"
-    ],
+    "dependency_ready_repo_only_slices": [],
     "product_semantics_gated_open_slices": [
       "UIX-ABC13"
     ],
@@ -1231,7 +1229,7 @@
       "id": "TUA12-synthetic-staging-rollback-and-activation-packet",
       "class": "safe_offline",
       "owner": "/root",
-      "status": "open",
+      "status": "completed",
       "depends_on": [
         "TUA11-privacy-performance-and-failure-isolation-acceptance"
       ],
@@ -1246,7 +1244,47 @@
         "venv\\Scripts\\python.exe scripts\\verify_tool_usage_rollout.py --mode synthetic --assert-default-off --assert-incognito-no-write --assert-rollback"
       ],
       "gate": "synthetic_only_no_live_gate_materialized_before_local_rollback_packet_is_green",
-      "done_when": "Synthetic feature-on/off, writer/store failure and rollback are green; capture and real backfill remain default-off; rollback stops new writes without changing tool behavior or deleting safe prior aggregates; the secret-free packet names environment template, retention, Admin scope, backfill default, monitoring, abort criteria and rollback."
+      "done_when": "Synthetic feature-on/off, writer/store failure and rollback are green; capture and real backfill remain default-off; rollback stops new writes without changing tool behavior or deleting safe prior aggregates; the secret-free packet names environment template, retention, Admin scope, backfill default, monitoring, abort criteria and rollback.",
+      "completed_at": "2026-07-16T13:12:39.6617535+02:00",
+      "completion_evidence": {
+        "focused_tests": "8 passed with 1 pre-existing SQLAlchemy deprecation warning",
+        "required_cli": "passed with off/on/incognito/off, captured_events=2, incognito_writes=0, post_rollback_writes=0, production_writes=0 and activation_authorized=false",
+        "tua_final_bundle": "150 passed with 1 pre-existing SQLAlchemy deprecation warning across events, privacy, store, instrumentation, context, Incognito, sources, analytics, retention, Admin diagnostics, metrics, backfill and rollout",
+        "source_and_ui_checks": "aggregate-only source overlap snapshot is current with 6 sources and no additive total; node --check static/js/admin.js passed",
+        "rollback": "Static dispatcher proof keeps instrumentation default None; process-local on emits one start/terminal pair; Incognito and off-after-rollback emit zero; safe aggregate counts remain unchanged",
+        "failure_isolation": "Synthetic raising writer and count-only failing store each produce bounded sink-failure diagnostics while preserving the exact tool result object",
+        "packet": "Secret-free packet records version/environment templates, 90/400-day retention, Admin scope, backfill default no, monitoring, abort criteria, rollback and the sole dormant GO phrase",
+        "live_effects": "No production setting or feature flag write, capture activation, persistent database, real backfill, external export, network, provider, deployment, restart or live mutation"
+      }
+    },
+    {
+      "id": "TUA-LIVE-ACTIVATION",
+      "class": "live_gated",
+      "owner": "/root",
+      "status": "gated",
+      "blocked_slice": "Tool Usage Analytics live capture and optional metadata-only historical backfill",
+      "depends_on": [
+        "TAX10-analytics-identity-contract",
+        "TUA12-synthetic-staging-rollback-and-activation-packet"
+      ],
+      "source_roadmap": "docs/plans/privacy-safe-tool-analytics-roadmap.md",
+      "already_completed_evidence": [
+        "TUA0 through TUA12 are repository-complete with focused and final integration evidence green.",
+        "Synthetic off/on/incognito/off rollback is green and preserves tool results plus safe aggregate counts.",
+        "Capture and real backfill remain default-off; the activation packet contains no secret values or concrete private target."
+      ],
+      "decision_needed": "Supply the exact version, target environment, Admin role, historical backfill choice and rollback control before any live capture or persistent writer is enabled.",
+      "safe_options": [
+        "Leave capture and real backfill off; continue waiting for UIX-ABC13 product-semantics confirmation.",
+        "GO TUA-LIVE: Aktiviere metadata-only Tool Analytics <Version> in <Umgebung> mit 90 Tagen Event- und 400 Tagen Aggregat-Retention, Admin-Scope <Rolle>, historischem Backfill <nein/Zeitraum> und Rollback ueber <Feature-Schalter/Version>."
+      ],
+      "non_grants": [
+        "no external telemetry export or provider write",
+        "no activation of deferred tools",
+        "no data deletion, deployment, restart or unbounded soak",
+        "no backfill when the exact choice is omitted"
+      ],
+      "next_disjoint_frontier": "UIX-ABC13 after UIX-WORKBENCH-PRODUCT-SEMANTICS-CONFIRMATION"
     },
     {
       "id": "TAX3-close-six-registration-gaps",
