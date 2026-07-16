@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from routes.model_routes import setup_model_routes
+from src.builtin_tool_catalog import DEFAULT_DEFERRED_TOOLS
 from src.tool_registry import ToolSpec, get_tool, register_tool, unregister_tool
 
 
@@ -48,6 +49,7 @@ def _restore_reviewed_plugin(previous):
 
 def test_tools_get_returns_complete_deterministic_redacted_descriptors(monkeypatch):
     previous = _install_reviewed_plugin()
+    monkeypatch.setenv("ODYSSEUS_TOOL_CATALOG_V2_ENABLED", "true")
     monkeypatch.setattr("src.tool_utils.get_mcp_manager", lambda: _McpInventory())
     monkeypatch.setattr(
         "routes.model_routes._load_settings",
@@ -105,6 +107,27 @@ def test_tools_get_returns_complete_deterministic_redacted_descriptors(monkeypat
     assert mcp["requires_confirmation"] is True
     assert "mcp__review__lookup" not in mutable_ids
     assert "private-value-must-not-leak" not in repr(payload)
+
+
+def test_tools_get_defaults_to_exact_legacy_projection(monkeypatch):
+    monkeypatch.delenv("ODYSSEUS_TOOL_CATALOG_V2_ENABLED", raising=False)
+    monkeypatch.setattr("src.tool_utils.get_mcp_manager", lambda: _McpInventory())
+    monkeypatch.setattr(
+        "routes.model_routes._load_settings",
+        lambda: {"disabled_tools": sorted(DEFAULT_DEFERRED_TOOLS | {"bash"})},
+    )
+
+    app = FastAPI()
+    app.include_router(setup_model_routes(model_discovery=None))
+    response = TestClient(app).get("/api/tools")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert set(payload) == {"tools"}
+    assert "schema" not in payload
+    tools = {item["id"]: item for item in payload["tools"]}
+    assert tools["bash"] == {"id": "bash", "enabled": False}
+    assert tools["send_email"]["enabled"] is False
 
 
 def test_tools_mutation_is_admin_gated_validated_and_preserves_legacy_ids(monkeypatch):

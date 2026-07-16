@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+import os
 import re
 from types import MappingProxyType
 from typing import Any, Iterable, Mapping
@@ -19,6 +20,20 @@ _NON_SLUG_CHARS_RE = re.compile(r"[^a-z0-9]+")
 _TOOL_ID_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,120}$")
 _STATIC_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,119}$")
 _WINDOWS_ABSOLUTE_REF_RE = re.compile(r"^[A-Za-z]:/")
+CATALOG_V2_FEATURE_FLAG = "tool-catalog-v2"
+CATALOG_V2_ENV = "ODYSSEUS_TOOL_CATALOG_V2_ENABLED"
+CATALOG_V2_DEFAULT_ENABLED = False
+_TRUE_FEATURE_VALUES = frozenset({"1", "true", "yes", "on"})
+
+
+def catalog_v2_enabled(environ: Mapping[str, str] | None = None) -> bool:
+    """Return the explicit Catalog-v2 read-path selection, defaulting off."""
+
+    source = os.environ if environ is None else environ
+    raw = source.get(CATALOG_V2_ENV)
+    if raw is None:
+        return CATALOG_V2_DEFAULT_ENABLED
+    return str(raw).strip().casefold() in _TRUE_FEATURE_VALUES
 
 
 class ToolCatalogError(ValueError):

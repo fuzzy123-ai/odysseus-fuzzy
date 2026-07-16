@@ -26,13 +26,24 @@ from src.builtin_tool_catalog import (  # noqa: E402
 )
 from src.runtime_tool_status import build_tool_catalog_projection  # noqa: E402
 from src.settings import migrate_tool_settings  # noqa: E402
-from src.tool_catalog import ToolAvailability, ToolCatalogError, ToolEffectClass  # noqa: E402
-from src.tool_policy import DEFAULT_DEFERRED_RUNTIME_TOOLS  # noqa: E402
+from src.tool_catalog import (  # noqa: E402
+    CATALOG_V2_DEFAULT_ENABLED,
+    CATALOG_V2_ENV,
+    CATALOG_V2_FEATURE_FLAG,
+    ToolAvailability,
+    ToolCatalogError,
+    ToolEffectClass,
+    catalog_v2_enabled,
+)
+from src.tool_policy import (  # noqa: E402
+    DEFAULT_DEFERRED_RUNTIME_TOOLS,
+    operator_priority_disabled_tools,
+)
+from src.settings import load_settings  # noqa: E402
 
 
 ROLLOUT_SCHEMA = "odysseus.tool_catalog_rollout_acceptance.v1"
-FEATURE_FLAG = "tool-catalog-v2"
-CATALOG_V2_DEFAULT_ENABLED = False
+FEATURE_FLAG = CATALOG_V2_FEATURE_FLAG
 DEFAULT_PERFORMANCE_CYCLES = 25
 MAX_ELAPSED_MS = 2_500.0
 MAX_PROJECTION_BYTES = 256_000
@@ -393,22 +404,85 @@ def build_synthetic_acceptance(
     return report
 
 
+def build_live_readback() -> dict[str, Any]:
+    """Read only aggregate Catalog-v2 activation state from this runtime."""
+
+    disabled_tools = operator_priority_disabled_tools(load_settings())
+    projection = build_tool_catalog_projection(
+        disabled_tools=disabled_tools,
+        builtin_descriptions=builtin_descriptions(),
+    )
+    rows = {row["id"]: row for row in projection["descriptors"]}
+    deferred = tuple(sorted(DEFAULT_DEFERRED_TOOLS))
+    checks = {
+        "feature_enabled": catalog_v2_enabled(),
+        "deferred_tools_disabled": all(
+            rows[tool_id]["enabled"] is False for tool_id in deferred
+        ),
+        "email_calendar_contacts_disabled": all(
+            rows[tool_id]["enabled"] is False
+            for tool_id in ("send_email", "manage_calendar", "manage_contact")
+        ),
+        "projection_redacted": (
+            projection["raw_content_visible"] is False
+            and projection["secret_values_visible"] is False
+        ),
+    }
+    return {
+        "schema_version": "odysseus.tool_catalog_live_readback.v1",
+        "status": "passed" if all(checks.values()) else "failed",
+        "mode": "live-readback",
+        "feature_flag": {
+            "name": FEATURE_FLAG,
+            "environment": CATALOG_V2_ENV,
+            "enabled": checks["feature_enabled"],
+        },
+        "projection": {
+            "schema": projection["schema"],
+            "descriptor_schema": projection["descriptor_schema"],
+            "tool_count": projection["tool_count"],
+            "deferred_tool_count": len(deferred),
+        },
+        "checks": checks,
+        "diagnostics": {
+            "aggregate_only": True,
+            "settings_values_visible": False,
+            "raw_content_visible": False,
+            "secret_values_visible": False,
+        },
+    }
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run the read-only synthetic Tool Catalog-v2 rollout check."
     )
-    parser.add_argument("--mode", choices=("synthetic",), required=True)
+    parser.add_argument(
+        "--mode", choices=("synthetic", "live-readback"), required=True
+    )
     parser.add_argument("--assert-default-off", action="store_true")
     parser.add_argument("--assert-rollback", action="store_true")
+    parser.add_argument("--assert-live-enabled", action="store_true")
+    parser.add_argument("--assert-deferred-disabled", action="store_true")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
-    report = build_synthetic_acceptance()
-    if args.assert_default_off and not report["checks"]["default_off"]:
+    report = (
+        build_synthetic_acceptance()
+        if args.mode == "synthetic"
+        else build_live_readback()
+    )
+    if args.assert_default_off and not report["checks"].get("default_off", False):
         report["status"] = "failed"
-    if args.assert_rollback and not report["checks"]["rollback_projection_exact"]:
+    if args.assert_rollback and not report["checks"].get(
+        "rollback_projection_exact", False
+    ):
+        report["status"] = "failed"
+    if args.assert_live_enabled and not report["checks"].get("feature_enabled", False):
+        report["status"] = "failed"
+    if args.assert_deferred_disabled and not report["checks"]["deferred_tools_disabled"]:
         report["status"] = "failed"
     print(json.dumps(report, ensure_ascii=True, sort_keys=True))
     return 0 if report["status"] == "passed" else 1

@@ -1546,16 +1546,47 @@ def setup_model_routes(model_discovery):
     def list_tools():
         """Return complete redacted descriptors and legacy-compatible tool rows."""
         from src.agent_tools import TOOL_TAGS
+        from src.builtin_tool_catalog import catalog_call_allowed
         from src.runtime_tool_status import build_tool_catalog_projection
+        from src.tool_catalog import (
+            CATALOG_V2_ENV,
+            CATALOG_V2_FEATURE_FLAG,
+            catalog_v2_enabled,
+        )
         from src.tool_index import BUILTIN_TOOL_DESCRIPTIONS
         from src.tool_registry import list_tools as list_plugin_tools
         from src.tool_policy import operator_priority_disabled_tools
 
         settings = _load_settings()
+        disabled_tools = operator_priority_disabled_tools(settings)
+        plugin_tools = list_plugin_tools()
+        if not catalog_v2_enabled():
+            disabled = set(disabled_tools)
+            tools = [
+                {
+                    "id": tag,
+                    "enabled": tag not in disabled and catalog_call_allowed(tag),
+                }
+                for tag in sorted(TOOL_TAGS)
+            ]
+            tools.extend(
+                {
+                    "id": tool.name,
+                    "name": tool.name,
+                    "desc": tool.description,
+                    "cat": "Plugins",
+                    "ctx": "~plugin",
+                    "permission": tool.permission,
+                    "enabled": tool.name not in disabled,
+                }
+                for tool in plugin_tools
+            )
+            return {"tools": tools}
+
         projection = build_tool_catalog_projection(
-            disabled_tools=operator_priority_disabled_tools(settings),
+            disabled_tools=disabled_tools,
             builtin_descriptions=BUILTIN_TOOL_DESCRIPTIONS,
-            plugin_tools=list_plugin_tools(),
+            plugin_tools=plugin_tools,
             mcp_tools=_connected_mcp_tools(),
         )
         mutable_by_id = {item["id"]: item for item in projection["tools"]}
@@ -1572,6 +1603,11 @@ def setup_model_routes(model_discovery):
         legacy_rows.sort(key=lambda item: item["id"])
         projection["tools"] = tuple(legacy_rows)
         projection["mutable_tool_count"] = len(legacy_rows)
+        projection["feature_flag"] = {
+            "name": CATALOG_V2_FEATURE_FLAG,
+            "environment": CATALOG_V2_ENV,
+            "enabled": True,
+        }
         return projection
 
     @router.get("/system/runtime-tools")

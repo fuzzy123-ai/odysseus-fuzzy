@@ -8,6 +8,7 @@ from scripts.verify_tool_catalog_rollout import (
     FEATURE_FLAG,
     ROLLOUT_SCHEMA,
     build_synthetic_acceptance,
+    build_live_readback,
     builtin_descriptions,
     legacy_security_projection,
     select_synthetic_projection,
@@ -197,3 +198,37 @@ def test_activation_packet_is_complete_default_off_and_secret_free():
     assert "bearer " not in lowered
     assert "token=" not in lowered
     assert "sk-" not in lowered
+
+
+def test_live_readback_is_aggregate_and_requires_enabled_safe_projection(monkeypatch):
+    monkeypatch.setenv("ODYSSEUS_TOOL_CATALOG_V2_ENABLED", "true")
+    monkeypatch.setattr(
+        "scripts.verify_tool_catalog_rollout.load_settings",
+        lambda: {"disabled_tools": sorted(DEFAULT_DEFERRED_TOOLS)},
+    )
+
+    report = build_live_readback()
+
+    assert report["status"] == "passed"
+    assert report["feature_flag"]["enabled"] is True
+    assert report["checks"]["deferred_tools_disabled"] is True
+    assert report["checks"]["email_calendar_contacts_disabled"] is True
+    assert report["diagnostics"] == {
+        "aggregate_only": True,
+        "settings_values_visible": False,
+        "raw_content_visible": False,
+        "secret_values_visible": False,
+    }
+
+
+def test_live_readback_fails_when_deferred_tools_would_be_enabled(monkeypatch):
+    monkeypatch.setenv("ODYSSEUS_TOOL_CATALOG_V2_ENABLED", "true")
+    monkeypatch.setattr(
+        "scripts.verify_tool_catalog_rollout.load_settings",
+        lambda: {"disabled_tools": []},
+    )
+
+    report = build_live_readback()
+
+    assert report["status"] == "failed"
+    assert report["checks"]["deferred_tools_disabled"] is False
