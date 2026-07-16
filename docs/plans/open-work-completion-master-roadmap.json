@@ -13,7 +13,7 @@
     "unique_live_gates": 39,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "uix13_semantics_gated_tax12_repo_complete_live_activation_dormant_tua10_completed_tua11_integration_barrier_next",
+    "queue_status": "uix13_semantics_gated_tax12_repo_complete_live_activation_dormant_tua11_completed_tua12_synthetic_rollout_next",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,7 +21,7 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
-      "tool_usage_analytics": "tua0_through_tua10_completed_tua11_privacy_performance_failure_isolation_acceptance_next_capture_and_real_backfill_default_off"
+      "tool_usage_analytics": "tua0_through_tua11_completed_tua12_synthetic_staging_rollback_activation_packet_next_capture_and_real_backfill_default_off"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
@@ -61,14 +61,14 @@
         "reason": "UIX-ABC13 requires explicit product-semantics confirmation before claim",
         "slice": "UIX-ABC13",
         "user_decision_required": true,
-        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TUA11_after_the_separate_regression_queue"
+        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TUA12_synthetic_rollout_only"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-16"
     },
     "dependency_ready_repo_only_slices": [
-      "TUA11-privacy-performance-and-failure-isolation-acceptance"
+      "TUA12-synthetic-staging-rollback-and-activation-packet"
     ],
     "product_semantics_gated_open_slices": [
       "UIX-ABC13"
@@ -1193,7 +1193,7 @@
       "id": "TUA11-privacy-performance-and-failure-isolation-acceptance",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
+      "status": "completed",
       "depends_on": [
         "TUA1-privacy-safe-event-contract",
         "TUA2-persistence-migration-retention",
@@ -1215,7 +1215,38 @@
         "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_usage_acceptance.py tests\\test_tool_usage_events.py tests\\test_tool_usage_privacy.py tests\\test_tool_usage_store.py tests\\test_tool_usage_instrumentation.py tests\\test_tool_usage_incognito.py tests\\test_tool_usage_sources.py tests\\test_tool_usage_analytics.py tests\\test_tool_usage_retention.py tests\\test_tool_usage_diagnostics_routes.py tests\\test_tool_usage_metrics.py"
       ],
       "gate": "TUA_integration_barrier_process_the_separate_regression_queue_before_acceptance_claim",
-      "done_when": "Privacy-negative, failure-isolation, high-cardinality and 10000-invocation synthetic acceptance fixtures pass; no duplicate or unclassified call remains; writer p95 is below 5 ms without simulated disk stall or a justified aggregate-only Partial is documented; the report contains only aggregate and technical status."
+      "done_when": "Privacy-negative, failure-isolation, high-cardinality and 10000-invocation synthetic acceptance fixtures pass; no duplicate or unclassified call remains; writer p95 is below 5 ms without simulated disk stall or a justified aggregate-only Partial is documented; the report contains only aggregate and technical status.",
+      "completed_at": "2026-07-16T13:02:13.3991994+02:00",
+      "completion_evidence": {
+        "focused_tests": "7 passed with 1 pre-existing SQLAlchemy deprecation warning; 10000-invocation local in-memory writer p95 was 2.765 ms",
+        "integration_bundle": "133 passed with 1 pre-existing SQLAlchemy deprecation warning across acceptance, events, privacy, store, instrumentation, incognito, sources, analytics, retention, Admin diagnostics and metrics",
+        "determinism": "10000 start and 10000 terminal events aggregate identically on repeat with 2000 each succeeded, failed, blocked, cancelled and rejected; 1000 retry invocations; zero incomplete, duplicate or unknown identities",
+        "coverage": "Built-in/Agent, Plugin/Agent, MCP/MCP, Built-in/Scheduler and Built-in/API each contribute 2000 synthetic invocations and every lane contains every terminal status",
+        "privacy": "10000 distinct synthetic owner and session references collapse to aggregate counts only; forbidden Payload/Path/Mail/Command fields and direct references fail closed; aggregate output and report contain no raw content or direct identifiers",
+        "failure_isolation": "Writer, database and exporter failures leave the original tool result object unchanged; Incognito short-circuits before its writer",
+        "live_effects": "Synthetic in-memory SQLite only; no capture activation, production database, real inventory, real backfill, network, provider, export, deployment or live mutation"
+      }
+    },
+    {
+      "id": "TUA12-synthetic-staging-rollback-and-activation-packet",
+      "class": "safe_offline",
+      "owner": "/root",
+      "status": "open",
+      "depends_on": [
+        "TUA11-privacy-performance-and-failure-isolation-acceptance"
+      ],
+      "source_roadmap": "docs/plans/privacy-safe-tool-analytics-roadmap.md",
+      "allowed_paths": [
+        "scripts/verify_tool_usage_rollout.py",
+        "tests/test_tool_usage_rollout.py",
+        "docs/plans/tool-usage-live-activation-packet.md"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_usage_rollout.py",
+        "venv\\Scripts\\python.exe scripts\\verify_tool_usage_rollout.py --mode synthetic --assert-default-off --assert-incognito-no-write --assert-rollback"
+      ],
+      "gate": "synthetic_only_no_live_gate_materialized_before_local_rollback_packet_is_green",
+      "done_when": "Synthetic feature-on/off, writer/store failure and rollback are green; capture and real backfill remain default-off; rollback stops new writes without changing tool behavior or deleting safe prior aggregates; the secret-free packet names environment template, retention, Admin scope, backfill default, monitoring, abort criteria and rollback."
     },
     {
       "id": "TAX3-close-six-registration-gaps",
