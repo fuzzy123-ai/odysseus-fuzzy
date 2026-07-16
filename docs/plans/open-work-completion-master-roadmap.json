@@ -13,14 +13,14 @@
     "unique_live_gates": 39,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "uix13_semantics_gated_tax10_completed_tax_integration_barrier_next_tua2_dependency_ready",
+    "queue_status": "uix13_semantics_gated_tax11_completed_tax12_next_tua2_dependency_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
-      "tool_taxonomy_registry": "tax0_through_tax10_completed_tax11_integration_barrier_next_catalog_v2_not_activated",
+      "tool_taxonomy_registry": "tax0_through_tax11_completed_tax12_synthetic_rollout_next_catalog_v2_not_activated",
       "tool_usage_analytics": "tua0_tua1_completed_tua2_dependency_ready_capture_and_backfill_default_off"
     },
     "verification": {
@@ -61,14 +61,14 @@
         "reason": "UIX-ABC13 requires explicit product-semantics confirmation before claim",
         "slice": "UIX-ABC13",
         "user_decision_required": true,
-        "safe_default": "do_not_claim_UIX-ABC13_and_process_TAX_integration_barrier_then_TUA2"
+        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TAX12_then_TUA2"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-16"
     },
     "dependency_ready_repo_only_slices": [
-      "TAX11-parity-security-and-regression-matrix",
+      "TAX12-synthetic-staging-rollback-and-activation-packet",
       "TUA2-persistence-migration-retention"
     ],
     "product_semantics_gated_open_slices": [
@@ -1194,7 +1194,7 @@
       "id": "TAX11-parity-security-and-regression-matrix",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
+      "status": "completed",
       "depends_on": [
         "TAX2-canonical-built-in-catalog",
         "TAX3-close-six-registration-gaps",
@@ -1215,7 +1215,39 @@
         "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_catalog_acceptance.py tests\\test_tool_catalog.py tests\\test_tool_registry.py tests\\test_tool_index_schema_parity.py tests\\test_runtime_tool_status.py tests\\test_effectful_tool_matrix.py tests\\test_tool_policy.py"
       ],
       "gate": "tax_integration_barrier_process_separate_regression_queue_first",
-      "done_when": "Catalog, tag, schema, parser, index, prompt, handler, API, UI and analytics identity parity is aggregate-proven with no unexplained drift, deferred default activation or privacy-bearing report content."
+      "done_when": "Catalog, tag, schema, parser, index, prompt, handler, API, UI and analytics identity parity is aggregate-proven with no unexplained drift, deferred default activation or privacy-bearing report content.",
+      "completed_at": "2026-07-16T07:56:53.3770675+02:00",
+      "completion_evidence": {
+        "focused_tests": "99 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "direct_regression": "54 passed, 1 pre-existing SQLAlchemy deprecation warning across API, Admin, Dynamic, MCP, defaults, analytics and deterministic audit projections; Admin JavaScript syntax check passed",
+        "parity": "84 catalog identities reconcile with 78 runtime tags, 83 native schemas, 84 index entries, 68 dedicated prompts, 27 agent handlers, 80 dispatcher IDs, 84 Admin entries and 84 analytics identities/reservations",
+        "gap_and_ui_disposition": "All six registration gaps have explicit confirmed-route, deferred or security-blocked status; the 48 previous Admin fallbacks and stale manage_rag entry are both reduced to zero unresolved coverage",
+        "negative_security": "All 61 non-read built-ins require confirmation; external/destructive tools are default-off; tail_serve_output remains Admin-only and blocked; all 14 deferred defaults remain disabled",
+        "integration": "Static parser aliases consume canonical IDs, Descriptor-V2 API/Admin projections are deterministic, dynamic reload regressions pass, imports remain lightweight and 25 local projections stay inside the bounded time/size budget",
+        "report_privacy": "The acceptance report contains aggregate counts, technical IDs and statuses only and passes redaction assertions",
+        "live_effects": "No product/UI/runtime mutation, feature activation, analytics capture/backfill, database/settings write, network, provider, deployment or live action occurred"
+      }
+    },
+    {
+      "id": "TAX12-synthetic-staging-rollback-and-activation-packet",
+      "class": "safe_offline",
+      "owner": "/root",
+      "status": "open",
+      "depends_on": [
+        "TAX11-parity-security-and-regression-matrix"
+      ],
+      "source_roadmap": "docs/plans/tool-taxonomy-registration-roadmap.md",
+      "allowed_paths": [
+        "scripts/verify_tool_catalog_rollout.py",
+        "tests/test_tool_catalog_rollout.py",
+        "docs/plans/tool-taxonomy-live-activation-packet.md"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_catalog_rollout.py",
+        "venv\\Scripts\\python.exe scripts\\verify_tool_catalog_rollout.py --mode synthetic --assert-default-off --assert-rollback"
+      ],
+      "gate": "none_for_synthetic_only_live_activation_remains_dormant",
+      "done_when": "Synthetic catalog-v2 on/off and rollback evidence passes with the feature default-off, bounded performance/error budgets, a final deferred-tool list and a secret-free dormant live packet."
     }
   ],
   "recommended_execution_order": [
