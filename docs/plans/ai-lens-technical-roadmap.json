@@ -3,8 +3,8 @@
   "kind": "odysseus.ai_lens_technical_roadmap",
   "title": "AI Lens Technical Roadmap",
   "created_at": "2026-07-09",
-  "updated_at": "2026-07-09",
-  "status": "repo_slices_done_live_gated",
+  "updated_at": "2026-07-16",
+  "status": "offline_local_model_capability_contract_open_live_sampling_gated",
   "abc_mode": "Standard ABC, backend-contract-first",
   "goal": "Create the repo-side AI Lens telemetry, projection and replay foundation so the sci-fi visualization is driven by real Odysseus runtime data.",
   "problem_statement": {
@@ -382,17 +382,38 @@
       "done_when": "Snapshots include answer pack inventory, retrieval quality, source coverage, tool latency, confidence/risk and answer provenance summaries with supporting refs."
     },
     {
-      "id": "AIL-TECH-9-local-model-microscope",
-      "class": "needs_live_go",
+      "id": "AIL-TECH-9A-local-model-capability-contract",
+      "class": "repo_only",
       "owner": "Bob",
-      "status": "planned",
-      "objective": "Prototype optional local-model internals capture for supported local runtimes.",
+      "status": "open",
+      "depends_on": ["AIL-TECH-1-event-contract"],
+      "objective": "Implement a pure disabled-by-default capability and sampling-envelope contract for optional local-model internals without importing or starting a model runtime.",
       "allowed_paths": [
         "src/ai_lens_local_model.py",
         "tests/test_ai_lens_local_model.py"
       ],
-      "tests": ["offline capability tests only until live Go"],
-      "done_when": "Local-model internals are disabled by default, capability-gated and sampled rather than streamed as full tensors."
+      "tests": ["python -m pytest tests/test_ai_lens_local_model.py"],
+      "forbidden_actions": [
+        "import, load or start a model runtime",
+        "capture prompts, completions, provider output or tensors",
+        "read GPU, model or host runtime state",
+        "network, provider, database, filesystem artifact or UI mutation"
+      ],
+      "done_when": "A pure contract reports unavailable/disabled by default, validates bounded aggregate-only sample envelopes, rejects raw tensors or private fields and cannot perform runtime I/O."
+    },
+    {
+      "id": "AIL-TECH-9B-local-model-sampling-smoke",
+      "class": "needs_live_go",
+      "owner": "Charlie",
+      "status": "blocked_by_live_gate",
+      "depends_on": ["AIL-TECH-9A-local-model-capability-contract"],
+      "gate_required": "AIL-TECH-GATE-local-internals-runtime",
+      "objective": "Run one bounded aggregate-only sampling smoke against an explicitly selected supported local runtime.",
+      "allowed_paths": [
+        "data/reports/ai_lens/**"
+      ],
+      "tests": [],
+      "done_when": "One selected local runtime returns only bounded aggregate metrics under declared sample, duration, retention and performance limits, with no raw prompt, completion, tensor or private context in evidence."
     }
   ],
   "gate_queue": [
@@ -408,11 +429,11 @@
     {
       "id": "AIL-TECH-GATE-local-internals-runtime",
       "class": "needs_live_go",
-      "blocks": ["AIL-TECH-9-local-model-microscope"],
-      "decision_needed": "Select the local model runtime and acceptable sampling limits.",
-      "safe_preparation_done": "Capability contract can be implemented as disabled-by-default.",
+      "blocks": ["AIL-TECH-9B-local-model-sampling-smoke"],
+      "decision_needed": "Select the exact local model runtime plus sample count, duration, aggregate metrics, performance budget, retention and redacted evidence path.",
+      "safe_preparation_done": "AIL-TECH-9A may implement and test only the pure disabled-by-default capability and aggregate-envelope contract without runtime imports or I/O.",
       "risk_if_bypassed": "Performance degradation, GPU memory pressure or misleading hidden-state visuals.",
-      "next_safe_slice": "AIL-TECH-8-replay-store"
+      "next_safe_slice": "AIL-TECH-9A-local-model-capability-contract"
     }
   ],
   "verification": {
@@ -425,7 +446,8 @@
       "python -m pytest tests/test_ai_lens_routes.py",
       "python -m pytest tests/test_ai_lens_projection.py tests/test_ai_lens_graph.py",
       "python -m pytest tests/test_ai_lens_insights.py",
-      "python -m pytest tests/test_ai_lens_replay.py"
+      "python -m pytest tests/test_ai_lens_replay.py",
+      "python -m pytest tests/test_ai_lens_local_model.py"
     ],
     "manual_smoke_requires_go": [
       "Live chat emits Lens events while answer streaming remains responsive.",
@@ -440,5 +462,5 @@
     "no_go": "Telemetry exposes raw secrets/private content, blocks normal chat, fabricates neural internals or starts live model hooks without consent.",
     "blocked": "No stable event contract or no safe way to bound/redact Lens payloads."
   },
-  "recommended_next_step": "Implement AIL-TECH-1 event contract first, then AIL-TECH-2 service snapshot. UI should consume fixtures until these are stable."
+  "recommended_next_step": "Complete AIL-TECH-9A as a pure offline capability contract; keep AIL-TECH-9B blocked until the operator supplies the exact local runtime and bounded live-sampling policy."
 }

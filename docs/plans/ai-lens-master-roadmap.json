@@ -3,8 +3,8 @@
   "kind": "odysseus.ai_lens_master_roadmap",
   "title": "AI Lens Master Roadmap",
   "created_at": "2026-07-09",
-  "updated_at": "2026-07-10",
-  "status": "backend_contracts_ready_ui_live_gated",
+  "updated_at": "2026-07-16",
+  "status": "backend_contracts_ready_offline_microscope_contract_open_ui_live_gated",
   "abc_mode": "Standard ABC",
   "goal": "Build AI Lens as a trustworthy live observability surface for Odysseus that visualizes real runtime context, semantic space, tool flow and optional local-model internals without pretending API models expose hidden neural state.",
   "scope": "Odysseus Agent screen, future Knowledge lens, memory/RAG telemetry, LLM stream instrumentation, tool execution traces, semantic graph visualization and the Harbor-style sci-fi control-room UI.",
@@ -38,7 +38,7 @@
       "id": "AIL-TECH",
       "roadmap": "docs/plans/ai-lens-technical-roadmap.json",
       "role": "Event contracts, telemetry stream, J-Space projection, context graph, replay and local-model microscope.",
-      "status": "done"
+      "status": "offline_microscope_contract_open_live_sampling_gated"
     },
     {
       "id": "AIL-DESIGN",
@@ -310,7 +310,7 @@
       "decision_needed": "Operator chooses which local model runtime may expose internals and accepts the performance cost.",
       "safe_preparation_done": "Roadmaps define the boundary; no live model hooks are started.",
       "risk_if_bypassed": "High CPU/GPU load, private prompt leakage, unstable model runtimes or misleading visuals.",
-      "next_safe_slice": "AIL-2-tech-contract-first"
+      "next_safe_slice": "AIL-TECH-9A-local-model-capability-contract"
     },
     {
       "id": "AIL-GATE-production-ui-placement",
@@ -339,5 +339,5 @@
     "no_go": "The UI implies API-model brain access, exposes raw private content, fabricates evidence, or lets decorative animation obscure operational state.",
     "blocked": "AI Lens cannot produce bounded redacted event payloads or cannot distinguish real telemetry from visual effects."
   },
-  "recommended_next_step": "Start with AIL-TECH-1 event contract and AIL-DESIGN-1 visual system in parallel; do not build animated brain visuals before the truth labels and event schema exist."
+  "recommended_next_step": "Complete the pure offline AIL-TECH-9A local-model capability contract serially; keep live sampling and all UI work behind their separate gates."
 }
