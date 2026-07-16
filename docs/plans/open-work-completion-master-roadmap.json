@@ -9,23 +9,23 @@
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 2,
+    "safe_open_json_slices": 1,
     "unique_live_gates": 39,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "uix13_semantics_gated_tax11_completed_tax12_next_tua2_dependency_ready",
+    "queue_status": "uix13_semantics_gated_tax12_repo_complete_live_activation_dormant_tua2_next",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
-      "tool_taxonomy_registry": "tax0_through_tax11_completed_tax12_synthetic_rollout_next_catalog_v2_not_activated",
+      "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_tua1_completed_tua2_dependency_ready_capture_and_backfill_default_off"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 2,
+      "safe_open_count": 1,
       "other_open_count": 22,
       "unique_live_gate_count": 39,
       "unique_design_gate_count": 16,
@@ -61,14 +61,13 @@
         "reason": "UIX-ABC13 requires explicit product-semantics confirmation before claim",
         "slice": "UIX-ABC13",
         "user_decision_required": true,
-        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TAX12_then_TUA2"
+        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TUA2"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-16"
     },
     "dependency_ready_repo_only_slices": [
-      "TAX12-synthetic-staging-rollback-and-activation-packet",
       "TUA2-persistence-migration-retention"
     ],
     "product_semantics_gated_open_slices": [
@@ -1232,7 +1231,7 @@
       "id": "TAX12-synthetic-staging-rollback-and-activation-packet",
       "class": "safe_offline",
       "owner": "/root",
-      "status": "open",
+      "status": "completed",
       "depends_on": [
         "TAX11-parity-security-and-regression-matrix"
       ],
@@ -1247,7 +1246,18 @@
         "venv\\Scripts\\python.exe scripts\\verify_tool_catalog_rollout.py --mode synthetic --assert-default-off --assert-rollback"
       ],
       "gate": "none_for_synthetic_only_live_activation_remains_dormant",
-      "done_when": "Synthetic catalog-v2 on/off and rollback evidence passes with the feature default-off, bounded performance/error budgets, a final deferred-tool list and a secret-free dormant live packet."
+      "done_when": "Synthetic catalog-v2 on/off and rollback evidence passes with the feature default-off, bounded performance/error budgets, a final deferred-tool list and a secret-free dormant live packet.",
+      "completed_at": "2026-07-16T08:09:30.8330639+02:00",
+      "completion_evidence": {
+        "focused_tests": "9 passed, with one pre-existing SQLAlchemy deprecation warning and one non-product pytest cache warning in the clean worktree",
+        "integration_bundle": "109 passed across TAX11/TAX12 acceptance, catalog, registry, index/schema, runtime status/routes, effect and policy contracts; the deterministic TAX0 inventory check also passed with 78 runtime tags, 83 schemas and 84 Admin entries",
+        "machine_acceptance": "odysseus.tool_catalog_rollout_acceptance.v1 passed an in-memory off/on/off sequence: 25 deterministic projections in 131.354 ms, 199604 bytes, zero rollout errors and default_enabled=false",
+        "dual_read_and_rollback": "The legacy-compatible and Catalog-v2 security projections match except for eleven documented owner-to-admin runtime-policy strengthenings; rollback returns the exact original projection and weakens no field",
+        "settings_and_alias_retention": "Synthetic migrated settings, the settings alias ledger, historical analytics alias target and all 84 analytics-ID reservations remain identical across activation and rollback selection",
+        "deferred_tools": "All fourteen email, calendar, contact, assistant and preset defaults remain disabled; activation_authorized=false",
+        "packet": "The dormant TAX-LIVE-ACTIVATION packet names version/environment templates, checks, monitoring, budgets, abort criteria and non-destructive rollback without credentials or real targets",
+        "live_effects": "No product feature source, settings, database, analytics capture/backfill, network, provider, deployment, restart or live action was read or mutated"
+      }
     }
   ],
   "recommended_execution_order": [
