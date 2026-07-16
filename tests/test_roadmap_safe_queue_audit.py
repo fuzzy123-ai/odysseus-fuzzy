@@ -68,6 +68,46 @@ def test_audit_marks_queue_exhausted_when_only_gates_remain(tmp_path):
     assert "LIVE-1" in rendered
 
 
+def test_audit_excludes_explicitly_unclaimable_repo_slice_from_safe_frontier(tmp_path):
+    plans = tmp_path / "plans"
+    plans.mkdir()
+    _write_json(
+        plans / "roadmap.json",
+        {
+            "slice_queue": [
+                {
+                    "id": "UIX-ABC13",
+                    "class": "repo_only",
+                    "status": "open",
+                    "claimable": False,
+                    "claim_blocker": "UIX-WORKBENCH-PRODUCT-SEMANTICS-CONFIRMATION",
+                }
+            ]
+        },
+    )
+
+    report = audit_plan_dir(plans, mvp_state_path=plans / "missing-mvp.json")
+    rendered = render_markdown(report)
+
+    assert report["safe_open_count"] == 0
+    assert report["unclaimable_open_count"] == 1
+    assert report["queue_exhausted"] is True
+    assert report["unclaimable_open_slices"] == [
+        {
+            "file": "roadmap.json",
+            "path": "/slice_queue[0]",
+            "id": "UIX-ABC13",
+            "class": "repo_only",
+            "status": "open",
+            "reason": "UIX-WORKBENCH-PRODUCT-SEMANTICS-CONFIRMATION",
+            "claimable": False,
+            "claim_blocker": "UIX-WORKBENCH-PRODUCT-SEMANTICS-CONFIRMATION",
+        }
+    ]
+    assert "Unclaimable open slices: 1" in rendered
+    assert "UIX-WORKBENCH-PRODUCT-SEMANTICS-CONFIRMATION" in rendered
+
+
 def test_audit_classifies_classless_gate_lists_by_id_and_path(tmp_path):
     plans = tmp_path / "plans"
     plans.mkdir()

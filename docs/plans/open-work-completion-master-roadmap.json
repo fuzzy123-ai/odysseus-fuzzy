@@ -496,7 +496,7 @@
       "title": "Authoritative Workbench Capability Contract",
       "class": "repo_only",
       "owner": "/root",
-      "status": "completed",
+      "status": "open",
       "claimable": false,
       "claim_blocker": "UIX-WORKBENCH-PRODUCT-SEMANTICS-CONFIRMATION",
       "source_roadmap": "docs/plans/universal-inbox-abc-roadmap.md",
@@ -1725,5 +1725,5 @@
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "UIX-WORKBENCH-PRODUCT-SEMANTICS-CONFIRMATION: confirm or amend only the server-side UIX-ABC13 semantics (document focus; Markdown/Text/PDF/DOCX P0; immutable original; versioned working copy; explainable dry-run routing; local browser download; server-authoritative and browser-advisory). This does not grant UI design acceptance, a hotfile handoff or any live write. Until answered, do not claim UIX-ABC13 and continue TAX0."
+  "recommended_next_human_decision": "UIX-WORKBENCH-PRODUCT-SEMANTICS-CONFIRMATION: confirm or amend only the server-side UIX-ABC13 semantics (document focus; Markdown/Text/PDF/DOCX P0; immutable original; versioned working copy; explainable dry-run routing; local browser download; server-authoritative and browser-advisory). This does not grant UI design acceptance, a hotfile handoff or any live write. Until answered, do not claim UIX-ABC13; keep TAX and TUA live controls off and wait."
 }

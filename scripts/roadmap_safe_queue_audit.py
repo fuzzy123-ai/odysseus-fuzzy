@@ -365,9 +365,11 @@ class RoadmapAuditItem:
     item_class: str
     status: str
     reason: str
+    claimable: bool | None
+    claim_blocker: str
 
-    def to_dict(self) -> dict[str, str]:
-        return {
+    def to_dict(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
             "file": self.file,
             "path": self.path,
             "id": self.item_id,
@@ -375,10 +377,16 @@ class RoadmapAuditItem:
             "status": self.status,
             "reason": self.reason,
         }
+        if self.claimable is not None:
+            payload["claimable"] = self.claimable
+        if self.claim_blocker:
+            payload["claim_blocker"] = self.claim_blocker
+        return payload
 
 
 def audit_plan_dir(plan_dir: Path = DEFAULT_PLAN_DIR, *, mvp_state_path: Path = DEFAULT_MVP_STATE) -> dict[str, Any]:
     safe_open: list[RoadmapAuditItem] = []
+    unclaimable_open: list[RoadmapAuditItem] = []
     live_gates: list[RoadmapAuditItem] = []
     design_gates: list[RoadmapAuditItem] = []
     other_open: list[RoadmapAuditItem] = []
@@ -394,6 +402,8 @@ def audit_plan_dir(plan_dir: Path = DEFAULT_PLAN_DIR, *, mvp_state_path: Path = 
             bucket = _classify_item(item)
             if bucket == "safe_open":
                 safe_open.append(item)
+            elif bucket == "unclaimable_open":
+                unclaimable_open.append(item)
             elif bucket == "live_gate":
                 live_gates.append(item)
             elif bucket == "design_gate":
@@ -414,6 +424,7 @@ def audit_plan_dir(plan_dir: Path = DEFAULT_PLAN_DIR, *, mvp_state_path: Path = 
         "schema_version": 1,
         "files_scanned": files_scanned,
         "safe_open_count": len(safe_open),
+        "unclaimable_open_count": len(unclaimable_open),
         "live_gate_count": len(live_gates),
         "unique_live_gate_count": len(_gate_groups(live_gates)),
         "design_gate_count": len(design_gates),
@@ -422,6 +433,7 @@ def audit_plan_dir(plan_dir: Path = DEFAULT_PLAN_DIR, *, mvp_state_path: Path = 
         "mvp": mvp,
         "queue_exhausted": len(safe_open) == 0 and mvp.get("active_slice") in (None, "none", ""),
         "safe_open_slices": [item.to_dict() for item in safe_open],
+        "unclaimable_open_slices": [item.to_dict() for item in unclaimable_open],
         "live_gates": [item.to_dict() for item in live_gates],
         "live_gate_groups": _gate_groups(live_gates),
         "design_gates": [item.to_dict() for item in design_gates],
@@ -443,6 +455,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         f"Files scanned: {report['files_scanned']}",
         f"Safe open slices: {report['safe_open_count']}",
+        f"Unclaimable open slices: {report['unclaimable_open_count']}",
         f"Live gates: {report['live_gate_count']}",
         f"Unique live gate ids: {report['unique_live_gate_count']}",
         f"Design gates: {report['design_gate_count']}",
@@ -460,6 +473,20 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.extend(["## Safe Open Slices", "", "| File | ID | Class | Status |", "| - | - | - | - |"])
         for item in report["safe_open_slices"]:
             lines.append(f"| {item['file']} | {item['id']} | {item['class']} | {item['status']} |")
+        lines.append("")
+    if report["unclaimable_open_slices"]:
+        lines.extend(
+            [
+                "## Unclaimable Open Slices",
+                "",
+                "| File | ID | Class | Status | Blocker |",
+                "| - | - | - | - | - |",
+            ]
+        )
+        for item in report["unclaimable_open_slices"]:
+            lines.append(
+                f"| {item['file']} | {item['id']} | {item['class']} | {item['status']} | {item.get('claim_blocker', '')} |"
+            )
         lines.append("")
     if report["live_gates"] or report["design_gates"]:
         lines.extend(["## Gates", "", "| Type | File | ID | Status |", "| - | - | - | - |"])
@@ -566,6 +593,9 @@ def _walk_items(value: Any, *, file_name: str, path: str = "") -> Iterable[Roadm
     if isinstance(value, dict):
         item_class = str(value.get("class") or "").strip()
         status = str(value.get("status") or "").strip()
+        raw_claimable = value.get("claimable")
+        claimable = raw_claimable if isinstance(raw_claimable, bool) else None
+        claim_blocker = str(value.get("claim_blocker") or "").strip()
         if item_class or status:
             yield RoadmapAuditItem(
                 file=file_name,
@@ -573,7 +603,9 @@ def _walk_items(value: Any, *, file_name: str, path: str = "") -> Iterable[Roadm
                 item_id=str(value.get("id") or value.get("slice") or value.get("title") or path or file_name),
                 item_class=item_class,
                 status=status,
-                reason=str(value.get("reason") or value.get("blocker") or value.get("goal") or ""),
+                reason=str(value.get("reason") or value.get("blocker") or claim_blocker or value.get("goal") or ""),
+                claimable=claimable,
+                claim_blocker=claim_blocker,
             )
         for key, child in value.items():
             yield from _walk_items(child, file_name=file_name, path=f"{path}/{key}")
@@ -595,6 +627,12 @@ def _classify_item(item: RoadmapAuditItem) -> str:
         return "design_gate"
     if item_class in LIVE_GATED_CLASSES or status == "gated":
         return "live_gate"
+    if (
+        item_class in SAFE_CLASSES
+        and (status in OPEN_STATUSES or not status)
+        and (item.claimable is False or item.claim_blocker)
+    ):
+        return "unclaimable_open"
     if item_class in SAFE_CLASSES and _is_policy_gate(path=path):
         # Repo-only policy decisions describe a boundary; they are not an
         # executable slice just because their status is omitted.

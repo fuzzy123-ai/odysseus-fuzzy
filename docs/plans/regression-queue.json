@@ -3,7 +3,7 @@
   "kind": "odysseus.independent_regression_queue",
   "queue_id": "independent-regressions",
   "created_at": "2026-07-14T20:29:56.6847136+02:00",
-  "updated_at": "2026-07-16T12:51:17.0004277+02:00",
+  "updated_at": "2026-07-16T13:29:16.0332451+02:00",
   "status": "open",
   "purpose": "Hold failures discovered outside the active roadmap slice so they remain visible without silently expanding that slice, changing its dependency graph or starting an unbounded probe-and-fix loop.",
   "ownership_boundary": {
@@ -446,6 +446,42 @@
         "fixed_at": "2026-07-16T12:51:17.0004277+02:00",
         "focused_evidence": "exact node 1 passed; combined review-regression, confirmed-route and webhook-SSRF suite 37 passed",
         "scope": "review regression test isolation and this queue record only; product source unchanged"
+      }
+    },
+    {
+      "id": "REG-20260716-016",
+      "state": "fixed",
+      "priority": "integration_barrier_resolved",
+      "source_run_id": "abc-open-roadmaps-20260715t200224",
+      "source_probe_id": "TUA12-QUEUE-EXHAUSTION-REVALIDATION",
+      "observed_at": "2026-07-16T13:18:00+02:00",
+      "test_node": "tests/test_open_roadmap_priority_contract.py::test_uix_abc13_remains_open_until_product_semantics_are_confirmed",
+      "observed_nodes": [
+        "tests/test_open_roadmap_priority_contract.py::test_uix_abc13_remains_open_until_product_semantics_are_confirmed"
+      ],
+      "failure_signature": "canonical UIX-ABC13 queue item reported status=completed while current_position, claimable=false and the product-semantics gate all reported that the slice is unimplemented and unclaimable",
+      "relationship_to_active_roadmap": "roadmap_truth_regression_introduced_by_the_TAX0_queue_update_and_discovered_at_the_TUA12_integration_barrier",
+      "evidence": [
+        "The authoritative priority contract requires UIX-ABC13 status=open and all UIX-ABC14 through UIX-ABC24 successors dependency-blocked until UIX-ABC13 is implemented.",
+        "Git blame identifies commit 26a0efb8d as changing only the UIX-ABC13 status from open to completed while leaving claimable=false and the UIX-WORKBENCH-PRODUCT-SEMANTICS-CONFIRMATION blocker intact.",
+        "The focused contract test reproduced the drift before correction: expected open but observed completed.",
+        "The canonical queue now restores status=open, preserves claimable=false and every UIX-ABC14 through UIX-ABC24 dependency block, and removes the stale instruction to continue already-completed TAX0.",
+        "The safe-queue auditor now reports explicitly unclaimable repository slices outside the runnable frontier instead of requiring a false completed status.",
+        "The focused roadmap and auditor suite passed 13 tests; canonical audit reports safe_open_count=0, unclaimable_open_count=1 for UIX-ABC13, queue_exhausted=true and the prior 22 other open items unchanged.",
+        "No UIX product, frontend, route, file, database, provider, network or live path changed."
+      ],
+      "next_action": "None. Keep UIX-ABC13 open and unclaimable until the exact product-semantics confirmation is recorded; then implement it under a new two-path product claim.",
+      "claim": {
+        "claim_id": "abc-open-roadmaps-20260715t200224:REG-20260716-016",
+        "owner": "/root",
+        "state": "green_precommit"
+      },
+      "disposition": {
+        "kind": "fixed",
+        "root_cause": "the safe-queue auditor ignored claimable=false and claim_blocker on an open repo-only item, and the TAX0 frontier update masked that limitation by incorrectly marking the separately gated UIX-ABC13 item completed",
+        "fixed_at": "2026-07-16T13:29:16.0332451+02:00",
+        "focused_evidence": "pre-fix focused test failed on completed versus open; post-fix roadmap/auditor suite 13 passed; canonical audit safe_open_count=0 and unclaimable_open_count=1",
+        "scope": "canonical Open Work queue status/next-decision wording, safe-queue claimability classification, focused contract coverage and this regression queue record only"
       }
     }
   ]
