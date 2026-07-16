@@ -3,7 +3,7 @@
   "kind": "odysseus.independent_regression_queue",
   "queue_id": "independent-regressions",
   "created_at": "2026-07-14T20:29:56.6847136+02:00",
-  "updated_at": "2026-07-16T07:46:13.3551831+02:00",
+  "updated_at": "2026-07-16T08:40:00+02:00",
   "status": "open",
   "purpose": "Hold failures discovered outside the active roadmap slice so they remain visible without silently expanding that slice, changing its dependency graph or starting an unbounded probe-and-fix loop.",
   "ownership_boundary": {
@@ -408,6 +408,31 @@
         "focused_evidence": "20 passed plus deterministic inventory check passed",
         "scope": "audit, audit tests, deterministic content-free snapshot and this queue record only"
       }
+    },
+    {
+      "id": "REG-20260716-015",
+      "state": "queued",
+      "priority": "untriaged",
+      "source_run_id": "abc-open-roadmaps-20260715t200224",
+      "source_probe_id": "TUA3-DIRECT-WRAPPER-REGRESSION",
+      "observed_at": "2026-07-16T08:33:00+02:00",
+      "test_node": "tests/test_review_regressions.py::test_webhook_tool_reuses_private_url_validation",
+      "observed_nodes": [
+        "tests/test_review_regressions.py::test_webhook_tool_reuses_private_url_validation"
+      ],
+      "failure_signature": "broader wrapper run observed webhook add exit_code 0 instead of 1; isolated execution instead fails in the test's mocked database import because unrelated GitHub issue models are absent",
+      "relationship_to_active_roadmap": "independent_of_TUA3_and_outside_all_TUA3_claimed_product_and_test_paths",
+      "evidence": [
+        "The broader bounded wrapper run produced 146 passed, 2 skipped and this one failure.",
+        "The clean direct execute_tool_block consumer bundle excluding the unrelated review-regression file passed 119 tests with 2 skips.",
+        "The exact TUA3 roadmap suite passed 36 tests, including usage/AI-Lens isolation and existing tool policy contracts.",
+        "Isolated reproduction reaches a different import-isolation failure before the webhook assertion because the test replaces the canonical database module with an incomplete fake.",
+        "No webhook, URL-validation, database-fake, review-regression or unrelated product path was in the TUA3 claim or modified during discovery.",
+        "No diagnosis expansion, product fix, test weakening, full-suite rerun, network action or external mutation was performed."
+      ],
+      "next_action": "At the next declared TUA integration barrier, claim this item separately, stabilize the isolated import fixture, then distinguish a product URL-validation regression from test-module pollution before any fix.",
+      "claim": null,
+      "disposition": null
     }
   ]
 }
