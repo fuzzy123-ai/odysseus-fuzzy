@@ -226,6 +226,22 @@ class ToolUsageWriteResult:
 
 
 @dataclass(frozen=True, slots=True)
+class ToolUsageAggregationCommitResult:
+    aggregate_count: int
+    marked_event_count: int
+    failures: int
+
+    def to_safe_dict(self) -> dict[str, Any]:
+        return {
+            "aggregate_count": self.aggregate_count,
+            "marked_event_count": self.marked_event_count,
+            "failures": self.failures,
+            "raw_content_visible": False,
+            "identifiers_visible": False,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class ToolUsageRetentionResult:
     dry_run: bool
     event_retention_days: int
@@ -250,6 +266,31 @@ class ToolUsageRetentionResult:
             "raw_content_visible": False,
             "identifiers_visible": False,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class ToolUsageStoredEvent:
+    """Allowlisted event projection used only by the aggregate service."""
+
+    event_id: str
+    invocation_id: str
+    event_kind: str
+    occurred_at: datetime
+    duration_ms: int | None
+    tool_analytics_id: str
+    tool_family: str
+    tool_source: str
+    surface: str
+    status: str | None
+    retry_ordinal: int
+    owner_ref: str | None
+    session_ref: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class ToolUsageDayReadResult:
+    events: tuple[ToolUsageStoredEvent, ...]
+    failures: int
 
 
 def _naive_utc(value: datetime) -> datetime:
@@ -301,6 +342,7 @@ class ToolUsageStore:
             session_factory = SessionLocal
         self._session_factory = session_factory
         self._failure_counts: Counter[str] = Counter()
+        self._quality_counts: Counter[str] = Counter()
         self._failure_lock = Lock()
 
     def _record_failure(self, reason: str) -> None:
@@ -310,9 +352,29 @@ class ToolUsageStore:
                 MAX_FAILURE_COUNT,
             )
 
+    def _record_quality(self, name: str, amount: int = 1) -> None:
+        if amount <= 0:
+            return
+        with self._failure_lock:
+            self._quality_counts[name] = min(
+                self._quality_counts[name] + amount,
+                MAX_FAILURE_COUNT,
+            )
+
     def failure_counts(self) -> dict[str, int]:
         with self._failure_lock:
             return dict(sorted(self._failure_counts.items()))
+
+    def quality_counts(self) -> dict[str, int]:
+        """Return bounded process-local counters without invocation identifiers."""
+
+        with self._failure_lock:
+            return {
+                "duplicates_rejected": int(
+                    self._quality_counts.get("duplicates_rejected", 0)
+                ),
+                "writer_failures": int(self._quality_counts.get("writer_failures", 0)),
+            }
 
     def write_events(self, events: Iterable[ToolUsageEvent]) -> ToolUsageWriteResult:
         try:
@@ -348,11 +410,13 @@ class ToolUsageStore:
                 except IntegrityError:
                     duplicates += 1
             session.commit()
+            self._record_quality("duplicates_rejected", duplicates)
             return ToolUsageWriteResult(len(records), inserted, duplicates, 0)
         except Exception:
             if session is not None:
                 session.rollback()
             self._record_failure("writer_failure")
+            self._record_quality("writer_failures", len(records))
             return ToolUsageWriteResult(len(records), 0, 0, len(records))
         finally:
             if session is not None:
@@ -404,7 +468,129 @@ class ToolUsageStore:
             if session is not None:
                 session.rollback()
             self._record_failure("aggregate_writer_failure")
+            self._record_quality("writer_failures", len(records))
             return ToolUsageWriteResult(len(records), 0, 0, len(records))
+        finally:
+            if session is not None:
+                session.close()
+
+    def read_events_for_day(self, day: date) -> ToolUsageDayReadResult:
+        """Read one UTC day's allowlisted fields without returning raw content."""
+
+        if not isinstance(day, date) or isinstance(day, datetime):
+            raise ValueError("day must be a UTC calendar date")
+        session = None
+        try:
+            session = self._session_factory()
+            rows = (
+                session.query(ToolUsageEventRecord)
+                .filter(ToolUsageEventRecord.event_day == day)
+                .order_by(
+                    ToolUsageEventRecord.occurred_at.asc(),
+                    ToolUsageEventRecord.event_id.asc(),
+                )
+                .all()
+            )
+            events = tuple(
+                ToolUsageStoredEvent(
+                    event_id=str(row.event_id),
+                    invocation_id=str(row.invocation_id),
+                    event_kind=str(row.event_kind),
+                    occurred_at=(
+                        row.occurred_at.replace(tzinfo=timezone.utc)
+                        if row.occurred_at.tzinfo is None
+                        else row.occurred_at.astimezone(timezone.utc)
+                    ),
+                    duration_ms=row.duration_ms,
+                    tool_analytics_id=str(row.tool_analytics_id),
+                    tool_family=str(row.tool_family),
+                    tool_source=str(row.tool_source),
+                    surface=str(row.surface),
+                    status=str(row.status) if row.status is not None else None,
+                    retry_ordinal=int(row.retry_ordinal),
+                    owner_ref=str(row.owner_ref) if row.owner_ref is not None else None,
+                    session_ref=(
+                        str(row.session_ref) if row.session_ref is not None else None
+                    ),
+                )
+                for row in rows
+            )
+            return ToolUsageDayReadResult(events=events, failures=0)
+        except Exception:
+            self._record_failure("aggregation_reader_failure")
+            return ToolUsageDayReadResult(events=(), failures=1)
+        finally:
+            if session is not None:
+                session.close()
+
+    def commit_day_aggregation(
+        self,
+        day: date,
+        aggregates: Iterable[ToolUsageDailyAggregate],
+        event_ids: Iterable[str],
+        *,
+        aggregated_at: datetime | None = None,
+    ) -> ToolUsageAggregationCommitResult:
+        """Atomically replace one day's aggregates and mark their source events."""
+
+        if not isinstance(day, date) or isinstance(day, datetime):
+            raise ValueError("day must be a UTC calendar date")
+        try:
+            values = tuple(aggregates)
+            records = tuple(value.to_record() for value in values)
+            normalized_ids = tuple(dict.fromkeys(event_ids))
+        except Exception:
+            self._record_failure("invalid_aggregation_commit")
+            return ToolUsageAggregationCommitResult(0, 0, 1)
+        if any(value.day != day for value in values) or any(
+            not isinstance(event_id, str) or not _OPAQUE_EVENT_ID_RE.fullmatch(event_id)
+            for event_id in normalized_ids
+        ):
+            self._record_failure("invalid_aggregation_commit")
+            return ToolUsageAggregationCommitResult(0, 0, 1)
+        if not normalized_ids:
+            return ToolUsageAggregationCommitResult(0, 0, 0)
+        if not records or any(not record["aggregation_complete"] for record in records):
+            self._record_failure("invalid_aggregation_commit")
+            return ToolUsageAggregationCommitResult(0, 0, 1)
+
+        marked_at = _naive_utc(aggregated_at or datetime.now(timezone.utc))
+        session = None
+        try:
+            session = self._session_factory()
+            matched = (
+                session.query(ToolUsageEventRecord)
+                .filter(
+                    ToolUsageEventRecord.event_day == day,
+                    ToolUsageEventRecord.event_id.in_(normalized_ids),
+                )
+                .count()
+            )
+            if matched != len(normalized_ids):
+                session.rollback()
+                self._record_failure("aggregation_source_mismatch")
+                self._record_quality("writer_failures")
+                return ToolUsageAggregationCommitResult(0, 0, 1)
+            session.execute(
+                delete(ToolUsageDailyAggregateRecord).where(
+                    ToolUsageDailyAggregateRecord.day == day
+                )
+            )
+            for record in records:
+                session.execute(insert(ToolUsageDailyAggregateRecord).values(**record))
+            session.execute(
+                update(ToolUsageEventRecord)
+                .where(ToolUsageEventRecord.event_id.in_(normalized_ids))
+                .values(aggregated_at=marked_at)
+            )
+            session.commit()
+            return ToolUsageAggregationCommitResult(len(records), matched, 0)
+        except Exception:
+            if session is not None:
+                session.rollback()
+            self._record_failure("aggregation_commit_failure")
+            self._record_quality("writer_failures")
+            return ToolUsageAggregationCommitResult(0, 0, 1)
         finally:
             if session is not None:
                 session.close()
@@ -426,17 +612,23 @@ class ToolUsageStore:
         session = None
         try:
             session = self._session_factory()
-            result = session.execute(
+            matched = (
+                session.query(ToolUsageEventRecord)
+                .filter(ToolUsageEventRecord.event_id.in_(normalized_ids))
+                .count()
+            )
+            session.execute(
                 update(ToolUsageEventRecord)
                 .where(ToolUsageEventRecord.event_id.in_(normalized_ids))
                 .values(aggregated_at=marked_at)
             )
             session.commit()
-            return max(int(result.rowcount or 0), 0)
+            return max(int(matched), 0)
         except Exception:
             if session is not None:
                 session.rollback()
             self._record_failure("aggregation_marker_failure")
+            self._record_quality("writer_failures")
             return 0
         finally:
             if session is not None:
@@ -521,6 +713,8 @@ class ToolUsageStore:
             if session is not None:
                 session.rollback()
             self._record_failure("retention_failure")
+            if not dry_run:
+                self._record_quality("writer_failures")
             return ToolUsageRetentionResult(
                 dry_run=True,
                 event_retention_days=event_retention_days,

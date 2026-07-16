@@ -13,7 +13,7 @@
     "unique_live_gates": 39,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "uix13_semantics_gated_tax12_repo_complete_live_activation_dormant_tua5_completed_tua6_next",
+    "queue_status": "uix13_semantics_gated_tax12_repo_complete_live_activation_dormant_tua6_completed_tua7_next",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,7 +21,7 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
-      "tool_usage_analytics": "tua0_through_tua5_completed_tua6_aggregation_next_capture_and_backfill_default_off"
+      "tool_usage_analytics": "tua0_through_tua6_completed_tua7_admin_aggregate_api_next_capture_and_backfill_default_off"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
@@ -61,14 +61,14 @@
         "reason": "UIX-ABC13 requires explicit product-semantics confirmation before claim",
         "slice": "UIX-ABC13",
         "user_decision_required": true,
-        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TUA6"
+        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TUA7"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-16"
     },
     "dependency_ready_repo_only_slices": [
-      "TUA6-aggregation-quality-and-retention-service"
+      "TUA7-admin-only-aggregate-api"
     ],
     "product_semantics_gated_open_slices": [
       "UIX-ABC13"
@@ -1035,7 +1035,7 @@
       "id": "TUA6-aggregation-quality-and-retention-service",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
+      "status": "completed",
       "depends_on": [
         "TUA2-persistence-migration-retention",
         "TUA5-source-adapters-and-double-count-prevention"
@@ -1051,7 +1051,38 @@
         "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_usage_analytics.py tests\\test_tool_usage_retention.py"
       ],
       "gate": "path_exact_usage_store_hotfile_claim_required_aggregation_and_retention_repo_only_default_off",
-      "done_when": "Daily aggregation by canonical dimensions is idempotent, bounded histograms produce deterministic p50/p95, distinct counts remain aggregate-only, quality metrics are stable for empty or incomplete periods, and retention runs only after aggregation."
+      "done_when": "Daily aggregation by canonical dimensions is idempotent, bounded histograms produce deterministic p50/p95, distinct counts remain aggregate-only, quality metrics are stable for empty or incomplete periods, and retention runs only after aggregation.",
+      "completed_at": "2026-07-16T11:45:35.7774274+02:00",
+      "completion_evidence": {
+        "focused_tests": "7 passed with 1 pre-existing SQLAlchemy deprecation warning",
+        "store_migration_event_privacy_regression": "90 passed with 1 pre-existing SQLAlchemy deprecation warning outside the restricted sandbox; the first attempt had 89 passes and one sandbox-only tmp_path ACL setup error",
+        "daily_dimensions": "Canonical tool, family, source, surface and status rows are deterministically sorted and atomically replace the prior day projection, including late-terminal replacement without stale incomplete counts",
+        "statistics": "Fixed bounded duration histogram upper bounds produce deterministic p50/p95; terminal status rates, retry counts and coverage use explicit invocation semantics",
+        "aggregate_privacy": "Owner and session HMAC references are used only inside the local grouping pass and leave the service solely as distinct counts; safe projections contain no event, invocation, owner, session, run or correlation reference",
+        "quality": "Coverage, incomplete, duplicates_rejected, writer_failures and unknown_identity are bounded values; empty, deferred and default-off days remain stable and are not instrumentation errors",
+        "retention_order": "One atomic transaction replaces daily rows and marks exactly the same-day source events; retention is callable only after that commit and remains dry-run by default",
+        "live_effects": "Only isolated in-memory SQLite fixtures were used; no production database, capture, feature activation, backfill, provider, network, deployment or live retention action was opened or mutated"
+      }
+    },
+    {
+      "id": "TUA7-admin-only-aggregate-api",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "open",
+      "depends_on": [
+        "TUA6-aggregation-quality-and-retention-service"
+      ],
+      "source_roadmap": "docs/plans/privacy-safe-tool-analytics-roadmap.md",
+      "allowed_paths": [
+        "routes/diagnostics_routes.py",
+        "src/tool_usage_analytics.py",
+        "tests/test_tool_usage_diagnostics_routes.py"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_usage_diagnostics_routes.py tests\\test_tool_usage_analytics.py"
+      ],
+      "gate": "path_exact_diagnostics_route_hotfile_claim_required_admin_aggregate_only_default_off",
+      "done_when": "The bounded GET /api/diagnostics/tool-usage route fails closed for unauthenticated or non-Admin callers, validates every filter, caps span and result size, and returns only allowed aggregates without any raw or direct identifier route."
     },
     {
       "id": "TAX3-close-six-registration-gaps",
