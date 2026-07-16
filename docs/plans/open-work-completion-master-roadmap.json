@@ -13,7 +13,7 @@
     "unique_live_gates": 39,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "uix13_semantics_gated_tax12_repo_complete_live_activation_dormant_tua2_completed_tua3_next",
+    "queue_status": "uix13_semantics_gated_tax12_repo_complete_live_activation_dormant_tua3_completed_tua4_next",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,7 +21,7 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
-      "tool_usage_analytics": "tua0_through_tua2_completed_tua3_central_instrumentation_next_capture_and_backfill_default_off"
+      "tool_usage_analytics": "tua0_through_tua3_completed_tua4_trusted_context_next_capture_and_backfill_default_off"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
@@ -68,7 +68,7 @@
       "verified_at": "2026-07-16"
     },
     "dependency_ready_repo_only_slices": [
-      "TUA3-central-execution-boundary-instrumentation"
+      "TUA4-trusted-context-and-incognito-propagation"
     ],
     "product_semantics_gated_open_slices": [
       "UIX-ABC13"
@@ -932,7 +932,7 @@
       "id": "TUA3-central-execution-boundary-instrumentation",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
+      "status": "completed",
       "depends_on": [
         "TAX5-effect-permission-and-confirmation-matrix",
         "TUA2-persistence-migration-retention"
@@ -948,7 +948,41 @@
         "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_usage_instrumentation.py tests\\test_ai_lens_instrumentation.py tests\\test_tool_policy.py"
       ],
       "gate": "path_exact_tool_execution_hotfile_claim_required_capture_default_off",
-      "done_when": "One central wrapper emits at most one start and terminal event with monotonic duration and complete failure isolation while preserving every existing tool result and leaving persistence capture default-off."
+      "done_when": "One central wrapper emits at most one start and terminal event with monotonic duration and complete failure isolation while preserving every existing tool result and leaving persistence capture default-off.",
+      "completed_at": "2026-07-16T08:35:49.1170375+02:00",
+      "completion_evidence": {
+        "focused_tests": "36 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "direct_wrapper_regression": "119 passed and 2 skipped with 2 pre-existing dependency deprecation warnings across direct execute_tool_block consumers",
+        "event_pair": "The optional central wrapper consumer creates one opaque invocation ID and at most one started/terminal pair with monotonic duration for succeeded, failed, blocked, rejected and cancelled outcomes",
+        "semantic_isolation": "Instrumentation and sink failures are swallowed without changing the original description/result tuple or re-raised main-path exception/cancellation object; no built-in handler gains its own timer",
+        "shared_metadata": "AI Lens and usage analytics consume the same content-free analytics ID, family, source, argument-presence/size bucket metadata but retain independent emitters and failure paths",
+        "privacy_and_defaults": "Unknown and MCP identities normalize without raw dynamic names; owner/session references are HMAC-only; no instrumentation object is wired by default and a sinkless explicit object discards events",
+        "independent_regression": "One pre-existing webhook private-URL validation test fails independently of TUA3 and is reserved for REG-20260716-015 at the next permitted integration barrier",
+        "live_effects": "No persistence sink, event capture, analytics backfill, database, provider, network, deployment or live action was enabled or mutated"
+      }
+    },
+    {
+      "id": "TUA4-trusted-context-and-incognito-propagation",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "open",
+      "depends_on": [
+        "TUA3-central-execution-boundary-instrumentation"
+      ],
+      "source_roadmap": "docs/plans/privacy-safe-tool-analytics-roadmap.md",
+      "allowed_paths": [
+        "src/agent_loop.py",
+        "routes/chat_routes.py",
+        "routes/chat_helpers.py",
+        "src/tool_usage_instrumentation.py",
+        "tests/test_tool_usage_context.py",
+        "tests/test_tool_usage_incognito.py"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_usage_context.py tests\\test_tool_usage_incognito.py tests\\test_chat_helpers.py"
+      ],
+      "gate": "path_exact_agent_loop_and_chat_hotfile_claim_required_capture_default_off",
+      "done_when": "Trusted runtime context supplies surface, mode, scope and HMAC references; tool arguments cannot forge identity, missing keys never fall back to raw values, and Incognito short-circuits every persistent consumer."
     },
     {
       "id": "TAX3-close-six-registration-gaps",

@@ -401,3 +401,42 @@ async def test_tool_capture_callback_failure_never_breaks_tool_result():
     desc, result = await execute_tool_block(block, ai_lens_emitter=FailingEmitter())
     assert desc == "unknown: unknown_tool"
     assert result["exit_code"] == 1
+
+
+@pytest.mark.asyncio
+async def test_tool_usage_and_ai_lens_share_only_safe_metadata_and_fail_independently():
+    from types import SimpleNamespace
+    from src.tool_usage_instrumentation import ToolUsageInstrumentation
+
+    service = _service()
+    emitter = _emitter(service)
+    usage_events = []
+    instrumentation = ToolUsageInstrumentation(
+        sink=usage_events.append,
+        hmac_key=b"synthetic-local-key-material",
+        app_version="0.25.0",
+        wall_clock=lambda: FIXED_TIME,
+    )
+    raw_tool = "unknown_private_provider_tool"
+    raw_content = '{"password":"synthetic-marker","path":"synthetic-location"}'
+    block = SimpleNamespace(tool_type=raw_tool, content=raw_content)
+
+    desc, result = await execute_tool_block(
+        block,
+        ai_lens_emitter=emitter,
+        tool_usage_instrumentation=instrumentation,
+    )
+    snapshot = service.snapshot(emitter.session_id)
+    ai_payload = snapshot["events"][0]["payload"]
+    usage_payload = usage_events[0].to_safe_dict()
+    encoded = json.dumps({"ai": snapshot, "usage": usage_payload}, sort_keys=True)
+
+    assert desc == f"unknown: {raw_tool}"
+    assert result["exit_code"] == 1
+    for key in ("tool_analytics_id", "tool_family", "tool_source", "argument_size_bucket"):
+        assert ai_payload[key] == usage_payload[key]
+    assert ai_payload["tool_analytics_id"] == "dynamic-unclassified"
+    assert usage_events[-1].status.value == "rejected"
+    assert raw_tool not in encoded
+    assert raw_content not in encoded
+    assert "private" not in usage_payload

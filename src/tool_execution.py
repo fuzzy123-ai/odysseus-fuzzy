@@ -343,6 +343,7 @@ async def execute_tool_block(
     context_length: int = 0,
     tool_policy: Optional[Any] = None,
     ai_lens_emitter: Optional[Any] = None,
+    tool_usage_instrumentation: Optional[Any] = None,
 ) -> Tuple[str, Dict]:
     """Execute a single tool block. Returns (description, result_dict).
 
@@ -352,7 +353,23 @@ async def execute_tool_block(
     """
     token = _active_workspace.set(workspace or None)
     started_at = time.perf_counter()
-    _emit_ai_lens_tool_event(ai_lens_emitter, block, event_type="tool_call_started", status="started")
+    usage_metadata = None
+    usage_span = None
+    if ai_lens_emitter is not None or tool_usage_instrumentation is not None:
+        usage_metadata = _build_tool_usage_metadata(block)
+    usage_span = _begin_tool_usage(
+        tool_usage_instrumentation,
+        usage_metadata,
+        owner=owner,
+        session_id=session_id,
+    )
+    _emit_ai_lens_tool_event(
+        ai_lens_emitter,
+        block,
+        event_type="tool_call_started",
+        status="started",
+        usage_metadata=usage_metadata,
+    )
     try:
         outcome = await _execute_tool_block_impl(
             block,
@@ -373,16 +390,31 @@ async def execute_tool_block(
             status="failed" if _tool_result_failed(outcome[1]) else "succeeded",
             result=outcome[1],
             latency_ms=max(1, int((time.perf_counter() - started_at) * 1000)),
+            usage_metadata=usage_metadata,
         )
+        _finish_tool_usage(usage_span, outcome=outcome, result=outcome[1])
         return outcome
-    except Exception:
+    except asyncio.CancelledError as exc:
         _emit_ai_lens_tool_event(
             ai_lens_emitter,
             block,
             event_type="tool_call_result",
             status="failed",
             latency_ms=max(1, int((time.perf_counter() - started_at) * 1000)),
+            usage_metadata=usage_metadata,
         )
+        _finish_tool_usage(usage_span, exception=exc)
+        raise
+    except Exception as exc:
+        _emit_ai_lens_tool_event(
+            ai_lens_emitter,
+            block,
+            event_type="tool_call_result",
+            status="failed",
+            latency_ms=max(1, int((time.perf_counter() - started_at) * 1000)),
+            usage_metadata=usage_metadata,
+        )
+        _finish_tool_usage(usage_span, exception=exc)
         raise
     finally:
         _active_workspace.reset(token)
@@ -394,6 +426,55 @@ def _tool_result_failed(result: Any) -> bool:
     return bool(result.get("error")) or result.get("exit_code") not in (None, 0, "0")
 
 
+def _build_tool_usage_metadata(block: Any) -> Any:
+    try:
+        from src.tool_usage_instrumentation import build_tool_usage_call_metadata
+
+        return build_tool_usage_call_metadata(block)
+    except Exception:
+        return None
+
+
+def _begin_tool_usage(
+    instrumentation: Any,
+    metadata: Any,
+    *,
+    owner: Optional[str],
+    session_id: Optional[str],
+) -> Any:
+    if instrumentation is None or metadata is None:
+        return None
+    try:
+        return instrumentation.begin(metadata, owner=owner, session_id=session_id)
+    except Exception:
+        return None
+
+
+def _finish_tool_usage(
+    span: Any,
+    *,
+    outcome: Optional[Tuple[str, Dict]] = None,
+    result: Any = None,
+    exception: Optional[BaseException] = None,
+) -> None:
+    if span is None:
+        return
+    try:
+        from src.tool_usage_instrumentation import (
+            classify_tool_usage_outcome,
+            exception_outcome,
+        )
+
+        terminal = (
+            exception_outcome(exception)
+            if exception is not None
+            else classify_tool_usage_outcome(outcome[0], outcome[1])
+        )
+        span.finish(terminal, result=result)
+    except Exception:
+        pass
+
+
 def _emit_ai_lens_tool_event(
     emitter: Any,
     block: Any,
@@ -402,6 +483,7 @@ def _emit_ai_lens_tool_event(
     status: str,
     result: Any = None,
     latency_ms: int = 0,
+    usage_metadata: Any = None,
 ) -> None:
     if emitter is None:
         return
@@ -409,7 +491,11 @@ def _emit_ai_lens_tool_event(
         from src.ai_lens_events import AiLensRedactionLevel, AiLensSourceKind, AiLensSourceRef
         from src.ai_lens_service import opaque_ai_lens_ref
 
-        tool_name = str(getattr(block, "tool_type", "") or "unknown")
+        tool_name = (
+            usage_metadata.tool_analytics_id
+            if usage_metadata is not None
+            else str(getattr(block, "tool_type", "") or "unknown")
+        )
         content = str(getattr(block, "content", "") or "")
         source_ref = AiLensSourceRef.create(
             source_id=opaque_ai_lens_ref("tool", tool_name),
@@ -418,10 +504,25 @@ def _emit_ai_lens_tool_event(
         )
         payload: Dict[str, Any] = {
             "tool_ref": source_ref.source_id,
-            "argument_present": bool(content),
-            "argument_bytes": min(len(content.encode("utf-8", errors="replace")), 10_000_000),
+            "argument_present": (
+                usage_metadata.argument_present
+                if usage_metadata is not None
+                else bool(content)
+            ),
+            "argument_bytes": (
+                usage_metadata.argument_bytes
+                if usage_metadata is not None
+                else min(len(content.encode("utf-8", errors="replace")), 10_000_000)
+            ),
             "arguments_included": False,
         }
+        if usage_metadata is not None:
+            payload.update(
+                tool_analytics_id=usage_metadata.tool_analytics_id,
+                tool_family=usage_metadata.tool_family.value,
+                tool_source=usage_metadata.tool_source.value,
+                argument_size_bucket=usage_metadata.argument_size_bucket.value,
+            )
         if event_type == "tool_call_result":
             payload.update({
                 "success": status == "succeeded",
