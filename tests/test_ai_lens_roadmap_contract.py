@@ -21,13 +21,17 @@ def test_microscope_offline_contract_is_separate_from_live_sampling() -> None:
 
     offline = slices["AIL-TECH-9A-local-model-capability-contract"]
     assert offline["class"] == "repo_only"
-    assert offline["status"] == "open"
+    assert offline["status"] == "done"
     assert offline["depends_on"] == ["AIL-TECH-1-event-contract"]
     assert offline["allowed_paths"] == [
         "src/ai_lens_local_model.py",
         "tests/test_ai_lens_local_model.py",
     ]
     assert "import, load or start a model runtime" in offline["forbidden_actions"]
+    assert offline["completion_evidence"]["commit"] == (
+        "f751cc5186b4d803c4bcaf56a2b1094e043ddda8"
+    )
+    assert "20 passed" in offline["completion_evidence"]["focused_tests"]
 
     live = slices["AIL-TECH-9B-local-model-sampling-smoke"]
     assert live["class"] == "needs_live_go"
@@ -43,22 +47,24 @@ def test_local_runtime_gate_blocks_only_the_live_sampling_smoke() -> None:
     gate = gates["AIL-TECH-GATE-local-internals-runtime"]
 
     assert gate["blocks"] == ["AIL-TECH-9B-local-model-sampling-smoke"]
-    assert gate["next_safe_slice"] == "AIL-TECH-9A-local-model-capability-contract"
-    assert "without runtime imports or I/O" in gate["safe_preparation_done"]
+    assert gate["next_safe_slice"] is None
+    assert gate["blocked_frontier"] == "AIL-TECH-9B-local-model-sampling-smoke"
+    assert "performs no runtime imports or I/O" in gate["safe_preparation_done"]
 
 
-def test_ai_lens_master_points_to_the_offline_frontier() -> None:
+def test_ai_lens_master_points_to_the_exact_live_gate() -> None:
     master = _load(MASTER_PATH)
     sub_roadmaps = _by_id(master["sub_roadmaps"])
     gates = _by_id(master["gate_queue"])
 
     assert sub_roadmaps["AIL-TECH"]["status"] == (
-        "offline_microscope_contract_open_live_sampling_gated"
+        "repo_slices_done_live_sampling_gated"
     )
-    assert gates["AIL-GATE-local-model-internals"]["next_safe_slice"] == (
-        "AIL-TECH-9A-local-model-capability-contract"
+    assert gates["AIL-GATE-local-model-internals"]["next_safe_slice"] is None
+    assert gates["AIL-GATE-local-model-internals"]["blocked_frontier"] == (
+        "AIL-TECH-9B-local-model-sampling-smoke"
     )
-    assert "AIL-TECH-9A" in master["recommended_next_step"]
+    assert "No dependency-ready repo-only" in master["recommended_next_step"]
 
 
 def test_ai_lens_technical_slice_dependencies_resolve_and_are_acyclic() -> None:

@@ -4,7 +4,7 @@
   "title": "AI Lens Technical Roadmap",
   "created_at": "2026-07-09",
   "updated_at": "2026-07-16",
-  "status": "offline_local_model_capability_contract_open_live_sampling_gated",
+  "status": "repo_slices_done_live_sampling_gated",
   "abc_mode": "Standard ABC, backend-contract-first",
   "goal": "Create the repo-side AI Lens telemetry, projection and replay foundation so the sci-fi visualization is driven by real Odysseus runtime data.",
   "problem_statement": {
@@ -385,7 +385,7 @@
       "id": "AIL-TECH-9A-local-model-capability-contract",
       "class": "repo_only",
       "owner": "Bob",
-      "status": "open",
+      "status": "done",
       "depends_on": ["AIL-TECH-1-event-contract"],
       "objective": "Implement a pure disabled-by-default capability and sampling-envelope contract for optional local-model internals without importing or starting a model runtime.",
       "allowed_paths": [
@@ -399,7 +399,15 @@
         "read GPU, model or host runtime state",
         "network, provider, database, filesystem artifact or UI mutation"
       ],
-      "done_when": "A pure contract reports unavailable/disabled by default, validates bounded aggregate-only sample envelopes, rejects raw tensors or private fields and cannot perform runtime I/O."
+      "done_when": "A pure contract reports unavailable/disabled by default, validates bounded aggregate-only sample envelopes, rejects raw tensors or private fields and cannot perform runtime I/O.",
+      "completed_at": "2026-07-16T17:32:58.7770878+02:00",
+      "completion_evidence": {
+        "commit": "f751cc5186b4d803c4bcaf56a2b1094e043ddda8",
+        "focused_tests": "python -m pytest tests/test_ai_lens_local_model.py => 20 passed, 1 pre-existing SQLAlchemy warning in 0.94s",
+        "default_boundary": "Capability is unavailable and disabled by default; an available adapter remains disabled unless explicitly enabled by a caller-supplied static descriptor.",
+        "aggregate_boundary": "Only bounded finite aggregate metrics declared by the static capability are accepted; raw tensor, prompt, completion, provider, private-context and unsupported fields fail closed.",
+        "no_mutation": "The production module imports no model runtime, OS, filesystem, network, database, provider or UI facility and performs no runtime probe or external I/O."
+      }
     },
     {
       "id": "AIL-TECH-9B-local-model-sampling-smoke",
@@ -431,9 +439,10 @@
       "class": "needs_live_go",
       "blocks": ["AIL-TECH-9B-local-model-sampling-smoke"],
       "decision_needed": "Select the exact local model runtime plus sample count, duration, aggregate metrics, performance budget, retention and redacted evidence path.",
-      "safe_preparation_done": "AIL-TECH-9A may implement and test only the pure disabled-by-default capability and aggregate-envelope contract without runtime imports or I/O.",
+      "safe_preparation_done": "AIL-TECH-9A is complete at f751cc5186b4d803c4bcaf56a2b1094e043ddda8 with 20 focused tests: the capability is disabled by default, aggregate-only and performs no runtime imports or I/O.",
       "risk_if_bypassed": "Performance degradation, GPU memory pressure or misleading hidden-state visuals.",
-      "next_safe_slice": "AIL-TECH-9A-local-model-capability-contract"
+      "next_safe_slice": null,
+      "blocked_frontier": "AIL-TECH-9B-local-model-sampling-smoke"
     }
   ],
   "verification": {
@@ -462,5 +471,5 @@
     "no_go": "Telemetry exposes raw secrets/private content, blocks normal chat, fabricates neural internals or starts live model hooks without consent.",
     "blocked": "No stable event contract or no safe way to bound/redact Lens payloads."
   },
-  "recommended_next_step": "Complete AIL-TECH-9A as a pure offline capability contract; keep AIL-TECH-9B blocked until the operator supplies the exact local runtime and bounded live-sampling policy."
+  "recommended_next_step": "No dependency-ready repo-only Runtime/Microscope slice remains. Keep AIL-TECH-9B blocked until the operator supplies the exact local runtime, sample count, duration, aggregate metrics, performance budget, retention and redacted evidence path."
 }

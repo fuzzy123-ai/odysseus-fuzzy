@@ -4,7 +4,7 @@
   "title": "AI Lens Master Roadmap",
   "created_at": "2026-07-09",
   "updated_at": "2026-07-16",
-  "status": "backend_contracts_ready_offline_microscope_contract_open_ui_live_gated",
+  "status": "backend_contracts_ready_offline_microscope_done_ui_live_gated",
   "abc_mode": "Standard ABC",
   "goal": "Build AI Lens as a trustworthy live observability surface for Odysseus that visualizes real runtime context, semantic space, tool flow and optional local-model internals without pretending API models expose hidden neural state.",
   "scope": "Odysseus Agent screen, future Knowledge lens, memory/RAG telemetry, LLM stream instrumentation, tool execution traces, semantic graph visualization and the Harbor-style sci-fi control-room UI.",
@@ -38,7 +38,7 @@
       "id": "AIL-TECH",
       "roadmap": "docs/plans/ai-lens-technical-roadmap.json",
       "role": "Event contracts, telemetry stream, J-Space projection, context graph, replay and local-model microscope.",
-      "status": "offline_microscope_contract_open_live_sampling_gated"
+      "status": "repo_slices_done_live_sampling_gated"
     },
     {
       "id": "AIL-DESIGN",
@@ -306,11 +306,12 @@
     {
       "id": "AIL-GATE-local-model-internals",
       "class": "needs_live_go",
-      "blocks": ["local model attention, hidden-state or logits capture"],
-      "decision_needed": "Operator chooses which local model runtime may expose internals and accepts the performance cost.",
-      "safe_preparation_done": "Roadmaps define the boundary; no live model hooks are started.",
+      "blocks": ["AIL-TECH-9B-local-model-sampling-smoke"],
+      "decision_needed": "Select the exact local model runtime plus sample count, duration, aggregate metrics, performance budget, retention and redacted evidence path.",
+      "safe_preparation_done": "AIL-TECH-9A is complete at f751cc5186b4d803c4bcaf56a2b1094e043ddda8 with a disabled-by-default aggregate-only contract; no live model hooks were imported or started.",
       "risk_if_bypassed": "High CPU/GPU load, private prompt leakage, unstable model runtimes or misleading visuals.",
-      "next_safe_slice": "AIL-TECH-9A-local-model-capability-contract"
+      "next_safe_slice": null,
+      "blocked_frontier": "AIL-TECH-9B-local-model-sampling-smoke"
     },
     {
       "id": "AIL-GATE-production-ui-placement",
@@ -339,5 +340,5 @@
     "no_go": "The UI implies API-model brain access, exposes raw private content, fabricates evidence, or lets decorative animation obscure operational state.",
     "blocked": "AI Lens cannot produce bounded redacted event payloads or cannot distinguish real telemetry from visual effects."
   },
-  "recommended_next_step": "Complete the pure offline AIL-TECH-9A local-model capability contract serially; keep live sampling and all UI work behind their separate gates."
+  "recommended_next_step": "No dependency-ready repo-only Runtime/Microscope slice remains. Keep AIL-TECH-9B and all UI work behind their separate action-specific live and design gates."
 }
