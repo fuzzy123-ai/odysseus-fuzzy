@@ -3,7 +3,7 @@
   "kind": "odysseus.independent_regression_queue",
   "queue_id": "independent-regressions",
   "created_at": "2026-07-14T20:29:56.6847136+02:00",
-  "updated_at": "2026-07-16T08:40:00+02:00",
+  "updated_at": "2026-07-16T12:51:17.0004277+02:00",
   "status": "open",
   "purpose": "Hold failures discovered outside the active roadmap slice so they remain visible without silently expanding that slice, changing its dependency graph or starting an unbounded probe-and-fix loop.",
   "ownership_boundary": {
@@ -411,8 +411,8 @@
     },
     {
       "id": "REG-20260716-015",
-      "state": "queued",
-      "priority": "untriaged",
+      "state": "fixed",
+      "priority": "integration_barrier_resolved",
       "source_run_id": "abc-open-roadmaps-20260715t200224",
       "source_probe_id": "TUA3-DIRECT-WRAPPER-REGRESSION",
       "observed_at": "2026-07-16T08:33:00+02:00",
@@ -428,11 +428,25 @@
         "The exact TUA3 roadmap suite passed 36 tests, including usage/AI-Lens isolation and existing tool policy contracts.",
         "Isolated reproduction reaches a different import-isolation failure before the webhook assertion because the test replaces the canonical database module with an incomplete fake.",
         "No webhook, URL-validation, database-fake, review-regression or unrelated product path was in the TUA3 claim or modified during discovery.",
-        "No diagnosis expansion, product fix, test weakening, full-suite rerun, network action or external mutation was performed."
+        "No diagnosis expansion, product fix, test weakening, full-suite rerun, network action or external mutation was performed.",
+        "At the TUA11 integration barrier the exact isolated node reproduced the incomplete core.database fake failure before reaching the webhook assertion.",
+        "The current confirmed-route and server-side private-URL contracts independently passed 9 focused tests before mutation, proving no webhook product fix was required.",
+        "The regression test now imports only the narrow admin-services implementation, sends a confirmed add through a bounded fake AsyncClient, and verifies that the internal /api/webhooks route rejection preserves the private/internal detail and 422 status.",
+        "The exact node passed, then all 37 review-regression, confirmed-route and webhook-SSRF tests passed together; no webhook, database, route, URL-security or product source changed."
       ],
-      "next_action": "At the next declared TUA integration barrier, claim this item separately, stabilize the isolated import fixture, then distinguish a product URL-validation regression from test-module pollution before any fix.",
-      "claim": null,
-      "disposition": null
+      "next_action": "None. Preserve the narrow confirmed-route regression test and the separate server-side webhook SSRF contract.",
+      "claim": {
+        "claim_id": "abc-open-roadmaps-20260715t200224:REG-20260716-015",
+        "owner": "/root",
+        "state": "green_precommit"
+      },
+      "disposition": {
+        "kind": "fixed",
+        "root_cause": "stale test isolation replaced the global database module and imported the broad tool facade even though webhook management now uses a narrow confirmed internal-route boundary",
+        "fixed_at": "2026-07-16T12:51:17.0004277+02:00",
+        "focused_evidence": "exact node 1 passed; combined review-regression, confirmed-route and webhook-SSRF suite 37 passed",
+        "scope": "review regression test isolation and this queue record only; product source unchanged"
+      }
     }
   ]
 }
