@@ -27,9 +27,10 @@ def test_inventory_reproduces_tax0_baseline() -> None:
         "function_schemas": 83,
         "schema_without_runtime_tag": 6,
         "runtime_without_function_schema": 1,
-        "admin_metadata": 31,
-        "runtime_without_admin_metadata": 48,
-        "stale_admin_metadata": 1,
+        "admin_metadata": 84,
+        "runtime_without_admin_metadata": 0,
+        "admin_catalog_without_runtime_tag": 6,
+        "stale_admin_metadata": 0,
     }
     assert {key: inventory["counts"][key] for key in expected_counts} == expected_counts
 
@@ -44,9 +45,27 @@ def test_inventory_reproduces_tax0_baseline() -> None:
     assert [item["tool_id"] for item in inventory["drift"]["runtime_without_function_schema"]] == [
         "generate_image"
     ]
-    assert [item["tool_id"] for item in inventory["drift"]["stale_admin_metadata"]] == [
-        "manage_rag"
+    assert inventory["drift"]["stale_admin_metadata"] == []
+    assert [
+        item["tool_id"]
+        for item in inventory["drift"]["admin_catalog_without_runtime_tag"]
+    ] == [
+        "manage_assistant",
+        "manage_embeddings",
+        "manage_personal_docs",
+        "manage_plugins",
+        "manage_presets",
+        "tail_serve_output",
     ]
+    assert inventory["admin_projection"] == {
+        "mode": "descriptor_v2_api",
+        "endpoint": "/api/tools",
+        "legacy_static_metadata": False,
+    }
+    assert "manage_rag" not in inventory["projections"]["admin_metadata"]
+    assert "const TOOL_META" not in (ROOT / "static" / "js" / "admin.js").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_inventory_is_deterministic_and_content_free() -> None:

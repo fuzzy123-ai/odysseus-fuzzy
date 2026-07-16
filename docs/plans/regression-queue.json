@@ -3,7 +3,7 @@
   "kind": "odysseus.independent_regression_queue",
   "queue_id": "independent-regressions",
   "created_at": "2026-07-14T20:29:56.6847136+02:00",
-  "updated_at": "2026-07-16T07:25:16.6068750+02:00",
+  "updated_at": "2026-07-16T07:46:13.3551831+02:00",
   "status": "open",
   "purpose": "Hold failures discovered outside the active roadmap slice so they remain visible without silently expanding that slice, changing its dependency graph or starting an unbounded probe-and-fix loop.",
   "ownership_boundary": {
@@ -367,8 +367,8 @@
     },
     {
       "id": "REG-20260716-014",
-      "state": "queued",
-      "priority": "untriaged",
+      "state": "fixed",
+      "priority": "integration_barrier_resolved",
       "source_run_id": "abc-open-roadmaps-20260715t200224",
       "source_probe_id": "TAX9-DIRECT-CATALOG-REGRESSION",
       "observed_at": "2026-07-16T07:20:00+02:00",
@@ -389,11 +389,25 @@
         "Read-only HEAD inspection confirms static/js/admin.js already has no static TOOL_META object while scripts/audit_tool_registry_drift.py still raises when that object is absent.",
         "TAX9 changed neither static/js/admin.js, scripts/audit_tool_registry_drift.py nor tests/test_builtin_tool_catalog.py.",
         "The TAX9 focused suite passed 8 tests and the directly related catalog/settings/policy suite excluding this independent inventory contract passed 94 tests.",
-        "No source or test mutation, diagnosis expansion, full-suite rerun, live action or external action was performed for this regression."
+        "No source or test mutation, diagnosis expansion, full-suite rerun, live action or external action was performed for this regression during TAX9.",
+        "At the TAX integration barrier a dedicated serialized claim proved that TAX7 intentionally replaced the partial 31-entry TOOL_META fallback with the Descriptor-V2 /api/tools projection, while the TAX0 audit and snapshot still required the removed object.",
+        "The corrected static audit requires canonical Descriptor-V2 client wiring, inventories all 84 canonical built-ins, classifies the six non-runtime catalog identities as intentional, and fails if legacy TOOL_META is restored.",
+        "All 20 tests in tests/test_audit_tool_registry_drift.py and tests/test_builtin_tool_catalog.py passed, including the seven originally failing nodes; the deterministic snapshot --check also passed.",
+        "The Admin UI, product catalog, runtime, schemas, parser, prompt, handlers and all live/external paths remained unchanged."
       ],
-      "next_action": "At the TAX integration barrier, select this item through a dedicated serialized claim, reconcile the legacy static TOOL_META audit with the canonical backend-driven Admin projection, and add focused acceptance evidence; it does not preempt TAX10.",
-      "claim": null,
-      "disposition": null
+      "next_action": "None. Preserve the Descriptor-V2 Admin projection and keep the regenerated content-free inventory under normal TAX11 parity checks.",
+      "claim": {
+        "claim_id": "abc-open-roadmaps-20260715t200224:REG-20260716-014",
+        "owner": "/root",
+        "state": "green_precommit"
+      },
+      "disposition": {
+        "kind": "fixed",
+        "root_cause": "stale TAX0 static Admin inventory contract after the intentional TAX7 Descriptor-V2 UI projection migration",
+        "fixed_at": "2026-07-16T07:46:13.3551831+02:00",
+        "focused_evidence": "20 passed plus deterministic inventory check passed",
+        "scope": "audit, audit tests, deterministic content-free snapshot and this queue record only"
+      }
     }
   ]
 }

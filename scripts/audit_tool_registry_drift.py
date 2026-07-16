@@ -27,6 +27,7 @@ SOURCE_PATHS = (
     "src/tool_execution.py",
     "static/js/admin.js",
     "src/tool_catalog.py",
+    "src/builtin_tool_catalog.py",
     "src/tool_registry.py",
     "src/plugin_system.py",
     "src/mcp_manager.py",
@@ -40,9 +41,10 @@ EXPECTED_COUNTS = {
     "function_schemas": 83,
     "schema_without_runtime_tag": 6,
     "runtime_without_function_schema": 1,
-    "admin_metadata": 31,
-    "runtime_without_admin_metadata": 48,
-    "stale_admin_metadata": 1,
+    "admin_metadata": 84,
+    "runtime_without_admin_metadata": 0,
+    "admin_catalog_without_runtime_tag": 6,
+    "stale_admin_metadata": 0,
 }
 EXPECTED_SCHEMA_WITHOUT_RUNTIME = (
     "manage_assistant",
@@ -53,7 +55,8 @@ EXPECTED_SCHEMA_WITHOUT_RUNTIME = (
     "tail_serve_output",
 )
 EXPECTED_RUNTIME_WITHOUT_SCHEMA = ("generate_image",)
-EXPECTED_STALE_ADMIN_METADATA = ("manage_rag",)
+EXPECTED_ADMIN_CATALOG_WITHOUT_RUNTIME = EXPECTED_SCHEMA_WITHOUT_RUNTIME
+EXPECTED_STALE_ADMIN_METADATA: tuple[str, ...] = ()
 
 
 class InventoryError(ValueError):
@@ -129,17 +132,42 @@ def _schema_names(root: Path) -> set[str]:
 
 
 def _admin_metadata_keys(root: Path) -> set[str]:
+    """Return canonical backend-driven Admin catalog IDs.
+
+    TAX7 removed the partial static TOOL_META fallback. The Admin surface now
+    consumes Descriptor V2 from /api/tools, so its deterministic inventory is
+    the canonical built-in catalog guarded by explicit client wiring markers.
+    """
+
     text = _read(root, "static/js/admin.js")
-    match = re.search(r"^const TOOL_META = \{(?P<body>.*?)^\};", text, re.MULTILINE | re.DOTALL)
-    if not match:
-        raise InventoryError("static/js/admin.js has no static TOOL_META object")
-    return set(
-        re.findall(
-            r"^\s*([A-Za-z_][A-Za-z0-9_]*):\s*\{",
-            match.group("body"),
-            re.MULTILINE,
-        )
+    if re.search(r"^const TOOL_META\s*=", text, re.MULTILINE):
+        raise InventoryError("static/js/admin.js must not restore legacy TOOL_META")
+    required_markers = (
+        "const TOOL_FAMILY_PRESENTATION = Object.freeze({",
+        "async function loadBuiltinTools()",
+        "fetch('/api/tools'",
+        "data.descriptors || data.tools || []",
+        "toolCatalogGroup(t)",
     )
+    missing = [marker for marker in required_markers if marker not in text]
+    if missing:
+        raise InventoryError(
+            "static/js/admin.js is missing canonical catalog wiring: "
+            + ", ".join(missing)
+        )
+
+    values = _literal_assignment(
+        root,
+        "src/builtin_tool_catalog.py",
+        "CATALOG_TOOL_IDS",
+    )
+    if not isinstance(values, (tuple, list)) or not values:
+        raise InventoryError("CATALOG_TOOL_IDS must be a non-empty static sequence")
+    if any(not isinstance(item, str) or not item for item in values):
+        raise InventoryError("CATALOG_TOOL_IDS contains an invalid tool ID")
+    if len(values) != len(set(values)):
+        raise InventoryError("CATALOG_TOOL_IDS contains duplicate tool IDs")
+    return set(values)
 
 
 def _string_values(node: ast.AST) -> set[str]:
@@ -249,6 +277,7 @@ def validate_baseline(inventory: dict[str, Any]) -> list[str]:
     exact_sets = {
         "schema_without_runtime_tag": EXPECTED_SCHEMA_WITHOUT_RUNTIME,
         "runtime_without_function_schema": EXPECTED_RUNTIME_WITHOUT_SCHEMA,
+        "admin_catalog_without_runtime_tag": EXPECTED_ADMIN_CATALOG_WITHOUT_RUNTIME,
         "stale_admin_metadata": EXPECTED_STALE_ADMIN_METADATA,
     }
     for key, expected in exact_sets.items():
@@ -273,7 +302,10 @@ def build_inventory(root: Path = ROOT) -> dict[str, Any]:
 
     schema_without_runtime = function_schemas - runtime_tags
     runtime_without_schema = runtime_tags - function_schemas
-    stale_admin = admin_metadata - runtime_tags
+    admin_catalog_without_runtime = admin_metadata - runtime_tags
+    stale_admin = admin_catalog_without_runtime - set(
+        EXPECTED_ADMIN_CATALOG_WITHOUT_RUNTIME
+    )
     runtime_without_admin = runtime_tags - admin_metadata
 
     source_hashes = _source_hashes(root)
@@ -305,6 +337,7 @@ def build_inventory(root: Path = ROOT) -> dict[str, Any]:
             "dispatcher_condition_ids": len(dispatcher_conditions),
             "admin_metadata": len(admin_metadata),
             "runtime_without_admin_metadata": len(runtime_without_admin),
+            "admin_catalog_without_runtime_tag": len(admin_catalog_without_runtime),
             "stale_admin_metadata": len(stale_admin),
             "mcp_legacy_routes": len(mcp_legacy_routes),
         },
@@ -354,11 +387,21 @@ def build_inventory(root: Path = ROOT) -> dict[str, Any]:
                 "stale",
                 "admin_metadata_has_no_runtime_registration",
             ),
+            "admin_catalog_without_runtime_tag": _records(
+                admin_catalog_without_runtime,
+                "intentional",
+                "catalog_includes_blocked_or_deferred_non_runtime_identity",
+            ),
             "runtime_without_admin_metadata": _records(
                 runtime_without_admin,
                 "missing",
-                "runtime_tag_uses_generic_admin_fallback",
+                "runtime_tag_missing_from_canonical_admin_catalog",
             ),
+        },
+        "admin_projection": {
+            "mode": "descriptor_v2_api",
+            "endpoint": "/api/tools",
+            "legacy_static_metadata": False,
         },
         "dynamic_sources": {
             "registry": {
