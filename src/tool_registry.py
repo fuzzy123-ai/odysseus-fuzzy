@@ -226,6 +226,20 @@ def get_tool(name: str) -> Optional[ToolSpec]:
         return _TOOLS.get(str(name))
 
 
+def usage_identity_for_tool(name: str) -> tuple[str, ToolFamily] | None:
+    """Return content-free analytics identity for a registered Plugin tool."""
+
+    with _LOCK:
+        tool = _TOOLS.get(str(name))
+    if tool is None:
+        return None
+    try:
+        family = ToolFamily(tool.family)
+    except ValueError:
+        family = ToolFamily.UNCLASSIFIED_DYNAMIC
+    return _analytics_id(tool.name), family
+
+
 def list_tools() -> list[ToolSpec]:
     with _LOCK:
         return [tool for _, tool in sorted(_TOOLS.items())]

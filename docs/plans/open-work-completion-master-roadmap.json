@@ -13,7 +13,7 @@
     "unique_live_gates": 39,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "uix13_semantics_gated_tax12_repo_complete_live_activation_dormant_tua4_completed_tua5_next",
+    "queue_status": "uix13_semantics_gated_tax12_repo_complete_live_activation_dormant_tua5_completed_tua6_next",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,7 +21,7 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
-      "tool_usage_analytics": "tua0_through_tua4_completed_tua5_source_adapters_next_capture_and_backfill_default_off"
+      "tool_usage_analytics": "tua0_through_tua5_completed_tua6_aggregation_next_capture_and_backfill_default_off"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
@@ -61,14 +61,14 @@
         "reason": "UIX-ABC13 requires explicit product-semantics confirmation before claim",
         "slice": "UIX-ABC13",
         "user_decision_required": true,
-        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TUA5"
+        "safe_default": "do_not_claim_UIX-ABC13_and_continue_TUA6"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-16"
     },
     "dependency_ready_repo_only_slices": [
-      "TUA5-source-adapters-and-double-count-prevention"
+      "TUA6-aggregation-quality-and-retention-service"
     ],
     "product_semantics_gated_open_slices": [
       "UIX-ABC13"
@@ -999,7 +999,7 @@
       "id": "TUA5-source-adapters-and-double-count-prevention",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
+      "status": "completed",
       "depends_on": [
         "TAX8-dynamic-plugin-and-mcp-normalization",
         "TUA4-trusted-context-and-incognito-propagation"
@@ -1018,7 +1018,40 @@
         "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_usage_sources.py tests\\test_tool_registry.py tests\\test_mcp_server_tool_policy.py"
       ],
       "gate": "path_exact_registry_mcp_scheduler_hotfile_claim_required_capture_default_off",
-      "done_when": "Built-in, plugin, MCP and proven Scheduler/System bypasses have explicit single-count source adapters; malformed identities are canonical rejected unknowns, previews never count as execution, and retry/correlation semantics are tested."
+      "done_when": "Built-in, plugin, MCP and proven Scheduler/System bypasses have explicit single-count source adapters; malformed identities are canonical rejected unknowns, previews never count as execution, and retry/correlation semantics are tested.",
+      "completed_at": "2026-07-16T09:22:59.3347931+02:00",
+      "completion_evidence": {
+        "focused_tests": "31 passed with 1 pre-existing SQLAlchemy deprecation warning",
+        "direct_contract_regression": "126 passed with 1 pre-existing SQLAlchemy deprecation warning across TUA3/TUA4 instrumentation, event, privacy, AI Lens, registry and MCP-policy contracts",
+        "scheduler_and_mcp_regression": "30 passed with 1 pre-existing SQLAlchemy deprecation warning after rerun outside the restricted sandbox; the sandbox-only attempt had 2 attachment-directory ACL failures before test execution and 28 passes",
+        "single_count_boundary": "Built-in, registered plugin and valid MCP identities resolve before one central wrapper span; direct MCP calls emit only when a proven scheduler bypass context is explicitly bound, preventing central-wrapper double counting",
+        "bypass_scope": "Only scheduler check-in MCP snapshots and MCP result delivery bind the direct adapter; the central scheduler agent stream masks the surrounding bypass context, and default-off, planning and preview paths create no consumer or event",
+        "identity_privacy": "Malformed and unknown direct MCP calls finish as rejected unknown_tool outcomes while persistent events retain only canonical bounded identities and never the raw runtime name",
+        "retry_and_correlation": "Transport reconnect attempts remain within one logical invocation; bounded retry ordinals and HMAC-only correlation references are explicit event fields",
+        "live_effects": "Capture remains default-off; no store writer, aggregation, retention deletion, backfill, database, provider, network, deployment or live action was enabled or mutated"
+      }
+    },
+    {
+      "id": "TUA6-aggregation-quality-and-retention-service",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "open",
+      "depends_on": [
+        "TUA2-persistence-migration-retention",
+        "TUA5-source-adapters-and-double-count-prevention"
+      ],
+      "source_roadmap": "docs/plans/privacy-safe-tool-analytics-roadmap.md",
+      "allowed_paths": [
+        "src/tool_usage_analytics.py",
+        "src/tool_usage_store.py",
+        "tests/test_tool_usage_analytics.py",
+        "tests/test_tool_usage_retention.py"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_tool_usage_analytics.py tests\\test_tool_usage_retention.py"
+      ],
+      "gate": "path_exact_usage_store_hotfile_claim_required_aggregation_and_retention_repo_only_default_off",
+      "done_when": "Daily aggregation by canonical dimensions is idempotent, bounded histograms produce deterministic p50/p95, distinct counts remain aggregate-only, quality metrics are stable for empty or incomplete periods, and retention runs only after aggregation."
     },
     {
       "id": "TAX3-close-six-registration-gaps",

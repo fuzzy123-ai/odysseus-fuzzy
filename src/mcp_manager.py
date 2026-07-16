@@ -125,6 +125,22 @@ _OBSIDIAN_READONLY_MCP_TOOLS = {
 _MCP_CATALOG_COMPONENT_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,80}$")
 
 
+def parse_qualified_mcp_tool_name(value: object) -> tuple[str, str] | None:
+    """Parse a bounded qualified MCP name without retaining malformed input."""
+
+    if not isinstance(value, str):
+        return None
+    parts = value.split("__", 2)
+    if len(parts) != 3 or parts[0] != "mcp":
+        return None
+    server_id, tool_name = parts[1], parts[2]
+    if not _MCP_CATALOG_COMPONENT_RE.fullmatch(
+        server_id
+    ) or not _MCP_CATALOG_COMPONENT_RE.fullmatch(tool_name):
+        return None
+    return server_id, tool_name
+
+
 def _mcp_source_id(server_id: object) -> str:
     component = re.sub(r"[^A-Za-z0-9_.:-]+", "-", str(server_id or "")).strip("-")[:80]
     return f"mcp:{component or 'unknown'}"
@@ -547,12 +563,68 @@ class McpManager:
 
         Returns a result dict compatible with agent_tools format.
         """
-        parts = qualified_name.split("__", 2)
-        if len(parts) != 3 or parts[0] != "mcp":
-            return {"error": f"Invalid MCP tool name: {qualified_name}", "exit_code": 1}
+        instrumentation = None
+        span = None
+        try:
+            from src.tool_usage_instrumentation import (
+                build_tool_usage_call_metadata_for_name,
+                current_bypass_tool_usage_instrumentation,
+            )
 
-        server_id = parts[1]
-        tool_name = parts[2]
+            instrumentation = current_bypass_tool_usage_instrumentation()
+            if instrumentation is not None:
+                argument_bytes = len(
+                    json.dumps(
+                        arguments if isinstance(arguments, dict) else {},
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        default=lambda _value: None,
+                    ).encode("utf-8", errors="replace")
+                )
+                metadata = build_tool_usage_call_metadata_for_name(
+                    qualified_name,
+                    argument_bytes=argument_bytes,
+                )
+                span = instrumentation.begin(metadata)
+        except Exception:
+            span = None
+        try:
+            result = await self._call_tool_impl(qualified_name, arguments)
+        except BaseException as exc:
+            if span is not None:
+                try:
+                    from src.tool_usage_instrumentation import exception_outcome
+
+                    span.finish(exception_outcome(exc))
+                except Exception:
+                    pass
+            raise
+        if span is not None:
+            try:
+                from src.tool_usage_instrumentation import classify_tool_usage_outcome
+
+                error_text = str(result.get("error") or "").casefold()
+                description = "mcp: direct"
+                if error_text.startswith("invalid mcp tool") or error_text.startswith(
+                    "unknown mcp tool"
+                ):
+                    description = "unknown: mcp"
+                elif "blocked" in error_text:
+                    description = "mcp: BLOCKED"
+                span.finish(
+                    classify_tool_usage_outcome(description, result),
+                    result=result,
+                )
+            except Exception:
+                pass
+        return result
+
+    async def _call_tool_impl(self, qualified_name: str, arguments: Dict) -> Dict:
+        parsed_name = parse_qualified_mcp_tool_name(qualified_name)
+        if parsed_name is None:
+            return {"error": "Invalid MCP tool name", "exit_code": 1}
+
+        server_id, tool_name = parsed_name
 
         registered_tools = [
             tool for tool in self._tools.get(server_id, []) if tool.get("name") == tool_name
