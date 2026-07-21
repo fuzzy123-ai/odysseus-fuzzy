@@ -708,6 +708,10 @@ def setup_chat_routes(
             agent_mode=(chat_mode == "agent"),
             allow_tool_preprocessing=allow_tool_preprocessing,
         )
+        tool_usage_instrumentation = _tool_usage_instrumentation_from_runtime(
+            request,
+            ctx.tool_usage_context,
+        )
 
         deterministic_reply = build_deterministic_capability_self_report(message)
         if deterministic_reply:
