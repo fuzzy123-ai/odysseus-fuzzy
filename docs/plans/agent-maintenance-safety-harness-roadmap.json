@@ -703,7 +703,7 @@
     },
     {
       "id": "AMH-07-read-only-session-bootstrap",
-      "execution_status": "handoff_granted_claimed_implementation_running",
+      "execution_status": "completed_local_repo_evidence",
       "mutation_class": "repo_only",
       "priority": "P1",
       "owner": "Alice; Bob for runtime projection",
@@ -738,7 +738,7 @@
         "git diff --check -- .codex/hooks.json src/agent_loop_prompts.py src/agent_loop_system_prompt.py src/runtime_tool_status.py docs/agent-maintenance-runbook.md tests/test_agent_maintenance_bootstrap.py"
       ],
       "handoff_gate": {
-        "state": "granted_claimed_2026-07-22",
+        "state": "resolved_local_commit_e2449573_claim_released",
         "reason": "The primary checkout contains uncommitted foreign Pygame/artifact and clarification changes in agent_loop_prompts.py, operator-priority tool-catalog changes in agent_loop_system_prompt.py, a substantial unrelated Descriptor-v2 tool-catalog projection in runtime_tool_status.py, and an ignored existing .codex/hooks.json. AMH-07 requires these exact hook, prompt and runtime hotfiles for dynamic parity, so no disjoint completion-capable subset exists.",
         "required_grant": "GO AMH07-HANDOFF",
         "scope": "Read the four named primary paths, preserve and semantically reconcile all foreign behavior with the AMH-07 read-only bootstrap, test and commit locally in the isolated branch only.",
@@ -764,6 +764,20 @@
           "src/runtime_tool_status.py"
         ]
       },
+      "local_acceptance": {
+        "commit": "e24495734e8afc122cf36621cde5d8c1e94d7669",
+        "focused": "37 passed, 1 host-dependent symlink test skipped",
+        "integration": "253 passed, 1 host-dependent symlink test skipped across 21 declared modules; 14 pre-existing deprecation warnings",
+        "static": "guards-only passed 3 of 3; JSON, AST, exact six-path cached diff, primary handoff hashes and two independent final reviews passed",
+        "hook_contract": "Exact Windows SessionStart command passed with hostile inherited GIT_DIR and emitted matching hookSpecificOutput.additionalContext with all action authorities false",
+        "not_verified": [
+          "actual Codex hook trust and installed-client SessionStart execution",
+          "exact POSIX hook execution on a POSIX host",
+          "UI, live, visual and temporal behavior"
+        ],
+        "pushed": false,
+        "deployed": false
+      },
       "evidence_required": [
         "bootstrap performs no write, install, network call or service start",
         "missing or malformed state produces a bounded warning and safe stop",
@@ -780,7 +794,7 @@
     },
     {
       "id": "AMH-08-adversarial-and-ci-acceptance",
-      "execution_status": "blocked_by_dependency",
+      "execution_status": "ready_dependency_satisfied",
       "mutation_class": "repo_only",
       "priority": "P0",
       "owner": "Charlie",
@@ -899,7 +913,9 @@
     },
     {
       "gate_id": "AMH-GATE-SHARED-HOTFILE-HANDOFF",
-      "state": "pending_per_slice",
+      "state": "deferred",
+      "disposition": "pending_per_slice",
+      "activation": "Reactivate as pending for a concrete slice only when an allowed path has an active claim or overlapping foreign hunk; otherwise this policy gate is nonblocking.",
       "blocks": [
         "Any AMH slice whose allowed path has an active claim or overlapping foreign hunk"
       ],
@@ -964,5 +980,5 @@
       "No commit, push, deploy, live mutation, provider call or external write was performed."
     ]
   },
-  "recommended_next_step": "Under the granted six-path claim, read-only absorb and semantically reconcile the four hash-pinned primary hotfiles, implement the no-install/no-network/no-service-start bootstrap with dynamic internal-agent parity, preserve the existing PostToolUse hook and all foreign tool-catalog/Pygame/clarification behavior, then verify missing, malformed, stale and hook-failure behavior before local acceptance."
+  "recommended_next_step": "Claim the AMH-08 adversarial-and-CI paths with one writer, activate the shared-hotfile handoff gate only for any concrete overlap, seed only synthetic canaries and temporary repositories, and require the shared local/CI guards plus a positive current receipt before local acceptance."
 }
