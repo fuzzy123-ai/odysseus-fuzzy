@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 40,
+  "revision": 41,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "queue_scope": "open_work",
   "queue_lane": "OWM-23",
@@ -20,7 +20,7 @@
   },
   "route": {
     "entrypoint": "/abc",
-    "slice_id": "AMH-02-adversarial-contract-hardening",
+    "slice_id": "AMH-05-adversarial-projection-hardening-ready",
     "mutation": "safe_offline",
     "selected_skills": ["abc"],
     "model": "surface_default",
@@ -34,40 +34,8 @@
     "temporal_window": "none",
     "positive_path_required": true
   },
-  "active_claims": [
-    {
-      "roadmap": "docs/plans/agent-maintenance-safety-harness-roadmap.json",
-      "slice_id": "AMH-02-adversarial-contract-hardening",
-      "owner": "root acting as Bob",
-      "mutation_class": "repo_only",
-      "allowed_paths": [
-        "src/secret_safe_diagnostics.py",
-        "tests/test_secret_safe_diagnostics.py"
-      ],
-      "coordination_paths": [
-        "docs/plans/agent-maintenance-safety-harness-roadmap.json",
-        "docs/plans/multi-agent-execution-guidance.json",
-        "docs/plans/open-work-completion-master-roadmap.json",
-        "docs/plans/telegram-todo-domain-truth-run-state.json"
-      ],
-      "depends_on": ["AMH-00-roadmap-contract-and-registration"],
-      "tests": [
-        "python -m pytest -q tests/test_secret_safe_diagnostics.py tests/test_tool_security.py",
-        "python scripts/verify.py --lane guards-only"
-      ],
-      "started_at": "2026-07-22T11:38:00+02:00",
-      "lease_expires_at": "2026-07-22T13:38:00+02:00"
-    }
-  ],
-  "agent_leases": [
-    {
-      "slice_id": "AMH-02-adversarial-contract-hardening",
-      "owner": "root acting as Bob",
-      "acquired_at": "2026-07-22T11:38:00+02:00",
-      "expires_at": "2026-07-22T13:38:00+02:00",
-      "state": "active"
-    }
-  ],
+  "active_claims": [],
+  "agent_leases": [],
   "completed_slices": [
     {
       "slice_id": "TTD-00",
@@ -404,6 +372,46 @@
       "completion": {
         "implemented": "partial",
         "tested": "partial_foundation",
+        "committed": "19f9118b",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "foreign-handoff-provenance-audit",
+      "completed_at": "2026-07-22T11:38:00+02:00",
+      "status": "accepted_read_only_evidence_no_amh_handoff_found",
+      "focused_tests": "50 passed across preserved validator, clarification, runner, Planning projection and CI workflow contracts",
+      "integration_tests": "Two Codex turn-diff checkpoints preserve the exact foreign blobs; normal refs, commits, reflogs and runstates contain no released AMH handoff",
+      "static_evidence": "Primary checkout remained unchanged; accepted GMI-11 hash manifest matches the validator source exactly",
+      "remaining_blocker": "A checkpoint and green tests preserve content but do not release overlapping AMH paths",
+      "completion": {
+        "implemented": "audit_only",
+        "tested": "yes",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-02-adversarial-contract-hardening",
+      "completed_at": "2026-07-22T11:45:00+02:00",
+      "status": "partial_hardened_accepted_foreign_integration_blocked",
+      "focused_tests": "57 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "integration_tests": "74 passed across diagnostic contract, tool security, Plan Mode, public blocked-tool and Vault security boundaries; 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "Real guards-only lane passed all 3 checks; path-scoped diff check passed",
+      "remaining_blocker": "AMH-02 tool-execution, tool-security and diagnostics-route integration hotfiles still require a durable AMH handoff",
+      "completion": {
+        "implemented": "partial_hardened",
+        "tested": "yes",
         "committed": "no",
         "pushed": "no",
         "deployed": "no",
@@ -423,7 +431,7 @@
     "TTD-08": 5,
     "TTD-10": 1,
     "AMH-01": 1,
-    "AMH-02-contract-foundation": 1,
+    "AMH-02-contract-foundation": 3,
     "AMH-03-verifier-foundation": 1
   },
   "failed_attempt_classes": {
@@ -456,16 +464,17 @@
       "policy_test_normalization_adjusted_for_markdown_wrapping"
     ],
     "AMH-02-contract-foundation": [
-      "forbidden_source_regex_quote_corrected_before_test_acceptance"
+      "forbidden_source_regex_quote_corrected_before_test_acceptance",
+      "powershell_environment_alias_and_control_character_normalization_fixed"
     ],
     "AMH-03-verifier-foundation": [
       "pre_existing_windows_run_focus_dry_run_quote_expectations_recorded_not_modified"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T11:20:00+02:00",
-  "last_heartbeat_at": "2026-07-22T11:38:00+02:00",
-  "last_reported_revision": 40,
-  "resume_cursor": "AMH-02-adversarial-contract-hardening",
+  "last_durable_progress_at": "2026-07-22T11:45:00+02:00",
+  "last_heartbeat_at": "2026-07-22T11:45:00+02:00",
+  "last_reported_revision": 41,
+  "resume_cursor": "AMH-05-adversarial-projection-hardening-ready",
   "pending_user_requests": [],
   "live_go_ledger": [],
   "gate_queue": [
@@ -475,24 +484,22 @@
     "TTD-LIVE-ROLLOVER-SMOKE",
     "TTD-LIVE-HISTORY-RETENTION"
   ],
-  "next_runnable_slices": ["AMH-02-adversarial-contract-hardening"],
+  "next_runnable_slices": ["AMH-05-adversarial-projection-hardening-ready"],
   "known_blockers": [
     {
       "id": "AMH-02-FOREIGN-HOTFILE-HANDOFF",
-      "state": "waiting_on_handoff",
-      "reason": "Related primary-checkout work overlaps AMH-02 integration hotfiles and has no durable AMH handoff.",
+      "state": "waiting_on_partial_handoff",
+      "reason": "GMI-11 released and hash-pinned the validator package, but the related primary-checkout tool and route hotfiles still have no durable AMH handoff.",
       "paths": [
         "src/tool_security.py",
         "src/tool_execution.py",
-        "src/maintenance_output_validator.py",
-        "routes/diagnostics_routes.py",
-        "tests/test_maintenance_output_validator.py"
+        "routes/diagnostics_routes.py"
       ]
     },
     {
       "id": "AMH-03-FOREIGN-WORKFLOW-HANDOFF",
       "state": "waiting_on_handoff",
-      "reason": "Related primary-checkout work overlaps both AMH-03 workflow files and has no durable AMH handoff.",
+      "reason": "The preserved SAR-01 workflow work is green under its local contract test but remains blocked_environment and has no released AMH handoff.",
       "paths": [
         ".github/workflows/quality-gate.yml",
         ".github/workflows/ci.yml"
@@ -501,7 +508,7 @@
     {
       "id": "AMH-05-FOREIGN-PLANNING-HANDOFF",
       "state": "waiting_on_handoff",
-      "reason": "Related primary-checkout work overlaps AMH-05 Planning, runner and clarification paths and has no durable AMH handoff.",
+      "reason": "Clarification and runner contracts are green, but the primary Planning hotfile remains foreign and no durable AMH integration handoff exists.",
       "paths": [
         "src/planning_mcp_service.py",
         "src/clarification_contract.py",
@@ -510,6 +517,18 @@
       ]
     }
   ],
+  "foreign_handoff_audit": {
+    "observed_at": "2026-07-22T11:38:00+02:00",
+    "primary_checkout_mutated": false,
+    "codex_checkpoint_times": [
+      "2026-07-18T21:26:10+02:00",
+      "2026-07-21T22:06:08+02:00"
+    ],
+    "normal_commit_or_reflog_handoff_found": false,
+    "active_foreign_writer_found": false,
+    "focused_foreign_contract_tests": "50 passed, 1 pre-existing SQLAlchemy deprecation warning",
+    "conclusion": "Content is preserved and locally green, but checkpoint provenance alone is not ownership release; overlapping paths remain read-only."
+  },
   "stop_rules": [
     "stop_on_secret_or_private_content",
     "stop_on_overlapping_writer_or_foreign_staged_file",

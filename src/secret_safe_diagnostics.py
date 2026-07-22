@@ -16,8 +16,11 @@ from typing import Any, Mapping
 
 SECRET_SAFE_DIAGNOSTIC_SCHEMA = "odysseus.secret_safe_diagnostic.v1"
 DEFAULT_MAX_BOUNDED_COUNT = 1_000_000
+MAX_REGISTERED_COMMAND_SOURCES = 16
+MAX_COMMAND_SOURCE_LENGTH = 256
 
 _SAFE_TOKEN = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
+_SAFE_COMMAND_SOURCE = re.compile(r"^[\x20-\x7e]+$")
 _FORBIDDEN_COUNT_OR_STATE_PARTS = frozenset(
     {
         "content",
@@ -57,14 +60,31 @@ _SENSITIVE_PRESENCE_PARTS = frozenset(
     {"credential", "key", "password", "secret", "token"}
 )
 _FORBIDDEN_COMMAND_PATTERNS = (
-    re.compile(r"(?:^|[;&|]\s*)(?:env|printenv)(?:\s|$)"),
-    re.compile(r"(?:^|[;&|]\s*)set(?:\s|$)"),
-    re.compile(r"(?:get-childitem|gci|dir|get-item|gi)\s+env:"),
+    re.compile(
+        r"(?<![a-z0-9_])(?:/usr/bin/)?(?:env|printenv)(?![a-z0-9_])"
+    ),
+    re.compile(r"(?<![a-z0-9_])(?:set|export)(?![a-z0-9_])"),
+    re.compile(r"(?<![a-z0-9_])(?:declare|typeset)\s+(?:-x|-p)(?:\s|$)"),
+    re.compile(r"(?<![a-z0-9_])compgen\s+-e(?:\s|$)"),
+    re.compile(
+        r"(?:get-childitem|gci|dir|get-item|gi|get-content|gc|type|ls)"
+        r"[^\r\n]*\senv:"
+    ),
     re.compile(r"\$\{?env:"),
-    re.compile(r"(?:^|[\s\x22\x27/\\])\.env(?:[\s\x22\x27/\\]|$)"),
-    re.compile(r"(?:docker|podman)\s+inspect[^\r\n]*(?:config\.env|environment)"),
-    re.compile(r"systemctl\s+show[^\r\n]*environment"),
-    re.compile(r"(?:(?:docker|podman)\s+)?compose\s+config(?:\s|$)"),
+    re.compile(
+        r"(?:\[(?:system\.)?environment\]|(?:system\.)?environment)"
+        r"\s*::\s*getenvironmentvariables?"
+    ),
+    re.compile(r"(?:os\.environ|os\.getenv|process\.env)"),
+    re.compile(r"/proc/(?:self|\d+)/environ"),
+    re.compile(
+        r"(?:^|[\s\x22\x27=/\\])\.env(?:[.a-z0-9_-]*)"
+        r"(?:[\s\x22\x27=/\\]|$)"
+    ),
+    re.compile(r"(?:docker|podman)\b[^\r\n]*\binspect\b"),
+    re.compile(r"systemctl\b[^\r\n]*\b(?:show|cat)\b[^\r\n]*\benvironment\b"),
+    re.compile(r"(?:docker|podman)\b[^\r\n]*\bcompose\s+config\b"),
+    re.compile(r"(?<![a-z0-9_])compose\s+config\b"),
 )
 
 
@@ -79,6 +99,7 @@ class DiagnosticRefusalCode(StrEnum):
     NARROWER_EVIDENCE_REQUIRED = "narrower_evidence_required"
     PAYLOAD_NOT_ALLOWLISTED = "payload_not_allowlisted"
     INVALID_SAFE_TYPE = "invalid_safe_type"
+    COMMAND_SOURCE_NOT_ALLOWLISTED = "command_source_not_allowlisted"
     COUNT_OUT_OF_BOUNDS = "count_out_of_bounds"
     STATE_NOT_ALLOWLISTED = "state_not_allowlisted"
     DIAGNOSTIC_FAILED = "diagnostic_failed"
@@ -92,6 +113,7 @@ class DiagnosticContract:
     presence_fields: tuple[str, ...] = ()
     count_fields: tuple[str, ...] = ()
     state_values: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    command_sources: tuple[str, ...] = ()
     max_count: int = DEFAULT_MAX_BOUNDED_COUNT
 
     def __post_init__(self) -> None:
@@ -124,10 +146,12 @@ class DiagnosticContract:
             raise ValueError("max_count must be an integer")
         if not 1 <= self.max_count <= DEFAULT_MAX_BOUNDED_COUNT:
             raise ValueError("max_count is outside the bounded range")
+        command_sources = _normalize_command_sources(self.command_sources)
 
         object.__setattr__(self, "source_id", source_id)
         object.__setattr__(self, "presence_fields", presence)
         object.__setattr__(self, "count_fields", counts)
+        object.__setattr__(self, "command_sources", command_sources)
         object.__setattr__(
             self,
             "state_values",
@@ -191,14 +215,20 @@ def project_diagnostic(
 ) -> SecretSafeDiagnosticResult:
     """Project one already-narrow mapping before any downstream consumer."""
 
-    if diagnostic_source_is_forbidden(command_source):
-        return _refused(contract.source_id, DiagnosticRefusalCode.RAW_SOURCE_FORBIDDEN)
-    if not isinstance(payload, Mapping):
+    command_refusal = _command_source_refusal(contract, command_source)
+    if command_refusal is not None:
+        return _refused(contract.source_id, command_refusal)
+    if type(payload) is not dict:
         return _refused(
             contract.source_id,
             DiagnosticRefusalCode.NARROWER_EVIDENCE_REQUIRED,
         )
-    if any(not isinstance(key, str) for key in payload):
+    if len(payload) > len(contract.allowed_fields):
+        return _refused(
+            contract.source_id,
+            DiagnosticRefusalCode.PAYLOAD_NOT_ALLOWLISTED,
+        )
+    if any(type(key) is not str for key in payload):
         return _refused(
             contract.source_id,
             DiagnosticRefusalCode.PAYLOAD_NOT_ALLOWLISTED,
@@ -216,7 +246,7 @@ def project_diagnostic(
         if key not in payload:
             continue
         value = payload[key]
-        if not isinstance(value, bool):
+        if type(value) is not bool:
             return _refused(
                 contract.source_id,
                 DiagnosticRefusalCode.INVALID_SAFE_TYPE,
@@ -227,7 +257,7 @@ def project_diagnostic(
         if key not in payload:
             continue
         value = payload[key]
-        if isinstance(value, bool) or not isinstance(value, int):
+        if type(value) is not int:
             return _refused(
                 contract.source_id,
                 DiagnosticRefusalCode.INVALID_SAFE_TYPE,
@@ -243,7 +273,7 @@ def project_diagnostic(
         if key not in payload:
             continue
         value = payload[key]
-        if not isinstance(value, str) or value not in allowed_values:
+        if type(value) is not str or value not in allowed_values:
             return _refused(
                 contract.source_id,
                 DiagnosticRefusalCode.STATE_NOT_ALLOWLISTED,
@@ -268,7 +298,7 @@ def project_registered_diagnostic(
 ) -> SecretSafeDiagnosticResult:
     """Fail closed when no exact diagnostic source contract is registered."""
 
-    if not isinstance(source_id, str) or source_id not in registry:
+    if type(source_id) is not str or source_id not in registry:
         return _refused("unknown", DiagnosticRefusalCode.UNKNOWN_SOURCE)
     contract = registry[source_id]
     if not isinstance(contract, DiagnosticContract) or contract.source_id != source_id:
@@ -292,9 +322,15 @@ def project_subprocess_diagnostic(
     contract = _registered_contract(source_id, registry)
     if contract is None:
         return _refused("unknown", DiagnosticRefusalCode.UNKNOWN_SOURCE)
-    if diagnostic_source_is_forbidden(command_source):
-        return _refused(contract.source_id, DiagnosticRefusalCode.RAW_SOURCE_FORBIDDEN)
-    if isinstance(returncode, bool) or not isinstance(returncode, int):
+    if command_source is None:
+        return _refused(
+            contract.source_id,
+            DiagnosticRefusalCode.COMMAND_SOURCE_NOT_ALLOWLISTED,
+        )
+    command_refusal = _command_source_refusal(contract, command_source)
+    if command_refusal is not None:
+        return _refused(contract.source_id, command_refusal)
+    if type(returncode) is not int:
         return _refused(
             contract.source_id,
             DiagnosticRefusalCode.NARROWER_EVIDENCE_REQUIRED,
@@ -339,7 +375,7 @@ def _refused(
 
 
 def _safe_source_id(value: object) -> str:
-    if isinstance(value, str) and _SAFE_TOKEN.fullmatch(value):
+    if type(value) is str and _SAFE_TOKEN.fullmatch(value):
         return value
     return "unknown"
 
@@ -385,7 +421,7 @@ def _registered_contract(
     source_id: object,
     registry: Mapping[str, DiagnosticContract],
 ) -> DiagnosticContract | None:
-    if not isinstance(source_id, str) or source_id not in registry:
+    if type(source_id) is not str or source_id not in registry:
         return None
     contract = registry[source_id]
     if not isinstance(contract, DiagnosticContract) or contract.source_id != source_id:
@@ -399,7 +435,7 @@ def _require_safe_token(
     field_name: str,
     reject_sensitive_parts: bool = False,
 ) -> str:
-    if not isinstance(value, str) or not _SAFE_TOKEN.fullmatch(value):
+    if type(value) is not str or not _SAFE_TOKEN.fullmatch(value):
         raise ValueError(f"{field_name} must contain safe fixed tokens")
     if reject_sensitive_parts:
         parts = frozenset(value.split("_"))
@@ -408,8 +444,55 @@ def _require_safe_token(
     return value
 
 
+def _normalize_command_source(value: object) -> str | None:
+    if type(value) is not str:
+        return None
+    if any(ord(character) < 32 or ord(character) > 126 for character in value):
+        return None
+    normalized = " ".join(value.strip().split())
+    if (
+        not normalized
+        or len(normalized) > MAX_COMMAND_SOURCE_LENGTH
+        or _SAFE_COMMAND_SOURCE.fullmatch(normalized) is None
+    ):
+        return None
+    return normalized
+
+
+def _normalize_command_sources(values: tuple[str, ...]) -> tuple[str, ...]:
+    if type(values) is not tuple or len(values) > MAX_REGISTERED_COMMAND_SOURCES:
+        raise ValueError("command_sources must be a bounded tuple")
+    normalized: list[str] = []
+    for value in values:
+        source = _normalize_command_source(value)
+        if source is None:
+            raise ValueError("command_sources contains an invalid source")
+        if diagnostic_source_is_forbidden(source):
+            raise ValueError("command_sources contains a forbidden source")
+        normalized.append(source)
+    if len(set(normalized)) != len(normalized):
+        raise ValueError("command_sources must contain unique values")
+    return tuple(normalized)
+
+
+def _command_source_refusal(
+    contract: DiagnosticContract,
+    command_source: object,
+) -> DiagnosticRefusalCode | None:
+    if command_source is None:
+        return None
+    if diagnostic_source_is_forbidden(command_source):
+        return DiagnosticRefusalCode.RAW_SOURCE_FORBIDDEN
+    normalized = _normalize_command_source(command_source)
+    if normalized is None or normalized not in contract.command_sources:
+        return DiagnosticRefusalCode.COMMAND_SOURCE_NOT_ALLOWLISTED
+    return None
+
+
 __all__ = [
     "DEFAULT_MAX_BOUNDED_COUNT",
+    "MAX_COMMAND_SOURCE_LENGTH",
+    "MAX_REGISTERED_COMMAND_SOURCES",
     "DiagnosticContract",
     "DiagnosticProjectionStatus",
     "DiagnosticRefusalCode",

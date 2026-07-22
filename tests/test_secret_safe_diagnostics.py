@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator, Mapping
 
 import pytest
 
@@ -26,6 +27,7 @@ def contract() -> DiagnosticContract:
         presence_fields=("configured", "reachable"),
         count_fields=("healthy_services", "failed_checks"),
         state_values={"state": ("ok", "degraded", "unavailable")},
+        command_sources=("repository-safe-probe --json",),
         max_count=100,
     )
 
@@ -80,21 +82,52 @@ def test_unknown_source_requires_narrower_registered_contract(contract) -> None:
     (
         "env",
         "printenv HOME",
+        "/usr/bin/env",
+        "bash -lc env",
+        "sh -c 'printenv'",
+        "bash -lc \"$(env)\"",
         "set",
+        "cmd.exe /c set",
+        "cmd.exe /c \"set\"",
+        "declare -p",
+        "compgen -e",
         "Get-ChildItem Env:",
         "Get-Item Env:API_KEY",
+        "powershell -Command Get-Content Env:API_KEY",
         "$env:API_KEY",
         "Get-Content .env",
+        "cat .env.production",
         "python -c \"open('.env').read()\"",
+        "python -c \"import os; print(os.environ)\"",
+        "node -e \"console.log(process.env)\"",
+        "cat /proc/self/environ",
+        "[System.Environment]::GetEnvironmentVariables()",
+        "[Environment]::GetEnvironmentVariable('API_KEY')",
         "docker inspect service --format {{json .Config.Env}}",
+        "docker container inspect service",
+        "docker --context local inspect service",
         "podman inspect service --format {{.Config.Env}}",
         "systemctl show service -p Environment",
+        "systemctl --user show service -p Environment",
         "docker compose config",
+        "docker --context local compose config",
         "podman compose config",
     ),
 )
 def test_raw_secret_bearing_diagnostic_sources_are_rejected(command) -> None:
     assert diagnostic_source_is_forbidden(command) is True
+
+
+@pytest.mark.parametrize(
+    "command",
+    (
+        "repository-safe-probe --environment-state ok",
+        "service-health --setpoint 3",
+        "dockerless-probe --json",
+    ),
+)
+def test_safe_command_tokens_do_not_trigger_raw_source_patterns(command) -> None:
+    assert diagnostic_source_is_forbidden(command) is False
 
 
 def test_command_refusal_never_echoes_command_or_payload(contract) -> None:
@@ -106,6 +139,44 @@ def test_command_refusal_never_echoes_command_or_payload(contract) -> None:
 
     assert result.refusal_code == DiagnosticRefusalCode.RAW_SOURCE_FORBIDDEN
     assert CANARY not in result.to_json()
+
+
+def test_only_exact_registered_command_source_is_accepted(contract) -> None:
+    accepted = project_diagnostic(
+        contract,
+        {"configured": True},
+        command_source="repository-safe-probe --json",
+    )
+    refused = project_diagnostic(
+        contract,
+        {"configured": True},
+        command_source=f"repository-safe-probe --json {CANARY}",
+    )
+
+    assert accepted.status == DiagnosticProjectionStatus.ACCEPTED
+    assert (
+        refused.refusal_code
+        == DiagnosticRefusalCode.COMMAND_SOURCE_NOT_ALLOWLISTED
+    )
+    assert CANARY not in refused.to_json()
+
+
+def test_command_source_contract_is_bounded_and_rejects_raw_sources() -> None:
+    with pytest.raises(ValueError, match="forbidden source"):
+        DiagnosticContract(
+            source_id="unsafe_command",
+            command_sources=("docker inspect service",),
+        )
+    with pytest.raises(ValueError, match="bounded tuple"):
+        DiagnosticContract(
+            source_id="too_many_commands",
+            command_sources=tuple(f"safe-probe-{index}" for index in range(17)),
+        )
+    with pytest.raises(ValueError, match="invalid source"):
+        DiagnosticContract(
+            source_id="control_character",
+            command_sources=("safe-probe\nprintenv HOME",),
+        )
 
 
 @pytest.mark.parametrize("value", (-1, 101, True, "3"))
@@ -155,6 +226,43 @@ def test_non_allowlisted_state_fails_closed_without_echo(contract) -> None:
     assert CANARY not in result.to_json()
 
 
+class _ExplodingMapping(Mapping[str, object]):
+    def __getitem__(self, key: str) -> object:
+        raise AssertionError("custom mapping must not be consumed")
+
+    def __iter__(self) -> Iterator[str]:
+        raise AssertionError("custom mapping must not be consumed")
+
+    def __len__(self) -> int:
+        raise AssertionError("custom mapping must not be consumed")
+
+
+def test_custom_mapping_is_refused_before_any_user_code_runs(contract) -> None:
+    result = project_diagnostic(contract, _ExplodingMapping())
+
+    assert result.refusal_code == DiagnosticRefusalCode.NARROWER_EVIDENCE_REQUIRED
+
+
+def test_scalar_subclasses_are_not_treated_as_fixed_safe_types(contract) -> None:
+    class CustomInt(int):
+        pass
+
+    class CustomStr(str):
+        pass
+
+    count_result = project_diagnostic(
+        contract,
+        {"healthy_services": CustomInt(3)},
+    )
+    state_result = project_diagnostic(
+        contract,
+        {"state": CustomStr("ok")},
+    )
+
+    assert count_result.refusal_code == DiagnosticRefusalCode.INVALID_SAFE_TYPE
+    assert state_result.refusal_code == DiagnosticRefusalCode.STATE_NOT_ALLOWLISTED
+
+
 def test_exception_message_is_dropped_before_consumer(contract) -> None:
     result = project_exception_diagnostic(
         contract.source_id,
@@ -188,6 +296,7 @@ def test_subprocess_failure_drops_payload_and_streams(contract) -> None:
         {"configured": CANARY},
         returncode=1,
         registry={contract.source_id: contract},
+        command_source="repository-safe-probe --json",
         stdout=CANARY,
         stderr=CANARY,
     )
@@ -204,6 +313,7 @@ def test_unknown_subprocess_and_exception_sources_fail_closed(contract) -> None:
         {},
         returncode=1,
         registry=registry,
+        command_source="repository-safe-probe --json",
         stderr=CANARY,
     )
     exception_result = project_exception_diagnostic(
@@ -217,6 +327,28 @@ def test_unknown_subprocess_and_exception_sources_fail_closed(contract) -> None:
     assert exception_result.source_id == "unknown"
     assert exception_result.refusal_code == DiagnosticRefusalCode.UNKNOWN_SOURCE
     assert CANARY not in subprocess_result.to_json() + exception_result.to_json()
+
+
+@pytest.mark.parametrize(
+    "command_source",
+    (None, "different-safe-probe --json"),
+)
+def test_subprocess_requires_a_registered_command_source(
+    contract,
+    command_source,
+) -> None:
+    result = project_subprocess_diagnostic(
+        contract.source_id,
+        {"configured": True},
+        returncode=0,
+        registry={contract.source_id: contract},
+        command_source=command_source,
+    )
+
+    assert (
+        result.refusal_code
+        == DiagnosticRefusalCode.COMMAND_SOURCE_NOT_ALLOWLISTED
+    )
 
 
 def test_serialized_contract_has_no_raw_output_channel(contract) -> None:
