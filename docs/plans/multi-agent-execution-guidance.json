@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-07-22T10:47:00+02:00",
+  "updated_at": "2026-07-22T10:58:00+02:00",
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
@@ -198,8 +198,8 @@
     {
       "path": "docs/plans/agent-maintenance-safety-harness-roadmap.json",
       "profile": "active_serial",
-      "state": "amh01_accepted_amh02_ready",
-      "ai_hint": "AMH-01 policy and runbook evidence is accepted. Claim AMH-02 as the next sole writer, keep AMH-03 and AMH-05 ready but unclaimed, keep AMH-04 onward dependency-gated, and perform no push, deploy or live action."
+      "state": "amh02_contract_foundation_accepted_integration_blocked",
+      "ai_hint": "The disjoint AMH-02 diagnostic contract and regression foundation is accepted, but runtime integration remains blocked by foreign hotfile changes. Preserve them, do not mark AMH-02 complete, and perform no push, deploy or live action."
     },
     {
       "path": "docs/plans/agent-browser-sense-roadmap.json",
@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_repo_complete_owm23_amh01_accepted_amh02_ready",
-      "ai_hint": "This is the current gate authority. AMH-01 is accepted; claim AMH-02 next with one scoped writer and keep later AMH slices dependency-gated until their path-scoped handoff and machine evidence are accepted."
+      "state": "owm22_repo_complete_owm23_amh02_partial_accepted_amh03_disjoint_ready",
+      "ai_hint": "This is the current gate authority. AMH-02 has an accepted contract foundation but remains incomplete on foreign integration hotfiles. A minimum disjoint AMH-03 verifier foundation may proceed; dependencies remain blocked."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",

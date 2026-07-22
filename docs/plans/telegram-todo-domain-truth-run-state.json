@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 33,
+  "revision": 35,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "queue_scope": "open_work",
   "queue_lane": "OWM-23",
@@ -20,7 +20,7 @@
   },
   "route": {
     "entrypoint": "/abc",
-    "slice_id": "AMH-02-ready",
+    "slice_id": "AMH-03-disjoint-foundation-ready",
     "mutation": "safe_offline",
     "selected_skills": ["abc"],
     "model": "surface_default",
@@ -311,6 +311,26 @@
       "completion": {
         "implemented": "yes",
         "tested": "yes",
+        "committed": "c9b5bae9",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-02-contract-foundation",
+      "completed_at": "2026-07-22T10:58:00+02:00",
+      "status": "partial_accepted_foreign_integration_blocked",
+      "focused_tests": "33 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "integration_tests": "66 passed across diagnostic contract, tool security, plan mode, public-tool and vault regressions; 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "Python compile, no real environment or subprocess calls, and path-scoped diff check passed",
+      "remaining_blocker": "AMH-02 runtime integration hotfiles require a durable foreign-work handoff",
+      "completion": {
+        "implemented": "partial",
+        "tested": "partial_foundation",
         "committed": "no",
         "pushed": "no",
         "deployed": "no",
@@ -329,7 +349,8 @@
     "TTD-05": 3,
     "TTD-08": 5,
     "TTD-10": 1,
-    "AMH-01": 1
+    "AMH-01": 1,
+    "AMH-02-contract-foundation": 1
   },
   "failed_attempt_classes": {
     "TTD-02": [
@@ -359,12 +380,15 @@
     ],
     "AMH-01": [
       "policy_test_normalization_adjusted_for_markdown_wrapping"
+    ],
+    "AMH-02-contract-foundation": [
+      "forbidden_source_regex_quote_corrected_before_test_acceptance"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T10:47:00+02:00",
-  "last_heartbeat_at": "2026-07-22T10:47:00+02:00",
-  "last_reported_revision": 33,
-  "resume_cursor": "AMH-02-secret-safe-diagnostics",
+  "last_durable_progress_at": "2026-07-22T10:58:00+02:00",
+  "last_heartbeat_at": "2026-07-22T10:58:00+02:00",
+  "last_reported_revision": 35,
+  "resume_cursor": "AMH-03-shared-verification-entrypoint",
   "pending_user_requests": [],
   "live_go_ledger": [],
   "gate_queue": [
@@ -374,10 +398,29 @@
     "TTD-LIVE-ROLLOVER-SMOKE",
     "TTD-LIVE-HISTORY-RETENTION"
   ],
-  "next_runnable_slices": [
-    "AMH-02-secret-safe-diagnostics",
-    "AMH-03-shared-verification-entrypoint",
-    "AMH-05-canonical-handoff-and-owner-projection"
+  "next_runnable_slices": ["AMH-03-shared-verification-entrypoint-disjoint-foundation"],
+  "known_blockers": [
+    {
+      "id": "AMH-02-FOREIGN-HOTFILE-HANDOFF",
+      "state": "waiting_on_handoff",
+      "reason": "Related primary-checkout work overlaps AMH-02 integration hotfiles and has no durable AMH handoff.",
+      "paths": [
+        "src/tool_security.py",
+        "src/tool_execution.py",
+        "src/maintenance_output_validator.py",
+        "routes/diagnostics_routes.py",
+        "tests/test_maintenance_output_validator.py"
+      ]
+    },
+    {
+      "id": "AMH-03-FOREIGN-WORKFLOW-HANDOFF",
+      "state": "waiting_on_handoff",
+      "reason": "Related primary-checkout work overlaps both AMH-03 workflow files and has no durable AMH handoff.",
+      "paths": [
+        ".github/workflows/quality-gate.yml",
+        ".github/workflows/ci.yml"
+      ]
+    }
   ],
   "stop_rules": [
     "stop_on_secret_or_private_content",
