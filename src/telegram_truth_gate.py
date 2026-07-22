@@ -8,6 +8,7 @@ import re
 from typing import Any, Iterable, Mapping
 
 from src.claim_evidence_gate import ClaimEvidenceFinding, evaluate_response_claims
+from src.telegram_todo_truth import tool_events_from_telegram_todo_truth_envelope
 
 
 _ALREADY_UNVERIFIED_RE = re.compile(r"\bnicht\s+verifiziert\b|\bunverified\b", re.IGNORECASE)
@@ -70,6 +71,7 @@ def gate_telegram_reply_text(
     tool_events: Iterable[Mapping[str, Any]] = (),
     *,
     repo_root: Path | str | None = None,
+    todo_truth_envelope: Mapping[str, Any] | None = None,
 ) -> TelegramTruthGateResult:
     """Return Telegram text with unsupported success claims made explicit.
 
@@ -81,6 +83,9 @@ def gate_telegram_reply_text(
 
     original = str(text or "")
     events = tuple(event for event in tool_events if isinstance(event, Mapping))
+    envelope_events = tool_events_from_telegram_todo_truth_envelope(todo_truth_envelope)
+    if envelope_events:
+        events = (*events, *envelope_events)
     report = evaluate_response_claims(original, events, repo_root=repo_root)
     findings = list(report.unsupported)
     findings.extend(_synthetic_unsupported_findings(original, events))

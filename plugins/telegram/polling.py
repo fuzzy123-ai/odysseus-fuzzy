@@ -22,6 +22,7 @@ from plugins.telegram.stores import (
     TelegramPrivacyPinStore,
     TelegramSessionBridgeStore,
 )
+from src.telegram_todo_truth import telegram_todo_truth_envelope_public_summary
 
 
 def _run_agent_turn(
@@ -42,14 +43,19 @@ def _run_agent_turn(
     if isinstance(result, dict):
         reply_text = str(result.get("reply_text") or result.get("text") or "")
         status = str(result.get("status") or "accepted")
+        todo_truth_envelope = result.get("todo_truth_envelope")
     else:
         reply_text = str(result or "")
         status = "accepted"
-    return {
+        todo_truth_envelope = None
+    public = {
         "status": status,
         "reply_text": reply_text,
         "reply_text_present": bool(reply_text.strip()),
     }
+    if isinstance(todo_truth_envelope, dict):
+        public["todo_truth_envelope"] = todo_truth_envelope
+    return public
 
 
 def deterministic_telegram_agent_turn(bridge: dict[str, Any]) -> dict[str, Any] | None:
@@ -138,20 +144,32 @@ async def _run_agent_turn_async(
     if isinstance(result, dict):
         reply_text = str(result.get("reply_text") or result.get("text") or "")
         status = str(result.get("status") or "accepted")
+        todo_truth_envelope = result.get("todo_truth_envelope")
     else:
         reply_text = str(result or "")
         status = "accepted"
-    return {
+        todo_truth_envelope = None
+    public = {
         "status": status,
         "reply_text": reply_text,
         "reply_text_present": bool(reply_text.strip()),
     }
+    if isinstance(todo_truth_envelope, dict):
+        public["todo_truth_envelope"] = todo_truth_envelope
+    return public
 
 
 def _public_agent_turn_result(result: dict[str, Any] | None) -> dict[str, Any] | None:
     if result is None:
         return None
-    public = {key: value for key, value in result.items() if key != "reply_text"}
+    envelope = result.get("todo_truth_envelope")
+    public = {
+        key: value
+        for key, value in result.items()
+        if key not in {"reply_text", "todo_truth_envelope"}
+    }
+    if isinstance(envelope, dict):
+        public["todo_truth_envelope"] = telegram_todo_truth_envelope_public_summary(envelope)
     public["reply_text_value_visible"] = False
     return public
 
@@ -569,11 +587,20 @@ def run_telegram_polling_cycle_impl(
                         )
                         reply_text = format_agent_turn_reply(agent_turn, failure_reply=_agent_failure_reply)
                         if reply_text and reply_handler is not None:
-                            reply_handler(
-                                bridge["chat_id"],
-                                reply_text,
-                                bridge.get("source_message_id"),
-                            )
+                            envelope = agent_turn.get("todo_truth_envelope")
+                            if isinstance(envelope, dict):
+                                reply_handler(
+                                    bridge["chat_id"],
+                                    reply_text,
+                                    bridge.get("source_message_id"),
+                                    todo_truth_envelope=envelope,
+                                )
+                            else:
+                                reply_handler(
+                                    bridge["chat_id"],
+                                    reply_text,
+                                    bridge.get("source_message_id"),
+                                )
                             replies += 1
                 finally:
                     if typing_pulse is not None:

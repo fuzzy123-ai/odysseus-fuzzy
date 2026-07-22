@@ -488,6 +488,32 @@ Akzeptanz:
 - Das Gate erhaelt maschinenlesbare Tool-Events; Tests beweisen, dass sie nicht
   im Agent-Bridge verworfen werden.
 
+Acceptance evidence (2026-07-22):
+
+- `odysseus.telegram_todo_truth_envelope.v1` bewahrt Tool-Start, redigierten
+  Tool-Output, typed Transaction und kanonische Todo-Postcondition mit
+  konsistenten Sequenzen, Counts, Receipt-Refs und Claim-Typen.
+- Der Core-Agent-Handler extrahiert ausschliesslich aus dem finalen SSE-
+  Metrics-Event, Polling und Webhook bewahren den internen Envelope, und
+  oeffentliche Projektionen enthalten nur Counts und Privacy-Flags.
+- Das Telegram-Pre-Send-Gate rekonstruiert nur validierte `manage_todos`-
+  Evidence-Events. Fehlender, fremder, inkonsistenter oder manipulierte
+  Exit-/Transaction-/Postcondition-Evidence schwacht "gespeichert" oder
+  "erledigt" vor jedem Send zu "nicht verifiziert" ab.
+- Commands, Tool-Ausgaben, Prompts, Item-Texte, Listentitel und direkte
+  Chat-/Owner-IDs gelangen nicht in den Envelope. Die stabilen Todo-Refs
+  erscheinen nicht in oeffentlichen Polling-/Webhook-Projektionen.
+- `app.py` wurde nur im isolierten Worktree und nur im Telegram-Handlerbereich
+  bearbeitet. Die fremden Hauptcheckout-Hunks bei 644/685/856/1256 blieben
+  unangetastet; das Telegram-Plugin lief als serieller Single-Writer-Hotfile.
+- Fokus: `6 passed`; kombinierte TTD-03/04 Todo-, Agent-, Telegram-, Plugin-
+  und App-Vertragssuite: `292 passed` mit einer vorbestehenden SQLAlchemy-
+  Deprecation-Warnung. TAX0-Inventory (nur Plugin-Quellhash), Registry-Audit,
+  JSON- und Diff-Gates sind gruen.
+- Keine produktive Telegram-, Netzwerk-, Provider-, Host-, Deployment- oder
+  Produktionsdatenaktion wurde ausgefuehrt. Naechster serieller Preflight:
+  `TTD-05`; `TTD-07` und `TTD-08` sind ebenfalls logisch bereit und ungeclaimt.
+
 ### TTD-05 - Digest-Postconditions
 
 Owner: Bob

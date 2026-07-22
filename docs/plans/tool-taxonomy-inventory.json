@@ -856,10 +856,10 @@
   },
   "schema_version": "odysseus.tool_taxonomy_inventory.v1",
   "scope": "static_repository_metadata_only",
-  "source_digest_sha256": "652d36977ccea02e5d516e526c63d6c1fdc9c89dbfa0520f070dcde9dfb16947",
+  "source_digest_sha256": "01e9d79427d400bdf95f28f14221e13c6c507cbf543f9a3fa7b45745c8f08b6e",
   "source_hashes_sha256": {
     "plugins/obsidian/plugin.py": "fe074b23c3e0f6fe6fa968011ba168e3a7eb95cf1acb992b10b5be425fb9e9f2",
-    "plugins/telegram/plugin.py": "7b5e17acd50fff107f69659dbda5aff8a010a31928c5a5ac14c5667a9babc9f6",
+    "plugins/telegram/plugin.py": "4a1680f229773dc46777aee778ebea553bfdd581c5c9c586c1ffce51de23f727",
     "src/agent_loop_prompts.py": "41da04246ec9de706f4ad887aa3e174e621f4c30f3e45ef7c80d2643b93e1c73",
     "src/agent_tools/__init__.py": "6da3460e95a3f848b0d1cf3f4b2c19d4cb10332afef85e9928babb64cb4448ba",
     "src/builtin_tool_catalog.py": "3202f1b77fd989c6336133b0a0df0ca9df2467e940d15b4a2a8daff4d79dd090",

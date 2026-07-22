@@ -6,6 +6,7 @@ import asyncio
 from typing import Any, Callable
 
 from plugins.telegram.formatting import format_agent_turn_reply
+from src.telegram_todo_truth import telegram_todo_truth_envelope_public_summary
 
 
 class TelegramWebhookIntakeError(ValueError):
@@ -257,13 +258,17 @@ def build_webhook_agent_turn_event_payload(
 ) -> dict[str, Any]:
     """Build the redacted event payload for webhook agent turn execution."""
 
-    return {
+    envelope = agent_turn.get("todo_truth_envelope")
+    payload = {
         "kind": "agent_turn",
         "status": str(agent_turn.get("status") or "accepted"),
         "chat_id": str(bridge.get("chat_id") or ""),
         "session_id": str(bridge.get("session_id") or ""),
         "reply_text_present": bool(agent_turn.get("reply_text_present")),
     }
+    if isinstance(envelope, dict):
+        payload["todo_truth_envelope"] = telegram_todo_truth_envelope_public_summary(envelope)
+    return payload
 
 
 def run_webhook_control_command_branch(
@@ -365,11 +370,20 @@ async def run_webhook_agent_turn_branch(
             )
             reply_text = format_agent_turn_reply(agent_turn, failure_reply=agent_failure_reply)
             if reply_text:
-                reply_result = reply_with_gate(
-                    final_bridge["chat_id"],
-                    reply_text,
-                    source_message_id=final_bridge.get("source_message_id"),
-                )
+                envelope = agent_turn.get("todo_truth_envelope")
+                if isinstance(envelope, dict):
+                    reply_result = reply_with_gate(
+                        final_bridge["chat_id"],
+                        reply_text,
+                        source_message_id=final_bridge.get("source_message_id"),
+                        todo_truth_envelope=envelope,
+                    )
+                else:
+                    reply_result = reply_with_gate(
+                        final_bridge["chat_id"],
+                        reply_text,
+                        source_message_id=final_bridge.get("source_message_id"),
+                    )
     finally:
         if typing_stop is not None:
             typing_stop.set()

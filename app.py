@@ -993,6 +993,10 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
     from core.models import ChatMessage
     from src.agent_loop import stream_agent_loop
     from src.workflow_skills import WorkflowSkillError, resolve_workflow_skills
+    from src.telegram_todo_truth import (
+        build_telegram_todo_truth_envelope,
+        telegram_todo_truth_envelope_has_evidence,
+    )
 
     session_id = str(bridge.get("session_id") or "").strip()
     prompt = str(bridge.get("prompt") or "").strip()
@@ -1153,8 +1157,9 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                     ),
                 }
 
-        async def _run_agent_turn() -> str:
+        async def _run_agent_turn() -> tuple[str, dict | None]:
             reply_parts: list[str] = []
+            todo_truth_envelope = None
             async for chunk in stream_agent_loop(
                 session.endpoint_url,
                 session.model,
@@ -1172,16 +1177,25 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                     continue
                 if "delta" in event and not event.get("thinking"):
                     reply_parts.append(str(event.get("delta") or ""))
-            return "".join(reply_parts).strip()
+                if event.get("type") == "metrics" and isinstance(event.get("data"), dict):
+                    metric_events = event["data"].get("tool_events")
+                    if isinstance(metric_events, list):
+                        candidate = build_telegram_todo_truth_envelope(metric_events)
+                        if telegram_todo_truth_envelope_has_evidence(candidate):
+                            todo_truth_envelope = candidate
+            return "".join(reply_parts).strip(), todo_truth_envelope
 
-        response = _run_async_bridge(_run_agent_turn())
+        response, todo_truth_envelope = _run_async_bridge(_run_agent_turn())
         if not response:
             response = "Ich habe deine Nachricht verarbeitet, aber keine Textantwort erhalten."
         if local_rebind_notice:
             response = f"{local_rebind_notice}{response}"
         session.add_message(ChatMessage("user", persisted_prompt, {"source": "telegram"}))
         session.add_message(ChatMessage("assistant", str(response or ""), {"source": "telegram"}))
-        return {"status": "accepted", "reply_text": str(response or "")}
+        result = {"status": "accepted", "reply_text": str(response or "")}
+        if todo_truth_envelope is not None:
+            result["todo_truth_envelope"] = todo_truth_envelope
+        return result
     except Exception as exc:
         logger.warning("Telegram agent turn failed: %s", exc)
         return {"status": "failed", "error": str(exc), "reply_text": ""}
