@@ -22,6 +22,29 @@ def _load_verify():
     return module
 
 
+def _git_repo(tmp_path: Path) -> Path:
+    root = tmp_path / "verify-repo"
+    root.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    (root / "tracked.txt").write_text("safe fixture\n", encoding="utf-8")
+    subprocess.run(["git", "add", "tracked.txt"], cwd=root, check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Verify Test",
+            "-c",
+            "user.email=verify@example.invalid",
+            "commit",
+            "-qm",
+            "initial",
+        ],
+        cwd=root,
+        check=True,
+    )
+    return root
+
+
 def test_registry_has_stable_cross_platform_lane_names_and_order() -> None:
     verify = _load_verify()
     registry = verify.build_check_registry()
@@ -63,6 +86,79 @@ def test_dry_run_records_exact_checks_without_claiming_evidence() -> None:
     )
     assert {item["status"] for item in report["checks"]} == {"planned"}
     assert "integration_not_verified" in report["verification_limits"]
+    assert "receipt" not in report
+
+
+def test_dry_run_and_injected_runner_cannot_use_receipt_execution_path(
+    tmp_path,
+) -> None:
+    verify = _load_verify()
+
+    with pytest.raises(SystemExit) as dry_run:
+        verify.main(["--lane", "guards-only", "--dry-run", "--receipt"])
+    assert dry_run.value.code == 2
+
+    def injected(spec):
+        return verify.CheckOutcome(spec.check_id, verify.CheckStatus.PASSED, 0, 0)
+
+    report, exit_code = verify.run_lane(
+        "guards-only",
+        root=tmp_path,
+        check_runner=injected,
+    )
+    assert exit_code == verify.VerifyExitCode.PASSED
+    assert "receipt" not in report
+
+
+def test_real_lane_receipt_requires_stable_pre_and_post_binding(tmp_path) -> None:
+    verify = _load_verify()
+    root = _git_repo(tmp_path)
+
+    report, exit_code = verify.run_lane_with_receipt("guards-only", root=root)
+
+    assert exit_code == verify.VerifyExitCode.PASSED
+    assert report["receipt"]["result"] == "passed"
+    assert report["receipt"]["binding"]["workspace_state"] == "clean_head"
+    assert str(root) not in json.dumps(report["receipt"], sort_keys=True)
+
+
+def test_repository_change_during_lane_prevents_receipt(tmp_path, monkeypatch) -> None:
+    verify = _load_verify()
+    root = _git_repo(tmp_path)
+
+    def mutating_run_lane(lane, **_kwargs):
+        (root / "tracked.txt").write_text("changed during checks\n", encoding="utf-8")
+        checks = [
+            {
+                "check_id": check_id,
+                "kind": "internal",
+                "command": ["internal"],
+                "timeout_seconds": 30,
+                "evidence_level": "static",
+                "required": True,
+                "status": "passed",
+                "returncode": 0,
+                "duration_ms": 0,
+                "details": {},
+            }
+            for check_id in verify.LANES[lane]
+        ]
+        return (
+            {
+                "schema": verify.VERIFY_RUN_SCHEMA,
+                "lane": lane,
+                "status": "passed",
+                "exit_code": 0,
+                "strongest_evidence_level": "static",
+                "checks": checks,
+                "verification_limits": list(verify.LANE_LIMITS[lane]),
+            },
+            verify.VerifyExitCode.PASSED,
+        )
+
+    monkeypatch.setattr(verify, "run_lane", mutating_run_lane)
+    with pytest.raises(verify.ReceiptError, match="changed during verification"):
+        verify.run_lane_with_receipt("guards-only", root=root)
 
 
 def test_failed_and_unavailable_required_checks_have_distinct_exit_codes() -> None:

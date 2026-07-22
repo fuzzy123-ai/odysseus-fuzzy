@@ -17,6 +17,16 @@ from typing import Any, Callable, Mapping, Sequence
 
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from src.agent_verification_receipt import (  # noqa: E402
+    ReceiptError,
+    build_verification_receipt,
+    repository_binding,
+    validate_verification_receipt,
+)
+
 VERIFY_RUN_SCHEMA = "odysseus.verify_run.v1"
 VERIFY_REGISTRY_SCHEMA = "odysseus.verify_registry.v1"
 MAX_VISUAL_EVIDENCE_BYTES = 50 * 1024 * 1024
@@ -322,6 +332,32 @@ def run_lane(
     return report, exit_code
 
 
+def run_lane_with_receipt(
+    lane: str,
+    *,
+    root: Path = ROOT,
+    visual_evidence: Path | None = None,
+) -> tuple[dict[str, Any], VerifyExitCode]:
+    """Run a real lane and attach a receipt only if repository state is stable."""
+
+    binding_before = repository_binding(root)
+    report, exit_code = run_lane(
+        lane,
+        root=root,
+        visual_evidence=visual_evidence,
+        dry_run=False,
+        check_runner=None,
+    )
+    binding_after = repository_binding(root)
+    receipt = build_verification_receipt(
+        report,
+        binding_before=binding_before,
+        binding_after=binding_after,
+    )
+    validate_verification_receipt(receipt, root=root, expected_lane=lane)
+    return {**report, "receipt": receipt}, exit_code
+
+
 def run_check(
     spec: CheckSpec,
     *,
@@ -581,14 +617,40 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="existing visual artifact required by the ui lane",
     )
+    parser.add_argument(
+        "--receipt",
+        action="store_true",
+        help="attach a current content-free receipt for a real lane run",
+    )
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.receipt and (args.list or args.dry_run):
+        parser.error("--receipt requires a real verification lane run")
     if args.list:
         payload = registry_payload()
         exit_code = VerifyExitCode.PASSED
+    elif args.receipt:
+        try:
+            payload, exit_code = run_lane_with_receipt(
+                args.lane,
+                visual_evidence=args.visual_evidence,
+            )
+        except ReceiptError:
+            payload = {
+                "schema": VERIFY_RUN_SCHEMA,
+                "lane": args.lane,
+                "status": "not_verified",
+                "exit_code": int(VerifyExitCode.FAILED),
+                "strongest_evidence_level": "none",
+                "checks": [],
+                "verification_limits": ["receipt_binding_unavailable"],
+                "receipt": None,
+            }
+            exit_code = VerifyExitCode.FAILED
     else:
         payload, exit_code = run_lane(
             args.lane,
