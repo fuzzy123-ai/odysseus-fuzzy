@@ -768,7 +768,7 @@
         "commit": "e24495734e8afc122cf36621cde5d8c1e94d7669",
         "focused": "37 passed, 1 host-dependent symlink test skipped",
         "integration": "253 passed, 1 host-dependent symlink test skipped across 21 declared modules; 14 pre-existing deprecation warnings",
-        "static": "guards-only passed 3 of 3; JSON, AST, exact six-path cached diff, primary handoff hashes and two independent final reviews passed",
+        "static": "guards-only passed 3 of 3; JSON, AST, exact six-path cached diff, primary handoff hashes and two independent final reviews passed; clean-HEAD receipt 9677f44f86a6a22acfc55557d4fb0b9480d5187f205402c6ca8c9328f91b2e79 bound to 501d7b969b2c112abec937da1cb35d2ed2760231",
         "hook_contract": "Exact Windows SessionStart command passed with hostile inherited GIT_DIR and emitted matching hookSpecificOutput.additionalContext with all action authorities false",
         "not_verified": [
           "actual Codex hook trust and installed-client SessionStart execution",

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 71,
+  "revision": 72,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "heartbeat_status": "paused_update_handler_unavailable_current_surface",
   "queue_scope": "open_work",
@@ -656,7 +656,7 @@
       "status": "accepted_local_repo_evidence",
       "focused_tests": "37 passed, 1 host-dependent real-symlink test skipped; exact Windows hook command passed with hostile inherited GIT_DIR",
       "integration_tests": "253 passed, 1 host-dependent skip and 14 pre-existing deprecation warnings across 21 AMH-07 and adjacent-consumer modules",
-      "static_evidence": "Guards-only passed 3 of 3; JSON and changed-Python AST passed; exact six-path cached diff and four primary handoff hashes passed; two final reviewers reported no actionable findings",
+      "static_evidence": "Guards-only passed 3 of 3; JSON and changed-Python AST passed; exact six-path cached diff and four primary handoff hashes passed; two final reviewers reported no actionable findings; clean-HEAD receipt 9677f44f86a6a22acfc55557d4fb0b9480d5187f205402c6ca8c9328f91b2e79 bound to 501d7b969b2c112abec937da1cb35d2ed2760231",
       "verification_limit": "Actual Codex hook trust and installed-client SessionStart, exact POSIX hook execution, UI, live, visual and temporal behavior were not verified. These remain AMH-08/operational evidence, not inferred completion.",
       "completion": {
         "implemented": "yes",
@@ -730,9 +730,9 @@
       "forbidden_curl_substring_assertion_made_token_aware"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T20:33:45+02:00",
+  "last_durable_progress_at": "2026-07-22T20:36:40+02:00",
   "last_heartbeat_at": "2026-07-22T19:30:29+02:00",
-  "last_reported_revision": 71,
+  "last_reported_revision": 72,
   "resume_cursor": "AMH-08-adversarial-and-ci-acceptance",
   "pending_user_requests": [],
   "live_go_ledger": [],
