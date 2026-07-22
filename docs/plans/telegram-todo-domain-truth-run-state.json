@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 58,
+  "revision": 59,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "heartbeat_status": "paused_update_handler_unavailable_current_surface",
   "queue_scope": "open_work",
@@ -21,7 +21,7 @@
   },
   "route": {
     "entrypoint": "/abc",
-    "slice_id": "AMH-04-machine-verification-receipts-preflight",
+    "slice_id": "AMH-04-machine-verification-receipts",
     "mutation": "repo_only",
     "recommended": {
       "skills": [{"id": "abc", "purpose": "orchestration, claims, gates and acceptance"}],
@@ -45,8 +45,43 @@
     "temporal_window": "none",
     "positive_path_required": true
   },
-  "active_claims": [],
-  "agent_leases": [],
+  "active_claims": [
+    {
+      "run_id": "abc-owm22-20260722T065621+0200",
+      "thread_id": "/root/amh02_bob",
+      "slice_id": "AMH-04-machine-verification-receipts",
+      "owner": "Bob",
+      "allowed_paths": [
+        "specs/agent-maintenance-verification-receipt.v1.schema.json",
+        "src/agent_verification_receipt.py",
+        "scripts/verify.py",
+        "tests/test_agent_verification_receipt.py",
+        "tests/test_verify_entrypoint.py"
+      ],
+      "hotfiles": ["scripts/verify.py"],
+      "state": "claimed",
+      "acquired_at": "2026-07-22T14:43:00+02:00",
+      "lease_expires_at": "2026-07-22T15:43:00+02:00",
+      "handoff_required": true
+    }
+  ],
+  "agent_leases": [
+    {
+      "agent": "/root/amh02_bob",
+      "slice_id": "AMH-04-machine-verification-receipts",
+      "mode": "worker",
+      "state": "claimed",
+      "allowed_paths": [
+        "specs/agent-maintenance-verification-receipt.v1.schema.json",
+        "src/agent_verification_receipt.py",
+        "scripts/verify.py",
+        "tests/test_agent_verification_receipt.py",
+        "tests/test_verify_entrypoint.py"
+      ],
+      "acquired_at": "2026-07-22T14:43:00+02:00",
+      "lease_expires_at": "2026-07-22T15:43:00+02:00"
+    }
+  ],
   "completed_slices": [
     {
       "slice_id": "TTD-00",
@@ -605,10 +640,10 @@
       "safe_claim_identifier_fallback_expectation_corrected"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T14:40:00+02:00",
-  "last_heartbeat_at": "2026-07-22T14:40:00+02:00",
-  "last_reported_revision": 58,
-  "resume_cursor": "AMH-04-machine-verification-receipts-preflight",
+  "last_durable_progress_at": "2026-07-22T14:43:00+02:00",
+  "last_heartbeat_at": "2026-07-22T14:43:00+02:00",
+  "last_reported_revision": 59,
+  "resume_cursor": "AMH-04-machine-verification-receipts",
   "pending_user_requests": [],
   "live_go_ledger": [],
   "gate_queue": [
