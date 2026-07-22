@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 31,
+  "revision": 33,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "queue_scope": "open_work",
   "queue_lane": "OWM-23",
@@ -20,7 +20,7 @@
   },
   "route": {
     "entrypoint": "/abc",
-    "slice_id": "AMH-01-ready",
+    "slice_id": "AMH-02-ready",
     "mutation": "safe_offline",
     "selected_skills": ["abc"],
     "model": "surface_default",
@@ -292,6 +292,25 @@
       "completion": {
         "implemented": "yes",
         "tested": "yes",
+        "committed": "2f6c0221",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-01",
+      "completed_at": "2026-07-22T10:47:00+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "5 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "integration_tests": "8 existing secret-safe homeserver diagnostic tests passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "Path-scoped diff check passed; primary collision check clean",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
         "committed": "no",
         "pushed": "no",
         "deployed": "no",
@@ -309,7 +328,8 @@
     "TTD-04": 2,
     "TTD-05": 3,
     "TTD-08": 5,
-    "TTD-10": 1
+    "TTD-10": 1,
+    "AMH-01": 1
   },
   "failed_attempt_classes": {
     "TTD-02": [
@@ -336,12 +356,15 @@
     ],
     "TTD-10": [
       "direct_script_repo_import_bootstrap_fixed_and_subprocess_tested"
+    ],
+    "AMH-01": [
+      "policy_test_normalization_adjusted_for_markdown_wrapping"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T10:41:00+02:00",
-  "last_heartbeat_at": "2026-07-22T10:41:00+02:00",
-  "last_reported_revision": 31,
-  "resume_cursor": "AMH-01-root-policy-and-runbook",
+  "last_durable_progress_at": "2026-07-22T10:47:00+02:00",
+  "last_heartbeat_at": "2026-07-22T10:47:00+02:00",
+  "last_reported_revision": 33,
+  "resume_cursor": "AMH-02-secret-safe-diagnostics",
   "pending_user_requests": [],
   "live_go_ledger": [],
   "gate_queue": [
@@ -352,7 +375,6 @@
     "TTD-LIVE-HISTORY-RETENTION"
   ],
   "next_runnable_slices": [
-    "AMH-01-root-policy-and-runbook",
     "AMH-02-secret-safe-diagnostics",
     "AMH-03-shared-verification-entrypoint",
     "AMH-05-canonical-handoff-and-owner-projection"
