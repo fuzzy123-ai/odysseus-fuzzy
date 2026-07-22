@@ -703,7 +703,7 @@
     },
     {
       "id": "AMH-07-read-only-session-bootstrap",
-      "execution_status": "ready_after_amh06_local_acceptance",
+      "execution_status": "blocked_by_foreign_hotfile_handoff",
       "mutation_class": "repo_only",
       "priority": "P1",
       "owner": "Alice; Bob for runtime projection",
@@ -735,6 +735,24 @@
         "python -m pytest -q tests/test_agent_maintenance_bootstrap.py",
         "git diff --check -- .codex/hooks.json src/agent_loop_prompts.py src/runtime_tool_status.py docs/agent-maintenance-runbook.md tests/test_agent_maintenance_bootstrap.py"
       ],
+      "handoff_gate": {
+        "state": "awaiting_user_grant_2026-07-22",
+        "reason": "The primary checkout contains uncommitted foreign Pygame/artifact and clarification changes in agent_loop_prompts.py, a substantial unrelated Descriptor-v2 tool-catalog projection in runtime_tool_status.py, and an ignored existing .codex/hooks.json. AMH-07 requires these exact hook, prompt and runtime hotfiles for parity, so no disjoint completion-capable subset exists.",
+        "required_grant": "GO AMH07-HANDOFF",
+        "scope": "Read the three named primary paths, preserve and semantically reconcile all foreign behavior with the AMH-07 read-only bootstrap, test and commit locally in the isolated branch only.",
+        "excluded": [
+          "push",
+          "deploy",
+          "live_access",
+          "primary_checkout_mutation",
+          "destructive_git"
+        ],
+        "paths": [
+          ".codex/hooks.json",
+          "src/agent_loop_prompts.py",
+          "src/runtime_tool_status.py"
+        ]
+      },
       "evidence_required": [
         "bootstrap performs no write, install, network call or service start",
         "missing or malformed state produces a bounded warning and safe stop",
@@ -935,5 +953,5 @@
       "No commit, push, deploy, live mutation, provider call or external write was performed."
     ]
   },
-  "recommended_next_step": "Run AMH-07 as a read-only, idempotent session bootstrap: audit the five allowed paths for foreign overlap, durably claim only a clean scope, preserve the no-install/no-network/no-service-start boundary and verify missing, malformed, stale and hook-failure behavior before local acceptance."
+  "recommended_next_step": "Obtain GO AMH07-HANDOFF for the three named primary hotfiles. Then read-only absorb and semantically reconcile their foreign behavior in the isolated branch, durably claim the five-path AMH-07 scope, implement the no-install/no-network/no-service-start bootstrap and verify missing, malformed, stale and hook-failure behavior before local acceptance."
 }
