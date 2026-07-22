@@ -376,3 +376,178 @@ def test_serialized_contract_has_no_raw_output_channel(contract) -> None:
         "value",
     ):
         assert forbidden not in serialized
+
+
+@pytest.mark.parametrize(
+    "tool,content",
+    (
+        ("bash", f"printenv {CANARY}"),
+        ("bash", f"type .env {CANARY}"),
+        ("bash", f"docker inspect service-{CANARY}"),
+        ("bash", f"docker compose config {CANARY}"),
+        ("python", f"import os; print(os.getenv('{CANARY}'))"),
+    ),
+)
+def test_tool_execution_rejects_raw_diagnostic_sources_without_echo(
+    tool,
+    content,
+) -> None:
+    from src.tool_execution import _secret_safe_diagnostic_source_refusal
+
+    refusal = _secret_safe_diagnostic_source_refusal(tool, content)
+    serialized = json.dumps(refusal, sort_keys=True)
+
+    assert refusal is not None
+    assert refusal["diagnostic"]["refusal_code"] == "raw_source_forbidden"
+    assert content not in serialized
+    assert CANARY not in serialized
+
+
+def test_tool_execution_allows_non_raw_registered_probe_shape() -> None:
+    from src.tool_execution import _secret_safe_diagnostic_source_refusal
+
+    assert (
+        _secret_safe_diagnostic_source_refusal(
+            "bash",
+            "repository-safe-probe --json",
+        )
+        is None
+    )
+
+
+@pytest.mark.asyncio
+async def test_tool_execution_blocks_raw_source_before_dispatch(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    import src.tool_execution as tool_execution
+
+    monkeypatch.setattr(tool_execution, "_owner_is_admin", lambda _owner: True)
+    description, result = await tool_execution._execute_tool_block_impl(
+        SimpleNamespace(
+            tool_type="bash",
+            content=f"printenv {CANARY}",
+        ),
+        owner="synthetic-admin",
+    )
+    serialized = json.dumps(result, sort_keys=True)
+
+    assert description == "bash: BLOCKED by diagnostic safety policy"
+    assert result["exit_code"] == 1
+    assert CANARY not in serialized
+
+
+def test_route_projections_drop_unknown_raw_content() -> None:
+    from routes.diagnostics_routes import (
+        _project_log_summary,
+        _project_research_probe,
+        _project_tool_usage_report,
+        _project_youtube_probe,
+    )
+
+    report = _project_tool_usage_report(
+        {
+            "schema": "odysseus.tool_usage_analytics.v1",
+            "calls": 1,
+            "raw_payload": CANARY,
+            "quality": {"invocation_count": 1, "raw_payload": CANARY},
+            "rows": [
+                {
+                    "tool_analytics_id": "bash",
+                    "invocation_count": 1,
+                    "raw_argument": CANARY,
+                }
+            ],
+        }
+    )
+    payloads = (
+        report,
+        _project_log_summary(
+            status="available",
+            log_file_present=True,
+            sampled_line_count=1,
+        ),
+        _project_youtube_probe(
+            status="available",
+            transcript_present=True,
+            transcript_char_count=1,
+        ),
+        _project_research_probe(
+            status="available",
+            response_present=True,
+            response_char_count=1,
+        ),
+    )
+
+    assert all(CANARY not in json.dumps(payload, sort_keys=True) for payload in payloads)
+    assert report["raw_content_visible"] is False
+    assert report["quality"]["raw_content_visible"] is False
+    assert set(report["rows"][0]) == {
+        "day",
+        "tool_analytics_id",
+        "tool_family",
+        "tool_source",
+        "surface",
+        "status",
+        "invocation_count",
+        "duration_count",
+        "duration_total_ms",
+        "distinct_owner_count",
+        "distinct_session_count",
+        "retry_count",
+        "unknown_identity_count",
+    }
+
+
+def test_diagnostic_routes_never_return_raw_log_or_probe_content(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    import routes.diagnostics_routes as diagnostics_routes
+
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    (log_dir / "app.log").write_text(CANARY + "\n", encoding="utf-8")
+
+    async def synthetic_transcript(_url, _video_id):
+        return {"success": True, "transcript": CANARY}
+
+    class SyntheticResearchHandler:
+        async def call_research_service(self, _query, _endpoint, _model):
+            return CANARY
+
+    monkeypatch.setattr(diagnostics_routes, "DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(diagnostics_routes, "require_admin", lambda _request: None)
+    monkeypatch.setattr(
+        diagnostics_routes,
+        "extract_youtube_id",
+        lambda _url: "synthetic-video",
+    )
+    monkeypatch.setattr(
+        diagnostics_routes,
+        "extract_transcript_async",
+        synthetic_transcript,
+    )
+    app = FastAPI()
+    app.include_router(
+        diagnostics_routes.setup_diagnostics_routes(
+            None,
+            False,
+            SyntheticResearchHandler(),
+        )
+    )
+    client = TestClient(app)
+
+    responses = (
+        client.get("/api/diagnostics/logs"),
+        client.get("/api/test/youtube", params={"url": CANARY}),
+        client.post("/api/test-research", data={"query": CANARY}),
+    )
+    serialized = json.dumps([response.json() for response in responses], sort_keys=True)
+
+    assert all(response.status_code == 200 for response in responses)
+    assert CANARY not in serialized
+    assert '"logs"' not in serialized
+    assert "preview" not in serialized

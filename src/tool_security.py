@@ -7,7 +7,7 @@ import json
 from dataclasses import dataclass
 from typing import Any, Optional, Set
 
-from src.builtin_tool_catalog import builtin_spec
+from src.builtin_tool_catalog import BUILTIN_TOOL_SPECS, builtin_spec
 from src.tool_catalog import (
     ToolEffectClass,
     ToolPermission,
@@ -15,6 +15,12 @@ from src.tool_catalog import (
 )
 
 logger = logging.getLogger(__name__)
+
+RUNTIME_ADMIN_PERMISSION_IDS = frozenset(
+    spec.tool_id
+    for spec in BUILTIN_TOOL_SPECS
+    if spec.permission == ToolPermission.ADMIN
+)
 
 PUBLIC_MCP_SERVER_ALLOWLIST = {"vault"}
 
@@ -235,6 +241,7 @@ NON_ADMIN_BLOCKED_TOOLS = {
     "edit_file",
     "publish_artifact",
     "verify_pygame_headless",
+    "commit_project",
     "grep",
     "glob",
     "ls",
@@ -256,6 +263,9 @@ NON_ADMIN_BLOCKED_TOOLS = {
     "app_api",
     "send_email",
     "reply_to_email",
+    "bulk_email",
+    "delete_email",
+    "manage_assistant",
     "list_emails",
     "read_email",
     "resolve_contact",
@@ -343,10 +353,10 @@ ORCHESTRATOR_MODE_ALLOWED_TOOLS = {
 # new mutating tools.
 _PLAN_MODE_KNOWN_MUTATORS = {
     "write_file", "create_document", "edit_document", "update_document",
-    "publish_artifact", "verify_pygame_headless",
+    "publish_artifact", "verify_pygame_headless", "commit_project",
     "suggest_document", "manage_documents", "create_session", "manage_session",
     "send_to_session", "pipeline", "manage_memory", "manage_skills",
-    "manage_tasks", "manage_notes", "manage_todos", "manage_endpoints", "manage_mcp",
+    "manage_tasks", "manage_notes", "manage_todos", "manage_assistant", "manage_endpoints", "manage_mcp",
     "spawn_subagent", "manage_subagents",
     "manage_webhooks", "manage_tokens", "manage_settings", "manage_contact",
     "manage_github_issues", "manage_nextcloud_transfer",
@@ -449,7 +459,10 @@ def is_public_blocked_tool(tool_name: Optional[str]) -> bool:
         if server_id == "vault":
             return mcp_tool not in PUBLIC_VAULT_MCP_READONLY_TOOLS
         return server_id not in PUBLIC_MCP_SERVER_ALLOWLIST
-    return tool_name in NON_ADMIN_BLOCKED_TOOLS
+    return (
+        tool_name in NON_ADMIN_BLOCKED_TOOLS
+        or tool_name in RUNTIME_ADMIN_PERMISSION_IDS
+    )
 
 
 def owner_is_admin_or_single_user(owner: Optional[str]) -> bool:
@@ -486,7 +499,7 @@ def blocked_tools_for_owner(owner: Optional[str]) -> Set[str]:
     """Tools to hide/disable for this owner under public-user policy."""
     if owner_is_admin_or_single_user(owner):
         return set()
-    blocked = set(NON_ADMIN_BLOCKED_TOOLS)
+    blocked = set(NON_ADMIN_BLOCKED_TOOLS) | set(RUNTIME_ADMIN_PERMISSION_IDS)
     try:
         from src.tool_registry import list_tools
 

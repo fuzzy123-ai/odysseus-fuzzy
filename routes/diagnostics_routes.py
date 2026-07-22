@@ -2,6 +2,7 @@
 
 import logging
 import os
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any
 
 from fastapi import APIRouter, HTTPException, Form, Query, Request, Response
@@ -9,8 +10,88 @@ from fastapi import APIRouter, HTTPException, Form, Query, Request, Response
 from services.youtube.youtube_handler import extract_youtube_id, extract_transcript_async
 from core.constants import DEFAULT_HOST, DATA_DIR
 from core.middleware import require_admin
+from src.secret_safe_diagnostics import DiagnosticContract, project_diagnostic
 
 logger = logging.getLogger(__name__)
+
+_LOG_SUMMARY_CONTRACT = DiagnosticContract(
+    source_id="diagnostic_log_summary",
+    presence_fields=("log_file_present",),
+    count_fields=("sampled_line_count",),
+    state_values={"status": ("available", "missing", "failed")},
+    max_count=1000,
+)
+_YOUTUBE_PROBE_CONTRACT = DiagnosticContract(
+    source_id="youtube_probe",
+    presence_fields=("transcript_present",),
+    count_fields=("transcript_char_count",),
+    state_values={"status": ("available", "invalid", "failed")},
+)
+_RESEARCH_PROBE_CONTRACT = DiagnosticContract(
+    source_id="research_probe",
+    presence_fields=("response_present",),
+    count_fields=("response_char_count",),
+    state_values={"status": ("available", "failed")},
+)
+_TOOL_USAGE_SAFE_ERRORS = frozenset(
+    {
+        "invalid start date",
+        "invalid end date",
+        "invalid tool filter",
+        "invalid family filter",
+        "invalid source filter",
+        "invalid surface filter",
+        "invalid status filter",
+        "range start must not be after range end",
+        "range must not exceed 90 days",
+    }
+)
+
+
+def _project_log_summary(
+    *,
+    status: str,
+    log_file_present: bool | None = None,
+    sampled_line_count: int | None = None,
+) -> Dict[str, Any]:
+    payload: Dict[str, Any] = {"status": status}
+    if log_file_present is not None:
+        payload["log_file_present"] = log_file_present
+    if sampled_line_count is not None:
+        payload["sampled_line_count"] = sampled_line_count
+    return project_diagnostic(_LOG_SUMMARY_CONTRACT, payload).to_dict()
+
+
+def _project_youtube_probe(
+    *,
+    status: str,
+    transcript_present: bool = False,
+    transcript_char_count: int = 0,
+) -> Dict[str, Any]:
+    return project_diagnostic(
+        _YOUTUBE_PROBE_CONTRACT,
+        {
+            "status": status,
+            "transcript_present": transcript_present,
+            "transcript_char_count": min(max(transcript_char_count, 0), 1_000_000),
+        },
+    ).to_dict()
+
+
+def _project_research_probe(
+    *,
+    status: str,
+    response_present: bool = False,
+    response_char_count: int = 0,
+) -> Dict[str, Any]:
+    return project_diagnostic(
+        _RESEARCH_PROBE_CONTRACT,
+        {
+            "status": status,
+            "response_present": response_present,
+            "response_char_count": min(max(response_char_count, 0), 1_000_000),
+        },
+    ).to_dict()
 
 
 def setup_diagnostics_routes(
@@ -18,6 +99,7 @@ def setup_diagnostics_routes(
     rag_available: bool,
     research_handler,
     memory_vector=None,
+    tool_usage_analytics=None,
 ) -> APIRouter:
     router = APIRouter(tags=["diagnostics"])
 
@@ -31,27 +113,32 @@ def setup_diagnostics_routes(
 
     @router.get("/api/diagnostics/logs")
     async def get_diagnostics_logs(request: Request, limit: int = 200) -> Dict[str, Any]:
+        """Return only bounded log availability evidence, never raw log text."""
+
         require_admin(request)
         limit = max(1, min(limit, 1000))
         try:
             log_file = os.path.join(DATA_DIR, "logs", "app.log")
             if not os.path.exists(log_file):
-                return {"status": "success", "logs": []}
+                return _project_log_summary(
+                    status="missing",
+                    log_file_present=False,
+                    sampled_line_count=0,
+                )
 
-            # Safe tail read of the log file (max 5MB via rotation)
+            sampled_line_count = 0
             with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
-                lines = f.readlines()
-
-            tail_lines = lines[-limit:] if len(lines) > limit else lines
-            tail_lines = [line.rstrip('\r\n') for line in tail_lines]
-
-            return {
-                "status": "success",
-                "logs": tail_lines
-            }
-        except Exception as e:
-            logger.error(f"Diagnostics logs retrieval error: {e}")
-            raise HTTPException(500, f"Failed to retrieve logs: {str(e)}")
+                for sampled_line_count, _line in enumerate(f, start=1):
+                    if sampled_line_count >= limit:
+                        break
+            return _project_log_summary(
+                status="available",
+                log_file_present=True,
+                sampled_line_count=sampled_line_count,
+            )
+        except Exception:
+            logger.error("Diagnostics log summary retrieval failed")
+            raise HTTPException(500, "Failed to retrieve diagnostics log summary")
 
     @router.get("/api/diagnostics/ai-activity")
     async def get_ai_activity(
@@ -79,42 +166,72 @@ def setup_diagnostics_routes(
                 surface=surface,
                 status=status,
             )
-        except ValueError as e:
-            raise HTTPException(400, str(e))
-        except Exception as e:
-            logger.error(f"AI activity diagnostics retrieval error: {e}")
+        except ValueError:
+            raise HTTPException(400, "Invalid AI activity diagnostic parameters")
+        except Exception:
+            logger.error("AI activity diagnostics retrieval failed")
             raise HTTPException(500, "Failed to retrieve AI activity diagnostics")
 
     @router.get("/api/diagnostics/tool-usage")
     async def get_tool_usage(
         request: Request,
+        start_day: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+        end_day: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
         start: str | None = None,
         end: str | None = None,
-        tool: str | None = None,
-        family: str | None = None,
-        source: str | None = None,
-        surface: str | None = None,
-        status: str | None = None,
+        tool: str | None = Query(None, max_length=120),
+        family: str | None = Query(None, max_length=80),
+        source: str | None = Query(None, max_length=40),
+        surface: str | None = Query(None, max_length=40),
+        status: str | None = Query(None, max_length=40),
         limit: int = Query(100, ge=1, le=200),
     ) -> Dict[str, Any]:
-        """Return bounded, aggregate-only privacy-safe tool usage diagnostics."""
+        """Return an allowlisted aggregate-only tool usage projection."""
 
         require_admin(request)
+        if start_day and start and start_day != start:
+            raise HTTPException(400, "Conflicting tool usage start dates")
+        if end_day and end and end_day != end:
+            raise HTTPException(400, "Conflicting tool usage end dates")
+        resolved_start = start_day or start
+        resolved_end = end_day or end
         try:
-            from src.tool_usage_analytics import read_tool_usage_analytics
+            if tool_usage_analytics is None:
+                from src.tool_usage_analytics import read_tool_usage_analytics
 
-            return read_tool_usage_analytics(
-                start=start,
-                end=end,
-                tool=tool,
-                family=family,
-                source=source,
-                surface=surface,
-                status=status,
-                limit=limit,
-            )
-        except ValueError as e:
-            raise HTTPException(400, str(e))
+                return read_tool_usage_analytics(
+                    start=resolved_start,
+                    end=resolved_end,
+                    tool=tool,
+                    family=family,
+                    source=source,
+                    surface=surface,
+                    status=status,
+                    limit=limit,
+                )
+            else:
+                current_day = datetime.now(timezone.utc).date()
+                service_end = resolved_end or current_day.isoformat()
+                service_start = resolved_start or (
+                    current_day - timedelta(days=6)
+                ).isoformat()
+                report = tool_usage_analytics.summarize(
+                    service_start,
+                    service_end,
+                    tool_analytics_id=tool,
+                    tool_family=family,
+                    tool_source=source,
+                    surface=surface,
+                    status=status,
+                    row_limit=limit,
+                    max_span_days=90,
+                )
+            return _project_tool_usage_report(report)
+        except ValueError as error:
+            detail = error.args[0] if len(error.args) == 1 else None
+            if type(detail) is not str or detail not in _TOOL_USAGE_SAFE_ERRORS:
+                detail = "Invalid tool usage diagnostic parameters"
+            raise HTTPException(400, detail)
         except Exception:
             logger.error("Tool usage diagnostics retrieval failed")
             raise HTTPException(500, "Failed to retrieve tool usage diagnostics")
@@ -140,10 +257,10 @@ def setup_diagnostics_routes(
                 owner=owner,
                 status=status,
             )
-        except ValueError as e:
-            raise HTTPException(400, str(e))
-        except Exception as e:
-            logger.error(f"Memory provenance diagnostics retrieval error: {e}")
+        except ValueError:
+            raise HTTPException(400, "Invalid memory provenance diagnostic parameters")
+        except Exception:
+            logger.error("Memory provenance diagnostics retrieval failed")
             raise HTTPException(500, "Failed to retrieve memory provenance diagnostics")
 
     @router.get("/api/diagnostics/tool-capabilities")
@@ -154,10 +271,10 @@ def setup_diagnostics_routes(
             from src.tool_capability_maintenance import read_tool_capability_diagnostics
 
             return read_tool_capability_diagnostics()
-        except ValueError as e:
-            raise HTTPException(400, str(e))
-        except Exception as e:
-            logger.error(f"Tool capability diagnostics retrieval error: {e}")
+        except ValueError:
+            raise HTTPException(400, "Invalid tool capability diagnostic parameters")
+        except Exception:
+            logger.error("Tool capability diagnostics retrieval failed")
             raise HTTPException(500, "Failed to retrieve tool capability diagnostics")
 
     @router.get("/api/diagnostics/quick-summary")
@@ -178,36 +295,57 @@ def setup_diagnostics_routes(
                 memory_provenance=read_memory_provenance(day=day, limit=100),
                 tool_capabilities=read_tool_capability_diagnostics(),
             )
-        except ValueError as e:
-            raise HTTPException(400, str(e))
-        except Exception as e:
-            logger.error(f"Diagnostics quick summary retrieval error: {e}")
+        except ValueError:
+            raise HTTPException(400, "Invalid diagnostics summary parameters")
+        except Exception:
+            logger.error("Diagnostics quick summary retrieval failed")
             raise HTTPException(500, "Failed to retrieve diagnostics quick summary")
 
     @router.get("/api/diagnostics/runtime-metrics")
-    async def get_runtime_metrics(
-        request: Request,
-        day: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
-    ) -> Response:
-        """Return content-free Odysseus runtime metrics in Prometheus text format."""
-        require_admin(request)
-        try:
-            from src.ai_activity_ledger import read_ai_activity
-            from src.memory_provenance_ledger import read_memory_provenance
-            from src.observability_metrics import build_runtime_metrics_from_diagnostics, render_prometheus_text
+    async def get_runtime_metrics(request: Request) -> Response:
+        """Render only process-local content-free registries for Prometheus."""
 
-            snapshot = build_runtime_metrics_from_diagnostics(
-                ai_activity=read_ai_activity(day=day, limit=1000),
-                memory_provenance=read_memory_provenance(day=day, limit=1000),
+        token_request = False
+        try:
+            from src.auth_helpers import require_api_token_exact_scope
+
+            token_request = require_api_token_exact_scope(
+                request,
+                "observability:read",
             )
+        except ImportError:
+            # Older isolated catalogs do not expose scoped API-token auth yet.
+            # The safe compatibility default is the stricter admin-only route.
+            token_request = False
+        if not token_request:
+            require_admin(request)
+        try:
+            try:
+                from src.observability_metrics import render_process_runtime_metrics
+
+                rendered_metrics = render_process_runtime_metrics()
+            except ImportError:
+                from src.ai_activity_ledger import read_ai_activity
+                from src.memory_provenance_ledger import read_memory_provenance
+                from src.observability_metrics import (
+                    build_runtime_metrics_from_diagnostics,
+                    render_prometheus_text,
+                )
+
+                snapshot = build_runtime_metrics_from_diagnostics(
+                    ai_activity=read_ai_activity(day=None, limit=1000),
+                    memory_provenance=read_memory_provenance(day=None, limit=1000),
+                )
+                rendered_metrics = render_prometheus_text(snapshot)
+
             return Response(
-                render_prometheus_text(snapshot),
+                rendered_metrics,
                 media_type="text/plain; version=0.0.4; charset=utf-8",
             )
-        except ValueError as e:
-            raise HTTPException(400, str(e))
-        except Exception as e:
-            logger.error(f"Runtime metrics retrieval error: {e}")
+        except ValueError:
+            raise HTTPException(400, "Invalid runtime metrics parameters")
+        except Exception:
+            logger.error("Runtime metrics retrieval failed")
             raise HTTPException(500, "Failed to retrieve runtime metrics")
 
     @router.get("/api/diagnostics/observability-bridge")
@@ -242,10 +380,10 @@ def setup_diagnostics_routes(
                 metrics_snapshot=metrics,
                 quick_summary=quick_summary,
             )
-        except ValueError as e:
-            raise HTTPException(400, str(e))
-        except Exception as e:
-            logger.error(f"Observability bridge retrieval error: {e}")
+        except ValueError:
+            raise HTTPException(400, "Invalid observability diagnostic parameters")
+        except Exception:
+            logger.error("Observability bridge retrieval failed")
             raise HTTPException(500, "Failed to retrieve observability bridge diagnostics")
 
     @router.get("/api/diagnostics/open-work")
@@ -256,8 +394,8 @@ def setup_diagnostics_routes(
             from src.open_work_status import build_open_work_completion_status
 
             return build_open_work_completion_status()
-        except Exception as e:
-            logger.error(f"Open-work diagnostics retrieval error: {e}")
+        except Exception:
+            logger.error("Open-work diagnostics retrieval failed")
             raise HTTPException(500, "Failed to retrieve open-work diagnostics")
 
     @router.get("/api/db/stats")
@@ -266,8 +404,8 @@ def setup_diagnostics_routes(
         try:
             from core.database import get_detailed_stats
             return get_detailed_stats()
-        except Exception as e:
-            logger.error(f"DB stats error: {e}")
+        except Exception:
+            logger.error("DB stats retrieval failed")
             raise HTTPException(500, "Failed to retrieve database statistics")
 
     @router.get("/api/rag/stats")
@@ -279,39 +417,128 @@ def setup_diagnostics_routes(
 
     @router.get("/api/test/youtube")
     async def test_youtube(request: Request, url: str) -> Dict[str, Any]:
+        """Return only fixed-key transcript availability evidence."""
+
         require_admin(request)
         try:
             video_id = extract_youtube_id(url)
             if not video_id:
-                return {"error": "Invalid YouTube URL"}
+                return _project_youtube_probe(status="invalid")
 
             data = await extract_transcript_async(url, video_id)
-            return {
-                "video_id": video_id,
-                "transcript_success": data.get("success", False),
-                "transcript_length": len(data.get("transcript", "")) if data.get("success") else 0,
-                "transcript_preview": (data.get("transcript", "")[:500] + "...")
-                    if data.get("success") and len(data.get("transcript", "")) > 500
-                    else data.get("transcript", ""),
-                "error": data.get("error") if not data.get("success") else None,
-            }
-        except Exception as e:
-            return {"error": str(e)}
+            transcript = data.get("transcript", "") if isinstance(data, dict) else ""
+            success = bool(data.get("success")) if isinstance(data, dict) else False
+            if not success or type(transcript) is not str:
+                return _project_youtube_probe(status="failed")
+            return _project_youtube_probe(
+                status="available",
+                transcript_present=bool(transcript),
+                transcript_char_count=len(transcript),
+            )
+        except Exception:
+            logger.error("YouTube diagnostic probe failed")
+            return _project_youtube_probe(status="failed")
 
     @router.post("/api/test-research")
     async def test_research(request: Request, query: str = Form("What is machine learning?")) -> Dict[str, Any]:
+        """Return only fixed-key research service availability evidence."""
+
         require_admin(request)
         try:
             endpoint = f"http://{DEFAULT_HOST}:8000/v1/chat/completions"
             model = "gpt-oss-120b"
             result = await research_handler.call_research_service(query, endpoint, model)
-            return {
-                "status": "success",
-                "query": query,
-                "result_preview": result[:200] + "..." if len(result) > 200 else result,
-                "result_length": len(result),
-            }
-        except Exception as e:
-            return {"status": "error", "error": str(e), "query": query}
+            if type(result) is not str:
+                return _project_research_probe(status="failed")
+            return _project_research_probe(
+                status="available",
+                response_present=bool(result),
+                response_char_count=len(result),
+            )
+        except Exception:
+            logger.error("Research diagnostic probe failed")
+            return _project_research_probe(status="failed")
 
     return router
+
+
+def _project_tool_usage_report(report: Dict[str, Any]) -> Dict[str, Any]:
+    """Allowlist aggregate tool-usage output against future internal fields."""
+
+    if type(report) is not dict:
+        return {
+            "schema": None,
+            "quality": {"raw_content_visible": False},
+            "rows": (),
+            "raw_content_visible": False,
+        }
+    quality = report.get("quality") if type(report.get("quality")) is dict else {}
+    rows = report.get("rows") if type(report.get("rows")) in (list, tuple) else ()
+    row_fields = (
+        "day",
+        "tool_analytics_id",
+        "tool_family",
+        "tool_source",
+        "surface",
+        "status",
+        "invocation_count",
+        "duration_count",
+        "duration_total_ms",
+        "distinct_owner_count",
+        "distinct_session_count",
+        "retry_count",
+        "unknown_identity_count",
+    )
+    projected_rows = tuple(
+        {field: row.get(field) for field in row_fields}
+        for row in rows
+        if type(row) is dict
+    )
+    quality_fields = (
+        "invocation_count",
+        "started_count",
+        "terminal_count",
+        "complete_count",
+        "incomplete_count",
+        "distinct_owner_count",
+        "distinct_session_count",
+        "unknown_identity_count",
+        "duplicates_rejected",
+        "writer_failures",
+        "scope",
+        "aggregation_complete_day_count",
+        "warning_codes",
+    )
+    top_fields = (
+        "schema",
+        "start_day",
+        "end_day",
+        "filters",
+        "calls",
+        "active_days",
+        "duration_count",
+        "duration_total_ms",
+        "duration_mean_ms",
+        "duration_p50_ms",
+        "duration_p95_ms",
+        "duration_overflow_count",
+        "retry_count",
+        "status_counts",
+        "status_rates",
+        "daily_distinct_owner_total",
+        "daily_distinct_session_total",
+        "filtered_group_distinct_owner_total",
+        "filtered_group_distinct_session_total",
+        "coverage",
+        "row_count",
+        "rows_truncated",
+    )
+    return {
+        **{field: report.get(field) for field in top_fields},
+        "quality": {
+            **{field: quality.get(field) for field in quality_fields},
+            "raw_content_visible": False,
+        },
+        "rows": projected_rows,
+        "raw_content_visible": False,
+    }
