@@ -1,0 +1,245 @@
+{
+  "schema": "odysseus.todo_domain_truth.v1",
+  "roadmap_id": "OWM-22",
+  "slice_id": "TTD-00",
+  "baseline_commit": "61442e80dc9b1fd19b59b8fdd0335184a528938c",
+  "status": "contract_frozen_runtime_not_wired",
+  "domain_authorities": {
+    "notes": {
+      "role": "canonical_todo_store",
+      "may_prove": [
+        "todo_list_read",
+        "todo_item_created",
+        "todo_item_completed",
+        "todo_item_reopened",
+        "todo_item_removed",
+        "todo_digest_contains",
+        "todo_digest_excludes"
+      ],
+      "must_be_owner_scoped": true
+    },
+    "memory": {
+      "role": "durable_user_facts_and_preferences_only",
+      "may_prove": [],
+      "todo_mutation": "forbidden_fail_closed"
+    },
+    "scheduled_tasks": {
+      "role": "schedule_and_delivery_channel_only",
+      "may_prove": [
+        "todo_digest_schedule_active"
+      ],
+      "must_not_supply_todo_content": true
+    },
+    "chat_history": {
+      "role": "untrusted_conversational_context",
+      "may_prove": [],
+      "must_not_supply_domain_state": true
+    },
+    "semantic_receipt": {
+      "role": "postcondition_evidence_for_user_facing_todo_claims",
+      "must_reference_notes_readback": true
+    }
+  },
+  "operations": [
+    "list_items",
+    "add_item",
+    "complete_item",
+    "reopen_item",
+    "remove_item"
+  ],
+  "identity_contract": {
+    "list_ref": {
+      "format": "todo-list:v1:<owner-scope-ref>:<note-id>",
+      "stable_source": "notes.id",
+      "title_is_identity": false,
+      "owner_scope_ref_must_be_redacted": true
+    },
+    "item_ref": {
+      "format": "todo-item:v1:<opaque-item-id>",
+      "stable_source": "persisted_item_id",
+      "text_or_index_is_identity": false
+    },
+    "text_matching": {
+      "purpose": "convenience_lookup_only",
+      "ambiguous_result": "no_mutation_return_candidate_refs",
+      "zero_match_result": "no_mutation"
+    }
+  },
+  "mutation_contract": {
+    "owner_scope_required": true,
+    "atomic_read_modify_write_required": true,
+    "idempotency_key_required": true,
+    "lost_update_policy": "fail_or_retry_with_version_precondition",
+    "postcondition_readback_required": true,
+    "generic_tool_success_is_sufficient": false
+  },
+  "receipt_contract": {
+    "schema": "odysseus.todo_receipt.v1",
+    "required_fields": [
+      "list_ref",
+      "item_ref",
+      "operation",
+      "previous_state",
+      "current_state",
+      "open_count",
+      "transaction_status",
+      "verified",
+      "evidence_refs"
+    ],
+    "verified_requires": [
+      "transaction_committed",
+      "notes_postcondition_readback",
+      "matching_owner_scope",
+      "matching_operation_and_item_ref"
+    ],
+    "private_item_text_allowed": false,
+    "raw_chat_allowed": false
+  },
+  "legacy_item_migration": {
+    "legacy_shape": {
+      "storage": "notes.items_json_text",
+      "item_fields": [
+        "text",
+        "done"
+      ],
+      "item_identity": "array_index_only"
+    },
+    "target_shape": {
+      "storage": "notes.items_json_text",
+      "item_fields": [
+        "id",
+        "text",
+        "done"
+      ],
+      "item_identity": "opaque_persisted_id"
+    },
+    "backward_read_path": "read_legacy_items_without_mutation_until_first_canonical_todo_write",
+    "upgrade_trigger": "first_manage_todos_mutation_for_that_list",
+    "upgrade_atomicity": "assign_ids_to_the_full_list_and_apply_the_requested_mutation_in_one_transaction",
+    "rollback": {
+      "required": true,
+      "pre_upgrade_payload_digest_required": true,
+      "reversible_to_legacy_shape": true,
+      "raw_payload_must_not_enter_repo_evidence": true
+    },
+    "mixed_shape_policy": "read_both_fail_write_until_full_list_is_normalized",
+    "bulk_production_migration": "forbidden_without_TTD-LIVE-DATA-REPAIR"
+  },
+  "baseline": {
+    "notes_items": "legacy_array_without_stable_item_ids",
+    "notes_mutation": "toggle_by_array_index",
+    "todo_digest_source": "owner_scoped_unarchived_notes",
+    "todo_digest_open_rule": "checklist_item_done_is_false",
+    "memory_public_categories": [
+      "fact",
+      "event",
+      "contact",
+      "preference"
+    ],
+    "memory_backend_category_validation": "missing",
+    "todo_specific_semantic_receipts": "missing",
+    "telegram_truth_gate": "generic_tool_and_transaction_evidence_only"
+  },
+  "path_inventory": [
+    {
+      "domain": "notes_model",
+      "path": "core/database.py",
+      "symbols": [
+        "class Note"
+      ]
+    },
+    {
+      "domain": "notes_tool",
+      "path": "src/tool_domains/personal_workspace.py",
+      "symbols": [
+        "do_manage_notes",
+        "toggle_item"
+      ]
+    },
+    {
+      "domain": "memory_tool",
+      "path": "src/ai_interaction.py",
+      "symbols": [
+        "do_manage_memory"
+      ]
+    },
+    {
+      "domain": "memory_public_schema",
+      "path": "src/tool_schema_definitions.py",
+      "symbols": [
+        "manage_memory"
+      ]
+    },
+    {
+      "domain": "scheduled_digest",
+      "path": "src/builtin_actions.py",
+      "symbols": [
+        "_todo_digest_from_notes",
+        "action_todo_digest"
+      ]
+    },
+    {
+      "domain": "schedule_contract",
+      "path": "src/calendar_capability_service.py",
+      "symbols": [
+        "build_todo_digest_schedule_plan"
+      ]
+    },
+    {
+      "domain": "transaction_evidence",
+      "path": "src/tool_transaction_ledger.py",
+      "symbols": [
+        "ToolTransaction",
+        "transactions_from_tool_events"
+      ]
+    },
+    {
+      "domain": "claim_gate",
+      "path": "src/claim_evidence_gate.py",
+      "symbols": [
+        "evaluate_response_claims"
+      ]
+    },
+    {
+      "domain": "telegram_pre_send_gate",
+      "path": "src/telegram_truth_gate.py",
+      "symbols": [
+        "gate_telegram_reply_text"
+      ]
+    },
+    {
+      "domain": "telegram_bridge",
+      "path": "plugins/telegram/plugin.py",
+      "symbols": [
+        "gate_telegram_reply_text"
+      ]
+    }
+  ],
+  "privacy_contract": {
+    "repo_fixtures": "synthetic_only",
+    "forbidden_persisted_fields": [
+      "raw_chat",
+      "private_todo_text",
+      "chat_id",
+      "token",
+      "owner_identifier",
+      "absolute_private_path"
+    ],
+    "evidence_allowed": [
+      "counts",
+      "status",
+      "content_free_hashes",
+      "redacted_refs"
+    ]
+  },
+  "next_frontier": {
+    "slice_id": "TTD-01",
+    "claimable_after": [
+      "TTD-00 contract tests pass",
+      "TTD-00 acceptance is recorded",
+      "TTD-00 claim is released",
+      "TTD-01 paths have no overlapping writer"
+    ]
+  },
+  "live_actions_performed": false
+}

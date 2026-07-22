@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.abc_long_run_state",
+  "run_id": "abc-owm22-20260722T065621+0200",
+  "revision": 3,
+  "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
+  "queue_scope": "open_work",
+  "queue_lane": "OWM-22",
+  "queue_path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+  "started_at": "2026-07-22T06:56:21+02:00",
+  "deadline_at": "2026-07-22T18:56:21+02:00",
+  "state": "running",
+  "max_parallel_workers": 1,
+  "worktree": "C:/tmp/odysseus-abc-ttd-20260722",
+  "branch": "codex/abc-ttd-20260722",
+  "baseline_commit": "61442e80dc9b1fd19b59b8fdd0335184a528938c",
+  "baseline_hashes": {
+    "docs/plans/open-work-completion-master-roadmap.json": "sha256:4EC8C1C598E3C0998FA2DFC9B0680764202BC2FC95B50802E3A135B0C125D63D",
+    "source_roadmap_from_preserved_primary_checkout": "sha256:42C8290460BF707341D30ABFC623549622E3ABD0F4CB07946E82411BA9635821"
+  },
+  "route": {
+    "entrypoint": "/abc",
+    "slice_id": "TTD-00",
+    "selected_skills": ["abc"],
+    "model": "surface_default",
+    "fallback": "native_tools"
+  },
+  "evidence_contract": {
+    "target_environment": "local",
+    "authority": "repo",
+    "mutation_class": "safe_offline",
+    "required": ["static", "focused_test", "integration"],
+    "temporal_window": "none",
+    "positive_path_required": true
+  },
+  "active_claims": [],
+  "agent_leases": [],
+  "completed_slices": [
+    {
+      "slice_id": "TTD-00",
+      "completed_at": "2026-07-22T07:03:00+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "6 passed",
+      "integration_tests": "57 passed",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    }
+  ],
+  "failed_attempts": {
+    "TTD-00": 1
+  },
+  "last_durable_progress_at": "2026-07-22T07:03:00+02:00",
+  "last_heartbeat_at": "2026-07-22T07:03:00+02:00",
+  "last_reported_revision": 3,
+  "resume_cursor": "TTD-01-preflight",
+  "pending_user_requests": [],
+  "live_go_ledger": [],
+  "gate_queue": [
+    "TTD-LIVE-DEPLOY",
+    "TTD-LIVE-DATA-REPAIR",
+    "TTD-LIVE-TELEGRAM-SMOKE",
+    "TTD-LIVE-ROLLOVER-SMOKE"
+  ],
+  "next_runnable_slices": ["TTD-01"],
+  "stop_rules": [
+    "stop_on_secret_or_private_content",
+    "stop_on_overlapping_writer_or_foreign_staged_file",
+    "stop_before_live_mutation_without_action_specific_go",
+    "stop_on_data_loss_or_destructive_git",
+    "stop_at_deadline_or_when_no_safe_frontier_remains"
+  ]
+}
