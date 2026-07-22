@@ -4,8 +4,8 @@
   "roadmap_id": "AMH",
   "title": "Agent Maintenance Safety Harness Roadmap",
   "created_at": "2026-07-18T16:16:30+02:00",
-  "updated_at": "2026-07-22T15:03:00+02:00",
-  "status": "implementation_running_amh06_dependency_frontier",
+  "updated_at": "2026-07-22T15:10:00+02:00",
+  "status": "implementation_waiting_amh06_foreign_work_handoff",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/open-work-completion-master-roadmap.json",
   "canonical_open_work_queue": "docs/plans/open-work-completion-master-roadmap.json",
@@ -626,7 +626,7 @@
     },
     {
       "id": "AMH-06-enforced-completion-and-git-rails",
-      "execution_status": "blocked_by_dependency",
+      "execution_status": "dependency_ready_foreign_work_handoff_required",
       "mutation_class": "repo_only",
       "priority": "P0",
       "owner": "Charlie; Bob for policy code",
@@ -668,6 +668,18 @@
         "python -m pytest -q tests/test_agent_maintenance_completion_gate.py tests/test_repo_commit_runner.py tests/test_repo_push_runner.py tests/test_live_quality_gate_command_runner.py",
         "git diff --check -- src/claim_evidence_gate.py src/repo_remote_policy.py src/repo_commit_runner.py src/repo_push_runner.py src/live_quality_gate_command_runner.py src/server_project_runner.py src/effectful_tool_matrix.py tests/test_agent_maintenance_completion_gate.py"
       ],
+      "handoff_gate": {
+        "state": "required_before_writer_claim",
+        "reason": "The primary checkout has active uncommitted work on six AMH-06 paths. Four directly implement incomplete commit/push rails and two mix AMH-relevant effect/claim logic with unrelated product work, so no disjoint completion-capable subset exists.",
+        "paths": [
+          "src/claim_evidence_gate.py",
+          "src/effectful_tool_matrix.py",
+          "src/repo_commit_runner.py",
+          "src/repo_push_runner.py",
+          "tests/test_repo_commit_runner.py",
+          "tests/test_repo_push_runner.py"
+        ]
+      },
       "evidence_required": [
         "missing, stale, weaker-lane or mismatched receipt blocks done",
         "force push, reset --hard, clean and history rewrite remain denied",
@@ -916,5 +928,5 @@
       "No commit, push, deploy, live mutation, provider call or external write was performed."
     ]
   },
-  "recommended_next_step": "Preflight and claim AMH-06 as the sole writer slice now that AMH-01, AMH-02, AMH-04 and AMH-05 have accepted local evidence; require the AMH-06 completion gate to rerun receipt validation against current state and keep publication/live authority closed."
+  "recommended_next_step": "Obtain an explicit six-path AMH-06 handoff before any writer claim. Then semantically reconcile the primary commit/push work, preserve unrelated claim/effect behavior, integrate current-state receipt reruns and keep publication/live authority closed."
 }
