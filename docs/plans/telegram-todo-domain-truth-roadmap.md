@@ -619,6 +619,42 @@ Acceptance evidence 2026-07-22:
 
 Owner: Alice fuer Operator-Sprache, Bob fuer read-only Audit
 
+Status: `accepted_2026-07-22`
+
+Durable claim:
+
+```yaml
+claim:
+  run_id: abc-owm22-20260722T065621+0200
+  thread_id: 019f8625-35f5-7d90-9b5c-8b0724bc5f50
+  slice_id: TTD-06
+  owner: root acting as Bob
+  state: released
+  acquired_at: 2026-07-22T08:55:07+02:00
+  lease_expires_at: 2026-07-22T09:55:07+02:00
+  released_at: 2026-07-22T09:00:51+02:00
+  allowed_paths:
+    - src/todo_state_drift_audit.py
+    - scripts/audit_todo_state_drift.py
+    - tests/test_todo_state_drift_audit.py
+    - docs/plans/todo-state-drift-audit-runbook.md
+    - docs/plans/telegram-todo-domain-truth-roadmap.md
+    - docs/plans/telegram-todo-domain-truth-run-state.json
+    - docs/plans/open-work-completion-master-roadmap.json
+  handoff_required: false
+```
+
+Preflight 2026-07-22:
+
+- Der produktive `manage_memory`-Pfad nutzt `data/memory.json`. Der bestehende
+  `MemoryManager` ist fuer diesen Slice absichtlich keine Audit-Abhaengigkeit,
+  weil seine Initialisierung eine fehlende Datei erzeugen kann.
+- SQLite wird nur per read-only URI, Memory-JSON nur direkt gelesen. Der
+  Standardreport enthaelt keine Texte oder direkten Owner-/Memory-IDs.
+- Ein exakter Review ist fluechtig, braucht zwei explizite Operator-Flags und
+  besitzt keinen Datei- oder Apply-Pfad. Jeder Repair bleibt Preview und bindet
+  `TTD-LIVE-DATA-REPAIR`.
+
 Ziel:
 
 - Notes, unzulaessige Todo-Memories und Digest-Projektion owner-scoped
@@ -639,6 +675,28 @@ Akzeptanz:
 - Exakte private Inhalte erscheinen nur in einem nicht persistierten,
   operator-autorisierten Review-Pfad.
 - Apply ist technisch getrennt und braucht `TTD-LIVE-DATA-REPAIR`.
+
+Acceptance evidence 2026-07-22:
+
+- `scripts/audit_todo_state_drift.py` oeffnet SQLite per `mode=ro` und liest
+  `memory.json` direkt. Eine fehlende Memory-Datei bleibt fehlend; der bestehende
+  potenziell schreibende `MemoryManager` wird nicht initialisiert.
+- Der owner-scoped Standardreport trennt Notes-Duplikate, Notes-Completion-
+  Konflikte, strukturierte Memory-/Notes-Completion-Konflikte, Memory-only-
+  Kandidaten, unzulaessige Todo-Memories, Legacy-Identitaet und die reale
+  Digest-Limit-Projektion. Evidence enthaelt nur Counts, Status, domain-separierte
+  Fingerprints und redigierte Refs.
+- Alle Repair-Aktionen sind `preview_only`, `apply_supported=false` und an
+  `TTD-LIVE-DATA-REPAIR` gebunden. Das CLI besitzt keinen `--apply`-Parameter.
+- Exakte Texte erscheinen nur bei gemeinsamem `--review-details` und
+  `--operator-authorized`, sind als `not_for_persistence` markiert und besitzen
+  keinen Datei-Output-Pfad.
+- Fokus: `6 passed`; integrierte Memory-/Todo-/Digest-/Claim-Suite: `93 passed`
+  mit einer vorbestehenden SQLAlchemy-Deprecation-Warnung. AST fuer zwei neue
+  Python-Dateien, JSON-, Diff- und TAX0-Audit (`79/84/85`) sind gruen.
+- Keine Notes-, Memory-, Digest-, Vector-, Provider-, Telegram-, Host- oder
+  Produktionsmutation wurde ausgefuehrt. Naechster serieller Preflight:
+  `TTD-07`; `TTD-08` bleibt logisch bereit und ungeclaimt.
 
 ### TTD-07 - Bounded Telegram-Kontext
 

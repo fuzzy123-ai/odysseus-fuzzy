@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-22T08:50:26+02:00",
-  "status": "active_owm22_ttd05_complete_ttd06_preflight_live_default_off",
+  "updated_at": "2026-07-22T09:00:51+02:00",
+  "status": "active_owm22_ttd06_complete_ttd07_preflight_live_default_off",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Implementiere OWM-22 Telegram Todo Domain Truth repo-only; beginne mit TTD-00 und halte alle Live-Aktionen default-off.",
   "goal": "Complete the dependency-ready OWM-22 repository queue with Notes as canonical Todo truth, semantic receipts and synthetic evidence while keeping deploy, production data repair, Telegram send and productive session rollover behind separate live gates.",
@@ -13,13 +13,13 @@
     "unique_live_gates": 40,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "owm22_ttd00_through_ttd05_complete_ttd06_ttd07_ttd08_preflight_ready",
+    "queue_status": "owm22_ttd00_through_ttd06_complete_ttd07_ttd08_preflight_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd05_accepted_ttd06_ttd07_ttd08_preflight_ready_live_actions_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd06_accepted_ttd07_ttd08_preflight_ready_live_actions_default_off",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
@@ -740,6 +740,50 @@
         "private_content_persisted": false
       },
       "done_when": "Open canonical items produce a verified read-only contains receipt, completed or removed items produce an excludes receipt, and timing claims require exactly one active owner-scoped todo_digest ScheduledTask receipt."
+    },
+    {
+      "id": "TTD-06-todo-state-drift-audit-preview",
+      "roadmap_slice_id": "TTD-06",
+      "title": "Todo State Drift Audit And Repair Preview",
+      "class": "safe_offline",
+      "owner": "root acting as Bob",
+      "status": "completed_2026-07-22",
+      "claimable": false,
+      "depends_on": [
+        "TTD-01-canonical-atomic-todo-service",
+        "TTD-02-manage-todos-routing-memory-gate",
+        "TTD-05-digest-postconditions"
+      ],
+      "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "allowed_paths": [
+        "src/todo_state_drift_audit.py",
+        "scripts/audit_todo_state_drift.py",
+        "tests/test_todo_state_drift_audit.py",
+        "docs/plans/todo-state-drift-audit-runbook.md",
+        "docs/plans/telegram-todo-domain-truth-roadmap.md",
+        "docs/plans/telegram-todo-domain-truth-run-state.json",
+        "docs/plans/open-work-completion-master-roadmap.json"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_todo_state_drift_audit.py"
+      ],
+      "forbidden_actions": [
+        "no Notes, Memory, digest or vector-store mutation",
+        "no apply, archive, delete, dedupe or completion correction",
+        "no raw private content without explicit ephemeral review flags",
+        "no deployment, Telegram send, provider call or host change"
+      ],
+      "evidence": {
+        "focused": "6 passed",
+        "integrated": "93 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "sources": "SQLite mode=ro and direct Memory JSON read; missing memory file is not created and source bytes remain unchanged",
+        "preview": "dedupe, completion mismatch, memory-only candidate and prohibited Todo-memory actions are preview_only with apply unsupported and TTD-LIVE-DATA-REPAIR required",
+        "privacy": "default output contains counts, status, domain-separated fingerprints and redacted refs only; exact review requires two flags and is marked not_for_persistence",
+        "static": "AST 2 files, JSON, diff and TAX0 79/84/85 passed",
+        "live_actions": false,
+        "private_content_persisted": false
+      },
+      "done_when": "The default CLI opens SQLite read-only, reads Memory JSON without initialization side effects, emits only counts/hashes/redacted refs, and produces a non-applying repair preview for duplicates, completion mismatches, memory-only items and prohibited Todo memories."
     },
     {
       "id": "OWM-0-masterroadmap-artifact",
@@ -1934,7 +1978,7 @@
     }
   ],
   "recommended_execution_order": [
-    "OWM-22 TTD-06 preflight: inspect owner-scoped Notes, prohibited Todo-like Memory and digest projection boundaries, then claim only a read-only audit and repair-preview path; keep TTD-07 and TTD-08 serially queued and all four live actions disabled.",
+    "OWM-22 TTD-07 preflight: inventory Telegram session/context compaction and domain-readback boundaries, then claim only non-overlapping bounded-context paths; keep TTD-08 serially queued and all four live actions disabled.",
     "P0 Roadmap Truth: reconcile and commit only the identified UIX-ABC12-24 docs plus the canonical UIX/TAX/TUA queue and its missing detail-roadmap sources.",
     "P1 UIX-ABC13: first product priority, but do not claim it until the exact product-semantics confirmation is recorded.",
     "P2 safe default while UIX-ABC13 waits: execute TAX0, then TAX1, then TUA0 only after direct dependency evidence; continue only the next dependency-ready repo-only detail-roadmap slice.",
