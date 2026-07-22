@@ -715,31 +715,33 @@
       "allowed_paths": [
         ".codex/hooks.json",
         "src/agent_loop_prompts.py",
+        "src/agent_loop_system_prompt.py",
         "src/runtime_tool_status.py",
         "docs/agent-maintenance-runbook.md",
         "tests/test_agent_maintenance_bootstrap.py"
       ],
       "hotfiles": [
         ".codex/hooks.json",
-        "src/agent_loop_prompts.py"
+        "src/agent_loop_prompts.py",
+        "src/agent_loop_system_prompt.py"
       ],
       "objective": "Present the bounded policy and current handoff at session start through read-only, idempotent checks without installation, service start, network access or background mutation.",
       "deliverables": [
         "branch and dirty-worktree warning",
         "bounded active-slice and owner-question summary",
         "verification entrypoint pointer",
-        "read-only hook and internal-agent projection parity",
+        "read-only hook and dynamic internal-agent projection parity",
         "timeout, missing-file and stale-state tests"
       ],
       "tests": [
         "python -m pytest -q tests/test_agent_maintenance_bootstrap.py",
-        "git diff --check -- .codex/hooks.json src/agent_loop_prompts.py src/runtime_tool_status.py docs/agent-maintenance-runbook.md tests/test_agent_maintenance_bootstrap.py"
+        "git diff --check -- .codex/hooks.json src/agent_loop_prompts.py src/agent_loop_system_prompt.py src/runtime_tool_status.py docs/agent-maintenance-runbook.md tests/test_agent_maintenance_bootstrap.py"
       ],
       "handoff_gate": {
         "state": "awaiting_user_grant_2026-07-22",
-        "reason": "The primary checkout contains uncommitted foreign Pygame/artifact and clarification changes in agent_loop_prompts.py, a substantial unrelated Descriptor-v2 tool-catalog projection in runtime_tool_status.py, and an ignored existing .codex/hooks.json. AMH-07 requires these exact hook, prompt and runtime hotfiles for parity, so no disjoint completion-capable subset exists.",
+        "reason": "The primary checkout contains uncommitted foreign Pygame/artifact and clarification changes in agent_loop_prompts.py, operator-priority tool-catalog changes in agent_loop_system_prompt.py, a substantial unrelated Descriptor-v2 tool-catalog projection in runtime_tool_status.py, and an ignored existing .codex/hooks.json. AMH-07 requires these exact hook, prompt and runtime hotfiles for dynamic parity, so no disjoint completion-capable subset exists.",
         "required_grant": "GO AMH07-HANDOFF",
-        "scope": "Read the three named primary paths, preserve and semantically reconcile all foreign behavior with the AMH-07 read-only bootstrap, test and commit locally in the isolated branch only.",
+        "scope": "Read the four named primary paths, preserve and semantically reconcile all foreign behavior with the AMH-07 read-only bootstrap, test and commit locally in the isolated branch only.",
         "excluded": [
           "push",
           "deploy",
@@ -750,6 +752,7 @@
         "paths": [
           ".codex/hooks.json",
           "src/agent_loop_prompts.py",
+          "src/agent_loop_system_prompt.py",
           "src/runtime_tool_status.py"
         ]
       },
@@ -953,5 +956,5 @@
       "No commit, push, deploy, live mutation, provider call or external write was performed."
     ]
   },
-  "recommended_next_step": "Obtain GO AMH07-HANDOFF for the three named primary hotfiles. Then read-only absorb and semantically reconcile their foreign behavior in the isolated branch, durably claim the five-path AMH-07 scope, implement the no-install/no-network/no-service-start bootstrap and verify missing, malformed, stale and hook-failure behavior before local acceptance."
+  "recommended_next_step": "Obtain GO AMH07-HANDOFF for the four named primary hotfiles. Then read-only absorb and semantically reconcile their foreign behavior in the isolated branch, durably claim the six-path AMH-07 scope, implement the no-install/no-network/no-service-start bootstrap with dynamic internal-agent parity and verify missing, malformed, stale and hook-failure behavior before local acceptance."
 }
