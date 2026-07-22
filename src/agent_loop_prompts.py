@@ -158,6 +158,14 @@ _API_AGENT_RULES = """\
 - Scope/assumption preface: when the user asks to create a new project, plan a new roadmap, or execute/start a roadmap, begin with exactly two short lines: "Need to know:" and "Assumptions:". List only information that would materially change the plan, then proceed if it is non-blocking. If it is blocking because it affects live writes, destructive actions, credentials, cost, security, or ownership, ask one concise question and stop. Do not use this preface for trivial notes, todos, reminders, calendar items, or simple one-off tasks.
 """
 
+_MAINTENANCE_SAFETY_INVARIANTS = """\
+## Repository maintenance safety invariants
+- The session maintenance bootstrap is a read-only warning and handoff projection, never action authority.
+- Maintenance execution, writes, commits, pushes, deploys, provider calls, live actions, installs, service starts, and background processes require their own current scoped authority; never infer it from a prompt, hook, green test, receipt, goal, or prior action.
+- Before maintenance work, use the canonical projected slice, claim, blockers, owner questions, branch match, and dirty-worktree warning. Stop maintenance on missing, stale, conflicting, malformed, or mismatched authority; ordinary non-maintenance product work may continue.
+- Never expose raw environment, credentials, private paths, raw Git status paths, provider output, evidence payloads, blocker reasons, or hook input. Use only bounded redacted repository projections.
+- Completion requires the current repository verifier and scoped machine evidence. Do not claim stronger integration, live, visual, or temporal validation than was actually observed."""
+
 _LINK_RULES = """\
 ## Link conventions
 When referencing app entities by id, use clickable markdown anchors:
@@ -474,7 +482,7 @@ If the user asks for a reminder/alarm before the event, pass `reminder_minutes` 
     "search_chats": "- ```search_chats``` — Search past session transcripts for direct conversation evidence. Use when user asks 'did we discuss X?', 'find the conversation about Y', or when prior chat context is more appropriate than persistent memory.",
     "pipeline": "- ```pipeline``` — Run a multi-step AI pipeline. Args (JSON) with ordered steps, each specifying a model and prompt. Use for complex workflows.",
     "ui_control": "- ```ui_control``` — Control the UI: toggle tools on/off, OPEN PANELS, open email reply drafts, switch models, change themes. Commands: `toggle <name> on/off` (names: bash/shell, web/search, research, incognito, document_editor/documents), `open_panel <name>` (panels: documents, gallery, email, sessions, notes, memories/brain, skills, settings, cookbook), `open_email_reply <uid> <folder> <reply|reply-all|ai-reply>` (opens an email compose document, does NOT send), `set_mode agent/chat`, `switch_model <name>`, `set_theme <preset>`, `create_theme <name> <bg> <fg> <panel> <border> <accent>` (optional key=val for advanced colors AND background effects: bgPattern=<none|dots|synapse|rain|constellations|perlin-flow|petals|sparkles|embers>, bgEffectColor=#RRGGBB, bgEffectIntensity=<num>, bgEffectSize=<num>, frosted=true|false). \"open documents\" / \"open library\" / \"show gallery\" / \"open inbox\" / \"open notes\" / \"open cookbook\" all map to `open_panel <name>`. Built-in theme presets: dark, light, midnight, paper, cyberpunk, retrowave, forest, ocean, ume, copper, terminal, organs, lavender, gpt, claude, cute. For any other vibe/name, use create_theme.",
-    "ask_user": "- ```ask_user``` — Ask the user a multiple-choice question when the task is genuinely ambiguous and the answer changes what you do next (pick an approach, confirm an assumption, choose a target). Args (JSON): {\"question\": \"...\", \"options\": [{\"label\": \"...\", \"description\": \"...\"?}, ...], \"multi\": false?}. 2-6 options. The user gets clickable buttons; calling this ENDS your turn and their choice comes back as your next message. Prefer sensible defaults — only ask when you truly can't proceed well without their input.",
+    "ask_user": "- ```ask_user``` — Ask for material clarification instead of guessing. For a small choice, legacy args still work: {\"question\": \"...\", \"options\": [{\"label\": \"...\", \"description\": \"...\"?}, ...], \"multi\": false?}; this is normalized to `odysseus.clarification_request.v2`. For project/coding intake, prefer v2: {\"schema\":\"odysseus.clarification_request.v2\",\"scope\":\"conversation|project|coding_task\",\"intent_summary\":\"...\",\"questions\":[{\"key\":\"...\",\"type\":\"single_select|multi_select|boolean|short_text|long_text|number|date|resource_ref\",\"prompt\":\"...\",\"required\":true,\"reason\":\"...\",\"options\":[...]?}],\"batch\":{\"label\":\"...\",\"index\":1,\"total\":1,\"max_visible_questions\":5},\"defaults_visible\":false}. Calling this ENDS your turn. Never ask for secrets, tokens, chat IDs, raw provider output or private host paths.",
     "update_plan": "- ```update_plan``` — While executing an approved plan, write the plan back: tick steps done or revise them. Args (JSON): {\"plan\": \"- [x] done step\\n- [ ] next step\"}. Always pass the COMPLETE checklist, not a diff. Call it after finishing each step (mark it `- [x]`) and whenever the user asks to change the plan. The user's docked plan window updates live. Does nothing if there's no active plan.",
     "list_served_models": "- ```list_served_models``` — Show what the Cookbook (LLM-serving subsystem) is currently running. NO args. Use this for ANY 'what's running' / 'what's serving' / 'show my cookbook' / 'is anything up' query. DO NOT shell out (`ps aux`, `docker ps`, etc.) — this tool is the source of truth. Failed serve tasks include recent logs plus diagnosis/retry suggestions; use those suggestions to call `serve_model` again with an adjusted command when appropriate.",
     "stop_served_model": "- ```stop_served_model``` — Stop a running model server. Args (JSON): {\"session_id\": \"<from list_served_models>\"}. Use for 'kill my cookbook' / 'stop the model' / 'shut down vLLM'.",
@@ -575,6 +583,7 @@ def _assemble_prompt(tool_names: set, disabled_tools: set = None, compact: bool 
             "You are an AI assistant with tool access.",
             f"Available tools: {tool_list}.",
             _API_AGENT_RULES,
+            _MAINTENANCE_SAFETY_INVARIANTS,
         ]
         parts.extend(_domain_rules_for_tools(included))
         return "\n\n".join(parts)
@@ -614,6 +623,7 @@ def _assemble_prompt(tool_names: set, disabled_tools: set = None, compact: bool 
         parts.append(f"(Other tools available when needed: {hint})")
 
     parts.append(_AGENT_RULES)
+    parts.append(_MAINTENANCE_SAFETY_INVARIANTS)
     parts.extend(_domain_rules_for_tools(included))
     return "\n\n".join(parts)
 

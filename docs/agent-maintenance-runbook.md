@@ -24,6 +24,64 @@ external mutation. Each such action needs its own exact authorization.
 Never create `STATE.md`, `OWNER_QUEUE.md`, or a parallel database to make a
 conflict disappear. Repair or clarify the declared authority.
 
+## Read-only session bootstrap
+
+The project hook in `.codex/hooks.json` runs the namespaced collector in
+`src/runtime_tool_status.py` for `SessionStart` sources `startup`, `resume`,
+`clear`, and `compact`. `SubagentStart` uses the same command and projection.
+The internal agent loop obtains a fresh equivalent projection from
+`src/agent_loop_system_prompt.py` for each request; it is deliberately kept out
+of the cached base prompt and binds its default collector to the application
+repository root rather than the process working directory. Both routes use
+`build_agent_maintenance_handoff` as the sole authority for the projected goal,
+slice, claim, blockers, owner questions, and next action.
+
+For a validated start event, the hook returns the rendered packet in
+`hookSpecificOutput.additionalContext` with the exact `hookEventName` so it
+reaches the developer context. The common `systemMessage` is retained for the
+UI/event stream only; it is not a substitute for `additionalContext`. A
+validated event whose collector fails receives the same event-specific fixed
+fail-closed context. Unknown or malformed events receive only the fixed common
+failure output.
+
+The hook commands resolve and change to the Git root before invoking
+`python -B -m src.runtime_tool_status`. Their timeout is five seconds; each of
+the collector's two fixed Git reads has a one-second timeout and bounded
+capture. The collector reads only the fixed AMH roadmap and run-state files,
+accepts only regular non-symlink files within the size limit, and returns only
+branch class/match plus a bounded dirty count. It does not return branch names,
+status paths, raw Git output, evidence payloads, reasons, exception text, or
+hook input.
+
+Both hook root discovery and collector Git reads neutralize inherited Git
+redirection such as `GIT_DIR`, `GIT_WORK_TREE`, `GIT_INDEX_FILE`, object,
+config, namespace, SSH, and discovery variables. The collector reconstructs
+only bounded `safe.directory` entries plus its fixed no-lock/no-prompt flags;
+the hook root probe uses fixed read-only Git configuration before changing to
+the discovered root.
+
+Bootstrap may not install or download anything, use the network, start a
+service or background process, write repository or external state, or grant
+execution, commit, push, deploy, provider, or live authority. Missing,
+malformed, oversized, stale, contradictory, timed-out, or non-zero inputs
+produce a fixed `maintenance_status: stop` warning with every action authority
+false. This stops maintenance only; ordinary non-maintenance product work may
+continue. Hook non-execution, failure, or unavailable internal context grants
+nothing.
+
+Project hooks run only after Codex has reviewed and trusted the current hook
+definition. That trust is an operational prerequisite for hook execution, not
+repository evidence, claim ownership, verification, or action authority. Use
+`/hooks` to inspect that status. If the hook was skipped, treat the bootstrap as
+unavailable and collect current authority through the runbook before any
+maintenance action.
+
+The bootstrap points to
+`python -B scripts/verify.py --lane guards-only --receipt`; this is a verifier
+entrypoint, not proof that it ran. The packet cannot prove integration, UI,
+live, visual, temporal, provider, or deployment behavior and cannot replace a
+current scoped receipt.
+
 ## 2. Claim the minimum paths
 
 Record one durable claim containing:
