@@ -4,8 +4,8 @@
   "roadmap_id": "AMH",
   "title": "Agent Maintenance Safety Harness Roadmap",
   "created_at": "2026-07-18T16:16:30+02:00",
-  "updated_at": "2026-07-22T13:24:00+02:00",
-  "status": "repo_frontier_blocked_amh02_core_committed_validator_dependencies_missing_amh03_amh05_accepted",
+  "updated_at": "2026-07-22T14:40:00+02:00",
+  "status": "implementation_running_amh04_dependency_frontier",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/open-work-completion-master-roadmap.json",
   "canonical_open_work_queue": "docs/plans/open-work-completion-master-roadmap.json",
@@ -417,7 +417,7 @@
     },
     {
       "id": "AMH-02-secret-safe-diagnostics",
-      "execution_status": "partial_core_committed_local_validator_dependency_blocked",
+      "execution_status": "completed_local_repo_evidence_2026-07-22",
       "mutation_class": "repo_only",
       "priority": "P0",
       "owner": "Bob",
@@ -428,10 +428,16 @@
         "src/secret_safe_diagnostics.py",
         "src/tool_security.py",
         "src/tool_execution.py",
+        "src/maintenance_model_policy.py",
+        "src/local_model_scheduler.py",
+        "src/maintenance_llm_runtime.py",
         "src/maintenance_output_validator.py",
         "routes/diagnostics_routes.py",
         "tests/test_secret_safe_diagnostics.py",
         "tests/test_tool_security.py",
+        "tests/test_maintenance_model_policy.py",
+        "tests/test_local_model_scheduler.py",
+        "tests/test_maintenance_llm_runtime.py",
         "tests/test_maintenance_output_validator.py",
         "tests/test_diagnostics_logs.py"
       ],
@@ -449,9 +455,11 @@
         "synthetic canary and bypass regression tests"
       ],
       "tests": [
-        "python -m pytest -q tests/test_secret_safe_diagnostics.py tests/test_tool_security.py tests/test_maintenance_output_validator.py tests/test_diagnostics_logs.py",
-        "git diff --check -- src/secret_safe_diagnostics.py src/tool_security.py src/tool_execution.py src/maintenance_output_validator.py routes/diagnostics_routes.py tests/test_secret_safe_diagnostics.py tests/test_diagnostics_logs.py"
+        "python -m pytest -q tests/test_secret_safe_diagnostics.py tests/test_tool_security.py tests/test_maintenance_model_policy.py tests/test_local_model_scheduler.py tests/test_maintenance_llm_runtime.py tests/test_maintenance_output_validator.py tests/test_diagnostics_logs.py",
+        "git diff --check -- src/secret_safe_diagnostics.py src/tool_security.py src/tool_execution.py src/maintenance_model_policy.py src/local_model_scheduler.py src/maintenance_llm_runtime.py src/maintenance_output_validator.py routes/diagnostics_routes.py tests/test_secret_safe_diagnostics.py tests/test_diagnostics_logs.py"
       ],
+      "local_acceptance_evidence": "Commit 34d463ad; all four GMI source hashes match the accepted manifest; the declared AMH-02 suite passed 164 tests with one pre-existing SQLAlchemy deprecation warning; AST/compile and path-scoped diff checks passed.",
+      "verification_limit": "Four broader legacy consumer assertions still expect gemma4:e4b in test_gemma4_cookbook_control.py and test_universal_inbox_worker.py. Those files and consumers were outside GO GMI-DEPS and were not changed; migrate them in a separately claimed compatibility slice before full-suite acceptance.",
       "evidence_required": [
         "no credential value, prefix, suffix, length or hash reaches returned output",
         "env, printenv, .env reads, docker inspect and unredacted compose config are rejected as raw evidence sources",
@@ -906,5 +914,5 @@
       "No commit, push, deploy, live mutation, provider call or external write was performed."
     ]
   },
-  "recommended_next_step": "Claim AMH-01 as the first serial writer slice, then advance AMH-02, AMH-03 and AMH-05 only after each scoped handoff; keep AMH-04 onward dependency-blocked and preserve every unrelated worktree change."
+  "recommended_next_step": "Preflight and claim AMH-04 as the sole writer slice now that AMH-02 and AMH-03 have accepted local evidence; preserve the separately recorded GMI legacy-consumer migration debt and keep every live gate closed."
 }
