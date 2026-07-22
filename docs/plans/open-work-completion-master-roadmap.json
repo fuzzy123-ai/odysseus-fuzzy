@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-22T07:57:41+02:00",
-  "status": "active_owm22_ttd02_complete_ttd03_preflight_live_default_off",
+  "updated_at": "2026-07-22T08:14:11+02:00",
+  "status": "active_owm22_ttd03_complete_ttd04_preflight_live_default_off",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Implementiere OWM-22 Telegram Todo Domain Truth repo-only; beginne mit TTD-00 und halte alle Live-Aktionen default-off.",
   "goal": "Complete the dependency-ready OWM-22 repository queue with Notes as canonical Todo truth, semantic receipts and synthetic evidence while keeping deploy, production data repair, Telegram send and productive session rollover behind separate live gates.",
@@ -13,13 +13,13 @@
     "unique_live_gates": 40,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "owm22_ttd00_through_ttd02_complete_ttd03_and_ttd08_preflight_ready",
+    "queue_status": "owm22_ttd00_through_ttd03_complete_ttd04_ttd05_ttd08_preflight_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd02_accepted_ttd03_and_ttd08_preflight_ready_live_actions_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd03_accepted_ttd04_ttd05_ttd08_preflight_ready_live_actions_default_off",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
@@ -589,6 +589,51 @@
         "private_content_persisted": false
       },
       "done_when": "manage_todos is the registered facade for list/add/complete/reopen/remove; deterministic Todo intent selection removes manage_memory; direct Todo-like or invalid-category Memory writes fail closed; and ordinary fact/preference Memory writes remain valid."
+    },
+    {
+      "id": "TTD-03-semantic-transactions-and-todo-receipts",
+      "roadmap_slice_id": "TTD-03",
+      "title": "Semantic Todo Transactions And Receipt-Bound Claims",
+      "class": "repo_only",
+      "owner": "root acting as Bob",
+      "status": "completed_2026-07-22",
+      "claimable": false,
+      "depends_on": [
+        "TTD-01-canonical-atomic-todo-service"
+      ],
+      "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "allowed_paths": [
+        "src/todo_receipts.py",
+        "src/tool_domains/todos.py",
+        "src/tool_transaction_ledger.py",
+        "src/effectful_tool_matrix.py",
+        "src/claim_evidence_gate.py",
+        "src/agent_loop.py",
+        "tests/test_todo_claim_evidence.py",
+        "tests/test_effectful_tool_matrix.py",
+        "docs/plans/telegram-todo-domain-truth-roadmap.md",
+        "docs/plans/telegram-todo-domain-truth-run-state.json",
+        "docs/plans/open-work-completion-master-roadmap.json"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_todo_claim_evidence.py tests\\test_effectful_tool_matrix.py tests\\test_tool_transaction_ledger.py tests\\test_claim_evidence_gate.py",
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_manage_todos.py tests\\test_todo_domain_service.py tests\\test_agent_loop.py"
+      ],
+      "forbidden_actions": [
+        "no production Notes or Memory mutation",
+        "no deployment, Telegram send, provider call or host change",
+        "no generic tool success accepted as a Todo semantic claim"
+      ],
+      "evidence": {
+        "focused": "20 passed",
+        "integrated": "145 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "semantic_receipts": "five typed claim kinds with operation-specific postconditions, Notes readback, stable refs and content-free evidence",
+        "fail_closed": "generic tool success, foreign tool identity, mismatched claim, invalid postcondition, failed/blocked/ambiguous status and non-zero exit cannot verify",
+        "runtime": "manage_todos receipts persist through Agent tool events, typed ledger transactions, effect matrix and deterministic final status rendering",
+        "live_actions": false,
+        "private_content_persisted": false
+      },
+      "done_when": "Todo list/read and mutation outcomes produce redacted semantic receipts; the ledger and effect matrix preserve typed Todo transactions; deterministic response rendering uses receipts; and failed, blocked or ambiguous outcomes cannot support Todo success claims."
     },
     {
       "id": "OWM-0-masterroadmap-artifact",
@@ -1783,7 +1828,7 @@
     }
   ],
   "recommended_execution_order": [
-    "OWM-22 TTD-03 preflight: inspect the semantic transaction, effect matrix, claim-evidence and final-response truth boundaries, then claim only non-overlapping paths; keep TTD-04 blocked and all four live actions disabled.",
+    "OWM-22 TTD-04 preflight: inspect the Telegram tool-event envelope, truth gate and serial app/plugin hotfile boundaries before any claim; keep all four live actions disabled.",
     "P0 Roadmap Truth: reconcile and commit only the identified UIX-ABC12-24 docs plus the canonical UIX/TAX/TUA queue and its missing detail-roadmap sources.",
     "P1 UIX-ABC13: first product priority, but do not claim it until the exact product-semantics confirmation is recorded.",
     "P2 safe default while UIX-ABC13 waits: execute TAX0, then TAX1, then TUA0 only after direct dependency evidence; continue only the next dependency-ready repo-only detail-roadmap slice.",

@@ -19,6 +19,7 @@ EFFECTFUL_TOOL_MATRIX: dict[str, str] = {
     "update_document": "document_write",
     "edit_document": "document_write",
     "manage_personal_docs": "document_source_control",
+    "manage_todos": "todo_domain_transaction",
     "manage_embeddings": "embedding_runtime_control",
     "manage_plugins": "plugin_supply_chain_control",
     "manage_settings": "settings_control",

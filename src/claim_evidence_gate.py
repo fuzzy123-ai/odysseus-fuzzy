@@ -8,6 +8,10 @@ import re
 from typing import Any, Iterable, Mapping
 
 from src.tool_transaction_ledger import transaction_evidence_for_claim, transactions_from_tool_events
+from src.todo_receipts import (
+    todo_receipt_evidence_for_claim,
+    todo_receipts_from_tool_events,
+)
 
 
 _FIRST_PERSON_ACTION_RE = re.compile(
@@ -65,6 +69,43 @@ _INTERACTIVE_PREVIEW_RE = re.compile(
     r"interactive\s+preview\s+(?:is\s+)?(?:ready|working)|interaktive\s+vorschau\s+(?:ist\s+)?(?:bereit|fertig)|"
     r"laeuft\s+interaktiv|läuft\s+interaktiv)\b",
     re.IGNORECASE,
+)
+_TODO_CLAIM_PATTERNS = (
+    (
+        "todo_item_created",
+        re.compile(
+            r"\b(?:todo|to-do|aufgabe)\b.{0,48}\b(?:gespeichert|hinzugef(?:ue|\u00fc)gt|angelegt|saved|created|added)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "todo_item_completed",
+        re.compile(
+            r"\b(?:todo|to-do|aufgabe)\b.{0,48}\b(?:erledigt|abgehakt|completed|done)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "todo_item_reopened",
+        re.compile(
+            r"\b(?:todo|to-do|aufgabe)\b.{0,48}\b(?:wieder\s+ge(?:oe|\u00f6)ffnet|reopened)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "todo_item_removed",
+        re.compile(
+            r"\b(?:todo|to-do|aufgabe)\b.{0,48}\b(?:entfernt|gel(?:oe|\u00f6)scht|removed|deleted)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "todo_list_read",
+        re.compile(
+            r"\b(?:todo|to-do)[-\s]?(?:liste|list)\b.{0,48}\b(?:gelesen|geladen|read|loaded)\b",
+            re.IGNORECASE,
+        ),
+    ),
 )
 _NEGATED_CLAIM_PREFIX_RE = re.compile(
     r"\b(?:not|never|no|cannot|can't|couldn't|didn't|nicht|nie|konnte\s+nicht|kein(?:e|en|em|er|es)?|unverified|unavailable|nicht\s+verifiziert)\b.{0,36}$",
@@ -137,6 +178,7 @@ def evaluate_response_claims(
     if not transactions and events:
         transactions = tuple(item.to_dict() for item in transactions_from_tool_events(events, surface="claim_evidence"))
     root = Path(repo_root or Path.cwd()).resolve()
+    todo_receipts = todo_receipts_from_tool_events(events)
     findings: list[ClaimEvidenceFinding] = []
 
     if not text.strip():
@@ -202,6 +244,23 @@ def evaluate_response_claims(
                     evidence or paths,
                 )
             )
+
+    for claim_type, pattern in _TODO_CLAIM_PATTERNS:
+        if not _has_positive_claim(pattern, text):
+            continue
+        evidence = todo_receipt_evidence_for_claim(todo_receipts, claim_type)
+        findings.append(
+            ClaimEvidenceFinding(
+                claim_type,
+                "supported" if evidence else "unsupported",
+                (
+                    "Todo claim has a matching verified semantic receipt"
+                    if evidence
+                    else "Todo claim has no matching verified semantic receipt"
+                ),
+                evidence,
+            )
+        )
 
     for claim_type, pattern, supported_reason, unsupported_reason in (
         (

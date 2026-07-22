@@ -439,6 +439,29 @@ Akzeptanz:
 - Nur ein passender Receipt kann `verified=true` setzen.
 - Failed, blocked oder ambiguous kann nicht als gespeichert/erledigt erscheinen.
 
+Acceptance evidence (2026-07-22):
+
+- `odysseus.todo_receipt.v1` bildet List/Add/Complete/Reopen/Remove auf die
+  fuenf semantischen Claim-Typen ab und enthaelt nur stabile Referenzen,
+  Zustands-Postconditions, Open Count, Status und redigierte Readback-Evidence.
+- `verified=true` wird beim Einlesen neu aus Operation, aktuellem Zustand,
+  Notes-Readback, Terminalstatus, Tool-Identitaet und Exit-Code berechnet;
+  uebernommene Flags, generischer Tool-Erfolg und fremde Tools reichen nicht.
+- `manage_todos` liefert Receipts; Agent-Tool-Events bewahren sie; Ledger und
+  Effectful Tool Matrix erzeugen typed transactions; die finale kanonische
+  Todo-Statuszeile wird deterministisch aus Receipts gerendert.
+- Failed, blocked, rejected, not-found, ambiguous, falsche Postconditions,
+  falsche Claim-Typen und Exit-Code ungleich null koennen keinen Erfolgsclaim
+  tragen. Private Task-Texte und Listentitel gelangen nicht in Receipts,
+  Ledger-Evidence oder den Renderer.
+- Fokus: `20 passed`; integrierte Todo-/Ledger-/Claim-/Telegram-Truth-/Agent-
+  Loop-Suite: `145 passed` mit einer vorbestehenden SQLAlchemy-Deprecation-
+  Warnung. TAX0-Registry-Audit und `git diff --check` sind gruen.
+- Keine Netzwerk-, Provider-, Telegram-, Host-, Deployment- oder
+  Produktionsdatenaktion wurde ausgefuehrt. Naechster serieller Preflight:
+  `TTD-04`; `TTD-05` und `TTD-08` sind ebenfalls logisch bereit, bleiben aber
+  bis zum Single-Writer-Handoff ungeclaimt.
+
 ### TTD-04 - Telegram Tool-Event Envelope und Todo Truth Gate
 
 Owner: Charlie fuer Integration, Bob fuer isolierte Backend-Bausteine

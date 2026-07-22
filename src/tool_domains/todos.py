@@ -16,6 +16,7 @@ from src.todo_domain_service import (
     make_list_ref,
 )
 from src.todo_intent import normalize_todo_match_text
+from src.todo_receipts import todo_receipts_from_tool_result
 from src.tool_domains.common import _parse_tool_args
 
 
@@ -31,6 +32,12 @@ def _error(message: str, *, status: str = "rejected", **extra) -> Dict:
         "exit_code": 1,
         **extra,
     }
+
+
+def _with_receipts(result: Dict) -> Dict:
+    receipts = todo_receipts_from_tool_result(result)
+    result["todo_receipts"] = [receipt.to_dict() for receipt in receipts]
+    return result
 
 
 def _active_list_refs(owner: str) -> list[str]:
@@ -197,14 +204,14 @@ async def do_manage_todos(content: str, owner: Optional[str] = None) -> Dict:
                 if problem:
                     return problem
                 snapshots = [service.list_items(owner=owner, list_ref=resolved or "")]
-            return {
+            return _with_receipts({
                 "action": "list",
                 "domain": "todos",
                 "lists": [snapshot.as_dict() for snapshot in snapshots],
                 "list_count": len(snapshots),
                 "open_count": sum(snapshot.open_count for snapshot in snapshots),
                 "exit_code": 0,
-            }
+            })
 
         idempotency_key = args.get("idempotency_key")
         if not isinstance(idempotency_key, str) or not idempotency_key.strip():
@@ -267,7 +274,7 @@ async def do_manage_todos(content: str, owner: Optional[str] = None) -> Dict:
         )
         if result["exit_code"]:
             result["error"] = f"Todo mutation {outcome.transaction_status}; no success claim is allowed"
-        return result
+        return _with_receipts(result)
     except TodoDomainError as exc:
         return _error(str(exc))
 

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 8,
+  "revision": 10,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "queue_scope": "open_work",
   "queue_lane": "OWM-22",
@@ -20,7 +20,7 @@
   },
   "route": {
     "entrypoint": "/abc",
-    "slice_id": "TTD-03-preflight",
+    "slice_id": "TTD-04-preflight",
     "mutation": "safe_offline",
     "selected_skills": ["abc"],
     "model": "surface_default",
@@ -84,6 +84,24 @@
       "completion": {
         "implemented": "yes",
         "tested": "yes",
+        "committed": "86c61a1d",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "TTD-03",
+      "completed_at": "2026-07-22T08:14:11+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "20 passed",
+      "integration_tests": "145 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
         "committed": "no",
         "pushed": "no",
         "deployed": "no",
@@ -107,10 +125,10 @@
       "global_suite_windows_sandbox_baseline_non_gate"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T08:02:40+02:00",
-  "last_heartbeat_at": "2026-07-22T08:02:40+02:00",
-  "last_reported_revision": 8,
-  "resume_cursor": "TTD-03-preflight",
+  "last_durable_progress_at": "2026-07-22T08:14:11+02:00",
+  "last_heartbeat_at": "2026-07-22T08:14:11+02:00",
+  "last_reported_revision": 10,
+  "resume_cursor": "TTD-04-preflight",
   "pending_user_requests": [],
   "live_go_ledger": [],
   "gate_queue": [
@@ -119,7 +137,7 @@
     "TTD-LIVE-TELEGRAM-SMOKE",
     "TTD-LIVE-ROLLOVER-SMOKE"
   ],
-  "next_runnable_slices": ["TTD-03-preflight", "TTD-08-preflight"],
+  "next_runnable_slices": ["TTD-04-preflight", "TTD-05-preflight", "TTD-08-preflight"],
   "stop_rules": [
     "stop_on_secret_or_private_content",
     "stop_on_overlapping_writer_or_foreign_staged_file",
