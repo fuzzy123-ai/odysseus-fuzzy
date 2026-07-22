@@ -12,7 +12,10 @@ from src.project_forge_github import (
 )
 from src.project_forge_sync import ForgeSyncRequest
 from src.project_version_store import owner_key_for
-from src.repo_push_runner import RepoPushCommandResult
+from src.repo_push_runner import (
+    RepoPushCommandResult,
+    build_repo_forge_git_transport_commands,
+)
 from src.repo_registry import RepoRecord, RepoRemote
 
 
@@ -25,6 +28,15 @@ REMOTE = "fuzzy"
 REMOTE_URL = "https://github.com/fuzzy123-ai/readable-project.git"
 OWNER = "fuzzy123-ai"
 OWNER_KEY = owner_key_for(OWNER)
+TRANSPORT_COMMANDS = build_repo_forge_git_transport_commands(
+    remote_name=REMOTE,
+    branch_name=BRANCH,
+    commit_sha=COMMIT,
+    push_target_url=REMOTE_URL,
+)
+PUSH_COMMAND = TRANSPORT_COMMANDS.push
+REMOTE_REF_COMMAND = TRANSPORT_COMMANDS.remote_ref
+URL_REWRITE_COMMAND = TRANSPORT_COMMANDS.url_rewrites
 
 
 def _request(*, provider: str = "github") -> ForgeSyncRequest:
@@ -129,12 +141,22 @@ class FakeGitRunner:
         fail_kind="",
         raise_kind="",
         ancestry_exit_code=1,
+        rewrite_results=None,
     ):
         self.remote_refs = list(remote_refs)
-        self.remote_url = remote_url
+        self.remote_urls = list(
+            remote_url
+            if isinstance(remote_url, (tuple, list))
+            else (remote_url, remote_url)
+        )
         self.fail_kind = fail_kind
         self.raise_kind = raise_kind
         self.ancestry_exit_code = ancestry_exit_code
+        self.rewrite_results = list(
+            rewrite_results
+            if rewrite_results is not None
+            else (RepoPushCommandResult(exit_code=1), RepoPushCommandResult(exit_code=1))
+        )
         self.calls = []
 
     def __call__(self, argv, *, cwd, timeout_seconds, env):
@@ -147,7 +169,9 @@ class FakeGitRunner:
         if kind == "verify":
             return RepoPushCommandResult(exit_code=0, stdout=COMMIT + "\n")
         if kind == "url":
-            return RepoPushCommandResult(exit_code=0, stdout=self.remote_url + "\n")
+            return RepoPushCommandResult(exit_code=0, stdout=self.remote_urls.pop(0) + "\n")
+        if kind == "url_rewrites":
+            return self.rewrite_results.pop(0)
         if kind == "remote_ref":
             return RepoPushCommandResult(exit_code=0, stdout=self.remote_refs.pop(0))
         if kind == "push":
@@ -162,9 +186,11 @@ class FakeGitRunner:
             return "verify"
         if argv[:4] == ("git", "remote", "get-url", "--push"):
             return "url"
-        if argv[:3] == ("git", "ls-remote", "--heads"):
+        if tuple(argv) == URL_REWRITE_COMMAND:
+            return "url_rewrites"
+        if tuple(argv) == REMOTE_REF_COMMAND:
             return "remote_ref"
-        if argv[:2] == ("git", "push"):
+        if tuple(argv) == PUSH_COMMAND:
             return "push"
         if argv[:3] == ("git", "merge-base", "--is-ancestor"):
             return "ancestry"
@@ -197,11 +223,16 @@ def test_missing_remote_ref_pushes_exact_commit_then_persists_redacted_receipt(t
     assert _commands(runner) == [
         ("git", "rev-parse", "--verify", f"{COMMIT}^{{commit}}"),
         ("git", "remote", "get-url", "--push", "--all", REMOTE),
-        ("git", "ls-remote", "--heads", REMOTE, f"refs/heads/{BRANCH}"),
-        ("git", "push", REMOTE, f"{COMMIT}:refs/heads/{BRANCH}"),
-        ("git", "ls-remote", "--heads", REMOTE, f"refs/heads/{BRANCH}"),
+        URL_REWRITE_COMMAND,
+        REMOTE_REF_COMMAND,
+        ("git", "remote", "get-url", "--push", "--all", REMOTE),
+        URL_REWRITE_COMMAND,
+        PUSH_COMMAND,
+        REMOTE_REF_COMMAND,
     ]
-    assert not any("HEAD" in command or "force" in " ".join(command) for command in _commands(runner))
+    assert not any("HEAD" in command for command in _commands(runner))
+    assert all("--force" not in command for command in _commands(runner))
+    assert all(not any(argument.startswith("+") for argument in command) for command in _commands(runner))
     receipt = store.load(owner_key=OWNER_KEY, repo_id="readable-project", operation_id=OPERATION)
     assert receipt is not None
     assert receipt.remote_sha == COMMIT
@@ -245,7 +276,7 @@ def test_same_remote_sha_is_already_synced_without_push_and_creates_receipt(tmp_
     outcome = adapter.sync(_request())
 
     assert outcome.status == "already_synced"
-    assert not any(command[:2] == ("git", "push") for command in _commands(runner))
+    assert not any(FakeGitRunner._kind(command) == "push" for command in _commands(runner))
     assert store.load(owner_key=OWNER_KEY, repo_id="readable-project", operation_id=OPERATION) is not None
 
 
@@ -259,7 +290,7 @@ def test_different_remote_sha_is_diverged_without_push_or_receipt(tmp_path):
 
     assert outcome.status == "diverged"
     assert outcome.provider_fingerprint.startswith("sha256:")
-    assert not any(command[:2] == ("git", "push") for command in _commands(runner))
+    assert not any(FakeGitRunner._kind(command) == "push" for command in _commands(runner))
     assert store.load(owner_key=OWNER_KEY, repo_id="readable-project", operation_id=OPERATION) is None
 
 
@@ -280,7 +311,7 @@ def test_remote_ancestor_allows_normal_non_force_followup_commit(tmp_path):
     assert outcome.status == "synced"
     commands = _commands(runner)
     assert ("git", "merge-base", "--is-ancestor", previous, COMMIT) in commands
-    assert ("git", "push", REMOTE, f"{COMMIT}:refs/heads/{BRANCH}") in commands
+    assert PUSH_COMMAND in commands
 
 
 @pytest.mark.parametrize(
@@ -338,7 +369,7 @@ def test_actual_remote_url_must_match_configured_github_identity(tmp_path, actua
 
     assert outcome.status == "blocked"
     assert outcome.error_code in {"remote_identity_invalid", "remote_identity_mismatch"}
-    assert not any(command[:2] == ("git", "push") for command in _commands(runner))
+    assert not any(FakeGitRunner._kind(command) == "push" for command in _commands(runner))
 
 
 def test_multiple_push_urls_are_blocked_before_remote_ref_or_push(tmp_path):
@@ -350,7 +381,94 @@ def test_multiple_push_urls_are_blocked_before_remote_ref_or_push(tmp_path):
 
     assert outcome.status == "blocked"
     assert outcome.error_code == "remote_identity_ambiguous"
-    assert not any(command[:2] == ("git", "push") for command in _commands(runner))
+    assert not any(FakeGitRunner._kind(command) == "push" for command in _commands(runner))
+
+
+def test_remote_identity_swap_after_first_readback_blocks_before_push(tmp_path):
+    repo_path = _repo_path(tmp_path)
+    runner = FakeGitRunner(
+        remote_url=(REMOTE_URL, "https://github.com/other/target.git"),
+    )
+    adapter, _, _ = _adapter(tmp_path, _target(repo_path), runner)
+
+    outcome = adapter.sync(_request())
+
+    assert outcome.status == "blocked"
+    assert outcome.error_code == "remote_identity_mismatch"
+    assert len([command for command in _commands(runner) if FakeGitRunner._kind(command) == "url"]) == 2
+    assert not any(FakeGitRunner._kind(command) == "push" for command in _commands(runner))
+
+
+@pytest.mark.parametrize("blocked_check", (0, 1))
+def test_url_rewrite_config_blocks_without_transport_and_leaks_no_raw_output(tmp_path, blocked_check):
+    repo_path = _repo_path(tmp_path)
+    malicious = RepoPushCommandResult(
+        exit_code=0,
+        stdout="url.https://synthetic-secret.invalid/.insteadOf\0",
+    )
+    rewrite_results = [RepoPushCommandResult(exit_code=1), RepoPushCommandResult(exit_code=1)]
+    rewrite_results[blocked_check] = malicious
+    runner = FakeGitRunner(rewrite_results=rewrite_results)
+    adapter, _, _ = _adapter(tmp_path, _target(repo_path), runner)
+
+    outcome = adapter.sync(_request())
+    commands = _commands(runner)
+    dumped = json.dumps(outcome.to_dict(), sort_keys=True)
+
+    assert outcome.status == "blocked"
+    assert outcome.error_code == "url_rewrite_config_blocked"
+    assert not any(FakeGitRunner._kind(command) == "push" for command in commands)
+    if blocked_check == 0:
+        assert not any(FakeGitRunner._kind(command) == "remote_ref" for command in commands)
+    else:
+        assert commands[-1] == URL_REWRITE_COMMAND
+        assert commands.count(URL_REWRITE_COMMAND) == 2
+    assert "synthetic-secret" not in dumped
+
+
+@pytest.mark.parametrize(
+    "unsafe_result",
+    (
+        RepoPushCommandResult(exit_code=1, stdout="unexpected"),
+        RepoPushCommandResult(exit_code=1, stderr="unexpected"),
+        RepoPushCommandResult(exit_code=2),
+        RepoPushCommandResult(exit_code=1, timed_out=True),
+    ),
+)
+def test_url_rewrite_check_accepts_only_exact_empty_no_match(tmp_path, unsafe_result):
+    repo_path = _repo_path(tmp_path)
+    runner = FakeGitRunner(rewrite_results=(unsafe_result,))
+    adapter, _, _ = _adapter(tmp_path, _target(repo_path), runner)
+
+    outcome = adapter.sync(_request())
+
+    assert outcome.status == "blocked"
+    assert outcome.error_code == "url_rewrite_config_blocked"
+    assert _commands(runner)[-1] == URL_REWRITE_COMMAND
+    assert not any(FakeGitRunner._kind(command) == "remote_ref" for command in _commands(runner))
+
+
+@pytest.mark.parametrize(
+    "remote_url",
+    (
+        "ssh://git@github.com/fuzzy123-ai/readable-project.git",
+        "git@github.com:fuzzy123-ai/readable-project.git",
+    ),
+)
+def test_ssh_remote_scheme_is_blocked_before_git(tmp_path, remote_url):
+    repo_path = _repo_path(tmp_path)
+    runner = FakeGitRunner()
+    target = _target(
+        repo_path,
+        record=_record(remote_url=remote_url),
+    )
+    adapter, _, _ = _adapter(tmp_path, target, runner)
+
+    outcome = adapter.sync(_request())
+
+    assert outcome.status == "blocked"
+    assert outcome.error_code == "target_policy_blocked"
+    assert runner.calls == []
 
 
 def test_gitfile_and_owner_mismatch_are_blocked_before_git(tmp_path):

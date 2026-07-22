@@ -1,0 +1,301 @@
+from __future__ import annotations
+
+from copy import deepcopy
+from pathlib import Path
+import subprocess
+
+import pytest
+
+from src.agent_verification_receipt import (
+    build_verification_receipt,
+    repository_binding,
+)
+from src.claim_evidence_gate import (
+    AgentMaintenanceClaimOwnership,
+    AgentMaintenanceCompletionEvidence,
+    ClaimEvidenceFinding,
+    ClaimEvidenceReport,
+    evaluate_agent_maintenance_completion,
+)
+from src.effectful_tool_matrix import build_effectful_action_snapshot
+
+
+def _git(root: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", *args],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
+def _repo(tmp_path: Path) -> Path:
+    root = tmp_path / "repo"
+    root.mkdir(parents=True)
+    _git(root, "init", "-q")
+    _git(root, "config", "user.name", "Completion Test")
+    _git(root, "config", "user.email", "completion@example.invalid")
+    (root / "tracked.py").write_text("answer = 1\n", encoding="utf-8")
+    _git(root, "add", "tracked.py")
+    _git(root, "commit", "-qm", "initial")
+    return root
+
+
+def _receipt(root: Path, *, lane: str = "guards-only", evidence: str = "static") -> dict:
+    binding = repository_binding(root)
+    report = {
+        "lane": lane,
+        "strongest_evidence_level": evidence,
+        "checks": [
+            {
+                "check_id": "current_check",
+                "required": True,
+                "status": "passed",
+                "evidence_level": evidence,
+            }
+        ],
+        "verification_limits": ["live_not_verified"],
+    }
+    return build_verification_receipt(
+        report,
+        binding_before=binding,
+        binding_after=binding,
+    )
+
+
+def _evidence(
+    root: Path,
+    *,
+    receipt: dict | None = None,
+    lane: str = "guards-only",
+    required: str = "static",
+    claims: ClaimEvidenceReport | None = None,
+    ownership: AgentMaintenanceClaimOwnership | None = None,
+) -> AgentMaintenanceCompletionEvidence:
+    status_lines = _git(root, "status", "--porcelain").splitlines()
+    changed = tuple(line[3:].strip() for line in status_lines if len(line) >= 4)
+    staged = tuple(
+        line[3:].strip()
+        for line in status_lines
+        if len(line) >= 4 and line[:2] != "??" and line[0] != " "
+    )
+    return AgentMaintenanceCompletionEvidence(
+        receipt=receipt if receipt is not None else _receipt(root, lane=lane),
+        claim_report=claims if claims is not None else ClaimEvidenceReport(()),
+        expected_lane=lane,
+        required_evidence_level=required,
+        claim_ownership=ownership
+        if ownership is not None
+        else AgentMaintenanceClaimOwnership(
+            expected_claim_id="AMH-06",
+            expected_owner="bob",
+            allowed_paths=("tracked.py",),
+            current_claim_id="AMH-06",
+            current_owner="bob",
+            current_changed_paths=changed,
+            current_staged_paths=staged,
+        ),
+    )
+
+
+def test_current_receipt_and_supported_claims_complete_without_action_authority(
+    tmp_path: Path,
+) -> None:
+    root = _repo(tmp_path)
+
+    report = evaluate_agent_maintenance_completion(_evidence(root), repo_root=root)
+    payload = report.to_dict()
+
+    assert report.completed is True
+    assert report.receipt_current is True
+    assert payload["commit_authorized"] is False
+    assert payload["push_authorized"] is False
+    assert payload["live_authorized"] is False
+    assert payload["origin_authenticated"] is False
+    assert "receipt_digest" not in payload
+    assert "producer" not in payload
+
+
+@pytest.mark.parametrize(
+    "variant,expected",
+    (
+        ("missing", "missing"),
+        ("mismatched_lane", "mismatched"),
+        ("weaker", "weaker"),
+        ("unsupported_claim", "unsupported"),
+        ("metadata_only", "invalid"),
+    ),
+)
+def test_missing_weaker_mismatched_or_metadata_only_evidence_blocks(
+    tmp_path: Path,
+    variant: str,
+    expected: str,
+) -> None:
+    root = _repo(tmp_path)
+    if variant == "missing":
+        evidence = AgentMaintenanceCompletionEvidence(
+            receipt={},
+            claim_report=ClaimEvidenceReport(()),
+            expected_lane="guards-only",
+            required_evidence_level="static",
+            claim_ownership=_evidence(root).claim_ownership,
+        )
+    elif variant == "mismatched_lane":
+        evidence = _evidence(root, receipt=_receipt(root, lane="fast"))
+    elif variant == "weaker":
+        evidence = _evidence(
+            root,
+            receipt=_receipt(root, lane="fast", evidence="static"),
+            lane="fast",
+            required="fast",
+        )
+    elif variant == "unsupported_claim":
+        evidence = _evidence(
+            root,
+            claims=ClaimEvidenceReport(
+                (ClaimEvidenceFinding("test", "unsupported", "missing evidence"),)
+            ),
+        )
+    else:
+        evidence = AgentMaintenanceCompletionEvidence(
+            receipt={"producer": {"id": "odysseus.scripts.verify"}, "receipt_digest": "a" * 64},
+            claim_report=ClaimEvidenceReport(()),
+            expected_lane="guards-only",
+            required_evidence_level="static",
+            claim_ownership=_evidence(root).claim_ownership,
+        )
+
+    report = evaluate_agent_maintenance_completion(evidence, repo_root=root)
+
+    assert report.completed is False
+    assert any(expected in blocker for blocker in report.blockers)
+
+
+def test_stale_and_tampered_receipts_are_revalidated_against_current_root(
+    tmp_path: Path,
+) -> None:
+    root = _repo(tmp_path)
+    current = _receipt(root)
+    tampered = deepcopy(current)
+    tampered["receipt_digest"] = "f" * 64
+
+    tampered_report = evaluate_agent_maintenance_completion(
+        _evidence(root, receipt=tampered),
+        repo_root=root,
+    )
+    assert tampered_report.completed is False
+    assert tampered_report.receipt_current is False
+
+    (root / "tracked.py").write_text("answer = 2\n", encoding="utf-8")
+    stale_report = evaluate_agent_maintenance_completion(
+        _evidence(root, receipt=current),
+        repo_root=root,
+    )
+    assert stale_report.completed is False
+    assert stale_report.receipt_current is False
+    assert any("stale" in blocker for blocker in stale_report.blockers)
+
+
+def test_exact_root_is_part_of_current_validation(tmp_path: Path) -> None:
+    first = _repo(tmp_path / "first")
+    second = _repo(tmp_path / "second")
+    (second / "tracked.py").write_text("answer = 9\n", encoding="utf-8")
+    _git(second, "add", "tracked.py")
+    _git(second, "commit", "-qm", "different head")
+
+    report = evaluate_agent_maintenance_completion(
+        _evidence(first),
+        repo_root=second,
+    )
+
+    assert report.completed is False
+    assert report.receipt_current is False
+
+
+def test_missing_or_mismatched_claim_ownership_blocks(tmp_path: Path) -> None:
+    root = _repo(tmp_path)
+    current = _evidence(root)
+    missing = AgentMaintenanceCompletionEvidence(
+        receipt=current.receipt,
+        claim_report=current.claim_report,
+        expected_lane=current.expected_lane,
+        required_evidence_level=current.required_evidence_level,
+        claim_ownership=None,  # type: ignore[arg-type]
+    )
+    mismatch = _evidence(
+        root,
+        ownership=AgentMaintenanceClaimOwnership(
+            expected_claim_id="AMH-06",
+            expected_owner="bob",
+            allowed_paths=("tracked.py",),
+            current_claim_id="AMH-05",
+            current_owner="bob",
+            current_changed_paths=(),
+            current_staged_paths=(),
+        ),
+    )
+
+    assert evaluate_agent_maintenance_completion(missing, repo_root=root).completed is False
+    mismatch_report = evaluate_agent_maintenance_completion(mismatch, repo_root=root)
+    assert mismatch_report.completed is False
+    assert mismatch_report.ownership_current is False
+
+
+def test_unknown_lane_and_lane_incompatible_minimum_block(tmp_path: Path) -> None:
+    root = _repo(tmp_path)
+    current = _evidence(root)
+    unknown = AgentMaintenanceCompletionEvidence(
+        receipt=current.receipt,
+        claim_report=current.claim_report,
+        expected_lane="invented",
+        required_evidence_level="static",
+        claim_ownership=current.claim_ownership,
+    )
+    incompatible = AgentMaintenanceCompletionEvidence(
+        receipt=current.receipt,
+        claim_report=current.claim_report,
+        expected_lane="guards-only",
+        required_evidence_level="full",
+        claim_ownership=current.claim_ownership,
+    )
+
+    assert evaluate_agent_maintenance_completion(unknown, repo_root=root).completed is False
+    report = evaluate_agent_maintenance_completion(incompatible, repo_root=root)
+    assert report.completed is False
+    assert any("invalid" in blocker for blocker in report.blockers)
+
+
+def test_foreign_current_path_outside_claim_scope_blocks(tmp_path: Path) -> None:
+    root = _repo(tmp_path)
+    (root / "foreign.txt").write_text("ordinary foreign change\n", encoding="utf-8")
+
+    report = evaluate_agent_maintenance_completion(_evidence(root), repo_root=root)
+
+    assert report.completed is False
+    assert report.receipt_current is True
+    assert report.ownership_current is False
+    assert any("ownership" in blocker for blocker in report.blockers)
+
+
+def test_read_only_tool_exemption_fails_closed_on_conflicting_or_unknown_metadata() -> None:
+    read_only = build_effectful_action_snapshot(
+        ({"tool": "manage_repos", "action": "status"},)
+    )
+    conflicting = build_effectful_action_snapshot(
+        (
+            {
+                "tool": "manage_repos",
+                "action": "status",
+                "transaction_status": "succeeded",
+            },
+        )
+    )
+    unknown = build_effectful_action_snapshot(
+        ({"tool": "manage_repos", "action": "unexpected_read"},)
+    )
+
+    assert read_only["effectful_count"] == 0
+    assert conflicting["effectful_count"] == 1
+    assert conflicting["categories"] == ("repository_state_control",)
+    assert unknown["effectful_count"] == 1

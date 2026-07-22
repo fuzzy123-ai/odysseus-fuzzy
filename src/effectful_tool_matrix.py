@@ -15,6 +15,7 @@ EFFECTFUL_TOOL_MATRIX: dict[str, str] = {
     "write_file": "filesystem_write",
     "publish_artifact": "artifact_publication",
     "verify_pygame_headless": "headless_validation",
+    "commit_project": "project_versioning",
     "create_document": "document_write",
     "update_document": "document_write",
     "edit_document": "document_write",
@@ -53,12 +54,113 @@ EFFECTFUL_TOOL_MATRIX: dict[str, str] = {
 }
 
 
+EFFECTFUL_TOOL_ACTION_MATRIX: dict[str, dict[str, str]] = {
+    "manage_plugins": {
+        "list": "",
+        "get": "",
+        "status": "",
+        "*": "plugin_supply_chain_control",
+    },
+    "manage_settings": {
+        "list": "",
+        "get": "",
+        "status": "",
+        "*": "settings_control",
+    },
+    "manage_tokens": {
+        "list": "",
+        "get": "",
+        "status": "",
+        "*": "credential_control",
+    },
+    "manage_repos": {
+        "list": "",
+        "get": "",
+        "status": "",
+        "log": "",
+        "diff_stat": "",
+        "changed_paths": "",
+        "remotes": "",
+        "commit_plan": "",
+        "push_plan": "",
+        "forge_plan": "",
+        "changes": "",
+        "change_history": "",
+        "*": "repository_state_control",
+    },
+}
+
+_MUTATION_SIGNAL_KEYS = {
+    "transaction_id",
+    "transaction_status",
+    "mutation",
+    "mutated",
+    "write",
+    "writes",
+    "changed",
+    "side_effect",
+    "effectful",
+    "committed",
+    "pushed",
+}
+
+
 def effectful_tool_names() -> tuple[str, ...]:
     return tuple(sorted(EFFECTFUL_TOOL_MATRIX))
 
 
-def tool_effect_category(tool: Any) -> str:
-    return EFFECTFUL_TOOL_MATRIX.get(str(tool or "").strip(), "")
+def tool_effect_category(tool: Any, action: Any = None) -> str:
+    tool_name = str(tool or "").strip()
+    action_map = EFFECTFUL_TOOL_ACTION_MATRIX.get(tool_name)
+    if action_map is not None and action is not None:
+        action_name = str(action or "").strip().lower()
+        return action_map.get(action_name, action_map.get("*", ""))
+    return EFFECTFUL_TOOL_MATRIX.get(tool_name, "")
+
+
+def _event_effect_category(event: Mapping[str, Any]) -> str:
+    tool = event.get("tool")
+    action = event.get("action")
+    if not isinstance(tool, str) or not isinstance(action, str):
+        return EFFECTFUL_TOOL_MATRIX.get(str(tool or "").strip(), "")
+    tool_name = tool.strip()
+    action_name = action.strip().lower()
+    action_map = EFFECTFUL_TOOL_ACTION_MATRIX.get(tool_name)
+    if action_map is None:
+        return EFFECTFUL_TOOL_MATRIX.get(tool_name, "")
+    if action_name not in action_map or action_name == "*":
+        return action_map.get("*", EFFECTFUL_TOOL_MATRIX.get(tool_name, ""))
+    category = action_map[action_name]
+    if category:
+        return category
+    if _read_only_event_has_conflicting_metadata(event):
+        return action_map.get("*", EFFECTFUL_TOOL_MATRIX.get(tool_name, ""))
+    return ""
+
+
+def _read_only_event_has_conflicting_metadata(event: Mapping[str, Any]) -> bool:
+    for key in _MUTATION_SIGNAL_KEYS:
+        if key not in event:
+            continue
+        value = event.get(key)
+        if value not in (None, False, "", (), [], {}):
+            return True
+    command = str(event.get("command") or "").strip().lower()
+    if command and any(
+        token in command
+        for token in (
+            " commit",
+            " push",
+            " delete",
+            " remove",
+            " update",
+            " create",
+            " write",
+            " mutate",
+        )
+    ):
+        return True
+    return False
 
 
 def build_effectful_action_snapshot(tool_events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
@@ -69,14 +171,20 @@ def build_effectful_action_snapshot(tool_events: Iterable[Mapping[str, Any]]) ->
             {
                 category
                 for event in events
-                for category in (tool_effect_category(event.get("tool")),)
+                for category in (
+                    _event_effect_category(event),
+                )
                 if category
             }
         )
     )
     return {
         "schema": EFFECTFUL_TOOL_MATRIX_SCHEMA,
-        "effectful_count": sum(1 for event in events if tool_effect_category(event.get("tool"))),
+        "effectful_count": sum(
+            1
+            for event in events
+            if _event_effect_category(event)
+        ),
         "categories": categories,
         "transactions": transactions,
         "transaction_status": tuple(
