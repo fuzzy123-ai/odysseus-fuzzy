@@ -333,6 +333,26 @@ Akzeptanz:
 - Paralleles Add/Complete verliert keine Items.
 - Bestehende Notes-Checklisten bleiben lesbar.
 
+Acceptance evidence 2026-07-22:
+
+- `src/todo_domain_service.py` implementiert `list`, `add`, `complete`,
+  `reopen` und `remove` owner-scoped auf dem bestehenden `Note.items`-Feld.
+- List-Refs enthalten nur einen redigierten Owner-Scope und die stabile
+  `notes.id`; Item-Refs verwenden persistierte opake IDs. Der Legacy-Read ist
+  mutationsfrei und erzeugt deterministische Vorab-Refs.
+- Der erste kanonische Write hebt eine vollstaendig legacy-formatierte Liste
+  und die angeforderte Mutation in einem Compare-and-Swap-Write gemeinsam auf
+  `{id, text, done}`. Mixed-Shape und unbekannte Felder failen vor dem Write.
+- Add-IDs sind an List-Ref und Idempotency-Key gebunden. Ein Replay mit
+  identischem Payload ist ein No-op; ein abweichender Payload failt geschlossen.
+- Text-Matching normalisiert nur fuer die Convenience-Suche. Bei mehreren
+  Treffern werden ausschliesslich Kandidaten-Refs geliefert und nichts mutiert.
+- Fokus: `8 passed`; Notes-/Digest-Kompatibilitaet: `19 passed`; integrierte
+  OWM-22-Baseline: `65 passed`. Keine Schemaaenderung und keine Netzwerk-,
+  Provider-, Telegram-, Host- oder Produktionsdatenaktion wurde ausgefuehrt.
+- Naechster serieller Preflight: `TTD-02`; `TTD-03` ist ebenfalls logisch von
+  TTD-01 entblockt, bleibt aber bis zum Single-Writer-Handoff ungeclaimt.
+
 ### TTD-02 - `manage_todos`, Routing und Memory-Validierung
 
 Owner: Bob
