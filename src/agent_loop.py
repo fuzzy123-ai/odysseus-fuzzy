@@ -429,6 +429,12 @@ async def stream_agent_loop(
             if _target in ("browser_preview", "dual"):
                 _relevant_tools.add("create_document")
 
+        # A clear Todo turn has one domain facade. Memory is ambient by default,
+        # so remove it deterministically instead of asking the model to choose
+        # between two persistent stores.
+        from src.todo_intent import route_todo_toolset
+        _relevant_tools = route_todo_toolset(_relevant_tools, _last_user)
+
     # If a document is open the model needs the editing tools available
     # regardless of which selection path (RAG, keyword, caller-provided) ran
     # or what keywords were in the latest user message.

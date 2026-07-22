@@ -50,8 +50,8 @@ def test_only_explicit_text_only_tool_has_index_without_native_schema():
     schema_names = _schema_tool_names()
     index_names = _indexed_tool_names()
 
-    assert len(schema_names) == 83
-    assert len(index_names) == 84
+    assert len(schema_names) == 84
+    assert len(index_names) == 85
     assert index_names - schema_names == {"generate_image"}
 
 

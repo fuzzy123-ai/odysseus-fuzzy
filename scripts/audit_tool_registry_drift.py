@@ -37,11 +37,11 @@ SOURCE_PATHS = (
 )
 
 EXPECTED_COUNTS = {
-    "runtime_tags": 78,
-    "function_schemas": 83,
+    "runtime_tags": 79,
+    "function_schemas": 84,
     "schema_without_runtime_tag": 6,
     "runtime_without_function_schema": 1,
-    "admin_metadata": 84,
+    "admin_metadata": 85,
     "runtime_without_admin_metadata": 0,
     "admin_catalog_without_runtime_tag": 6,
     "stale_admin_metadata": 0,

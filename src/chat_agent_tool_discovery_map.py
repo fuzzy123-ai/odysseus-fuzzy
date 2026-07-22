@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import FrozenSet, Iterable
 
+from src.todo_intent import TODO_DISCOVERY_KEYWORDS
+
 
 @dataclass(frozen=True)
 class ToolDiscoveryIntent:
@@ -33,6 +35,10 @@ DELEGATE_TOOLSET = frozenset({
 
 GITHUB_ISSUE_TOOLSET = frozenset({
     "manage_github_issues",
+})
+
+TODO_TOOLSET = frozenset({
+    "manage_todos",
 })
 
 DURABLE_SUBAGENT_TOOLSET = frozenset({
@@ -147,6 +153,11 @@ DISCOVERY_INTENTS = (
         name="github_issue_intelligence",
         keywords=GITHUB_ISSUE_INTENT_KEYWORDS,
         tools=GITHUB_ISSUE_TOOLSET,
+    ),
+    ToolDiscoveryIntent(
+        name="todo_domain",
+        keywords=TODO_DISCOVERY_KEYWORDS,
+        tools=TODO_TOOLSET,
     ),
 )
 

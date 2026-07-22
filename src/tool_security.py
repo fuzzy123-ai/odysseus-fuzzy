@@ -346,7 +346,7 @@ _PLAN_MODE_KNOWN_MUTATORS = {
     "publish_artifact", "verify_pygame_headless",
     "suggest_document", "manage_documents", "create_session", "manage_session",
     "send_to_session", "pipeline", "manage_memory", "manage_skills",
-    "manage_tasks", "manage_notes", "manage_endpoints", "manage_mcp",
+    "manage_tasks", "manage_notes", "manage_todos", "manage_endpoints", "manage_mcp",
     "spawn_subagent", "manage_subagents",
     "manage_webhooks", "manage_tokens", "manage_settings", "manage_contact",
     "manage_github_issues", "manage_nextcloud_transfer",

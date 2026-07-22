@@ -383,6 +383,30 @@ Akzeptanz:
 - Deutsch/Englisch, Singular/Plural, mehrere Zeilen, Completion, Reopen und
   Tippfehler sind abgedeckt.
 
+Acceptance evidence (2026-07-22):
+
+- `manage_todos` ist als einzige Todo-Agenten-Fassade fuer
+  List/Add/Complete/Reopen/Remove in Schema, Registry, Dispatcher, Policy,
+  Security, Prompts und Catalog registriert.
+- Eindeutiger Todo-Intent entfernt sowohl `manage_memory` als auch
+  `manage_notes`; direkte Todo-artige Memory-Writes und ungueltige
+  Memory-Kategorien failen mit `domain_mismatch` und verweisen auf
+  `manage_todos`.
+- Deutsch/Englisch, Singular/Plural, mehrzeilige Eingaben, Completion, Reopen
+  und begrenzte Ein-Zeichen-/Transpositions-Tippfehler sind abgedeckt; ein
+  normaler Nutzerfakt bleibt ein Memory-Write.
+- Der deterministische TAX0-Audit zaehlt 85 Catalog-IDs, 79 Runtime-Tags,
+  84 native Schemas, je 85 Index-, Admin- und Analytics-IDs, 69 dedizierte
+  Prompt-Sektionen und 81 Dispatcher-IDs ohne Drift.
+- Fokus: `20 passed`; exakte deduplizierte OWM-22/TAX-Integration:
+  `360 passed` mit einer vorbestehenden SQLAlchemy-Deprecation-Warnung.
+  Der globale Pytest-Lauf ist auf dieser Windows-/Sandbox-Baseline kein Gate:
+  bekannte Symlink-Privilege-, Bash-Pfad- und veraltete Session-Routes-Tests
+  scheitern ausserhalb dieses Claims.
+- Keine Netzwerk-, Provider-, Telegram-, Host-, Deployment- oder
+  Produktionsdatenaktion wurde ausgefuehrt. Naechster serieller Preflight:
+  `TTD-03`; `TTD-04` bleibt von TTD-03 abhaengig und ungeclaimt.
+
 ### TTD-03 - Semantische Transaktionen und Todo-Receipts
 
 Owner: Bob

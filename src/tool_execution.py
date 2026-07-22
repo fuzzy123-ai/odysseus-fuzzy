@@ -567,7 +567,7 @@ async def _execute_tool_block_impl(
         do_search_chats, do_manage_tasks,
         do_manage_skills, do_recent_changes, do_api_call, do_manage_endpoints,
         do_manage_mcp, do_manage_webhooks, do_manage_tokens,
-        do_manage_presets, do_manage_personal_docs, do_manage_embeddings, do_manage_assistant, do_manage_plugins, do_manage_repos, do_manage_settings, do_manage_notes,
+        do_manage_presets, do_manage_personal_docs, do_manage_embeddings, do_manage_assistant, do_manage_plugins, do_manage_repos, do_manage_settings, do_manage_notes, do_manage_todos,
         do_manage_github_issues,
         do_manage_nextcloud_transfer,
         do_manage_calendar,
@@ -915,6 +915,9 @@ async def _execute_tool_block_impl(
     elif tool == "manage_notes":
         desc = "manage_notes"
         result = await do_manage_notes(content, owner=owner)
+    elif tool == "manage_todos":
+        desc = "manage_todos"
+        result = await do_manage_todos(content, owner=owner)
     elif tool == "manage_calendar":
         desc = "manage_calendar"
         result = await do_manage_calendar(content, owner=owner)

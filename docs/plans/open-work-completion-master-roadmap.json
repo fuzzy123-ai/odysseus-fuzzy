@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-22T07:03:00+02:00",
-  "status": "active_owm22_ttd01_complete_ttd02_preflight_live_default_off",
+  "updated_at": "2026-07-22T07:57:41+02:00",
+  "status": "active_owm22_ttd02_complete_ttd03_preflight_live_default_off",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Implementiere OWM-22 Telegram Todo Domain Truth repo-only; beginne mit TTD-00 und halte alle Live-Aktionen default-off.",
   "goal": "Complete the dependency-ready OWM-22 repository queue with Notes as canonical Todo truth, semantic receipts and synthetic evidence while keeping deploy, production data repair, Telegram send and productive session rollover behind separate live gates.",
@@ -13,13 +13,13 @@
     "unique_live_gates": 40,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "owm22_ttd00_ttd01_complete_ttd02_and_ttd03_preflight_pending",
+    "queue_status": "owm22_ttd00_through_ttd02_complete_ttd03_and_ttd08_preflight_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_ttd01_accepted_ttd02_and_ttd03_preflight_pending_live_actions_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd02_accepted_ttd03_and_ttd08_preflight_ready_live_actions_default_off",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
@@ -256,7 +256,7 @@
       "id": "OWM-22",
       "name": "Telegram Todo Domain Truth And Digest Consistency",
       "priority": 4,
-      "status": "ttd00_ttd01_accepted_ttd02_and_ttd03_preflight_pending",
+      "status": "ttd00_ttd01_accepted_ttd02_claimed_ttd03_preflight_pending",
       "why_open": "A production Telegram incident exposed split-brain Todo state: clear Todo intents could write Memory while todo_digest read Notes, completed items could remain open, and Telegram success claims lacked Todo-specific semantic receipts.",
       "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "source_gate_family": "telegram_todo_truth",
@@ -524,6 +524,71 @@
         "private_content_persisted": false
       },
       "done_when": "A synthetic owner-scoped service lists, adds, completes, reopens and removes stable-ID items atomically; idempotent add does not duplicate; ambiguous text mutates nothing; concurrent changes lose no items; and legacy checklists remain readable."
+    },
+    {
+      "id": "TTD-02-manage-todos-routing-memory-gate",
+      "roadmap_slice_id": "TTD-02",
+      "title": "Manage Todos Facade Routing And Memory Fail-Closed Gate",
+      "class": "repo_only",
+      "owner": "root acting as Bob",
+      "status": "completed_2026-07-22",
+      "claimable": false,
+      "depends_on": [
+        "TTD-00-domain-truth-contract",
+        "TTD-01-canonical-atomic-todo-service"
+      ],
+      "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "allowed_paths": [
+        "src/agent_loop.py",
+        "src/agent_loop_prompts.py",
+        "src/agent_tools/__init__.py",
+        "src/ai_interaction.py",
+        "src/builtin_tool_catalog.py",
+        "src/chat_agent_tool_discovery_map.py",
+        "src/todo_intent.py",
+        "src/tool_domains/todos.py",
+        "src/tool_execution.py",
+        "src/tool_implementations.py",
+        "src/tool_index.py",
+        "src/tool_policy.py",
+        "src/tool_schema_definitions.py",
+        "src/tool_security.py",
+        "tests/test_manage_todos.py",
+        "tests/test_todo_intent_routing.py",
+        "tests/test_manage_memory_domain_gate.py",
+        "tests/test_todo_tool_registration.py",
+        "tests/test_builtin_tool_catalog.py",
+        "tests/test_tool_catalog_rollout.py",
+        "tests/test_tool_catalog_acceptance.py",
+        "tests/test_tool_index_schema_parity.py",
+        "tests/test_audit_tool_registry_drift.py",
+        "tests/test_tool_analytics_identity.py",
+        "tests/test_tool_registration_parity.py",
+        "scripts/audit_tool_registry_drift.py",
+        "docs/plans/tool-taxonomy-inventory.json",
+        "docs/plans/tool-taxonomy-acceptance-report.md",
+        "docs/plans/telegram-todo-domain-truth-roadmap.md",
+        "docs/plans/telegram-todo-domain-truth-run-state.json",
+        "docs/plans/open-work-completion-master-roadmap.json"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_manage_todos.py tests\\test_todo_intent_routing.py tests\\test_manage_memory_domain_gate.py tests\\test_todo_tool_registration.py",
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_todo_domain_service.py tests\\test_manage_notes_owner_gate.py tests\\test_manage_memory_list.py tests\\test_manage_memory_confirmation.py tests\\test_ai_interaction_memory_references.py tests\\test_tool_policy.py tests\\test_plan_mode.py"
+      ],
+      "forbidden_actions": [
+        "no production Notes or Memory mutation",
+        "no deployment, Telegram send, provider call or host change",
+        "no Memory mirror or second Todo store"
+      ],
+      "evidence": {
+        "focused": "20 passed",
+        "integrated": "360 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "registry_parity": "85 catalog, 79 runtime tags, 84 native schemas, 85 index/admin/analytics, 69 prompt sections, 81 dispatcher IDs",
+        "global_suite": "non-gate on the Windows/sandbox baseline due to unrelated symlink privilege, Bash path and stale session-routes failures",
+        "live_actions": false,
+        "private_content_persisted": false
+      },
+      "done_when": "manage_todos is the registered facade for list/add/complete/reopen/remove; deterministic Todo intent selection removes manage_memory; direct Todo-like or invalid-category Memory writes fail closed; and ordinary fact/preference Memory writes remain valid."
     },
     {
       "id": "OWM-0-masterroadmap-artifact",
@@ -1718,7 +1783,7 @@
     }
   ],
   "recommended_execution_order": [
-    "OWM-22 TTD-02 preflight: inspect the exact manage_todos, routing and Memory-validation boundaries, then claim only non-overlapping paths; keep TTD-03 serially queued and all four live actions disabled.",
+    "OWM-22 TTD-03 preflight: inspect the semantic transaction, effect matrix, claim-evidence and final-response truth boundaries, then claim only non-overlapping paths; keep TTD-04 blocked and all four live actions disabled.",
     "P0 Roadmap Truth: reconcile and commit only the identified UIX-ABC12-24 docs plus the canonical UIX/TAX/TUA queue and its missing detail-roadmap sources.",
     "P1 UIX-ABC13: first product priority, but do not claim it until the exact product-semantics confirmation is recorded.",
     "P2 safe default while UIX-ABC13 waits: execute TAX0, then TAX1, then TUA0 only after direct dependency evidence; continue only the next dependency-ready repo-only detail-roadmap slice.",

@@ -73,8 +73,8 @@ def test_catalog_is_the_complete_unique_union_of_current_builtin_projections():
         projections["prompt_sections"],
     )
 
-    assert len(CATALOG_TOOL_IDS) == 84
-    assert len(set(CATALOG_TOOL_IDS)) == 84
+    assert len(CATALOG_TOOL_IDS) == 85
+    assert len(set(CATALOG_TOOL_IDS)) == 85
     assert {spec.tool_id for spec in BUILTIN_TOOL_SPECS} == set(CATALOG_TOOL_IDS)
     assert projection_union == set(CATALOG_TOOL_IDS)
 
@@ -148,7 +148,7 @@ def test_descriptor_projection_is_complete_conservative_and_content_free_in_audi
     index = build_builtin_descriptors(_descriptions())
     descriptors = index.descriptors
 
-    assert len(descriptors) == 84
+    assert len(descriptors) == 85
     assert {item.tool_id for item in descriptors} == set(CATALOG_TOOL_IDS)
     assert all(item.default_enabled is False for item in descriptors)
     assert all(len(item.description) <= 160 for item in descriptors)
@@ -163,11 +163,11 @@ def test_descriptor_projection_is_complete_conservative_and_content_free_in_audi
 
     audit = builtin_catalog_audit_summary()
     assert audit["counts"] == {
-        "catalog": 84,
-        "runtime_registered": 78,
-        "native_schema": 83,
-        "searchable_index": 84,
-        "dedicated_prompt_section": 68,
+        "catalog": 85,
+        "runtime_registered": 79,
+        "native_schema": 84,
+        "searchable_index": 85,
+        "dedicated_prompt_section": 69,
         "registration_gaps": 6,
     }
     assert audit["raw_content_visible"] is False

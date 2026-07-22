@@ -20,18 +20,18 @@ acceptance result.
 
 | Contract | Count | Status |
 | --- | ---: | --- |
-| Canonical built-ins | 84 | passed |
-| Runtime tags | 78 | passed |
-| Native function schemas | 83 | passed |
-| Searchable index entries | 84 | passed |
-| Dedicated prompt sections | 68 | passed |
+| Canonical built-ins | 85 | passed |
+| Runtime tags | 79 | passed |
+| Native function schemas | 84 | passed |
+| Searchable index entries | 85 | passed |
+| Dedicated prompt sections | 69 | passed |
 | Agent handlers | 27 | passed |
-| Dispatcher condition IDs | 80 | passed |
-| Canonical Admin catalog entries | 84 | passed |
+| Dispatcher condition IDs | 81 | passed |
+| Canonical Admin catalog entries | 85 | passed |
 | Runtime IDs missing from Admin catalog | 0 | passed |
 | Stale Admin IDs | 0 | passed |
-| Analytics identities | 84 | passed |
-| Analytics ID reservations | 84 | passed |
+| Analytics identities | 85 | passed |
+| Analytics ID reservations | 85 | passed |
 
 The 48 previous generic Admin fallbacks are closed: current missing coverage is
 zero. The stale `manage_rag` presentation entry is absent.
@@ -54,8 +54,8 @@ All six identities remain explicit. None is silently activated.
 | Local write | 10 | confirmation required |
 | External write | 9 | confirmation required; default off |
 | Destructive | 1 | confirmation required; default off |
-| Control | 41 | confirmation required |
-| Owner permission | 74 | passed |
+| Control | 42 | confirmation required |
+| Owner permission | 75 | passed |
 | Admin permission | 10 | passed |
 | Deferred defaults | 14 | disabled |
 

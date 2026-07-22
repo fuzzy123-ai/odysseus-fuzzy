@@ -30,6 +30,7 @@ from src.tool_domains.personal_workspace import (
     do_manage_calendar,
     do_manage_notes,
 )
+from src.tool_domains.todos import do_manage_todos
 from src.tool_domains.admin_config import (
     _validate_mcp_command,
     do_manage_assistant,
