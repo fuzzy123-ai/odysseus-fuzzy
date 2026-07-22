@@ -4,8 +4,8 @@
   "roadmap_id": "AMH",
   "title": "Agent Maintenance Safety Harness Roadmap",
   "created_at": "2026-07-18T16:16:30+02:00",
-  "updated_at": "2026-07-22T13:12:00+02:00",
-  "status": "implementation_running_amh03_accepted_amh02_amh05_handoff_integration",
+  "updated_at": "2026-07-22T13:24:00+02:00",
+  "status": "repo_frontier_blocked_amh02_core_committed_validator_dependencies_missing_amh03_amh05_accepted",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/open-work-completion-master-roadmap.json",
   "canonical_open_work_queue": "docs/plans/open-work-completion-master-roadmap.json",
@@ -289,8 +289,8 @@
           "AMH-03-shared-verification-entrypoint",
           "AMH-05-canonical-handoff-and-owner-projection"
         ],
-        "max_parallel_workers": 1,
-        "rule": "Use one scoped writer for AMH implementation because policy, workflow, prompt, Planning and Git enforcement are consequential shared boundaries. Read-only inventory or review may run in parallel; split into multiple writers only through a later explicit roadmap revision with disjoint hotfile proof."
+          "max_parallel_workers": 3,
+          "rule": "The user's explicit GO AMH-HANDOFF and run-state revisions 47-51 provide the later scoped handoff required for up to three writers. Parallel work is limited to the persisted disjoint AMH-02 hotfiles, AMH-02 validator provenance package, AMH-03 workflow package and AMH-05 Planning/clarification package; root remains the sole roadmap/run-state writer."
       },
       {
         "frontier": 2,
@@ -417,7 +417,7 @@
     },
     {
       "id": "AMH-02-secret-safe-diagnostics",
-      "execution_status": "partial_hardened_contract_accepted_foreign_integration_blocked",
+      "execution_status": "partial_core_committed_local_validator_dependency_blocked",
       "mutation_class": "repo_only",
       "priority": "P0",
       "owner": "Bob",
@@ -432,7 +432,8 @@
         "routes/diagnostics_routes.py",
         "tests/test_secret_safe_diagnostics.py",
         "tests/test_tool_security.py",
-        "tests/test_maintenance_output_validator.py"
+        "tests/test_maintenance_output_validator.py",
+        "tests/test_diagnostics_logs.py"
       ],
       "hotfiles": [
         "src/tool_execution.py",
@@ -448,8 +449,8 @@
         "synthetic canary and bypass regression tests"
       ],
       "tests": [
-        "python -m pytest -q tests/test_secret_safe_diagnostics.py tests/test_tool_security.py tests/test_maintenance_output_validator.py",
-        "git diff --check -- src/secret_safe_diagnostics.py src/tool_security.py src/tool_execution.py src/maintenance_output_validator.py routes/diagnostics_routes.py tests/test_secret_safe_diagnostics.py"
+        "python -m pytest -q tests/test_secret_safe_diagnostics.py tests/test_tool_security.py tests/test_maintenance_output_validator.py tests/test_diagnostics_logs.py",
+        "git diff --check -- src/secret_safe_diagnostics.py src/tool_security.py src/tool_execution.py src/maintenance_output_validator.py routes/diagnostics_routes.py tests/test_secret_safe_diagnostics.py tests/test_diagnostics_logs.py"
       ],
       "evidence_required": [
         "no credential value, prefix, suffix, length or hash reaches returned output",
@@ -564,7 +565,7 @@
     },
     {
       "id": "AMH-05-canonical-handoff-and-owner-projection",
-      "execution_status": "partial_hardened_projection_accepted_foreign_integration_blocked",
+      "execution_status": "completed_local_repo_evidence_2026-07-22",
       "mutation_class": "repo_only",
       "priority": "P1",
       "owner": "Alice; Bob for projection code",
