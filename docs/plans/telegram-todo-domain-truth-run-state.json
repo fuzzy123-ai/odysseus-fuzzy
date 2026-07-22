@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 42,
+  "revision": 43,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "queue_scope": "open_work",
   "queue_lane": "OWM-23",
@@ -20,7 +20,7 @@
   },
   "route": {
     "entrypoint": "/abc",
-    "slice_id": "AMH-05-adversarial-projection-hardening-ready",
+    "slice_id": "branch-final-verification",
     "mutation": "safe_offline",
     "selected_skills": ["abc"],
     "model": "surface_default",
@@ -34,40 +34,8 @@
     "temporal_window": "none",
     "positive_path_required": true
   },
-  "active_claims": [
-    {
-      "roadmap": "docs/plans/agent-maintenance-safety-harness-roadmap.json",
-      "slice_id": "AMH-05-adversarial-projection-hardening",
-      "owner": "root acting as Bob",
-      "mutation_class": "repo_only",
-      "allowed_paths": [
-        "src/planning_definition_projection.py",
-        "tests/test_agent_maintenance_handoff.py"
-      ],
-      "coordination_paths": [
-        "docs/plans/agent-maintenance-safety-harness-roadmap.json",
-        "docs/plans/multi-agent-execution-guidance.json",
-        "docs/plans/open-work-completion-master-roadmap.json",
-        "docs/plans/telegram-todo-domain-truth-run-state.json"
-      ],
-      "depends_on": ["AMH-00-roadmap-contract-and-registration"],
-      "tests": [
-        "python -m pytest -q tests/test_agent_maintenance_handoff.py tests/test_planning_definition_projection.py",
-        "python scripts/verify.py --lane guards-only"
-      ],
-      "started_at": "2026-07-22T11:48:00+02:00",
-      "lease_expires_at": "2026-07-22T13:48:00+02:00"
-    }
-  ],
-  "agent_leases": [
-    {
-      "slice_id": "AMH-05-adversarial-projection-hardening",
-      "owner": "root acting as Bob",
-      "acquired_at": "2026-07-22T11:48:00+02:00",
-      "expires_at": "2026-07-22T13:48:00+02:00",
-      "state": "active"
-    }
-  ],
+  "active_claims": [],
+  "agent_leases": [],
   "completed_slices": [
     {
       "slice_id": "TTD-00",
@@ -452,6 +420,26 @@
         "temporal_validated": "na",
         "product_complete": "no"
       }
+    },
+    {
+      "slice_id": "AMH-05-adversarial-projection-hardening",
+      "completed_at": "2026-07-22T11:55:00+02:00",
+      "status": "partial_hardened_accepted_foreign_integration_blocked",
+      "focused_tests": "15 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "integration_tests": "31 passed across hardened maintenance handoff and existing Planning definition projections; 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "Real guards-only lane passed all 3 checks; path-scoped diff check passed",
+      "remaining_blocker": "AMH-05 Planning service, runner and clarification integration still requires a durable foreign-work handoff",
+      "completion": {
+        "implemented": "partial_hardened",
+        "tested": "yes",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
     }
   ],
   "failed_attempts": {
@@ -464,7 +452,8 @@
     "TTD-10": 1,
     "AMH-01": 1,
     "AMH-02-contract-foundation": 3,
-    "AMH-03-verifier-foundation": 1
+    "AMH-03-verifier-foundation": 1,
+    "AMH-05-projection-foundation": 1
   },
   "failed_attempt_classes": {
     "TTD-02": [
@@ -501,12 +490,15 @@
     ],
     "AMH-03-verifier-foundation": [
       "pre_existing_windows_run_focus_dry_run_quote_expectations_recorded_not_modified"
+    ],
+    "AMH-05-projection-foundation": [
+      "safe_claim_identifier_fallback_expectation_corrected"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T11:45:00+02:00",
-  "last_heartbeat_at": "2026-07-22T11:48:00+02:00",
-  "last_reported_revision": 42,
-  "resume_cursor": "AMH-05-adversarial-projection-hardening",
+  "last_durable_progress_at": "2026-07-22T11:55:00+02:00",
+  "last_heartbeat_at": "2026-07-22T11:55:00+02:00",
+  "last_reported_revision": 43,
+  "resume_cursor": "branch-final-verification",
   "pending_user_requests": [],
   "live_go_ledger": [],
   "gate_queue": [
@@ -516,7 +508,7 @@
     "TTD-LIVE-ROLLOVER-SMOKE",
     "TTD-LIVE-HISTORY-RETENTION"
   ],
-  "next_runnable_slices": ["AMH-05-adversarial-projection-hardening"],
+  "next_runnable_slices": ["branch-final-verification"],
   "known_blockers": [
     {
       "id": "AMH-02-FOREIGN-HOTFILE-HANDOFF",

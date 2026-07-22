@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from collections.abc import Iterator, Mapping
 import json
 
 from src.planning_definition_projection import (
     MAINTENANCE_HANDOFF_SCHEMA_ID,
+    MAINTENANCE_HANDOFF_MAX_RECORDS,
     build_agent_maintenance_handoff,
 )
 
@@ -279,3 +281,126 @@ def test_projection_does_not_mutate_any_authority() -> None:
     )
 
     assert (roadmap, state, gates, clarifications, receipt) == before
+
+
+class _ExplodingMapping(Mapping[str, object]):
+    def __getitem__(self, key: str) -> object:
+        raise AssertionError("foreign mapping must not be consumed")
+
+    def __iter__(self) -> Iterator[str]:
+        raise AssertionError("foreign mapping must not be consumed")
+
+    def __len__(self) -> int:
+        raise AssertionError("foreign mapping must not be consumed")
+
+
+class _ExplodingIterable:
+    def __iter__(self):
+        raise AssertionError("foreign iterable must not be consumed")
+
+
+class _ExplodingScalar:
+    def __bool__(self) -> bool:
+        raise AssertionError("foreign scalar truthiness must not run")
+
+    def __str__(self) -> str:
+        raise AssertionError("foreign scalar string conversion must not run")
+
+
+def test_non_json_authorities_fail_closed_without_executing_user_code() -> None:
+    packet = build_agent_maintenance_handoff(
+        roadmap=_ExplodingMapping(),
+        run_state=_ExplodingMapping(),
+        gate_queue=_ExplodingIterable(),
+        clarifications=_ExplodingIterable(),
+        receipt=_ExplodingMapping(),
+    )
+
+    assert packet["status"] == "blocked_conflict"
+    assert set(packet["conflicts"]) >= {
+        "invalid_roadmap_authority",
+        "invalid_run_state_authority",
+        "invalid_authority_record_shape",
+    }
+    assert packet["receipt_reference"]["status"] == "missing"
+
+
+def test_foreign_scalar_values_never_invoke_bool_or_string_conversion() -> None:
+    state = _run_state()
+    state["active_claims"][0]["claim_id"] = _ExplodingScalar()
+    state["active_claims"][0]["state"] = _ExplodingScalar()
+    state["stale"] = _ExplodingScalar()
+    state["known_blockers"] = [
+        {"id": _ExplodingScalar(), "state": _ExplodingScalar()}
+    ]
+
+    packet = build_agent_maintenance_handoff(
+        roadmap=_roadmap(),
+        run_state=state,
+        receipt=_receipt(),
+    )
+
+    assert packet["claim"]["claim_id"] == "amh-05"
+    assert packet["claim"]["state"] == "active"
+    assert packet["blockers"][0]["state"] == "pending"
+
+
+def test_oversized_authority_is_bounded_and_completion_blocking() -> None:
+    gates = [
+        {"gate_id": f"gate-{index:03d}", "state": "pending"}
+        for index in range(MAINTENANCE_HANDOFF_MAX_RECORDS + 1)
+    ]
+
+    packet = build_agent_maintenance_handoff(
+        roadmap=_roadmap(),
+        run_state=_run_state(),
+        gate_queue=gates,
+        receipt=_receipt(
+            not_verified=[
+                f"limit-{index:03d}"
+                for index in range(MAINTENANCE_HANDOFF_MAX_RECORDS + 1)
+            ]
+        ),
+    )
+
+    assert packet["status"] == "blocked_conflict"
+    assert "authority_record_limit_exceeded" in packet["conflicts"]
+    assert len(packet["blockers"]) == MAINTENANCE_HANDOFF_MAX_RECORDS
+    assert len(packet["not_verified"]) == MAINTENANCE_HANDOFF_MAX_RECORDS
+    assert packet["not_verified"][0] == "verification_limit_exceeded"
+
+
+def test_accepted_receipt_without_binding_fields_cannot_imply_verification() -> None:
+    packet = build_agent_maintenance_handoff(
+        roadmap=_roadmap(),
+        run_state=_run_state(),
+        receipt={"status": "accepted"},
+    )
+
+    assert packet["status"] == "blocked_conflict"
+    assert packet["conflicts"] == ["receipt_revision_mismatch"]
+    assert set(packet["not_verified"]) >= {
+        "receipt_diff_digest",
+        "receipt_identity",
+        "receipt_revision",
+    }
+
+
+def test_missing_route_and_malformed_records_are_explicit_conflicts() -> None:
+    state = _run_state()
+    state["route"] = {}
+    state["known_blockers"] = [CANARY]
+
+    packet = build_agent_maintenance_handoff(
+        roadmap=_roadmap(),
+        run_state=state,
+        receipt=_receipt(),
+    )
+
+    assert packet["status"] == "blocked_conflict"
+    assert set(packet["conflicts"]) >= {
+        "invalid_authority_record_shape",
+        "missing_route_slice",
+        "route_claim_mismatch",
+    }
+    assert CANARY not in json.dumps(packet, sort_keys=True)

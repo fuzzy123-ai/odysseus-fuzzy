@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-07-22T11:45:00+02:00",
+  "updated_at": "2026-07-22T11:55:00+02:00",
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
@@ -198,8 +198,8 @@
     {
       "path": "docs/plans/agent-maintenance-safety-harness-roadmap.json",
       "profile": "active_serial",
-      "state": "amh02_hardened_amh03_amh05_foundations_accepted_foreign_handoffs_required",
-      "ai_hint": "The disjoint AMH-02 contract is adversarially hardened and the AMH-03 and AMH-05 foundations are accepted, but each slice remains incomplete on foreign integration paths. The read-only provenance audit found checkpoints and green foreign tests but no released AMH handoff; preserve those paths."
+      "state": "amh02_amh05_hardened_amh03_foundation_accepted_foreign_handoffs_required",
+      "ai_hint": "The disjoint AMH-02 diagnostic and AMH-05 handoff contracts are adversarially hardened and the AMH-03 verifier foundation is accepted, but all three slices remain incomplete on foreign integration paths. The read-only provenance audit found checkpoints and green foreign tests but no released AMH handoff; preserve those paths."
     },
     {
       "path": "docs/plans/agent-browser-sense-roadmap.json",
@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_repo_complete_owm23_amh02_hardened_foreign_handoffs_required",
-      "ai_hint": "This is the current gate authority. AMH-02 is adversarially hardened and AMH-03 plus AMH-05 have accepted foundations, but all three remain integration-incomplete. The provenance audit found no released AMH handoff, so keep foreign paths read-only."
+      "state": "owm22_repo_complete_owm23_amh02_amh05_hardened_foreign_handoffs_required",
+      "ai_hint": "This is the current gate authority. AMH-02 and AMH-05 are adversarially hardened and AMH-03 has an accepted verifier foundation, but all three remain integration-incomplete. The provenance audit found no released AMH handoff, so keep foreign paths read-only."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
