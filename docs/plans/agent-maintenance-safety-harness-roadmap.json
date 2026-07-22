@@ -794,7 +794,7 @@
     },
     {
       "id": "AMH-08-adversarial-and-ci-acceptance",
-      "execution_status": "claimed_implementation_running",
+      "execution_status": "partial_implementation_committed_fast_lane_open",
       "mutation_class": "repo_only",
       "priority": "P0",
       "owner": "Charlie",
@@ -820,9 +820,11 @@
       "claim": {
         "owner": "Charlie",
         "thread_id": "/root/amh07_charlie_review",
-        "state": "claimed_single_writer",
+        "state": "released_after_partial_commit",
         "acquired_at": "2026-07-22T20:39:39+02:00",
-        "lease_expires_at": "2026-07-22T22:39:39+02:00"
+        "lease_expires_at": "2026-07-22T22:39:39+02:00",
+        "released_at": "2026-07-22T22:18:30+02:00",
+        "partial_commit": "8d806627"
       },
       "hotfile_audit": {
         "state": "satisfied_existing_grant_and_clean_isolated_paths",
@@ -845,6 +847,8 @@
         "python scripts/verify.py --lane fast",
         "git diff --check -- tests/test_agent_maintenance_adversarial.py .github/workflows/quality-gate.yml scripts/verify.py"
       ],
+      "partial_local_evidence": "Commit 8d806627 adds the adversarial corpus and a blocking shared guards-only CI job. The new corpus passed 10 tests; the declared four-file focus passed 125 with one host-dependent skip; receipt, handoff and verifier regression passed 49 with one host-dependent skip; and guards-only produced a current dirty-tree PASS receipt before the final timeout experiment was reverted.",
+      "verification_limit": "AMH-08 is not accepted. The canonical fast lane timed out at its fixed 1,200 second bound with all three static checks passed and no reported assertion failure. A later 3,600 second diagnostic run used an unavailable TEMP/TMP target, also timed out, and was reverted; it is not acceptance evidence. Per the owner stop condition, no further long tests were run.",
       "evidence_required": [
         "every seeded unsafe behavior fails for the intended mechanical reason",
         "positive maintenance path reaches a current PASS receipt",

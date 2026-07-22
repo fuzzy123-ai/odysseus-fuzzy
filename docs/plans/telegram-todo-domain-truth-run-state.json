@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 73,
+  "revision": 74,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "heartbeat_status": "paused_update_handler_unavailable_current_surface",
   "queue_scope": "open_work",
@@ -59,31 +59,7 @@
     "temporal_window": "none",
     "positive_path_required": true
   },
-  "active_claims": [
-    {
-      "run_id": "abc-owm22-20260722T065621+0200",
-      "thread_id": "/root/amh07_charlie_review",
-      "slice_id": "AMH-08-adversarial-and-ci-acceptance",
-      "owner": "Charlie",
-      "allowed_paths": [
-        "tests/test_agent_maintenance_adversarial.py",
-        "tests/test_agent_maintenance_completion_gate.py",
-        "tests/test_agent_maintenance_bootstrap.py",
-        "tests/test_secret_safe_diagnostics.py",
-        ".github/workflows/quality-gate.yml",
-        "scripts/verify.py"
-      ],
-      "hotfiles": [
-        ".github/workflows/quality-gate.yml",
-        "scripts/verify.py"
-      ],
-      "state": "claimed",
-      "acquired_at": "2026-07-22T20:39:39+02:00",
-      "lease_expires_at": "2026-07-22T22:39:39+02:00",
-      "handoff_required": false,
-      "handoff_basis": "GO AMH-HANDOFF resolved the pre-existing primary workflow source in AMH-03; all six isolated paths are clean and unclaimed."
-    }
-  ],
+  "active_claims": [],
   "agent_leases": [
     {
       "agent": "/root/amh02_bob",
@@ -133,7 +109,7 @@
       "agent": "/root/amh07_charlie_review",
       "slice_id": "AMH-08-adversarial-and-ci-acceptance",
       "mode": "worker",
-      "state": "claimed",
+      "state": "released_after_partial_commit",
       "allowed_paths": [
         "tests/test_agent_maintenance_adversarial.py",
         "tests/test_agent_maintenance_completion_gate.py",
@@ -143,7 +119,9 @@
         "scripts/verify.py"
       ],
       "acquired_at": "2026-07-22T20:39:39+02:00",
-      "lease_expires_at": "2026-07-22T22:39:39+02:00"
+      "lease_expires_at": "2026-07-22T22:39:39+02:00",
+      "released_at": "2026-07-22T22:18:30+02:00",
+      "partial_commit": "8d806627"
     }
   ],
   "completed_slices": [
@@ -770,9 +748,9 @@
       "forbidden_curl_substring_assertion_made_token_aware"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T20:39:39+02:00",
+  "last_durable_progress_at": "2026-07-22T22:18:30+02:00",
   "last_heartbeat_at": "2026-07-22T19:30:29+02:00",
-  "last_reported_revision": 73,
+  "last_reported_revision": 74,
   "resume_cursor": "AMH-08-adversarial-and-ci-acceptance",
   "pending_user_requests": [],
   "live_go_ledger": [],
@@ -886,6 +864,18 @@
       "required_grant": "GO AMH07-HANDOFF",
       "grant_received": "go",
       "granted_at": "2026-07-22T19:29:30+02:00"
+    },
+    {
+      "id": "AMH-08-FAST-LANE-TIMEOUT",
+      "state": "open_owner_stopped_further_long_tests",
+      "disposition": "partial_implementation_committed_not_accepted",
+      "reason": "Commit 8d806627 contains the green adversarial corpus and blocking guards-only CI job, but the canonical fast lane exceeded its fixed 1,200 second timeout. A diagnostic 3,600 second run used an unavailable TEMP/TMP target and is not acceptance evidence. The owner requested no further token-intensive tests, so AMH-08 remains open and AMH-09 remains dependency-blocked.",
+      "paths": [
+        ".github/workflows/quality-gate.yml",
+        "tests/test_agent_maintenance_adversarial.py",
+        "scripts/verify.py"
+      ],
+      "partial_commit": "8d806627"
     }
   ],
   "foreign_handoff_audit": {
@@ -931,7 +921,7 @@
     }
   },
   "final_queue_audit": {
-    "observed_at": "2026-07-22T20:39:39+02:00",
+    "observed_at": "2026-07-22T22:18:30+02:00",
     "safe_open_count": 0,
     "unclaimable_open_count": 1,
     "unclaimable_slice": "UIX-ABC13",
@@ -940,7 +930,7 @@
     "unique_design_gate_count": 28,
     "other_open_count": 34,
     "queue_exhausted": false,
-    "stop_reason": "AMH-08 is dependency-ready and held by one six-path writer claim; the original unattended deadline elapsed before this interactive continuation, and publication, live and UI design gates remain closed."
+    "stop_reason": "AMH-08 partial implementation is committed and its writer claim is released, but the required fast lane is not green and the owner stopped further long tests. AMH-09 remains dependency-blocked; publication, live and UI design gates remain closed."
   },
   "stop_rules": [
     "stop_on_secret_or_private_content",
