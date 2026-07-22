@@ -703,7 +703,7 @@
     },
     {
       "id": "AMH-07-read-only-session-bootstrap",
-      "execution_status": "blocked_by_foreign_hotfile_handoff",
+      "execution_status": "handoff_granted_claimed_implementation_running",
       "mutation_class": "repo_only",
       "priority": "P1",
       "owner": "Alice; Bob for runtime projection",
@@ -738,10 +738,18 @@
         "git diff --check -- .codex/hooks.json src/agent_loop_prompts.py src/agent_loop_system_prompt.py src/runtime_tool_status.py docs/agent-maintenance-runbook.md tests/test_agent_maintenance_bootstrap.py"
       ],
       "handoff_gate": {
-        "state": "awaiting_user_grant_2026-07-22",
+        "state": "granted_claimed_2026-07-22",
         "reason": "The primary checkout contains uncommitted foreign Pygame/artifact and clarification changes in agent_loop_prompts.py, operator-priority tool-catalog changes in agent_loop_system_prompt.py, a substantial unrelated Descriptor-v2 tool-catalog projection in runtime_tool_status.py, and an ignored existing .codex/hooks.json. AMH-07 requires these exact hook, prompt and runtime hotfiles for dynamic parity, so no disjoint completion-capable subset exists.",
         "required_grant": "GO AMH07-HANDOFF",
         "scope": "Read the four named primary paths, preserve and semantically reconcile all foreign behavior with the AMH-07 read-only bootstrap, test and commit locally in the isolated branch only.",
+        "grant": "User replied go to the explicit GO AMH07-HANDOFF request; repository-only read-only absorption, semantic reconciliation, tests and local commit are authorized while every excluded action remains closed.",
+        "granted_at": "2026-07-22T19:29:30+02:00",
+        "primary_source_hashes": {
+          ".codex/hooks.json": "sha256:6ebf56abe50762b3da36c3adb092e7dd2356e6b06a691b5b4029c81a8ea24228",
+          "src/agent_loop_prompts.py": "sha256:b87f71b74aab8e7840d8a69ec6e6c079b337cea8c259f12cdf6daddd6e658fe9",
+          "src/agent_loop_system_prompt.py": "sha256:aebf53b1c5319aeac39a5948cbd82a1985a9b75ccb74c98221c40258016471cb",
+          "src/runtime_tool_status.py": "sha256:54bc965628e6431c2155a8f1f800c03e9a8f6f4a2dc1d0a08b0b0b254fb9f786"
+        },
         "excluded": [
           "push",
           "deploy",
@@ -956,5 +964,5 @@
       "No commit, push, deploy, live mutation, provider call or external write was performed."
     ]
   },
-  "recommended_next_step": "Obtain GO AMH07-HANDOFF for the four named primary hotfiles. Then read-only absorb and semantically reconcile their foreign behavior in the isolated branch, durably claim the six-path AMH-07 scope, implement the no-install/no-network/no-service-start bootstrap with dynamic internal-agent parity and verify missing, malformed, stale and hook-failure behavior before local acceptance."
+  "recommended_next_step": "Under the granted six-path claim, read-only absorb and semantically reconcile the four hash-pinned primary hotfiles, implement the no-install/no-network/no-service-start bootstrap with dynamic internal-agent parity, preserve the existing PostToolUse hook and all foreign tool-catalog/Pygame/clarification behavior, then verify missing, malformed, stale and hook-failure behavior before local acceptance."
 }

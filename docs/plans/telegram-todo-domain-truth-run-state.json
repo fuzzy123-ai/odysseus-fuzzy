@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 68,
+  "revision": 69,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "heartbeat_status": "paused_update_handler_unavailable_current_surface",
   "queue_scope": "open_work",
@@ -10,7 +10,15 @@
   "queue_path": "docs/plans/agent-maintenance-safety-harness-roadmap.json",
   "started_at": "2026-07-22T06:56:21+02:00",
   "deadline_at": "2026-07-22T18:56:21+02:00",
-  "state": "waiting_on_user_handoff",
+  "state": "running",
+  "supervision": "interactive",
+  "interactive_continuation": {
+    "resumed_at": "2026-07-22T19:29:30+02:00",
+    "trigger": "go in response to GO AMH07-HANDOFF",
+    "original_unattended_deadline_at": "2026-07-22T18:56:21+02:00",
+    "unattended_window_state": "elapsed_before_resume",
+    "deadline_extension_claimed": false
+  },
   "max_parallel_workers": 1,
   "worktree": "C:/tmp/odysseus-abc-ttd-20260722",
   "branch": "codex/abc-ttd-20260722",
@@ -24,15 +32,24 @@
     "slice_id": "AMH-07-read-only-session-bootstrap",
     "mutation": "repo_only",
     "recommended": {
-      "skills": [{"id": "abc", "purpose": "orchestration, claims, gates and acceptance"}],
+      "skills": [
+        {"id": "abc", "purpose": "orchestration, claims, gates and acceptance"},
+        {"id": "openai-docs", "purpose": "current official Codex SessionStart hook contract"}
+      ],
       "model": {"tier": "high", "preferred": "gpt-5.6-sol", "reason": "read-only session bootstrap spans hook, prompt and runtime projections and must remain fail-closed"}
     },
     "selected": {
-      "skills": [{"id": "abc", "purpose": "orchestration, claims, gates and acceptance"}],
+      "skills": [
+        {"id": "abc", "purpose": "orchestration, claims, gates and acceptance"},
+        {"id": "openai-docs", "purpose": "current official Codex SessionStart hook contract"}
+      ],
       "model": {"value": "surface_default", "reason": "root integration surface"}
     },
     "actual": {
-      "skills": [{"id": "abc", "status": "loaded_used"}],
+      "skills": [
+        {"id": "abc", "status": "loaded_used"},
+        {"id": "openai-docs", "status": "loaded_used"}
+      ],
       "model": {"value": "surface_default", "evidence": "root surface"}
     },
     "fallback": "native_tools"
@@ -45,7 +62,38 @@
     "temporal_window": "none",
     "positive_path_required": true
   },
-  "active_claims": [],
+  "active_claims": [
+    {
+      "run_id": "abc-owm22-20260722T065621+0200",
+      "thread_id": "/root/amh07_bob",
+      "slice_id": "AMH-07-read-only-session-bootstrap",
+      "owner": "Bob",
+      "allowed_paths": [
+        ".codex/hooks.json",
+        "src/agent_loop_prompts.py",
+        "src/agent_loop_system_prompt.py",
+        "src/runtime_tool_status.py",
+        "docs/agent-maintenance-runbook.md",
+        "tests/test_agent_maintenance_bootstrap.py"
+      ],
+      "hotfiles": [
+        ".codex/hooks.json",
+        "src/agent_loop_prompts.py",
+        "src/agent_loop_system_prompt.py",
+        "src/runtime_tool_status.py"
+      ],
+      "state": "claimed",
+      "acquired_at": "2026-07-22T19:30:29+02:00",
+      "lease_expires_at": "2026-07-22T21:30:29+02:00",
+      "handoff_required": true,
+      "primary_source_hashes": {
+        ".codex/hooks.json": "sha256:6ebf56abe50762b3da36c3adb092e7dd2356e6b06a691b5b4029c81a8ea24228",
+        "src/agent_loop_prompts.py": "sha256:b87f71b74aab8e7840d8a69ec6e6c079b337cea8c259f12cdf6daddd6e658fe9",
+        "src/agent_loop_system_prompt.py": "sha256:aebf53b1c5319aeac39a5948cbd82a1985a9b75ccb74c98221c40258016471cb",
+        "src/runtime_tool_status.py": "sha256:54bc965628e6431c2155a8f1f800c03e9a8f6f4a2dc1d0a08b0b0b254fb9f786"
+      }
+    }
+  ],
   "agent_leases": [
     {
       "agent": "/root/amh02_bob",
@@ -72,6 +120,22 @@
       "lease_expires_at": "2026-07-22T17:15:00+02:00",
       "released_at": "2026-07-22T17:27:30+02:00",
       "completion_commit": "9bbcf849cf246290e79839131bc16d49a653e04d"
+    },
+    {
+      "agent": "/root/amh07_bob",
+      "slice_id": "AMH-07-read-only-session-bootstrap",
+      "mode": "worker",
+      "state": "claimed",
+      "allowed_paths": [
+        ".codex/hooks.json",
+        "src/agent_loop_prompts.py",
+        "src/agent_loop_system_prompt.py",
+        "src/runtime_tool_status.py",
+        "docs/agent-maintenance-runbook.md",
+        "tests/test_agent_maintenance_bootstrap.py"
+      ],
+      "acquired_at": "2026-07-22T19:30:29+02:00",
+      "lease_expires_at": "2026-07-22T21:30:29+02:00"
     }
   ],
   "completed_slices": [
@@ -672,18 +736,11 @@
       "safe_claim_identifier_fallback_expectation_corrected"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T17:41:23+02:00",
-  "last_heartbeat_at": "2026-07-22T17:41:23+02:00",
-  "last_reported_revision": 68,
+  "last_durable_progress_at": "2026-07-22T19:30:29+02:00",
+  "last_heartbeat_at": "2026-07-22T19:30:29+02:00",
+  "last_reported_revision": 69,
   "resume_cursor": "AMH-07-read-only-session-bootstrap",
-  "pending_user_requests": [
-    {
-      "id": "AMH-07-FOREIGN-HOTFILE-HANDOFF",
-      "requested_at": "2026-07-22T17:32:24+02:00",
-      "required_reply": "GO AMH07-HANDOFF",
-      "reason": "AMH-07 cannot safely edit its hook, prompt and runtime hotfiles until the uncommitted primary content is explicitly released for read-only absorption and semantic reconciliation in the isolated branch. src/agent_loop_system_prompt.py was added to roadmap scope because dynamic internal-agent parity cannot be proved through the cached base prompt alone; it also contains foreign operator-priority changes and is included in the same handoff request."
-    }
-  ],
+  "pending_user_requests": [],
   "live_go_ledger": [],
   "gate_queue": [
     "TTD-LIVE-DEPLOY",
@@ -781,15 +838,17 @@
     },
     {
       "id": "AMH-07-FOREIGN-HOTFILE-HANDOFF",
-      "state": "waiting_on_user_grant",
-      "reason": "The primary checkout has uncommitted foreign Pygame/artifact and clarification changes in agent_loop_prompts.py, operator-priority tool-catalog changes in agent_loop_system_prompt.py, unrelated Descriptor-v2 tool-catalog work in runtime_tool_status.py, and an ignored existing .codex/hooks.json. AMH-07 needs all four surfaces and has no disjoint completion-capable subset; read-only design review proved that agent_loop_system_prompt.py is required because cached base prompts cannot provide current dynamic internal-agent parity.",
+      "state": "handoff_granted_claimed_integration_running",
+      "reason": "The user replied go to the explicit GO AMH07-HANDOFF request. The four hash-pinned primary paths may now be read-only absorbed and semantically reconciled in the isolated branch under the six-path writer claim.",
       "paths": [
         ".codex/hooks.json",
         "src/agent_loop_prompts.py",
         "src/agent_loop_system_prompt.py",
         "src/runtime_tool_status.py"
       ],
-      "required_grant": "GO AMH07-HANDOFF"
+      "required_grant": "GO AMH07-HANDOFF",
+      "grant_received": "go",
+      "granted_at": "2026-07-22T19:29:30+02:00"
     }
   ],
   "foreign_handoff_audit": {
@@ -820,10 +879,22 @@
       "granted_at": "2026-07-22T15:12:00+02:00",
       "scope": "Read the six named dirty AMH-06 primary paths, semantically reconcile them with all eleven roadmap paths, test and commit locally in the isolated branch only.",
       "excluded": ["push", "deploy", "live_access", "primary_checkout_mutation", "destructive_git"]
+    },
+    "amh07_handoff_authorization": {
+      "grant": "go in response to GO AMH07-HANDOFF",
+      "granted_at": "2026-07-22T19:29:30+02:00",
+      "scope": "Read the four hash-pinned dirty or ignored AMH-07 primary paths, preserve and semantically reconcile them with the six roadmap paths, test and commit locally in the isolated branch only.",
+      "primary_source_hashes": {
+        ".codex/hooks.json": "sha256:6ebf56abe50762b3da36c3adb092e7dd2356e6b06a691b5b4029c81a8ea24228",
+        "src/agent_loop_prompts.py": "sha256:b87f71b74aab8e7840d8a69ec6e6c079b337cea8c259f12cdf6daddd6e658fe9",
+        "src/agent_loop_system_prompt.py": "sha256:aebf53b1c5319aeac39a5948cbd82a1985a9b75ccb74c98221c40258016471cb",
+        "src/runtime_tool_status.py": "sha256:54bc965628e6431c2155a8f1f800c03e9a8f6f4a2dc1d0a08b0b0b254fb9f786"
+      },
+      "excluded": ["push", "deploy", "live_access", "primary_checkout_mutation", "destructive_git"]
     }
   },
   "final_queue_audit": {
-    "observed_at": "2026-07-22T17:41:23+02:00",
+    "observed_at": "2026-07-22T19:30:29+02:00",
     "safe_open_count": 0,
     "unclaimable_open_count": 1,
     "unclaimable_slice": "UIX-ABC13",
@@ -832,13 +903,13 @@
     "unique_design_gate_count": 28,
     "other_open_count": 34,
     "queue_exhausted": false,
-    "stop_reason": "AMH-06 is locally accepted and its claim released. AMH-07 is dependency-ready but unclaimable until GO AMH07-HANDOFF releases its four foreign primary hotfiles for isolated semantic reconciliation; publication, live and UI design gates remain closed."
+    "stop_reason": "The AMH-07 handoff is granted and one six-path writer claim is active; the original unattended deadline elapsed before this interactive continuation, and publication, live and UI design gates remain closed."
   },
   "stop_rules": [
     "stop_on_secret_or_private_content",
     "stop_on_overlapping_writer_or_foreign_staged_file",
     "stop_before_live_mutation_without_action_specific_go",
     "stop_on_data_loss_or_destructive_git",
-    "stop_at_deadline_or_when_no_safe_frontier_remains"
+    "stop_at_deadline_during_unattended_mode_or_when_no_safe_frontier_remains"
   ]
 }
