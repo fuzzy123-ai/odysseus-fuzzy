@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 62,
+  "revision": 63,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "heartbeat_status": "paused_update_handler_unavailable_current_surface",
   "queue_scope": "open_work",
@@ -62,7 +62,8 @@
         "tests/test_agent_maintenance_completion_gate.py",
         "tests/test_repo_commit_runner.py",
         "tests/test_repo_push_runner.py",
-        "tests/test_live_quality_gate_command_runner.py"
+        "tests/test_live_quality_gate_command_runner.py",
+        "tests/test_server_project_runner.py"
       ],
       "hotfiles": [
         "src/claim_evidence_gate.py",
@@ -72,7 +73,7 @@
       ],
       "state": "claimed",
       "acquired_at": "2026-07-22T15:13:00+02:00",
-      "lease_expires_at": "2026-07-22T16:13:00+02:00",
+      "lease_expires_at": "2026-07-22T16:43:00+02:00",
       "handoff_required": true
     }
   ],
@@ -93,10 +94,11 @@
         "tests/test_agent_maintenance_completion_gate.py",
         "tests/test_repo_commit_runner.py",
         "tests/test_repo_push_runner.py",
-        "tests/test_live_quality_gate_command_runner.py"
+        "tests/test_live_quality_gate_command_runner.py",
+        "tests/test_server_project_runner.py"
       ],
       "acquired_at": "2026-07-22T15:13:00+02:00",
-      "lease_expires_at": "2026-07-22T16:13:00+02:00"
+      "lease_expires_at": "2026-07-22T16:43:00+02:00"
     }
   ],
   "completed_slices": [
@@ -677,9 +679,9 @@
       "safe_claim_identifier_fallback_expectation_corrected"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T15:13:00+02:00",
+  "last_durable_progress_at": "2026-07-22T15:43:00+02:00",
   "last_heartbeat_at": "2026-07-22T15:13:00+02:00",
-  "last_reported_revision": 62,
+  "last_reported_revision": 63,
   "resume_cursor": "AMH-06-enforced-completion-and-git-rails",
   "pending_user_requests": [],
   "live_go_ledger": [],

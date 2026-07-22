@@ -647,7 +647,8 @@
         "tests/test_agent_maintenance_completion_gate.py",
         "tests/test_repo_commit_runner.py",
         "tests/test_repo_push_runner.py",
-        "tests/test_live_quality_gate_command_runner.py"
+        "tests/test_live_quality_gate_command_runner.py",
+        "tests/test_server_project_runner.py"
       ],
       "hotfiles": [
         "src/claim_evidence_gate.py",
@@ -665,8 +666,8 @@
         "negative bypass tests"
       ],
       "tests": [
-        "python -m pytest -q tests/test_agent_maintenance_completion_gate.py tests/test_repo_commit_runner.py tests/test_repo_push_runner.py tests/test_live_quality_gate_command_runner.py",
-        "git diff --check -- src/claim_evidence_gate.py src/repo_remote_policy.py src/repo_commit_runner.py src/repo_push_runner.py src/live_quality_gate_command_runner.py src/server_project_runner.py src/effectful_tool_matrix.py tests/test_agent_maintenance_completion_gate.py"
+        "python -m pytest -q tests/test_agent_maintenance_completion_gate.py tests/test_repo_commit_runner.py tests/test_repo_push_runner.py tests/test_live_quality_gate_command_runner.py tests/test_server_project_runner.py",
+        "git diff --check -- src/claim_evidence_gate.py src/repo_remote_policy.py src/repo_commit_runner.py src/repo_push_runner.py src/live_quality_gate_command_runner.py src/server_project_runner.py src/effectful_tool_matrix.py tests/test_agent_maintenance_completion_gate.py tests/test_repo_commit_runner.py tests/test_repo_push_runner.py tests/test_live_quality_gate_command_runner.py tests/test_server_project_runner.py"
       ],
       "handoff_gate": {
         "state": "granted_claimed_2026-07-22",
