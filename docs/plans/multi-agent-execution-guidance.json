@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-07-22T11:11:00+02:00",
+  "updated_at": "2026-07-22T11:20:00+02:00",
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
@@ -198,8 +198,8 @@
     {
       "path": "docs/plans/agent-maintenance-safety-harness-roadmap.json",
       "profile": "active_serial",
-      "state": "amh03_verifier_foundation_accepted_workflow_integration_blocked",
-      "ai_hint": "The disjoint AMH-03 verifier, tests and documentation are accepted. Both workflow files contain foreign work; preserve them, keep AMH-03 incomplete, and perform no push, deploy or live action."
+      "state": "amh02_amh03_amh05_foundations_accepted_foreign_handoffs_required",
+      "ai_hint": "The disjoint AMH-02, AMH-03 and AMH-05 foundations are accepted, but each slice remains incomplete on foreign integration paths. Preserve them and perform a read-only provenance audit before any merge."
     },
     {
       "path": "docs/plans/agent-browser-sense-roadmap.json",
@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_repo_complete_owm23_amh03_partial_accepted_amh05_disjoint_ready",
-      "ai_hint": "This is the current gate authority. AMH-03 has an accepted verifier foundation but remains incomplete on foreign workflow files. A minimum disjoint AMH-05 projection foundation may proceed; dependent slices stay blocked."
+      "state": "owm22_repo_complete_owm23_foreign_handoff_provenance_audit",
+      "ai_hint": "This is the current gate authority. AMH-02, AMH-03 and AMH-05 have accepted foundations but remain incomplete. Keep all foreign paths read-only and audit durable claim, commit and reflog provenance before considering a scoped handoff."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",

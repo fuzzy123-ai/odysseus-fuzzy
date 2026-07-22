@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 37,
+  "revision": 39,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "queue_scope": "open_work",
   "queue_lane": "OWM-23",
@@ -20,7 +20,7 @@
   },
   "route": {
     "entrypoint": "/abc",
-    "slice_id": "AMH-05-disjoint-foundation-ready",
+    "slice_id": "foreign-handoff-provenance-audit",
     "mutation": "safe_offline",
     "selected_skills": ["abc"],
     "model": "surface_default",
@@ -352,11 +352,31 @@
       "completion": {
         "implemented": "partial",
         "tested": "partial_foundation",
-        "committed": "no",
+        "committed": "16748201",
         "pushed": "no",
         "deployed": "no",
         "live_validated": "na",
         "visual_validated": "availability_contract_only",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-05-projection-foundation",
+      "completed_at": "2026-07-22T11:20:00+02:00",
+      "status": "partial_accepted_foreign_integration_blocked",
+      "focused_tests": "10 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "integration_tests": "26 passed across maintenance handoff and existing Planning definition projections; 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "Real guards-only lane passed all 3 checks; primary collision check remained clean on claimed paths",
+      "remaining_blocker": "AMH-05 Planning service, runner and clarification integration requires a durable foreign-work handoff",
+      "completion": {
+        "implemented": "partial",
+        "tested": "partial_foundation",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
         "temporal_validated": "na",
         "product_complete": "no"
       }
@@ -410,10 +430,10 @@
       "pre_existing_windows_run_focus_dry_run_quote_expectations_recorded_not_modified"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T11:11:00+02:00",
-  "last_heartbeat_at": "2026-07-22T11:11:00+02:00",
-  "last_reported_revision": 37,
-  "resume_cursor": "AMH-05-canonical-handoff-and-owner-projection",
+  "last_durable_progress_at": "2026-07-22T11:20:00+02:00",
+  "last_heartbeat_at": "2026-07-22T11:20:00+02:00",
+  "last_reported_revision": 39,
+  "resume_cursor": "foreign-handoff-provenance-audit",
   "pending_user_requests": [],
   "live_go_ledger": [],
   "gate_queue": [
@@ -423,7 +443,7 @@
     "TTD-LIVE-ROLLOVER-SMOKE",
     "TTD-LIVE-HISTORY-RETENTION"
   ],
-  "next_runnable_slices": ["AMH-05-canonical-handoff-and-owner-projection-disjoint-foundation"],
+  "next_runnable_slices": ["foreign-handoff-provenance-audit"],
   "known_blockers": [
     {
       "id": "AMH-02-FOREIGN-HOTFILE-HANDOFF",
