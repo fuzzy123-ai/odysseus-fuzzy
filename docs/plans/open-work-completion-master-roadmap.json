@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-22T10:08:00+02:00",
-  "status": "active_owm22_ttd09_complete_ttd10_preflight_live_default_off",
+  "updated_at": "2026-07-22T10:21:00+02:00",
+  "status": "active_owm22_repo_complete_live_gated_post_audit_ready",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Implementiere OWM-22 Telegram Todo Domain Truth repo-only; beginne mit TTD-00 und halte alle Live-Aktionen default-off.",
   "goal": "Complete the dependency-ready OWM-22 repository queue with Notes as canonical Todo truth, semantic receipts and synthetic evidence while keeping deploy, production data repair, Telegram send and productive session rollover behind separate live gates.",
@@ -13,13 +13,13 @@
     "unique_live_gates": 40,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "owm22_ttd00_through_ttd09_complete_ttd10_preflight_ready",
+    "queue_status": "owm22_ttd00_through_ttd10_repo_complete_live_actions_gated",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd09_accepted_ttd10_preflight_ready_live_actions_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
@@ -976,6 +976,54 @@
         "private_content_persisted": false
       },
       "done_when": "One deterministic offline command executes every redacted incident case, plural or counted success claims require enough unique canonical postconditions, and no model, network, real Telegram data or production store is reachable by the suite."
+    },
+    {
+      "id": "TTD-10-rollout-rollback-live-gate-packet",
+      "roadmap_slice_id": "TTD-10",
+      "title": "Telegram Todo Rollout, Rollback And Independent Live Gates",
+      "class": "repo_only",
+      "owner": "root acting as Charlie",
+      "status": "completed_2026-07-22_live_default_off",
+      "claimable": false,
+      "depends_on": [
+        "TTD-09-incident-regression-suite"
+      ],
+      "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "allowed_paths": [
+        "src/telegram_todo_rollout_packet.py",
+        "scripts/build_telegram_todo_rollout_packet.py",
+        "tests/test_telegram_todo_rollout_packet.py",
+        "docs/plans/telegram-todo-rollout-rollback-runbook.md",
+        "docs/plans/telegram-todo-domain-truth-roadmap.md",
+        "docs/plans/telegram-todo-domain-truth-run-state.json",
+        "docs/plans/open-work-completion-master-roadmap.json"
+      ],
+      "hotfile_disposition": {
+        "preserved_primary_checkout": "all foreign roadmap, master, claim-gate and Telegram test changes remain untouched",
+        "isolated_worktree": "serial single-writer; new packet, renderer, test and runbook paths plus durable docs only"
+      },
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_telegram_todo_rollout_packet.py",
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_telegram_todo_rollout_packet.py tests\\test_telegram_todo_incident_regression.py tests\\test_todo_domain_service.py tests\\test_todo_intent_routing.py tests\\test_manage_memory_domain_gate.py tests\\test_manage_todos.py tests\\test_todo_claim_evidence.py tests\\test_todo_digest.py tests\\test_todo_digest_receipts.py tests\\test_claim_evidence_gate.py tests\\test_telegram_todo_truth.py tests\\test_telegram_truth_gate.py tests\\test_telegram_truth_runtime.py tests\\test_telegram_context_policy.py tests\\test_telegram_session_rollover.py tests\\test_telegram_history_privacy.py tests\\test_telegram_text_boundary.py tests\\test_telegram_plugin.py tests\\test_telegram_route_contract.py tests\\test_telegram_webhook_service.py tests\\test_telegram_control_service.py tests\\test_odysseus_updater_plan.py tests\\test_odysseus_updater_backup_gate.py tests\\test_odysseus_updater_command_plan.py tests\\test_orchestration_operator_activation_packet.py -k \"not test_webhook_rejects_malformed_update_without_raw_payload_leak\""
+      ],
+      "forbidden_actions": [
+        "no deploy, backup, restore, data repair, Telegram send or productive rollover",
+        "no host, network, provider, production store, token, direct chat id or private Todo value",
+        "no gate implication, automatic rollback or execution path in the packet renderer"
+      ],
+      "evidence": {
+        "focused": "14 passed",
+        "integrated": "324 passed, 1 intentionally deselected foreign superseded mixed-store assertion, 1 pre-existing SQLAlchemy deprecation warning",
+        "input_boundary": "exact distinct 40-character commits and versioned content-free refs only; hosts, paths, secrets, unknown and duplicate evidence keys fail closed",
+        "gate_isolation": "four distinct exact go phrases, prerequisite sets, abort criteria and evidence contracts; implied_gate_ids empty",
+        "execution_boundary": "all actions remain missing_action_specific_go, blocked and execution_supported=false even when synthetic prerequisites are ready",
+        "rollback": "code-only and data-only rollback are explicit, independent and non-automatic; smoke cleanup and rollover recovery stay scope bounded",
+        "dry_run": "stdout-only candidate packet made only deploy ready_for_separate_go while every action remained authorization and execution blocked",
+        "static": "AST 3 files, JSON, diff, queue and TAX0 79/84/85 passed",
+        "live_actions": false,
+        "private_content_persisted": false
+      },
+      "done_when": "An operator can render a content-free non-executable packet for an exact build and rollback commit, review four independently gated actions, and see that readiness never becomes authorization or execution without an action-specific live go."
     },
     {
       "id": "OWM-0-masterroadmap-artifact",
@@ -2170,7 +2218,7 @@
     }
   ],
   "recommended_execution_order": [
-    "OWM-22 TTD-10 preflight: prepare exact build, health, rollback and four separately gated live-action packets without executing deployment, data repair, Telegram send or productive rollover.",
+    "OWM-22 post-completion audit: verify TTD-00 through TTD-10 commits, queue/runstate consistency and remaining live gates, then route only a dependency-ready repo-only frontier.",
     "P0 Roadmap Truth: reconcile and commit only the identified UIX-ABC12-24 docs plus the canonical UIX/TAX/TUA queue and its missing detail-roadmap sources.",
     "P1 UIX-ABC13: first product priority, but do not claim it until the exact product-semantics confirmation is recorded.",
     "P2 safe default while UIX-ABC13 waits: execute TAX0, then TAX1, then TUA0 only after direct dependency evidence; continue only the next dependency-ready repo-only detail-roadmap slice.",

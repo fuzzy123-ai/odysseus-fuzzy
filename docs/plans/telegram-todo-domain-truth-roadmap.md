@@ -1142,6 +1142,46 @@ Acceptance evidence 2026-07-22:
 
 Owner: Charlie
 
+Status: `accepted_local_repo_evidence_2026-07-22`
+
+Durable claim:
+
+```yaml
+claim:
+  run_id: abc-owm22-20260722T065621+0200
+  thread_id: 019f8625-35f5-7d90-9b5c-8b0724bc5f50
+  slice_id: TTD-10
+  owner: root acting as Charlie
+  state: released
+  acquired_at: 2026-07-22T10:14:00+02:00
+  lease_expires_at: 2026-07-22T11:14:00+02:00
+  released_at: 2026-07-22T10:21:00+02:00
+  allowed_paths:
+    - src/telegram_todo_rollout_packet.py
+    - scripts/build_telegram_todo_rollout_packet.py
+    - tests/test_telegram_todo_rollout_packet.py
+    - docs/plans/telegram-todo-rollout-rollback-runbook.md
+    - docs/plans/telegram-todo-domain-truth-roadmap.md
+    - docs/plans/telegram-todo-domain-truth-run-state.json
+    - docs/plans/open-work-completion-master-roadmap.json
+  hotfile_disposition:
+    preserved_primary_checkout: all foreign roadmap, master, claim-gate and Telegram test changes remain untouched
+    isolated_worktree: serial single-writer; new rollout packet paths plus durable docs only
+  handoff_required: false
+```
+
+Preflight 2026-07-22:
+
+- Bestehende Updater- und Activation-Modelle bestaetigen das repo-only Muster:
+  Plan-/Readiness-Daten sind erlaubt, echte Git-/Backup-/Podman-/Host-Ausfuehrung
+  bleibt Operator- und Live-Gate-Sache. TTD-10 baut deshalb keinen Executor.
+- Das neue Paket akzeptiert nur exakte 40-stellige Commit-IDs und contentfreie
+  Evidence-Refs. Es kann `ready_for_separate_go` melden, setzt aber jede Aktion
+  weiterhin auf `execution_state=blocked` und `authorization=missing`.
+- Deploy, Datenreparatur, Telegram-Smoke und Rollover erhalten getrennte
+  Voraussetzungen, Abortkriterien, Evidenz und Rollback. Kein Gate impliziert
+  ein anderes; Code- und Datenrollback bleiben unabhaengig.
+
 Ziel:
 
 - Exakten Commit/Build, Daten-Preview, Rollback, Healthcheck und vier getrennte
@@ -1169,6 +1209,31 @@ Akzeptanz:
   Rollover-Validierung werden getrennt berichtet.
 - Rollback stellt Code und Daten unabhaengig wieder her.
 - Private Texte, IDs und Tokens erscheinen nicht in Roadmap oder Handoff.
+
+Acceptance evidence 2026-07-22:
+
+- Das neue Paketmodell akzeptiert nur exakte 40-stellige Build-/Rollback-
+  Commits, verschiedene Refs und versionierte contentfreie Evidence-Refs.
+  Hostnamen, URLs, Pfade, Secrets, unbekannte Evidence-Keys und semantische
+  Key-Duplikate werden fail-safe abgelehnt.
+- Alle vier Aktionen besitzen eigene Voraussetzungen, exakte GO-Phrasen,
+  Abortkriterien, Erfolgs-Evidence und nicht-automatische Rollback-Schritte.
+  `implied_gate_ids` bleibt leer; Code-Rollback restauriert keine Daten und
+  Daten-Rollback aendert keinen Code.
+- Selbst bei vollstaendig synthetisch gruenen Voraussetzungen bleiben
+  `authorization_state=missing_action_specific_go`, `execution_state=blocked`
+  und `execution_supported=false`. Der Renderer besitzt keinen Executor, schreibt
+  keine Datei und funktioniert als direktes Script auch ausserhalb des Repos.
+- Fokus: `14 passed`. Breite Integration mit Todo-/Telegram-Vertraegen sowie
+  bestehenden Updater-, Backup-, Command-Plan- und Activation-Paketen:
+  `324 passed, 1 deselected` plus eine bestehende SQLAlchemy-Warnung. Die
+  Deselektion ist unveraendert die fremde TTD-08-Mixed-Store-Assertion.
+- Ein contentfreier Kandidaten-Dry-run meldet nur `TTD-LIVE-DEPLOY` als
+  `ready_for_separate_go`; alle vier Aktionen bleiben autorisierungsseitig
+  blockiert, die drei anderen zusaetzlich wegen fehlender Live-Evidence.
+- Write-free AST (drei Dateien), JSON-, Diff-, Queue- und TAX0-Registry-Audit
+  (`79/84/85`) sind gruen. Kein Deploy, Datenzugriff, Backup, Telegram-Send,
+  Rollover, Host-, Netzwerk- oder Provider-Aufruf wurde ausgefuehrt.
 
 ## Fokus-Tests fuer spaetere Implementierung
 
