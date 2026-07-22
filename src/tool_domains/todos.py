@@ -16,6 +16,7 @@ from src.todo_domain_service import (
     make_list_ref,
 )
 from src.todo_intent import normalize_todo_match_text
+from src.todo_digest_receipts import todo_digest_receipts_from_postconditions
 from src.todo_receipts import todo_receipts_from_tool_result
 from src.tool_domains.common import _parse_tool_args
 
@@ -34,9 +35,40 @@ def _error(message: str, *, status: str = "rejected", **extra) -> Dict:
     }
 
 
-def _with_receipts(result: Dict) -> Dict:
+def _with_receipts(result: Dict, *, owner: str) -> Dict:
     receipts = todo_receipts_from_tool_result(result)
     result["todo_receipts"] = [receipt.to_dict() for receipt in receipts]
+    digest_receipts = ()
+    if (
+        result.get("exit_code") in (0, "0", None)
+        and result.get("action") in {"add", "complete", "reopen", "remove"}
+        and result.get("list_ref")
+        and result.get("item_ref")
+    ):
+        try:
+            from src.builtin_actions import build_todo_digest_item_postcondition
+            from src.calendar_capability_service import build_todo_digest_schedule_postcondition
+
+            projection = build_todo_digest_item_postcondition(
+                owner=owner,
+                list_ref=result["list_ref"],
+                item_ref=result["item_ref"],
+                current_state=result.get("current_state") or {},
+                session_factory=_SESSION_FACTORY,
+            )
+            schedule = build_todo_digest_schedule_postcondition(
+                owner=owner,
+                session_factory=_SESSION_FACTORY,
+            )
+            digest_receipts = todo_digest_receipts_from_postconditions(
+                projection,
+                schedule,
+            )
+        except Exception:
+            # The Todo mutation receipt remains authoritative. Digest claims
+            # fail closed when the independent read-only projection is absent.
+            digest_receipts = ()
+    result["todo_digest_receipts"] = [receipt.to_dict() for receipt in digest_receipts]
     return result
 
 
@@ -211,7 +243,7 @@ async def do_manage_todos(content: str, owner: Optional[str] = None) -> Dict:
                 "list_count": len(snapshots),
                 "open_count": sum(snapshot.open_count for snapshot in snapshots),
                 "exit_code": 0,
-            })
+            }, owner=owner)
 
         idempotency_key = args.get("idempotency_key")
         if not isinstance(idempotency_key, str) or not idempotency_key.strip():
@@ -274,7 +306,7 @@ async def do_manage_todos(content: str, owner: Optional[str] = None) -> Dict:
         )
         if result["exit_code"]:
             result["error"] = f"Todo mutation {outcome.transaction_status}; no success claim is allowed"
-        return _with_receipts(result)
+        return _with_receipts(result, owner=owner)
     except TodoDomainError as exc:
         return _error(str(exc))
 

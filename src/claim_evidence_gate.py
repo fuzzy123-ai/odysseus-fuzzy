@@ -8,6 +8,10 @@ import re
 from typing import Any, Iterable, Mapping
 
 from src.tool_transaction_ledger import transaction_evidence_for_claim, transactions_from_tool_events
+from src.todo_digest_receipts import (
+    todo_digest_evidence_for_claim,
+    todo_digest_receipts_from_tool_events,
+)
 from src.todo_receipts import (
     todo_receipt_evidence_for_claim,
     todo_receipts_from_tool_events,
@@ -107,6 +111,22 @@ _TODO_CLAIM_PATTERNS = (
         ),
     ),
 )
+_TODO_DIGEST_CONTAINS_RE = re.compile(
+    r"\b(?:todo|to-do|aufgabe)\b.{0,80}(?:(?:erscheint|auftaucht|appears).{0,56}\b(?:digest|zusammenfassung)\b|\b(?:digest|zusammenfassung)\b.{0,40}\b(?:enthalten|included)\b)",
+    re.IGNORECASE,
+)
+_TODO_DIGEST_EXCLUDES_RE = re.compile(
+    r"\b(?:todo|to-do|aufgabe)\b.{0,80}(?:(?:nicht\s+mehr|no\s+longer|excluded).{0,56}\b(?:digest|zusammenfassung)\b|\b(?:digest|zusammenfassung)\b.{0,40}\b(?:nicht\s+(?:mehr\s+)?enthalten|excluded)\b)",
+    re.IGNORECASE,
+)
+_TODO_DIGEST_UNVERIFIED_RE = re.compile(
+    r"\b(?:nicht\s+verifiziert|unverified|nicht\s+sicher|cannot\s+verify|can't\s+verify)\b",
+    re.IGNORECASE,
+)
+_TODO_DIGEST_TIMING_RE = re.compile(
+    r"\b(?:morgen|tomorrow|naechst(?:e|en|er|es)?|n(?:ae|ä)chste(?:n|r|s)?|next|um\s+[0-2]?\d(?::[0-5]\d)?|at\s+[0-2]?\d(?::[0-5]\d)?)\b",
+    re.IGNORECASE,
+)
 _NEGATED_CLAIM_PREFIX_RE = re.compile(
     r"\b(?:not|never|no|cannot|can't|couldn't|didn't|nicht|nie|konnte\s+nicht|kein(?:e|en|em|er|es)?|unverified|unavailable|nicht\s+verifiziert)\b.{0,36}$",
     re.IGNORECASE,
@@ -179,6 +199,7 @@ def evaluate_response_claims(
         transactions = tuple(item.to_dict() for item in transactions_from_tool_events(events, surface="claim_evidence"))
     root = Path(repo_root or Path.cwd()).resolve()
     todo_receipts = todo_receipts_from_tool_events(events)
+    todo_digest_receipts = todo_digest_receipts_from_tool_events(events)
     findings: list[ClaimEvidenceFinding] = []
 
     if not text.strip():
@@ -257,6 +278,68 @@ def evaluate_response_claims(
                     "Todo claim has a matching verified semantic receipt"
                     if evidence
                     else "Todo claim has no matching verified semantic receipt"
+                ),
+                evidence,
+            )
+        )
+
+    digest_claim_found = False
+    excludes_match = _TODO_DIGEST_EXCLUDES_RE.search(text)
+    if excludes_match:
+        prefix = text[max(0, excludes_match.start() - 48) : excludes_match.start()]
+        if (
+            not _NEGATED_CLAIM_PREFIX_RE.search(prefix)
+            and not _TODO_DIGEST_UNVERIFIED_RE.search(excludes_match.group(0))
+        ):
+            digest_claim_found = True
+            evidence = todo_digest_evidence_for_claim(
+                todo_digest_receipts,
+                "todo_digest_excludes",
+            )
+            findings.append(
+                ClaimEvidenceFinding(
+                    "todo_digest_excludes",
+                    "supported" if evidence else "unsupported",
+                    (
+                        "Todo digest exclusion has a matching read-only projection receipt"
+                        if evidence
+                        else "Todo digest exclusion has no matching read-only projection receipt"
+                    ),
+                    evidence,
+                )
+            )
+    elif _has_positive_claim(_TODO_DIGEST_CONTAINS_RE, text):
+        digest_claim_found = True
+        evidence = todo_digest_evidence_for_claim(
+            todo_digest_receipts,
+            "todo_digest_contains",
+        )
+        findings.append(
+            ClaimEvidenceFinding(
+                "todo_digest_contains",
+                "supported" if evidence else "unsupported",
+                (
+                    "Todo digest membership has a matching read-only projection receipt"
+                    if evidence
+                    else "Todo digest membership has no matching read-only projection receipt"
+                ),
+                evidence,
+            )
+        )
+
+    if digest_claim_found and _TODO_DIGEST_TIMING_RE.search(text):
+        evidence = todo_digest_evidence_for_claim(
+            todo_digest_receipts,
+            "todo_digest_schedule_active",
+        )
+        findings.append(
+            ClaimEvidenceFinding(
+                "todo_digest_schedule_active",
+                "supported" if evidence else "unsupported",
+                (
+                    "Timed Todo digest claim has one active owner-scoped schedule receipt"
+                    if evidence
+                    else "Timed Todo digest claim has no canonical active schedule receipt"
                 ),
                 evidence,
             )

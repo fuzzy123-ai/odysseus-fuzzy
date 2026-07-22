@@ -1631,7 +1631,7 @@ async def stream_agent_loop(
             for k in (
                 "attachment", "artifact_evidence", "interactive_runtime",
                 "headless_evidence", "pygame_headless_plan", "screenshot_ref",
-                "todo_receipts",
+                "todo_receipts", "todo_digest_receipts",
             ):
                 if k in result:
                     tool_output_data[k] = result[k]
@@ -1708,7 +1708,7 @@ async def stream_agent_loop(
             for key in (
                 "attachment", "artifact_evidence", "interactive_runtime",
                 "headless_evidence", "pygame_headless_plan", "screenshot_ref",
-                "todo_receipts",
+                "todo_receipts", "todo_digest_receipts",
             ):
                 if result.get(key):
                     tool_event[key] = result[key]

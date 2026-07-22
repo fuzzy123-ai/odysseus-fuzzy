@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 import json
 
 import pytest
@@ -8,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
-from core.database import Base, Note
+from core.database import Base, Note, ScheduledTask
 from src.tool_domains import todos
 
 
@@ -114,7 +115,75 @@ def test_complete_reopen_remove_round_trip_uses_stable_refs(todo_tool_store):
     assert completed["current_state"] == {"exists": True, "done": True}
     assert reopened["current_state"] == {"exists": True, "done": False}
     assert removed["current_state"] == {"exists": False, "done": None}
+    assert completed["todo_digest_receipts"][0]["claim_type"] == "todo_digest_excludes"
+    assert completed["todo_digest_receipts"][0]["verified"] is True
+    assert reopened["todo_digest_receipts"][0]["claim_type"] == "todo_digest_contains"
+    assert reopened["todo_digest_receipts"][0]["verified"] is True
+    assert removed["todo_digest_receipts"][0]["claim_type"] == "todo_digest_excludes"
+    assert removed["todo_digest_receipts"][0]["verified"] is True
     assert _run({"action": "list"})["open_count"] == 0
+
+
+def test_add_receipt_separates_digest_membership_from_schedule_truth(todo_tool_store):
+    db = todo_tool_store()
+    try:
+        db.add(ScheduledTask(
+            id="digest-schedule",
+            owner="alice",
+            name="Synthetic digest",
+            task_type="action",
+            action="todo_digest",
+            trigger_type="schedule",
+            schedule="daily",
+            scheduled_time="09:00",
+            status="active",
+            output_target="telegram",
+            next_run=datetime(2026, 7, 23, 7, 0),
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+    added = _run({
+        "action": "add",
+        "text": "Synthetic digest item",
+        "idempotency_key": "digest-add",
+    })
+    by_claim = {
+        receipt["claim_type"]: receipt
+        for receipt in added["todo_digest_receipts"]
+    }
+
+    assert by_claim["todo_digest_contains"]["verified"] is True
+    assert by_claim["todo_digest_schedule_active"]["verified"] is True
+    assert "Synthetic digest item" not in repr(added["todo_digest_receipts"])
+
+
+def test_add_outside_real_digest_limit_does_not_verify_membership(todo_tool_store):
+    _seed(
+        todo_tool_store,
+        note_id="full-list",
+        items=[
+            {"id": f"itm_{index:016d}", "text": f"Synthetic {index}", "done": False}
+            for index in range(20)
+        ],
+    )
+    list_ref = _run({"action": "list"})["lists"][0]["list_ref"]
+
+    added = _run({
+        "action": "add",
+        "list_ref": list_ref,
+        "text": "Synthetic beyond limit",
+        "idempotency_key": "digest-limit-add",
+    })
+    membership = next(
+        receipt
+        for receipt in added["todo_digest_receipts"]
+        if receipt["claim_type"] == "todo_digest_contains"
+    )
+
+    assert membership["included"] is False
+    assert membership["verified"] is False
 
 
 def test_multiple_lists_require_stable_list_ref_for_add(todo_tool_store):

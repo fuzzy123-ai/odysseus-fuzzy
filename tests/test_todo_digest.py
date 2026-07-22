@@ -8,6 +8,7 @@ from src.todo_digest_formatting import collapse_repeated_open_item_list_prefixes
 
 def _note(**kwargs):
     base = {
+        "id": "list-alpha",
         "title": "List",
         "note_type": "checklist",
         "items": json.dumps([{"text": "Open item", "done": False}]),
@@ -86,3 +87,28 @@ def test_todo_digest_action_is_registered():
     result, ok = asyncio.run(BUILTIN_ACTIONS["todo_digest"]("", limit=1))
     assert isinstance(result, str)
     assert isinstance(ok, bool)
+
+
+def test_todo_digest_projection_tracks_stable_open_item_refs_without_text():
+    projection = {}
+    open_ref = "todo-item:v1:itm_0123456789abcdef"
+    done_ref = "todo-item:v1:itm_fedcba9876543210"
+
+    _todo_digest_from_notes(
+        [
+            _note(
+                items=json.dumps([
+                    {"id": open_ref.split(":")[-1], "text": "Private Alpha", "done": False},
+                    {"id": done_ref.split(":")[-1], "text": "Private Beta", "done": True},
+                ])
+            )
+        ],
+        owner="alice",
+        projection=projection,
+    )
+
+    assert projection["included_item_refs"] == [open_ref]
+    assert projection["item_states"][done_ref]["done"] is True
+    assert projection["projection_ref"].startswith("todo-digest-projection:v1:")
+    assert projection["raw_content_visible"] is False
+    assert "Private" not in repr(projection)

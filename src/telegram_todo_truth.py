@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from typing import Any, Iterable, Mapping
 
+from src.todo_digest_receipts import (
+    TodoDigestReceipt,
+    TodoDigestReceiptError,
+    todo_digest_receipts_from_tool_events,
+)
 from src.todo_receipts import TodoReceipt, TodoReceiptError, todo_receipts_from_tool_events
 from src.tool_transaction_ledger import transactions_from_tool_events
 
@@ -21,6 +26,7 @@ def build_telegram_todo_truth_envelope(
         and str(event.get("tool") or "").strip() == "manage_todos"
     )
     postconditions = todo_receipts_from_tool_events(events)
+    digest_postconditions = todo_digest_receipts_from_tool_events(events)
     transactions = tuple(
         tx
         for tx in transactions_from_tool_events(events, surface="telegram_bridge")
@@ -30,6 +36,7 @@ def build_telegram_todo_truth_envelope(
     outputs: list[dict[str, Any]] = []
     for sequence, event in enumerate(events):
         event_receipts = todo_receipts_from_tool_events((event,))
+        event_digest_receipts = todo_digest_receipts_from_tool_events((event,))
         starts.append(
             {
                 "sequence": sequence,
@@ -44,6 +51,10 @@ def build_telegram_todo_truth_envelope(
                 "exit_code": _safe_exit_code(event.get("exit_code")),
                 "receipt_refs": [receipt.receipt_ref for receipt in event_receipts],
                 "receipt_count": len(event_receipts),
+                "digest_receipt_refs": [
+                    receipt.receipt_ref for receipt in event_digest_receipts
+                ],
+                "digest_receipt_count": len(event_digest_receipts),
             }
         )
     envelope = {
@@ -61,6 +72,11 @@ def build_telegram_todo_truth_envelope(
         "raw_content_visible": False,
         "raw_identifiers_visible": False,
     }
+    if digest_postconditions:
+        envelope["digest_postconditions"] = [
+            receipt.to_dict() for receipt in digest_postconditions
+        ]
+        envelope["counts"]["digest_postconditions"] = len(digest_postconditions)
     return envelope
 
 
@@ -88,10 +104,13 @@ def tool_events_from_telegram_todo_truth_envelope(
     outputs = envelope.get("tool_outputs")
     starts = envelope.get("tool_starts")
     transactions = envelope.get("transactions")
+    digest_payloads = envelope.get("digest_postconditions") or ()
     counts = envelope.get("counts")
     if not isinstance(payloads, (list, tuple)) or not isinstance(outputs, (list, tuple)):
         return ()
     if not isinstance(starts, (list, tuple)) or not isinstance(transactions, (list, tuple)):
+        return ()
+    if not isinstance(digest_payloads, (list, tuple)):
         return ()
     if not isinstance(counts, Mapping) or len(starts) != len(outputs):
         return ()
@@ -101,6 +120,8 @@ def tool_events_from_telegram_todo_truth_envelope(
         or _bounded_count(counts.get("transactions")) != len(transactions)
         or _bounded_count(counts.get("postconditions")) != len(payloads)
     ):
+        return ()
+    if _bounded_count(counts.get("digest_postconditions")) != len(digest_payloads):
         return ()
 
     receipts_by_ref: dict[str, TodoReceipt] = {}
@@ -141,6 +162,16 @@ def tool_events_from_telegram_todo_truth_envelope(
     if transaction_receipt_refs != set(receipts_by_ref):
         return ()
 
+    digest_receipts_by_ref: dict[str, TodoDigestReceipt] = {}
+    for payload in digest_payloads:
+        if not isinstance(payload, Mapping):
+            return ()
+        try:
+            receipt = TodoDigestReceipt.from_mapping(payload)
+        except TodoDigestReceiptError:
+            return ()
+        digest_receipts_by_ref[receipt.receipt_ref] = receipt
+
     reconstructed: list[dict[str, Any]] = []
     seen_sequences: set[int] = set()
     for output in outputs:
@@ -171,11 +202,25 @@ def tool_events_from_telegram_todo_truth_envelope(
             receipts.append(receipt)
         if output.get("receipt_count") != len(receipts):
             return ()
+        digest_refs = output.get("digest_receipt_refs") or ()
+        if not isinstance(digest_refs, (list, tuple)):
+            return ()
+        digest_receipts: list[TodoDigestReceipt] = []
+        for ref in digest_refs:
+            digest_receipt = digest_receipts_by_ref.get(str(ref or ""))
+            if digest_receipt is None:
+                return ()
+            digest_receipts.append(digest_receipt)
+        if output.get("digest_receipt_count", 0) != len(digest_receipts):
+            return ()
         reconstructed.append(
             {
                 "tool": "manage_todos",
                 "exit_code": _safe_exit_code(output.get("exit_code")),
                 "todo_receipts": [receipt.to_dict() for receipt in receipts],
+                "todo_digest_receipts": [
+                    receipt.to_dict() for receipt in digest_receipts
+                ],
             }
         )
 
@@ -185,6 +230,13 @@ def tool_events_from_telegram_todo_truth_envelope(
         for receipt in todo_receipts_from_tool_events((event,))
     }
     if covered != set(receipts_by_ref):
+        return ()
+    digest_covered = {
+        receipt.receipt_ref
+        for event in reconstructed
+        for receipt in todo_digest_receipts_from_tool_events((event,))
+    }
+    if digest_covered != set(digest_receipts_by_ref):
         return ()
     return tuple(reconstructed)
 
@@ -197,6 +249,7 @@ def telegram_todo_truth_envelope_public_summary(envelope: Any) -> dict[str, Any]
         "present": valid,
         "transaction_count": _bounded_count(counts.get("transactions")) if isinstance(counts, Mapping) else 0,
         "postcondition_count": _bounded_count(counts.get("postconditions")) if isinstance(counts, Mapping) else 0,
+        "digest_postcondition_count": _bounded_count(counts.get("digest_postconditions")) if isinstance(counts, Mapping) else 0,
         "raw_content_visible": False,
         "raw_identifiers_visible": False,
     }

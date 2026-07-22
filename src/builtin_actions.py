@@ -1118,9 +1118,20 @@ async def action_daily_brief(owner: str, **kwargs) -> Tuple[str, bool]:
         return str(e), False
 
 
-def _todo_digest_from_notes(notes, *, label: str | None = None, list_filter: str | None = None, limit: int = 20) -> str:
+def _todo_digest_from_notes(
+    notes,
+    *,
+    label: str | None = None,
+    list_filter: str | None = None,
+    limit: int = 20,
+    owner: str | None = None,
+    projection: dict | None = None,
+) -> str:
+    import hashlib as _hashlib
     import json as _json
     from datetime import datetime as _dt
+
+    from src.todo_domain_service import make_list_ref
 
     label = (label or "").strip().lower()
     list_filter = (list_filter or "").strip().lower()
@@ -1128,7 +1139,8 @@ def _todo_digest_from_notes(notes, *, label: str | None = None, list_filter: str
     overdue: list[str] = []
     due_today: list[str] = []
     pinned: list[str] = []
-    open_items: list[str] = []
+    open_items: list[tuple[str, str | None]] = []
+    item_states: dict[str, dict[str, object]] = {}
 
     def _due_bucket(raw: str | None) -> str:
         if not raw:
@@ -1159,18 +1171,31 @@ def _todo_digest_from_notes(notes, *, label: str | None = None, list_filter: str
         elif bucket == "today":
             due_today.append(title)
         if getattr(note, "note_type", "") == "checklist" and getattr(note, "items", None):
+            note_id = str(getattr(note, "id", "") or "")
+            note_list_ref = make_list_ref(owner, note_id) if owner and note_id else None
             try:
                 items = _json.loads(note.items or "[]")
             except Exception:
                 items = []
             for item in items:
-                if not isinstance(item, dict) or item.get("done"):
+                if not isinstance(item, dict):
+                    continue
+                item_id = str(item.get("id") or "").strip()
+                item_ref = f"todo-item:v1:{item_id}" if item_id else None
+                done = bool(item.get("done"))
+                if item_ref and note_list_ref:
+                    item_states[item_ref] = {
+                        "list_ref": note_list_ref,
+                        "exists": True,
+                        "done": done,
+                    }
+                if done:
                     continue
                 text = " ".join(str(item.get("text") or "").split())
                 if text:
-                    open_items.append(f"{title}: {text}")
+                    open_items.append((f"{title}: {text}", item_ref))
         elif getattr(note, "pinned", False) and title:
-            open_items.append(title)
+            open_items.append((title, None))
 
     lines = ["Todo digest"]
     if overdue:
@@ -1188,10 +1213,125 @@ def _todo_digest_from_notes(notes, *, label: str | None = None, list_filter: str
     lines.append("")
     lines.append("Open items:")
     if open_items:
-        lines.extend(f"- {item}" for item in open_items[:limit])
+        lines.extend(f"- {item[0]}" for item in open_items[:limit])
     else:
         lines.append("- none")
+    if projection is not None:
+        included_item_refs = [
+            item_ref for _text, item_ref in open_items[:limit] if item_ref
+        ]
+        redacted_manifest = {
+            "included_item_refs": included_item_refs,
+            "item_states": item_states,
+            "label_filter_active": bool(label),
+            "list_filter_active": bool(list_filter),
+            "limit": limit,
+        }
+        digest = _hashlib.sha256(
+            _json.dumps(
+                redacted_manifest,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()[:32]
+        projection.update(
+            schema="odysseus.todo_digest_projection.v1",
+            included_item_refs=included_item_refs,
+            item_states=item_states,
+            projection_ref=f"todo-digest-projection:v1:{digest}",
+            evidence_refs=[f"notes-digest-readback:v1:{digest}"],
+            owner_scoped=bool(owner),
+            raw_content_visible=False,
+        )
     return collapse_repeated_open_item_list_prefixes("\n".join(lines))
+
+
+def build_todo_digest_item_postcondition(
+    *,
+    owner: str,
+    list_ref: str,
+    item_ref: str,
+    current_state: dict,
+    label: str | None = None,
+    list_filter: str | None = None,
+    limit: int = 20,
+    session_factory=None,
+) -> dict:
+    """Read Notes and return a content-free digest membership postcondition."""
+    from core.database import Note, SessionLocal
+
+    if not isinstance(owner, str) or not owner.strip():
+        raise ValueError("owner is required for a Todo digest postcondition")
+    db = (session_factory or SessionLocal)()
+    try:
+        notes = (
+            db.query(Note)
+            .filter(Note.owner == owner, Note.archived.is_(False))
+            .order_by(Note.pinned.desc(), Note.updated_at.desc())
+            .all()
+        )
+    finally:
+        db.close()
+
+    projection: dict = {}
+    _todo_digest_from_notes(
+        notes,
+        label=label,
+        list_filter=list_filter,
+        limit=limit,
+        owner=owner,
+        projection=projection,
+    )
+    included = item_ref in projection.get("included_item_refs", ())
+    observed = projection.get("item_states", {}).get(item_ref)
+    expected_exists = current_state.get("exists") if isinstance(current_state, dict) else None
+    expected_done = current_state.get("done") if isinstance(current_state, dict) else None
+    if expected_exists is False:
+        state_matches = observed is None and expected_done is None
+        claim_type = "todo_digest_excludes"
+        semantic_match = not included
+    elif expected_exists is True and expected_done is True:
+        state_matches = bool(
+            isinstance(observed, dict)
+            and observed.get("list_ref") == list_ref
+            and observed.get("exists") is True
+            and observed.get("done") is True
+        )
+        claim_type = "todo_digest_excludes"
+        semantic_match = not included
+    elif expected_exists is True and expected_done is False:
+        state_matches = bool(
+            isinstance(observed, dict)
+            and observed.get("list_ref") == list_ref
+            and observed.get("exists") is True
+            and observed.get("done") is False
+        )
+        claim_type = "todo_digest_contains"
+        semantic_match = included
+    else:
+        state_matches = False
+        claim_type = "todo_digest_excludes"
+        semantic_match = False
+    return {
+        "schema": "odysseus.todo_digest_postcondition.v1",
+        "claim_type": claim_type,
+        "list_ref": list_ref,
+        "item_ref": item_ref,
+        "included": included,
+        "current_state": {
+            "exists": expected_exists,
+            "done": expected_done,
+        },
+        "projection_ref": projection.get("projection_ref"),
+        "transaction_status": "projected",
+        "verified": bool(
+            projection.get("owner_scoped")
+            and state_matches
+            and semantic_match
+        ),
+        "evidence_refs": list(projection.get("evidence_refs") or ()),
+        "raw_content_visible": False,
+    }
 
 
 async def action_todo_digest(owner: str, **kwargs) -> Tuple[str, bool]:
@@ -1213,6 +1353,7 @@ async def action_todo_digest(owner: str, **kwargs) -> Tuple[str, bool]:
             label=kwargs.get("label"),
             list_filter=kwargs.get("list") or kwargs.get("list_filter"),
             limit=int(kwargs.get("limit") or 20),
+            owner=owner,
         )
         return digest, True
     except Exception as e:

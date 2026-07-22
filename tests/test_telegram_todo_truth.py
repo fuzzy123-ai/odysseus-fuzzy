@@ -10,6 +10,7 @@ from src.telegram_todo_truth import (
     tool_events_from_telegram_todo_truth_envelope,
 )
 from src.telegram_truth_gate import gate_telegram_reply_text
+from src.todo_digest_receipts import todo_digest_receipts_from_postconditions
 from src.todo_receipts import todo_receipts_from_tool_result
 
 
@@ -58,6 +59,41 @@ def _envelope(operation="complete"):
     )
 
 
+def _envelope_with_digest():
+    mutation = _receipt("add")
+    digest_receipts = todo_digest_receipts_from_postconditions(
+        {
+            "claim_type": "todo_digest_contains",
+            "list_ref": LIST_REF,
+            "item_ref": ITEM_REF,
+            "included": True,
+            "current_state": {"exists": True, "done": False},
+            "projection_ref": "todo-digest-projection:v1:" + "a" * 32,
+            "transaction_status": "projected",
+            "verified": True,
+            "evidence_refs": ["notes-digest-readback:v1:" + "a" * 32],
+        },
+        {
+            "claim_type": "todo_digest_schedule_active",
+            "status": "active",
+            "schedule_ref": "todo-digest-schedule:v1:" + "b" * 12,
+            "next_run": "2026-07-23T07:00:00",
+            "verified": True,
+            "evidence_refs": ["scheduled-task-readback:v1:" + "b" * 12],
+        },
+    )
+    return build_telegram_todo_truth_envelope([
+        {
+            "tool": "manage_todos",
+            "exit_code": 0,
+            "todo_receipts": [mutation.to_dict()],
+            "todo_digest_receipts": [
+                receipt.to_dict() for receipt in digest_receipts
+            ],
+        }
+    ])
+
+
 def test_envelope_preserves_four_evidence_layers_without_raw_content():
     envelope = _envelope()
 
@@ -86,6 +122,26 @@ def test_envelope_round_trip_supports_matching_telegram_todo_claim():
     assert events[0]["tool"] == "manage_todos"
     assert gated.status == "verified"
     assert gated.changed is False
+
+
+def test_envelope_preserves_digest_receipts_for_timed_claim_gate():
+    envelope = _envelope_with_digest()
+    gated = gate_telegram_reply_text(
+        "Todo erscheint morgen im Digest.",
+        todo_truth_envelope=envelope,
+    )
+    tampered = deepcopy(envelope)
+    tampered["digest_postconditions"][1]["verified"] = False
+    rejected = gate_telegram_reply_text(
+        "Todo erscheint morgen im Digest.",
+        todo_truth_envelope=tampered,
+    )
+
+    assert envelope["counts"]["digest_postconditions"] == 2
+    assert gated.status == "verified"
+    assert gated.changed is False
+    assert rejected.status == "unknown"
+    assert rejected.changed is True
 
 
 def test_missing_or_tampered_envelope_weakens_claim_before_send():

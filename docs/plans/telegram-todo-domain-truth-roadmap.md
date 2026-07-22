@@ -518,6 +518,42 @@ Acceptance evidence (2026-07-22):
 
 Owner: Bob
 
+Status: `accepted_2026-07-22`
+
+Durable claim:
+
+```yaml
+claim:
+  run_id: abc-owm22-20260722T065621+0200
+  thread_id: 019f8625-35f5-7d90-9b5c-8b0724bc5f50
+  slice_id: TTD-05
+  owner: root acting as Bob
+  state: released
+  acquired_at: 2026-07-22T08:34:10+02:00
+  lease_expires_at: 2026-07-22T09:34:10+02:00
+  released_at: 2026-07-22T08:50:26+02:00
+  allowed_paths:
+    - src/builtin_actions.py
+    - src/calendar_capability_service.py
+    - src/todo_digest_receipts.py
+    - src/tool_domains/todos.py
+    - src/claim_evidence_gate.py
+    - src/agent_loop.py
+    - src/telegram_todo_truth.py
+    - tests/test_todo_digest.py
+    - tests/test_calendar_capability_service.py
+    - tests/test_todo_digest_receipts.py
+    - tests/test_manage_todos.py
+    - tests/test_telegram_todo_truth.py
+    - docs/plans/telegram-todo-domain-truth-roadmap.md
+    - docs/plans/telegram-todo-domain-truth-run-state.json
+    - docs/plans/open-work-completion-master-roadmap.json
+  hotfile_disposition:
+    preserved_primary_checkout: foreign unstaged hunks remain untouched
+    isolated_worktree: serial single-writer; no publish or merge in this slice
+  handoff_required: false
+```
+
 Ziel:
 
 - Die Aussage "erscheint im naechsten Digest" deterministisch pruefbar machen.
@@ -538,6 +574,17 @@ Voraussichtliche Pfade:
 - `tests/test_todo_digest.py`
 - `tests/test_calendar_capability_service.py`
 
+Preflight 2026-07-22:
+
+- Die bestehende Digest-Aktion liest bereits owner-scoped Notes und die
+  Calendar-Capability besitzt bereits ein redigiertes read-only Schedule-Gate.
+- Der Slice ergaenzt deshalb keinen zweiten Scheduler-Pfad. Er bindet die
+  tatsaechlich limitierte Digest-Projektion und genau einen aktiven passenden
+  Scheduled Task an redigierte semantische Receipts.
+- Agent- und Telegram-Gates muessen diese Receipts erhalten; private Texte,
+  Titel, direkte Owner-IDs, Task-IDs und Prompts bleiben ausserhalb der
+  persistierten Evidence.
+
 Akzeptanz:
 
 - Ein neu angelegtes offenes Item ist in einer read-only Digest-Projektion
@@ -545,6 +592,28 @@ Akzeptanz:
 - Ein erledigtes Item ist ausgeschlossen.
 - Eine Uhrzeit-/Morgen-Aussage benoetigt zusaetzlich eine aktive passende
   Scheduled Task; ansonsten wird nur die Speicherung bestaetigt.
+
+Acceptance evidence 2026-07-22:
+
+- Die reale, limitierte `todo_digest`-Notes-Projektion erzeugt content-freie
+  `todo_digest_contains`- und `todo_digest_excludes`-Receipts auf stabilen
+  Listen-/Item-Refs. Offene Items ausserhalb des echten Digest-Limits werden
+  korrekt nicht als enthalten verifiziert.
+- `todo_digest_schedule_active` wird nur fuer genau einen aktiven,
+  owner-scoped Telegram-`todo_digest`-Task mit `next_run` erzeugt. Fehlende,
+  pausierte, nicht lauffaehige oder doppelte Tasks bleiben fail-closed.
+- Agent-SSE und Telegram-Envelope tragen die Digest-Receipts getrennt von den
+  Mutations-Receipts. Count-, Payload-, Exit- oder Receipt-Manipulation kann
+  keine Zeit-/Digest-Aussage verifizieren; oeffentliche Telegram-Projektionen
+  zeigen weiterhin nur Counts und Privacy-Flags.
+- Fokus: `45 passed`; kombinierte TTD-03/04/05 Todo-, Agent-, Ledger-,
+  Calendar-, Telegram-, Plugin- und Webhook-Suite: `297 passed` mit einer
+  vorbestehenden SQLAlchemy-Deprecation-Warnung. Schreibfreie AST-Pruefung fuer
+  sieben Runtime-Dateien, JSON-, Diff- und TAX0-Audit (`79/84/85`) sind gruen.
+- Keine Scheduled-Task-Mutation, kein produktiver Scheduler-Lauf, Telegram-
+  Versand, Provider-Call, Deployment, Host-Change oder Produktionsdatenzugriff
+  wurde ausgefuehrt. Naechster dependency-ready Slice: `TTD-06`; `TTD-07` und
+  `TTD-08` bleiben ebenfalls logisch bereit und ungeclaimt.
 
 ### TTD-06 - Drift-Audit und Data-Repair-Preview
 
