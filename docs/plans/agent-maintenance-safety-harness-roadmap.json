@@ -794,7 +794,7 @@
     },
     {
       "id": "AMH-08-adversarial-and-ci-acceptance",
-      "execution_status": "ready_dependency_satisfied",
+      "execution_status": "claimed_implementation_running",
       "mutation_class": "repo_only",
       "priority": "P0",
       "owner": "Charlie",
@@ -817,6 +817,19 @@
         ".github/workflows/quality-gate.yml",
         "scripts/verify.py"
       ],
+      "claim": {
+        "owner": "Charlie",
+        "thread_id": "/root/amh07_charlie_review",
+        "state": "claimed_single_writer",
+        "acquired_at": "2026-07-22T20:39:39+02:00",
+        "lease_expires_at": "2026-07-22T22:39:39+02:00"
+      },
+      "hotfile_audit": {
+        "state": "satisfied_existing_grant_and_clean_isolated_paths",
+        "quality_gate_primary_state": "The primary workflow is the pre-existing untracked source already released and resolved under GO AMH-HANDOFF; the isolated tracked workflow is the accepted AMH-03 version and the isolated worktree is clean.",
+        "scripts_verify_primary_state": "Absent in primary and tracked clean in the isolated accepted branch.",
+        "foreign_staged_paths": []
+      },
       "objective": "Prove the harness against realistic forgetful, weak, overconfident and adversarial-agent failure modes and make the guards a blocking CI lane.",
       "deliverables": [
         "adversarial maintenance corpus",
@@ -913,7 +926,7 @@
     },
     {
       "gate_id": "AMH-GATE-SHARED-HOTFILE-HANDOFF",
-      "state": "deferred",
+      "state": "satisfied_amh08_single_owner_claim_2026_07_22",
       "disposition": "pending_per_slice",
       "activation": "Reactivate as pending for a concrete slice only when an allowed path has an active claim or overlapping foreign hunk; otherwise this policy gate is nonblocking.",
       "blocks": [

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 72,
+  "revision": 73,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "heartbeat_status": "paused_update_handler_unavailable_current_surface",
   "queue_scope": "open_work",
@@ -59,7 +59,31 @@
     "temporal_window": "none",
     "positive_path_required": true
   },
-  "active_claims": [],
+  "active_claims": [
+    {
+      "run_id": "abc-owm22-20260722T065621+0200",
+      "thread_id": "/root/amh07_charlie_review",
+      "slice_id": "AMH-08-adversarial-and-ci-acceptance",
+      "owner": "Charlie",
+      "allowed_paths": [
+        "tests/test_agent_maintenance_adversarial.py",
+        "tests/test_agent_maintenance_completion_gate.py",
+        "tests/test_agent_maintenance_bootstrap.py",
+        "tests/test_secret_safe_diagnostics.py",
+        ".github/workflows/quality-gate.yml",
+        "scripts/verify.py"
+      ],
+      "hotfiles": [
+        ".github/workflows/quality-gate.yml",
+        "scripts/verify.py"
+      ],
+      "state": "claimed",
+      "acquired_at": "2026-07-22T20:39:39+02:00",
+      "lease_expires_at": "2026-07-22T22:39:39+02:00",
+      "handoff_required": false,
+      "handoff_basis": "GO AMH-HANDOFF resolved the pre-existing primary workflow source in AMH-03; all six isolated paths are clean and unclaimed."
+    }
+  ],
   "agent_leases": [
     {
       "agent": "/root/amh02_bob",
@@ -104,6 +128,22 @@
       "lease_expires_at": "2026-07-22T21:30:29+02:00",
       "released_at": "2026-07-22T20:33:45+02:00",
       "completion_commit": "e24495734e8afc122cf36621cde5d8c1e94d7669"
+    },
+    {
+      "agent": "/root/amh07_charlie_review",
+      "slice_id": "AMH-08-adversarial-and-ci-acceptance",
+      "mode": "worker",
+      "state": "claimed",
+      "allowed_paths": [
+        "tests/test_agent_maintenance_adversarial.py",
+        "tests/test_agent_maintenance_completion_gate.py",
+        "tests/test_agent_maintenance_bootstrap.py",
+        "tests/test_secret_safe_diagnostics.py",
+        ".github/workflows/quality-gate.yml",
+        "scripts/verify.py"
+      ],
+      "acquired_at": "2026-07-22T20:39:39+02:00",
+      "lease_expires_at": "2026-07-22T22:39:39+02:00"
     }
   ],
   "completed_slices": [
@@ -730,9 +770,9 @@
       "forbidden_curl_substring_assertion_made_token_aware"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T20:36:40+02:00",
+  "last_durable_progress_at": "2026-07-22T20:39:39+02:00",
   "last_heartbeat_at": "2026-07-22T19:30:29+02:00",
-  "last_reported_revision": 72,
+  "last_reported_revision": 73,
   "resume_cursor": "AMH-08-adversarial-and-ci-acceptance",
   "pending_user_requests": [],
   "live_go_ledger": [],
@@ -891,8 +931,8 @@
     }
   },
   "final_queue_audit": {
-    "observed_at": "2026-07-22T20:33:45+02:00",
-    "safe_open_count": 1,
+    "observed_at": "2026-07-22T20:39:39+02:00",
+    "safe_open_count": 0,
     "unclaimable_open_count": 1,
     "unclaimable_slice": "UIX-ABC13",
     "unclaimable_reason": "UIX-WORKBENCH-PRODUCT-SEMANTICS-CONFIRMATION",
@@ -900,7 +940,7 @@
     "unique_design_gate_count": 28,
     "other_open_count": 34,
     "queue_exhausted": false,
-    "stop_reason": "AMH-07 is locally accepted and its claim is released; AMH-08 is the next dependency-ready repo-only frontier. The original unattended deadline elapsed before this interactive continuation, and publication, live and UI design gates remain closed."
+    "stop_reason": "AMH-08 is dependency-ready and held by one six-path writer claim; the original unattended deadline elapsed before this interactive continuation, and publication, live and UI design gates remain closed."
   },
   "stop_rules": [
     "stop_on_secret_or_private_content",
