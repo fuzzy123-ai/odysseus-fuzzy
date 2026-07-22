@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 35,
+  "revision": 37,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "queue_scope": "open_work",
   "queue_lane": "OWM-23",
@@ -20,7 +20,7 @@
   },
   "route": {
     "entrypoint": "/abc",
-    "slice_id": "AMH-03-disjoint-foundation-ready",
+    "slice_id": "AMH-05-disjoint-foundation-ready",
     "mutation": "safe_offline",
     "selected_skills": ["abc"],
     "model": "surface_default",
@@ -331,11 +331,32 @@
       "completion": {
         "implemented": "partial",
         "tested": "partial_foundation",
-        "committed": "no",
+        "committed": "eea23a24",
         "pushed": "no",
         "deployed": "no",
         "live_validated": "na",
         "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-03-verifier-foundation",
+      "completed_at": "2026-07-22T11:11:00+02:00",
+      "status": "partial_accepted_foreign_workflow_integration_blocked",
+      "focused_tests": "10 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "integration_tests": "15 verifier and policy tests passed; real guards-only lane passed 3 of 3 checks; full lane dry-run planned 5 checks",
+      "static_evidence": "Python compile, JSON parse and git diff checks passed through the new entrypoint",
+      "verification_limit": "Existing test_run_focus Windows dry-run quoting expectations fail 3 of 88 integration tests; source is unchanged and outside this claim",
+      "remaining_blocker": "AMH-03 workflow integration requires a durable foreign-work handoff",
+      "completion": {
+        "implemented": "partial",
+        "tested": "partial_foundation",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "availability_contract_only",
         "temporal_validated": "na",
         "product_complete": "no"
       }
@@ -350,7 +371,8 @@
     "TTD-08": 5,
     "TTD-10": 1,
     "AMH-01": 1,
-    "AMH-02-contract-foundation": 1
+    "AMH-02-contract-foundation": 1,
+    "AMH-03-verifier-foundation": 1
   },
   "failed_attempt_classes": {
     "TTD-02": [
@@ -383,12 +405,15 @@
     ],
     "AMH-02-contract-foundation": [
       "forbidden_source_regex_quote_corrected_before_test_acceptance"
+    ],
+    "AMH-03-verifier-foundation": [
+      "pre_existing_windows_run_focus_dry_run_quote_expectations_recorded_not_modified"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T10:58:00+02:00",
-  "last_heartbeat_at": "2026-07-22T10:58:00+02:00",
-  "last_reported_revision": 35,
-  "resume_cursor": "AMH-03-shared-verification-entrypoint",
+  "last_durable_progress_at": "2026-07-22T11:11:00+02:00",
+  "last_heartbeat_at": "2026-07-22T11:11:00+02:00",
+  "last_reported_revision": 37,
+  "resume_cursor": "AMH-05-canonical-handoff-and-owner-projection",
   "pending_user_requests": [],
   "live_go_ledger": [],
   "gate_queue": [
@@ -398,7 +423,7 @@
     "TTD-LIVE-ROLLOVER-SMOKE",
     "TTD-LIVE-HISTORY-RETENTION"
   ],
-  "next_runnable_slices": ["AMH-03-shared-verification-entrypoint-disjoint-foundation"],
+  "next_runnable_slices": ["AMH-05-canonical-handoff-and-owner-projection-disjoint-foundation"],
   "known_blockers": [
     {
       "id": "AMH-02-FOREIGN-HOTFILE-HANDOFF",
@@ -419,6 +444,17 @@
       "paths": [
         ".github/workflows/quality-gate.yml",
         ".github/workflows/ci.yml"
+      ]
+    },
+    {
+      "id": "AMH-05-FOREIGN-PLANNING-HANDOFF",
+      "state": "waiting_on_handoff",
+      "reason": "Related primary-checkout work overlaps AMH-05 Planning, runner and clarification paths and has no durable AMH handoff.",
+      "paths": [
+        "src/planning_mcp_service.py",
+        "src/clarification_contract.py",
+        "src/coding_agent_runner_state.py",
+        "tests/test_clarification_contract.py"
       ]
     }
   ],

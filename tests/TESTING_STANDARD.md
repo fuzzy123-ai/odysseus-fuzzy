@@ -88,6 +88,31 @@ lane exists for quick local and reviewer feedback; it is **not** a replacement
 for broader focused or full-suite validation before merge, and a test must never
 be marked `slow` to hide a failure or skip coverage.
 
+## Shared verification entrypoint
+
+`python scripts/verify.py --lane <name>` is the cross-platform entrypoint for
+repository verification. Its fixed lanes are:
+
+- `guards-only`: changed Python compile, changed JSON parse, and
+  `git diff --check`;
+- `fast`: guards plus the existing `tests/run_focus.py --fast` selection;
+- `full`: guards, the full pytest suite, and JavaScript syntax checks;
+- `ui`: guards, the UI/JS contract selection, and an explicit visual artifact.
+
+Use `--list` to inspect the registry and `--dry-run` to preview the exact
+content-free plan. An unknown check, missing runtime, required unavailable
+artifact, timeout, or nonzero command fails closed. The report records fixed
+command identity, bounded duration, actual result, strongest observed level,
+and explicit verification limits; it suppresses raw stdout, stderr, and
+exception text.
+
+The UI lane requires `--visual-evidence <artifact>` under `artifacts/`,
+`test-results/`, or `playwright-report/`; the verifier rejects paths outside
+the repository and files whose media signature does not match their suffix.
+Artifact availability and digest do not claim semantic visual review. No lane
+installs dependencies, starts services, performs network access, or grants
+publication/live authority.
+
 ## Determinism & isolation rules
 
 Do not mutate shared process state without a controlled helper and guaranteed
