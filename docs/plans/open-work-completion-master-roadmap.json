@@ -1,25 +1,26 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-22T10:21:00+02:00",
-  "status": "active_owm22_repo_complete_live_gated_post_audit_ready",
+  "updated_at": "2026-07-22T10:41:00+02:00",
+  "status": "active_owm23_amh00_reconciled_amh01_ready",
   "abc_mode": "Standard ABC",
-  "goal_command": "/goal Implementiere OWM-22 Telegram Todo Domain Truth repo-only; beginne mit TTD-00 und halte alle Live-Aktionen default-off.",
-  "goal": "Complete the dependency-ready OWM-22 repository queue with Notes as canonical Todo truth, semantic receipts and synthetic evidence while keeping deploy, production data repair, Telegram send and productive session rollover behind separate live gates.",
+  "goal_command": "/goal Implementiere OWM-23 Agent Maintenance Safety Harness repo-only; beginne mit AMH-01, halte Nachfolger dependency-gated, bewahre fremde Worktree-Aenderungen und fuehre weder Live-Aktionen noch ungefragte Pushes aus.",
+  "goal": "Reconcile the registered OWM-23 roadmap, then implement the dependency-ready Agent Maintenance Safety Harness frontier with one scoped writer, current machine evidence and no live or external mutation.",
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
     "safe_open_json_slices": 0,
     "unique_live_gates": 40,
     "unique_design_gates": 16,
-    "other_open_json_items": 22,
-    "queue_status": "owm22_ttd00_through_ttd10_repo_complete_live_actions_gated",
+    "other_open_json_items": 34,
+    "queue_status": "owm22_repo_complete_owm23_explicit_goal_active_amh01_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
+      "agent_maintenance_safety": "amh00_reconciled_amh01_ready",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
@@ -236,7 +237,8 @@
     "docs/plans/universal-inbox-abc-roadmap.md",
     "docs/plans/universal-inbox-document-workbench-handoff.md",
     "docs/plans/tool-taxonomy-registration-roadmap.md",
-    "docs/plans/privacy-safe-tool-analytics-roadmap.md"
+    "docs/plans/privacy-safe-tool-analytics-roadmap.md",
+    "docs/plans/agent-maintenance-safety-harness-roadmap.json"
   ],
   "hard_rules": [
     "No legacy UI or v2 UI implementation from this backend ABC track.",
@@ -256,7 +258,7 @@
       "id": "OWM-22",
       "name": "Telegram Todo Domain Truth And Digest Consistency",
       "priority": 4,
-      "status": "ttd00_ttd01_accepted_ttd02_claimed_ttd03_preflight_pending",
+      "status": "ttd00_through_ttd10_repo_complete_live_actions_gated",
       "why_open": "A production Telegram incident exposed split-brain Todo state: clear Todo intents could write Memory while todo_digest read Notes, completed items could remain open, and Telegram success claims lacked Todo-specific semantic receipts.",
       "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "source_gate_family": "telegram_todo_truth",
@@ -272,6 +274,30 @@
         "TTD-LIVE-ROLLOVER-SMOKE"
       ],
       "done_when": "Todo mutations are atomic and owner-scoped in Notes; clear Todo intents cannot write Memory; Telegram success claims require semantic Todo receipts; Digest postconditions are deterministic; daily rollover is safe and domain-truth independent; and four rollback-safe live packets remain dormant."
+    },
+    {
+      "id": "OWM-23",
+      "name": "Agent Maintenance Safety Harness",
+      "priority": 5,
+      "status": "explicit_goal_active_amh00_reconciled_amh01_ready",
+      "why_open": "Odysseus already has claims, evidence gates, clarification, Planning truth and Git safety primitives, but a fresh maintenance agent still lacks one tracked root policy, pre-consumer secret-safe diagnostic contract, cross-platform verification entrypoint, revision-bound receipt and bounded handoff that mechanically prevent unsafe or overstated completion.",
+      "source_roadmap": "docs/plans/agent-maintenance-safety-harness-roadmap.json",
+      "source_gate_family": "agent_maintenance_safety",
+      "dependencies": [
+        "Explicit goal start or Open Work reprioritization; registration alone does not preempt the active queue",
+        "AMH-00 roadmap contract and registration remains valid",
+        "Durable path claims and handoffs for shared policy, workflow, Planning, prompt, evidence and Git-policy hotfiles",
+        "Existing PlanRuntime, claim, clarification, Runtime Quality Gate and repo policy modules remain canonical and are extended rather than duplicated"
+      ],
+      "gate_ids": [],
+      "safe_default": "keep_runtime_unchanged_no_auto_push_deploy_or_live_action",
+      "user_gate_policy": "No live or external mutation belongs to AMH repository implementation. Start only after an explicit goal or queue reprioritization; pushes remain separately authorized. Any owner judgment discovered during implementation routes through existing clarification and review authorities.",
+      "execution_protocol": {
+        "queue_registration": "After an explicit goal register AMH-01, AMH-02 and AMH-03 only where paths are disjoint and handed off; keep AMH-04 through AMH-09 blocked by the declared dependency DAG.",
+        "dependency_rule": "Root policy is stable instructions only; Planning JSON and existing gates remain state truth; diagnostics redact before consumption; receipts bind actual checks to exact code; completion and publication fail closed on missing authority.",
+        "future_goal_command": "/goal Implementiere OWM-23 Agent Maintenance Safety Harness repo-only; beginne mit AMH-01, halte Nachfolger dependency-gated, bewahre fremde Worktree-Aenderungen und fuehre weder Live-Aktionen noch ungefragte Commits oder Pushes aus."
+      },
+      "done_when": "Fresh agents receive the same bounded policy and handoff; diagnostics expose no credential value, prefix, suffix, length or hash; local and CI verification share one cross-platform entrypoint; current machine receipts gate completion; existing owner queues and Git/effect rails fail closed; and adversarial acceptance proves the safe positive path without claiming publication or deployment."
     },
     {
       "id": "OWM-1",
@@ -2219,6 +2245,7 @@
   ],
   "recommended_execution_order": [
     "OWM-22 post-completion audit: verify TTD-00 through TTD-10 commits, queue/runstate consistency and remaining live gates, then route only a dependency-ready repo-only frontier.",
+    "OWM-23 Agent Maintenance Safety Harness: the explicit goal is active; reconcile AMH-00, then execute AMH-01, AMH-02 and AMH-03 serially with scoped handoffs, preserve Planning JSON and existing gate/claim authorities, and keep AMH-04 onward dependency-blocked until its prerequisites are accepted.",
     "P0 Roadmap Truth: reconcile and commit only the identified UIX-ABC12-24 docs plus the canonical UIX/TAX/TUA queue and its missing detail-roadmap sources.",
     "P1 UIX-ABC13: first product priority, but do not claim it until the exact product-semantics confirmation is recorded.",
     "P2 safe default while UIX-ABC13 waits: execute TAX0, then TAX1, then TUA0 only after direct dependency evidence; continue only the next dependency-ready repo-only detail-roadmap slice.",

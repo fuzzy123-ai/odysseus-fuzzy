@@ -1,0 +1,909 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.agent_maintenance_safety_harness_roadmap",
+  "roadmap_id": "AMH",
+  "title": "Agent Maintenance Safety Harness Roadmap",
+  "created_at": "2026-07-18T16:16:30+02:00",
+  "updated_at": "2026-07-22T10:41:00+02:00",
+  "status": "explicit_goal_active_amh00_reconciled_amh01_ready",
+  "abc_mode": "Standard ABC",
+  "master_roadmap": "docs/plans/open-work-completion-master-roadmap.json",
+  "canonical_open_work_queue": "docs/plans/open-work-completion-master-roadmap.json",
+  "goal_command": "/goal Implementiere OWM-23 Agent Maintenance Safety Harness repo-only; beginne mit AMH-01, halte Nachfolger dependency-gated, bewahre fremde Worktree-Aenderungen und fuehre weder Live-Aktionen noch ungefragte Commits oder Pushes aus.",
+  "goal": "Make repository maintenance safe across fresh, forgetful, mediocre or overconfident agents by combining stable policy, secret-safe diagnostics, one cross-platform verification entrypoint, machine-bound verification receipts, canonical planning handoff, owner-decision routing and enforced Git/effect rails without creating a second state store or a new agent platform.",
+  "problem_statement": [
+    "A fresh agent can miss repository-specific safety and verification rules because no tracked root agent contract binds the whole checkout.",
+    "Local and CI verification are documented and implemented through multiple entrypoints, so agents can omit required checks or overstate what ran.",
+    "Existing claim and evidence primitives do not yet provide one generic commit-bound maintenance receipt and completion rule for every maintenance slice.",
+    "Diagnostic subprocess, exception and provider output can expose sensitive values unless redaction happens before model, UI, history and roadmap processing.",
+    "Owner decisions, clarification requests and review gates exist, but maintenance agents need one bounded projection instead of inventing answers or creating another queue.",
+    "Existing Git safety rails are strong but distributed; the maintenance workflow needs one tested fail-closed contract for destructive commands, force pushes, foreign work and unauthorized publication."
+  ],
+  "existing_primitives_to_reuse": {
+    "planning_truth": [
+      "docs/plans/open-work-completion-master-roadmap.json",
+      "src/planning_definition_projection.py",
+      "src/planning_mcp_service.py"
+    ],
+    "claims_and_evidence": [
+      "src/claim_evidence_gate.py",
+      "src/coding_agent_runner_state.py",
+      "src/runtime_quality_gates.py"
+    ],
+    "owner_decisions": [
+      "src/operator_dashboard/review_queue.py",
+      "src/clarification_contract.py",
+      "src/clarification_store.py"
+    ],
+    "git_and_effect_rails": [
+      "src/repo_remote_policy.py",
+      "src/repo_commit_runner.py",
+      "src/repo_push_runner.py",
+      "src/live_quality_gate_command_runner.py",
+      "src/server_project_runner.py",
+      "src/effectful_tool_matrix.py"
+    ],
+    "redaction_and_output_boundaries": [
+      "src/tool_security.py",
+      "src/tool_execution.py",
+      "src/maintenance_output_validator.py"
+    ],
+    "verification_and_ci": [
+      ".github/workflows/quality-gate.yml",
+      ".github/workflows/ci.yml",
+      "tests/TESTING_STANDARD.md",
+      "CONTRIBUTING.md"
+    ]
+  },
+  "source_of_truth_contract": {
+    "stable_agent_policy": "Tracked root AGENTS.md contains short durable safety and workflow rules only; it never stores current task state, secrets or mutable evidence.",
+    "planning_and_owner_state": "Versioned roadmap JSON plus existing gate_queue, claim and clarification records remain authoritative. No STATE.md, OWNER_QUEUE.md or parallel Markdown task store is introduced.",
+    "verification_evidence": "Machine-generated redacted receipts are derived evidence bound to the exact revision or diff digest; prose may explain limits but cannot manufacture a PASS.",
+    "human_views": "Runbooks, dashboard cards and final-answer summaries are projections or instructions, not independent execution truth.",
+    "conflict_rule": "When policy, canonical structured state, receipts and runtime behavior disagree, stop completion, expose the conflict and repair the declared authority instead of silently selecting the most convenient source."
+  },
+  "frozen_decisions": [
+    "Use AGENTS.md for stable repository policy, not CLAUDE.md and not mutable run state.",
+    "Keep Planning JSON and existing gate, claim and clarification stores as the only maintenance state authorities.",
+    "Build the shared verifier in Python so Windows and Linux use the same entrypoint.",
+    "Keep fast, full, UI and guards-only verification lanes explicit; one weak lane never implies a stronger lane passed.",
+    "Treat verification receipts as machine output, never as agent-authored attestation.",
+    "Redact diagnostic output before it reaches the model, UI, history, logs, receipts or roadmap artifacts.",
+    "Never expose credential value, prefix, suffix, length or hash; diagnostics may return only allowlisted fixed-key presence booleans and bounded counts.",
+    "Preserve bounded parallel work for disjoint claimed paths; serialize shared hotfiles and canonical queue files.",
+    "Do not automatically commit or push after a slice. Publication remains separately authorized and remote/branch checked.",
+    "Never use reset --hard, clean or destructive recovery as an automatic maintenance step.",
+    "Route unresolved owner judgment through the existing clarification and review projections instead of adding a second owner queue.",
+    "Archive or supersede completed plans and decisions; do not delete canonical execution history merely to reduce context."
+  ],
+  "non_goals": [
+    "No new autonomous-agent platform, scheduler, heartbeat owner or orchestration runtime.",
+    "No replacement for Temporal, PlanRuntime, ABC, claim leases, Runtime Quality Gates or the operator dashboard.",
+    "No universal append-only prose ledger and no code-wide citation marker convention.",
+    "No blanket ban on subagents or parallel execution when claims and paths are disjoint.",
+    "No automatic package installation, bootstrap mutation, background warmup, commit, push, deploy or live provider call.",
+    "No inspection of real secret values for tests, debugging, validation or evidence generation.",
+    "No promise that unit tests replace visual, live or temporal evidence when those levels are required.",
+    "No modification of active unrelated roadmap queues merely to make AMH appear first."
+  ],
+  "queue_scope": {
+    "phase": "repository_implementation",
+    "supervision": "interactive",
+    "queue": "open_work",
+    "mutation_authority": "repo_only",
+    "implementation_state": "explicit_goal_active_amh01_ready",
+    "registration_rule": "The explicit 2026-07-22 goal activated OWM-23 after OWM-22 reached its repo-complete handoff. Execute one dependency-ready AMH slice at a time."
+  },
+  "route": {
+    "entrypoint": "abc",
+    "selected_skills": [
+      {
+        "id": "abc",
+        "purpose": "Roadmap authoring, Open Work registration, dependency and evidence contract"
+      }
+    ],
+    "model": "surface_default",
+    "fallback": "native_tools",
+    "secondary_skills": []
+  },
+  "architecture_contract": {
+    "layers": [
+      {
+        "id": "policy",
+        "purpose": "Give every fresh agent the same short, stable rules.",
+        "canonical_artifact": "AGENTS.md",
+        "must_not_contain": [
+          "current task state",
+          "credentials",
+          "raw diagnostics",
+          "mutable completion claims"
+        ]
+      },
+      {
+        "id": "state",
+        "purpose": "Provide current goal, claim, next action, blockers and owner questions from existing structured authorities.",
+        "canonical_artifact": "Planning JSON, claim state, gate_queue and clarification records",
+        "must_not_create": [
+          "STATE.md",
+          "OWNER_QUEUE.md",
+          "a second maintenance database"
+        ]
+      },
+      {
+        "id": "verification",
+        "purpose": "Run the declared lane through one cross-platform local and CI entrypoint.",
+        "canonical_artifact": "scripts/verify.py",
+        "lanes": [
+          "guards-only",
+          "fast",
+          "full",
+          "ui"
+        ]
+      },
+      {
+        "id": "evidence",
+        "purpose": "Bind actual checks and explicit limits to an exact revision or diff without storing raw sensitive output.",
+        "canonical_artifact": "agent maintenance verification receipt v1",
+        "fail_closed_on": [
+          "revision mismatch",
+          "missing required lane",
+          "redaction failure",
+          "unknown check result",
+          "agent-authored PASS"
+        ]
+      },
+      {
+        "id": "enforcement",
+        "purpose": "Make unsafe completion, destructive Git and unauthorized external effects mechanically unavailable.",
+        "canonical_artifact": "existing claim, command, effect, commit and push policy modules",
+        "deny": [
+          "destructive Git",
+          "force push",
+          "foreign staged or overlapping work",
+          "unapproved publication",
+          "raw secret diagnostics"
+        ]
+      },
+      {
+        "id": "handoff",
+        "purpose": "Let the next agent resume from bounded structured context and report actual verification limits.",
+        "canonical_artifact": "read-only maintenance status projection and runbook",
+        "required_fields": [
+          "goal",
+          "slice",
+          "claim",
+          "next_action",
+          "blockers",
+          "owner_questions",
+          "receipt_reference",
+          "not_verified"
+        ]
+      }
+    ],
+    "completion_invariant": "A maintenance slice cannot become done unless its declared acceptance maps to a current machine receipt, all required dependencies and claims are satisfied, owner questions are resolved or explicitly deferred, and no stronger verification level is implied than was observed."
+  },
+  "dependency_dag": {
+    "nodes": [
+      "AMH-00-roadmap-contract-and-registration",
+      "AMH-01-root-policy-and-runbook",
+      "AMH-02-secret-safe-diagnostics",
+      "AMH-03-shared-verification-entrypoint",
+      "AMH-04-machine-verification-receipts",
+      "AMH-05-canonical-handoff-and-owner-projection",
+      "AMH-06-enforced-completion-and-git-rails",
+      "AMH-07-read-only-session-bootstrap",
+      "AMH-08-adversarial-and-ci-acceptance",
+      "AMH-09-integration-closeout"
+    ],
+    "edges": [
+      [
+        "AMH-00-roadmap-contract-and-registration",
+        "AMH-01-root-policy-and-runbook"
+      ],
+      [
+        "AMH-00-roadmap-contract-and-registration",
+        "AMH-02-secret-safe-diagnostics"
+      ],
+      [
+        "AMH-00-roadmap-contract-and-registration",
+        "AMH-03-shared-verification-entrypoint"
+      ],
+      [
+        "AMH-00-roadmap-contract-and-registration",
+        "AMH-05-canonical-handoff-and-owner-projection"
+      ],
+      [
+        "AMH-02-secret-safe-diagnostics",
+        "AMH-04-machine-verification-receipts"
+      ],
+      [
+        "AMH-03-shared-verification-entrypoint",
+        "AMH-04-machine-verification-receipts"
+      ],
+      [
+        "AMH-01-root-policy-and-runbook",
+        "AMH-06-enforced-completion-and-git-rails"
+      ],
+      [
+        "AMH-02-secret-safe-diagnostics",
+        "AMH-06-enforced-completion-and-git-rails"
+      ],
+      [
+        "AMH-04-machine-verification-receipts",
+        "AMH-06-enforced-completion-and-git-rails"
+      ],
+      [
+        "AMH-05-canonical-handoff-and-owner-projection",
+        "AMH-06-enforced-completion-and-git-rails"
+      ],
+      [
+        "AMH-01-root-policy-and-runbook",
+        "AMH-07-read-only-session-bootstrap"
+      ],
+      [
+        "AMH-05-canonical-handoff-and-owner-projection",
+        "AMH-07-read-only-session-bootstrap"
+      ],
+      [
+        "AMH-06-enforced-completion-and-git-rails",
+        "AMH-07-read-only-session-bootstrap"
+      ],
+      [
+        "AMH-02-secret-safe-diagnostics",
+        "AMH-08-adversarial-and-ci-acceptance"
+      ],
+      [
+        "AMH-03-shared-verification-entrypoint",
+        "AMH-08-adversarial-and-ci-acceptance"
+      ],
+      [
+        "AMH-04-machine-verification-receipts",
+        "AMH-08-adversarial-and-ci-acceptance"
+      ],
+      [
+        "AMH-06-enforced-completion-and-git-rails",
+        "AMH-08-adversarial-and-ci-acceptance"
+      ],
+      [
+        "AMH-07-read-only-session-bootstrap",
+        "AMH-08-adversarial-and-ci-acceptance"
+      ],
+      [
+        "AMH-08-adversarial-and-ci-acceptance",
+        "AMH-09-integration-closeout"
+      ]
+    ],
+    "parallel_frontiers": [
+      {
+        "frontier": 0,
+        "slice_ids": [
+          "AMH-00-roadmap-contract-and-registration"
+        ],
+        "max_parallel_workers": 1
+      },
+      {
+        "frontier": 1,
+        "slice_ids": [
+          "AMH-01-root-policy-and-runbook",
+          "AMH-02-secret-safe-diagnostics",
+          "AMH-03-shared-verification-entrypoint",
+          "AMH-05-canonical-handoff-and-owner-projection"
+        ],
+        "max_parallel_workers": 1,
+        "rule": "Use one scoped writer for AMH implementation because policy, workflow, prompt, Planning and Git enforcement are consequential shared boundaries. Read-only inventory or review may run in parallel; split into multiple writers only through a later explicit roadmap revision with disjoint hotfile proof."
+      },
+      {
+        "frontier": 2,
+        "slice_ids": [
+          "AMH-04-machine-verification-receipts"
+        ],
+        "max_parallel_workers": 1
+      },
+      {
+        "frontier": 3,
+        "slice_ids": [
+          "AMH-06-enforced-completion-and-git-rails"
+        ],
+        "max_parallel_workers": 1
+      },
+      {
+        "frontier": 4,
+        "slice_ids": [
+          "AMH-07-read-only-session-bootstrap"
+        ],
+        "max_parallel_workers": 1
+      },
+      {
+        "frontier": 5,
+        "slice_ids": [
+          "AMH-08-adversarial-and-ci-acceptance"
+        ],
+        "max_parallel_workers": 1
+      },
+      {
+        "frontier": 6,
+        "slice_ids": [
+          "AMH-09-integration-closeout"
+        ],
+        "max_parallel_workers": 1
+      }
+    ]
+  },
+  "slice_queue": [
+    {
+      "id": "AMH-00-roadmap-contract-and-registration",
+      "execution_status": "done_in_this_artifact",
+      "mutation_class": "repo_only",
+      "priority": "P0",
+      "owner": "root acting as Charlie",
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/plans/agent-maintenance-safety-harness-roadmap.json",
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json"
+      ],
+      "hotfiles": [
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json"
+      ],
+      "objective": "Freeze a repo-native safety architecture, dependency DAG, non-goals, evidence levels and Open Work registration without implementing runtime behavior.",
+      "deliverables": [
+        "canonical AMH roadmap",
+        "OWM-23 completion-lane registration",
+        "multi-agent guidance entry",
+        "machine-readable dependency and completion contract"
+      ],
+      "tests": [
+        "python -m json.tool docs/plans/agent-maintenance-safety-harness-roadmap.json",
+        "python scripts/roadmap_safe_queue_audit.py --format json",
+        "python scripts/roadmap_multi_agent_guidance.py --roadmap docs/plans/open-work-completion-master-roadmap.json --format markdown",
+        "git diff --check -- docs/plans/agent-maintenance-safety-harness-roadmap.json docs/plans/open-work-completion-master-roadmap.json docs/plans/multi-agent-execution-guidance.json"
+      ],
+      "evidence_required": [
+        "valid JSON",
+        "unique AMH and OWM identifiers",
+        "acyclic dependencies",
+        "all referenced repository paths either exist now or are explicitly future deliverables",
+        "no live authority, credential material or destructive recovery instruction"
+      ],
+      "done_when": "PASS only if the detailed roadmap is valid, registered exactly once in Open Work and guidance, does not change the active queue frontier and preserves all foreign roadmap content.",
+      "stop_rules": [
+        "Stop on an overlapping active claim or an inability to preserve current Open Work changes.",
+        "Stop if registration changes safe_open_count or silently preempts TAX, TUA or another active queue.",
+        "Stop if the roadmap introduces a second planning, owner-question or orchestration authority."
+      ]
+    },
+    {
+      "id": "AMH-01-root-policy-and-runbook",
+      "execution_status": "planned_after_explicit_goal",
+      "mutation_class": "repo_only",
+      "priority": "P0",
+      "owner": "Alice",
+      "depends_on": [
+        "AMH-00-roadmap-contract-and-registration"
+      ],
+      "allowed_paths": [
+        "AGENTS.md",
+        "docs/agent-maintenance-runbook.md",
+        "CONTRIBUTING.md",
+        "tests/test_agent_maintenance_policy.py"
+      ],
+      "hotfiles": [
+        "CONTRIBUTING.md"
+      ],
+      "objective": "Create a short root policy and reproducible runbook that tell every fresh agent how to preserve foreign work, handle secrets, select evidence, ask for owner judgment and report verification limits.",
+      "deliverables": [
+        "tracked root AGENTS.md",
+        "maintenance runbook",
+        "policy drift tests",
+        "PR and final-handoff disclosure wording"
+      ],
+      "tests": [
+        "python -m pytest -q tests/test_agent_maintenance_policy.py",
+        "git diff --check -- AGENTS.md docs/agent-maintenance-runbook.md CONTRIBUTING.md tests/test_agent_maintenance_policy.py"
+      ],
+      "evidence_required": [
+        "policy is bounded and contains no mutable state",
+        "forbidden secret and destructive Git rules are explicit",
+        "verification and verification-limits disclosure is explicit",
+        "runbook never grants commit, push, deploy or live authority"
+      ],
+      "done_when": "A fresh agent can determine the safe start, work, verify, handoff and stop behavior from tracked root policy and one runbook without reading old chat history.",
+      "stop_rules": [
+        "Do not copy a vendor-specific CLAUDE.md template wholesale.",
+        "Do not embed current task state, tokens, private paths or raw diagnostic examples.",
+        "Stop on a foreign change to CONTRIBUTING.md until a scoped handoff exists."
+      ]
+    },
+    {
+      "id": "AMH-02-secret-safe-diagnostics",
+      "execution_status": "planned_after_explicit_goal",
+      "mutation_class": "repo_only",
+      "priority": "P0",
+      "owner": "Bob",
+      "depends_on": [
+        "AMH-00-roadmap-contract-and-registration"
+      ],
+      "allowed_paths": [
+        "src/secret_safe_diagnostics.py",
+        "src/tool_security.py",
+        "src/tool_execution.py",
+        "src/maintenance_output_validator.py",
+        "routes/diagnostics_routes.py",
+        "tests/test_secret_safe_diagnostics.py",
+        "tests/test_tool_security.py",
+        "tests/test_maintenance_output_validator.py"
+      ],
+      "hotfiles": [
+        "src/tool_execution.py",
+        "src/tool_security.py",
+        "routes/diagnostics_routes.py"
+      ],
+      "objective": "Guarantee that diagnostic subprocess, exception and API output is allowlisted and redacted before any model, UI, history, log, receipt or roadmap consumer can inspect it.",
+      "deliverables": [
+        "central secret-safe diagnostic result contract",
+        "fixed-key presence boolean and bounded-count helpers",
+        "pre-consumer redaction boundary",
+        "fail-closed narrow-evidence response",
+        "synthetic canary and bypass regression tests"
+      ],
+      "tests": [
+        "python -m pytest -q tests/test_secret_safe_diagnostics.py tests/test_tool_security.py tests/test_maintenance_output_validator.py",
+        "git diff --check -- src/secret_safe_diagnostics.py src/tool_security.py src/tool_execution.py src/maintenance_output_validator.py routes/diagnostics_routes.py tests/test_secret_safe_diagnostics.py"
+      ],
+      "evidence_required": [
+        "no credential value, prefix, suffix, length or hash reaches returned output",
+        "env, printenv, .env reads, docker inspect and unredacted compose config are rejected as raw evidence sources",
+        "unknown diagnostic source fails closed and requests a narrower evidence contract",
+        "synthetic canaries are removed before every downstream boundary",
+        "no test reads a real local environment secret"
+      ],
+      "done_when": "Every maintenance diagnostic path returns only allowlisted redacted structures before agent processing, and adversarial synthetic canaries cannot escape through success, exception, subprocess or API-response paths.",
+      "stop_rules": [
+        "Stop immediately if validation would require reading or printing a real credential.",
+        "Do not treat hashing, truncation, prefixing, suffixing or length reporting as safe credential handling.",
+        "Do not persist raw subprocess or provider output for later redaction."
+      ]
+    },
+    {
+      "id": "AMH-03-shared-verification-entrypoint",
+      "execution_status": "planned_after_explicit_goal",
+      "mutation_class": "repo_only",
+      "priority": "P0",
+      "owner": "Bob",
+      "depends_on": [
+        "AMH-00-roadmap-contract-and-registration"
+      ],
+      "allowed_paths": [
+        "scripts/verify.py",
+        ".github/workflows/quality-gate.yml",
+        ".github/workflows/ci.yml",
+        "CONTRIBUTING.md",
+        "tests/TESTING_STANDARD.md",
+        "tests/test_verify_entrypoint.py"
+      ],
+      "hotfiles": [
+        ".github/workflows/quality-gate.yml",
+        ".github/workflows/ci.yml",
+        "CONTRIBUTING.md"
+      ],
+      "objective": "Provide one cross-platform entrypoint for guards-only, fast, full and UI verification lanes and make local instructions plus CI call the same implementation.",
+      "deliverables": [
+        "scripts/verify.py lane contract",
+        "deterministic check registry and exit codes",
+        "CI reuse without weakening existing jobs",
+        "bounded command and duration metadata for receipts",
+        "entrypoint contract tests"
+      ],
+      "tests": [
+        "python -m pytest -q tests/test_verify_entrypoint.py",
+        "python scripts/verify.py --lane guards-only",
+        "git diff --check -- scripts/verify.py .github/workflows/quality-gate.yml .github/workflows/ci.yml CONTRIBUTING.md tests/TESTING_STANDARD.md tests/test_verify_entrypoint.py"
+      ],
+      "evidence_required": [
+        "Windows and Linux resolve the same named checks",
+        "unknown or unavailable required check fails closed",
+        "guards-only remains bounded and cannot claim full verification",
+        "UI lane records visual evidence availability separately",
+        "CI continues to fail on any required check failure"
+      ],
+      "done_when": "Agents, contributors and CI select one named verification lane through the same Python implementation, and the result cannot imply a stronger lane than actually ran.",
+      "stop_rules": [
+        "Do not remove or downgrade an existing CI check to simplify the shared entrypoint.",
+        "Do not install dependencies or start services implicitly.",
+        "Stop on overlapping workflow or CONTRIBUTING.md changes until a scoped handoff exists."
+      ]
+    },
+    {
+      "id": "AMH-04-machine-verification-receipts",
+      "execution_status": "blocked_by_dependency",
+      "mutation_class": "repo_only",
+      "priority": "P0",
+      "owner": "Bob",
+      "depends_on": [
+        "AMH-02-secret-safe-diagnostics",
+        "AMH-03-shared-verification-entrypoint"
+      ],
+      "allowed_paths": [
+        "specs/agent-maintenance-verification-receipt.v1.schema.json",
+        "src/agent_verification_receipt.py",
+        "scripts/verify.py",
+        "tests/test_agent_verification_receipt.py",
+        "tests/test_verify_entrypoint.py"
+      ],
+      "hotfiles": [
+        "scripts/verify.py"
+      ],
+      "objective": "Generate one content-free receipt that binds actual checks, outcomes and explicit verification limits to the exact Git revision or dirty-diff digest.",
+      "deliverables": [
+        "versioned receipt schema",
+        "deterministic generator and validator",
+        "revision and diff binding",
+        "declared required, passed, failed, skipped and unavailable checks",
+        "explicit not_verified list",
+        "redaction and tamper tests"
+      ],
+      "tests": [
+        "python -m pytest -q tests/test_agent_verification_receipt.py tests/test_verify_entrypoint.py",
+        "python -m json.tool specs/agent-maintenance-verification-receipt.v1.schema.json",
+        "git diff --check -- specs/agent-maintenance-verification-receipt.v1.schema.json src/agent_verification_receipt.py scripts/verify.py tests/test_agent_verification_receipt.py"
+      ],
+      "evidence_required": [
+        "receipt revision or diff digest changes when verified code changes",
+        "receipt cannot contain raw stdout, stderr, exception, API payload, environment value or private path",
+        "an agent-authored or stale receipt cannot satisfy completion",
+        "skipped, unavailable and not_verified remain distinguishable",
+        "schema and validator reject unknown result states"
+      ],
+      "done_when": "A valid redacted machine receipt proves exactly which lane and checks ran against which code and names every unavailable stronger evidence level without relying on agent prose.",
+      "stop_rules": [
+        "Do not sign, hash or otherwise transform credential material into a receipt.",
+        "Do not store raw check output in or beside the receipt.",
+        "Do not permit a receipt generated before the final edit to pass."
+      ]
+    },
+    {
+      "id": "AMH-05-canonical-handoff-and-owner-projection",
+      "execution_status": "planned_after_explicit_goal",
+      "mutation_class": "repo_only",
+      "priority": "P1",
+      "owner": "Alice; Bob for projection code",
+      "depends_on": [
+        "AMH-00-roadmap-contract-and-registration"
+      ],
+      "allowed_paths": [
+        "src/planning_definition_projection.py",
+        "src/planning_mcp_service.py",
+        "src/operator_dashboard/review_queue.py",
+        "src/clarification_contract.py",
+        "src/coding_agent_runner_state.py",
+        "tests/test_agent_maintenance_handoff.py",
+        "tests/test_planning_definition_projection.py",
+        "tests/test_clarification_contract.py"
+      ],
+      "hotfiles": [
+        "src/planning_definition_projection.py",
+        "src/planning_mcp_service.py",
+        "src/operator_dashboard/review_queue.py",
+        "src/clarification_contract.py"
+      ],
+      "objective": "Expose one bounded maintenance handoff and owner-decision view derived from current Planning, claims, gate_queue and clarification authorities.",
+      "deliverables": [
+        "bounded maintenance status projection",
+        "current goal, slice, claim, next action and blocker fields",
+        "deduplicated owner-question projection",
+        "receipt reference and verification-limits fields",
+        "stale, conflicting and privacy-safe projection tests"
+      ],
+      "tests": [
+        "python -m pytest -q tests/test_agent_maintenance_handoff.py tests/test_planning_definition_projection.py tests/test_clarification_contract.py",
+        "git diff --check -- src/planning_definition_projection.py src/planning_mcp_service.py src/operator_dashboard/review_queue.py src/clarification_contract.py src/coding_agent_runner_state.py tests/test_agent_maintenance_handoff.py"
+      ],
+      "evidence_required": [
+        "projection contains no second mutable owner queue",
+        "duplicate gate and clarification entries reduce to one stable item",
+        "stale or contradictory state is visible and blocks completion",
+        "private content and raw evidence never enter the projection",
+        "missing owner decision yields waiting_on_user rather than an invented answer"
+      ],
+      "done_when": "A fresh agent can read one bounded projection and know what is active, what comes next, what is blocked, what was verified and which exact decisions belong to the owner, while all writes remain in existing authorities.",
+      "stop_rules": [
+        "Do not create OWNER_QUEUE.md, STATE.md or another maintenance database.",
+        "Do not mutate Planning through a read-only projection.",
+        "Stop on a shared Planning or clarification hotfile claim until handed off."
+      ]
+    },
+    {
+      "id": "AMH-06-enforced-completion-and-git-rails",
+      "execution_status": "blocked_by_dependency",
+      "mutation_class": "repo_only",
+      "priority": "P0",
+      "owner": "Charlie; Bob for policy code",
+      "depends_on": [
+        "AMH-01-root-policy-and-runbook",
+        "AMH-02-secret-safe-diagnostics",
+        "AMH-04-machine-verification-receipts",
+        "AMH-05-canonical-handoff-and-owner-projection"
+      ],
+      "allowed_paths": [
+        "src/claim_evidence_gate.py",
+        "src/repo_remote_policy.py",
+        "src/repo_commit_runner.py",
+        "src/repo_push_runner.py",
+        "src/live_quality_gate_command_runner.py",
+        "src/server_project_runner.py",
+        "src/effectful_tool_matrix.py",
+        "tests/test_agent_maintenance_completion_gate.py",
+        "tests/test_repo_commit_runner.py",
+        "tests/test_repo_push_runner.py",
+        "tests/test_live_quality_gate_command_runner.py"
+      ],
+      "hotfiles": [
+        "src/claim_evidence_gate.py",
+        "src/repo_remote_policy.py",
+        "src/repo_commit_runner.py",
+        "src/repo_push_runner.py"
+      ],
+      "objective": "Make current evidence, clean claim ownership and explicit publication authority mandatory while structurally denying destructive Git, force push, foreign work inclusion and raw secret diagnostics.",
+      "deliverables": [
+        "receipt-bound completion rule",
+        "structured argv, remote and branch policy",
+        "foreign staged and overlapping hunk rejection",
+        "explicit no-auto-commit and no-auto-push boundary",
+        "narrow recovery guidance without reset or clean",
+        "negative bypass tests"
+      ],
+      "tests": [
+        "python -m pytest -q tests/test_agent_maintenance_completion_gate.py tests/test_repo_commit_runner.py tests/test_repo_push_runner.py tests/test_live_quality_gate_command_runner.py",
+        "git diff --check -- src/claim_evidence_gate.py src/repo_remote_policy.py src/repo_commit_runner.py src/repo_push_runner.py src/live_quality_gate_command_runner.py src/server_project_runner.py src/effectful_tool_matrix.py tests/test_agent_maintenance_completion_gate.py"
+      ],
+      "evidence_required": [
+        "missing, stale, weaker-lane or mismatched receipt blocks done",
+        "force push, reset --hard, clean and history rewrite remain denied",
+        "push target is checked from structured remote and branch fields rather than substring matching",
+        "foreign staged files and overlapping hunks stop commit and push",
+        "green tests alone never grant publication or live authority"
+      ],
+      "done_when": "No supported maintenance path can mark a slice done or publish it without current scoped evidence, valid claims and explicit authority, and all declared destructive or secret-unsafe bypasses fail closed.",
+      "stop_rules": [
+        "Never test destructive Git against the real working tree; use isolated temporary repositories.",
+        "Do not infer push permission from implementation intent or a green receipt.",
+        "Stop before any change that weakens an existing confirmation, auth, effect or live-go boundary."
+      ]
+    },
+    {
+      "id": "AMH-07-read-only-session-bootstrap",
+      "execution_status": "blocked_by_dependency",
+      "mutation_class": "repo_only",
+      "priority": "P1",
+      "owner": "Alice; Bob for runtime projection",
+      "depends_on": [
+        "AMH-01-root-policy-and-runbook",
+        "AMH-05-canonical-handoff-and-owner-projection",
+        "AMH-06-enforced-completion-and-git-rails"
+      ],
+      "allowed_paths": [
+        ".codex/hooks.json",
+        "src/agent_loop_prompts.py",
+        "src/runtime_tool_status.py",
+        "docs/agent-maintenance-runbook.md",
+        "tests/test_agent_maintenance_bootstrap.py"
+      ],
+      "hotfiles": [
+        ".codex/hooks.json",
+        "src/agent_loop_prompts.py"
+      ],
+      "objective": "Present the bounded policy and current handoff at session start through read-only, idempotent checks without installation, service start, network access or background mutation.",
+      "deliverables": [
+        "branch and dirty-worktree warning",
+        "bounded active-slice and owner-question summary",
+        "verification entrypoint pointer",
+        "read-only hook and internal-agent projection parity",
+        "timeout, missing-file and stale-state tests"
+      ],
+      "tests": [
+        "python -m pytest -q tests/test_agent_maintenance_bootstrap.py",
+        "git diff --check -- .codex/hooks.json src/agent_loop_prompts.py src/runtime_tool_status.py docs/agent-maintenance-runbook.md tests/test_agent_maintenance_bootstrap.py"
+      ],
+      "evidence_required": [
+        "bootstrap performs no write, install, network call or service start",
+        "missing or malformed state produces a bounded warning and safe stop",
+        "branch and worktree information contains no secret or private diagnostic payload",
+        "internal and external agents receive equivalent safety invariants",
+        "hook failure cannot silently grant execution authority"
+      ],
+      "done_when": "Every supported agent session receives the same bounded safety and handoff context before maintenance work, and bootstrap remains read-only, idempotent, fast and fail-closed.",
+      "stop_rules": [
+        "Do not add package installation, warmup, model download, provider call or long-running process to SessionStart.",
+        "Do not print raw environment, configuration or process payloads.",
+        "Stop on an overlapping hook or prompt hotfile change until handed off."
+      ]
+    },
+    {
+      "id": "AMH-08-adversarial-and-ci-acceptance",
+      "execution_status": "blocked_by_dependency",
+      "mutation_class": "repo_only",
+      "priority": "P0",
+      "owner": "Charlie",
+      "depends_on": [
+        "AMH-02-secret-safe-diagnostics",
+        "AMH-03-shared-verification-entrypoint",
+        "AMH-04-machine-verification-receipts",
+        "AMH-06-enforced-completion-and-git-rails",
+        "AMH-07-read-only-session-bootstrap"
+      ],
+      "allowed_paths": [
+        "tests/test_agent_maintenance_adversarial.py",
+        "tests/test_agent_maintenance_completion_gate.py",
+        "tests/test_agent_maintenance_bootstrap.py",
+        "tests/test_secret_safe_diagnostics.py",
+        ".github/workflows/quality-gate.yml",
+        "scripts/verify.py"
+      ],
+      "hotfiles": [
+        ".github/workflows/quality-gate.yml",
+        "scripts/verify.py"
+      ],
+      "objective": "Prove the harness against realistic forgetful, weak, overconfident and adversarial-agent failure modes and make the guards a blocking CI lane.",
+      "deliverables": [
+        "adversarial maintenance corpus",
+        "stale receipt and post-verification edit cases",
+        "secret canary and raw diagnostic bypass cases",
+        "foreign work and destructive Git cases in temporary repos",
+        "invented owner decision and duplicate queue cases",
+        "blocking guards-only CI lane"
+      ],
+      "tests": [
+        "python -m pytest -q tests/test_agent_maintenance_adversarial.py tests/test_agent_maintenance_completion_gate.py tests/test_agent_maintenance_bootstrap.py tests/test_secret_safe_diagnostics.py",
+        "python scripts/verify.py --lane guards-only",
+        "python scripts/verify.py --lane fast",
+        "git diff --check -- tests/test_agent_maintenance_adversarial.py .github/workflows/quality-gate.yml scripts/verify.py"
+      ],
+      "evidence_required": [
+        "every seeded unsafe behavior fails for the intended mechanical reason",
+        "positive maintenance path reaches a current PASS receipt",
+        "failure output remains redacted and bounded",
+        "CI consumes the same guard implementation as local runs",
+        "no commit-body phrase or agent prose can satisfy a guard"
+      ],
+      "done_when": "The full adversarial matrix blocks unsafe or dishonest maintenance behavior, allows the declared safe positive path and is enforced through the shared local and CI verifier.",
+      "stop_rules": [
+        "Do not run adversarial Git cases in the real checkout.",
+        "Do not seed tests with real credentials, endpoints, identities or private paths.",
+        "Do not call the harness accepted while the positive path or any P0 negative case is unobserved."
+      ]
+    },
+    {
+      "id": "AMH-09-integration-closeout",
+      "execution_status": "blocked_by_dependency",
+      "mutation_class": "repo_only",
+      "priority": "P0",
+      "owner": "Charlie; Alice reviews operator language",
+      "depends_on": [
+        "AMH-08-adversarial-and-ci-acceptance"
+      ],
+      "allowed_paths": [
+        "docs/plans/agent-maintenance-safety-harness-roadmap.json",
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json",
+        "docs/agent-maintenance-runbook.md",
+        "AGENTS.md",
+        "CONTRIBUTING.md",
+        "tests/test_agent_maintenance_adversarial.py"
+      ],
+      "hotfiles": [
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json",
+        "CONTRIBUTING.md"
+      ],
+      "objective": "Run the declared repository acceptance, record each completion layer separately, supersede stale process wording and close the AMH Open Work track without claiming publication or deployment.",
+      "deliverables": [
+        "combined receipt-bound acceptance",
+        "final source-of-truth and drift audit",
+        "updated runbook and contribution instructions",
+        "Open Work completion update",
+        "bounded handoff with verification limits"
+      ],
+      "tests": [
+        "python scripts/verify.py --lane full",
+        "python scripts/roadmap_safe_queue_audit.py --format json",
+        "python scripts/roadmap_multi_agent_guidance.py --roadmap docs/plans/open-work-completion-master-roadmap.json --format markdown",
+        "git diff --check -- AGENTS.md docs/agent-maintenance-runbook.md CONTRIBUTING.md docs/plans/agent-maintenance-safety-harness-roadmap.json docs/plans/open-work-completion-master-roadmap.json docs/plans/multi-agent-execution-guidance.json"
+      ],
+      "evidence_required": [
+        "full lane current PASS receipt",
+        "all AMH dependencies and done_when conditions satisfied",
+        "no stale competing policy or state authority",
+        "foreign work preserved and no foreign staged file included",
+        "commit, push, deploy, live, visual and temporal completion reported separately"
+      ],
+      "done_when": "AMH repository acceptance is current and green, Open Work and guidance report the same completed state, process documentation matches mechanics, and no unverified publication, deployment or product-complete claim is made.",
+      "stop_rules": [
+        "Stop on any required red test, stale receipt, unresolved claim, owner question or foreign staged file.",
+        "Do not commit or push without a separate explicit publication instruction and current fuzzy/dev checks.",
+        "Do not collapse repository acceptance, deployment and product completion into one done claim."
+      ]
+    }
+  ],
+  "gate_queue": [
+    {
+      "gate_id": "AMH-GATE-EXPLICIT-GOAL-OR-REPRIORITIZATION",
+      "state": "satisfied_2026-07-22",
+      "blocks": [
+        "AMH-01-root-policy-and-runbook",
+        "AMH-02-secret-safe-diagnostics",
+        "AMH-03-shared-verification-entrypoint",
+        "AMH-05-canonical-handoff-and-owner-projection"
+      ],
+      "decision_needed": "Satisfied by the user's explicit 8-12 hour /abc goal naming AMH after OWM-22 reached a repo-complete safe handoff.",
+      "safe_default": "Execute only the dependency-ready repo-only AMH frontier with one scoped writer; keep all external effects disabled."
+    },
+    {
+      "gate_id": "AMH-GATE-SHARED-HOTFILE-HANDOFF",
+      "state": "pending_per_slice",
+      "blocks": [
+        "Any AMH slice whose allowed path has an active claim or overlapping foreign hunk"
+      ],
+      "decision_needed": "No user decision when ownership is unambiguous; obtain a durable scoped handoff or wait for the active owner.",
+      "safe_default": "Remain read-only on claimed or overlapping files and continue only a disjoint dependency-ready slice."
+    }
+  ],
+  "global_stop_rules": [
+    "Stop for any secret, token, credential value, credential prefix, credential suffix, credential length, credential hash, private content, raw provider output or unredacted diagnostic payload.",
+    "Stop before env, printenv, .env reads, docker inspect or unredacted compose config as an agent evidence source.",
+    "Stop for destructive Git, history rewrite, force push, broad cleanup, foreign staged files or overlapping foreign hunks.",
+    "Stop before any commit, push, deploy, provider write, host change, send, backup, restore or other external mutation without its exact authority.",
+    "Stop completion on a missing, stale, mismatched, weaker-than-required or agent-authored verification receipt.",
+    "Stop if a new state store, owner queue, scheduler, heartbeat owner or orchestration authority would duplicate an existing canonical system.",
+    "Stop if a required visual, live or temporal evidence level is replaced by unit tests or prose.",
+    "Stop if implementation would silently preempt the selected Open Work queue or violate a dependency frontier."
+  ],
+  "completion_contract": {
+    "roadmap_authored": "Requires AMH-00 valid JSON, Open Work registration, guidance registration and unchanged active queue counts.",
+    "repository_implemented": "Requires AMH-01 through AMH-09 done_when conditions and a current full-lane machine receipt.",
+    "tested": "Requires focused, adversarial, integration and declared cross-platform verification evidence.",
+    "committed": "No. Requires a separate path-scoped publication instruction, staged-diff review and no foreign staged content.",
+    "pushed": "No. Requires current dev to fuzzy/dev authority, receipt readback and explicit user instruction; never origin.",
+    "deployed": "Not applicable to roadmap authoring and not authorized by repository acceptance.",
+    "live_validated": "Not applicable unless a later implementation slice declares a separate live target and action-specific Go.",
+    "visual_validated": "Not required for roadmap authoring; any future UI projection must declare independent visual acceptance.",
+    "temporal_validated": "Not required for roadmap authoring; no long-running reliability claim is part of AMH.",
+    "product_complete": "No. AMH is one Open Work safety track."
+  },
+  "verification": {
+    "authoring_required": [
+      "JSON parse for the AMH roadmap, Open Work master and guidance registry",
+      "unique AMH slice and OWM track identifiers",
+      "all dependency targets exist and the AMH DAG is acyclic",
+        "OWM-23 and AMH remain absent from executable, other-open, live-gate, design-gate and decision-packet audit results while dormant",
+      "guidance resolves the new roadmap",
+      "path-scoped whitespace and diff review"
+    ],
+    "implementation_rule": "Each slice runs its focused tests first. AMH-08 runs the shared guards and fast lanes. AMH-09 alone runs the declared full integration lane after all dependencies are green.",
+    "evidence_rule": "Record actual checks and unavailable levels separately. Never treat policy wording, a checkbox, a commit-body phrase or agent prose as machine evidence."
+  },
+  "authoring_execution": {
+    "phase": "roadmap_authoring",
+    "status": "accepted_roadmap_only",
+    "observed_at": "2026-07-18T16:25:50+02:00",
+    "authority": "repo",
+    "mutation_class": "repo_only",
+    "changed_paths": [
+      "docs/plans/agent-maintenance-safety-harness-roadmap.json",
+      "docs/plans/open-work-completion-master-roadmap.json",
+      "docs/plans/multi-agent-execution-guidance.json"
+    ],
+    "tests": [
+      "JSON parse passed for the AMH roadmap, Open Work master and multi-agent guidance registry.",
+      "Path-scoped git diff --check passed for all three roadmap artifacts.",
+      "roadmap_multi_agent_guidance passed with 130 discovered and 130 registered roadmaps and resolved AMH as active_serial, roadmap_registered_goal_not_started.",
+      "roadmap_safe_queue_audit exited successfully; OWM-23 and AMH occur in no safe slice, other-open item, live gate, design gate or decision packet.",
+      "Custom structural validation passed: 10 unique slices, all dependency targets present, acyclic DAG, one dormant OWM-23 track, no AMH execution-queue slice and one guidance entry."
+    ],
+    "verification_limits": [
+      "No AMH runtime, policy, verifier, receipt, projection or enforcement implementation was performed.",
+      "No commit, push, deploy, live mutation, provider call or external write was performed."
+    ]
+  },
+  "recommended_next_step": "Claim AMH-01 as the first serial writer slice, then advance AMH-02, AMH-03 and AMH-05 only after each scoped handoff; keep AMH-04 onward dependency-blocked and preserve every unrelated worktree change."
+}

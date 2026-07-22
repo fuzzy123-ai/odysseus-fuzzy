@@ -2,11 +2,11 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 27,
+  "revision": 31,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "queue_scope": "open_work",
-  "queue_lane": "OWM-22",
-  "queue_path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+  "queue_lane": "OWM-23",
+  "queue_path": "docs/plans/agent-maintenance-safety-harness-roadmap.json",
   "started_at": "2026-07-22T06:56:21+02:00",
   "deadline_at": "2026-07-22T18:56:21+02:00",
   "state": "running",
@@ -20,7 +20,7 @@
   },
   "route": {
     "entrypoint": "/abc",
-    "slice_id": "post-OWM22-audit",
+    "slice_id": "AMH-01-ready",
     "mutation": "safe_offline",
     "selected_skills": ["abc"],
     "model": "surface_default",
@@ -256,10 +256,46 @@
       "completion": {
         "implemented": "yes",
         "tested": "yes",
-        "committed": "no",
+        "committed": "9d2ce23e",
         "pushed": "no",
         "deployed": "no",
         "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "roadmap-registry-source-reconciliation",
+      "completed_at": "2026-07-22T10:34:00+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "15 of 15 primary roadmap source SHA256 hashes matched; potential credential assignment count zero; diff checks passed",
+      "integration_tests": "130 discovered and 130 registered roadmaps; guidance inventory valid",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "9f0f4b13",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-00",
+      "completed_at": "2026-07-22T10:41:00+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "JSON, queue audit, guidance resolution, DAG uniqueness and diff checks passed",
+      "integration_tests": "130 roadmap guidance entries resolved including one AMH entry; OWM-23 registered exactly once without executable queue preemption",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
         "visual_validated": "na",
         "temporal_validated": "na",
         "product_complete": "no"
@@ -302,10 +338,10 @@
       "direct_script_repo_import_bootstrap_fixed_and_subprocess_tested"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T10:21:00+02:00",
-  "last_heartbeat_at": "2026-07-22T10:21:00+02:00",
-  "last_reported_revision": 27,
-  "resume_cursor": "post-OWM22-audit",
+  "last_durable_progress_at": "2026-07-22T10:41:00+02:00",
+  "last_heartbeat_at": "2026-07-22T10:41:00+02:00",
+  "last_reported_revision": 31,
+  "resume_cursor": "AMH-01-root-policy-and-runbook",
   "pending_user_requests": [],
   "live_go_ledger": [],
   "gate_queue": [
@@ -315,7 +351,12 @@
     "TTD-LIVE-ROLLOVER-SMOKE",
     "TTD-LIVE-HISTORY-RETENTION"
   ],
-  "next_runnable_slices": ["post-OWM22-audit"],
+  "next_runnable_slices": [
+    "AMH-01-root-policy-and-runbook",
+    "AMH-02-secret-safe-diagnostics",
+    "AMH-03-shared-verification-entrypoint",
+    "AMH-05-canonical-handoff-and-owner-projection"
+  ],
   "stop_rules": [
     "stop_on_secret_or_private_content",
     "stop_on_overlapping_writer_or_foreign_staged_file",
