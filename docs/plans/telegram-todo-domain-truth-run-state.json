@@ -2,14 +2,14 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 43,
+  "revision": 44,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "queue_scope": "open_work",
   "queue_lane": "OWM-23",
   "queue_path": "docs/plans/agent-maintenance-safety-harness-roadmap.json",
   "started_at": "2026-07-22T06:56:21+02:00",
   "deadline_at": "2026-07-22T18:56:21+02:00",
-  "state": "running",
+  "state": "complete_repo_frontier_exhausted",
   "max_parallel_workers": 1,
   "worktree": "C:/tmp/odysseus-abc-ttd-20260722",
   "branch": "codex/abc-ttd-20260722",
@@ -20,7 +20,7 @@
   },
   "route": {
     "entrypoint": "/abc",
-    "slice_id": "branch-final-verification",
+    "slice_id": "repo-frontier-exhausted",
     "mutation": "safe_offline",
     "selected_skills": ["abc"],
     "model": "surface_default",
@@ -432,10 +432,30 @@
       "completion": {
         "implemented": "partial_hardened",
         "tested": "yes",
-        "committed": "no",
+        "committed": "b2e0a140",
         "pushed": "no",
         "deployed": "no",
         "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "branch-final-verification",
+      "completed_at": "2026-07-22T12:00:00+02:00",
+      "status": "accepted_revision_scoped_evidence_with_baseline_fast_lane_limits",
+      "focused_tests": "352 passed across every changed Python test plus Planning projection, Plan Mode, public blocked-tool and Vault security integrations",
+      "integration_tests": "Guards-only lane passed 3 of 3; queue audit reports safe_open_count 0 and queue_exhausted true; guidance has 130 entries",
+      "static_evidence": "All four coordination JSON files parse; OWM-23 remains registered exactly once; git diff check passed",
+      "verification_limit": "The broad fast lane remains red only in pre-existing or platform-specific areas outside this run's claims, including Windows symlink/Bash/ESM-path cases and foreign Session, chat-helper and code-navigation baseline failures",
+      "completion": {
+        "implemented": "verification_only",
+        "tested": "yes",
+        "committed": "b2e0a140",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
         "visual_validated": "na",
         "temporal_validated": "na",
         "product_complete": "no"
@@ -495,10 +515,10 @@
       "safe_claim_identifier_fallback_expectation_corrected"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T11:55:00+02:00",
-  "last_heartbeat_at": "2026-07-22T11:55:00+02:00",
-  "last_reported_revision": 43,
-  "resume_cursor": "branch-final-verification",
+  "last_durable_progress_at": "2026-07-22T12:00:00+02:00",
+  "last_heartbeat_at": "2026-07-22T12:00:00+02:00",
+  "last_reported_revision": 44,
+  "resume_cursor": "awaiting_user_or_foreign_handoff",
   "pending_user_requests": [],
   "live_go_ledger": [],
   "gate_queue": [
@@ -508,7 +528,7 @@
     "TTD-LIVE-ROLLOVER-SMOKE",
     "TTD-LIVE-HISTORY-RETENTION"
   ],
-  "next_runnable_slices": ["branch-final-verification"],
+  "next_runnable_slices": [],
   "known_blockers": [
     {
       "id": "AMH-02-FOREIGN-HOTFILE-HANDOFF",
@@ -552,6 +572,18 @@
     "active_foreign_writer_found": false,
     "focused_foreign_contract_tests": "50 passed, 1 pre-existing SQLAlchemy deprecation warning",
     "conclusion": "Content is preserved and locally green, but checkpoint provenance alone is not ownership release; overlapping paths remain read-only."
+  },
+  "final_queue_audit": {
+    "observed_at": "2026-07-22T12:00:00+02:00",
+    "safe_open_count": 0,
+    "unclaimable_open_count": 1,
+    "unclaimable_slice": "UIX-ABC13",
+    "unclaimable_reason": "UIX-WORKBENCH-PRODUCT-SEMANTICS-CONFIRMATION",
+    "unique_live_gate_count": 40,
+    "unique_design_gate_count": 28,
+    "other_open_count": 34,
+    "queue_exhausted": true,
+    "stop_reason": "No dependency-ready repo-only slice remains without absorbing foreign work, inventing a product decision, or taking a separately gated live/design action."
   },
   "stop_rules": [
     "stop_on_secret_or_private_content",
