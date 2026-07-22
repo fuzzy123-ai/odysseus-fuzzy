@@ -1039,6 +1039,49 @@ Acceptance evidence 2026-07-22:
 
 Owner: Charlie
 
+Status: `accepted_local_repo_evidence_2026-07-22`
+
+Durable claim:
+
+```yaml
+claim:
+  run_id: abc-owm22-20260722T065621+0200
+  thread_id: 019f8625-35f5-7d90-9b5c-8b0724bc5f50
+  slice_id: TTD-09
+  owner: root acting as Charlie
+  state: released
+  acquired_at: 2026-07-22T09:58:00+02:00
+  lease_expires_at: 2026-07-22T10:58:00+02:00
+  released_at: 2026-07-22T10:08:00+02:00
+  allowed_paths:
+    - src/claim_evidence_gate.py
+    - scripts/run_telegram_todo_incident_regression.py
+    - docs/plans/telegram-todo-incident-regression-manifest.json
+    - tests/test_todo_claim_evidence.py
+    - tests/test_telegram_todo_incident_regression.py
+    - docs/plans/telegram-todo-domain-truth-roadmap.md
+    - docs/plans/telegram-todo-domain-truth-run-state.json
+    - docs/plans/open-work-completion-master-roadmap.json
+  hotfile_disposition:
+    preserved_primary_checkout: foreign roadmap, master and tests/test_telegram_plugin.py changes remain untouched
+    claim_gate_handoff: primary content matches integrated ancestor 25e7d11b byte-for-byte after newline normalization
+    isolated_worktree: serial single-writer; TTD-09 claim-gate hunks layer on the integrated ancestor
+  handoff_required: false
+```
+
+Preflight 2026-07-22:
+
+- Die Pflichtfaelle sind bereits ueber mehrere fokussierte Tests verteilt, aber
+  es gibt noch keinen versionierten, maschinenlesbaren Incident-Manifest und
+  keinen einzelnen Offline-Runner, der genau diese Evidence reproduziert.
+- Ein synthetischer Probeaufruf belegt eine echte Mengenluecke: `2 Todos
+  gespeichert.` passiert die Telegram Truth-Gate mit nur einem Receipt. Das
+  aktuelle Claim-Pattern erkennt den Plural nicht und bindet numerische oder
+  `beide`-Claims nicht an die Anzahl eindeutiger verifizierter Postconditions.
+- TTD-09 erweitert deshalb nur den semantischen Claim-Gate und erfasst die
+  bestehenden Pflichtfaelle in einem contentfreien Manifest. Kein Modell,
+  Netzwerk, Telegram-Kanal oder Produktionsdatum ist Bestandteil der Suite.
+
 Ziel:
 
 - Den redigierten Incident als dauerhafte Integrationsevidence abdecken.
@@ -1065,6 +1108,35 @@ Akzeptanz:
 - Tests laufen ohne Netzwerk, echte Telegram-Daten und Produktionsdaten.
 - Kein Bot-Text darf Erfolg behaupten, wenn die kanonische Postcondition fehlt.
 - Bestehende Memory-, Notes-, Scheduler- und Telegram-Tests bleiben gruen.
+
+Acceptance evidence 2026-07-22:
+
+- Ein versioniertes contentfreies Manifest bildet alle 14 Pflichtfaelle auf 23
+  eindeutige, per AST bestaetigte Pytest-Nodes ab. Der Runner entfernt Provider-
+  und Telegram-Credentials aus dem Kindprozess, setzt alle Telegram-Live-Gates
+  auf `false` und verweigert fehlende, Repo-interne oder bereits vorhandene
+  explizite Temp-Ziele.
+- Plurale Todo-Erfolgsclaims werden jetzt erkannt. Numerische Claims sowie
+  `beide`, `both`, `zwei` und `two` brauchen mindestens so viele eindeutige,
+  verifizierte semantische Receipts; ein impliziter Plural braucht mindestens
+  zwei. Generisches englisches `tasks` bleibt ausserhalb der Todo-Gate, um
+  Scheduler- und Projekttexte nicht faelschlich zu klassifizieren.
+- Fokus Claim-/Manifest-Gates: `37 passed`. Der eigenstaendige Manifest-Runner
+  meldet `14` Cases, `23 passed`, `network=forbidden`,
+  `production_data=forbidden` und `live_actions=false`.
+- Breite Integration ueber Notes/Todo-Domain, Memory-Gate, Receipts, Digest,
+  Telegram Truth-Gate, Context, Rollover und History: `278 passed, 1 deselected`
+  plus eine bestehende SQLAlchemy-Deprecation-Warnung. Die Deselektion bleibt
+  exakt die fremde, ueberholte TTD-08-Mixed-Store-Assertion; kein Foreign Hotfile
+  wurde editiert.
+- Der abschliessende Hotfile-Drift-Check zeigt `src/claim_evidence_gate.py` im
+  Primary Checkout als modifiziert. Sein Inhalt entspricht nach
+  Zeilenendnormalisierung bytegenau dem bereits im isolierten Branch enthaltenen
+  Ancestor `25e7d11b`; TTD-09 legt nur die neue Todo-Mengenbindung darauf.
+- Write-free AST (vier Dateien), drei JSON-Artefakte, Diff-, Queue- und
+  TAX0-Registry-Audit (`79/84/85`) sind gruen. Kein Netzwerk, Modell,
+  Telegram-Kanal, Produktionsdatum, Deployment oder Host wurde verwendet.
+  Naechster Preflight: `TTD-10`.
 
 ### TTD-10 - Rollout-, Rollback- und Live-Gate-Paket
 

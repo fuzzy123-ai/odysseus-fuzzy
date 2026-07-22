@@ -19,6 +19,7 @@ def _mutation_result(
     status="committed",
     verified=True,
     exit_code=0,
+    item_ref=ITEM_REF,
 ):
     defaults = {
         "add": {"exists": True, "done": False},
@@ -30,7 +31,7 @@ def _mutation_result(
         "action": action,
         "operation": action,
         "list_ref": LIST_REF,
-        "item_ref": ITEM_REF,
+        "item_ref": item_ref,
         "previous_state": {"exists": False, "done": None},
         "current_state": current_state or defaults[action],
         "open_count": 2,
@@ -103,6 +104,37 @@ def test_matching_verified_receipt_supports_claim_and_deterministic_render():
     assert report.findings[0].claim_type == "todo_item_completed"
     assert receipt.receipt_ref in report.findings[0].evidence
     assert rendered == f"Todo verifiziert erledigt. Referenz: `{ITEM_REF}`. Offene Todos: 2."
+
+
+def test_plural_todo_claim_requires_matching_unique_receipt_count():
+    first = todo_receipts_from_tool_result(_mutation_result("add"))[0]
+    second = todo_receipts_from_tool_result(
+        _mutation_result(
+            "add",
+            item_ref="todo-item:v1:itm_fedcba9876543210",
+        )
+    )[0]
+
+    under_evidenced = evaluate_response_claims(
+        "2 Todos gespeichert.",
+        [_event(first)],
+    )
+    fully_evidenced = evaluate_response_claims(
+        "Beide Aufgaben gespeichert.",
+        [_event(first), _event(second)],
+    )
+    implicit_plural = evaluate_response_claims("Todos gespeichert.", [_event(first)])
+    no_evidence = evaluate_response_claims("Two todos added.", [])
+    generic_tasks = evaluate_response_claims("Two scheduler tasks added.", [])
+
+    assert under_evidenced.ok is False
+    assert under_evidenced.unsupported[0].claim_type == "todo_item_created"
+    assert "fewer unique" in under_evidenced.unsupported[0].reason
+    assert fully_evidenced.ok is True
+    assert fully_evidenced.findings[0].claim_type == "todo_item_created"
+    assert implicit_plural.ok is False
+    assert no_evidence.ok is False
+    assert generic_tasks.findings == ()
 
 
 def test_mismatched_receipt_does_not_support_a_different_todo_claim():

@@ -78,28 +78,28 @@ _TODO_CLAIM_PATTERNS = (
     (
         "todo_item_created",
         re.compile(
-            r"\b(?:todo|to-do|aufgabe)\b.{0,48}\b(?:gespeichert|hinzugef(?:ue|\u00fc)gt|angelegt|saved|created|added)\b",
+            r"\b(?:(?:todo|to-do)s?|aufgaben?)\b.{0,48}\b(?:gespeichert|hinzugef(?:ue|\u00fc)gt|angelegt|saved|created|added)\b",
             re.IGNORECASE,
         ),
     ),
     (
         "todo_item_completed",
         re.compile(
-            r"\b(?:todo|to-do|aufgabe)\b.{0,48}\b(?:erledigt|abgehakt|completed|done)\b",
+            r"\b(?:(?:todo|to-do)s?|aufgaben?)\b.{0,48}\b(?:erledigt|abgehakt|completed|done)\b",
             re.IGNORECASE,
         ),
     ),
     (
         "todo_item_reopened",
         re.compile(
-            r"\b(?:todo|to-do|aufgabe)\b.{0,48}\b(?:wieder\s+ge(?:oe|\u00f6)ffnet|reopened)\b",
+            r"\b(?:(?:todo|to-do)s?|aufgaben?)\b.{0,48}\b(?:wieder\s+ge(?:oe|\u00f6)ffnet|reopened)\b",
             re.IGNORECASE,
         ),
     ),
     (
         "todo_item_removed",
         re.compile(
-            r"\b(?:todo|to-do|aufgabe)\b.{0,48}\b(?:entfernt|gel(?:oe|\u00f6)scht|removed|deleted)\b",
+            r"\b(?:(?:todo|to-do)s?|aufgaben?)\b.{0,48}\b(?:entfernt|gel(?:oe|\u00f6)scht|removed|deleted)\b",
             re.IGNORECASE,
         ),
     ),
@@ -135,6 +135,11 @@ _NEGATED_CLAIM_WITHIN_RE = re.compile(
     r"\b(?:not|never|no|cannot|can't|couldn't|didn't|nicht|nie|konnte\s+nicht|kein(?:e|en|em|er|es)?|unverified|unavailable)\b",
     re.IGNORECASE,
 )
+_TODO_QUANTITY_PREFIX_RE = re.compile(
+    r"\b(?:(?P<count>[1-9]\d{0,2})|(?P<count_word>beide|both|zwei|two))\s*$",
+    re.IGNORECASE,
+)
+_TODO_PLURAL_CLAIM_RE = re.compile(r"^(?:todos|to-dos|aufgaben)\b", re.IGNORECASE)
 
 
 @dataclass(frozen=True, slots=True)
@@ -267,17 +272,26 @@ def evaluate_response_claims(
             )
 
     for claim_type, pattern in _TODO_CLAIM_PATTERNS:
-        if not _has_positive_claim(pattern, text):
+        matches = _positive_claim_matches(pattern, text)
+        if not matches:
             continue
+        required_count = max(_todo_claim_count(text, match) for match in matches)
+        matching_receipt_count = len({
+            receipt.receipt_ref
+            for receipt in todo_receipts
+            if receipt.claim_type == claim_type and receipt.verified
+        })
         evidence = todo_receipt_evidence_for_claim(todo_receipts, claim_type)
+        if matching_receipt_count < required_count:
+            evidence = ()
         findings.append(
             ClaimEvidenceFinding(
                 claim_type,
                 "supported" if evidence else "unsupported",
                 (
-                    "Todo claim has a matching verified semantic receipt"
+                    "Todo claim has enough unique verified semantic receipts"
                     if evidence
-                    else "Todo claim has no matching verified semantic receipt"
+                    else "Todo claim has fewer unique verified semantic receipts than claimed"
                 ),
                 evidence,
             )
@@ -481,14 +495,31 @@ def _successful_telegram_events(events: Iterable[Mapping[str, Any]]) -> tuple[st
 
 
 def _has_positive_claim(pattern: re.Pattern[str], text: str) -> bool:
+    return bool(_positive_claim_matches(pattern, text))
+
+
+def _positive_claim_matches(
+    pattern: re.Pattern[str], text: str
+) -> tuple[re.Match[str], ...]:
+    matches: list[re.Match[str]] = []
     for match in pattern.finditer(text):
         prefix = text[max(0, match.start() - 48) : match.start()]
         if (
             not _NEGATED_CLAIM_PREFIX_RE.search(prefix)
             and not _NEGATED_CLAIM_WITHIN_RE.search(match.group(0))
         ):
-            return True
-    return False
+            matches.append(match)
+    return tuple(matches)
+
+
+def _todo_claim_count(text: str, match: re.Match[str]) -> int:
+    prefix = text[max(0, match.start() - 24) : match.start()]
+    quantity = _TODO_QUANTITY_PREFIX_RE.search(prefix)
+    if quantity is None:
+        return 2 if _TODO_PLURAL_CLAIM_RE.match(match.group(0)) else 1
+    if quantity.group("count_word"):
+        return 2
+    return max(1, min(int(quantity.group("count") or 1), 999))
 
 
 def _structured_claim_evidence(

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 23,
+  "revision": 25,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "queue_scope": "open_work",
   "queue_lane": "OWM-22",
@@ -20,7 +20,7 @@
   },
   "route": {
     "entrypoint": "/abc",
-    "slice_id": "TTD-09-preflight",
+    "slice_id": "TTD-10-preflight",
     "mutation": "safe_offline",
     "selected_skills": ["abc"],
     "model": "surface_default",
@@ -216,12 +216,32 @@
       "completion": {
         "implemented": "yes",
         "tested": "yes",
-        "committed": "no",
+        "committed": "5ca9fc8e",
         "pushed": "no",
         "deployed": "no",
         "live_validated": "no",
         "visual_validated": "na",
         "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "TTD-09",
+      "completed_at": "2026-07-22T10:08:00+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "37 passed",
+      "manifest_tests": "14 cases, 23 unique nodeids, 23 passed, network and production data forbidden, live actions false",
+      "integration_tests": "278 passed, 1 deselected, 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "AST 4 files, JSON 3 files, registry 79/84/85, queue audit and diff checks passed",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "synthetic_controlled_clock",
         "product_complete": "no"
       }
     }
@@ -258,10 +278,10 @@
       "static_audit_cli_invocation_corrected_to_check_and_format_modes"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T09:55:00+02:00",
-  "last_heartbeat_at": "2026-07-22T09:55:00+02:00",
-  "last_reported_revision": 23,
-  "resume_cursor": "TTD-09-preflight",
+  "last_durable_progress_at": "2026-07-22T10:08:00+02:00",
+  "last_heartbeat_at": "2026-07-22T10:08:00+02:00",
+  "last_reported_revision": 25,
+  "resume_cursor": "TTD-10-preflight",
   "pending_user_requests": [],
   "live_go_ledger": [],
   "gate_queue": [
@@ -271,7 +291,7 @@
     "TTD-LIVE-ROLLOVER-SMOKE",
     "TTD-LIVE-HISTORY-RETENTION"
   ],
-  "next_runnable_slices": ["TTD-09-preflight"],
+  "next_runnable_slices": ["TTD-10-preflight"],
   "stop_rules": [
     "stop_on_secret_or_private_content",
     "stop_on_overlapping_writer_or_foreign_staged_file",

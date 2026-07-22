@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.telegram_todo_incident_regression_manifest",
+  "suite_id": "TTD-09",
+  "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+  "execution": {
+    "network": "forbidden",
+    "production_data": "forbidden",
+    "live_actions": false,
+    "synthetic_data_only": true,
+    "runner": "scripts/run_telegram_todo_incident_regression.py"
+  },
+  "required_cases": [
+    {
+      "id": "single_todo_create",
+      "nodeids": [
+        "tests/test_manage_todos.py::test_add_creates_one_owner_stable_default_list_and_replay_is_idempotent"
+      ]
+    },
+    {
+      "id": "two_todos_one_message",
+      "nodeids": [
+        "tests/test_todo_intent_routing.py::test_clear_english_and_german_todo_intents_are_detected",
+        "tests/test_todo_claim_evidence.py::test_plural_todo_claim_requires_matching_unique_receipt_count"
+      ]
+    },
+    {
+      "id": "complete_reopen_remove",
+      "nodeids": [
+        "tests/test_manage_todos.py::test_complete_reopen_remove_round_trip_uses_stable_refs"
+      ]
+    },
+    {
+      "id": "casing_and_typo_routing",
+      "nodeids": [
+        "tests/test_todo_intent_routing.py::test_clear_english_and_german_todo_intents_are_detected"
+      ]
+    },
+    {
+      "id": "ambiguous_match_no_mutation",
+      "nodeids": [
+        "tests/test_manage_todos.py::test_text_match_across_lists_returns_item_refs_and_mutates_nothing"
+      ]
+    },
+    {
+      "id": "memory_task_domain_block",
+      "nodeids": [
+        "tests/test_manage_memory_domain_gate.py::test_invalid_or_todo_memory_category_never_reaches_storage",
+        "tests/test_manage_memory_domain_gate.py::test_explicit_todo_payload_in_fact_category_fails_closed"
+      ]
+    },
+    {
+      "id": "missing_or_wrong_receipt",
+      "nodeids": [
+        "tests/test_todo_claim_evidence.py::test_mismatched_receipt_does_not_support_a_different_todo_claim",
+        "tests/test_telegram_todo_truth.py::test_missing_or_tampered_envelope_weakens_claim_before_send"
+      ]
+    },
+    {
+      "id": "digest_include_exclude",
+      "nodeids": [
+        "tests/test_manage_todos.py::test_complete_reopen_remove_round_trip_uses_stable_refs",
+        "tests/test_todo_digest_receipts.py::test_contains_and_excludes_receipts_bind_to_semantic_projection_state"
+      ]
+    },
+    {
+      "id": "telegram_tool_event_survival",
+      "nodeids": [
+        "tests/test_telegram_todo_truth.py::test_envelope_round_trip_supports_matching_telegram_todo_claim",
+        "tests/test_telegram_todo_truth.py::test_polling_agent_bridge_keeps_internal_envelope_but_public_shape_is_summary"
+      ]
+    },
+    {
+      "id": "long_bounded_context",
+      "nodeids": [
+        "tests/test_telegram_context_policy.py::test_long_chat_keeps_latest_user_turn_and_domain_policy",
+        "tests/test_telegram_context_policy.py::test_persisted_summaries_are_omitted_and_never_domain_authority"
+      ]
+    },
+    {
+      "id": "rollover_restart_dst_parallel",
+      "nodeids": [
+        "tests/test_telegram_session_rollover.py::test_parallel_polls_create_exactly_one_new_session",
+        "tests/test_telegram_session_rollover.py::test_rollover_day_handles_berlin_dst_transition",
+        "tests/test_telegram_session_rollover.py::test_restart_after_multiple_missed_days_rolls_only_once",
+        "tests/test_telegram_session_rollover.py::test_crash_after_creation_recovers_deterministically_without_empty_binding"
+      ]
+    },
+    {
+      "id": "single_boundary_followup_continuity",
+      "nodeids": [
+        "tests/test_telegram_session_rollover.py::test_continuity_is_single_use_and_contains_no_raw_chat_id",
+        "tests/test_telegram_context_policy.py::test_short_followup_can_use_bounded_untrusted_rollover_continuity"
+      ]
+    },
+    {
+      "id": "parallel_mutation_no_lost_update",
+      "nodeids": [
+        "tests/test_todo_domain_service.py::test_parallel_add_and_complete_do_not_lose_items"
+      ]
+    },
+    {
+      "id": "history_metadata_truthful",
+      "nodeids": [
+        "tests/test_telegram_history_privacy.py::test_raw_conversation_and_redacted_audit_are_separate",
+        "tests/test_telegram_history_privacy.py::test_default_diagnostic_export_contains_no_raw_text"
+      ]
+    }
+  ]
+}
