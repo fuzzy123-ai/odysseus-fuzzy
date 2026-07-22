@@ -11,6 +11,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "verify.py"
+WORKFLOW_DIR = ROOT / ".github" / "workflows"
 
 
 def _load_verify():
@@ -256,3 +257,22 @@ def test_cli_lists_registry_and_dry_run_is_content_free() -> None:
     report = json.loads(planned.stdout)
     assert report["status"] == "planned"
     assert str(ROOT) not in planned.stdout
+
+
+def test_ci_uses_the_shared_full_verifier_without_weakening_existing_checks() -> None:
+    ci_source = (WORKFLOW_DIR / "ci.yml").read_text(encoding="utf-8")
+    quality_gate_source = (WORKFLOW_DIR / "quality-gate.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "branches: [dev, main]" in ci_source
+    assert "pull_request:" in ci_source
+    assert "uses: ./.github/workflows/quality-gate.yml" in ci_source
+    assert "contents: read" in ci_source
+
+    assert "continue-on-error" not in quality_gate_source
+    assert "python -m compileall -q app.py core routes src services scripts tests" in quality_gate_source
+    assert "node --check" in quality_gate_source
+    assert "python scripts/verify.py --lane full" in quality_gate_source
+    assert "persist-credentials: false" in quality_gate_source
+    assert "ref: ${{ github.sha }}" in quality_gate_source
