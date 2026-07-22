@@ -942,6 +942,52 @@ Acceptance evidence 2026-07-22:
 
 Owner: Charlie
 
+Status: `accepted_local_repo_evidence_2026-07-22`
+
+Durable claim:
+
+```yaml
+claim:
+  run_id: abc-owm22-20260722T065621+0200
+  thread_id: 019f8625-35f5-7d90-9b5c-8b0724bc5f50
+  slice_id: TTD-08
+  owner: root acting as Charlie
+  state: released
+  acquired_at: 2026-07-22T09:33:06+02:00
+  lease_expires_at: 2026-07-22T10:33:06+02:00
+  released_at: 2026-07-22T09:55:00+02:00
+  allowed_paths:
+    - src/telegram_history_privacy.py
+    - plugins/telegram/stores.py
+    - plugins/telegram/routes_admin.py
+    - tests/test_telegram_history_privacy.py
+    - tests/test_telegram_text_boundary.py
+    - tests/test_telegram_webhook_service.py
+    - docs/plans/telegram-todo-domain-truth-roadmap.md
+    - docs/plans/telegram-todo-domain-truth-run-state.json
+    - docs/plans/open-work-completion-master-roadmap.json
+  hotfile_disposition:
+    preserved_primary_checkout: foreign tests/test_telegram_plugin.py change remains untouched
+    isolated_worktree: serial single-writer for Telegram store and admin route
+  handoff_required: false
+```
+
+Preflight 2026-07-22:
+
+- `telegram_history.json` mischt aktuell Raw-Text und Runtime-Events. Inbound-
+  und Outbound-Records enthalten `text`, behaupten im selben Record aber
+  `raw_content_visible=false`. TTD-08 korrigiert zuerst diese objektiv falsche
+  Metadatenlage.
+- Neue System-/Runtime-Events wechseln in einen separaten redigierten Audit-
+  Store. Bestehende Dateien werden nicht migriert, geloescht oder produktiv
+  umgeschrieben; Legacy-Records werden nur beim Lesen klassifiziert.
+- Der Admin-History-Export wird standardmaessig eine whitelist-basierte,
+  contentfreie Diagnoseprojektion liefern. Exakter Raw-Review braucht zwei
+  explizite Operator-Parameter und wird als `not_for_persistence` markiert.
+- Entry-/Datei-/Segmentgrenzen und append-only Rotation werden fail-safe
+  konfigurierbar. Retention bleibt Preview-only und an ein separates Live-Go
+  gebunden; dieser Slice besitzt keinen Bestandsdaten-Delete- oder Migrationspfad.
+
 Ziel:
 
 - Raw-Konversationsinhalt, redigierte Runtime-Events und Diagnose-Metadaten
@@ -962,6 +1008,32 @@ Akzeptanz:
 - Synthetic tests unterscheiden Raw-Conversation-Store und redigiertes Audit.
 - Diagnose-Exports enthalten standardmaessig keinen Raw-Text.
 - Keine Bestandsdatenloeschung oder -migration ohne separates Live-Go.
+
+Acceptance evidence 2026-07-22:
+
+- Raw-Konversationen und strukturierte operative Payloads werden mit
+  wahrheitsgemaessem `raw_content_visible=true` in einem expliziten Raw-Store
+  gehalten. Contentfreie Runtime-Events landen getrennt in append-only
+  Audit-Segmenten mit `raw_content_visible=false`; Fehlertext, Chat-ID und
+  Update-Payload werden dort nicht persistiert.
+- `/history/diagnostics` ist standardmaessig whitelist-basiert und ohne
+  Raw-Text. Exakter Review benoetigt beide Admin-Parameter und ist
+  `not_for_persistence`; der kompatible Raw-History-Endpunkt weist seine
+  Sichtbarkeit konservativ aus.
+- Entry-, Datei-, Anzahl- und Segmentgrenzen sind konfigurierbar und blockieren
+  fail-safe. Rotation loescht nichts; Legacy-Mixed-Dateien bleiben byte-identisch
+  und werden weder migriert noch umgeschrieben. Retention ist Preview-only hinter
+  `TTD-LIVE-HISTORY-RETENTION`.
+- Fokus: `15 passed`. Kombinierte Telegram-Regression: `214 passed, 1 deselected`
+  plus eine bestehende SQLAlchemy-Deprecation-Warnung. Die Deselektion ist genau
+  die ueberholte Mixed-Store-Assertion in der im Primary Checkout fremd
+  geaenderten `tests/test_telegram_plugin.py`; 104 weitere Tests dieser Datei
+  bleiben gruen, und die neue Audit-Store-Erwartung ist in einem sauberen
+  Webhook-Service-Test abgedeckt.
+- Write-free AST (sechs Dateien), JSON-, Diff-, Queue- und TAX0-Registry-Audit
+  (`79/84/85`) sind gruen. Kein Bestandsdatenzugriff, Delete, Migration,
+  Telegram-Send, Provider-Aufruf, Deployment oder Host-Change wurde ausgefuehrt.
+  Naechster Preflight: `TTD-09`.
 
 ### TTD-09 - Incident-Regressionssuite
 

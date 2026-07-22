@@ -16,9 +16,18 @@ from pathlib import Path
 import threading
 from typing import Any, Callable, Mapping
 
+from src.telegram_history_privacy import (
+    TelegramHistoryPolicy,
+    build_history_diagnostic_export,
+    encoded_record_size,
+    encoded_store_size,
+    mark_raw_conversation_record,
+    mark_redacted_audit_record,
+)
 from src.runtime_event_envelope import RuntimeEventEnvelopeError, build_runtime_event, stable_payload_hash
 
 _HISTORY_FILE = "telegram_history.json"
+_AUDIT_FILE = "telegram_audit.json"
 _POLLING_FILE = "telegram_polling_state.json"
 _SESSION_FILE = "telegram_session_bridge.json"
 _PINNED_PRIVACY_FILE = "telegram_privacy_pin_state.json"
@@ -230,7 +239,7 @@ def _sanitize_persisted_message(message: dict[str, Any]) -> dict[str, Any]:
     return stored
 
 
-class TelegramInboxStore:
+class _LegacyTelegramInboxStore:
     """Small JSON store under the plugin data dir."""
 
     def __init__(self, data_dir: str | Path):
@@ -560,6 +569,477 @@ class TelegramInboxStore:
             if status in {"review", "blocked"}:
                 return dict(message)
         return None
+
+
+class TelegramInboxStore(_LegacyTelegramInboxStore):
+    """Separated raw-conversation and redacted-audit stores.
+
+    Legacy mixed files remain readable. New raw messages and audit events are
+    never written into the same segment, and capacity rotation is append-only.
+    """
+
+    def __init__(self, data_dir: str | Path):
+        self.data_dir = Path(data_dir)
+        self.path = self.data_dir / _HISTORY_FILE
+        self.audit_path = self.data_dir / _AUDIT_FILE
+        self._lock = _session_bridge_lock(self.path)
+        if not self.path.exists():
+            with self._lock:
+                if not self.path.exists():
+                    self._write_file(self.path, [], store_class="raw_conversation")
+
+    def _read_file(self, path: Path) -> list[dict[str, Any]]:
+        if not path.exists():
+            return []
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return []
+        if not isinstance(data, dict) or not isinstance(data.get("messages"), list):
+            return []
+        return [dict(item) for item in data["messages"] if isinstance(item, dict)]
+
+    def _raw_paths(self) -> list[Path]:
+        paths = [self.path] if self.path.exists() else []
+        paths.extend(sorted(self.data_dir.glob("telegram_history.[0-9][0-9][0-9][0-9].json")))
+        return paths
+
+    def _audit_paths(self) -> list[Path]:
+        paths = [self.audit_path] if self.audit_path.exists() else []
+        paths.extend(sorted(self.data_dir.glob("telegram_audit.[0-9][0-9][0-9][0-9].json")))
+        return paths
+
+    def _raw_records(self) -> list[dict[str, Any]]:
+        records: list[dict[str, Any]] = []
+        for path in self._raw_paths():
+            for item in self._read_file(path):
+                # Existing mixed files are classified at read time only. They
+                # are not migrated or rewritten by this repository slice.
+                if (
+                    item.get("store_class") != "raw_conversation"
+                    and item.get("direction") == "system"
+                    and not item.get("text")
+                ):
+                    continue
+                records.append(item)
+        return records
+
+    def _legacy_audit_records(self) -> list[dict[str, Any]]:
+        records: list[dict[str, Any]] = []
+        for path in self._raw_paths():
+            for item in self._read_file(path):
+                if (
+                    item.get("store_class") != "raw_conversation"
+                    and item.get("direction") == "system"
+                    and not item.get("text")
+                ):
+                    records.append(mark_redacted_audit_record(item))
+        return records
+
+    def _audit_records(self) -> list[dict[str, Any]]:
+        records = self._legacy_audit_records()
+        for path in self._audit_paths():
+            records.extend(self._read_file(path))
+        return records
+
+    def _read(self) -> dict[str, Any]:
+        messages = [*self._raw_records(), *self._audit_records()]
+        messages.sort(
+            key=lambda item: (
+                int(item.get("stored_at") or 0),
+                int(item.get("storage_order_ns") or 0),
+                str(item.get("correlation_id") or ""),
+            )
+        )
+        return {"messages": messages}
+
+    def _write_file(
+        self,
+        path: Path,
+        records: list[dict[str, Any]],
+        *,
+        store_class: str,
+    ) -> None:
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "schema": (
+                "odysseus.telegram_raw_conversation_store.v1"
+                if store_class == "raw_conversation"
+                else "odysseus.telegram_redacted_audit_store.v1"
+            ),
+            "store_class": store_class,
+            "raw_content_visible": store_class == "raw_conversation"
+            and any(bool(item.get("raw_content_visible")) for item in records),
+            "raw_identifiers_visible": False,
+            "messages": records,
+        }
+        temporary = path.with_name(
+            f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+        )
+        try:
+            temporary.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            temporary.replace(path)
+        finally:
+            if temporary.exists():
+                temporary.unlink()
+
+    def _write(self, data: dict[str, Any]) -> None:
+        """Compatibility helper for tests; runtime uses bounded append/update."""
+
+        messages = data.get("messages") if isinstance(data, dict) else []
+        records = [
+            mark_raw_conversation_record(item)
+            for item in messages
+            if isinstance(item, dict) and item.get("direction") != "system"
+        ]
+        self._write_file(self.path, records, store_class="raw_conversation")
+
+    def _append_record(self, record: dict[str, Any], *, audit: bool) -> bool:
+        policy = TelegramHistoryPolicy.from_environment()
+        store_class = "redacted_audit" if audit else "raw_conversation"
+        normalized = (
+            mark_redacted_audit_record(record)
+            if audit
+            else mark_raw_conversation_record(record)
+        )
+        normalized.setdefault("storage_order_ns", time.time_ns())
+        if encoded_record_size(normalized) > policy.max_entry_bytes:
+            return False
+        with self._lock:
+            base = self.audit_path if audit else self.path
+            paths = self._audit_paths() if audit else self._raw_paths()
+            # Legacy mixed base files stay read-only: start a new raw segment
+            # rather than rewriting them during the first post-upgrade append.
+            legacy_mixed = bool(
+                not audit
+                and self.path.exists()
+                and any(
+                    item.get("store_class") != "raw_conversation"
+                    and item.get("direction") == "system"
+                    for item in self._read_file(self.path)
+                )
+            )
+            active = paths[-1] if paths else base
+            if legacy_mixed and active == self.path:
+                if len(paths or [base]) >= policy.max_segments:
+                    return False
+                records: list[dict[str, Any]] = []
+                active = self.path.with_name(f"{self.path.stem}.0001{self.path.suffix}")
+                paths = [*paths, active]
+            else:
+                records = self._read_file(active)
+            candidate = [*records, normalized]
+            fits = (
+                len(candidate) <= policy.max_entries_per_segment
+                and encoded_store_size(candidate, store_class=store_class)
+                <= policy.max_file_bytes
+            )
+            if fits:
+                self._write_file(active, candidate, store_class=store_class)
+                return True
+            if not policy.rotation_enabled or len(paths or [base]) >= policy.max_segments:
+                return False
+            index = len(paths or [base])
+            rotated = base.with_name(f"{base.stem}.{index:04d}{base.suffix}")
+            if encoded_store_size([normalized], store_class=store_class) > policy.max_file_bytes:
+                return False
+            self._write_file(rotated, [normalized], store_class=store_class)
+            return True
+
+    def _update_raw_record(
+        self,
+        key: tuple[Any, Any, Any],
+        updates: Mapping[str, Any],
+    ) -> dict[str, Any] | None:
+        with self._lock:
+            for path in self._raw_paths():
+                records = self._read_file(path)
+                for existing in records:
+                    existing_key = (
+                        existing.get("direction"),
+                        existing.get("update_id"),
+                        existing.get("message_id"),
+                    )
+                    if existing_key != key:
+                        continue
+                    existing.update(updates)
+                    marked = mark_raw_conversation_record(existing)
+                    existing.clear()
+                    existing.update(marked)
+                    self._write_file(path, records, store_class="raw_conversation")
+                    return dict(existing)
+        return None
+
+    def append_event(self, *, kind: str, status: str, chat_id: str = "", **extra: Any) -> dict[str, Any]:
+        chat_handle = _chat_handle(chat_id)
+        contains_operational_payload = any(
+            isinstance(value, (Mapping, list, tuple))
+            for key, value in extra.items()
+            if key not in {"runtime_event"}
+        )
+        event = {
+            "direction": "system",
+            "kind": kind,
+            "status": status,
+            "chat_handle": chat_handle,
+            "stored_at": int(time.time()),
+            "token_value_visible": False,
+            "chat_id_value_visible": False,
+        }
+        if contains_operational_payload:
+            event.update(
+                {
+                    key: value
+                    for key, value in extra.items()
+                    if value is not None and key not in {"chat_id", "token"}
+                }
+            )
+        else:
+            event.update(_safe_event_metadata(extra))
+        event["correlation_id"] = str(event.get("correlation_id") or _message_correlation_id(
+            chat_handle=chat_handle,
+            update_id=event.get("update_id"),
+            message_id=event.get("message_id"),
+        ))
+        event["runtime_event"] = _build_telegram_runtime_event(
+            kind=kind,
+            status=status,
+            chat_handle=chat_handle,
+            update_id=event.get("update_id"),
+            message_id=event.get("message_id"),
+            direction="system",
+            component="store",
+            extra={key: value for key, value in event.items() if key != "runtime_event"},
+        )
+        if contains_operational_payload:
+            event["raw_content_visible"] = True
+            event = mark_raw_conversation_record(event)
+            persisted = self._append_record(event, audit=False)
+        else:
+            event = mark_redacted_audit_record(event)
+            persisted = self._append_record(event, audit=True)
+        event["persistence_status"] = "stored" if persisted else "capacity_blocked"
+        return event
+
+    def append_inbound(self, message: dict[str, Any]) -> dict[str, Any]:
+        messages = self._read()["messages"]
+        raw_chat_id = str(message.get("chat_id") or "")
+        key = (message.get("direction"), message.get("update_id"), message.get("message_id"))
+        for existing in messages:
+            existing_key = (
+                existing.get("direction"),
+                existing.get("update_id"),
+                existing.get("message_id"),
+            )
+            if existing_key == key:
+                retry_pending_voice = (
+                    existing.get("kind") == "voice"
+                    and existing.get("transcript_status") == "pending_stt"
+                    and message.get("kind") == "voice"
+                )
+                self.append_event(
+                    kind="duplicate",
+                    status="duplicate_pending_stt_retry" if retry_pending_voice else "duplicate_ignored",
+                    chat_id=raw_chat_id,
+                    update_id=message.get("update_id"),
+                    message_id=message.get("message_id"),
+                )
+                return {"stored": False, "message": existing, "retry_pending_voice": retry_pending_voice}
+
+        stored = _sanitize_persisted_message(message)
+        stored["stored_at"] = int(time.time())
+        stored["correlation_id"] = _message_correlation_id(
+            chat_handle=str(stored.get("chat_handle") or ""),
+            update_id=stored.get("update_id"),
+            message_id=stored.get("message_id"),
+        )
+        stored["runtime_event"] = _build_telegram_runtime_event(
+            kind=str(stored.get("kind") or "inbound"),
+            status=str(stored.get("intake_status") or "received"),
+            chat_handle=str(stored.get("chat_handle") or ""),
+            update_id=stored.get("update_id"),
+            message_id=stored.get("message_id"),
+            direction="inbound",
+            component="inbound",
+            extra={
+                "kind": stored.get("kind"),
+                "intake_status": stored.get("intake_status"),
+                "transcript_status": stored.get("transcript_status"),
+                "universal_inbox_status": stored.get("universal_inbox_status"),
+            },
+        )
+        stored = mark_raw_conversation_record(stored)
+        persisted = self._append_record(stored, audit=False)
+        stored["persistence_status"] = "stored" if persisted else "capacity_blocked"
+        if not persisted:
+            self.append_event(
+                kind="raw_history_capacity",
+                status="capacity_blocked",
+                chat_id=raw_chat_id,
+                update_id=stored.get("update_id"),
+                message_id=stored.get("message_id"),
+            )
+            return {"stored": False, "message": stored, "retry_pending_voice": False}
+        if stored.get("intake_status") == "blocked_chat":
+            self.append_event(
+                kind="blocked",
+                status="chat_not_allowed",
+                chat_id=raw_chat_id,
+                update_id=stored.get("update_id"),
+                message_id=stored.get("message_id"),
+            )
+        elif stored.get("kind") == "unsupported":
+            self.append_event(
+                kind="unsupported",
+                status="unsupported_message",
+                chat_id=raw_chat_id,
+                update_id=stored.get("update_id"),
+                message_id=stored.get("message_id"),
+            )
+        return {"stored": True, "message": stored, "retry_pending_voice": False}
+
+    def update_inbound_status(
+        self,
+        message: dict[str, Any],
+        *,
+        transcript_status: str | None = None,
+        voice_status: str | None = None,
+        intake_status: str | None = None,
+        universal_inbox_status: str | None = None,
+    ) -> dict[str, Any] | None:
+        updates: dict[str, Any] = {"updated_at": int(time.time())}
+        if transcript_status is not None:
+            updates["transcript_status"] = transcript_status
+        if voice_status is not None:
+            updates["voice_status"] = voice_status
+        if intake_status is not None:
+            updates["intake_status"] = intake_status
+        if universal_inbox_status is not None:
+            updates["universal_inbox_status"] = universal_inbox_status
+        key = (message.get("direction"), message.get("update_id"), message.get("message_id"))
+        return self._update_raw_record(key, updates)
+
+    def append_outbound(
+        self,
+        chat_id: str,
+        text: str,
+        *,
+        source_message_id: int | None = None,
+        delivery_status: str = "sent",
+        failure_reason: str | None = None,
+        delivery_mode: str = "",
+        formatting_mode: str = "",
+        truth_gate: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        message = {
+            "direction": "outbound",
+            "kind": "text",
+            "chat_handle": _chat_handle(chat_id),
+            "message_id": f"local-{int(time.time() * 1000)}",
+            "source_message_id": source_message_id,
+            "text": text,
+            "delivery_status": delivery_status,
+            "failure_reason": failure_reason or "",
+            "delivery_mode": delivery_mode,
+            "formatting_mode": formatting_mode,
+            "stored_at": int(time.time()),
+            "token_value_visible": False,
+            "chat_id_value_visible": False,
+            "raw_rich_payload_visible": False,
+        }
+        if truth_gate:
+            message["truth_gate"] = dict(truth_gate)
+        message["correlation_id"] = _message_correlation_id(
+            chat_handle=str(message.get("chat_handle") or ""),
+            message_id=message.get("source_message_id") or message.get("message_id"),
+        )
+        message["runtime_event"] = _build_telegram_runtime_event(
+            kind="reply_delivery",
+            status=delivery_status,
+            chat_handle=str(message.get("chat_handle") or ""),
+            message_id=message.get("source_message_id") or message.get("message_id"),
+            direction="outbound",
+            component="reply",
+            extra={
+                "delivery_status": delivery_status,
+                "delivery_mode": delivery_mode,
+                "formatting_mode": formatting_mode,
+                "failure_reason": failure_reason or "",
+                "truth_gate_status": str((truth_gate or {}).get("status") or ""),
+                "truth_gate_changed": bool((truth_gate or {}).get("changed") or False),
+            },
+        )
+        message = mark_raw_conversation_record(message)
+        persisted = self._append_record(message, audit=False)
+        message["persistence_status"] = "stored" if persisted else "capacity_blocked"
+        if not persisted:
+            self.append_event(
+                kind="raw_history_capacity",
+                status="capacity_blocked",
+                chat_id=chat_id,
+                source_message_id=source_message_id,
+            )
+        return message
+
+    def diagnostic_export(
+        self,
+        *,
+        chat_id: str | None = None,
+        limit: int = 50,
+        review_details: bool = False,
+        operator_authorized: bool = False,
+    ) -> dict[str, Any]:
+        raw_records = self._raw_records()
+        audit_records = self._audit_records()
+        if chat_id:
+            chat_handle = _chat_handle(chat_id)
+            raw_records = [
+                item for item in raw_records if item.get("chat_handle") == chat_handle
+            ]
+            audit_records = [
+                item for item in audit_records if item.get("chat_handle") == chat_handle
+            ]
+        return build_history_diagnostic_export(
+            raw_records=raw_records,
+            audit_records=audit_records,
+            policy=TelegramHistoryPolicy.from_environment(),
+            limit=limit,
+            review_details=review_details,
+            operator_authorized=operator_authorized,
+        )
+
+    def history(self, *, chat_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+        limit = max(1, min(int(limit or 50), 200))
+        messages = self._read()["messages"]
+        if chat_id:
+            chat_handle = _chat_handle(chat_id)
+            messages = [
+                item
+                for item in messages
+                if str(item.get("chat_handle") or "") == chat_handle
+            ]
+        return list(reversed(messages[-limit:]))
+
+    def counts(self) -> dict[str, int]:
+        messages = self._read()["messages"]
+        return {
+            "total": len(messages),
+            "raw_conversation": len(self._raw_records()),
+            "redacted_audit": len(self._audit_records()),
+            "inbound": sum(1 for item in messages if item.get("direction") == "inbound"),
+            "outbound": sum(1 for item in messages if item.get("direction") == "outbound"),
+            "voice": sum(1 for item in messages if item.get("kind") == "voice"),
+            "image": sum(1 for item in messages if item.get("kind") == "image"),
+            "document": sum(1 for item in messages if item.get("kind") == "document"),
+            "blocked": sum(1 for item in messages if item.get("kind") == "blocked"),
+            "duplicates": sum(1 for item in messages if item.get("kind") == "duplicate"),
+            "pending_stt": sum(1 for item in messages if item.get("transcript_status") == "pending_stt"),
+            "pending_image_action": sum(1 for item in messages if item.get("image_action_status") == "pending_image_action"),
+            "pending_universal_inbox": sum(1 for item in messages if item.get("universal_inbox_status") == "pending_universal_inbox"),
+        }
 
 
 class TelegramPollingStateStore:

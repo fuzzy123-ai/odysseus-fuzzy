@@ -59,11 +59,18 @@ def test_parse_and_store_webhook_update_records_invalid_update_without_raw_paylo
             parse_update=lambda _update: (_ for _ in ()).throw(ValueError("telegram update has no message")),
         )
 
-    persisted = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
-    assert "invalid_update" in persisted
-    assert "telegram update has no message" in persisted
-    assert "do-not-persist" not in persisted
-    assert "raw-chat-id" not in persisted
+    raw_store = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
+    audit_store = (tmp_path / "telegram_audit.json").read_text(encoding="utf-8")
+    audit_record = json.loads(audit_store)["messages"][0]
+    assert "invalid_update" not in raw_store
+    assert audit_record["kind"] == "invalid_update"
+    assert audit_record["status"] == "invalid_update"
+    assert audit_record["store_class"] == "redacted_audit"
+    assert audit_record["raw_content_visible"] is False
+    assert "error" not in audit_record
+    assert "telegram update has no message" not in audit_store
+    assert "do-not-persist" not in raw_store + audit_store
+    assert "raw-chat-id" not in raw_store + audit_store
 
 
 def test_run_webhook_media_pipelines_uses_injected_voice_provider_and_image_gate():

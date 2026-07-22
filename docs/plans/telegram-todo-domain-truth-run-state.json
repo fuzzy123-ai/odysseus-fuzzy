@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 21,
+  "revision": 23,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "queue_scope": "open_work",
   "queue_lane": "OWM-22",
@@ -20,7 +20,7 @@
   },
   "route": {
     "entrypoint": "/abc",
-    "slice_id": "TTD-08-preflight",
+    "slice_id": "TTD-09-preflight",
     "mutation": "safe_offline",
     "selected_skills": ["abc"],
     "model": "surface_default",
@@ -196,12 +196,32 @@
       "completion": {
         "implemented": "yes",
         "tested": "yes",
-        "committed": "no",
+        "committed": "2cb685d8",
         "pushed": "no",
         "deployed": "no",
         "live_validated": "no",
         "visual_validated": "na",
         "temporal_validated": "synthetic_controlled_clock",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "TTD-08",
+      "completed_at": "2026-07-22T09:55:00+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "15 passed",
+      "compatibility_tests": "104 passed in the foreign-hotfile Telegram plugin suite; 1 superseded mixed-store assertion intentionally deselected",
+      "integration_tests": "214 passed, 1 deselected, 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "AST 6 files, JSON, registry 79/84/85, queue audit and diff checks passed",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "na",
         "product_complete": "no"
       }
     }
@@ -211,7 +231,8 @@
     "TTD-01": 1,
     "TTD-02": 18,
     "TTD-04": 2,
-    "TTD-05": 3
+    "TTD-05": 3,
+    "TTD-08": 5
   },
   "failed_attempt_classes": {
     "TTD-02": [
@@ -228,21 +249,29 @@
       "projection_schema_overrode_receipt_schema_fixed",
       "sandbox_pyc_cache_write_denied_switched_to_write_free_ast_check",
       "write_free_ast_check_adjusted_for_existing_utf8_bom"
+    ],
+    "TTD-08": [
+      "focused_privacy_expectations_fixed",
+      "superseded_mixed_store_assertion_preserved_in_foreign_hotfile",
+      "clean_webhook_service_contract_updated_to_separate_audit_store",
+      "webhook_audit_payload_key_expectation_fixed",
+      "static_audit_cli_invocation_corrected_to_check_and_format_modes"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T09:28:14+02:00",
-  "last_heartbeat_at": "2026-07-22T09:28:14+02:00",
-  "last_reported_revision": 21,
-  "resume_cursor": "TTD-08-preflight",
+  "last_durable_progress_at": "2026-07-22T09:55:00+02:00",
+  "last_heartbeat_at": "2026-07-22T09:55:00+02:00",
+  "last_reported_revision": 23,
+  "resume_cursor": "TTD-09-preflight",
   "pending_user_requests": [],
   "live_go_ledger": [],
   "gate_queue": [
     "TTD-LIVE-DEPLOY",
     "TTD-LIVE-DATA-REPAIR",
     "TTD-LIVE-TELEGRAM-SMOKE",
-    "TTD-LIVE-ROLLOVER-SMOKE"
+    "TTD-LIVE-ROLLOVER-SMOKE",
+    "TTD-LIVE-HISTORY-RETENTION"
   ],
-  "next_runnable_slices": ["TTD-08-preflight"],
+  "next_runnable_slices": ["TTD-09-preflight"],
   "stop_rules": [
     "stop_on_secret_or_private_content",
     "stop_on_overlapping_writer_or_foreign_staged_file",

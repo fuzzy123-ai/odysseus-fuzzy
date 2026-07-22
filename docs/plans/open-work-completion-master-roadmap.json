@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-22T09:28:14+02:00",
-  "status": "active_owm22_ttd07a_complete_ttd08_preflight_live_default_off",
+  "updated_at": "2026-07-22T09:55:00+02:00",
+  "status": "active_owm22_ttd08_complete_ttd09_preflight_live_default_off",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Implementiere OWM-22 Telegram Todo Domain Truth repo-only; beginne mit TTD-00 und halte alle Live-Aktionen default-off.",
   "goal": "Complete the dependency-ready OWM-22 repository queue with Notes as canonical Todo truth, semantic receipts and synthetic evidence while keeping deploy, production data repair, Telegram send and productive session rollover behind separate live gates.",
@@ -13,13 +13,13 @@
     "unique_live_gates": 40,
     "unique_design_gates": 16,
     "other_open_json_items": 22,
-    "queue_status": "owm22_ttd00_through_ttd07a_complete_ttd08_preflight_ready",
+    "queue_status": "owm22_ttd00_through_ttd08_complete_ttd09_preflight_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd07a_accepted_ttd08_preflight_ready_live_actions_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd08_accepted_ttd09_preflight_ready_live_actions_default_off",
       "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
@@ -878,6 +878,55 @@
         "private_content_persisted": false
       },
       "done_when": "The existing poller performs at most one deterministic daily rollover per redacted chat/scope after the local boundary, recovers crashes without an empty binding, archives rather than deletes the previous readable session, and treats continuity as untrusted non-domain evidence."
+    },
+    {
+      "id": "TTD-08-telegram-history-privacy-contract",
+      "roadmap_slice_id": "TTD-08",
+      "title": "Telegram History Privacy Contract",
+      "class": "repo_only",
+      "owner": "root acting as Charlie",
+      "status": "completed_2026-07-22",
+      "claimable": false,
+      "depends_on": [
+        "TTD-07A-daily-telegram-session-rollover"
+      ],
+      "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "allowed_paths": [
+        "src/telegram_history_privacy.py",
+        "plugins/telegram/stores.py",
+        "plugins/telegram/routes_admin.py",
+        "tests/test_telegram_history_privacy.py",
+        "tests/test_telegram_text_boundary.py",
+        "tests/test_telegram_webhook_service.py",
+        "docs/plans/telegram-todo-domain-truth-roadmap.md",
+        "docs/plans/telegram-todo-domain-truth-run-state.json",
+        "docs/plans/open-work-completion-master-roadmap.json"
+      ],
+      "hotfile_disposition": {
+        "preserved_primary_checkout": "foreign tests/test_telegram_plugin.py change and its superseded mixed-store assertion remain untouched",
+        "isolated_worktree": "serial single-writer; no publish, merge, migration or live retention action"
+      },
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_telegram_history_privacy.py tests\\test_telegram_text_boundary.py tests\\test_telegram_plugin.py tests\\test_telegram_route_contract.py tests\\test_telegram_webhook_service.py tests\\test_telegram_control_service.py tests\\test_telegram_session_rollover.py tests\\test_telegram_context_policy.py tests\\test_telegram_todo_truth.py tests\\test_telegram_truth_gate.py tests\\test_telegram_truth_runtime.py -k \"not test_webhook_rejects_malformed_update_without_raw_payload_leak\""
+      ],
+      "forbidden_actions": [
+        "no existing history deletion, migration or retention apply",
+        "no raw text, exception payload, chat id or token in the redacted audit store or default diagnostics",
+        "no deployment, Telegram send, provider call, host change or production-data access"
+      ],
+      "evidence": {
+        "focused": "15 passed",
+        "integrated": "214 passed, 1 intentionally deselected superseded mixed-store assertion, 1 pre-existing SQLAlchemy deprecation warning",
+        "separation": "raw conversations and structured operational payloads use a truthfully marked raw store; content-free runtime events use a distinct redacted audit store",
+        "diagnostics": "redacted-by-default whitelist projection; exact review requires two admin flags and is marked not_for_persistence",
+        "capacity": "entry, file, count and segment bounds fail closed; append-only rotation respects the cap and preserves legacy files byte-for-byte",
+        "retention": "preview-only with apply unsupported and TTD-LIVE-HISTORY-RETENTION required",
+        "compatibility": "104 tests in the foreign-hotfile Telegram plugin suite remain green; the one stale file-location assertion was not edited and the clean webhook contract now verifies the audit store",
+        "static": "AST 6 files, JSON, diff, queue and TAX0 79/84/85 passed",
+        "live_actions": false,
+        "private_content_persisted_in_evidence": false
+      },
+      "done_when": "Raw records never carry a false redaction claim, redacted audit and default diagnostic outputs contain no raw text, capacity fails closed without deleting segments, and retention or legacy migration cannot execute without a separate action-specific live go."
     },
     {
       "id": "OWM-0-masterroadmap-artifact",
@@ -2072,7 +2121,7 @@
     }
   ],
   "recommended_execution_order": [
-    "OWM-22 TTD-08 preflight: inventory raw conversation persistence, redacted runtime events, diagnostic exports and retention boundaries, then claim only privacy-safe repository paths; keep all four live actions disabled.",
+    "OWM-22 TTD-09 preflight: consolidate the redacted incident cases into a deterministic offline integration suite, preserving foreign hotfiles and keeping all live actions disabled.",
     "P0 Roadmap Truth: reconcile and commit only the identified UIX-ABC12-24 docs plus the canonical UIX/TAX/TUA queue and its missing detail-roadmap sources.",
     "P1 UIX-ABC13: first product priority, but do not claim it until the exact product-semantics confirmation is recorded.",
     "P2 safe default while UIX-ABC13 waits: execute TAX0, then TAX1, then TUA0 only after direct dependency evidence; continue only the next dependency-ready repo-only detail-roadmap slice.",
