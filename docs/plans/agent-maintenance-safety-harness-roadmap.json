@@ -4,8 +4,8 @@
   "roadmap_id": "AMH",
   "title": "Agent Maintenance Safety Harness Roadmap",
   "created_at": "2026-07-18T16:16:30+02:00",
-  "updated_at": "2026-07-22T15:10:00+02:00",
-  "status": "implementation_waiting_amh06_foreign_work_handoff",
+  "updated_at": "2026-07-22T15:13:00+02:00",
+  "status": "implementation_running_amh06_handoff_reconciliation",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/open-work-completion-master-roadmap.json",
   "canonical_open_work_queue": "docs/plans/open-work-completion-master-roadmap.json",
@@ -626,7 +626,7 @@
     },
     {
       "id": "AMH-06-enforced-completion-and-git-rails",
-      "execution_status": "dependency_ready_foreign_work_handoff_required",
+      "execution_status": "handoff_granted_claimed_implementation_running",
       "mutation_class": "repo_only",
       "priority": "P0",
       "owner": "Charlie; Bob for policy code",
@@ -669,8 +669,9 @@
         "git diff --check -- src/claim_evidence_gate.py src/repo_remote_policy.py src/repo_commit_runner.py src/repo_push_runner.py src/live_quality_gate_command_runner.py src/server_project_runner.py src/effectful_tool_matrix.py tests/test_agent_maintenance_completion_gate.py"
       ],
       "handoff_gate": {
-        "state": "required_before_writer_claim",
+        "state": "granted_claimed_2026-07-22",
         "reason": "The primary checkout has active uncommitted work on six AMH-06 paths. Four directly implement incomplete commit/push rails and two mix AMH-relevant effect/claim logic with unrelated product work, so no disjoint completion-capable subset exists.",
+        "grant": "User replied go to the explicit GO AMH06-HANDOFF request; repository-only semantic reconciliation and local commit are authorized, while push, deploy, live access and primary-checkout mutation remain excluded.",
         "paths": [
           "src/claim_evidence_gate.py",
           "src/effectful_tool_matrix.py",
