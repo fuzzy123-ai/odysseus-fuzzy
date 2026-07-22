@@ -46,6 +46,23 @@ jobs:
             node --check "$file"
           done
 
+  maintenance-guards:
+    name: Shared verifier (blocking guards-only lane)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the exact triggering commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: "3.11"
+      - name: Run the blocking maintenance guards through the shared verifier
+        run: python scripts/verify.py --lane guards-only
+
   python-tests:
     name: Shared verifier (full lane)
     runs-on: ubuntu-latest
