@@ -626,7 +626,7 @@
     },
     {
       "id": "AMH-06-enforced-completion-and-git-rails",
-      "execution_status": "handoff_granted_claimed_implementation_running",
+      "execution_status": "completed_local_repo_evidence_2026-07-22",
       "mutation_class": "repo_only",
       "priority": "P0",
       "owner": "Charlie; Bob for policy code",
@@ -673,7 +673,7 @@
         "git diff --check -- src/claim_evidence_gate.py src/repo_remote_policy.py src/repo_commit_runner.py src/repo_push_runner.py src/project_forge_github.py src/live_quality_gate_command_runner.py src/server_project_runner.py src/effectful_tool_matrix.py tests/test_agent_maintenance_completion_gate.py tests/test_repo_commit_runner.py tests/test_repo_push_runner.py tests/test_live_quality_gate_command_runner.py tests/test_server_project_runner.py tests/test_project_forge_github.py"
       ],
       "handoff_gate": {
-        "state": "granted_claimed_2026-07-22",
+        "state": "granted_reconciled_released_2026-07-22",
         "reason": "The primary checkout has active uncommitted work on six AMH-06 paths. Four directly implement incomplete commit/push rails and two mix AMH-relevant effect/claim logic with unrelated product work, so no disjoint completion-capable subset exists.",
         "grant": "User replied go to the explicit GO AMH06-HANDOFF request; repository-only semantic reconciliation and local commit are authorized, while push, deploy, live access and primary-checkout mutation remain excluded.",
         "paths": [
@@ -685,6 +685,8 @@
           "tests/test_repo_push_runner.py"
         ]
       },
+      "local_acceptance_evidence": "Commit 9bbcf849; the final combined AMH-06 and adjacent-consumer suite passed 242 tests with one host-dependent skip and one pre-existing SQLAlchemy deprecation warning; focused implementation evidence passed 110 tests; guards-only passed 3 of 3; the clean-HEAD receipt bound to 9bbcf849cf246290e79839131bc16d49a653e04d with digest 2ed30171d1e2c856e78087e63433fd7ce4a584f02bf680f22ff1dd308bf31cb1; two independent post-fix reviews reported no actionable findings.",
+      "verification_limit": "Integration, UI, live and temporal behavior were not exercised. A deliberately broader compatibility run exposed three legacy ProjectCommitService positive-path tests that cannot yet mint the new typed completion and commit authorities; that trusted control-plane adapter migration is separately claimable debt and was not weakened or bypassed for AMH-06 acceptance.",
       "evidence_required": [
         "missing, stale, weaker-lane or mismatched receipt blocks done",
         "force push, reset --hard, clean and history rewrite remain denied",
@@ -701,7 +703,7 @@
     },
     {
       "id": "AMH-07-read-only-session-bootstrap",
-      "execution_status": "blocked_by_dependency",
+      "execution_status": "ready_after_amh06_local_acceptance",
       "mutation_class": "repo_only",
       "priority": "P1",
       "owner": "Alice; Bob for runtime projection",
@@ -933,5 +935,5 @@
       "No commit, push, deploy, live mutation, provider call or external write was performed."
     ]
   },
-  "recommended_next_step": "Obtain an explicit six-path AMH-06 handoff before any writer claim. Then semantically reconcile the primary commit/push work, preserve unrelated claim/effect behavior, integrate current-state receipt reruns and keep publication/live authority closed."
+  "recommended_next_step": "Run AMH-07 as a read-only, idempotent session bootstrap: audit the five allowed paths for foreign overlap, durably claim only a clean scope, preserve the no-install/no-network/no-service-start boundary and verify missing, malformed, stale and hook-failure behavior before local acceptance."
 }
