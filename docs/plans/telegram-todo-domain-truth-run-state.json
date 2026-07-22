@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 17,
+  "revision": 19,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "queue_scope": "open_work",
   "queue_lane": "OWM-22",
@@ -20,7 +20,7 @@
   },
   "route": {
     "entrypoint": "/abc",
-    "slice_id": "TTD-07-preflight",
+    "slice_id": "TTD-07A-preflight",
     "mutation": "safe_offline",
     "selected_skills": ["abc"],
     "model": "surface_default",
@@ -158,6 +158,25 @@
       "completion": {
         "implemented": "yes",
         "tested": "yes",
+        "committed": "89bb5555",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "TTD-07",
+      "completed_at": "2026-07-22T09:10:42+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "9 passed",
+      "integration_tests": "171 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "AST 3 files, JSON, registry 79/84/85, queue audit and diff checks passed",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
         "committed": "no",
         "pushed": "no",
         "deployed": "no",
@@ -192,10 +211,10 @@
       "write_free_ast_check_adjusted_for_existing_utf8_bom"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T09:00:51+02:00",
-  "last_heartbeat_at": "2026-07-22T09:00:51+02:00",
-  "last_reported_revision": 17,
-  "resume_cursor": "TTD-07-preflight",
+  "last_durable_progress_at": "2026-07-22T09:10:42+02:00",
+  "last_heartbeat_at": "2026-07-22T09:10:42+02:00",
+  "last_reported_revision": 19,
+  "resume_cursor": "TTD-07A-preflight",
   "pending_user_requests": [],
   "live_go_ledger": [],
   "gate_queue": [
@@ -204,7 +223,7 @@
     "TTD-LIVE-TELEGRAM-SMOKE",
     "TTD-LIVE-ROLLOVER-SMOKE"
   ],
-  "next_runnable_slices": ["TTD-07-preflight", "TTD-08-preflight"],
+  "next_runnable_slices": ["TTD-07A-preflight", "TTD-08-preflight"],
   "stop_rules": [
     "stop_on_secret_or_private_content",
     "stop_on_overlapping_writer_or_foreign_staged_file",

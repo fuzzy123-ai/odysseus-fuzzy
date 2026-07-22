@@ -702,6 +702,46 @@ Acceptance evidence 2026-07-22:
 
 Owner: Bob
 
+Status: `accepted_2026-07-22`
+
+Durable claim:
+
+```yaml
+claim:
+  run_id: abc-owm22-20260722T065621+0200
+  thread_id: 019f8625-35f5-7d90-9b5c-8b0724bc5f50
+  slice_id: TTD-07
+  owner: root acting as Bob
+  state: released
+  acquired_at: 2026-07-22T09:06:18+02:00
+  lease_expires_at: 2026-07-22T10:06:18+02:00
+  released_at: 2026-07-22T09:10:42+02:00
+  allowed_paths:
+    - src/telegram_context_policy.py
+    - app.py
+    - tests/test_telegram_context_policy.py
+    - docs/plans/telegram-todo-domain-truth-roadmap.md
+    - docs/plans/telegram-todo-domain-truth-run-state.json
+    - docs/plans/open-work-completion-master-roadmap.json
+  hotfile_disposition:
+    preserved_primary_checkout: foreign app.py hunks remain untouched
+    isolated_worktree: serial single-writer Telegram handler integration
+  handoff_required: false
+```
+
+Preflight 2026-07-22:
+
+- Der Telegram-Agent-Handler liest den Session-Kontext, ruft aber nicht den
+  persistierenden LLM-Compactor auf. Das Agent-Budget trimmt nur die lokale
+  Nachrichtenkopie fuer den aktuellen Turn.
+- TTD-07 bindet deshalb eine reine, deterministische Telegram-Policy vor dem
+  Agent-Loop ein. Sie schreibt keine Session um, entfernt generische Summary-
+  und Task-State-Artefakte aus dem Telegram-Turn und schuetzt Domain-Policy
+  sowie den aktuellen Nutzerturn gegen Budget-Trimming.
+- Todo-Listen und Todo-Mutationen bleiben ausschliesslich an `manage_todos`
+  sowie validierte Domain-Receipts gebunden; Chat, Summary, Memory und RAG sind
+  fuer aktuellen Todo-State keine Evidence.
+
 Ziel:
 
 - Lange Telegram-Sessions kompakt und nachvollziehbar halten, ohne Domain-State
@@ -722,6 +762,29 @@ Akzeptanz:
 - Nach Rotation/listing kommen To-dos aus `manage_todos`, nicht aus Summary oder
   Memory.
 - Keine bestehende Session wird in repo-only Tests produktiv umgeschrieben.
+
+Acceptance evidence 2026-07-22:
+
+- `odysseus.telegram_context_window.v1` baut pro Telegram-Turn eine reine,
+  deterministisch begrenzte Kopie mit maximal 24 History-Nachrichten und
+  12.000 History-Zeichen. Die persistierte Session bleibt unveraendert.
+- Persistierte System-Nachrichten, einschliesslich generischer Conversation-
+  Summary- und Task-State-Artefakte, werden nicht in den Telegram-Turn
+  uebernommen. Die regulaere Agent-System-Policy wird downstream neu gebaut.
+- Eine geschuetzte Telegram-Domain-Policy bindet aktuelle Todo-Reads an
+  `manage_todos` und Mutationserfolg an validierte Receipts/Postconditions.
+  Chat, Assistant-Prosa, Summary, Memory und RAG sind nur Continuity-Hinweise.
+- Domain-Policy und aktueller Nutzerturn tragen `_protected` bis zum finalen
+  Context-Trim; ein aggressiver Langchat-Test beweist ihr Ueberleben.
+- Audit-Evidence enthaelt nur Counts, Limits, Flags und einen domain-separierten
+  Fingerprint, keinen Raw-Text, keine Chat-ID und keine direkte Owner-ID.
+- Fokus: `9 passed`; integrierte Context-/Agent-/Telegram-/Truth-Suite:
+  `171 passed` mit einer vorbestehenden SQLAlchemy-Deprecation-Warnung. AST fuer
+  drei Dateien, JSON-, Diff-, Queue- und TAX0-Audit (`79/84/85`) sind gruen.
+- Keine Session wurde in Tests oder Runtime-Daten umgeschrieben. Keine
+  Netzwerk-, Provider-, Telegram-, Host-, Deployment- oder Produktionsaktion
+  wurde ausgefuehrt. Naechster serieller Preflight: `TTD-07A`; `TTD-08` bleibt
+  ebenfalls logisch bereit und ungeclaimt.
 
 ### TTD-07A - Taegliches Telegram-Session-Rollover
 
