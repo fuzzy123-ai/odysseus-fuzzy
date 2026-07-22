@@ -50,6 +50,9 @@ MAX_SECTION_CONTEXT_BYTES = 32_768
 MAX_RAW_PREVIEW_CHARS = 16_384
 MAX_DRAFT_SLICES = 100
 MAX_DRAFT_GATES = 50
+CANONICAL_ROADMAP_KIND = "odysseus.planning.roadmap"
+LEGACY_HARBOR_ROADMAP_KIND = "harbor.planning.roadmap"
+ROADMAP_KIND_ALIASES = frozenset({CANONICAL_ROADMAP_KIND, LEGACY_HARBOR_ROADMAP_KIND})
 
 _DRAFT_MODES = frozenset({"Standard ABC", "Overnight Backend Mode"})
 _PATCHABLE_FIELDS = frozenset({
@@ -790,7 +793,7 @@ class PlanningMcpService:
         source_validation = planning_validate_roadmap(source_payload, source_ref=document["source_ref"])
         if not source_validation.get("valid"):
             raise PlanningServiceError("memory_bridge_source_invalid", "Planning memory bridge source validation failed")
-        if validation_mode == "canonical" and str(source_payload.get("kind") or "") != "harbor.planning.roadmap":
+        if validation_mode == "canonical" and not _is_planning_roadmap_kind(source_payload.get("kind")):
             raise PlanningServiceError("memory_bridge_mode_conflict", "Planning memory bridge canonical mode does not match the source")
 
         projection = document.get("canonical", {}).get("projection") or {}
@@ -1720,7 +1723,7 @@ def planning_validate_roadmap(
         if _contains_sensitive_value(serialized):
             errors.append(_issue("sensitive_value", "$", "Roadmap payload contains a credential-like or private-path value"))
 
-        if str(payload.get("kind") or "") == "harbor.planning.roadmap":
+        if _is_planning_roadmap_kind(payload.get("kind")):
             _validate_canonical_roadmap(payload, errors)
 
         if source_ref:
@@ -1729,7 +1732,7 @@ def planning_validate_roadmap(
             except PlanningServiceError:
                 errors.append(_issue("unsafe_source_ref", "$.source_ref", "Validation source reference is unsafe"))
                 normalized_source = ""
-            if normalized_source and str(payload.get("kind") or "") == "harbor.planning.roadmap":
+            if normalized_source and _is_planning_roadmap_kind(payload.get("kind")):
                 expected_id = Path(normalized_source).name.removesuffix(".roadmap.json")
                 if "/roadmaps/" in normalized_source and payload.get("roadmap_id") != expected_id:
                     errors.append(_issue("roadmap_id_path_mismatch", "$.roadmap_id", "Roadmap id does not match the canonical file name"))
@@ -2251,6 +2254,10 @@ def _document_data_candidate(value: Any) -> dict[str, Any]:
         raise PlanningServiceError("invalid_document_data", "Data edit contains fields outside the canonical projection")
     _assert_no_forbidden_content(candidate)
     return candidate
+
+
+def _is_planning_roadmap_kind(value: Any) -> bool:
+    return str(value or "").strip() in ROADMAP_KIND_ALIASES
 
 
 def _validate_document_candidate_identity(candidate: Mapping[str, Any], current: Mapping[str, Any]) -> None:
