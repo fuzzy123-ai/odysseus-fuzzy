@@ -791,6 +791,58 @@ Acceptance evidence 2026-07-22:
 Owner: Bob fuer den isolierten Rollover-Service, Charlie fuer Bridge- und
 Scheduler-Integration
 
+Status: `accepted_2026-07-22_default_off`
+
+Durable claim:
+
+```yaml
+claim:
+  run_id: abc-owm22-20260722T065621+0200
+  thread_id: 019f8625-35f5-7d90-9b5c-8b0724bc5f50
+  slice_id: TTD-07A
+  owner: root acting as Bob and Charlie
+  state: released
+  acquired_at: 2026-07-22T09:15:53+02:00
+  lease_expires_at: 2026-07-22T10:15:53+02:00
+  released_at: 2026-07-22T09:28:14+02:00
+  allowed_paths:
+    - src/telegram_session_rollover.py
+    - src/telegram_context_policy.py
+    - plugins/telegram/stores.py
+    - plugins/telegram/polling.py
+    - plugins/telegram/plugin.py
+    - plugins/telegram/routes_polling.py
+    - app.py
+    - tests/test_telegram_session_rollover.py
+    - tests/test_telegram_context_policy.py
+    - tests/test_telegram_plugin.py
+    - docs/plans/tool-taxonomy-inventory.json
+    - docs/plans/telegram-todo-domain-truth-roadmap.md
+    - docs/plans/telegram-todo-domain-truth-run-state.json
+    - docs/plans/open-work-completion-master-roadmap.json
+  hotfile_disposition:
+    preserved_primary_checkout: foreign app.py hunks remain untouched
+    isolated_worktree: serial single-writer across bridge, polling and app integration
+  handoff_required: false
+```
+
+Preflight 2026-07-22:
+
+- Die bestehende Bridge trennt Normal- und Secure-Slots, schreibt ihre JSON-
+  Datei aber noch ohne atomaren Replace und kennt weder Rollover-Tag noch
+  Recovery-Journal. Das wird innerhalb eines pro Bridge-Datei serialisierten
+  Abschnitts ergaenzt.
+- Der Polling-Zyklus ist der vorhandene periodische Trigger. TTD-07A fuegt
+  keinen zweiten Timer hinzu und bleibt hinter
+  `TELEGRAM_SESSION_ROLLOVER_ENABLED=false` default-off.
+- Neue Rollover-Sessions erhalten eine deterministische ID aus redigiertem
+  Chat-Handle, Scope und lokalem Rollover-Tag. Ein Crash nach Session-Erzeugung
+  kann damit denselben Datensatz wiederfinden, bevor die Bridge umgeschaltet
+  und die alte Session archiviert wird.
+- Das begrenzte Continuity-Tail wird nur fluechtig und als untrusted Kontext an
+  TTD-07 uebergeben. Es wird nie in die neue Session kopiert und kann keine
+  Todo-, Kalender-, Datei- oder Versand-Evidence liefern.
+
 Entscheidung:
 
 - Empfohlener Default ist eine taegliche Grenze um `04:00`
@@ -852,6 +904,39 @@ Akzeptanz:
   ein alter falscher Erfolgsclaim kann dadurch keine Mutation vortaeuschen.
 - Zeitumstellung, Neustart nach der Grenze und mehrere verpasste Polls sind
   mit einer kontrollierbaren Uhr getestet.
+
+Acceptance evidence 2026-07-22:
+
+- `odysseus.telegram_session_rollover.v1` berechnet den lokalen Rollover-Tag
+  konfigurierbar, standardmaessig um `04:00 Europe/Berlin`, und ist hinter
+  `TELEGRAM_SESSION_ROLLOVER_ENABLED` initial default-off. Eine ungueltige
+  Zeitzone oder Stunde deaktiviert den Pfad fail-safe.
+- Der vorhandene Polling-Zyklus prueft vor einem Agent-Turn. Pro redigiertem
+  Chat-Handle, Normal/Secure-Scope und Tag entsteht eine deterministische
+  Session-ID; zwei parallele Polls erzeugen exakt eine Session.
+- Die Bridge-Datei wird per Temp-Datei und atomarem Replace geschrieben. Ein
+  Recovery-Journal haelt bis zum finalen Bind den alten Slot aktiv. Ein Crash
+  nach Session-Erzeugung wird ueber dieselbe deterministische ID geheilt.
+- Die neue Session erbt Name, Endpoint, Modell, RAG-, Owner- und Header-
+  Konfiguration. Erst nach sichtbarer neuer Bindung wird die alte Session
+  archiviert; ein Archivfehler wird idempotent im naechsten Poll nachgeholt.
+  Es existiert kein Delete-Pfad.
+- Aktive Turns zaehlen pro Chat/Scope und verschieben den Rollover auf einen
+  spaeteren Versuch. Normal- und Secure-Slots rotieren unabhaengig.
+- Das einmalige Continuity-Tail umfasst hoechstens zwei Nachrichten/1.000
+  Zeichen, wird nur fuer kurze klare Folgefragen fluechtig geladen, ist
+  `trusted=false` und wird nie in die neue Session kopiert. Die geschuetzte
+  TTD-07-Policy bindet Todo-State weiterhin an `manage_todos` und Receipts.
+- Persistierte Rollover-Events enthalten Scope, Tag, Status, Counts und
+  redigierte Session-Refs; weder Raw-Chat-ID noch Raw-Konversation. Kontrollierte
+  Tests decken Berlin-Grenze, DST, Neustart, mehrere verpasste Tage, Parallelitaet,
+  Crash, Archiv-Retry, aktiven Turn und Continuity-Verbrauch ab.
+- Fokus: `25 passed`; breite Telegram-/Polling-/Context-/Truth-Suite:
+  `237 passed` mit einer vorbestehenden SQLAlchemy-Deprecation-Warnung. AST fuer
+  neun Dateien, JSON-, Diff-, Queue- und TAX0-Audit (`79/84/85`) sind gruen.
+- Kein produktiver Rollover, Telegram-Send, Provider-Aufruf, Deployment,
+  Host-Change oder Produktionsdatenzugriff wurde ausgefuehrt. Der Live-Smoke
+  bleibt separat hinter `TTD-LIVE-ROLLOVER-SMOKE`. Naechster Preflight: `TTD-08`.
 
 ### TTD-08 - Telegram History Privacy Contract
 

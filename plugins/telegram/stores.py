@@ -7,10 +7,13 @@ tokens, or private provider content.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 import hashlib
 import json
+import os
 import time
 from pathlib import Path
+import threading
 from typing import Any, Callable, Mapping
 
 from src.runtime_event_envelope import RuntimeEventEnvelopeError, build_runtime_event, stable_payload_hash
@@ -20,6 +23,14 @@ _POLLING_FILE = "telegram_polling_state.json"
 _SESSION_FILE = "telegram_session_bridge.json"
 _PINNED_PRIVACY_FILE = "telegram_privacy_pin_state.json"
 _SAFE_EVENT_VALUE_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.:@/-")
+_SESSION_BRIDGE_LOCK_GUARD = threading.Lock()
+_SESSION_BRIDGE_LOCKS: dict[str, threading.RLock] = {}
+
+
+def _session_bridge_lock(path: Path) -> threading.RLock:
+    key = str(path.resolve()).casefold()
+    with _SESSION_BRIDGE_LOCK_GUARD:
+        return _SESSION_BRIDGE_LOCKS.setdefault(key, threading.RLock())
 
 
 def _stable_handle(prefix: str, value: Any) -> str:
@@ -662,30 +673,66 @@ class TelegramSessionBridgeStore:
     def __init__(self, data_dir: str | Path):
         self.data_dir = Path(data_dir)
         self.path = self.data_dir / _SESSION_FILE
+        self._lock = _session_bridge_lock(self.path)
+
+    @contextmanager
+    def exclusive(self):
+        """Serialize a multi-step bridge transaction for this state file."""
+
+        with self._lock:
+            yield
 
     def _read(self) -> dict[str, Any]:
-        if not self.path.exists():
-            return {"sessions": {}}
-        try:
-            data = json.loads(self.path.read_text(encoding="utf-8"))
-        except Exception:
-            return {"sessions": {}}
-        if not isinstance(data, dict):
-            return {"sessions": {}}
-        sessions = data.get("sessions")
-        if not isinstance(sessions, dict):
-            data["sessions"] = {}
-        return data
+        with self._lock:
+            if not self.path.exists():
+                return {"sessions": {}}
+            try:
+                data = json.loads(self.path.read_text(encoding="utf-8"))
+            except Exception:
+                return {"sessions": {}}
+            if not isinstance(data, dict):
+                return {"sessions": {}}
+            sessions = data.get("sessions")
+            if not isinstance(sessions, dict):
+                data["sessions"] = {}
+            return data
 
     def _write(self, data: dict[str, Any]) -> None:
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        with self._lock:
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+            temporary = self.path.with_name(
+                f".{self.path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+            )
+            try:
+                temporary.write_text(
+                    json.dumps(data, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+                temporary.replace(self.path)
+            finally:
+                if temporary.exists():
+                    temporary.unlink()
 
     def get(self, chat_id: str) -> dict[str, Any] | None:
-        data = self._read()
-        sessions = data["sessions"]
-        mapping = sessions.get(_chat_handle(chat_id)) or sessions.get(str(chat_id))
-        return self._normalize_mapping(mapping) if isinstance(mapping, dict) else None
+        with self._lock:
+            data = self._read()
+            sessions = data["sessions"]
+            mapping = sessions.get(_chat_handle(chat_id)) or sessions.get(str(chat_id))
+            return self._normalize_mapping(mapping) if isinstance(mapping, dict) else None
+
+    def replace_mapping(self, chat_id: str, mapping: Mapping[str, Any]) -> dict[str, Any]:
+        """Atomically replace one redacted chat mapping."""
+
+        with self._lock:
+            data = self._read()
+            handle = _chat_handle(chat_id)
+            normalized = self._normalize_mapping(dict(mapping)) or {}
+            normalized["chat_handle"] = handle
+            normalized["session_alias"] = f"telegram:{handle}"
+            data["sessions"].pop(str(chat_id), None)
+            data["sessions"][handle] = normalized
+            self._write(data)
+            return dict(normalized)
 
     def _normalize_scope(self, scope: str | None) -> str:
         return "secure" if str(scope or "").strip().lower() == "secure" else "normal"
@@ -722,6 +769,24 @@ class TelegramSessionBridgeStore:
         return normalized
 
     def bind_chat(
+        self,
+        *,
+        chat_id: str,
+        session_alias: str,
+        recommended_session_name: str,
+        scope: str = "normal",
+        creator: Callable[..., Any] | None = None,
+    ) -> dict[str, Any]:
+        with self._lock:
+            return self._bind_chat_locked(
+                chat_id=chat_id,
+                session_alias=session_alias,
+                recommended_session_name=recommended_session_name,
+                scope=scope,
+                creator=creator,
+            )
+
+    def _bind_chat_locked(
         self,
         *,
         chat_id: str,
@@ -789,6 +854,24 @@ class TelegramSessionBridgeStore:
         return {"session_id": mapping["session_id"], "created": bool(session_id), "mapping": dict(mapping)}
 
     def rebind_chat(
+        self,
+        *,
+        chat_id: str,
+        session_alias: str,
+        recommended_session_name: str,
+        scope: str = "normal",
+        creator: Callable[..., Any] | None = None,
+    ) -> dict[str, Any]:
+        with self._lock:
+            return self._rebind_chat_locked(
+                chat_id=chat_id,
+                session_alias=session_alias,
+                recommended_session_name=recommended_session_name,
+                scope=scope,
+                creator=creator,
+            )
+
+    def _rebind_chat_locked(
         self,
         *,
         chat_id: str,

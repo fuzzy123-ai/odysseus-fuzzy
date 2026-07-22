@@ -23,6 +23,14 @@ from plugins.telegram.stores import (
     TelegramSessionBridgeStore,
 )
 from src.telegram_todo_truth import telegram_todo_truth_envelope_public_summary
+from src.telegram_session_rollover import (
+    TelegramRolloverConfig,
+    begin_telegram_turn,
+    consume_continuity,
+    continuity_binding,
+    end_telegram_turn,
+    execute_telegram_session_rollover,
+)
 
 
 def _run_agent_turn(
@@ -55,6 +63,8 @@ def _run_agent_turn(
     }
     if isinstance(todo_truth_envelope, dict):
         public["todo_truth_envelope"] = todo_truth_envelope
+    if result.get("telegram_rollover_continuity_used") is True:
+        public["telegram_rollover_continuity_used"] = True
     return public
 
 
@@ -238,6 +248,7 @@ def run_telegram_polling_cycle_impl(
     data_dir: str | Path,
     fetch_updates: Callable[[int], list[dict[str, Any]]] | None = None,
     session_creator: Callable[..., Any] | None = None,
+    session_archiver: Callable[[str], Any] | None = None,
     agent_turn_handler: Callable[[dict[str, Any]], Any] | None = None,
     voice_stt_provider: Callable[[str], str] | None = None,
     voice_bytes_provider: Callable[..., bytes] | None = None,
@@ -271,6 +282,7 @@ def run_telegram_polling_cycle_impl(
     send_typing_indicator: Callable[..., Any],
     execute_memory_auto_write: Callable[..., dict[str, Any] | None] | None = None,
     execute_nextcloud_auto_transfer: Callable[..., dict[str, Any] | None] | None = None,
+    rollover_now: Any | None = None,
 ) -> dict[str, Any]:
     store = TelegramInboxStore(data_dir)
     polling = TelegramPollingStateStore(data_dir)
@@ -287,6 +299,7 @@ def run_telegram_polling_cycle_impl(
     replies = 0
     pending_retries = 0
     control_commands = 0
+    session_rollovers = 0
     hold_offset_for_retry = False
     last_update_id = offset - 1 if offset else 0
     try:
@@ -547,13 +560,44 @@ def run_telegram_polling_cycle_impl(
                 recent_attachment_context=recent_attachment_context,
             )
             if bridge["ready_for_agent"]:
+                desired_scope = str(bridge.get("desired_session_scope") or "normal")
+                rollover = execute_telegram_session_rollover(
+                    store=sessions,
+                    chat_id=bridge["chat_id"],
+                    scope=desired_scope,
+                    creator=session_creator,
+                    archiver=session_archiver,
+                    config=TelegramRolloverConfig.from_environment(),
+                    now=rollover_now,
+                )
+                if rollover.get("status") in {"rolled_over", "rolled_over_archive_pending"}:
+                    session_rollovers += 1
+                if rollover.get("status") not in {"disabled", "not_bound", "already_current"}:
+                    store.append_event(
+                        kind="session_rollover",
+                        status=str(rollover.get("status") or "unknown"),
+                        chat_id=bridge["chat_id"],
+                        scope=desired_scope,
+                        rollover_day=str(rollover.get("rollover_day") or ""),
+                        session_ref=str(rollover.get("session_ref") or ""),
+                        previous_session_ref=str(rollover.get("previous_session_ref") or ""),
+                        raw_content_visible=False,
+                        raw_identifiers_visible=False,
+                    )
                 binding = sessions.bind_chat(
                     chat_id=bridge["chat_id"],
                     session_alias=bridge["session_alias"],
                     recommended_session_name=bridge["recommended_session_name"],
-                    scope=str(bridge.get("desired_session_scope") or "normal"),
+                    scope=desired_scope,
                     creator=session_creator,
                 )
+                continuity = continuity_binding(
+                    sessions,
+                    bridge["chat_id"],
+                    desired_scope,
+                )
+                if continuity is not None:
+                    binding["telegram_rollover_continuity"] = continuity
                 bridge = build_agent_bridge_request(
                     stored["message"],
                     session_binding=binding,
@@ -573,11 +617,22 @@ def run_telegram_polling_cycle_impl(
                     send_typing_indicator=send_typing_indicator,
                     store=store,
                 ).start() if agent_turn is None and callable(agent_turn_handler) else None
+                begin_telegram_turn(
+                    data_dir,
+                    bridge["chat_id"],
+                    desired_scope,
+                )
                 try:
                     if agent_turn is None:
                         agent_turn = _run_agent_turn(agent_turn_handler, bridge)
                     if agent_turn is not None:
                         agent_turns += 1
+                        if agent_turn.get("telegram_rollover_continuity_used") is True:
+                            consume_continuity(
+                                sessions,
+                                bridge["chat_id"],
+                                desired_scope,
+                            )
                         store.append_event(
                             kind="agent_turn",
                             status=str(agent_turn.get("status") or "accepted"),
@@ -603,6 +658,7 @@ def run_telegram_polling_cycle_impl(
                                 )
                             replies += 1
                 finally:
+                    end_telegram_turn(data_dir, bridge["chat_id"], desired_scope)
                     if typing_pulse is not None:
                         typing_pulse.stop()
             processed += 1
@@ -616,6 +672,7 @@ def run_telegram_polling_cycle_impl(
         replies=replies,
         pending_retries=pending_retries,
         control_commands=control_commands,
+        session_rollovers=session_rollovers,
         last_update_id=last_update_id,
     )
     return {
@@ -627,5 +684,6 @@ def run_telegram_polling_cycle_impl(
         "replies": replies,
         "pending_retries": pending_retries,
         "control_commands": control_commands,
+        "session_rollovers": session_rollovers,
         "offset": next_offset,
     }

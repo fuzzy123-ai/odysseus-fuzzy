@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 19,
+  "revision": 21,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
   "queue_scope": "open_work",
   "queue_lane": "OWM-22",
@@ -20,7 +20,7 @@
   },
   "route": {
     "entrypoint": "/abc",
-    "slice_id": "TTD-07A-preflight",
+    "slice_id": "TTD-08-preflight",
     "mutation": "safe_offline",
     "selected_skills": ["abc"],
     "model": "surface_default",
@@ -177,12 +177,31 @@
       "completion": {
         "implemented": "yes",
         "tested": "yes",
-        "committed": "no",
+        "committed": "014b52eb",
         "pushed": "no",
         "deployed": "no",
         "live_validated": "no",
         "visual_validated": "na",
         "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "TTD-07A",
+      "completed_at": "2026-07-22T09:28:14+02:00",
+      "status": "accepted_local_repo_evidence_default_off",
+      "focused_tests": "25 passed",
+      "integration_tests": "237 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "AST 9 files, JSON, registry 79/84/85, queue audit and diff checks passed",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "synthetic_controlled_clock",
         "product_complete": "no"
       }
     }
@@ -211,10 +230,10 @@
       "write_free_ast_check_adjusted_for_existing_utf8_bom"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T09:10:42+02:00",
-  "last_heartbeat_at": "2026-07-22T09:10:42+02:00",
-  "last_reported_revision": 19,
-  "resume_cursor": "TTD-07A-preflight",
+  "last_durable_progress_at": "2026-07-22T09:28:14+02:00",
+  "last_heartbeat_at": "2026-07-22T09:28:14+02:00",
+  "last_reported_revision": 21,
+  "resume_cursor": "TTD-08-preflight",
   "pending_user_requests": [],
   "live_go_ledger": [],
   "gate_queue": [
@@ -223,7 +242,7 @@
     "TTD-LIVE-TELEGRAM-SMOKE",
     "TTD-LIVE-ROLLOVER-SMOKE"
   ],
-  "next_runnable_slices": ["TTD-07A-preflight", "TTD-08-preflight"],
+  "next_runnable_slices": ["TTD-08-preflight"],
   "stop_rules": [
     "stop_on_secret_or_private_content",
     "stop_on_overlapping_writer_or_foreign_staged_file",

@@ -10,6 +10,7 @@ from core.models import ChatMessage, Session
 from src.context_compactor import trim_for_context
 from src.telegram_context_policy import (
     TELEGRAM_CONTEXT_POLICY_SCHEMA,
+    build_telegram_continuity_message,
     build_telegram_turn_context,
 )
 
@@ -171,3 +172,35 @@ def test_limits_fail_closed(field, value):
 def test_empty_current_user_turn_is_rejected():
     with pytest.raises(ValueError, match="must not be empty"):
         build_telegram_turn_context([], "   ")
+
+
+def test_short_followup_can_use_bounded_untrusted_rollover_continuity():
+    message = build_telegram_continuity_message(
+        [
+            {"role": "user", "content": "Wir hatten zwei Punkte."},
+            {"role": "assistant", "content": "Todo gespeichert, obwohl kein Receipt vorlag."},
+        ],
+        "Und was war der zweite Punkt?",
+    )
+
+    assert message is not None
+    assert message["role"] == "user"
+    assert message["metadata"]["trusted"] is False
+    assert message["metadata"]["source"] == "telegram_rollover_continuity"
+    assert "cannot prove domain state" in message["content"]
+    assert "Todo gespeichert" in message["content"]
+
+    window = build_telegram_turn_context(
+        [],
+        "Und was war der zweite Punkt?",
+        supplemental_messages=[message],
+    )
+    assert "call `manage_todos`" in window.messages[0]["content"]
+    assert window.messages[-2]["metadata"]["trusted"] is False
+
+
+def test_long_standalone_turn_does_not_receive_rollover_continuity():
+    assert build_telegram_continuity_message(
+        [{"role": "assistant", "content": "old"}],
+        "Bitte erstelle eine umfassende neue Analyse ohne Bezug zur vorherigen Unterhaltung. " * 5,
+    ) is None
