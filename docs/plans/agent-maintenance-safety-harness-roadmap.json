@@ -4,8 +4,8 @@
   "roadmap_id": "AMH",
   "title": "Agent Maintenance Safety Harness Roadmap",
   "created_at": "2026-07-18T16:16:30+02:00",
-  "updated_at": "2026-07-22T14:43:00+02:00",
-  "status": "implementation_running_amh04_dependency_frontier",
+  "updated_at": "2026-07-22T15:03:00+02:00",
+  "status": "implementation_running_amh06_dependency_frontier",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/open-work-completion-master-roadmap.json",
   "canonical_open_work_queue": "docs/plans/open-work-completion-master-roadmap.json",
@@ -525,7 +525,7 @@
     },
     {
       "id": "AMH-04-machine-verification-receipts",
-      "execution_status": "claimed_implementation_running",
+      "execution_status": "completed_local_repo_evidence_2026-07-22",
       "mutation_class": "repo_only",
       "priority": "P0",
       "owner": "Bob",
@@ -557,10 +557,12 @@
         "python -m json.tool specs/agent-maintenance-verification-receipt.v1.schema.json",
         "git diff --check -- specs/agent-maintenance-verification-receipt.v1.schema.json src/agent_verification_receipt.py scripts/verify.py tests/test_agent_verification_receipt.py"
       ],
+      "local_acceptance_evidence": "Commit e7cb2926; 34 focused tests passed and one host-dependent real-symlink test skipped while the deterministic symlink-admission regression passed; guards-only passed 3 of 3 checks; a clean-HEAD receipt passed and bound to e7cb292612a7943fe55ff836d1bf64729d6087c2.",
+      "verification_limit": "The public schema and SHA-256 digest prove structure, integrity and current repository binding, not non-forgeable machine origin. AMH-06 must rerun the current-state gate and cannot treat receipt producer metadata as authentication.",
       "evidence_required": [
         "receipt revision or diff digest changes when verified code changes",
         "receipt cannot contain raw stdout, stderr, exception, API payload, environment value or private path",
-        "an agent-authored or stale receipt cannot satisfy completion",
+        "a stale receipt cannot satisfy completion; an agent-authored public receipt cannot independently grant completion and AMH-06 must rerun current-state validation",
         "skipped, unavailable and not_verified remain distinguishable",
         "schema and validator reject unknown result states"
       ],
@@ -914,5 +916,5 @@
       "No commit, push, deploy, live mutation, provider call or external write was performed."
     ]
   },
-  "recommended_next_step": "Preflight and claim AMH-04 as the sole writer slice now that AMH-02 and AMH-03 have accepted local evidence; preserve the separately recorded GMI legacy-consumer migration debt and keep every live gate closed."
+  "recommended_next_step": "Preflight and claim AMH-06 as the sole writer slice now that AMH-01, AMH-02, AMH-04 and AMH-05 have accepted local evidence; require the AMH-06 completion gate to rerun receipt validation against current state and keep publication/live authority closed."
 }
