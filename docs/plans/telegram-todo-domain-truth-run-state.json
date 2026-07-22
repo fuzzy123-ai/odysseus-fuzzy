@@ -2,15 +2,16 @@
   "schema_version": 1,
   "kind": "odysseus.abc_long_run_state",
   "run_id": "abc-owm22-20260722T065621+0200",
-  "revision": 44,
+  "revision": 50,
   "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
+  "heartbeat_status": "paused_update_handler_unavailable_current_surface",
   "queue_scope": "open_work",
   "queue_lane": "OWM-23",
   "queue_path": "docs/plans/agent-maintenance-safety-harness-roadmap.json",
   "started_at": "2026-07-22T06:56:21+02:00",
   "deadline_at": "2026-07-22T18:56:21+02:00",
-  "state": "complete_repo_frontier_exhausted",
-  "max_parallel_workers": 1,
+  "state": "running",
+  "max_parallel_workers": 3,
   "worktree": "C:/tmp/odysseus-abc-ttd-20260722",
   "branch": "codex/abc-ttd-20260722",
   "baseline_commit": "61442e80dc9b1fd19b59b8fdd0335184a528938c",
@@ -20,10 +21,20 @@
   },
   "route": {
     "entrypoint": "/abc",
-    "slice_id": "repo-frontier-exhausted",
-    "mutation": "safe_offline",
-    "selected_skills": ["abc"],
-    "model": "surface_default",
+    "slice_id": "AMH-02+AMH-03+AMH-05-foreign-handoff-reconciliation",
+    "mutation": "repo_only",
+    "recommended": {
+      "skills": [{"id": "abc", "purpose": "orchestration, claims, gates and acceptance"}],
+      "model": {"tier": "high", "preferred": "gpt-5.6-sol", "reason": "security-sensitive integration and cross-slice acceptance"}
+    },
+    "selected": {
+      "skills": [{"id": "abc", "purpose": "orchestration, claims, gates and acceptance"}],
+      "model": {"value": "surface_default", "reason": "root integration surface"}
+    },
+    "actual": {
+      "skills": [{"id": "abc", "status": "loaded_used"}],
+      "model": {"value": "surface_default", "evidence": "root surface"}
+    },
     "fallback": "native_tools"
   },
   "evidence_contract": {
@@ -34,8 +45,81 @@
     "temporal_window": "none",
     "positive_path_required": true
   },
-  "active_claims": [],
-  "agent_leases": [],
+  "active_claims": [
+    {
+      "run_id": "abc-owm22-20260722T065621+0200",
+      "thread_id": "/root/amh02_bob",
+      "slice_id": "AMH-02-secret-safe-diagnostics",
+      "owner": "Bob",
+      "allowed_paths": [
+        "src/tool_security.py",
+        "src/tool_execution.py",
+        "routes/diagnostics_routes.py",
+        "tests/test_secret_safe_diagnostics.py",
+        "tests/test_tool_security.py"
+      ],
+      "hotfiles": [
+        "src/tool_security.py",
+        "src/tool_execution.py",
+        "routes/diagnostics_routes.py"
+      ],
+      "state": "claimed",
+      "acquired_at": "2026-07-22T13:05:00+02:00",
+      "lease_expires_at": "2026-07-22T14:35:00+02:00",
+      "handoff_required": true
+    },
+    {
+      "run_id": "abc-owm22-20260722T065621+0200",
+      "thread_id": "/root/amh05_charlie",
+      "slice_id": "AMH-05-canonical-handoff-and-owner-projection",
+      "owner": "Charlie",
+      "allowed_paths": [
+        "src/planning_mcp_service.py",
+        "src/clarification_contract.py",
+        "src/coding_agent_runner_state.py",
+        "tests/test_clarification_contract.py"
+      ],
+      "hotfiles": [
+        "src/planning_mcp_service.py",
+        "src/clarification_contract.py"
+      ],
+      "state": "claimed",
+      "acquired_at": "2026-07-22T13:07:00+02:00",
+      "lease_expires_at": "2026-07-22T14:07:00+02:00",
+      "handoff_required": true
+    }
+  ],
+  "agent_leases": [
+    {
+      "agent": "/root/amh02_bob",
+      "slice_id": "AMH-02-secret-safe-diagnostics",
+      "mode": "worker",
+      "state": "claimed",
+      "allowed_paths": [
+        "src/tool_security.py",
+        "src/tool_execution.py",
+        "routes/diagnostics_routes.py",
+        "tests/test_secret_safe_diagnostics.py",
+        "tests/test_tool_security.py"
+      ],
+      "acquired_at": "2026-07-22T13:05:00+02:00",
+      "lease_expires_at": "2026-07-22T14:35:00+02:00"
+    },
+    {
+      "agent": "/root/amh05_charlie",
+      "slice_id": "AMH-05-canonical-handoff-and-owner-projection",
+      "mode": "worker",
+      "state": "claimed",
+      "allowed_paths": [
+        "src/planning_mcp_service.py",
+        "src/clarification_contract.py",
+        "src/coding_agent_runner_state.py",
+        "tests/test_clarification_contract.py"
+      ],
+      "acquired_at": "2026-07-22T13:07:00+02:00",
+      "lease_expires_at": "2026-07-22T14:07:00+02:00"
+    }
+  ],
   "completed_slices": [
     {
       "slice_id": "TTD-00",
@@ -460,6 +544,25 @@
         "temporal_validated": "na",
         "product_complete": "no"
       }
+    },
+    {
+      "slice_id": "AMH-03-shared-verification-entrypoint",
+      "completed_at": "2026-07-22T13:12:00+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "11 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "integration_tests": "Real guards-only lane passed all 3 checks; reusable workflow preserves blocking compileall, JavaScript syntax and full verifier jobs",
+      "static_evidence": "YAML workflow contract and path-scoped diff check passed",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "5c19a88f",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "availability_contract_only",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
     }
   ],
   "failed_attempts": {
@@ -515,10 +618,10 @@
       "safe_claim_identifier_fallback_expectation_corrected"
     ]
   },
-  "last_durable_progress_at": "2026-07-22T12:00:00+02:00",
-  "last_heartbeat_at": "2026-07-22T12:00:00+02:00",
+  "last_durable_progress_at": "2026-07-22T13:12:00+02:00",
+  "last_heartbeat_at": "2026-07-22T12:56:00+02:00",
   "last_reported_revision": 44,
-  "resume_cursor": "awaiting_user_or_foreign_handoff",
+  "resume_cursor": "AMH-02+AMH-03+AMH-05-handoff-reconciliation",
   "pending_user_requests": [],
   "live_go_ledger": [],
   "gate_queue": [
@@ -528,12 +631,15 @@
     "TTD-LIVE-ROLLOVER-SMOKE",
     "TTD-LIVE-HISTORY-RETENTION"
   ],
-  "next_runnable_slices": [],
+  "next_runnable_slices": [
+    "AMH-02-secret-safe-diagnostics",
+    "AMH-05-canonical-handoff-and-owner-projection"
+  ],
   "known_blockers": [
     {
       "id": "AMH-02-FOREIGN-HOTFILE-HANDOFF",
-      "state": "waiting_on_partial_handoff",
-      "reason": "GMI-11 released and hash-pinned the validator package, but the related primary-checkout tool and route hotfiles still have no durable AMH handoff.",
+      "state": "handoff_granted_pending_integration",
+      "reason": "The owner granted GO AMH-HANDOFF on 2026-07-22; reconcile the preserved primary-checkout tool and route hotfiles read-only into the isolated branch.",
       "paths": [
         "src/tool_security.py",
         "src/tool_execution.py",
@@ -542,8 +648,8 @@
     },
     {
       "id": "AMH-03-FOREIGN-WORKFLOW-HANDOFF",
-      "state": "waiting_on_handoff",
-      "reason": "The preserved SAR-01 workflow work is green under its local contract test but remains blocked_environment and has no released AMH handoff.",
+      "state": "resolved_local_commit_5c19a88f",
+      "reason": "The released workflow work was semantically integrated, repaired to use the shared full verifier, focused-tested and committed locally.",
       "paths": [
         ".github/workflows/quality-gate.yml",
         ".github/workflows/ci.yml"
@@ -551,8 +657,8 @@
     },
     {
       "id": "AMH-05-FOREIGN-PLANNING-HANDOFF",
-      "state": "waiting_on_handoff",
-      "reason": "Clarification and runner contracts are green, but the primary Planning hotfile remains foreign and no durable AMH integration handoff exists.",
+      "state": "handoff_granted_pending_integration",
+      "reason": "The owner granted GO AMH-HANDOFF on 2026-07-22; reconcile the preserved Planning, clarification and runner work read-only into the isolated branch.",
       "paths": [
         "src/planning_mcp_service.py",
         "src/clarification_contract.py",
@@ -571,7 +677,13 @@
     "normal_commit_or_reflog_handoff_found": false,
     "active_foreign_writer_found": false,
     "focused_foreign_contract_tests": "50 passed, 1 pre-existing SQLAlchemy deprecation warning",
-    "conclusion": "Content is preserved and locally green, but checkpoint provenance alone is not ownership release; overlapping paths remain read-only."
+    "conclusion": "Content is preserved and locally green; the owner explicitly released the named AMH-02, AMH-03 and AMH-05 paths for read-only absorption into the isolated branch.",
+    "owner_authorization": {
+      "grant": "GO AMH-HANDOFF",
+      "granted_at": "2026-07-22T12:55:00+02:00",
+      "scope": "Read the named files from the primary checkout; integrate, repair, test and commit locally in the isolated branch only.",
+      "excluded": ["push", "deploy", "live_access", "primary_checkout_mutation"]
+    }
   },
   "final_queue_audit": {
     "observed_at": "2026-07-22T12:00:00+02:00",
@@ -582,8 +694,8 @@
     "unique_live_gate_count": 40,
     "unique_design_gate_count": 28,
     "other_open_count": 34,
-    "queue_exhausted": true,
-    "stop_reason": "No dependency-ready repo-only slice remains without absorbing foreign work, inventing a product decision, or taking a separately gated live/design action."
+    "queue_exhausted": false,
+    "stop_reason": "Superseded by the explicit GO AMH-HANDOFF; AMH-02, AMH-03 and AMH-05 are dependency-ready for bounded repo-only reconciliation."
   },
   "stop_rules": [
     "stop_on_secret_or_private_content",
