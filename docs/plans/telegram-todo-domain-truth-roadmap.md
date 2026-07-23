@@ -2,10 +2,12 @@
 
 Stand: 2026-07-23
 
-Status: `TTD-00` und `TTD-01` sind am 2026-07-23 akzeptiert. `TTD-02` ist als
-naechster read-only Boundary-Recon selektiert, aber noch nicht geclaimt.
-`TTD-03` und `TTD-08` sind dependency-ready, bleiben jedoch unselektiert;
-spaetere unmet Slices und saemtliche Live-Aktionen bleiben gesperrt.
+Status: `TTD-00` und `TTD-01` sind am 2026-07-23 akzeptiert. Der read-only
+`TTD-02`-Boundary-Recon ist abgeschlossen. `TTD-02A` ist als exakte
+serverseitige Memory-Kategorie- und Todo-Schreibsperre geclaimt; `TTD-02B`
+bleibt bis zu ihrer Acceptance blockiert. `TTD-03` und `TTD-08` sind
+dependency-ready, bleiben jedoch unselektiert; spaetere unmet Slices und
+saemtliche Live-Aktionen bleiben gesperrt.
 
 ## Durable Amendment Claim 2026-07-21
 
@@ -231,9 +233,12 @@ route:
 | TTD-09 | `repo_only` | TTD-02 bis TTD-08 inklusive TTD-07A | End-to-End-Regressionssuite mit Fixtures |
 | TTD-10 | `repo_only` | TTD-09 | Deployment-, Rollback- und Live-Gate-Paket |
 
-`TTD-00` und `TTD-01` sind akzeptiert. Als naechster Schritt ist nur der
-read-only `TTD-02`-Boundary-Recon selektiert. `TTD-03` und `TTD-08` sind nach
-dem DAG ebenfalls dependency-ready, bleiben aber unselektiert. Alle spaeteren
+`TTD-00` und `TTD-01` sind akzeptiert. Der read-only
+`TTD-02`-Boundary-Recon ist abgeschlossen und wird serialisiert umgesetzt:
+`TTD-02A` sperrt Todo- und unbekannte Kategorien an den serverseitigen
+Memory-Schreibgrenzen; erst danach darf `TTD-02B` die `manage_todos`-Fassade
+und das Intent-/Registry-Wiring claimen. `TTD-03` und `TTD-08` sind nach dem
+DAG ebenfalls dependency-ready, bleiben aber unselektiert. Alle spaeteren
 Slices mit offenen Abhaengigkeiten bleiben `blocked_by_dependency`. Der
 Safe-Queue-Audit ist Discovery, kein DAG-Runner.
 
@@ -400,7 +405,22 @@ Akzeptanz:
 
 Owner: Bob
 
-Status: `selected_read_only_recon_not_claimed`
+Status: `ttd02a_claimed_ttd02b_blocked_by_ttd02a`
+
+Serialisierung und aktiver Claim:
+
+- `TTD-02A-memory-category-and-todo-write-fail-closed`
+  - Owner: Charlie
+  - Run: `abc-ttd02a-20260723T220149+0200`
+  - Status: `claimed_2026-07-23`
+  - Exakte Pfade: neuer zentraler Memory-Kategorievertrag,
+    Request-Modelle, Memory-Manager, Agent-Memory-Writer, natives
+    `manage_memory`-Schema und ein fokussiertes synthetisches Testmodul
+  - Verboten: Route-, Todo-Fassade-, Registry-, Intent-, Notes-, Telegram-,
+    produktive Daten-, Runtime-, Provider-, Deploy- und Live-Aenderungen
+- `TTD-02B-manage-todos-facade-routing`
+  - Status: `blocked_by_ttd02a`
+  - Erst nach Acceptance und Claim-Release von `TTD-02A` claimbar
 
 Ziel:
 
