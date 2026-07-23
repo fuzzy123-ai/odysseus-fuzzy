@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 
 import pytest
+from fastapi import FastAPI, Request
+from fastapi.testclient import TestClient
 
+from routes.universal_inbox_routes import setup_universal_inbox_routes
 from src.universal_inbox_file_types import classify_universal_inbox_file
 from src.universal_inbox_workbench import (
     WorkbenchAction,
@@ -229,3 +232,201 @@ def test_contract_rejects_truthy_non_booleans_and_unknown_actions():
             reason_codes=("forged",),
             mutates_original=True,  # type: ignore[call-arg]
         )
+
+
+class _RouteDryRunUploadHandler:
+    def __init__(self, owner: str = "alice", filename: str = "private-plan.pdf"):
+        self.owner = owner
+        self.filename = filename
+        self.calls: list[tuple[str, str | None]] = []
+
+    def resolve_upload(self, upload_id, *, owner=None, **_kwargs):
+        self.calls.append((upload_id, owner))
+        if owner != self.owner:
+            return None
+        return {
+            "id": upload_id,
+            "original_name": self.filename,
+            "mime": "application/pdf",
+        }
+
+
+class _RouteDryRunAuthManager:
+    def __init__(self, is_configured: bool):
+        self.is_configured = is_configured
+
+
+def _route_dry_run_client(
+    owner: str | None,
+    handler: _RouteDryRunUploadHandler,
+    *,
+    auth_configured: bool = False,
+) -> TestClient:
+    app = FastAPI()
+    app.state.auth_manager = _RouteDryRunAuthManager(auth_configured)
+
+    @app.middleware("http")
+    async def owner_context(request: Request, call_next):
+        if owner is not None:
+            request.state.current_user = owner
+        return await call_next(request)
+
+    app.include_router(setup_universal_inbox_routes(handler))
+    return TestClient(app)
+
+
+def _route_ref() -> str:
+    return f"upload:{'a' * 32}.pdf"
+
+
+def test_route_dry_run_projects_owner_checked_policy_without_paths_or_writes():
+    handler = _RouteDryRunUploadHandler()
+    client = _route_dry_run_client("alice", handler)
+
+    response = client.post(
+        f"/api/universal-inbox/items/{_route_ref()}/route-dry-run",
+        json={
+            "domain": "private",
+            "document_type": "invoice",
+            "confidence": 0.91,
+            "risk_signals": {"sensitive": True},
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "private, no-store"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    payload = response.json()
+    assert handler.calls == [("a" * 32 + ".pdf", "alice")]
+    assert payload["status"] == payload["policy_status"] == "review"
+    assert payload["input_authority"] == "advisory"
+    assert payload["confidence"] == 0.91
+    assert payload["review_reasons"] == ["sensitive"]
+    assert payload["reason_codes"] == ["sensitive"]
+    assert payload["route_capability"]["server_authoritative"] is True
+    assert payload["dry_run"] is True
+    assert payload["path_redacted"] is True
+    assert payload["content_redacted"] is True
+    assert payload["raptorgraph_payload_visible"] is False
+    assert payload["live_apply"] == {
+        "enabled": False,
+        "gate": "UIX-NEXTCLOUD-LIVE-WRITE",
+    }
+    assert all(payload[name] is False for name in (
+        "copy_performed", "move_performed", "delete_performed", "overwrite_performed",
+        "memory_writes_performed", "live_writes_performed", "writes_performed",
+    ))
+    encoded = json.dumps(payload)
+    for forbidden in ("private-plan", "incoming/source", "Documents/", "raptorgraph_event"):
+        assert forbidden not in encoded
+
+
+def test_route_dry_run_projects_a_server_authoritative_go_when_policy_allows_it():
+    client = _route_dry_run_client("alice", _RouteDryRunUploadHandler())
+    response = client.post(
+        f"/api/universal-inbox/items/{_route_ref()}/route-dry-run",
+        json={"domain": "private", "document_type": "invoice", "confidence": 0.99},
+    )
+
+    payload = response.json()
+    assert response.status_code == 200
+    assert payload["status"] == payload["policy_status"] == "go"
+    assert payload["suggestion"] == "matched_policy_route"
+    assert payload["reason_codes"] == payload["review_reasons"] == payload["no_go_reasons"] == []
+
+
+def test_route_dry_run_projects_a_capability_no_go_without_exposing_the_source():
+    client = _route_dry_run_client(
+        "alice",
+        _RouteDryRunUploadHandler(filename="private-installer.exe"),
+    )
+    response = client.post(
+        f"/api/universal-inbox/items/{_route_ref()}/route-dry-run",
+        json={"domain": "private", "document_type": "invoice", "confidence": 0.99},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == payload["policy_status"] == "no_go"
+    assert payload["suggestion"] == "blocked_by_policy"
+    assert payload["no_go_reasons"] == ["route_capability_blocked"]
+    assert payload["reason_codes"] == ["route_capability_blocked"]
+    assert "private-installer" not in json.dumps(payload)
+
+
+@pytest.mark.parametrize(
+    ("owner", "source_ref", "body", "status", "code"),
+    [
+        (None, _route_ref(), {"domain": "private", "document_type": "invoice", "confidence": 0.9}, 403, "route_dry_run_owner_required"),
+        ("bob", _route_ref(), {"domain": "private", "document_type": "invoice", "confidence": 0.9}, 404, "route_dry_run_source_not_found"),
+        ("alice", "upload:not-a-source", {"domain": "private", "document_type": "invoice", "confidence": 0.9}, 400, "malformed_route_dry_run_source_ref"),
+        ("alice", _route_ref(), {"domain": "private", "document_type": "invoice", "confidence": "0.9"}, 400, "invalid_route_dry_run_confidence"),
+        ("alice", _route_ref(), {"domain": "private", "document_type": "invoice", "confidence": 0.9, "owner": "alice"}, 400, "invalid_route_dry_run_body"),
+    ],
+)
+def test_route_dry_run_fails_closed_for_owner_source_and_invalid_input(
+    owner,
+    source_ref,
+    body,
+    status,
+    code,
+):
+    client = _route_dry_run_client(
+        owner,
+        _RouteDryRunUploadHandler(),
+        auth_configured=owner is None,
+    )
+    response = client.post(
+        f"/api/universal-inbox/items/{source_ref}/route-dry-run",
+        json=body,
+    )
+
+    assert response.status_code == status
+    assert response.headers["cache-control"] == "private, no-store"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.json() == {
+        "schema": "odysseus.universal_inbox.route_dry_run_error.v1",
+        "error": code,
+        "content_redacted": True,
+        "path_redacted": True,
+        "copy_performed": False,
+        "move_performed": False,
+        "delete_performed": False,
+        "overwrite_performed": False,
+        "memory_writes_performed": False,
+        "live_writes_performed": False,
+        "writes_performed": False,
+    }
+
+
+def test_route_dry_run_requires_a_small_json_body():
+    client = _route_dry_run_client("alice", _RouteDryRunUploadHandler())
+
+    wrong_type = client.post(
+        f"/api/universal-inbox/items/{_route_ref()}/route-dry-run",
+        content="{}",
+        headers={"content-type": "text/plain"},
+    )
+    oversized = client.post(
+        f"/api/universal-inbox/items/{_route_ref()}/route-dry-run",
+        content="{" + "x" * 1100 + "}",
+        headers={"content-type": "application/json"},
+    )
+
+    assert wrong_type.status_code == 415
+    assert wrong_type.json()["error"] == "route_dry_run_json_required"
+    assert oversized.status_code == 413
+    assert oversized.json()["error"] == "route_dry_run_body_too_large"
+
+
+def test_route_dry_run_keeps_unconfigured_single_user_ownerless_but_scoped():
+    handler = _RouteDryRunUploadHandler(owner=None)
+    client = _route_dry_run_client(None, handler, auth_configured=False)
+
+    response = client.post(
+        f"/api/universal-inbox/items/{_route_ref()}/route-dry-run",
+        json={"domain": "private", "document_type": "invoice", "confidence": 0.9},
+    )
+
+    assert response.status_code == 200
+    assert handler.calls == [("a" * 32 + ".pdf", None)]

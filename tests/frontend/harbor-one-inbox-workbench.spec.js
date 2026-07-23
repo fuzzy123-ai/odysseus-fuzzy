@@ -62,6 +62,51 @@ async function openInbox(page, query = '') {
   return root;
 }
 
+function liveInboxItem(sourceRef = `upload:${'a'.repeat(32)}.pdf`) {
+  return {
+    schema: 'odysseus.universal_inbox.item.v1',
+    source_ref: sourceRef,
+    source_kind: 'upload',
+    display_name: 'Owner-scoped document.pdf',
+    status: 'uploaded',
+    metadata: {
+      suffix: '.pdf', mime_type: 'application/pdf', family: 'document',
+      category: 'document_extractable', size_bytes: 2048, uploaded_at: '2026-07-23T09:00:00+00:00',
+      extractable_now: true, review_required: false, blocked: false, reason_codes: []
+    },
+    capability: {
+      schema: 'odysseus.universal_inbox.workbench_capability.v1',
+      server_authoritative: true,
+      actions: [{ action: 'route_dry_run', state: 'allowed', reason_codes: [] }]
+    },
+    absolute_path_visible: false, raw_content_visible: false, owner_identifier_visible: false
+  };
+}
+
+async function openLiveInbox(page, routeHandler) {
+  const item = liveInboxItem();
+  await page.route('**/api/universal-inbox/items?*', route => route.fulfill({ json: {
+    schema: 'odysseus.universal_inbox.items.v1', absolute_paths_visible: false,
+    raw_content_visible: false, items: [item], page: { returned_count: 1, has_more: false }
+  }}));
+  await page.route('**/api/universal-inbox/snapshot', route => route.fulfill({ json: {
+    schema: 'odysseus.universal_inbox.snapshot.v1', total_count: 1,
+    item_names_visible: false, source_refs_visible: false, absolute_paths_visible: false,
+    raw_content_visible: false, counts: { uploaded: 1 }, readiness: { state: 'ready' }
+  }}));
+  await page.route('**/api/universal-inbox/items/*/route-dry-run', routeHandler);
+  await page.goto(`${baseUrl}/static/frontpage-v3/index.html?workspace=inbox&inboxSource=live`);
+  const root = page.locator('[data-inbox-workbench-root]');
+  await expect(root).toHaveAttribute('data-inbox-mode', 'live');
+  return root;
+}
+
+const safeRouteHeaders = {
+  'content-type': 'application/json; charset=utf-8',
+  'cache-control': 'private, no-store',
+  'x-content-type-options': 'nosniff'
+};
+
 test('accepted three-zone shell is source-bound, document-primary and write-closed', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 960 });
   const root = await openInbox(page);
@@ -92,15 +137,103 @@ test('accepted three-zone shell is source-bound, document-primary and write-clos
     'No copy, move, delete, overwrite, provider, or memory write is available here.'
   )).toBeVisible();
   const enabledMutations = root.locator('button:not(:disabled)').filter({
-    hasText: /export|open working copy|suggest route|copy|move|delete|memory/i
+    hasText: /export|open working copy|copy|move|delete|memory/i
   });
   await expect(enabledMutations).toHaveCount(0);
+  await expect(root.getByRole('button', { name: 'Suggest route · dry run' })).toBeEnabled();
+  await root.getByRole('button', { name: 'Suggest route · dry run' }).click();
+  await expect(root.locator('[data-route-status]')).toContainText('Synthetic fixture evidence only');
+  await expect(root.getByRole('button', { name: 'Apply route live' })).toBeDisabled();
   await expect(page.locator('.inbox-analysis-window')).toBeHidden();
   await expect(page.locator('.inbox-files-window')).toBeHidden();
   await page.screenshot({
     path: path.join(screenshotRoot, 'uix19-desktop-selected.png'),
     fullPage: true
   });
+});
+
+test('route dry run posts bounded advisory input and renders server policy without a live apply', async ({ page }) => {
+  let posted;
+  const root = await openLiveInbox(page, async route => {
+    posted = route.request().postDataJSON();
+    await route.fulfill({ headers: safeRouteHeaders, json: {
+      schema: 'odysseus.universal_inbox.route_dry_run.v1', status: 'review', policy_status: 'review',
+      input_authority: 'advisory', confidence: 0, reason_codes: ['unknown_domain', 'unknown_document_type', 'low_confidence'], review_reasons: ['unknown_domain', 'unknown_document_type', 'low_confidence'], no_go_reasons: [],
+      path_redacted: true, content_redacted: true, dry_run: true,
+      copy_performed: false, move_performed: false, delete_performed: false,
+      overwrite_performed: false, memory_writes_performed: false, live_writes_performed: false,
+      writes_performed: false, live_apply: { enabled: false, gate: 'UIX-NEXTCLOUD-LIVE-WRITE' }
+    }});
+  });
+
+  const trigger = root.getByRole('button', { name: 'Suggest route · dry run' });
+  await trigger.click();
+  await expect(root.locator('[data-route-status]')).toContainText('Route needs review');
+  expect(posted).toEqual({
+    domain: 'unknown', document_type: 'unknown', confidence: 0, risk_signals: {}
+  });
+  await expect(root.locator('[data-route-status]')).toContainText('Policy: review');
+  await expect(root.getByRole('button', { name: 'Apply route live' })).toBeDisabled();
+  await expect(root.getByText('UIX-NEXTCLOUD-LIVE-WRITE', { exact: false })).toBeVisible();
+});
+
+test('route dry run exposes loading, review/no-go and content-free errors without stale results', async ({ page }) => {
+  let calls = 0;
+  let releaseFirst;
+  const firstResponse = new Promise(resolve => { releaseFirst = resolve; });
+  const root = await openLiveInbox(page, async route => {
+    calls += 1;
+    if (calls === 1) {
+      await firstResponse;
+      await route.fulfill({ headers: safeRouteHeaders, json: {
+        schema: 'odysseus.universal_inbox.route_dry_run.v1', status: 'review', policy_status: 'review',
+        input_authority: 'advisory', confidence: 0.5, reason_codes: ['low_confidence'], review_reasons: ['low_confidence'], no_go_reasons: [],
+        path_redacted: true, content_redacted: true, dry_run: true, copy_performed: false, move_performed: false,
+        delete_performed: false, overwrite_performed: false, memory_writes_performed: false,
+        live_writes_performed: false, writes_performed: false,
+        live_apply: { enabled: false, gate: 'UIX-NEXTCLOUD-LIVE-WRITE' }
+      }});
+      return;
+    }
+    if (calls === 2) {
+      await route.fulfill({ headers: safeRouteHeaders, json: {
+        schema: 'odysseus.universal_inbox.route_dry_run.v1', status: 'no_go', policy_status: 'no_go',
+        input_authority: 'advisory', confidence: 0.82, reason_codes: ['route_capability_blocked'], review_reasons: [], no_go_reasons: ['route_capability_blocked'],
+        path_redacted: true, content_redacted: true, dry_run: true, copy_performed: false, move_performed: false,
+        delete_performed: false, overwrite_performed: false, memory_writes_performed: false,
+        live_writes_performed: false, writes_performed: false,
+        live_apply: { enabled: false, gate: 'UIX-NEXTCLOUD-LIVE-WRITE' }
+      }});
+      return;
+    }
+    if (calls === 3) {
+      await route.fulfill({ headers: safeRouteHeaders, json: {
+        schema: 'odysseus.universal_inbox.route_dry_run.v1', status: 'review', policy_status: 'review',
+        input_authority: 'advisory', confidence: 0, reason_codes: ['low_confidence'], review_reasons: ['low_confidence'], no_go_reasons: [],
+        path_redacted: true, content_redacted: true, target_path: 'unsafe', dry_run: true,
+        copy_performed: false, move_performed: false, delete_performed: false, overwrite_performed: false,
+        memory_writes_performed: false, live_writes_performed: false, writes_performed: false,
+        live_apply: { enabled: false, gate: 'UIX-NEXTCLOUD-LIVE-WRITE' }
+      }});
+      return;
+    }
+    await route.fulfill({ status: 503, json: { error: 'unavailable' } });
+  });
+
+  const trigger = root.getByRole('button', { name: 'Suggest route · dry run' });
+  await trigger.click();
+  await expect(root.locator('[data-route-status]')).toContainText('Checking server policy');
+  await root.locator('[data-inbox-refresh]').click();
+  releaseFirst();
+  await expect(root.locator('[data-route-status]')).not.toContainText('low_confidence');
+  await root.getByRole('button', { name: 'Suggest route · dry run' }).click();
+  await expect(root.locator('[data-route-status]')).toContainText('Route suggestion blocked');
+  await root.getByRole('button', { name: 'Suggest route · dry run' }).click();
+  await expect(root.locator('[data-route-status]')).toContainText('Route unavailable');
+  await expect(root.locator('[data-route-status]')).not.toContainText('unsafe');
+  await root.getByRole('button', { name: 'Suggest route · dry run' }).click();
+  await expect(root.locator('[data-route-status]')).toContainText('Route unavailable');
+  await expect(root.locator('[data-route-status]')).toContainText('No action ran');
 });
 
 test('review, working-copy and export visual fixtures stay explicit and non-live', async ({ page }) => {

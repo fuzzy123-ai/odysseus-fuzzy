@@ -19,7 +19,8 @@
     selectedRef: '',
     search: '',
     documentMode: 'original',
-    mobilePanel: 'document'
+    mobilePanel: 'document',
+    route: { sequence: 0, controller: null, sourceRef: '', state: 'idle', result: null, error: '' }
   };
   const documentModes = ['original', 'extraction', 'working-copy', 'difference'];
   const mobilePanels = ['source', 'document', 'details'];
@@ -295,6 +296,7 @@
   function renderDetailsPanel(item, tone) {
     const metadata = item && item.metadata || {};
     const review = tone === 'review';
+    const routeCapability = routeCapabilityFor(item, stateForRouteCapability());
     return `
       <aside class="uix-panel uix-details-panel" id="uix-panel-details" data-workbench-panel="details" aria-label="Flow, provenance and actions">
         <header class="uix-panel-heading">
@@ -323,12 +325,73 @@
         <section class="uix-detail-section uix-actions" aria-labelledby="uix-actions-title">
           <h2 id="uix-actions-title">Available now</h2>
           <button class="uix-button primary" type="button" data-focus-document ${review ? 'disabled' : ''}>Review selection</button>
-          <button class="uix-button" type="button" disabled title="UIX22 keeps routing as a dry run">Suggest route · dry run</button>
+          <button class="uix-button" type="button" data-route-dry-run ${routeCapability.enabled ? '' : 'disabled aria-disabled="true"'} title="${escapeHtml(routeCapability.note)}">Suggest route · dry run</button>
+          ${renderRouteDryRunStatus(routeCapability)}
           <button class="uix-button" type="button" disabled title="Working-copy UI bridge follows in UIX21">Open working copy</button>
+          <button class="uix-button" type="button" disabled aria-disabled="true" title="UIX-NEXTCLOUD-LIVE-WRITE">Apply route live</button>
+          <p>Live apply is disabled by UIX-NEXTCLOUD-LIVE-WRITE.</p>
           <p>No copy, move, delete, overwrite, provider, or memory write is available here.</p>
         </section>
       </aside>
     `;
+  }
+
+  function stateForRouteCapability() {
+    return model.getState();
+  }
+
+  function routeCapabilityFor(item, state) {
+    if (!item) return { enabled: false, note: 'Select an owner-scoped source first.' };
+    if (state && state.mode === 'fixture') {
+      return { enabled: true, note: 'Synthetic fixture result only; never live evidence.' };
+    }
+    const actions = list(item.capability && item.capability.actions);
+    const action = actions.find(candidate => candidate && candidate.action === 'route_dry_run');
+    if (!action || !['allowed', 'review'].includes(action.state)) {
+      return { enabled: false, note: 'Server policy does not currently allow a route dry run.' };
+    }
+    if (view.route.state === 'loading') {
+      return { enabled: false, note: 'Server-authoritative route suggestion is loading.' };
+    }
+    return { enabled: true, note: 'Server-authoritative route suggestion; no write will run.' };
+  }
+
+  function renderRouteDryRunStatus(capability) {
+    const route = view.route;
+    if (route.state === 'loading') {
+      return '<p class="uix-route-status" role="status" aria-live="polite" data-route-status>Checking server policy and dry-run route…</p>';
+    }
+    if (route.state === 'error') {
+      return `<div class="uix-risk-banner" role="alert" data-route-status><strong>Route unavailable</strong><span>${escapeHtml(route.error || 'The route dry run could not be verified. No action ran.')}</span></div>`;
+    }
+    if (route.state === 'result' && route.result) {
+      const result = route.result;
+      const label = result.status === 'go' ? 'Route suggestion ready'
+        : result.status === 'no_go' ? 'Route suggestion blocked' : 'Route needs review';
+      const reasons = result.reason_codes.length
+        ? result.reason_codes.map(reasonLabel).join(', ')
+        : 'none';
+      return `
+        <div class="uix-risk-banner" role="status" aria-live="polite" data-route-status data-route-policy="${escapeHtml(result.status)}">
+          <strong>${escapeHtml(label)}</strong>
+          <span>Policy: ${escapeHtml(result.policy_status)} · Confidence: ${escapeHtml(result.confidence.toFixed(2))} · Reasons: ${reasons}</span>
+          <span>${result.fixture ? 'Synthetic fixture evidence only; no live request ran.' : 'Server-authoritative dry run; no write ran.'}</span>
+        </div>
+      `;
+    }
+    return `<p class="uix-route-status" data-route-status>${escapeHtml(capability.note)}</p>`;
+  }
+
+  function reasonLabel(code) {
+    const labels = {
+      low_confidence: 'Low confidence',
+      unknown_domain: 'Domain needs review',
+      unknown_document_type: 'Document type needs review',
+      synthetic_fixture_review: 'Synthetic preview only',
+      route_capability_review: 'Route capability needs review',
+      route_capability_blocked: 'Route capability blocked'
+    };
+    return `${escapeHtml(labels[code] || 'Policy review')} (${escapeHtml(code)})`;
   }
 
   function liveMessage(item, tone) {
@@ -370,6 +433,10 @@
       root.querySelector('[data-document-heading]')?.focus();
       announce('Document selection focused. Original preview remains read-only.');
     });
+    root.querySelector('[data-route-dry-run]')?.addEventListener('click', () => {
+      const item = selectedItem(state);
+      if (item) requestRouteDryRun(state, item);
+    });
     root.querySelectorAll('[data-document-mode]:not(:disabled)').forEach(button => {
       button.addEventListener('click', () => setDocumentMode(state, button.dataset.documentMode));
       button.addEventListener('keydown', event => handleTabKeys(event, state, ['original'], 'documentMode', '[data-document-mode]:not(:disabled)'));
@@ -377,6 +444,7 @@
   }
 
   function selectItem(state, sourceRef) {
+    cancelRouteDryRun();
     view.selectedRef = sourceRef;
     render(state);
     root.querySelector('[data-inbox-item][aria-selected="true"]')?.focus();
@@ -429,7 +497,168 @@
     if (live) live.textContent = message;
   }
 
+  function cancelRouteDryRun() {
+    if (view.route.controller) view.route.controller.abort();
+    view.route = {
+      sequence: view.route.sequence + 1,
+      controller: null,
+      sourceRef: '',
+      state: 'idle',
+      result: null,
+      error: ''
+    };
+  }
+
+  function advisoryRouteInput() {
+    // These are a bounded candidate only. The server owns policy, capability and effects.
+    return {
+      domain: 'unknown',
+      document_type: 'unknown',
+      confidence: 0,
+      risk_signals: {}
+    };
+  }
+
+  function fixtureRouteProjection() {
+    return {
+      schema: 'odysseus.universal_inbox.route_dry_run.v1',
+      status: 'review',
+      policy_status: 'review',
+      input_authority: 'advisory',
+      confidence: 0,
+      reason_codes: ['synthetic_fixture_review', 'unknown_domain', 'unknown_document_type', 'low_confidence'],
+      review_reasons: ['synthetic_fixture_review', 'unknown_domain', 'unknown_document_type', 'low_confidence'],
+      no_go_reasons: [],
+      dry_run: true,
+      writes_performed: false,
+      fixture: true
+    };
+  }
+
+  async function requestRouteDryRun(state, item) {
+    const capability = routeCapabilityFor(item, state);
+    if (!capability.enabled) return;
+    cancelRouteDryRun();
+    const sequence = view.route.sequence + 1;
+    const sourceRef = String(item.source_ref || '');
+    const controller = new AbortController();
+    view.route = { sequence, controller, sourceRef, state: 'loading', result: null, error: '' };
+    render(state);
+    announce('Checking server policy for a dry-run route. No write will run.');
+
+    try {
+      let result;
+      if (state.mode === 'fixture') {
+        result = fixtureRouteProjection();
+      } else {
+        const response = await api.fetchImpl(
+          `${api.baseUrl}/items/${encodeURIComponent(sourceRef)}/route-dry-run`,
+          {
+            method: 'POST',
+            mode: 'same-origin',
+            redirect: 'error',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+            body: JSON.stringify(advisoryRouteInput()),
+            signal: controller.signal
+          }
+        );
+        if (!response || !response.ok || !hasSafeRouteHeaders(response)) {
+          throw new Error('route_dry_run_unavailable');
+        }
+        result = assertRouteDryRunProjection(await response.json());
+      }
+      if (view.route.sequence !== sequence || view.route.sourceRef !== sourceRef) return;
+      view.route = { sequence, controller: null, sourceRef, state: 'result', result, error: '' };
+      render(state);
+      announce(`Route ${result.status}. Server policy result is available; no write ran.`);
+    } catch (error) {
+      if (error && error.name === 'AbortError') return;
+      if (view.route.sequence !== sequence || view.route.sourceRef !== sourceRef) return;
+      view.route = {
+        sequence,
+        controller: null,
+        sourceRef,
+        state: 'error',
+        result: null,
+        error: 'The server could not verify this dry-run route. No action ran.'
+      };
+      render(state);
+      announce('Route dry run unavailable. No action ran.');
+    }
+  }
+
+  function assertRouteDryRunProjection(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)
+      || value.schema !== 'odysseus.universal_inbox.route_dry_run.v1'
+      || !['go', 'review', 'no_go'].includes(value.status)
+      || value.policy_status !== value.status
+      || value.input_authority !== 'advisory'
+      || typeof value.confidence !== 'number' || !Number.isFinite(value.confidence)
+      || value.confidence < 0 || value.confidence > 1
+      || !Array.isArray(value.reason_codes)
+      || !value.reason_codes.every(code => typeof code === 'string' && /^[a-z][a-z0-9_]{0,63}$/.test(code))
+      || !Array.isArray(value.review_reasons) || !Array.isArray(value.no_go_reasons)
+      || !value.review_reasons.every(code => typeof code === 'string' && /^[a-z][a-z0-9_]{0,63}$/.test(code))
+      || !value.no_go_reasons.every(code => typeof code === 'string' && /^[a-z][a-z0-9_]{0,63}$/.test(code))
+      || value.dry_run !== true || value.writes_performed !== false
+      || value.copy_performed !== false || value.move_performed !== false
+      || value.delete_performed !== false || value.overwrite_performed !== false
+      || value.memory_writes_performed !== false || value.live_writes_performed !== false
+      || value.path_redacted !== true || value.content_redacted !== true
+      || !value.live_apply || value.live_apply.enabled !== false
+      || value.live_apply.gate !== 'UIX-NEXTCLOUD-LIVE-WRITE') {
+      throw new Error('invalid_route_dry_run_projection');
+    }
+    const expectedReasons = value.no_go_reasons.concat(value.review_reasons);
+    if (value.reason_codes.length !== expectedReasons.length
+      || value.reason_codes.some((code, index) => code !== expectedReasons[index])
+      || (value.status === 'go' && expectedReasons.length !== 0)
+      || (value.status === 'review' && (!value.review_reasons.length || value.no_go_reasons.length))
+      || (value.status === 'no_go' && !value.no_go_reasons.length)) {
+      throw new Error('inconsistent_route_dry_run_projection');
+    }
+    assertNoUnsafeRouteFields(value);
+    return {
+      status: value.status,
+      policy_status: value.policy_status,
+      confidence: value.confidence,
+      reason_codes: value.reason_codes.slice(),
+      fixture: false
+    };
+  }
+
+  function hasSafeRouteHeaders(response) {
+    const headers = response.headers;
+    const contentType = String(headers && headers.get('content-type') || '').toLowerCase();
+    const cacheControl = String(headers && headers.get('cache-control') || '').toLowerCase();
+    const nosniff = String(headers && headers.get('x-content-type-options') || '').toLowerCase();
+    return contentType.startsWith('application/json')
+      && cacheControl.includes('no-store') && nosniff === 'nosniff';
+  }
+
+  function assertNoUnsafeRouteFields(value) {
+    const forbidden = new Set([
+      'absolute_path', 'body', 'bytes', 'chat_id', 'content', 'display_name',
+      'file_hash', 'file_path', 'filename', 'hash', 'original_name', 'original_path',
+      'owner', 'owner_id', 'path', 'raw_bytes', 'raw_content', 'raw_text',
+      'raptorgraph_event', 'raptorgraph_payload', 'review_path', 'sidecar_path',
+      'source_path', 'storage_path', 'target_path', 'text_content'
+    ]);
+    const queue = [value];
+    while (queue.length) {
+      const current = queue.shift();
+      if (!current || typeof current !== 'object') continue;
+      for (const [key, nested] of Object.entries(current)) {
+        if (forbidden.has(key)) throw new Error('unsafe_route_dry_run_projection');
+        if (nested && typeof nested === 'object') queue.push(nested);
+      }
+    }
+  }
+
   function load() {
+    cancelRouteDryRun();
     const source = requestedSource === 'fixture' ? 'fixture' : 'live';
     return model.load({ source, scenario: requestedScenario });
   }
@@ -449,7 +678,19 @@
   window.HarborInboxWorkbench = Object.freeze({
     refresh: load,
     getState: () => model.getState(),
-    getView: () => ({ ...view })
+    getView: () => ({
+      selectedRef: view.selectedRef,
+      search: view.search,
+      documentMode: view.documentMode,
+      mobilePanel: view.mobilePanel,
+      route: {
+        sequence: view.route.sequence,
+        sourceRef: view.route.sourceRef,
+        state: view.route.state,
+        result: view.route.result ? { ...view.route.result } : null,
+        error: view.route.error
+      }
+    })
   });
   load();
 })();
