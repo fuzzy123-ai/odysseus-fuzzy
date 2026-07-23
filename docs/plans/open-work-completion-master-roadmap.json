@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T20:39:55+02:00",
-  "status": "uir01_runtime_service_state_contract_claimed_repo_only",
+  "updated_at": "2026-07-23T20:53:57+02:00",
+  "status": "uir01_accepted_uir02_dependency_ready_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,7 +23,7 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "uir01_claimed_after_uir00_acceptance",
+    "queue_status": "uir01_accepted_uir02_dependency_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -35,7 +35,7 @@
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
       "memory_observability": "gro00_through_gro15_offline_go_live_gate_eligible_not_authorized",
       "unified_source_index": "usi00_through_usi14_accepted_usi15_blocked_by_child_closure_productive_sources_off",
-      "usi_runtime_consumer_integration": "uir00_accepted_uir01_claimed_two_new_paths_runtime_default_off",
+      "usi_runtime_consumer_integration": "uir00_uir01_accepted_uir02_dependency_ready_runtime_default_off",
       "usi_domain_adapters": "planned_child_source_waves_default_off_private_domains_deferred",
       "usi_data_lifecycle_operations": "planned_child_live_actions_default_off",
       "codebase_memory_projection": "cbm00_through_cbm08_accepted_cbm09_dependency_ready_not_selected_engine_disabled",
@@ -85,18 +85,16 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "usi_runtime_consumer_integration",
-        "reason": "UIR-00 is accepted and read-only recon proved UIR-01 fits exactly one new immutable contract and one new focused test. Canary and active are representable states only; this claim authorizes no runtime, scope eligibility or live activation.",
-        "slice": "UIR-01-runtime-service-state-contract",
+        "reason": "UIR-01 is accepted with an immutable deterministic seven-mode contract and focused synthetic evidence. UIR-02 is dependency-ready for default-off bounded configuration only; it authorizes no runtime startup, source eligibility, provider access or live activation.",
+        "slice": "UIR-02-data-paths-feature-flags-configuration",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "execute_only_the_two_claimed_new_uir01_contract_and_test_paths_keep_runtime_workers_shadow_prompt_cutover_and_productive_sources_off"
+        "safe_default": "recon_then_claim_only_collision_free_uir02_configuration_paths_keep_runtime_workers_providers_prompt_cutover_and_productive_sources_off"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-23"
     },
-    "active_claimed_slices": [
-      "UIR-01-runtime-service-state-contract"
-    ]
+    "active_claimed_slices": []
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -883,8 +881,8 @@
       "id": "OWM-19",
       "name": "USI Runtime And Consumer Integration",
       "priority": 9,
-      "status": "uir00_accepted_uir01_claimed_runtime_default_off",
-      "why_open": "The USI core through USI-14 and UIR-00 are accepted. UIR-01 is claimed on exactly two new paths for immutable runtime mode, generation, selected-scope, provider capability, health and fallback contracts; runtime, workers, shadow prompt use and productive cutover remain disabled.",
+      "status": "uir00_uir01_accepted_uir02_dependency_ready_runtime_default_off",
+      "why_open": "The USI core through USI-14 plus UIR-00 and UIR-01 are accepted. UIR-02 is dependency-ready for bounded default-off data-path, feature-flag and configuration contracts; runtime, workers, providers, shadow prompt use and productive cutover remain disabled.",
       "source_roadmap": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
       "source_gate_family": "unified_source_index",
       "dependencies": [
@@ -897,7 +895,7 @@
       "safe_default": "runtime_disabled_shadow_results_excluded_from_prompts_productive_workers_and_cutover_disabled",
       "user_gate_policy": "No independent UIR product gate. Contracts, dependency injection, fake workers, synthetic shadow comparisons and failure tests remain repo-only. UIR-14 contributes runtime evidence to the existing USI-LIVE-ACTIVATION gate; no productive scan, prompt cutover or provider process starts before that parent decision.",
       "execution_protocol": {
-        "queue_registration": "UIR-00 is accepted and its claim released. UIR-01 is the active claimed child slice; keep UIR-02 and all later runtime successors blocked_by_dependency.",
+        "queue_registration": "UIR-00 and UIR-01 are accepted and their claims released. UIR-02 is dependency-ready but unclaimed; keep UIR-03 and all later runtime successors blocked_by_dependency.",
         "dependency_rule": "Serialize runtime hotfiles. UIR owns composition and consumers, not source extraction, domain writes, lifecycle actions, tool identity, telemetry or metrics exporters.",
         "future_goal_command": "/goal Implementiere OWM-19 als Child von OWM-15; beginne UIR-00, halte Runtime produktiv aus und speise nur das gemeinsame USI activation packet."
       },
@@ -1770,7 +1768,7 @@
       "id": "UIR-01-runtime-service-state-contract",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_in_progress",
+      "status": "accepted_2026-07-23",
       "claimable": false,
       "depends_on": [
         "UIR-00 accepted",
@@ -1792,9 +1790,10 @@
           "every productive database source data directory runtime worker process provider network deploy and live path"
         ],
         "hotfiles": [],
-        "state": "claimed",
+        "state": "released",
         "acquired_at": "2026-07-23T20:39:55+02:00",
         "lease_expires_at": "2026-07-24T00:39:55+02:00",
+        "released_at": "2026-07-23T20:53:57+02:00",
         "handoff_required": false,
         "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
         "new_paths": true,
@@ -1842,19 +1841,19 @@
           },
           "worker": {
             "model": "gpt-5.6-terra",
-            "evidence": "read-only recon complete; implementation pending"
+            "evidence": "implemented exactly the two claimed new paths; all deep Sol review findings resolved"
           },
           "review": {
-            "model": "pending",
+            "model": "gpt-5.6-sol",
             "depth": "deep",
-            "result": "pending"
+            "result": "approved_after_mode-health-lexical-eligibility-fallback-and-disabled-contradiction_hardening"
           }
         },
         "fallback": "none"
       },
       "evidence": {
         "target_environment": "immutable in-process value contracts with synthetic primitives only",
-        "observed_at": "2026-07-23T20:39:55+02:00",
+        "observed_at": "2026-07-23T20:53:57+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -1868,12 +1867,41 @@
         ],
         "temporal_window": "none",
         "positive_path_required": true,
-        "recon": "Both declared paths are new and no production edit is required. Canary and active are representable deterministic states only; UDA/ULO eligibility and USI-LIVE-ACTIVATION remain later dependencies and are not inferred or authorized here."
+        "recon": "Both declared paths are new and no production edit is required. Canary and active are representable deterministic states only; UDA/ULO eligibility and USI-LIVE-ACTIVATION remain later dependencies and are not inferred or authorized here.",
+        "result": {
+          "focused_tests": 17,
+          "blocking_failures": 0,
+          "nonblocking_warning_count": 1,
+          "warning": "existing SQLAlchemy declarative_base deprecation",
+          "runtime_modes": 7,
+          "immutable_round_trip_hash_stability": "green",
+          "unsafe_mode_health_scope_and_fallback_rejection": "green",
+          "live_activation_authorized": "always_false",
+          "environment_filesystem_database_provider_network_runtime_live_actions": 0,
+          "imports": "standard_library_only"
+        }
       },
       "tests": [
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_unified_source_index_runtime_contract.py",
         "git diff --check -- src/unified_source_index_runtime_contract.py tests/test_unified_source_index_runtime_contract.py"
       ],
+      "artifact_hashes": {
+        "src/unified_source_index_runtime_contract.py": "697F37B4AC1265BEB63EE251205F36E990AB001D0F654BD70B6D55C2EBEF9869",
+        "tests/test_unified_source_index_runtime_contract.py": "DB96F6BBDF1DECBBB3E945390AC6661196E1EFB1712B48E18B12BC57478F0D76"
+      },
+      "implementation_commit": "6416b997c336d1a2af7aad1f84002531c9dd3cc6",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes_focused",
+        "reviewed": "yes_deep_sol",
+        "committed": "yes_local",
+        "pushed": "no",
+        "deployed": "na",
+        "live_validated": "na",
+        "product_complete": "no"
+      },
+      "acceptance": "offline_go_immutable_deterministic_seven_mode_runtime_state_contract_fail_closed_and_never_live_authorizing",
+      "next_frontier": "UIR-02 data paths, feature flags and configuration is dependency-ready; runtime, workers, providers and productive query paths remain disabled.",
       "done_when": "Immutable deterministic disabled, read-only, shadow, canary, active, degraded and rollback state records normalize generation, selected scopes, provider capabilities, health and fallback policy; reject unsafe mode combinations, duplicates, unbounded or secret/path/query/content-shaped values; expose only content-free diagnostics; read no environment or runtime state; and never imply live authorization."
     },
     {

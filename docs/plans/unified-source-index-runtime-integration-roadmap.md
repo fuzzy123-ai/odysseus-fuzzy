@@ -2,7 +2,7 @@
 
 Updated: 2026-07-23
 
-Status: `UIR-00 accepted / UIR-01 claimed`; runtime and productive query path default-off
+Status: `UIR-00/01 accepted / UIR-02 dependency-ready`; runtime and productive query path default-off
 
 Parent: `OWM-15` / `0.28.x` Unified Source Index Foundation
 
@@ -210,16 +210,17 @@ shared parent gate.
 
 - Class: `repo_only`
 - Owner: Bob
-- Status: `claimed_2026-07-23`
+- Status: `accepted_2026-07-23`
 - Dependency audit: `UIR-00, USI-01 and USI-02 accepted; both declared
   implementation paths are new and collision-free`
 - Serialized claim:
   - run_id: `abc-uir01-20260723T203955+0200`
   - thread_id: `/root`
   - owner: `Bob`
-  - state: `claimed`
+  - state: `released`
   - acquired_at: `2026-07-23T20:39:55+02:00`
   - lease_expires_at: `2026-07-24T00:39:55+02:00`
+  - released_at: `2026-07-23T20:53:57+02:00`
   - worktree: `C:\tmp\odysseus-abc-usi09-20260723`
   - allowed_paths: `src/unified_source_index_runtime_contract.py` and
     `tests/test_unified_source_index_runtime_contract.py`
@@ -227,9 +228,26 @@ shared parent gate.
     provider/config/environment/composition implementation, productive
     database/source/data directory, runtime/worker/process, provider/network/
     deploy and live path
-  - evidence: `Pure immutable value contracts only. Canary and active are
-    representable states, not runtime authorization; UDA/ULO eligibility and
-    USI-LIVE-ACTIVATION remain later dependencies.`
+  - evidence: `Seventeen focused synthetic tests passed with one unrelated
+    SQLAlchemy deprecation warning. Immutable records cover all seven modes,
+    canonical round trips, generation/scope/provider/health/fallback state and
+    fail closed on unsafe eligibility, lexical readiness, worker, fallback,
+    duplicate, unbounded, secret/path/query/content and live-authorization
+    combinations. Imports are standard-library-only; environment, filesystem,
+    database, provider, network, runtime and live actions were zero. Canary and
+    active remain representable values only, not runtime authorization.`
+  - implementation_commit:
+    `6416b997c336d1a2af7aad1f84002531c9dd3cc6`
+  - artifact_hashes:
+    - runtime_contract:
+      `697F37B4AC1265BEB63EE251205F36E990AB001D0F654BD70B6D55C2EBEF9869`
+    - focused_tests:
+      `DB96F6BBDF1DECBBB3E945390AC6661196E1EFB1712B48E18B12BC57478F0D76`
+  - sol_review:
+    `approved after mode/health, selected-scope eligibility, mandatory lexical
+    readiness, compatible degraded/rollback fallback and non-disabled
+    runtime_disabled contradiction hardening; zero blocking findings`
+  - live_actions: `false`
 - Dependencies: `UIR-00`, USI-01 and USI-02
 - Allowed paths:
   - `src/unified_source_index_runtime_contract.py`
@@ -243,11 +261,18 @@ shared parent gate.
 - Tests: `python -m pytest -q tests/test_unified_source_index_runtime_contract.py`
 - Done when: disabled/read-only/shadow/canary/active/degraded/rollback states are
   deterministic and reject unsafe scope or policy combinations.
+- Acceptance:
+  `offline_go_immutable_deterministic_seven_mode_runtime_state_contract_fail_closed_and_never_live_authorizing`
+- Next frontier: `UIR-02` is dependency-ready; runtime, workers, providers and
+  productive query paths remain disabled.
 
 ### UIR-02 - Data Paths, Feature Flags And Configuration
 
 - Class: `repo_only`
 - Owner: Bob with Charlie integration
+- Status: `dependency_ready_2026-07-23`
+- Dependency audit: `UIR-01 and USI-03 accepted; claim requires read-only
+  collision/hotfile recon before any edit`
 - Dependencies: `UIR-01`, USI-03
 - Allowed paths:
   - `src/unified_source_index_runtime_config.py`
