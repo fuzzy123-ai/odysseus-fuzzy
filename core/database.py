@@ -245,10 +245,24 @@ class Document(TimestampMixin, Base):
     source_email_folder      = Column(String, nullable=True)
     source_email_account_id  = Column(String, nullable=True)
     source_email_message_id  = Column(String, nullable=True, index=True)
+    # Universal Inbox working-copy provenance. The source reference is never
+    # stored in plaintext; source_ref_hash is a stable SHA-256 identifier used
+    # with owner + source_kind to make source-to-document creation idempotent.
+    source_kind              = Column(String, nullable=True)
+    source_ref_hash          = Column(String, nullable=True)
 
     session  = relationship("Session", backref=backref("documents", cascade="save-update, merge"))
     versions = relationship("DocumentVersion", back_populates="document",
                            cascade="all, delete-orphan", order_by="DocumentVersion.version_number")
+    __table_args__ = (
+        Index(
+            "ux_documents_universal_inbox_source",
+            "owner",
+            "source_kind",
+            "source_ref_hash",
+            unique=True,
+        ),
+    )
 
 
 class DocumentVersion(Base):

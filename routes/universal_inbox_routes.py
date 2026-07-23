@@ -8,6 +8,9 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response
 
+from core.database import SessionLocal
+from routes.document_helpers import WorkingCopyCreate, _doc_to_dict
+from src.auth_helpers import require_privilege
 from src.auth_helpers import effective_user
 from src.universal_inbox_file_types import classify_universal_inbox_file
 from src.universal_inbox_flow_state import build_universal_inbox_flow_state
@@ -29,6 +32,10 @@ from src.universal_inbox_source_access import (
 )
 from src.universal_inbox_workspace_snapshot import (
     build_universal_inbox_workspace_snapshot,
+)
+from src.universal_inbox_working_copy import (
+    UniversalInboxWorkingCopyError,
+    create_or_get_universal_inbox_working_copy,
 )
 
 
@@ -122,6 +129,59 @@ def setup_universal_inbox_routes(upload_handler: Any = None) -> APIRouter:
             media_type=content.media_type,
             headers=content.headers(),
         )
+
+    @router.post("/items/{source_ref:path}/working-copy")
+    async def create_universal_inbox_working_copy(
+        request: Request,
+        source_ref: str,
+        req: WorkingCopyCreate | None = None,
+    ):
+        owner = require_privilege(request, "can_use_documents")
+        auth_manager = getattr(request.app.state, "auth_manager", None)
+        db = SessionLocal()
+        try:
+            result = create_or_get_universal_inbox_working_copy(
+                db,
+                upload_handler,
+                source_ref,
+                owner=owner,
+                auth_manager=auth_manager,
+                new_revision=bool(req and req.new_revision),
+            )
+            payload = _doc_to_dict(result.document)
+            payload["working_copy"] = result.status_dict()
+            return JSONResponse(
+                status_code=201 if result.created else 200,
+                content=payload,
+                headers={
+                    "Cache-Control": "private, no-store",
+                    "X-Content-Type-Options": "nosniff",
+                },
+            )
+        except UniversalInboxWorkingCopyError as exc:
+            db.rollback()
+            return JSONResponse(
+                status_code=exc.status_code,
+                content=exc.to_dict(),
+                headers={
+                    "Cache-Control": "private, no-store",
+                    "X-Content-Type-Options": "nosniff",
+                },
+            )
+        except Exception:
+            db.rollback()
+            return JSONResponse(
+                status_code=500,
+                content=UniversalInboxWorkingCopyError(
+                    500, "failed", "working_copy_failed"
+                ).to_dict(),
+                headers={
+                    "Cache-Control": "private, no-store",
+                    "X-Content-Type-Options": "nosniff",
+                },
+            )
+        finally:
+            db.close()
 
     return router
 
