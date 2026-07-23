@@ -1,19 +1,19 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T10:52:33+02:00",
-  "status": "uix_abc14_claimed_repo_implementation_running",
+  "updated_at": "2026-07-23T11:00:00+02:00",
+  "status": "uix_abc14_completed_uix_abc15_uix_abc16_uix_abc18_ready",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Implementiere OWM-23 Agent Maintenance Safety Harness repo-only; beginne mit AMH-01, halte Nachfolger dependency-gated, bewahre fremde Worktree-Aenderungen und fuehre weder Live-Aktionen noch ungefragte Pushes aus.",
   "goal": "Reconcile the registered OWM-23 roadmap, then implement the dependency-ready Agent Maintenance Safety Harness frontier with one scoped writer, current machine evidence and no live or external mutation.",
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 1,
+    "safe_open_json_slices": 3,
     "unique_live_gates": 40,
-    "unique_design_gates": 16,
-    "other_open_json_items": 34,
-    "queue_status": "uix_abc14_claimed_uix_abc15_ready",
+    "unique_design_gates": 28,
+    "other_open_json_items": 32,
+    "queue_status": "uix_abc14_completed_uix_abc15_uix_abc16_uix_abc18_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,16 +21,16 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "agent_maintenance_safety": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "universal_inbox_workbench": "uix_abc14_claimed_repo_implementation_running",
+      "universal_inbox_workbench": "uix_abc14_completed_uix_abc15_uix_abc16_uix_abc18_ready",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 0,
-      "other_open_count": 22,
+      "safe_open_count": 3,
+      "other_open_count": 32,
       "unique_live_gate_count": 40,
-      "unique_design_gate_count": 16,
+      "unique_design_gate_count": 28,
       "decision_packet_families": [
         "version_release",
         "calendar_reminders",
@@ -60,23 +60,23 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "UIX-ABC14 is claimed for owner-scoped browse and aggregate snapshot implementation without the gated app.py and tests/test_workspace_snapshot.py hotfiles.",
-        "slice": "UIX-ABC14",
+        "reason": "UIX-ABC14 is locally implemented and focused-tested; UIX-ABC15 is the next declared product-order repo-only slice, while UIX-ABC16 and UIX-ABC18 are also dependency-ready.",
+        "slice": "UIX-ABC15",
         "user_decision_required": false,
-        "safe_default": "finish_focused_uix_abc14_implementation_and_local_acceptance"
+        "safe_default": "claim_one_minimum_path_uix_abc15_subset"
       },
-      "queue_exhausted": true,
-      "detail_roadmap_frontier_exists": false,
-      "verified_at": "2026-07-16"
+      "queue_exhausted": false,
+      "detail_roadmap_frontier_exists": true,
+      "verified_at": "2026-07-23"
     },
     "dependency_ready_repo_only_slices": [
-      "UIX-ABC15"
+      "UIX-ABC15",
+      "UIX-ABC16",
+      "UIX-ABC18"
     ],
     "product_semantics_gated_open_slices": [],
     "dependency_blocked_slices": [
-      "UIX-ABC16",
       "UIX-ABC17",
-      "UIX-ABC18",
       "UIX-ABC19",
       "UIX-ABC20",
       "UIX-ABC21",
@@ -1175,8 +1175,8 @@
       "title": "Owner-Scoped Inbox Browse And Aggregate Snapshot",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_implementation_running",
-      "claimable": true,
+      "status": "completed_local_repo_evidence_2026-07-23",
+      "claimable": false,
       "depends_on": [
         "UIX-ABC13"
       ],
@@ -1204,9 +1204,11 @@
           "tests/test_universal_inbox_status_routes.py"
         ],
         "hotfiles": [],
-        "state": "running",
+        "state": "released_after_local_acceptance",
         "acquired_at": "2026-07-23T10:52:33+02:00",
         "lease_expires_at": "2026-07-23T13:00:00+02:00",
+        "released_at": "2026-07-23T11:00:00+02:00",
+        "completion_commit": "d6c91373",
         "handoff_required": false,
         "excluded_gated_paths": [
           "app.py",
@@ -1253,7 +1255,7 @@
       },
       "evidence": {
         "target_environment": "local",
-        "observed_at": null,
+        "observed_at": "2026-07-23T11:00:00+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -1262,6 +1264,18 @@
         ],
         "temporal_window": "none",
         "positive_path_required": true
+      },
+      "local_acceptance_evidence": "Commit d6c91373; 15 focused Universal Inbox status, browse, snapshot, auth, pagination, source-ref and redaction tests passed in 1.03 seconds with one pre-existing SQLAlchemy deprecation warning; path-scoped cached diff check passed.",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "d6c91373",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
       },
       "claim_scope": "Claim only a minimum-path subset that excludes app.py and tests/test_workspace_snapshot.py until the named hotfile handoff is granted.",
       "done_when": "Owner-scoped paginated browse and a content-free aggregate snapshot are tested without absolute paths or raw content."
@@ -1293,7 +1307,8 @@
       "title": "Selected Source Read Contract",
       "class": "repo_only",
       "owner": "/root",
-      "status": "blocked_by_dependency",
+      "status": "open",
+      "claimable": true,
       "depends_on": [
         "UIX-ABC13",
         "UIX-ABC14"
@@ -1339,7 +1354,8 @@
       "title": "V3 Inbox Read Model",
       "class": "repo_only",
       "owner": "/root",
-      "status": "blocked_by_dependency",
+      "status": "open",
+      "claimable": true,
       "depends_on": [
         "UIX-ABC14"
       ],
@@ -2461,5 +2477,5 @@
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "None required for the next repo-only step. Claim UIX-ABC14 first with a minimum path set that excludes app.py and tests/test_workspace_snapshot.py; UIX-ABC15 is also dependency-ready. UI design, hotfile and every live-write authority remain closed."
+  "recommended_next_human_decision": "None required for the next repo-only step. Claim UIX-ABC15 next in declared product order; UIX-ABC16 and UIX-ABC18 are also dependency-ready. UI design, hotfile and every live-write authority remain closed."
 }
