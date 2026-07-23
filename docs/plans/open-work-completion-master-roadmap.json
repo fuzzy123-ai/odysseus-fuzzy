@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T21:05:32+02:00",
-  "status": "ttd00_domain_truth_baseline_claimed_safe_offline",
+  "updated_at": "2026-07-23T21:23:18+02:00",
+  "status": "ttd00_accepted_ttd01_dependency_ready_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd00_claimed_at_operator_prioritized_single_writer_boundary",
+    "queue_status": "ttd00_accepted_ttd01_dependency_ready_not_claimed",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_claimed_three_new_static_paths_live_default_off",
+      "telegram_todo_truth": "ttd00_accepted_ttd01_dependency_ready_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,18 +85,16 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "The operator-prioritized OWM-22 boundary is now clean. TTD-00 is claimed on exactly three new static baseline paths to freeze Notes as Todo truth, classify Memory/Scheduler/Chat/Telegram roles, record current identity and receipt gaps, and touch no runtime hotfile or productive data.",
-        "slice": "TTD-00-domain-truth-contract-current-baseline",
+        "reason": "TTD-00 is accepted with a deterministic content-free static contract and focused evidence. TTD-01 is dependency-ready for a bounded read-only hotfile and service-boundary recon before any claim; Notes remains canonical and all runtime, productive-data and live capabilities remain disabled.",
+        "slice": "TTD-01-canonical-atomic-todo-service-read-only-recon",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "execute_only_three_claimed_new_static_ttd00_paths_no_module_imports_productive_data_runtime_hotfile_deploy_send_or_rollover"
+        "safe_default": "perform_ttd01_read_only_recon_then_claim_only_an_exact_disjoint_repo_boundary_no_productive_data_runtime_deploy_send_or_rollover"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-23"
     },
-    "active_claimed_slices": [
-      "TTD-00-domain-truth-contract-current-baseline"
-    ]
+    "active_claimed_slices": []
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -955,8 +953,8 @@
       "id": "OWM-22",
       "name": "Telegram Todo Domain Truth And Digest Consistency",
       "priority": 4,
-      "status": "ttd00_claimed_three_new_static_paths_live_default_off",
-      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. The operator-prioritized clean Single-Writer boundary is now reached and TTD-00 is claimed only for a deterministic static domain-role and baseline contract; no hotfile, runtime or productive data is touched.",
+      "status": "ttd00_accepted_ttd01_dependency_ready_live_default_off",
+      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 now freezes the current topology in a deterministic content-free static contract with Notes as canonical Todo truth; TTD-01 is dependency-ready for bounded repo-only service work after an exact read-only boundary recon.",
       "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "source_gate_family": "telegram_todo_truth",
       "dependencies": [
@@ -969,14 +967,14 @@
       "safe_default": "build_and_test_against_synthetic_notes_memory_and_telegram_fixtures_no_production_data_write_deploy_or_send",
       "user_gate_policy": "No user gate in TTD-00 through TTD-10, including TTD-07A. Repository work uses synthetic owner-scoped data and keeps all live actions disabled. Deployment, production data repair, Telegram smoke and productive session rollover are four separate dormant action-specific gates and each requires its own later operator Go.",
       "execution_protocol": {
-        "queue_registration": "The clean Single-Writer boundary is reached and only TTD-00 is actively claimed. Keep TTD-01 through TTD-10, including TTD-07A, blocked_by_dependency.",
+        "queue_registration": "TTD-00 is accepted and its claim is released. TTD-01 is dependency-ready but not yet claimed; keep TTD-02 through TTD-10, including TTD-07A, blocked_by_dependency.",
         "dependency_rule": "Notes remains Todo truth; manage_todos is a domain facade over Notes, Memory rejects Todo storage, Telegram preserves semantic receipts, and every Digest claim requires a read-only include/exclude/schedule postcondition. Daily session rollover limits context but never substitutes old chat prose for domain readback.",
         "scheduling_decision": {
           "operator_priority_effective_at": "2026-07-21",
-          "position": "next_p0_corrective_after_current_inflight_single_writer_boundary",
-          "implementation_authority": "not_granted_by_roadmap_authoring"
+          "position": "active_p0_corrective_track_ttd00_accepted_ttd01_dependency_ready",
+          "implementation_authority": "current_goal_repo_only_no_live_authority"
         },
-        "future_goal_command": "/goal Implementiere OWM-22 Telegram Todo Domain Truth repo-only; beginne mit TTD-00, halte alle Nachfolger blocked_by_dependency und fuehre weder Produktionsdaten-Korrektur noch Deployment, Telegram-Live-Smoke oder produktives Session-Rollover aus."
+        "future_goal_command": "/goal Setze OWM-22 Telegram Todo Domain Truth repo-only nach TTD-00 fort; beginne mit einem read-only TTD-01 Boundary-Recon, claime danach nur exakte Pfade, halte TTD-02 und alle spaeteren Slices blocked_by_dependency und fuehre weder Produktionsdaten-Korrektur noch Deployment, Telegram-Live-Smoke oder produktives Session-Rollover aus."
       },
       "activation_contract": {
         "id": "TTD-LIVE-DEPLOY",
@@ -1910,7 +1908,7 @@
       "id": "TTD-00-domain-truth-contract-current-baseline",
       "class": "safe_offline",
       "owner": "/root",
-      "status": "claimed_in_progress",
+      "status": "accepted_2026-07-23",
       "claimable": false,
       "depends_on": [
         "active Open-Work goal",
@@ -1950,9 +1948,10 @@
           "src/tool_transaction_ledger.py",
           "src/telegram_truth_gate.py"
         ],
-        "state": "claimed",
+        "state": "released",
         "acquired_at": "2026-07-23T21:05:32+02:00",
         "lease_expires_at": "2026-07-24T01:05:32+02:00",
+        "released_at": "2026-07-23T21:23:18+02:00",
         "handoff_required": false,
         "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
         "new_paths": true,
@@ -2012,19 +2011,19 @@
           },
           "worker": {
             "model": "gpt-5.6-terra",
-            "evidence": "read-only owner recon complete; implementation pending"
+            "evidence": "Charlie implemented exactly three new static paths after two independent read-only scouts established the source topology and disjoint boundary"
           },
           "review": {
-            "model": "pending",
+            "model": "gpt-5.6-sol",
             "depth": "deep",
-            "result": "pending"
+            "result": "approved after three review rounds and independent exact verification"
           }
         },
         "fallback": "none"
       },
       "evidence": {
         "target_environment": "static repository source reads and synthetic contract fixtures only",
-        "observed_at": "2026-07-23T21:05:32+02:00",
+        "observed_at": "2026-07-23T21:23:18+02:00",
         "authority": "repo",
         "mutation_class": "safe_offline",
         "required": [
@@ -2041,13 +2040,46 @@
         ],
         "temporal_window": "none",
         "positive_path_required": true,
-        "recon": "Two independent read-only scouts confirmed that Notes is the active Todo and todo_digest truth; Memory remains a task-shaped parallel-write risk; ScheduledTask owns schedule/delivery only; checklist items are index-based without stable item refs; generic claim gates exist but Todo receipts are absent; and the Telegram pre-send call omits tool events. Three new paths can freeze this baseline without touching any active writer or reading productive data."
+        "recon": "Two independent read-only scouts confirmed that Notes is the active Todo and todo_digest truth; Memory remains a task-shaped parallel-write risk; ScheduledTask owns schedule/delivery only; checklist items are index-based without stable item refs; generic claim gates exist but Todo receipts are absent; and the Telegram pre-send call omits tool events. Three new paths freeze this baseline without touching any active writer or reading productive data.",
+        "result": {
+          "focused_tests": 3,
+          "blocking_failures": 0,
+          "nonblocking_warning_count": 1,
+          "warning": "existing SQLAlchemy declarative_base deprecation",
+          "roles": 7,
+          "source_hashes": 19,
+          "hotfiles_classified": 19,
+          "unclassified_sources_or_hotfiles": 0,
+          "private_content_markers": 0,
+          "module_imports_productive_data_environment_provider_network_runtime_live_actions": 0,
+          "all_successor_capabilities_false": true,
+          "static_audit": "green",
+          "whitespace_check": "green"
+        }
       },
       "tests": [
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_audit_telegram_todo_domain_truth.py",
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe scripts\\audit_telegram_todo_domain_truth.py --check",
         "git diff --check -- docs/plans/telegram-todo-domain-truth-contract.json scripts/audit_telegram_todo_domain_truth.py tests/test_audit_telegram_todo_domain_truth.py"
       ],
+      "artifact_hashes": {
+        "docs/plans/telegram-todo-domain-truth-contract.json": "3497FEC816810978FB64F701EBACA7C5929197F923D0E8EAED87B720F6F1A600",
+        "scripts/audit_telegram_todo_domain_truth.py": "1B70A2734C89F068B8EF425A59995C29DBC93C56EF397A8DA16F92828FB0DE54",
+        "tests/test_audit_telegram_todo_domain_truth.py": "454890AFC064782C4523DFCA1DFF74A14016063D843A70D7836F53D58C5B8AAD"
+      },
+      "implementation_commit": "8ef058b191f2b92e986fd1d1b9b28c6a7ae68cac",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes_focused",
+        "reviewed": "yes_deep_sol",
+        "committed": "yes_local",
+        "pushed": "no",
+        "deployed": "na",
+        "live_validated": "na",
+        "product_complete": "no"
+      },
+      "acceptance": "offline_go_static_content_free_notes_canonical_todo_domain_baseline_with_source_backed_roles_gaps_and_hotfile_inventory",
+      "next_frontier": "TTD-01 canonical atomic Todo service is dependency-ready for read-only boundary recon; TTD-02 and later slices remain dependency-blocked and every live or productive-data action remains disabled.",
       "done_when": "One deterministic machine-readable contract pins the current Notes, Memory, Scheduler, Chat History, Digest, Telegram and claim-evidence roles and source hashes; records stable Note identity but legacy index-based item identity, backward-read and rollback decisions; keeps every successor mutation and live capability false; exposes no private content; and a static no-import audit fails closed on topology drift or contradictory role claims."
     },
     {
@@ -7114,7 +7146,7 @@
     }
   ],
   "recommended_execution_order": [
-    "OWM-22 Telegram Todo Domain Truth And Digest Consistency: operator-reprioritized on 2026-07-21 for the next clean Single-Writer frontier; open only TTD-00 after the current in-flight shared-hotfile writer finishes, keep TTD-07A and all successors dependency-blocked, keep Notes canonical and all production data unchanged, and leave deploy/send/productive rollover disabled until TTD-10 has prepared four separate live packets. Roadmap authoring grants no implementation authority.",
+    "OWM-22 Telegram Todo Domain Truth And Digest Consistency: TTD-00 is accepted; perform a read-only TTD-01 service and hotfile boundary recon, then claim only the exact dependency-safe repo paths, keep TTD-02 through TTD-10 including TTD-07A blocked, keep Notes canonical and all production data unchanged, and leave deploy/send/productive rollover disabled until TTD-10 has prepared four separate live packets.",
     "OWM-23 Agent Maintenance Safety Harness: after an explicit goal or Open Work reprioritization, open AMH-01 through AMH-03 only on disjoint handed-off paths; preserve Planning JSON and existing gate/claim authorities, keep AMH-04 onward dependency-blocked, and perform no automatic commit, push, deploy or live action.",
     "OWM-11 Tool Taxonomy, Registration And Lifecycle: execute TAX0 then TAX1 and continue the detailed repo-only queue without user gates; keep the feature disabled until the single final activation decision.",
     "OWM-12 Privacy-Safe Tool Usage Analytics: after TAX1, start the disjoint privacy/store baseline; wait for TAX5/TAX7/TAX10 at shared integration points and keep capture/backfill disabled until the single final activation decision.",

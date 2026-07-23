@@ -1,11 +1,11 @@
 # Telegram Todo Domain Truth Roadmap
 
-Stand: 2026-07-21
+Stand: 2026-07-23
 
-Status: durch Operator-Steering vom 2026-07-21 als naechster P0-Korrekturtrack
-am naechsten sauberen Single-Writer-Integrationspunkt priorisiert; dieser Punkt
-ist am 2026-07-23 erreicht und ausschliesslich `TTD-00` ist auf drei neuen
-statischen Pfaden geclaimt. Alle Nachfolger und Live-Aktionen bleiben gesperrt.
+Status: `TTD-00` ist am 2026-07-23 mit einem statischen, inhaltsfreien
+Domain-Truth-Vertrag akzeptiert. `TTD-01` ist dependency-ready fuer einen
+read-only Boundary-Recon, aber noch nicht geclaimt. `TTD-02` und alle spaeteren
+Slices sowie saemtliche Live-Aktionen bleiben gesperrt.
 
 ## Durable Amendment Claim 2026-07-21
 
@@ -231,9 +231,11 @@ route:
 | TTD-09 | `repo_only` | TTD-02 bis TTD-08 inklusive TTD-07A | End-to-End-Regressionssuite mit Fixtures |
 | TTD-10 | `repo_only` | TTD-09 | Deployment-, Rollback- und Live-Gate-Paket |
 
-Es wird anfangs nur `TTD-00` claimable. Jeder Nachfolger bleibt bis zur
-Erfuellung aller Abhaengigkeiten `blocked_by_dependency`. Der Safe-Queue-Audit
-ist Discovery, kein DAG-Runner.
+`TTD-00` ist akzeptiert. `TTD-01` ist als einziger Nachfolger dependency-ready,
+aber erst nach einem read-only Hotfile- und Service-Boundary-Recon claimbar.
+`TTD-02` und alle spaeteren Slices bleiben bis zur Erfuellung ihrer
+Abhaengigkeiten `blocked_by_dependency`. Der Safe-Queue-Audit ist Discovery,
+kein DAG-Runner.
 
 ## Slices
 
@@ -241,7 +243,7 @@ ist Discovery, kein DAG-Runner.
 
 Owner: Charlie
 
-Status: `claimed_2026-07-23`
+Status: `accepted_2026-07-23`
 
 Dependency audit: `Aktives Open-Work-Ziel, Operator-Prioritaet vom 2026-07-21,
 saubere Single-Writer-Grenze und kanonische /abc-Guidance sind gruen. Zwei
@@ -254,9 +256,10 @@ Serialized claim:
 - run_id: `abc-ttd00-20260723T210532+0200`
 - thread_id: `/root`
 - owner: `Charlie`
-- state: `claimed`
+- state: `released`
 - acquired_at: `2026-07-23T21:05:32+02:00`
 - lease_expires_at: `2026-07-24T01:05:32+02:00`
+- released_at: `2026-07-23T21:23:18+02:00`
 - worktree: `C:\tmp\odysseus-abc-usi09-20260723`
 - allowed_paths:
   - `docs/plans/telegram-todo-domain-truth-contract.json`
@@ -272,6 +275,24 @@ Serialized claim:
   Schedule/Delivery; Telegram ist Transport/Audit. Todo-Receipts fehlen und
   der aktuelle Telegram-Pre-Send-Aufruf reicht keine Tool-Events durch. TTD-00
   friert diese Luecken statisch ein und implementiert keine davon.`
+
+Implementation und Acceptance:
+
+- Implementierungs-Commit:
+  `8ef058b191f2b92e986fd1d1b9b28c6a7ae68cac`
+- Artefakte: ein deterministischer JSON-Vertrag, ein statischer
+  No-Import-Audit und drei fokussierte Fail-Closed-Tests
+- Evidence: 7 Rollen, 19 Source-Hashes, 19 klassifizierte Hotfiles,
+  12 explizit deaktivierte Folgefaehigkeiten, 0 private Inhaltsmarker und
+  0 Environment-, Provider-, Runtime-, Produktivdaten- oder Live-Aktionen
+- Verifikation: `3 passed`; Audit und Whitespace-Check gruen; eine bekannte
+  nicht-blockierende SQLAlchemy-`declarative_base`-Warnung
+- Deep-Sol-Review: nach drei Review-Runden akzeptiert
+- Local only: kein Push, Deploy, Telegram-Smoke oder produktiver Datenzugriff
+- Acceptance:
+  `offline_go_static_content_free_notes_canonical_todo_domain_baseline_with_source_backed_roles_gaps_and_hotfile_inventory`
+- Naechster Frontier: `TTD-01` ist dependency-ready fuer read-only
+  Boundary-Recon; noch nicht geclaimt
 
 Ziel:
 
@@ -299,6 +320,8 @@ Akzeptanz:
 ### TTD-01 - Kanonischer atomarer Todo-Service
 
 Owner: Bob
+
+Status: `dependency_ready_read_only_recon_not_claimed`
 
 Ziel:
 
