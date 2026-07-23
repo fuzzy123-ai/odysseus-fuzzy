@@ -520,6 +520,10 @@ async def stream_agent_loop(
             logger.debug(f"[tool-rag] skill-aware tool include skipped: {_e}")
 
     if _relevant_tools is not None:
+        from src.agent_loop_intent import remove_memory_for_todo_domain
+        _relevant_tools = remove_memory_for_todo_domain(
+            _relevant_tools, set(_intent.get("domains") or set())
+        )
         logger.info("[agent-intent] selected_tools=%s", sorted(_relevant_tools)[:50])
 
     prep_timings["tool_selection"] = time.time() - _t1

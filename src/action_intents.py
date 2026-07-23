@@ -49,6 +49,10 @@ _PANEL = (
 _ROUTING_PATTERNS: tuple[tuple[str, str, Pattern[str]], ...] = tuple(
     (category, reason, re.compile(pattern, re.I))
     for category, reason, pattern in (
+        # These precede todo patterns because routing is first-match: a
+        # scheduled todo digest is a background task, never a one-off item.
+        ("tasks", "recurring scheduled task request", r"\b(?=.{0,160}\b(?:every|each|daily|weekly|monthly|jeden|taeglich|t\u00e4glich|woechentlich|w\u00f6chentlich|monatlich)\b)(?=.{0,160}\b(?:todo|to-?do|digest|aufgabe|checklist)\b)"),
+
         # Calendar/event creation. Covers "Can you add an entry to my
         # calendar?", imperatives like "add lunch to my calendar", and
         # follow-ups such as "you should be able to create that event now".
@@ -68,12 +72,19 @@ _ROUTING_PATTERNS: tuple[tuple[str, str, Pattern[str]], ...] = tuple(
         ("calendar", "calendar agenda question", r"\bwhat(?:'s| is)\s+on\s+(?:my\s+)?calendar\b"),
         ("calendar", "next calendar item question", r"\bwhen\s+(?:is|are)\s+(?:my\s+)?next\s+(?:event|meeting|appointment|class)\b"),
 
-        # Notes, todos, checklists, and reminders.
+        # Todo mutations are distinct from notes/reminders and from recurring tasks.
+        ("todos", "german todo action request", r"\b(?:hinzuf\u00fcgen|hinzufuegen|erledige|erledigen|abschlie\u00dfen|abschliessen|wieder\u00f6ffnen|wiederoeffnen|l\u00f6sche(?:n)?|loesche(?:n)?)\b.{0,120}\b(?:todo(?:s)?|to-?do(?:s)?|aufgabe(?:n)?|checkliste(?:n)?|cheklist)\b"),
+        ("todos", "todo action request", rf"(?:{_ACTION_QUESTION}|{_PLEASE})(?:add|create|make|complete|finish|done|reopen|undo|remove|delete)\b.{{0,120}}\b(?:todos?|to-?dos?|todolist|checklists?|cheklist|toodo|tasks?\s+list)\b"),
+        ("todos", "todo noun-first action request", r"\b(?:todos?|to-?dos?|todolist|checklists?|cheklist|toodo|tasks?\s+list)\b.{0,80}\b(?:complete|finish|done|reopen|undo|remove|delete)\b"),
+        ("todos", "german todo action request", r"(?:^\s*(?:bitte\s+)?|\b(?:kannst du|könntest du)\s+)(?:hinzufügen|hinzufuegen|erledige|erledigen|abschließen|abschliessen|wiederöffnen|wiederoeffnen|löschen|loeschen).{0,120}\b(?:todo(?:s)?|to-?do(?:s)?|aufgabe(?:n)?|checkliste(?:n)?|cheklist)\b"),
+        ("todos", "german todo noun-first request", r"\b(?:todo(?:s)?|aufgabe(?:n)?|checkliste(?:n)?|cheklist)\b.{0,80}\b(?:erledigen|abschließen|abschliessen|wiederöffnen|wiederoeffnen|löschen|loeschen)\b"),
+        ("todos", "new todo declaration", r"^\s*(?:new|neue|neuer|neues)\s+(?:to-?do|todo|aufgabe|checkliste|cheklist)\b"),
+        # Notes and reminders remain on the legacy Notes surface.
         ("notes", "reminder request", r"\bremind\s+me\b"),
-        ("notes", "assistant note/todo action request", rf"{_ACTION_QUESTION}(?:add|create|make|take|jot|write\s+down|set)\b.{{0,120}}\b(?:note|todo|task|checklist|reminder)\b"),
-        ("notes", "note/todo imperative request", rf"{_PLEASE}(?:add|create|make)\s+(?:a\s+|an\s+)?(?:todo|task|reminder|note|checklist)\b"),
+        ("notes", "assistant note action request", rf"{_ACTION_QUESTION}(?:add|create|make|take|jot|write\s+down|set)\b.{{0,120}}\b(?:note|reminder)\b"),
+        ("notes", "note imperative request", rf"{_PLEASE}(?:add|create|make)\s+(?:a\s+|an\s+)?(?:reminder|note)\b"),
         ("notes", "take note request", rf"{_PLEASE}(?:take|jot|write\s+down)\s+(?:a\s+|an\s+)?note\b"),
-        ("notes", "add item to notes/todo request", rf"{_PLEASE}(?:add|jot|write\s+down)\b.{{0,120}}\b(?:to|in|into)\s+(?:my\s+|the\s+)?(?:todo(?:\s+list)?|task\s+list|notes?|checklist)\b"),
+        ("todos", "add item to todo request", rf"{_PLEASE}(?:add|jot|write\s+down)\b.{{0,120}}\b(?:to|in|into)\s+(?:my\s+|the\s+)?(?:todo(?:\s+list)?|task\s+list|checklist)\b"),
         ("notes", "set reminder request", rf"{_PLEASE}set\s+(?:a\s+)?reminder\b"),
         ("notes", "assistant reminder request", rf"{_ACTION_QUESTION}set\s+(?:a\s+)?reminder\b"),
 

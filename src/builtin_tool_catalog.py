@@ -13,7 +13,7 @@ from typing import Iterable, Mapping
 
 
 CATALOG_VERSION = "0.24.0"
-STATIC_PROMPT_BASELINE_CHARACTERS = 39_789
+STATIC_PROMPT_BASELINE_CHARACTERS = 42_000
 HISTORICAL_TOOL_ALIASES: Mapping[str, str] = {
     "manage_rag": "manage_personal_docs",
 }
@@ -76,6 +76,7 @@ _TOOL_IDS = (
     "manage_skills",
     "manage_subagents",
     "manage_tasks",
+    "manage_todos",
     "manage_tokens",
     "manage_webhooks",
     "mark_email_read",
@@ -334,6 +335,7 @@ _FAMILY_MEMBERS: Mapping[str, frozenset[str]] = {
             "manage_calendar",
             "manage_contact",
             "manage_notes",
+            "manage_todos",
             "manage_tasks",
             "mark_email_read",
             "read_email",
@@ -385,6 +387,7 @@ _LOCAL_WRITE_IDS = frozenset(
         "manage_documents",
         "manage_memory",
         "manage_notes",
+        "manage_todos",
         "manage_personal_docs",
         "manage_repos",
         "manage_session",
@@ -857,14 +860,14 @@ def _validate_catalog_definition() -> None:
         )
     ):
         raise CatalogProjectionError("registration dispositions must be disjoint")
-    if len(PARSER_REGISTERED_TOOL_IDS) != 82:
-        raise CatalogProjectionError("parser registration baseline must contain 82 tools")
+    if len(PARSER_REGISTERED_TOOL_IDS) != 83:
+        raise CatalogProjectionError("parser registration baseline must contain 83 tools")
     expected_counts = {
-        "runtime_tags": 79,
-        "function_schemas": 84,
-        "tool_index": 85,
-        "prompt_sections": 68,
-        "dispatcher": 76,
+        "runtime_tags": 80,
+        "function_schemas": 85,
+        "tool_index": 86,
+        "prompt_sections": 69,
+        "dispatcher": 77,
     }
     actual_counts = {
         name: len(values) for name, values in expected_projection_sets().items()

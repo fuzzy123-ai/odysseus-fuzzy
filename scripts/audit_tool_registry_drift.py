@@ -21,7 +21,7 @@ from typing import Iterable, Mapping, Sequence
 
 SCHEMA_VERSION = 1
 INVENTORY_KIND = "odysseus.tool_taxonomy_inventory"
-BASELINE_DATE = "2026-07-13"
+BASELINE_DATE = "2026-07-23"
 CLASSIFICATIONS = frozenset({"intentional", "missing", "stale", "dynamic"})
 
 
@@ -61,12 +61,12 @@ CORE_DYNAMIC_SOURCES: tuple[str, ...] = (
 )
 
 EXPECTED_COUNTS = {
-    "builtin_tag_count": 79,
-    "function_schema_count": 84,
+    "builtin_tag_count": 80,
+    "function_schema_count": 85,
     "schema_without_runtime_count": 6,
     "runtime_without_schema_count": 1,
     "admin_metadata_count": 31,
-    "admin_fallback_count": 49,
+    "admin_fallback_count": 50,
 }
 EXPECTED_SCHEMA_WITHOUT_RUNTIME = frozenset(
     {
