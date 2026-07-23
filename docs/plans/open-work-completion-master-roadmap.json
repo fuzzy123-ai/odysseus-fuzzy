@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T12:07:00+02:00",
-  "status": "uix_abc17_working_copy_in_progress",
+  "updated_at": "2026-07-23T12:13:27+02:00",
+  "status": "uix_safe_repo_frontier_exhausted_design_gated",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Implementiere OWM-23 Agent Maintenance Safety Harness repo-only; beginne mit AMH-01, halte Nachfolger dependency-gated, bewahre fremde Worktree-Aenderungen und fuehre weder Live-Aktionen noch ungefragte Pushes aus.",
   "goal": "Reconcile the registered OWM-23 roadmap, then implement the dependency-ready Agent Maintenance Safety Harness frontier with one scoped writer, current machine evidence and no live or external mutation.",
@@ -13,7 +13,7 @@
     "unique_live_gates": 40,
     "unique_design_gates": 28,
     "other_open_json_items": 35,
-    "queue_status": "uix_abc17_claimed_after_named_hotfile_handoff",
+    "queue_status": "uix_abc17_complete_uix_abc19_design_gated",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,7 +21,7 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "agent_maintenance_safety": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "universal_inbox_workbench": "uix_abc17_working_copy_in_progress_uix_abc19_design_gated",
+      "universal_inbox_workbench": "uix_abc13_through_uix_abc18_repo_slices_complete_uix_abc19_design_gated",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
@@ -60,13 +60,13 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "The user's 2026-07-23 Go resolved the recommended UIX-ABC17 handoff for core/database.py, core/database_migrations.py and routes/document_helpers.py. Execute the bounded working-copy bridge claim locally; UIX-ABC19 remains design gated.",
-        "slice": "UIX-ABC17",
-        "user_decision_required": false,
-        "safe_default": "execute_only_the_claimed_uix_abc17_paths_repo_only"
+        "reason": "UIX-ABC17 is locally implemented, focused-tested and committed. No claimable safe Universal Inbox slice remains because UIX-ABC19 still requires accepted Harbor One V3 workbench design and its fresh V3 hotfile handoff.",
+        "slice": null,
+        "user_decision_required": true,
+        "safe_default": "hold_uix_abc19_and_all_dependents_without_editing_v3_hotfiles"
       },
-      "queue_exhausted": false,
-      "detail_roadmap_frontier_exists": true,
+      "queue_exhausted": true,
+      "detail_roadmap_frontier_exists": false,
       "verified_at": "2026-07-23"
     },
     "dependency_ready_repo_only_slices": [],
@@ -1512,7 +1512,7 @@
       "title": "Working-Copy And Provenance Bridge",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_in_progress",
+      "status": "completed_local_repo_evidence_2026-07-23",
       "claimable": false,
       "depends_on": [
         "UIX-ABC16"
@@ -1549,9 +1549,11 @@
           "core/database_migrations.py",
           "routes/document_helpers.py"
         ],
-        "state": "active",
+        "state": "released_after_local_acceptance",
         "acquired_at": "2026-07-23T12:07:00+02:00",
         "lease_expires_at": "2026-07-23T16:07:00+02:00",
+        "released_at": "2026-07-23T12:13:27+02:00",
+        "completion_commit": "cabab75f",
         "handoff_required": false
       },
       "allowed_paths": [
@@ -1596,6 +1598,7 @@
       },
       "evidence": {
         "target_environment": "local",
+        "observed_at": "2026-07-23T12:13:27+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -1604,6 +1607,18 @@
         ],
         "temporal_window": "none",
         "positive_path_required": true
+      },
+      "local_acceptance_evidence": "Commit cabab75f; 6 focused working-copy tests passed in 1.52 seconds with one pre-existing SQLAlchemy deprecation warning; AST parsing and path-scoped cached diff checks passed. Owner isolation, hashed provenance, idempotency, version 1, explicit revision 2, source deletion/unavailability, migration idempotency, Markdown/Text preservation, existing PDF marker path, DOCX extraction, unsupported format and original-byte/source-metadata immutability were exercised.",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "cabab75f",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
       },
       "done_when": "The owner-scoped source-to-document bridge is idempotent, provenance-preserving and never mutates original bytes or source metadata."
     },
@@ -2818,5 +2833,5 @@
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "Choose one exact continuation: grant the fresh UIX-ABC17 handoff for core/database.py, core/database_migrations.py and routes/document_helpers.py, or accept the Harbor One V3 UIX-ABC19 workbench design plus its V3 hotfile handoff. Until then the Universal Inbox safe repo-only frontier is exhausted; provider access and every live-write authority remain closed."
+  "recommended_next_human_decision": "Accept the Harbor One V3 UIX-ABC19 workbench design plus its fresh V3 hotfile handoff, or stop here. Until that exact decision, the Universal Inbox safe repo-only frontier is exhausted; provider access and every live-write authority remain closed."
 }
