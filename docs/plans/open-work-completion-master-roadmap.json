@@ -1,19 +1,19 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T08:05:00+02:00",
-  "status": "repo_frontier_exhausted_waiting_on_handoffs_and_gates",
+  "updated_at": "2026-07-23T10:52:33+02:00",
+  "status": "uix_abc14_claimed_repo_implementation_running",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Implementiere OWM-23 Agent Maintenance Safety Harness repo-only; beginne mit AMH-01, halte Nachfolger dependency-gated, bewahre fremde Worktree-Aenderungen und fuehre weder Live-Aktionen noch ungefragte Pushes aus.",
   "goal": "Reconcile the registered OWM-23 roadmap, then implement the dependency-ready Agent Maintenance Safety Harness frontier with one scoped writer, current machine evidence and no live or external mutation.",
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 2,
+    "safe_open_json_slices": 1,
     "unique_live_gates": 40,
     "unique_design_gates": 16,
     "other_open_json_items": 34,
-    "queue_status": "uix_abc13_completed_uix_abc14_and_uix_abc15_ready",
+    "queue_status": "uix_abc14_claimed_uix_abc15_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,7 +21,7 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "agent_maintenance_safety": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "universal_inbox_workbench": "uix_abc13_completed_uix_abc14_and_uix_abc15_ready",
+      "universal_inbox_workbench": "uix_abc14_claimed_repo_implementation_running",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
@@ -60,17 +60,16 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "UIX-ABC13 is locally implemented and focused-tested; UIX-ABC14 is the next declared product-order slice and UIX-ABC15 is independently dependency-ready.",
+        "reason": "UIX-ABC14 is claimed for owner-scoped browse and aggregate snapshot implementation without the gated app.py and tests/test_workspace_snapshot.py hotfiles.",
         "slice": "UIX-ABC14",
         "user_decision_required": false,
-        "safe_default": "claim_one_minimum_path_uix_abc14_subset_without_gated_hotfiles"
+        "safe_default": "finish_focused_uix_abc14_implementation_and_local_acceptance"
       },
       "queue_exhausted": true,
       "detail_roadmap_frontier_exists": false,
       "verified_at": "2026-07-16"
     },
     "dependency_ready_repo_only_slices": [
-      "UIX-ABC14",
       "UIX-ABC15"
     ],
     "product_semantics_gated_open_slices": [],
@@ -1176,7 +1175,7 @@
       "title": "Owner-Scoped Inbox Browse And Aggregate Snapshot",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
+      "status": "claimed_implementation_running",
       "claimable": true,
       "depends_on": [
         "UIX-ABC13"
@@ -1193,6 +1192,77 @@
       "gates": [
         "UIX-WORKBENCH-HOTFILE-HANDOFF for app.py and tests/test_workspace_snapshot.py"
       ],
+      "claim": {
+        "run_id": "abc-uix14-20260723T105233+0200",
+        "thread_id": "/root",
+        "slice_id": "UIX-ABC14",
+        "owner": "root",
+        "allowed_paths": [
+          "src/universal_inbox_items.py",
+          "src/universal_inbox_workspace_snapshot.py",
+          "routes/universal_inbox_routes.py",
+          "tests/test_universal_inbox_status_routes.py"
+        ],
+        "hotfiles": [],
+        "state": "running",
+        "acquired_at": "2026-07-23T10:52:33+02:00",
+        "lease_expires_at": "2026-07-23T13:00:00+02:00",
+        "handoff_required": false,
+        "excluded_gated_paths": [
+          "app.py",
+          "tests/test_workspace_snapshot.py"
+        ]
+      },
+      "allowed_paths": [
+        "src/universal_inbox_items.py",
+        "src/universal_inbox_workspace_snapshot.py",
+        "routes/universal_inbox_routes.py",
+        "tests/test_universal_inbox_status_routes.py"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_universal_inbox_status_routes.py -q",
+        "git diff --check -- src/universal_inbox_items.py src/universal_inbox_workspace_snapshot.py routes/universal_inbox_routes.py tests/test_universal_inbox_status_routes.py"
+      ],
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "Open Work queue, dependency, claim, hotfile and evidence orchestration"
+            }
+          ],
+          "model": {
+            "value": "surface_default",
+            "reason": "Bounded backend logic and focused pytest need no secondary skill."
+          }
+        },
+        "actual": {
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            }
+          ],
+          "model": {
+            "value": "surface_default",
+            "evidence": "current Codex surface"
+          }
+        },
+        "fallback": "native_tools"
+      },
+      "evidence": {
+        "target_environment": "local",
+        "observed_at": null,
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "focused_test"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true
+      },
       "claim_scope": "Claim only a minimum-path subset that excludes app.py and tests/test_workspace_snapshot.py until the named hotfile handoff is granted.",
       "done_when": "Owner-scoped paginated browse and a content-free aggregate snapshot are tested without absolute paths or raw content."
     },
