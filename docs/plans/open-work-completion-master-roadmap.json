@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T17:12:12+02:00",
-  "status": "uix_abc22_complete_uix_abc21_handoff_required",
+  "updated_at": "2026-07-23T17:14:56+02:00",
+  "status": "uix_abc21_document_bridge_in_progress",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Bearbeite die offenen Odysseus-Feature-Roadmaps dependency-gesteuert ueber Open Work; beginne mit UIX-ABC20, danach UIX-ABC22, repo-only und ohne breite Tests, Push, Deploy oder Live-Mutation.",
   "goal": "Advance the dependency-ready Open Work feature-roadmap frontier with bounded repo-only claims, focused verification, Sol-reviewed Terra handoffs, durable evidence and local commits.",
@@ -12,8 +12,8 @@
     "safe_open_json_slices": 0,
     "unique_live_gates": 40,
     "unique_design_gates": 27,
-    "other_open_json_items": 32,
-    "queue_status": "uix_abc22_complete_uix_abc21_handoff_gated_no_safe_frontier",
+    "other_open_json_items": 33,
+    "queue_status": "uix_abc21_claimed_on_two_new_paths_no_other_safe_frontier",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,14 +21,14 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "agent_maintenance_safety": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "universal_inbox_workbench": "uix_abc22_complete_uix_abc21_handoff_required",
+      "universal_inbox_workbench": "uix_abc21_document_bridge_in_progress",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
       "safe_open_count": 0,
-      "other_open_count": 32,
+      "other_open_count": 33,
       "unique_live_gate_count": 40,
       "unique_design_gate_count": 27,
       "decision_packet_families": [
@@ -60,21 +60,21 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "UIX-ABC22 is locally accepted and its claim is released. UIX-ABC21 has all implementation dependencies but stays unclaimable until a fresh read-only handoff proves that the isolated bridge can reuse the existing Document exports without editing static/js/document.js.",
+        "reason": "The fresh read-only handoff proved that existing window.documentModule exports and owner-scoped Document routes are sufficient. UIX-ABC21 is durably claimed on exactly two new files; static/js/document.js remains excluded.",
         "slice": "UIX-ABC21",
         "user_decision_required": false,
-        "safe_default": "inspect_existing_document_exports_and_prepare_a_disjoint_uix_abc21_claim"
+        "safe_default": "execute_only_the_two_new_uix_abc21_bridge_paths_repo_only"
       },
       "queue_exhausted": true,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-23"
     },
     "dependency_ready_repo_only_slices": [],
-    "active_claimed_slices": [],
-    "product_semantics_gated_open_slices": [],
-    "handoff_gated_open_slices": [
+    "active_claimed_slices": [
       "UIX-ABC21"
     ],
+    "product_semantics_gated_open_slices": [],
+    "handoff_gated_open_slices": [],
     "design_gated_open_slices": [],
     "dependency_blocked_slices": [
       "UIX-ABC23",
@@ -2022,9 +2022,8 @@
       "title": "Working-Copy Editor And Diff Bridge",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
+      "status": "claimed_in_progress",
       "claimable": false,
-      "claim_blocker": "fresh handoff before static/js/document.js",
       "depends_on": [
         "UIX-ABC17",
         "UIX-ABC19",
@@ -2039,6 +2038,141 @@
       "gates": [
         "fresh handoff before static/js/document.js"
       ],
+      "handoff": {
+        "observed_at": "2026-07-23T17:14:56+02:00",
+        "kind": "fresh_read_only_hotfile_handoff",
+        "inspected_paths": [
+          "static/js/document.js",
+          "routes/document_routes.py",
+          "routes/document_helpers.py"
+        ],
+        "findings": [
+          "window.documentModule already exposes injectFreshDoc, loadDocument, saveDocument, enterDiffMode, exitDiffMode, isDiffModeActive and getCurrentDocId.",
+          "Existing Document routes already provide owner-scoped get, put, versions and version reads; the Universal Inbox working-copy route returns the created or reused Document projection.",
+          "No static/js/document.js export or implementation edit is required for the isolated bridge.",
+          "The bridge must preflight the current remote version before every save and enter conflict without PUT when the baseline changed; it must not claim atomic compare-and-swap."
+        ],
+        "decision": "claim_only_two_new_bridge_paths_and_exclude_static_js_document",
+        "resolved": true
+      },
+      "claim": {
+        "run_id": "abc-uix21-20260723T171456+0200",
+        "thread_id": "/root",
+        "slice_id": "UIX-ABC21",
+        "owner": "Bob",
+        "allowed_paths": [
+          "static/frontpage-v3/inbox-document-bridge.js",
+          "tests/frontend/harbor-one-inbox-document-bridge.spec.js"
+        ],
+        "excluded_paths": [
+          "static/js/document.js"
+        ],
+        "hotfiles": [],
+        "state": "claimed",
+        "acquired_at": "2026-07-23T17:14:56+02:00",
+        "lease_expires_at": "2026-07-23T21:14:56+02:00",
+        "handoff_required": true
+      },
+      "allowed_paths": [
+        "static/frontpage-v3/inbox-document-bridge.js",
+        "tests/frontend/harbor-one-inbox-document-bridge.spec.js"
+      ],
+      "tests": [
+        "node --check static/frontpage-v3/inbox-document-bridge.js",
+        "playwright test tests/frontend/harbor-one-inbox-document-bridge.spec.js --workers=1 --reporter=line",
+        "git diff --check -- static/frontpage-v3/inbox-document-bridge.js tests/frontend/harbor-one-inbox-document-bridge.spec.js"
+      ],
+      "route": {
+        "entrypoint": "/abc",
+        "recommended": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "Open Work claim, dependency, evidence and integration orchestration"
+            },
+            {
+              "id": "impeccable",
+              "purpose": "Explicit original, extraction, working-copy, dirty, saving, saved and conflict state semantics"
+            },
+            {
+              "id": "playwright",
+              "purpose": "Focused local controller, API and accessibility acceptance"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "reason": "Working-copy content, version and conflict boundaries require deep integration review."
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high",
+            "reason": "Two-file isolated browser bridge with adversarial API and stale-save cases."
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "parent orchestrator"
+            },
+            {
+              "id": "impeccable",
+              "purpose": "product state and accessibility guidance"
+            },
+            {
+              "id": "playwright",
+              "purpose": "terminal browser acceptance"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "depth": "deep",
+            "reviewer": "root"
+          }
+        },
+        "actual": {
+          "skills": [],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "evidence": "root surface"
+          },
+          "worker": {
+            "model": "pending",
+            "evidence": "pending spawn"
+          },
+          "review": {
+            "model": "pending",
+            "depth": "deep",
+            "result": "pending"
+          }
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "local",
+        "observed_at": "2026-07-23T17:14:56+02:00",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "focused_test"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true
+      },
       "done_when": "The bridge reuses existing owner-scoped Document versions/diff and exposes dirty/saving/saved/conflict while keeping original, extraction and working copy distinct."
     },
     {
@@ -3244,5 +3378,5 @@
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "No new human decision is required for the next read-only step: inspect the existing Document exports and prepare a fresh disjoint UIX-ABC21 handoff without touching static/js/document.js. Claiming or editing that hotfile, provider access, external delivery and every live-write authority remain closed."
+  "recommended_next_human_decision": "No new human decision is required while the two-file UIX-ABC21 repo-only claim is active. static/js/document.js, provider access, external delivery and every live-write authority remain closed."
 }
