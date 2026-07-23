@@ -1,19 +1,19 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T11:00:00+02:00",
-  "status": "uix_abc14_completed_uix_abc15_uix_abc16_uix_abc18_ready",
+  "updated_at": "2026-07-23T11:03:59+02:00",
+  "status": "uix_abc15_claimed_repo_implementation_running",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Implementiere OWM-23 Agent Maintenance Safety Harness repo-only; beginne mit AMH-01, halte Nachfolger dependency-gated, bewahre fremde Worktree-Aenderungen und fuehre weder Live-Aktionen noch ungefragte Pushes aus.",
   "goal": "Reconcile the registered OWM-23 roadmap, then implement the dependency-ready Agent Maintenance Safety Harness frontier with one scoped writer, current machine evidence and no live or external mutation.",
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 3,
+    "safe_open_json_slices": 2,
     "unique_live_gates": 40,
     "unique_design_gates": 28,
     "other_open_json_items": 32,
-    "queue_status": "uix_abc14_completed_uix_abc15_uix_abc16_uix_abc18_ready",
+    "queue_status": "uix_abc15_claimed_uix_abc16_uix_abc18_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,13 +21,13 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "agent_maintenance_safety": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "universal_inbox_workbench": "uix_abc14_completed_uix_abc15_uix_abc16_uix_abc18_ready",
+      "universal_inbox_workbench": "uix_abc15_claimed_repo_implementation_running",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 3,
+      "safe_open_count": 2,
       "other_open_count": 32,
       "unique_live_gate_count": 40,
       "unique_design_gate_count": 28,
@@ -60,17 +60,16 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "UIX-ABC14 is locally implemented and focused-tested; UIX-ABC15 is the next declared product-order repo-only slice, while UIX-ABC16 and UIX-ABC18 are also dependency-ready.",
+        "reason": "UIX-ABC15 is claimed for bounded, DOM-free advisory intake and capability modules; no foreign viewer code or license artifact is in scope.",
         "slice": "UIX-ABC15",
         "user_decision_required": false,
-        "safe_default": "claim_one_minimum_path_uix_abc15_subset"
+        "safe_default": "finish_focused_uix_abc15_implementation_and_local_acceptance"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-23"
     },
     "dependency_ready_repo_only_slices": [
-      "UIX-ABC15",
       "UIX-ABC16",
       "UIX-ABC18"
     ],
@@ -1285,7 +1284,7 @@
       "title": "Advisory Intake And Detection Modules",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
+      "status": "claimed_implementation_running",
       "claimable": true,
       "depends_on": [
         "UIX-ABC13"
@@ -1300,6 +1299,75 @@
       "gates": [
         "MIT license and source attribution only if foreign code is actually adapted"
       ],
+      "claim": {
+        "run_id": "abc-uix15-20260723T110359+0200",
+        "thread_id": "/root",
+        "slice_id": "UIX-ABC15",
+        "owner": "root",
+        "allowed_paths": [
+          "static/frontpage-v3/inbox-intake.js",
+          "static/frontpage-v3/inbox-capabilities.js",
+          "tests/frontend/harbor-one-inbox-intake.spec.js"
+        ],
+        "hotfiles": [],
+        "state": "running",
+        "acquired_at": "2026-07-23T11:03:59+02:00",
+        "lease_expires_at": "2026-07-23T13:00:00+02:00",
+        "handoff_required": false,
+        "excluded_optional_paths": [
+          "licenses/jde-file-viewer-MIT-LICENSE.txt"
+        ],
+        "foreign_code_adapted": false
+      },
+      "allowed_paths": [
+        "static/frontpage-v3/inbox-intake.js",
+        "static/frontpage-v3/inbox-capabilities.js",
+        "tests/frontend/harbor-one-inbox-intake.spec.js"
+      ],
+      "tests": [
+        "node --test tests\\frontend\\harbor-one-inbox-intake.spec.js",
+        "git diff --check -- static/frontpage-v3/inbox-intake.js static/frontpage-v3/inbox-capabilities.js tests/frontend/harbor-one-inbox-intake.spec.js"
+      ],
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "Open Work queue, dependency, claim, license gate and evidence orchestration"
+            }
+          ],
+          "model": {
+            "value": "surface_default",
+            "reason": "Bounded pure JavaScript helpers and Node tests need no UI or browser skill."
+          }
+        },
+        "actual": {
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            }
+          ],
+          "model": {
+            "value": "surface_default",
+            "evidence": "current Codex surface"
+          }
+        },
+        "fallback": "native_tools"
+      },
+      "evidence": {
+        "target_environment": "local",
+        "observed_at": null,
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "focused_test"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true
+      },
       "done_when": "Bounded pure advisory detection helpers cover document-focused formats without vendor, DOM or shell coupling and can never widen server policy."
     },
     {
@@ -2477,5 +2545,5 @@
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "None required for the next repo-only step. Claim UIX-ABC15 next in declared product order; UIX-ABC16 and UIX-ABC18 are also dependency-ready. UI design, hotfile and every live-write authority remain closed."
+  "recommended_next_human_decision": "None required while UIX-ABC15 runs within its three-file repo-only claim. UIX-ABC16 and UIX-ABC18 remain dependency-ready; UI design, hotfile and every live-write authority remain closed."
 }
