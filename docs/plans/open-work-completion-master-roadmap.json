@@ -1,19 +1,19 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T12:47:47+02:00",
-  "status": "uix_abc19_complete_uix_abc20_and_uix_abc22_ready",
+  "updated_at": "2026-07-23T16:28:48+02:00",
+  "status": "uix_abc20_p0_preview_adapters_in_progress",
   "abc_mode": "Standard ABC",
-  "goal_command": "/goal Implementiere OWM-23 Agent Maintenance Safety Harness repo-only; beginne mit AMH-01, halte Nachfolger dependency-gated, bewahre fremde Worktree-Aenderungen und fuehre weder Live-Aktionen noch ungefragte Pushes aus.",
-  "goal": "Reconcile the registered OWM-23 roadmap, then implement the dependency-ready Agent Maintenance Safety Harness frontier with one scoped writer, current machine evidence and no live or external mutation.",
+  "goal_command": "/goal Bearbeite die offenen Odysseus-Feature-Roadmaps dependency-gesteuert ueber Open Work; beginne mit UIX-ABC20, danach UIX-ABC22, repo-only und ohne breite Tests, Push, Deploy oder Live-Mutation.",
+  "goal": "Advance the dependency-ready Open Work feature-roadmap frontier with bounded repo-only claims, focused verification, Sol-reviewed Terra handoffs, durable evidence and local commits.",
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 2,
+    "safe_open_json_slices": 1,
     "unique_live_gates": 40,
     "unique_design_gates": 27,
-    "other_open_json_items": 33,
-    "queue_status": "uix_abc19_complete_two_dependency_ready_repo_only_slices",
+    "other_open_json_items": 34,
+    "queue_status": "uix_abc20_claimed_uix_abc22_remains_dependency_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,16 +21,16 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "agent_maintenance_safety": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "universal_inbox_workbench": "uix_abc19_complete_uix_abc20_and_uix_abc22_dependency_ready",
+      "universal_inbox_workbench": "uix_abc20_p0_preview_adapters_in_progress",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 2,
-      "other_open_count": 33,
+      "safe_open_count": 1,
+      "other_open_count": 34,
       "unique_live_gate_count": 40,
-      "unique_design_gate_count": 28,
+      "unique_design_gate_count": 27,
       "decision_packet_families": [
         "version_release",
         "calendar_reminders",
@@ -60,17 +60,16 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "UIX-ABC19 is locally implemented, focused-browser tested and visually accepted. UIX-ABC20 is now the first dependency-ready repo-only slice and can add bounded P0 preview adapters without provider or live-write authority.",
+        "reason": "UIX-ABC20 is durably claimed for exactly three isolated frontend paths. Implement bounded, abortable P0 preview adapters while UIX-ABC22 remains the next dependency-ready repo-only slice.",
         "slice": "UIX-ABC20",
         "user_decision_required": false,
-        "safe_default": "claim_uix_abc20_repo_only_and_keep_all_live_writes_closed"
+        "safe_default": "execute_only_the_claimed_uix_abc20_paths_repo_only"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-23"
     },
     "dependency_ready_repo_only_slices": [
-      "UIX-ABC20",
       "UIX-ABC22"
     ],
     "product_semantics_gated_open_slices": [],
@@ -1856,8 +1855,8 @@
       "title": "P0 Preview Adapters",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
-      "claimable": true,
+      "status": "claimed_in_progress",
+      "claimable": false,
       "depends_on": [
         "UIX-ABC16",
         "UIX-ABC19"
@@ -1868,6 +1867,124 @@
         "static/frontpage-v3/inbox-preview.css",
         "tests/frontend/harbor-one-inbox-preview.spec.js"
       ],
+      "claim": {
+        "run_id": "abc-uix20-20260723T162848+0200",
+        "thread_id": "/root",
+        "slice_id": "UIX-ABC20",
+        "owner": "Bob",
+        "allowed_paths": [
+          "static/frontpage-v3/inbox-preview.js",
+          "static/frontpage-v3/inbox-preview.css",
+          "tests/frontend/harbor-one-inbox-preview.spec.js"
+        ],
+        "hotfiles": [],
+        "state": "claimed",
+        "acquired_at": "2026-07-23T16:28:48+02:00",
+        "lease_expires_at": "2026-07-23T20:28:48+02:00",
+        "handoff_required": true
+      },
+      "allowed_paths": [
+        "static/frontpage-v3/inbox-preview.js",
+        "static/frontpage-v3/inbox-preview.css",
+        "tests/frontend/harbor-one-inbox-preview.spec.js"
+      ],
+      "tests": [
+        "node --check static/frontpage-v3/inbox-preview.js",
+        "playwright test tests/frontend/harbor-one-inbox-preview.spec.js --workers=1 --reporter=line",
+        "git diff --check -- static/frontpage-v3/inbox-preview.js static/frontpage-v3/inbox-preview.css tests/frontend/harbor-one-inbox-preview.spec.js"
+      ],
+      "route": {
+        "entrypoint": "/abc",
+        "recommended": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "Open Work claim, dependency, evidence and integration orchestration"
+            },
+            {
+              "id": "impeccable",
+              "purpose": "Harbor One product UI continuity, accessibility and responsive preview states"
+            },
+            {
+              "id": "playwright",
+              "purpose": "Focused local browser behavior and visual acceptance"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "reason": "Preview isolation and untrusted-content boundaries require deep integration review."
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high",
+            "reason": "Bounded frontend adapter implementation with adversarial security cases."
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "parent orchestrator"
+            },
+            {
+              "id": "impeccable",
+              "purpose": "product UI and accessibility guidance"
+            },
+            {
+              "id": "playwright",
+              "purpose": "terminal browser acceptance"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "depth": "deep",
+            "reviewer": "root"
+          }
+        },
+        "actual": {
+          "skills": [],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "evidence": "root surface"
+          },
+          "worker": {
+            "model": "pending",
+            "evidence": "pending spawn"
+          },
+          "review": {
+            "model": "pending",
+            "depth": "deep",
+            "result": "pending"
+          }
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "local",
+        "observed_at": "2026-07-23T16:28:48+02:00",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "focused_test",
+          "visual"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true
+      },
       "done_when": "Markdown/Text, existing PDF and DOCX-extraction previews are bounded, abortable and revoke object URLs without script, form, navigation or network execution."
     },
     {
