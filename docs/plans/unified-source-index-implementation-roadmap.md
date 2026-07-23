@@ -469,13 +469,15 @@ Every list/query contract is bounded. Depending on mode it accepts `limit`,
   - state: `claimed`
   - acquired_at: `2026-07-23T18:52:58+02:00`
   - lease_expires_at: `2026-07-23T22:52:58+02:00`
-  - amended_at: `2026-07-23T19:09:12+02:00`
+  - amended_at: `2026-07-23T19:23:50+02:00`
   - amendment_reason: `Adding the one canonical identity necessarily updates
     the frozen TAX0 catalog projections and deterministic inventory; the four
     initially added paths close only that bounded parity surface. The authorized
     focused parity run then exposed one additional frozen parser-count
     assertion, so tests/test_tool_registration_parity.py is the sole second
-    amendment.`
+    amendment. Final Sol review then proved that the USI overlap inventory still
+    classified the now-present identity as planned_absent; its auditor, persisted
+    inventory and focused test are the exact three-path third amendment.`
   - worktree: `C:\tmp\odysseus-abc-usi09-20260723`
   - allowed_paths: `src/builtin_tool_catalog.py`, `src/tool_index.py`,
     `src/tool_schema_definitions.py`, `src/tool_execution.py`,
@@ -486,7 +488,10 @@ Every list/query contract is bounded. Depending on mode it accepts `limit`,
     `docs/plans/tool-taxonomy-inventory.json`,
     `tests/test_audit_tool_registry_drift.py`, and
     `tests/test_builtin_tool_catalog.py`, plus
-    `tests/test_tool_registration_parity.py`
+    `tests/test_tool_registration_parity.py`,
+    `scripts/audit_unified_source_index_overlap.py`,
+    `docs/plans/unified-source-index-runtime-inventory.json`, and
+    `tests/test_audit_unified_source_index_overlap.py`
   - excluded_paths: `src/tool_catalog.py`, `src/tool_registry.py`,
     `src/unified_source_index_query.py`, every app/runtime initializer,
     provider, MCP, database, migration, live and external path
@@ -511,6 +516,9 @@ Every list/query contract is bounded. Depending on mode it accepts `limit`,
   - `tests/test_audit_tool_registry_drift.py`
   - `tests/test_builtin_tool_catalog.py`
   - `tests/test_tool_registration_parity.py`
+  - `scripts/audit_unified_source_index_overlap.py`
+  - `docs/plans/unified-source-index-runtime-inventory.json`
+  - `tests/test_audit_unified_source_index_overlap.py`
 - Work:
   - expose one read-only descriptor with domain/mode/scope/budget fields;
   - no direct CBM MCP tool registration;
@@ -518,9 +526,10 @@ Every list/query contract is bounded. Depending on mode it accepts `limit`,
   - TUA sees one canonical invocation; internal provider spans remain metrics.
 - Tests: `python -m pytest -q tests/test_query_knowledge_tool.py`; focused
   builtin-registration/security/audit parity; deterministic registry-drift
-  snapshot check
+  snapshot check; focused USI overlap inventory and persisted snapshot check
 - Done when: code, document and memory fixtures route through one descriptor
-  with policy parity, no `Other` fallback and no TAX inventory drift.
+  with policy parity, no `Other` fallback and no TAX or USI overlap inventory
+  drift.
 
 These shared TAX paths are a single serialized integration claim after TAX
 handoff; no USI worker may edit them independently.

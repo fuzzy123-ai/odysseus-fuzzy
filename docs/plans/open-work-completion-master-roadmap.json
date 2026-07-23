@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-    "updated_at": "2026-07-23T19:09:12+02:00",
+    "updated_at": "2026-07-23T19:23:50+02:00",
   "status": "usi09_query_knowledge_claimed_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -89,7 +89,7 @@
         "slice": "USI-09-query-knowledge-tool-projection",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-                "safe_default": "execute_only_the_thirteen_claimed_paths_keep_runtime_and_live_sources_default_off"
+                "safe_default": "execute_only_the_sixteen_claimed_paths_keep_runtime_and_live_sources_default_off"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-23"
@@ -1128,7 +1128,10 @@
           "docs/plans/tool-taxonomy-inventory.json",
           "tests/test_audit_tool_registry_drift.py",
           "tests/test_builtin_tool_catalog.py",
-          "tests/test_tool_registration_parity.py"
+          "tests/test_tool_registration_parity.py",
+          "scripts/audit_unified_source_index_overlap.py",
+          "docs/plans/unified-source-index-runtime-inventory.json",
+          "tests/test_audit_unified_source_index_overlap.py"
         ],
         "excluded_paths": [
           "src/tool_catalog.py",
@@ -1145,13 +1148,15 @@
           "src/agent_tools/__init__.py",
           "src/tool_security.py",
           "scripts/audit_tool_registry_drift.py",
-          "docs/plans/tool-taxonomy-inventory.json"
+          "docs/plans/tool-taxonomy-inventory.json",
+          "scripts/audit_unified_source_index_overlap.py",
+          "docs/plans/unified-source-index-runtime-inventory.json"
         ],
         "state": "claimed",
         "acquired_at": "2026-07-23T18:52:58+02:00",
         "lease_expires_at": "2026-07-23T22:52:58+02:00",
-        "amended_at": "2026-07-23T19:09:12+02:00",
-        "amendment_reason": "The canonical query_knowledge identity necessarily changes the frozen TAX0 catalog projections and deterministic inventory; the first four added paths close that bounded inventory surface. The authorized focused parity run then exposed one additional frozen parser-count assertion, so tests/test_tool_registration_parity.py is the sole second amendment.",
+        "amended_at": "2026-07-23T19:23:50+02:00",
+        "amendment_reason": "The canonical query_knowledge identity necessarily changes the frozen TAX0 catalog projections and deterministic inventory; the first four added paths close that bounded inventory surface. The authorized focused parity run then exposed one additional frozen parser-count assertion, so tests/test_tool_registration_parity.py was the sole second amendment. The final Sol static review and read-only USI overlap check then proved that the USI runtime inventory still classified query_knowledge as planned_absent; the overlap auditor, its persisted inventory and its focused test are the exact three-path third amendment.",
         "handoff_required": false,
         "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
         "baseline_sha256": {
@@ -1166,7 +1171,10 @@
           "docs/plans/tool-taxonomy-inventory.json": "84E79738C006778ADB0DC0EFA4266AD76D648F9F8EAA9CEE921B7632226CB6AB",
           "tests/test_audit_tool_registry_drift.py": "50426C08CBB773ADAACCE4D742A440F84D5ED987E45872A9E8C10FC863FDB6AD",
           "tests/test_builtin_tool_catalog.py": "1326C44CA46152B2E8953DECF42AB83D226594B92B3A6115A8C032163966EBD5",
-          "tests/test_tool_registration_parity.py": "67FA61321834705F3D2442B48DDCAACEAE142B3F8DFD10063BA39B8ECD9101A0"
+          "tests/test_tool_registration_parity.py": "67FA61321834705F3D2442B48DDCAACEAE142B3F8DFD10063BA39B8ECD9101A0",
+          "scripts/audit_unified_source_index_overlap.py": "356227F4CA98686108459F49EEC4D61C62FC6C3C9458A2DF1E7CAF43B44AA654",
+          "docs/plans/unified-source-index-runtime-inventory.json": "E07826A4436A89E9A7A54924836CC36502FC0019EED09C252429366C11BD7190",
+          "tests/test_audit_unified_source_index_overlap.py": "CA4214E43CB8EEB55C07D7A6281F90B3C27CD8C45A242E6CA880221F97D9CD81"
         }
       },
       "route": {
@@ -1232,9 +1240,11 @@
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_query_knowledge_tool.py",
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_builtin_tool_catalog.py tests\\test_tool_registration_parity.py tests\\test_tool_security_catalog.py tests\\test_audit_tool_registry_drift.py",
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe scripts\\audit_tool_registry_drift.py --check",
-        "git diff --check -- src/builtin_tool_catalog.py src/tool_index.py src/tool_schema_definitions.py src/tool_execution.py src/agent_tools/__init__.py src/agent_tools/knowledge_tools.py src/tool_security.py tests/test_query_knowledge_tool.py scripts/audit_tool_registry_drift.py docs/plans/tool-taxonomy-inventory.json tests/test_audit_tool_registry_drift.py tests/test_builtin_tool_catalog.py tests/test_tool_registration_parity.py"
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_audit_unified_source_index_overlap.py",
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe scripts\\audit_unified_source_index_overlap.py --check",
+        "git diff --check -- src/builtin_tool_catalog.py src/tool_index.py src/tool_schema_definitions.py src/tool_execution.py src/agent_tools/__init__.py src/agent_tools/knowledge_tools.py src/tool_security.py tests/test_query_knowledge_tool.py scripts/audit_tool_registry_drift.py docs/plans/tool-taxonomy-inventory.json tests/test_audit_tool_registry_drift.py tests/test_builtin_tool_catalog.py tests/test_tool_registration_parity.py scripts/audit_unified_source_index_overlap.py docs/plans/unified-source-index-runtime-inventory.json tests/test_audit_unified_source_index_overlap.py"
       ],
-      "done_when": "One default-off canonical read-only query_knowledge descriptor routes bounded owner-scoped code, document and memory queries through the injected USI planner boundary; malformed, foreign-scope, over-budget and unavailable paths fail closed without raw provider errors, writes, engine-specific tools or duplicate analytics, and the deterministic TAX catalog inventory is updated without drift."
+      "done_when": "One default-off canonical read-only query_knowledge descriptor routes bounded owner-scoped code, document and memory queries through the injected USI planner boundary; malformed, foreign-scope, over-budget and unavailable paths fail closed without raw provider errors, writes, engine-specific tools or duplicate analytics, and both deterministic TAX and USI overlap inventories are updated without drift."
     },
     {
       "id": "TAX0-deterministic-inventory",
