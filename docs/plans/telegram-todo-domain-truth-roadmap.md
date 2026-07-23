@@ -415,7 +415,8 @@ Serialisierung und aktiver Claim:
   - Status: `claimed_2026-07-23`
   - Exakte Pfade: neuer zentraler Memory-Kategorievertrag,
     Request-Modelle, Memory-Manager, Agent-Memory-Writer, natives
-    `manage_memory`-Schema und ein fokussiertes synthetisches Testmodul
+    `manage_memory`-Schema, bestehender Memory-Update-Endpunkt und ein
+    fokussiertes synthetisches Testmodul
   - Verboten: Route-, Todo-Fassade-, Registry-, Intent-, Notes-, Telegram-,
     produktive Daten-, Runtime-, Provider-, Deploy- und Live-Aenderungen
 - `TTD-02B-manage-todos-facade-routing`

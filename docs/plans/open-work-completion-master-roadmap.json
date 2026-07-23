@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T22:01:49+02:00",
+  "updated_at": "2026-07-23T22:08:49+02:00",
   "status": "ttd02a_memory_todo_write_fail_closed_claimed_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -89,7 +89,7 @@
         "slice": "TTD-02A-memory-category-and-todo-write-fail-closed",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "implement_and_focus_test_only_the_six_claimed_ttd02a_paths_no_productive_data_runtime_tool_wiring_deploy_send_or_rollover"
+        "safe_default": "implement_and_focus_test_only_the_seven_claimed_ttd02a_paths_no_productive_data_runtime_tool_wiring_deploy_send_or_rollover"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-23"
@@ -2276,12 +2276,13 @@
           "src/memory.py",
           "src/ai_interaction.py",
           "src/tool_schema_definitions.py",
+          "routes/memory_routes.py",
           "tests/test_memory_todo_validation.py"
         ],
         "excluded_paths": [
           "docs/plans/telegram-todo-domain-truth-roadmap.md except root-owned claim and acceptance status",
           "docs/plans/open-work-completion-master-roadmap.json and docs/plans/multi-agent-execution-guidance.json except root-owned routing claim and acceptance state",
-          "routes/memory_routes.py routes/codex_routes.py",
+          "routes/codex_routes.py",
           "src/todo_domain_service.py src/tool_domains/todos.py src/tool_implementations.py src/tool_execution.py src/tool_index.py src/tool_policy.py src/tool_parsing.py src/agent_tools src/builtin_tool_catalog.py src/action_intents.py src/agent_loop.py src/agent_loop_intent.py src/agent_loop_prompts.py",
           "core/database.py routes/note_routes.py src/tool_domains/personal_workspace.py plugins/telegram",
           "every production Notes Memory ScheduledTask Telegram chat history settings environment provider network deploy send data repair rollover and live path"
@@ -2290,7 +2291,8 @@
           "src/request_models.py",
           "src/memory.py",
           "src/ai_interaction.py",
-          "src/tool_schema_definitions.py"
+          "src/tool_schema_definitions.py",
+          "routes/memory_routes.py"
         ],
         "preserved_hotfiles": [
           "src/todo_domain_service.py",
@@ -2316,7 +2318,8 @@
           "src/request_models.py": "091A23469C6EF230F7499DEE427759F245D3B857262A78799A07DAE7A44539DA",
           "src/memory.py": "42670A91EBF657EFDAB97F87E49C66FDE7A36139F5A9FD054C18C3E922035EAF",
           "src/ai_interaction.py": "495CF744A85A4184235992ED8CA17610D200EF028FEE20588762717842B05D15",
-          "src/tool_schema_definitions.py": "1815E6351E7416113678E87170F986C01078D86EDF0A4016AECDE5217CB418C0"
+          "src/tool_schema_definitions.py": "1815E6351E7416113678E87170F986C01078D86EDF0A4016AECDE5217CB418C0",
+          "routes/memory_routes.py": "40F6D222982754C3A2BAFCCDB0BD7FFBF1DE0CC8DBE3CFD0AB7BA9031C592E39"
         }
       },
       "route": {
@@ -2352,6 +2355,7 @@
           "one_authoritative_normalized_non_todo_memory_category_policy",
           "task_todo_and_unknown_category_writes_fail_closed",
           "request_add_and_update_validation_rejects_forbidden_categories",
+          "memory_update_route_rejects_explicit_todo_unknown_and_empty_categories_before_save",
           "direct_memory_manager_add_rejects_forbidden_categories",
           "agent_memory_writer_rejects_before_add_save_vector_or_event_side_effect",
           "ordinary_fact_event_contact_preference_identity_project_and_goal_writes_remain_allowed",
@@ -2366,9 +2370,9 @@
       },
       "tests": [
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_memory_todo_validation.py",
-        "git diff --check -- src/memory_category_policy.py src/request_models.py src/memory.py src/ai_interaction.py src/tool_schema_definitions.py tests/test_memory_todo_validation.py"
+        "git diff --check -- src/memory_category_policy.py src/request_models.py src/memory.py src/ai_interaction.py src/tool_schema_definitions.py routes/memory_routes.py tests/test_memory_todo_validation.py"
       ],
-      "done_when": "One shared Memory-category policy admits only the compatibility union of normal Memory categories, rejects Todo aliases and unknown values before persistence, keeps legacy reads intact, returns deterministic content-free referrals from the agent writer, exposes the same enum in the native tool schema, and focused synthetic tests prove no forbidden add, save, vector or event side effect."
+      "done_when": "One shared Memory-category policy admits only the compatibility union of normal Memory categories, rejects Todo aliases and unknown values before persistence at request, manager, agent-writer and update-route boundaries, keeps legacy reads intact, returns deterministic content-free referrals from the agent writer, exposes the same enum in the native tool schema, and focused synthetic tests prove no forbidden add, save, vector or event side effect."
     },
     {
       "id": "TAX0-deterministic-inventory",
