@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T22:56:24+02:00",
-  "status": "ttd02_accepted_ttd03_recon_next_repo_only",
+  "updated_at": "2026-07-23T23:07:15+02:00",
+  "status": "ttd02_accepted_ttd03_recon_complete_ttd03a_next_not_claimed",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd02_accepted_no_active_claim_ttd03_recon_next",
+    "queue_status": "ttd02_accepted_ttd03_recon_complete_ttd03a_next_no_active_claim",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd02_accepted_ttd03_recon_next_live_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd02_accepted_ttd03_recon_complete_ttd03a_next_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,11 +85,11 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-02B is accepted with the owner-safe manage_todos facade, complete registry and prompt projections, fail-closed Memory removal for clear Todo domains, recurring-task precedence and focused synthetic evidence. No new implementation slice is claimed at this stopping boundary.",
-        "slice": "TTD-03-semantic-transactions-and-receipts-read-only-recon",
+        "reason": "The read-only TTD-03 recon found that a pure adapter alone would not reach runtime truth: the accepted facade receipt must cross one narrow content-free Agent event boundary before the ledger and Effect Matrix can derive closed Todo claim types. TTD-03A now has nine exact repo-only candidate paths, but no implementation claim is opened at the operator stopping boundary.",
+        "slice": "TTD-03A-todo-semantic-receipt-ledger",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "resume_with_read_only_ttd03_boundary_recon_then_claim_only_exact_disjoint_repo_paths_no_productive_data_runtime_deploy_send_or_rollover"
+        "safe_default": "resume_by_claiming_only_the_nine_exact_ttd03a_repo_paths_then_focus_test_no_claim_gate_telegram_digest_productive_data_runtime_deploy_send_or_rollover"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-23"
@@ -953,8 +953,8 @@
       "id": "OWM-22",
       "name": "Telegram Todo Domain Truth And Digest Consistency",
       "priority": 4,
-      "status": "ttd00_through_ttd02_accepted_ttd03_recon_next_live_default_off",
-      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-02 are accepted: the topology is frozen, the canonical owner-scoped atomic service is available through manage_todos, and clear Todo writes fail closed at Memory boundaries. TTD-03 remains to add semantic transaction and receipt evidence.",
+      "status": "ttd00_through_ttd02_accepted_ttd03_recon_complete_ttd03a_next_live_default_off",
+      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-02 are accepted: the topology is frozen, the canonical owner-scoped atomic service is available through manage_todos, and clear Todo writes fail closed at Memory boundaries. The TTD-03 read-only recon is complete; TTD-03A remains to carry content-free domain receipts into typed Ledger and Effect-Matrix evidence before TTD-03B gates final Todo success claims.",
       "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "source_gate_family": "telegram_todo_truth",
       "dependencies": [
@@ -967,14 +967,14 @@
       "safe_default": "build_and_test_against_synthetic_notes_memory_and_telegram_fixtures_no_production_data_write_deploy_or_send",
       "user_gate_policy": "No user gate in TTD-00 through TTD-10, including TTD-07A. Repository work uses synthetic owner-scoped data and keeps all live actions disabled. Deployment, production data repair, Telegram smoke and productive session rollover are four separate dormant action-specific gates and each requires its own later operator Go.",
       "execution_protocol": {
-        "queue_registration": "TTD-00 through TTD-02 are accepted and no claim remains active. Resume with a read-only TTD-03 semantic-transaction and receipt boundary recon before any exact repo-only claim. TTD-08 remains dependency-ready but unselected; TTD-04 through TTD-07A and TTD-09 through TTD-10 remain blocked_by_dependency.",
+        "queue_registration": "TTD-00 through TTD-02 are accepted, the read-only TTD-03 recon is complete and no claim remains active. TTD-03A is the next exact nine-path repo-only facade-receipt, Agent-event, Ledger and Effect-Matrix slice; TTD-03B waits for TTD-03A. TTD-08 remains dependency-ready but unselected, while TTD-04 through TTD-07A and TTD-09 through TTD-10 remain blocked_by_dependency.",
         "dependency_rule": "Notes remains Todo truth; manage_todos is a domain facade over Notes, Memory rejects Todo storage, Telegram preserves semantic receipts, and every Digest claim requires a read-only include/exclude/schedule postcondition. Daily session rollover limits context but never substitutes old chat prose for domain readback.",
         "scheduling_decision": {
           "operator_priority_effective_at": "2026-07-21",
-          "position": "active_p0_corrective_track_ttd02_accepted_ttd03_recon_next_no_active_claim",
+          "position": "active_p0_corrective_track_ttd03_recon_complete_ttd03a_next_no_active_claim",
           "implementation_authority": "current_goal_repo_only_no_live_authority"
         },
-        "future_goal_command": "/goal Setze OWM-22 Telegram Todo Domain Truth repo-only nach akzeptiertem TTD-02 fort; beginne mit einem read-only TTD-03 Semantic-Transaction- und Receipt-Boundary-Recon, claime danach nur exakte uebergebene Pfade und fuehre weder Produktionsdaten-Korrektur noch Deployment, Telegram-Live-Smoke oder produktives Session-Rollover aus."
+        "future_goal_command": "/goal Setze OWM-22 Telegram Todo Domain Truth repo-only nach abgeschlossenem TTD-03-Recon fort; claime nur TTD-03A mit den neun exakt dokumentierten Receipt-/Event-/Ledger-/Effect-Matrix-Pfaden und fuehre weder TTD-03B, Produktionsdaten-Korrektur, Deployment, Telegram-Live-Smoke noch produktives Session-Rollover aus."
       },
       "activation_contract": {
         "id": "TTD-LIVE-DEPLOY",
@@ -7747,7 +7747,7 @@
     }
   ],
   "recommended_execution_order": [
-    "OWM-22 Telegram Todo Domain Truth And Digest Consistency: TTD-00 through TTD-02 are accepted; perform only a read-only TTD-03 semantic-transaction and receipt boundary recon before the next exact repo-only claim, leave TTD-08 dependency-ready but unselected, keep later unmet successors blocked, keep Notes canonical and all production data unchanged, and leave deploy/send/productive rollover disabled until TTD-10 has prepared four separate live packets.",
+    "OWM-22 Telegram Todo Domain Truth And Digest Consistency: TTD-00 through TTD-02 are accepted and the TTD-03 read-only recon is complete; next claim only the exact nine-path TTD-03A semantic receipt, Agent-event, Ledger and Effect-Matrix slice, keep TTD-03B waiting on TTD-03A, leave TTD-08 dependency-ready but unselected, keep later unmet successors blocked, keep Notes canonical and all production data unchanged, and leave deploy/send/productive rollover disabled until TTD-10 has prepared four separate live packets.",
     "OWM-23 Agent Maintenance Safety Harness: after an explicit goal or Open Work reprioritization, open AMH-01 through AMH-03 only on disjoint handed-off paths; preserve Planning JSON and existing gate/claim authorities, keep AMH-04 onward dependency-blocked, and perform no automatic commit, push, deploy or live action.",
     "OWM-11 Tool Taxonomy, Registration And Lifecycle: execute TAX0 then TAX1 and continue the detailed repo-only queue without user gates; keep the feature disabled until the single final activation decision.",
     "OWM-12 Privacy-Safe Tool Usage Analytics: after TAX1, start the disjoint privacy/store baseline; wait for TAX5/TAX7/TAX10 at shared integration points and keep capture/backfill disabled until the single final activation decision.",

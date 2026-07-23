@@ -3,9 +3,11 @@
 Stand: 2026-07-23
 
 Status: `TTD-00` bis `TTD-02` sind am 2026-07-23 akzeptiert. Es besteht kein
-aktiver Claim. Der naechste sichere Schritt ist ein read-only
-`TTD-03`-Boundary-Recon; `TTD-08` bleibt dependency-ready und unselektiert.
-Spaetere unmet Slices und saemtliche Live-Aktionen bleiben gesperrt.
+aktiver Claim. Der read-only `TTD-03`-Boundary-Recon ist abgeschlossen;
+`TTD-03A-todo-semantic-receipt-ledger` ist der naechste exakte repo-only
+Frontier-Slice, bleibt am heutigen Stoppunkt jedoch ungeclaimt. `TTD-08` bleibt
+dependency-ready und unselektiert. Spaetere unmet Slices und saemtliche
+Live-Aktionen bleiben gesperrt.
 
 ## Durable Amendment Claim 2026-07-21
 
@@ -499,7 +501,77 @@ Akzeptanz:
 
 Owner: Bob
 
-Status: `dependency_ready_not_selected`
+Status: `boundary_recon_complete_ttd03a_next_not_claimed`
+
+Read-only Boundary-Recon 2026-07-23:
+
+- Der akzeptierte `TodoDomainService` liefert bereits content-free
+  `TodoReceipt`-Objekte mit Operation, Previous-/Current-State, Open-Count,
+  Transaction-Status, `verified` und redigierten Evidence-Refs.
+- Die akzeptierte `manage_todos`-Fassade gibt diese Felder content-free zurueck,
+  aber `agent_loop.py` persistiert aktuell weder Action noch Receipt im
+  Tool-Event. Das generische Transaction Ledger sieht deshalb nur
+  `tool_execution`; ein Todo-Erfolgsclaim ist noch nicht ableitbar.
+- `tool_result_truth.py` ist derzeit ein isolierter generischer Vertrag ohne
+  Runtime-Consumer. Er wird nicht nur deshalb editiert, weil er in der alten
+  Pfadprognose stand.
+- Telegram-Envelope, `telegram_truth_gate.py`, Plugin und Digest bleiben
+  ausdruecklich TTD-04/TTD-05 und sind kein TTD-03A-Scope.
+
+Serialisierung:
+
+1. `TTD-03A-todo-semantic-receipt-ledger`
+   - Status: `dependency_ready_not_claimed`
+   - Exakte Kandidatenpfade:
+     - neuer `src/todo_transaction_receipts.py`
+     - `src/tool_domains/todos.py`
+     - `src/agent_loop.py` ausschliesslich ein enger content-free
+       Action-/Semantic-Receipt-Event-Forwarder
+     - `src/tool_transaction_ledger.py`
+     - `src/effectful_tool_matrix.py`
+     - neue `tests/test_todo_transaction_receipts.py`
+     - `tests/test_manage_todos_tool.py`
+     - `tests/test_tool_transaction_ledger.py`
+     - `tests/test_effectful_tool_matrix.py`
+   - Erforderliche Semantik:
+     - geschlossene Claim-Typen `todo_item_created`, `todo_item_completed`,
+       `todo_item_reopened`, `todo_item_removed`, `todo_list_read`
+     - nur ein gueltiger Domain-Receipt mit passender Action und
+       `committed`/`idempotent_noop` darf eine Mutation als `verified` abbilden
+     - ein owner-scoped erfolgreicher List-Snapshot darf ausschliesslich
+       `todo_list_read` belegen
+     - generisches `tool_execution=succeeded`, Failed, Blocked, Conflict,
+       Rejection oder Ambiguous erzeugen keinen verifizierten Todo-Claim
+     - Owner/List/Item bleiben nur als begrenzte redigierte Refs erhalten;
+       Todo-Text, Chat-Inhalt, Token, Hostpfade und Exception-Text bleiben aus
+       Event, Ledger und Snapshot ausgeschlossen
+     - Effect Matrix behandelt `list` als read-only und
+       `add|complete|reopen|remove` als `todo_state`
+   - Fokussierte Checks:
+     `pytest -q -p no:cacheprovider tests/test_todo_transaction_receipts.py
+     tests/test_manage_todos_tool.py tests/test_tool_transaction_ledger.py
+     tests/test_effectful_tool_matrix.py`
+   - Ausgeschlossen: `src/todo_domain_service.py`, `src/tool_execution.py`,
+     uebrige TTD-02 Registry-/Prompt-/Memory-Pfade, `src/claim_evidence_gate.py`,
+     `src/tool_result_truth.py`, `src/telegram_truth_gate.py`,
+     `plugins/telegram`, Digest/Scheduler, produktive Daten und alle
+     Live-Aktionen.
+2. `TTD-03B-todo-final-claim-evidence`
+   - Abhaengigkeit: akzeptiertes `TTD-03A`
+   - Erst nach TTD-03A exakt reconcilen und claimen.
+   - Die Finalantwort-Grenze erkennt Todo-Erfolgsprosa action-spezifisch und
+     setzt `verified=true` nur mit dem passenden semantischen Ledger-Receipt.
+     `tool_result_truth.py` wird nur geclaimt, wenn ein nachgewiesener
+     Runtime-Consumer diesen Vertrag benoetigt.
+
+Recon-Handoff:
+
+- Phase: `analysis_only`; keine Implementierungsdatei geaendert
+- Scout: Charlie/Terra read-only; Reduktion und Scope-Korrektur: root/Sol
+- Claim: keiner; aktive Claims: 0
+- Naechste Aktion: am naechsten Arbeitspunkt nur
+  `TTD-03A-todo-semantic-receipt-ledger` mit den neun exakten Pfaden claimen
+- Kein Push, Deploy, Providerzugriff, produktiver Datenzugriff oder Live-Smoke
 
 Ziel:
 
