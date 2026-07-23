@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T21:23:18+02:00",
-  "status": "ttd00_accepted_ttd01_dependency_ready_repo_only",
+  "updated_at": "2026-07-23T21:29:55+02:00",
+  "status": "ttd01_canonical_atomic_todo_service_claimed_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd00_accepted_ttd01_dependency_ready_not_claimed",
+    "queue_status": "ttd01_claimed_two_new_paths_after_read_only_boundary_recon",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_accepted_ttd01_dependency_ready_live_default_off",
+      "telegram_todo_truth": "ttd00_accepted_ttd01_claimed_two_new_paths_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,16 +85,18 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-00 is accepted with a deterministic content-free static contract and focused evidence. TTD-01 is dependency-ready for a bounded read-only hotfile and service-boundary recon before any claim; Notes remains canonical and all runtime, productive-data and live capabilities remain disabled.",
-        "slice": "TTD-01-canonical-atomic-todo-service-read-only-recon",
+        "reason": "TTD-00 is accepted and the read-only TTD-01 boundary recon is complete. TTD-01 is claimed on exactly two new service/test paths for owner-scoped stable item refs, idempotent add, fail-closed matching and compare-and-swap mutation over the existing Notes JSON; all writer hotfiles and live capabilities remain excluded.",
+        "slice": "TTD-01-canonical-atomic-todo-service",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "perform_ttd01_read_only_recon_then_claim_only_an_exact_disjoint_repo_boundary_no_productive_data_runtime_deploy_send_or_rollover"
+        "safe_default": "execute_only_the_two_claimed_new_ttd01_paths_with_synthetic_sqlite_no_notes_hotfile_productive_data_runtime_deploy_send_or_rollover"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-23"
     },
-    "active_claimed_slices": []
+    "active_claimed_slices": [
+      "TTD-01-canonical-atomic-todo-service"
+    ]
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -953,8 +955,8 @@
       "id": "OWM-22",
       "name": "Telegram Todo Domain Truth And Digest Consistency",
       "priority": 4,
-      "status": "ttd00_accepted_ttd01_dependency_ready_live_default_off",
-      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 now freezes the current topology in a deterministic content-free static contract with Notes as canonical Todo truth; TTD-01 is dependency-ready for bounded repo-only service work after an exact read-only boundary recon.",
+      "status": "ttd00_accepted_ttd01_claimed_two_new_paths_live_default_off",
+      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 freezes the current topology with Notes as canonical Todo truth; after an exact read-only boundary recon, TTD-01 is claimed only on a new domain service and its focused synthetic tests.",
       "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "source_gate_family": "telegram_todo_truth",
       "dependencies": [
@@ -967,11 +969,11 @@
       "safe_default": "build_and_test_against_synthetic_notes_memory_and_telegram_fixtures_no_production_data_write_deploy_or_send",
       "user_gate_policy": "No user gate in TTD-00 through TTD-10, including TTD-07A. Repository work uses synthetic owner-scoped data and keeps all live actions disabled. Deployment, production data repair, Telegram smoke and productive session rollover are four separate dormant action-specific gates and each requires its own later operator Go.",
       "execution_protocol": {
-        "queue_registration": "TTD-00 is accepted and its claim is released. TTD-01 is dependency-ready but not yet claimed; keep TTD-02 through TTD-10, including TTD-07A, blocked_by_dependency.",
+        "queue_registration": "TTD-00 is accepted and its claim is released. TTD-01 is actively claimed on exactly two new paths; keep TTD-02 through TTD-10, including TTD-07A, blocked_by_dependency.",
         "dependency_rule": "Notes remains Todo truth; manage_todos is a domain facade over Notes, Memory rejects Todo storage, Telegram preserves semantic receipts, and every Digest claim requires a read-only include/exclude/schedule postcondition. Daily session rollover limits context but never substitutes old chat prose for domain readback.",
         "scheduling_decision": {
           "operator_priority_effective_at": "2026-07-21",
-          "position": "active_p0_corrective_track_ttd00_accepted_ttd01_dependency_ready",
+          "position": "active_p0_corrective_track_ttd00_accepted_ttd01_claimed_two_new_paths",
           "implementation_authority": "current_goal_repo_only_no_live_authority"
         },
         "future_goal_command": "/goal Setze OWM-22 Telegram Todo Domain Truth repo-only nach TTD-00 fort; beginne mit einem read-only TTD-01 Boundary-Recon, claime danach nur exakte Pfade, halte TTD-02 und alle spaeteren Slices blocked_by_dependency und fuehre weder Produktionsdaten-Korrektur noch Deployment, Telegram-Live-Smoke oder produktives Session-Rollover aus."
@@ -2081,6 +2083,138 @@
       "acceptance": "offline_go_static_content_free_notes_canonical_todo_domain_baseline_with_source_backed_roles_gaps_and_hotfile_inventory",
       "next_frontier": "TTD-01 canonical atomic Todo service is dependency-ready for read-only boundary recon; TTD-02 and later slices remain dependency-blocked and every live or productive-data action remains disabled.",
       "done_when": "One deterministic machine-readable contract pins the current Notes, Memory, Scheduler, Chat History, Digest, Telegram and claim-evidence roles and source hashes; records stable Note identity but legacy index-based item identity, backward-read and rollback decisions; keeps every successor mutation and live capability false; exposes no private content; and a static no-import audit fails closed on topology drift or contradictory role claims."
+    },
+    {
+      "id": "TTD-01-canonical-atomic-todo-service",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "claimed_in_progress",
+      "claimable": false,
+      "depends_on": [
+        "TTD-00 accepted",
+        "read-only Notes persistence and service-boundary recon complete",
+        "canonical router guidance reconciled to TTD-01"
+      ],
+      "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "claim": {
+        "run_id": "abc-ttd01-20260723T212955+0200",
+        "thread_id": "/root",
+        "slice_id": "TTD-01-canonical-atomic-todo-service",
+        "owner": "Bob",
+        "allowed_paths": [
+          "src/todo_domain_service.py",
+          "tests/test_todo_domain_service.py"
+        ],
+        "excluded_paths": [
+          "docs/plans/telegram-todo-domain-truth-roadmap.md except root-owned claim and acceptance status",
+          "docs/plans/open-work-completion-master-roadmap.json and docs/plans/multi-agent-execution-guidance.json except root-owned routing claim and acceptance state",
+          "core/database.py core/database_migrations.py routes/note_routes.py src/tool_domains/personal_workspace.py src/tool_implementations.py static/js/notes.js",
+          "src/builtin_actions.py src/calendar_capability_service.py src/task_scheduler.py src/task_scheduler_delivery.py",
+          "src/memory.py src/request_models.py src/ai_interaction.py src/agent_loop.py src/agent_loop_prompts.py",
+          "src/claim_evidence_gate.py src/tool_transaction_ledger.py src/telegram_truth_gate.py plugins/telegram",
+          "every production Notes Memory ScheduledTask Telegram chat history settings environment provider network deploy send data repair rollover and live path"
+        ],
+        "hotfiles": [],
+        "preserved_hotfiles": [
+          "core/database.py",
+          "core/database_migrations.py",
+          "routes/note_routes.py",
+          "src/tool_domains/personal_workspace.py",
+          "src/tool_implementations.py",
+          "static/js/notes.js"
+        ],
+        "state": "claimed",
+        "acquired_at": "2026-07-23T21:29:55+02:00",
+        "lease_expires_at": "2026-07-24T01:29:55+02:00",
+        "handoff_required": false,
+        "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
+        "new_paths": true,
+        "dependency_sha256": {
+          "docs/plans/telegram-todo-domain-truth-roadmap.md": "CD578A577AF5C4949575FC99D47B7470A0D73E2ACF0399604D9DF0F060A55961",
+          "docs/plans/telegram-todo-domain-truth-contract.json": "3497FEC816810978FB64F701EBACA7C5929197F923D0E8EAED87B720F6F1A600",
+          "core/database.py": "AB2A76E46D6FFD5C5064AB4329D0E76CBFA91E3FB12F273554BCF70E85E33DE0",
+          "core/database_migrations.py": "4FA989422935B3C977B5ABA4401C000A85F4889F2009B3275BCD6367A8EDE5AB",
+          "routes/note_routes.py": "BF2628CB42CD62A1759C781091CF41502BAC719FA53EEA8F0D9374CE816E9901",
+          "src/tool_domains/personal_workspace.py": "ED43245831AE83D5EE22BD747B9A73AC5406618EAC735B21E06011E22471F20F",
+          "static/js/notes.js": "047D5A1D7E47F7C6CA54E6C551C47D894E0525436D257F6D10D7EFD0AF00BA11",
+          "tests/test_manage_notes_owner_gate.py": "0B6714B170E1E7B2BC980D0E31CA0701905C9344EC6777ECD2D858E02959C156"
+        }
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "dependency reconciliation, two-new-path claim, Terra implementation and deep Sol review"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "actual": {
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "evidence": "root surface"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "evidence": "two independent read-only boundary scouts complete; implementation pending"
+          },
+          "review": {
+            "model": "pending",
+            "depth": "deep",
+            "result": "pending"
+          }
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "synthetic file-backed SQLite Notes fixtures only",
+        "observed_at": "2026-07-23T21:29:55+02:00",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "full_note_id_and_exact_owner_scope",
+          "legacy_null_owner_fail_closed_except_explicit_null_owner_scope",
+          "backward_read_of_legacy_text_done_items",
+          "stable_persisted_item_ids_on_service_mutation",
+          "list_add_complete_reopen_remove_operations",
+          "deterministic_idempotent_add",
+          "exact_item_ref_mutation",
+          "ambiguous_text_match_fails_closed_with_candidate_refs",
+          "compare_and_swap_retry_prevents_lost_updates",
+          "single_commit_or_rollback_per_mutation",
+          "typed_content_free_receipts",
+          "zero_schema_migration_tool_route_digest_telegram_or_live_changes",
+          "focused_tests_and_drift_check"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true,
+        "recon": "Two independent read-only scouts confirmed that Note.id is the stable list identity, Note.owner is nullable and must be scoped exactly, checklist item JSON already tolerates stable id fields, and no revision column exists. A two-new-file service can preserve legacy reads, write stable item ids only on service mutation, and use compare-and-swap on the complete prior items JSON with bounded retries to prevent service-side lost updates without editing schema, Notes routes, manage_notes or any live path."
+      },
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_todo_domain_service.py",
+        "git diff --check -- src/todo_domain_service.py tests/test_todo_domain_service.py"
+      ],
+      "done_when": "A new owner-scoped service over the existing Notes table lists legacy checklists, persists stable item refs on service mutations, performs deterministic idempotent add plus exact complete/reopen/remove, fails closed on ambiguous text, prevents service-side lost updates with bounded compare-and-swap retries, returns typed content-free receipts, and changes no schema, existing Notes writer, tool, digest, Telegram, productive-data or live path."
     },
     {
       "id": "TAX0-deterministic-inventory",

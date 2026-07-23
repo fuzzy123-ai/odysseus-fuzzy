@@ -3,9 +3,9 @@
 Stand: 2026-07-23
 
 Status: `TTD-00` ist am 2026-07-23 mit einem statischen, inhaltsfreien
-Domain-Truth-Vertrag akzeptiert. `TTD-01` ist dependency-ready fuer einen
-read-only Boundary-Recon, aber noch nicht geclaimt. `TTD-02` und alle spaeteren
-Slices sowie saemtliche Live-Aktionen bleiben gesperrt.
+Domain-Truth-Vertrag akzeptiert. Nach zwei read-only Boundary-Scouts ist
+`TTD-01` auf genau zwei neuen Service-/Testpfaden geclaimt. `TTD-02` und alle
+spaeteren Slices sowie saemtliche Live-Aktionen bleiben gesperrt.
 
 ## Durable Amendment Claim 2026-07-21
 
@@ -231,11 +231,10 @@ route:
 | TTD-09 | `repo_only` | TTD-02 bis TTD-08 inklusive TTD-07A | End-to-End-Regressionssuite mit Fixtures |
 | TTD-10 | `repo_only` | TTD-09 | Deployment-, Rollback- und Live-Gate-Paket |
 
-`TTD-00` ist akzeptiert. `TTD-01` ist als einziger Nachfolger dependency-ready,
-aber erst nach einem read-only Hotfile- und Service-Boundary-Recon claimbar.
-`TTD-02` und alle spaeteren Slices bleiben bis zur Erfuellung ihrer
-Abhaengigkeiten `blocked_by_dependency`. Der Safe-Queue-Audit ist Discovery,
-kein DAG-Runner.
+`TTD-00` ist akzeptiert. `TTD-01` ist nach einem read-only Hotfile- und
+Service-Boundary-Recon auf zwei neuen Pfaden geclaimt. `TTD-02` und alle
+spaeteren Slices bleiben bis zur Erfuellung ihrer Abhaengigkeiten
+`blocked_by_dependency`. Der Safe-Queue-Audit ist Discovery, kein DAG-Runner.
 
 ## Slices
 
@@ -321,7 +320,36 @@ Akzeptanz:
 
 Owner: Bob
 
-Status: `dependency_ready_read_only_recon_not_claimed`
+Status: `claimed_2026-07-23`
+
+Dependency audit: `TTD-00 ist akzeptiert. Zwei unabhaengige read-only Scouts
+bestaetigten Note.id als stabile Listen-ID, exakt zu pruefenden nullable
+Owner-Scope, bereits vom Frontend erhaltene Item-id-Felder und fehlende
+Revisionierung. Compare-and-Swap auf dem vollstaendigen alten items-JSON
+erlaubt eine sichere neue Service-Grenze ohne Schema- oder Writer-Hotfile-Edit.`
+
+Serialized claim:
+
+- run_id: `abc-ttd01-20260723T212955+0200`
+- thread_id: `/root`
+- owner: `Bob`
+- state: `claimed`
+- acquired_at: `2026-07-23T21:29:55+02:00`
+- lease_expires_at: `2026-07-24T01:29:55+02:00`
+- worktree: `C:\tmp\odysseus-abc-usi09-20260723`
+- allowed_paths:
+  - `src/todo_domain_service.py`
+  - `tests/test_todo_domain_service.py`
+- preserved_hotfiles: `core/database.py`, `core/database_migrations.py`,
+  `routes/note_routes.py`, `src/tool_domains/personal_workspace.py`,
+  `src/tool_implementations.py`, `static/js/notes.js`
+- excluded: alle Tool-, Route-, Digest-, Scheduler-, Memory-, Telegram-,
+  Produktivdaten-, Environment-, Provider-, Network-, Deploy-, Send-,
+  Data-Repair-, Rollover- und Live-Pfade
+- evidence: synthetische file-backed SQLite-Notes-Fixtures, exakter Owner-Scope,
+  Legacy-Read, stabile persistierte Item-IDs auf Service-Mutation,
+  idempotentes Add, fail-closed Textmehrdeutigkeit, bounded Compare-and-Swap,
+  atomarer Commit/Rollback und inhaltsfreie Receipts
 
 Ziel:
 

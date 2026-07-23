@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-07-21T22:21:46+02:00",
+  "updated_at": "2026-07-23T21:29:55+02:00",
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "operator_prioritized_owm22_next_safe_frontier_no_active_claim",
-      "ai_hint": "This is the current gate authority. Operator steering from 2026-07-21 places OWM-22 next after the current in-flight shared-hotfile writer reaches a clean Single-Writer boundary; register TTD-00 only, keep successors dependency-blocked and do not infer implementation or live authority from the roadmap update."
+      "state": "owm22_ttd00_accepted_ttd01_claimed_two_new_paths",
+      "ai_hint": "This is the current gate authority. TTD-00 is accepted. Execute only the exact TTD-01 claim on the two new service/test paths; keep TTD-02 through TTD-10 including TTD-07A dependency-blocked, preserve all Notes writer hotfiles, and infer no productive-data, runtime, deploy, Telegram-send or other live authority."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
