@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T22:38:29+02:00",
-  "status": "ttd02b_manage_todos_facade_routing_claimed_repo_only",
+  "updated_at": "2026-07-23T22:56:24+02:00",
+  "status": "ttd02_accepted_ttd03_recon_next_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd02a_accepted_ttd02b_exact_claim_active",
+    "queue_status": "ttd02_accepted_no_active_claim_ttd03_recon_next",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_ttd01_ttd02a_accepted_ttd02b_claimed_live_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd02_accepted_ttd03_recon_next_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,18 +85,16 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-02A is accepted with fail-closed Memory write boundaries. TTD-02B is now durably claimed on the exact manage_todos facade, registry, dispatcher, intent, prompt and focused-test paths established by the completed read-only recon.",
-        "slice": "TTD-02B-manage-todos-facade-routing",
+        "reason": "TTD-02B is accepted with the owner-safe manage_todos facade, complete registry and prompt projections, fail-closed Memory removal for clear Todo domains, recurring-task precedence and focused synthetic evidence. No new implementation slice is claimed at this stopping boundary.",
+        "slice": "TTD-03-semantic-transactions-and-receipts-read-only-recon",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "implement_and_focus_test_only_the_exact_claimed_ttd02b_paths_no_notes_writer_productive_data_runtime_deploy_send_or_rollover"
+        "safe_default": "resume_with_read_only_ttd03_boundary_recon_then_claim_only_exact_disjoint_repo_paths_no_productive_data_runtime_deploy_send_or_rollover"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-23"
     },
-    "active_claimed_slices": [
-      "TTD-02B-manage-todos-facade-routing"
-    ]
+    "active_claimed_slices": []
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -955,8 +953,8 @@
       "id": "OWM-22",
       "name": "Telegram Todo Domain Truth And Digest Consistency",
       "priority": 4,
-      "status": "ttd00_ttd01_ttd02a_accepted_ttd02b_claimed_live_default_off",
-      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 freezes the topology, TTD-01 adds the accepted canonical owner-scoped atomic service, and accepted TTD-02A now rejects Todo storage at every claimed Memory write boundary. TTD-02B remains to expose the canonical Todo service through tool and intent routing.",
+      "status": "ttd00_through_ttd02_accepted_ttd03_recon_next_live_default_off",
+      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-02 are accepted: the topology is frozen, the canonical owner-scoped atomic service is available through manage_todos, and clear Todo writes fail closed at Memory boundaries. TTD-03 remains to add semantic transaction and receipt evidence.",
       "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "source_gate_family": "telegram_todo_truth",
       "dependencies": [
@@ -969,14 +967,14 @@
       "safe_default": "build_and_test_against_synthetic_notes_memory_and_telegram_fixtures_no_production_data_write_deploy_or_send",
       "user_gate_policy": "No user gate in TTD-00 through TTD-10, including TTD-07A. Repository work uses synthetic owner-scoped data and keeps all live actions disabled. Deployment, production data repair, Telegram smoke and productive session rollover are four separate dormant action-specific gates and each requires its own later operator Go.",
       "execution_protocol": {
-        "queue_registration": "TTD-00, TTD-01 and TTD-02A are accepted. TTD-02B is the only active claim on the exact reconciled facade, registry, dispatcher, intent, prompt and focused-test paths. TTD-03 and TTD-08 remain dependency-ready but unselected, while TTD-04 through TTD-07A and TTD-09 through TTD-10 remain blocked_by_dependency.",
+        "queue_registration": "TTD-00 through TTD-02 are accepted and no claim remains active. Resume with a read-only TTD-03 semantic-transaction and receipt boundary recon before any exact repo-only claim. TTD-08 remains dependency-ready but unselected; TTD-04 through TTD-07A and TTD-09 through TTD-10 remain blocked_by_dependency.",
         "dependency_rule": "Notes remains Todo truth; manage_todos is a domain facade over Notes, Memory rejects Todo storage, Telegram preserves semantic receipts, and every Digest claim requires a read-only include/exclude/schedule postcondition. Daily session rollover limits context but never substitutes old chat prose for domain readback.",
         "scheduling_decision": {
           "operator_priority_effective_at": "2026-07-21",
-          "position": "active_p0_corrective_track_ttd02b_manage_todos_facade_routing_claimed",
+          "position": "active_p0_corrective_track_ttd02_accepted_ttd03_recon_next_no_active_claim",
           "implementation_authority": "current_goal_repo_only_no_live_authority"
         },
-        "future_goal_command": "/goal Setze OWM-22 Telegram Todo Domain Truth repo-only nach TTD-01 fort; beginne mit einem read-only TTD-02 Tool-Routing- und Memory-Validation-Boundary-Recon, claime danach nur exakte uebergebene Pfade und fuehre weder Produktionsdaten-Korrektur noch Deployment, Telegram-Live-Smoke oder produktives Session-Rollover aus."
+        "future_goal_command": "/goal Setze OWM-22 Telegram Todo Domain Truth repo-only nach akzeptiertem TTD-02 fort; beginne mit einem read-only TTD-03 Semantic-Transaction- und Receipt-Boundary-Recon, claime danach nur exakte uebergebene Pfade und fuehre weder Produktionsdaten-Korrektur noch Deployment, Telegram-Live-Smoke oder produktives Session-Rollover aus."
       },
       "activation_contract": {
         "id": "TTD-LIVE-DEPLOY",
@@ -2444,7 +2442,7 @@
       "id": "TTD-02B-manage-todos-facade-routing",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_2026-07-23",
+      "status": "accepted_2026-07-23",
       "claimable": false,
       "depends_on": [
         "TTD-00 accepted",
@@ -2514,10 +2512,11 @@
           "src/builtin_actions.py",
           "plugins/telegram/plugin.py"
         ],
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-07-23T22:27:28+02:00",
         "lease_expires_at": "2026-07-24T02:27:28+02:00",
-        "handoff_required": true,
+        "released_at": "2026-07-23T22:56:24+02:00",
+        "handoff_required": false,
         "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
         "new_paths": true,
         "dependency_sha256": {
@@ -2567,6 +2566,27 @@
             "model": "gpt-5.6-sol"
           }
         },
+        "actual": {
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "evidence": "root surface"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "evidence": "Bob implemented the exact 19 claimed facade, registry, dispatcher, policy, index, intent, prompt, audit and focused-test paths"
+          },
+          "review": {
+            "model": "gpt-5.6-sol",
+            "depth": "deep",
+            "result": "approved after one rejected handoff, a worker correction round, independent focused verification and a root-owned prompt-boundary cleanup"
+          }
+        },
         "fallback": "none"
       },
       "evidence": {
@@ -2593,12 +2613,74 @@
           "focused_tests_and_drift_check"
         ],
         "temporal_window": "none",
-        "positive_path_required": true
+        "positive_path_required": true,
+        "observed_at": "2026-07-23T22:56:24+02:00",
+        "result": {
+          "focused_tests": 54,
+          "blocking_failures": 0,
+          "nonblocking_warning_count": 1,
+          "warning": "existing SQLAlchemy declarative_base deprecation",
+          "transient_environment_issue_count": 1,
+          "transient_environment_issue": "One reused Windows pytest basetemp denied access; the identical focused suite passed with a fresh unique C:\\tmp basetemp.",
+          "claimed_paths_changed": 19,
+          "outside_claim_paths": 0,
+          "registered_runtime_tool_delta": 1,
+          "native_function_schema_delta": 1,
+          "admin_fallback_delta": 1,
+          "static_prompt_sections": 69,
+          "static_prompt_characters": 40208,
+          "owner_and_full_ref_forwarding": "green",
+          "all_facade_actions_and_aliases": "green",
+          "literal_boolean_remove_confirmation_before_service": "green",
+          "content_free_receipts_and_public_errors": "green",
+          "schema_parser_catalog_dispatch_policy_index_prompt_parity": "green",
+          "english_german_typo_multiline_todo_routing": "green",
+          "recurring_task_precedence": "green",
+          "todo_domain_memory_removal_after_final_tool_selection": "green",
+          "normal_memory_notes_reminders_and_scheduled_task_routes": "green",
+          "existing_notes_writer_todo_service_memory_policy_telegram_productive_data_runtime_live_changes": 0,
+          "whitespace_check": "green"
+        }
       },
       "tests": [
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_manage_todos_tool.py tests\\test_manage_todos_wiring.py tests\\test_action_intents.py tests\\test_builtin_tool_catalog.py::test_catalog_is_sorted_unique_and_has_the_frozen_projection_counts tests\\test_builtin_tool_catalog.py::test_every_current_static_projection_is_strictly_validated_by_the_catalog tests\\test_audit_tool_registry_drift.py::test_repository_inventory_reproduces_tax0_baseline tests\\test_audit_tool_registry_drift.py::test_known_runtime_schema_and_admin_differences_are_exact tests\\test_tool_index_schema_parity.py tests\\test_memory_todo_validation.py",
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider --basetemp C:\\tmp\\odysseus-ttd02b-sol-cd91a3 tests\\test_manage_todos_tool.py tests\\test_manage_todos_wiring.py tests\\test_action_intents.py tests\\test_builtin_tool_catalog.py::test_catalog_is_sorted_unique_and_has_the_frozen_projection_counts tests\\test_builtin_tool_catalog.py::test_every_current_static_projection_is_strictly_validated_by_the_catalog tests\\test_audit_tool_registry_drift.py::test_repository_inventory_reproduces_tax0_baseline tests\\test_audit_tool_registry_drift.py::test_known_runtime_schema_and_admin_differences_are_exact tests\\test_tool_index_schema_parity.py tests\\test_memory_todo_validation.py",
         "git diff --check -- src/tool_domains/todos.py src/tool_implementations.py src/tool_execution.py src/agent_tools/__init__.py src/builtin_tool_catalog.py src/tool_parsing.py src/tool_schema_definitions.py src/tool_index.py src/tool_policy.py src/action_intents.py src/agent_loop_intent.py src/agent_loop_prompts.py src/agent_loop.py scripts/audit_tool_registry_drift.py tests/test_manage_todos_tool.py tests/test_manage_todos_wiring.py tests/test_action_intents.py tests/test_builtin_tool_catalog.py tests/test_audit_tool_registry_drift.py"
       ],
+      "artifact_hashes": {
+        "scripts/audit_tool_registry_drift.py": "725FC44C936712783E4D239F55B7C9644D8BE685FA1CCA0ABACFF87131F6E7B2",
+        "src/action_intents.py": "00C639688B45F17B59599E578B30D6A1572DC3AC5824681A79A59DC6B30FC0D7",
+        "src/agent_loop.py": "59B440F58CEFF06C944F163B28C548CAC9E4F0F819F63F483F01A694883F557C",
+        "src/agent_loop_intent.py": "0E87C68540ECB037FE4DCD263DA7C210A43FD4ADC87EC7105880E1F676B2F49D",
+        "src/agent_loop_prompts.py": "EB54D76B7D84F6AAB8B1BA343E379564B639F16BA135ACC8E673E0543EC60D16",
+        "src/agent_tools/__init__.py": "D4F03D207C5F94E71A77776472B62A84E52B9A18940530938E4E331C2B7AB2C9",
+        "src/builtin_tool_catalog.py": "63D4C5A0A70415F900188059AA14B14126859FB3912647F8B7694BABD7B90AFE",
+        "src/tool_domains/todos.py": "B4AEDFCA479423EE2543D94903376B0E357FC17323F0308D887773FDE726478E",
+        "src/tool_execution.py": "58AC0A63E7F931306E761574A2A368DEDA74BFDD246CFC0A2045D3D2787F8C2B",
+        "src/tool_implementations.py": "F957902F5FA18F597E3B316A75C3DE4781248CB1BE20D6C8D82B1B5710C1624F",
+        "src/tool_index.py": "59F50C56487A8F79EA4782C7ED701E32794815FE847E1C373D429C6FAFB8CD7E",
+        "src/tool_parsing.py": "E789081B4A67DA6455DC6CF0C09CBF052DD6CD48767ADAE3349D9ABA9BE5C03D",
+        "src/tool_policy.py": "77464983060E936A65680BE5C72771A91E30E501CA78239765874502CBC999A2",
+        "src/tool_schema_definitions.py": "282B7D709BF6EEEE10C65EE7F9E62F59E1909018AB6EED9BE8A71144147A7619",
+        "tests/test_action_intents.py": "6D4CDCA2CF7CAC307F09B719577A5020850979F757F949A5FEA37BB002290B9B",
+        "tests/test_audit_tool_registry_drift.py": "E69934A715326E33D5287A3DCA3C1D576F7E0C2EFBC4DC4266CBABCD465D606C",
+        "tests/test_builtin_tool_catalog.py": "9CC939F19ACAE5921C3FC4AE7296D49F9333F2AA0C945F1592F7CF248C67A534",
+        "tests/test_manage_todos_tool.py": "A0D5D04E345413721513A24DE4EFAA780ABDF2D3AD5781BA2F545137969BFF11",
+        "tests/test_manage_todos_wiring.py": "0968BC3A3CBD2F386D6713A803F9FB2D963F73D6C00663A6162F64B770FE796F"
+      },
+      "implementation_commit": "1dc160ad041a4030d354066caf3ca92ab537d7f1",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes_focused",
+        "reviewed": "yes_deep_sol",
+        "committed": "yes_local",
+        "pushed": "no",
+        "deployed": "na",
+        "live_validated": "na",
+        "product_complete": "no"
+      },
+      "acceptance": "offline_go_owner_safe_manage_todos_facade_complete_registry_routing_and_memory_fail_closed_with_recurring_precedence",
+      "next_frontier": "No active claim at the operator stopping boundary. Resume with read-only TTD-03 semantic-transaction and receipt recon; TTD-08 remains dependency-ready but unselected and all live actions remain disabled.",
       "done_when": "The accepted Todo service is reachable through one owner-exact manage_todos facade with safe confirmation and error contracts; every native schema, parser, catalog, dispatcher, policy, index, intent and prompt surface agrees; one narrow post-domain agent-loop gate removes manage_memory for clear English and German Todo intents across normal retrieval and fallback; normal Memory facts, Notes/reminders and recurring tasks keep their established routes; and focused synthetic tests prove no existing writer, productive-data, runtime or live mutation."
     },
     {
@@ -7665,7 +7747,7 @@
     }
   ],
   "recommended_execution_order": [
-    "OWM-22 Telegram Todo Domain Truth And Digest Consistency: TTD-00 and TTD-01 are accepted; perform only a read-only TTD-02 tool-routing and Memory-validation boundary recon before the next claim, leave TTD-03 and TTD-08 dependency-ready but unselected, keep all later unmet successors blocked, keep Notes canonical and all production data unchanged, and leave deploy/send/productive rollover disabled until TTD-10 has prepared four separate live packets.",
+    "OWM-22 Telegram Todo Domain Truth And Digest Consistency: TTD-00 through TTD-02 are accepted; perform only a read-only TTD-03 semantic-transaction and receipt boundary recon before the next exact repo-only claim, leave TTD-08 dependency-ready but unselected, keep later unmet successors blocked, keep Notes canonical and all production data unchanged, and leave deploy/send/productive rollover disabled until TTD-10 has prepared four separate live packets.",
     "OWM-23 Agent Maintenance Safety Harness: after an explicit goal or Open Work reprioritization, open AMH-01 through AMH-03 only on disjoint handed-off paths; preserve Planning JSON and existing gate/claim authorities, keep AMH-04 onward dependency-blocked, and perform no automatic commit, push, deploy or live action.",
     "OWM-11 Tool Taxonomy, Registration And Lifecycle: execute TAX0 then TAX1 and continue the detailed repo-only queue without user gates; keep the feature disabled until the single final activation decision.",
     "OWM-12 Privacy-Safe Tool Usage Analytics: after TAX1, start the disjoint privacy/store baseline; wait for TAX5/TAX7/TAX10 at shared integration points and keep capture/backfill disabled until the single final activation decision.",

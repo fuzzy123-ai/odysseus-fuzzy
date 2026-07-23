@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_ttd02a_accepted_ttd02b_manage_todos_facade_routing_claimed",
-      "ai_hint": "This is the current gate authority. TTD-00, TTD-01 and TTD-02A are accepted. Implement only the active exact TTD-02B manage_todos facade, registry, dispatcher, policy, index, intent, prompt, one narrow post-domain agent-loop Memory-removal gate, the exact one-tool TAX0 audit-baseline advance and focused tests. Preserve the existing Notes writer, accepted Todo service, Memory policy and all other agent-loop and Telegram behavior. TTD-03 and TTD-08 remain unselected; no productive-data, runtime, deploy, Telegram-send or other live authority is granted."
+      "state": "owm22_ttd00_through_ttd02_accepted_ttd03_recon_next_no_active_claim",
+      "ai_hint": "This is the current gate authority. TTD-00 through TTD-02 are accepted and no implementation claim remains active. Resume with a read-only TTD-03 semantic-transaction and receipt boundary recon, then claim only exact disjoint repo-only paths. Keep TTD-08 unselected and later unmet successors dependency-blocked. Preserve Notes truth, the accepted Todo service and manage_todos facade, Memory policy, current agent-loop and Telegram behavior; no productive-data, runtime, deploy, Telegram-send or other live authority is granted."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
@@ -744,8 +744,8 @@
     {
       "path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "profile": "active_serial",
-      "state": "operator_prioritized_p0_next_safe_frontier_not_started_live_default_off",
-      "ai_hint": "Operator steering from 2026-07-21 places this at the next clean Single-Writer boundary; then claim TTD-00 only and keep all successors, including TTD-07A daily rollover, dependency-blocked. Keep Notes as the sole Todo truth, add no Memory mirror, serialize Agent/Telegram/truth-gate hotfiles, use synthetic owner-scoped fixtures, and stop before each independent deploy, production data repair, Telegram smoke or productive rollover gate."
+      "state": "ttd00_through_ttd02_accepted_ttd03_recon_next_no_active_claim_live_default_off",
+      "ai_hint": "TTD-00 through TTD-02 are accepted and no implementation claim is active. Resume with a read-only TTD-03 semantic-transaction and receipt boundary recon, then claim only exact disjoint repo-only paths. Keep TTD-08 unselected and later unmet successors dependency-blocked. Notes remains the sole Todo truth; preserve the accepted service, manage_todos facade, Memory fail-closed policy and current Agent/Telegram behavior, and stop before each independent deploy, production data repair, Telegram smoke or productive rollover gate."
     },
     {
       "path": "docs/plans/telegram-dual-session-router-hotfix-roadmap.md",

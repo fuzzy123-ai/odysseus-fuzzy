@@ -2,11 +2,10 @@
 
 Stand: 2026-07-23
 
-Status: `TTD-00`, `TTD-01` und `TTD-02A` sind am 2026-07-23 akzeptiert. Der
-read-only `TTD-02`-Boundary-Recon ist abgeschlossen. `TTD-02B` ist als
-exakter repo-only Fassade-/Registry-/Intent-Slice geclaimt. `TTD-03` und
-`TTD-08` sind dependency-ready, bleiben jedoch unselektiert; spaetere unmet
-Slices und saemtliche Live-Aktionen bleiben gesperrt.
+Status: `TTD-00` bis `TTD-02` sind am 2026-07-23 akzeptiert. Es besteht kein
+aktiver Claim. Der naechste sichere Schritt ist ein read-only
+`TTD-03`-Boundary-Recon; `TTD-08` bleibt dependency-ready und unselektiert.
+Spaetere unmet Slices und saemtliche Live-Aktionen bleiben gesperrt.
 
 ## Durable Amendment Claim 2026-07-21
 
@@ -404,7 +403,7 @@ Akzeptanz:
 
 Owner: Bob
 
-Status: `ttd02a_accepted_ttd02b_claimed`
+Status: `accepted_2026-07-23`
 
 Serialisierung und Acceptance:
 
@@ -434,7 +433,7 @@ Serialisierung und Acceptance:
 - `TTD-02B-manage-todos-facade-routing`
   - Owner: Bob
   - Run: `abc-ttd02b-20260723T222728+0200`
-  - Status: `claimed_2026-07-23`
+  - Status: `accepted_2026-07-23`
   - Exakte Pfade: neue `manage_todos`-Fassade, bestehende Import-/Dispatch-,
     Parser-, Katalog-, Schema-, Index-, Policy-, Intent- und Prompt-Projektionen
     ein enges post-Domain `agent_loop.py`-Memory-Removal-Gate sowie zwei neue
@@ -447,6 +446,28 @@ Serialisierung und Acceptance:
   - Verboten: bestehender Notes-Writer, Todo-Service, Memory-Policy, alle
     sonstigen `agent_loop.py`-Aenderungen, Telegram-, produktive Daten-,
     Runtime-, Provider-, Deploy- und Live-Aenderungen
+  - Implementierungs-Commit:
+    `1dc160ad041a4030d354066caf3ca92ab537d7f1`
+  - Evidence: 54 fokussierte Tests; alle Aktionen und Aliasse, exakte Owner- und
+    Voll-Refs, idempotentes Add, literal-bool Remove-Bestaetigung vor
+    Service-Erzeugung, sichere Fehlercodes und inhaltsfreie Receipts gruen;
+    Schema/Parser/Katalog/Dispatcher/Policy/Index/Prompt-Projektionen gruen;
+    Englisch/Deutsch, Singular/Plural, Mehrzeilen, Tippfehler und
+    Recurring-vor-Todo-Routing gruen; Runtime-/Schema-/Admin-Fallback-Zaehler
+    jeweils exakt +1; 69 statische Prompt-Sektionen bei 40.208 Zeichen
+  - Scope-Evidence: exakt 19 geclaimte Pfade, 0 Pfade ausserhalb des Claims,
+    `git diff --check` gruen, 0 bestehende Notes-Writer-, Todo-Service-,
+    Memory-Policy-, Telegram-, produktive Daten-, Runtime- oder Live-Aenderungen
+  - Deep-Sol-Review: erster Handoff abgelehnt; nach Worker-Korrekturrunde,
+    unabhaengiger fokussierter Verifikation und root-owned Prompt-Boundary-
+    Bereinigung akzeptiert
+  - Claim: `released_2026-07-23T22:56:24+02:00`
+  - Local only: kein Push, Deploy, produktiver Datenzugriff oder Live-Smoke
+  - Acceptance:
+    `offline_go_owner_safe_manage_todos_facade_complete_registry_routing_and_memory_fail_closed_with_recurring_precedence`
+  - Naechster Frontier: kein aktiver Claim am Stoppunkt; mit read-only
+    `TTD-03`-Recon fortsetzen. `TTD-08` bleibt dependency-ready und
+    unselektiert; alle Live-Aktionen bleiben deaktiviert.
 
 Ziel:
 
