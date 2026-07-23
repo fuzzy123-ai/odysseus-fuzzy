@@ -3,9 +3,9 @@
 Stand: 2026-07-21
 
 Status: durch Operator-Steering vom 2026-07-21 als naechster P0-Korrekturtrack
-am naechsten sauberen Single-Writer-Integrationspunkt priorisiert; registriert
-als `OWM-22`, aber durch dieses Roadmap-Authoring noch nicht in die aktive
-Implementierungsqueue aufgenommen.
+am naechsten sauberen Single-Writer-Integrationspunkt priorisiert; dieser Punkt
+ist am 2026-07-23 erreicht und ausschliesslich `TTD-00` ist auf drei neuen
+statischen Pfaden geclaimt. Alle Nachfolger und Live-Aktionen bleiben gesperrt.
 
 ## Durable Amendment Claim 2026-07-21
 
@@ -241,6 +241,38 @@ ist Discovery, kein DAG-Runner.
 
 Owner: Charlie
 
+Status: `claimed_2026-07-23`
+
+Dependency audit: `Aktives Open-Work-Ziel, Operator-Prioritaet vom 2026-07-21,
+saubere Single-Writer-Grenze und kanonische /abc-Guidance sind gruen. Zwei
+unabhaengige read-only Scouts fanden drei neue kollisionsfreie Pfade; alle
+produktiven Notes-, Memory-, Scheduler-, Telegram- und Truth-Gate-Hotfiles
+bleiben unangetastet.`
+
+Serialized claim:
+
+- run_id: `abc-ttd00-20260723T210532+0200`
+- thread_id: `/root`
+- owner: `Charlie`
+- state: `claimed`
+- acquired_at: `2026-07-23T21:05:32+02:00`
+- lease_expires_at: `2026-07-24T01:05:32+02:00`
+- worktree: `C:\tmp\odysseus-abc-usi09-20260723`
+- allowed_paths:
+  - `docs/plans/telegram-todo-domain-truth-contract.json`
+  - `scripts/audit_telegram_todo_domain_truth.py`
+  - `tests/test_audit_telegram_todo_domain_truth.py`
+- excluded_paths: diese Roadmap ausser root-owned Status/Acceptance, alle
+  bestehenden Notes-/Memory-/Scheduler-/Telegram-/Truth-Gate-Dateien, jede
+  produktive Daten-, Environment-, Provider-, Network-, Deploy-, Send-,
+  Data-Repair-, Rollover- und Live-Aktion
+- evidence: `Notes ist aktuelle Todo-Wahrheit und Digest-Quelle. Note.id ist
+  stabil, Note.owner nullable/raw und Checklist-Item-Identitaet indexbasiert.
+  Memory bleibt ein task-foermiges Parallel-Write-Risiko; Scheduler ist nur
+  Schedule/Delivery; Telegram ist Transport/Audit. Todo-Receipts fehlen und
+  der aktuelle Telegram-Pre-Send-Aufruf reicht keine Tool-Events durch. TTD-00
+  friert diese Luecken statisch ein und implementiert keine davon.`
+
 Ziel:
 
 - Aktuelle Notes-, Memory-, Scheduler-, Telegram- und Evidence-Pfade gegen den
@@ -252,8 +284,9 @@ Ziel:
 Allowed paths:
 
 - `docs/plans/telegram-todo-domain-truth-roadmap.md`
-- optional neuer Contract unter `specs/` oder `src/`, ohne Runtime-Wiring
-- fokussierte Contract-Tests
+- `docs/plans/telegram-todo-domain-truth-contract.json`
+- `scripts/audit_telegram_todo_domain_truth.py`
+- `tests/test_audit_telegram_todo_domain_truth.py`
 
 Akzeptanz:
 
