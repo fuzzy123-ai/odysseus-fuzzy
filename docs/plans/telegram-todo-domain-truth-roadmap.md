@@ -2,10 +2,10 @@
 
 Stand: 2026-07-23
 
-Status: `TTD-00` ist am 2026-07-23 mit einem statischen, inhaltsfreien
-Domain-Truth-Vertrag akzeptiert. Nach zwei read-only Boundary-Scouts ist
-`TTD-01` auf genau zwei neuen Service-/Testpfaden geclaimt. `TTD-02` und alle
-spaeteren Slices sowie saemtliche Live-Aktionen bleiben gesperrt.
+Status: `TTD-00` und `TTD-01` sind am 2026-07-23 akzeptiert. `TTD-02` ist als
+naechster read-only Boundary-Recon selektiert, aber noch nicht geclaimt.
+`TTD-03` und `TTD-08` sind dependency-ready, bleiben jedoch unselektiert;
+spaetere unmet Slices und saemtliche Live-Aktionen bleiben gesperrt.
 
 ## Durable Amendment Claim 2026-07-21
 
@@ -231,10 +231,11 @@ route:
 | TTD-09 | `repo_only` | TTD-02 bis TTD-08 inklusive TTD-07A | End-to-End-Regressionssuite mit Fixtures |
 | TTD-10 | `repo_only` | TTD-09 | Deployment-, Rollback- und Live-Gate-Paket |
 
-`TTD-00` ist akzeptiert. `TTD-01` ist nach einem read-only Hotfile- und
-Service-Boundary-Recon auf zwei neuen Pfaden geclaimt. `TTD-02` und alle
-spaeteren Slices bleiben bis zur Erfuellung ihrer Abhaengigkeiten
-`blocked_by_dependency`. Der Safe-Queue-Audit ist Discovery, kein DAG-Runner.
+`TTD-00` und `TTD-01` sind akzeptiert. Als naechster Schritt ist nur der
+read-only `TTD-02`-Boundary-Recon selektiert. `TTD-03` und `TTD-08` sind nach
+dem DAG ebenfalls dependency-ready, bleiben aber unselektiert. Alle spaeteren
+Slices mit offenen Abhaengigkeiten bleiben `blocked_by_dependency`. Der
+Safe-Queue-Audit ist Discovery, kein DAG-Runner.
 
 ## Slices
 
@@ -320,7 +321,7 @@ Akzeptanz:
 
 Owner: Bob
 
-Status: `claimed_2026-07-23`
+Status: `accepted_2026-07-23`
 
 Dependency audit: `TTD-00 ist akzeptiert. Zwei unabhaengige read-only Scouts
 bestaetigten Note.id als stabile Listen-ID, exakt zu pruefenden nullable
@@ -333,9 +334,10 @@ Serialized claim:
 - run_id: `abc-ttd01-20260723T212955+0200`
 - thread_id: `/root`
 - owner: `Bob`
-- state: `claimed`
+- state: `released`
 - acquired_at: `2026-07-23T21:29:55+02:00`
 - lease_expires_at: `2026-07-24T01:29:55+02:00`
+- released_at: `2026-07-23T21:52:19+02:00`
 - worktree: `C:\tmp\odysseus-abc-usi09-20260723`
 - allowed_paths:
   - `src/todo_domain_service.py`
@@ -350,6 +352,27 @@ Serialized claim:
   Legacy-Read, stabile persistierte Item-IDs auf Service-Mutation,
   idempotentes Add, fail-closed Textmehrdeutigkeit, bounded Compare-and-Swap,
   atomarer Commit/Rollback und inhaltsfreie Receipts
+
+Implementation und Acceptance:
+
+- Implementierungs-Commit:
+  `790e0f0f9e257fe42b5af63fd31ca87b419dbb0c`
+- Artefakte: neuer injizierbarer Notes-Todo-Domain-Service und fokussierte
+  synthetische file-backed SQLite-Regressionssuite
+- Evidence: 5 Operationen, exakter Owner-/Full-Note-ID-Scope,
+  Legacy-Read inklusive optionalem `done`, Frontend-Base36- und UUID-Item-Refs,
+  stabile IDs auf Mutation, 0 raw Idempotency Keys, deterministisches Add,
+  fail-closed Mehrdeutigkeit und Metadata-Races sowie 0 Lost Updates im
+  Add/Complete-Race
+- Verifikation: `25 passed`; Cached-Diff-Check gruen; eine bekannte
+  nicht-blockierende SQLAlchemy-`declarative_base`-Warnung
+- Deep-Sol-Review: nach drei Review-Runden akzeptiert
+- Local only: kein Push, Deploy, Tool-/Route-Wiring, produktiver Datenzugriff
+  oder Telegram-Smoke
+- Acceptance:
+  `offline_go_owner_exact_atomic_notes_todo_service_stable_refs_idempotent_add_and_bounded_cas_without_writer_wiring`
+- Naechster Frontier: `TTD-02` read-only Boundary-Recon; noch nicht geclaimt.
+  `TTD-03` und `TTD-08` sind dependency-ready, aber unselektiert.
 
 Ziel:
 
@@ -376,6 +399,8 @@ Akzeptanz:
 ### TTD-02 - `manage_todos`, Routing und Memory-Validierung
 
 Owner: Bob
+
+Status: `selected_read_only_recon_not_claimed`
 
 Ziel:
 
@@ -406,6 +431,8 @@ Akzeptanz:
 ### TTD-03 - Semantische Transaktionen und Todo-Receipts
 
 Owner: Bob
+
+Status: `dependency_ready_not_selected`
 
 Ziel:
 
@@ -613,6 +640,8 @@ Akzeptanz:
 ### TTD-08 - Telegram History Privacy Contract
 
 Owner: Charlie
+
+Status: `dependency_ready_not_selected`
 
 Ziel:
 

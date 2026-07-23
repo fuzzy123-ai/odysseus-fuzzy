@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-07-23T21:29:55+02:00",
+  "updated_at": "2026-07-23T21:52:19+02:00",
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_ttd00_accepted_ttd01_claimed_two_new_paths",
-      "ai_hint": "This is the current gate authority. TTD-00 is accepted. Execute only the exact TTD-01 claim on the two new service/test paths; keep TTD-02 through TTD-10 including TTD-07A dependency-blocked, preserve all Notes writer hotfiles, and infer no productive-data, runtime, deploy, Telegram-send or other live authority."
+      "state": "owm22_ttd00_ttd01_accepted_ttd02_read_only_recon_next",
+      "ai_hint": "This is the current gate authority. TTD-00 and TTD-01 are accepted. Perform only a read-only TTD-02 tool-routing and Memory-validation boundary recon before any new claim; TTD-03 and TTD-08 are dependency-ready but unselected, TTD-04 through TTD-07A and TTD-09 through TTD-10 remain dependency-blocked, and no productive-data, runtime, deploy, Telegram-send or other live authority is granted."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
