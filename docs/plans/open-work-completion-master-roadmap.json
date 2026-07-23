@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T16:28:48+02:00",
-  "status": "uix_abc20_p0_preview_adapters_in_progress",
+  "updated_at": "2026-07-23T16:48:58+02:00",
+  "status": "uix_abc20_complete_uix_abc22_ready",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Bearbeite die offenen Odysseus-Feature-Roadmaps dependency-gesteuert ueber Open Work; beginne mit UIX-ABC20, danach UIX-ABC22, repo-only und ohne breite Tests, Push, Deploy oder Live-Mutation.",
   "goal": "Advance the dependency-ready Open Work feature-roadmap frontier with bounded repo-only claims, focused verification, Sol-reviewed Terra handoffs, durable evidence and local commits.",
@@ -12,8 +12,8 @@
     "safe_open_json_slices": 1,
     "unique_live_gates": 40,
     "unique_design_gates": 27,
-    "other_open_json_items": 34,
-    "queue_status": "uix_abc20_claimed_uix_abc22_remains_dependency_ready",
+    "other_open_json_items": 32,
+    "queue_status": "uix_abc20_complete_uix_abc21_handoff_gated_uix_abc22_dependency_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,14 +21,14 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "agent_maintenance_safety": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "universal_inbox_workbench": "uix_abc20_p0_preview_adapters_in_progress",
+      "universal_inbox_workbench": "uix_abc20_complete_uix_abc22_ready",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
       "safe_open_count": 1,
-      "other_open_count": 34,
+      "other_open_count": 32,
       "unique_live_gate_count": 40,
       "unique_design_gate_count": 27,
       "decision_packet_families": [
@@ -60,10 +60,10 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "UIX-ABC20 is durably claimed for exactly three isolated frontend paths. Implement bounded, abortable P0 preview adapters while UIX-ABC22 remains the next dependency-ready repo-only slice.",
-        "slice": "UIX-ABC20",
+        "reason": "UIX-ABC20 is locally accepted and its claim is released. UIX-ABC21 is dependency-ready but remains unclaimable until its fresh document hotfile handoff; UIX-ABC22 is the next dependency-ready repo-only slice.",
+        "slice": "UIX-ABC22",
         "user_decision_required": false,
-        "safe_default": "execute_only_the_claimed_uix_abc20_paths_repo_only"
+        "safe_default": "claim_only_a_bounded_uix_abc22_path_set_repo_only"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
@@ -73,10 +73,11 @@
       "UIX-ABC22"
     ],
     "product_semantics_gated_open_slices": [],
-    "handoff_gated_open_slices": [],
+    "handoff_gated_open_slices": [
+      "UIX-ABC21"
+    ],
     "design_gated_open_slices": [],
     "dependency_blocked_slices": [
-      "UIX-ABC21",
       "UIX-ABC23",
       "UIX-ABC24"
     ]
@@ -1855,7 +1856,7 @@
       "title": "P0 Preview Adapters",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_in_progress",
+      "status": "completed",
       "claimable": false,
       "depends_on": [
         "UIX-ABC16",
@@ -1878,10 +1879,12 @@
           "tests/frontend/harbor-one-inbox-preview.spec.js"
         ],
         "hotfiles": [],
-        "state": "claimed",
+        "state": "released_complete",
         "acquired_at": "2026-07-23T16:28:48+02:00",
         "lease_expires_at": "2026-07-23T20:28:48+02:00",
-        "handoff_required": true
+        "handoff_required": true,
+        "released_at": "2026-07-23T16:48:58+02:00",
+        "resolution_commit": "63db76ce"
       },
       "allowed_paths": [
         "static/frontpage-v3/inbox-preview.js",
@@ -1955,26 +1958,40 @@
           }
         },
         "actual": {
-          "skills": [],
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            },
+            {
+              "id": "impeccable",
+              "status": "loaded_used"
+            },
+            {
+              "id": "playwright",
+              "status": "loaded_used"
+            }
+          ],
           "master": {
             "model": "gpt-5.6-sol",
             "evidence": "root surface"
           },
           "worker": {
-            "model": "pending",
-            "evidence": "pending spawn"
+            "model": "gpt-5.6-terra",
+            "effort": "high",
+            "evidence": "Bob handoff_ready after two deep-review correction rounds; exact three-path claim respected"
           },
           "review": {
-            "model": "pending",
+            "model": "gpt-5.6-sol",
             "depth": "deep",
-            "result": "pending"
+            "result": "pass"
           }
         },
         "fallback": "none"
       },
       "evidence": {
         "target_environment": "local",
-        "observed_at": "2026-07-23T16:28:48+02:00",
+        "observed_at": "2026-07-23T16:48:58+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -1985,6 +2002,20 @@
         "temporal_window": "none",
         "positive_path_required": true
       },
+      "local_acceptance_evidence": "Commit 63db76ce; four focused Playwright tests passed independently with one worker in 3.6 seconds, covering inert bounded text, authoritative capabilities and metadata gates, abort/stale suppression, strict response headers and range semantics, sandboxed PDF object-URL lifecycle, extraction-only DOCX, fail-closed unsupported/error states, desktop/mobile containment, reduced motion and zero live mutation. JavaScript syntax and git diff checks passed. Desktop and mobile screenshots were written outside the repository and visually inspected; the Impeccable deterministic detector reported []. No workbench integration, broad test suite, push, deployment, provider access or live mutation occurred.",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "deep_pass",
+        "committed": "63db76ce",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "yes_local_synthetic_fixture",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      },
+      "completed_at": "2026-07-23T16:48:58+02:00",
       "done_when": "Markdown/Text, existing PDF and DOCX-extraction previews are bounded, abortable and revoke object URLs without script, form, navigation or network execution."
     },
     {
@@ -1992,7 +2023,9 @@
       "title": "Working-Copy Editor And Diff Bridge",
       "class": "repo_only",
       "owner": "/root",
-      "status": "blocked_by_dependency",
+      "status": "open",
+      "claimable": false,
+      "claim_blocker": "fresh handoff before static/js/document.js",
       "depends_on": [
         "UIX-ABC17",
         "UIX-ABC19",
@@ -3055,5 +3088,5 @@
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "No new human decision is required for the next bounded repo-only step: UIX-ABC20 is dependency-ready, with UIX-ABC22 also open behind it in priority order. Provider access, external delivery and every live-write authority remain closed."
+  "recommended_next_human_decision": "No new human decision is required for the next bounded repo-only step: UIX-ABC22 is dependency-ready. UIX-ABC21 remains open but unclaimable until its fresh document hotfile handoff; provider access, external delivery and every live-write authority remain closed."
 }
