@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T07:58:00+02:00",
+  "updated_at": "2026-07-23T08:05:00+02:00",
   "status": "repo_frontier_exhausted_waiting_on_handoffs_and_gates",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Implementiere OWM-23 Agent Maintenance Safety Harness repo-only; beginne mit AMH-01, halte Nachfolger dependency-gated, bewahre fremde Worktree-Aenderungen und fuehre weder Live-Aktionen noch ungefragte Pushes aus.",
@@ -9,11 +9,11 @@
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 0,
+    "safe_open_json_slices": 2,
     "unique_live_gates": 40,
     "unique_design_gates": 16,
     "other_open_json_items": 34,
-    "queue_status": "uix_abc13_claimed_repo_only_implementation_running",
+    "queue_status": "uix_abc13_completed_uix_abc14_and_uix_abc15_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,7 +21,7 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "agent_maintenance_safety": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "universal_inbox_workbench": "uix_abc13_product_semantics_confirmed_implementation_running",
+      "universal_inbox_workbench": "uix_abc13_completed_uix_abc14_and_uix_abc15_ready",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
@@ -60,21 +60,21 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "The owner confirmed the exact UIX-ABC13 product semantics; the bounded repo-only capability-contract claim is running.",
-        "slice": "UIX-ABC13",
+        "reason": "UIX-ABC13 is locally implemented and focused-tested; UIX-ABC14 is the next declared product-order slice and UIX-ABC15 is independently dependency-ready.",
+        "slice": "UIX-ABC14",
         "user_decision_required": false,
-        "safe_default": "implement_only_the_claimed_server_side_contract_and_focused_tests"
+        "safe_default": "claim_one_minimum_path_uix_abc14_subset_without_gated_hotfiles"
       },
       "queue_exhausted": true,
       "detail_roadmap_frontier_exists": false,
       "verified_at": "2026-07-16"
     },
-    "dependency_ready_repo_only_slices": [],
-    "product_semantics_gated_open_slices": [],
-    "active_repo_only_slice": "UIX-ABC13",
-    "dependency_blocked_slices": [
+    "dependency_ready_repo_only_slices": [
       "UIX-ABC14",
-      "UIX-ABC15",
+      "UIX-ABC15"
+    ],
+    "product_semantics_gated_open_slices": [],
+    "dependency_blocked_slices": [
       "UIX-ABC16",
       "UIX-ABC17",
       "UIX-ABC18",
@@ -1110,8 +1110,8 @@
       "title": "Authoritative Workbench Capability Contract",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_implementation_running",
-      "claimable": true,
+      "status": "completed_local_repo_evidence_2026-07-23",
+      "claimable": false,
       "claim_blocker": "UIX-WORKBENCH-PRODUCT-SEMANTICS-CONFIRMATION",
       "gate_resolution": {
         "state": "confirmed",
@@ -1141,9 +1141,11 @@
           "tests/test_universal_inbox_workbench.py"
         ],
         "hotfiles": [],
-        "state": "claimed",
+        "state": "released_after_local_acceptance",
         "acquired_at": "2026-07-23T07:58:00+02:00",
         "lease_expires_at": "2026-07-23T10:00:00+02:00",
+        "released_at": "2026-07-23T08:05:00+02:00",
+        "completion_commit": "066c0c70",
         "handoff_required": false
       },
       "source_roadmap": "docs/plans/universal-inbox-abc-roadmap.md",
@@ -1154,6 +1156,18 @@
       "tests": [
         "venv\\Scripts\\python.exe -m pytest tests\\test_universal_inbox_workbench.py tests\\test_universal_inbox_file_types.py"
       ],
+      "local_acceptance_evidence": "Commit 066c0c70; 29 focused workbench and file-type tests passed in 1.30 seconds with one pre-existing SQLAlchemy deprecation warning and one host pytest-cache warning; path-scoped diff check passed.",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "066c0c70",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      },
       "gate": "Confirm document-focus semantics, immutable original, versioned working copy, explainable dry-run routing, local browser download, server authority and advisory browser detection. This gate grants no UI design, hotfile or live-write authority.",
       "done_when": "A pure server-side capability/action-state contract covers inspect, route_dry_run, create_working_copy, edit_working_copy, download_original and export_working_copy with stable reasons and no file, network, database, provider or UI access."
     },
@@ -1162,7 +1176,8 @@
       "title": "Owner-Scoped Inbox Browse And Aggregate Snapshot",
       "class": "repo_only",
       "owner": "/root",
-      "status": "blocked_by_dependency",
+      "status": "open",
+      "claimable": true,
       "depends_on": [
         "UIX-ABC13"
       ],
@@ -1178,6 +1193,7 @@
       "gates": [
         "UIX-WORKBENCH-HOTFILE-HANDOFF for app.py and tests/test_workspace_snapshot.py"
       ],
+      "claim_scope": "Claim only a minimum-path subset that excludes app.py and tests/test_workspace_snapshot.py until the named hotfile handoff is granted.",
       "done_when": "Owner-scoped paginated browse and a content-free aggregate snapshot are tested without absolute paths or raw content."
     },
     {
@@ -1185,7 +1201,8 @@
       "title": "Advisory Intake And Detection Modules",
       "class": "repo_only",
       "owner": "/root",
-      "status": "blocked_by_dependency",
+      "status": "open",
+      "claimable": true,
       "depends_on": [
         "UIX-ABC13"
       ],
@@ -2374,5 +2391,5 @@
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "None for UIX-ABC13 implementation. Complete only the confirmed server-side capability contract and focused tests; keep UI design, hotfile and every live-write authority closed."
+  "recommended_next_human_decision": "None required for the next repo-only step. Claim UIX-ABC14 first with a minimum path set that excludes app.py and tests/test_workspace_snapshot.py; UIX-ABC15 is also dependency-ready. UI design, hotfile and every live-write authority remain closed."
 }
