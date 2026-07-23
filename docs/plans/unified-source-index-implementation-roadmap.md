@@ -2,7 +2,7 @@
 
 Stand: 2026-07-23
 
-Status: `USI-09_accepted / USI-13_dependency_ready / runtime_default_off`
+Status: `USI-09_accepted / USI-13_claimed / runtime_default_off`
 
 Master-Track: `0.28.x`, `OWM-15`, `L21`
 
@@ -704,7 +704,28 @@ handoff; no USI worker may edit them independently.
 
 - Class: `repo_only`
 - Owner: Bob
-- Status: `dependency_ready_2026-07-23`
+- Status: `claimed_2026-07-23`
+- Dependency audit: `USI-03 through USI-12 accepted; all four declared paths
+  are new; read-only recon found no unavoidable frozen-core edit`
+- Serialized claim:
+  - run_id: `abc-usi13-20260723T193742+0200`
+  - thread_id: `/root`
+  - owner: `Bob`
+  - state: `claimed`
+  - acquired_at: `2026-07-23T19:37:42+02:00`
+  - lease_expires_at: `2026-07-23T23:37:42+02:00`
+  - worktree: `C:\tmp\odysseus-abc-usi09-20260723`
+  - allowed_paths: `src/unified_source_index_backup.py`,
+    `scripts/benchmark_unified_source_index.py`,
+    `tests/test_unified_source_index_backup.py`, and
+    `tests/test_unified_source_index_scale.py`
+  - excluded_paths: existing SQLite/migration/store/lexical/embedding/RAPTOR
+    core, every app/runtime initializer, productive database, provider, host,
+    network and live path
+  - evidence: `External embedding/RAPTOR manifests do not retain replayable
+    sink or worker bindings. Automatic rebuild is therefore limited to FTS;
+    other required projections use explicit injected rebuilders or return an
+    incomplete receipt. Physical samples remain capped and temporary.`
 - Dependencies: `USI-03` through `USI-12`
 - Allowed paths:
   - `src/unified_source_index_backup.py`
@@ -712,15 +733,22 @@ handoff; no USI worker may edit them independently.
   - `tests/test_unified_source_index_backup.py`
   - `tests/test_unified_source_index_scale.py`
 - Work:
-  - consistent SQLite backup and restore to temporary targets;
-  - rebuild all projections from index truth;
-  - 100k+ LOC and million-record synthetic scale profiles;
+  - consistent SQLite backup and restore to fresh contained temporary targets;
+  - rebuild FTS plus explicitly injected projections at one fixed truth
+    snapshot; missing external rebuilders must return incomplete, never success;
+  - 100k+ LOC and million-record logical synthetic scale profiles backed by at
+    most 1,024 physically materialized sample records;
   - p50/p95, index size, RAM, writer contention and recovery evidence;
-  - Postgres remains a later measured gate.
+  - label physical measurements as sample-only; Postgres remains a later
+    measured gate with `migration_recommended=false`.
 - Tests:
-  - `python -m pytest -q tests/test_unified_source_index_backup.py tests/test_unified_source_index_scale.py`
+  - `python -m pytest -q -p no:cacheprovider
+    tests/test_unified_source_index_backup.py tests/test_unified_source_index_scale.py`
+  - `python scripts/benchmark_unified_source_index.py --check
+    --physical-records 128 --logical-records 1000000 --logical-loc 100000`
 - Done when: backup/restore/rebuild count hashes match and bounded query SLOs
-  are reported without arbitrary LOC-based migration claims.
+  are reported without arbitrary LOC-based migration claims, automatic external
+  projection rebuild claims or productive/live actions.
 
 ### USI-14 - Security, Privacy And Failure Matrix
 

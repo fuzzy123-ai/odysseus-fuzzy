@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T19:30:06+02:00",
-  "status": "usi09_accepted_usi13_dependency_ready",
+  "updated_at": "2026-07-23T19:37:42+02:00",
+  "status": "usi13_backup_restore_scale_claimed_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,7 +23,7 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "usi09_accepted_after_sol_review_usi13_dependency_ready",
+    "queue_status": "usi13_claimed_after_usi03_through_usi12_acceptance",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -34,7 +34,7 @@
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
       "memory_observability": "gro00_through_gro15_offline_go_live_gate_eligible_not_authorized",
-      "unified_source_index": "usi00_through_usi12_accepted_usi13_dependency_ready_productive_sources_off",
+      "unified_source_index": "usi00_through_usi12_accepted_usi13_claimed_four_new_paths_productive_sources_off",
       "usi_runtime_consumer_integration": "planned_child_after_usi_core_runtime_default_off",
       "usi_domain_adapters": "planned_child_source_waves_default_off_private_domains_deferred",
       "usi_data_lifecycle_operations": "planned_child_live_actions_default_off",
@@ -85,16 +85,18 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "unified_source_index",
-        "reason": "USI-09 is accepted after Terra implementation, deep Sol review, 48 focused tests and clean TAX plus USI overlap inventories; USI-13 is now the next dependency-ready repo-only core slice.",
+        "reason": "USI-03 through USI-12 are accepted and read-only recon proved that honest backup, restore, fixed-snapshot rebuild and bounded synthetic scale evidence fit four new files without frozen-core edits.",
         "slice": "USI-13-backup-restore-rebuild-scale-evidence",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "claim_only_USI13_with_temporary_targets_keep_productive_sources_and_runtime_activation_off"
+        "safe_default": "execute_only_the_four_claimed_new_paths_use_temporary_targets_and_bounded_samples_keep_productive_sources_off"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-23"
     },
-    "active_claimed_slices": []
+    "active_claimed_slices": [
+      "USI-13-backup-restore-rebuild-scale-evidence"
+    ]
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -760,8 +762,8 @@
       "id": "OWM-15",
       "name": "Unified Source Index Foundation",
       "priority": 9,
-      "status": "usi00_through_usi12_accepted_usi13_ready_live_default_off",
-      "why_open": "USI-00 through USI-12 are accepted, including the canonical default-off query_knowledge projection and clean TAX/USI inventories. USI-13 is the next dependency-ready repo-only slice; all productive sources remain disabled.",
+      "status": "usi00_through_usi12_accepted_usi13_claimed_live_default_off",
+      "why_open": "USI-00 through USI-12 are accepted, including the canonical default-off query_knowledge projection and clean TAX/USI inventories. USI-13 is claimed on four new repo-only paths for temporary backup/restore, fixed-snapshot rebuild and bounded synthetic scale evidence; all productive sources remain disabled.",
       "source_roadmap": "docs/plans/unified-source-index-implementation-roadmap.md",
       "source_gate_family": "unified_source_index",
       "dependencies": [
@@ -774,7 +776,7 @@
       "safe_default": "build_and_test_usi_with_temporary_fixtures_all_productive_sources_disabled",
       "user_gate_policy": "No user gate in USI-00 through USI-15 or the UIR/UDA/ULO child closure tracks. No productive source scan, real legacy cutover or persistent private-data indexing occurs. Exactly one live activation decision may be materialized after core identity/store/query plus runtime/consumer, selected domain-adapter and lifecycle/operations acceptance is green.",
       "execution_protocol": {
-        "queue_registration": "USI-13 is the current claimable core slice after accepted USI-00 through USI-12; keep USI-14 and successors blocked_by_dependency.",
+        "queue_registration": "USI-13 is the active claimed core slice after accepted USI-00 through USI-12; keep USI-14 and successors blocked_by_dependency.",
         "dependency_rule": "USI-01 and USI-03 are identity/store barriers; UIR, UDA and ULO open only at their declared barriers and must close the selected source scope before USI-15. TAX, GRO, domain truth and Project Versioning hotfiles require explicit owner handoffs.",
         "future_goal_command": "/goal Implementiere OWM-15 im Overnight Backend Mode bis zum fertigen USI activation packet; beginne nur mit USI-00, halte Nachfolger blocked_by_dependency und aktiviere keine produktive Source."
       },
@@ -1278,6 +1280,132 @@
       "acceptance": "offline_go_one_canonical_default_off_owner_scoped_query_knowledge_projection_with_fail_closed_policy_and_clean_tax_usi_inventories",
       "next_frontier": "USI-13 backup restore rebuild and bounded synthetic scale evidence is dependency-ready; productive sources remain off.",
       "done_when": "One default-off canonical read-only query_knowledge descriptor routes bounded owner-scoped code, document and memory queries through the injected USI planner boundary; malformed, foreign-scope, over-budget and unavailable paths fail closed without raw provider errors, writes, engine-specific tools or duplicate analytics, and both deterministic TAX and USI overlap inventories are updated without drift."
+    },
+    {
+      "id": "USI-13-backup-restore-rebuild-scale-evidence",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "claimed_in_progress",
+      "claimable": false,
+      "depends_on": [
+        "USI-03",
+        "USI-04",
+        "USI-05",
+        "USI-06",
+        "USI-07",
+        "USI-08",
+        "USI-09",
+        "USI-10",
+        "USI-11",
+        "USI-12"
+      ],
+      "source_roadmap": "docs/plans/unified-source-index-implementation-roadmap.md",
+      "claim": {
+        "run_id": "abc-usi13-20260723T193742+0200",
+        "thread_id": "/root",
+        "slice_id": "USI-13-backup-restore-rebuild-scale-evidence",
+        "owner": "Bob",
+        "allowed_paths": [
+          "src/unified_source_index_backup.py",
+          "scripts/benchmark_unified_source_index.py",
+          "tests/test_unified_source_index_backup.py",
+          "tests/test_unified_source_index_scale.py"
+        ],
+        "excluded_paths": [
+          "src/unified_source_index_sqlite.py",
+          "src/unified_source_index_migrations.py",
+          "src/unified_source_index_stores.py",
+          "src/unified_source_index_lexical.py",
+          "src/unified_source_index_embeddings.py",
+          "src/unified_source_index_raptor.py",
+          "every app/runtime initializer, provider, productive database, host, network and live path"
+        ],
+        "hotfiles": [],
+        "state": "claimed",
+        "acquired_at": "2026-07-23T19:37:42+02:00",
+        "lease_expires_at": "2026-07-23T23:37:42+02:00",
+        "handoff_required": false,
+        "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
+        "new_paths": true,
+        "dependency_sha256": {
+          "src/unified_source_index_sqlite.py": "4368528DF98045A80EAD495AE4ECCF52B381E70B7043CAC42958ED53A731FB22",
+          "src/unified_source_index_migrations.py": "60EA62AFE90316AC317F6899BB7A420FAC9B0BD5EA37BCC851ACEAF75D2501FC",
+          "src/unified_source_index_stores.py": "506E93526FC12DD10FB0FD326B4F35D5908AFDEEE9CA7403914D7C1803356745",
+          "src/unified_source_index_lexical.py": "141451F987DF52B04FC25D30CAF3D1504E01C929E3C3E5C8B79F18275E6D830E",
+          "src/unified_source_index_embeddings.py": "2F837029D47530AB0F93FED2646FCEA6DA3398E441E6A39AC61237B60C430D44",
+          "src/unified_source_index_raptor.py": "FB82578EE400C1E5B7A4338728F58E0D5E4BFA7D59D680068FBAD14088F87D8D"
+        }
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "dependency gate, four-path claim, Terra implementation and Sol review"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "actual": {
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "evidence": "root surface"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "evidence": "read-only recon complete; implementation pending"
+          },
+          "review": {
+            "model": "pending",
+            "depth": "deep",
+            "result": "pending"
+          }
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "temporary contained SQLite databases and bounded synthetic samples",
+        "observed_at": "2026-07-23T19:37:42+02:00",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "consistent_sqlite_backup",
+          "fresh_contained_restore",
+          "fixed_snapshot_rebuild",
+          "explicit_incomplete_external_projection_receipt",
+          "bounded_physical_sample",
+          "logical_scale_profile",
+          "focused_tests"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true,
+        "recon": "All four declared paths are absent. Existing embedding and RAPTOR manifests do not retain a replayable sink/worker binding, so only FTS rebuild may be automatic; external projection rebuilders must be explicitly injected or reported incomplete."
+      },
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_unified_source_index_backup.py tests\\test_unified_source_index_scale.py",
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe scripts\\benchmark_unified_source_index.py --check --physical-records 128 --logical-records 1000000 --logical-loc 100000",
+        "git diff --check -- src/unified_source_index_backup.py scripts/benchmark_unified_source_index.py tests/test_unified_source_index_backup.py tests/test_unified_source_index_scale.py"
+      ],
+      "done_when": "A consistent SQLite snapshot backs up and restores only into fresh contained temporary targets; FTS and explicitly injected projections rebuild against one fixed truth snapshot; missing external rebuilders produce an incomplete receipt; bounded physical samples report deterministic p50/p95, bytes, allocation, contention and recovery evidence for declared 100k-LOC/million-logical-record profiles without a Postgres migration claim or productive/live action."
     },
     {
       "id": "TAX0-deterministic-inventory",
