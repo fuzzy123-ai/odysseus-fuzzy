@@ -1,8 +1,8 @@
 # Unified Source Index Implementation Roadmap
 
-Stand: 2026-07-13
+Stand: 2026-07-23
 
-Status: `USI-09_claimed_after_TAX_handoff / USI-13_dependency_blocked / runtime_default_off`
+Status: `USI-09_accepted / USI-13_dependency_ready / runtime_default_off`
 
 Master-Track: `0.28.x`, `OWM-15`, `L21`
 
@@ -460,13 +460,18 @@ Every list/query contract is bounded. Depending on mode it accepts `limit`,
 
 - Class: `repo_only`
 - Owner: Bob
-- Status: `claimed_2026-07-23`
+- Status: `accepted_2026-07-23`
+- Acceptance: `40 focused query/catalog/registration/security/TAX-audit tests
+  and 8 focused USI-overlap tests passed; both deterministic inventories clean;
+  deep Sol review approved after fail-closed JSON/provider-policy, exact-limit,
+  exact owner-free evidence, deferred lifecycle and overlap findings were
+  resolved`
 - Dependency audit: `USI-07 accepted; canonical Open-Work evidence marks TAX1/TAX5/TAX8 complete; four focused Descriptor-V2, security, dynamic-provider and USI-query dependency checks passed on the hydrated dev checkpoint`
 - Serialized claim:
   - run_id: `abc-usi09-20260723T185258+0200`
   - thread_id: `/root`
   - owner: `Bob`
-  - state: `claimed`
+  - state: `released`
   - acquired_at: `2026-07-23T18:52:58+02:00`
   - lease_expires_at: `2026-07-23T22:52:58+02:00`
   - amended_at: `2026-07-23T19:23:50+02:00`
@@ -478,6 +483,7 @@ Every list/query contract is bounded. Depending on mode it accepts `limit`,
     amendment. Final Sol review then proved that the USI overlap inventory still
     classified the now-present identity as planned_absent; its auditor, persisted
     inventory and focused test are the exact three-path third amendment.`
+  - released_at: `2026-07-23T19:30:06+02:00`
   - worktree: `C:\tmp\odysseus-abc-usi09-20260723`
   - allowed_paths: `src/builtin_tool_catalog.py`, `src/tool_index.py`,
     `src/tool_schema_definitions.py`, `src/tool_execution.py`,
@@ -499,7 +505,24 @@ Every list/query contract is bounded. Depending on mode it accepts `limit`,
   - evidence: `The UIX branch intentionally lacks USI dependencies; a clean
     dev-based worktree supplies the accepted USI-07 planner and TAX contracts
     without a broad cross-branch merge. Bob recon added builtin catalog and
-    plan-mode security as required fail-closed projections.`
+    plan-mode security as required fail-closed projections. Terra implemented
+    the sixteen-path amended claim; Sol resolved malformed-shape/raw-error,
+    ignored-limit, incomplete-evidence, lifecycle and overlap-inventory findings.
+    Runtime composition remains absent and therefore content-free unavailable.`
+  - implementation_commit:
+    `46f77c2a8cfa43e0129b8aadb98ac74f2e6ee0d3`
+  - artifact_hashes: handler
+    `9F866C70D2A51DB90F70BE9D6D4E84E4CCF3700626CB8F6CA3E0998272156E8F`,
+    focused test
+    `D10BCE1790C1455C41635D49B13114CBA23CED82C31EF1B08041FB9B899FF436`,
+    catalog
+    `7FC1BD2658A764456B6E23C732207134C11BF182766BE65574B53117867F528B`,
+    TAX inventory
+    `B0E135419AFB698FB94F7E021F4FEF5BEF70D0F5D6E789B0D6A3FF266A7FE78E`,
+    USI inventory
+    `007DE337E35BEB52609D1750328BDF904626F42DCE8BBACC9A0C5F95AC72F85C`
+  - next_frontier: `USI-13` is dependency-ready; productive sources, runtime
+    planner injection and live activation remain off
 - Dependencies: `USI-07`, TAX1 identity, TAX5 security, TAX8 dynamic provider
   normalization
 - Allowed paths:
@@ -659,11 +682,10 @@ handoff; no USI worker may edit them independently.
     `8008DAA6818B5551D73798EC951231384EC7029D2DBA87287A816CB829760B8E`,
     dashboard
     `5B610A2DCF284C89D85549232204FD1E6DB21C8DFAFF68F7277037E5F71EE098`
-  - next_frontier: `USI-09` is claimed after the TAX1/TAX5/TAX8 dependency
-    handoff; USI-13 remains dependency-blocked until USI-09 has focused
-    acceptance and a released claim
-- Dependency audit: `USI-04=accepted; GRO-00 through GRO-15=offline_go;
-  serialized GRO handoff acquired; USI-09 remains independently TAX-blocked`
+  - next_frontier: `USI-09` is accepted after the TAX1/TAX5/TAX8 dependency
+    handoff; `USI-13` is now dependency-ready
+- Dependency audit: `USI-04 and USI-09 accepted; GRO-00 through
+  GRO-15=offline_go; serialized GRO and TAX handoffs released`
 - Dependencies: `USI-04`, GRO-00 metric contract; serialize shared GRO files
 - Allowed paths:
   - `src/unified_source_index_diagnostics.py`
@@ -682,7 +704,7 @@ handoff; no USI worker may edit them independently.
 
 - Class: `repo_only`
 - Owner: Bob
-- Status: `blocked_by_USI-09_in_progress_2026-07-23`
+- Status: `dependency_ready_2026-07-23`
 - Dependencies: `USI-03` through `USI-12`
 - Allowed paths:
   - `src/unified_source_index_backup.py`
@@ -704,7 +726,7 @@ handoff; no USI worker may edit them independently.
 
 - Class: `repo_only`
 - Owner: Charlie
-- Status: `blocked_by_USI-12_and_USI-13_2026-07-17`
+- Status: `blocked_by_USI-13_2026-07-23`
 - Dependencies: `USI-01` through `USI-13`
 - Allowed paths:
   - `tests/test_unified_source_index_security.py`

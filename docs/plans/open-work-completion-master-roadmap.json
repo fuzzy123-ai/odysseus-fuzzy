@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-    "updated_at": "2026-07-23T19:23:50+02:00",
-  "status": "usi09_query_knowledge_claimed_repo_only",
+  "updated_at": "2026-07-23T19:30:06+02:00",
+  "status": "usi09_accepted_usi13_dependency_ready",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,7 +23,7 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "usi09_claimed_after_hydrated_dev_checkpoint_and_tax_handoff",
+    "queue_status": "usi09_accepted_after_sol_review_usi13_dependency_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -34,11 +34,11 @@
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
       "memory_observability": "gro00_through_gro15_offline_go_live_gate_eligible_not_authorized",
-      "unified_source_index": "usi09_claimed_after_tax_handoff_usi13_dependency_blocked_productive_sources_off",
+      "unified_source_index": "usi00_through_usi12_accepted_usi13_dependency_ready_productive_sources_off",
       "usi_runtime_consumer_integration": "planned_child_after_usi_core_runtime_default_off",
       "usi_domain_adapters": "planned_child_source_waves_default_off_private_domains_deferred",
       "usi_data_lifecycle_operations": "planned_child_live_actions_default_off",
-      "codebase_memory_projection": "cbm00_through_cbm08_accepted_cbm09_blocked_by_usi09_tax1_tax5_tax8_tax10_engine_disabled",
+      "codebase_memory_projection": "cbm00_through_cbm08_accepted_cbm09_dependency_ready_not_selected_engine_disabled",
       "code_lineage_timeline": "clt00_through_clt02_accepted_clt03_ready_repo_only_live_default_off",
       "lens_code_graph": "planned_after_code_graph_api_ui_live_gated",
       "agent_maintenance_safety_harness": "roadmap_registered_goal_not_started_repo_only"
@@ -85,18 +85,16 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "unified_source_index",
-        "reason": "USI-07 and the TAX1/TAX5/TAX8 identity, security and dynamic-provider dependencies are present on the clean dev checkpoint; the minimum canonical query_knowledge projection is durably claimed.",
-        "slice": "USI-09-query-knowledge-tool-projection",
+        "reason": "USI-09 is accepted after Terra implementation, deep Sol review, 48 focused tests and clean TAX plus USI overlap inventories; USI-13 is now the next dependency-ready repo-only core slice.",
+        "slice": "USI-13-backup-restore-rebuild-scale-evidence",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-                "safe_default": "execute_only_the_sixteen_claimed_paths_keep_runtime_and_live_sources_default_off"
+        "safe_default": "claim_only_USI13_with_temporary_targets_keep_productive_sources_and_runtime_activation_off"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-23"
     },
-    "active_claimed_slices": [
-      "USI-09-query-knowledge-tool-projection"
-    ]
+    "active_claimed_slices": []
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -762,21 +760,21 @@
       "id": "OWM-15",
       "name": "Unified Source Index Foundation",
       "priority": 9,
-      "status": "partial_repo_complete_waiting_tax_handoff_live_default_off",
-      "why_open": "USI-00 through USI-08 plus USI-10 through USI-12 are accepted. USI-09 remains serialized behind TAX1/TAX5/TAX8, which also keeps USI-13 dependency-blocked; all productive sources remain disabled.",
+      "status": "usi00_through_usi12_accepted_usi13_ready_live_default_off",
+      "why_open": "USI-00 through USI-12 are accepted, including the canonical default-off query_knowledge projection and clean TAX/USI inventories. USI-13 is the next dependency-ready repo-only slice; all productive sources remain disabled.",
       "source_roadmap": "docs/plans/unified-source-index-implementation-roadmap.md",
       "source_gate_family": "unified_source_index",
       "dependencies": [
         "Explicit new goal or operator reprioritization; this track does not displace TAX/TUA or the planned GMI/GRO goal",
         "USI-00 overlap inventory before runtime implementation",
-        "TAX1/TAX5/TAX8 before productive query_knowledge projection",
+        "TAX1/TAX5/TAX8 accepted before the default-off query_knowledge projection",
         "GRO-00 before shared metrics/exporter integration"
       ],
       "gate_ids": [],
       "safe_default": "build_and_test_usi_with_temporary_fixtures_all_productive_sources_disabled",
       "user_gate_policy": "No user gate in USI-00 through USI-15 or the UIR/UDA/ULO child closure tracks. No productive source scan, real legacy cutover or persistent private-data indexing occurs. Exactly one live activation decision may be materialized after core identity/store/query plus runtime/consumer, selected domain-adapter and lifecycle/operations acceptance is green.",
       "execution_protocol": {
-        "queue_registration": "On future goal start register only USI-00 as claimable and keep successors blocked_by_dependency.",
+        "queue_registration": "USI-13 is the current claimable core slice after accepted USI-00 through USI-12; keep USI-14 and successors blocked_by_dependency.",
         "dependency_rule": "USI-01 and USI-03 are identity/store barriers; UIR, UDA and ULO open only at their declared barriers and must close the selected source scope before USI-15. TAX, GRO, domain truth and Project Versioning hotfiles require explicit owner handoffs.",
         "future_goal_command": "/goal Implementiere OWM-15 im Overnight Backend Mode bis zum fertigen USI activation packet; beginne nur mit USI-00, halte Nachfolger blocked_by_dependency und aktiviere keine produktive Source."
       },
@@ -1089,7 +1087,7 @@
       "id": "USI-09-query-knowledge-tool-projection",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_in_progress",
+      "status": "accepted_2026-07-23",
       "claimable": false,
       "depends_on": [
         "USI-07",
@@ -1152,11 +1150,12 @@
           "scripts/audit_unified_source_index_overlap.py",
           "docs/plans/unified-source-index-runtime-inventory.json"
         ],
-        "state": "claimed",
+        "state": "released",
         "acquired_at": "2026-07-23T18:52:58+02:00",
         "lease_expires_at": "2026-07-23T22:52:58+02:00",
         "amended_at": "2026-07-23T19:23:50+02:00",
         "amendment_reason": "The canonical query_knowledge identity necessarily changes the frozen TAX0 catalog projections and deterministic inventory; the first four added paths close that bounded inventory surface. The authorized focused parity run then exposed one additional frozen parser-count assertion, so tests/test_tool_registration_parity.py was the sole second amendment. The final Sol static review and read-only USI overlap check then proved that the USI runtime inventory still classified query_knowledge as planned_absent; the overlap auditor, its persisted inventory and its focused test are the exact three-path third amendment.",
+        "released_at": "2026-07-23T19:30:06+02:00",
         "handoff_required": false,
         "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
         "baseline_sha256": {
@@ -1213,19 +1212,19 @@
           },
           "worker": {
             "model": "gpt-5.6-terra",
-            "evidence": "read-only recon complete; implementation pending"
+            "evidence": "implementation and review-fix handoffs completed within the sixteen-path amended claim"
           },
           "review": {
-            "model": "pending",
+            "model": "gpt-5.6-sol",
             "depth": "deep",
-            "result": "pending"
+            "result": "approved_after_fail_closed_budget_evidence_lifecycle_and_overlap_findings_resolved"
           }
         },
         "fallback": "none"
       },
       "evidence": {
         "target_environment": "local",
-        "observed_at": "2026-07-23T18:52:58+02:00",
+        "observed_at": "2026-07-23T19:30:06+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -1234,7 +1233,39 @@
           "integration"
         ],
         "temporal_window": "none",
-        "positive_path_required": true
+        "positive_path_required": true,
+        "results": {
+          "focused_tool_catalog_security_tests": 40,
+          "focused_usi_overlap_tests": 8,
+          "blocking_failures": 0,
+          "nonblocking_warning_count": 1,
+          "review_findings_resolved": 6,
+          "tool_taxonomy_inventory_clean": true,
+          "usi_overlap_inventory_clean": true,
+          "tool_taxonomy_counts": "79 tags, 84 schemas, 31 Admin metadata entries, 49 Admin fallbacks",
+          "usi_overlap_counts": "35 components, 103 writers, 17 tool identities",
+          "raw_provider_error_exposures": 0,
+          "provider_database_network_live_actions": 0
+        },
+        "artifact_hashes": {
+          "src/agent_tools/knowledge_tools.py": "9F866C70D2A51DB90F70BE9D6D4E84E4CCF3700626CB8F6CA3E0998272156E8F",
+          "tests/test_query_knowledge_tool.py": "D10BCE1790C1455C41635D49B13114CBA23CED82C31EF1B08041FB9B899FF436",
+          "src/builtin_tool_catalog.py": "7FC1BD2658A764456B6E23C732207134C11BF182766BE65574B53117867F528B",
+          "docs/plans/tool-taxonomy-inventory.json": "B0E135419AFB698FB94F7E021F4FEF5BEF70D0F5D6E789B0D6A3FF266A7FE78E",
+          "docs/plans/unified-source-index-runtime-inventory.json": "007DE337E35BEB52609D1750328BDF904626F42DCE8BBACC9A0C5F95AC72F85C"
+        },
+        "implementation_commit": "46f77c2a8cfa43e0129b8aadb98ac74f2e6ee0d3"
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "yes_local",
+        "pushed": "no",
+        "deployed": "na",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
       },
       "tests": [
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_query_knowledge_tool.py",
@@ -1244,6 +1275,8 @@
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe scripts\\audit_unified_source_index_overlap.py --check",
         "git diff --check -- src/builtin_tool_catalog.py src/tool_index.py src/tool_schema_definitions.py src/tool_execution.py src/agent_tools/__init__.py src/agent_tools/knowledge_tools.py src/tool_security.py tests/test_query_knowledge_tool.py scripts/audit_tool_registry_drift.py docs/plans/tool-taxonomy-inventory.json tests/test_audit_tool_registry_drift.py tests/test_builtin_tool_catalog.py tests/test_tool_registration_parity.py scripts/audit_unified_source_index_overlap.py docs/plans/unified-source-index-runtime-inventory.json tests/test_audit_unified_source_index_overlap.py"
       ],
+      "acceptance": "offline_go_one_canonical_default_off_owner_scoped_query_knowledge_projection_with_fail_closed_policy_and_clean_tax_usi_inventories",
+      "next_frontier": "USI-13 backup restore rebuild and bounded synthetic scale evidence is dependency-ready; productive sources remain off.",
       "done_when": "One default-off canonical read-only query_knowledge descriptor routes bounded owner-scoped code, document and memory queries through the injected USI planner boundary; malformed, foreign-scope, over-budget and unavailable paths fail closed without raw provider errors, writes, engine-specific tools or duplicate analytics, and both deterministic TAX and USI overlap inventories are updated without drift."
     },
     {
@@ -5069,7 +5102,7 @@
           "scripts/audit_unified_source_index_overlap.py": "6987DBCEDF6E28EE804B5B26779413A9AA5FDDCE5AC1166317101DA608C2FBD7"
         },
         "acceptance": "offline_go_content_free_shared_gro_extension",
-        "next_frontier": "USI-09 and therefore USI-13 remain blocked pending TAX1/TAX5/TAX8 handoff"
+        "next_frontier": "USI-09 is accepted after the TAX1/TAX5/TAX8 handoff; USI-13 is dependency-ready."
       },
       "completion": {
         "implemented": "yes",
@@ -5971,7 +6004,7 @@
           "tests/test_codebase_memory_graph_projection.py": "5748F1FE90E4235C3E8528AF260FDAC97D50BC0C440A46CA1F563D809D836615"
         },
         "acceptance": "offline_go_five_kind_progressive_code_graph_exact_usi_evidence_and_aggregate_lod",
-        "next_frontier": "CBM-09 blocked by USI-09 and TAX1 TAX5 TAX8 TAX10; next independent post-MVP frontier CLT-00"
+        "next_frontier": "CBM-09 dependencies are accepted after USI-09 and TAX1/TAX5/TAX8/TAX10; keep the engine disabled and serialize this ready lane behind the selected USI-13 frontier."
       },
       "completion": {
         "implemented": "yes",
