@@ -1,19 +1,19 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T11:10:40+02:00",
-  "status": "uix_abc15_completed_uix_abc16_uix_abc18_ready",
+  "updated_at": "2026-07-23T11:13:23+02:00",
+  "status": "uix_abc16_claimed_repo_implementation_running",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Implementiere OWM-23 Agent Maintenance Safety Harness repo-only; beginne mit AMH-01, halte Nachfolger dependency-gated, bewahre fremde Worktree-Aenderungen und fuehre weder Live-Aktionen noch ungefragte Pushes aus.",
   "goal": "Reconcile the registered OWM-23 roadmap, then implement the dependency-ready Agent Maintenance Safety Harness frontier with one scoped writer, current machine evidence and no live or external mutation.",
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 2,
+    "safe_open_json_slices": 1,
     "unique_live_gates": 40,
     "unique_design_gates": 28,
     "other_open_json_items": 33,
-    "queue_status": "uix_abc15_completed_uix_abc16_uix_abc18_ready",
+    "queue_status": "uix_abc16_claimed_uix_abc18_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,13 +21,13 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "agent_maintenance_safety": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "universal_inbox_workbench": "uix_abc15_completed_uix_abc16_uix_abc18_ready",
+      "universal_inbox_workbench": "uix_abc16_claimed_repo_implementation_running",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 2,
+      "safe_open_count": 1,
       "other_open_count": 33,
       "unique_live_gate_count": 40,
       "unique_design_gate_count": 28,
@@ -60,17 +60,16 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "UIX-ABC15 is locally implemented and focused-tested without adapted foreign code; UIX-ABC16 is next in declared product order and UIX-ABC18 remains independently dependency-ready.",
+        "reason": "UIX-ABC16 is claimed for one owner-selected upload content route with bounded bytes, negative authorization, traversal, MIME and range evidence; UIX-ABC18 remains dependency-ready.",
         "slice": "UIX-ABC16",
         "user_decision_required": false,
-        "safe_default": "claim_one_minimum_path_uix_abc16_subset"
+        "safe_default": "finish_focused_uix_abc16_implementation_and_local_acceptance"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-23"
     },
     "dependency_ready_repo_only_slices": [
-      "UIX-ABC16",
       "UIX-ABC18"
     ],
     "product_semantics_gated_open_slices": [],
@@ -1395,7 +1394,7 @@
       "title": "Selected Source Read Contract",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
+      "status": "claimed_implementation_running",
       "claimable": true,
       "depends_on": [
         "UIX-ABC13",
@@ -1411,6 +1410,87 @@
       "gates": [
         "UIX-WORKBENCH-CONTENT-READ"
       ],
+      "gate_resolution": {
+        "id": "UIX-WORKBENCH-CONTENT-READ",
+        "class": "repo_only",
+        "state": "active_for_claimed_slice",
+        "allowed": [
+          "one explicit upload source per request",
+          "owner or explicit admin authorization",
+          "bounded local byte read with MIME, magic, range and size checks"
+        ],
+        "forbidden": [
+          "batch content reads",
+          "Nextcloud or provider reads",
+          "content persistence in snapshot, flow state, logs or queue evidence",
+          "any live or external write"
+        ]
+      },
+      "claim": {
+        "run_id": "abc-uix16-20260723T111323+0200",
+        "thread_id": "/root",
+        "slice_id": "UIX-ABC16",
+        "owner": "root",
+        "allowed_paths": [
+          "src/universal_inbox_source_access.py",
+          "routes/universal_inbox_routes.py",
+          "tests/test_universal_inbox_source_access.py"
+        ],
+        "hotfiles": [],
+        "state": "running",
+        "acquired_at": "2026-07-23T11:13:23+02:00",
+        "lease_expires_at": "2026-07-23T14:00:00+02:00",
+        "handoff_required": false
+      },
+      "allowed_paths": [
+        "src/universal_inbox_source_access.py",
+        "routes/universal_inbox_routes.py",
+        "tests/test_universal_inbox_source_access.py"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_universal_inbox_source_access.py tests\\test_universal_inbox_status_routes.py -q",
+        "git diff --check -- src/universal_inbox_source_access.py routes/universal_inbox_routes.py tests/test_universal_inbox_source_access.py"
+      ],
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "Open Work queue, dependency, content-read gate, claim and evidence orchestration"
+            }
+          ],
+          "model": {
+            "value": "surface_default",
+            "reason": "Bounded backend source access and focused pytest need no secondary skill."
+          }
+        },
+        "actual": {
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            }
+          ],
+          "model": {
+            "value": "surface_default",
+            "evidence": "current Codex surface"
+          }
+        },
+        "fallback": "native_tools"
+      },
+      "evidence": {
+        "target_environment": "local",
+        "observed_at": null,
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "focused_test"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true
+      },
       "done_when": "Explicit owner-selected upload sources support bounded safe reads with auth, traversal, MIME, range and size-limit tests; Nextcloud sources remain unsupported."
     },
     {
@@ -2565,5 +2645,5 @@
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "None required for the next repo-only step. Claim UIX-ABC16 next in declared product order with owner, traversal, MIME and byte-limit tests; UIX-ABC18 remains dependency-ready. UI design, hotfile and every live-write authority remain closed."
+  "recommended_next_human_decision": "None required while UIX-ABC16 runs within its three-file repo-only claim. UIX-ABC18 remains dependency-ready; UI design, hotfile, provider access and every live-write authority remain closed."
 }
