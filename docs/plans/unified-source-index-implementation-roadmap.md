@@ -2,7 +2,7 @@
 
 Stand: 2026-07-23
 
-Status: `USI-13_accepted / USI-14_claimed / runtime_default_off`
+Status: `USI-14_accepted / USI-15_blocked_by_child_closure / UIR-00_dependency_ready / runtime_default_off`
 
 Master-Track: `0.28.x`, `OWM-15`, `L21`
 
@@ -779,16 +779,17 @@ handoff; no USI worker may edit them independently.
 
 - Class: `repo_only`
 - Owner: Charlie
-- Status: `claimed_2026-07-23`
+- Status: `accepted_2026-07-23`
 - Dependency audit: `USI-01 through USI-13 accepted; all three declared paths
   are new; read-only recon found no unavoidable production-code edit`
 - Serialized claim:
   - run_id: `abc-usi14-20260723T195751+0200`
   - thread_id: `/root`
   - owner: `Charlie`
-  - state: `claimed`
+  - state: `released`
   - acquired_at: `2026-07-23T19:57:51+02:00`
   - lease_expires_at: `2026-07-23T23:57:51+02:00`
+  - released_at: `2026-07-23T20:09:32+02:00`
   - worktree: `C:\tmp\odysseus-abc-usi09-20260723`
   - allowed_paths: `tests/test_unified_source_index_security.py`,
     `tests/test_unified_source_index_failure_matrix.py`, and
@@ -799,7 +800,24 @@ handoff; no USI worker may edit them independently.
   - evidence: `The generic matrix is fully test-/documentation-only with
     temporary SQLite and synthetic providers/sinks. Chroma SDK/live service
     behavior and real CBM/RAPTOR runtime integration remain outside USI-14;
-    existing injected boundaries provide the honest repo-only evidence.`
+    existing injected boundaries provide the honest repo-only evidence.
+    Twenty-one focused tests passed with zero blockers and one existing
+    SQLAlchemy deprecation warning. Deep Sol review added genuine corrupt-temp-
+    SQLite, federated/snippet/inline payload bounds, literal FTS compilation
+    across every match mode and explicit no-log sentinel evidence.`
+  - implementation_commit:
+    `7e7c481675fdbc8796662dc1a685cd8ba13d73e3`
+  - artifact_hashes:
+    - security_tests:
+      `F510EA071B03376C985892BC832E75B640A6035ECD30A75EC892D899BB1BE26E`
+    - failure_matrix_tests:
+      `EA8D260E6075B9C6DB038D863187750A238AFED6E89BD131CFA2E6DAA36D69A0`
+    - acceptance_matrix:
+      `FBFB7F3DE6CF6FA83B7A456A4D66DFF01A67FF05944D3FF73CBA7A9088BB1D80`
+  - sol_review:
+    `approved_after_corrupt-sqlite, oversized-payload, literal-FTS and no-log-
+    sentinel hardening; zero blocking findings`
+  - live_actions: `false`
 - Dependencies: `USI-01` through `USI-13`
 - Allowed paths:
   - `tests/test_unified_source_index_security.py`
@@ -815,11 +833,16 @@ handoff; no USI worker may edit them independently.
   - `python -m pytest -q tests/test_unified_source_index_security.py tests/test_unified_source_index_failure_matrix.py`
 - Done when: failures are fail-closed for policy and fail-soft for optional
   projections, with no false success state.
+- Acceptance:
+  `offline_go_synthetic_security_privacy_failure_matrix_policy_fail_closed_optional_lanes_fail_soft_no_private_sentinel_leaks`
+- Next frontier: `USI-15` remains blocked by `UIR-14`, `ULO-14` and `UDA-18`;
+  `UIR-00` is the next dependency-ready safe-offline child slice.
 
 ### USI-15 - Synthetic Staging And Activation Packet
 
 - Class: `repo_only`
 - Owner: Charlie
+- Status: `blocked_by_UIR-14_ULO-14_UDA-18_2026-07-23`
 - Dependencies: `USI-00` through `USI-14`, `UIR-14`, `ULO-14` and `UDA-18`
   for every selected source scope; CBM, lineage and Lens may remain separate
   Partial tracks if clearly declared

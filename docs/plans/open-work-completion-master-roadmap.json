@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T19:57:51+02:00",
-  "status": "usi14_security_privacy_failure_matrix_claimed_repo_only",
+  "updated_at": "2026-07-23T20:09:32+02:00",
+  "status": "usi14_accepted_uir00_dependency_ready_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,7 +23,7 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "usi14_claimed_after_usi00_through_usi13_acceptance",
+    "queue_status": "usi14_accepted_uir00_dependency_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -34,8 +34,8 @@
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
       "memory_observability": "gro00_through_gro15_offline_go_live_gate_eligible_not_authorized",
-      "unified_source_index": "usi00_through_usi13_accepted_usi14_claimed_three_new_paths_productive_sources_off",
-      "usi_runtime_consumer_integration": "planned_child_after_usi_core_runtime_default_off",
+      "unified_source_index": "usi00_through_usi14_accepted_usi15_blocked_by_child_closure_productive_sources_off",
+      "usi_runtime_consumer_integration": "uir00_dependency_ready_runtime_default_off",
       "usi_domain_adapters": "planned_child_source_waves_default_off_private_domains_deferred",
       "usi_data_lifecycle_operations": "planned_child_live_actions_default_off",
       "codebase_memory_projection": "cbm00_through_cbm08_accepted_cbm09_dependency_ready_not_selected_engine_disabled",
@@ -84,19 +84,17 @@
       "non_ui_gate_readiness_status": "blocked",
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
-        "family": "unified_source_index",
-        "reason": "USI-00 through USI-13 are accepted. Read-only recon proved that the USI-14 security, privacy and failure matrix fits exactly two new synthetic test files and one acceptance document without production-code edits.",
-        "slice": "USI-14-security-privacy-failure-matrix",
+        "family": "usi_runtime_consumer_integration",
+        "reason": "USI-00 through USI-14 are accepted. USI-15 remains correctly blocked by UIR-14, ULO-14 and UDA-18; the declared child-track order makes the safe-offline UIR-00 runtime caller and composition audit the next dependency-ready slice.",
+        "slice": "UIR-00-runtime-caller-composition-audit",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "execute_only_the_three_claimed_new_usi14_paths_with_synthetic_temporary_data_keep_productive_sources_off"
+        "safe_default": "recon_then_claim_only_uir00_inventory_audit_and_focused_test_keep_runtime_workers_shadow_prompt_cutover_and_productive_sources_off"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-23"
     },
-    "active_claimed_slices": [
-      "USI-14-security-privacy-failure-matrix"
-    ]
+    "active_claimed_slices": []
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -762,8 +760,8 @@
       "id": "OWM-15",
       "name": "Unified Source Index Foundation",
       "priority": 9,
-      "status": "usi00_through_usi13_accepted_usi14_claimed_live_default_off",
-      "why_open": "USI-00 through USI-13 are accepted, including canonical default-off query_knowledge, clean TAX/USI inventories and bounded backup/restore/rebuild/scale evidence. USI-14 is claimed on exactly two new synthetic test files and one new acceptance document; all productive sources remain disabled.",
+      "status": "usi00_through_usi14_accepted_usi15_blocked_by_uir14_ulo14_uda18_live_default_off",
+      "why_open": "USI-00 through USI-14 are accepted, including canonical default-off query_knowledge, clean TAX/USI inventories, bounded backup/restore/rebuild/scale evidence and a focused security/privacy/failure matrix. USI-15 remains blocked until the declared runtime, lifecycle and selected-domain child closures finish; all productive sources remain disabled.",
       "source_roadmap": "docs/plans/unified-source-index-implementation-roadmap.md",
       "source_gate_family": "unified_source_index",
       "dependencies": [
@@ -776,7 +774,7 @@
       "safe_default": "build_and_test_usi_with_temporary_fixtures_all_productive_sources_disabled",
       "user_gate_policy": "No user gate in USI-00 through USI-15 or the UIR/UDA/ULO child closure tracks. No productive source scan, real legacy cutover or persistent private-data indexing occurs. Exactly one live activation decision may be materialized after core identity/store/query plus runtime/consumer, selected domain-adapter and lifecycle/operations acceptance is green.",
       "execution_protocol": {
-        "queue_registration": "USI-13 is accepted and its claim released. USI-14 is the active claimed core slice; keep USI-15 blocked by its broader declared dependencies.",
+        "queue_registration": "USI-14 is accepted and its claim released. Keep USI-15 blocked by UIR-14, ULO-14 and UDA-18; execute only the next dependency-ready child slice, UIR-00.",
         "dependency_rule": "USI-01 and USI-03 are identity/store barriers; UIR, UDA and ULO open only at their declared barriers and must close the selected source scope before USI-15. TAX, GRO, domain truth and Project Versioning hotfiles require explicit owner handoffs.",
         "future_goal_command": "/goal Implementiere OWM-15 im Overnight Backend Mode bis zum fertigen USI activation packet; beginne nur mit USI-00, halte Nachfolger blocked_by_dependency und aktiviere keine produktive Source."
       },
@@ -883,8 +881,8 @@
       "id": "OWM-19",
       "name": "USI Runtime And Consumer Integration",
       "priority": 9,
-      "status": "planned_child_after_usi_core",
-      "why_open": "The USI core deliberately excludes application composition, worker lifecycle and current direct retrieval consumers. Without one injected runtime facade, Personal Docs, Chat, Agent and tools would retain parallel query and prompt paths.",
+      "status": "uir00_dependency_ready_runtime_default_off",
+      "why_open": "The USI core through USI-14 is accepted but deliberately excludes application composition, worker lifecycle and current direct retrieval consumers. UIR-00 is dependency-ready for a safe-offline caller/composition audit; runtime, workers, shadow prompt use and productive cutover remain disabled.",
       "source_roadmap": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
       "source_gate_family": "unified_source_index",
       "dependencies": [
@@ -897,7 +895,7 @@
       "safe_default": "runtime_disabled_shadow_results_excluded_from_prompts_productive_workers_and_cutover_disabled",
       "user_gate_policy": "No independent UIR product gate. Contracts, dependency injection, fake workers, synthetic shadow comparisons and failure tests remain repo-only. UIR-14 contributes runtime evidence to the existing USI-LIVE-ACTIVATION gate; no productive scan, prompt cutover or provider process starts before that parent decision.",
       "execution_protocol": {
-        "queue_registration": "After the USI contract barriers and a future goal, register UIR-00 only and keep all runtime successors blocked_by_dependency.",
+        "queue_registration": "The active Open-Work goal and accepted USI core barriers make UIR-00 the next dependency-ready slice. Register UIR-00 only after read-only collision recon and keep all runtime successors blocked_by_dependency.",
         "dependency_rule": "Serialize runtime hotfiles. UIR owns composition and consumers, not source extraction, domain writes, lifecycle actions, tool identity, telemetry or metrics exporters.",
         "future_goal_command": "/goal Implementiere OWM-19 als Child von OWM-15; beginne UIR-00, halte Runtime produktiv aus und speise nur das gemeinsame USI activation packet."
       },
@@ -1450,7 +1448,7 @@
       "id": "USI-14-security-privacy-failure-matrix",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_in_progress",
+      "status": "accepted",
       "claimable": false,
       "depends_on": [
         "USI-01",
@@ -1483,9 +1481,10 @@
           "every productive database, source, SDK, host, network, deploy and live path"
         ],
         "hotfiles": [],
-        "state": "claimed",
+        "state": "released",
         "acquired_at": "2026-07-23T19:57:51+02:00",
         "lease_expires_at": "2026-07-23T23:57:51+02:00",
+        "released_at": "2026-07-23T20:09:32+02:00",
         "handoff_required": false,
         "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
         "new_paths": true,
@@ -1537,19 +1536,19 @@
           },
           "worker": {
             "model": "gpt-5.6-terra",
-            "evidence": "read-only recon complete; implementation pending"
+            "evidence": "implemented exactly the three new declared paths; all deep Sol review findings resolved"
           },
           "review": {
-            "model": "pending",
+            "model": "gpt-5.6-sol",
             "depth": "deep",
-            "result": "pending"
+            "result": "approved_after_corrupt-sqlite_oversized-payload_literal-fts_and_no-log-sentinel_hardening"
           }
         },
         "fallback": "none"
       },
       "evidence": {
         "target_environment": "temporary SQLite databases plus synthetic records, providers, sinks, contexts and metrics",
-        "observed_at": "2026-07-23T19:57:51+02:00",
+        "observed_at": "2026-07-23T20:09:32+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -1563,12 +1562,44 @@
         ],
         "temporal_window": "none",
         "positive_path_required": true,
-        "recon": "All three declared paths are new and no production-file edit is required for the generic synthetic matrix. Chroma SDK/live service behavior and real CBM/RAPTOR runtime integration remain out of scope; their existing injected sink, structural bridge and adapter boundaries provide the repo-only failure evidence."
+        "recon": "All three declared paths were new and no production-file edit was required for the generic synthetic matrix. Chroma SDK/live service behavior and real CBM/RAPTOR runtime integration remain out of scope; their existing injected sink, structural bridge and adapter boundaries provide the repo-only failure evidence.",
+        "result": {
+          "focused_tests": 21,
+          "blocking_failures": 0,
+          "nonblocking_warning_count": 1,
+          "warning": "existing SQLAlchemy declarative_base deprecation",
+          "acceptance_matrix_rows": 8,
+          "owner_policy_leaks": 0,
+          "private_sentinel_leaks": 0,
+          "corrupt_sqlite_false_successes": 0,
+          "optional_lane_false_successes": 0,
+          "tombstone_or_default_stale_leaks": 0,
+          "productive_provider_network_deploy_live_actions": 0,
+          "limitation": "Chroma CBM and RAPTOR evidence is synthetic contract behavior only; no live provider integration is claimed."
+        }
       },
       "tests": [
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_unified_source_index_security.py tests\\test_unified_source_index_failure_matrix.py",
         "git diff --check -- tests/test_unified_source_index_security.py tests/test_unified_source_index_failure_matrix.py docs/plans/unified-source-index-acceptance.md"
       ],
+      "artifact_hashes": {
+        "tests/test_unified_source_index_security.py": "F510EA071B03376C985892BC832E75B640A6035ECD30A75EC892D899BB1BE26E",
+        "tests/test_unified_source_index_failure_matrix.py": "EA8D260E6075B9C6DB038D863187750A238AFED6E89BD131CFA2E6DAA36D69A0",
+        "docs/plans/unified-source-index-acceptance.md": "FBFB7F3DE6CF6FA83B7A456A4D66DFF01A67FF05944D3FF73CBA7A9088BB1D80"
+      },
+      "implementation_commit": "7e7c481675fdbc8796662dc1a685cd8ba13d73e3",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes_focused",
+        "reviewed": "yes_deep_sol",
+        "committed": "yes_local",
+        "pushed": "no",
+        "deployed": "na",
+        "live_validated": "na",
+        "product_complete": "no"
+      },
+      "acceptance": "offline_go_synthetic_security_privacy_failure_matrix_policy_fail_closed_optional_lanes_fail_soft_no_private_sentinel_leaks",
+      "next_frontier": "USI-15 remains blocked by child closure; UIR-00 runtime caller and composition audit is dependency-ready with runtime default-off.",
       "done_when": "The focused synthetic matrix proves owner/classification/content-policy failures are fail-closed, hostile locators/FTS input/oversized payloads are bounded, unavailable optional projections degrade without false success, tombstoned or stale results do not leak by default, and private sentinel content never enters errors, outcomes, metrics, reports or Lens payloads."
     },
     {
