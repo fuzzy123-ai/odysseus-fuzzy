@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T18:08:45+02:00",
-  "status": "uix_abc23_accepted_uix_abc24_production_composition_handoff_required",
+  "updated_at": "2026-07-23T18:10:33+02:00",
+  "status": "uix_abc24_bounded_production_composition_claimed",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Bearbeite die offenen Odysseus-Feature-Roadmaps dependency-gesteuert ueber Open Work; beginne mit UIX-ABC20, danach UIX-ABC22, repo-only und ohne breite Tests, Push, Deploy oder Live-Mutation.",
   "goal": "Advance the dependency-ready Open Work feature-roadmap frontier with bounded repo-only claims, focused verification, Sol-reviewed Terra handoffs, durable evidence and local commits.",
@@ -12,8 +12,8 @@
     "safe_open_json_slices": 0,
     "unique_live_gates": 40,
     "unique_design_gates": 27,
-    "other_open_json_items": 30,
-    "queue_status": "uix_abc23_accepted_uix_abc24_dependency_ready_but_unclaimable_until_production_composition_handoff",
+    "other_open_json_items": 31,
+    "queue_status": "uix_abc24_claimed_after_clean_harbor_production_composition_handoff",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,15 +21,15 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "agent_maintenance_safety": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "universal_inbox_workbench": "uix_abc13_through_uix_abc23_repo_complete_uix24_bounded_release_gate_parked",
+      "universal_inbox_workbench": "uix_abc13_through_uix_abc23_repo_complete_uix24_bounded_production_composition_in_progress",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
       "safe_open_count": 0,
-      "unclaimable_open_count": 1,
-      "other_open_count": 30,
+      "unclaimable_open_count": 0,
+      "other_open_count": 31,
       "unique_live_gate_count": 40,
       "unique_design_gate_count": 27,
       "decision_packet_families": [
@@ -61,24 +61,24 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "UIX-ABC23 is locally accepted and prior focused evidence can be reused. UIX-ABC24 still needs a bounded production composition handoff because Harbor One V3 does not load the accepted preview or document bridge and still renders disabled placeholder controls; a test-only composition would not satisfy the release gate.",
+        "reason": "UIX-ABC24 is durably claimed after a clean production-path handoff. The bounded slice wires the already accepted preview and document bridge into Harbor One, hands editing to the existing Document UI through a same-origin deep link, and adds only directly affected composed/controller checks.",
         "slice": "UIX-ABC24",
         "user_decision_required": false,
-        "safe_default": "design_one_bounded_production_composition_slice_plus_one_composed_synthetic_acceptance_without_rerunning_prior_suites"
+        "safe_default": "execute_only_the_five_claimed_uix_abc24_paths_without_broad_suite_or_live_action"
       },
       "queue_exhausted": true,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-23"
     },
     "dependency_ready_repo_only_slices": [],
-    "active_claimed_slices": [],
+    "active_claimed_slices": [
+      "UIX-ABC24"
+    ],
     "product_semantics_gated_open_slices": [],
     "handoff_gated_open_slices": [],
     "design_gated_open_slices": [],
     "dependency_blocked_slices": [],
-    "unclaimable_dependency_ready_slices": [
-      "UIX-ABC24"
-    ]
+    "unclaimable_dependency_ready_slices": []
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -2558,9 +2558,8 @@
       "title": "Integration, Security, Accessibility And Release Gate",
       "class": "safe_offline",
       "owner": "/root",
-      "status": "open",
+      "status": "claimed_in_progress",
       "claimable": false,
-      "claim_blocker": "production_composition_handoff_required_under_no_broad_tests",
       "depends_on": [
         "UIX-ABC13",
         "UIX-ABC14",
@@ -2575,8 +2574,71 @@
         "UIX-ABC23"
       ],
       "source_roadmap": "docs/plans/universal-inbox-abc-roadmap.md",
+      "handoff": {
+        "observed_at": "2026-07-23T18:10:33+02:00",
+        "kind": "fresh_clean_harbor_production_composition_handoff",
+        "inspected_paths": [
+          "static/frontpage-v3/index.html",
+          "static/frontpage-v3/inbox-workbench.js",
+          "static/frontpage-v3/inbox-document-bridge.js",
+          "static/frontpage-v3/inbox-preview.js",
+          "static/frontpage-v3/inbox-preview.css",
+          "static/js/document.js",
+          "tests/frontend/harbor-one-inbox-workbench.spec.js",
+          "tests/frontend/harbor-one-inbox-document-bridge.spec.js"
+        ],
+        "findings": [
+          "The five proposed edit paths are clean and have no foreign worktree diff; their latest local ownership is UIX-ABC19, UIX-ABC21, UIX-ABC22 and UIX-ABC23 on this branch.",
+          "The accepted preview and document bridge are production modules but are not loaded by Harbor One V3.",
+          "The existing Document UI supports the owner-scoped #document-<id> deep link, while Harbor One lacks the Document editor DOM and must not load the large Document module directly.",
+          "A content-free bridge handoff containing only the validated working-copy id and safe metadata can expose an explicit same-origin editor link without leaking content into Workbench state.",
+          "Previously accepted focused evidence is reusable; only the directly changed bridge and composed Workbench specs need execution."
+        ],
+        "decision": "claim_five_paths_for_preview_mount_content_free_document_deep_link_and_explicit_local_exports",
+        "resolved": true
+      },
+      "claim": {
+        "run_id": "abc-uix24-20260723T181033+0200",
+        "thread_id": "/root",
+        "slice_id": "UIX-ABC24",
+        "owner": "Charlie",
+        "allowed_paths": [
+          "static/frontpage-v3/index.html",
+          "static/frontpage-v3/inbox-workbench.js",
+          "static/frontpage-v3/inbox-document-bridge.js",
+          "tests/frontend/harbor-one-inbox-workbench.spec.js",
+          "tests/frontend/harbor-one-inbox-document-bridge.spec.js"
+        ],
+        "excluded_paths": [
+          "static/js/document.js",
+          "static/frontpage-v3/app.js",
+          "static/frontpage-v3/inbox-preview.js",
+          "static/frontpage-v3/inbox-preview.css"
+        ],
+        "hotfiles": [
+          "static/frontpage-v3/index.html",
+          "static/frontpage-v3/inbox-workbench.js"
+        ],
+        "state": "claimed",
+        "acquired_at": "2026-07-23T18:10:33+02:00",
+        "lease_expires_at": "2026-07-23T22:10:33+02:00",
+        "handoff_required": false
+      },
+      "allowed_paths": [
+        "static/frontpage-v3/index.html",
+        "static/frontpage-v3/inbox-workbench.js",
+        "static/frontpage-v3/inbox-document-bridge.js",
+        "tests/frontend/harbor-one-inbox-workbench.spec.js",
+        "tests/frontend/harbor-one-inbox-document-bridge.spec.js"
+      ],
+      "tests": [
+        "node --check static/frontpage-v3/inbox-workbench.js",
+        "node --check static/frontpage-v3/inbox-document-bridge.js",
+        "playwright test tests/frontend/harbor-one-inbox-workbench.spec.js tests/frontend/harbor-one-inbox-document-bridge.spec.js --workers=1 --reporter=line",
+        "git diff --check -- static/frontpage-v3/index.html static/frontpage-v3/inbox-workbench.js static/frontpage-v3/inbox-document-bridge.js tests/frontend/harbor-one-inbox-workbench.spec.js tests/frontend/harbor-one-inbox-document-bridge.spec.js"
+      ],
       "release_plan": {
-        "state": "evidence_reuse_audited_production_composition_missing",
+        "state": "bounded_production_composition_claimed",
         "observed_at": "2026-07-23T18:08:45+02:00",
         "constraint": "Do not rerun the canonical multi-suite matrix as a broad token-heavy test pass; reuse accepted UIX-ABC13 through UIX-ABC23 evidence.",
         "evidence_reuse": [
@@ -2590,7 +2652,7 @@
           "The Harbor One page does not contain the existing Document editor DOM; loading static/js/document.js directly is therefore not an established safe integration seam.",
           "A test-only composition cannot close an Integration and Release Gate while the production shell remains unwired."
         ],
-        "safe_next_action": "Perform a fresh path-ownership handoff for the Harbor index/workbench and bridge seam; define a bounded production flow that mounts the accepted preview, creates the owner-scoped working copy, and hands editing to the existing Document UI through an explicit same-origin deep link while keeping export choices explicit and live/provider actions disabled. Verify only the directly changed controller paths and one composed synthetic Harbor acceptance.",
+        "safe_next_action": "Execute only the five claimed production/controller paths, then independently Sol-review the composed synthetic Harbor result without rerunning any other accepted UIX suite.",
         "forbidden": [
           "broad test suite",
           "test-only release closure without production wiring",
@@ -2599,6 +2661,68 @@
           "push or deployment",
           "provider, Nextcloud or other live mutation"
         ]
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "dependency, hotfile handoff, durable claim and reusable release evidence"
+            },
+            {
+              "id": "impeccable",
+              "purpose": "focused Harbor interaction, accessibility and responsive review"
+            },
+            {
+              "id": "playwright",
+              "purpose": "composed synthetic production-shell acceptance"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "actual": {
+          "skills": [],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "evidence": "root surface"
+          },
+          "worker": {
+            "model": "pending",
+            "evidence": "pending handoff"
+          },
+          "review": {
+            "model": "pending",
+            "depth": "deep",
+            "result": "pending"
+          }
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "local",
+        "observed_at": "2026-07-23T18:10:33+02:00",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "focused_test",
+          "visual"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true
       },
       "done_when": "The claimed MVP scope passes focused owner/auth/redaction/capability/source/working-copy/export, frontend, accessibility, responsive, security and synthetic browser evidence without private content."
     },
@@ -3583,5 +3707,5 @@
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "No new human decision is required to design the bounded UIX-ABC24 production-composition handoff around the existing Document deep link. Broad regression reruns, private-content evidence, provider access, external delivery and every live-write authority remain closed."
+  "recommended_next_human_decision": "No new human decision is required while the five-path UIX-ABC24 production-composition claim is active. Broad regression reruns, static/js/document.js loading in Harbor, private-content evidence, provider access, external delivery and every live-write authority remain closed."
 }
