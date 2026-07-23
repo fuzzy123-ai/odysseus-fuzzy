@@ -19,7 +19,8 @@ def test_release_morning_brief_combines_handoff_and_artifacts():
 def test_current_release_morning_brief_uses_local_bundle():
     brief = render_current_release_morning_brief()
 
-    assert "REL-final-external-review" in brief
+    assert "REL-mvp-version-1-gate" in brief
+    assert "REL-final-external-review" not in brief
     assert "REL-provider-proof-evidence" not in brief
     assert "REL-test-vault-rebuild-evidence" not in brief
     assert "docs/plans/1.0-evidence-release-checklist.md" in brief

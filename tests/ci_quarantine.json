@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "policy": {
+    "maximum_lifetime_days": 30,
+    "required_entry_fields": [
+      "nodeid",
+      "owner",
+      "reason",
+      "issue",
+      "created_at",
+      "expires_at"
+    ]
+  },
+  "entries": []
+}

@@ -3320,7 +3320,7 @@ def test_review_memory_ok_confirms_latest_memory_write_intent(tmp_path, monkeypa
     assert attachment_event["memory_write_intent_status"] == "ready"
     assert attachment_event["queue_status"] == "completed"
     assert attachment_event["queue_concurrency"] == 1
-    assert attachment_event["maintenance_model_ref"] == "gemma4:e4b"
+    assert attachment_event["maintenance_model_ref"] == "gemma3:4b"
     assert attachment_event["maintenance_provider"] == "local_ollama"
     assert attachment_event["maintenance_action"] == "stay_on_maintenance_model"
     assert attachment_event["memory_records_planned"] == 1

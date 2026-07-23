@@ -100,6 +100,56 @@ Geplante UI-Slices:
 4. Project selector and active project state for the Planning workspace.
 5. Backend wiring to Planning MCP context packs and roadmap graph payloads.
 
+## Roadmap Document Viewer And Spark Follow-ups
+
+Stand 2026-07-09:
+
+- V2 kann aus Roadmap-Liste oder Planning-Graph einen Roadmap-Document-Viewer
+  oeffnen.
+- Der Viewer zeigt eine lesbare Roadmap-Aufbereitung mit Summary, Tasks,
+  Gates und einer `Data`-Ansicht fuer JSON.
+- Summary und Task-Texte sind im Prototyp direkt editierbar.
+- Spark Buttons koennen das ganze Roadmap-Dokument oder einzelne Abschnitte als
+  Kontextblase in den Agent-Composer legen und direkt zum Agent-Screen wechseln.
+
+Noch nicht implementiert und deshalb Roadmap-relevant:
+
+1. Roadmap-Datenquelle
+   - Aktuell kommt der Viewer aus Demo-Daten in `static/frontpage-v2/data.js`.
+   - Offen: echte Projekt-/Roadmap-JSON-Dateien laden, IDs stabil halten und
+     Overview/List/Viewer aus derselben Quelle rendern.
+2. Edit-Persistenz
+   - Aktuell sind Summary, Tasks und JSON nur UI-seitig editierbar.
+   - Offen: Aenderungen validieren, als Patch/Draft speichern und erst nach
+     Planning-MCP-Gate anwenden.
+3. JSON-Schema und Konflikte
+   - Offen: einheitliches Schema fuer Project, Roadmap, Gate, Todo und Event
+     definieren; Konflikte zwischen Viewer-Edit, MCP-Update und Agent-Run
+     sichtbar machen.
+4. Spark-Pipeline
+   - Aktuell pinnt Spark nur eine Frontend-Kontextblase.
+   - Offen: Spark muss einen echten Kontext-Pack anfordern, Dokument-/Roadmap-
+     Abschnitt, Source-Refs und Summary an den Agent uebergeben und auditierbar
+     bleiben.
+5. Notification Deep Links
+   - Offen: Notification -> Planning -> Overview -> Roadmap-Highlight ->
+     optional Document Viewer oeffnen.
+6. Undo/Delete
+   - Offen: Roadmap- oder Projekt-Loeschungen muessen Undo-Metadaten erzeugen,
+     eine sparsame Benachrichtigung ausloesen und ueber das UI rueckgaengig
+     gemacht werden koennen.
+7. Raptor Memory
+   - Offen: Roadmap-Zusammenfassungen, Gates und Beziehungen als abgeleitete
+     Planning-Memory-Eintraege mit Provenance schreiben, ohne Rohdaten zur
+     Quelle der Wahrheit zu machen.
+8. Browser-/Visual-Tests
+   - Offen: Playwright-Flows fuer Roadmap-Auswahl, Viewer-Oeffnung, Spark zum
+     Agent und Kontextblase.
+
+Diese Punkte sind in
+`docs/plans/harbor-planning-integration-master-roadmap.json` als strukturierte
+Slices gespiegelt.
+
 ## Prinzip
 
 User first: Labels bleiben kurz, handlungsnah und frei von Entwicklerjargon,

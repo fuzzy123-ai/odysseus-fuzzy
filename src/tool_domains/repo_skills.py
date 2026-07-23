@@ -361,6 +361,15 @@ async def do_manage_repos(content: str, owner: Optional[str] = None) -> Dict:
         return {"error": "Invalid JSON arguments", "exit_code": 1}
 
     action = str(args.get("action") or "list").strip().lower()
+    if action in {"commit", "push", "forge_metadata"}:
+        return {
+            "error": (
+                "manage_repos no longer executes commit or provider delivery actions. "
+                "Use commit_project once; it commits locally and queues the providers "
+                "selected by the stored project policy."
+            ),
+            "exit_code": 1,
+        }
     try:
         from src.constants import BASE_DIR
         from src.repo_git_adapter import RepoGitAdapter
@@ -443,8 +452,8 @@ async def do_manage_repos(content: str, owner: Optional[str] = None) -> Dict:
             if not remotes:
                 lines.append("- none")
             return {"output": "\n".join(lines), "remotes": remotes, "exit_code": 0}
-        if action in {"commit_plan", "commit"}:
-            from src.repo_commit_runner import plan_repo_local_commit, run_repo_local_commit
+        if action == "commit_plan":
+            from src.repo_commit_runner import plan_repo_local_commit
 
             common = {
                 "registry": registry,
@@ -457,19 +466,15 @@ async def do_manage_repos(content: str, owner: Optional[str] = None) -> Dict:
                 "confirmed": args.get("confirmed") is True,
                 "commit_message": args.get("commit_message"),
             }
-            report = (
-                plan_repo_local_commit(**common)
-                if action == "commit_plan"
-                else run_repo_local_commit(**common)
-            )
+            report = plan_repo_local_commit(**common)
             payload = report.to_dict()
             return {
                 "output": _repo_commit_output(payload),
                 "commit_report": payload,
                 "exit_code": 0 if report.status in {"plan_ready", "committed"} else 1,
             }
-        if action in {"push_plan", "push"}:
-            from src.repo_push_runner import plan_repo_push, run_repo_push
+        if action == "push_plan":
+            from src.repo_push_runner import plan_repo_push
 
             common = {
                 "registry": registry,
@@ -482,15 +487,15 @@ async def do_manage_repos(content: str, owner: Optional[str] = None) -> Dict:
                 "operator_go": args.get("operator_go") is True,
                 "live_enabled": _repo_optional_bool(args, "live_enabled"),
             }
-            report = plan_repo_push(**common) if action == "push_plan" else run_repo_push(**common)
+            report = plan_repo_push(**common)
             payload = report.to_dict()
             return {
                 "output": _repo_push_output(payload),
                 "push_report": payload,
                 "exit_code": 0 if report.status in {"plan_ready", "pushed"} else 1,
             }
-        if action in {"forge_plan", "forge_metadata"}:
-            from src.repo_forge_provider import plan_repo_forge_metadata, run_repo_forge_metadata
+        if action == "forge_plan":
+            from src.repo_forge_provider import plan_repo_forge_metadata
 
             common = {
                 "registry": registry,
@@ -506,11 +511,7 @@ async def do_manage_repos(content: str, owner: Optional[str] = None) -> Dict:
                 "live_enabled": args.get("live_enabled") is True,
                 "create_repo_requested": args.get("create_repo_requested") is True,
             }
-            report = (
-                plan_repo_forge_metadata(**common)
-                if action == "forge_plan"
-                else run_repo_forge_metadata(**common)
-            )
+            report = plan_repo_forge_metadata(**common)
             payload = report.to_dict()
             return {
                 "output": _repo_forge_output(payload),
@@ -559,7 +560,7 @@ async def do_manage_repos(content: str, owner: Optional[str] = None) -> Dict:
         return {
             "error": (
                 "Use action list, get, status, log, diff_stat, changed_paths, "
-                "remotes, commit_plan, commit, push_plan, push, forge_plan, forge_metadata, changes, change_history, "
+                "remotes, commit_plan, push_plan, forge_plan, changes, change_history, "
                 "register, forget, or update_policy."
             ),
             "exit_code": 1,

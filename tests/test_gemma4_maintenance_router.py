@@ -24,6 +24,8 @@ def test_router_maps_surfaces_to_capsules_and_bounded_route_without_raw_content(
     assert payload["surface"] == "universal_inbox"
     assert payload["prompt_capsule"]["capsule_id"] == "gemma4.inbox_triage.v1"
     assert payload["route"]["action"] == MaintenanceRouteAction.STAY_ON_MAINTENANCE_MODEL.value
+    assert payload["route"]["model_ref"] == "gemma3:4b"
+    assert payload["route"]["api_escalation_allowed"] is False
     assert payload["queue_policy"]["max_queue_concurrency"] == 1
     assert payload["queue_policy"]["token_budget"] == 1200
     assert payload["raw_content_persisted"] is False

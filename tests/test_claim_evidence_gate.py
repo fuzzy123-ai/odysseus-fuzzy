@@ -105,3 +105,68 @@ def test_failed_transaction_does_not_support_success_claim(tmp_path: Path):
 
     assert report.ok is False
     assert report.unsupported[0].claim_type == "command_passed"
+
+
+def _artifact_event(**claims):
+    return {
+        "tool": "publish_artifact",
+        "exit_code": 0,
+        "artifact_evidence": {
+            "artifact_id": "a" * 32 + ".png",
+            "artifact_hash": "b" * 64,
+            **claims,
+        },
+    }
+
+
+def test_visual_and_download_claims_require_typed_artifact_evidence(tmp_path: Path):
+    response = "Visual inspection: verified. Download is ready."
+
+    unsupported = evaluate_response_claims(response, [], repo_root=tmp_path)
+    supported = evaluate_response_claims(
+        response,
+        [
+            _artifact_event(
+                visual_inspected={"status": "verified"},
+                download_ready={"status": "verified"},
+            )
+        ],
+        repo_root=tmp_path,
+    )
+
+    assert {item.claim_type for item in unsupported.unsupported} == {"visual_inspected", "download_ready"}
+    assert supported.ok is True
+    assert all("sha256" in item.evidence[0] for item in supported.findings)
+
+
+def test_headless_claim_does_not_imply_interactive_preview(tmp_path: Path):
+    event = _artifact_event(headless_tested={"status": "verified"})
+    report = evaluate_response_claims(
+        "Headless verification passed and the game is playable here.",
+        [event],
+        repo_root=tmp_path,
+    )
+
+    by_type = {item.claim_type: item for item in report.findings}
+    assert by_type["headless_tested"].supported is True
+    assert by_type["interactive_preview_ready"].supported is False
+
+
+def test_negated_visual_statement_is_not_treated_as_success_claim(tmp_path: Path):
+    report = evaluate_response_claims(
+        "The screenshot was not visually inspected.",
+        [],
+        repo_root=tmp_path,
+    )
+
+    assert report.findings == ()
+
+
+def test_failed_download_statement_is_not_treated_as_ready_claim(tmp_path: Path):
+    report = evaluate_response_claims(
+        "I couldn't create a download link.",
+        [],
+        repo_root=tmp_path,
+    )
+
+    assert report.findings == ()

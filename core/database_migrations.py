@@ -1333,6 +1333,19 @@ def _migrate_add_calendar_metadata():
             pass
 
 
+def _migrate_clarification_tables():
+    """Ensure clarification v2 run/event tables exist on upgraded installs."""
+    try:
+        runs = Base.metadata.tables.get("clarification_runs")
+        events = Base.metadata.tables.get("clarification_events")
+        if runs is not None:
+            runs.create(bind=engine, checkfirst=True)
+        if events is not None:
+            events.create(bind=engine, checkfirst=True)
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"clarification table migration failed: {e}")
+
+
 for _name, _func in list(globals().items()):
     if _name.startswith("_migrate_") and callable(_func):
         globals()[_name] = _with_database_context(_func)
@@ -1382,6 +1395,7 @@ def run_database_migrations() -> None:
     _migrate_add_calendar_origin()
     _migrate_add_calendar_account_id()
     _migrate_add_caldav_sync_columns()
+    _migrate_clarification_tables()
     _migrate_chat_messages_fts()
     _migrate_encrypt_email_passwords()
     _migrate_encrypt_signatures()

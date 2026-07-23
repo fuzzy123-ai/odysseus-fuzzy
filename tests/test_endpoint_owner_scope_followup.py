@@ -378,11 +378,13 @@ def test_compare_endpoint_key_lookup_is_owner_scoped():
 
 def test_gallery_image_endpoint_lookups_are_owner_scoped():
     body = Path("routes/gallery_routes.py").read_text(encoding="utf-8")
+    endpoint_helpers = Path("routes/gallery_endpoint_helpers.py").read_text(encoding="utf-8")
     helper_body = body.split("def _visible_image_endpoint_query", 1)[1].split(
         "def _first_visible_image_endpoint", 1
     )[0]
 
-    assert "owner_filter(q, ModelEndpoint, owner)" in helper_body
+    assert "owner_filter_func=owner_filter" in helper_body
+    assert "return owner_filter_func(q, model_endpoint, owner)" in endpoint_helpers
     assert body.count("_first_visible_image_endpoint(db, user)") >= 4
     assert body.count("_visible_image_endpoint_for_base(db,") >= 2
     assert "def _current_user_is_admin" in body

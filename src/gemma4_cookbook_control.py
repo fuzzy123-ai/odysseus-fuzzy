@@ -1,8 +1,10 @@
-"""Backend contract for controlling Gemma4 E4B via Cookbook.
+"""Compatibility contract for controlling Gemma 3 maintenance via Cookbook.
 
 This module does not start or stop model servers. It translates manual/UI/agent
 intent into a small auditable plan that must be executed through the existing
 Cookbook tools or routes, never through ad-hoc shell/tmux/ssh commands.
+
+The ``gemma4_*`` module and symbol names remain stable for existing callers.
 """
 
 from __future__ import annotations
@@ -24,7 +26,7 @@ _SAFE_LABEL_RE = re.compile(r"^[A-Za-z0-9_.:@/-]{0,160}$")
 
 
 class Gemma4CookbookControlError(ValueError):
-    """Raised when a Gemma4 cookbook control plan is unsafe."""
+    """Raised when a maintenance-model Cookbook control plan is unsafe."""
 
 
 class Gemma4CookbookAction(StrEnum):
@@ -79,7 +81,7 @@ def plan_gemma4_cookbook_control(
     action: Gemma4CookbookAction | str,
     model_ref: str = DEFAULT_MAINTENANCE_MODEL,
     provider: str = DEFAULT_MAINTENANCE_PROVIDER,
-    preset_name: str = "gemma4-e4b-maintenance",
+    preset_name: str = "gemma3-4b-maintenance",
     session_id: str = "",
     host: str = "",
     port: int | None = None,

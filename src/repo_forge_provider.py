@@ -14,6 +14,10 @@ _PROVIDERS = ("github", "gitea", "forgejo")
 _DECISIONS = ("blocked", "hold", "plan_ready")
 _STATUSES = ("blocked", "plan_ready", "fetched", "failed")
 _SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
+_GITHUB_REPOSITORY_RE = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
+_GITHUB_SCP_RE = re.compile(
+    r"^(?P<user>[A-Za-z0-9._-]+)@(?P<host>[A-Za-z0-9.-]+):(?P<path>[^\s]+)$"
+)
 _SECRET_RE = re.compile(r"(?i)\b(token|secret|password|passwd|api[_-]?key|bearer)\b\s*[:=]\s*\S+")
 _DEFAULT_API_BASES = {
     "github": "https://api.github.com",
@@ -24,6 +28,21 @@ _DEFAULT_API_BASES = {
 
 class RepoForgeProviderError(ValueError):
     """Raised when a forge provider request is unsafe."""
+
+
+@dataclass(frozen=True, slots=True)
+class GitHubRemoteIdentity:
+    """Credential-free GitHub repository identity derived from a remote URL."""
+
+    namespace: str
+    repo_name: str
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.namespace}/{self.repo_name}"
+
+    def to_dict(self) -> dict[str, str]:
+        return {"provider": "github", "namespace": self.namespace, "repo_name": self.repo_name}
 
 
 class RepoForgeMetadataProvider(Protocol):
@@ -415,6 +434,53 @@ def normalize_forge_metadata_payload(payload: Mapping[str, Any], *, provider: An
         html_url=payload.get("html_url") or payload.get("web_url") or "",
         clone_url=payload.get("clone_url") or payload.get("ssh_url") or payload.get("ssh_url_to_repo") or "",
     )
+
+
+def normalize_github_remote_identity(value: Any) -> GitHubRemoteIdentity:
+    """Parse an HTTPS/SSH GitHub remote without retaining credentials or URL.
+
+    Transport credentials, query strings, fragments, non-GitHub hosts and
+    paths other than ``namespace/repository`` fail closed.  Returned identity
+    is case-folded because GitHub repository URLs are case-insensitive.
+    """
+
+    raw = str(value or "").strip()
+    if not raw or len(raw) > 500 or "\x00" in raw or any(character.isspace() for character in raw):
+        raise RepoForgeProviderError("GitHub remote is invalid")
+
+    scp_match = _GITHUB_SCP_RE.fullmatch(raw)
+    if scp_match:
+        if scp_match.group("user") != "git" or scp_match.group("host").casefold() != "github.com":
+            raise RepoForgeProviderError("GitHub remote identity is not allowed")
+        path = scp_match.group("path")
+    else:
+        split = urlsplit(raw)
+        if split.scheme.casefold() not in {"https", "ssh"}:
+            raise RepoForgeProviderError("GitHub remote scheme is not allowed")
+        if (split.hostname or "").casefold() != "github.com" or split.query or split.fragment:
+            raise RepoForgeProviderError("GitHub remote identity is not allowed")
+        if split.password is not None:
+            raise RepoForgeProviderError("GitHub remote must not embed credentials")
+        if split.username not in (None, "", "git"):
+            raise RepoForgeProviderError("GitHub remote must not embed credentials")
+        if split.port not in (None, 22, 443):
+            raise RepoForgeProviderError("GitHub remote port is not allowed")
+        path = split.path.lstrip("/")
+
+    if path.endswith(".git"):
+        path = path[:-4]
+    parts = path.split("/")
+    if len(parts) != 2:
+        raise RepoForgeProviderError("GitHub remote must identify one repository")
+    namespace, repo_name = (part.casefold() for part in parts)
+    if (
+        namespace in ("", ".", "..")
+        or repo_name in ("", ".", "..")
+        or not _GITHUB_REPOSITORY_RE.fullmatch(namespace)
+        or not _GITHUB_REPOSITORY_RE.fullmatch(repo_name)
+    ):
+        raise RepoForgeProviderError("GitHub remote repository name is invalid")
+    return GitHubRemoteIdentity(namespace=namespace, repo_name=repo_name)
 
 
 def _record(registry: RepoRegistry, repo_id: Any) -> RepoRecord:

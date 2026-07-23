@@ -641,8 +641,8 @@ from routes.internal_reference_routes import setup_internal_reference_routes
 app.include_router(setup_internal_reference_routes(memory_manager))
 from routes.review_gate_routes import setup_review_gate_routes
 app.include_router(setup_review_gate_routes())
-from routes.operator_dashboard_routes import setup_operator_dashboard_routes
-app.include_router(setup_operator_dashboard_routes(mcp_manager=mcp_manager))
+from routes.clarification_routes import setup_clarification_routes
+app.include_router(setup_clarification_routes())
 from routes.legacy_chat_contract_routes import setup_legacy_chat_contract_routes
 app.include_router(setup_legacy_chat_contract_routes())
 from routes.version_one_readiness_routes import setup_version_one_readiness_routes
@@ -681,6 +681,10 @@ app.include_router(setup_server_project_routes())
 # Registered repos
 from routes.repo_routes import setup_repo_routes
 app.include_router(setup_repo_routes())
+
+# Project versions and provider policy (local persistence/outbox only)
+from routes.project_versioning_routes import setup_default_project_versioning_routes
+app.include_router(setup_default_project_versioning_routes())
 
 # GitHub issue intelligence route contracts
 from routes.github_issue_routes import setup_github_issue_routes
@@ -849,6 +853,10 @@ set_mcp_manager(mcp_manager)
 app.include_router(setup_mcp_routes(mcp_manager))
 from routes.operator_quick_status_routes import setup_operator_quick_status_routes
 app.include_router(setup_operator_quick_status_routes(mcp_manager))
+from routes.operator_dashboard_routes import setup_operator_dashboard_routes
+app.include_router(setup_operator_dashboard_routes(mcp_manager=mcp_manager))
+from routes.workspace_snapshot_routes import setup_workspace_snapshot_routes
+app.include_router(setup_workspace_snapshot_routes(mcp_manager=mcp_manager))
 logger.info("MCP routes initialized")
 
 # AI Interaction tools (debates, pipelines, self-managing AI, UI control)
@@ -1244,6 +1252,16 @@ async def serve_index(request: Request):
     if os.path.exists(static_path):
         return serve_html_with_nonce(request, static_path)
     return serve_html_with_nonce(request, abs_join(BASE_DIR, "index.html"))
+
+
+@app.get("/harbor-one")
+@app.get("/harbor-one/{path:path}")
+async def serve_harbor_one(request: Request, path: str = ""):
+    static_path = abs_join(BASE_DIR, "static/frontpage-v3/index.html")
+    if not os.path.exists(static_path):
+        raise HTTPException(status_code=404, detail="Harbor One preview is not available")
+    return serve_html_with_nonce(request, static_path)
+
 
 @app.get("/notes")
 async def serve_notes(request: Request):

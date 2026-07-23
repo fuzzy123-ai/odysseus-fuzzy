@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
+from src.local_model_scheduler import maintenance_cpu_checkpoint
 from src.memory_perf_suite_data import SyntheticMemoryEvent, generate_synthetic_memory_events
 from src.memory_perf_suite_eventlog import AppendOnlyJsonlEventLog
 from src.memory_perf_suite_invariants import InvariantCheckResult, check_recovery_invariants
@@ -87,6 +88,7 @@ def run_memory_durability_scenario(
     seed: int | None = None,
     event_count: int | None = None,
     crash_point: str | None = None,
+    maintenance_yield_func: Callable[[], Any] | None = None,
 ) -> MemoryPerfSuiteRunResult:
     scenario = build_scenario_preset(preset, seed=seed) if isinstance(preset, str) else preset
     if crash_point is not None and crash_point not in CRASH_POINTS:
@@ -107,8 +109,10 @@ def run_memory_durability_scenario(
     derived_index: dict[str, str] = {}
     expected_committed: list[SyntheticMemoryEvent] = []
     duplicate_count = 0
+    checkpoint = maintenance_yield_func or maintenance_cpu_checkpoint
 
     for index, event in enumerate(events):
+        checkpoint()
         collector.start_phase("event_log_append")
         if log.contains_event(event_id=event.event_id, source_hash=event.source_hash):
             duplicate_count += 1
@@ -142,6 +146,7 @@ def run_memory_durability_scenario(
         if _should_crash(crash_point, "after_derived_write", index):
             break
 
+    checkpoint()
     collector.start_phase("recovery_replay")
     recovered_log = AppendOnlyJsonlEventLog(log_path)
     recovery = check_recovery_invariants(expected_committed, recovered_log)

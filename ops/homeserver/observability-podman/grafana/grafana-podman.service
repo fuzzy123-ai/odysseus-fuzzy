@@ -1,0 +1,22 @@
+[Unit]
+Description=Odysseus private Grafana stack (activation gated)
+Documentation=https://grafana.com/docs/grafana/latest/
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=%h/.config/odysseus-observability/GRAFANA_ACTIVATION_GO
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/odysseus/ops/homeserver/observability-podman/grafana
+EnvironmentFile=%h/.config/odysseus-observability/grafana.env
+ExecStartPre=/usr/bin/test -r ./secrets/grafana_admin_password
+ExecStart=/usr/bin/podman-compose -f compose.yml up -d
+ExecStop=-/usr/bin/podman-compose -f compose.yml stop
+RemainAfterExit=yes
+Restart=no
+TimeoutStartSec=180
+TimeoutStopSec=60
+
+[Install]
+WantedBy=default.target
+

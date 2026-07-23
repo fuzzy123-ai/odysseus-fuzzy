@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Harbor One Frontend V3</title>
   <link rel="stylesheet" href="../frontpage-v2/styles.css?v=harbor-brand-1">
-  <link rel="stylesheet" href="./v3-fixed.css?v=harbor-v3-fixed-1">
+  <link rel="stylesheet" href="./v3-fixed.css?v=harbor-v3-fixed-2">
+  <link rel="stylesheet" href="./ai-lens.css?v=harbor-ai-lens-3">
   <link rel="stylesheet" href="./planning.css?v=harbor-pde-1">
   <link rel="stylesheet" href="./agent-operations.css?v=harbor-tlr07-1">
 </head>
@@ -18,7 +19,7 @@
       <span>Retrieve. Plan. Execute.</span>
     </div>
 
-    <header class="topline" aria-label="Harbor One Frontend V2">
+    <header class="topline" aria-label="Harbor One primary header">
       <div class="brand-stack">
         <button class="brand-home-button" type="button" data-brand-home aria-label="Go to Agent home">
           <span class="brand-logo-crop" aria-hidden="true">
@@ -87,9 +88,9 @@
       </nav>
       <div class="topline-controls">
         <div class="secure-cluster">
-          <button class="secure-button" id="privacy-toggle" type="button" aria-label="Secure mode off" aria-pressed="false" title="Secure mode">
+          <button class="secure-button" id="privacy-toggle" type="button" aria-label="Secure mode unlocked" aria-pressed="false" title="Secure mode: unlocked">
             <span class="secure-lock-icon" aria-hidden="true"></span>
-            <span class="secure-label">Secure</span>
+            <span class="secure-label">Unlocked</span>
           </button>
           <span class="secure-hologram" aria-hidden="true">
             <svg class="secure-lock-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" focusable="false">
@@ -371,17 +372,27 @@
       </article>
       </div>
       <div class="workspace-screen" data-workspace-screen="knowledge" aria-label="Knowledge workspace">
-        <article class="floating-window knowledge-graph-window active" id="knowledge-graph-window" data-window data-window-id="knowledge-graph" data-window-close-mode="remove" aria-label="Knowledge Graph">
+        <article class="floating-window knowledge-graph-window active" id="knowledge-graph-window" data-window data-window-id="knowledge-graph" data-window-close-mode="remove" aria-label="AI Lens">
           <header class="window-head" data-drag-handle>
             <div class="window-subtitle">knowledge</div>
-            <div class="window-title">Knowledge Graph</div>
+            <div class="window-title">AI Lens</div>
             <div class="window-actions" aria-label="Window controls">
               <button class="window-control" data-window-min title="Minimize" aria-label="Minimize">-</button>
               <button class="window-control" data-window-max title="Maximize" aria-label="Maximize">&#9633;</button>
               <button class="window-control" data-window-close title="Close" aria-label="Close">x</button>
             </div>
           </header>
-          <div class="window-body" data-knowledge-graph-default></div>
+          <div class="window-body" data-knowledge-graph-default>
+            <div class="ai-lens-root" data-ai-lens-root aria-live="polite">
+              <div class="lens-state lens-state-loading" role="status">
+                <span class="lens-state-signal" aria-hidden="true"></span>
+                <div>
+                  <strong>Connecting to AI Lens</strong>
+                  <span>Reading the Knowledge graph and bounded runtime trace.</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </article>
       </div>
       <div class="workspace-screen" data-workspace-screen="planning" aria-label="Planning workspace">
@@ -671,9 +682,11 @@
   </main>
 
   <script src="./data.js?v=harbor-v3-fixed-1"></script>
-  <script src="./app.js?v=harbor-v3-fixed-1"></script>
+  <script src="./app.js?v=harbor-v3-fixed-2"></script>
   <script src="./planning-fixtures.js?v=harbor-pde-1"></script>
-  <script src="./api.js?v=harbor-pde-1"></script>
+  <script src="./api.js?v=harbor-ai-lens-2"></script>
+  <script src="./ai-lens-preview.js?v=harbor-ai-lens-3"></script>
+  <script src="./ai-lens.js?v=harbor-ai-lens-3"></script>
   <script src="./planning.js?v=harbor-pde-1"></script>
   <script src="./agent-operation-fixtures.js?v=harbor-tlr07-1"></script>
   <script src="./agent-operations.js?v=harbor-tlr07-1"></script>

@@ -1,7 +1,11 @@
 import json
 import os
 import hashlib
+import time
+from datetime import datetime, timezone
 from typing import Any, Dict, List
+
+from src.memory_runtime_metrics import get_memory_runtime_metrics_registry
 
 from .feature_flags import all_flags, freshness_filtering_state
 from .freshness import audit_knowledge
@@ -12,6 +16,58 @@ from . import vault_service
 
 RAPTOR_INDEX_PATH = ".obsidian/odysseus/raptor/index.json"
 RAPTOR_SUMMARIES_PATH = ".obsidian/odysseus/raptor/summaries.json"
+RAPTOR_CAPABILITY_LEVEL = "graph_cluster_summary"
+_METRICS_CLOCK = time.perf_counter
+_METRICS_WALL_CLOCK = lambda: datetime.now(timezone.utc).timestamp()
+
+
+def _record_raptor_duration(outcome: str, started: float) -> None:
+    try:
+        get_memory_runtime_metrics_registry().observe_histogram(
+            "odysseus_memory_operation_duration_seconds",
+            {
+                "component": "raptorgraph",
+                "operation": "raptor_status",
+                "phase": "total",
+                "outcome": outcome,
+                "runtime": "app",
+            },
+            max(0.0, _METRICS_CLOCK() - started),
+        )
+    except Exception:
+        pass
+
+
+def _record_raptor_outcome(outcome: str) -> None:
+    try:
+        get_memory_runtime_metrics_registry().increment_counter(
+            "odysseus_memory_operations_total",
+            {
+                "component": "raptorgraph",
+                "operation": "raptor_status",
+                "outcome": outcome,
+                "runtime": "app",
+            },
+        )
+    except Exception:
+        pass
+
+
+def _record_raptor_artifact_age(payload: Dict[str, Any]) -> None:
+    try:
+        registry = get_memory_runtime_metrics_registry()
+        last_built = str(payload.get("last_built") or "")
+        if last_built:
+            built_at = datetime.fromisoformat(last_built.replace("Z", "+00:00"))
+            if built_at.tzinfo is None:
+                built_at = built_at.replace(tzinfo=timezone.utc)
+            registry.set_gauge(
+                "odysseus_raptor_artifact_age_seconds",
+                {"runtime": "app"},
+                max(0.0, _METRICS_WALL_CLOCK() - built_at.timestamp()),
+            )
+    except Exception:
+        pass
 
 
 def _source_hash(content: str) -> str:
@@ -110,13 +166,32 @@ def _lineage_status(vault_dir: str, lineage: Dict[str, str], audit: Dict[str, An
     }
 
 
-def raptor_status(vault_dir: str) -> Dict[str, Any]:
-    return cached_raptor_payload(
-        vault_dir,
-        "status",
-        {},
-        lambda: _raptor_status_uncached(vault_dir),
-    )
+def raptor_status(vault_dir: str, *, _record_total: bool = True) -> Dict[str, Any]:
+    started = _METRICS_CLOCK()
+    outcome = "error"
+    try:
+        payload = cached_raptor_payload(
+            vault_dir,
+            "status",
+            {},
+            lambda: _raptor_status_uncached(vault_dir),
+        )
+        payload["raptor_capability_level"] = RAPTOR_CAPABILITY_LEVEL
+        if isinstance(payload.get("summary"), dict):
+            payload["summary"]["raptor_capability_level"] = RAPTOR_CAPABILITY_LEVEL
+        _record_raptor_artifact_age(payload)
+        outcome = "success" if bool((payload.get("readiness") or {}).get("ready")) else "blocked"
+        return payload
+    except (FileNotFoundError, PermissionError, ValueError):
+        outcome = "blocked"
+        raise
+    except Exception:
+        outcome = "error"
+        raise
+    finally:
+        if _record_total:
+            _record_raptor_duration(outcome, started)
+            _record_raptor_outcome(outcome)
 
 
 def _raptor_status_uncached(vault_dir: str) -> Dict[str, Any]:

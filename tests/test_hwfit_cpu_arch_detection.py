@@ -16,6 +16,9 @@ def _clear_hwfit_cache(monkeypatch):
 
 
 def _stub_common_probe(monkeypatch, machine):
+    # Force the generic probe on Windows too; otherwise detect_system returns
+    # real WMI data before it reaches the architecture seam exercised here.
+    monkeypatch.setattr(hardware, "_detect_windows", lambda: None)
     monkeypatch.setattr(hardware.platform, "machine", lambda: machine)
     monkeypatch.setattr(hardware, "_get_ram_gb", lambda: 64.0)
     monkeypatch.setattr(hardware, "_get_available_ram_gb", lambda: 48.0)

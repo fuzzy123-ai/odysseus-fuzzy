@@ -49,8 +49,11 @@ def _clip_notification_body(body: str | None, limit: int = 500) -> str | None:
 
 
 class TaskScheduler:
-    def __init__(self, session_manager):
+    def __init__(self, session_manager, *, tool_usage_instrumentation=None):
         self._session_manager = session_manager
+        # Optional and default-off. Activation is owned by the later live gate;
+        # tests and trusted runtimes may inject the shared base consumer.
+        self._tool_usage_instrumentation = tool_usage_instrumentation
         self._running = False
         self._task = None
         self._executing = set()  # task IDs currently running OR queued behind the semaphore
@@ -68,6 +71,64 @@ class TaskScheduler:
         self._run_semaphore = asyncio.Semaphore(1)
         self._concurrency_cap = 1
         self._task_handles = {}
+
+    def _tool_usage_context_for_task(
+        self,
+        task,
+        run_id: str | None,
+        *,
+        endpoint_urls=(),
+    ):
+        if getattr(self, "_tool_usage_instrumentation", None) is None:
+            return None
+        try:
+            from src.tool_usage_context import TrustedToolUsageContext, trusted_model_scope
+            from src.tool_usage_events import ToolUsageModelScope
+
+            scopes = {
+                trusted_model_scope(endpoint_url)
+                for endpoint_url in endpoint_urls
+                if endpoint_url not in (None, "")
+            }
+            scopes.discard(ToolUsageModelScope.UNKNOWN)
+            model_scope = (
+                ToolUsageModelScope.MIXED
+                if len(scopes) > 1
+                else next(iter(scopes))
+                if scopes
+                else ToolUsageModelScope.UNKNOWN
+            )
+            task_id = str(getattr(task, "id", "") or "") or None
+            return TrustedToolUsageContext.create(
+                surface="scheduler",
+                agent_mode="background_system",
+                model_scope=model_scope,
+                owner_identity=getattr(task, "owner", None),
+                session_identity=getattr(task, "session_id", None),
+                run_identity=run_id or ("scheduler-run-" + uuid.uuid4().hex),
+                correlation_identity=task_id,
+            )
+        except Exception:
+            return None
+
+    def _bound_tool_usage_for_task(
+        self,
+        task,
+        run_id: str | None,
+        *,
+        endpoint_urls=(),
+    ):
+        context = self._tool_usage_context_for_task(
+            task,
+            run_id,
+            endpoint_urls=endpoint_urls,
+        )
+        if context is None:
+            return None
+        try:
+            return self._tool_usage_instrumentation.with_context(context)
+        except Exception:
+            return None
 
     def _set_run_progress(self, run_id: str, message: str):
         """Persist short live progress text for Activity while a run is active."""
@@ -436,7 +497,13 @@ class TaskScheduler:
                 if getattr(self, "_last_run_model", None):
                     run.model = self._last_run_model
                 if run.status == "success":
-                    await self._deliver_task_result(task, result, db, model=getattr(self, "_last_run_model", None))
+                    await self._deliver_task_result(
+                        task,
+                        result,
+                        db,
+                        model=getattr(self, "_last_run_model", None),
+                        run_id=run_id,
+                    )
             except TaskDeferred as defer:
                 count = self._task_defer_counts.get(task_id, 0) + 1
                 self._task_defer_counts[task_id] = count
@@ -718,30 +785,56 @@ class TaskScheduler:
         from src.builtin_actions import BUILTIN_ACTIONS
 
         action_fn = BUILTIN_ACTIONS.get(task.action)
-        if not action_fn:
-            return f"Unknown action: {task.action}", False
-
         from src.builtin_actions import TaskNoop
-        try:
-            # Pass task prompt as script/command for ssh_command/run_script actions.
-            def _progress(message: str):
-                self._set_run_progress(run_id, message)
 
-            kwargs = {"owner": task.owner, "task_name": task.name, "progress_cb": _progress}
-            if task.action in ("run_script", "run_local", "ssh_command") and task.prompt:
-                kwargs["script" if task.action in ("run_script", "run_local") else "command"] = task.prompt
+        async def _operation():
+            if not action_fn:
+                return f"Unknown action: {task.action}", False
+            try:
+                # Pass task prompt as script/command for ssh_command/run_script actions.
+                def _progress(message: str):
+                    self._set_run_progress(run_id, message)
+
+                kwargs = {"owner": task.owner, "task_name": task.name, "progress_cb": _progress}
+                if task.action in ("run_script", "run_local", "ssh_command") and task.prompt:
+                    kwargs["script" if task.action in ("run_script", "run_local") else "command"] = task.prompt
             # cookbook_serve carries its JSON config in task.prompt — feed it
             # through as `command` so action_cookbook_serve can json.loads it.
-            elif task.action == "cookbook_serve" and task.prompt:
-                kwargs["command"] = task.prompt
-            result, success = await action_fn(**kwargs)
-            return result, success
-        except TaskNoop:
-            # Bubble up so _execute_task_locked can drop the run row silently.
-            raise
-        except Exception as e:
-            logger.error(f"Action '{task.action}' failed: {e}")
-            return str(e), False
+                elif task.action == "cookbook_serve" and task.prompt:
+                    kwargs["command"] = task.prompt
+                result, success = await action_fn(**kwargs)
+                return result, success
+            except TaskNoop:
+                raise
+            except Exception as e:
+                logger.error(f"Action '{task.action}' failed: {e}")
+                return str(e), False
+
+        if getattr(self, "_tool_usage_instrumentation", None) is None:
+            return await _operation()
+
+        from src.tool_usage_instrumentation import (
+            execute_instrumented_bypass,
+            normalize_bypass_tool_usage_outcome,
+        )
+
+        def _outcome(value):
+            result, success = value
+            return normalize_bypass_tool_usage_outcome(
+                result,
+                succeeded=bool(success),
+                rejected_unknown=action_fn is None,
+            )
+
+        return await execute_instrumented_bypass(
+            self._bound_tool_usage_for_task(task, run_id),
+            tool_name=task.action,
+            argument=task.prompt,
+            operation=_operation,
+            trusted_source="legacy",
+            retry_ordinal=0,
+            outcome_factory=_outcome,
+        )
 
     @staticmethod
     def _format_email_output(raw: str) -> str:
@@ -755,7 +848,19 @@ class TaskScheduler:
         from src.task_scheduler_checkin import execute_checkin
 
         return await execute_checkin(
-            self, task, crew, db, session_id, endpoint_url, model, run_id=run_id
+            self,
+            task,
+            crew,
+            db,
+            session_id,
+            endpoint_url,
+            model,
+            run_id=run_id,
+            tool_usage_instrumentation=self._bound_tool_usage_for_task(
+                task,
+                run_id,
+                endpoint_urls=(endpoint_url,),
+            ),
         )
     async def _execute_llm_task(self, task, db, run_id: str | None = None) -> str:
         """Execute an LLM task with full tool access via the agent loop."""
@@ -930,7 +1035,14 @@ class TaskScheduler:
 
         return result
 
-    async def _deliver_task_result(self, task, result: str, db, model: str = None):
+    async def _deliver_task_result(
+        self,
+        task,
+        result: str,
+        db,
+        model: str = None,
+        run_id: str | None = None,
+    ):
         """Deliver a completed task result according to output_target.
 
         This is intentionally shared by LLM/research/action tasks so built-in
@@ -948,7 +1060,15 @@ class TaskScheduler:
         ):
             return
         if output.startswith("mcp__"):
-            await self._deliver_via_mcp(output, task, result)
+            await self._deliver_via_mcp(
+                output,
+                task,
+                result,
+                tool_usage_instrumentation=self._bound_tool_usage_for_task(
+                    task,
+                    run_id,
+                ),
+            )
             return
 
         if self._is_email_output_target(output):
@@ -1163,6 +1283,15 @@ class TaskScheduler:
             _task_fallbacks = resolve_utility_fallback_candidates(owner=task.owner or None)
         except Exception:
             _task_fallbacks = []
+        _tool_usage_context = self._tool_usage_context_for_task(
+            task,
+            run_id,
+            endpoint_urls=(endpoint_url,) + tuple(
+                candidate[0]
+                for candidate in _task_fallbacks
+                if isinstance(candidate, (list, tuple)) and candidate
+            ),
+        )
         ledger_started = False
         try:
             from src import agent_run_ledger
@@ -1195,6 +1324,12 @@ class TaskScheduler:
             audit_surface="scheduled_task",
             audit_correlation_id=str(run_id or task.id),
             audit_task_id=task.id,
+            tool_usage_context=_tool_usage_context,
+            tool_usage_instrumentation=getattr(
+                self,
+                "_tool_usage_instrumentation",
+                None,
+            ),
         ):
             if ledger_started:
                 try:
@@ -1435,10 +1570,22 @@ class TaskScheduler:
             pass
         return None, None
 
-    async def _deliver_via_mcp(self, tool_name: str, task, result: str):
+    async def _deliver_via_mcp(
+        self,
+        tool_name: str,
+        task,
+        result: str,
+        *,
+        tool_usage_instrumentation=None,
+    ):
         from src.task_scheduler_delivery import deliver_via_mcp
 
-        await deliver_via_mcp(tool_name, task, result)
+        return await deliver_via_mcp(
+            tool_name,
+            task,
+            result,
+            tool_usage_instrumentation=tool_usage_instrumentation,
+        )
 
     async def run_task_now(self, task_id: str, *, force: bool = False):
         """Manually trigger a task execution."""

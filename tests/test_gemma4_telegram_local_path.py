@@ -21,6 +21,8 @@ def test_voice_transcript_plan_is_bounded_local_and_redacted_in_report():
 
     assert payload["kind"] == "voice_transcript"
     assert payload["maintenance_route"]["prompt_capsule_id"] == "gemma4.voice_transcript.v1"
+    assert payload["maintenance_route"]["model_ref"] == "gemma3:4b"
+    assert payload["maintenance_route"]["api_escalation_allowed"] is False
     assert payload["maintenance_route"]["raw_content_allowed"] is False
     assert payload["transcript_visible"] is False
     assert payload["raw_content_persisted"] is False

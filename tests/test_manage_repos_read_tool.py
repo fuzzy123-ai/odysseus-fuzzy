@@ -205,7 +205,7 @@ async def test_manage_repos_dispatches_through_execute_tool_block(tmp_path: Path
     _write_registry(registry_path)
     monkeypatch.setenv("ODYSSEUS_REPO_REGISTRY_FILE", str(registry_path))
     monkeypatch.setenv("ODYSSEUS_REPO_WORKSPACE_BASE", str(tmp_path))
-    monkeypatch.setattr("src.tool_execution._owner_is_admin", lambda owner: True)
+    monkeypatch.setitem(execute_tool_block.__globals__, "_owner_is_admin", lambda owner: True)
 
     desc, result = await execute_tool_block(
         ToolBlock("manage_repos", json.dumps({"action": "changed_paths", "repo_id": "demo"})),
@@ -390,7 +390,7 @@ async def test_manage_repos_commit_plan_explains_missing_gates(tmp_path: Path, m
 
 
 @pytest.mark.asyncio
-async def test_manage_repos_commit_runs_confirmed_exact_path(tmp_path: Path, monkeypatch):
+async def test_manage_repos_commit_redirects_to_single_commit_project_tool(tmp_path: Path, monkeypatch):
     repo = _make_repo(tmp_path)
     (repo / "OTHER.md").write_text("still dirty\n", encoding="utf-8")
     registry_path = tmp_path / "repo-registry.json"
@@ -413,16 +413,16 @@ async def test_manage_repos_commit_runs_confirmed_exact_path(tmp_path: Path, mon
         owner="admin",
     )
 
-    assert result["exit_code"] == 0
-    assert result["commit_report"]["status"] == "committed"
-    assert result["commit_report"]["committed_paths"] == ["repos/demo/README.md"]
-    assert "OTHER.md" in subprocess.run(
+    assert result["exit_code"] == 1
+    assert "commit_project" in result["error"]
+    status = subprocess.run(
         ["git", "status", "--short"],
         cwd=repo,
         capture_output=True,
         text=True,
         check=True,
     ).stdout
+    assert "README.md" in status and "OTHER.md" in status
     assert str(tmp_path) not in json.dumps(result)
 
 
@@ -454,7 +454,7 @@ async def test_manage_repos_push_plan_explains_missing_live_gates(tmp_path: Path
 
 
 @pytest.mark.asyncio
-async def test_manage_repos_push_runs_confirmed_policy_allowed_branch(tmp_path: Path, monkeypatch):
+async def test_manage_repos_push_redirects_without_remote_write(tmp_path: Path, monkeypatch):
     _repo, bare, branch, head = _make_push_repo(tmp_path)
     registry_path = tmp_path / "repo-registry.json"
     _write_push_registry(registry_path)
@@ -481,11 +481,11 @@ async def test_manage_repos_push_runs_confirmed_policy_allowed_branch(tmp_path: 
         ["git", "--git-dir", str(bare), "rev-parse", f"refs/heads/{branch}"],
         capture_output=True,
         text=True,
-        check=True,
-    ).stdout.strip()
-    assert result["exit_code"] == 0
-    assert result["push_report"]["status"] == "pushed"
-    assert pushed == head
+        check=False,
+    )
+    assert result["exit_code"] == 1
+    assert "commit_project" in result["error"]
+    assert pushed.returncode != 0
     assert str(tmp_path) not in json.dumps(result)
 
 
@@ -519,7 +519,7 @@ async def test_manage_repos_forge_plan_explains_auth_gate(tmp_path: Path, monkey
 
 
 @pytest.mark.asyncio
-async def test_manage_repos_forge_metadata_blocks_without_provider_client(tmp_path: Path, monkeypatch):
+async def test_manage_repos_forge_metadata_redirects_to_project_policy_workflow(tmp_path: Path, monkeypatch):
     registry_path = tmp_path / "repo-registry.json"
     _write_forge_registry(registry_path)
     monkeypatch.setenv("ODYSSEUS_REPO_REGISTRY_FILE", str(registry_path))
@@ -543,9 +543,8 @@ async def test_manage_repos_forge_metadata_blocks_without_provider_client(tmp_pa
     )
 
     assert result["exit_code"] == 1
-    assert result["forge_report"]["status"] == "blocked"
-    assert "provider client is not configured" in result["output"]
-    assert result["forge_report"]["plan"]["api_base_url_redacted"] == "https://gitea.example.test/api/v1"
+    assert "commit_project" in result["error"]
+    assert "forge_report" not in result
 
 
 @pytest.mark.asyncio
@@ -596,17 +595,15 @@ def test_manage_repos_schema_index_and_security_wiring():
     )
     assert {
         "commit_plan",
-        "commit",
         "push_plan",
-        "push",
         "forge_plan",
-        "forge_metadata",
         "changes",
         "change_history",
         "register",
         "forget",
         "update_policy",
     }.issubset(set(actions))
+    assert {"commit", "push", "forge_metadata"}.isdisjoint(set(actions))
     params = schema_by_name["manage_repos"]["function"]["parameters"]["properties"]
     assert {"hours", "persist", "force"}.issubset(set(params))
 

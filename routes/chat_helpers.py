@@ -11,10 +11,9 @@ from typing import Any, Optional
 from core.models import ChatMessage
 from core.database import SessionLocal
 from core.database import Session as DBSession, ModelEndpoint
-from src.llm_core import normalize_model_id
+from src.llm_core import normalize_model_id, resolve_request_context_snapshot
 from src.endpoint_resolver import normalize_base
 from src.context_compactor import maybe_compact, trim_for_context
-from src.model_context import get_context_length
 from src.auth_helpers import effective_user
 from src.prompt_security import untrusted_context_message
 from routes.prefs_routes import _load_for_user as load_prefs_for_user
@@ -179,6 +178,56 @@ def needs_auto_name(name: str) -> bool:
     if re.match(r"^.+ \d{1,2}:\d{2}:\d{2}(\s*(AM|PM))?$", name, re.IGNORECASE):
         return True
     return False
+
+
+async def resolve_context_budget_tokens_async(endpoint_url: str, model: str) -> int:
+    """Resolve and bind one non-blocking request context snapshot."""
+
+    return (
+        await resolve_request_context_snapshot(endpoint_url, model)
+    ).context_length
+
+
+def build_trusted_chat_tool_usage_context(
+    *,
+    owner: Optional[str],
+    session_id: Optional[str],
+    endpoint_urls: list[Any],
+    agent_mode: bool,
+    incognito: bool,
+    run_identity: Optional[str] = None,
+):
+    """Build telemetry context exclusively from server-resolved chat state."""
+
+    import secrets
+
+    from src.tool_usage_context import TrustedToolUsageContext, trusted_model_scope
+    from src.tool_usage_events import ToolUsageModelScope
+
+    scopes = {
+        trusted_model_scope(endpoint_url)
+        for endpoint_url in endpoint_urls
+        if endpoint_url not in (None, "")
+    }
+    scopes.discard(ToolUsageModelScope.UNKNOWN)
+    model_scope = (
+        ToolUsageModelScope.MIXED
+        if len(scopes) > 1
+        else next(iter(scopes))
+        if scopes
+        else ToolUsageModelScope.UNKNOWN
+    )
+    return TrustedToolUsageContext.create(
+        surface="chat",
+        agent_mode="agent" if agent_mode else "chat",
+        model_scope=model_scope,
+        owner_identity=owner,
+        session_identity=session_id,
+        run_identity=run_identity or ("chat-run-" + secrets.token_hex(16)),
+        correlation_identity=session_id,
+        incognito=incognito,
+        is_nobody=incognito,
+    )
 
 
 async def auto_name_session(session_manager, sess):
@@ -715,7 +764,10 @@ async def build_chat_context(
     if norm:
         sess.model = norm
     try:
-        context_budget_tokens = get_context_length(sess.endpoint_url, sess.model)
+        context_budget_tokens = await resolve_context_budget_tokens_async(
+            sess.endpoint_url,
+            sess.model,
+        )
     except Exception as e:
         logger.debug("Context budget lookup skipped before provider preload: %s", e)
         context_budget_tokens = None
@@ -1027,6 +1079,55 @@ def clean_thinking_for_save(content: str, metadata: dict | None = None) -> tuple
     return content, md
 
 
+def sanitize_assistant_attachments(value: Any) -> list[dict[str, Any]]:
+    """Bound generated attachment metadata before it enters chat history."""
+
+    from src.upload_handler import is_valid_upload_id, secure_filename
+
+    if not isinstance(value, list):
+        return []
+    sanitized = []
+    seen = set()
+    for raw in value[:10]:
+        if not isinstance(raw, dict):
+            continue
+        upload_id = str(raw.get("id") or "").strip()
+        if not is_valid_upload_id(upload_id) or upload_id in seen:
+            continue
+        name = secure_filename(str(raw.get("name") or "artifact"))[:240]
+        mime = str(raw.get("mime") or "application/octet-stream").strip()[:160]
+        file_hash = str(raw.get("hash") or "").strip().lower()
+        size = raw.get("size")
+        if (
+            not re.fullmatch(r"[0-9a-f]{64}", file_hash)
+            or not isinstance(size, int)
+            or isinstance(size, bool)
+            or size <= 0
+            or any(ord(char) < 32 for char in mime)
+        ):
+            continue
+        item = {
+            "schema": "odysseus.generated_artifact.v1",
+            "id": upload_id,
+            "name": name,
+            "mime": mime,
+            "size": size,
+            "hash": file_hash,
+            "kind": "generated_artifact",
+            "download_ready": True,
+        }
+        for dimension in ("width", "height"):
+            number = raw.get(dimension)
+            if isinstance(number, int) and not isinstance(number, bool) and 0 < number <= 100_000:
+                item[dimension] = number
+        vision_model = raw.get("vision_model")
+        if isinstance(vision_model, str) and vision_model.strip():
+            item["vision_model"] = vision_model.strip()[:160]
+        sanitized.append(item)
+        seen.add(upload_id)
+    return sanitized
+
+
 def save_assistant_response(
     sess,
     session_manager,
@@ -1045,6 +1146,12 @@ def save_assistant_response(
 ):
     """Add assistant response to session history. In incognito mode, keeps in-memory context but skips DB persistence."""
     md = dict(last_metrics) if last_metrics else {}
+    if "attachments" in md:
+        safe_attachments = sanitize_assistant_attachments(md.get("attachments"))
+        if safe_attachments:
+            md["attachments"] = safe_attachments
+        else:
+            md.pop("attachments", None)
     def _model_value(value) -> str:
         if value is None:
             return ""
@@ -1265,7 +1372,7 @@ def run_post_response_tasks(
         from src.settings import load_features
         from src.consolidation_runner import run_consolidation_jobs
         if load_features().get("consolidation_jobs", True):
-            asyncio.create_task(run_consolidation_jobs(
+            _spawn_bg(run_consolidation_jobs(
                 owner=owner,
                 capability="chat_completed",
                 trigger="chat.completed",

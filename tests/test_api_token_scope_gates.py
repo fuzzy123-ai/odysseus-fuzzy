@@ -3,7 +3,11 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException
 
-from src.auth_helpers import require_api_token_scope, scoped_effective_user
+from src.auth_helpers import (
+    require_api_token_exact_scope,
+    require_api_token_scope,
+    scoped_effective_user,
+)
 from routes import chat_routes, session_routes
 
 
@@ -38,6 +42,32 @@ def test_scoped_effective_user_uses_token_owner_when_scope_matches():
     req = _request(scopes=["chat"], owner="alice")
 
     assert scoped_effective_user(req, "chat") == "alice"
+
+
+def test_exact_scope_distinguishes_browser_and_narrow_scrape_token():
+    assert require_api_token_exact_scope(
+        _request(scopes=["observability:read"]), "observability:read"
+    ) is True
+    assert require_api_token_exact_scope(
+        _request(api_token=False), "observability:read"
+    ) is False
+
+
+@pytest.mark.parametrize(
+    "scopes",
+    [
+        [],
+        ["chat"],
+        ["observability:read", "chat"],
+        ["observability:read", "observability:read"],
+    ],
+)
+def test_exact_scope_rejects_missing_wrong_additional_or_duplicate_scopes(scopes):
+    with pytest.raises(HTTPException) as exc:
+        require_api_token_exact_scope(
+            _request(scopes=scopes), "observability:read"
+        )
+    assert exc.value.status_code == 403
 
 
 @pytest.mark.parametrize("resolver", [

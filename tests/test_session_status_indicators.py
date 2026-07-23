@@ -1,5 +1,4 @@
 import sys
-import tempfile
 import types
 import uuid
 from pathlib import Path
@@ -8,17 +7,16 @@ from unittest.mock import MagicMock
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import StaticPool
 
 import core.database as cdb
 from core.database import Session as DbSession
 from core.database import ChatMessage as DbMsg
 
-_TMPDB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
 _ENGINE = create_engine(
-    f"sqlite:///{_TMPDB.name}",
+    "sqlite://",
     connect_args={"check_same_thread": False},
-    poolclass=NullPool,
+    poolclass=StaticPool,
 )
 cdb.Base.metadata.create_all(_ENGINE)
 _TS = sessionmaker(bind=_ENGINE, autoflush=False, autocommit=False)
@@ -129,7 +127,7 @@ def test_list_sessions_status_calculation(monkeypatch):
 
     _stub_multipart_if_missing(monkeypatch)
     monkeypatch.setattr(sr, "SessionLocal", _TS)
-    monkeypatch.setattr(sr, "effective_user", lambda request: "alice")
+    monkeypatch.setattr(sr, "_chat_effective_user", lambda request: "alice")
 
     # Define session IDs for different states
     working_id = str(uuid.uuid4())

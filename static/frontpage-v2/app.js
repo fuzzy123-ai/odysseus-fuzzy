@@ -73,6 +73,7 @@
   let notificationBubbleTimer = null;
   let uiStateSaveTimer = null;
   let uiStateRestoring = false;
+  let workspaceScrollGuardFrame = null;
   let persistedUiState = readPersistedUiState();
   const v2Data = window.HarborV2Data;
   if (!v2Data) {
@@ -895,6 +896,7 @@
       mount: { icon: '#', hint: 'Folder mount available to this chat' },
       source: { icon: '@', hint: 'Knowledge source added as context' },
       project: { icon: '<>', hint: 'Project context is active' },
+      roadmap: { icon: '*', hint: 'Roadmap is pinned to this chat' },
       chat: { icon: '//', hint: 'Chat context is linked' },
       memory: { icon: '*', hint: 'Memory context is active' },
       document: { icon: 'pin', hint: 'Document summary is pinned to this chat' },
@@ -975,7 +977,7 @@
     contextNodges.querySelectorAll('[data-context-suggestion="true"]').forEach(item => item.remove());
     document.getElementById('document-context-tray')?.remove();
     const pinnedPaths = new Set(serializeContextNodges()
-      .filter(context => context.kind === 'Document')
+      .filter(context => context.kind === 'Document' || context.kind === 'Roadmap')
       .map(context => context.path));
     openDocumentContexts().forEach(context => {
       if (pinnedPaths.has(context.path)) return;
@@ -988,14 +990,15 @@
     const nodge = document.createElement('button');
     nodge.type = 'button';
     nodge.className = 'context-nodge context-nodge-suggestion';
+    const kind = context.type === 'roadmap' ? 'Roadmap' : 'Document';
     nodge.dataset.contextSuggestion = 'true';
-    nodge.dataset.contextKind = 'Document';
-    nodge.dataset.contextType = 'document';
+    nodge.dataset.contextKind = kind;
+    nodge.dataset.contextType = kind.toLowerCase();
     nodge.dataset.contextLabel = context.label;
     nodge.dataset.contextPath = context.path;
     nodge.dataset.contextSummary = context.summary;
-    nodge.setAttribute('aria-label', 'Pin document context ' + context.label);
-    nodge.title = 'Pin document context: ' + context.summary;
+    nodge.setAttribute('aria-label', 'Pin ' + kind.toLowerCase() + ' context ' + context.label);
+    nodge.title = 'Pin ' + kind.toLowerCase() + ' context: ' + context.summary;
     nodge.innerHTML = [
       '<span class="context-nodge-icon">+</span>',
       '<span class="context-nodge-label">' + esc(context.label) + '</span>',
@@ -1005,7 +1008,7 @@
   }
 
   function pinDocumentContextFromSuggestion(nodge) {
-    addContextNodge('Document', nodge.dataset.contextLabel || 'Document', {
+    addContextNodge(nodge.dataset.contextKind || 'Document', nodge.dataset.contextLabel || 'Document', {
       path: nodge.dataset.contextPath || '',
       summary: nodge.dataset.contextSummary || '',
       pinned: true
@@ -1155,7 +1158,13 @@
         page: pathOrDocument.page || '1 / 1',
         zoom: pathOrDocument.zoom || '100%',
         summary: pathOrDocument.summary || '',
-        content: pathOrDocument.content || ''
+        content: pathOrDocument.content || '',
+        roadmapId: pathOrDocument.roadmapId || '',
+        sequence: pathOrDocument.sequence || '',
+        status: pathOrDocument.status || '',
+        project: pathOrDocument.project || '',
+        tasks: pathOrDocument.tasks || [],
+        gates: pathOrDocument.gates || []
       };
     }
 
@@ -1208,9 +1217,65 @@
   }
 
   function renderDocumentBody(doc) {
+    if (doc.type === 'roadmap') return renderRoadmapDocument(doc);
     if (doc.type === 'code') return renderCodeDocument(doc);
     if (doc.type === 'pdf') return renderPdfDocument(doc);
     return renderTextDocument(doc);
+  }
+
+  function renderRoadmapDocument(doc) {
+    const tasks = Array.isArray(doc.tasks) && doc.tasks.length ? doc.tasks : [
+      { state: 'open', title: 'Roadmap work', detail: doc.summary || 'Roadmap task details will appear here.' }
+    ];
+    const gates = Array.isArray(doc.gates) ? doc.gates : [];
+    const statusLabel = doc.status === 'future' ? 'open' : (doc.status || 'open');
+    return [
+      '<section class="document-mode document-roadmap-mode" data-roadmap-document aria-label="Roadmap document">',
+      '  <div class="roadmap-document-bar">',
+      '    <span class="roadmap-document-path">' + esc(doc.path) + '</span>',
+      '    <div class="roadmap-document-tabs" aria-label="Roadmap document mode">',
+      '      <button class="active" type="button" data-roadmap-doc-mode="read">Read</button>',
+      '      <button type="button" data-roadmap-doc-mode="data">Data</button>',
+      '    </div>',
+      '  </div>',
+      '  <div class="roadmap-document-content" data-roadmap-doc-view="read">',
+      '    <article class="roadmap-readable">',
+      '      <div class="roadmap-doc-kicker">Roadmap ' + esc(doc.sequence || doc.roadmapId || '') + ' - ' + esc(statusLabel) + '</div>',
+      '      <h1>' + esc(String(doc.title || '').replace(/^.* - /, '')) + '</h1>',
+      '      <section class="roadmap-doc-summary">',
+      '        <div class="roadmap-doc-section-head"><span>Summary</span></div>',
+      '        <textarea data-roadmap-summary spellcheck="true">' + esc(doc.summary || '') + '</textarea>',
+      '      </section>',
+      '      <section class="roadmap-doc-section">',
+      '        <h2>Tasks</h2>',
+      '        <div class="roadmap-doc-task-list">',
+      tasks.map((task, index) => [
+        '<article class="roadmap-doc-task">',
+        '  <span class="roadmap-doc-check">' + (task.state === 'done' ? '✓' : '') + '</span>',
+        '  <span class="roadmap-doc-task-copy"><strong contenteditable="true">' + esc(task.title || ('Task ' + (index + 1))) + '</strong><span contenteditable="true">' + esc(task.detail || '') + '</span></span>',
+        '  <span class="roadmap-doc-task-state">' + esc(task.state || 'open') + '</span>',
+        '</article>'
+      ].join('')).join(''),
+      '        </div>',
+      '      </section>',
+      '      <section class="roadmap-doc-section">',
+      '        <h2>Gates</h2>',
+      '        <div class="roadmap-doc-gates">',
+      (gates.length ? gates : [{ state: 'open', title: 'No blocking gate', label: 'This roadmap has no visible blocking gate in the current graph.' }]).map(gate => [
+        '<article class="roadmap-doc-gate ' + esc(gate.state || 'open') + '">',
+        '  <span>' + esc(gate.state === 'done' ? 'passed' : gate.state || 'open') + '</span>',
+        '  <strong>' + esc(gate.title || gate.id || 'Gate') + '</strong>',
+        '</article>'
+      ].join('')).join(''),
+      '        </div>',
+      '      </section>',
+      '    </article>',
+      '  </div>',
+      '  <div class="roadmap-document-content roadmap-document-data" data-roadmap-doc-view="data" hidden>',
+      '    <textarea class="roadmap-json-editor" data-roadmap-json spellcheck="false">' + esc(doc.content || '{}') + '</textarea>',
+      '  </div>',
+      '</section>'
+    ].join('');
   }
 
   function renderTextDocument(doc) {
@@ -1315,6 +1380,8 @@
     win.dataset.documentType = doc.type;
     win.dataset.documentTitle = doc.title;
     win.dataset.documentSummary = doc.summary || 'Imported document summary will appear here after Universal Inbox analysis.';
+    win.dataset.documentRoadmapId = doc.roadmapId || '';
+    win.dataset.documentProject = doc.project || '';
     const title = win.querySelector('[data-document-title]');
     const left = win.querySelector('[data-document-header-left]');
     const body = win.querySelector('.window-body');
@@ -1343,6 +1410,7 @@
         '  <div class="document-header-left" data-document-header-left></div>',
         '  <div class="window-title document-window-title" data-document-title></div>',
         '  <div class="window-actions" aria-label="Window controls">',
+        '    <button class="window-control document-spark-control" data-spark-document title="Send document to Agent" aria-label="Send document to Agent">✦</button>',
         '    <button class="window-control" data-window-min title="Minimize" aria-label="Minimize">-</button>',
         '    <button class="window-control" data-window-max title="Maximize" aria-label="Maximize">&#9633;</button>',
         '    <button class="window-control" data-window-close title="Close" aria-label="Close">x</button>',
@@ -1376,18 +1444,59 @@
 
   function wireDocumentViewer(win) {
     const select = win.querySelector('[data-doc-language]');
-    if (!select || select.dataset.documentPrepared) return;
-    select.dataset.documentPrepared = 'true';
-    select.addEventListener('change', event => {
-      const sample = codeLanguageSamples[event.target.value] || codeLanguageSamples.python;
-      updateDocumentViewer(win, {
-        title: sample.title,
-        path: sample.path,
-        type: 'code',
-        language: event.target.value,
-        content: sample.content
+    if (select && !select.dataset.documentPrepared) {
+      select.dataset.documentPrepared = 'true';
+      select.addEventListener('change', event => {
+        const sample = codeLanguageSamples[event.target.value] || codeLanguageSamples.python;
+        updateDocumentViewer(win, {
+          title: sample.title,
+          path: sample.path,
+          type: 'code',
+          language: event.target.value,
+          content: sample.content
+        });
+      });
+    }
+
+    win.querySelectorAll('[data-roadmap-doc-mode]').forEach(button => {
+      if (button.dataset.roadmapModePrepared) return;
+      button.dataset.roadmapModePrepared = 'true';
+      button.addEventListener('click', event => {
+        event.preventDefault();
+        const mode = button.dataset.roadmapDocMode || 'read';
+        win.querySelectorAll('[data-roadmap-doc-mode]').forEach(item => item.classList.toggle('active', item === button));
+        win.querySelectorAll('[data-roadmap-doc-view]').forEach(view => {
+          view.hidden = view.dataset.roadmapDocView !== mode;
+        });
       });
     });
+
+    win.querySelectorAll('[data-spark-document]').forEach(button => {
+      if (button.dataset.sparkPrepared) return;
+      button.dataset.sparkPrepared = 'true';
+      button.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        sparkDocumentToAgent(win, button.dataset);
+      });
+    });
+  }
+
+  function sparkDocumentToAgent(win, data = {}) {
+    const kind = data.sparkKind || (win.dataset.documentType === 'roadmap' ? 'Roadmap' : 'Document');
+    const section = data.sparkSection ? ' - ' + data.sparkSection : '';
+    const label = data.sparkLabel || win.dataset.documentTitle || basename(win.dataset.documentPath);
+    const summary = data.sparkSummary || win.dataset.documentSummary || 'Document context is ready for the next prompt.';
+    addContextNodge(kind, label + section, {
+      path: data.sparkPath || win.dataset.documentPath || '',
+      summary,
+      pinned: true
+    });
+    setActiveWorkspace('agent');
+    setWindowMinimized(coreWindow, false);
+    activateWindow(coreWindow);
+    promptInput?.focus();
+    buildState.textContent = 'V2 - Spark context sent to Agent';
   }
 
   function documentPathFromTarget(target) {
@@ -1773,16 +1882,23 @@
     };
   }
 
+  const windowBoundaryMargin = {
+    top: 8,
+    right: 0,
+    bottom: 0,
+    left: 0
+  };
+
   function sanitizeWindowBounds(win, bounds) {
     const size = parentViewportSize(win);
-    const margin = 14;
-    const width = Math.max(340, Math.min(Number(bounds.width) || 340, Math.max(340, size.width - (margin * 2))));
-    const height = Math.max(260, Math.min(Number(bounds.height) || 260, Math.max(260, size.height - (margin * 2))));
-    const maxLeft = Math.max(margin, size.width - width - margin);
-    const maxTop = Math.max(margin, size.height - height - margin);
+    const margin = windowBoundaryMargin;
+    const width = Math.max(340, Math.min(Number(bounds.width) || 340, Math.max(340, size.width - margin.left - margin.right)));
+    const height = Math.max(260, Math.min(Number(bounds.height) || 260, Math.max(260, size.height - margin.top - margin.bottom)));
+    const maxLeft = Math.max(margin.left, size.width - width - margin.right);
+    const maxTop = Math.max(margin.top, size.height - height - margin.bottom);
     return {
-      left: Math.max(margin, Math.min(maxLeft, Number(bounds.left) || margin)),
-      top: Math.max(margin, Math.min(maxTop, Number(bounds.top) || margin)),
+      left: Math.max(margin.left, Math.min(maxLeft, Number(bounds.left) || margin.left)),
+      top: Math.max(margin.top, Math.min(maxTop, Number(bounds.top) || margin.top)),
       width,
       height
     };
@@ -1923,16 +2039,16 @@
 
   function clampDragDelta(groupBounds, dx, dy) {
     if (!groupBounds.length) return { dx, dy };
-    const margin = 14;
+    const margin = windowBoundaryMargin;
     const size = parentViewportSize(groupBounds[0].win);
     const groupLeft = Math.min(...groupBounds.map(item => item.left));
     const groupTop = Math.min(...groupBounds.map(item => item.top));
     const groupRight = Math.max(...groupBounds.map(item => item.left + item.width));
     const groupBottom = Math.max(...groupBounds.map(item => item.top + item.height));
-    const minDx = margin - groupLeft;
-    const maxDx = size.width - margin - groupRight;
-    const minDy = margin - groupTop;
-    const maxDy = size.height - margin - groupBottom;
+    const minDx = margin.left - groupLeft;
+    const maxDx = size.width - margin.right - groupRight;
+    const minDy = margin.top - groupTop;
+    const maxDy = size.height - margin.bottom - groupBottom;
     return {
       dx: Math.max(minDx, Math.min(maxDx, dx)),
       dy: Math.max(minDy, Math.min(maxDy, dy))
@@ -2780,26 +2896,32 @@
   }
 
   function renderPlanningProjects(activeIndex = 0) {
-    const active = projectSamples[activeIndex] || projectSamples[0];
     return `
       <div class="planning-projects-body">
-        <section class="planning-master-summary" aria-label="Master roadmap state">
-          <div class="summary-line"><span>Selected master</span><strong>${esc(active.title)}</strong></div>
-          <div class="summary-line"><span>Storage</span><strong>JSON roadmaps</strong></div>
-          <div class="summary-line"><span>Recovered by</span><strong>Files + MCP</strong></div>
-          <div class="project-actions">
-            <button type="button">New project</button>
-            <button type="button">Find JSON</button>
-          </div>
-        </section>
+        <div class="planning-project-tools">
+          <label class="planning-project-search">
+            <span>⌕</span>
+            <input type="search" placeholder="Find project, roadmap, gate" data-project-search>
+          </label>
+          <button class="planning-project-add" type="button" data-open-new-roadmap title="New roadmap" aria-label="New roadmap">+</button>
+        </div>
         <div class="planning-project-list" data-planning-project-list>
-          ${projectSamples.map((project, index) => `
+          ${projectSamples.map((project, index) => {
+            const chips = projectStatusChips(project, index, activeIndex);
+            const progress = projectProgressPercent(project);
+            return `
             <button class="planning-project-row${index === activeIndex ? ' active' : ''}" style="--state:${project.statusColor}" type="button" data-project-index="${index}">
-              <i class="project-marker"></i>
-              <span class="project-copy"><strong>${esc(project.title)}</strong><span>${esc(project.subtitle)}</span></span>
-              <b class="project-count">${esc(project.progress)}</b>
+              <span class="project-card-top">
+                <span class="project-copy"><strong>${esc(project.title)}</strong><span>${esc(project.subtitle)}</span></span>
+                <span class="project-count"><span>${esc(project.progress)}</span>${index === activeIndex ? '<span class="bubble">1</span>' : ''}</span>
+              </span>
+              <span class="project-chip-row">
+                ${chips.map(chip => `<span class="chip ${esc(chip.className)}">${esc(chip.label)}</span>`).join('')}
+              </span>
+              <span class="project-progress-line"><span style="width:${progress}%;"></span></span>
             </button>
-          `).join('')}
+          `;
+          }).join('')}
         </div>
       </div>
     `;
@@ -2854,6 +2976,153 @@
     if (node.kind === 'gate') return { width: 34, height: 34 };
     if (node.kind === 'version') return { width: 84, height: 36 };
     return { width: 78, height: 36 };
+  }
+
+  function projectStatusChips(project, index, activeIndex) {
+    const chips = [];
+    if (index === activeIndex) chips.push({ label: 'active', className: 'warn' });
+    if (project.status) chips.push({ label: project.status, className: roadmapNodeStateClass(project.status) === 'done' ? 'good' : roadmapNodeStateClass(project.status) === 'blocked' ? 'bad' : 'warn' });
+    if (project.progress) chips.push({ label: project.progress, className: '' });
+    (project.chips || []).slice(0, 2).forEach(label => chips.push({ label, className: '' }));
+    return chips.slice(0, 4);
+  }
+
+  function projectProgressPercent(project) {
+    const match = String(project.progress || '').match(/(\d+)\s*\/\s*(\d+)/);
+    if (!match) return 48;
+    const done = Number(match[1]);
+    const total = Math.max(1, Number(match[2]));
+    return Math.max(8, Math.min(100, Math.round(done / total * 100)));
+  }
+
+  function roadmapListItems() {
+    const rowMap = new Map((planningRoadmapDemo.rows || []).map(row => [row[0], row]));
+    const sequenceLabels = roadmapSequenceLabels();
+    const sequenceValue = label => String(label || '0')
+      .split('.')
+      .reduce((total, part, index) => total + (Number(part) || 0) / Math.pow(100, index), 0);
+    return (planningRoadmapDemo.nodes || [])
+      .filter(node => node.kind === 'roadmap')
+      .map(node => {
+        const row = rowMap.get(node.id);
+        const sequence = sequenceLabels.get(node.id) || '0';
+        return {
+          id: node.id,
+          sequence,
+          title: row?.[1] || node.title || node.id,
+          summary: row?.[2] || roadmapSummaryForNode(node),
+          state: roadmapNodeStateClass(row?.[3] || node.state),
+          rawState: row?.[3] || node.state || 'open'
+        };
+      })
+      .sort((a, b) => sequenceValue(a.sequence) - sequenceValue(b.sequence));
+  }
+
+  function roadmapDocumentForId(id) {
+    const node = roadmapNodeById(id);
+    if (!node || node.kind !== 'roadmap') return null;
+    const item = roadmapListItems().find(entry => entry.id === id);
+    const path = 'projects/' + (projectSamples[activePlanningProjectIndex]?.title || 'project')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      + '/roadmaps/' + id.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json';
+    const tasks = [
+      { state: item?.state === 'done' ? 'done' : 'open', title: 'Clarify target', detail: 'Keep the roadmap goal, scope and exit condition readable.' },
+      { state: item?.state === 'blocked' ? 'blocked' : item?.state === 'done' ? 'done' : 'open', title: 'Work through implementation slices', detail: item?.summary || roadmapSummaryForNode(node) },
+      { state: item?.state === 'done' ? 'done' : 'open', title: 'Update planning state', detail: 'Write progress, gates and links back into the project roadmap JSON.' }
+    ];
+    const gates = (planningRoadmapDemo.nodes || [])
+      .filter(gate => gate.kind === 'gate' && (gate.affects || []).includes(id))
+      .map(gate => ({
+        id: gate.id,
+        state: roadmapNodeStateClass(gate.state),
+        title: gate.title || gate.id,
+        label: gate.label || roadmapSummaryForNode(gate)
+      }));
+    return {
+      title: (item?.id || id) + ' - ' + (item?.title || node.title || id),
+      roadmapId: id,
+      sequence: item?.sequence || id,
+      status: item?.state || roadmapNodeStateClass(node.state),
+      project: projectSamples[activePlanningProjectIndex]?.title || 'Active project',
+      path,
+      type: 'roadmap',
+      language: 'json',
+      summary: item?.summary || roadmapSummaryForNode(node),
+      content: JSON.stringify({
+        id,
+        title: item?.title || node.title || id,
+        status: item?.state || roadmapNodeStateClass(node.state),
+        sequence: item?.sequence || id,
+        project: projectSamples[activePlanningProjectIndex]?.title || 'Active project',
+        summary: item?.summary || roadmapSummaryForNode(node),
+        tasks,
+        gates
+      }, null, 2),
+      tasks,
+      gates
+    };
+  }
+
+  function openRoadmapDocument(id, options = {}) {
+    const doc = roadmapDocumentForId(id);
+    if (!doc) return null;
+    const win = openDocumentViewer(doc);
+    if (options.spark) sparkDocumentToAgent(win, options.context || {});
+    return win;
+  }
+
+  function roadmapSequenceLabels() {
+    const nodes = planningRoadmapDemo.nodes || [];
+    const edges = planningRoadmapDemo.edges || [];
+    const nodeMap = new Map(nodes.map(node => [node.id, node]));
+    const spineY = nodeMap.get(planningRoadmapDemo.fromVersion)?.y
+      ?? nodeMap.get(planningRoadmapDemo.toVersion)?.y
+      ?? 318;
+    const roadmaps = nodes.filter(node => node.kind === 'roadmap');
+    const spine = roadmaps
+      .filter(node => Math.abs((node.y ?? spineY) - spineY) <= 46)
+      .sort((a, b) => (a.x - b.x) || (a.y - b.y));
+    const labels = new Map(spine.map((node, index) => [node.id, String(index + 1)]));
+    const incoming = new Map();
+    edges.forEach(edge => {
+      if (!incoming.has(edge.to)) incoming.set(edge.to, []);
+      incoming.get(edge.to).push(edge.from);
+    });
+
+    const findSpineSource = (id, seen = new Set()) => {
+      if (seen.has(id)) return '';
+      seen.add(id);
+      for (const sourceId of incoming.get(id) || []) {
+        if (labels.has(sourceId)) return sourceId;
+        const nested = findSpineSource(sourceId, seen);
+        if (nested) return nested;
+      }
+      const node = nodeMap.get(id);
+      return spine
+        .filter(item => item.x < (node?.x ?? 0))
+        .sort((a, b) => b.x - a.x)[0]?.id || spine[0]?.id || '';
+    };
+
+    const branchCounts = new Map();
+    roadmaps
+      .filter(node => !labels.has(node.id))
+      .sort((a, b) => (a.x - b.x) || (a.y - b.y))
+      .forEach(node => {
+        const source = findSpineSource(node.id);
+        const parentLabel = labels.get(source) || String(labels.size + 1);
+        const next = (branchCounts.get(parentLabel) || 0) + 1;
+        branchCounts.set(parentLabel, next);
+        labels.set(node.id, `${parentLabel}.${next}`);
+      });
+    return labels;
+  }
+
+  function activeRoadmapId() {
+    const working = roadmapListItems().find(item => item.state === 'working');
+    if (working) return working.id;
+    return roadmapListItems()[0]?.id || '';
   }
 
   function roadmapGraphModel() {
@@ -2944,18 +3213,28 @@
   }
 
   function renderRoadmapList(activeIndex = 0) {
+    const project = projectSamples[activeIndex] || projectSamples[0];
+    const activeId = activeRoadmapId();
+    const items = roadmapListItems();
     return `
       <div class="roadmap-list-body" data-active-project="${activeIndex}">
-        <div class="roadmap-list-meta">
-          <strong>${esc(planningRoadmapDemo.source)}</strong>
-          <span>${esc(planningRoadmapDemo.rows.length)} entries</span>
+        <label class="roadmap-list-search">
+          <span>⌕</span>
+          <input type="search" placeholder="Find roadmap, gate, summary" data-roadmap-list-search>
+        </label>
+        <div class="roadmap-list-filters" aria-label="Roadmap filters">
+          <button class="active" type="button">All</button>
+          <button type="button">Open</button>
+          <button type="button">Blocked</button>
+          <button type="button">Gates</button>
         </div>
         <section class="planning-roadmap-list active" data-list-view aria-label="Roadmap list">
-          ${planningRoadmapDemo.rows.map(row => `
-            <button class="roadmap-list-row" style="--row:var(--green)" type="button" data-roadmap-row="${esc(row[0])}" data-roadmap-search-text="${esc(row.join(' '))}">
-              <i></i>
-              <span><strong>${esc(row[0] + ' - ' + row[1])}</strong><small>${esc(row[2])}</small></span>
-              <b>${esc(row[3])}</b>
+          <button class="roadmap-list-row pending" type="button" data-roadmap-row="pending-roadmap" data-roadmap-search-text="AI is creating roadmap project context codebase memory gates links">
+            <span class="roadmap-card-top"><span class="roadmap-seq">...</span><span><strong>AI is creating roadmap</strong><small>Researching ${esc(project.title)}, codebase, memory, gates, and links.</small></span><b class="roadmap-id">running</b></span>
+          </button>
+          ${items.map(item => `
+            <button class="roadmap-list-row ${esc(item.state)}${item.id === activeId ? ' active-roadmap' : ''}" style="--row:var(--${item.state === 'done' ? 'green' : item.state === 'working' ? 'amber' : item.state === 'blocked' ? 'red' : 'blue'})" type="button" data-roadmap-row="${esc(item.id)}" data-roadmap-search-text="${esc([item.id, item.title, item.summary, item.rawState].join(' '))}">
+              <span class="roadmap-card-top"><span class="roadmap-seq">${esc(item.sequence)}</span><span><strong>${esc(item.title)}</strong><small>${esc(item.summary)}</small></span><b class="roadmap-id">${esc(item.id)}</b></span>
             </button>
           `).join('')}
         </section>
@@ -3004,6 +3283,13 @@
   }
 
   function renderNewRoadmapWindow(target = 'Roadmap') {
+    const activeProject = projectSamples[activePlanningProjectIndex] || projectSamples[0];
+    const attachOptions = [
+      { label: target && target !== 'Roadmap' ? 'After ' + target : 'Current roadmap', meta: target && target !== 'Roadmap' ? 'selected node' : 'active context' },
+      { label: 'New branch from current', meta: 'branch' },
+      { label: 'After schema gate', meta: 'gate' },
+      { label: 'Next version spine', meta: planningRoadmapDemo.toVersion || 'next' }
+    ];
     return `
       <article class="floating-window new-roadmap-window active" data-window data-window-id="new-roadmap" data-window-close-mode="remove" aria-label="New Roadmap">
         <header class="window-head" data-drag-handle>
@@ -3016,16 +3302,59 @@
           </div>
         </header>
         <div class="window-body new-roadmap-body">
-          <div class="new-roadmap-intro">
-            <strong>Describe the roadmap. Harbor handles the format.</strong>
-            <span>The AI will read project JSON, codebase context, memory, dependencies, and gates, then attach the draft in the right place.</span>
+          <div class="new-roadmap-context">
+            <div class="roadmap-picker">
+              <span>Project</span>
+              <button class="roadmap-picker-button" type="button" data-roadmap-picker="project">
+                <span><strong>${esc(activeProject.title)}</strong><small>${esc(activeProject.progress)} - ${esc(activeProject.status)}</small></span>
+                <em>⌄</em>
+              </button>
+              <div class="roadmap-picker-menu" hidden data-roadmap-picker-menu="project">
+                ${projectSamples.map((project, index) => `
+                  <button class="${index === activePlanningProjectIndex ? 'active' : ''}" type="button" data-picker-label="${esc(project.title)}" data-picker-detail="${esc(project.progress + ' - ' + project.status)}">
+                    <span>${esc(project.title)}</span><em>${esc(project.progress)}</em>
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+            <div class="roadmap-picker">
+              <span>Attach point</span>
+              <button class="roadmap-picker-button" type="button" data-roadmap-picker="attach">
+                <span><strong>${esc(attachOptions[0].label)}</strong><small>${esc(attachOptions[0].meta)}</small></span>
+                <em>⌄</em>
+              </button>
+              <div class="roadmap-picker-menu" hidden data-roadmap-picker-menu="attach">
+                ${attachOptions.map((option, index) => `
+                  <button class="${index === 0 ? 'active' : ''}" type="button" data-picker-label="${esc(option.label)}" data-picker-detail="${esc(option.meta)}">
+                    <span>${esc(option.label)}</span><em>${esc(option.meta)}</em>
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+            <div class="roadmap-picker">
+              <span>Kind</span>
+              <button class="roadmap-picker-button" type="button" data-roadmap-picker="kind">
+                <span><strong>Feature</strong><small>roadmap</small></span>
+                <em>⌄</em>
+              </button>
+              <div class="roadmap-picker-menu" hidden data-roadmap-picker-menu="kind">
+                ${[
+                  ['Feature', 'plan'],
+                  ['Fix', 'repair'],
+                  ['Research', 'learn'],
+                  ['Release', 'ship']
+                ].map((option, index) => `
+                  <button class="${index === 0 ? 'active' : ''}" type="button" data-picker-label="${esc(option[0])}" data-picker-detail="${esc(option[1])}">
+                    <span>${esc(option[0])}</span><em>${esc(option[1])}</em>
+                  </button>
+                `).join('')}
+              </div>
+            </div>
           </div>
-          <textarea class="new-roadmap-prompt" placeholder="Example: Add a roadmap for the custom context menu system. Cover chat agent links, document file actions, and planning node attach behavior."></textarea>
-          <div class="new-roadmap-checks">
-            <span>Read project JSON and active roadmap graph</span>
-            <span>Search codebase and memory for related work</span>
-            <span>Create links and gates automatically where needed</span>
-          </div>
+          <label class="new-roadmap-prompt-field">
+            <span>What should be planned?</span>
+            <textarea class="new-roadmap-prompt" placeholder="Example: Turn the Planning MCP workflow into a roadmap. It should let agents create, update, retrieve, and attach project roadmaps through MCP."></textarea>
+          </label>
           <div class="new-roadmap-actions">
             <button type="button" data-window-close>Cancel</button>
             <button class="primary" type="button" data-roadmap-generate>Generate roadmap</button>
@@ -3057,11 +3386,24 @@
     }
     if (listWin) {
       listWin.querySelector('.window-body').innerHTML = renderRoadmapList(activeIndex);
+      listWin.querySelector('.window-title').textContent = 'Roadmaps';
+      listWin.querySelector('.window-subtitle').textContent = (projectSamples[activeIndex] || projectSamples[0]).title;
       wireRoadmapListWindow(listWin);
     }
   }
 
   function wirePlanningProjectsWindow(win) {
+    win.querySelector('[data-open-new-roadmap]')?.addEventListener('click', event => {
+      event.preventDefault();
+      openNewRoadmapWindow('project roadmap');
+    });
+    win.querySelector('[data-project-search]')?.addEventListener('input', event => {
+      const query = event.currentTarget.value.trim().toLowerCase();
+      win.querySelectorAll('[data-project-index]').forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.hidden = Boolean(query) && !text.includes(query);
+      });
+    });
     win.querySelectorAll('[data-project-index]').forEach(button => {
       button.addEventListener('click', event => {
         event.preventDefault();
@@ -3109,13 +3451,34 @@
   }
 
   function lockWorkspaceScroll() {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollLeft = 0;
+    document.documentElement.scrollTop = 0;
+    document.body.scrollLeft = 0;
+    document.body.scrollTop = 0;
     workspace.scrollLeft = 0;
     workspace.scrollTop = 0;
     requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollLeft = 0;
+      document.documentElement.scrollTop = 0;
+      document.body.scrollLeft = 0;
+      document.body.scrollTop = 0;
       workspace.scrollLeft = 0;
       workspace.scrollTop = 0;
     });
   }
+
+  workspace.addEventListener('scroll', () => {
+    if (workspace.scrollLeft === 0 && workspace.scrollTop === 0) return;
+    workspace.scrollLeft = 0;
+    workspace.scrollTop = 0;
+    if (workspaceScrollGuardFrame) return;
+    workspaceScrollGuardFrame = requestAnimationFrame(() => {
+      workspaceScrollGuardFrame = null;
+      lockWorkspaceScroll();
+    });
+  }, { passive: true });
 
   function wireProjectsOverview(win) {
     wireRoadmapScroller(win);
@@ -3161,14 +3524,78 @@
       });
     });
 
+    win.querySelector('[data-graph-view]')?.addEventListener('click', event => {
+      if (event.target.closest('[data-roadmap-node], [data-roadmap-search]')) return;
+      clearRoadmapFocus();
+    });
+
   }
 
   function wireRoadmapListWindow(win) {
+    win.querySelector('[data-roadmap-list-search]')?.addEventListener('input', event => {
+      applyRoadmapSearch(event.currentTarget.value);
+    });
     win.querySelectorAll('[data-roadmap-row]').forEach(row => {
       row.addEventListener('click', () => {
+        if (row.dataset.roadmapRow === 'pending-roadmap') return;
         focusRoadmapItem(document.getElementById('projects-overview-window') || win, row.dataset.roadmapRow);
         win.querySelectorAll('[data-roadmap-row]').forEach(item => item.classList.toggle('selected', item === row));
       });
+    });
+  }
+
+  function setRoadmapGenerationPending() {
+    let listWin = document.getElementById('roadmap-list-window');
+    if (!listWin) {
+      listWin = openRoadmapListWindow(activePlanningProjectIndex, { activate: false });
+    }
+    listWin?.querySelector('[data-list-view]')?.classList.add('is-generating');
+    buildState.textContent = 'V2 - AI roadmap pipeline started';
+  }
+
+  function closeRoadmapPickers(except = null) {
+    document.querySelectorAll('[data-roadmap-picker-menu]').forEach(menu => {
+      if (menu !== except) menu.hidden = true;
+    });
+  }
+
+  function wireNewRoadmapWindow(win) {
+    win.querySelectorAll('[data-roadmap-picker]').forEach(button => {
+      button.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const menu = win.querySelector('[data-roadmap-picker-menu="' + button.dataset.roadmapPicker + '"]');
+        if (!menu) return;
+        const shouldOpen = menu.hidden;
+        closeRoadmapPickers(menu);
+        menu.hidden = !shouldOpen;
+      });
+    });
+
+    win.querySelectorAll('[data-roadmap-picker-menu] button').forEach(option => {
+      option.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const menu = option.closest('[data-roadmap-picker-menu]');
+        const picker = win.querySelector('[data-roadmap-picker="' + menu.dataset.roadmapPickerMenu + '"]');
+        menu.querySelectorAll('button').forEach(item => item.classList.remove('active'));
+        option.classList.add('active');
+        if (picker) {
+          const label = option.dataset.pickerLabel || option.querySelector('span')?.textContent || option.textContent.trim();
+          const detail = option.dataset.pickerDetail || option.querySelector('em')?.textContent || '';
+          picker.querySelector('span').innerHTML = '<strong>' + esc(label) + '</strong><small>' + esc(detail) + '</small>';
+        }
+        menu.hidden = true;
+      });
+    });
+
+    win.querySelector('[data-roadmap-generate]')?.addEventListener('click', event => {
+      event.preventDefault();
+      closeRoadmapPickers();
+      setRoadmapGenerationPending();
+      removeDockBubble(win);
+      clearPersistedWindowState(win);
+      win.remove();
     });
   }
 
@@ -3191,11 +3618,67 @@
     });
   }
 
+  function clearRoadmapFocus() {
+    document.querySelectorAll('[data-roadmap-node], [data-roadmap-row]').forEach(item => {
+      item.classList.remove('selected');
+    });
+    document.querySelectorAll('.planning-roadmap-graph').forEach(graph => {
+      graph.classList.remove('selection-focus-active', 'gate-focus-active');
+      graph.querySelectorAll('[data-roadmap-node]').forEach(node => {
+        node.classList.remove('is-selection-dimmed', 'is-selection-related', 'is-gate-dimmed', 'is-gate-related');
+      });
+      graph.querySelectorAll('.roadmap-edge').forEach(edge => {
+        edge.classList.remove('is-selection-dimmed', 'is-selection-related', 'is-gate-dimmed', 'is-gate-related');
+      });
+    });
+  }
+
+  function centerRoadmapNodeInGraph(graph, selectedNode) {
+    const scroller = graph?.querySelector('[data-roadmap-scroll]');
+    if (!scroller || !selectedNode) return;
+    const scrollerRect = scroller.getBoundingClientRect();
+    const nodeRect = selectedNode.getBoundingClientRect();
+    const nodeCenter = nodeRect.left - scrollerRect.left + scroller.scrollLeft + (nodeRect.width / 2);
+    const maxLeft = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+    const targetLeft = Math.max(0, Math.min(maxLeft, nodeCenter - (scroller.clientWidth / 2)));
+    scroller.scrollTo({ left: targetLeft, behavior: 'smooth' });
+    lockWorkspaceScroll();
+  }
+
   function focusRoadmapItem(win, target) {
     if (!target) return;
+    const node = roadmapNodeById(target);
+    const kind = node?.kind || 'roadmap';
+    const alreadySelected = Boolean(document.querySelector(`[data-roadmap-node="${CSS.escape(target)}"].selected, [data-roadmap-row="${CSS.escape(target)}"].selected`));
+
+    if (alreadySelected || kind !== 'roadmap') {
+      clearRoadmapFocus();
+      if (kind === 'version') {
+        buildState.textContent = 'V2 - Version marker: ' + target;
+      } else if (kind === 'gate') {
+        buildState.textContent = 'V2 - Gate: ' + target;
+      }
+      return;
+    }
+
+    clearRoadmapFocus();
     document.querySelectorAll('[data-roadmap-node], [data-roadmap-row]').forEach(item => {
       item.classList.toggle('selected', item.dataset.roadmapNode === target || item.dataset.roadmapRow === target);
     });
+    document.querySelectorAll('.planning-roadmap-graph').forEach(graph => {
+      const selectedNode = graph.querySelector(`[data-roadmap-node="${CSS.escape(target)}"]`);
+      graph.classList.toggle('selection-focus-active', Boolean(selectedNode));
+      graph.querySelectorAll('[data-roadmap-node]').forEach(node => {
+        node.classList.toggle('is-selection-dimmed', Boolean(selectedNode) && node !== selectedNode);
+      });
+      graph.querySelectorAll('.roadmap-edge').forEach(edge => {
+        const related = edge.dataset.edgeFrom === target || edge.dataset.edgeTo === target;
+        edge.classList.toggle('is-selection-related', Boolean(selectedNode) && related);
+        edge.classList.toggle('is-selection-dimmed', Boolean(selectedNode) && !related);
+      });
+      centerRoadmapNodeInGraph(graph, selectedNode);
+    });
+    openRoadmapDocument(target);
     buildState.textContent = 'V2 - Roadmap: ' + target;
   }
 
@@ -3227,7 +3710,7 @@
           closePlanningContextMenu();
         }
         if (button.dataset.planningContextAction === 'open') {
-          document.getElementById('projects-overview-window') && focusRoadmapItem(document.getElementById('projects-overview-window'), activeTarget);
+          openRoadmapDocument(activeTarget) || (document.getElementById('projects-overview-window') && focusRoadmapItem(document.getElementById('projects-overview-window'), activeTarget));
           menu.querySelector('[data-planning-context-status]').textContent = 'Opened roadmap';
         }
         if (button.dataset.planningContextAction === 'copy-id') {
@@ -3263,27 +3746,19 @@
 
   function openNewRoadmapWindow(target = 'Roadmap') {
     let win = document.getElementById('new-roadmap-window');
-    if (!win) {
-      const wrap = document.createElement('div');
-      wrap.innerHTML = renderNewRoadmapWindow(target);
-      win = wrap.firstElementChild;
-      win.id = 'new-roadmap-window';
-      activeWorkspaceScreen().appendChild(win);
-      prepareFloatingWindow(win);
-      installResizeHandles(win);
-      win.querySelector('[data-roadmap-generate]')?.addEventListener('click', () => {
-        win.querySelector('.new-roadmap-checks').innerHTML = [
-          '<span>Memory and existing roadmaps checked</span>',
-          '<span>Draft roadmap attached; gates and edges proposed</span>',
-          '<span>Overview will update after approval</span>'
-        ].join('');
-        document.querySelector('.roadmap-node.generated')?.classList.add('visible', 'selected');
-      });
-    } else {
-      setWindowMinimized(win, false);
-      win.querySelector('.window-subtitle').textContent = 'attach to ' + target;
-      win.querySelector('.new-roadmap-prompt').value = '';
+    if (win) {
+      removeDockBubble(win);
+      clearPersistedWindowState(win);
+      win.remove();
     }
+    const wrap = document.createElement('div');
+    wrap.innerHTML = renderNewRoadmapWindow(target);
+    win = wrap.firstElementChild;
+    win.id = 'new-roadmap-window';
+    activeWorkspaceScreen().appendChild(win);
+    prepareFloatingWindow(win);
+    installResizeHandles(win);
+    wireNewRoadmapWindow(win);
     activateWindow(win);
     buildState.textContent = 'V2 - New Roadmap';
   }
@@ -3382,8 +3857,8 @@
       win.setAttribute('aria-label', 'Roadmap list');
       win.innerHTML = `
         <header class="window-head" data-drag-handle>
-          <div class="window-subtitle">roadmaps</div>
-          <div class="window-title">List</div>
+          <div class="window-subtitle">${esc((projectSamples[activeIndex] || projectSamples[0]).title)}</div>
+          <div class="window-title">Roadmaps</div>
           <div class="window-actions" aria-label="Window controls">
             <button class="window-control" data-window-min title="Minimize" aria-label="Minimize">-</button>
             <button class="window-control" data-window-max title="Maximize" aria-label="Maximize">&#9633;</button>
@@ -4704,29 +5179,29 @@
     };
   }
 
-  function clampAxisPosition(value, size, min, max) {
-    const margin = 14;
-    return Math.max(min + margin, Math.min(max - size - margin, value));
+  function clampAxisPosition(value, size, min, max, startMargin, endMargin) {
+    return Math.max(min + startMargin, Math.min(max - size - endMargin, value));
   }
 
   function buildSnapTarget(target, lockedAxis, dragWin) {
     const next = { ...target };
     const workspaceRect = workspaceViewportRect(dragWin);
+    const margin = windowBoundaryMargin;
     if (lockedAxis === 'x') {
-      next.top = clampAxisPosition(next.top, next.height, workspaceRect.top, workspaceRect.bottom);
+      next.top = clampAxisPosition(next.top, next.height, workspaceRect.top, workspaceRect.bottom, margin.top, margin.bottom);
     } else {
-      next.left = clampAxisPosition(next.left, next.width, workspaceRect.left, workspaceRect.right);
+      next.left = clampAxisPosition(next.left, next.width, workspaceRect.left, workspaceRect.right, margin.left, margin.right);
     }
     return next;
   }
 
   function snapTargetFits(target, dragWin) {
-    const margin = 14;
+    const margin = windowBoundaryMargin;
     const workspaceRect = workspaceViewportRect(dragWin);
-    return target.left >= workspaceRect.left + margin
-      && target.top >= workspaceRect.top + margin
-      && target.left + target.width <= workspaceRect.right - margin
-      && target.top + target.height <= workspaceRect.bottom - margin;
+    return target.left >= workspaceRect.left + margin.left
+      && target.top >= workspaceRect.top + margin.top
+      && target.left + target.width <= workspaceRect.right - margin.right
+      && target.top + target.height <= workspaceRect.bottom - margin.bottom;
   }
 
   function snapPreviewElement() {
@@ -4743,16 +5218,13 @@
 
   function hideSnapPreview() {
     const preview = document.getElementById('window-snap-preview');
-    preview?.classList.remove('visible', 'vertical', 'horizontal', 'dock', 'dock-right', 'dock-top');
+    preview?.classList.remove('visible', 'vertical', 'horizontal');
   }
 
   function showSnapPreview(candidate) {
     const preview = snapPreviewElement();
     preview.classList.toggle('vertical', candidate.orientation === 'vertical');
     preview.classList.toggle('horizontal', candidate.orientation === 'horizontal');
-    preview.classList.toggle('dock', candidate.orientation === 'dock');
-    preview.classList.toggle('dock-right', candidate.orientation === 'dock' && candidate.side === 'workspace-right');
-    preview.classList.toggle('dock-top', candidate.orientation === 'dock' && candidate.side === 'workspace-top');
     preview.style.left = candidate.preview.left + 'px';
     preview.style.top = candidate.preview.top + 'px';
     preview.style.width = candidate.preview.width + 'px';
@@ -4767,8 +5239,6 @@
     const gap = 4;
     const alignThreshold = 96;
     const workspace = dragWin.closest('[data-workspace-screen]');
-    const workspaceRect = workspaceViewportRect(dragWin);
-    const margin = 14;
     const current = {
       left: rect.left,
       top: rect.top,
@@ -4778,50 +5248,6 @@
       bottom: rect.top + rect.height
     };
     let best = null;
-    const dockDistance = Math.abs(current.right - (workspaceRect.right - margin));
-    if (dockDistance <= 72) {
-      const target = {
-        left: Math.round(workspaceRect.right - margin - current.width),
-        top: Math.round(clampAxisPosition(current.top, current.height, workspaceRect.top, workspaceRect.bottom)),
-        width: current.width,
-        height: current.height
-      };
-      best = {
-        side: 'workspace-right',
-        distance: dockDistance,
-        alignment: 0,
-        score: dockDistance - 12,
-        target,
-        preview: {
-          left: workspaceRect.right - margin,
-          top: target.top,
-          width: 2,
-          height: target.height
-        },
-        orientation: 'vertical',
-        label: 'EDGE'
-      };
-    }
-    const topDockDistance = Math.abs(current.top - (workspaceRect.top + margin));
-    if (topDockDistance <= 72) {
-      const target = {
-        left: Math.round(workspaceRect.left + margin),
-        top: Math.round(workspaceRect.top + margin),
-        width: Math.max(340, Math.round(workspaceRect.width - (margin * 2))),
-        height: Math.max(260, Math.min(Math.round(workspaceRect.height - (margin * 2)), Math.round(workspaceRect.height * 0.55)))
-      };
-      const topCandidate = {
-        side: 'workspace-top',
-        distance: topDockDistance,
-        alignment: 0,
-        score: topDockDistance - 12,
-        target,
-        preview: target,
-        orientation: 'dock',
-        label: 'TOP'
-      };
-      if (!best || topCandidate.score < best.score) best = topCandidate;
-    }
 
     document.querySelectorAll('[data-window]').forEach(other => {
       if (other === dragWin || other.classList.contains('minimized') || other.classList.contains('maximized')) return;
@@ -4935,11 +5361,9 @@
   function findResizeSnapCandidate(win, dir, bounds) {
     const threshold = 18;
     const gap = 4;
-    const margin = 14;
     const minW = 340;
     const minH = 260;
     const workspace = win.closest('[data-workspace-screen]');
-    const workspaceRect = workspaceViewportRect(win);
     const current = windowBoundsToViewportRect(win, sanitizeWindowBounds(win, bounds));
     const candidates = [];
 
@@ -4982,11 +5406,6 @@
         label
       });
     }
-
-    addCandidate('left', workspaceRect.left + margin, 'EDGE');
-    addCandidate('right', workspaceRect.right - margin, 'EDGE');
-    addCandidate('top', workspaceRect.top + margin, 'EDGE');
-    addCandidate('bottom', workspaceRect.bottom - margin, 'EDGE');
 
     document.querySelectorAll('[data-window]').forEach(other => {
       if (other === win || other.classList.contains('minimized') || other.classList.contains('maximized')) return;

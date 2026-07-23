@@ -1,0 +1,128 @@
+groups:
+  - name: odysseus-memory-alerts
+    interval: 15s
+    limit: 128
+    rules:
+      - record: job:odysseus_memory_maintenance_recent:bool
+        expr: max((sum(increase(odysseus_memory_operations_total{operation=~"rebuild|automation"}[15m])) > bool 0) or (max(odysseus_memory_worker_queue_depth{operation=~"rebuild|automation"}) > bool 0) or vector(0))
+
+      - alert: OdysseusMemoryQueryP95High
+        expr: (operation:odysseus_memory_operation_duration_seconds:p95_5m{operation="query"} > 0.5) and on (operation) (sum by (operation) (increase(odysseus_memory_operation_duration_seconds_count{operation="query",phase="total",outcome="success"}[15m])) >= 30) and on () (job:odysseus_memory_maintenance_recent:bool == 0)
+        for: 15m
+        labels:
+          severity: warning
+          component: memory
+        annotations:
+          summary: Memory query p95 exceeds 500 ms
+          description: At least 30 successful query samples breached the 15-minute latency gate outside recent maintenance.
+
+      - alert: OdysseusMemoryStatusP95High
+        expr: (operation:odysseus_memory_operation_duration_seconds:p95_5m{operation="memory_status"} > 0.75) and on (operation) (sum by (operation) (increase(odysseus_memory_operation_duration_seconds_count{operation="memory_status",phase="total",outcome="success"}[15m])) >= 30) and on () (job:odysseus_memory_maintenance_recent:bool == 0)
+        for: 15m
+        labels:
+          severity: warning
+          component: memory
+        annotations:
+          summary: Memory status p95 exceeds 750 ms
+          description: At least 30 successful status samples breached the 15-minute latency gate outside recent maintenance.
+
+      - alert: OdysseusRaptorStatusP95High
+        expr: (operation:odysseus_memory_operation_duration_seconds:p95_5m{operation="raptor_status"} > 0.25) and on (operation) (sum by (operation) (increase(odysseus_memory_operation_duration_seconds_count{operation="raptor_status",phase="total",outcome="success"}[15m])) >= 30) and on () (job:odysseus_memory_maintenance_recent:bool == 0)
+        for: 15m
+        labels:
+          severity: warning
+          component: raptorgraph
+        annotations:
+          summary: RaptorGraph status p95 exceeds 250 ms
+          description: At least 30 successful RaptorGraph status samples breached the latency gate outside recent maintenance.
+
+      - alert: OdysseusMemoryEventLoopLagHigh
+        expr: (sum by (component, operation) (increase(odysseus_memory_event_loop_lag_seconds_count[5m])) - sum by (component, operation) (increase(odysseus_memory_event_loop_lag_seconds_bucket{le="0.1"}[5m]))) > 0
+        for: 0m
+        labels:
+          severity: critical
+          component: memory
+        annotations:
+          summary: Memory work produced event-loop lag above 100 ms
+          description: At least one observed event-loop sample exceeded the fixed 100 ms isolation gate.
+
+      - alert: OdysseusRaptorRebuildError
+        expr: increase(odysseus_memory_operations_total{operation="rebuild",outcome="error"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: raptorgraph
+        annotations:
+          summary: RaptorGraph rebuild errors persist
+          description: A typed rebuild error remained present for the five-minute stability window.
+
+      - alert: OdysseusRaptorRebuildErrorsRepeated
+        expr: increase(odysseus_memory_operations_total{operation="rebuild",outcome="error"}[15m]) >= 2
+        for: 0m
+        labels:
+          severity: critical
+          component: raptorgraph
+        annotations:
+          summary: RaptorGraph rebuild errors repeated
+          description: Two or more typed rebuild errors occurred in 15 minutes; maintenance does not suppress this alert.
+
+      - alert: OdysseusRaptorCacheHitRateLow
+        expr: (job:odysseus_raptor_cache_hit_ratio:rate30m < 0.6) and on () (sum(increase(odysseus_raptor_cache_requests_total{cache_result=~"hit|miss"}[30m])) >= 20) and on () (job:odysseus_memory_maintenance_recent:bool == 0)
+        for: 15m
+        labels:
+          severity: warning
+          component: raptorgraph
+        annotations:
+          summary: RaptorGraph cache hit rate is below 60 percent
+          description: The 30-minute window contains at least 20 hit-or-miss requests and remains below the cache SLO outside recent maintenance.
+
+      - alert: OdysseusQueryCacheEntriesHigh
+        expr: odysseus_query_cache_entries > 512
+        for: 0m
+        labels:
+          severity: critical
+          component: memory
+        annotations:
+          summary: Query cache entry bound exceeded
+          description: The process-local query cache reported more than the fixed 512-entry limit.
+
+      - alert: OdysseusQueryCacheBytesHigh
+        expr: odysseus_query_cache_bytes > 8388608
+        for: 0m
+        labels:
+          severity: critical
+          component: memory
+        annotations:
+          summary: Query cache byte bound exceeded
+          description: The process-local query cache reported more than the fixed 8 MiB limit.
+
+      - alert: OdysseusMetricsTargetDown
+        expr: up{job="odysseus-memory"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: observability
+        annotations:
+          summary: Odysseus metrics target is down
+          description: The private token-scoped scrape has failed continuously for two minutes.
+
+      - alert: OdysseusRaptorArtifactAgeHigh
+        expr: (job:odysseus_raptor_artifact_age_seconds:max > 86400) and on () (sum(increase(odysseus_memory_operations_total{operation="raptor_status",outcome="blocked"}[15m])) >= 1)
+        for: 15m
+        labels:
+          severity: warning
+          component: raptorgraph
+        annotations:
+          summary: Blocked RaptorGraph artifact is older than 24 hours
+          description: Artifact age exceeded 24 hours while a recent typed RaptorGraph status sample remained blocked.
+
+      - alert: OdysseusMetricsSamplesDropped
+        expr: increase(odysseus_metrics_samples_dropped_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          component: observability
+        annotations:
+          summary: Runtime metric samples were dropped
+          description: The bounded registry rejected at least one invalid or over-cardinality sample in five minutes.
+

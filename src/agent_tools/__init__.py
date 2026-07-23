@@ -25,6 +25,9 @@ from .document_tools import CreateDocumentTool, UpdateDocumentTool, EditDocument
 from .model_interaction_tools import ChatWithModelTool, AskTeacherTool, ListModelsTool
 from .bg_job_tools import ManageBgJobsTool
 from .session_tools import CreateSessionTool, ListSessionsTool, SendToSessionTool, ManageSessionTool
+from .artifact_tools import PublishArtifactTool
+from .pygame_tools import VerifyPygameHeadlessTool
+from .project_commit_tools import CommitProjectAgentTool
 
 TOOL_HANDLERS = {
     "bash": BashTool().execute,
@@ -51,6 +54,9 @@ TOOL_HANDLERS = {
     "list_sessions": ListSessionsTool().execute,
     "send_to_session": SendToSessionTool().execute,
     "manage_session": ManageSessionTool().execute,
+    "publish_artifact": PublishArtifactTool().execute,
+    "verify_pygame_headless": VerifyPygameHeadlessTool().execute,
+    "commit_project": CommitProjectAgentTool().execute,
 }
 
 # ---------------------------------------------------------------------------
@@ -62,7 +68,7 @@ SHELL_TIMEOUT = 60
 PYTHON_TIMEOUT = 30
 
 # Tool types that trigger execution
-TOOL_TAGS = {"bash", "python", "web_search", "web_fetch", "read_file", "write_file", "edit_file",
+TOOL_TAGS = {"bash", "python", "web_search", "web_fetch", "read_file", "write_file", "edit_file", "publish_artifact", "verify_pygame_headless", "commit_project",
              "grep", "glob", "ls", "get_workspace", "manage_bg_jobs",
              "create_document", "update_document", "edit_document",
              "search_chats",

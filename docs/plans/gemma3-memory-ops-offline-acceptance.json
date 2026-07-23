@@ -1,0 +1,236 @@
+{
+  "schema": "odysseus.gemma3_memory_ops_offline_acceptance.v1",
+  "track": "gemma3_memory_ops",
+  "observed_at": "2026-07-18T17:10:02+02:00",
+  "authority": "repository_offline_evidence",
+  "verdict": "offline_go",
+  "verification_state": "verified_offline_go_with_gmi15_packet_ready",
+  "scope": {
+    "model_scope": "gemma3_4b",
+    "role_scope": "maintenance",
+    "provider_scope": "local_ollama",
+    "mutation_class": "repo_only",
+    "real_model_latency_in_scope": false,
+    "live_runtime_in_scope": false
+  },
+  "safe_state": {
+    "runtime_default_enabled": false,
+    "activation_authorized": false,
+    "deploy_performed": false,
+    "live_calls_performed": false,
+    "network_io_performed": false,
+    "service_changes_performed": false,
+    "scrape_enabled": false,
+    "grafana_enabled": false,
+    "truth_writes_authorized": false,
+    "writes_performed": false
+  },
+  "dependency_closure": [
+    {"slice": "GMI-00", "status": "accepted"},
+    {"slice": "GMI-01", "status": "accepted"},
+    {"slice": "GMI-02", "status": "accepted"},
+    {"slice": "GMI-03", "status": "accepted"},
+    {"slice": "GMI-04", "status": "accepted"},
+    {"slice": "GMI-05", "status": "accepted"},
+    {"slice": "GMI-06", "status": "accepted"},
+    {"slice": "GMI-07", "status": "accepted"},
+    {"slice": "GMI-08", "status": "accepted"},
+    {"slice": "GMI-08C", "status": "accepted"},
+    {"slice": "GMI-09A", "status": "accepted"},
+    {"slice": "GMI-09B", "status": "accepted"},
+    {"slice": "GMI-10", "status": "accepted"},
+    {"slice": "GMI-11", "status": "accepted"},
+    {"slice": "GMI-12", "status": "accepted"},
+    {"slice": "GMI-13", "status": "accepted"},
+    {"slice": "GMI-14", "status": "accepted"},
+    {"slice": "GMI-15", "status": "accepted_repo_packet"}
+  ],
+  "test_evidence": {
+    "isolation_load_tests": 8,
+    "focused_matrix_tests": 221,
+    "pre_acceptance_combined_tests": 533,
+    "acceptance_readback_tests": 5,
+    "final_combined_tests": 538,
+    "gmi15_final_regression_tests": 340,
+    "gmi15_packet_tests": 11,
+    "gmi15_observability_integration_tests": 53,
+    "blocking_failures": 0,
+    "nonblocking_warning_count": 4
+  },
+  "offline_slo_evidence": [
+    {
+      "id": "fake_warm_latency",
+      "required_offline": true,
+      "status": "pass",
+      "boundary": "p95_lt_30s_and_max_lt_45s"
+    },
+    {
+      "id": "event_loop_heartbeat",
+      "required_offline": true,
+      "status": "pass",
+      "boundary": "max_gap_lt_100ms_during_150ms_probe"
+    },
+    {
+      "id": "same_key_serialization",
+      "required_offline": true,
+      "status": "pass",
+      "boundary": "max_active_eq_1"
+    },
+    {
+      "id": "disjoint_key_parallelism",
+      "required_offline": true,
+      "status": "pass",
+      "boundary": "max_active_eq_2"
+    },
+    {
+      "id": "noneligible_bypass",
+      "required_offline": true,
+      "status": "pass",
+      "boundary": "warmed_p95_lt_1ms_and_added_latency_le_5ms"
+    },
+    {
+      "id": "uncontended_admission",
+      "required_offline": true,
+      "status": "pass",
+      "boundary": "warmed_p95_lt_5ms"
+    },
+    {
+      "id": "fresh_context_hit",
+      "required_offline": true,
+      "status": "pass",
+      "boundary": "warmed_p95_lt_1ms"
+    },
+    {
+      "id": "context_singleflight",
+      "required_offline": true,
+      "status": "pass",
+      "boundary": "100_callers_eq_1_probe_plus_99_joins"
+    },
+    {
+      "id": "prompt_and_retrieval_caps",
+      "required_offline": true,
+      "status": "pass",
+      "boundary": "input_le_6144_output_le_1200_chunks_le_4_sources_le_4"
+    },
+    {
+      "id": "cancellation_cleanup",
+      "required_offline": true,
+      "status": "pass",
+      "boundary": "zero_leases_waiters_inflight_and_markers"
+    },
+    {
+      "id": "schema_retry_failure_isolation",
+      "required_offline": true,
+      "status": "pass",
+      "boundary": "at_most_one_retry_then_review_required"
+    },
+    {
+      "id": "report_privacy",
+      "required_offline": true,
+      "status": "pass",
+      "boundary": "content_free_and_low_cardinality"
+    },
+    {
+      "id": "real_model_warm_latency",
+      "required_offline": false,
+      "status": "deferred_live",
+      "boundary": "requires_bounded_canary"
+    }
+  ],
+  "failure_isolation": {
+    "stream_requests_fail_closed": true,
+    "foreign_roles_and_models_bypass_lane": true,
+    "fallback_forbidden": true,
+    "truth_write_forbidden": true,
+    "malformed_output_review_required": true,
+    "hallucinated_provenance_blocked": true,
+    "cancellation_releases_resources": true,
+    "partial_verdict_can_activate": false,
+    "no_go_verdict_can_activate": false
+  },
+  "privacy": {
+    "content_free": true,
+    "credentials_visible": false,
+    "identities_visible": false,
+    "raw_provider_targets_visible": false,
+    "private_paths_visible": false,
+    "model_output_visible": false,
+    "high_cardinality_labels_allowed": false
+  },
+  "hash_manifest": {
+    "src/maintenance_model_policy.py": "E39FF067E1A1EA6C070E29467A8C216048AC62A7D6BBCAC7071549C249829D63",
+    "src/maintenance_llm_runtime.py": "49D8D7D14CFD7A1437EC4C7051C0B073BDB206DA7ACBAA71535AEFFB3BCA73D5",
+    "src/local_model_scheduler.py": "2C9824811BA6616A4005BFF7F04E217C5D834CA1E05658D201D93FA48C5947FD",
+    "src/model_context.py": "82FB19FE0FE39C617AE1011DB87976D6F37DE22D242EFDA5743512B298A88195",
+    "src/maintenance_output_validator.py": "A60F8CEED3A0D618062F3D34C09322BBDA5906596F4356F2DE8B1C94ACF5745F",
+    "src/observability_metrics.py": "8008DAA6818B5551D73798EC951231384EC7029D2DBA87287A816CB829760B8E",
+    "tests/test_gemma3_runtime_isolation.py": "A6B8076654953136E3187523A19C99AA9FDBADD01328B6A399A1BD21A0517040"
+  },
+  "activation_packet": {
+    "path": "ops/homeserver/gemma3-maintenance-activation",
+    "status": "packet_ready_live_prerequisites_missing",
+    "packet_valid": true,
+    "packet_ready": true,
+    "live_execution_eligible": false,
+    "current_live_blockers": [
+      "gmi_live_go_not_recorded",
+      "gro_live_validation_not_recorded"
+    ],
+    "single_live_gate": "GMI-LIVE-ACTIVATION",
+    "safe_default": "gemma3_4b_maintenance_runtime_disabled",
+    "canary_contract": "one_warmup_plus_20_measured_calls_global_runtime_false",
+    "dashboard_uid": "odysseus-gemma3-maintenance",
+    "observation_hours": {
+      "minimum": 12,
+      "maximum": 24
+    },
+    "artifact_hashes": {
+      "activation_plan": "753C3D8D0B87F7ED86F116337A295AFA2E142A3FE236587E9B900E6C175BE4F8",
+      "preflight": "B01778CD30867538B00E0F02C56DAFCAE7300D3E5C9FC6EE19B0D0A3A9201D78",
+      "validator": "57260D147897856362356E067285FE1153A9E38D6D013CCC6B14878DDC8A7E6F",
+      "canary": "034B21D9E3CFDC07C3BC590B154A4D43E3867DD9A1A86D0B68231FC4D55309FA",
+      "dashboard": "62FCFEFD7CBFC4E479D2E352152792A4D027705963EA2914CF7254C4017DE884",
+      "runbook": "ECA6F9F8808E24A097AAD9ADF3696629DA409BBC1A375270993007504776B02B",
+      "tests": "75BE91702EEB148057D92E1375EFC4029AF530C73C0CD04DD70F045F9278A146"
+    }
+  },
+  "open_risks": [
+    {
+      "id": "real_model_latency_unmeasured",
+      "severity": "activation_blocking",
+      "next_phase": "GMI-LIVE-ACTIVATION"
+    },
+    {
+      "id": "live_metrics_visibility_unmeasured",
+      "severity": "activation_blocking",
+      "next_phase": "GRO-LIVE-ACTIVATION_then_GMI-LIVE-ACTIVATION"
+    },
+    {
+      "id": "deploy_canary_rollback_unvalidated",
+      "severity": "activation_blocking",
+      "next_phase": "GMI-LIVE-ACTIVATION"
+    }
+  ],
+  "next_phase": {
+    "slice": "GMI-LIVE-ACTIVATION",
+    "status": "repo_packet_complete_awaiting_separate_GRO_live_validation_and_GMI_live_go",
+    "live_gate": "GMI-LIVE-ACTIVATION",
+    "user_decision_required_now": true,
+    "required_prior_live_gate": "GRO-LIVE-ACTIVATION",
+    "forbidden_before_gate": [
+      "runtime_activation",
+      "deploy",
+      "live_canary",
+      "service_change",
+      "productive_write"
+    ]
+  },
+  "completion": {
+    "repository_slices_complete_through_gmi14": true,
+    "repository_slices_complete_through_gmi15": true,
+    "activation_packet_validated": true,
+    "offline_validated": true,
+    "live_validated": false,
+    "product_complete": false
+  }
+}

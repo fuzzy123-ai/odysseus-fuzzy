@@ -34,4 +34,4 @@ def test_legacy_chat_master_roadmap_has_no_open_backend_contracts():
 
     assert roadmap["open_backend_contracts"] == []
     assert statuses["LC10"] == "backend_ready_live_gated"
-    assert all(statuses[f"LC{idx}"] == "backend_ready" for idx in range(1, 10))
+    assert all(statuses[f"LC{idx}"] == "backend_ready_ui_gated" for idx in range(1, 10))

@@ -459,7 +459,10 @@ let raptorReport = null;
 let memoryStatusReport = null;
 let memoryTreeActiveTab = 'tree';
 let memoryTreeLoading = false;
-let memoryTreeError = '';
+let memoryTreeErrors = {};
+const MEMORY_DASHBOARD_SAMPLE_LIMIT = 60;
+const memoryDashboardSamples = {};
+const memoryDashboardSampleTimes = {};
 let activityLoading = false;
 let activityError = '';
 let projectTemplateOptions = null;
@@ -3638,8 +3641,64 @@ function setMemoryTreeTab(tab) {
   renderMemoryTreePanel();
 }
 
-async function fetchMemoryDashboardJson(path) {
-  const res = await fetch(path);
+function memoryDashboardClock() {
+  return globalThis.performance?.now?.() ?? Date.now();
+}
+
+function recordMemoryDashboardSample(section, elapsedMs) {
+  const samples = Array.isArray(memoryDashboardSamples[section])
+    ? memoryDashboardSamples[section]
+    : [];
+  samples.push(Math.max(0, Number(elapsedMs) || 0));
+  memoryDashboardSamples[section] = samples.slice(-MEMORY_DASHBOARD_SAMPLE_LIMIT);
+  memoryDashboardSampleTimes[section] = Date.now();
+}
+
+function memoryDashboardP95(section) {
+  const samples = Array.isArray(memoryDashboardSamples[section])
+    ? [...memoryDashboardSamples[section]].sort((a, b) => a - b)
+    : [];
+  if (!samples.length) return 'no samples';
+  const index = Math.max(0, Math.ceil(samples.length * 0.95) - 1);
+  const value = samples[index];
+  const formatted = value < 10 ? value.toFixed(1) : Math.round(value).toString();
+  return `${formatted} ms (n=${samples.length})`;
+}
+
+function memoryDashboardSampleAge(section) {
+  const sampledAt = Number(memoryDashboardSampleTimes[section]);
+  if (!Number.isFinite(sampledAt) || sampledAt <= 0) return 'no sample';
+  const seconds = Math.max(0, Math.floor((Date.now() - sampledAt) / 1000));
+  if (seconds < 1) return '<1 s';
+  if (seconds < 60) return `${seconds} s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min`;
+  return `${Math.floor(seconds / 3600)} h`;
+}
+
+function memoryDashboardCacheRate() {
+  const summary = memoryStatusReport?.families?.query_layer?.summary || {};
+  const hits = Math.max(0, Number(summary.cache_hits) || 0);
+  const misses = Math.max(0, Number(summary.cache_misses) || 0);
+  const total = hits + misses;
+  if (!total) return 'no samples';
+  return `${Math.round((hits / total) * 100)}% (${hits}/${total})`;
+}
+
+function memoryDashboardTimestamp(value) {
+  if (!value) return 'never';
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) return String(value);
+  return parsed.toLocaleString(undefined, {
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+async function fetchMemoryDashboardJson(section, path, options = {}) {
+  const startedAt = memoryDashboardClock();
+  const res = await fetch(path, options);
   if (!res.ok) {
     let detail = '';
     try {
@@ -3649,34 +3708,70 @@ async function fetchMemoryDashboardJson(path) {
     }
     throw new Error(detail || `Request failed: ${path}`);
   }
-  return res.json();
+  const payload = await res.json();
+  recordMemoryDashboardSample(section, memoryDashboardClock() - startedAt);
+  return payload;
+}
+
+function renderMemorySectionError(section, label) {
+  const detail = memoryTreeErrors[section];
+  if (!detail) return '';
+  return `
+    <div class="obsidian-lens-state-card" data-lens-area="memory-${escapeHtml(section)}" data-lens-state="error" role="status" aria-live="polite">
+      <strong>${escapeHtml(label)} could not be refreshed.</strong>
+      <small>${escapeHtml(detail)} Other memory readbacks remain available.</small>
+    </div>
+  `;
 }
 
 async function loadMemoryTreeDashboard() {
   memoryTreeLoading = true;
-  memoryTreeError = '';
+  memoryTreeErrors = {};
   renderMemoryTreePanel();
-  try {
-    const [status, tree, audit, quarantine, raptor] = await Promise.all([
-      fetchMemoryDashboardJson(pluginApi('/memory/status')),
-      fetchMemoryDashboardJson(pluginApi('/memory-tree/analyze')),
-      fetchMemoryDashboardJson(pluginApi('/knowledge-audit')),
-      fetchMemoryDashboardJson(pluginApi('/quarantine')),
-      fetchMemoryDashboardJson(pluginApi('/raptor/status')),
-    ]);
-    memoryStatusReport = status;
-    memoryTreeReport = tree;
-    knowledgeAuditReport = audit;
-    quarantineReport = quarantine;
-    raptorReport = raptor;
-  } catch (e) {
-    console.error('Knowledge audit load failed:', e);
-    memoryTreeError = e.message || 'Knowledge audit failed';
-    showToast(memoryTreeError);
-  } finally {
-    memoryTreeLoading = false;
-    renderMemoryTreePanel();
-  }
+  const readbacks = [
+    {
+      section: 'status',
+      promise: fetchMemoryDashboardJson('status', pluginApi('/memory/status')),
+      apply: value => { memoryStatusReport = value; },
+    },
+    {
+      section: 'tree',
+      promise: fetchMemoryDashboardJson('tree', pluginApi('/memory-tree/analyze'), { method: 'POST' }),
+      apply: value => { memoryTreeReport = value; },
+    },
+    {
+      section: 'audit',
+      promise: fetchMemoryDashboardJson('audit', pluginApi('/knowledge-audit')),
+      apply: value => { knowledgeAuditReport = value; },
+    },
+    {
+      section: 'quarantine',
+      promise: fetchMemoryDashboardJson('quarantine', pluginApi('/quarantine')),
+      apply: value => { quarantineReport = value; },
+    },
+    {
+      section: 'raptor',
+      promise: fetchMemoryDashboardJson('raptor', pluginApi('/raptor/status')),
+      apply: value => { raptorReport = value; },
+    },
+  ];
+  const results = await Promise.allSettled(readbacks.map(readback => readback.promise));
+  const nextErrors = {};
+  results.forEach((result, index) => {
+    const readback = readbacks[index];
+    if (result.status === 'fulfilled') {
+      readback.apply(result.value);
+      return;
+    }
+    const message = result.reason?.message || `${readback.section} readback failed`;
+    nextErrors[readback.section] = message;
+    console.error(`Memory ${readback.section} readback failed:`, result.reason);
+  });
+  memoryTreeErrors = nextErrors;
+  memoryTreeLoading = false;
+  const failed = Object.keys(nextErrors).length;
+  if (failed) showToast(`${failed} of ${readbacks.length} memory readbacks could not be refreshed.`);
+  renderMemoryTreePanel();
 }
 
 function showMemoryTreePanel() {
@@ -3769,7 +3864,8 @@ function renderMemoryReadinessGaps() {
 }
 
 function renderUnifiedMemoryStatus() {
-  if (!memoryStatusReport) return '';
+  const error = renderMemorySectionError('status', 'Memory status');
+  if (!memoryStatusReport) return error;
   const summary = memoryStatusReport.summary || {};
   const gate = memoryStatusReport.readiness_gate || summary.readiness_gate || {};
   const state = summary.readiness_state || 'unknown';
@@ -3801,11 +3897,15 @@ function renderUnifiedMemoryStatus() {
         { label: 'RAPTOR lineage', value: activeRaptorLineageFlags.length ? activeRaptorLineageFlags.join(', ') : 'clear' },
         { label: 'RAPTOR write gate', value: raptorWriteGate.state || 'blocked' },
         { label: 'Writes', value: summary.writes_supported ? 'yes' : 'no' },
+        { label: 'Status p95', value: memoryDashboardP95('status') },
+        { label: 'Query cache', value: memoryDashboardCacheRate() },
+        { label: 'Last rebuild', value: memoryDashboardTimestamp(raptorReport?.last_built) },
+        { label: 'Sample age', value: memoryDashboardSampleAge('status') },
       ])}
       ${renderMemoryReadinessFamilies()}
       ${renderMemoryReadinessGaps()}
       ${renderMemoryWarnings(memoryStatusReport)}
-    </div>
+    </div>${error}
   `;
 }
 
@@ -3891,13 +3991,14 @@ function renderRetrievalIsolationNotice({ conflicts = [], quarantined = [], need
 }
 
 function renderMemoryTreeOverview() {
+  const error = renderMemorySectionError('tree', 'Memory tree');
   if (!memoryTreeReport) {
-    return '<div class="obsidian-project-loading">Run refresh to analyze the memory tree.</div>';
+    return error || '<div class="obsidian-project-loading">Run refresh to analyze the memory tree.</div>';
   }
   const summary = memoryTreeReport.summary || {};
   const readiness = memoryTreeReport.readiness || {};
   const gate = memoryTreeReport.readiness_gate || summary.readiness_gate || {};
-  return `
+  return `${error}
     ${memoryMetricGrid([
       { label: 'Notes', value: summary.total_notes || 0 },
       { label: 'Readiness', value: summary.readiness_state || readiness.state || 'unknown' },
@@ -3922,14 +4023,15 @@ function renderMemoryTreeOverview() {
 }
 
 function renderKnowledgeAudit() {
+  const error = renderMemorySectionError('audit', 'Knowledge audit');
   if (!knowledgeAuditReport) {
-    return '<div class="obsidian-project-loading">Run refresh to audit vault freshness.</div>';
+    return error || '<div class="obsidian-project-loading">Run refresh to audit vault freshness.</div>';
   }
   const summary = knowledgeAuditReport.summary || {};
   const channels = knowledgeAuditReport.channels || {};
   const readiness = knowledgeAuditReport.readiness || {};
   const gate = knowledgeAuditReport.readiness_gate || summary.readiness_gate || {};
-  return `
+  return `${error}
     ${memoryMetricGrid([
       { label: 'Current', value: summary.current || 0 },
       { label: 'Readiness', value: summary.readiness_state || readiness.state || 'unknown' },
@@ -3959,12 +4061,13 @@ function renderKnowledgeAudit() {
 }
 
 function renderQuarantineList() {
+  const error = renderMemorySectionError('quarantine', 'Quarantine');
   if (!quarantineReport) {
-    return '<div class="obsidian-project-loading">Run refresh to load quarantine records.</div>';
+    return error || '<div class="obsidian-project-loading">Run refresh to load quarantine records.</div>';
   }
   const readiness = quarantineReport.readiness || {};
   const gate = quarantineReport.readiness_gate || quarantineReport.summary?.readiness_gate || {};
-  return `
+  return `${error}
     ${memoryMetricGrid([
       { label: 'Items', value: quarantineReport.summary?.total || 0 },
       { label: 'Gate', value: quarantineReport.enabled ? 'on' : 'off' },
@@ -4016,8 +4119,9 @@ function raptorTaintedSourceRecords(lineage = {}) {
 }
 
 function renderRaptorStatus() {
+  const error = renderMemorySectionError('raptor', 'RAPTOR status');
   if (!raptorReport) {
-    return '<div class="obsidian-project-loading">Run refresh to inspect RAPTOR status.</div>';
+    return error || '<div class="obsidian-project-loading">Run refresh to inspect RAPTOR status.</div>';
   }
   const lineage = raptorReport.lineage || {};
   const summary = raptorReport.summary || {};
@@ -4028,7 +4132,7 @@ function renderRaptorStatus() {
   const activeLineageFlags = Object.entries(lineageFlags)
     .filter(([, value]) => value === true)
     .map(([name]) => name.replace(/_/g, ' '));
-  return `
+  return `${error}
     ${memoryMetricGrid([
       { label: 'Enabled', value: raptorReport.enabled ? 'yes' : 'no' },
       { label: 'Configured', value: raptorReport.configured ? 'yes' : 'no' },
@@ -4087,10 +4191,6 @@ function renderMemoryTreePanel() {
   if (refresh) refresh.disabled = memoryTreeLoading;
   if (memoryTreeLoading && !memoryTreeReport) {
     content.innerHTML = renderLensStateCard('diagnostics', 'loading', 'Diagnostik wird geladen.', 'Status pruefen', 'obsidian-diagnostics-loading-action', { disabled: true });
-    return;
-  }
-  if (memoryTreeError) {
-    content.innerHTML = renderLensStateCard('diagnostics', 'error', 'Die Diagnostik konnte gerade nicht geladen werden.', 'Erneut laden', 'obsidian-diagnostics-retry', { detail: memoryTreeError });
     return;
   }
   if (memoryTreeActiveTab === 'audit') {

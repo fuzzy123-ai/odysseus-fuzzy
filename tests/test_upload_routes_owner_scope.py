@@ -153,6 +153,33 @@ def test_download_file_allows_same_owner(tmp_path, monkeypatch):
     assert response.headers["X-Content-Type-Options"] == "nosniff"
 
 
+def test_generated_python_download_uses_existing_owner_gate(tmp_path, monkeypatch):
+    from src.upload_handler import UploadHandler
+
+    upload_dir = tmp_path / "uploads"
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    source = workspace / "mario_game.py"
+    source.write_text("print('mario')\n", encoding="utf-8")
+    handler = UploadHandler(str(tmp_path), str(upload_dir))
+    metadata = handler.register_generated_artifact(
+        str(source), owner="alice", allowed_root=str(workspace)
+    )
+    download_file = _upload_endpoints(handler, monkeypatch)["download_file"]
+
+    response = asyncio.run(
+        download_file(_Request(user="alice", auth_manager=_AuthManager()), metadata["id"])
+    )
+    assert response.path.endswith(metadata["id"])
+    assert response.filename == "mario_game.py"
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(
+            download_file(_Request(user="bob", auth_manager=_AuthManager()), metadata["id"])
+        )
+    assert exc.value.status_code == 404
+
+
 def test_download_file_allows_admin_to_read_other_owner_upload(tmp_path, monkeypatch):
     handler, _alice_id, bob_id, _upload_dir = _make_upload_store(tmp_path, monkeypatch)
     download_file = _upload_endpoints(handler, monkeypatch)["download_file"]

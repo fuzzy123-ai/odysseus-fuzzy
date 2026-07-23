@@ -10,12 +10,89 @@ from src.sandbox_network_policy import build_sandbox_network_policy
 
 
 SANDBOX_JOB_SCHEMA = "odysseus.agent.sandbox_job.v1"
+SANDBOX_CAPABILITY_PROFILE_SCHEMA = "odysseus.agent.sandbox_capability_profile.v1"
 DEFAULT_SANDBOX_CAPABILITIES = (
     "python",
     "node",
     "playwright",
     "browser_gui",
     "screenshot_artifacts",
+)
+_SANDBOX_CAPABILITY_PROFILES = (
+    {
+        "profile_id": "python",
+        "label": "Python",
+        "status": "available",
+        "summary": "Run bounded Python checks such as pytest and compile-only validation.",
+        "capabilities": ("python", "pytest", "compile", "read_repo", "artifact_reports"),
+        "default_template_ids": ("python_pytest", "static_analysis", "document_convert"),
+        "network_modes_allowed": ("none",),
+        "live_execution_gated": True,
+        "write_mount_default": "ro",
+        "write_action_enabled": False,
+        "secrets_allowed": False,
+        "fullweb_allowed": False,
+    },
+    {
+        "profile_id": "node",
+        "label": "Node",
+        "status": "available",
+        "summary": "Run bounded Node checks such as syntax validation for frontend files.",
+        "capabilities": ("node", "syntax_check", "read_repo"),
+        "default_template_ids": ("node_check",),
+        "network_modes_allowed": ("none",),
+        "live_execution_gated": True,
+        "write_mount_default": "ro",
+        "write_action_enabled": False,
+        "secrets_allowed": False,
+        "fullweb_allowed": False,
+    },
+    {
+        "profile_id": "webdev_playwright",
+        "label": "WebDev Playwright",
+        "status": "available",
+        "summary": "Prepare browser and screenshot smoke checks without opening network or publish access.",
+        "capabilities": ("node", "playwright", "browser_gui", "screenshot_artifacts"),
+        "default_template_ids": ("browser_smoke",),
+        "acceptance_flow": ("node_check", "browser_smoke"),
+        "artifact_policy": {
+            "screenshot_artifacts": True,
+            "trace_artifacts": True,
+            "artifact_integrity_required": True,
+            "raw_secrets_allowed": False,
+        },
+        "network_modes_allowed": ("none",),
+        "network_allowlist_gate_required": True,
+        "live_execution_gated": True,
+        "write_mount_default": "ro",
+        "write_action_enabled": False,
+        "secrets_allowed": False,
+        "fullweb_allowed": False,
+    },
+    {
+        "profile_id": "godot",
+        "label": "Godot",
+        "status": "planned",
+        "summary": "Future game-development checks; mount and write-smoke policy still needs review.",
+        "capabilities": ("godot", "game_test", "screenshot_artifacts"),
+        "default_template_ids": (),
+        "acceptance_flow": ("godot_headless_smoke", "screenshot_artifact_review"),
+        "allowed_extensions": (".gd", ".godot", ".import", ".ogg", ".png", ".tres", ".tscn", ".wav"),
+        "test_command_shape": ("godot", "--headless", "--path", "<project>", "--quit-after", "<seconds>"),
+        "artifact_policy": {
+            "screenshot_artifacts": True,
+            "recording_artifacts": True,
+            "artifact_integrity_required": True,
+            "raw_secrets_allowed": False,
+        },
+        "network_modes_allowed": ("none",),
+        "network_allowlist_gate_required": True,
+        "live_execution_gated": True,
+        "write_mount_default": "ro",
+        "write_action_enabled": False,
+        "secrets_allowed": False,
+        "fullweb_allowed": False,
+    },
 )
 
 _ARG_RE = re.compile(r"^[^\r\n\x00]{1,240}$")
@@ -169,6 +246,38 @@ def evaluate_sandbox_job(job: SandboxJobRequest) -> SandboxPolicyDecision:
     if any(mount.mode == "rw" for mount in job.mounts):
         warnings.append("write_mount_requires_scope_review")
     return SandboxPolicyDecision(True, "allowed", tuple(warnings))
+
+
+def list_sandbox_capability_profiles() -> tuple[dict[str, Any], ...]:
+    """Return frontend-safe sandbox capability profiles without enabling them."""
+
+    profiles: list[dict[str, Any]] = []
+    for profile in _SANDBOX_CAPABILITY_PROFILES:
+        profiles.append(
+            {
+                "schema": SANDBOX_CAPABILITY_PROFILE_SCHEMA,
+                "profile_id": profile["profile_id"],
+                "label": profile["label"],
+                "status": profile["status"],
+                "summary": profile["summary"],
+                "capabilities": tuple(profile["capabilities"]),
+                "default_template_ids": tuple(profile["default_template_ids"]),
+                "acceptance_flow": tuple(profile.get("acceptance_flow") or ()),
+                "allowed_extensions": tuple(profile.get("allowed_extensions") or ()),
+                "test_command_shape": tuple(profile.get("test_command_shape") or ()),
+                "artifact_policy": dict(profile.get("artifact_policy") or {}),
+                "network_modes_allowed": tuple(profile["network_modes_allowed"]),
+                "default_network_mode": "none",
+                "network_allowlist_gate_required": bool(profile.get("network_allowlist_gate_required", False)),
+                "live_execution_gated": bool(profile["live_execution_gated"]),
+                "write_mount_default": profile["write_mount_default"],
+                "write_action_enabled": False,
+                "secrets_allowed": False,
+                "fullweb_allowed": False,
+                "raw_content_visible": False,
+            }
+        )
+    return tuple(profiles)
 
 
 def _argv(values: Iterable[Any]) -> tuple[str, ...]:

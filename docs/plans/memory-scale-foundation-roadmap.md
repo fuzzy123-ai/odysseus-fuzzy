@@ -1,5 +1,21 @@
 # Roadmap: Memory Scale Foundation nach 1.0
 
+## Superseding Amendment 2026-07-13
+
+Diese Roadmap ist historische Scale-Foundation-Evidence. Ihre frueheren Kuzu-
+Optionen sind durch USI1B superseded: Kuzu wird nicht neu eingefuehrt, weil das
+Upstream-Projekt nicht mehr maintained wird. Ein spaeterer Graph-Accelerator
+braucht einen eigenen, diagnostics-getriebenen Entscheid und bleibt rebuildbar.
+
+Fuer neue Arbeit gelten zusaetzlich:
+
+- `docs/plans/unified-source-index-implementation-roadmap.md` implementiert die
+  bereits hier benannten Source-/Chunk-/Graph-/Job-Store-Grenzen;
+- CBM darf als rebuildbare Codegraph-Projektion laufen, besitzt aber keine
+  Source-/Version-/Lineage-Wahrheit;
+- GRO besitzt die gemeinsame Performance-/Prometheus-/Grafana-Flaeche;
+- alte O2-Kuzu-Slices sind nicht claimable und werden nicht reaktiviert.
+
 > Master-Roadmap: Fuer neue Alice/Bob/Charlie-Beauftragungen gilt zuerst `docs/plans/unified-odysseus-roadmap.md`. Dieses Dokument bleibt Detailplan fuer die Scale Foundation.
 
 Stand: 2026-06-16
@@ -16,16 +32,18 @@ PostgreSQL + pgvector
 
 Postgres wird die zentrale Wahrheit fuer Quellen, Ledger, Chunks, Provenance, Jobs, Review, Query Cache und Graph-Metadaten. pgvector ergaenzt semantische Suche direkt im selben verlaesslichen Datenkern.
 
-Qdrant und Kuzu bleiben optionale Spezialmotoren:
+Qdrant bleibt ein optionaler Spezialmotor. Kuzu ist kein Kandidat mehr:
 
 - Qdrant fuer Vector-Speed, wenn pgvector bei realen Messungen nicht mehr reicht.
-- Kuzu fuer Graph-Traversals, wenn Postgres-Edges bei realen Graph-Queries nicht mehr reichen.
+- Ein spaeterer Graph-Accelerator braucht bei nachgewiesener Traversal-Luecke
+  einen neuen Sourcing- und Architekturentscheid; die fruehere Kuzu-Auswahl ist
+  superseded.
 
 Wichtiges Prinzip:
 
 ```text
 Postgres ist Wahrheit.
-Qdrant und Kuzu sind rebuildbare Accelerator.
+Qdrant und jeder spaeter neu akzeptierte Accelerator sind rebuildbare Derived Data.
 ```
 
 ## Zielbild
@@ -102,7 +120,7 @@ Alles, was nicht menschliche Quelle ist, muss neu erzeugbar sein:
 - Derived Summaries
 - Query Cache
 - Qdrant Collections
-- Kuzu Graph Store
+- optional neu evaluierte Accelerator-Projektionen
 
 ### 6. Diagnostizierbar
 
@@ -131,7 +149,8 @@ Nicht vorher starten:
 
 - keine Postgres-Migration mitten im 1.0-Finalisierungsschnitt
 - keine neue GraphDB
-- keine Qdrant/Kuzu-Integration
+- keine Qdrant- oder Graph-Accelerator-Integration
+- keine Kuzu-Wiedereinfuehrung
 - keine grossen Storage-Umbauten
 
 Exit:
@@ -223,7 +242,9 @@ Done:
 
 ### MS4: Diagnostics Layer
 
-Ziel: Odysseus misst frueh genug, ob die Scale Foundation funktioniert und wann Spezialmotoren wie Qdrant, Kuzu oder UMAP/GMM ueberhaupt gerechtfertigt sind.
+Ziel: Odysseus misst frueh genug, ob die Scale Foundation funktioniert und
+wann Spezialmotoren wie Qdrant, ein neu evaluierter Graph-Accelerator oder
+UMAP/GMM ueberhaupt gerechtfertigt sind. Kuzu bleibt ausgeschlossen.
 
 Messpunkte:
 
@@ -381,28 +402,31 @@ Done:
 - Rebuild ist getestet
 - Konsistenz wird ueber Source/Chunk-Versionen geprueft
 
-### O2: Optional Kuzu Graph Accelerator
+### O2: Superseded - ehemaliger Kuzu Graph Accelerator
 
-Startbedingung:
+Status:
 
-- Postgres-Edges reichen laut Diagnostics fuer echte Traversal-Workloads nicht mehr
+- `archived_nonclaimable`
+- keine Implementierung und keine Reaktivierung dieser Auswahl
 
-Ziel:
+Historische Annahme:
 
-- Kuzu als rebuildbarer Graph-Traversal-Layer
+- Postgres-Edges koennten laut Diagnostics fuer echte Traversal-Workloads nicht
+  reichen.
 
-Regeln:
+Aktuelle Entscheidungsregel:
 
-- Postgres bleibt Wahrheit
-- Kuzu Graph Store ist Derived Data
-- Kuzu kann geloescht und aus Postgres neu aufgebaut werden
-- UI bekommt weiterhin budgetierte Subgraphs, nie den ganzen Graph
+- Erst eine reale Diagnostics-Luecke darf einen neuen Accelerator-Sourcing-
+  Entscheid ausloesen.
+- Der neue Kandidat muss maintained, rebuildbar und fallback-faehig sein.
+- Postgres/USI bleibt Wahrheit; die UI bekommt weiterhin nur budgetierte
+  Subgraphs.
 
-Done:
+Replacement evidence:
 
-- Traversal-Queries sind messbar schneller
-- Rebuild ist getestet
-- Fallback auf Postgres-Graph bleibt moeglich
+- USI1B dokumentiert, warum Kuzu nicht neu eingefuehrt wird.
+- `docs/plans/unified-source-index-implementation-roadmap.md` besitzt die
+  Diagnostics- und Store-Grenze fuer einen spaeteren neutralen Entscheid.
 
 ### O3: UMAP/GMM/RAPTOR Research Track
 
@@ -441,12 +465,13 @@ Entscheidungskriterien:
 7. MS6: Progressive Graph API
 8. MS7: Operations/Homeserver
 9. O1: Qdrant nur bei Bedarf
-10. O2: Kuzu nur bei Bedarf
+10. O2: ehemaliges Kuzu-Slice archiviert und nicht claimable
 11. O3: UMAP/GMM/RAPTOR Research nur bei Qualitaetsluecke
 
 ## Was wir bewusst nicht tun
 
-- keine Qdrant/Kuzu-Einfuehrung ohne Messproblem
+- keine Qdrant- oder neue Accelerator-Einfuehrung ohne Messproblem
+- keine Kuzu-Wiedereinfuehrung
 - keine UI, die alle Nodes laden will
 - keine globale `get_all_memory` API
 - keine unbudgetierten Jobs

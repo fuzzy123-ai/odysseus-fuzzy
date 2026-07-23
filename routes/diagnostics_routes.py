@@ -2,6 +2,7 @@
 
 import logging
 import os
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any
 
 from fastapi import APIRouter, HTTPException, Form, Query, Request, Response
@@ -9,6 +10,7 @@ from fastapi import APIRouter, HTTPException, Form, Query, Request, Response
 from services.youtube.youtube_handler import extract_youtube_id, extract_transcript_async
 from core.constants import DEFAULT_HOST, DATA_DIR
 from core.middleware import require_admin
+from src.auth_helpers import require_api_token_exact_scope
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +20,7 @@ def setup_diagnostics_routes(
     rag_available: bool,
     research_handler,
     memory_vector=None,
+    tool_usage_analytics=None,
 ) -> APIRouter:
     router = APIRouter(tags=["diagnostics"])
 
@@ -151,23 +154,17 @@ def setup_diagnostics_routes(
             raise HTTPException(500, "Failed to retrieve diagnostics quick summary")
 
     @router.get("/api/diagnostics/runtime-metrics")
-    async def get_runtime_metrics(
-        request: Request,
-        day: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
-    ) -> Response:
-        """Return content-free Odysseus runtime metrics in Prometheus text format."""
-        require_admin(request)
-        try:
-            from src.ai_activity_ledger import read_ai_activity
-            from src.memory_provenance_ledger import read_memory_provenance
-            from src.observability_metrics import build_runtime_metrics_from_diagnostics, render_prometheus_text
+    async def get_runtime_metrics(request: Request) -> Response:
+        """Render only process-local content-free registries for Prometheus."""
 
-            snapshot = build_runtime_metrics_from_diagnostics(
-                ai_activity=read_ai_activity(day=day, limit=1000),
-                memory_provenance=read_memory_provenance(day=day, limit=1000),
-            )
+        token_request = require_api_token_exact_scope(request, "observability:read")
+        if not token_request:
+            require_admin(request)
+        try:
+            from src.observability_metrics import render_process_runtime_metrics
+
             return Response(
-                render_prometheus_text(snapshot),
+                render_process_runtime_metrics(),
                 media_type="text/plain; version=0.0.4; charset=utf-8",
             )
         except ValueError as e:
@@ -226,6 +223,63 @@ def setup_diagnostics_routes(
             logger.error(f"Open-work diagnostics retrieval error: {e}")
             raise HTTPException(500, "Failed to retrieve open-work diagnostics")
 
+    @router.get("/api/diagnostics/tool-usage")
+    async def get_tool_usage_analytics(
+        request: Request,
+        start_day: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+        end_day: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+        tool: str | None = Query(None, max_length=120),
+        family: str | None = Query(None, max_length=80),
+        source: str | None = Query(None, max_length=40),
+        surface: str | None = Query(None, max_length=40),
+        status: str | None = Query(None, max_length=40),
+        limit: int = Query(100, ge=1, le=250),
+    ) -> Dict[str, Any]:
+        """Return bounded aggregate-only tool usage diagnostics for admins."""
+
+        # Authenticate before resolving or opening any analytics store.
+        require_admin(request)
+        current_day = datetime.now(timezone.utc).date()
+        resolved_end = end_day or current_day.isoformat()
+        resolved_start = start_day or (
+            current_day - timedelta(days=6)
+        ).isoformat()
+        service = tool_usage_analytics
+        owned_store = None
+        try:
+            if service is None:
+                from core.database import DATABASE_URL
+                from src.tool_usage_analytics import ToolUsageAnalyticsService
+                from src.tool_usage_store import ToolUsageStore
+
+                if not str(DATABASE_URL).startswith("sqlite:///"):
+                    raise RuntimeError("tool usage analytics store is unavailable")
+                database_path = str(DATABASE_URL).replace("sqlite:///", "", 1)
+                owned_store = ToolUsageStore(database_path)
+                service = ToolUsageAnalyticsService(owned_store)
+            report = service.summarize(
+                resolved_start,
+                resolved_end,
+                tool_analytics_id=tool,
+                tool_family=family,
+                tool_source=source,
+                surface=surface,
+                status=status,
+                row_limit=limit,
+                max_span_days=90,
+            )
+            return _project_tool_usage_report(report)
+        except HTTPException:
+            raise
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+        except Exception:
+            logger.error("Tool usage aggregate diagnostics retrieval failed", exc_info=True)
+            raise HTTPException(503, "Tool usage aggregate diagnostics unavailable")
+        finally:
+            if owned_store is not None:
+                owned_store.close()
+
     @router.get("/api/db/stats")
     async def get_database_stats(request: Request) -> Dict[str, Any]:
         require_admin(request)
@@ -281,3 +335,78 @@ def setup_diagnostics_routes(
             return {"status": "error", "error": str(e), "query": query}
 
     return router
+
+
+def _project_tool_usage_report(report: Dict[str, Any]) -> Dict[str, Any]:
+    """Allowlist the aggregate API response against future internal fields."""
+
+    quality = report.get("quality") if isinstance(report.get("quality"), dict) else {}
+    rows = report.get("rows") if isinstance(report.get("rows"), (list, tuple)) else ()
+    row_fields = (
+        "day",
+        "tool_analytics_id",
+        "tool_family",
+        "tool_source",
+        "surface",
+        "status",
+        "invocation_count",
+        "duration_count",
+        "duration_total_ms",
+        "distinct_owner_count",
+        "distinct_session_count",
+        "retry_count",
+        "unknown_identity_count",
+    )
+    projected_rows = tuple(
+        {field: row.get(field) for field in row_fields}
+        for row in rows
+        if isinstance(row, dict)
+    )
+    quality_fields = (
+        "invocation_count",
+        "started_count",
+        "terminal_count",
+        "complete_count",
+        "incomplete_count",
+        "distinct_owner_count",
+        "distinct_session_count",
+        "unknown_identity_count",
+        "duplicates_rejected",
+        "writer_failures",
+        "scope",
+        "aggregation_complete_day_count",
+        "warning_codes",
+    )
+    top_fields = (
+        "schema",
+        "start_day",
+        "end_day",
+        "filters",
+        "calls",
+        "active_days",
+        "duration_count",
+        "duration_total_ms",
+        "duration_mean_ms",
+        "duration_p50_ms",
+        "duration_p95_ms",
+        "duration_overflow_count",
+        "retry_count",
+        "status_counts",
+        "status_rates",
+        "daily_distinct_owner_total",
+        "daily_distinct_session_total",
+        "filtered_group_distinct_owner_total",
+        "filtered_group_distinct_session_total",
+        "coverage",
+        "row_count",
+        "rows_truncated",
+    )
+    return {
+        **{field: report.get(field) for field in top_fields},
+        "quality": {
+            **{field: quality.get(field) for field in quality_fields},
+            "raw_content_visible": False,
+        },
+        "rows": projected_rows,
+        "raw_content_visible": False,
+    }

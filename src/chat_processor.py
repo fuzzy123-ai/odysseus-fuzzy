@@ -5,7 +5,7 @@ import math
 import re
 import time
 from collections import Counter
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Callable, List, Dict, Any, Optional, Tuple
 from src.chat_helpers import extract_urls
 from src.youtube_handler import is_youtube_url
 from src.search import comprehensive_web_search, fetch_webpage_content
@@ -24,7 +24,7 @@ from src.secure_model_routing import ModelCandidate, ModelUse, decide_model_rout
 from src.secure_provider_runtime import provider_scope_for_base_url
 from src.sensitive_retrieval_guard import decide_retrieval_access
 from src.self_control_runtime import build_self_control_context_message
-from src.token_budget import CHARS_PER_TOKEN_ESTIMATE, count_text_tokens
+from src.token_budget import count_text_tokens
 
 logger = logging.getLogger(__name__)
 DEFAULT_RAG_CONTEXT_BUDGET_UNITS = 1200
@@ -68,11 +68,17 @@ def build_budgeted_rag_context(
     relevant: List[Dict[str, Any]],
     *,
     budget_units: int,
+    model_hint: Optional[str] = None,
 ) -> tuple[str, List[Dict[str, Any]], int]:
-    """Build RAG context within a metadata-estimated budget."""
+    """Build RAG context within the selected model's token budget."""
 
     prefix = "Relevant documents:"
-    remaining = max(0, int(budget_units or 0) - count_text_tokens(prefix))
+    budget = max(0, int(budget_units or 0))
+    if count_text_tokens(
+        _injected_rag_message_content(prefix),
+        model_hint=model_hint,
+    ) > budget:
+        return "", [], len(relevant)
     sources: List[Dict[str, Any]] = []
     entries: List[str] = []
     truncated = 0
@@ -81,17 +87,22 @@ def build_budgeted_rag_context(
         filename = metadata.get("filename", metadata.get("source", "unknown"))
         document = str(result.get("document") or "")
         header = f"[{filename}]\n"
-        header_units = count_text_tokens(header)
-        if remaining <= header_units:
-            truncated += 1
-            continue
-        document_budget = remaining - header_units
-        trimmed_document, was_truncated = _trim_text_to_budget(document, document_budget)
+
+        def compose(value: str) -> str:
+            body = _render_rag_context(entries + [header + value])
+            return _injected_rag_message_content(body)
+
+        trimmed_document, was_truncated = _fit_text_to_composed_budget(
+            document,
+            compose=compose,
+            budget_units=budget,
+            model_hint=model_hint,
+        )
         if not trimmed_document:
             truncated += 1
             continue
         entry = header + trimmed_document
-        entry_units = count_text_tokens(entry)
+        entry_units = count_text_tokens(entry, model_hint=model_hint)
         entries.append(entry)
         sources.append(
             {
@@ -105,22 +116,71 @@ def build_budgeted_rag_context(
                 "truncated": was_truncated,
             }
         )
-        remaining -= entry_units + count_text_tokens("\n\n---\n\n")
         if was_truncated:
             truncated += 1
             break
     if not entries:
         return "", [], truncated
-    return prefix + "\n\n" + "\n\n---\n\n".join(entries), sources, truncated
+    return _render_rag_context(entries), sources, truncated
 
 
-def _trim_text_to_budget(text: str, budget_units: int) -> tuple[str, bool]:
+def _render_rag_context(entries: List[str]) -> str:
+    if not entries:
+        return "Relevant documents:"
+    return "Relevant documents:\n\n" + "\n\n---\n\n".join(entries)
+
+
+def _injected_rag_message_content(body: str) -> str:
+    """Render the exact message content injected by ``build_context_preface``."""
+
+    message = untrusted_context_message("retrieved documents", body)
+    return str(message.get("content") or "")
+
+
+def _fit_text_to_composed_budget(
+    text: str,
+    *,
+    compose: Callable[[str], str],
+    budget_units: int,
+    model_hint: Optional[str],
+) -> tuple[str, bool]:
+    """Fit text under a budget measured on the complete composed output."""
+
+    if not text:
+        return "", False
+    if count_text_tokens(compose(text), model_hint=model_hint) <= budget_units:
+        return text, False
+    marker = "\n[Truncated]"
+    if count_text_tokens(compose(marker.lstrip()), model_hint=model_hint) > budget_units:
+        return "", True
+    low, high = 0, len(text)
+    best = marker.lstrip()
+    while low <= high:
+        midpoint = (low + high) // 2
+        candidate = text[:midpoint].rstrip()
+        candidate = (candidate + marker) if candidate else marker.lstrip()
+        if count_text_tokens(compose(candidate), model_hint=model_hint) <= budget_units:
+            best = candidate
+            low = midpoint + 1
+        else:
+            high = midpoint - 1
+    return best, True
+
+
+def _trim_text_to_budget(
+    text: str,
+    budget_units: int,
+    *,
+    model_hint: Optional[str] = None,
+) -> tuple[str, bool]:
     if budget_units <= 0 or not text:
         return "", bool(text)
-    if count_text_tokens(text) <= budget_units:
-        return text, False
-    char_limit = max(1, int(budget_units * CHARS_PER_TOKEN_ESTIMATE))
-    return text[:char_limit].rstrip() + "\n[Truncated]", True
+    return _fit_text_to_composed_budget(
+        text,
+        compose=lambda value: value,
+        budget_units=budget_units,
+        model_hint=model_hint,
+    )
 
 
 class ChatProcessor:
@@ -520,6 +580,7 @@ class ChatProcessor:
                         rag_content, rag_sources, truncated_count = build_budgeted_rag_context(
                             relevant,
                             budget_units=rag_context_budget_units(context_budget_tokens),
+                            model_hint=getattr(session, "model", None),
                         )
                         if rag_content:
                             if truncated_count:

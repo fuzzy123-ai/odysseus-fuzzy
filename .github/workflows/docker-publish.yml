@@ -28,8 +28,18 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # Call the gate from this workflow instead of observing a separate workflow
+  # run. A local reusable-workflow call resolves from this commit, and
+  # github.sha inside the called workflow is the same push SHA published below.
+  quality-gate:
+    name: Required exact-commit quality gate
+    uses: ./.github/workflows/quality-gate.yml
+    permissions:
+      contents: read
+
   build:
     name: build (${{ matrix.arch }})
+    needs: quality-gate
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -81,7 +91,7 @@ jobs:
   merge:
     name: merge manifest + tag
     runs-on: ubuntu-latest
-    needs: build
+    needs: [quality-gate, build]
     permissions:
       contents: read
       packages: write

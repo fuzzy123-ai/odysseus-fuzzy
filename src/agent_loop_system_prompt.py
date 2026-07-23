@@ -568,8 +568,11 @@ def _build_base_prompt(
     are shown with full descriptions. Otherwise falls back to full prompt.
     """
     from src.tool_index import ALWAYS_AVAILABLE
+    from src.builtin_tool_catalog import OPERATOR_PRIORITY_DEFERRED_IDS
 
     disabled = set(disabled_tools or [])
+    if not needs_admin:
+        disabled.update(OPERATOR_PRIORITY_DEFERRED_IDS)
     if not get_setting("image_gen_enabled", False):
         disabled.add("generate_image")
 
@@ -619,7 +622,7 @@ def _build_base_prompt(
             from services.memory.skills import SkillsManager
             from src.constants import DATA_DIR
             _sm = SkillsManager(DATA_DIR)
-            active_tools = list(set(_all_tool_sections().keys()) - set(disabled or []))
+            active_tools = list(set(_all_tool_sections().keys()) - disabled)
             skill_idx = _sm.index_for(owner=owner, active_toolsets=active_tools)
             if skill_idx:
                 lines = ["## Available skills",

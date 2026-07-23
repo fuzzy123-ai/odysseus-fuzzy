@@ -1,0 +1,1877 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.unified_source_index_runtime_inventory",
+  "updated_at": "2026-07-13",
+  "execution": {
+    "run_id": "usi-00-20260713t214202",
+    "thread_id": "019f5c7d-dddf-7252-8dca-254858f80408",
+    "slice_id": "USI-00",
+    "owner": "Charlie",
+    "phase": "implementation",
+    "queue_scope": "post_mvp/OWM-15",
+    "mutation_class": "safe_offline",
+    "state": "released",
+    "acquired_at": "2026-07-13T21:42:02+02:00",
+    "lease_expires_at": "2026-07-13T22:42:02+02:00",
+    "released_at": "2026-07-13T22:06:30+02:00",
+    "allowed_paths": [
+      "docs/plans/unified-source-index-implementation-roadmap.md",
+      "docs/plans/unified-source-index-runtime-inventory.json",
+      "scripts/audit_unified_source_index_overlap.py",
+      "tests/test_audit_unified_source_index_overlap.py"
+    ],
+    "hotfiles": [],
+    "handoff_required": false,
+    "result": {
+      "status": "accepted",
+      "focused_tests": "8 passed, 1 unrelated SQLAlchemy deprecation warning",
+      "drift_check": "clean",
+      "next_frontier": "USI-01"
+    },
+    "route": {
+      "entrypoint": "$abc",
+      "skills": [
+        "abc"
+      ],
+      "model": "surface_default",
+      "fallback": "native_tools"
+    },
+    "evidence": {
+      "target_environment": "local",
+      "authority": "repo",
+      "required": [
+        "static",
+        "focused_test",
+        "readback"
+      ],
+      "positive_path_required": true
+    }
+  },
+  "summary": {
+    "component_count": 35,
+    "direct_writer_count": 103,
+    "tool_identity_count": 17,
+    "hotfile_count": 25,
+    "non_store_boundary_count": 7,
+    "migration_risk_count": 7,
+    "classification_counts": {
+      "domain_truth": 12,
+      "index_truth": 2,
+      "legacy": 8,
+      "observation": 8,
+      "projection": 5
+    },
+    "store_kind_counts": {
+      "chunk_store": 3,
+      "graph_store": 3,
+      "job_store": 9,
+      "lineage_store": 2,
+      "observation_store": 2,
+      "query_cache_store": 1,
+      "runtime_projection": 1,
+      "source_store": 9,
+      "vector_store": 5
+    },
+    "migration_candidate_count": 29,
+    "private_corpus_accessed": false,
+    "runtime_modules_imported": false,
+    "violation_count": 0,
+    "clean": true
+  },
+  "components": [
+    {
+      "component_id": "agent_run_events",
+      "name": "Agent run event ledger",
+      "store_kind": "job_store",
+      "classification": "observation",
+      "canonical_owner": "Agent Runtime",
+      "source_paths": [
+        "src/agent_run_ledger.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "exclude_from_usi_job_truth"
+    },
+    {
+      "component_id": "agent_task_events",
+      "name": "Agent task event ledger",
+      "store_kind": "job_store",
+      "classification": "observation",
+      "canonical_owner": "Agent Runtime",
+      "source_paths": [
+        "src/agent_task_ledger.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "exclude_from_usi_job_truth"
+    },
+    {
+      "component_id": "ai_activity_ledger",
+      "name": "AI activity ledger",
+      "store_kind": "observation_store",
+      "classification": "observation",
+      "canonical_owner": "AI Activity",
+      "source_paths": [
+        "src/ai_activity_ledger.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "retain_as_content_free_observation"
+    },
+    {
+      "component_id": "ai_lens_projection",
+      "name": "AI Lens in-memory observations and projections",
+      "store_kind": "runtime_projection",
+      "classification": "observation",
+      "canonical_owner": "AI Lens",
+      "source_paths": [
+        "src/ai_lens_service.py",
+        "src/ai_lens_events.py",
+        "src/ai_lens_projection.py",
+        "src/ai_lens_graph.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "consume_usi_refs_without_becoming_truth"
+    },
+    {
+      "component_id": "ai_lens_replay",
+      "name": "AI Lens replay snapshots",
+      "store_kind": "observation_store",
+      "classification": "observation",
+      "canonical_owner": "AI Lens Replay",
+      "source_paths": [
+        "src/ai_lens_replay.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "retain_as_bounded_replay_artifact"
+    },
+    {
+      "component_id": "background_shell_jobs",
+      "name": "Detached shell job registry",
+      "store_kind": "job_store",
+      "classification": "legacy",
+      "canonical_owner": "Chat Background Jobs",
+      "source_paths": [
+        "src/bg_jobs.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "exclude_from_usi_job_truth"
+    },
+    {
+      "component_id": "bigdata_checkpoint_ledger",
+      "name": "Nextcloud and big-data checkpoint ledger",
+      "store_kind": "job_store",
+      "classification": "index_truth",
+      "canonical_owner": "AppendOnlyBigDataLedger and source providers",
+      "source_paths": [
+        "src/bigdata_ledger_contract.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "adapt_as_ingestion_checkpoint_evidence"
+    },
+    {
+      "component_id": "git_repository",
+      "name": "Git repository and commit facts",
+      "store_kind": "source_store",
+      "classification": "domain_truth",
+      "canonical_owner": "Git Adapter and Local Forge",
+      "source_paths": [
+        "src/repo_git_adapter.py"
+      ],
+      "writer_policy": "read_only",
+      "migration_action": "reference_read_only"
+    },
+    {
+      "component_id": "memory_file",
+      "name": "Approved personal memory records",
+      "store_kind": "source_store",
+      "classification": "domain_truth",
+      "canonical_owner": "MemoryManager and memory lifecycle",
+      "source_paths": [
+        "src/memory.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "adapt_read_only"
+    },
+    {
+      "component_id": "memory_legacy_text",
+      "name": "Legacy personal memory text file",
+      "store_kind": "source_store",
+      "classification": "legacy",
+      "canonical_owner": "MemoryManager legacy importer",
+      "source_paths": [
+        "src/memory.py"
+      ],
+      "writer_policy": "read_only",
+      "migration_action": "import_with_owner_review_then_retire"
+    },
+    {
+      "component_id": "memory_provenance",
+      "name": "Memory provenance ledger",
+      "store_kind": "lineage_store",
+      "classification": "observation",
+      "canonical_owner": "Memory Lifecycle",
+      "source_paths": [
+        "src/memory_provenance_ledger.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "map_as_evidence_not_source_truth"
+    },
+    {
+      "component_id": "memory_vector",
+      "name": "Personal memory semantic index",
+      "store_kind": "vector_store",
+      "classification": "projection",
+      "canonical_owner": "MemoryVectorStore",
+      "source_paths": [
+        "src/memory_vector.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "retain_until_usi_projection_parity"
+    },
+    {
+      "component_id": "memory_vector_legacy",
+      "name": "Unsuffixed personal memory Chroma collection",
+      "store_kind": "vector_store",
+      "classification": "legacy",
+      "canonical_owner": "Embedding lane migration",
+      "source_paths": [
+        "src/embedding_lanes.py",
+        "src/memory_vector.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "verify_backfill_then_retire"
+    },
+    {
+      "component_id": "orca_derived_index",
+      "name": "ORCA derived chunk index",
+      "store_kind": "chunk_store",
+      "classification": "legacy",
+      "canonical_owner": "ORCA Vault",
+      "source_paths": [
+        "plugins/obsidian/backend/derived_index.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "retire_after_usi_query_parity"
+    },
+    {
+      "component_id": "orca_manual_relationships",
+      "name": "ORCA manual relationships",
+      "store_kind": "graph_store",
+      "classification": "domain_truth",
+      "canonical_owner": "ORCA Vault Model",
+      "source_paths": [
+        "plugins/obsidian/backend/vault_model.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "adapt_as_evidence_bound_relations"
+    },
+    {
+      "component_id": "orca_memory_ledger",
+      "name": "ORCA discovery and indexing ledger",
+      "store_kind": "job_store",
+      "classification": "index_truth",
+      "canonical_owner": "ORCA Vault",
+      "source_paths": [
+        "plugins/obsidian/backend/memory_ledger.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "map_checkpoint_then_retire_duplicate_state"
+    },
+    {
+      "component_id": "orca_query_cache",
+      "name": "ORCA query result cache",
+      "store_kind": "query_cache_store",
+      "classification": "legacy",
+      "canonical_owner": "ORCA Query Layer",
+      "source_paths": [
+        "plugins/obsidian/backend/query_layer.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "replace_with_bounded_usi_cache"
+    },
+    {
+      "component_id": "orca_raptor_artifacts",
+      "name": "ORCA RAPTOR artifacts",
+      "store_kind": "graph_store",
+      "classification": "projection",
+      "canonical_owner": "ORCA RAPTOR",
+      "source_paths": [
+        "plugins/obsidian/backend/raptor_rebuild.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "bind_to_immutable_usi_derived_runs"
+    },
+    {
+      "component_id": "orca_vault",
+      "name": "Owner-scoped vault files",
+      "store_kind": "source_store",
+      "classification": "domain_truth",
+      "canonical_owner": "ORCA Vault and vault policy",
+      "source_paths": [
+        "plugins/obsidian/backend/vault_service.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "adapt_read_only"
+    },
+    {
+      "component_id": "orca_vector_cache",
+      "name": "ORCA whole-note embedding cache",
+      "store_kind": "vector_store",
+      "classification": "projection",
+      "canonical_owner": "ORCA Vault Model",
+      "source_paths": [
+        "plugins/obsidian/backend/vault_model.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "drop_and_rebuild_from_usi_sources"
+    },
+    {
+      "component_id": "personal_docs_keyword",
+      "name": "Personal Docs keyword index",
+      "store_kind": "chunk_store",
+      "classification": "legacy",
+      "canonical_owner": "PersonalDocsManager",
+      "source_paths": [
+        "src/personal_docs.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "retire_after_usi_lexical_parity"
+    },
+    {
+      "component_id": "personal_docs_registry",
+      "name": "Personal Docs source registry",
+      "store_kind": "source_store",
+      "classification": "domain_truth",
+      "canonical_owner": "PersonalDocsManager",
+      "source_paths": [
+        "src/personal_docs.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "migrate_to_owner_scoped_registration"
+    },
+    {
+      "component_id": "personal_docs_sources",
+      "name": "Registered Personal Docs files",
+      "store_kind": "source_store",
+      "classification": "domain_truth",
+      "canonical_owner": "Filesystem owners through PersonalDocsManager",
+      "source_paths": [
+        "src/personal_docs.py"
+      ],
+      "writer_policy": "read_only",
+      "migration_action": "register_external_sources_without_implicit_content_moves"
+    },
+    {
+      "component_id": "planning_memory_projection",
+      "name": "Planning-to-Memory projection",
+      "store_kind": "chunk_store",
+      "classification": "projection",
+      "canonical_owner": "Planning and Memory Lifecycle",
+      "source_paths": [
+        "src/planning_source_memory.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "retain_only_when_projection_adds_value"
+    },
+    {
+      "component_id": "planning_sources",
+      "name": "Planning roadmap and project sources",
+      "store_kind": "source_store",
+      "classification": "domain_truth",
+      "canonical_owner": "Planning stores and Planning MCP",
+      "source_paths": [
+        "src/planning_source_inventory.py",
+        "src/planning_mcp_service.py"
+      ],
+      "writer_policy": "read_only",
+      "migration_action": "adapt_read_only"
+    },
+    {
+      "component_id": "project_versions",
+      "name": "Immutable project version manifests",
+      "store_kind": "lineage_store",
+      "classification": "domain_truth",
+      "canonical_owner": "ProjectVersionStore and Local Forge",
+      "source_paths": [
+        "src/project_version_store.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "reference_read_only_from_usi"
+    },
+    {
+      "component_id": "rag_chroma",
+      "name": "Personal document Chroma collections",
+      "store_kind": "vector_store",
+      "classification": "projection",
+      "canonical_owner": "VectorRAG",
+      "source_paths": [
+        "src/rag_vector.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "retain_as_rebuildable_usi_projection"
+    },
+    {
+      "component_id": "rag_chroma_legacy",
+      "name": "Unsuffixed personal document Chroma collection",
+      "store_kind": "vector_store",
+      "classification": "legacy",
+      "canonical_owner": "Embedding lane migration",
+      "source_paths": [
+        "src/embedding_lanes.py",
+        "src/rag_vector.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "verify_backfill_then_retire"
+    },
+    {
+      "component_id": "repo_registry",
+      "name": "Registered repository identities",
+      "store_kind": "source_store",
+      "classification": "domain_truth",
+      "canonical_owner": "RepoRegistry",
+      "source_paths": [
+        "src/repo_registry.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "reference_read_only_from_usi"
+    },
+    {
+      "component_id": "research_results",
+      "name": "Owner-scoped research result files",
+      "store_kind": "source_store",
+      "classification": "domain_truth",
+      "canonical_owner": "ResearchStorageMixin",
+      "source_paths": [
+        "src/research_handler_storage.py",
+        "src/task_scheduler.py",
+        "routes/research_routes.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "adapt_owner_approved_artifacts_and_consolidate_writers"
+    },
+    {
+      "component_id": "research_runtime_jobs",
+      "name": "Process-local research execution state",
+      "store_kind": "job_store",
+      "classification": "legacy",
+      "canonical_owner": "ResearchHandler",
+      "source_paths": [
+        "src/research_handler.py",
+        "src/research_handler_storage.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "keep_outside_index_job_truth_and_add_restart_safe_owner"
+    },
+    {
+      "component_id": "sandbox_job_events",
+      "name": "Sandbox job event ledger",
+      "store_kind": "job_store",
+      "classification": "observation",
+      "canonical_owner": "Sandbox Runtime",
+      "source_paths": [
+        "src/sandbox_job_ledger.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "exclude_from_usi_job_truth"
+    },
+    {
+      "component_id": "scheduled_task_definitions",
+      "name": "Recurring and event task definitions",
+      "store_kind": "job_store",
+      "classification": "domain_truth",
+      "canonical_owner": "ScheduledTask ORM and task routes",
+      "source_paths": [
+        "src/task_scheduler.py",
+        "routes/task_routes.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "exclude_from_usi_job_truth"
+    },
+    {
+      "component_id": "scheduled_task_runs",
+      "name": "Durable scheduled task attempts",
+      "store_kind": "job_store",
+      "classification": "domain_truth",
+      "canonical_owner": "TaskRun ORM and TaskScheduler",
+      "source_paths": [
+        "src/task_scheduler.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "exclude_from_usi_index_job_truth"
+    },
+    {
+      "component_id": "universal_inbox_raptorgraph_events",
+      "name": "Universal Inbox RaptorGraph mutation events",
+      "store_kind": "graph_store",
+      "classification": "observation",
+      "canonical_owner": "Universal Inbox",
+      "source_paths": [
+        "src/universal_inbox_raptorgraph_store.py"
+      ],
+      "writer_policy": "required",
+      "migration_action": "map_as_projection_evidence_not_graph_truth"
+    }
+  ],
+  "direct_writers": [
+    {
+      "component_id": "agent_run_events",
+      "path": "src/agent_run_ledger.py",
+      "symbol": "append_event",
+      "operation": "append redacted run event",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "agent_run_events",
+      "path": "src/agent_run_ledger.py",
+      "symbol": "clear_events",
+      "operation": "clear one run ledger",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "agent_task_events",
+      "path": "src/agent_task_ledger.py",
+      "symbol": "append_task_record",
+      "operation": "append redacted task event",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "ai_activity_ledger",
+      "path": "src/ai_activity_ledger.py",
+      "symbol": "append_ai_activity",
+      "operation": "append content-free activity record",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "ai_lens_projection",
+      "path": "src/ai_lens_service.py",
+      "symbol": "AiLensEventEmitter.emit",
+      "operation": "emit bounded observation into service",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "ai_lens_projection",
+      "path": "src/ai_lens_service.py",
+      "symbol": "AiLensService.clear_session",
+      "operation": "clear in-memory observation session",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "ai_lens_projection",
+      "path": "src/ai_lens_service.py",
+      "symbol": "AiLensService.ingest",
+      "operation": "append bounded in-memory observation",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "ai_lens_projection",
+      "path": "src/ai_lens_service.py",
+      "symbol": "AiLensService.ingest_batch",
+      "operation": "append bounded observation batch",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "ai_lens_replay",
+      "path": "src/ai_lens_replay.py",
+      "symbol": "AiLensReplayStore.delete_expired",
+      "operation": "delete expired replay snapshots",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "ai_lens_replay",
+      "path": "src/ai_lens_replay.py",
+      "symbol": "AiLensReplayStore.persist",
+      "operation": "persist bounded replay snapshot",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "background_shell_jobs",
+      "path": "src/bg_jobs.py",
+      "symbol": "_save",
+      "operation": "persist detached job registry",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "background_shell_jobs",
+      "path": "src/bg_jobs.py",
+      "symbol": "kill",
+      "operation": "terminate and persist detached job state",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "background_shell_jobs",
+      "path": "src/bg_jobs.py",
+      "symbol": "launch",
+      "operation": "create detached shell job",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "background_shell_jobs",
+      "path": "src/bg_jobs.py",
+      "symbol": "mark_followed_up",
+      "operation": "mark follow-up consumed",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "background_shell_jobs",
+      "path": "src/bg_jobs.py",
+      "symbol": "refresh",
+      "operation": "reconcile detached job state",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "bigdata_checkpoint_ledger",
+      "path": "src/bigdata_ledger_contract.py",
+      "symbol": "AppendOnlyBigDataLedger.append_commit",
+      "operation": "append checkpoint commit",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "bigdata_checkpoint_ledger",
+      "path": "src/bigdata_ledger_contract.py",
+      "symbol": "AppendOnlyBigDataLedger.append_intent",
+      "operation": "append checkpoint intent",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "bigdata_checkpoint_ledger",
+      "path": "src/bigdata_ledger_contract.py",
+      "symbol": "AppendOnlyBigDataLedger.append_record",
+      "operation": "append checkpoint transition",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "memory_file",
+      "path": "src/memory.py",
+      "symbol": "MemoryManager.add_entry",
+      "operation": "add approved memory record",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "memory_file",
+      "path": "src/memory.py",
+      "symbol": "MemoryManager.claim_ownerless",
+      "operation": "assign legacy ownership",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "memory_file",
+      "path": "src/memory.py",
+      "symbol": "MemoryManager.ensure_file_exists",
+      "operation": "initialize memory truth file",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "memory_file",
+      "path": "src/memory.py",
+      "symbol": "MemoryManager.increment_uses",
+      "operation": "update use counters",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "memory_file",
+      "path": "src/memory.py",
+      "symbol": "MemoryManager.save",
+      "operation": "persist approved memory records",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "memory_provenance",
+      "path": "src/memory_provenance_ledger.py",
+      "symbol": "record_memory_provenance",
+      "operation": "append provenance event",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "memory_vector",
+      "path": "src/memory_vector.py",
+      "symbol": "MemoryVectorStore.add",
+      "operation": "upsert vector projection",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "memory_vector",
+      "path": "src/memory_vector.py",
+      "symbol": "MemoryVectorStore.rebuild",
+      "operation": "rebuild vector projection",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "memory_vector",
+      "path": "src/memory_vector.py",
+      "symbol": "MemoryVectorStore.remove",
+      "operation": "delete vector projection",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "memory_vector_legacy",
+      "path": "src/embedding_lanes.py",
+      "symbol": "migrate_legacy_collection",
+      "operation": "backfill lane collections from legacy collection",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_derived_index",
+      "path": "plugins/obsidian/backend/derived_index.py",
+      "symbol": "build_derived_index",
+      "operation": "rebuild compatibility chunks",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_manual_relationships",
+      "path": "plugins/obsidian/backend/vault_model.py",
+      "symbol": "add_manual_relationship",
+      "operation": "add relationship truth",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_manual_relationships",
+      "path": "plugins/obsidian/backend/vault_model.py",
+      "symbol": "remove_manual_relationship",
+      "operation": "remove relationship truth",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_manual_relationships",
+      "path": "plugins/obsidian/backend/vault_model.py",
+      "symbol": "save_manual_relationships",
+      "operation": "persist relationship truth",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_memory_ledger",
+      "path": "plugins/obsidian/backend/memory_ledger.py",
+      "symbol": "ensure_memory_ledger",
+      "operation": "create ledger schema",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_memory_ledger",
+      "path": "plugins/obsidian/backend/memory_ledger.py",
+      "symbol": "mark_source_failed",
+      "operation": "record indexing failure",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_memory_ledger",
+      "path": "plugins/obsidian/backend/memory_ledger.py",
+      "symbol": "mark_source_indexed",
+      "operation": "record indexing completion",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_memory_ledger",
+      "path": "plugins/obsidian/backend/memory_ledger.py",
+      "symbol": "sync_memory_ledger",
+      "operation": "synchronize discovery checkpoint",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_query_cache",
+      "path": "plugins/obsidian/backend/query_layer.py",
+      "symbol": "_save_cache_unlocked",
+      "operation": "persist bounded query cache",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_query_cache",
+      "path": "plugins/obsidian/backend/query_layer.py",
+      "symbol": "answer_query_async",
+      "operation": "write synthesized query cache entry",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_raptor_artifacts",
+      "path": "plugins/obsidian/backend/raptor_rebuild.py",
+      "symbol": "_atomic_write_json",
+      "operation": "persist RAPTOR projection artifact",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_raptor_artifacts",
+      "path": "plugins/obsidian/backend/raptor_rebuild.py",
+      "symbol": "rebuild_raptor_artifacts",
+      "operation": "rebuild graph and summary projection",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_vault",
+      "path": "plugins/obsidian/backend/vault_service.py",
+      "symbol": "batch_operations",
+      "operation": "apply bounded vault mutations",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_vault",
+      "path": "plugins/obsidian/backend/vault_service.py",
+      "symbol": "create_file",
+      "operation": "create owner-scoped vault file",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_vault",
+      "path": "plugins/obsidian/backend/vault_service.py",
+      "symbol": "create_folder",
+      "operation": "create vault folder",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_vault",
+      "path": "plugins/obsidian/backend/vault_service.py",
+      "symbol": "delete_file",
+      "operation": "soft-delete owner-scoped vault file",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_vault",
+      "path": "plugins/obsidian/backend/vault_service.py",
+      "symbol": "delete_folder",
+      "operation": "delete vault folder",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_vault",
+      "path": "plugins/obsidian/backend/vault_service.py",
+      "symbol": "merge_frontmatter",
+      "operation": "update vault metadata",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_vault",
+      "path": "plugins/obsidian/backend/vault_service.py",
+      "symbol": "purge_all_vault_trash",
+      "operation": "purge expired trash across vaults",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_vault",
+      "path": "plugins/obsidian/backend/vault_service.py",
+      "symbol": "purge_trash",
+      "operation": "purge expired vault trash",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_vault",
+      "path": "plugins/obsidian/backend/vault_service.py",
+      "symbol": "rename_item",
+      "operation": "rename vault item",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_vault",
+      "path": "plugins/obsidian/backend/vault_service.py",
+      "symbol": "update_file",
+      "operation": "update owner-scoped vault file",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_vault",
+      "path": "plugins/obsidian/backend/vault_service.py",
+      "symbol": "write_file",
+      "operation": "write owner-scoped vault file",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_vector_cache",
+      "path": "plugins/obsidian/backend/vault_model.py",
+      "symbol": "_save_embedding_cache",
+      "operation": "persist whole-note embedding cache",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "orca_vector_cache",
+      "path": "plugins/obsidian/backend/vault_model.py",
+      "symbol": "build_vault_embedding_index",
+      "operation": "refresh whole-note embedding cache",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "personal_docs_keyword",
+      "path": "src/personal_docs.py",
+      "symbol": "PersonalDocsManager.refresh_index",
+      "operation": "rebuild in-memory keyword index",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "personal_docs_keyword",
+      "path": "src/personal_docs.py",
+      "symbol": "load_personal_index",
+      "operation": "build in-memory keyword chunks",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "personal_docs_registry",
+      "path": "src/personal_docs.py",
+      "symbol": "PersonalDocsManager._save_excluded",
+      "operation": "persist source exclusions",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "personal_docs_registry",
+      "path": "src/personal_docs.py",
+      "symbol": "PersonalDocsManager.add_directory",
+      "operation": "register source directory",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "personal_docs_registry",
+      "path": "src/personal_docs.py",
+      "symbol": "PersonalDocsManager.exclude_file",
+      "operation": "persist source exclusion",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "personal_docs_registry",
+      "path": "src/personal_docs.py",
+      "symbol": "PersonalDocsManager.remove_directory",
+      "operation": "remove source directory registration",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "personal_docs_registry",
+      "path": "src/personal_docs.py",
+      "symbol": "PersonalDocsManager.rename_directory",
+      "operation": "rename source directory registration",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "personal_docs_registry",
+      "path": "src/personal_docs.py",
+      "symbol": "PersonalDocsManager.save_directories",
+      "operation": "persist source directory registry",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "planning_memory_projection",
+      "path": "src/planning_source_memory.py",
+      "symbol": "ingest_planning_sources_to_memory",
+      "operation": "project accepted planning sources",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "planning_memory_projection",
+      "path": "src/planning_source_memory.py",
+      "symbol": "project_accepted_planning_memory",
+      "operation": "project accepted planning packet",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "project_versions",
+      "path": "src/project_version_store.py",
+      "symbol": "ProjectVersionStore.mark_failed",
+      "operation": "persist failed reservation state",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "project_versions",
+      "path": "src/project_version_store.py",
+      "symbol": "ProjectVersionStore.persist_version",
+      "operation": "persist immutable version",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "project_versions",
+      "path": "src/project_version_store.py",
+      "symbol": "ProjectVersionStore.reserve_version",
+      "operation": "reserve immutable version",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "rag_chroma",
+      "path": "src/rag_vector.py",
+      "symbol": "VectorRAG.add_document",
+      "operation": "add semantic projection",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "rag_chroma",
+      "path": "src/rag_vector.py",
+      "symbol": "VectorRAG.add_documents_batch",
+      "operation": "batch-add semantic projection",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "rag_chroma",
+      "path": "src/rag_vector.py",
+      "symbol": "VectorRAG.delete_by_source",
+      "operation": "delete projected source",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "rag_chroma",
+      "path": "src/rag_vector.py",
+      "symbol": "VectorRAG.index_personal_documents",
+      "operation": "project personal documents",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "rag_chroma",
+      "path": "src/rag_vector.py",
+      "symbol": "VectorRAG.rebuild_index",
+      "operation": "rebuild semantic projection",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "rag_chroma",
+      "path": "src/rag_vector.py",
+      "symbol": "VectorRAG.reindex_directory",
+      "operation": "replace projected directory",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "rag_chroma",
+      "path": "src/rag_vector.py",
+      "symbol": "VectorRAG.remove_directory",
+      "operation": "delete projected directory",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "rag_chroma",
+      "path": "src/rag_vector.py",
+      "symbol": "VectorRAG.rename_owner",
+      "operation": "rewrite projection ownership",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "rag_chroma_legacy",
+      "path": "src/embedding_lanes.py",
+      "symbol": "migrate_legacy_collection",
+      "operation": "backfill lane collections from legacy collection",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "repo_registry",
+      "path": "src/repo_registry.py",
+      "symbol": "RepoRegistry.add",
+      "operation": "register repository",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "repo_registry",
+      "path": "src/repo_registry.py",
+      "symbol": "RepoRegistry.forget",
+      "operation": "remove repository record",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "repo_registry",
+      "path": "src/repo_registry.py",
+      "symbol": "RepoRegistry.put",
+      "operation": "replace repository record",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "repo_registry",
+      "path": "src/repo_registry.py",
+      "symbol": "RepoRegistry.save_json",
+      "operation": "persist registry",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "research_results",
+      "path": "routes/research_routes.py",
+      "symbol": "setup_research_routes.research_archive",
+      "operation": "archive research result",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "research_results",
+      "path": "routes/research_routes.py",
+      "symbol": "setup_research_routes.research_delete",
+      "operation": "delete research result",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "research_results",
+      "path": "src/research_handler_storage.py",
+      "symbol": "ResearchStorageMixin._save_result",
+      "operation": "persist research result",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "research_results",
+      "path": "src/research_handler_storage.py",
+      "symbol": "ResearchStorageMixin.clear_result",
+      "operation": "mark result consumed",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "research_results",
+      "path": "src/research_handler_storage.py",
+      "symbol": "ResearchStorageMixin.hide_image",
+      "operation": "persist hidden image preference",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "research_results",
+      "path": "src/research_handler_storage.py",
+      "symbol": "ResearchStorageMixin.unhide_all_images",
+      "operation": "clear hidden image preferences",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "research_results",
+      "path": "src/task_scheduler.py",
+      "symbol": "TaskScheduler._execute_research_task",
+      "operation": "persist scheduled research result through bypass path",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "research_runtime_jobs",
+      "path": "src/research_handler.py",
+      "symbol": "ResearchHandler.start_research",
+      "operation": "start process-local research job",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "research_runtime_jobs",
+      "path": "src/research_handler_storage.py",
+      "symbol": "ResearchStorageMixin.cancel_research",
+      "operation": "cancel process-local research job",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "sandbox_job_events",
+      "path": "src/sandbox_job_ledger.py",
+      "symbol": "SandboxJobLedger.append",
+      "operation": "append sandbox job event",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "sandbox_job_events",
+      "path": "src/sandbox_job_ledger.py",
+      "symbol": "SandboxJobLedger.record",
+      "operation": "record sandbox job transition",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "scheduled_task_definitions",
+      "path": "routes/task_routes.py",
+      "symbol": "setup_task_routes.create_task",
+      "operation": "create scheduled task",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "scheduled_task_definitions",
+      "path": "routes/task_routes.py",
+      "symbol": "setup_task_routes.delete_task",
+      "operation": "delete scheduled task",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "scheduled_task_definitions",
+      "path": "routes/task_routes.py",
+      "symbol": "setup_task_routes.pause_task",
+      "operation": "pause scheduled task",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "scheduled_task_definitions",
+      "path": "routes/task_routes.py",
+      "symbol": "setup_task_routes.resume_task",
+      "operation": "resume scheduled task",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "scheduled_task_definitions",
+      "path": "routes/task_routes.py",
+      "symbol": "setup_task_routes.revert_task",
+      "operation": "revert scheduled task",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "scheduled_task_definitions",
+      "path": "routes/task_routes.py",
+      "symbol": "setup_task_routes.update_task",
+      "operation": "update scheduled task",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "scheduled_task_definitions",
+      "path": "src/task_scheduler.py",
+      "symbol": "TaskScheduler.ensure_assistant_defaults",
+      "operation": "create assistant task defaults",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "scheduled_task_definitions",
+      "path": "src/task_scheduler.py",
+      "symbol": "TaskScheduler.ensure_defaults",
+      "operation": "create task defaults",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "scheduled_task_runs",
+      "path": "src/task_scheduler.py",
+      "symbol": "TaskScheduler._execute_task",
+      "operation": "create queued task attempt",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "scheduled_task_runs",
+      "path": "src/task_scheduler.py",
+      "symbol": "TaskScheduler._execute_task_locked",
+      "operation": "persist task execution state",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "scheduled_task_runs",
+      "path": "src/task_scheduler.py",
+      "symbol": "TaskScheduler._mark_run_aborted",
+      "operation": "record task run abort",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "scheduled_task_runs",
+      "path": "src/task_scheduler.py",
+      "symbol": "TaskScheduler._set_run_progress",
+      "operation": "update task run progress",
+      "evidence": "python_symbol"
+    },
+    {
+      "component_id": "universal_inbox_raptorgraph_events",
+      "path": "src/universal_inbox_raptorgraph_store.py",
+      "symbol": "UniversalInboxRaptorGraphEventStore.append",
+      "operation": "append idempotent graph mutation evidence",
+      "evidence": "python_symbol"
+    }
+  ],
+  "tool_identities": [
+    {
+      "tool_id": "commit_project",
+      "canonical_owner": "Project Versioning through TAX",
+      "state": "active",
+      "required_surfaces": [
+        {
+          "path": "src/tool_index.py",
+          "role": "discovery index"
+        },
+        {
+          "path": "src/tool_schema_definitions.py",
+          "role": "public schema"
+        },
+        {
+          "path": "src/agent_tools/__init__.py",
+          "role": "handler registry"
+        }
+      ],
+      "intent": "sole public commit authority"
+    },
+    {
+      "tool_id": "get_workspace",
+      "canonical_owner": "TAX Descriptor v2",
+      "state": "active",
+      "required_surfaces": [
+        {
+          "path": "src/tool_index.py",
+          "role": "discovery index"
+        },
+        {
+          "path": "src/tool_schema_definitions.py",
+          "role": "public schema"
+        },
+        {
+          "path": "src/agent_tools/__init__.py",
+          "role": "handler registry"
+        }
+      ],
+      "intent": "workspace navigation remains separate from retrieval"
+    },
+    {
+      "tool_id": "glob",
+      "canonical_owner": "TAX Descriptor v2",
+      "state": "active",
+      "required_surfaces": [
+        {
+          "path": "src/tool_index.py",
+          "role": "discovery index"
+        },
+        {
+          "path": "src/tool_schema_definitions.py",
+          "role": "public schema"
+        },
+        {
+          "path": "src/agent_tools/__init__.py",
+          "role": "handler registry"
+        }
+      ],
+      "intent": "exact path discovery remains a canonical evidence tool"
+    },
+    {
+      "tool_id": "grep",
+      "canonical_owner": "TAX Descriptor v2",
+      "state": "active",
+      "required_surfaces": [
+        {
+          "path": "src/tool_index.py",
+          "role": "discovery index"
+        },
+        {
+          "path": "src/tool_schema_definitions.py",
+          "role": "public schema"
+        },
+        {
+          "path": "src/agent_tools/__init__.py",
+          "role": "handler registry"
+        }
+      ],
+      "intent": "exact code search remains a canonical evidence tool"
+    },
+    {
+      "tool_id": "ls",
+      "canonical_owner": "TAX Descriptor v2",
+      "state": "active",
+      "required_surfaces": [
+        {
+          "path": "src/tool_index.py",
+          "role": "discovery index"
+        },
+        {
+          "path": "src/tool_schema_definitions.py",
+          "role": "public schema"
+        },
+        {
+          "path": "src/agent_tools/__init__.py",
+          "role": "handler registry"
+        }
+      ],
+      "intent": "exact directory navigation remains separate from retrieval"
+    },
+    {
+      "tool_id": "manage_documents",
+      "canonical_owner": "TAX Descriptor v2",
+      "state": "active",
+      "required_surfaces": [
+        {
+          "path": "src/tool_index.py",
+          "role": "discovery index"
+        },
+        {
+          "path": "src/tool_schema_definitions.py",
+          "role": "public schema"
+        },
+        {
+          "path": "src/tool_execution.py",
+          "role": "dispatch"
+        }
+      ],
+      "intent": "domain document operations remain domain-owned"
+    },
+    {
+      "tool_id": "manage_embeddings",
+      "canonical_owner": "TAX Descriptor v2",
+      "state": "active",
+      "required_surfaces": [
+        {
+          "path": "src/tool_index.py",
+          "role": "discovery index"
+        },
+        {
+          "path": "src/tool_schema_definitions.py",
+          "role": "public schema"
+        },
+        {
+          "path": "src/tool_execution.py",
+          "role": "dispatch"
+        }
+      ],
+      "intent": "manage projection configuration; never query knowledge"
+    },
+    {
+      "tool_id": "manage_memory",
+      "canonical_owner": "TAX Descriptor v2",
+      "state": "active",
+      "required_surfaces": [
+        {
+          "path": "src/tool_index.py",
+          "role": "discovery index"
+        },
+        {
+          "path": "src/tool_schema_definitions.py",
+          "role": "public schema"
+        },
+        {
+          "path": "src/tool_execution.py",
+          "role": "dispatch"
+        }
+      ],
+      "intent": "memory mutation and review remain domain-owned"
+    },
+    {
+      "tool_id": "manage_personal_docs",
+      "canonical_owner": "TAX Descriptor v2",
+      "state": "active",
+      "required_surfaces": [
+        {
+          "path": "src/tool_index.py",
+          "role": "discovery index"
+        },
+        {
+          "path": "src/tool_schema_definitions.py",
+          "role": "public schema"
+        },
+        {
+          "path": "src/tool_execution.py",
+          "role": "dispatch"
+        }
+      ],
+      "intent": "manage source configuration; never query knowledge"
+    },
+    {
+      "tool_id": "manage_repos",
+      "canonical_owner": "Repo Registry and Project Versioning through TAX",
+      "state": "active",
+      "required_surfaces": [
+        {
+          "path": "src/tool_index.py",
+          "role": "discovery index"
+        },
+        {
+          "path": "src/tool_schema_definitions.py",
+          "role": "public schema"
+        },
+        {
+          "path": "src/tool_execution.py",
+          "role": "dispatch"
+        }
+      ],
+      "intent": "repository registration and bounded Git facts remain domain-owned"
+    },
+    {
+      "tool_id": "manage_research",
+      "canonical_owner": "TAX Descriptor v2",
+      "state": "active",
+      "required_surfaces": [
+        {
+          "path": "src/tool_index.py",
+          "role": "discovery index"
+        },
+        {
+          "path": "src/tool_schema_definitions.py",
+          "role": "public schema"
+        },
+        {
+          "path": "src/tool_execution.py",
+          "role": "dispatch"
+        }
+      ],
+      "intent": "research lifecycle remains domain-owned"
+    },
+    {
+      "tool_id": "query_knowledge",
+      "canonical_owner": "TAX Descriptor v2 with USI provider",
+      "state": "planned_absent",
+      "required_surfaces": [
+        {
+          "path": "src/tool_catalog.py",
+          "role": "descriptor owner"
+        },
+        {
+          "path": "src/tool_index.py",
+          "role": "discovery index"
+        },
+        {
+          "path": "src/tool_schema_definitions.py",
+          "role": "public schema"
+        },
+        {
+          "path": "src/tool_execution.py",
+          "role": "dispatch"
+        },
+        {
+          "path": "src/agent_tools/__init__.py",
+          "role": "handler registry"
+        }
+      ],
+      "intent": "future single bounded federated query tool"
+    },
+    {
+      "tool_id": "read_file",
+      "canonical_owner": "TAX Descriptor v2",
+      "state": "active",
+      "required_surfaces": [
+        {
+          "path": "src/tool_catalog.py",
+          "role": "descriptor policy"
+        },
+        {
+          "path": "src/tool_index.py",
+          "role": "discovery index"
+        },
+        {
+          "path": "src/tool_schema_definitions.py",
+          "role": "public schema"
+        },
+        {
+          "path": "src/agent_tools/__init__.py",
+          "role": "handler registry"
+        }
+      ],
+      "intent": "exact raw evidence reader remains separate from retrieval"
+    },
+    {
+      "tool_id": "recent_changes",
+      "canonical_owner": "TAX Descriptor v2",
+      "state": "active",
+      "required_surfaces": [
+        {
+          "path": "src/tool_index.py",
+          "role": "discovery index"
+        },
+        {
+          "path": "src/tool_schema_definitions.py",
+          "role": "public schema"
+        },
+        {
+          "path": "src/tool_execution.py",
+          "role": "dispatch"
+        }
+      ],
+      "intent": "local change intelligence remains a repository-domain projection"
+    },
+    {
+      "tool_id": "search_chats",
+      "canonical_owner": "TAX Descriptor v2",
+      "state": "active",
+      "required_surfaces": [
+        {
+          "path": "src/tool_index.py",
+          "role": "discovery index"
+        },
+        {
+          "path": "src/tool_schema_definitions.py",
+          "role": "public schema"
+        },
+        {
+          "path": "src/tool_execution.py",
+          "role": "dispatch"
+        }
+      ],
+      "intent": "chat lookup remains owner-scoped until its adapter wave"
+    },
+    {
+      "tool_id": "web_fetch",
+      "canonical_owner": "TAX Descriptor v2",
+      "state": "active",
+      "required_surfaces": [
+        {
+          "path": "src/tool_index.py",
+          "role": "discovery index"
+        },
+        {
+          "path": "src/tool_schema_definitions.py",
+          "role": "public schema"
+        },
+        {
+          "path": "src/agent_tools/__init__.py",
+          "role": "handler registry"
+        }
+      ],
+      "intent": "named URL retrieval remains separate from persistent knowledge"
+    },
+    {
+      "tool_id": "web_search",
+      "canonical_owner": "TAX Descriptor v2",
+      "state": "active",
+      "required_surfaces": [
+        {
+          "path": "src/tool_index.py",
+          "role": "discovery index"
+        },
+        {
+          "path": "src/tool_schema_definitions.py",
+          "role": "public schema"
+        },
+        {
+          "path": "src/agent_tools/__init__.py",
+          "role": "handler registry"
+        }
+      ],
+      "intent": "live web discovery remains separate from persistent knowledge"
+    }
+  ],
+  "hotfiles": [
+    {
+      "path": "app.py",
+      "owner_track": "UIR",
+      "concern": "application composition root",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "routes/diagnostics_routes.py",
+      "owner_track": "TUA",
+      "concern": "bounded usage diagnostics",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "routes/model_routes.py",
+      "owner_track": "TAX",
+      "concern": "runtime tool status API projection",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/agent_tools/__init__.py",
+      "owner_track": "TAX",
+      "concern": "agent handler registry",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/ai_interaction.py",
+      "owner_track": "UIR",
+      "concern": "global retrieval references",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/app_initializer.py",
+      "owner_track": "UIR",
+      "concern": "service initialization",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/chat_helpers.py",
+      "owner_track": "GMI",
+      "concern": "chat-side model maintenance integration",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/chat_processor.py",
+      "owner_track": "UIR",
+      "concern": "query consumer cutover",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/context_orchestrator.py",
+      "owner_track": "UIR",
+      "concern": "single bounded context provider boundary",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/database.py",
+      "owner_track": "TUA",
+      "concern": "canonical invocation persistence schema",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/llm_core.py",
+      "owner_track": "GMI",
+      "concern": "local model runtime boundary",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/local_model_scheduler.py",
+      "owner_track": "GMI",
+      "concern": "local maintenance scheduling boundary",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/model_context.py",
+      "owner_track": "GMI",
+      "concern": "context probing and cache boundary",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/observability_metrics.py",
+      "owner_track": "GMI/GRO",
+      "concern": "shared Prometheus registry and exporter boundary",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/personal_docs.py",
+      "owner_track": "UIR/UDA/ULO",
+      "concern": "source lifecycle and legacy query path",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/project_version_store.py",
+      "owner_track": "Project Versioning",
+      "concern": "immutable version manifests",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/rag_singleton.py",
+      "owner_track": "UIR",
+      "concern": "legacy RAG lifecycle",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/repo_git_adapter.py",
+      "owner_track": "Project Versioning",
+      "concern": "read-only Git evidence",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/repo_registry.py",
+      "owner_track": "Project Versioning",
+      "concern": "repository identity truth",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/tool_catalog.py",
+      "owner_track": "TAX",
+      "concern": "canonical tool descriptor and risk identity",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/tool_execution.py",
+      "owner_track": "TAX/TUA",
+      "concern": "dispatch and canonical invocation boundary",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/tool_index.py",
+      "owner_track": "TAX",
+      "concern": "tool discovery identity",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/tool_schema_definitions.py",
+      "owner_track": "TAX",
+      "concern": "public tool schema identity",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "src/tool_security.py",
+      "owner_track": "TAX",
+      "concern": "public and privileged tool reachability",
+      "edit_policy": "single_owner_handoff"
+    },
+    {
+      "path": "static/js/admin.js",
+      "owner_track": "TAX/TUA",
+      "concern": "admin tool metadata and aggregate analytics",
+      "edit_policy": "single_owner_handoff"
+    }
+  ],
+  "non_store_boundaries": [
+    {
+      "boundary_id": "ai_lens_graph_contracts",
+      "paths": [
+        "src/ai_lens_events.py",
+        "src/ai_lens_projection.py",
+        "src/ai_lens_graph.py"
+      ],
+      "reason": "schema and bounded projections, not persisted graph truth",
+      "usi_rule": "consume USI references through AiLensService"
+    },
+    {
+      "boundary_id": "memory_provider_facade",
+      "paths": [
+        "src/memory_provider.py"
+      ],
+      "reason": "adapter over MemoryManager and MemoryVectorStore",
+      "usi_rule": "do not create another memory store"
+    },
+    {
+      "boundary_id": "memory_store_interface_vocabulary",
+      "paths": [
+        "src/memory_store_interfaces.py"
+      ],
+      "reason": "interface specification without a common runtime implementation",
+      "usi_rule": "USI-02 implements protocols without claiming domain truth"
+    },
+    {
+      "boundary_id": "nextcloud_intake_entry",
+      "paths": [
+        "src/nextcloud_intake_ledger.py",
+        "src/nextcloud_review_queue.py"
+      ],
+      "reason": "DTO and in-memory review projection, not the durable checkpoint ledger",
+      "usi_rule": "adapt AppendOnlyBigDataLedger instead"
+    },
+    {
+      "boundary_id": "progressive_graph_api",
+      "paths": [
+        "src/progressive_graph_api.py"
+      ],
+      "reason": "bounded graph API contract, not a graph database",
+      "usi_rule": "bind later to a USI projection provider"
+    },
+    {
+      "boundary_id": "rag_manager_facade",
+      "paths": [
+        "src/rag_manager.py"
+      ],
+      "reason": "compatibility wrapper over VectorRAG",
+      "usi_rule": "retire only after query parity"
+    },
+    {
+      "boundary_id": "universal_inbox_runtime_envelopes",
+      "paths": [
+        "src/universal_inbox_flow_state.py",
+        "src/universal_inbox_pipeline.py"
+      ],
+      "reason": "runtime payloads returned to callers without persistence",
+      "usi_rule": "persist only explicit JobStore checkpoints"
+    }
+  ],
+  "migration_risks": [
+    {
+      "risk_id": "chroma_occurrence_identity_collision",
+      "owner_track": "USI/UDA",
+      "paths": [
+        "src/rag_vector.py"
+      ],
+      "finding": "current vector IDs can collapse identical chunks without occurrence identity",
+      "required_resolution": "rebuild projections from stable USI source-version-chunk IDs"
+    },
+    {
+      "risk_id": "parallel_retrieval_injection",
+      "owner_track": "UIR",
+      "paths": [
+        "src/chat_processor.py",
+        "src/context_orchestrator.py"
+      ],
+      "finding": "direct memory and personal-RAG injection coexists with the context provider boundary",
+      "required_resolution": "cut consumers over before activating query_knowledge"
+    },
+    {
+      "risk_id": "personal_docs_owner_scope",
+      "owner_track": "UDA/ULO",
+      "paths": [
+        "src/personal_docs.py"
+      ],
+      "finding": "source registry persists paths without owner scope",
+      "required_resolution": "migrate registration and deletion lifecycle with explicit owner IDs"
+    },
+    {
+      "risk_id": "personal_docs_remove_delegate_missing",
+      "owner_track": "UIR/UDA/ULO",
+      "paths": [
+        "src/personal_docs.py",
+        "src/rag_manager.py"
+      ],
+      "finding": "PersonalDocsManager calls a missing RAGManager.remove_directory delegate",
+      "required_resolution": "repair or bypass the compatibility facade before deletion parity"
+    },
+    {
+      "risk_id": "tool_alias_analytics_split",
+      "owner_track": "TAX/TUA",
+      "paths": [
+        "plugins/obsidian/backend/tool_specs.py",
+        "src/tool_security.py",
+        "src/tool_execution.py"
+      ],
+      "finding": "Vault aliases and native/MCP aliases can split one logical invocation identity",
+      "required_resolution": "canonicalize aliases once in TAX and count once in TUA"
+    },
+    {
+      "risk_id": "tool_identity_normalization_split",
+      "owner_track": "TAX",
+      "paths": [
+        "src/tool_catalog.py"
+      ],
+      "finding": "descriptor and manifest normalization can spell query_knowledge differently",
+      "required_resolution": "freeze one canonical ID before USI-09 registration"
+    },
+    {
+      "risk_id": "tool_projection_parity_drift",
+      "owner_track": "TAX",
+      "paths": [
+        "src/tool_catalog.py",
+        "src/tool_index.py",
+        "src/tool_schema_definitions.py",
+        "src/agent_tools/__init__.py"
+      ],
+      "finding": "schema, tag and discovery projections currently have different cardinalities",
+      "required_resolution": "pass TAX parity before adding the USI provider"
+    }
+  ],
+  "violations": []
+}

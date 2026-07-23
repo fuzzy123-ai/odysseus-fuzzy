@@ -91,7 +91,10 @@ def test_query_layer_caches_repeated_query_and_tracks_subtree_filter():
         assert os.path.exists(cache_path)
         with open(cache_path, "r", encoding="utf-8") as handle:
             payload = json.load(handle)
-        assert payload["stats"]["hits"] >= 1
+        assert payload["schema"] == "query-cache-v2"
+        assert "stats" not in payload
+        assert all(len(key) == 64 for key in payload["entries"])
+        assert "\"query\"" not in json.dumps(payload, sort_keys=True)
 
 
 @pytest.mark.asyncio

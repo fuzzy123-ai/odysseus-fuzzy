@@ -5,6 +5,16 @@
   "title": "ABC Plan: Roadmap Continuation Runtime",
   "created_at": "2026-06-21",
   "status": "active",
+  "multi_agent_execution_guidance": {
+    "path": "docs/plans/multi-agent-execution-guidance.json",
+    "lookup_command": "python scripts/roadmap_multi_agent_guidance.py --roadmap specs/roadmaps/abc-roadmap-continuation-runtime.v1.json --format markdown",
+    "required_before_claim": true,
+    "rules": [
+      "Keep this artifact single-writer under the orchestrator.",
+      "Do not execute the June active_feature pointer until it is reconciled with the July Harbor One and open-work state.",
+      "Parallel workers may inspect or propose, but they must not mutate continuation state directly."
+    ]
+  },
   "goal": "Continue the Odysseus multiagent roadmap serially through claimable nodes, installing each completed feature on the Debian homeserver before starting the next feature.",
   "active_feature": {
     "node_id": "visual-agent-programming",

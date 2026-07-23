@@ -1,0 +1,379 @@
+{
+  "baseline_date": "2026-07-13",
+  "counting_policy": {
+    "domain_audits": "never_added_to_usage_total",
+    "legacy_sources": "coverage_only_not_additive",
+    "missing_common_key": "report_overlap_do_not_infer_independence",
+    "primary_measurement_point": "tool_execution_boundary"
+  },
+  "kind": "odysseus.tool_usage_source_overlap",
+  "overlaps": [
+    {
+      "aggregation_rule": "wrapper_is_future_primary_ledger_is_coverage_only",
+      "left": "agent_run_ledger",
+      "right": "tool_execution_boundary",
+      "risk": "run_events_can_describe_calls_observed_at_the_wrapper",
+      "shared_key_capability": "historical_key_not_canonical"
+    },
+    {
+      "aggregation_rule": "count_once_at_wrapper",
+      "left": "ai_lens",
+      "right": "tool_execution_boundary",
+      "risk": "wrapper_emits_optional_lens_lifecycle_events",
+      "shared_key_capability": "emitter_event_only"
+    },
+    {
+      "aggregation_rule": "never_sum",
+      "left": "chat_metadata",
+      "right": "agent_run_ledger",
+      "risk": "same_logical_calls_can_appear_in_both_legacy_surfaces",
+      "shared_key_capability": "no_reliable_common_invocation_key"
+    },
+    {
+      "aggregation_rule": "domain_audit_never_added_to_usage_total",
+      "left": "mcp_audit",
+      "right": "tool_execution_boundary",
+      "risk": "mcp_domain_audit_can_describe_a_wrapper_call",
+      "shared_key_capability": "no_shared_canonical_invocation_key_yet"
+    },
+    {
+      "aggregation_rule": "transaction_counts_never_added_to_usage_total",
+      "left": "tool_transaction_ledger",
+      "right": "tool_execution_boundary",
+      "risk": "effectful_transactions_are_derived_evidence_for_some_calls",
+      "shared_key_capability": "transaction_key_has_different_semantics"
+    }
+  ],
+  "schema_version": 1,
+  "sources": [
+    {
+      "classification": "coverage_only",
+      "duration_capability": "historically_incomplete",
+      "evidence": [
+        {
+          "path": "src/agent_run_ledger.py",
+          "required_symbols": [
+            "append_event",
+            "append_run_started",
+            "summarize_sse_event"
+          ],
+          "sha256": "d1a1874a573c9b72728e9004908dd50e5c8fe3d0c93af22080a40b25c40f771c"
+        }
+      ],
+      "historical_counts": {
+        "distinct_tool_name_count": 43,
+        "output_event_count": 606,
+        "run_count": 111,
+        "run_started_event_count": 607
+      },
+      "historically_missing": [
+        "canonical_invocation_key",
+        "content_free_error_class",
+        "complete_duration_ms"
+      ],
+      "key_capabilities": [
+        "legacy_run_scope",
+        "tool_name"
+      ],
+      "name": "Agent run ledger",
+      "privacy_posture": "legacy_preview_risk_not_read_by_this_audit",
+      "scope": "agent_run_events",
+      "source_id": "agent_run_ledger",
+      "status_capabilities": [
+        "run_status",
+        "partial_tool_result"
+      ],
+      "time_basis": "historical_window",
+      "time_bounds": {
+        "end": "2026-07-05",
+        "start": "2026-06-13"
+      }
+    },
+    {
+      "classification": "not_usage",
+      "duration_capability": "model_call_duration",
+      "evidence": [
+        {
+          "path": "src/ai_activity_ledger.py",
+          "required_symbols": [
+            "append_ai_activity",
+            "build_ai_activity_record"
+          ],
+          "sha256": "97305745721e1556ee7a1d75ea314ca5125bc8fc906a8d78ff76ab1e5e72782d"
+        }
+      ],
+      "historical_counts": {},
+      "historically_missing": [
+        "tool_invocation_identity",
+        "tool_terminal_status"
+      ],
+      "key_capabilities": [
+        "model_activity_record"
+      ],
+      "name": "AI activity ledger",
+      "privacy_posture": "content_free_model_metrics",
+      "scope": "model_calls_and_tokens",
+      "source_id": "ai_activity_ledger",
+      "status_capabilities": [
+        "model_call_status"
+      ],
+      "time_basis": "runtime_ledger",
+      "time_bounds": {
+        "end": null,
+        "start": null
+      }
+    },
+    {
+      "classification": "coverage_only",
+      "duration_capability": "latency_ms",
+      "evidence": [
+        {
+          "path": "src/ai_lens_events.py",
+          "required_symbols": [
+            "AiLensEvent",
+            "AiLensEventType"
+          ],
+          "sha256": "9b4cddd4b8147af40ad954c8a2d949c5a8c804aa7b23e5918ada12d352e4e631"
+        }
+      ],
+      "historical_counts": {},
+      "historically_missing": [
+        "global_capture_guarantee",
+        "canonical_tax_identity"
+      ],
+      "key_capabilities": [
+        "event_id",
+        "hashed_tool_ref"
+      ],
+      "name": "AI Lens tool lifecycle events",
+      "privacy_posture": "content_free_hashed_refs",
+      "scope": "optional_lens_enabled_calls",
+      "source_id": "ai_lens",
+      "status_capabilities": [
+        "tool_call_started",
+        "tool_call_result"
+      ],
+      "time_basis": "runtime_optional",
+      "time_bounds": {
+        "end": null,
+        "start": null
+      }
+    },
+    {
+      "classification": "coverage_only",
+      "duration_capability": "historically_incomplete",
+      "evidence": [
+        {
+          "path": "core/database.py",
+          "required_symbols": [
+            "ChatMessage"
+          ],
+          "sha256": "0ec975c40493b26d435a051a8a4ade93d0ad166a292743bd46cf606cca238c02"
+        }
+      ],
+      "historical_counts": {
+        "distinct_tool_name_count": 46,
+        "message_count": 84,
+        "session_count": 32,
+        "tool_event_count": 1104
+      },
+      "historically_missing": [
+        "canonical_invocation_key",
+        "consistent_terminal_status",
+        "duration_ms"
+      ],
+      "key_capabilities": [
+        "legacy_session_scope",
+        "tool_name"
+      ],
+      "name": "Persisted chat tool metadata",
+      "privacy_posture": "raw_chat_context_co_located_not_read_by_this_audit",
+      "scope": "historical_chat_messages",
+      "source_id": "chat_metadata",
+      "status_capabilities": [
+        "partial_event_kind"
+      ],
+      "time_basis": "historical_window",
+      "time_bounds": {
+        "end": "2026-06-17",
+        "start": "2026-06-06"
+      }
+    },
+    {
+      "classification": "domain_audit",
+      "duration_capability": "duration_ms",
+      "evidence": [
+        {
+          "path": "src/mcp_audit_events.py",
+          "required_symbols": [
+            "McpAuditEvent",
+            "build_mcp_audit_event"
+          ],
+          "sha256": "70e3a87d585b9a5f30c1794e3041fea05d07a1797ddc4fdab2167343624bac6c"
+        }
+      ],
+      "historical_counts": {},
+      "historically_missing": [
+        "builtin_and_plugin_coverage",
+        "shared_wrapper_invocation_key"
+      ],
+      "key_capabilities": [
+        "mcp_audit_event",
+        "tool_name",
+        "argument_shape_hash"
+      ],
+      "name": "MCP audit events",
+      "privacy_posture": "argument_shape_without_values",
+      "scope": "mcp_calls_only",
+      "source_id": "mcp_audit",
+      "status_capabilities": [
+        "domain_status"
+      ],
+      "time_basis": "runtime_domain_audit",
+      "time_bounds": {
+        "end": null,
+        "start": null
+      }
+    },
+    {
+      "classification": "not_usage",
+      "duration_capability": "metric_specific",
+      "evidence": [
+        {
+          "path": "src/observability_metrics.py",
+          "required_symbols": [
+            "RuntimeMetricSample",
+            "render_prometheus_text"
+          ],
+          "sha256": "56ad60efc8eed24d672363291caab9b7d9b9a61b506b32e9fab63fab8f9f15ee"
+        }
+      ],
+      "historical_counts": {},
+      "historically_missing": [
+        "general_tool_usage_metric",
+        "invocation_dedupe_key"
+      ],
+      "key_capabilities": [
+        "bounded_metric_name",
+        "bounded_labels"
+      ],
+      "name": "Runtime observability metrics",
+      "privacy_posture": "content_free_low_cardinality",
+      "scope": "low_cardinality_runtime_export",
+      "source_id": "runtime_observability",
+      "status_capabilities": [
+        "metric_sample"
+      ],
+      "time_basis": "runtime_snapshot",
+      "time_bounds": {
+        "end": null,
+        "start": null
+      }
+    },
+    {
+      "classification": "primary_candidate",
+      "duration_capability": "monotonic_elapsed_ms",
+      "evidence": [
+        {
+          "path": "src/tool_execution.py",
+          "required_symbols": [
+            "_emit_ai_lens_tool_event",
+            "execute_tool_block"
+          ],
+          "sha256": "4baa3c97fe32069b32505d31ff83c7d518e49b2635cae9e7eb8f3738e74b6725"
+        }
+      ],
+      "historical_counts": {},
+      "historically_missing": [
+        "persistent_global_invocation_store",
+        "canonical_tax_identity"
+      ],
+      "key_capabilities": [
+        "one_wrapper_call",
+        "tool_name"
+      ],
+      "name": "Central execute_tool_block boundary",
+      "privacy_posture": "content_free_emission_possible",
+      "scope": "builtin_plugin_and_mcp_dispatch",
+      "source_id": "tool_execution_boundary",
+      "status_capabilities": [
+        "started",
+        "terminal_result",
+        "exception"
+      ],
+      "time_basis": "runtime_boundary",
+      "time_bounds": {
+        "end": null,
+        "start": null
+      }
+    },
+    {
+      "classification": "domain_audit",
+      "duration_capability": "not_a_usage_duration_source",
+      "evidence": [
+        {
+          "path": "src/tool_transaction_ledger.py",
+          "required_symbols": [
+            "ToolTransaction",
+            "transactions_from_tool_events"
+          ],
+          "sha256": "063011675a3af9294e97ea19a3b4434a8dff42cd1cf419659ea2219fc2760a29"
+        }
+      ],
+      "historical_counts": {},
+      "historically_missing": [
+        "read_only_call_coverage",
+        "independent_invocation_semantics"
+      ],
+      "key_capabilities": [
+        "transaction_evidence_key"
+      ],
+      "name": "Tool transaction ledger",
+      "privacy_posture": "derived_claim_evidence",
+      "scope": "effectful_evidence_only",
+      "source_id": "tool_transaction_ledger",
+      "status_capabilities": [
+        "effect_status"
+      ],
+      "time_basis": "derived_runtime_evidence",
+      "time_bounds": {
+        "end": null,
+        "start": null
+      }
+    }
+  ],
+  "summary": {
+    "agent_run_baseline": {
+      "distinct_tool_name_count": 43,
+      "output_event_count": 606,
+      "run_count": 111,
+      "run_started_event_count": 607
+    },
+    "aggregate_only": true,
+    "chat_baseline": {
+      "distinct_tool_name_count": 46,
+      "message_count": 84,
+      "session_count": 32,
+      "tool_event_count": 1104
+    },
+    "classification_counts": {
+      "coverage_only": 3,
+      "domain_audit": 2,
+      "not_usage": 2,
+      "primary_candidate": 1
+    },
+    "clean": true,
+    "command_visible": false,
+    "direct_identity_visible": false,
+    "independent_legacy_invocation_total": null,
+    "legacy_counts_additive": false,
+    "overlap_risk_count": 5,
+    "primary_source": "tool_execution_boundary",
+    "raw_message_visible": false,
+    "runtime_or_private_data_read": false,
+    "source_count": 8,
+    "tool_output_visible": false,
+    "violation_count": 0
+  },
+  "violations": []
+}

@@ -166,6 +166,8 @@ def build_planner_task_bundle(
     check_profile: Any = "auto",
     live_enabled: bool | None = None,
     operator_decision: Any = "missing",
+    clarification_ready_for_plan: bool = True,
+    clarification_id: Any = "",
 ) -> PlannerTaskBundle:
     if not isinstance(record, ServerProjectRecord):
         raise ServerProjectTaskPlannerError("record must be a ServerProjectRecord")
@@ -180,6 +182,9 @@ def build_planner_task_bundle(
     criteria = _normalize_string_list(acceptance_criteria, field_name="acceptance_criteria", max_len=260)
 
     planner_blockers: list[str] = []
+    if not bool(clarification_ready_for_plan):
+        suffix = f" ({_normalize_text(clarification_id, field_name='clarification_id', allow_empty=True, max_len=120)})" if clarification_id else ""
+        planner_blockers.append(f"clarification must be ready_for_plan before planner task execution{suffix}")
     if not normalized_writes:
         planner_blockers.append("planner output must include at least one file write")
     if not selected_checks:
@@ -217,6 +222,8 @@ def run_planner_task(
     check_profile: Any = "auto",
     live_enabled: bool | None = None,
     operator_decision: Any = "missing",
+    clarification_ready_for_plan: bool = True,
+    clarification_id: Any = "",
     command_runner: ProjectTaskCommandRunner | None = None,
 ) -> PlannerTaskRunReport:
     bundle = build_planner_task_bundle(
@@ -228,6 +235,8 @@ def run_planner_task(
         check_profile=check_profile,
         live_enabled=live_enabled,
         operator_decision=operator_decision,
+        clarification_ready_for_plan=clarification_ready_for_plan,
+        clarification_id=clarification_id,
     )
     if bundle.planner_blockers:
         return PlannerTaskRunReport(bundle=bundle, task_report=None)

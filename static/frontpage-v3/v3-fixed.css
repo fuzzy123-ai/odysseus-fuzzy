@@ -18,7 +18,69 @@ body {
 }
 
 .topline {
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 40;
+  height: 72px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 16px;
+  padding: 8px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--cyan) 24%, transparent);
+  background: color-mix(in srgb, var(--bg) 94%, black);
+  box-shadow: 0 4px 8px color-mix(in srgb, var(--bg) 72%, transparent);
+}
+
+.topline .brand-stack {
+  justify-self: start;
+}
+
+.topline .workspace-tabs {
+  justify-self: center;
+  width: min(720px, 52vw);
+  border-color: color-mix(in srgb, var(--cyan) 28%, transparent);
+  background: color-mix(in srgb, var(--bg) 88%, var(--cyan));
+}
+
+.topline .topline-controls {
+  justify-self: stretch;
+  width: 100%;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.topline .secure-cluster {
+  order: 10;
+  margin-left: 2px;
+}
+
+.topline .secure-button[aria-pressed="false"] {
+  border-color: color-mix(in srgb, var(--red) 62%, transparent);
+  color: color-mix(in srgb, var(--red) 86%, var(--ink));
+  background: color-mix(in srgb, var(--red) 12%, var(--bg));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--red) 14%, transparent);
+}
+
+.topline .secure-button[aria-pressed="false"]:hover,
+.topline .secure-button[aria-pressed="false"]:focus-visible {
+  border-color: color-mix(in srgb, var(--red) 82%, var(--ink));
+  color: color-mix(in srgb, var(--red) 94%, var(--ink));
+  background: color-mix(in srgb, var(--red) 18%, var(--bg));
+}
+
+.topline .secure-button[aria-pressed="true"],
+.stage.privacy-on .topline .secure-button {
+  border-color: color-mix(in srgb, var(--green) 62%, transparent);
+  color: color-mix(in srgb, var(--green) 88%, var(--ink));
+  background: color-mix(in srgb, var(--green) 12%, var(--bg));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--green) 16%, transparent);
+}
+
+.topline .secure-button[aria-pressed="true"]:hover,
+.topline .secure-button[aria-pressed="true"]:focus-visible {
+  border-color: color-mix(in srgb, var(--green) 82%, var(--ink));
+  color: color-mix(in srgb, var(--green) 96%, var(--ink));
+  background: color-mix(in srgb, var(--green) 18%, var(--bg));
 }
 
 .workspace {
@@ -182,6 +244,10 @@ body {
 }
 
 @media (max-width: 1280px) {
+  .topline .workspace-tabs {
+    width: min(660px, 54vw);
+  }
+
   .core-window {
     width: min(960px, calc(100vw - 96px));
   }
@@ -195,5 +261,78 @@ body {
   .inbox-files-window,
   .inbox-analysis-window {
     width: min(320px, 24vw);
+  }
+}
+
+@media (max-width: 1120px) {
+  .topline .secure-label {
+    display: none;
+  }
+
+  .topline .secure-button {
+    width: 34px;
+    grid-template-columns: 14px;
+    padding: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .stage {
+    --v3-panel-top: 72px;
+  }
+
+  .topline {
+    height: 62px;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    gap: 6px;
+    padding: 4px 8px;
+  }
+
+  .topline .brand-home-button,
+  .topline .brand-logo-crop {
+    width: 48px;
+    height: 48px;
+  }
+
+  .topline .brand-logo-crop img {
+    transform: translate(-45px, -45px) scale(0.94);
+  }
+
+  .topline .workspace-tabs {
+    justify-self: stretch;
+    width: auto;
+  }
+
+  .topline .topline-controls {
+    width: auto;
+    gap: 5px;
+  }
+
+  .topline .undo-cluster,
+  .topline [data-global-redo] {
+    display: none;
+  }
+
+  .core-window {
+    top: 70px;
+    height: calc(100dvh - 84px);
+  }
+}
+
+@media (pointer: coarse) {
+  .topline .workspace-tabs {
+    min-height: 54px;
+  }
+
+  .topline .workspace-tab {
+    height: 44px;
+  }
+
+  .topline .secure-button,
+  .topline .history-action-button,
+  .topline .notification-button,
+  .topline .tools-button {
+    min-width: 44px;
+    height: 44px;
   }
 }

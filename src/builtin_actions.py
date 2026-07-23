@@ -1221,10 +1221,27 @@ async def action_todo_digest(owner: str, **kwargs) -> Tuple[str, bool]:
 
 
 async def action_local_maintenance_dry_run(owner: str, **kwargs) -> Tuple[str, bool]:
-    """Prepare local maintenance work without calling a model or writing truth."""
+    """Prepare maintenance work and optionally exercise the trusted local lane.
+
+    Runtime activation accepts only an internal ``MaintenanceModelProfile``
+    object.  JSON/action arguments therefore cannot turn the default-off lane
+    on.  Even when enabled, the action returns only content-free evidence and
+    never retains model output or writes truth.
+    """
     try:
         import json as _json
         from src.gemma4_maintenance_router import plan_gemma4_maintenance_route
+        from src.maintenance_model_policy import (
+            MaintenanceModelProfile,
+            default_maintenance_model_profile,
+        )
+
+        profile = kwargs.get("_maintenance_profile")
+        if profile is None:
+            profile = default_maintenance_model_profile()
+        if not isinstance(profile, MaintenanceModelProfile):
+            raise TypeError("_maintenance_profile must be a trusted MaintenanceModelProfile")
+        excerpt = str(kwargs.get("_maintenance_excerpt") or "")
 
         plan = plan_gemma4_maintenance_route(
             surface=kwargs.get("surface") or "memory",
@@ -1234,16 +1251,131 @@ async def action_local_maintenance_dry_run(owner: str, **kwargs) -> Tuple[str, b
             input_chars=int(kwargs.get("input_chars") or 0),
             chunk_count=int(kwargs.get("chunk_count") or 1),
             source_refs=tuple(kwargs.get("source_refs") or (f"owner:{owner or 'default'}",)),
-            excerpt="",
+            excerpt=excerpt,
+            profile=profile,
         )
         payload = plan.to_dict()
         payload["dry_run"] = True
         payload["truth_write_allowed"] = False
         payload["model_called"] = False
+        if profile.runtime_enabled:
+            payload["runtime_evidence"] = await _call_builtin_maintenance_runtime(
+                plan=plan,
+                profile=profile,
+                excerpt=excerpt,
+                endpoint=str(kwargs.get("_maintenance_endpoint") or "http://127.0.0.1:11434"),
+                attempt=kwargs.get("_maintenance_attempt"),
+                registry=kwargs.get("_maintenance_registry"),
+            )
+            payload["model_called"] = bool(payload["runtime_evidence"]["model_called"])
         return _json.dumps(payload, ensure_ascii=False, sort_keys=True), True
     except Exception as e:
         logger.error(f"local_maintenance_dry_run action failed: {e}")
         return str(e), False
+
+
+async def _call_builtin_maintenance_runtime(
+    *,
+    plan,
+    profile,
+    excerpt: str,
+    endpoint: str,
+    attempt=None,
+    registry=None,
+) -> dict:
+    """Call only the typed maintenance boundary and return content-free evidence."""
+
+    from src.maintenance_llm_runtime import (
+        MAINTENANCE_LLM_RESULT_SCHEMA,
+        MaintenanceLLMMessage,
+        MaintenanceLLMRequest,
+        MaintenanceLLMRuntimeError,
+    )
+    from src.maintenance_model_policy import MaintenanceModelRole
+    from src.maintenance_output_validator import (
+        call_validated_maintenance_llm_async,
+        maintenance_output_schema_instruction,
+    )
+
+    prompt = plan.capsule.build_prompt(
+        metadata={
+            "consumer": "builtin_action",
+            "surface": plan.surface.value,
+            "workload": plan.capsule.workload.value,
+            "classification_scope": "local_private",
+        },
+        excerpt=excerpt,
+    )
+    prompt += "\n" + maintenance_output_schema_instruction(
+        plan.capsule,
+        allowed_source_hashes=plan.source_hashes,
+    )
+    request = MaintenanceLLMRequest(
+        endpoint=endpoint,
+        messages=(
+            MaintenanceLLMMessage(
+                "system",
+                "You are the isolated Odysseus maintenance worker. Return only the requested JSON.",
+            ),
+            MaintenanceLLMMessage("user", prompt),
+        ),
+        profile=profile,
+        role=MaintenanceModelRole.MAINTENANCE,
+        max_tokens=profile.token_budget,
+        timeout_ms=profile.latency_budget_ms,
+        max_attempts=1,
+        temperature=0.0,
+        stream=False,
+        fallback_requested=False,
+        truth_write_requested=False,
+    )
+    try:
+        validated = await call_validated_maintenance_llm_async(
+            request,
+            capsule=plan.capsule,
+            allowed_source_hashes=plan.source_hashes,
+            attempt=attempt,
+            registry=registry,
+        )
+        result_audit = validated.audit_dict()
+        review_required = validated.validation.review_required
+        status = "review_required" if review_required else "validated_candidate"
+        model_called = True
+    except MaintenanceLLMRuntimeError as exc:
+        audit = getattr(exc, "audit_dict", None)
+        result_audit = audit() if callable(audit) else {
+            "schema": MAINTENANCE_LLM_RESULT_SCHEMA,
+            "outcome": "failed",
+            "reason": _maintenance_consumer_failure_reason(exc),
+            "attempts": 0,
+            "retryable": False,
+        }
+        status = "review_required"
+        model_called = False
+        review_required = True
+    return {
+        "schema": "odysseus.maintenance_consumer_evidence.v1",
+        "consumer": "builtin_action",
+        "status": status,
+        "prompt_capsule_id": plan.capsule.capsule_id,
+        "request": request.audit_dict(),
+        "result": result_audit,
+        "model_called": model_called,
+        "output_retained": False,
+        "streaming_used": False,
+        "fallback_used": False,
+        "truth_write_performed": False,
+        "review_required": review_required,
+    }
+
+
+def _maintenance_consumer_failure_reason(exc: Exception) -> str:
+    name = type(exc).__name__
+    return {
+        "MaintenanceLLMDisabledError": "runtime_disabled",
+        "MaintenanceLLMAdmissionError": "admission_unavailable",
+        "MaintenanceLLMContractError": "contract_rejected",
+    }.get(name, "runtime_failure")
 
 
 async def action_test_skills(owner: str, **kwargs) -> Tuple[str, bool]:

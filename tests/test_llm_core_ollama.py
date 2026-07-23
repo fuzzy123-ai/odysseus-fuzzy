@@ -254,8 +254,12 @@ def test_stream_llm_threads_discovered_num_ctx(monkeypatch):
             "stream": True,
         }
 
-    monkeypatch.setattr(llm_core, "get_context_length",
-                        lambda url, model: 32768)
+    from src.model_context import ContextLengthSnapshot
+
+    async def fake_context_snapshot(url, model):
+        return ContextLengthSnapshot(32768, True, "test", 0)
+
+    monkeypatch.setattr(llm_core, "get_context_snapshot_async", fake_context_snapshot)
     monkeypatch.setattr(llm_core, "_build_ollama_payload",
                         spy_build_ollama_payload)
 
@@ -265,6 +269,7 @@ def test_stream_llm_threads_discovered_num_ctx(monkeypatch):
     monkeypatch.setattr(llm_core, "_is_host_dead", lambda url: True)
 
     async def collect():
+        llm_core.clear_request_context_snapshots()
         return [chunk async for chunk in llm_core.stream_llm(
             "https://ollama.com/api",
             "kimi-k2",

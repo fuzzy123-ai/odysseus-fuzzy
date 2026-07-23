@@ -36,9 +36,11 @@ class ToolSpec:
     execute: Callable[..., Any]
     permission: str = "admin"
     prompt: Optional[str] = None
+    source_id: str = "plugin-registry"
 
 
 _TOOLS: Dict[str, ToolSpec] = {}
+_DESCRIPTORS: Dict[str, Any] = {}
 _LOCK = threading.RLock()
 _GENERATION = 0
 
@@ -84,6 +86,7 @@ def _from_dict(spec: Dict[str, Any]) -> ToolSpec:
     handler = spec.get("execute") or spec.get("handler")
     permission = spec.get("permission") or "admin"
     prompt = spec.get("prompt")
+    source_id = spec.get("source_id") or "plugin-registry"
     if not handler:
         raise ValueError(f"Tool {name or '<unknown>'} has no execute/handler callable")
     return ToolSpec(
@@ -93,6 +96,7 @@ def _from_dict(spec: Dict[str, Any]) -> ToolSpec:
         execute=handler,
         permission=str(permission or "admin"),
         prompt=prompt if isinstance(prompt, str) else None,
+        source_id=str(source_id or "plugin-registry"),
     )
 
 
@@ -107,13 +111,24 @@ def _coerce_spec(spec: ToolSpec | Dict[str, Any]) -> ToolSpec:
         raise ValueError(f"Invalid tool name: {out.name!r}")
     if not callable(out.execute):
         raise ValueError(f"Tool {out.name!r} execute handler is not callable")
+    if out.name.casefold() in _reserved_builtin_names():
+        raise ValueError(f"Dynamic tool name collides with a built-in tool or alias: {out.name!r}")
     return out
 
 
 def register_tool(spec: ToolSpec | Dict[str, Any]) -> ToolSpec:
     tool = _coerce_spec(spec)
+    from src.runtime_tool_status import build_dynamic_tool_descriptor
+
+    descriptor = build_dynamic_tool_descriptor(
+        tool.name,
+        source="plugin",
+        source_id=tool.source_id,
+        description=tool.description,
+    )
     with _LOCK:
         _TOOLS[tool.name] = tool
+        _DESCRIPTORS[tool.name] = descriptor
         _bump_generation()
     _sync_legacy_schema_list(tool)
     logger.debug("Registered plugin tool: %s", tool.name)
@@ -123,6 +138,7 @@ def register_tool(spec: ToolSpec | Dict[str, Any]) -> ToolSpec:
 def unregister_tool(name: str) -> None:
     with _LOCK:
         if _TOOLS.pop(str(name), None) is not None:
+            _DESCRIPTORS.pop(str(name), None)
             _bump_generation()
             _sync_legacy_schema_remove(str(name))
             logger.info("Unregistered plugin tool: %s", name)
@@ -136,6 +152,16 @@ def get_tool(name: str) -> Optional[ToolSpec]:
 def list_tools() -> list[ToolSpec]:
     with _LOCK:
         return [tool for _, tool in sorted(_TOOLS.items())]
+
+
+def get_descriptor(name: str) -> Any | None:
+    with _LOCK:
+        return _DESCRIPTORS.get(str(name))
+
+
+def list_descriptors() -> list[Any]:
+    with _LOCK:
+        return [descriptor for _, descriptor in sorted(_DESCRIPTORS.items())]
 
 
 def tool_names() -> set[str]:
@@ -186,8 +212,15 @@ def _sync_legacy_schema_list(tool: ToolSpec) -> None:
         from src import tool_schemas
 
         schemas = getattr(tool_schemas, "FUNCTION_TOOL_SCHEMAS", None)
-        if isinstance(schemas, list) and tool.name not in function_schema_names(schemas):
-            schemas.append(_schema_for(tool))
+        if isinstance(schemas, list):
+            replacement = _schema_for(tool)
+            replaced = False
+            for index, schema in enumerate(schemas):
+                if _schema_name(schema) == tool.name:
+                    schemas[index] = replacement
+                    replaced = True
+            if not replaced:
+                schemas.append(replacement)
     except Exception:
         pass
 
@@ -201,6 +234,18 @@ def _sync_legacy_schema_remove(name: str) -> None:
             schemas[:] = [s for s in schemas if _schema_name(s) != name]
     except Exception:
         pass
+
+
+def _reserved_builtin_names() -> frozenset[str]:
+    """Return case-insensitive built-in IDs and aliases without an import cycle."""
+
+    from src.builtin_tool_catalog import BUILTIN_TOOL_DEFINITIONS
+
+    return frozenset(
+        value.casefold()
+        for definition in BUILTIN_TOOL_DEFINITIONS
+        for value in (definition.tool_id, *definition.aliases)
+    )
 
 
 def _is_legacy_signature_typeerror(exc: TypeError, tool_name: str) -> bool:

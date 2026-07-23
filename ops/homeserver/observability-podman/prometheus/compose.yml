@@ -1,0 +1,48 @@
+services:
+  prometheus:
+    image: quay.io/prometheus/prometheus:v3.12.0
+    container_name: odysseus-prometheus
+    restart: "no"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:9090:9090"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.listen-address=0.0.0.0:9090
+      - --web.enable-admin-api=false
+      - --web.enable-lifecycle=false
+    volumes:
+      - type: bind
+        source: ./prometheus.yml
+        target: /etc/prometheus/prometheus.yml
+        read_only: true
+      - type: bind
+        source: ./rules
+        target: /etc/prometheus/rules
+        read_only: true
+      - type: bind
+        source: ./secrets/odysseus_metrics_token
+        target: /run/secrets/odysseus_metrics_token
+        read_only: true
+      - type: volume
+        source: prometheus-data
+        target: /prometheus
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -q --spider http://127.0.0.1:9090/-/healthy || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 30s
+
+volumes:
+  prometheus-data:
+    name: odysseus-prometheus-data-v1
+

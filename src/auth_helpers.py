@@ -66,6 +66,23 @@ def require_api_token_scope(request: Request, scope: str) -> None:
         raise HTTPException(403, f"API token is not scoped for {scope}")
 
 
+def require_api_token_exact_scope(request: Request, scope: str) -> bool:
+    """Require bearer callers to carry exactly one narrow scope.
+
+    Returns ``True`` for an authenticated API-token request and ``False`` for
+    browser/session callers. The latter can then pass through the route's
+    normal browser authorization gate. Duplicate or additional scopes are
+    rejected so a scrape credential cannot also act on user data.
+    """
+
+    if not _is_api_token_request(request):
+        return False
+    scopes = getattr(request.state, "api_token_scopes", []) or []
+    if not isinstance(scopes, (list, tuple)) or tuple(scopes) != (scope,):
+        raise HTTPException(403, f"API token must be scoped only for {scope}")
+    return True
+
+
 def scoped_effective_user(request: Request, scope: str) -> Optional[str]:
     """Resolve the effective owner while enforcing ``scope`` for API tokens."""
     require_api_token_scope(request, scope)

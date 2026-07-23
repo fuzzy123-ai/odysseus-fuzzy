@@ -13,6 +13,9 @@ EFFECTFUL_TOOL_MATRIX: dict[str, str] = {
     "bash": "local_command",
     "python": "local_command",
     "write_file": "filesystem_write",
+    "publish_artifact": "artifact_publication",
+    "verify_pygame_headless": "headless_validation",
+    "commit_project": "project_versioning",
     "create_document": "document_write",
     "update_document": "document_write",
     "edit_document": "document_write",
@@ -34,6 +37,57 @@ EFFECTFUL_TOOL_MATRIX: dict[str, str] = {
     "sandbox_checks": "completion_gate",
     "git_commit": "git_remote_state",
     "git_push": "git_remote_state",
+    "manage_plugins": "plugin_state",
+    "manage_settings": "settings_write",
+    "manage_tokens": "token_state",
+    "manage_repos": "repo_registry_write",
+    "download_model": "model_runtime",
+    "serve_model": "model_runtime",
+    "serve_preset": "model_runtime",
+    "stop_served_model": "model_runtime",
+    "cancel_download": "model_runtime",
+    "adopt_served_model": "model_runtime",
+}
+
+
+# Mixed read/mutation tools remain conservatively effectful when the action is
+# absent or unknown, but explicit inspection actions do not create a false
+# mutation receipt.  Callers should pass a normalized, content-free action
+# field rather than parsing or retaining raw tool arguments here.
+EFFECTFUL_TOOL_ACTION_MATRIX: dict[str, dict[str, str]] = {
+    "manage_plugins": {
+        "list": "",
+        "get": "",
+        "status": "",
+        "*": "plugin_state",
+    },
+    "manage_settings": {
+        "list": "",
+        "get": "",
+        "status": "",
+        "*": "settings_write",
+    },
+    "manage_tokens": {
+        "list": "",
+        "get": "",
+        "status": "",
+        "*": "token_state",
+    },
+    "manage_repos": {
+        "list": "",
+        "get": "",
+        "status": "",
+        "log": "",
+        "diff_stat": "",
+        "changed_paths": "",
+        "remotes": "",
+        "commit_plan": "",
+        "push_plan": "",
+        "forge_plan": "",
+        "changes": "",
+        "change_history": "",
+        "*": "repo_registry_write",
+    },
 }
 
 
@@ -41,8 +95,13 @@ def effectful_tool_names() -> tuple[str, ...]:
     return tuple(sorted(EFFECTFUL_TOOL_MATRIX))
 
 
-def tool_effect_category(tool: Any) -> str:
-    return EFFECTFUL_TOOL_MATRIX.get(str(tool or "").strip(), "")
+def tool_effect_category(tool: Any, action: Any = None) -> str:
+    tool_name = str(tool or "").strip()
+    action_map = EFFECTFUL_TOOL_ACTION_MATRIX.get(tool_name)
+    if action_map is not None and action is not None:
+        action_name = str(action or "").strip().lower()
+        return action_map.get(action_name, action_map.get("*", ""))
+    return EFFECTFUL_TOOL_MATRIX.get(tool_name, "")
 
 
 def build_effectful_action_snapshot(tool_events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
@@ -53,14 +112,20 @@ def build_effectful_action_snapshot(tool_events: Iterable[Mapping[str, Any]]) ->
             {
                 category
                 for event in events
-                for category in (tool_effect_category(event.get("tool")),)
+                for category in (
+                    tool_effect_category(event.get("tool"), event.get("action")),
+                )
                 if category
             }
         )
     )
     return {
         "schema": EFFECTFUL_TOOL_MATRIX_SCHEMA,
-        "effectful_count": sum(1 for event in events if tool_effect_category(event.get("tool"))),
+        "effectful_count": sum(
+            1
+            for event in events
+            if tool_effect_category(event.get("tool"), event.get("action"))
+        ),
         "categories": categories,
         "transactions": transactions,
         "transaction_status": tuple(

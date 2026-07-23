@@ -9,11 +9,109 @@ import os
 import contextvars
 from fastapi import HTTPException
 from typing import Optional, Dict, List, Tuple
-from src.model_context import get_context_length, DEFAULT_CONTEXT
+from src.model_context import (
+    ContextLengthSnapshot,
+    DEFAULT_CONTEXT,
+    get_context_length,
+    get_context_snapshot_async,
+)
+from src.maintenance_model_policy import DEFAULT_MAINTENANCE_MODEL
 from src.llm_response_cache import LLMResponseCache
 
 logger = logging.getLogger(__name__)
 _ai_activity_cache_hit = contextvars.ContextVar("ai_activity_cache_hit", default=False)
+_request_context_snapshots = contextvars.ContextVar(
+    "request_context_snapshots",
+    default=(),
+)
+_GEMMA_MAINTENANCE_CONTEXT_CAP = 8_192
+_REQUEST_CONTEXT_BINDING_MAX = 32
+
+
+def _request_context_key(endpoint_url: str, model: str) -> Tuple[str, str]:
+    return (str(endpoint_url or "").strip().rstrip("/"), str(model or "").strip())
+
+
+def get_request_context_snapshot(
+    endpoint_url: str,
+    model: str,
+) -> Optional[ContextLengthSnapshot]:
+    key = _request_context_key(endpoint_url, model)
+    for bound_key, snapshot in reversed(_request_context_snapshots.get(())):
+        if bound_key == key:
+            return snapshot
+    return None
+
+
+def bind_request_context_snapshot(
+    endpoint_url: str,
+    model: str,
+    snapshot: ContextLengthSnapshot,
+) -> ContextLengthSnapshot:
+    if not isinstance(snapshot, ContextLengthSnapshot):
+        raise TypeError("snapshot must be a ContextLengthSnapshot")
+    key = _request_context_key(endpoint_url, model)
+    effective = _apply_request_context_profile(snapshot, model)
+    bindings = tuple(
+        item for item in _request_context_snapshots.get(()) if item[0] != key
+    )
+    bindings = (bindings + ((key, effective),))[-_REQUEST_CONTEXT_BINDING_MAX:]
+    _request_context_snapshots.set(bindings)
+    return effective
+
+
+def clear_request_context_snapshots() -> None:
+    _request_context_snapshots.set(())
+
+
+def _apply_request_context_profile(
+    snapshot: ContextLengthSnapshot,
+    model: str,
+) -> ContextLengthSnapshot:
+    if str(model or "").strip() != DEFAULT_MAINTENANCE_MODEL:
+        return snapshot
+    discovered = snapshot.context_length if snapshot.known else _GEMMA_MAINTENANCE_CONTEXT_CAP
+    effective = max(1, min(int(discovered or _GEMMA_MAINTENANCE_CONTEXT_CAP), _GEMMA_MAINTENANCE_CONTEXT_CAP))
+    return ContextLengthSnapshot(
+        context_length=effective,
+        known=True,
+        cache_status="gemma_profile_cap",
+        endpoint_generation=snapshot.endpoint_generation,
+    )
+
+
+async def resolve_request_context_snapshot(
+    endpoint_url: str,
+    model: str,
+    *,
+    supplied_context_length: int | None = None,
+    supplied_known: bool = True,
+    probe_if_missing: bool = True,
+) -> ContextLengthSnapshot:
+    bound = get_request_context_snapshot(endpoint_url, model)
+    if bound is not None:
+        return bound
+    if (
+        not isinstance(supplied_context_length, bool)
+        and isinstance(supplied_context_length, int)
+        and supplied_context_length > 0
+    ):
+        snapshot = ContextLengthSnapshot(
+            context_length=supplied_context_length,
+            known=bool(supplied_known),
+            cache_status="caller_supplied",
+            endpoint_generation=0,
+        )
+    elif probe_if_missing:
+        snapshot = await get_context_snapshot_async(endpoint_url, model)
+    else:
+        snapshot = ContextLengthSnapshot(
+            context_length=DEFAULT_CONTEXT,
+            known=False,
+            cache_status="request_default",
+            endpoint_generation=0,
+        )
+    return bind_request_context_snapshot(endpoint_url, model, snapshot)
 
 class LLMConfig:
     """Configuration constants for LLM operations."""
@@ -344,7 +442,8 @@ def normalize_model_id(
 
 def _llm_call_impl(url: str, model: str, messages: List[Dict], temperature: float = LLMConfig.DEFAULT_TEMPERATURE,
              max_tokens: int = LLMConfig.DEFAULT_MAX_TOKENS, headers: Optional[Dict] = None,
-             timeout: int = LLMConfig.DEFAULT_TIMEOUT, prompt_type: Optional[str] = None) -> str:
+             timeout: int = LLMConfig.DEFAULT_TIMEOUT, prompt_type: Optional[str] = None,
+             surface: Optional[str] = None) -> str:
     """Synchronous LLM call with optional prompt type enhancement."""
     return _llm_call_impl_helper(
         url,
@@ -379,6 +478,8 @@ def _llm_call_impl(url: str, model: str, messages: List[Dict], temperature: floa
         parse_ollama_response_func=_parse_ollama_response,
         normalize_mistral_content_func=_normalize_mistral_content,
         parse_openai_message_func=_parse_openai_compatible_message,
+        prompt_type=prompt_type,
+        surface=surface,
     )
 
 def llm_call(
@@ -415,6 +516,7 @@ def llm_call(
             headers=headers,
             timeout=timeout,
             prompt_type=prompt_type,
+            surface=surface,
         )
         return response
     except Exception as exc:
@@ -479,9 +581,14 @@ async def _llm_call_async_impl(
     max_retries: int = LLMConfig.MAX_RETRIES,
     prompt_type: Optional[str] = None,
     session_id: Optional[str] = None,
+    surface: Optional[str] = None,
     transport: Optional[httpx.AsyncBaseTransport] = None,
 ) -> str:
     """Async LLM call with connection pooling, timeout, retry and logging."""
+    provider = _detect_provider(url)
+    context_snapshot = None
+    if provider == "ollama":
+        context_snapshot = await resolve_request_context_snapshot(url, model)
     return await _llm_call_async_impl_helper(
         url,
         model,
@@ -492,6 +599,8 @@ async def _llm_call_async_impl(
         timeout=timeout,
         max_retries=max_retries,
         session_id=session_id,
+        prompt_type=prompt_type,
+        surface=surface,
         retry_delay=LLMConfig.RETRY_DELAY,
         dead_host_cooldown=DEAD_HOST_COOLDOWN,
         http_exception_cls=HTTPException,
@@ -510,7 +619,11 @@ async def _llm_call_async_impl(
         build_anthropic_payload_func=_build_anthropic_payload,
         normalize_ollama_url_func=_normalize_ollama_url,
         build_ollama_payload_func=_build_ollama_payload,
-        get_context_length_func=get_context_length,
+        get_context_length_func=(
+            (lambda _url, _model: context_snapshot.context_length)
+            if context_snapshot is not None
+            else (lambda _url, _model: DEFAULT_CONTEXT)
+        ),
         provider_headers_func=_provider_headers,
         omit_temperature_func=_omit_temperature,
         uses_max_completion_tokens_func=_uses_max_completion_tokens,
@@ -572,6 +685,7 @@ async def llm_call_async(
             max_retries=max_retries,
             prompt_type=prompt_type,
             session_id=session_id,
+            surface=surface,
             transport=transport,
         )
         return response
@@ -616,6 +730,9 @@ async def _stream_llm_impl(url: str, model: str, messages: List[Dict], temperatu
       - data: [DONE]                       — end of stream
     """
     provider = _detect_provider(url)
+    context_snapshot = None
+    if provider == "ollama":
+        context_snapshot = await resolve_request_context_snapshot(url, model)
     messages_copy = _sanitize_llm_messages(messages)
 
     # Consolidate multiple system messages into one at the start.
@@ -645,7 +762,7 @@ async def _stream_llm_impl(url: str, model: str, messages: List[Dict], temperatu
             model, messages_copy, temperature, max_tokens,
             stream=True,
             tools=tools,
-            num_ctx=get_context_length(url, model),
+            num_ctx=context_snapshot.context_length if context_snapshot is not None else None,
             think=False if _supports_thinking(model) else None,
         )
     elif provider == "chatgpt-subscription":

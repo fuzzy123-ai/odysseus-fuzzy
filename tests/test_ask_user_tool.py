@@ -33,6 +33,8 @@ def test_valid_question_returns_ask_user_payload():
     assert [o["label"] for o in payload["options"]] == ["PostgreSQL", "SQLite"]
     assert payload["options"][0]["description"] == "Relational, ACID"
     assert payload["multi"] is False
+    assert result["clarification_request"]["schema"] == "odysseus.clarification_request.v2"
+    assert result["clarification_request"]["questions"][0]["type"] == "single_select"
     assert "PostgreSQL" in result["output"]
 
 
@@ -61,6 +63,7 @@ def test_options_are_capped_at_six():
     })
     _, result = _run(content)
     assert len(result["ask_user"]["options"]) == 6
+    assert len(result["clarification_request"]["questions"][0]["options"]) == 6
 
 
 def test_fewer_than_two_options_is_rejected():
@@ -74,6 +77,76 @@ def test_missing_question_is_rejected():
     content = json.dumps({"options": [{"label": "A"}, {"label": "B"}]})
     _, result = _run(content)
     assert "error" in result
+
+
+def test_legacy_ask_user_rejects_secret_or_private_path():
+    content = json.dumps({"question": "Use token=SECRET?", "options": ["Yes", "No"]})
+    _, result = _run(content)
+    assert result.get("exit_code") == 1
+    assert "error" in result
+
+
+def test_v2_clarification_request_is_accepted_and_carried():
+    content = json.dumps({
+        "schema": "odysseus.clarification_request.v2",
+        "scope": "project",
+        "intent_summary": "Build a document review workflow.",
+        "questions": [
+            {
+                "key": "target_documents",
+                "type": "short_text",
+                "prompt": "Which document set should be reviewed first?",
+                "required": True,
+                "reason": "The source changes scope and privacy boundaries.",
+                "category": "scope",
+            },
+            {
+                "key": "review_tone",
+                "type": "single_select",
+                "prompt": "Which tone should the review use?",
+                "required": False,
+                "reason": "Tone changes the output style.",
+                "options": [{"label": "Concise"}, {"label": "Detailed", "recommended": True}],
+            },
+        ],
+        "batch": {"label": "Scope", "index": 1, "total": 1, "max_visible_questions": 5},
+        "defaults_visible": False,
+    })
+    _, result = _run(content)
+
+    assert result["exit_code"] == 0
+    assert result["clarification_request"]["scope"] == "project"
+    assert len(result["clarification_request"]["questions"]) == 2
+    assert result["ask_user"]["question"] == "Which document set should be reviewed first?"
+    assert result["ask_user"]["clarification_schema"] == "odysseus.clarification_request.v2"
+
+
+def test_v2_clarification_request_rejects_bad_dependencies_and_budgets():
+    bad_dependency = {
+        "schema": "odysseus.clarification_request.v2",
+        "scope": "project",
+        "intent_summary": "Build a workflow.",
+        "questions": [
+            {
+                "key": "review_tone",
+                "type": "single_select",
+                "prompt": "Which tone?",
+                "required": True,
+                "reason": "Tone changes output.",
+                "depends_on": "missing_question",
+                "options": [{"label": "Concise"}, {"label": "Detailed"}],
+            }
+        ],
+        "batch": {"label": "Scope", "index": 1, "total": 1, "max_visible_questions": 5},
+        "defaults_visible": False,
+    }
+    _, dependency_result = _run(json.dumps(bad_dependency))
+    assert dependency_result.get("exit_code") == 1
+
+    bad_dependency["questions"][0].pop("depends_on")
+    bad_dependency["batch"]["max_visible_questions"] = 99
+    _, budget_result = _run(json.dumps(bad_dependency))
+    assert budget_result.get("exit_code") == 1
 
 
 def test_serializer_round_trips_structured_args():

@@ -157,13 +157,91 @@ def split_text_into_token_chunks(
             result.append(chunk)
             continue
         result.extend(
-            split_text_into_chunks(
+            _hard_split_to_token_budget(
                 chunk,
-                chunk_size=budget.max_chars_estimate,
-                overlap=budget.overlap_chars_estimate,
+                max_tokens=budget.max_tokens,
+                overlap_tokens=budget.overlap_tokens,
+                model_hint=model_hint,
             )
         )
     return result
+
+
+def _hard_split_to_token_budget(
+    text: str,
+    *,
+    max_tokens: int,
+    overlap_tokens: int,
+    model_hint: str | None,
+) -> List[str]:
+    """Split a single over-budget span with measured, monotonic progress."""
+
+    pieces: List[str] = []
+    start = 0
+    while start < len(text):
+        end = _largest_fitting_end(text, start, max_tokens=max_tokens, model_hint=model_hint)
+        if end <= start:
+            # One Unicode code point can consume multiple fallback units and is
+            # indivisible as Python text.  Failing explicitly is safer than
+            # returning a chunk that violates the caller's declared hard cap.
+            unit_count = count_text_tokens(text[start : start + 1], model_hint=model_hint)
+            raise ValueError(
+                f"max_tokens={max_tokens} cannot fit one text unit ({unit_count} estimated tokens)"
+            )
+        pieces.append(text[start:end])
+        if end >= len(text):
+            break
+        next_start = end
+        if overlap_tokens > 0:
+            next_start = _overlap_start(
+                text,
+                segment_start=start,
+                segment_end=end,
+                overlap_tokens=overlap_tokens,
+                model_hint=model_hint,
+            )
+        start = max(start + 1, next_start)
+    return pieces
+
+
+def _largest_fitting_end(
+    text: str,
+    start: int,
+    *,
+    max_tokens: int,
+    model_hint: str | None,
+) -> int:
+    low, high = start + 1, len(text)
+    best = start
+    while low <= high:
+        midpoint = (low + high) // 2
+        if count_text_tokens(text[start:midpoint], model_hint=model_hint) <= max_tokens:
+            best = midpoint
+            low = midpoint + 1
+        else:
+            high = midpoint - 1
+    return best
+
+
+def _overlap_start(
+    text: str,
+    *,
+    segment_start: int,
+    segment_end: int,
+    overlap_tokens: int,
+    model_hint: str | None,
+) -> int:
+    low, high = segment_start, segment_end
+    best = segment_end
+    while low <= high:
+        midpoint = (low + high) // 2
+        suffix_tokens = count_text_tokens(text[midpoint:segment_end], model_hint=model_hint)
+        if suffix_tokens <= overlap_tokens:
+            best = midpoint
+            high = midpoint - 1
+        else:
+            low = midpoint + 1
+    return best
 
 
 def build_chunk_metadata(

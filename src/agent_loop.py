@@ -15,7 +15,12 @@ import logging
 from pathlib import Path
 from typing import AsyncGenerator, List, Dict, Optional, Set
 
-from src.llm_core import stream_llm, stream_llm_with_fallback, _is_ollama_native_url
+from src.llm_core import (
+    _is_ollama_native_url,
+    resolve_request_context_snapshot,
+    stream_llm,
+    stream_llm_with_fallback,
+)
 from src.model_context import estimate_tokens
 from src.settings import get_setting
 from src.claim_evidence_gate import build_claim_evidence_correction, evaluate_response_claims
@@ -26,7 +31,7 @@ from src.tool_security import (
     orchestrator_mode_disabled_tools,
     plan_mode_disabled_tools,
 )
-from src.tool_policy import GUIDE_ONLY_DIRECTIVE, ToolPolicy
+from src.tool_policy import CLARIFICATION_OPEN_DIRECTIVE, GUIDE_ONLY_DIRECTIVE, ToolPolicy
 from src.tool_utils import _truncate, get_mcp_manager
 from src.agent_tools import (
     strip_tool_blocks,
@@ -201,6 +206,34 @@ def _build_base_prompt(
 _BUILD_BASE_PROMPT_WRAPPER = _build_base_prompt
 
 
+def _bind_tool_usage_instrumentation(context: Any, instrumentation: Any) -> Any:
+    if context is None or instrumentation is None:
+        return None
+    try:
+        return instrumentation.with_context(context)
+    except Exception:
+        # Telemetry setup is best-effort and must never alter chat execution.
+        return None
+
+
+async def _resolve_agent_context_snapshot(
+    endpoint_url: str,
+    model: str,
+    context_length: int,
+):
+    supplied = context_length if isinstance(context_length, int) and context_length > 0 else None
+    return await resolve_request_context_snapshot(
+        endpoint_url,
+        model,
+        supplied_context_length=supplied,
+        supplied_known=supplied is not None,
+        # Main chat binds a discovered snapshot in context_compactor. Direct
+        # agent entrypoints without one stay conservative until GMI-09B moves
+        # their route-specific lookup to the async service.
+        probe_if_missing=False,
+    )
+
+
 
 async def stream_agent_loop(
     endpoint_url: str,
@@ -232,6 +265,8 @@ async def stream_agent_loop(
     audit_correlation_id: Optional[str] = None,
     audit_task_id: Optional[str] = None,
     audit_doc_id: Optional[str] = None,
+    tool_usage_context: Optional[Any] = None,
+    tool_usage_instrumentation: Optional[Any] = None,
 ) -> AsyncGenerator[str, None]:
     """Streaming agent loop generator.
 
@@ -244,7 +279,17 @@ async def stream_agent_loop(
       - data: [DONE]                                        (end)
     """
 
+    context_snapshot = await _resolve_agent_context_snapshot(
+        endpoint_url,
+        model,
+        context_length,
+    )
+    context_length = context_snapshot.context_length
     mcp_mgr = get_mcp_manager()
+    bound_tool_usage_instrumentation = _bind_tool_usage_instrumentation(
+        tool_usage_context,
+        tool_usage_instrumentation,
+    )
     prep_timings: Dict[str, float] = {}
     disabled_tools = set(disabled_tools or [])
     workflow_skill_resolution = workflow_skill_resolution if isinstance(workflow_skill_resolution, dict) else {}
@@ -263,6 +308,7 @@ async def stream_agent_loop(
         if tool_policy.disable_mcp:
             mcp_mgr = None
     guide_only = bool(tool_policy and tool_policy.mode == "guide_only")
+    clarification_open = bool(tool_policy and tool_policy.mode == "clarification_open")
     public_blocked_tools = blocked_tools_for_owner(owner)
     public_mcp_allowlist = None
     if public_blocked_tools:
@@ -284,6 +330,18 @@ async def stream_agent_loop(
     _t0 = time.time()
     _needs_admin = _detect_admin_intent(messages)
     _last_user = _extract_last_user_message(messages)
+    _interactive_deliverable_decision = None
+    try:
+        from src.interactive_deliverable_policy import (
+            InteractiveDeliverableTarget,
+            decide_interactive_deliverable,
+        )
+
+        _candidate_deliverable = decide_interactive_deliverable(_last_user)
+        if _candidate_deliverable.target != InteractiveDeliverableTarget.NOT_APPLICABLE:
+            _interactive_deliverable_decision = _candidate_deliverable
+    except (ValueError, TypeError):
+        _interactive_deliverable_decision = None
     if orchestrator_mode:
         _ensure_orchestrator_state_doc(owner=owner, session_id=session_id, goal=_last_user)
     _intent = _classify_agent_request(messages, _last_user)
@@ -405,6 +463,16 @@ async def stream_agent_loop(
             _relevant_tools.update({"web_search", "web_fetch"})
         if "ui" in (_intent.get("domains") or set()):
             _relevant_tools.add("ui_control")
+        if _interactive_deliverable_decision is not None:
+            _target = _interactive_deliverable_decision.target.value
+            if _target in ("native_download", "dual"):
+                _relevant_tools.update({
+                    "write_file",
+                    "verify_pygame_headless",
+                    "publish_artifact",
+                })
+            if _target in ("browser_preview", "dual"):
+                _relevant_tools.add("create_document")
 
     # If a document is open the model needs the editing tools available
     # regardless of which selection path (RAG, keyword, caller-provided) ran
@@ -545,7 +613,31 @@ async def stream_agent_loop(
         model_hint=model,
         enabled=not guide_only,
     )
-    if workspace and not guide_only:
+    if _interactive_deliverable_decision is not None and not guide_only:
+        _target = _interactive_deliverable_decision.target.value
+        _deliverable_note = (
+            "## INTERACTIVE DELIVERABLE POLICY — RUNTIME ENFORCED\n"
+            f"Resolved target: {_target}. Follow this exact deliverable contract.\n"
+            "native_download: create a workspace .py with write_file, call "
+            "verify_pygame_headless, then call publish_artifact for the .py. "
+            "Publish the captured PNG with inspect_image=true before any visual claim.\n"
+            "browser_preview: create one self-contained HTML/canvas document with inline "
+            "CSS/JS for the editor Run/Preview surface.\n"
+            "dual: complete both paths. A dummy-SDL run is headless_tested, never "
+            "interactive_preview_ready. A filesystem path is not a download link; only "
+            "publish_artifact proves download_ready. Never say visually inspected unless "
+            "artifact_evidence.visual_inspected.status is verified."
+        )
+        if messages and messages[0].get("role") == "system":
+            messages[0]["content"] = _deliverable_note + "\n\n" + (messages[0].get("content") or "")
+        else:
+            messages.insert(0, {"role": "system", "content": _deliverable_note})
+    if clarification_open:
+        if messages and messages[0].get("role") == "system":
+            messages[0]["content"] = CLARIFICATION_OPEN_DIRECTIVE + "\n\n" + (messages[0].get("content") or "")
+        else:
+            messages.insert(0, {"role": "system", "content": CLARIFICATION_OPEN_DIRECTIVE})
+    elif workspace and not guide_only:
         # PREPEND (not append) so it dominates the large base prompt — appended
         # at the end, small models ignored it and asked the user for code. The
         # folder IS the project; the agent must explore it, not ask.
@@ -566,7 +658,7 @@ async def stream_agent_loop(
         else:
             messages.insert(0, {"role": "system", "content": _ws_note})
         logger.info("[workspace] active for this turn: %s", workspace)
-    if plan_mode and not guide_only:
+    if plan_mode and not guide_only and not clarification_open:
         # Steer the model to investigate-then-propose. Hard tool gating handles
         # every write path except shell; this directive is what keeps the
         # intentionally-allowed bash/python read-only, so it must DOMINATE. Put
@@ -576,12 +668,12 @@ async def stream_agent_loop(
             messages[0]["content"] = PLAN_MODE_DIRECTIVE + "\n\n" + (messages[0].get("content") or "")
         else:
             messages.insert(0, {"role": "system", "content": PLAN_MODE_DIRECTIVE})
-    elif orchestrator_mode and not guide_only:
+    elif orchestrator_mode and not guide_only and not clarification_open:
         if messages and messages[0].get("role") == "system":
             messages[0]["content"] = ORCHESTRATOR_MODE_DIRECTIVE + "\n\n" + (messages[0].get("content") or "")
         else:
             messages.insert(0, {"role": "system", "content": ORCHESTRATOR_MODE_DIRECTIVE})
-    elif approved_plan and approved_plan.strip() and not guide_only:
+    elif approved_plan and approved_plan.strip() and not guide_only and not clarification_open:
         # EXECUTING an approved plan. Pin the checklist as a top-of-context
         # system note so a long plan on a weak model survives history
         # truncation — the agent can always re-read the plan instead of losing
@@ -603,7 +695,6 @@ async def stream_agent_loop(
     try:
         from src.context_compactor import latest_dialog_pair_preserved, trim_for_context
         from src.context_budget import DEFAULT_HARD_MAX, DEFAULT_BUDGET, budget_is_explicit as _budget_is_explicit, resolve_input_token_budget
-        from src.model_context import budget_context_for_model
 
         soft_budget = int(get_setting("agent_input_token_budget", DEFAULT_BUDGET) or 0)
         if soft_budget > 0:
@@ -625,7 +716,7 @@ async def stream_agent_loop(
             # Scale only off a window we actually discovered, bound to the value it
             # proves (else 0) — not the passed-in context_length, which can be stale
             # or unset for some callers (#4122 review).
-            ctx_for_budget = budget_context_for_model(endpoint_url, model, fallback=context_length)
+            ctx_for_budget = context_snapshot.context_length if context_snapshot.known else 0
             budget_decision = resolve_input_token_budget(
                 soft_budget,
                 ctx_for_budget,
@@ -688,6 +779,8 @@ async def stream_agent_loop(
     time_to_first_token = None
     first_token_received = False
     tool_events = []   # Persist tool executions for history reload
+    assistant_attachments = []  # Public, owner-verified generated downloads
+    _assistant_attachment_ids = set()
     round_texts = []   # Cleaned text per round for history reload
     # Completion-verifier state (mechanism 3a). _effectful_used flips on when
     # a tool that produces a checkable artifact runs; the verifier only fires
@@ -1341,6 +1434,7 @@ async def stream_agent_loop(
                             model=model,
                             headers=headers or {},
                             context_length=context_length,
+                            tool_usage_instrumentation=bound_tool_usage_instrumentation,
                         )
                     finally:
                         # Sentinel so the drainer knows to stop.
@@ -1357,6 +1451,45 @@ async def stream_agent_loop(
                         f'data: {json.dumps({"type": "tool_progress", "tool": block.tool_type, "round": round_num, **evt})}\n\n'
                     )
                 desc, result = await _tool_task
+
+            # Only the trusted publisher tool may create assistant attachment
+            # metadata. Re-resolve the ID with the current owner before it can
+            # enter SSE metrics or persisted chat history.
+            if block.tool_type == "publish_artifact" and not result.get("error") and isinstance(result.get("attachment"), dict):
+                try:
+                    from src.generated_artifact_publication import (
+                        get_generated_artifact_upload_handler,
+                        project_generated_attachment,
+                    )
+
+                    _candidate_id = str(result["attachment"].get("id") or "")
+                    _artifact_handler = get_generated_artifact_upload_handler()
+                    _resolved_artifact = _artifact_handler.resolve_upload(
+                        _candidate_id,
+                        owner=owner,
+                        allow_admin=False,
+                    )
+                    if _resolved_artifact:
+                        _public_artifact = project_generated_attachment(_resolved_artifact)
+                        # Vision model is safe display metadata, but only accept
+                        # it from the publisher's trusted result.
+                        _vision_model = result["attachment"].get("vision_model")
+                        if isinstance(_vision_model, str) and _vision_model.strip():
+                            _public_artifact["vision_model"] = _vision_model.strip()[:160]
+                        result["attachment"] = _public_artifact
+                        if _candidate_id not in _assistant_attachment_ids:
+                            _assistant_attachment_ids.add(_candidate_id)
+                            assistant_attachments.append(_public_artifact)
+                    else:
+                        result = {
+                            "error": "Published artifact failed the owner-scoped readback check.",
+                            "exit_code": 1,
+                        }
+                except Exception:
+                    result = {
+                        "error": "Published artifact failed the metadata safety check.",
+                        "exit_code": 1,
+                    }
 
             # A skill the model just loaded can prescribe tools that weren't
             # RAG-selected this turn (declared via requires_toolsets in its
@@ -1537,6 +1670,12 @@ async def stream_agent_loop(
             for k in ("image_url", "image_prompt", "image_model", "image_size", "image_quality"):
                 if k in result:
                     tool_output_data[k] = result[k]
+            for k in (
+                "attachment", "artifact_evidence", "interactive_runtime",
+                "headless_evidence", "pygame_headless_plan", "screenshot_ref",
+            ):
+                if k in result:
+                    tool_output_data[k] = result[k]
             # Forward screenshots from browser tools (base64 images)
             if result.get("images"):
                 img = result["images"][0]
@@ -1607,6 +1746,12 @@ async def stream_agent_loop(
             # this the diff shows live but vanishes from saved history.
             if result.get("diff"):
                 tool_event["diff"] = result["diff"]
+            for key in (
+                "attachment", "artifact_evidence", "interactive_runtime",
+                "headless_evidence", "pygame_headless_plan", "screenshot_ref",
+            ):
+                if result.get(key):
+                    tool_event[key] = result[key]
             if _pending_ask_user_event:
                 tool_event["ask_user"] = _pending_ask_user_event
             tool_events.append(tool_event)
@@ -1704,6 +1849,10 @@ async def stream_agent_loop(
     )
     metrics["requested_model"] = requested_model
     metrics["claim_evidence_gate"] = claim_evidence_gate
+    if _interactive_deliverable_decision is not None:
+        metrics["interactive_deliverable_policy"] = _interactive_deliverable_decision.audit_summary()
+    if assistant_attachments:
+        metrics["attachments"] = assistant_attachments
     if tool_transactions:
         metrics["tool_transactions"] = tool_transactions
     yield f"data: {json.dumps({'type': 'metrics', 'data': metrics})}\n\n"

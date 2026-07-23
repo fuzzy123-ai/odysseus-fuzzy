@@ -577,6 +577,56 @@ class CrewMember(TimestampMixin, Base):
                            backref=backref("crew_member", uselist=False))
 
 
+class ClarificationRun(TimestampMixin, Base):
+    """Owner-scoped clarification run for ask_user v2 intake."""
+    __tablename__ = "clarification_runs"
+
+    id = Column(String, primary_key=True, index=True)
+    owner = Column(String, nullable=False, index=True)
+    session_id = Column(String, nullable=False, index=True)
+    scope = Column(String, nullable=False, default="conversation", index=True)
+    status = Column(String, nullable=False, default="clarifying", index=True)
+    version = Column(Integer, nullable=False, default=1)
+    project_slug = Column(String, nullable=True, index=True)
+    coding_task_id = Column(String, nullable=True, index=True)
+    intent_summary = Column(Text, nullable=False, default="")
+    request_json = Column(Text, nullable=False, default="{}")
+    answers_json = Column(Text, nullable=False, default="{}")
+    unresolved_required_json = Column(Text, nullable=False, default="[]")
+    understanding_summary = Column(Text, nullable=False, default="")
+    ready_for_plan = Column(Boolean, nullable=False, default=False)
+    raw_content_visible = Column(Boolean, nullable=False, default=False)
+
+    events = relationship("ClarificationEvent", back_populates="run", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_clarification_runs_owner_session_status", "owner", "session_id", "status"),
+        Index("ix_clarification_runs_owner_project", "owner", "project_slug", "status"),
+    )
+
+
+class ClarificationEvent(Base):
+    """Append-only clarification event with idempotency support."""
+    __tablename__ = "clarification_events"
+
+    id = Column(String, primary_key=True, index=True)
+    clarification_id = Column(String, ForeignKey("clarification_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    owner = Column(String, nullable=False, index=True)
+    event_type = Column(String, nullable=False, index=True)
+    version = Column(Integer, nullable=False)
+    question_id = Column(String, nullable=True, index=True)
+    idempotency_key = Column(String, nullable=True)
+    payload_json = Column(Text, nullable=False, default="{}")
+    created_at = Column(DateTime, default=utcnow_naive, nullable=False)
+
+    run = relationship("ClarificationRun", back_populates="events")
+
+    __table_args__ = (
+        Index("ix_clarification_events_run_version", "clarification_id", "version"),
+        Index("ix_clarification_events_idempotency", "clarification_id", "idempotency_key", unique=True),
+    )
+
+
 class ScheduledTask(TimestampMixin, Base):
     """A recurring or one-off task — LLM-powered or direct action, time or event triggered."""
     __tablename__ = "scheduled_tasks"

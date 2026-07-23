@@ -124,8 +124,16 @@ def run_universal_inbox_dry_run(
     config: UniversalInboxWorkerConfig | None = None,
     rules: UniversalInboxRoutingRules | Mapping[str, Any] | None = None,
     settings: Mapping[str, Any] | None = None,
+    maintenance_endpoint: str = "http://127.0.0.1:11434",
+    maintenance_attempt=None,
+    maintenance_registry=None,
 ) -> UniversalInboxWorkerDryRunReport:
-    """Run the local-sync Universal Inbox pipeline in mutation-free dry-run mode."""
+    """Run the local-sync Universal Inbox pipeline in mutation-free dry-run mode.
+
+    The model lane remains disabled unless trusted settings explicitly enable
+    it.  Tests and internal callers may inject the typed transport boundary;
+    prompt and output content never enter the returned report.
+    """
 
     worker_config = config or UniversalInboxWorkerConfig()
     maintenance_profile = maintenance_model_profile_from_settings(settings) if settings else default_maintenance_model_profile()
@@ -172,6 +180,18 @@ def run_universal_inbox_dry_run(
             profile=maintenance_profile,
         )
         maintenance_report = maintenance_plan.flat_route_report()
+        if maintenance_profile.runtime_enabled:
+            maintenance_report = {
+                **maintenance_report,
+                "runtime_evidence": _call_universal_inbox_maintenance_runtime(
+                    plan=maintenance_plan,
+                    profile=maintenance_profile,
+                    excerpt=extraction.raw_text or "",
+                    endpoint=maintenance_endpoint,
+                    attempt=maintenance_attempt,
+                    registry=maintenance_registry,
+                ),
+            }
         analysis_metadata = dict(analysis_report.get("metadata") or {})
         analysis_metadata["maintenance_route"] = maintenance_report
         analysis_report = {**analysis_report, "metadata": analysis_metadata}
@@ -258,6 +278,110 @@ def run_universal_inbox_dry_run(
         no_go_reasons=tuple(dict.fromkeys(no_go_reasons)),
         maintenance_model=maintenance_profile.to_dict(),
     )
+
+
+def _call_universal_inbox_maintenance_runtime(
+    *,
+    plan,
+    profile,
+    excerpt: str,
+    endpoint: str,
+    attempt=None,
+    registry=None,
+) -> dict[str, Any]:
+    """Invoke the isolated sync lane and expose only bounded audit evidence."""
+
+    from src.maintenance_llm_runtime import (
+        MAINTENANCE_LLM_RESULT_SCHEMA,
+        MaintenanceLLMMessage,
+        MaintenanceLLMRequest,
+        MaintenanceLLMRuntimeError,
+    )
+    from src.maintenance_model_policy import MaintenanceModelRole
+    from src.maintenance_output_validator import (
+        call_validated_maintenance_llm,
+        maintenance_output_schema_instruction,
+    )
+
+    prompt = plan.capsule.build_prompt(
+        metadata={
+            "consumer": "universal_inbox",
+            "surface": plan.surface.value,
+            "workload": plan.capsule.workload.value,
+            "classification_scope": "local_private",
+        },
+        excerpt=excerpt,
+    )
+    prompt += "\n" + maintenance_output_schema_instruction(
+        plan.capsule,
+        allowed_source_hashes=plan.source_hashes,
+    )
+    request = MaintenanceLLMRequest(
+        endpoint=endpoint,
+        messages=(
+            MaintenanceLLMMessage(
+                "system",
+                "You are the isolated Odysseus maintenance worker. Return only the requested JSON.",
+            ),
+            MaintenanceLLMMessage("user", prompt),
+        ),
+        profile=profile,
+        role=MaintenanceModelRole.MAINTENANCE,
+        max_tokens=profile.token_budget,
+        timeout_ms=profile.latency_budget_ms,
+        max_attempts=1,
+        temperature=0.0,
+        stream=False,
+        fallback_requested=False,
+        truth_write_requested=False,
+    )
+    try:
+        validated = call_validated_maintenance_llm(
+            request,
+            capsule=plan.capsule,
+            allowed_source_hashes=plan.source_hashes,
+            attempt=attempt,
+            registry=registry,
+        )
+        result_audit = validated.audit_dict()
+        review_required = validated.validation.review_required
+        status = "review_required" if review_required else "validated_candidate"
+        model_called = True
+    except MaintenanceLLMRuntimeError as exc:
+        audit = getattr(exc, "audit_dict", None)
+        result_audit = audit() if callable(audit) else {
+            "schema": MAINTENANCE_LLM_RESULT_SCHEMA,
+            "outcome": "failed",
+            "reason": _maintenance_consumer_failure_reason(exc),
+            "attempts": 0,
+            "retryable": False,
+        }
+        status = "review_required"
+        model_called = False
+        review_required = True
+    return {
+        "schema": "odysseus.maintenance_consumer_evidence.v1",
+        "consumer": "universal_inbox",
+        "status": status,
+        "prompt_capsule_id": plan.capsule.capsule_id,
+        "request": request.audit_dict(),
+        "result": result_audit,
+        "model_called": model_called,
+        "output_retained": False,
+        "streaming_used": False,
+        "fallback_used": False,
+        "truth_write_performed": False,
+        "review_required": review_required,
+    }
+
+
+def _maintenance_consumer_failure_reason(exc: Exception) -> str:
+    name = type(exc).__name__
+    return {
+        "MaintenanceLLMDisabledError": "runtime_disabled",
+        "MaintenanceLLMAdmissionError": "admission_unavailable",
+        "MaintenanceLLMContractError": "contract_rejected",
+    }.get(name, "runtime_failure")
 
 
 def _coerce_rules(

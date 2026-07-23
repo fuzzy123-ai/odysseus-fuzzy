@@ -22,6 +22,12 @@ from src.tool_domains.app_api import (
 
 logger = logging.getLogger(__name__)
 
+_TAIL_SERVE_OUTPUT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
+_TAIL_SERVE_OUTPUT_FUTURE_SKEW_MS = 5 * 60 * 1000
+_TAIL_SERVE_OUTPUT_TASK_STATUSES = frozenset(
+    {"queued", "starting", "running", "crashed", "failed", "error", "stopped", "done"}
+)
+
 
 def _string_arg(value: Any) -> str:
     return "" if value is None else str(value).strip()
@@ -549,46 +555,103 @@ async def do_tail_serve_output(content: str, owner: Optional[str] = None) -> Dic
         tail = 400
     tail = max(20, min(tail, 4000))
     headers = _internal_headers()
-    remote = _string_arg(args.get("remote_host") or args.get("host"))
-    sport = _string_arg(args.get("ssh_port"))
-    # Resolve host from cookbook state if caller didn't pass one — same
-    # lookup _cookbook_kill_session uses.
-    if not remote:
-        state: Dict[str, Any] = {}
+    requested_remote = _string_arg(args.get("remote_host") or args.get("host"))
+    requested_sport = _string_arg(args.get("ssh_port"))
+
+    # Validate caller-supplied target syntax first, but never trust it as the
+    # source of truth. The persisted task binding below must agree exactly.
+    if requested_remote:
         try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.get(f"{_INTERNAL_BASE}/api/cookbook/state", headers=headers)
-                state = resp.json() or {}
-        except Exception as e:
-            logger.debug(f"cookbook state lookup failed for {session_id}: {e}")
-        if isinstance(state, dict):
-            for t in (state.get("tasks") or []):
-                if isinstance(t, dict) and (t.get("sessionId") == session_id or t.get("id") == session_id):
-                    remote = t.get("remoteHost") or ""
-                    if not sport:
-                        sport = t.get("sshPort") or ""
-                    break
+            requested_remote, requested_sport = _validate_cookbook_ssh_target(
+                requested_remote, requested_sport
+            )
+        except HTTPException as e:
+            return {"error": str(getattr(e, "detail", e)), "exit_code": 1}
+
+    # Fail closed unless this is a currently registered serve task. Without
+    # this binding, an arbitrary valid tmux name/host could expose unrelated
+    # process output through the agent surface.
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            state_resp = await client.get(
+                f"{_INTERNAL_BASE}/api/cookbook/state", headers=headers
+            )
+        if state_resp.status_code >= 400:
+            return {
+                "error": f"cookbook state returned HTTP {state_resp.status_code}",
+                "exit_code": 1,
+            }
+        state = state_resp.json() or {}
+    except Exception as e:
+        logger.debug("cookbook state lookup failed for %s: %s", session_id, e)
+        return {"error": "Cookbook session state is unavailable", "exit_code": 1}
+    if not isinstance(state, dict):
+        return {"error": "Cookbook session state is invalid", "exit_code": 1}
+
+    matched: Optional[Dict[str, Any]] = None
+    for task in state.get("tasks") or []:
+        if isinstance(task, dict) and (
+            task.get("sessionId") == session_id or task.get("id") == session_id
+        ):
+            matched = task
+            break
+    if matched is None:
+        return {
+            "error": "session_id is not a registered Cookbook task",
+            "exit_code": 1,
+        }
+
+    remote = _string_arg(matched.get("remoteHost"))
+    sport = _string_arg(matched.get("sshPort"))
     if remote:
         try:
             remote, sport = _validate_cookbook_ssh_target(remote, sport)
         except HTTPException as e:
             return {"error": str(getattr(e, "detail", e)), "exit_code": 1}
 
-    # Prefer the persisted /tmp/odysseus-tmux/SESSION.log file over the
-    # live tmux pane. The pane is what the user would see scrolling on
-    # their screen — including the post-crash neofetch banner and the
-    # idle bash prompt that overwrites the actual traceback the moment
-    # vllm exits. The log file is the raw stdout/stderr of the wrapped
-    # process and survives the crash unchanged. We only fall back to
-    # the pane when the log file doesn't exist (older sessions launched
-    # before the tmux+tee wrapper was added).
+    if requested_remote and requested_remote != remote:
+        return {
+            "error": "Requested host does not match the registered Cookbook session",
+            "exit_code": 1,
+        }
+    if requested_sport and (requested_sport or "22") != (sport or "22"):
+        return {
+            "error": "Requested ssh_port does not match the registered Cookbook session",
+            "exit_code": 1,
+        }
+    if str(matched.get("type") or "").strip().lower() != "serve":
+        return {"error": "Cookbook task is not a model serve session", "exit_code": 1}
+
+    raw_timestamp = matched.get("updatedAt", matched.get("ts"))
+    try:
+        import math as _math
+
+        if isinstance(raw_timestamp, bool):
+            raise ValueError("boolean timestamp")
+        task_timestamp_ms = float(raw_timestamp)
+        if not _math.isfinite(task_timestamp_ms):
+            raise ValueError("non-finite timestamp")
+        if task_timestamp_ms < 100_000_000_000:
+            task_timestamp_ms *= 1000
+    except (TypeError, ValueError, OverflowError):
+        return {"error": "Cookbook session has no trusted current timestamp", "exit_code": 1}
+
+    import time as _time
+
+    now_ms = _time.time() * 1000
+    if task_timestamp_ms > now_ms + _TAIL_SERVE_OUTPUT_FUTURE_SKEW_MS:
+        return {"error": "Cookbook session timestamp is in the future", "exit_code": 1}
+    if now_ms - task_timestamp_ms > _TAIL_SERVE_OUTPUT_MAX_AGE_MS:
+        return {"error": "Cookbook session is too old for log access", "exit_code": 1}
+    task_status = str(matched.get("status") or "").strip().lower()
+    if task_status not in _TAIL_SERVE_OUTPUT_TASK_STATUSES:
+        return {"error": "Cookbook session status is not eligible for log access", "exit_code": 1}
+
+    # Read only the fixed log path created by the Cookbook wrapper. Falling
+    # back to a live tmux pane could disclose an unrelated process if a stale
+    # session name were ever reused after the task was registered.
     log_path = f"/tmp/odysseus-tmux/{session_id}.log"
-    pane_inner = f"tmux capture-pane -t {shlex.quote(session_id)} -p -S -{tail} 2>/dev/null"
-    file_inner = f"tail -n {tail} {shlex.quote(log_path)} 2>/dev/null"
-    inner = (
-        f"if [ -s {shlex.quote(log_path)} ]; then {file_inner}; "
-        f"else {pane_inner}; fi"
-    )
+    inner = f"tail -n {tail} {shlex.quote(log_path)} 2>/dev/null"
     if remote:
         _pf = f"-p {shlex.quote(str(sport))} " if sport and str(sport) != "22" else ""
         cmd = (

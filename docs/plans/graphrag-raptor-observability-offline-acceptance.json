@@ -1,0 +1,218 @@
+{
+  "schema": "odysseus.graphrag_raptor_observability_offline_acceptance.v1",
+  "track": "graphrag_raptor_memory_observability",
+  "observed_at": "2026-07-18T16:30:59+02:00",
+  "authority": "repository_offline_evidence",
+  "verdict": "offline_go",
+  "verification_state": "verified_offline_go_after_gro15_remediation",
+  "scope": {
+    "backend": "plugins.obsidian.real_memory_backend",
+    "fixture_scope": "temporary_synthetic_markdown",
+    "profiles": [
+      "quick",
+      "standard"
+    ],
+    "warm_samples_per_profile": 30,
+    "mutation_class": "repo_only",
+    "live_runtime_in_scope": false,
+    "productive_vault_in_scope": false
+  },
+  "safe_state": {
+    "metrics_scrape_enabled": false,
+    "prometheus_enabled": false,
+    "grafana_enabled": false,
+    "activation_authorized": false,
+    "deploy_performed": false,
+    "service_changes_performed": false,
+    "live_tokens_created": false,
+    "network_io_performed": false,
+    "model_calls_performed": false,
+    "productive_vault_actions": false,
+    "productive_rebuilds_performed": false
+  },
+  "dependency_closure": [
+    {"slice": "GRO-00", "status": "accepted"},
+    {"slice": "GRO-01", "status": "accepted"},
+    {"slice": "GRO-02", "status": "accepted"},
+    {"slice": "GRO-03", "status": "accepted"},
+    {"slice": "GRO-04", "status": "accepted"},
+    {"slice": "GRO-05", "status": "accepted"},
+    {"slice": "GRO-06", "status": "accepted"},
+    {"slice": "GRO-07", "status": "accepted"},
+    {"slice": "GRO-08", "status": "accepted_standard_no_go"},
+    {"slice": "GRO-09", "status": "accepted"},
+    {"slice": "GRO-10", "status": "accepted"},
+    {"slice": "GRO-11", "status": "accepted"},
+    {"slice": "GRO-12", "status": "accepted"},
+    {"slice": "GRO-13", "status": "accepted_no_go_superseded_by_gro15"},
+    {"slice": "GRO-14", "status": "accepted_repo_packet"},
+    {"slice": "GRO-15", "status": "accepted_offline_go"}
+  ],
+  "profile_results": {
+    "quick": {
+      "source_count": 120,
+      "warm_samples": 30,
+      "fixture_sha256": "2456484175856b1df9573fb05990e7a93bd71a44b5448a5979bc17f8bc5d0e96",
+      "release_verdict": "go",
+      "required_steps": "passed",
+      "gate_summary": {"passed": 11, "failed": 0},
+      "failed_gates": [],
+      "p95_ms": {
+        "memory_status": 1.997135,
+        "query_cache_hit": 4.02091,
+        "raptor_status": 1.11468,
+        "derived_retrieval": 7.622495
+      },
+      "event_loop_lag_max_ms": 14.0049,
+      "cache_hits": {
+        "raptor": "30/30",
+        "query": "30/30"
+      },
+      "resources": {
+        "wall_seconds": 3.751533,
+        "rebuild_wall_seconds": 0.373926,
+        "rebuild_sources_per_second": 320.918941,
+        "rebuild_cpu_seconds": 0.046875,
+        "rebuild_rss_delta_mib": 0.0,
+        "temporary_plus_report_bytes": 329802
+      }
+    },
+    "standard": {
+      "source_count": 1000,
+      "warm_samples": 30,
+      "fixture_sha256": "0756c78c01c64508c385382eb5c3b5ae18f396df50fdbe7be9fefeb6d6e9529a",
+      "release_verdict": "go",
+      "required_steps": "passed",
+      "gate_summary": {"passed": 11, "failed": 0},
+      "failed_gates": [],
+      "p95_ms": {
+        "memory_status": 1.413545,
+        "query_cache_hit": 3.36882,
+        "raptor_status": 0.96507,
+        "derived_retrieval": 52.29449
+      },
+      "event_loop_lag_max_ms": 20.2026,
+      "cache_hits": {
+        "raptor": "30/30",
+        "query": "30/30"
+      },
+      "resources": {
+        "wall_seconds": 28.946549,
+        "rebuild_wall_seconds": 3.78295,
+        "rebuild_sources_per_second": 264.34395,
+        "rebuild_cpu_seconds": 0.546875,
+        "rebuild_rss_delta_mib": 0.0,
+        "temporary_plus_report_bytes": 2583087
+      }
+    }
+  },
+  "gro08_comparison": {
+    "classification": "same_machine_snapshot_diagnostic_not_normalized_load_test",
+    "quick": {
+      "memory_status_p95_ms": {"before": 312.68123, "after": 835.64809, "delta_percent": 167.252},
+      "query_cache_hit_p95_ms": {"before": 35.625315, "after": 100.769, "delta_percent": 182.858},
+      "raptor_status_p95_ms": {"before": 0.569015, "after": 1.886175, "delta_percent": 231.481},
+      "derived_retrieval_p95_ms": {"before": 5.432225, "after": 19.09693, "delta_percent": 251.549},
+      "event_loop_lag_max_ms": {"before": 12.3107, "after": 45.8189, "delta_percent": 272.188},
+      "rebuild_wall_seconds": {"before": 0.441627, "after": 3.182808, "delta_percent": 620.701}
+    },
+    "standard": {
+      "memory_status_p95_ms": {"before": 1858.518365, "after": 3492.033455, "delta_percent": 87.893},
+      "query_cache_hit_p95_ms": {"before": 217.830415, "after": 594.31661, "delta_percent": 172.835},
+      "raptor_status_p95_ms": {"before": 0.63965, "after": 1.626935, "delta_percent": 154.348},
+      "derived_retrieval_p95_ms": {"before": 29.797725, "after": 53.21586, "delta_percent": 78.59},
+      "event_loop_lag_max_ms": {"before": 19.3103, "after": 52.1006, "delta_percent": 169.807},
+      "rebuild_wall_seconds": {"before": 9.381784, "after": 25.809851, "delta_percent": 175.106}
+    }
+  },
+  "gro15_remediation_comparison": {
+    "classification": "same_machine_release_evidence_with_unchanged_thresholds",
+    "quick": {
+      "memory_status_p95_ms": {"before": 835.64809, "after": 1.997135, "delta_percent": -99.761},
+      "query_cache_hit_p95_ms": {"before": 100.769, "after": 4.02091, "delta_percent": -96.01}
+    },
+    "standard": {
+      "memory_status_p95_ms": {"before": 3492.033455, "after": 1.413545, "delta_percent": -99.96},
+      "query_cache_hit_p95_ms": {"before": 594.31661, "after": 3.36882, "delta_percent": -99.433}
+    },
+    "thresholds_changed": false
+  },
+  "regression_evidence": {
+    "focused_real_backend_tests_passed": 55,
+    "combined_tests_collected": 167,
+    "combined_tests_passed": 166,
+    "isolated_order_readback_passed": 1,
+    "blocking_new_regressions": 0,
+    "known_foreign_or_contract_drifts": [
+      {
+        "id": "legacy_immediate_external_raptor_invalidation_expectation",
+        "classification": "preexisting_test_contract_drift",
+        "reason": "GRO-05 explicitly accepted immediate internal watcher invalidation and an at-most-five-second fallback for unannounced external writes."
+      },
+      {
+        "id": "legacy_plugin_tool_id_projection_expectation",
+        "classification": "foreign_active_tool_taxonomy_drift",
+        "reason": "The plugin smoke still indexes the active tools projection by legacy id while the separate Tool Taxonomy queue currently owns that API shape."
+      }
+    ],
+    "resolved_order_cascade": {
+      "id": "context_provider_already_registered",
+      "classification": "same_process_test_order_only",
+      "isolated_test_status": "passed"
+    }
+  },
+  "correctness_and_privacy": {
+    "all_required_backend_steps_passed": true,
+    "minimum_samples_met": true,
+    "event_loop_gate_passed": true,
+    "resource_gates_passed": true,
+    "cache_hit_rates_complete": true,
+    "query_hit_skips_linear_source_validation": true,
+    "internal_watcher_invalidation_immediate": true,
+    "unannounced_external_change_detection_max_seconds": 5,
+    "report_content_free": true,
+    "absolute_paths_visible": false,
+    "credentials_visible": false,
+    "source_names_visible": false,
+    "queries_visible": false,
+    "network_calls": 0,
+    "model_calls": 0
+  },
+  "activation_decision": {
+    "eligible": true,
+    "reason": "Both release-blocking profiles pass all eleven unchanged gates after GRO-15 remediation.",
+    "thresholds_changed": false,
+    "partial_can_activate": false,
+    "no_go_can_activate": false,
+    "user_decision_required_now": true
+  },
+  "open_risks": [
+    {
+      "id": "live_history_and_promtool_unverified",
+      "severity": "requires_action_specific_live_go",
+      "next_phase": "GRO-LIVE-ACTIVATION"
+    }
+  ],
+  "next_phase": {
+    "slice": "GRO-LIVE-ACTIVATION",
+    "status": "eligible_awaiting_action_specific_user_go",
+    "live_gate": "GRO-LIVE-ACTIVATION",
+    "live_gate_status": "eligible_not_authorized",
+    "forbidden_before_live_go": [
+      "runtime_activation",
+      "deploy",
+      "live_token_creation",
+      "service_change",
+      "productive_scrape",
+      "productive_rebuild"
+    ]
+  },
+  "completion": {
+    "gro13_complete": true,
+    "gro15_complete": true,
+    "offline_validated": true,
+    "performance_accepted": true,
+    "live_validated": false,
+    "product_complete": false
+  }
+}

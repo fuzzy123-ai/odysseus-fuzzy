@@ -22,10 +22,22 @@ The runner must read these files at the start of every tick:
 
 1. `docs/plans/mvp-master-roadmap.md`
 2. `docs/plans/mvp-roadmap-runner-state.json`
-3. `git status --short --branch`
+3. `docs/plans/multi-agent-execution-guidance.json`
+4. `git status --short --branch`
 
 The JSON state is the machine-readable source for the active queue. The master
 roadmap remains the human-readable product report.
+
+Before claiming a slice, query its exact execution profile:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe scripts\roadmap_multi_agent_guidance.py --roadmap docs/plans/mvp-roadmap-runner.md --format markdown
+```
+
+When all ten roadmap percentages are `100` and `runner.active_slice` is null,
+the runner must report `queue_exhausted` and route the next decision through
+`open-work-completion-master-roadmap.json`. It must not reactivate an older
+queue entry merely to produce work.
 
 ## Runner Algorithm
 

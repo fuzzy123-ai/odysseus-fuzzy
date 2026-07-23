@@ -12,6 +12,7 @@ import re
 from typing import List, Optional
 
 from src.agent_tools import ToolBlock, TOOL_TAGS
+from src.builtin_tool_catalog import PARSER_REGISTERED_TOOL_IDS
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +22,13 @@ logger = logging.getLogger(__name__)
 
 # Pattern 1: ```bash ... ``` fenced code blocks
 _TOOL_BLOCK_RE = re.compile(
-    r"```(" + "|".join(TOOL_TAGS) + r")\s*\n([\s\S]*?)```",
+    r"```(" + "|".join(PARSER_REGISTERED_TOOL_IDS) + r")\s*\n([\s\S]*?)```",
     re.IGNORECASE,
 )
 
 
 def _known_tool_names() -> set[str]:
-    names = set(TOOL_TAGS)
+    names = set(PARSER_REGISTERED_TOOL_IDS)
     try:
         from src.tool_registry import tool_names
 

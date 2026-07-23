@@ -114,7 +114,13 @@ async def deliver_user_notification_for_task(task, result: str) -> dict:
     return decision
 
 
-async def deliver_via_mcp(tool_name: str, task, result: str) -> dict:
+async def deliver_via_mcp(
+    tool_name: str,
+    task,
+    result: str,
+    *,
+    tool_usage_instrumentation=None,
+) -> dict:
     """Send a task result via an MCP tool such as Gmail send."""
     from src.tool_utils import get_mcp_manager
 
@@ -166,7 +172,19 @@ async def deliver_via_mcp(tool_name: str, task, result: str) -> dict:
             "set an email From address in Settings or give the task an owner email."
         )
     try:
-        mcp_result = await mcp.call_tool(tool_name, args)
+        if tool_usage_instrumentation is None:
+            mcp_result = await mcp.call_tool(tool_name, args)
+        else:
+            from src.tool_usage_instrumentation import execute_instrumented_bypass
+
+            mcp_result = await execute_instrumented_bypass(
+                tool_usage_instrumentation,
+                tool_name=tool_name,
+                argument=args,
+                operation=lambda: mcp.call_tool(tool_name, args),
+                trusted_source="mcp",
+                retry_ordinal=0,
+            )
         stderr = mcp_result.get("stderr", "")
         stdout = mcp_result.get("stdout", "")
         body_len = len(result or "")

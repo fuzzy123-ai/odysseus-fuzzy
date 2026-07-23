@@ -12,15 +12,7 @@ from typing import List, Dict, Any, Optional
 from src.constants import CHROMA_DIR
 from src.ai_lens_events import AiLensRedactionLevel, AiLensSourceKind, AiLensSourceRef
 from src.ai_lens_service import opaque_ai_lens_ref
-
-# Try to import from different possible locations
-try:
-    from rag_vector import VectorRAG
-except ImportError:
-    try:
-        from .rag_vector import VectorRAG
-    except ImportError:
-        from src.rag_vector import VectorRAG
+from src.rag_vector import VectorRAG
 
 logger = logging.getLogger(__name__)
 MAX_AI_LENS_CAPTURE_HITS = 32

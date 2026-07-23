@@ -79,6 +79,105 @@ def test_put_text_uploads_sidecar_without_raw_source(tmp_path):
     assert calls[-1][2] == b'{"safe":true}'
 
 
+def test_put_bytes_create_only_keeps_exact_readable_bytes():
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if request.method == "MKCOL":
+            return httpx.Response(201)
+        if request.method == "PUT":
+            return httpx.Response(201, headers={"ETag": '"created"'})
+        return httpx.Response(500)
+
+    result = _client(handler, root="Forge Root").put_bytes_create_only(
+        "Projects/demo/file.bin",
+        b"plain-readable-bytes",
+    )
+
+    put = calls[-1]
+    assert put.method == "PUT"
+    assert put.headers["If-None-Match"] == "*"
+    assert put.content == b"plain-readable-bytes"
+    assert result == {"size_bytes": 20, "etag": "created"}
+
+
+def test_put_bytes_create_only_rejects_non_created_status_and_redacts_body():
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "MKCOL":
+            return httpx.Response(201)
+        return httpx.Response(204, text="Bearer should-not-escape")
+
+    try:
+        _client(handler).put_bytes_create_only("Projects/demo.txt", b"data")
+    except NextcloudWebDAVClientError as exc:
+        assert str(exc) == "WebDAV request failed: HTTP 204"
+        assert "Bearer" not in str(exc)
+    else:
+        raise AssertionError("create-only PUT must require HTTP 201")
+
+
+def test_put_bytes_size_limit_blocks_before_webdav_io():
+    calls = []
+    client = _client(lambda request: calls.append(request) or httpx.Response(201))
+
+    try:
+        client.put_bytes_create_only("Projects/demo.bin", b"12345", max_bytes=4)
+    except NextcloudWebDAVClientError as exc:
+        assert str(exc) == "WebDAV payload exceeds upload limit"
+    else:
+        raise AssertionError("oversize in-memory payload must be blocked")
+    assert calls == []
+
+
+def test_move_create_only_uses_absolute_destination_and_forbids_overwrite():
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if request.method == "MKCOL":
+            return httpx.Response(201)
+        if request.method == "MOVE":
+            return httpx.Response(201)
+        return httpx.Response(500)
+
+    client = _client(handler, root="Forge Root")
+    result = client.move_create_only(
+        "Projects/demo/staging/op",
+        "Projects/demo/Versions/v1",
+    )
+
+    move = calls[-1]
+    assert result == {"created": True, "etag": ""}
+    assert move.method == "MOVE"
+    assert move.headers["Overwrite"] == "F"
+    assert move.headers["Destination"].endswith(
+        "/Forge%20Root/Projects/demo/Versions/v1"
+    )
+    assert "overwrite" not in client.move_create_only.__code__.co_varnames
+
+
+def test_put_bytes_and_move_reject_backslash_nul_and_traversal_before_io():
+    calls = []
+    client = _client(lambda request: calls.append(request) or httpx.Response(201))
+
+    unsafe = ("../escape", "folder\\file", "folder/\x00file", "/absolute")
+    for path in unsafe:
+        try:
+            client.put_bytes_create_only(path, b"data")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"unsafe PUT path accepted: {path!r}")
+        try:
+            client.move_create_only("safe/source", path)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"unsafe MOVE path accepted: {path!r}")
+    assert calls == []
+
+
 def test_get_file_bytes_downloads_existing_file_with_size_guard():
     calls = []
 

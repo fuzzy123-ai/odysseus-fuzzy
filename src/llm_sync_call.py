@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from typing import Any, Callable, Optional
 
+from src.local_model_scheduler import local_model_sync_slot
+
 
 def _coerce_headers(headers: Optional[dict] | str) -> Optional[dict]:
     if isinstance(headers, str):
@@ -63,6 +65,8 @@ def llm_call_impl(
     parse_ollama_response_func: Callable[[dict], str],
     normalize_mistral_content_func: Callable[[Any], tuple[str, str]],
     parse_openai_message_func: Callable[..., str],
+    prompt_type: Optional[str] = None,
+    surface: Optional[str] = None,
 ) -> str:
     """Synchronous LLM call with optional prompt type enhancement."""
     provider = detect_provider_func(url)
@@ -117,8 +121,15 @@ def llm_call_impl(
             payload["reasoning_effort"] = mistral_reasoning_effort
 
     try:
-        note_model_activity_func(target_url, model)
-        response = httpx_post_func(target_url, request_headers, json=payload, timeout=timeout)
+        with local_model_sync_slot(
+            target_url,
+            model,
+            provider=provider,
+            surface=surface,
+            prompt_type=prompt_type,
+        ):
+            note_model_activity_func(target_url, model)
+            response = httpx_post_func(target_url, request_headers, json=payload, timeout=timeout)
     except Exception as exc:
         raise http_exception_cls(502, f"POST {target_url} failed: {exc}")
     if not response.is_success:

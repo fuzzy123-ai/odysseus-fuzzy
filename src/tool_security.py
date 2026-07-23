@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Optional, Set
 
+from src.builtin_tool_catalog import RUNTIME_ADMIN_PERMISSION_IDS
+
 logger = logging.getLogger(__name__)
 
 PUBLIC_MCP_SERVER_ALLOWLIST = {"vault"}
@@ -44,6 +46,9 @@ NON_ADMIN_BLOCKED_TOOLS = {
     "read_file",
     "write_file",
     "edit_file",
+    "publish_artifact",
+    "verify_pygame_headless",
+    "commit_project",
     "grep",
     "glob",
     "ls",
@@ -79,6 +84,10 @@ NON_ADMIN_BLOCKED_TOOLS = {
     "stop_served_model",
     "cancel_download",
     "adopt_served_model",
+    "bulk_email",
+    "delete_email",
+    "manage_assistant",
+    "tail_serve_output",
 }
 
 
@@ -151,6 +160,8 @@ ORCHESTRATOR_MODE_ALLOWED_TOOLS = {
 # new mutating tools.
 _PLAN_MODE_KNOWN_MUTATORS = {
     "write_file", "create_document", "edit_document", "update_document",
+    "publish_artifact", "verify_pygame_headless",
+    "commit_project",
     "suggest_document", "manage_documents", "create_session", "manage_session",
     "send_to_session", "pipeline", "manage_memory", "manage_skills",
     "manage_tasks", "manage_notes", "manage_endpoints", "manage_mcp",
@@ -256,7 +267,7 @@ def is_public_blocked_tool(tool_name: Optional[str]) -> bool:
         if server_id == "vault":
             return mcp_tool not in PUBLIC_VAULT_MCP_READONLY_TOOLS
         return server_id not in PUBLIC_MCP_SERVER_ALLOWLIST
-    return tool_name in NON_ADMIN_BLOCKED_TOOLS
+    return tool_name in NON_ADMIN_BLOCKED_TOOLS or tool_name in RUNTIME_ADMIN_PERMISSION_IDS
 
 
 def owner_is_admin_or_single_user(owner: Optional[str]) -> bool:
@@ -293,7 +304,7 @@ def blocked_tools_for_owner(owner: Optional[str]) -> Set[str]:
     """Tools to hide/disable for this owner under public-user policy."""
     if owner_is_admin_or_single_user(owner):
         return set()
-    blocked = set(NON_ADMIN_BLOCKED_TOOLS)
+    blocked = set(NON_ADMIN_BLOCKED_TOOLS) | set(RUNTIME_ADMIN_PERMISSION_IDS)
     try:
         from src.tool_registry import list_tools
 

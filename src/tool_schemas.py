@@ -13,6 +13,7 @@ import logging
 from typing import Optional
 
 from src.agent_tools import ToolBlock, TOOL_TAGS
+from src.builtin_tool_catalog import PARSER_REGISTERED_TOOL_IDS
 from src.tool_parsing import _TOOL_NAME_MAP
 from src.tool_schema_definitions import FUNCTION_TOOL_SCHEMAS
 
@@ -127,7 +128,7 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
     # Email tools are implemented as MCP — route them to email
     if name in _BUILTIN_EMAIL_TOOLS:
         return ToolBlock(f"mcp__email__{name}", json.dumps(args) if args else "{}")
-    if tool_type not in TOOL_TAGS:
+    if tool_type not in PARSER_REGISTERED_TOOL_IDS:
         feedback = invalid_tool_call_block(name, args)
         if feedback:
             return feedback
@@ -165,6 +166,8 @@ def function_call_to_tool_block(name: str, arguments: str) -> Optional[ToolBlock
         content = ""
     elif tool_type == "write_file":
         content = args.get("path", "") + "\n" + args.get("content", "")
+    elif tool_type in ("publish_artifact", "verify_pygame_headless", "commit_project"):
+        content = json.dumps(args)
     elif tool_type == "edit_file":
         content = json.dumps(args)
     elif tool_type == "create_document":

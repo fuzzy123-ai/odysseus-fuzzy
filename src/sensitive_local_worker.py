@@ -21,7 +21,11 @@ from src.gemma4_maintenance_router import (
     GemmaMaintenanceSurface,
     plan_gemma4_maintenance_route,
 )
-from src.maintenance_model_policy import MaintenanceWorkload
+from src.maintenance_model_policy import (
+    MaintenanceModelProfile,
+    MaintenanceWorkload,
+    default_maintenance_model_profile,
+)
 from src.sensitivity_delegation_gate import decide_sensitivity_delegation
 
 
@@ -97,10 +101,17 @@ class SensitiveLocalWorkerResult:
         return payload
 
 
-def build_sensitive_local_worker_result(payload: Mapping[str, Any]) -> SensitiveLocalWorkerResult:
+def build_sensitive_local_worker_result(
+    payload: Mapping[str, Any],
+    *,
+    maintenance_profile: MaintenanceModelProfile | None = None,
+) -> SensitiveLocalWorkerResult:
     """Build a redacted worker result from already-trusted metadata."""
 
     _reject_forbidden_args(payload)
+    profile = maintenance_profile or default_maintenance_model_profile()
+    if not isinstance(profile, MaintenanceModelProfile):
+        raise SensitiveLocalWorkerError("maintenance_profile_must_be_trusted")
     classification = _normalize_classification(payload.get("classification"))
     source_ref = _safe_label(payload.get("source_ref") or payload.get("doc_ref") or "", field="source_ref")
     task = _safe_text(payload.get("task") or payload.get("analysis_goal") or "analyze", field="task", limit=240)
@@ -127,6 +138,7 @@ def build_sensitive_local_worker_result(payload: Mapping[str, Any]) -> Sensitive
         source_refs=(source_ref,),
         excerpt=redacted_context,
         api_escalation_allowed=False,
+        profile=profile,
     )
     abstraction = {
         "summary": redacted_context,
@@ -168,15 +180,59 @@ async def execute_sensitive_local_analysis(
     *,
     owner: str | None = None,
     session_id: str | None = None,
+    maintenance_profile: MaintenanceModelProfile | None = None,
+    maintenance_endpoint: str = "http://127.0.0.1:11434",
+    maintenance_attempt=None,
+    maintenance_registry=None,
     **_: Any,
 ) -> dict[str, Any]:
-    """Agent-tool entry point. Rejects raw content and returns redacted JSON."""
+    """Agent-tool entry point. Reject raw content and return redacted evidence.
+
+    Runtime activation is an internal typed argument, never a JSON tool field.
+    The registered tool therefore remains default-off even if an agent invents
+    similarly named content keys.
+    """
 
     try:
         payload = json.loads(content) if str(content or "").strip() else {}
         if not isinstance(payload, dict):
             raise SensitiveLocalWorkerError("arguments_must_be_object")
-        result = build_sensitive_local_worker_result(payload).to_dict()
+        profile = maintenance_profile or default_maintenance_model_profile()
+        if not isinstance(profile, MaintenanceModelProfile):
+            raise SensitiveLocalWorkerError("maintenance_profile_must_be_trusted")
+        result = build_sensitive_local_worker_result(
+            payload,
+            maintenance_profile=profile,
+        ).to_dict()
+        if profile.runtime_enabled and result["status"] == "ready":
+            redacted_context = _safe_text(
+                payload.get("redacted_context") or "",
+                field="redacted_context",
+                limit=1000,
+            )
+            plan = plan_gemma4_maintenance_route(
+                surface=result["local_job_request"]["surface"],
+                workload=result["local_job_request"]["workload"],
+                classification=result["classification"],
+                dsgvo_mode=_truthy(payload.get("dsgvo_mode")),
+                input_chars=len(redacted_context),
+                source_refs=(result["source_ref"],),
+                excerpt=redacted_context,
+                api_escalation_allowed=False,
+                profile=profile,
+            )
+            runtime_evidence = await _call_sensitive_maintenance_runtime(
+                plan=plan,
+                profile=profile,
+                excerpt=redacted_context,
+                endpoint=maintenance_endpoint,
+                attempt=maintenance_attempt,
+                registry=maintenance_registry,
+            )
+            result["local_job_request"] = {
+                **result["local_job_request"],
+                "runtime_evidence": runtime_evidence,
+            }
         result["owner_scope"] = _safe_label(owner or "unknown", field="owner")
         result["session_ref"] = _safe_label(session_id or "", field="session_id")
         _reject_forbidden_payload(result)
@@ -190,6 +246,110 @@ async def execute_sensitive_local_analysis(
             "raw_content_returned": False,
             "exit_code": 1,
         }
+
+
+async def _call_sensitive_maintenance_runtime(
+    *,
+    plan,
+    profile,
+    excerpt: str,
+    endpoint: str,
+    attempt=None,
+    registry=None,
+) -> dict[str, Any]:
+    """Invoke the isolated async lane and expose no prompt or output content."""
+
+    from src.maintenance_llm_runtime import (
+        MAINTENANCE_LLM_RESULT_SCHEMA,
+        MaintenanceLLMMessage,
+        MaintenanceLLMRequest,
+        MaintenanceLLMRuntimeError,
+    )
+    from src.maintenance_model_policy import MaintenanceModelRole
+    from src.maintenance_output_validator import (
+        call_validated_maintenance_llm_async,
+        maintenance_output_schema_instruction,
+    )
+
+    prompt = plan.capsule.build_prompt(
+        metadata={
+            "consumer": "sensitive_local_worker",
+            "surface": plan.surface.value,
+            "workload": plan.capsule.workload.value,
+            "classification_scope": "local_sensitive",
+        },
+        excerpt=excerpt,
+    )
+    prompt += "\n" + maintenance_output_schema_instruction(
+        plan.capsule,
+        allowed_source_hashes=plan.source_hashes,
+    )
+    request = MaintenanceLLMRequest(
+        endpoint=endpoint,
+        messages=(
+            MaintenanceLLMMessage(
+                "system",
+                "You are the isolated Odysseus maintenance worker. Return only the requested JSON.",
+            ),
+            MaintenanceLLMMessage("user", prompt),
+        ),
+        profile=profile,
+        role=MaintenanceModelRole.MAINTENANCE,
+        max_tokens=profile.token_budget,
+        timeout_ms=profile.latency_budget_ms,
+        max_attempts=1,
+        temperature=0.0,
+        stream=False,
+        fallback_requested=False,
+        truth_write_requested=False,
+    )
+    try:
+        validated = await call_validated_maintenance_llm_async(
+            request,
+            capsule=plan.capsule,
+            allowed_source_hashes=plan.source_hashes,
+            attempt=attempt,
+            registry=registry,
+        )
+        result_audit = validated.audit_dict()
+        review_required = validated.validation.review_required
+        status = "review_required" if review_required else "validated_candidate"
+        model_called = True
+    except MaintenanceLLMRuntimeError as exc:
+        audit = getattr(exc, "audit_dict", None)
+        result_audit = audit() if callable(audit) else {
+            "schema": MAINTENANCE_LLM_RESULT_SCHEMA,
+            "outcome": "failed",
+            "reason": _maintenance_consumer_failure_reason(exc),
+            "attempts": 0,
+            "retryable": False,
+        }
+        status = "review_required"
+        model_called = False
+        review_required = True
+    return {
+        "schema": "odysseus.maintenance_consumer_evidence.v1",
+        "consumer": "sensitive_local_worker",
+        "status": status,
+        "prompt_capsule_id": plan.capsule.capsule_id,
+        "request": request.audit_dict(),
+        "result": result_audit,
+        "model_called": model_called,
+        "output_retained": False,
+        "streaming_used": False,
+        "fallback_used": False,
+        "truth_write_performed": False,
+        "review_required": review_required,
+    }
+
+
+def _maintenance_consumer_failure_reason(exc: Exception) -> str:
+    name = type(exc).__name__
+    return {
+        "MaintenanceLLMDisabledError": "runtime_disabled",
+        "MaintenanceLLMAdmissionError": "admission_unavailable",
+        "MaintenanceLLMContractError": "contract_rejected",
+    }.get(name, "runtime_failure")
 
 
 def register_sensitive_local_worker_tool() -> None:

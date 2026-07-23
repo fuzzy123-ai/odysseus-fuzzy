@@ -45,7 +45,7 @@ def test_list_sessions_excludes_other_users_sessions(monkeypatch):
 
     _stub_multipart_if_missing(monkeypatch)
     monkeypatch.setattr(sr, "SessionLocal", _TS)
-    monkeypatch.setattr(sr, "effective_user", lambda request: "alice")
+    monkeypatch.setattr(sr, "_chat_effective_user", lambda request: "alice")
 
     alice_id = str(uuid.uuid4())
     bob_id = str(uuid.uuid4())
@@ -66,7 +66,7 @@ def test_list_sessions_excludes_other_users_sessions(monkeypatch):
     sm = MagicMock()
     sm.get_sessions_for_user.return_value = {alice_id: alice_session}
     router = sr.setup_session_routes(sm, {})
-    endpoint = next(r.endpoint for r in router.routes
+    endpoint = next(r.endpoint for r in reversed(router.routes)
                     if getattr(r, "path", "") == "/api/sessions"
                     and "GET" in getattr(r, "methods", set()))
 
@@ -83,7 +83,7 @@ def test_auto_sort_skip_llm_cleans_owner_stamped_sessions_when_auth_disabled(mon
     _stub_multipart_if_missing(monkeypatch)
     monkeypatch.setenv("AUTH_ENABLED", "false")
     monkeypatch.setattr(sr, "SessionLocal", _TS)
-    monkeypatch.setattr(sr, "effective_user", lambda request: None)
+    monkeypatch.setattr(sr, "_chat_effective_user", lambda request: None)
 
     sid = str(uuid.uuid4())
     old_time = cdb.utcnow_naive() - timedelta(hours=2)
@@ -119,7 +119,7 @@ def test_auto_sort_skip_llm_cleans_owner_stamped_sessions_when_auth_disabled(mon
     sm = MagicMock()
     sm.get_sessions_for_user.return_value = {sid: session}
     router = sr.setup_session_routes(sm, {})
-    endpoint = next(r.endpoint for r in router.routes
+    endpoint = next(r.endpoint for r in reversed(router.routes)
                     if getattr(r, "path", "") == "/api/sessions/auto-sort"
                     and "POST" in getattr(r, "methods", set()))
 

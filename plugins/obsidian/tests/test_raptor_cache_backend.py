@@ -2,7 +2,9 @@ import json
 import os
 import sys
 import tempfile
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -12,16 +14,20 @@ for _p in (_ODYSSEUS_ROOT, os.path.dirname(_ROOT), _ROOT):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from backend import raptor_cache
 from backend.raptor_cache import (
     RAPTOR_INDEX_PATH,
     bounded_raptor_graph_view,
     build_raptor_cache_key,
     cached_raptor_payload,
     clear_raptor_cache,
+    notify_raptor_vault_changed,
     raptor_cache_diagnostics,
 )
 from backend.hybrid_retrieval import raptor_status
 from backend.raptor_rebuild import rebuild_raptor_artifacts
+from backend import vault_service
+from src.memory_runtime_metrics import MemoryRuntimeMetricsRegistry
 
 
 def _write(path: str, content: str) -> None:
@@ -30,7 +36,7 @@ def _write(path: str, content: str) -> None:
         handle.write(content)
 
 
-def test_cached_raptor_payload_hits_until_source_signature_changes():
+def test_cached_raptor_payload_hits_until_mutation_generation_changes():
     clear_raptor_cache()
     with tempfile.TemporaryDirectory() as tmpdir:
         _write(os.path.join(tmpdir, "A.md"), "# A\n")
@@ -44,6 +50,7 @@ def test_cached_raptor_payload_hits_until_source_signature_changes():
         second = cached_raptor_payload(tmpdir, "status", {}, loader)
         time.sleep(0.001)
         _write(os.path.join(tmpdir, "A.md"), "# A changed\n")
+        notify_raptor_vault_changed(tmpdir, event="watcher")
         third = cached_raptor_payload(tmpdir, "status", {}, loader)
 
         assert first["value"] == 1
@@ -52,6 +59,7 @@ def test_cached_raptor_payload_hits_until_source_signature_changes():
         assert second["cache"]["hit"] is True
         assert third["value"] == 2
         assert third["cache"]["hit"] is False
+        assert third["cache"]["result"] == "stale"
         assert calls["count"] == 2
 
 
@@ -148,6 +156,7 @@ def test_raptor_status_cache_invalidates_when_source_changes(monkeypatch):
         second = raptor_status(tmpdir)
         time.sleep(0.001)
         _write(os.path.join(tmpdir, "A.md"), "---\nstatus: active\ntype: canonical\nupdated: 2026-06-20\n---\n# A changed\n")
+        notify_raptor_vault_changed(tmpdir, event="watcher")
         dirty = raptor_status(tmpdir)
 
         assert first["cache"]["hit"] is False
@@ -174,3 +183,137 @@ def test_raptor_rebuild_clears_dynamic_cache(monkeypatch):
 
         assert after_rebuild["cache"]["hit"] is False
         assert after_rebuild["readiness"]["state"] == "ready"
+
+
+def test_warm_hits_do_not_rescan_markdown_sources(monkeypatch):
+    clear_raptor_cache()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        for index in range(50):
+            _write(os.path.join(tmpdir, f"Note-{index}.md"), f"# Note {index}\n")
+        scans = {"count": 0}
+        original = raptor_cache.source_signature
+
+        def counted_signature(vault_dir):
+            scans["count"] += 1
+            return original(vault_dir)
+
+        monkeypatch.setattr(raptor_cache, "source_signature", counted_signature)
+        monkeypatch.setattr(raptor_cache, "_CLOCK", lambda: 100.0)
+
+        cached_raptor_payload(tmpdir, "status", {}, lambda: {"value": 1})
+        for _ in range(100):
+            result = cached_raptor_payload(tmpdir, "status", {}, lambda: {"value": 2})
+
+        assert result["cache"]["hit"] is True
+        assert scans["count"] == 1
+
+
+def test_external_change_fallback_is_detected_at_five_seconds(monkeypatch):
+    clear_raptor_cache()
+    clock = {"now": 10.0}
+    monkeypatch.setattr(raptor_cache, "_CLOCK", lambda: clock["now"])
+    with tempfile.TemporaryDirectory() as tmpdir:
+        note_path = os.path.join(tmpdir, "A.md")
+        _write(note_path, "# A\n")
+        calls = {"count": 0}
+
+        def loader():
+            calls["count"] += 1
+            return {"value": calls["count"]}
+
+        assert cached_raptor_payload(tmpdir, "status", {}, loader)["cache"]["result"] == "miss"
+        _write(note_path, "# A changed outside Odysseus\n")
+        clock["now"] = 14.999
+        assert cached_raptor_payload(tmpdir, "status", {}, loader)["cache"]["result"] == "hit"
+        clock["now"] = 15.0
+        refreshed = cached_raptor_payload(tmpdir, "status", {}, loader)
+
+        assert refreshed["value"] == 2
+        assert refreshed["cache"]["result"] == "stale"
+
+
+def test_vault_service_write_advances_generation_without_source_scan(monkeypatch):
+    clear_raptor_cache()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        vault_service.write_file(tmpdir, "A.md", "# A\n", owner="test", tool="test")
+        cached_raptor_payload(tmpdir, "status", {}, lambda: {"value": 1})
+        monkeypatch.setattr(
+            raptor_cache,
+            "source_signature",
+            lambda _vault_dir: (_ for _ in ()).throw(AssertionError("unexpected source scan")),
+        )
+
+        vault_service.write_file(tmpdir, "A.md", "# A changed\n", owner="test", tool="test")
+        refreshed = cached_raptor_payload(tmpdir, "status", {}, lambda: {"value": 2})
+
+        assert refreshed["value"] == 2
+        assert refreshed["cache"]["result"] == "stale"
+
+
+def test_cache_is_thread_safe_and_lru_bounded():
+    clear_raptor_cache()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        _write(os.path.join(tmpdir, "A.md"), "# A\n")
+        barrier = threading.Barrier(8)
+
+        def load(index):
+            barrier.wait()
+            return cached_raptor_payload(
+                tmpdir,
+                f"namespace-{index}",
+                {},
+                lambda: {"value": index},
+                max_entries=4,
+            )
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            results = list(executor.map(load, range(8)))
+
+        assert sorted(result["value"] for result in results) == list(range(8))
+        assert raptor_cache_diagnostics()["entry_count"] == 4
+
+
+def test_cache_evicts_least_recently_used_variant():
+    clear_raptor_cache()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        _write(os.path.join(tmpdir, "A.md"), "# A\n")
+        loads = {"one": 0, "two": 0, "three": 0}
+
+        def load(name):
+            loads[name] += 1
+            return {"value": name}
+
+        cached_raptor_payload(tmpdir, "one", {}, lambda: load("one"), max_entries=2)
+        cached_raptor_payload(tmpdir, "two", {}, lambda: load("two"), max_entries=2)
+        assert cached_raptor_payload(
+            tmpdir, "one", {}, lambda: load("one"), max_entries=2
+        )["cache"]["result"] == "hit"
+        cached_raptor_payload(tmpdir, "three", {}, lambda: load("three"), max_entries=2)
+
+        assert cached_raptor_payload(
+            tmpdir, "one", {}, lambda: load("one"), max_entries=2
+        )["cache"]["result"] == "hit"
+        assert cached_raptor_payload(
+            tmpdir, "two", {}, lambda: load("two"), max_entries=2
+        )["cache"]["result"] == "miss"
+        assert loads == {"one": 1, "two": 2, "three": 1}
+
+
+def test_cache_metrics_cover_hit_miss_stale_and_eviction(monkeypatch):
+    clear_raptor_cache()
+    registry = MemoryRuntimeMetricsRegistry.for_tests()
+    monkeypatch.setattr(raptor_cache, "get_memory_runtime_metrics_registry", lambda: registry)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        _write(os.path.join(tmpdir, "A.md"), "# A\n")
+        cached_raptor_payload(tmpdir, "one", {}, lambda: {"value": 1}, max_entries=1)
+        cached_raptor_payload(tmpdir, "one", {}, lambda: {"value": 2}, max_entries=1)
+        notify_raptor_vault_changed(tmpdir, event="watcher")
+        cached_raptor_payload(tmpdir, "one", {}, lambda: {"value": 3}, max_entries=1)
+        cached_raptor_payload(tmpdir, "two", {}, lambda: {"value": 4}, max_entries=1)
+
+    samples = {
+        dict(sample.labels)["cache_result"]: sample.value
+        for sample in registry.snapshot().samples
+        if sample.name == "odysseus_raptor_cache_requests_total"
+    }
+    assert samples == {"hit": 1.0, "miss": 2.0, "stale": 1.0, "evicted": 1.0}

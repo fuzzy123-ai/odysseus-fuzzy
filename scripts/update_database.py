@@ -154,6 +154,32 @@ def update_database():
                 )
             """))
             conn.commit()
+
+        # TUA2: create the privacy-safe tool-usage event and daily aggregate
+        # tables only for the current SQLite foundation. The migration is
+        # idempotent and stores no events by itself.
+        if db_path:
+            from src.tool_usage_store import ToolUsageStore
+
+            print("Ensuring privacy-safe tool usage schema...")
+            with ToolUsageStore(db_path) as tool_usage_store:
+                tool_usage_store.migrate()
+
+        # TAX9: canonicalize legacy tool aliases and apply deferred-family
+        # defaults once. The helper preserves an exact rollback packet and
+        # returns aggregate counts only, so this script never prints IDs or
+        # settings/provider values.
+        from src.settings import migrate_tool_settings_file
+
+        print("Ensuring versioned tool settings schema...")
+        tool_settings_report = migrate_tool_settings_file()
+        if tool_settings_report is not None:
+            print(
+                "Tool settings schema ready: "
+                f"version={tool_settings_report['to_version']} "
+                f"aliases={tool_settings_report['alias_rewrite_count']} "
+                f"quarantined={tool_settings_report['quarantined_count']}"
+            )
         
         print("Database update completed successfully!")
         

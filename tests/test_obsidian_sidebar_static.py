@@ -769,11 +769,11 @@ def test_obsidian_memory_tree_audit_ui_contract():
     assert "isolation_reason" in main_js
     assert "source_mtime" in main_js
     assert "source_hash" in main_js
-    assert "fetchMemoryDashboardJson(pluginApi('/memory/status'))" in main_js
-    assert "fetchMemoryDashboardJson(pluginApi('/memory-tree/analyze'))" in main_js
-    assert "fetchMemoryDashboardJson(pluginApi('/knowledge-audit'))" in main_js
-    assert "fetchMemoryDashboardJson(pluginApi('/quarantine'))" in main_js
-    assert "fetchMemoryDashboardJson(pluginApi('/raptor/status'))" in main_js
+    assert "fetchMemoryDashboardJson('status', pluginApi('/memory/status'))" in main_js
+    assert "fetchMemoryDashboardJson('tree', pluginApi('/memory-tree/analyze'), { method: 'POST' })" in main_js
+    assert "fetchMemoryDashboardJson('audit', pluginApi('/knowledge-audit'))" in main_js
+    assert "fetchMemoryDashboardJson('quarantine', pluginApi('/quarantine'))" in main_js
+    assert "fetchMemoryDashboardJson('raptor', pluginApi('/raptor/status'))" in main_js
     assert "const summary = raptorReport.summary || {}" in main_js
     assert "const gate = raptorReport.readiness_gate || summary.readiness_gate || {}" in main_js
     assert "const writeGate = raptorReport.write_gate || summary.write_gate || {}" in main_js
@@ -859,7 +859,7 @@ def test_obsidian_review_audit_spark_redesign_contract():
     assert "Aktuell gibt es nichts zu pflegen." in main_js
     assert "Fuer diesen Kontext sind noch keine Insights verfuegbar." in main_js
     assert "Diagnostik wird geladen." in main_js
-    assert "Die Diagnostik konnte gerade nicht geladen werden." in main_js
+    assert "Other memory readbacks remain available." in main_js
     assert "Aktuell gibt es keine neue Aktivitaet." in main_js
     assert 'id="obsidian-activity-panel"' in main_js
     assert "function renderActivityPanel()" in main_js

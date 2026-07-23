@@ -1,0 +1,252 @@
+{
+  "schema": "odysseus.codebase_memory.vendor_lock.v1",
+  "track": "CBM-00",
+  "observed_at": "2026-07-18T17:44:46+02:00",
+  "authority": "repository_contract_from_primary_upstream_metadata",
+  "verdict": "pinned_for_contract_evaluation_only",
+  "upstream": {
+    "repository_url": "https://github.com/DeusData/codebase-memory-mcp",
+    "release": {
+      "version": "0.9.0",
+      "tag": "v0.9.0",
+      "commit_sha": "b637e3330c96cfe452da623db068c241aaa3ec01",
+      "commit_signature_status": "github_verified",
+      "immutable_release": true,
+      "released_at": "2026-07-08T11:16:00Z",
+      "release_page": "https://github.com/DeusData/codebase-memory-mcp/releases/tag/v0.9.0",
+      "tag_tree": "https://github.com/DeusData/codebase-memory-mcp/tree/v0.9.0",
+      "commit_url": "https://github.com/DeusData/codebase-memory-mcp/commit/b637e3330c96cfe452da623db068c241aaa3ec01"
+    },
+    "release_manifest": {
+      "asset_name": "checksums.txt",
+      "asset_sha256": "b7294616f22050124c8f2cf029cc9943e0b7d6e426fb9a0b95b1de9815c76e57",
+      "sigstore_bundle_sha256": "dc833de155280f22e0f4565d5a0b2631c815c783df163dc4f7d1779e65912881",
+      "downloaded": false,
+      "contents_verified": false,
+      "artifact_selected": false
+    },
+    "license": {
+      "spdx": "MIT",
+      "copyright": "Copyright (c) 2025 DeusData",
+      "path": "LICENSE",
+      "source_url": "https://github.com/DeusData/codebase-memory-mcp/blob/v0.9.0/LICENSE",
+      "notice_obligation": "retain copyright and permission notice",
+      "review_status": "compatible_for_evaluation_not_legal_advice"
+    }
+  },
+  "research_baseline": {
+    "paper": "arXiv:2603.27277v1",
+    "paper_tested_release": "v0.5.5",
+    "locked_release": "v0.9.0",
+    "locked_release_features_inherited_from_paper": false,
+    "current_feature_claims_require_local_validation": true
+  },
+  "distribution": {
+    "artifact_selection": "deferred_until_platform_and_execution_approval",
+    "source_build": {
+      "preferred_for_auditability": true,
+      "checkout_performed": false,
+      "build_performed": false,
+      "declared_prerequisites": [
+        "C compiler",
+        "C++ compiler",
+        "zlib development headers",
+        "Git"
+      ]
+    },
+    "verified_release_binary": {
+      "allowed_after_separate_execution_approval": true,
+      "download_performed": false,
+      "sha256_verified": false,
+      "sigstore_verified": false,
+      "slsa_attestation_verified": false,
+      "sbom_reviewed": false,
+      "third_party_notices_reviewed": false
+    },
+    "installer_scripts_allowed": false,
+    "package_registry_install_allowed": false,
+    "self_update_allowed": false,
+    "required_future_verification": [
+      "select one non-UI platform artifact or pinned source build",
+      "verify artifact digest against the pinned checksums manifest",
+      "verify Sigstore bundle and GitHub attestation",
+      "review release SBOM and THIRD_PARTY_NOTICES",
+      "scan exact executable and retain content-free receipt",
+      "run only inside an egress-denied temporary sandbox"
+    ]
+  },
+  "capability_freeze": {
+    "advertised_language_count": 158,
+    "advertised_mcp_tool_count": 15,
+    "readme_table_tool_count": 14,
+    "readme_table_tools": [
+      "delete_project",
+      "detect_changes",
+      "get_architecture",
+      "get_code_snippet",
+      "get_graph_schema",
+      "index_repository",
+      "index_status",
+      "ingest_traces",
+      "list_projects",
+      "manage_adr",
+      "query_graph",
+      "search_code",
+      "search_graph",
+      "trace_path"
+    ],
+    "additional_named_tools_outside_table": [
+      "check_index_coverage",
+      "semantic_query"
+    ],
+    "exact_runtime_tool_surface": "unverified_until_pinned_artifact_protocol_probe",
+    "documentation_surface_inconsistent": true,
+    "mutating_or_stateful_tools": [
+      "delete_project",
+      "index_repository",
+      "ingest_traces",
+      "manage_adr"
+    ],
+    "direct_upstream_tool_exposure_allowed": false,
+    "semantic_embedding_model_allowed": false,
+    "cypher_write_clauses_allowed": false
+  },
+  "runtime_surfaces": {
+    "transport": "stdio",
+    "optional_ui": {
+      "variant": "separate embedded-UI binary",
+      "bind": "127.0.0.1",
+      "default_port": 9749,
+      "allowed": false
+    },
+    "watcher": {
+      "kind": "background Git-based change watcher",
+      "upstream_auto_watch_default": true,
+      "allowed": false
+    },
+    "auto_index": {
+      "allowed": false
+    },
+    "update_check": {
+      "upstream_behavior": "background HTTPS release-metadata request after MCP initialize",
+      "destination": "https://api.github.com/repos/DeusData/codebase-memory-mcp/releases/latest",
+      "documented_disable_switch_found": false,
+      "allowed": false,
+      "required_control": "deny egress and prove zero successful network calls before acceptance"
+    }
+  },
+  "filesystem_surfaces": {
+    "engine_store": "user cache directory with per-project SQLite databases",
+    "global_config": "user config directory JSON",
+    "project_config": ".codebase-memory.json",
+    "project_ignore": ".cbmignore",
+    "shared_graph_artifact": ".codebase-memory/graph.db.zst",
+    "shared_graph_side_effect": ".gitattributes merge rule",
+    "diagnostics": "optional rotating files in the operating-system temp directory",
+    "allowed_root_required": true,
+    "host_absolute_paths_in_api_allowed": false,
+    "repo_config_writes_allowed": false,
+    "agent_config_writes_allowed": false,
+    "hook_writes_allowed": false,
+    "shared_graph_export_allowed": false,
+    "diagnostics_files_allowed": false
+  },
+  "odysseus_defaults": {
+    "engine_enabled": false,
+    "process_enabled": false,
+    "productive_indexing_enabled": false,
+    "auto_index_enabled": false,
+    "auto_watch_enabled": false,
+    "ui_enabled": false,
+    "update_check_enabled": false,
+    "network_egress_enabled": false,
+    "installer_enabled": false,
+    "self_update_enabled": false,
+    "agent_config_mutation_enabled": false,
+    "hook_mutation_enabled": false,
+    "instruction_mutation_enabled": false,
+    "direct_mcp_tools_exposed": false,
+    "semantic_model_enabled": false,
+    "shared_graph_export_enabled": false,
+    "source_truth_owner": "USI",
+    "repository_truth_owner": "Repo Registry",
+    "history_truth_owner": "Git and Project Version Store",
+    "tool_surface_owner": "TAX",
+    "metrics_owner": "GRO",
+    "ui_owner": "Lens Code Graph"
+  },
+  "risk_register": [
+    {
+      "id": "CBM-R01",
+      "severity": "critical",
+      "risk": "installer mutates MCP agent instruction and hook configuration",
+      "control": "never execute installer or install command; later adapter uses an explicit executable path"
+    },
+    {
+      "id": "CBM-R02",
+      "severity": "high",
+      "risk": "startup update check creates unapproved egress",
+      "control": "egress-denied sandbox plus zero-successful-network proof; a real disable mechanism is preferred"
+    },
+    {
+      "id": "CBM-R03",
+      "severity": "high",
+      "risk": "default watcher or auto-index can read and persist unintended repositories",
+      "control": "explicit allowed root and selected repository; auto-watch and auto-index remain false"
+    },
+    {
+      "id": "CBM-R04",
+      "severity": "high",
+      "risk": "shared graph export can write a binary artifact and gitattributes into source truth",
+      "control": "shared graph import export and repository writes remain disabled"
+    },
+    {
+      "id": "CBM-R05",
+      "severity": "medium",
+      "risk": "upstream documentation has release-version and tool-surface inconsistencies",
+      "control": "protocol and version probes against the exact artifact are mandatory before adapter work"
+    },
+    {
+      "id": "CBM-R06",
+      "severity": "medium",
+      "risk": "paper evidence covers v0.5.5 rather than the locked v0.9.0 feature set",
+      "control": "treat every post-paper feature as unvalidated and run the Odysseus three-way benchmark"
+    },
+    {
+      "id": "CBM-R07",
+      "severity": "medium",
+      "risk": "release contains many vendored parsers libraries and an optional bundled embedding model",
+      "control": "review exact SBOM notices licenses and binary strings before execution"
+    }
+  ],
+  "execution_state": {
+    "repository_cloned": false,
+    "source_downloaded": false,
+    "artifact_downloaded": false,
+    "dependencies_installed": false,
+    "binary_executed": false,
+    "listener_started": false,
+    "repository_indexed": false,
+    "host_config_changed": false,
+    "agent_config_changed": false,
+    "network_calls_performed_by_vendor": false,
+    "live_activation_authorized": false
+  },
+  "rollback": {
+    "current_slice": "delete only CBM-00 repository contract files if explicitly requested; no external state exists",
+    "future_evaluation": [
+      "stop the isolated child process",
+      "remove only the temporary evaluation directory after path containment verification",
+      "remove no user agent configuration because the installer is forbidden",
+      "retain a content-free failure receipt",
+      "fall back to USI lexical retrieval plus existing exact readers"
+    ]
+  },
+  "activation_gate": {
+    "id": "CBM-LIVE-ACTIVATION",
+    "status": "dormant",
+    "authorized": false,
+    "productive_process_allowed": false,
+    "productive_projection_allowed": false
+  }
+}

@@ -796,64 +796,51 @@ def test_auth_disabled_configured_mode_keeps_full_tool_access(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_webhook_tool_reuses_private_url_validation():
-    class FakeDb:
-        def close(self):
+async def test_webhook_tool_reuses_private_url_validation(monkeypatch):
+    import httpx
+
+    calls = []
+
+    class FakeResponse:
+        status_code = 400
+        text = "URL must not point to private/internal addresses"
+
+        @staticmethod
+        def json():
+            return {"detail": "URL must not point to private/internal addresses"}
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
             pass
 
-    fake_core_db = types.ModuleType("core.database")
-    fake_core_db.SessionLocal = lambda: FakeDb()
-    fake_core_db.Webhook = object
-    fake_src_db = types.ModuleType("src.database")
-    fake_src_db.SessionLocal = fake_core_db.SessionLocal
-    fake_src_db.Webhook = object
-    # Importing do_manage_webhooks below re-executes src.webhook_manager bound to
-    # the faked src.database, whose Webhook is plain `object`. Save BOTH the
-    # sys.modules entry AND the parent-package attribute (src.webhook_manager) so
-    # the real module can be restored afterwards. Without this the polluted
-    # module leaks into the cache and breaks sibling tests that call
-    # WebhookManager._deliver (which evaluates `Webhook.id == webhook_id`).
-    _ABSENT = object()
-    _wm_saved_module = sys.modules.get("src.webhook_manager", _ABSENT)
-    _src_pkg = sys.modules.get("src")
-    _wm_saved_attr = (
-        getattr(_src_pkg, "webhook_manager", _ABSENT) if _src_pkg is not None else _ABSENT
-    )
+        async def __aenter__(self):
+            return self
 
-    # Drop both bindings so the import re-executes against the fake src.database,
-    # still exercising the intended import path.
-    sys.modules.pop("src.webhook_manager", None)
-    if _src_pkg is not None and hasattr(_src_pkg, "webhook_manager"):
-        delattr(_src_pkg, "webhook_manager")
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
 
-    monkeypatch = pytest.MonkeyPatch()
-    monkeypatch.setitem(sys.modules, "core.database", fake_core_db)
-    monkeypatch.setitem(sys.modules, "src.database", fake_src_db)
+        async def post(self, url, **kwargs):
+            calls.append((url, kwargs))
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
 
     from src.tool_implementations import do_manage_webhooks
 
-    try:
-        result = await do_manage_webhooks(
-            '{"action":"add","url":"http://127.0.0.1:8000/hook","events":"chat.completed"}',
-            owner="admin",
-        )
-    finally:
-        monkeypatch.undo()
-        # Restore src.webhook_manager to its exact pre-test state at BOTH the
-        # sys.modules and parent-package attribute level.
-        if _wm_saved_module is _ABSENT:
-            sys.modules.pop("src.webhook_manager", None)
-        else:
-            sys.modules["src.webhook_manager"] = _wm_saved_module
-        if _src_pkg is not None:
-            if _wm_saved_attr is _ABSENT:
-                if hasattr(_src_pkg, "webhook_manager"):
-                    delattr(_src_pkg, "webhook_manager")
-            else:
-                setattr(_src_pkg, "webhook_manager", _wm_saved_attr)
+    result = await do_manage_webhooks(
+        json.dumps({
+            "action": "add",
+            "url": "http://127.0.0.1:8000/hook",
+            "events": "chat.completed",
+            "confirmed": True,
+        }),
+        owner="admin",
+    )
 
     assert result["exit_code"] == 1
     assert "private/internal" in result["error"]
+    assert calls[0][0].endswith("/api/webhooks")
+    assert calls[0][1]["data"]["url"] == "http://127.0.0.1:8000/hook"
 
 
 def test_default_chat_skips_hidden_first_model(monkeypatch):

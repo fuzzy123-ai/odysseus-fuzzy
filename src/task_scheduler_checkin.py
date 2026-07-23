@@ -39,7 +39,8 @@ CHECKIN_MCP_PATTERNS = [
 
 async def execute_checkin(scheduler, task, crew, db, session_id: str,
                            endpoint_url: str, model: str,
-                           run_id: str | None = None) -> str:
+                           run_id: str | None = None,
+                           tool_usage_instrumentation=None) -> str:
     """Gather raw data from all integrations, hand it to the LLM to write the check-in."""
     from src.tool_implementations import do_manage_notes
     from src.tool_utils import get_mcp_manager
@@ -99,7 +100,20 @@ async def execute_checkin(scheduler, task, crew, db, session_id: str,
 
     # Notes/Tasks
     try:
-        r = await do_manage_notes(json.dumps({"action": "list"}), owner=task.owner)
+        _notes_argument = json.dumps({"action": "list"})
+        if tool_usage_instrumentation is None:
+            r = await do_manage_notes(_notes_argument, owner=task.owner)
+        else:
+            from src.tool_usage_instrumentation import execute_instrumented_bypass
+
+            r = await execute_instrumented_bypass(
+                tool_usage_instrumentation,
+                tool_name="manage_notes",
+                argument=_notes_argument,
+                operation=lambda: do_manage_notes(_notes_argument, owner=task.owner),
+                trusted_source="builtin",
+                retry_ordinal=0,
+            )
         raw["notes_tasks"] = r.get("results") or r.get("response") or "No notes"
     except Exception as e:
         raw["notes_tasks"] = f"Error: {e}"
@@ -181,7 +195,18 @@ async def execute_checkin(scheduler, task, crew, db, session_id: str,
                     # Cache 3 min: different scheduled tasks firing at the
                     # same minute share the same MCP snapshot.
                     async def _call_mcp(_q=qualified, _args=args):
-                        return await mcp.call_tool(_q, _args)
+                        if tool_usage_instrumentation is None:
+                            return await mcp.call_tool(_q, _args)
+                        from src.tool_usage_instrumentation import execute_instrumented_bypass
+
+                        return await execute_instrumented_bypass(
+                            tool_usage_instrumentation,
+                            tool_name=_q,
+                            argument=_args,
+                            operation=lambda: mcp.call_tool(_q, _args),
+                            trusted_source="mcp",
+                            retry_ordinal=0,
+                        )
                     cache_key = ("mcp_snapshot", qualified, json.dumps(args, sort_keys=True))
                     result = await _cached(cache_key, 180, _call_mcp)
                     if result.get("exit_code", 0) != 0:

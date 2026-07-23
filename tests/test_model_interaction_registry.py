@@ -32,8 +32,14 @@ def test_chat_with_model_threads_owner_and_returns(monkeypatch):
         seen["owner"] = owner
         return ("http://x", "model-x", {})
 
-    async def fake_call(url, model, messages, headers=None, timeout=None):
+    async def fake_call(
+        url, model, messages, headers=None, timeout=None, owner=None,
+        surface=None, prompt_type=None,
+    ):
         seen["message"] = messages[-1]["content"]
+        seen["call_owner"] = owner
+        seen["surface"] = surface
+        seen["prompt_type"] = prompt_type
         return "hi back"
 
     monkeypatch.setattr(ai_interaction, "_resolve_model", fake_resolve)
@@ -44,6 +50,9 @@ def test_chat_with_model_threads_owner_and_returns(monkeypatch):
 
     assert res == {"model": "model-x", "response": "hi back"}
     assert seen["owner"] == "alice"
+    assert seen["call_owner"] == "alice"
+    assert seen["surface"] == "agent_tool"
+    assert seen["prompt_type"] == "ask_model_tool"
     assert seen["spec"] == "model-x"
     assert seen["message"] == "hello there"
 
@@ -55,7 +64,13 @@ def test_ask_teacher_threads_owner_and_marks_teacher(monkeypatch):
         seen["owner"] = owner
         return ("http://x", "teacher-x", {})
 
-    async def fake_call(url, model, messages, headers=None, timeout=None):
+    async def fake_call(
+        url, model, messages, headers=None, timeout=None, owner=None,
+        surface=None, prompt_type=None,
+    ):
+        seen["call_owner"] = owner
+        seen["surface"] = surface
+        seen["prompt_type"] = prompt_type
         return "do this and that"
 
     monkeypatch.setattr(ai_interaction, "_resolve_model", fake_resolve)
@@ -67,6 +82,9 @@ def test_ask_teacher_threads_owner_and_marks_teacher(monkeypatch):
     assert res["teacher"] is True
     assert res["response"] == "do this and that"
     assert seen["owner"] == "bob"
+    assert seen["call_owner"] == "bob"
+    assert seen["surface"] == "agent_tool"
+    assert seen["prompt_type"] == "consult_teacher_tool"
 
 
 def test_list_models_no_endpoints(monkeypatch):

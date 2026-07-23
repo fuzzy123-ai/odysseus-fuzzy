@@ -15,6 +15,9 @@ from src.constants import DATA_DIR
 
 RUNNER_STATE_SCHEMA = "odysseus.coding_runner_state.v1"
 RUNNER_PHASES = (
+    "clarifying",
+    "understanding_review",
+    "ready_for_plan",
     "planned",
     "scoped",
     "worktree_ready",
@@ -26,13 +29,16 @@ RUNNER_PHASES = (
     "failed",
 )
 _PHASE_TRANSITIONS = {
+    "clarifying": {"understanding_review", "blocked", "failed"},
+    "understanding_review": {"clarifying", "ready_for_plan", "blocked", "failed"},
+    "ready_for_plan": {"planned", "scoped", "blocked", "failed"},
     "planned": {"scoped", "blocked", "failed"},
     "scoped": {"worktree_ready", "checks_running", "publish_ready", "blocked", "failed"},
     "worktree_ready": {"checks_running", "review_ready", "blocked", "failed"},
     "checks_running": {"review_ready", "blocked", "failed"},
     "review_ready": {"publish_ready", "blocked", "done", "failed"},
     "publish_ready": {"done", "blocked", "failed"},
-    "blocked": {"planned", "scoped", "worktree_ready", "checks_running", "review_ready", "publish_ready", "failed"},
+    "blocked": {"clarifying", "understanding_review", "ready_for_plan", "planned", "scoped", "worktree_ready", "checks_running", "review_ready", "publish_ready", "failed"},
     "failed": {"planned", "blocked"},
     "done": set(),
 }
@@ -232,6 +238,52 @@ def transition_from_sandbox_dispatch(
             gates_waiting=("sandbox_check_failure",),
             blockers=blockers,
             next_human_decision="Inspect sandbox evidence and fix the failing check before continuing.",
+        )
+    )
+
+
+def transition_from_clarification_run(
+    *,
+    store: CodingRunnerStateStore,
+    task_id: Any,
+    repo_id: Any,
+    clarification_run: Mapping[str, Any],
+) -> CodingRunnerState:
+    """Reflect canonical clarification state in the coding runner lifecycle."""
+
+    if not isinstance(clarification_run, Mapping):
+        raise CodingRunnerStateError("clarification_run must be an object")
+    status = str(clarification_run.get("status") or "").strip().lower()
+    ready = bool(clarification_run.get("ready_for_plan"))
+    unresolved = _progress(clarification_run.get("unresolved_required_count") or 0)
+    clarification_id = _safe_label(clarification_run.get("clarification_id") or "clarification", "clarification_id")
+    if ready and status == "ready_for_plan":
+        phase = "ready_for_plan"
+        progress = 15
+        gates = ("create_plan",)
+        blockers: tuple[str, ...] = ()
+        decision = "Clarification is ready for plan; create or approve the coding plan next."
+    elif status == "understanding_review" and unresolved == 0:
+        phase = "understanding_review"
+        progress = 10
+        gates = ("confirm_understanding",)
+        blockers = ()
+        decision = "Review and confirm the understanding summary before creating a coding plan."
+    else:
+        phase = "clarifying"
+        progress = 5
+        gates = ("clarification_required",)
+        blockers = (f"clarification {clarification_id} has {unresolved} unresolved required question(s)",)
+        decision = "Answer required clarification questions before creating a coding plan."
+    return store.write(
+        CodingRunnerState.create(
+            task_id=task_id,
+            repo_id=repo_id,
+            phase=phase,
+            progress_percent=progress,
+            gates_waiting=gates,
+            blockers=blockers,
+            next_human_decision=decision,
         )
     )
 

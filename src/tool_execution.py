@@ -68,6 +68,7 @@ _ADMIN_TOOLS = {
     "serve_model",
     "serve_preset",
     "stop_served_model",
+    "tail_serve_output",
     "cancel_download",
 }
 
@@ -358,6 +359,7 @@ async def execute_tool_block(
     context_length: int = 0,
     tool_policy: Optional[Any] = None,
     ai_lens_emitter: Optional[Any] = None,
+    tool_usage_instrumentation: Optional[Any] = None,
 ) -> Tuple[str, Dict]:
     """Execute a single tool block. Returns (description, result_dict).
 
@@ -367,6 +369,7 @@ async def execute_tool_block(
     """
     token = _active_workspace.set(workspace or None)
     started_at = time.perf_counter()
+    usage_invocation = _begin_tool_usage(tool_usage_instrumentation, block)
     _emit_ai_lens_tool_event(ai_lens_emitter, block, event_type="tool_call_started", status="started")
     try:
         outcome = await _execute_tool_block_impl(
@@ -381,22 +384,74 @@ async def execute_tool_block(
             context_length=context_length,
             tool_policy=tool_policy,
         )
+        duration_ms = max(1, int((time.perf_counter() - started_at) * 1000))
+        normalized = (
+            _normalized_tool_usage_outcome(
+                description=outcome[0],
+                result=outcome[1],
+            )
+            if tool_usage_instrumentation is not None
+            else None
+        )
+        _finish_tool_usage(
+            tool_usage_instrumentation,
+            usage_invocation,
+            normalized,
+            duration_ms,
+        )
         _emit_ai_lens_tool_event(
             ai_lens_emitter,
             block,
             event_type="tool_call_result",
-            status="failed" if _tool_result_failed(outcome[1]) else "succeeded",
+            status=(
+                normalized.ai_lens_status
+                if normalized is not None
+                else "failed" if _tool_result_failed(outcome[1]) else "succeeded"
+            ),
             result=outcome[1],
-            latency_ms=max(1, int((time.perf_counter() - started_at) * 1000)),
+            latency_ms=duration_ms,
         )
         return outcome
-    except Exception:
+    except asyncio.CancelledError:
+        duration_ms = max(1, int((time.perf_counter() - started_at) * 1000))
+        normalized = (
+            _normalized_tool_usage_outcome(cancelled=True)
+            if tool_usage_instrumentation is not None
+            else None
+        )
+        _finish_tool_usage(
+            tool_usage_instrumentation,
+            usage_invocation,
+            normalized,
+            duration_ms,
+        )
         _emit_ai_lens_tool_event(
             ai_lens_emitter,
             block,
             event_type="tool_call_result",
             status="failed",
-            latency_ms=max(1, int((time.perf_counter() - started_at) * 1000)),
+            latency_ms=duration_ms,
+        )
+        raise
+    except Exception:
+        duration_ms = max(1, int((time.perf_counter() - started_at) * 1000))
+        normalized = (
+            _normalized_tool_usage_outcome(exception=True)
+            if tool_usage_instrumentation is not None
+            else None
+        )
+        _finish_tool_usage(
+            tool_usage_instrumentation,
+            usage_invocation,
+            normalized,
+            duration_ms,
+        )
+        _emit_ai_lens_tool_event(
+            ai_lens_emitter,
+            block,
+            event_type="tool_call_result",
+            status="failed",
+            latency_ms=duration_ms,
         )
         raise
     finally:
@@ -407,6 +462,45 @@ def _tool_result_failed(result: Any) -> bool:
     if not isinstance(result, dict):
         return True
     return bool(result.get("error")) or result.get("exit_code") not in (None, 0, "0")
+
+
+def _begin_tool_usage(instrumentation: Any, block: Any) -> Any:
+    if instrumentation is None:
+        return None
+    try:
+        return instrumentation.begin(
+            getattr(block, "tool_type", ""),
+            getattr(block, "content", ""),
+        )
+    except (Exception, asyncio.CancelledError):
+        return None
+
+
+def _normalized_tool_usage_outcome(**kwargs: Any) -> Any:
+    try:
+        from src.tool_usage_instrumentation import normalize_tool_usage_outcome
+
+        return normalize_tool_usage_outcome(**kwargs)
+    except (Exception, asyncio.CancelledError):
+        return None
+
+
+def _finish_tool_usage(
+    instrumentation: Any,
+    invocation: Any,
+    outcome: Any,
+    duration_ms: int,
+) -> None:
+    if instrumentation is None or invocation is None or outcome is None:
+        return
+    try:
+        instrumentation.finish(
+            invocation,
+            outcome=outcome,
+            duration_ms=duration_ms,
+        )
+    except (Exception, asyncio.CancelledError):
+        pass
 
 
 def _emit_ai_lens_tool_event(
@@ -498,6 +592,7 @@ async def _execute_tool_block_impl(
 
     tool = block.tool_type
     content = block.content
+    interactive_runtime_decision = None
 
     # Misformatted tool call detection: model put JSON inside ```python``` (or
     # similar) without naming the tool. Common with MiniMax-style outputs.
@@ -535,7 +630,7 @@ async def _execute_tool_block_impl(
     if tool_policy and tool_policy.blocks(tool):
         desc = f"{tool}: BLOCKED"
         result = {
-            "error": f"Execution of tool '{tool}' is forbade by the active guide-only policy.",
+            "error": tool_policy.reason_for(tool),
             "exit_code": 1,
         }
         logger.warning("Tool policy blocked tool=%s", tool)
@@ -597,6 +692,59 @@ async def _execute_tool_block_impl(
         )
         return desc, result
 
+    # Native desktop loops are not visible in the web chat.  Enforce that at
+    # the execution boundary instead of relying on the model to remember a
+    # prompt warning.  Dummy-SDL runs remain explicitly headless evidence;
+    # their audit record can never imply an interactive preview.
+    if tool in ("bash", "python"):
+        try:
+            from src.interactive_runtime_policy import (
+                InteractiveRuntimeKind,
+                classify_interactive_runtime_command,
+            )
+
+            policy_input = content if tool == "bash" else "python -c " + content
+            interactive_runtime_decision = classify_interactive_runtime_command(policy_input)
+            decision_kind = interactive_runtime_decision.kind
+            interactive_install = bool(
+                re.search(
+                    r"\b(?:pygame(?:-ce)?|SDL(?:2)?|tkinter|pyqt\d*|pyside\d*|wxpython|kivy|pyglet|arcade)\b",
+                    content,
+                    re.IGNORECASE,
+                )
+            )
+            must_block = not interactive_runtime_decision.permitted and (
+                decision_kind != InteractiveRuntimeKind.RISKY_INSTALL or interactive_install
+            )
+            if must_block:
+                messages = {
+                    InteractiveRuntimeKind.INTERACTIVE_NATIVE_GUI_LAUNCH: (
+                        "Native GUI execution is not interactive in the Odysseus server sandbox. "
+                        "Use bounded dummy-SDL verification and publish the native file, or build a self-contained HTML preview."
+                    ),
+                    InteractiveRuntimeKind.RISKY_INSTALL: (
+                        "Interactive dependency installation needs a separate install gate. "
+                        "Probe the installed dependency first; do not use an OS-package fallback."
+                    ),
+                    InteractiveRuntimeKind.PIPELINE_MASKING: (
+                        "The command can hide the producer's failing exit status. "
+                        "Run the producer directly or preserve and check its exit code."
+                    ),
+                }
+                return (
+                    f"{tool}: BLOCKED by interactive runtime policy",
+                    {
+                        "error": messages.get(decision_kind, "Interactive runtime command blocked."),
+                        "exit_code": 1,
+                        "interactive_runtime": interactive_runtime_decision.audit_summary(),
+                    },
+                )
+        except (ValueError, TypeError) as exc:
+            return (
+                f"{tool}: BLOCKED by interactive runtime policy",
+                {"error": f"Interactive runtime policy could not safely classify the command: {exc}", "exit_code": 1},
+            )
+
     # update_plan: the agent writes back to the active plan — tick an item done
     # or revise steps (e.g. when the user asks to change something). Pure UI
     # marker: returns a `plan_update` payload the agent loop turns into a
@@ -647,6 +795,17 @@ async def _execute_tool_block_impl(
         desc = f"{tool}: {first_line}"
         result = await _direct_fallback(tool, content, progress_cb=progress_cb, owner=owner) \
             or {"error": f"{tool}: execution failed", "exit_code": 1}
+    elif tool in ("publish_artifact", "verify_pygame_headless", "commit_project"):
+        # Owner/workspace-bound effectful tools live in the direct agent
+        # registry; schema registration alone does not make them dispatchable.
+        first_line = content.split(chr(10))[0][:80]
+        desc = f"{tool}: {first_line}"
+        result = await _direct_fallback(
+            tool,
+            content,
+            progress_cb=progress_cb,
+            owner=owner,
+        ) or {"error": f"{tool}: execution failed", "exit_code": 1}
     elif tool == "delegate":
         from src.delegate_tool import do_delegate
 
@@ -881,6 +1040,8 @@ async def _execute_tool_block_impl(
             desc = f"unknown: {tool}"
             result = {"error": f"Unknown tool type: {tool}", "exit_code": 1}
 
+    if interactive_runtime_decision is not None and isinstance(result, dict):
+        result.setdefault("interactive_runtime", interactive_runtime_decision.audit_summary())
     logger.info(f"Tool executed: {desc} -> exit_code={result.get('exit_code', 'n/a')}")
     return desc, result
 

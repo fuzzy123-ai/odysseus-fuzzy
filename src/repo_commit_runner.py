@@ -11,6 +11,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping, Protocol
 
 from src.constants import MAX_OUTPUT_CHARS
+from src.project_forge_contract import ProjectForgeContractError, validate_persisted_text
 from src.repo_registry import RepoRecord, RepoRegistry, RepoRegistryError
 
 
@@ -21,6 +22,8 @@ _SECRET_RE = re.compile(r"(?i)\b(token|secret|password|passwd|api[_-]?key|bearer
 _WINDOWS_PATH_RE = re.compile(r"[A-Za-z]:[\\/][^\s\t]+")
 _ABSOLUTE_PATH_RE = re.compile(r"(?<![A-Za-z0-9._-])/(?:[^\s/]+/)*[^\s]+")
 _SAFE_PATH_RE = re.compile(r"^[A-Za-z0-9._/@+ -]{1,180}$")
+_COMMIT_SHA_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+_UNSAFE_CONTROL_RE = re.compile(r"[\x00-\x09\x0b-\x1f\x7f]")
 
 
 class RepoCommitRunnerError(ValueError):
@@ -88,6 +91,7 @@ class RepoCommitPlan:
     status_entries: tuple[RepoCommitStatusEntry, ...]
     planned_steps: tuple[dict[str, Any], ...]
     next_human_decision: str
+    commit_body: str = ""
 
     @property
     def can_commit(self) -> bool:
@@ -101,6 +105,7 @@ class RepoCommitPlan:
             "objective": self.objective,
             "changed_paths": list(self.changed_paths),
             "commit_message": self.commit_message,
+            "commit_body": self.commit_body,
             "checks_passed": self.checks_passed,
             "content_reviewed": self.content_reviewed,
             "confirmed": self.confirmed,
@@ -121,6 +126,7 @@ class RepoCommitReport:
     command_results: tuple[RepoCommitCommandResult, ...]
     committed_paths: tuple[str, ...]
     blockers: tuple[str, ...]
+    commit_sha: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -130,6 +136,7 @@ class RepoCommitReport:
             "command_results": [result.to_dict() for result in self.command_results],
             "committed_paths": list(self.committed_paths),
             "blockers": list(self.blockers),
+            "commit_sha": self.commit_sha,
         }
 
 
@@ -144,6 +151,7 @@ def plan_repo_local_commit(
     content_reviewed: bool,
     confirmed: bool = False,
     commit_message: Any | None = None,
+    commit_body: Any | None = None,
     repo_roots: Mapping[str, str | os.PathLike[str]] | None = None,
     command_runner: RepoCommitCommandRunner | None = None,
 ) -> RepoCommitReport:
@@ -168,6 +176,7 @@ def plan_repo_local_commit(
             content_reviewed=content_reviewed,
             confirmed=confirmed,
             commit_message=commit_message,
+            commit_body=commit_body,
             reason="status command failed before commit planning",
             status_output=status_result.stdout,
         )
@@ -189,6 +198,7 @@ def plan_repo_local_commit(
         content_reviewed=content_reviewed,
         confirmed=confirmed,
         commit_message=commit_message,
+        commit_body=commit_body,
         status_output=status_result.stdout,
     )
     return RepoCommitReport(
@@ -212,6 +222,7 @@ def run_repo_local_commit(
     content_reviewed: bool,
     confirmed: bool,
     commit_message: Any | None = None,
+    commit_body: Any | None = None,
     repo_roots: Mapping[str, str | os.PathLike[str]] | None = None,
     command_runner: RepoCommitCommandRunner | None = None,
 ) -> RepoCommitReport:
@@ -237,6 +248,7 @@ def run_repo_local_commit(
             content_reviewed=content_reviewed,
             confirmed=confirmed,
             commit_message=commit_message,
+            commit_body=commit_body,
             reason="status command failed before commit",
             status_output=status_result.stdout,
         )
@@ -258,6 +270,7 @@ def run_repo_local_commit(
         content_reviewed=content_reviewed,
         confirmed=confirmed,
         commit_message=commit_message,
+        commit_body=commit_body,
         status_output=status_result.stdout,
     )
     results: list[RepoCommitCommandResult] = [status_result]
@@ -274,30 +287,76 @@ def run_repo_local_commit(
     for path in plan.changed_paths:
         _assert_exact_commit_path(repo_path, path, plan.status_entries)
 
-    commands = (
-        ("git", "add", "--", *plan.changed_paths),
-        ("git", "commit", "-m", plan.commit_message),
+    add_command = ("git", "add", "--", *plan.changed_paths)
+    add_result = runner(add_command, cwd=repo_path, timeout_seconds=_MAX_TIMEOUT_SECONDS, env={})
+    results.append(add_result)
+    if not add_result.ok:
+        return RepoCommitReport(
+            status="failed",
+            executed=True,
+            plan=plan,
+            command_results=tuple(results),
+            committed_paths=(),
+            blockers=("commit command failed: git add",),
+        )
+
+    staged_command = ("git", "diff", "--cached", "--name-only", "-z")
+    staged_result = runner(staged_command, cwd=repo_path, timeout_seconds=_MAX_TIMEOUT_SECONDS, env={})
+    results.append(staged_result)
+    try:
+        staged_paths = _parse_staged_paths(staged_result.stdout) if staged_result.ok else ()
+    except RepoCommitRunnerError:
+        staged_paths = ()
+    if not staged_result.ok or set(staged_paths) != set(plan.changed_paths) or len(staged_paths) != len(plan.changed_paths):
+        return RepoCommitReport(
+            status="failed",
+            executed=True,
+            plan=plan,
+            command_results=tuple(results),
+            committed_paths=(),
+            blockers=("staging_requires_review: staged paths do not exactly match reviewed paths",),
+        )
+
+    commit_command = (
+        ("git", "commit", "-m", plan.commit_message, "-m", plan.commit_body)
+        if plan.commit_body
+        else ("git", "commit", "-m", plan.commit_message)
     )
-    for command in commands:
-        result = runner(command, cwd=repo_path, timeout_seconds=_MAX_TIMEOUT_SECONDS, env={})
-        results.append(result)
-        if not result.ok:
-            return RepoCommitReport(
-                status="failed",
-                executed=True,
-                plan=plan,
-                command_results=tuple(results),
-                committed_paths=(),
-                blockers=(f"commit command failed: {' '.join(command[:2])}",),
-            )
+    commit_result = runner(commit_command, cwd=repo_path, timeout_seconds=_MAX_TIMEOUT_SECONDS, env={})
+    results.append(commit_result)
+    if not commit_result.ok:
+        return RepoCommitReport(
+            status="failed",
+            executed=True,
+            plan=plan,
+            command_results=tuple(results),
+            committed_paths=(),
+            blockers=("commit command failed: git commit",),
+        )
+
+    sha_command = ("git", "rev-parse", "--verify", "HEAD^{commit}")
+    sha_result = runner(sha_command, cwd=repo_path, timeout_seconds=_MAX_TIMEOUT_SECONDS, env={})
+    results.append(sha_result)
+    commit_sha = _parse_commit_sha(sha_result.stdout) if sha_result.ok else ""
+    committed_paths = tuple(f"{record.path_ref}/{path}" for path in plan.changed_paths)
+    if not _COMMIT_SHA_RE.fullmatch(commit_sha):
+        return RepoCommitReport(
+            status="reconcile_required",
+            executed=True,
+            plan=plan,
+            command_results=tuple(results),
+            committed_paths=committed_paths,
+            blockers=("commit succeeded but its full object id could not be verified",),
+        )
 
     return RepoCommitReport(
         status="committed",
         executed=True,
         plan=plan,
         command_results=tuple(results),
-        committed_paths=tuple(f"{record.path_ref}/{path}" for path in plan.changed_paths),
+        committed_paths=committed_paths,
         blockers=(),
+        commit_sha=commit_sha,
     )
 
 
@@ -312,27 +371,36 @@ def build_repo_commit_plan(
     confirmed: bool,
     status_output: str,
     commit_message: Any | None = None,
+    commit_body: Any | None = None,
 ) -> RepoCommitPlan:
     if not isinstance(record, RepoRecord):
         raise RepoCommitRunnerError("record must be a RepoRecord")
     objective_text = _normalize_text(objective, field_name="objective", max_len=500)
     paths = _dedupe_paths(changed_paths)
-    message = _normalize_text(
+    message = _normalize_commit_title(
         commit_message if commit_message is not None else _default_commit_message(objective_text),
-        field_name="commit_message",
-        max_len=120,
     )
+    body = _normalize_commit_body(commit_body)
     branch_line, entries = parse_repo_commit_status(status_output)
     staged_paths = tuple(entry.path for entry in entries if entry.staged)
 
     blockers: list[str] = []
     if "commit" not in record.allowed_actions:
         blockers.append("repo allowed_actions does not include commit")
-    if not confirmed:
+    checks_are_bool = type(checks_passed) is bool
+    content_is_bool = type(content_reviewed) is bool
+    confirmed_is_bool = type(confirmed) is bool
+    if not confirmed_is_bool:
+        blockers.append("confirmed must be a boolean")
+    elif not confirmed:
         blockers.append("confirmed=true is required before staging and committing reviewed paths")
-    if not checks_passed:
+    if not checks_are_bool:
+        blockers.append("checks_passed must be a boolean")
+    elif not checks_passed:
         blockers.append("checks_passed=true is required before commit")
-    if not content_reviewed:
+    if not content_is_bool:
+        blockers.append("content_reviewed must be a boolean")
+    elif not content_reviewed:
         blockers.append("content_reviewed=true is required to confirm no secret or private-content risk")
     if not paths:
         blockers.append("changed_paths are required before commit")
@@ -352,9 +420,9 @@ def build_repo_commit_plan(
         objective=objective_text,
         changed_paths=paths,
         commit_message=message,
-        checks_passed=bool(checks_passed),
-        content_reviewed=bool(content_reviewed),
-        confirmed=bool(confirmed),
+        checks_passed=checks_passed if checks_are_bool else False,
+        content_reviewed=content_reviewed if content_is_bool else False,
+        confirmed=confirmed if confirmed_is_bool else False,
         decision=_normalize_choice(decision, field_name="decision", choices=_DECISIONS),
         blockers=tuple(dict.fromkeys(blockers)),
         status_entries=entries,
@@ -365,6 +433,7 @@ def build_repo_commit_plan(
             {"step_id": "push_gate", "summary": "Push is handled by the separate push runner", "executes": False},
         ),
         next_human_decision=_next_human_decision(decision),
+        commit_body=body,
     )
 
 
@@ -432,8 +501,21 @@ def repo_commit_command_is_allowed(argv: tuple[str, ...]) -> bool:
         return True
     if len(argv) >= 4 and argv[:3] == ("git", "add", "--"):
         return all(_path_arg_is_safe(path) for path in argv[3:])
+    if argv == ("git", "diff", "--cached", "--name-only", "-z"):
+        return True
     if len(argv) == 4 and argv[:3] == ("git", "commit", "-m"):
-        _normalize_text(argv[3], field_name="commit_message", max_len=120)
+        try:
+            _normalize_commit_title(argv[3])
+            return True
+        except RepoCommitRunnerError:
+            return False
+    if len(argv) == 6 and argv[:3] == ("git", "commit", "-m") and argv[4] == "-m":
+        try:
+            _normalize_commit_title(argv[3])
+            return bool(_normalize_commit_body(argv[5]))
+        except RepoCommitRunnerError:
+            return False
+    if argv == ("git", "rev-parse", "--verify", "HEAD^{commit}"):
         return True
     return False
 
@@ -447,16 +529,16 @@ def _blocked_plan(
     content_reviewed: bool,
     confirmed: bool,
     commit_message: Any | None,
+    commit_body: Any | None,
     reason: str,
     status_output: str,
 ) -> RepoCommitPlan:
     objective_text = _normalize_text(objective, field_name="objective", max_len=500)
     paths = _dedupe_paths(changed_paths)
-    message = _normalize_text(
+    message = _normalize_commit_title(
         commit_message if commit_message is not None else _default_commit_message(objective_text),
-        field_name="commit_message",
-        max_len=120,
     )
+    body = _normalize_commit_body(commit_body)
     branch_line, entries = parse_repo_commit_status(status_output)
     return RepoCommitPlan(
         repo_id=record.repo_id,
@@ -465,14 +547,15 @@ def _blocked_plan(
         objective=objective_text,
         changed_paths=paths,
         commit_message=message,
-        checks_passed=bool(checks_passed),
-        content_reviewed=bool(content_reviewed),
-        confirmed=bool(confirmed),
+        checks_passed=checks_passed if type(checks_passed) is bool else False,
+        content_reviewed=content_reviewed if type(content_reviewed) is bool else False,
+        confirmed=confirmed if type(confirmed) is bool else False,
         decision="blocked",
         blockers=(reason,),
         status_entries=entries,
         planned_steps=({"step_id": "git_status", "summary": "capture registered repo status", "executes": True},),
         next_human_decision="Fix the local repo status read before planning a commit.",
+        commit_body=body,
     )
 
 
@@ -499,14 +582,16 @@ def _resolve_repo(
 
 
 def _assert_exact_commit_path(repo_path: Path, path: str, entries: tuple[RepoCommitStatusEntry, ...]) -> None:
+    matching_entries = tuple(entry for entry in entries if entry.path == path)
+    if not matching_entries:
+        raise RepoCommitRunnerError(f"changed_path `{path}` is not changed in the initial repository status")
     candidate = (repo_path / path).resolve()
     _assert_child_path(repo_path, candidate)
     if candidate.is_dir():
         raise RepoCommitRunnerError(f"changed_path `{path}` is a directory; provide exact file paths")
     if candidate.exists():
         return
-    deleted_paths = {entry.path for entry in entries if "D" in entry.code}
-    if path in deleted_paths:
+    if any("D" in entry.code for entry in matching_entries):
         return
     raise RepoCommitRunnerError(f"changed_path `{path}` does not exist and is not a tracked deletion")
 
@@ -559,6 +644,57 @@ def _normalize_text(value: Any, *, field_name: str, max_len: int = 220) -> str:
     if _SECRET_RE.search(text):
         raise RepoCommitRunnerError(f"{field_name} appears to contain secret material")
     return text
+
+
+def _normalize_commit_title(value: Any) -> str:
+    raw = str(value or "")
+    if _UNSAFE_CONTROL_RE.search(raw) or "\n" in raw or "\r" in raw:
+        raise RepoCommitRunnerError("commit_message contains unsupported characters")
+    try:
+        return validate_persisted_text(raw, field_name="commit_message", max_len=120)
+    except ProjectForgeContractError as exc:
+        raise RepoCommitRunnerError(str(exc)) from exc
+
+
+def _normalize_commit_body(value: Any | None) -> str:
+    if value is None:
+        return ""
+    raw = str(value)
+    if _UNSAFE_CONTROL_RE.search(raw) or "\r" in raw:
+        raise RepoCommitRunnerError("commit_body contains unsupported characters")
+    try:
+        return validate_persisted_text(
+            raw,
+            field_name="commit_body",
+            allow_empty=True,
+            max_len=6000,
+            multiline=True,
+        )
+    except ProjectForgeContractError as exc:
+        raise RepoCommitRunnerError(str(exc)) from exc
+
+
+def _parse_staged_paths(output: str) -> tuple[str, ...]:
+    raw = str(output or "")
+    if not raw:
+        return ()
+    if not raw.endswith("\x00"):
+        raise RepoCommitRunnerError("staged path output is not NUL terminated")
+    paths = tuple(_normalize_repo_path(value, field_name="staged_path") for value in raw[:-1].split("\x00"))
+    if len(set(paths)) != len(paths):
+        raise RepoCommitRunnerError("staged path output contains duplicates")
+    return paths
+
+
+def _parse_commit_sha(output: str) -> str:
+    raw = str(output or "")
+    if raw.endswith("\r\n"):
+        candidate = raw[:-2]
+    elif raw.endswith("\n"):
+        candidate = raw[:-1]
+    else:
+        candidate = raw
+    return candidate if _COMMIT_SHA_RE.fullmatch(candidate) else ""
 
 
 def _normalize_choice(value: Any, *, field_name: str, choices: tuple[str, ...]) -> str:

@@ -47,7 +47,7 @@ def test_non_ui_gate_readiness_route_returns_redacted_contract(monkeypatch):
     assert response.status_code == 200
     assert payload["schema"] == "odysseus.non_ui_gate_readiness.v1"
     assert payload["status"] == "blocked"
-    assert payload["queue_exhausted"] is True
+    assert payload["queue_exhausted"] is (payload["safe_open_count"] == 0)
     assert payload["non_ui_decision_packet_count"] >= 1
     assert payload["excluded_design_decision_packet_count"] >= 1
     assert payload["recommended_next_operator_action"]["values_visible"] is False

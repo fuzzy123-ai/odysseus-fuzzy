@@ -1,12 +1,14 @@
-# Harbor Planning Project Storage Contract
+# Odysseus Planning Project Storage Contract
 
 Status: repository contract, schema version 1
-Scope: project-local Planning state shared by Harbor, Planning MCP and derived Raptor Memory context
+Scope: project-local Planning state shared by Odysseus/Harbor One, Planning MCP and derived Raptor Memory context
 Sources: [Harbor Planning Integration Master Roadmap](harbor-planning-integration-master-roadmap.json) and [Planning MCP Roadmap](planning-mcp-roadmap.json)
 
 ## Purpose
 
-This contract defines the canonical repository-relative storage and identity model for Harbor Planning. JSON is the planning source of truth. Markdown is a rendered view or handoff only, and Raptor Memory is a derived, rebuildable projection rather than authoritative state.
+This contract defines the canonical repository-relative storage and identity model for Odysseus Planning. JSON is the planning source of truth. Markdown is a rendered view or handoff only, and Raptor Memory is a derived, rebuildable projection rather than authoritative state.
+
+Naming boundary: `odysseus.planning.*` is the durable canonical namespace. Existing `harbor.planning.*` records are accepted as legacy-compatible aliases during the Harbor One frontend transition, but new repository contracts and service projections should use `odysseus.planning.*`.
 
 The contract covers projects, roadmaps, gates, todos, events and the Planning memory index. It does not approve live MCP exposure, direct writes, deletion, notification delivery or provider access.
 
@@ -63,7 +65,7 @@ Every JSON entity except an event-stream line contains these fields:
 | `status` | string | Required, from the entity-specific allowlist. |
 | `source_refs` | array of strings | Required, possibly empty; bounded repository-relative refs or typed entity refs only. |
 
-Unknown fields may be preserved for forward compatibility, but public MCP and Harbor payloads must be projected through an explicit allowlist. Unknown fields are never forwarded automatically.
+Unknown fields may be preserved for forward compatibility, but public MCP and Harbor One payloads must be projected through an explicit allowlist. Unknown fields are never forwarded automatically.
 
 ## Entity contracts
 
@@ -71,7 +73,7 @@ Unknown fields may be preserved for forward compatibility, but public MCP and Ha
 
 Required fields in addition to the common envelope:
 
-- `kind`: `harbor.planning.project`
+- `kind`: `odysseus.planning.project`
 - `project_id`: stable project identifier
 - `title`: non-empty display title
 - `status`: `planned`, `active`, `paused`, `done` or `tombstoned`
@@ -83,7 +85,7 @@ The reference arrays are indexes for discovery, not substitutes for the child JS
 
 Required fields:
 
-- `kind`: `harbor.planning.roadmap`
+- `kind`: `odysseus.planning.roadmap`
 - `roadmap_id`, `title`, `goal`
 - `status`: `planned`, `running`, `blocked`, `deferred`, `done` or `tombstoned`
 - `slices`: bounded array of structured slice records
@@ -91,13 +93,13 @@ Required fields:
 - `dependency_refs`: bounded array of roadmap or slice refs
 - `verification`: bounded array of non-secret verification descriptions or commands
 
-Roadmap adapters may retain a more specific existing `kind`, but must produce the common logical fields without rewriting the source merely to satisfy a read operation.
+Roadmap adapters may retain a more specific existing `kind` or legacy `harbor.planning.roadmap` alias, but must produce the common logical fields without rewriting the source merely to satisfy a read operation.
 
 ### Gate: `gates/<gate_id>.gate.json`
 
 Required fields:
 
-- `kind`: `harbor.planning.gate`
+- `kind`: `odysseus.planning.gate`
 - `gate_id`
 - `class`: `safe_offline`, `repo_only`, `needs_live_go`, `needs_design`, `needs_operator_go` or `blocked`
 - `status`: `open`, `go`, `no_go`, `deferred`, `blocked` or `resolved`
@@ -110,7 +112,7 @@ A gate record documents authority; its presence does not grant authority. Live o
 
 Required fields:
 
-- `kind`: `harbor.planning.todo`
+- `kind`: `odysseus.planning.todo`
 - `todo_id`, `summary`
 - `status`: `open`, `running`, `blocked`, `deferred`, `done` or `tombstoned`
 - `roadmap_id`: nullable typed reference
@@ -125,7 +127,7 @@ Todos must not embed tokens, chat IDs, private document bodies or raw provider o
 Each non-empty line is one independently valid JSON object with:
 
 - `schema_version`: `1`
-- `kind`: `harbor.planning.event`
+- `kind`: `odysseus.planning.event`
 - `event_id`, `project_id`, `event_type`, `occurred_at`
 - `classification`: `silent` or `notification`
 - `actor_ref`, `target_refs`, `reason`
@@ -151,7 +153,7 @@ Classification rules:
 
 Required fields:
 
-- `kind`: `harbor.planning.memory_index`
+- `kind`: `odysseus.planning.memory_index`
 - `generated_at`
 - `source_revision_refs`: revisions from which the index was derived
 - `entries`: bounded array containing stable `memory_ref`, source refs, safe summary, classification and content hash

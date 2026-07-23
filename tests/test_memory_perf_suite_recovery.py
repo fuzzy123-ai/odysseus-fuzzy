@@ -42,6 +42,25 @@ def test_complete_runner_rebuilds_from_event_log(tmp_path):
     assert "events.jsonl" == result.event_log_path
 
 
+def test_runner_calls_maintenance_yield_checkpoint(tmp_path):
+    calls = 0
+
+    def checkpoint() -> None:
+        nonlocal calls
+        calls += 1
+
+    result = run_memory_durability_scenario(
+        "quick",
+        run_dir=tmp_path,
+        seed=7,
+        event_count=4,
+        maintenance_yield_func=checkpoint,
+    )
+
+    assert result.status == "passed"
+    assert calls >= 5
+
+
 def test_runner_marks_performance_budget_exceeded(tmp_path):
     preset = ScenarioPreset(
         name="quick",

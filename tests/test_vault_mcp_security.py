@@ -22,7 +22,7 @@ def test_public_vault_mcp_allows_readonly_only():
 @pytest.mark.asyncio
 async def test_non_admin_vault_mcp_write_is_blocked_before_dispatch(monkeypatch, tmp_path):
     monkeypatch.setenv("OBSIDIAN_VAULT_DIR", str(tmp_path / "{owner}"))
-    monkeypatch.setattr("src.tool_execution._owner_is_admin", lambda owner: False)
+    monkeypatch.setitem(execute_tool_block.__globals__, "_owner_is_admin", lambda owner: False)
 
     desc, result = await execute_tool_block(
         ToolBlock(

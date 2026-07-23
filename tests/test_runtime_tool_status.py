@@ -65,6 +65,12 @@ def test_runtime_tool_status_reports_schema_effect_and_gate_classes():
     assert tools["bash"]["parameter_names"] == ("command",)
     assert tools["bash"]["required_parameters"] == ("command",)
     assert tools["bash"]["schema_fingerprint"].startswith("sha256:")
+    assert tools["bash"]["lifecycle"] == "contextual"
+    assert tools["bash"]["descriptor_permission"] == "admin"
+    assert tools["bash"]["risk_level"] == "dangerous"
+    assert tools["bash"]["projection_drift"] == ()
+    assert tools["telegram_document_reply"]["source"] == "plugin"
+    assert tools["telegram_document_reply"]["catalog_availability"] == "unavailable"
     assert payload["raw_schema_visible"] is False
     assert payload["secret_values_visible"] is False
 
@@ -80,3 +86,31 @@ def test_runtime_tool_status_redacts_secret_descriptions():
     assert tool["description_hash"].startswith("sha256:")
     assert "Authorization" not in repr(payload)
     assert "abcdefghijk" not in repr(payload)
+
+
+def test_runtime_tool_status_includes_conservative_mcp_source_without_raw_schema():
+    payload = build_runtime_tool_status(
+        builtin_descriptions={},
+        function_schemas=[],
+        plugin_tools=[],
+        mcp_tools=[
+            {
+                "server_id": "demo_mcp",
+                "qualified_name": "mcp__demo_mcp__lookup",
+                "description": "Look up a reviewed item.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {"private_query": {"type": "string"}},
+                },
+            }
+        ],
+    )
+
+    tool = payload["tools"][0]
+    assert tool["tool_id"] == "mcp__demo_mcp__lookup"
+    assert tool["source"] == "mcp"
+    assert tool["descriptor_permission"] == "admin"
+    assert tool["risk_level"] == "dangerous"
+    assert tool["parameter_names"] == ("private_query",)
+    assert "private_query" not in tool["schema_fingerprint"]
+    assert payload["raw_schema_visible"] is False

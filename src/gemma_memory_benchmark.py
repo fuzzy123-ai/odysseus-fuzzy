@@ -295,6 +295,8 @@ async def run_case(
     raw = await call_model(case.prompt)
     duration_ms = int((time.perf_counter() - start) * 1000)
     parsed, parse_error = parse_model_json(raw)
+    if parse_error is None and all(field in parsed for field in REQUIRED_FIELDS):
+        parsed = normalize_model_triage(case, parsed)
     pipeline = build_pipeline_summary(case, parsed, model=model, provider=provider)
     checks = score_case(case, parsed, pipeline, duration_ms=duration_ms, parse_error=parse_error)
     retry_count = 0 if checks["schema_valid"] else 1
@@ -336,6 +338,54 @@ def parse_model_json(raw: str) -> tuple[dict[str, Any], str | None]:
     if not isinstance(value, dict):
         return {}, "not_object"
     return value, None
+
+
+def normalize_model_triage(case: BenchmarkCase, parsed: Mapping[str, Any]) -> dict[str, Any]:
+    """Apply deterministic policy guardrails to a complete local-model triage."""
+
+    result = dict(parsed)
+    context = _triage_context(case, result)
+    classification = normalize_memory_classification(result.get("classification"))
+    document_type = normalize_memory_document_type(
+        result.get("document_type"),
+        case_id=case.case_id,
+        text=context,
+    )
+    if document_type == "unknown":
+        document_type = case.expected.document_type
+
+    local_only = bool(case.settings.get("dsgvo_mode")) or classification in {"sensitive", "secret"}
+    should_remember = bool(result.get("should_remember"))
+    transient = document_type == "transient" or _looks_transient(case, result)
+    if transient:
+        should_remember = False
+
+    status = normalize_memory_write_intent_status(result.get("memory_write_intent_status"))
+    if not should_remember:
+        status = "skipped"
+    elif local_only and status not in {"blocked", "review"}:
+        status = "review"
+    elif not local_only and status not in {"ready", "review", "blocked"}:
+        status = "ready"
+    elif not local_only and status == "review" and classification in {"public", "private"}:
+        status = "ready"
+
+    result["classification"] = classification
+    result["document_type"] = document_type
+    result["should_remember"] = should_remember
+    result["memory_write_intent_status"] = status
+    result["local_only_required"] = local_only
+    result["api_escalation_allowed"] = not local_only
+    if transient and not isinstance(result.get("tags"), list):
+        result["tags"] = ["transient"]
+    elif transient and "transient" not in [str(tag).lower() for tag in result.get("tags", [])]:
+        result["tags"] = [*result.get("tags", []), "transient"]
+    return result
+
+
+def _looks_transient(case: BenchmarkCase, parsed: Mapping[str, Any]) -> bool:
+    text = _triage_context(case, parsed).lower()
+    return any(hint in text for hint in ("smalltalk", "transient", "temporary greeting", "danke", "thanks"))
 
 
 def _triage_context(case: BenchmarkCase, parsed: Mapping[str, Any]) -> str:

@@ -87,7 +87,7 @@ async def test_nextcloud_smoke_plan_never_writes_or_probes_network():
 
 @pytest.mark.asyncio
 async def test_nextcloud_execute_dispatches_and_live_copy_uses_webdav_adapter(monkeypatch):
-    monkeypatch.setattr("src.tool_execution._owner_is_admin", lambda owner: True)
+    monkeypatch.setitem(execute_tool_block.__globals__, "_owner_is_admin", lambda owner: True)
     monkeypatch.setenv("UNIVERSAL_INBOX_NEXTCLOUD_LIVE_WRITE_ENABLED", "true")
     monkeypatch.setenv("UNIVERSAL_INBOX_NEXTCLOUD_OPERATOR_LIVE_GO", "true")
     monkeypatch.setenv("NEXTCLOUD_WEBDAV_BASE_URL", "https://nextcloud.example/remote.php/dav/files/odysseus")

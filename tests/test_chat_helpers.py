@@ -15,6 +15,7 @@ from routes.chat_helpers import (
     PreprocessedMessage,
     PresetInfo,
     save_assistant_response,
+    sanitize_assistant_attachments,
 )
 
 
@@ -227,6 +228,61 @@ def test_save_assistant_response_preserves_actual_and_requested_model():
 
     assert sess.history[-1].metadata["requested_model"] == "selected-model"
     assert sess.history[-1].metadata["model"] == "actual-model"
+
+
+def test_assistant_generated_attachments_are_sanitized_and_persisted():
+    sess = _FakeSession("selected-model")
+    upload_id = "a" * 32 + ".py"
+    digest = "b" * 64
+
+    save_assistant_response(
+        sess,
+        session_manager=None,
+        session_id="s1",
+        full_response="Download ready.",
+        last_metrics={
+            "attachments": [
+                {
+                    "id": upload_id,
+                    "name": "../Mario Game.py",
+                    "mime": "text/x-python",
+                    "size": 123,
+                    "hash": digest,
+                    "path": "C:/secret/source.py",
+                    "owner": "alice",
+                    "image_base64": "do-not-persist",
+                    "download_ready": True,
+                },
+                {"id": "not-an-upload", "name": "bad.py", "size": 1, "hash": digest},
+            ]
+        },
+        incognito=True,
+    )
+
+    attachments = sess.history[-1].metadata["attachments"]
+    assert attachments == [
+        {
+            "schema": "odysseus.generated_artifact.v1",
+            "id": upload_id,
+            "name": "_Mario_Game.py",
+            "mime": "text/x-python",
+            "size": 123,
+            "hash": digest,
+            "kind": "generated_artifact",
+            "download_ready": True,
+        }
+    ]
+    assert "secret" not in repr(attachments)
+    assert "base64" not in repr(attachments)
+
+
+def test_assistant_attachment_sanitizer_deduplicates_and_rejects_incomplete_rows():
+    upload_id = "c" * 32 + ".png"
+    digest = "d" * 64
+    row = {"id": upload_id, "name": "frame.png", "mime": "image/png", "size": 9, "hash": digest}
+
+    assert len(sanitize_assistant_attachments([row, dict(row)])) == 1
+    assert sanitize_assistant_attachments([{**row, "hash": "short"}]) == []
 
 
 class _SpinMsg:

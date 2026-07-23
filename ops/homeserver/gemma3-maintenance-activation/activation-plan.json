@@ -1,0 +1,352 @@
+{
+  "schema": "odysseus.gemma3_maintenance_activation_plan.v1",
+  "packet_version": 1,
+  "status": "packet_ready_live_prerequisites_missing",
+  "mutation_class": "future_live_activation_only",
+  "single_live_gate": "GMI-LIVE-ACTIVATION",
+  "single_go_phrase": "GO GMI-LIVE-ACTIVATION",
+  "current_execution_authorized": false,
+  "safe_default": "gemma3_4b_maintenance_runtime_disabled",
+  "offline_barriers": {
+    "gmi_evidence": "docs/plans/gemma3-memory-ops-offline-acceptance.json",
+    "gmi_required_verdict": "offline_go",
+    "gmi_observed_verdict": "offline_go",
+    "gro_evidence": "docs/plans/graphrag-raptor-observability-offline-acceptance.json",
+    "gro_required_verdict": "offline_go",
+    "gro_observed_verdict": "offline_go",
+    "gro_packet": "ops/homeserver/observability-podman/activation/activation-plan.json",
+    "gro_packet_required_status": "eligible_awaiting_live_go",
+    "on_mismatch": "stop_before_live_read_or_mutation"
+  },
+  "live_dependency": {
+    "required_evidence_schema": "odysseus.memory_observability_live_soak.v1",
+    "required_verdict": "go",
+    "current_evidence_recorded": false,
+    "reason": "GMI activation needs the separately authorized GRO target and dashboard service; this packet never activates GRO implicitly."
+  },
+  "required_live_inputs": [
+    "EXPECTED_SSH_ALIAS",
+    "EXPECTED_USER",
+    "EXPECTED_HOSTNAME",
+    "ODYSSEUS_ROOT",
+    "EXPECTED_COMMIT",
+    "ODYSSEUS_CONTAINER",
+    "OLLAMA_ENDPOINT",
+    "PROMETHEUS_URL",
+    "GRAFANA_URL",
+    "GRAFANA_NETRC_FILE",
+    "RESTIC_PASSWORD_FILE",
+    "OBSERVATION_HOURS"
+  ],
+  "configuration_contract": {
+    "maintenance_model_ref": "gemma3:4b",
+    "maintenance_model_provider": "local_ollama",
+    "maintenance_model_token_budget": 1200,
+    "maintenance_model_max_input_chars": 6000,
+    "maintenance_model_chunk_budget": 4,
+    "maintenance_model_source_ref_budget": 4,
+    "maintenance_model_latency_budget_ms": 45000,
+    "maintenance_model_api_fallback_enabled": false,
+    "maintenance_runtime_enabled_before_activation": false,
+    "only_activation_diff": {
+      "maintenance_runtime_enabled": true
+    }
+  },
+  "invariants": {
+    "model_ref": "gemma3:4b",
+    "model_scope": "gemma3_4b",
+    "provider_scope": "local_ollama",
+    "role_scope": "maintenance",
+    "max_queue_concurrency": 1,
+    "fallback_allowed": false,
+    "truth_write_allowed": false,
+    "streaming_allowed": false,
+    "productive_write_allowed": false,
+    "agent_or_chat_role_allowed": false,
+    "canary_warmup_calls": 1,
+    "canary_measured_calls": 20,
+    "canary_success_calls_required": 20,
+    "warm_latency_p95_seconds_lt": 30,
+    "warm_latency_max_seconds_lt": 45,
+    "event_loop_max_gap_seconds_lt": 0.1,
+    "runtime_timeout_ms": 45000,
+    "observation_min_hours": 12,
+    "observation_max_hours": 24,
+    "observation_sample_interval_seconds": 15,
+    "public_binding_allowed": false,
+    "new_secret_creation_allowed": false,
+    "gro_activation_allowed_by_this_packet": false,
+    "destructive_git_operation_allowed": false,
+    "destructive_volume_operation_allowed": false
+  },
+  "phase_order": [
+    "offline_barrier",
+    "gro_live_evidence_barrier",
+    "live_identity_revision_readback",
+    "capacity_model_and_health_preflight",
+    "backup_and_image_checkpoint",
+    "default_off_deploy",
+    "exact_config_readback",
+    "dashboard_stage_and_readback",
+    "warm_canary_20",
+    "slo_decision",
+    "activate_exact_setting",
+    "bounded_observation",
+    "finalize_or_rollback"
+  ],
+  "phases": [
+    {
+      "id": "offline_barrier",
+      "mutates": false,
+      "live_action": false,
+      "required_evidence": [
+        "gmi_offline_go",
+        "gmi_hash_manifest_matches",
+        "gro_offline_go",
+        "gro_packet_repo_eligible",
+        "gmi_packet_valid"
+      ],
+      "failure_action": "stop"
+    },
+    {
+      "id": "gro_live_evidence_barrier",
+      "mutates": false,
+      "live_action": false,
+      "required_evidence": [
+        "separately_authorized_gro_live_soak_schema",
+        "gro_live_verdict_go",
+        "gro_target_up_throughout",
+        "gro_no_sample_drops",
+        "gro_odysseus_health_unchanged"
+      ],
+      "failure_action": "stop"
+    },
+    {
+      "id": "live_identity_revision_readback",
+      "mutates": false,
+      "live_action": true,
+      "required_evidence": [
+        "explicit_single_go_phrase",
+        "ssh_alias_matches",
+        "user_matches",
+        "hostname_matches",
+        "repository_root_matches",
+        "clean_worktree",
+        "commit_matches"
+      ],
+      "failure_action": "stop"
+    },
+    {
+      "id": "capacity_model_and_health_preflight",
+      "mutates": false,
+      "live_action": true,
+      "required_evidence": [
+        "available_ram_gib_gt_4",
+        "one_minute_load_lt_2",
+        "ollama_local_endpoint",
+        "exact_gemma3_4b_present",
+        "no_existing_maintenance_window",
+        "odysseus_health_green",
+        "prometheus_target_up",
+        "grafana_health_green"
+      ],
+      "failure_action": "stop"
+    },
+    {
+      "id": "backup_and_image_checkpoint",
+      "mutates": true,
+      "live_action": true,
+      "required_evidence": [
+        "pre_update_snapshot_id",
+        "backup_health_green",
+        "predeployment_image_archive_created",
+        "predeployment_image_identity_recorded",
+        "predeployment_runtime_setting_false"
+      ],
+      "rollback_ref": "RB-01",
+      "failure_action": "rollback"
+    },
+    {
+      "id": "default_off_deploy",
+      "mutates": true,
+      "live_action": true,
+      "required_evidence": [
+        "deployed_commit_matches",
+        "odysseus_health_green",
+        "chromadb_health_green",
+        "maintenance_runtime_setting_still_false",
+        "no_unrelated_setting_diff"
+      ],
+      "rollback_ref": "RB-02",
+      "failure_action": "rollback"
+    },
+    {
+      "id": "exact_config_readback",
+      "mutates": false,
+      "live_action": true,
+      "required_evidence": [
+        "model_exact_gemma3_4b",
+        "provider_exact_local_ollama",
+        "budgets_match_contract",
+        "fallback_false",
+        "runtime_false",
+        "policy_concurrency_one"
+      ],
+      "rollback_ref": "RB-02",
+      "failure_action": "rollback"
+    },
+    {
+      "id": "dashboard_stage_and_readback",
+      "mutates": true,
+      "live_action": true,
+      "required_evidence": [
+        "packet_dashboard_hash_matches",
+        "grafana_dashboard_uid_present",
+        "prometheus_datasource_healthy",
+        "gmi_metric_contract_hash_matches_and_prometheus_accepts_queries",
+        "dashboard_contains_only_low_cardinality_gmi_queries"
+      ],
+      "rollback_ref": "RB-03",
+      "failure_action": "rollback"
+    },
+    {
+      "id": "warm_canary_20",
+      "mutates": false,
+      "live_action": true,
+      "required_evidence": [
+        "one_unmeasured_warmup_complete",
+        "twenty_measured_calls_complete",
+        "twenty_measured_calls_successful",
+        "global_runtime_remained_false",
+        "no_output_or_prompt_in_evidence",
+        "no_fallback",
+        "no_truth_write"
+      ],
+      "rollback_ref": "RB-03",
+      "failure_action": "rollback"
+    },
+    {
+      "id": "slo_decision",
+      "mutates": false,
+      "live_action": true,
+      "required_evidence": [
+        "warm_latency_p95_lt_30_seconds",
+        "warm_latency_max_lt_45_seconds",
+        "event_loop_max_gap_lt_100ms",
+        "queue_concurrency_one",
+        "zero_canary_cancellations",
+        "odysseus_health_unchanged"
+      ],
+      "rollback_ref": "RB-03",
+      "failure_action": "rollback"
+    },
+    {
+      "id": "activate_exact_setting",
+      "mutates": true,
+      "live_action": true,
+      "required_evidence": [
+        "canary_verdict_go",
+        "only_maintenance_runtime_enabled_changed_false_to_true",
+        "in_process_settings_readback_true",
+        "odysseus_health_green"
+      ],
+      "rollback_ref": "RB-04",
+      "failure_action": "rollback"
+    },
+    {
+      "id": "bounded_observation",
+      "mutates": false,
+      "live_action": true,
+      "duration_hours": {
+        "minimum": 12,
+        "maximum": 24
+      },
+      "sample_interval_seconds": 15,
+      "required_evidence": [
+        "observation_complete",
+        "odysseus_health_throughout",
+        "prometheus_target_up_throughout",
+        "grafana_dashboard_present_throughout",
+        "no_runtime_p95_breach_with_minimum_samples",
+        "no_hard_timeout_breach",
+        "no_policy_rejection_or_cancellation_regression",
+        "no_sample_drops",
+        "resource_budget_green"
+      ],
+      "rollback_ref": "RB-04",
+      "failure_action": "rollback"
+    },
+    {
+      "id": "finalize_or_rollback",
+      "mutates": true,
+      "live_action": true,
+      "required_evidence": [
+        "single_final_verdict",
+        "redacted_evidence_complete",
+        "secret_prompt_output_and_private_values_absent",
+        "rollback_verified_if_not_go"
+      ],
+      "rollback_ref": "RB-ALL",
+      "failure_action": "rollback"
+    }
+  ],
+  "rollback": {
+    "automatic_triggers": [
+      "identity_or_revision_mismatch",
+      "backup_or_image_checkpoint_failure",
+      "odysseus_or_chromadb_health_regression",
+      "model_provider_role_or_budget_mismatch",
+      "global_runtime_true_before_canary",
+      "canary_success_count_not_twenty",
+      "warm_latency_p95_gte_30_seconds",
+      "warm_latency_max_gte_45_seconds",
+      "event_loop_max_gap_gte_100ms",
+      "fallback_truth_write_stream_or_concurrency_violation",
+      "prometheus_target_or_grafana_dashboard_unavailable",
+      "metric_sample_drop_or_policy_rejection_regression",
+      "secret_prompt_output_private_value_or_raw_metric_in_evidence",
+      "observation_interrupted_or_incomplete"
+    ],
+    "ordered_steps": [
+      "set_maintenance_runtime_enabled_false",
+      "wait_for_settings_cache_expiry",
+      "verify_in_process_runtime_setting_false",
+      "remove_packet_dashboard_if_created_by_this_run",
+      "verify_gro_services_remain_in_their_preexisting_state",
+      "restore_predeployment_image_if_deploy_regressed",
+      "recreate_only_odysseus_from_recorded_image_if_required",
+      "verify_odysseus_and_chromadb_health",
+      "verify_no_unrelated_setting_changed",
+      "retain_redacted_evidence_and_image_archive_for_forensics"
+    ],
+    "settings_policy": "compare_and_set_single_key_never_restore_whole_settings_file",
+    "image_policy": "retain_predeployment_image_archive_until_final_go",
+    "volume_policy": "never_delete_or_restore_productive_data_volumes_from_this_packet",
+    "git_policy": "never_reset_checkout_or_rewrite_history",
+    "gro_policy": "never_stop_or_reconfigure_preexisting_gro_services"
+  },
+  "evidence_policy": {
+    "allowed": [
+      "timestamps",
+      "boolean_gates",
+      "versions",
+      "commit_hash",
+      "container_and_dashboard_ids",
+      "counts",
+      "aggregate_durations",
+      "resource_totals",
+      "file_hashes",
+      "closed_failure_codes"
+    ],
+    "forbidden": [
+      "credential_or_secret_value",
+      "cookie_or_private_key",
+      "prompt_or_message_content",
+      "model_output",
+      "raw_metric_payload",
+      "raw_log_content",
+      "source_name_or_owner_identity",
+      "private_host_path_or_network_address"
+    ]
+  }
+}

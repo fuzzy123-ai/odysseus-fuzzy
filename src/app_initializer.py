@@ -49,6 +49,8 @@ def initialize_managers(base_dir: str, rag_manager=None) -> Dict[str, Any]:
     session_manager = SessionManager(SESSIONS_FILE)
     set_session_manager(session_manager)  # Enable Session.add_message() persistence
     upload_handler = UploadHandler(base_dir, UPLOAD_DIR)
+    from src.generated_artifact_publication import configure_generated_artifact_publication
+    configure_generated_artifact_publication(upload_handler)
     personal_docs_manager = PersonalDocsManager(PERSONAL_DIR, rag_manager)
     api_key_manager = APIKeyManager(DATA_DIR)
     preset_manager = PresetManager(DATA_DIR)

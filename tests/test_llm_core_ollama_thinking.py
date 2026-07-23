@@ -56,9 +56,15 @@ def _capture_payload(monkeypatch, url, model):
     monkeypatch.setattr(llm_core, "_is_host_dead", lambda u: False)
     monkeypatch.setattr(llm_core, "note_model_activity", lambda *a, **k: None)
     monkeypatch.setattr(llm_core, "_clear_host_dead", lambda *a, **k: None)
-    monkeypatch.setattr(llm_core, "get_context_length", lambda u, m: 32768)
+    from src.model_context import ContextLengthSnapshot
+
+    async def fake_context_snapshot(_url, _model):
+        return ContextLengthSnapshot(32768, True, "test", 0)
+
+    monkeypatch.setattr(llm_core, "get_context_snapshot_async", fake_context_snapshot)
 
     async def run():
+        llm_core.clear_request_context_snapshots()
         return [c async for c in llm_core.stream_llm(
             url, model, [{"role": "user", "content": "hi"}],
         )]

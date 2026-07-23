@@ -6,6 +6,22 @@ Status: **aktive Master-Roadmap fuer den Fork**
 
 Dieses Dokument ist der zentrale Einstiegspunkt fuer die naechsten Odysseus-Arbeiten. Die aelteren Roadmaps bleiben als Detail- und Archivplaene erhalten, aber neue Alice/Bob/Charlie-Beauftragungen sollen von hier ausgehen.
 
+## Verbindlicher KI-Ausfuehrungshinweis
+
+Vor jeder Beauftragung muss die KI den Eintrag der gewaehlten Roadmap in
+`docs/plans/multi-agent-execution-guidance.json` laden. Fuer diese Master-
+Roadmap gilt:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe scripts\roadmap_multi_agent_guidance.py --roadmap docs/plans/unified-odysseus-roadmap.md --format markdown
+```
+
+Diese Datei bestimmt die Produktlinie, ist aber selbst kein Worker-Slice. Nur
+Charlie bzw. der Orchestrator aendert Prioritaet und Routing. Alice und Bob
+arbeiten ausschliesslich auf expliziten Domain-Slices mit disjunkten erlaubten
+Pfaden. Alte aktive Formulierungen duerfen keinen aktuell abgeschlossenen oder
+gegateden Track erneut oeffnen.
+
 ## Leitentscheidung
 
 Odysseus entwickelt sich in drei Schritten weiter:
@@ -46,6 +62,20 @@ Memory-first + kontrollierte Multi-Agent-Orchestration + klare Zustandsgrenzen
 | `docs/plans/nextcloud-source-bridge.md` | aktivierbarer Source-Provider-Plan; Nextcloud laeuft inzwischen auf dem Homeserver |
 | `docs/plans/universal-inbox-nextcloud-raptorgraph-contract.md` | Universal-Inbox-Plan fuer Nextcloud Intake, Routing, Metadaten und RaptorGraph-Provenance |
 | `docs/plans/github-issue-intelligence-roadmap.md` | Post-MVP Backend-Track fuer GitHub Issues als strukturierte Arbeitsobjekte; GHISS0-GHISS8 sind repo-seitig abgeschlossen mit Duplicate Preview, Issue Fields Projection, Backend-Routen und schmalem read-only MCP Lookup; echte Provider-Syncs/Writes bleiben live-gated |
+| `docs/plans/project-versioning-forge-provider-roadmap.md` | `0.22.x`-Backend als Partial abgeschlossen: PVF1-PVF8/PVF13 umgesetzt und 289 Tests gruen; UI und Live-Provider-Writes bleiben in ihren eigenen Gates |
+| `docs/plans/headless-write-agent-orchestration-roadmap.md` | aktiver `0.23.x`-Follow-up fuer streng gegatete Headless-Schreibagenten, persistente Skalierung/Heartbeat-Koordination und die kanonische Subagent-zu-`commit_project`-Pipeline; Push, Merge und Deploy bleiben getrennte Stufen und Live-Gates |
+| `docs/plans/tool-taxonomy-registration-roadmap.md` | aktiver `0.24.x`-Follow-up fuer kanonische Tool-Taxonomie, Registry-Paritaet, Lifecycle-/Prioritaetsdefaults und die kontrollierte Schliessung von sechs Built-in-Luecken; E-Mail, Kalender und Kontakte bleiben deferred, und vor dem fertigen Live-Paket gibt es kein User-Gate |
+| `docs/plans/privacy-safe-tool-analytics-roadmap.md` | `0.25.x`-Follow-up fuer content-free Tool-Invocation-Telemetrie, Dedupe, Retention und aggregierte Admin-Statistik; haengt von stabilen `0.24.x`-Tool-IDs ab und bleibt bis zur einen finalen Aktivierungsentscheidung default-off |
+| `docs/plans/gemma3-memory-ops-optimization-roadmap.md` | `0.26.x` Runtime-Isolation fuer exakt `gemma3:4b` Maintenance-only; keine Agent-/Chat-/Truth-Write-Rolle, kein globales Modellbudget und genau ein spaeteres Live-Gate |
+| `docs/plans/graphrag-raptor-observability-prometheus-grafana-roadmap.md` | `0.27.x` gemeinsame Memory/RaptorGraph-Performance- und Observability-Flaeche; korrekte Histogramme, echte Backend-Benchmarks und private Prometheus/Grafana-Aktivierung mit genau einem Gate |
+| `docs/plans/unified-source-index-implementation-roadmap.md` | `0.28.x` gemeinsame Source-/Version-/Chunk-/Entity-/Relation-/Lineage-/Job-Identitaet und Retrieval-Control-Plane; Domain Truth und bestehende Store-Vertraege bleiben erhalten |
+| `docs/plans/unified-source-index-integration-impact-map.md` | konkrete Codepfade und Ownership fuer USI Runtime, Consumer, Domain Adapter und Datenlebenszyklus; kein eigener Execution-Track |
+| `docs/plans/unified-source-index-runtime-integration-roadmap.md` | `0.28.x` Child-Closure fuer App-Composition, JobStore-Worker, Health, Personal Docs, Chat, Agent, Tool Binding und Rollback; teilt `USI-LIVE-ACTIVATION` |
+| `docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md` | `0.28.x` Child-Closure fuer den gemeinsamen SourceAdapter-Vertrag und kontrollierte Domain Waves; Domain Truth und Write-Flows bleiben erhalten |
+| `docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md` | `0.28.x` Child-Closure fuer Owner Scope, Delete/Access, Export, Backup/Restore, Wipe, Retention und Recovery; keine zweite Operations-Autoritaet |
+| `docs/plans/codebase-memory-integration-roadmap.md` | `0.29.x` bevorzugter rebuildbarer CBM-Codegraph-Motor mit USI-Ref-Mapping, Hybrid Retrieval und Exact-Read-Fallback; keine zweite Repo-/Tool-/Planning-Wahrheit |
+| `docs/plans/code-lineage-timeline-roadmap.md` | `0.30.x` Git-/Project-Version-basierte first-observable Zeit- und Lineage-Evidence fuer Dateien, Symbole und Chunks; keine erfundene Commit- oder Erstellungszeit |
+| `docs/plans/lens-code-graph-roadmap.md` | `0.31.x` native `Lens > Code`-Sicht auf die CBM-Graph-UI ueber Progressive Graph API, mit klarer Trennung von Codegraph, Timeline, Semantic Projection und AI-Lens-Trace |
 | `docs/plans/vault-longterm-memory.md` | aelterer Langzeitgedaechtnis-Plan, nur noch historischer Kontext |
 
 Wenn Plaene kollidieren, gilt diese Master-Roadmap.
@@ -66,6 +96,16 @@ Wenn Plaene kollidieren, gilt diese Master-Roadmap.
 | `0.19.x` | Plugin Platform: System Health Checker | Homeserver-Monitoring als eigener Plugin-Track mit Debian Host-Agent, Podman-first Runtime Adapter und Telegram Status/Alerts | SHC0-SHC9 Foundation abgeschlossen, Manifest-Policy, lokales Plugin-Audit und Release-Gate ergänzt, Host-Agent bleibt Follow-up |
 | `0.20.x` | Source Provider Expansion | Nextcloud/File Archive als Source Provider, sobald Infrastruktur laeuft | aktivierbar, da Nextcloud-Infrastruktur laeuft |
 | `0.21.x` | GitHub Issue Intelligence | Issues als strukturierte Arbeitsobjekte mit Duplicate Preview, provider-neutralen Feldern, GitHub Issue Fields Projection und schmalem read-only MCP Lookup | GHISS0-GHISS8 repo-seitig abgeschlossen; Live GitHub Token, Provider-Sync/Write und optionaler Schedule bleiben explizite Gates |
+| `0.22.x` | Project Versioning & Forge Providers | lokale kanonische Forge mit genau einem beschriebenen Commit-Workflow; Local, lesbares Nextcloud und natives GitHub werden ueber Project Policy synchronisiert | Backend Partial abgeschlossen: lokale Forge/API/Tool/Outbox und Offline-Provider gruen; UI- und Live-Provider-Gates bleiben offen |
+| `0.23.x` | Headless Write Agents & Promotion Pipeline | verifizierte Subagents schreiben in geleasten Scopes und reichen Commit-Intents an `commit_project`; Outbox-Delivery, Merge und Deploy folgen als getrennte streng gegatete Stufen | HWA0-HWA1 repo-complete, durable State/Fencing als naechster Slice; Live Runner/Scheduler/Commit-Bridge/Push/Merge/Deploy gesperrt |
+| `0.24.x` | Tool Taxonomy, Registration & Lifecycle | ein kanonischer Descriptor-Katalog steuert Runtime, Schema, Prompt/Index, Security, API/UI und Analytics-ID; keine ungeklärten `Other`-Tools oder stillen Registrierungslücken | TAX0-TAX12 als user-gate-freie Repo-Queue geplant; produktive Katalogprojektion default-off, ein dormant Live-Vertrag erst nach Acceptance |
+| `0.25.x` | Privacy-Safe Tool Usage Analytics | tatsächliche Toolnutzung, Status, Dauer, Retry und Coverage content-free, dedupliziert und nur aggregiert auswerten | TUA0-TUA12 nach TAX1/TAX5 geplant; persistente Erfassung, echter Backfill und Anzeige default-off, ein dormant Live-Vertrag erst nach Privacy-/Rollback-Acceptance |
+| `0.26.x` | Gemma3 Maintenance Runtime Isolation | exakt `gemma3:4b` fuer bounded Maintenance isolieren, ohne andere Modelle oder Agent/Chat zu serialisieren | GMI-00 bis GMI-15 nach neuem Goal; runtime default-off, ein finales Live-Gate |
+| `0.27.x` | GraphRAG/RAPTOR Performance & Observability | ehrliche Memory/RaptorGraph-Metriken, Cache-/Event-Loop-Hardening, Real-Backend-Benchmark und private 30-Tage-Observability | GRO-00 bis GRO-14 nach neuem Goal; Scrape/Prometheus/Grafana default-off, ein finales Live-Gate |
+| `0.28.x` | Unified Source Index Foundation | eine persistente, source-neutrale Index- und Provenienzschicht fuer Code, Dokumente, Memory und Planning | USI-00 bis USI-15 plus Child-Closure UIR-00..14, UDA-00..18 und ULO-00..14 geplant; produktive Source-Aktivierung default-off und genau ein gemeinsames Gate |
+| `0.29.x` | Codebase Memory Code Intelligence | CBM als rebuildbaren Symbol-/Call-/Import-/Impact-Graph mit Hybrid Retrieval integrieren | CBM-00 bis CBM-13 geplant; pinned engine under validation, Exact-Read-Fallback bleibt |
+| `0.30.x` | Code Lineage & Timeline | Git-/Project-Version-Evidence fuer Rename, Move, Copy, Refactor, Delete und first-observable Sortierung | CLT-00 bis CLT-13 geplant; realer History-Backfill default-off |
+| `0.31.x` | Lens > Code Graph | visuell starke, progressive Codegraph-Erfahrung in der bestehenden Knowledge-/Lens-Shell | LCG-00 bis LCG-13 geplant; UI und Real-Project-Graph default-off |
 | `1.0.0` | Evidence Release | reproduzierbarer Install-/Upgrade-/Provider-/Rebuild-Nachweis, saubere Known-Limits | intern release-candidate-ready; externes Go wartet auf Provider- und Test-Vault-Evidence |
 
 ## Fortschrittsformat
@@ -131,13 +171,32 @@ Wenn reale Tests, Merge-Konflikte oder UI-Smokes dazukommen, kann der Bedarf deu
 | P1 | `0.18.x` | Automated Agent Handoff & Orchestration MVP | Der manuell bewiesene Alice/Bob/Charlie-Prozess soll nativ laufen: Approved Plan -> Dispatch -> Handoff -> Gates -> verified done. | L | L | UX/Safety-Vertraege, Dashboard-Sprache, Handoff-Texte | Runtime Store/API, Thread Registry, Parser, Loop, Gates | Stop-Regeln, Hotfiles, E2E-Smoke, Push-Gates | bedingt |
 | P1 | `0.19.x` | System Health Checker Plugin | Odysseus braucht einen nachvollziehbaren Plugin-Track fuer Homeserver Health statt versteckter Core-/Lens-Kommandos. | L | L | NDD-/Plugin-Vertrag, Statussprache, Telegram UX | Host-Agent-Modelle, Collectors, Rule Engine, Runtime Adapter | Plugin-Grenzen, Rechte, Hotfile-Gates, finaler Ops-Smoke | bedingt |
 | P2 | `0.20.x` | Nextcloud Source Bridge MVP | Nextcloud laeuft; jetzt als sicherer Source Provider und Universal Inbox, nicht als ungepruefter Memory-Kern. | M-L | M-L | Source-/Review-Lens, Tag-Governance-UX | Sync/WebDAV Provider, Inbox Worker, Tag Mapping | Sicherheitsmodell, Rechte, No-Delete, Tag-Konsistenz | bedingt |
+| P1 | `0.22.x` | Project Versioning & Forge Providers | Sandbox- und KI-Projektarbeit braucht eine lokale, wiederaufnehmbare Versionierung mit einem einheitlichen Commit-Tool und optionalen Remote Forges. | L | L | Commit-/Provider-/Partial-Sync-UX und spaeteres Design-Gate | Local Forge, Commit Service, Provider Policy, Outbox, Nextcloud-/GitHub-Adapter, Tests | Hotfile-Scope, genau ein Tool, Provider-Live-Gates, Restore-Evidence | bedingt |
+| P0 | `0.23.x` | Headless Write Agents & Promotion Pipeline | Autonome Schreibagenten brauchen persistente Claims, Heartbeats und einen einzigen geprueften Commit-/Provider-Pfad statt eigener Git-Kommandos. | XL | XL | Status-/Gate-Sprache, Pause/Kill und Review-Handoffs | Headless Backend, Scaling Governor, Heartbeat Queue, Subagent-Commit-Bridge, Delivery-/Promotion-Worker | Capability-Trennung, Lease-/Scope-Gates, Fake-E2E und einzelne Live-Gos | bedingt |
+| P0 | `0.24.x` | Tool Taxonomy, Registration & Lifecycle | 78 Runtime-Tags, 83 literal Schemas, sechs echte Registrierungsluecken und 48 UI-`Other`-Fallbacks verhindern eine belastbare Toolsteuerung und verfälschen jede Nutzungsentscheidung. | L | L | Familien, Lifecycle, Prioritäts-/Deferred-Wording und bestehende Admin-Fläche | Descriptor v2, Projektionen, Security, Migration, API und Paritätstests | Hotfile-Serialisierung, keine Zwischengates, ein Live-Gate erst nach Rollback-Acceptance | sequenziell; Scouts parallel |
+| P1 | `0.25.x` | Privacy-Safe Tool Usage Analytics | Vorhandene Chat-/Run-/MCP-Logs überlappen und enthalten teils Roh-Previews; der Betrieb braucht einen zentralen content-free Zähler statt unaddierbarer Näherungen. | L | L | Messsemantik, Aggregate, Privacy-Copy und bestehende Admin-Diagnostik | Eventvertrag, Store, Instrumentierung, Dedupe, Retention, API und Metrics | TAX-IDs, Incognito-No-Write, Failure-Isolation, keine Zwischengates | ja nach TAX1 auf disjunkten Pfaden |
+| P1 | `0.26.x` | Gemma3 Maintenance Runtime Isolation | Der aktuelle lokale Scheduler darf nicht andere Modelle global serialisieren oder Gemma3 unkontrolliert in Agent/Chat/Truth-Write-Rollen lassen. | L | L | Status-/Gate-Sprache | exakte Eligibility, per-Key Admission, Async Context, Tests | ein Live-Gate nach Offline-Acceptance | parallel zu GRO auf disjunkten Pfaden |
+| P1 | `0.27.x` | GraphRAG/RAPTOR Performance & Observability | Cache-, Event-Loop- und Metrikfehler verhindern belastbare Aussagen ueber die reale Memory-Laufzeit. | XL | XL | kompakte bestehende Readbacks, keine neue UI | Histogramme, Real-Backend-Benchmark, Prometheus/Grafana/Alerts | ein Live-Gate nach Repo-Paket | parallel zu GMI mit Hotfile-Serialisierung |
+| P0 | `0.28.x` | Unified Source Index Foundation | Code, Dokumente, Memory und Planning brauchen gemeinsame stabile Source-/Version-/Chunk-/Provenienz-IDs statt weiterer Inselindizes. | XL | XL | Contracts, Migration/Activation wording | Records, SQLite/FTS, Jobs, Query Planner, Context, RAPTOR adapter | TAX/GRO/Domain-Truth-Grenzen, ein Live-Gate | serieller Core, disjunkte Adapter parallel |
+| P0 | `0.28.x child` | USI Runtime & Consumer Integration | Ein Store ohne Composition, Worker und Consumer-Cutover waere nicht produktiv und direkte RAG-/Chat-Pfade wuerden parallel bestehen bleiben. | XL | L | Runtime-/Fallback-/Activation-Sprache | App Wiring, JobStore Worker, Health, Query Facade, Personal Docs, Chat, Agent, Tool Provider | Runtime-Hotfiles, Shadow-Paritaet, teilt USI-Gate | seriell nach USI Core-Vertraegen |
+| P0 | `0.28.x child` | USI Domain Adapter Rollout | Gemeinsame Identitaet braucht echte, policy-aware Domain Reader ohne Fachwrites oder Provider-Bypass. | XL | XL | Wave-/Policy-/Deferred-Sprache | Registry, Change Signals, Memory/Docs/ORCA/Planning/Library/Inbox/Nextcloud Adapter | Domain-Owner-Handoff, Wave C deferred, teilt USI-Gate | Adapter parallel, Domain-Hotfiles seriell |
+| P0 | `0.28.x child` | USI Data Lifecycle & Operations | Rename, Delete, Export, Backup/Restore und Wipe muessen Index und Projektionen konsistent halten. | XL | L | Erasure-/Restore-/Operations-Sprache | Owner Scope, Tombstones, Purge/Rebuild, Portability, Backup/Restore, Retention, Recovery | Auth-/Backup-/Wipe-Hotfiles, Action-Gates bleiben, teilt USI-Gate | seriell an Operations-Grenzen |
+| P0 | `0.29.x` | Codebase Memory Code Intelligence | Ein bewiesener Codegraph-Motor spart eigenen Parser-/Graph-/UI-Neubau und liefert strukturelle Suche in wenigen Calls. | XL | XL | Vendor-/Acceptance- und Fallback-Wording | pinned CBM process, mapping, query, sync, hybrid retrieval, security | USI identity, TAX tool, Exact-Read fallback | nach USI contract/store, Teilpfade parallel |
+| P1 | `0.30.x` | Code Lineage & Timeline | Erstellungs-/Aenderungsfragen brauchen Git-Evidence, Rename/Copy-Lineage und ehrliche first-observable Semantik. | XL | XL | Zeit-/Unsicherheits-/Privacy-Sprache | Git adapter, file/symbol lineage, store, timeline query | Project Version truth, no Git mutation, ein Live-Gate | nach USI identity, parallel zu CBM ab mapping |
+| P1 | `0.31.x` | Lens > Code Graph | Der Codegraph soll nicht nur maschinenlesbar, sondern als starke native Arbeitsoberflaeche explorierbar sein. | XL | XL | Knowledge/Lens UX, Graph modes, responsive/a11y | progressive graph API, trace bridge, fixture/test support | UI hotfiles, truth labels, Playwright/canvas checks | UI-owned nach bounded API |
 | P3 | `post-1.0` | Qdrant Accelerator | Nur wenn pgvector real zu langsam ist. | L | XL | kaum | rebuildbarer Vector-Accelerator | Diagnoseentscheidung | nein |
-| P3 | `post-1.0` | Kuzu Accelerator | Nur wenn Postgres-Graph real zu langsam ist. | L | XL | Graph-UX | rebuildbarer Graph-Accelerator | Diagnoseentscheidung | nein |
+| P3 | `post-1.0` | Optionaler Graph Accelerator | Nur wenn USI/CBM/Postgres-Queries laut Diagnostics nicht reichen; Kuzu ist kein neuer Kandidat. | L | XL | Graph-UX | rebuildbarer, neu evaluierter Graph-Accelerator | Diagnose- und Sourcingentscheidung | nein |
 | P3 | `post-1.0` | UMAP/GMM/adRAP Research | Zukunftsmusik, erst nach K-Means/Bisecting-K-Means, Diagnostics und belegter Qualitaetsluecke. | XL | XL | Evaluation UX | Experimente/Evaluation | Forschungs-Gate | nein |
 
 ## Aktuelle Phase: `1.0.0` Evidence Release & Bugfix-Fenster
 
 `0.14.x` ist technisch abgeschlossen und auf den Fork gepusht. Die naechste Arbeit ist kein neuer grosser Feature-Track, sondern ein kontrolliertes Release-/Evidence-Fenster: Nutzer testet reale Pfade, Alice/Bob bekommen nur konkrete Bugfix- oder Evidence-Slices, und Charlie haelt Worktree, Tests, Roadmap und Push-Status sauber.
+
+Prioritaetsupdate 2026-07-13: Die ausdrücklich beauftragten Tracks `0.24.x`
+Tool Taxonomy und `0.25.x` Privacy-Safe Tool Usage Analytics sind die neue
+Post-MVP-Repo-Queue. Sie verändern weder den abgeschlossenen MVP-Nenner noch
+das separate UI-Live-Gate. Bis zu ihren vollständig geprüften Live-Paketen
+werden keine User-Gates angefragt.
 
 Aktive Checkliste: `docs/plans/1.0-evidence-release-checklist.md`.
 
@@ -887,12 +946,52 @@ Leitentscheidungen:
 - Manuelle Nutzer-Tags bleiben erhalten.
 - Unsichere Faelle landen in Review; Deck bleibt optionales spaeteres UI, keine Pipeline-Abhaengigkeit.
 
+## Versions `0.26.x` bis `0.31.x`: Runtime Evidence und Unified Code Knowledge
+
+Diese sechs Produkttracks und drei USI-Child-Closure-Tracks sind getrennt, aber
+absichtlich aufeinander abgestimmt:
+
+1. `0.26.x` GMI isoliert exakt `gemma3:4b` fuer Maintenance. Es besitzt keine
+   Wissens-, Index- oder Modellrolle ausserhalb des bounded Worker-Vertrags.
+2. `0.27.x` GRO baut die eine gemeinsame Performance-/Prometheus-/Grafana-
+   Flaeche. Spaetere USI-/CBM-/Lineage-Metriken erweitern sie nach Handoff und
+   erzeugen keinen zweiten Exporter.
+3. `0.28.x` USI implementiert die gemeinsame Source-/Version-/Chunk-/Policy-
+   und Provenienzschicht ueber den bestehenden Store-Vertraegen.
+4. `0.28.x child` UIR verbindet Core, Worker, Health, Consumer und Tool Provider;
+   UDA liefert echte Domain Adapter; ULO schliesst Owner- und Operations-
+   Lifecycle. Alle drei speisen dasselbe USI-Gate.
+5. `0.29.x` CBM laeuft als rebuildbarer Codegraph-Motor hinter USI und bleibt
+   durch Exact Read/Grep verifizierbar.
+6. `0.30.x` Lineage liest Git/Project Versioning als Historienwahrheit und
+   liefert first-observable Timeline-Evidence an USI/CBM.
+7. `0.31.x` Lens > Code integriert die starke Graph-UI progressiv in die
+   bestehende Knowledge-/Lens-Shell und trennt Knowledge Graph von AI Trace.
+
+Abhaengigkeitsbarrieren:
+
+- TAX1/TAX5/TAX8 muessen Toolidentitaet, Security und Provider-Normalisierung
+  freigeben, bevor `query_knowledge` produktiv registriert wird.
+- GRO-00 friert die Metriksemantik ein, bevor USI/CBM/Lineage gemeinsame
+  Exporter-Hotfiles erweitern.
+- USI-01/USI-03 sind die Identitaets-/Store-Barriere fuer CBM und Lineage.
+- UIR-14, ULO-14 und UDA-18 fuer die gewaehlten Source Scopes sind
+  Abschlussbarrieren vor `USI-LIVE-ACTIVATION`; sie erzeugen keine eigenen
+  Produkt-Gates.
+- Eine produktive CBM-Projektion benoetigt zusaetzlich UIR Provider Binding und
+  ULO Purge/Rebuild-Evidence fuer die gewaehlten Repositories.
+- CBM-02/CBM-05 sind die Mapping-/Query-Barriere fuer Codegraph und Lens.
+- CLT-10 ist die Timeline-Barriere fuer Lens-Zeitansichten.
+- Jeder Produkttrack besitzt genau ein spaeteres Aktivierungsgate; UIR/UDA/ULO
+  teilen als Child-Closure das USI-Gate. Kein Gate aktiviert einen anderen
+  Produkttrack implizit.
+
 ## Post-1.0 Research Tracks
 
 | Track | Startbedingung | Warum nicht jetzt |
 | --- | --- | --- |
 | Qdrant | pgvector ist laut Diagnostics wiederholt zu langsam | sonst mehr Infrastruktur ohne Messproblem |
-| Kuzu | Postgres-Graph reicht laut Diagnostics nicht | Graph-Accelerator ohne Query-Budget waere falsch |
+| Optionaler Graph Accelerator | USI/CBM/Postgres reichen laut Diagnostics nicht; neuer Sourcing-Entscheid liegt vor | Kuzu ist nicht maintained und wird nicht neu eingefuehrt |
 | UMAP/GMM/adRAP | Basis-Retrieval hat belegte Qualitaetsluecke | zu schwer als erster Schritt, Derived Data muss zuerst stabil sein |
 | Frontend Framework Migration | Vanilla-JS blockiert konkret neue UI-Arbeit | grosser Umbau, erst nach klaren Modulgrenzen |
 
@@ -957,33 +1056,60 @@ Charlie implementiert nur selbst, wenn:
 
 Jetzt:
 
-1. Auto-Updater/Updates-UI gilt als abgeschlossen, wenn der Server weiter
-   `673e116f` oder neuer meldet und der Timer die naechsten Git-Aenderungen
-   regelmaessig deployed.
-2. Neue Roadmaps werden zuerst in diese Master-Roadmap integriert; No-goals
-   bleiben als Stop-Regeln sichtbar.
-3. Der naechste aktive Implementierungskandidat ist `Subagent Runtime v1` nach
-   `docs/plans/subagent-runtime-v1-roadmap.md`, zuerst mit Fake Backend und
-   fokussierten Tests.
+1. `TAX0` erstellt die deterministische Tool-Inventar-/Drift-Baseline;
+   anschließend friert `TAX1` Descriptor v2, Familien, Lifecycle und stabile
+   Analytics-IDs ein.
+2. Nach TAX1 dürfen `TUA0-TUA2` auf disjunkten Pfaden beginnen. TAX bleibt für
+   Registry-/Security-/API-/UI-Hotfiles aktiv seriell; TUA-Instrumentierung an
+   `src/tool_execution.py` wartet auf TAX5.
+3. Alle TAX0-TAX12- und TUA0-TUA12-Slices laufen mit automatischen Tests,
+   synthetischem Staging und reversiblem Default ohne User Gate.
+4. E-Mail, Kalender und Kontakte bleiben
+   `deferred_by_operator_priority`; es wird kein Live-Smoke und keine
+   Zwischenentscheidung dafür angefragt.
 
 Danach:
 
-1. `SUB0-reconciliation` ist mit dieser Integration vorbereitet.
-2. Bei Implementierungs-Go startet `SUB1-runtime-contract` und `SUB2-spawn-api`
-   sequenziell oder mit streng getrennten Tests.
-3. Erst nach gruenem Fake-Backend-Pfad folgen Tool Discovery und UI/Status.
-4. Echte Odysseus/Codex-Thread-Ausfuehrung bleibt ein eigener Live-Gate-Track.
+1. TAX11/TAX12 schließen Parität, Security, synthetisches Staging und Rollback.
+   Erst dann darf genau ein `TAX-LIVE-ACTIVATION`-Gate materialisiert werden.
+2. TUA11/TUA12 schließen Privacy, Incognito, Dedupe, Retention, Performance,
+   Failure-Isolation und Rollback. Erst dann darf genau ein
+   `TUA-LIVE-ACTIVATION`-Gate materialisiert werden.
+3. Die beiden Live-Entscheidungen bleiben unabhängig; Katalogaktivierung
+   erteilt keine Tool-Mutationsrechte, Analytics-Aktivierung aktiviert keine
+   deferred Tools und keinen externen Export.
+4. Ältere Live-/Design-Tracks werden erst danach oder nach ausdrücklicher
+   Repriorisierung wieder aufgenommen.
+
+Anschliessende vorbereitete Produktsequenz:
+
+1. GMI-00 und GRO-00 duerfen erst nach einem neuen Goal parallel auf disjunkten
+   Pfaden starten; ihre Runtime-/Observability-Aktivierungen bleiben getrennt.
+2. USI-00 reconciliert danach alle Stores, Writer und Wahrheitsrollen. USI-01
+   und USI-03 frieren Identitaet und SQLite-Basis ein.
+3. CBM-00/CBM-01 koennen als Vendor-/Benchmark-Lane vorbereiten; produktive
+   Integration wartet auf USI-Identitaet und TAX-Toolgrenzen.
+4. CLT-00/CLT-01 starten nach USI-Identitaet und lesen ausschliesslich die
+   vorhandene Git-/Project-Version-Wahrheit.
+5. Lens Code Graph beginnt mit UX-/Vendor-/Fixture-Vertraegen; produktive UI
+   wartet auf bounded CBM Graph API und optional CLT Timeline Bridge.
+6. USI, CBM, Lineage und Lens haben je genau ein spaeteres, voneinander
+   unabhaengiges Aktivierungsgate mit eigenem Rollback. UIR/UDA/ULO sind
+   verpflichtende USI-Child-Closure und teilen dessen Gate.
 
 Nicht jetzt:
 
 - keine neue Postgres-Migration
 - keine Nextcloud-Implementierung
-- keine Qdrant/Kuzu/UMAP/GMM-Arbeit
+- keine Qdrant/Graph-Accelerator/UMAP/GMM-Arbeit; Kuzu nicht neu einfuehren
 - keine grosse Frontend-Framework-Migration
 - keine harte Obsidian-Plugin-Umbenennung
 - keine autonome Agentenfabrik ohne Approval, Gates und Stop-Regeln
 - keine Live-Subagent-Thread-Ausfuehrung ohne separate Freigabe
 - kein `delegate` als schreibender oder langlebiger Worker
+- keine produktive Tool-Katalogumschaltung, echte Legacy-Backfill-Ausführung
+  oder persistente Tool-Telemetrie vor dem jeweiligen fertigen Live-Paket
+- keine E-Mail-, Kalender- oder Kontaktaktivierung aus TAX/TUA heraus
 
 ## Master Definition of Done
 
@@ -1000,4 +1126,17 @@ Diese Roadmap ist erfuellt, wenn:
 - `0.18.x` Automated Agent Handoff & Orchestration den Alice/Bob/Charlie-Prozess von Approved Plan bis `verified done` nativ ausfuehrt.
 - `0.19.x` System Health Checker als eigenen Plugin-Track mit Host-Agent-Grenze vorbereitet.
 - `0.20.x` Nextcloud erst nach Infrastruktur-Readiness sauber als Source Provider anschliesst.
+- `0.22.x` lokale Projektversionierung als kanonischen Hub aufbaut und Nextcloud/GitHub nur ueber einen gemeinsamen, policy-gesteuerten Commit-Workflow synchronisiert.
+- `0.23.x` Headless Write Agents an persistente Claims, den kanonischen Commit-Pfad und getrennte Promotion-Stufen bindet.
+- `0.24.x` alle Toolflächen über einen kanonischen Descriptor-Katalog mit expliziten Lifecycle-, Prioritäts-, Security- und Projektionsinvarianten zusammenführt; E-Mail, Kalender und Kontakte bleiben deferred.
+- `0.25.x` Toolnutzung content-free, dedupliziert, incognito-sicher und nur aggregiert auswertbar macht, ohne Toolausführung von Telemetrie abhängig zu machen.
+- TAX0-TAX12 und TUA0-TUA12 ohne User-Gates abgeschlossen werden und je Track höchstens ein Gate erst unmittelbar vor der ersten produktiven Aktivierung entsteht.
+- `0.26.x` Gemma3-Maintenance exakt isoliert, ohne Agent/Chat/andere Modelle zu beeinflussen.
+- `0.27.x` eine korrekte gemeinsame Memory/RaptorGraph-Observability mit Real-Backend-Evidence liefert.
+- `0.28.x` USI als einzige gemeinsame Index-Identitaets- und Provenienzschicht
+  inklusive UIR Runtime/Consumer, UDA Domain Waves und ULO Lifecycle/Operations
+  implementiert, bevor ein ausgewaehlter Source Scope produktiv wird.
+- `0.29.x` CBM als rebuildbaren Codegraph-Motor integriert, ohne Repo-, Source-, Tool- oder Planning-Wahrheit zu duplizieren.
+- `0.30.x` Git-/Project-Version-basierte Code-Lineage und first-observable Timeline-Evidence bereitstellt.
+- `0.31.x` den Codegraph als native, progressive und evidence-bound `Lens > Code`-Arbeitsoberflaeche sichtbar macht.
 - `1.0.0` nicht nach Bauchgefuehl, sondern nach Evidence freigegeben wird.

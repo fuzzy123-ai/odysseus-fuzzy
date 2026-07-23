@@ -5,6 +5,16 @@
   "created_at": "2026-06-20",
   "updated_at": "2026-06-21",
   "status": "draft_canonical",
+  "multi_agent_execution_guidance": {
+    "path": "docs/plans/multi-agent-execution-guidance.json",
+    "lookup_command": "python scripts/roadmap_multi_agent_guidance.py --roadmap specs/roadmaps/odysseus-multiagent-roadmap.v1.json --format markdown",
+    "required_before_claim": true,
+    "rules": [
+      "Use this roadmap as the structural authority for graph shape, claimability, gates, leases, collisions and report reduction.",
+      "Reconcile its June recommended node with the current open-work master and MVP runner state before dispatch.",
+      "Only the orchestrator may mutate router state; worker agents return scoped handoffs or read-only reports."
+    ]
+  },
   "format_decision": {
     "source_of_truth": "json",
     "markdown_role": "rendered_view_only",

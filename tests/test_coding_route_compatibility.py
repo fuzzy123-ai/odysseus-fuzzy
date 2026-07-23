@@ -52,7 +52,15 @@ def _coding_client(tmp_path: Path) -> TestClient:
 
 def _project_client(path: Path, *, projects_root: Path) -> TestClient:
     app = FastAPI()
-    app.include_router(setup_server_project_routes(registry_path=path, projects_root=projects_root))
+    app.include_router(
+        setup_server_project_routes(
+            registry_path=path,
+            projects_root=projects_root,
+            owner_resolver=lambda _request: "test-owner",
+            admin_gate=lambda _request: True,
+            csrf_gate=lambda _request: True,
+        )
+    )
     return TestClient(app)
 
 
@@ -122,7 +130,8 @@ def test_coding_quality_and_sandbox_routes_add_canonical_alignment(tmp_path: Pat
     assert sandbox_payload["coding_lifecycle_identifiers"]["check_job_ids"] == ["route-compat-check-1"]
 
 
-def test_server_project_routes_add_identifier_map_to_project_and_task_responses(tmp_path: Path):
+def test_server_project_routes_add_identifier_map_to_project_and_task_responses(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("AUTH_ENABLED", "false")
     client = _project_client(tmp_path / "projects.json", projects_root=tmp_path / "server-projects")
 
     created = client.post("/api/projects", json={"title": "Kundenportal MVP", "project_type": "app"})

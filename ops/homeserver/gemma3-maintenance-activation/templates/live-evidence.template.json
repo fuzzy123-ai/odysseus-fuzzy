@@ -1,0 +1,50 @@
+{
+  "schema": "odysseus.gemma3_maintenance_live_evidence.v1",
+  "run_id": "<redacted-run-id>",
+  "started_at": "<utc-timestamp>",
+  "completed_at": "<utc-timestamp>",
+  "commit": "<commit-hash>",
+  "model_scope": "gemma3_4b",
+  "provider_scope": "local_ollama",
+  "role_scope": "maintenance",
+  "global_runtime_before_canary": false,
+  "canary": {
+    "warmup_calls": 1,
+    "measured_calls": 20,
+    "success_calls": 0,
+    "failure_calls": 0,
+    "latency_p95_seconds": null,
+    "latency_max_seconds": null,
+    "event_loop_max_gap_seconds": null,
+    "queue_concurrency_max": 0,
+    "fallback_used": false,
+    "truth_write_performed": false,
+    "verdict": "not_run"
+  },
+  "activation": {
+    "only_setting_changed": "maintenance_runtime_enabled",
+    "readback_enabled": false,
+    "activated_at": null
+  },
+  "observation": {
+    "duration_hours": 12,
+    "sample_interval_seconds": 15,
+    "expected_sample_count": 2880,
+    "observed_sample_count": 0,
+    "odysseus_health_throughout": false,
+    "prometheus_target_up_throughout": false,
+    "grafana_dashboard_present_throughout": false,
+    "no_slo_breach": false,
+    "no_sample_drops": false,
+    "resource_budget_green": false,
+    "verdict": "not_run"
+  },
+  "final_verdict": "not_run",
+  "rollback_performed": false,
+  "credential_or_secret_values_present": false,
+  "prompt_or_message_content_present": false,
+  "model_output_present": false,
+  "raw_metric_payload_present": false,
+  "raw_log_content_present": false,
+  "private_host_value_present": false
+}

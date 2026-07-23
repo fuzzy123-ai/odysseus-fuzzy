@@ -23,6 +23,7 @@ _WINDOWS_PATH_RE = re.compile(r"[A-Za-z]:[\\/][^\s\t]+")
 _ABSOLUTE_PATH_RE = re.compile(r"(?<![A-Za-z0-9._-])/(?:[^\s/]+/)*[^\s]+")
 _SAFE_REMOTE_RE = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
 _COMMIT_SHA_RE = re.compile(r"^[A-Fa-f0-9]{7,40}$")
+_FULL_COMMIT_SHA_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 
 
 class RepoPushRunnerError(ValueError):
@@ -62,6 +63,16 @@ class RepoPushCommandResult:
             "timed_out": self.timed_out,
             "duration_seconds": self.duration_seconds,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class RepoForgeGitTransportCommands:
+    """Fixed argv commands for one exact, non-force Forge delivery."""
+
+    verify_commit: tuple[str, ...]
+    remote_url: tuple[str, ...]
+    remote_ref: tuple[str, ...]
+    push: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -339,11 +350,95 @@ def repo_push_command_is_allowed(argv: tuple[str, ...]) -> bool:
         return True
     if argv == ("git", "rev-parse", "HEAD"):
         return True
+    if len(argv) == 4 and argv[:3] == ("git", "rev-parse", "--verify"):
+        revision = argv[3]
+        suffix = "^{commit}"
+        return revision.endswith(suffix) and bool(_FULL_COMMIT_SHA_RE.fullmatch(revision[: -len(suffix)]))
+    if len(argv) == 6 and argv[:5] == ("git", "remote", "get-url", "--push", "--all"):
+        _normalize_remote_name(argv[5])
+        return True
+    if len(argv) == 5 and argv[:3] == ("git", "ls-remote", "--heads"):
+        _normalize_remote_name(argv[3])
+        _branch_from_remote_ref(argv[4])
+        return True
     if len(argv) == 4 and argv[:2] == ("git", "push"):
         _normalize_remote_name(argv[2])
-        normalize_branch_name(argv[3])
+        if ":" in argv[3]:
+            source, destination = argv[3].split(":", 1)
+            if not _FULL_COMMIT_SHA_RE.fullmatch(source):
+                return False
+            _branch_from_remote_ref(destination)
+        else:
+            if argv[3].startswith(("+", "refs/")):
+                return False
+            branch = normalize_branch_name(argv[3])
         return True
+    if len(argv) == 5 and argv[:3] == ("git", "merge-base", "--is-ancestor"):
+        return bool(
+            _FULL_COMMIT_SHA_RE.fullmatch(argv[3])
+            and _FULL_COMMIT_SHA_RE.fullmatch(argv[4])
+        )
     return False
+
+
+def build_repo_forge_git_transport_commands(
+    *,
+    remote_name: Any,
+    branch_name: Any,
+    commit_sha: Any,
+) -> RepoForgeGitTransportCommands:
+    """Build the only Git transport argv accepted by the GitHub adapter."""
+
+    remote = _normalize_remote_name(remote_name)
+    branch = normalize_branch_name(branch_name)
+    sha = str(commit_sha or "").strip().lower()
+    if not _FULL_COMMIT_SHA_RE.fullmatch(sha):
+        raise RepoPushRunnerError("commit_sha must be a full Git object id")
+    remote_ref = f"refs/heads/{branch}"
+    commands = RepoForgeGitTransportCommands(
+        verify_commit=("git", "rev-parse", "--verify", f"{sha}^{{commit}}"),
+        remote_url=("git", "remote", "get-url", "--push", "--all", remote),
+        remote_ref=("git", "ls-remote", "--heads", remote, remote_ref),
+        push=("git", "push", remote, f"{sha}:{remote_ref}"),
+    )
+    for argv in (commands.verify_commit, commands.remote_url, commands.remote_ref, commands.push):
+        if not repo_push_command_is_allowed(argv):
+            raise RepoPushRunnerError("generated Forge Git command is not allowed")
+    return commands
+
+
+def build_repo_forge_ancestry_command(
+    *,
+    ancestor_sha: Any,
+    descendant_sha: Any,
+) -> tuple[str, ...]:
+    """Build the fixed local-only fast-forward ancestry check."""
+
+    ancestor = str(ancestor_sha or "").strip().lower()
+    descendant = str(descendant_sha or "").strip().lower()
+    argv = ("git", "merge-base", "--is-ancestor", ancestor, descendant)
+    if not repo_push_command_is_allowed(argv):
+        raise RepoPushRunnerError("Forge ancestry command is not allowed")
+    return argv
+
+
+def parse_repo_remote_head_sha(output: Any, *, branch_name: Any) -> str | None:
+    """Parse one exact ``git ls-remote --heads`` result without provider text."""
+
+    branch = normalize_branch_name(branch_name)
+    expected_ref = f"refs/heads/{branch}"
+    lines = [line.strip() for line in str(output or "").splitlines() if line.strip()]
+    if not lines:
+        return None
+    if len(lines) != 1:
+        raise RepoPushRunnerError("remote ref check returned an ambiguous result")
+    parts = lines[0].split()
+    if len(parts) != 2 or parts[1] != expected_ref:
+        raise RepoPushRunnerError("remote ref check returned an unexpected ref")
+    sha = parts[0].casefold()
+    if not _FULL_COMMIT_SHA_RE.fullmatch(sha):
+        raise RepoPushRunnerError("remote ref check returned an invalid object id")
+    return sha
 
 
 def _run_push_flow(
@@ -528,6 +623,14 @@ def _normalize_remote_name(value: Any) -> str:
     if not _SAFE_REMOTE_RE.fullmatch(remote) or remote.startswith("-"):
         raise RepoPushRunnerError("remote_name contains unsupported characters")
     return remote
+
+
+def _branch_from_remote_ref(value: Any) -> str:
+    remote_ref = str(value or "")
+    prefix = "refs/heads/"
+    if not remote_ref.startswith(prefix):
+        raise RepoPushRunnerError("remote ref must target refs/heads")
+    return normalize_branch_name(remote_ref[len(prefix) :])
 
 
 def _normalize_commit_sha(value: Any, *, field_name: str) -> str:

@@ -1532,55 +1532,108 @@ def setup_model_routes(model_discovery):
 
     # ── Tool management ──
 
-    @router.get("/tools")
-    def list_tools():
-        """List all available tools with their enabled/disabled status."""
-        from src.agent_tools import TOOL_TAGS
+    def _runtime_dynamic_tool_sources():
         from src.tool_registry import list_tools as list_plugin_tools
+        from src.tool_utils import get_mcp_manager
+
+        plugin_tools = list_plugin_tools()
+        manager = get_mcp_manager()
+        try:
+            mcp_tools = manager.get_all_tools() if manager is not None else []
+        except Exception:
+            mcp_tools = []
+        return plugin_tools, mcp_tools
+
+    @router.get("/tools")
+    def list_tools(request: Request):
+        """Return the complete redacted Descriptor-v2 Admin projection."""
+        require_admin(request)
+        from src.builtin_tool_catalog import resolve_operator_priority_disabled
+        from src.runtime_tool_status import build_tool_catalog_projection
+
         settings = _load_settings()
-        disabled = set(settings.get("disabled_tools", []))
-        tools = []
-        for tag in sorted(TOOL_TAGS):
-            tools.append({"id": tag, "enabled": tag not in disabled})
-        for tool in list_plugin_tools():
-            tools.append({
-                "id": tool.name,
-                "name": tool.name,
-                "desc": tool.description,
-                "cat": "Plugins",
-                "ctx": "~plugin",
-                "permission": tool.permission,
-                "enabled": tool.name not in disabled,
-            })
-        return {"tools": tools}
+        disabled, priority_defaults_applied = resolve_operator_priority_disabled(
+            settings.get("disabled_tools", []),
+            setting_present="disabled_tools" in settings,
+        )
+        plugin_tools, mcp_tools = _runtime_dynamic_tool_sources()
+        payload = build_tool_catalog_projection(
+            disabled_tools=disabled,
+            plugin_tools=plugin_tools,
+            mcp_tools=mcp_tools,
+        )
+        payload["operator_priority_defaults_applied"] = priority_defaults_applied
+        return payload
 
     @router.get("/system/runtime-tools")
     def runtime_tools_status(request: Request):
         """Return redacted live tool inventory, schemas and gate classes."""
         require_admin(request)
         from src.runtime_tool_status import build_runtime_tool_status
+        from src.builtin_tool_catalog import resolve_operator_priority_disabled
         from src.tool_index import BUILTIN_TOOL_DESCRIPTIONS
-        from src.tool_registry import list_tools as list_plugin_tools
         from src.tool_schema_definitions import FUNCTION_TOOL_SCHEMAS
 
         settings = _load_settings()
+        disabled, _priority_defaults_applied = resolve_operator_priority_disabled(
+            settings.get("disabled_tools", []),
+            setting_present="disabled_tools" in settings,
+        )
+        plugin_tools, mcp_tools = _runtime_dynamic_tool_sources()
         return build_runtime_tool_status(
-            disabled_tools=settings.get("disabled_tools", []),
+            disabled_tools=disabled,
             builtin_descriptions=BUILTIN_TOOL_DESCRIPTIONS,
             function_schemas=FUNCTION_TOOL_SCHEMAS,
-            plugin_tools=list_plugin_tools(),
+            plugin_tools=plugin_tools,
+            mcp_tools=mcp_tools,
         )
 
     class ToolsUpdate(BaseModel):
-        disabled: list = []
+        disabled: List[str] = []
 
     @router.post("/tools")
     def update_tools(body: ToolsUpdate, request: Request):
-        """Update which tools are disabled."""
+        """Update known toggleable tool IDs while retaining legacy settings."""
         require_admin(request)
+        from src.runtime_tool_status import build_tool_catalog_projection
+
         settings = _load_settings()
-        settings["disabled_tools"] = body.disabled
+        plugin_tools, mcp_tools = _runtime_dynamic_tool_sources()
+        projection = build_tool_catalog_projection(
+            disabled_tools=settings.get("disabled_tools", []),
+            plugin_tools=plugin_tools,
+            mcp_tools=mcp_tools,
+        )
+        known_allowed = {
+            str(item.get("runtime_tool_id") or "")
+            for item in projection["tools"]
+            if item.get("settings_toggle_allowed")
+        }
+        requested = {str(item).strip() for item in body.disabled if str(item).strip()}
+        unknown = tuple(sorted(requested - known_allowed))
+        if unknown:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "unknown_or_non_toggleable_tool_ids",
+                    "tool_ids": unknown,
+                },
+            )
+
+        current = {
+            str(item).strip()
+            for item in settings.get("disabled_tools", [])
+            if str(item).strip()
+        }
+        preserved_legacy = current - known_allowed
+        stored = sorted(requested | preserved_legacy)
+        settings["disabled_tools"] = stored
         _save_settings(settings)
-        return {"ok": True, "disabled": body.disabled}
+        return {
+            "ok": True,
+            "disabled": stored,
+            "requested_disabled": sorted(requested),
+            "preserved_legacy_count": len(preserved_legacy),
+        }
 
     return router
