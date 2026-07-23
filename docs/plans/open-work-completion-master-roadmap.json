@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T11:13:23+02:00",
-  "status": "uix_abc16_claimed_repo_implementation_running",
+  "updated_at": "2026-07-23T11:20:59+02:00",
+  "status": "uix_abc16_completed_uix_abc18_ready_uix_abc17_handoff_gated",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Implementiere OWM-23 Agent Maintenance Safety Harness repo-only; beginne mit AMH-01, halte Nachfolger dependency-gated, bewahre fremde Worktree-Aenderungen und fuehre weder Live-Aktionen noch ungefragte Pushes aus.",
   "goal": "Reconcile the registered OWM-23 roadmap, then implement the dependency-ready Agent Maintenance Safety Harness frontier with one scoped writer, current machine evidence and no live or external mutation.",
@@ -12,8 +12,8 @@
     "safe_open_json_slices": 1,
     "unique_live_gates": 40,
     "unique_design_gates": 28,
-    "other_open_json_items": 33,
-    "queue_status": "uix_abc16_claimed_uix_abc18_ready",
+    "other_open_json_items": 34,
+    "queue_status": "uix_abc16_completed_uix_abc18_ready_uix_abc17_handoff_gated",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,14 +21,14 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "agent_maintenance_safety": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "universal_inbox_workbench": "uix_abc16_claimed_repo_implementation_running",
+      "universal_inbox_workbench": "uix_abc16_completed_uix_abc18_ready_uix_abc17_handoff_gated",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
       "safe_open_count": 1,
-      "other_open_count": 33,
+      "other_open_count": 34,
       "unique_live_gate_count": 40,
       "unique_design_gate_count": 28,
       "decision_packet_families": [
@@ -60,10 +60,10 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "UIX-ABC16 is claimed for one owner-selected upload content route with bounded bytes, negative authorization, traversal, MIME and range evidence; UIX-ABC18 remains dependency-ready.",
-        "slice": "UIX-ABC16",
+        "reason": "UIX-ABC16 is locally implemented and focused-tested; UIX-ABC17 is dependency-ready but still requires a fresh database, migration and Document hotfile handoff, so UIX-ABC18 is the next safe repo-only slice.",
+        "slice": "UIX-ABC18",
         "user_decision_required": false,
-        "safe_default": "finish_focused_uix_abc16_implementation_and_local_acceptance"
+        "safe_default": "claim_one_minimum_path_uix_abc18_subset"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
@@ -73,8 +73,10 @@
       "UIX-ABC18"
     ],
     "product_semantics_gated_open_slices": [],
+    "handoff_gated_open_slices": [
+      "UIX-ABC17"
+    ],
     "dependency_blocked_slices": [
-      "UIX-ABC17",
       "UIX-ABC19",
       "UIX-ABC20",
       "UIX-ABC21",
@@ -1394,8 +1396,8 @@
       "title": "Selected Source Read Contract",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_implementation_running",
-      "claimable": true,
+      "status": "completed_local_repo_evidence_2026-07-23",
+      "claimable": false,
       "depends_on": [
         "UIX-ABC13",
         "UIX-ABC14"
@@ -1412,8 +1414,8 @@
       ],
       "gate_resolution": {
         "id": "UIX-WORKBENCH-CONTENT-READ",
-        "class": "repo_only",
-        "state": "active_for_claimed_slice",
+        "mutation_class": "repo_only",
+        "state": "completed_with_local_evidence",
         "allowed": [
           "one explicit upload source per request",
           "owner or explicit admin authorization",
@@ -1437,9 +1439,11 @@
           "tests/test_universal_inbox_source_access.py"
         ],
         "hotfiles": [],
-        "state": "running",
+        "state": "released_after_local_acceptance",
         "acquired_at": "2026-07-23T11:13:23+02:00",
         "lease_expires_at": "2026-07-23T14:00:00+02:00",
+        "released_at": "2026-07-23T11:20:59+02:00",
+        "completion_commit": "7370187e",
         "handoff_required": false
       },
       "allowed_paths": [
@@ -1481,7 +1485,7 @@
       },
       "evidence": {
         "target_environment": "local",
-        "observed_at": null,
+        "observed_at": "2026-07-23T11:20:59+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -1491,6 +1495,18 @@
         "temporal_window": "none",
         "positive_path_required": true
       },
+      "local_acceptance_evidence": "Commit 7370187e; 30 focused source-access, status and flow tests passed in 1.98 seconds with one pre-existing SQLAlchemy deprecation warning; path-scoped cached diff check passed. Positive Markdown, PDF range and DOCX reads plus foreign-owner, anonymous, admin, traversal, Nextcloud unsupported, dangerous, MIME/magic mismatch, password, oversized, truncation and invalid-range paths were exercised.",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "7370187e",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      },
       "done_when": "Explicit owner-selected upload sources support bounded safe reads with auth, traversal, MIME, range and size-limit tests; Nextcloud sources remain unsupported."
     },
     {
@@ -1498,7 +1514,8 @@
       "title": "Working-Copy And Provenance Bridge",
       "class": "repo_only",
       "owner": "/root",
-      "status": "blocked_by_dependency",
+      "status": "blocked_by_handoff",
+      "claimable": false,
       "depends_on": [
         "UIX-ABC16"
       ],
@@ -1515,6 +1532,7 @@
         "UIX-WORKBENCH-WORKING-COPY",
         "fresh path handoff for database, migration and Document hotfiles"
       ],
+      "claim_blocker": "Fresh path handoff is required before core/database.py, core/database_migrations.py or routes/document_helpers.py may be claimed.",
       "done_when": "The owner-scoped source-to-document bridge is idempotent, provenance-preserving and never mutates original bytes or source metadata."
     },
     {
@@ -2645,5 +2663,5 @@
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "None required while UIX-ABC16 runs within its three-file repo-only claim. UIX-ABC18 remains dependency-ready; UI design, hotfile, provider access and every live-write authority remain closed."
+  "recommended_next_human_decision": "None required for the next safe repo-only step. Claim UIX-ABC18 as an isolated DOM-free read model. UIX-ABC17 requires a fresh database, migration and Document hotfile handoff; UI design, provider access and every live-write authority remain closed."
 }
