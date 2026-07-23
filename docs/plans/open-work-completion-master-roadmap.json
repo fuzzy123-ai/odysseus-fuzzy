@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T22:08:49+02:00",
-  "status": "ttd02a_memory_todo_write_fail_closed_claimed_repo_only",
+  "updated_at": "2026-07-23T22:20:20+02:00",
+  "status": "ttd02a_accepted_ttd02b_exact_claim_next_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd02_recon_complete_ttd02a_claimed_ttd02b_blocked_by_ttd02a",
+    "queue_status": "ttd02a_accepted_no_active_claim_ttd02b_recon_complete_exact_claim_next",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_ttd01_accepted_ttd02a_claimed_ttd02b_blocked_live_default_off",
+      "telegram_todo_truth": "ttd00_ttd01_ttd02a_accepted_ttd02b_claim_next_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,18 +85,16 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-02 read-only tool-routing and Memory-validation boundary recon is complete. TTD-02A is claimed as the exact server-side Memory category and Todo-write fail-closed sub-slice; TTD-02B facade and routing work remains blocked behind its release.",
-        "slice": "TTD-02A-memory-category-and-todo-write-fail-closed",
+        "reason": "TTD-02A is accepted with one authoritative Memory-category policy and fail-closed request, manager, agent-writer and update-route boundaries. The completed TTD-02 routing recon now permits only an exact TTD-02B manage_todos facade and routing claim.",
+        "slice": "TTD-02B-manage-todos-facade-routing",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "implement_and_focus_test_only_the_seven_claimed_ttd02a_paths_no_productive_data_runtime_tool_wiring_deploy_send_or_rollover"
+        "safe_default": "claim_only_the_exact_reconciled_ttd02b_facade_registry_intent_and_focused_test_paths_no_productive_data_runtime_deploy_send_or_rollover"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-23"
     },
-    "active_claimed_slices": [
-      "TTD-02A-memory-category-and-todo-write-fail-closed"
-    ]
+    "active_claimed_slices": []
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -955,8 +953,8 @@
       "id": "OWM-22",
       "name": "Telegram Todo Domain Truth And Digest Consistency",
       "priority": 4,
-      "status": "ttd00_ttd01_accepted_ttd02a_claimed_ttd02b_blocked_live_default_off",
-      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 freezes the topology, TTD-01 adds the accepted canonical owner-scoped atomic service, and the completed TTD-02 recon is serialized into TTD-02A Memory write enforcement followed by TTD-02B facade and routing integration.",
+      "status": "ttd00_ttd01_ttd02a_accepted_ttd02b_exact_claim_next_live_default_off",
+      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 freezes the topology, TTD-01 adds the accepted canonical owner-scoped atomic service, and accepted TTD-02A now rejects Todo storage at every claimed Memory write boundary. TTD-02B remains to expose the canonical Todo service through tool and intent routing.",
       "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "source_gate_family": "telegram_todo_truth",
       "dependencies": [
@@ -969,11 +967,11 @@
       "safe_default": "build_and_test_against_synthetic_notes_memory_and_telegram_fixtures_no_production_data_write_deploy_or_send",
       "user_gate_policy": "No user gate in TTD-00 through TTD-10, including TTD-07A. Repository work uses synthetic owner-scoped data and keeps all live actions disabled. Deployment, production data repair, Telegram smoke and productive session rollover are four separate dormant action-specific gates and each requires its own later operator Go.",
       "execution_protocol": {
-        "queue_registration": "TTD-00 and TTD-01 are accepted. TTD-02 recon is complete and TTD-02A is the only active implementation claim; TTD-02B is blocked by TTD-02A. TTD-03 and TTD-08 remain dependency-ready but unselected, while TTD-04 through TTD-07A and TTD-09 through TTD-10 remain blocked_by_dependency.",
+        "queue_registration": "TTD-00, TTD-01 and TTD-02A are accepted with no active claim. The TTD-02 routing recon is complete, so claim only the exact TTD-02B facade and routing paths next. TTD-03 and TTD-08 remain dependency-ready but unselected, while TTD-04 through TTD-07A and TTD-09 through TTD-10 remain blocked_by_dependency.",
         "dependency_rule": "Notes remains Todo truth; manage_todos is a domain facade over Notes, Memory rejects Todo storage, Telegram preserves semantic receipts, and every Digest claim requires a read-only include/exclude/schedule postcondition. Daily session rollover limits context but never substitutes old chat prose for domain readback.",
         "scheduling_decision": {
           "operator_priority_effective_at": "2026-07-21",
-          "position": "active_p0_corrective_track_ttd02a_memory_write_guard_claimed",
+          "position": "active_p0_corrective_track_ttd02a_accepted_ttd02b_exact_claim_next",
           "implementation_authority": "current_goal_repo_only_no_live_authority"
         },
         "future_goal_command": "/goal Setze OWM-22 Telegram Todo Domain Truth repo-only nach TTD-01 fort; beginne mit einem read-only TTD-02 Tool-Routing- und Memory-Validation-Boundary-Recon, claime danach nur exakte uebergebene Pfade und fuehre weder Produktionsdaten-Korrektur noch Deployment, Telegram-Live-Smoke oder produktives Session-Rollover aus."
@@ -2256,7 +2254,7 @@
       "id": "TTD-02A-memory-category-and-todo-write-fail-closed",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_2026-07-23",
+      "status": "accepted_2026-07-23",
       "claimable": false,
       "depends_on": [
         "TTD-00 accepted",
@@ -2302,13 +2300,13 @@
           "src/tool_policy.py",
           "src/agent_loop.py",
           "src/agent_loop_prompts.py",
-          "routes/memory_routes.py",
           "routes/codex_routes.py"
         ],
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-07-23T22:01:49+02:00",
         "lease_expires_at": "2026-07-24T02:01:49+02:00",
-        "handoff_required": true,
+        "released_at": "2026-07-23T22:20:20+02:00",
+        "handoff_required": false,
         "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
         "new_paths": true,
         "dependency_sha256": {
@@ -2345,6 +2343,27 @@
             "model": "gpt-5.6-sol"
           }
         },
+        "actual": {
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "evidence": "root surface"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "evidence": "Charlie implemented the exact claimed policy, request, manager, agent-writer, schema, update-route and focused-test paths"
+          },
+          "review": {
+            "model": "gpt-5.6-sol",
+            "depth": "deep",
+            "result": "approved after three review rounds, one root-owned test-readability cleanup and independent focused verification"
+          }
+        },
         "fallback": "none"
       },
       "evidence": {
@@ -2366,12 +2385,57 @@
           "focused_tests_and_drift_check"
         ],
         "temporal_window": "none",
-        "positive_path_required": true
+        "positive_path_required": true,
+        "observed_at": "2026-07-23T22:20:20+02:00",
+        "result": {
+          "focused_tests": 5,
+          "blocking_failures": 0,
+          "nonblocking_warning_count": 1,
+          "warning": "existing SQLAlchemy declarative_base deprecation",
+          "transient_environment_issue_count": 1,
+          "transient_environment_issue": "The default Windows pytest temp root intermittently denied access; the identical focused suite passed with a unique unused C:\\tmp basetemp.",
+          "authoritative_allowed_categories": 7,
+          "todo_aliases_rejected": 15,
+          "request_add_update_policy": "green",
+          "direct_manager_policy": "green",
+          "agent_writer_pre_side_effect_gate": "green",
+          "memory_update_route_pre_load_gate": "green",
+          "legacy_task_readability": "green",
+          "normal_memory_write_path": "green",
+          "tool_schema_policy_parity": "green",
+          "forbidden_add_save_vector_or_event_side_effects": 0,
+          "private_input_reflections_in_rejection_results": 0,
+          "todo_facade_registry_intent_notes_telegram_productive_data_environment_provider_network_runtime_live_changes": 0,
+          "whitespace_check": "green"
+        }
       },
       "tests": [
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_memory_todo_validation.py",
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider --basetemp C:\\tmp\\odysseus-ttd02a-pytest-20260723T2216 tests\\test_memory_todo_validation.py",
         "git diff --check -- src/memory_category_policy.py src/request_models.py src/memory.py src/ai_interaction.py src/tool_schema_definitions.py routes/memory_routes.py tests/test_memory_todo_validation.py"
       ],
+      "artifact_hashes": {
+        "src/memory_category_policy.py": "967F7422A0AF3BF43436D660361BC01205D3106A0965E606356E72AC00AB03A3",
+        "src/request_models.py": "2C4F6C8FF70FC15736EA48FFE53379C0A9731E8088EDAB759A454226CCDF959A",
+        "src/memory.py": "AA3AD21ABB0AC2576C9EB05052CF52A7CFD022829CB15FBC41B8B6F3CD80F102",
+        "src/ai_interaction.py": "158188E2DB1342B294D8FAEE0BA6C0BB44808FA64A235DCB35DC57855FAE77BC",
+        "src/tool_schema_definitions.py": "179F9EC1D3B8A76985E97C48EF90638E633266665F95A555A570EBFD717F39D7",
+        "routes/memory_routes.py": "E266C5710F531CC1860F7D4126822CCA0D42CE1DF5D317514376F09CE760D6AE",
+        "tests/test_memory_todo_validation.py": "7B850B0AEBB0D0404647F0C7A74E470E672D1528B3F82DD7DCFE11914CE47010"
+      },
+      "implementation_commit": "bbe103c0d73c6d63e194cd348065361151ebba24",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes_focused",
+        "reviewed": "yes_deep_sol",
+        "committed": "yes_local",
+        "pushed": "no",
+        "deployed": "na",
+        "live_validated": "na",
+        "product_complete": "no"
+      },
+      "acceptance": "offline_go_authoritative_memory_category_policy_todo_writes_fail_closed_before_persistence_with_legacy_reads_preserved",
+      "next_frontier": "TTD-02B manage_todos facade and intent/registry routing has completed read-only recon and is next for an exact repo-only claim. TTD-03 and TTD-08 remain dependency-ready but unselected; all live actions remain disabled.",
       "done_when": "One shared Memory-category policy admits only the compatibility union of normal Memory categories, rejects Todo aliases and unknown values before persistence at request, manager, agent-writer and update-route boundaries, keeps legacy reads intact, returns deterministic content-free referrals from the agent writer, exposes the same enum in the native tool schema, and focused synthetic tests prove no forbidden add, save, vector or event side effect."
     },
     {

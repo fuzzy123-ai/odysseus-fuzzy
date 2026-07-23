@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_ttd02_recon_complete_ttd02a_memory_write_guard_claimed",
-      "ai_hint": "This is the current gate authority. TTD-00 and TTD-01 are accepted; the TTD-02 boundary recon is complete. Implement only TTD-02A on its seven exact claimed Memory-policy, request-model, manager, agent-writer, schema, Memory-update-route and focused-test paths. TTD-02B facade/routing remains blocked by TTD-02A; TTD-03 and TTD-08 are dependency-ready but unselected; no productive-data, runtime, deploy, Telegram-send or other live authority is granted."
+      "state": "owm22_ttd02a_accepted_ttd02b_recon_complete_exact_claim_next",
+      "ai_hint": "This is the current gate authority. TTD-00, TTD-01 and TTD-02A are accepted with no active claim. The TTD-02 tool-routing recon is complete; claim only the exact TTD-02B manage_todos facade, registry, policy, intent, prompt and focused-test paths next. TTD-03 and TTD-08 remain dependency-ready but unselected; no productive-data, runtime, deploy, Telegram-send or other live authority is granted."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",

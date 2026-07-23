@@ -2,12 +2,11 @@
 
 Stand: 2026-07-23
 
-Status: `TTD-00` und `TTD-01` sind am 2026-07-23 akzeptiert. Der read-only
-`TTD-02`-Boundary-Recon ist abgeschlossen. `TTD-02A` ist als exakte
-serverseitige Memory-Kategorie- und Todo-Schreibsperre geclaimt; `TTD-02B`
-bleibt bis zu ihrer Acceptance blockiert. `TTD-03` und `TTD-08` sind
-dependency-ready, bleiben jedoch unselektiert; spaetere unmet Slices und
-saemtliche Live-Aktionen bleiben gesperrt.
+Status: `TTD-00`, `TTD-01` und `TTD-02A` sind am 2026-07-23 akzeptiert. Der
+read-only `TTD-02`-Boundary-Recon ist abgeschlossen. `TTD-02B` ist als
+naechster exakter repo-only Claim selektiert, aber noch nicht geclaimt.
+`TTD-03` und `TTD-08` sind dependency-ready, bleiben jedoch unselektiert;
+spaetere unmet Slices und saemtliche Live-Aktionen bleiben gesperrt.
 
 ## Durable Amendment Claim 2026-07-21
 
@@ -405,23 +404,37 @@ Akzeptanz:
 
 Owner: Bob
 
-Status: `ttd02a_claimed_ttd02b_blocked_by_ttd02a`
+Status: `ttd02a_accepted_ttd02b_exact_claim_next`
 
-Serialisierung und aktiver Claim:
+Serialisierung und Acceptance:
 
 - `TTD-02A-memory-category-and-todo-write-fail-closed`
   - Owner: Charlie
   - Run: `abc-ttd02a-20260723T220149+0200`
-  - Status: `claimed_2026-07-23`
+  - Status: `accepted_2026-07-23`
   - Exakte Pfade: neuer zentraler Memory-Kategorievertrag,
     Request-Modelle, Memory-Manager, Agent-Memory-Writer, natives
     `manage_memory`-Schema, bestehender Memory-Update-Endpunkt und ein
     fokussiertes synthetisches Testmodul
   - Verboten: Route-, Todo-Fassade-, Registry-, Intent-, Notes-, Telegram-,
     produktive Daten-, Runtime-, Provider-, Deploy- und Live-Aenderungen
+  - Implementierungs-Commit:
+    `bbe103c0d73c6d63e194cd348065361151ebba24`
+  - Evidence: 5 fokussierte synthetische Tests; autoritative sieben
+    Memory-Kategorien; 15 klare Todo-Aliasse fail-closed; Request-, Manager-,
+    Agent-Writer- und Update-Route-Grenzen gruen; normale Fakten/Preferences
+    bleiben schreibbar; Legacy-`task` bleibt lesbar; Schema-Paritaet gruen;
+    0 verbotene Add-/Save-/Vector-/Event-Nebenwirkungen und 0 private
+    Eingabereflexionen in Rejection-Ergebnissen
+  - Deep-Sol-Review: nach drei Review-Runden und unabhaengiger fokussierter
+    Verifikation akzeptiert
+  - Local only: kein Push, Deploy, produktiver Datenzugriff oder Live-Smoke
+  - Acceptance:
+    `offline_go_authoritative_memory_category_policy_todo_writes_fail_closed_before_persistence_with_legacy_reads_preserved`
 - `TTD-02B-manage-todos-facade-routing`
-  - Status: `blocked_by_ttd02a`
-  - Erst nach Acceptance und Claim-Release von `TTD-02A` claimbar
+  - Status: `recon_complete_exact_claim_next`
+  - Als naechster repo-only Slice auf exakten Fassade-/Registry-/Intent- und
+    fokussierten Testpfaden claimbar
 
 Ziel:
 
