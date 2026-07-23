@@ -437,13 +437,14 @@ Serialisierung und Acceptance:
   - Status: `claimed_2026-07-23`
   - Exakte Pfade: neue `manage_todos`-Fassade, bestehende Import-/Dispatch-,
     Parser-, Katalog-, Schema-, Index-, Policy-, Intent- und Prompt-Projektionen
-    sowie zwei neue und zwei bestehende fokussierte Testmodule
+    ein enges post-Domain `agent_loop.py`-Memory-Removal-Gate sowie zwei neue
+    und zwei bestehende fokussierte Testmodule
   - Entfernen bleibt bestaetigungspflichtig; die Fassade nutzt nur den
     akzeptierten Todo-Domain-Service und gibt inhaltsfreie Snapshots, Receipts
     und sichere Fehlercodes zurueck
-  - Verboten: bestehender Notes-Writer, Todo-Service, Memory-Policy,
-    `agent_loop.py`, Telegram-, produktive Daten-, Runtime-, Provider-, Deploy-
-    und Live-Aenderungen
+  - Verboten: bestehender Notes-Writer, Todo-Service, Memory-Policy, alle
+    sonstigen `agent_loop.py`-Aenderungen, Telegram-, produktive Daten-,
+    Runtime-, Provider-, Deploy- und Live-Aenderungen
 
 Ziel:
 

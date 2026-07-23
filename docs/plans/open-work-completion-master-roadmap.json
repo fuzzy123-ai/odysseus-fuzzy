@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T22:27:28+02:00",
+  "updated_at": "2026-07-23T22:32:21+02:00",
   "status": "ttd02b_manage_todos_facade_routing_claimed_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -2472,6 +2472,7 @@
           "src/action_intents.py",
           "src/agent_loop_intent.py",
           "src/agent_loop_prompts.py",
+          "src/agent_loop.py",
           "tests/test_manage_todos_tool.py",
           "tests/test_manage_todos_wiring.py",
           "tests/test_action_intents.py",
@@ -2481,7 +2482,7 @@
           "docs/plans/telegram-todo-domain-truth-roadmap.md except root-owned claim and acceptance status",
           "docs/plans/open-work-completion-master-roadmap.json and docs/plans/multi-agent-execution-guidance.json except root-owned routing claim and acceptance state",
           "src/todo_domain_service.py src/memory_category_policy.py src/memory.py src/request_models.py src/ai_interaction.py routes/memory_routes.py routes/codex_routes.py",
-          "src/tool_domains/personal_workspace.py src/tool_schemas.py src/agent_loop.py",
+          "src/tool_domains/personal_workspace.py src/tool_schemas.py",
           "core/database.py core/database_migrations.py routes/note_routes.py static/js/notes.js",
           "src/builtin_actions.py src/calendar_capability_service.py src/task_scheduler.py src/task_scheduler_delivery.py",
           "src/claim_evidence_gate.py src/tool_transaction_ledger.py src/telegram_truth_gate.py plugins/telegram",
@@ -2498,7 +2499,8 @@
           "src/tool_policy.py",
           "src/action_intents.py",
           "src/agent_loop_intent.py",
-          "src/agent_loop_prompts.py"
+          "src/agent_loop_prompts.py",
+          "src/agent_loop.py"
         ],
         "preserved_hotfiles": [
           "src/todo_domain_service.py",
@@ -2506,7 +2508,6 @@
           "src/memory.py",
           "src/ai_interaction.py",
           "src/tool_domains/personal_workspace.py",
-          "src/agent_loop.py",
           "src/builtin_actions.py",
           "plugins/telegram/plugin.py"
         ],
@@ -2531,6 +2532,7 @@
           "src/action_intents.py": "4F0B10B42A2A906AAEE49576631B93223C4F18BEA5133A82FA48996172724412",
           "src/agent_loop_intent.py": "648BA06381082A8001F5CB86236E084D57144F8E8CAA511BAE2AA111AB03050A",
           "src/agent_loop_prompts.py": "011E7DDD070CF68247407D49DC0B7B2CAA63E3A29B47C715F7F4BC062F1E0111",
+          "src/agent_loop.py": "45A086A6B04E316F77EBB8CC05F65D5A93961946D463578A1D6B4FC9F9F693A6",
           "tests/test_action_intents.py": "5BE2BAFB2049134AB4D0795369A4F11C0E8BE3D58A261DC506A96C763FA59817",
           "tests/test_builtin_tool_catalog.py": "578DC22DDB564CF62805725586D0B3F4E2B5FEA2BE2AA8204193F8FE68ECEDC9",
           "tests/test_tool_index_schema_parity.py": "D46B4245D7938AF3DB2FB6742629F773552A041A60A79F7F8A9FE32D5A693095",
@@ -2576,6 +2578,7 @@
           "facade_returns_only_content_free_snapshots_receipts_and_safe_error_codes",
           "schema_parser_catalog_dispatch_policy_index_and_prompt_projections_are_complete",
           "clear_todo_intent_force_includes_manage_todos_and_removes_manage_memory",
+          "todo_domain_gate_removes_manage_memory_after_normal_rag_keyword_fallback_and_domain_seeding",
           "normal_user_fact_intent_keeps_manage_memory",
           "notes_reminders_and_recurring_scheduled_tasks_preserve_their_existing_domains",
           "english_german_singular_plural_multiline_completion_reopen_and_common_typo_intents_are_covered",
@@ -2588,9 +2591,9 @@
       },
       "tests": [
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_manage_todos_tool.py tests\\test_manage_todos_wiring.py tests\\test_action_intents.py tests\\test_builtin_tool_catalog.py::test_catalog_is_sorted_unique_and_has_the_frozen_projection_counts tests\\test_builtin_tool_catalog.py::test_every_current_static_projection_is_strictly_validated_by_the_catalog tests\\test_tool_index_schema_parity.py tests\\test_memory_todo_validation.py",
-        "git diff --check -- src/tool_domains/todos.py src/tool_implementations.py src/tool_execution.py src/agent_tools/__init__.py src/builtin_tool_catalog.py src/tool_parsing.py src/tool_schema_definitions.py src/tool_index.py src/tool_policy.py src/action_intents.py src/agent_loop_intent.py src/agent_loop_prompts.py tests/test_manage_todos_tool.py tests/test_manage_todos_wiring.py tests/test_action_intents.py tests/test_builtin_tool_catalog.py"
+        "git diff --check -- src/tool_domains/todos.py src/tool_implementations.py src/tool_execution.py src/agent_tools/__init__.py src/builtin_tool_catalog.py src/tool_parsing.py src/tool_schema_definitions.py src/tool_index.py src/tool_policy.py src/action_intents.py src/agent_loop_intent.py src/agent_loop_prompts.py src/agent_loop.py tests/test_manage_todos_tool.py tests/test_manage_todos_wiring.py tests/test_action_intents.py tests/test_builtin_tool_catalog.py"
       ],
-      "done_when": "The accepted Todo service is reachable through one owner-exact manage_todos facade with safe confirmation and error contracts; every native schema, parser, catalog, dispatcher, policy, index, intent and prompt surface agrees; clear English and German Todo intents cannot select manage_memory; normal Memory facts, Notes/reminders and recurring tasks keep their established routes; and focused synthetic tests prove no existing writer, productive-data, runtime or live mutation."
+      "done_when": "The accepted Todo service is reachable through one owner-exact manage_todos facade with safe confirmation and error contracts; every native schema, parser, catalog, dispatcher, policy, index, intent and prompt surface agrees; one narrow post-domain agent-loop gate removes manage_memory for clear English and German Todo intents across normal retrieval and fallback; normal Memory facts, Notes/reminders and recurring tasks keep their established routes; and focused synthetic tests prove no existing writer, productive-data, runtime or live mutation."
     },
     {
       "id": "TAX0-deterministic-inventory",
