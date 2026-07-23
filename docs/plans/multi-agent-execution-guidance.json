@@ -577,7 +577,7 @@
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
       "state": "owm22_ttd02a_accepted_ttd02b_manage_todos_facade_routing_claimed",
-      "ai_hint": "This is the current gate authority. TTD-00, TTD-01 and TTD-02A are accepted. Implement only the active exact TTD-02B manage_todos facade, registry, dispatcher, policy, index, intent, prompt, one narrow post-domain agent-loop Memory-removal gate and focused-test claim. Preserve the existing Notes writer, accepted Todo service, Memory policy and all other agent-loop and Telegram behavior. TTD-03 and TTD-08 remain unselected; no productive-data, runtime, deploy, Telegram-send or other live authority is granted."
+      "ai_hint": "This is the current gate authority. TTD-00, TTD-01 and TTD-02A are accepted. Implement only the active exact TTD-02B manage_todos facade, registry, dispatcher, policy, index, intent, prompt, one narrow post-domain agent-loop Memory-removal gate, the exact one-tool TAX0 audit-baseline advance and focused tests. Preserve the existing Notes writer, accepted Todo service, Memory policy and all other agent-loop and Telegram behavior. TTD-03 and TTD-08 remain unselected; no productive-data, runtime, deploy, Telegram-send or other live authority is granted."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",

@@ -438,7 +438,9 @@ Serialisierung und Acceptance:
   - Exakte Pfade: neue `manage_todos`-Fassade, bestehende Import-/Dispatch-,
     Parser-, Katalog-, Schema-, Index-, Policy-, Intent- und Prompt-Projektionen
     ein enges post-Domain `agent_loop.py`-Memory-Removal-Gate sowie zwei neue
-    und zwei bestehende fokussierte Testmodule
+    und drei bestehende fokussierte Testmodule; der statische TAX0-Audit darf
+    nur um exakt ein Runtime-Tool, ein Native-Schema und einen
+    Admin-Fallback-Zaehler fortgeschrieben werden
   - Entfernen bleibt bestaetigungspflichtig; die Fassade nutzt nur den
     akzeptierten Todo-Domain-Service und gibt inhaltsfreie Snapshots, Receipts
     und sichere Fehlercodes zurueck

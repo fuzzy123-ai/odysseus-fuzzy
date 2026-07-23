@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T22:32:21+02:00",
+  "updated_at": "2026-07-23T22:38:29+02:00",
   "status": "ttd02b_manage_todos_facade_routing_claimed_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -2473,10 +2473,12 @@
           "src/agent_loop_intent.py",
           "src/agent_loop_prompts.py",
           "src/agent_loop.py",
+          "scripts/audit_tool_registry_drift.py",
           "tests/test_manage_todos_tool.py",
           "tests/test_manage_todos_wiring.py",
           "tests/test_action_intents.py",
-          "tests/test_builtin_tool_catalog.py"
+          "tests/test_builtin_tool_catalog.py",
+          "tests/test_audit_tool_registry_drift.py"
         ],
         "excluded_paths": [
           "docs/plans/telegram-todo-domain-truth-roadmap.md except root-owned claim and acceptance status",
@@ -2500,7 +2502,8 @@
           "src/action_intents.py",
           "src/agent_loop_intent.py",
           "src/agent_loop_prompts.py",
-          "src/agent_loop.py"
+          "src/agent_loop.py",
+          "scripts/audit_tool_registry_drift.py"
         ],
         "preserved_hotfiles": [
           "src/todo_domain_service.py",
@@ -2533,8 +2536,10 @@
           "src/agent_loop_intent.py": "648BA06381082A8001F5CB86236E084D57144F8E8CAA511BAE2AA111AB03050A",
           "src/agent_loop_prompts.py": "011E7DDD070CF68247407D49DC0B7B2CAA63E3A29B47C715F7F4BC062F1E0111",
           "src/agent_loop.py": "45A086A6B04E316F77EBB8CC05F65D5A93961946D463578A1D6B4FC9F9F693A6",
+          "scripts/audit_tool_registry_drift.py": "A0D1C271A840EA36F5D97353F60DD00A80851105351B9D437262D305AF5C8750",
           "tests/test_action_intents.py": "5BE2BAFB2049134AB4D0795369A4F11C0E8BE3D58A261DC506A96C763FA59817",
           "tests/test_builtin_tool_catalog.py": "578DC22DDB564CF62805725586D0B3F4E2B5FEA2BE2AA8204193F8FE68ECEDC9",
+          "tests/test_audit_tool_registry_drift.py": "1E54882A785A9DFD58853741527370F9E6DE3023905FE07BE1A48A90EFB5E6A1",
           "tests/test_tool_index_schema_parity.py": "D46B4245D7938AF3DB2FB6742629F773552A041A60A79F7F8A9FE32D5A693095",
           "tests/test_memory_todo_validation.py": "7B850B0AEBB0D0404647F0C7A74E470E672D1528B3F82DD7DCFE11914CE47010"
         }
@@ -2577,6 +2582,7 @@
           "remove_requires_explicit_confirmed_true_before_service_call",
           "facade_returns_only_content_free_snapshots_receipts_and_safe_error_codes",
           "schema_parser_catalog_dispatch_policy_index_and_prompt_projections_are_complete",
+          "tool_registry_drift_baselines_advance_by_exactly_one_registered_runtime_schema_and_admin_fallback",
           "clear_todo_intent_force_includes_manage_todos_and_removes_manage_memory",
           "todo_domain_gate_removes_manage_memory_after_normal_rag_keyword_fallback_and_domain_seeding",
           "normal_user_fact_intent_keeps_manage_memory",
@@ -2590,8 +2596,8 @@
         "positive_path_required": true
       },
       "tests": [
-        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_manage_todos_tool.py tests\\test_manage_todos_wiring.py tests\\test_action_intents.py tests\\test_builtin_tool_catalog.py::test_catalog_is_sorted_unique_and_has_the_frozen_projection_counts tests\\test_builtin_tool_catalog.py::test_every_current_static_projection_is_strictly_validated_by_the_catalog tests\\test_tool_index_schema_parity.py tests\\test_memory_todo_validation.py",
-        "git diff --check -- src/tool_domains/todos.py src/tool_implementations.py src/tool_execution.py src/agent_tools/__init__.py src/builtin_tool_catalog.py src/tool_parsing.py src/tool_schema_definitions.py src/tool_index.py src/tool_policy.py src/action_intents.py src/agent_loop_intent.py src/agent_loop_prompts.py src/agent_loop.py tests/test_manage_todos_tool.py tests/test_manage_todos_wiring.py tests/test_action_intents.py tests/test_builtin_tool_catalog.py"
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_manage_todos_tool.py tests\\test_manage_todos_wiring.py tests\\test_action_intents.py tests\\test_builtin_tool_catalog.py::test_catalog_is_sorted_unique_and_has_the_frozen_projection_counts tests\\test_builtin_tool_catalog.py::test_every_current_static_projection_is_strictly_validated_by_the_catalog tests\\test_audit_tool_registry_drift.py::test_repository_inventory_reproduces_tax0_baseline tests\\test_audit_tool_registry_drift.py::test_known_runtime_schema_and_admin_differences_are_exact tests\\test_tool_index_schema_parity.py tests\\test_memory_todo_validation.py",
+        "git diff --check -- src/tool_domains/todos.py src/tool_implementations.py src/tool_execution.py src/agent_tools/__init__.py src/builtin_tool_catalog.py src/tool_parsing.py src/tool_schema_definitions.py src/tool_index.py src/tool_policy.py src/action_intents.py src/agent_loop_intent.py src/agent_loop_prompts.py src/agent_loop.py scripts/audit_tool_registry_drift.py tests/test_manage_todos_tool.py tests/test_manage_todos_wiring.py tests/test_action_intents.py tests/test_builtin_tool_catalog.py tests/test_audit_tool_registry_drift.py"
       ],
       "done_when": "The accepted Todo service is reachable through one owner-exact manage_todos facade with safe confirmation and error contracts; every native schema, parser, catalog, dispatcher, policy, index, intent and prompt surface agrees; one narrow post-domain agent-loop gate removes manage_memory for clear English and German Todo intents across normal retrieval and fallback; normal Memory facts, Notes/reminders and recurring tasks keep their established routes; and focused synthetic tests prove no existing writer, productive-data, runtime or live mutation."
     },
