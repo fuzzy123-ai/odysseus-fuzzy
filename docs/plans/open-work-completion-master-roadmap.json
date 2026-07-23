@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-22T12:00:00+02:00",
+  "updated_at": "2026-07-23T07:58:00+02:00",
   "status": "repo_frontier_exhausted_waiting_on_handoffs_and_gates",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Implementiere OWM-23 Agent Maintenance Safety Harness repo-only; beginne mit AMH-01, halte Nachfolger dependency-gated, bewahre fremde Worktree-Aenderungen und fuehre weder Live-Aktionen noch ungefragte Pushes aus.",
@@ -13,7 +13,7 @@
     "unique_live_gates": 40,
     "unique_design_gates": 16,
     "other_open_json_items": 34,
-    "queue_status": "repo_frontier_exhausted_waiting_on_handoffs_and_gates",
+    "queue_status": "uix_abc13_claimed_repo_only_implementation_running",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,7 +21,7 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "agent_maintenance_safety": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "universal_inbox_workbench": "uix_abc13_open_product_semantics_confirmation_required",
+      "universal_inbox_workbench": "uix_abc13_product_semantics_confirmed_implementation_running",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
@@ -60,19 +60,18 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "UIX-ABC13 requires explicit product-semantics confirmation before claim",
+        "reason": "The owner confirmed the exact UIX-ABC13 product semantics; the bounded repo-only capability-contract claim is running.",
         "slice": "UIX-ABC13",
-        "user_decision_required": true,
-        "safe_default": "do_not_claim_UIX-ABC13_keep_TAX_and_TUA_live_controls_off_and_wait"
+        "user_decision_required": false,
+        "safe_default": "implement_only_the_claimed_server_side_contract_and_focused_tests"
       },
       "queue_exhausted": true,
       "detail_roadmap_frontier_exists": false,
       "verified_at": "2026-07-16"
     },
     "dependency_ready_repo_only_slices": [],
-    "product_semantics_gated_open_slices": [
-      "UIX-ABC13"
-    ],
+    "product_semantics_gated_open_slices": [],
+    "active_repo_only_slice": "UIX-ABC13",
     "dependency_blocked_slices": [
       "UIX-ABC14",
       "UIX-ABC15",
@@ -1111,9 +1110,42 @@
       "title": "Authoritative Workbench Capability Contract",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
-      "claimable": false,
+      "status": "claimed_implementation_running",
+      "claimable": true,
       "claim_blocker": "UIX-WORKBENCH-PRODUCT-SEMANTICS-CONFIRMATION",
+      "gate_resolution": {
+        "state": "confirmed",
+        "confirmed_at": "2026-07-23T07:58:00+02:00",
+        "grant": "lets go in response to GO UIX-ABC13",
+        "semantics": [
+          "document focus with Markdown/Text, PDF and DOCX at P0",
+          "immutable original",
+          "versioned working copy as the only editable object",
+          "explainable dry-run routing",
+          "local browser download for repo-only export",
+          "server-authoritative classification and owner policy with advisory browser detection"
+        ],
+        "non_grants": [
+          "no UI design acceptance",
+          "no hotfile handoff",
+          "no provider, Nextcloud or other live write"
+        ]
+      },
+      "claim": {
+        "run_id": "abc-uix13-20260723T075800+0200",
+        "thread_id": "/root",
+        "slice_id": "UIX-ABC13",
+        "owner": "root",
+        "allowed_paths": [
+          "src/universal_inbox_workbench.py",
+          "tests/test_universal_inbox_workbench.py"
+        ],
+        "hotfiles": [],
+        "state": "claimed",
+        "acquired_at": "2026-07-23T07:58:00+02:00",
+        "lease_expires_at": "2026-07-23T10:00:00+02:00",
+        "handoff_required": false
+      },
       "source_roadmap": "docs/plans/universal-inbox-abc-roadmap.md",
       "allowed_paths": [
         "src/universal_inbox_workbench.py",
@@ -2342,5 +2374,5 @@
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "UIX-WORKBENCH-PRODUCT-SEMANTICS-CONFIRMATION: confirm or amend only the server-side UIX-ABC13 semantics (document focus; Markdown/Text/PDF/DOCX P0; immutable original; versioned working copy; explainable dry-run routing; local browser download; server-authoritative and browser-advisory). This does not grant UI design acceptance, a hotfile handoff or any live write. Until answered, do not claim UIX-ABC13; keep TAX and TUA live controls off and wait."
+  "recommended_next_human_decision": "None for UIX-ABC13 implementation. Complete only the confirmed server-side capability contract and focused tests; keep UI design, hotfile and every live-write authority closed."
 }
