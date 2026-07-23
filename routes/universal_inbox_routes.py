@@ -5,15 +5,73 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from src.auth_helpers import effective_user
 from src.universal_inbox_file_types import classify_universal_inbox_file
 from src.universal_inbox_flow_state import build_universal_inbox_flow_state
+from src.universal_inbox_items import (
+    DEFAULT_PAGE_LIMIT,
+    MAX_PAGE_LIMIT,
+    UniversalInboxAuthenticationRequired,
+    UniversalInboxBrowseError,
+    UniversalInboxIndexUnavailable,
+    UniversalInboxOwnerScopeDenied,
+    UploadHandlerMetadataSource,
+    browse_universal_inbox_items,
+    load_owner_scoped_universal_inbox_items,
+    resolve_universal_inbox_owner_scope,
+)
+from src.universal_inbox_workspace_snapshot import (
+    build_universal_inbox_workspace_snapshot,
+)
 
 
 def setup_universal_inbox_routes(upload_handler: Any = None) -> APIRouter:
     router = APIRouter(prefix="/api/universal-inbox", tags=["universal-inbox"])
+
+    @router.get("/items")
+    async def browse_inbox_items(
+        request: Request,
+        limit: int = Query(DEFAULT_PAGE_LIMIT, ge=1, le=MAX_PAGE_LIMIT),
+        cursor: str | None = None,
+        owner: str | None = None,
+    ):
+        auth_manager = getattr(request.app.state, "auth_manager", None)
+        try:
+            return browse_universal_inbox_items(
+                upload_handler,
+                caller_owner=effective_user(request),
+                auth_manager=auth_manager,
+                requested_owner=owner,
+                limit=limit,
+                cursor=cursor,
+            )
+        except Exception as exc:
+            _raise_browse_http_error(exc)
+
+    @router.get("/snapshot")
+    async def get_inbox_snapshot(
+        request: Request,
+        owner: str | None = None,
+    ):
+        auth_manager = getattr(request.app.state, "auth_manager", None)
+        try:
+            target_owner, admin_override = resolve_universal_inbox_owner_scope(
+                caller_owner=effective_user(request),
+                auth_manager=auth_manager,
+                requested_owner=owner,
+            )
+            items = load_owner_scoped_universal_inbox_items(
+                UploadHandlerMetadataSource(upload_handler),
+                target_owner=target_owner,
+            )
+            return build_universal_inbox_workspace_snapshot(
+                items,
+                admin_override=admin_override,
+            )
+        except Exception as exc:
+            _raise_browse_http_error(exc)
 
     @router.get("/items/{source_ref:path}/status")
     async def get_universal_inbox_item_status(request: Request, source_ref: str):
@@ -29,6 +87,18 @@ def setup_universal_inbox_routes(upload_handler: Any = None) -> APIRouter:
         ).to_dict()
 
     return router
+
+
+def _raise_browse_http_error(exc: Exception) -> None:
+    if isinstance(exc, UniversalInboxAuthenticationRequired):
+        raise HTTPException(403, "Not authenticated") from exc
+    if isinstance(exc, UniversalInboxOwnerScopeDenied):
+        raise HTTPException(404, "Universal Inbox owner scope not found") from exc
+    if isinstance(exc, UniversalInboxBrowseError):
+        raise HTTPException(400, str(exc)) from exc
+    if isinstance(exc, UniversalInboxIndexUnavailable):
+        raise HTTPException(503, "Upload browse backend is not available") from exc
+    raise exc
 
 
 def _resolve_redacted_upload_status(
