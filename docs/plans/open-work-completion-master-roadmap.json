@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T19:53:05+02:00",
-  "status": "usi13_accepted_usi14_dependency_ready_repo_only",
+  "updated_at": "2026-07-23T19:57:51+02:00",
+  "status": "usi14_security_privacy_failure_matrix_claimed_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,7 +23,7 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "usi13_accepted_usi14_dependency_ready",
+    "queue_status": "usi14_claimed_after_usi00_through_usi13_acceptance",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -34,7 +34,7 @@
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
       "memory_observability": "gro00_through_gro15_offline_go_live_gate_eligible_not_authorized",
-      "unified_source_index": "usi00_through_usi13_accepted_usi14_dependency_ready_productive_sources_off",
+      "unified_source_index": "usi00_through_usi13_accepted_usi14_claimed_three_new_paths_productive_sources_off",
       "usi_runtime_consumer_integration": "planned_child_after_usi_core_runtime_default_off",
       "usi_domain_adapters": "planned_child_source_waves_default_off_private_domains_deferred",
       "usi_data_lifecycle_operations": "planned_child_live_actions_default_off",
@@ -85,16 +85,18 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "unified_source_index",
-        "reason": "USI-03 through USI-13 are accepted with bounded backup, restore, rebuild and million-logical-record scale evidence. USI-14 is the next dependency-ready repo-only security, privacy and failure-matrix slice.",
+        "reason": "USI-00 through USI-13 are accepted. Read-only recon proved that the USI-14 security, privacy and failure matrix fits exactly two new synthetic test files and one acceptance document without production-code edits.",
         "slice": "USI-14-security-privacy-failure-matrix",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "execute_only_the_three_declared_usi14_test_and_acceptance_paths_with_synthetic_temporary_data_keep_productive_sources_off"
+        "safe_default": "execute_only_the_three_claimed_new_usi14_paths_with_synthetic_temporary_data_keep_productive_sources_off"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-23"
     },
-    "active_claimed_slices": []
+    "active_claimed_slices": [
+      "USI-14-security-privacy-failure-matrix"
+    ]
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -760,8 +762,8 @@
       "id": "OWM-15",
       "name": "Unified Source Index Foundation",
       "priority": 9,
-      "status": "usi00_through_usi13_accepted_usi14_dependency_ready_live_default_off",
-      "why_open": "USI-00 through USI-13 are accepted, including canonical default-off query_knowledge, clean TAX/USI inventories and bounded backup/restore/rebuild/scale evidence. USI-14 is dependency-ready for focused synthetic security, privacy and failure-matrix acceptance; all productive sources remain disabled.",
+      "status": "usi00_through_usi13_accepted_usi14_claimed_live_default_off",
+      "why_open": "USI-00 through USI-13 are accepted, including canonical default-off query_knowledge, clean TAX/USI inventories and bounded backup/restore/rebuild/scale evidence. USI-14 is claimed on exactly two new synthetic test files and one new acceptance document; all productive sources remain disabled.",
       "source_roadmap": "docs/plans/unified-source-index-implementation-roadmap.md",
       "source_gate_family": "unified_source_index",
       "dependencies": [
@@ -774,7 +776,7 @@
       "safe_default": "build_and_test_usi_with_temporary_fixtures_all_productive_sources_disabled",
       "user_gate_policy": "No user gate in USI-00 through USI-15 or the UIR/UDA/ULO child closure tracks. No productive source scan, real legacy cutover or persistent private-data indexing occurs. Exactly one live activation decision may be materialized after core identity/store/query plus runtime/consumer, selected domain-adapter and lifecycle/operations acceptance is green.",
       "execution_protocol": {
-        "queue_registration": "USI-13 is accepted and its claim released. USI-14 is the next dependency-ready core slice; keep USI-15 blocked by its broader declared dependencies.",
+        "queue_registration": "USI-13 is accepted and its claim released. USI-14 is the active claimed core slice; keep USI-15 blocked by its broader declared dependencies.",
         "dependency_rule": "USI-01 and USI-03 are identity/store barriers; UIR, UDA and ULO open only at their declared barriers and must close the selected source scope before USI-15. TAX, GRO, domain truth and Project Versioning hotfiles require explicit owner handoffs.",
         "future_goal_command": "/goal Implementiere OWM-15 im Overnight Backend Mode bis zum fertigen USI activation packet; beginne nur mit USI-00, halte Nachfolger blocked_by_dependency und aktiviere keine produktive Source."
       },
@@ -1443,6 +1445,131 @@
       "acceptance": "offline_go_consistent_self_contained_sqlite_backup_fresh_restore_fixed_snapshot_fts_rebuild_explicit_external_projection_incompleteness_and_bounded_scale_evidence",
       "next_frontier": "USI-14 security privacy and failure matrix is dependency-ready; productive sources remain off.",
       "done_when": "A consistent SQLite snapshot backs up and restores only into fresh contained temporary targets; FTS and explicitly injected projections rebuild against one fixed truth snapshot; missing external rebuilders produce an incomplete receipt; bounded physical samples report deterministic p50/p95, bytes, allocation, contention and recovery evidence for declared 100k-LOC/million-logical-record profiles without a Postgres migration claim or productive/live action."
+    },
+    {
+      "id": "USI-14-security-privacy-failure-matrix",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "claimed_in_progress",
+      "claimable": false,
+      "depends_on": [
+        "USI-01",
+        "USI-02",
+        "USI-03",
+        "USI-04",
+        "USI-05",
+        "USI-06",
+        "USI-07",
+        "USI-08",
+        "USI-09",
+        "USI-10",
+        "USI-11",
+        "USI-12",
+        "USI-13"
+      ],
+      "source_roadmap": "docs/plans/unified-source-index-implementation-roadmap.md",
+      "claim": {
+        "run_id": "abc-usi14-20260723T195751+0200",
+        "thread_id": "/root",
+        "slice_id": "USI-14-security-privacy-failure-matrix",
+        "owner": "Charlie",
+        "allowed_paths": [
+          "tests/test_unified_source_index_security.py",
+          "tests/test_unified_source_index_failure_matrix.py",
+          "docs/plans/unified-source-index-acceptance.md"
+        ],
+        "excluded_paths": [
+          "every existing USI, CBM, Lens, diagnostics, route, app, runtime and provider implementation",
+          "every productive database, source, SDK, host, network, deploy and live path"
+        ],
+        "hotfiles": [],
+        "state": "claimed",
+        "acquired_at": "2026-07-23T19:57:51+02:00",
+        "lease_expires_at": "2026-07-23T23:57:51+02:00",
+        "handoff_required": false,
+        "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
+        "new_paths": true,
+        "dependency_sha256": {
+          "src/unified_source_index_contract.py": "879AB354DCD738D67F4929BDC36FF5A5426E44C2F2F813F9A9DA05051E68F30A",
+          "src/unified_source_index_query.py": "6C71D7B3575BE0015BF706A260D602404B897A4EDCF296FA7F4D68263390FC27",
+          "src/unified_source_index_sqlite.py": "4368528DF98045A80EAD495AE4ECCF52B381E70B7043CAC42958ED53A731FB22",
+          "src/unified_source_index_adapters.py": "3C16DF992C062EEC781A3235DD555120EDF1EF59C8C28907784F45C432726F6A",
+          "src/unified_source_index_context.py": "508E947A583205D43240546EB153500ED46C6C67FE1526A4627E1D9805FAAA29",
+          "src/unified_source_index_diagnostics.py": "098BEA06A88BE62F09F97D9A282201FE9A7C24A29325CBD89DF22433FADB8C7C",
+          "src/unified_source_index_embeddings.py": "2F837029D47530AB0F93FED2646FCEA6DA3398E441E6A39AC61237B60C430D44",
+          "src/unified_source_index_raptor.py": "FB82578EE400C1E5B7A4338728F58E0D5E4BFA7D59D680068FBAD14088F87D8D",
+          "src/code_intelligence_retrieval.py": "8DC0B8B889CDE52A97F725E236121E781E0AC9A0BB44E6EB861583417D49F5E6"
+        }
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "dependency gate, three-path claim, Terra implementation and Sol review"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "actual": {
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "evidence": "root surface"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "evidence": "read-only recon complete; implementation pending"
+          },
+          "review": {
+            "model": "pending",
+            "depth": "deep",
+            "result": "pending"
+          }
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "temporary SQLite databases plus synthetic records, providers, sinks, contexts and metrics",
+        "observed_at": "2026-07-23T19:57:51+02:00",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "owner_classification_content_policy_fail_closed",
+          "traversal_malformed_locator_fts_injection_oversized_payload_rejection",
+          "optional_provider_fail_soft_without_false_success",
+          "tombstone_and_stale_result_exclusion",
+          "content_free_errors_outcomes_metrics_reports_and_lens",
+          "focused_tests",
+          "acceptance_matrix"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true,
+        "recon": "All three declared paths are new and no production-file edit is required for the generic synthetic matrix. Chroma SDK/live service behavior and real CBM/RAPTOR runtime integration remain out of scope; their existing injected sink, structural bridge and adapter boundaries provide the repo-only failure evidence."
+      },
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_unified_source_index_security.py tests\\test_unified_source_index_failure_matrix.py",
+        "git diff --check -- tests/test_unified_source_index_security.py tests/test_unified_source_index_failure_matrix.py docs/plans/unified-source-index-acceptance.md"
+      ],
+      "done_when": "The focused synthetic matrix proves owner/classification/content-policy failures are fail-closed, hostile locators/FTS input/oversized payloads are bounded, unavailable optional projections degrade without false success, tombstoned or stale results do not leak by default, and private sentinel content never enters errors, outcomes, metrics, reports or Lens payloads."
     },
     {
       "id": "TAX0-deterministic-inventory",

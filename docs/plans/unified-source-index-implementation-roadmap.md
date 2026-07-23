@@ -2,7 +2,7 @@
 
 Stand: 2026-07-23
 
-Status: `USI-13_accepted / USI-14_dependency_ready / runtime_default_off`
+Status: `USI-13_accepted / USI-14_claimed / runtime_default_off`
 
 Master-Track: `0.28.x`, `OWM-15`, `L21`
 
@@ -779,7 +779,27 @@ handoff; no USI worker may edit them independently.
 
 - Class: `repo_only`
 - Owner: Charlie
-- Status: `dependency_ready_2026-07-23`
+- Status: `claimed_2026-07-23`
+- Dependency audit: `USI-01 through USI-13 accepted; all three declared paths
+  are new; read-only recon found no unavoidable production-code edit`
+- Serialized claim:
+  - run_id: `abc-usi14-20260723T195751+0200`
+  - thread_id: `/root`
+  - owner: `Charlie`
+  - state: `claimed`
+  - acquired_at: `2026-07-23T19:57:51+02:00`
+  - lease_expires_at: `2026-07-23T23:57:51+02:00`
+  - worktree: `C:\tmp\odysseus-abc-usi09-20260723`
+  - allowed_paths: `tests/test_unified_source_index_security.py`,
+    `tests/test_unified_source_index_failure_matrix.py`, and
+    `docs/plans/unified-source-index-acceptance.md`
+  - excluded_paths: every existing USI, CBM, Lens, diagnostics, route, app,
+    runtime, provider, productive database, source, SDK, host, network, deploy
+    and live path
+  - evidence: `The generic matrix is fully test-/documentation-only with
+    temporary SQLite and synthetic providers/sinks. Chroma SDK/live service
+    behavior and real CBM/RAPTOR runtime integration remain outside USI-14;
+    existing injected boundaries provide the honest repo-only evidence.`
 - Dependencies: `USI-01` through `USI-13`
 - Allowed paths:
   - `tests/test_unified_source_index_security.py`
