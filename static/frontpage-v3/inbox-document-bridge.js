@@ -15,6 +15,7 @@
   'use strict';
 
   var MAX_CONTENT_BYTES = 1024 * 1024;
+  var MAX_DOWNLOAD_BYTES = 8 * 1024 * 1024;
   var MAX_VERSIONS = 200;
   // Mirrors src/upload_handler.py UPLOAD_ID_RE (the server owns this authority).
   var SOURCE_REF = /^upload:[0-9a-fA-F]{32}(?:\.[A-Za-z0-9]+)?$/;
@@ -22,6 +23,27 @@
   var REASON = /^[a-z0-9_]{1,64}$/;
   var MODES = { original: true, extraction: true, working_copy: true, difference: true };
   var SAVE_STATES = { idle: true, creating: true, ready: true, dirty: true, saving: true, saved: true, conflict: true, error: true };
+  var EXPORT_STATES = { idle: true, downloading: true, downloaded: true, blocked: true, error: true };
+  var CAPABILITY_SCHEMA = 'odysseus.universal_inbox.workbench_capability.v1';
+  var ACTIONS = ['inspect', 'route_dry_run', 'create_working_copy', 'edit_working_copy', 'download_original', 'export_working_copy'];
+  var ACTION_STATES = { allowed: true, review: true, blocked: true, not_supported: true, live_gate_required: true };
+  var SAFE_SUFFIX = /^\.[a-z0-9]{1,12}$/;
+  var LANGUAGE_EXPORT_TYPES = {
+    bash: ['.sh', 'text/x-shellscript'], c: ['.c', 'text/x-c'], cpp: ['.cpp', 'text/x-c++'],
+    css: ['.css', 'text/css'], csv: ['.csv', 'text/csv'], email: ['.eml', 'message/rfc822'],
+    go: ['.go', 'text/plain'], html: ['.html', 'text/html'], ini: ['.ini', 'text/plain'],
+    java: ['.java', 'text/plain'], javascript: ['.js', 'text/javascript'], json: ['.json', 'application/json'],
+    markdown: ['.md', 'text/markdown'], php: ['.php', 'text/plain'], plain: ['.txt', 'text/plain'],
+    python: ['.py', 'text/x-python'], ruby: ['.rb', 'text/plain'], rust: ['.rs', 'text/plain'],
+    sql: ['.sql', 'text/plain'], svg: ['.svg', 'image/svg+xml'], text: ['.txt', 'text/plain'],
+    toml: ['.toml', 'text/plain'], typescript: ['.ts', 'text/plain'], xml: ['.xml', 'application/xml'],
+    yaml: ['.yml', 'text/yaml']
+  };
+  var ORIGINAL_TYPES = {
+    '.md': ['text/markdown', 'text/plain'], '.markdown': ['text/markdown', 'text/plain'],
+    '.txt': ['text/plain'], '.pdf': ['application/pdf'],
+    '.docx': ['application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+  };
 
   function bytes(value) {
     if (typeof value !== 'string') return Infinity;
@@ -33,6 +55,65 @@
   function validId(value) { return typeof value === 'string' && DOC_ID.test(value); }
   function cleanReason(value, fallback) { return typeof value === 'string' && REASON.test(value) ? value : fallback; }
   function abortError(error) { return error && error.name === 'AbortError'; }
+  function header(response, name) {
+    var value = response && response.headers && typeof response.headers.get === 'function' && response.headers.get(name);
+    return typeof value === 'string' ? value : '';
+  }
+  function exportType(language) {
+    var key = typeof language === 'string' ? language.trim().toLowerCase() : 'text';
+    return LANGUAGE_EXPORT_TYPES[key] || ['.txt', 'text/plain'];
+  }
+  function exportSlug(title) {
+    var value = typeof title === 'string' ? title.trim() : '';
+    value = value.replace(/\.pdf$/i, '').replace(/\s+/g, '_').replace(/[^A-Za-z0-9._-]/g, '').replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+    return (value || 'form').slice(0, 96);
+  }
+  function workingFilename(title, version, extension) {
+    var number = Number.isInteger(version) && version > 0 ? version : 1;
+    var base = exportSlug(title || 'document');
+    if (base.toLowerCase().endsWith(extension)) base = base.slice(0, -extension.length).replace(/[._-]+$/, '') || 'document';
+    return base + '-v' + number + extension;
+  }
+  function pdfFilename(title) { return exportSlug(title || 'form') + '_annotated.pdf'; }
+  function headerTypeAllowed(value, allowed) {
+    var match = /^([^;\s]+\/[^;\s]+)(?:;\s*charset=utf-8)?$/i.exec((value || '').trim());
+    return !!match && allowed.indexOf(match[1].toLowerCase()) !== -1;
+  }
+  function contentLength(value) {
+    if (!/^(?:0|[1-9][0-9]*)$/.test(value || '')) return null;
+    var length = Number(value);
+    return Number.isSafeInteger(length) && length <= MAX_DOWNLOAD_BYTES ? length : null;
+  }
+  function dispositionFilename(value, expectedFilename, expectedSuffix) {
+    if (typeof value !== 'string' || value.length > 1024 || /[\r\n]/.test(value) || !/^attachment(?:\s*;|$)/i.test(value)) return null;
+    var extended = /(?:^|;)\s*filename\*=UTF-8''([^;\s]+)/i.exec(value);
+    var basic = /(?:^|;)\s*filename="?([^;"\s]+)"?/i.exec(value);
+    if (!extended && !basic) return null;
+    var filename;
+    try { filename = decodeURIComponent((extended || basic)[1]); } catch (_) { return null; }
+    if (!filename || filename.length > 160 || /[\u0000-\u001f\u007f\r\n\\/:*?"<>|]/.test(filename) || filename === '.' || filename === '..') return null;
+    if (expectedFilename && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$/.test(filename)) return null;
+    if (expectedFilename && filename !== expectedFilename) return null;
+    if (expectedSuffix && !filename.toLowerCase().endsWith(expectedSuffix)) return null;
+    return filename;
+  }
+  function capabilityFrom(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value) || value.schema !== CAPABILITY_SCHEMA ||
+        value.owner_authorized !== true || value.has_working_copy !== true || value.browser_download_allowed !== true ||
+        value.original_immutable !== true || value.working_copy_versioned !== true || value.server_authoritative !== true ||
+        value.browser_detection_advisory !== true || value.raw_content_visible !== false || value.absolute_path_visible !== false ||
+        value.live_write_authorized !== false || typeof value.source_suffix !== 'string' ||
+        !(SAFE_SUFFIX.test(value.source_suffix) || value.source_suffix === 'other') || !Array.isArray(value.actions) || value.actions.length !== ACTIONS.length) return null;
+    var decisions = {};
+    for (var i = 0; i < value.actions.length; i += 1) {
+      var item = value.actions[i];
+      if (!item || typeof item !== 'object' || Array.isArray(item) || item.action !== ACTIONS[i] || !ACTION_STATES[item.state] ||
+          item.mutates_original !== false || item.performs_live_write !== false || !Array.isArray(item.reason_codes) ||
+          !item.reason_codes.length || item.reason_codes.some(function (reason) { return !cleanReason(reason, ''); })) return null;
+      decisions[item.action] = item.state;
+    }
+    return { sourceSuffix: value.source_suffix, decisions: decisions };
+  }
 
   function create(options) {
     options = options || {};
@@ -42,9 +123,9 @@
     var state = {
       viewMode: 'original', saveState: 'idle', workingCopyId: null, version_count: 0,
       dirty: false, conflict: null, original_immutable: true, source_ref_redacted: true,
-      live_write_authorized: false
+      live_write_authorized: false, exportState: 'idle', exportTarget: null, exportError: null
     };
-    var sourceRef = null, baseline = null, content = '', timer = null, sequence = 0, destroyed = false;
+    var sourceRef = null, baseline = null, content = '', capability = null, documentMeta = null, timer = null, sequence = 0, destroyed = false;
     var controllers = [];
 
     function emit() {
@@ -73,6 +154,10 @@
     function fail(code, keepDirty) {
       transition({ saveState: 'error', dirty: !!keepDirty, conflict: null });
       state.errorReason = cleanReason(code, 'request_failed'); // never projected
+      return false;
+    }
+    function exportFail(code, target, stateName) {
+      transition({ exportState: stateName || 'error', exportTarget: target || null, exportError: cleanReason(code, 'download_failed') });
       return false;
     }
     async function request(path, init, token) {
@@ -119,14 +204,16 @@
     function sameBaseline(doc) { return baseline && doc.version_count === baseline.version_count && doc.updated_at === baseline.updated_at && doc.current_content === baseline.current_content; }
     function resetForSwitch() {
       sequence += 1; clearRequests(); clearTimeout(timer); timer = null;
-      sourceRef = null; baseline = null; content = '';
+      sourceRef = null; baseline = null; content = ''; capability = null; documentMeta = null;
       state.workingCopyId = null; state.version_count = 0; state.dirty = false; state.conflict = null;
+      state.exportState = 'idle'; state.exportTarget = null; state.exportError = null;
     }
     function getState() {
       return {
         viewMode: state.viewMode, saveState: state.saveState, workingCopyId: state.workingCopyId,
         version_count: state.version_count, dirty: state.dirty, conflict: state.conflict,
-        original_immutable: true, source_ref_redacted: true, live_write_authorized: false
+        original_immutable: true, source_ref_redacted: true, live_write_authorized: false,
+        exportState: state.exportState, exportTarget: state.exportTarget, exportError: state.exportError
       };
     }
     async function createWorkingCopy(ref, createOptions) {
@@ -140,13 +227,14 @@
           method: 'POST', body: JSON.stringify({ new_revision: !!(createOptions && createOptions.new_revision) })
         }, token);
         var doc = documentFrom(data);
-        var workingCopy = data && data.working_copy;
+        var workingCopy = data && data.working_copy, parsedCapability = capabilityFrom(data && data.workbench_capability);
         if (!doc || !workingCopy || typeof workingCopy !== 'object' || Array.isArray(workingCopy) ||
             workingCopy.schema !== 'odysseus.universal_inbox.working_copy.v1' || !validId(workingCopy.working_copy_id) ||
             workingCopy.working_copy_id !== doc.id || workingCopy.version !== doc.version_count ||
-            typeof workingCopy.created !== 'boolean' || typeof workingCopy.revision_created !== 'boolean') throw { code: 'invalid_document' };
+            typeof workingCopy.created !== 'boolean' || typeof workingCopy.revision_created !== 'boolean' || !parsedCapability) throw { code: 'invalid_document' };
         if (stale(token)) return false;
-        content = doc.current_content; setBaseline(doc);
+        content = doc.current_content; setBaseline(doc); capability = parsedCapability;
+        documentMeta = { title: doc.title, language: doc.language };
         transition({ workingCopyId: doc.id, version_count: doc.version_count, saveState: 'ready', dirty: false, conflict: null, viewMode: 'working_copy' });
         if (typeof dm.injectFreshDoc === 'function') dm.injectFreshDoc(Object.assign({}, doc, { content: doc.current_content }));
         else await dm.loadDocument(doc.id);
@@ -164,7 +252,7 @@
     }
     function setWorkingCopyContent(next) {
       if (destroyed || state.viewMode !== 'working_copy' || !state.workingCopyId || !validContent(next)) return false;
-      content = next; transition({ dirty: true, saveState: 'dirty', conflict: null });
+      content = next; transition({ dirty: true, saveState: 'dirty', conflict: null, exportState: 'idle', exportTarget: null, exportError: null });
       clearTimeout(timer); timer = setTimeout(function () { save().catch(function () {}); }, debounceMs);
       if (timer && typeof timer.unref === 'function') timer.unref();
       return true;
@@ -227,10 +315,98 @@
       // re-read a partially resolved editor and would otherwise diverge.
       dm.exitDiffMode(true); transition({ viewMode: 'working_copy' }); return true;
     }
-    function destroy() { if (destroyed) return; destroyed = true; sequence += 1; clearRequests(); clearTimeout(timer); timer = null; content = ''; baseline = null; sourceRef = null; }
+    function defaultDownload(blob, filename) {
+      var urlApi = root.URL || root.webkitURL;
+      var doc = root.document;
+      if (!urlApi || typeof urlApi.createObjectURL !== 'function' || typeof urlApi.revokeObjectURL !== 'function' || !doc || typeof doc.createElement !== 'function') throw { code: 'download_unavailable' };
+      var url = urlApi.createObjectURL(blob);
+      var clicked = false;
+      try {
+        var link = doc.createElement('a');
+        link.href = url; link.download = filename; link.rel = 'noopener';
+        if (doc.body && typeof doc.body.appendChild === 'function') doc.body.appendChild(link);
+        if (typeof link.click !== 'function') throw { code: 'download_unavailable' };
+        link.click();
+        clicked = true;
+        if (link.parentNode && typeof link.parentNode.removeChild === 'function') link.parentNode.removeChild(link);
+      } finally {
+        // Let the browser consume the click before revoking, but make that
+        // lifecycle bounded and deterministic. Failed clicks revoke at once.
+        if (!clicked) urlApi.revokeObjectURL(url);
+        else if (typeof root.setTimeout === 'function') root.setTimeout(function () { urlApi.revokeObjectURL(url); }, 1000);
+        else urlApi.revokeObjectURL(url);
+      }
+    }
+    function downloadRequirements(target) {
+      if (!capability || !state.workingCopyId || capability.decisions[target === 'original' ? 'download_original' : 'export_working_copy'] !== 'allowed') return null;
+      if (target === 'working_copy' && (state.dirty || state.saveState === 'dirty' || state.saveState === 'saving' || state.saveState === 'conflict' || state.saveState === 'error')) return null;
+      if (target === 'original') {
+        var originalTypes = ORIGINAL_TYPES[capability.sourceSuffix];
+        if (!originalTypes) return null;
+        return {
+          path: '/api/universal-inbox/items/' + encodeURIComponent(sourceRef) + '/content?download=true',
+          types: originalTypes,
+          expectedFilename: null,
+          expectedSuffix: capability.sourceSuffix
+        };
+      }
+      var sourceIsPdf = capability.sourceSuffix === '.pdf';
+      var type = exportType(documentMeta && documentMeta.language);
+      return {
+        path: '/api/document/' + encodeURIComponent(state.workingCopyId) + (sourceIsPdf ? '/export-pdf' : '/export'),
+        types: [sourceIsPdf ? 'application/pdf' : type[1]],
+        expectedFilename: sourceIsPdf ? pdfFilename(documentMeta && documentMeta.title) : workingFilename(documentMeta && documentMeta.title, state.version_count, type[0]),
+        expectedSuffix: sourceIsPdf ? '.pdf' : type[0]
+      };
+    }
+    async function download(target) {
+      if (destroyed || !EXPORT_STATES[state.exportState] || state.exportState === 'downloading') return false;
+      var requirements = downloadRequirements(target);
+      if (!requirements) return exportFail(target === 'working_copy' && (state.dirty || state.saveState !== 'ready' && state.saveState !== 'saved') ? 'working_copy_unsaved' : 'download_not_allowed', target, 'blocked');
+      var token = sequence;
+      var startingVersion = state.version_count;
+      transition({ exportState: 'downloading', exportTarget: target, exportError: null });
+      var controller = newRequest();
+      try {
+        if (typeof fetchImpl !== 'function') throw { code: 'fetch_unavailable' };
+        var response = await fetchImpl(requirements.path, {
+          method: 'GET', credentials: 'same-origin', mode: 'same-origin', redirect: 'error', cache: 'no-store',
+          headers: { Accept: requirements.types.join(', ') }, signal: controller && controller.signal
+        });
+        if (stale(token)) return false;
+        if (!response || !response.ok) throw { code: 'download_http_error' };
+        if (target === 'original' && (response.status !== 200 || header(response, 'x-odysseus-content-state').trim().toLowerCase() !== 'complete')) throw { code: 'original_incomplete' };
+        if (header(response, 'x-content-type-options').trim().toLowerCase() !== 'nosniff') throw { code: 'download_nosniff_required' };
+        if (!headerTypeAllowed(header(response, 'content-type'), requirements.types)) throw { code: 'download_content_type_invalid' };
+        var length = contentLength(header(response, 'content-length'));
+        if (length === null) throw { code: 'download_length_invalid' };
+        var encoding = header(response, 'content-encoding').trim().toLowerCase();
+        if (encoding && encoding !== 'identity' && encoding !== 'gzip' && encoding !== 'br') throw { code: 'download_encoding_invalid' };
+        var filename = dispositionFilename(header(response, 'content-disposition'), requirements.expectedFilename, requirements.expectedSuffix);
+        if (!filename || typeof response.blob !== 'function') throw { code: 'download_disposition_invalid' };
+        var blob = await response.blob();
+        if (stale(token)) return false;
+        if (!blob || !Number.isInteger(blob.size) || blob.size < 0 || blob.size > MAX_DOWNLOAD_BYTES || ((!encoding || encoding === 'identity') && blob.size !== length)) throw { code: 'download_size_invalid' };
+        if (target === 'working_copy' && (state.version_count !== startingVersion || !downloadRequirements('working_copy'))) return exportFail('working_copy_changed', target, 'blocked');
+        var sink = typeof options.downloadSink === 'function' ? options.downloadSink : defaultDownload;
+        await sink(blob, filename, target);
+        if (stale(token)) return false;
+        transition({ exportState: 'downloaded', exportTarget: target, exportError: null });
+        return true;
+      } catch (error) {
+        if (abortError(error) || (error && error.code === 'stale')) return false;
+        return exportFail(error && error.code, target, 'error');
+      } finally {
+        if (controller) controllers = controllers.filter(function (item) { return item !== controller; });
+      }
+    }
+    function downloadOriginal() { return download('original'); }
+    function exportWorkingCopy() { return download('working_copy'); }
+    function destroy() { if (destroyed) return; destroyed = true; sequence += 1; clearRequests(); clearTimeout(timer); timer = null; content = ''; baseline = null; sourceRef = null; capability = null; documentMeta = null; }
     return { createWorkingCopy: createWorkingCopy, openWorkingCopy: createWorkingCopy, setViewMode: setViewMode,
       setWorkingCopyContent: setWorkingCopyContent, markDirty: markDirty, save: save, listVersions: listVersions,
-      getVersion: getVersion, showDifference: showDifference, closeDifference: closeDifference, getState: getState, destroy: destroy };
+      getVersion: getVersion, showDifference: showDifference, closeDifference: closeDifference, downloadOriginal: downloadOriginal,
+      exportWorkingCopy: exportWorkingCopy, getState: getState, destroy: destroy };
   }
   return { create: create, MAX_CONTENT_BYTES: MAX_CONTENT_BYTES };
 }));

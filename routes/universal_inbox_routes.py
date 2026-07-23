@@ -154,6 +154,7 @@ def setup_universal_inbox_routes(upload_handler: Any = None) -> APIRouter:
     async def get_universal_inbox_item_content(
         request: Request,
         source_ref: str,
+        download: bool = Query(False),
     ):
         auth_manager = getattr(request.app.state, "auth_manager", None)
         try:
@@ -175,11 +176,33 @@ def setup_universal_inbox_routes(upload_handler: Any = None) -> APIRouter:
                 content=exc.to_dict(),
                 headers=headers,
             )
+        if download and (content.status_code != 200 or content.state != "complete"):
+            error = UniversalInboxSourceAccessError(
+                status_code=409,
+                state="incomplete",
+                reason_code="complete_source_required",
+            )
+            return JSONResponse(
+                status_code=error.status_code,
+                content=error.to_dict(),
+                headers={
+                    "Cache-Control": "private, no-store",
+                    "X-Content-Type-Options": "nosniff",
+                },
+            )
+        headers = content.headers()
+        if download:
+            # The source reader has already generated an injection-safe RFC5987
+            # filename.  Keep its bounded, owner-scoped bytes unchanged while
+            # making this explicit browser-download branch an attachment.
+            headers["Content-Disposition"] = re.sub(
+                r"^inline\b", "attachment", content.disposition, count=1
+            )
         return Response(
             content=content.body,
             status_code=content.status_code,
             media_type=content.media_type,
-            headers=content.headers(),
+            headers=headers,
         )
 
     @router.post("/items/{source_ref:path}/working-copy")
@@ -202,6 +225,24 @@ def setup_universal_inbox_routes(upload_handler: Any = None) -> APIRouter:
             )
             payload = _doc_to_dict(result.document)
             payload["working_copy"] = result.status_dict()
+            # The working-copy operation has already canonicalized and
+            # owner-authorized this upload.  Derive the public classification
+            # from that canonical id only: cached copies remain usable after a
+            # source is deleted, and no filename/path needs to be re-read.
+            _source_kind, upload_id = _normalize_source_ref(source_ref)
+            suffix = os.path.splitext(upload_id)[1].lower()
+            file_type = classify_universal_inbox_file(
+                f"source{suffix}" if suffix else "source"
+            )
+            payload["workbench_capability"] = (
+                build_universal_inbox_workbench_capability(
+                    file_type,
+                    owner_authorized=True,
+                    has_working_copy=True,
+                    browser_download_allowed=True,
+                    provider_write_requested=False,
+                ).to_dict()
+            )
             return JSONResponse(
                 status_code=201 if result.created else 200,
                 content=payload,

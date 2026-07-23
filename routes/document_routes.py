@@ -2,10 +2,11 @@
 
 import uuid
 import logging
+import urllib.parse
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Query, Request, UploadFile, File, Form, Response
 
 from sqlalchemy import case, func, or_
 from core.database import SessionLocal, Document, DocumentVersion
@@ -14,6 +15,75 @@ from src.auth_helpers import get_current_user, _auth_disabled
 from src.constants import MAIL_ATTACHMENTS_DIR
 
 logger = logging.getLogger(__name__)
+
+
+# A working copy is text stored in the database, not an arbitrary upload.  Keep
+# this independently bounded before encoding it for a browser attachment.
+_BROWSER_WORKING_COPY_EXPORT_MAX_BYTES = 8 * 1024 * 1024
+_WORKING_COPY_EXPORT_TYPES = {
+    "bash": (".sh", "text/x-shellscript"),
+    "c": (".c", "text/x-c"),
+    "cpp": (".cpp", "text/x-c++"),
+    "css": (".css", "text/css"),
+    "csv": (".csv", "text/csv"),
+    "email": (".eml", "message/rfc822"),
+    "go": (".go", "text/plain"),
+    "html": (".html", "text/html"),
+    "ini": (".ini", "text/plain"),
+    "java": (".java", "text/plain"),
+    "javascript": (".js", "text/javascript"),
+    "json": (".json", "application/json"),
+    "markdown": (".md", "text/markdown"),
+    "php": (".php", "text/plain"),
+    "plain": (".txt", "text/plain"),
+    "python": (".py", "text/x-python"),
+    "ruby": (".rb", "text/plain"),
+    "rust": (".rs", "text/plain"),
+    "sql": (".sql", "text/plain"),
+    "svg": (".svg", "image/svg+xml"),
+    "text": (".txt", "text/plain"),
+    "toml": (".toml", "text/plain"),
+    "typescript": (".ts", "text/plain"),
+    "xml": (".xml", "application/xml"),
+    "yaml": (".yml", "text/yaml"),
+}
+
+
+def _working_copy_export_type(language: Any) -> tuple[str, str]:
+    """Return an allowlisted extension/MIME pair for a database working copy."""
+    key = str(language or "text").strip().lower()
+    return _WORKING_COPY_EXPORT_TYPES.get(key, (".txt", "text/plain"))
+
+
+def _working_copy_export_filename(title: Any, version: Any, extension: str) -> str:
+    """Build an ASCII-only attachment name; never interpolate a raw title."""
+    try:
+        version_number = max(1, int(version))
+    except (TypeError, ValueError):
+        version_number = 1
+    base = _slug(str(title or "document"))[:96] or "document"
+    if base.lower().endswith(extension):
+        base = base[: -len(extension)].rstrip("._-") or "document"
+    return f"{base}-v{version_number}{extension}"
+
+
+def _attachment_headers(filename: str) -> dict[str, str]:
+    """Return an injection-safe attachment disposition with an RFC 5987 name."""
+    # filename is assembled solely from _slug/allowlisted values. Quote anyway
+    # so the extended parameter remains safe if the implementation evolves.
+    encoded = urllib.parse.quote(filename, safe="")
+    return {
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Disposition": (
+            f'attachment; filename="{filename}"; filename*=UTF-8\'\'{encoded}'
+        ),
+    }
+
+
+def _pdf_export_filename(title: Any) -> str:
+    """Keep the established PDF export spelling within the browser name cap."""
+    return f"{(_slug(str(title or 'form'))[:96] or 'form')}_annotated.pdf"
 
 
 def _get_session_or_404(db, session_id: str, user: Optional[str]):
@@ -1374,6 +1444,45 @@ def setup_document_routes(session_manager, upload_handler=None) -> APIRouter:
         finally:
             db.close()
 
+    # ---- GET /api/document/{doc_id}/export ----
+    @router.get("/api/document/{doc_id}/export")
+    async def export_working_copy(doc_id: str, request: Request):
+        """Download the current non-PDF working-copy bytes without changing it."""
+        from src.pdf_form_doc import find_source_upload_id
+
+        user = get_current_user(request)
+        db = SessionLocal()
+        try:
+            doc = db.query(Document).filter(Document.id == doc_id).first()
+            if not doc:
+                raise HTTPException(404, "Document not found")
+            _verify_doc_owner(db, doc, user)
+
+            # PDF workbench output must retain its existing filled-PDF path;
+            # this route never interprets PDF form state or source uploads.
+            if find_source_upload_id(doc.current_content or ""):
+                raise HTTPException(409, "PDF working copies use export-pdf")
+            if not isinstance(doc.current_content, str):
+                raise HTTPException(400, "Working copy export unavailable")
+            try:
+                content = doc.current_content.encode("utf-8", "strict")
+            except UnicodeError as exc:
+                raise HTTPException(400, "Working copy export unavailable") from exc
+            if len(content) > _BROWSER_WORKING_COPY_EXPORT_MAX_BYTES:
+                raise HTTPException(413, "Working copy export exceeds size limit")
+
+            extension, media_type = _working_copy_export_type(doc.language)
+            filename = _working_copy_export_filename(
+                doc.title, doc.version_count, extension
+            )
+            return Response(
+                content=content,
+                media_type=media_type,
+                headers=_attachment_headers(filename),
+            )
+        finally:
+            db.close()
+
     # ---- GET /api/document/{doc_id}/export-pdf ----
     @router.get("/api/document/{doc_id}/export-pdf")
     async def export_pdf(doc_id: str, request: Request):
@@ -1500,11 +1609,15 @@ def setup_document_routes(session_manager, upload_handler=None) -> APIRouter:
                 except Exception as e:
                     logger.error(f"stamp_annotations failed for doc {doc_id}: {e}")
 
-            download_name = _slug(doc.title or "form") + "_annotated.pdf"
+            download_name = _pdf_export_filename(doc.title)
             return FileResponse(
                 out_path,
                 media_type="application/pdf",
                 filename=download_name,
+                headers={
+                    "Cache-Control": "private, no-store",
+                    "X-Content-Type-Options": "nosniff",
+                },
                 background=BackgroundTask(_cleanup_temps),
             )
         finally:
