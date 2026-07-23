@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T18:52:58+02:00",
+    "updated_at": "2026-07-23T18:57:04+02:00",
   "status": "usi09_query_knowledge_claimed_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -89,7 +89,7 @@
         "slice": "USI-09-query-knowledge-tool-projection",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "execute_only_the_eight_claimed_paths_keep_runtime_and_live_sources_default_off"
+                "safe_default": "execute_only_the_twelve_claimed_paths_keep_runtime_and_live_sources_default_off"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-23"
@@ -1123,7 +1123,11 @@
           "src/agent_tools/__init__.py",
           "src/agent_tools/knowledge_tools.py",
           "src/tool_security.py",
-          "tests/test_query_knowledge_tool.py"
+          "tests/test_query_knowledge_tool.py",
+          "scripts/audit_tool_registry_drift.py",
+          "docs/plans/tool-taxonomy-inventory.json",
+          "tests/test_audit_tool_registry_drift.py",
+          "tests/test_builtin_tool_catalog.py"
         ],
         "excluded_paths": [
           "src/tool_catalog.py",
@@ -1138,11 +1142,15 @@
           "src/tool_schema_definitions.py",
           "src/tool_execution.py",
           "src/agent_tools/__init__.py",
-          "src/tool_security.py"
+          "src/tool_security.py",
+          "scripts/audit_tool_registry_drift.py",
+          "docs/plans/tool-taxonomy-inventory.json"
         ],
         "state": "claimed",
         "acquired_at": "2026-07-23T18:52:58+02:00",
         "lease_expires_at": "2026-07-23T22:52:58+02:00",
+        "amended_at": "2026-07-23T18:57:04+02:00",
+        "amendment_reason": "The canonical query_knowledge identity necessarily changes the frozen TAX0 catalog projections and deterministic inventory; the four added paths are the bounded inventory-parity closure discovered before any product edit.",
         "handoff_required": false,
         "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
         "baseline_sha256": {
@@ -1152,7 +1160,11 @@
           "src/tool_schema_definitions.py": "4CD54219B373C8DE26AD3590C9034CEC5F7226E1CB36B314E4D18F65151A124D",
           "src/tool_execution.py": "165429C11697B8093618A7DDB3652511379886F06CBCCBF057A47B86111D1B53",
           "src/agent_tools/__init__.py": "50FDFBECBC0FA7D75F1AD828A4213873389317B17C13E2D9542E30FC4516ABA5",
-          "src/tool_security.py": "66508EE4EE7DD9818C5E500481C0F69BAD72FBE81EDC9923A5A8D9DF1BF916BE"
+          "src/tool_security.py": "66508EE4EE7DD9818C5E500481C0F69BAD72FBE81EDC9923A5A8D9DF1BF916BE",
+          "scripts/audit_tool_registry_drift.py": "24FB9E5A89F5FE53D9DEE59C1FB8609520DD041DBC15ED79ACD5EBE5CCB65158",
+          "docs/plans/tool-taxonomy-inventory.json": "84E79738C006778ADB0DC0EFA4266AD76D648F9F8EAA9CEE921B7632226CB6AB",
+          "tests/test_audit_tool_registry_drift.py": "50426C08CBB773ADAACCE4D742A440F84D5ED987E45872A9E8C10FC863FDB6AD",
+          "tests/test_builtin_tool_catalog.py": "1326C44CA46152B2E8953DECF42AB83D226594B92B3A6115A8C032163966EBD5"
         }
       },
       "route": {
@@ -1216,10 +1228,11 @@
       },
       "tests": [
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_query_knowledge_tool.py",
-        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_builtin_tool_catalog.py tests\\test_tool_registration_parity.py tests\\test_tool_security_catalog.py",
-        "git diff --check -- src/builtin_tool_catalog.py src/tool_index.py src/tool_schema_definitions.py src/tool_execution.py src/agent_tools/__init__.py src/agent_tools/knowledge_tools.py src/tool_security.py tests/test_query_knowledge_tool.py"
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_builtin_tool_catalog.py tests\\test_tool_registration_parity.py tests\\test_tool_security_catalog.py tests\\test_audit_tool_registry_drift.py",
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe scripts\\audit_tool_registry_drift.py --check",
+        "git diff --check -- src/builtin_tool_catalog.py src/tool_index.py src/tool_schema_definitions.py src/tool_execution.py src/agent_tools/__init__.py src/agent_tools/knowledge_tools.py src/tool_security.py tests/test_query_knowledge_tool.py scripts/audit_tool_registry_drift.py docs/plans/tool-taxonomy-inventory.json tests/test_audit_tool_registry_drift.py tests/test_builtin_tool_catalog.py"
       ],
-      "done_when": "One default-off canonical read-only query_knowledge descriptor routes bounded owner-scoped code, document and memory queries through the injected USI planner boundary; malformed, foreign-scope, over-budget and unavailable paths fail closed without raw provider errors, writes, engine-specific tools or duplicate analytics."
+      "done_when": "One default-off canonical read-only query_knowledge descriptor routes bounded owner-scoped code, document and memory queries through the injected USI planner boundary; malformed, foreign-scope, over-budget and unavailable paths fail closed without raw provider errors, writes, engine-specific tools or duplicate analytics, and the deterministic TAX catalog inventory is updated without drift."
     },
     {
       "id": "TAX0-deterministic-inventory",

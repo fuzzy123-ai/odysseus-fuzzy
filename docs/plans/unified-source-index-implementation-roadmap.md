@@ -469,12 +469,21 @@ Every list/query contract is bounded. Depending on mode it accepts `limit`,
   - state: `claimed`
   - acquired_at: `2026-07-23T18:52:58+02:00`
   - lease_expires_at: `2026-07-23T22:52:58+02:00`
+  - amended_at: `2026-07-23T18:57:04+02:00`
+  - amendment_reason: `Adding the one canonical identity necessarily updates
+    the frozen TAX0 catalog projections and deterministic inventory; the four
+    added paths close only that bounded parity surface and were discovered
+    before any product edit.`
   - worktree: `C:\tmp\odysseus-abc-usi09-20260723`
   - allowed_paths: `src/builtin_tool_catalog.py`, `src/tool_index.py`,
     `src/tool_schema_definitions.py`, `src/tool_execution.py`,
     `src/agent_tools/__init__.py`, new
     `src/agent_tools/knowledge_tools.py`, `src/tool_security.py`, and new
-    `tests/test_query_knowledge_tool.py`
+    `tests/test_query_knowledge_tool.py`,
+    `scripts/audit_tool_registry_drift.py`,
+    `docs/plans/tool-taxonomy-inventory.json`,
+    `tests/test_audit_tool_registry_drift.py`, and
+    `tests/test_builtin_tool_catalog.py`
   - excluded_paths: `src/tool_catalog.py`, `src/tool_registry.py`,
     `src/unified_source_index_query.py`, every app/runtime initializer,
     provider, MCP, database, migration, live and external path
@@ -487,7 +496,6 @@ Every list/query contract is bounded. Depending on mode it accepts `limit`,
   normalization
 - Allowed paths:
   - `src/builtin_tool_catalog.py`
-  - `src/tool_catalog.py`
   - `src/tool_index.py`
   - `src/tool_schema_definitions.py`
   - `src/tool_execution.py`
@@ -495,14 +503,20 @@ Every list/query contract is bounded. Depending on mode it accepts `limit`,
   - `src/agent_tools/knowledge_tools.py`
   - `src/tool_security.py`
   - `tests/test_query_knowledge_tool.py`
+  - `scripts/audit_tool_registry_drift.py`
+  - `docs/plans/tool-taxonomy-inventory.json`
+  - `tests/test_audit_tool_registry_drift.py`
+  - `tests/test_builtin_tool_catalog.py`
 - Work:
   - expose one read-only descriptor with domain/mode/scope/budget fields;
   - no direct CBM MCP tool registration;
   - exact source reads continue through `read_file` or a domain reader;
   - TUA sees one canonical invocation; internal provider spans remain metrics.
-- Tests: `python -m pytest -q tests/test_query_knowledge_tool.py`
+- Tests: `python -m pytest -q tests/test_query_knowledge_tool.py`; focused
+  builtin-registration/security/audit parity; deterministic registry-drift
+  snapshot check
 - Done when: code, document and memory fixtures route through one descriptor
-  with policy parity and no `Other` fallback.
+  with policy parity, no `Other` fallback and no TAX inventory drift.
 
 These shared TAX paths are a single serialized integration claim after TAX
 handoff; no USI worker may edit them independently.
