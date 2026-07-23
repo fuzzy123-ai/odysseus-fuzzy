@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T18:02:22+02:00",
-  "status": "uix_abc23_accepted_uix_abc24_bounded_release_plan_required",
+  "updated_at": "2026-07-23T18:08:45+02:00",
+  "status": "uix_abc23_accepted_uix_abc24_production_composition_handoff_required",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Bearbeite die offenen Odysseus-Feature-Roadmaps dependency-gesteuert ueber Open Work; beginne mit UIX-ABC20, danach UIX-ABC22, repo-only und ohne breite Tests, Push, Deploy oder Live-Mutation.",
   "goal": "Advance the dependency-ready Open Work feature-roadmap frontier with bounded repo-only claims, focused verification, Sol-reviewed Terra handoffs, durable evidence and local commits.",
@@ -13,7 +13,7 @@
     "unique_live_gates": 40,
     "unique_design_gates": 27,
     "other_open_json_items": 30,
-    "queue_status": "uix_abc23_accepted_uix_abc24_dependency_ready_but_unclaimable_until_bounded_no_broad_test_plan",
+    "queue_status": "uix_abc23_accepted_uix_abc24_dependency_ready_but_unclaimable_until_production_composition_handoff",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -61,10 +61,10 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "UIX-ABC23 is locally accepted. UIX-ABC24 is dependency-ready, but its canonical integration gate spans multiple suites; the current no-broad-test constraint requires a durable evidence-reuse and minimal-gap plan before a claim.",
+        "reason": "UIX-ABC23 is locally accepted and prior focused evidence can be reused. UIX-ABC24 still needs a bounded production composition handoff because Harbor One V3 does not load the accepted preview or document bridge and still renders disabled placeholder controls; a test-only composition would not satisfy the release gate.",
         "slice": "UIX-ABC24",
         "user_decision_required": false,
-        "safe_default": "design_a_bounded_release_evidence_plan_without_rerunning_broad_suites"
+        "safe_default": "design_one_bounded_production_composition_slice_plus_one_composed_synthetic_acceptance_without_rerunning_prior_suites"
       },
       "queue_exhausted": true,
       "detail_roadmap_frontier_exists": true,
@@ -2560,7 +2560,7 @@
       "owner": "/root",
       "status": "open",
       "claimable": false,
-      "claim_blocker": "bounded_verification_plan_required_under_no_broad_tests",
+      "claim_blocker": "production_composition_handoff_required_under_no_broad_tests",
       "depends_on": [
         "UIX-ABC13",
         "UIX-ABC14",
@@ -2576,11 +2576,25 @@
       ],
       "source_roadmap": "docs/plans/universal-inbox-abc-roadmap.md",
       "release_plan": {
-        "state": "required_before_claim",
-        "constraint": "Do not rerun the canonical multi-suite matrix as a broad token-heavy test pass.",
-        "safe_next_action": "Inventory already accepted UIX-ABC13 through UIX-ABC23 evidence, map it to the UIX-ABC24 release clauses, and specify only genuinely missing synthetic integration, accessibility, responsive or security checks.",
+        "state": "evidence_reuse_audited_production_composition_missing",
+        "observed_at": "2026-07-23T18:08:45+02:00",
+        "constraint": "Do not rerun the canonical multi-suite matrix as a broad token-heavy test pass; reuse accepted UIX-ABC13 through UIX-ABC23 evidence.",
+        "evidence_reuse": [
+          "Python auth/owner, redaction, capability, source-access, working-copy and export clauses already have focused accepted evidence across UIX-ABC13, UIX-ABC14, UIX-ABC16, UIX-ABC17, UIX-ABC22 and UIX-ABC23.",
+          "Frontend state, intake, workbench, preview, document-bridge, keyboard and responsive clauses already have focused accepted evidence across UIX-ABC15 and UIX-ABC18 through UIX-ABC23.",
+          "Synthetic desktop and mobile screenshots already exist outside the repository for UIX-ABC19, UIX-ABC20 and UIX-ABC22."
+        ],
+        "sol_finding": [
+          "static/frontpage-v3/index.html currently loads inbox-api.js, inbox-state.js and inbox-workbench.js, but not inbox-preview.js, inbox-preview.css or inbox-document-bridge.js.",
+          "static/frontpage-v3/inbox-workbench.js still renders the UIX19 placeholder, disables Extraction, Working copy and Difference, and states that the dependent adapters arrive later.",
+          "The Harbor One page does not contain the existing Document editor DOM; loading static/js/document.js directly is therefore not an established safe integration seam.",
+          "A test-only composition cannot close an Integration and Release Gate while the production shell remains unwired."
+        ],
+        "safe_next_action": "Perform a fresh path-ownership handoff for the Harbor index/workbench and bridge seam; define a bounded production flow that mounts the accepted preview, creates the owner-scoped working copy, and hands editing to the existing Document UI through an explicit same-origin deep link while keeping export choices explicit and live/provider actions disabled. Verify only the directly changed controller paths and one composed synthetic Harbor acceptance.",
         "forbidden": [
           "broad test suite",
+          "test-only release closure without production wiring",
+          "loading the large Document module into Harbor without a verified DOM seam",
           "private document screenshots or logs",
           "push or deployment",
           "provider, Nextcloud or other live mutation"
@@ -3569,5 +3583,5 @@
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "No new human decision is required to design the bounded UIX-ABC24 evidence-reuse plan. Broad regression reruns, private-content evidence, provider access, external delivery and every live-write authority remain closed."
+  "recommended_next_human_decision": "No new human decision is required to design the bounded UIX-ABC24 production-composition handoff around the existing Document deep link. Broad regression reruns, private-content evidence, provider access, external delivery and every live-write authority remain closed."
 }
