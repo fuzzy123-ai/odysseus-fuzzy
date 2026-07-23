@@ -2,7 +2,7 @@
 
 Stand: 2026-07-13
 
-Status: `USI-12_accepted / USI-09_and_USI-13_dependency_blocked / runtime_default_off`
+Status: `USI-09_claimed_after_TAX_handoff / USI-13_dependency_blocked / runtime_default_off`
 
 Master-Track: `0.28.x`, `OWM-15`, `L21`
 
@@ -460,17 +460,40 @@ Every list/query contract is bounded. Depending on mode it accepts `limit`,
 
 - Class: `repo_only`
 - Owner: Bob
-- Status: `pending_dependencies_2026-07-17`
-- Dependency audit: `TAX0=ready; TAX1/TAX5/TAX8=pending; no serialized TAX handoff, so shared hotfiles remain unclaimed`
+- Status: `claimed_2026-07-23`
+- Dependency audit: `USI-07 accepted; canonical Open-Work evidence marks TAX1/TAX5/TAX8 complete; four focused Descriptor-V2, security, dynamic-provider and USI-query dependency checks passed on the hydrated dev checkpoint`
+- Serialized claim:
+  - run_id: `abc-usi09-20260723T185258+0200`
+  - thread_id: `/root`
+  - owner: `Bob`
+  - state: `claimed`
+  - acquired_at: `2026-07-23T18:52:58+02:00`
+  - lease_expires_at: `2026-07-23T22:52:58+02:00`
+  - worktree: `C:\tmp\odysseus-abc-usi09-20260723`
+  - allowed_paths: `src/builtin_tool_catalog.py`, `src/tool_index.py`,
+    `src/tool_schema_definitions.py`, `src/tool_execution.py`,
+    `src/agent_tools/__init__.py`, new
+    `src/agent_tools/knowledge_tools.py`, `src/tool_security.py`, and new
+    `tests/test_query_knowledge_tool.py`
+  - excluded_paths: `src/tool_catalog.py`, `src/tool_registry.py`,
+    `src/unified_source_index_query.py`, every app/runtime initializer,
+    provider, MCP, database, migration, live and external path
+  - handoff_required: `false`
+  - evidence: `The UIX branch intentionally lacks USI dependencies; a clean
+    dev-based worktree supplies the accepted USI-07 planner and TAX contracts
+    without a broad cross-branch merge. Bob recon added builtin catalog and
+    plan-mode security as required fail-closed projections.`
 - Dependencies: `USI-07`, TAX1 identity, TAX5 security, TAX8 dynamic provider
   normalization
 - Allowed paths:
+  - `src/builtin_tool_catalog.py`
   - `src/tool_catalog.py`
   - `src/tool_index.py`
   - `src/tool_schema_definitions.py`
   - `src/tool_execution.py`
   - `src/agent_tools/__init__.py`
   - `src/agent_tools/knowledge_tools.py`
+  - `src/tool_security.py`
   - `tests/test_query_knowledge_tool.py`
 - Work:
   - expose one read-only descriptor with domain/mode/scope/budget fields;
@@ -609,9 +632,9 @@ handoff; no USI worker may edit them independently.
     `8008DAA6818B5551D73798EC951231384EC7029D2DBA87287A816CB829760B8E`,
     dashboard
     `5B610A2DCF284C89D85549232204FD1E6DB21C8DFAFF68F7277037E5F71EE098`
-  - next_frontier: `USI-09` remains blocked by TAX1/TAX5/TAX8; because USI-13
-    depends on USI-03 through USI-12, it remains blocked by USI-09 rather than
-    becoming executable by dependency bypass
+  - next_frontier: `USI-09` is claimed after the TAX1/TAX5/TAX8 dependency
+    handoff; USI-13 remains dependency-blocked until USI-09 has focused
+    acceptance and a released claim
 - Dependency audit: `USI-04=accepted; GRO-00 through GRO-15=offline_go;
   serialized GRO handoff acquired; USI-09 remains independently TAX-blocked`
 - Dependencies: `USI-04`, GRO-00 metric contract; serialize shared GRO files
@@ -632,7 +655,7 @@ handoff; no USI worker may edit them independently.
 
 - Class: `repo_only`
 - Owner: Bob
-- Status: `blocked_by_USI-09_TAX_handoff_2026-07-18`
+- Status: `blocked_by_USI-09_in_progress_2026-07-23`
 - Dependencies: `USI-03` through `USI-12`
 - Allowed paths:
   - `src/unified_source_index_backup.py`

@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-21T22:21:46+02:00",
-  "status": "active_repo_execution_live_activation_deferred",
+  "updated_at": "2026-07-23T18:52:58+02:00",
+  "status": "usi09_query_knowledge_claimed_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -14,16 +14,16 @@
       "Keep broad UI and design work outside the non-UI execution ledger; TAX7/TUA9 may make only the explicitly scoped existing Admin metadata/aggregate projections after their backend contracts are complete."
     ]
   },
-  "goal_command": "/goal Tool-Taxonomie und datensparsame Tool-Nutzungsstatistik detailliert mit ABC umsetzen; keine User-Gates bis zum vollstaendig geprueften Live-Schalten des jeweiligen Features.",
-  "goal": "Complete the approved Tool Taxonomy/Registry and Privacy-Safe Tool Usage Analytics repository queues with reversible defaults, automated acceptance and no intermediate user gates; request exactly one decision per feature only when its first productive activation and rollback packet is ready.",
+  "goal_command": "/goal Bearbeite die offenen Odysseus-Feature-Roadmaps dependency-gesteuert ueber Open Work; nach UIX-ABC24 jeweils den naechsten tatsaechlich dependency-ready repo-only Slice mit fokussierter Evidence und ohne Push, Deploy, Provider oder Live-Mutation.",
+  "goal": "Advance the dependency-ready Open Work feature-roadmap frontier with disjoint repo-only claims, focused verification, Sol-reviewed Terra handoffs, durable ABC evidence and local commits.",
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 1,
+    "safe_open_json_slices": 0,
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "tool_followup_repo_queue_active",
+    "queue_status": "usi09_claimed_after_hydrated_dev_checkpoint_and_tax_handoff",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -34,7 +34,7 @@
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
       "memory_observability": "gro00_through_gro15_offline_go_live_gate_eligible_not_authorized",
-      "unified_source_index": "usi12_accepted_gro_extension_offline_go_usi09_and_usi13_tax_blocked_productive_sources_off",
+      "unified_source_index": "usi09_claimed_after_tax_handoff_usi13_dependency_blocked_productive_sources_off",
       "usi_runtime_consumer_integration": "planned_child_after_usi_core_runtime_default_off",
       "usi_domain_adapters": "planned_child_source_waves_default_off_private_domains_deferred",
       "usi_data_lifecycle_operations": "planned_child_live_actions_default_off",
@@ -45,7 +45,9 @@
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 1,
+      "safe_open_count": 0,
+      "raw_audit_safe_open_count": 1,
+      "raw_audit_stale_item": "PMCP-9-definition-runtime-separation is completed in canonical Open-Work evidence but remains planned in its older detail roadmap; it is not claimable and is outside this slice.",
       "other_open_count": 48,
       "unique_live_gate_count": 39,
       "unique_design_gate_count": 27,
@@ -82,16 +84,19 @@
       "non_ui_gate_readiness_status": "blocked",
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
-        "family": "tool_registry_taxonomy",
-        "reason": "approved_safe_repo_queue_available",
-        "slice": "TAX0-deterministic-inventory",
+        "family": "unified_source_index",
+        "reason": "USI-07 and the TAX1/TAX5/TAX8 identity, security and dynamic-provider dependencies are present on the clean dev checkpoint; the minimum canonical query_knowledge projection is durably claimed.",
+        "slice": "USI-09-query-knowledge-tool-projection",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "build_test_and_stage_feature_disabled"
+        "safe_default": "execute_only_the_eight_claimed_paths_keep_runtime_and_live_sources_default_off"
       },
       "queue_exhausted": false,
-      "verified_at": "2026-07-13"
-    }
+      "verified_at": "2026-07-23"
+    },
+    "active_claimed_slices": [
+      "USI-09-query-knowledge-tool-projection"
+    ]
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -1079,6 +1084,142 @@
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe scripts\\roadmap_safe_queue_audit.py --format json"
       ],
       "done_when": "The stale ACA-0 safe_offline gated entry is closed with current focused evidence so the open-work audit has no non-gate leftovers."
+    },
+    {
+      "id": "USI-09-query-knowledge-tool-projection",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "claimed_in_progress",
+      "claimable": false,
+      "depends_on": [
+        "USI-07",
+        "TAX1-descriptor-v2-contract",
+        "TAX5-security-effect-class-closure",
+        "TAX8-dynamic-plugin-and-mcp-normalization"
+      ],
+      "source_roadmap": "docs/plans/unified-source-index-implementation-roadmap.md",
+      "handoff": {
+        "observed_at": "2026-07-23T18:52:58+02:00",
+        "kind": "clean_dev_checkpoint_tax_and_usi_dependency_handoff",
+        "findings": [
+          "The completed UIX work remains isolated on codex/abc-uix19-20260723; it intentionally does not contain the accumulated USI dependency checkpoint.",
+          "A clean dev-based worktree at 63dd70a7 contains the accepted USI-07 planner plus current Descriptor V2, security and dynamic-provider contracts without requiring a broad merge into the UIX branch.",
+          "Canonical Open-Work entries mark TAX1, TAX5 and TAX8 done; four exact dependency checks passed in 1.31 seconds with one pre-existing SQLAlchemy deprecation warning.",
+          "Read-only Terra recon proved that builtin_tool_catalog.py and tool_security.py are required projections; tool_catalog.py, tool_registry.py and unified_source_index_query.py require no edit."
+        ],
+        "decision": "claim_eight_paths_for_one_default_off_owner_scoped_read_only_query_knowledge_projection",
+        "resolved": true
+      },
+      "claim": {
+        "run_id": "abc-usi09-20260723T185258+0200",
+        "thread_id": "/root",
+        "slice_id": "USI-09-query-knowledge-tool-projection",
+        "owner": "Bob",
+        "allowed_paths": [
+          "src/builtin_tool_catalog.py",
+          "src/tool_index.py",
+          "src/tool_schema_definitions.py",
+          "src/tool_execution.py",
+          "src/agent_tools/__init__.py",
+          "src/agent_tools/knowledge_tools.py",
+          "src/tool_security.py",
+          "tests/test_query_knowledge_tool.py"
+        ],
+        "excluded_paths": [
+          "src/tool_catalog.py",
+          "src/tool_registry.py",
+          "src/unified_source_index_query.py",
+          "app.py",
+          "src/app_initializer.py"
+        ],
+        "hotfiles": [
+          "src/builtin_tool_catalog.py",
+          "src/tool_index.py",
+          "src/tool_schema_definitions.py",
+          "src/tool_execution.py",
+          "src/agent_tools/__init__.py",
+          "src/tool_security.py"
+        ],
+        "state": "claimed",
+        "acquired_at": "2026-07-23T18:52:58+02:00",
+        "lease_expires_at": "2026-07-23T22:52:58+02:00",
+        "handoff_required": false,
+        "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
+        "baseline_sha256": {
+          "src/unified_source_index_query.py": "6C71D7B3575BE0015BF706A260D602404B897A4EDCF296FA7F4D68263390FC27",
+          "src/builtin_tool_catalog.py": "6C1C3AD5FC0603FD4B78A51288E2809F7CB847C8F18A1FF5E3219B1F42F13C98",
+          "src/tool_index.py": "47DC418203A26F81EF22056BC370D53C5C49F590BFB2F2420BB6AA53F358091D",
+          "src/tool_schema_definitions.py": "4CD54219B373C8DE26AD3590C9034CEC5F7226E1CB36B314E4D18F65151A124D",
+          "src/tool_execution.py": "165429C11697B8093618A7DDB3652511379886F06CBCCBF057A47B86111D1B53",
+          "src/agent_tools/__init__.py": "50FDFBECBC0FA7D75F1AD828A4213873389317B17C13E2D9542E30FC4516ABA5",
+          "src/tool_security.py": "66508EE4EE7DD9818C5E500481C0F69BAD72FBE81EDC9923A5A8D9DF1BF916BE"
+        }
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "dependency, cross-worktree handoff, hotfile claim and durable evidence"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "actual": {
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "evidence": "root surface"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "evidence": "read-only recon complete; implementation pending"
+          },
+          "review": {
+            "model": "pending",
+            "depth": "deep",
+            "result": "pending"
+          }
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "local",
+        "observed_at": "2026-07-23T18:52:58+02:00",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "focused_test",
+          "integration"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true
+      },
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_query_knowledge_tool.py",
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_builtin_tool_catalog.py tests\\test_tool_registration_parity.py tests\\test_tool_security_catalog.py",
+        "git diff --check -- src/builtin_tool_catalog.py src/tool_index.py src/tool_schema_definitions.py src/tool_execution.py src/agent_tools/__init__.py src/agent_tools/knowledge_tools.py src/tool_security.py tests/test_query_knowledge_tool.py"
+      ],
+      "done_when": "One default-off canonical read-only query_knowledge descriptor routes bounded owner-scoped code, document and memory queries through the injected USI planner boundary; malformed, foreign-scope, over-budget and unavailable paths fail closed without raw provider errors, writes, engine-specific tools or duplicate analytics."
     },
     {
       "id": "TAX0-deterministic-inventory",
