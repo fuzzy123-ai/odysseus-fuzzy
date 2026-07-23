@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T20:14:24+02:00",
-  "status": "uir00_runtime_caller_audit_claimed_safe_offline",
+  "updated_at": "2026-07-23T20:36:32+02:00",
+  "status": "uir00_accepted_uir01_dependency_ready_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,7 +23,7 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "uir00_claimed_after_usi14_acceptance",
+    "queue_status": "uir00_accepted_uir01_dependency_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -35,7 +35,7 @@
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
       "memory_observability": "gro00_through_gro15_offline_go_live_gate_eligible_not_authorized",
       "unified_source_index": "usi00_through_usi14_accepted_usi15_blocked_by_child_closure_productive_sources_off",
-      "usi_runtime_consumer_integration": "uir00_claimed_three_new_paths_runtime_default_off",
+      "usi_runtime_consumer_integration": "uir00_accepted_uir01_dependency_ready_runtime_default_off",
       "usi_domain_adapters": "planned_child_source_waves_default_off_private_domains_deferred",
       "usi_data_lifecycle_operations": "planned_child_live_actions_default_off",
       "codebase_memory_projection": "cbm00_through_cbm08_accepted_cbm09_dependency_ready_not_selected_engine_disabled",
@@ -85,18 +85,16 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "usi_runtime_consumer_integration",
-        "reason": "USI-00 through USI-14 are accepted and UIR-00 is claimed after read-only recon. A semantic path collision with the USI-00 overlap inventory was removed by assigning UIR-00 a new dedicated runtime-caller inventory; the prior inventory and generator remain unchanged.",
-        "slice": "UIR-00-runtime-caller-composition-audit",
+        "reason": "UIR-00 is accepted with a deterministic 55-caller ownership inventory, zero unclassified candidates and an unchanged green USI-00 overlap audit. UIR-01 is the next dependency-ready new-file runtime state contract while all runtime behavior remains disabled.",
+        "slice": "UIR-01-runtime-service-state-contract",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "execute_only_the_three_claimed_new_uir00_inventory_audit_and_test_paths_keep_runtime_workers_shadow_prompt_cutover_and_productive_sources_off"
+        "safe_default": "recon_then_claim_only_uir01_runtime_contract_and_focused_test_keep_runtime_workers_shadow_prompt_cutover_and_productive_sources_off"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-23"
     },
-    "active_claimed_slices": [
-      "UIR-00-runtime-caller-composition-audit"
-    ]
+    "active_claimed_slices": []
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -883,8 +881,8 @@
       "id": "OWM-19",
       "name": "USI Runtime And Consumer Integration",
       "priority": 9,
-      "status": "uir00_claimed_runtime_default_off",
-      "why_open": "The USI core through USI-14 is accepted but deliberately excludes application composition, worker lifecycle and current direct retrieval consumers. UIR-00 is claimed on one new caller inventory, one new static audit and one new focused test after removing a collision with the USI-00 overlap inventory; runtime, workers, shadow prompt use and productive cutover remain disabled.",
+      "status": "uir00_accepted_uir01_dependency_ready_runtime_default_off",
+      "why_open": "The USI core through USI-14 and UIR-00 are accepted. The deterministic static inventory classifies every current recognized runtime seam with an owner and migration decision while preserving the USI-00 overlap audit. UIR-01 is dependency-ready for an immutable runtime state contract; runtime, workers, shadow prompt use and productive cutover remain disabled.",
       "source_roadmap": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
       "source_gate_family": "unified_source_index",
       "dependencies": [
@@ -897,7 +895,7 @@
       "safe_default": "runtime_disabled_shadow_results_excluded_from_prompts_productive_workers_and_cutover_disabled",
       "user_gate_policy": "No independent UIR product gate. Contracts, dependency injection, fake workers, synthetic shadow comparisons and failure tests remain repo-only. UIR-14 contributes runtime evidence to the existing USI-LIVE-ACTIVATION gate; no productive scan, prompt cutover or provider process starts before that parent decision.",
       "execution_protocol": {
-        "queue_registration": "UIR-00 is the active claimed child slice after read-only collision recon. Keep UIR-01 and all runtime successors blocked_by_dependency.",
+        "queue_registration": "UIR-00 is accepted and its claim released. UIR-01 is the next dependency-ready child slice; keep UIR-02 and all later runtime successors blocked_by_dependency.",
         "dependency_rule": "Serialize runtime hotfiles. UIR owns composition and consumers, not source extraction, domain writes, lifecycle actions, tool identity, telemetry or metrics exporters.",
         "future_goal_command": "/goal Implementiere OWM-19 als Child von OWM-15; beginne UIR-00, halte Runtime produktiv aus und speise nur das gemeinsame USI activation packet."
       },
@@ -1608,7 +1606,7 @@
       "id": "UIR-00-runtime-caller-composition-audit",
       "class": "safe_offline",
       "owner": "/root",
-      "status": "claimed_in_progress",
+      "status": "accepted",
       "claimable": false,
       "depends_on": [
         "active Open-Work goal",
@@ -1633,9 +1631,10 @@
           "every productive database source data directory runtime worker process provider network deploy and live path"
         ],
         "hotfiles": [],
-        "state": "claimed",
+        "state": "released",
         "acquired_at": "2026-07-23T20:14:24+02:00",
         "lease_expires_at": "2026-07-24T00:14:24+02:00",
+        "released_at": "2026-07-23T20:36:32+02:00",
         "handoff_required": false,
         "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
         "new_paths": true,
@@ -1691,19 +1690,19 @@
           },
           "worker": {
             "model": "gpt-5.6-terra",
-            "evidence": "read-only recon complete; implementation pending"
+            "evidence": "implemented exactly three new declared paths; all deep Sol review findings resolved"
           },
           "review": {
-            "model": "pending",
+            "model": "gpt-5.6-sol",
             "depth": "deep",
-            "result": "pending"
+            "result": "approved_after_single-writer-path_unknown-caller-fail-closed_explicit-route-dynamic-and-owner-decision_hardening"
           }
         },
         "fallback": "none"
       },
       "evidence": {
         "target_environment": "static AST reads of repository Python sources only",
-        "observed_at": "2026-07-23T20:14:24+02:00",
+        "observed_at": "2026-07-23T20:36:32+02:00",
         "authority": "repo",
         "mutation_class": "safe_offline",
         "required": [
@@ -1718,7 +1717,26 @@
         ],
         "temporal_window": "none",
         "positive_path_required": true,
-        "recon": "The originally declared JSON path is the USI-00 overlap inventory and has its own full-document deterministic generator. UIR-00 was amended to a dedicated new runtime-caller inventory path, preventing two writers and preserving the accepted overlap audit unchanged. Dynamic plugin provider resolution remains an explicit generic boundary rather than an inferred concrete provider."
+        "recon": "The originally declared JSON path is the USI-00 overlap inventory and has its own full-document deterministic generator. UIR-00 was amended to a dedicated new runtime-caller inventory path, preventing two writers and preserving the accepted overlap audit unchanged. Dynamic plugin provider resolution remains an explicit generic boundary rather than an inferred concrete provider.",
+        "result": {
+          "focused_tests": 3,
+          "blocking_failures": 0,
+          "nonblocking_warning_count": 1,
+          "warning": "existing SQLAlchemy declarative_base deprecation",
+          "tracked_python_files_scanned": 805,
+          "ast_files_parsed": 191,
+          "relevant_source_hashes": 21,
+          "direct_ast_candidates": 55,
+          "explicit_reasoned_exclusions": 5,
+          "unclassified_candidates": 0,
+          "runtime_audit_check": "clean",
+          "runtime_audit_check_seconds": 2.7,
+          "prior_usi00_overlap_inventory": "clean_35_components_103_writers_17_tool_identities",
+          "runtime_modules_imported": false,
+          "private_sources_read": false,
+          "network_provider_runtime_worker_live_actions": 0,
+          "limitation": "Concrete dynamically registered provider implementations are intentionally not inferred by the static audit."
+        }
       },
       "tests": [
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_audit_unified_source_index_runtime.py",
@@ -1726,6 +1744,24 @@
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe scripts\\audit_unified_source_index_overlap.py --check",
         "git diff --check -- docs/plans/unified-source-index-runtime-caller-inventory.json scripts/audit_unified_source_index_runtime.py tests/test_audit_unified_source_index_runtime.py"
       ],
+      "artifact_hashes": {
+        "docs/plans/unified-source-index-runtime-caller-inventory.json": "B64E170D08F1829B374E3D17DD9CDCFF676102E8FA144A3F400CA5B92F4579E6",
+        "scripts/audit_unified_source_index_runtime.py": "C2139A86D5B145E9E4531BB4C53C85967FBFFF012F66588DE0722554A4541957",
+        "tests/test_audit_unified_source_index_runtime.py": "81106C69C9A63B002E29A570DD7B01A61CA28D19F9B41906111C64ED3194E528"
+      },
+      "implementation_commit": "bfc00d6b16ae96701c7f25015974f558b9cca1e9",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes_focused",
+        "reviewed": "yes_deep_sol",
+        "committed": "yes_local",
+        "pushed": "no",
+        "deployed": "na",
+        "live_validated": "na",
+        "product_complete": "no"
+      },
+      "acceptance": "offline_go_deterministic_static_runtime_caller_inventory_with_explicit_owner_decisions_zero_unclassified_and_preserved_usi00_overlap",
+      "next_frontier": "UIR-01 immutable runtime service and state contract is dependency-ready; runtime and productive query paths remain disabled.",
       "done_when": "One deterministic static-AST inventory classifies every current direct RAG, MemoryVector, Personal Docs and generic context caller plus composition, lifecycle, health, admin, backend, scheduler and background seams; every candidate is classified or explicitly excluded with a reason, source hashes are current, no runtime module or private source is read, and the accepted USI-00 overlap inventory remains unchanged and green."
     },
     {

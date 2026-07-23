@@ -2,7 +2,7 @@
 
 Updated: 2026-07-23
 
-Status: `UIR-00 claimed`; runtime and productive query path default-off
+Status: `UIR-00 accepted / UIR-01 dependency_ready`; runtime and productive query path default-off
 
 Parent: `OWM-15` / `0.28.x` Unified Source Index Foundation
 
@@ -140,16 +140,17 @@ shared parent gate.
 
 - Class: `safe_offline`
 - Owner: Charlie
-- Status: `claimed_2026-07-23`
+- Status: `accepted_2026-07-23`
 - Dependency audit: `Active Open-Work goal; USI-00 through USI-14 accepted;
   read-only recon found no active writer on the three new worker paths`
 - Serialized claim:
   - run_id: `abc-uir00-20260723T201424+0200`
   - thread_id: `/root`
   - owner: `Charlie`
-  - state: `claimed`
+  - state: `released`
   - acquired_at: `2026-07-23T20:14:24+02:00`
   - lease_expires_at: `2026-07-24T00:14:24+02:00`
+  - released_at: `2026-07-23T20:36:32+02:00`
   - worktree: `C:\tmp\odysseus-abc-usi09-20260723`
   - allowed_paths: `docs/plans/unified-source-index-runtime-caller-inventory.json`,
     `scripts/audit_unified_source_index_runtime.py`, and
@@ -161,6 +162,30 @@ shared parent gate.
   - collision_resolution: `The old declared runtime-inventory path belongs to
     USI-00 and has a full-document deterministic generator. UIR-00 now owns a
     dedicated new runtime-caller inventory so both audits remain single-writer.`
+  - evidence: `Three focused tests passed with one unrelated SQLAlchemy
+    deprecation warning. The static audit scanned 805 tracked Python files,
+    parsed 191 AST candidates, retained 21 relevant file hashes, classified 55
+    direct caller candidates plus five reasoned exclusions, and left zero
+    unclassified candidates. Every caller has a keep/adapt/fallback/retire/
+    exclude decision and owner track; unknown routes and dynamic manager
+    handles fail closed. The audit check completed in about 2.7 seconds. The
+    accepted USI-00 overlap audit remains clean at 35 components, 103 writers
+    and 17 tool identities. No runtime module, private source, provider,
+    network, worker or live action was used.`
+  - implementation_commit:
+    `bfc00d6b16ae96701c7f25015974f558b9cca1e9`
+  - artifact_hashes:
+    - caller_inventory:
+      `B64E170D08F1829B374E3D17DD9CDCFF676102E8FA144A3F400CA5B92F4579E6`
+    - audit:
+      `C2139A86D5B145E9E4531BB4C53C85967FBFFF012F66588DE0722554A4541957`
+    - focused_tests:
+      `81106C69C9A63B002E29A570DD7B01A61CA28D19F9B41906111C64ED3194E528`
+  - sol_review:
+    `approved_after_single-writer path correction, true unknown-caller
+    rejection, explicit current route/dynamic rules and per-caller owner/
+    decision hardening; zero blocking findings`
+  - live_actions: `false`
 - Dependencies: explicit goal; current hotfile claims and dirty work inspected
 - Allowed paths:
   - `docs/plans/unified-source-index-runtime-integration-roadmap.md`
@@ -176,11 +201,16 @@ shared parent gate.
 - Tests: `python -m pytest -q tests/test_audit_unified_source_index_runtime.py`
 - Done when: the machine-readable inventory covers every current runtime caller
   and assigns keep, adapt, fallback or retire ownership.
+- Acceptance:
+  `offline_go_deterministic_static_runtime_caller_inventory_explicit_owner_decisions_zero_unclassified_preserved_usi00_overlap`
+- Next frontier: `UIR-01` is dependency-ready; runtime and productive query
+  paths remain disabled.
 
 ### UIR-01 - Runtime Service And State Contract
 
 - Class: `repo_only`
 - Owner: Bob
+- Status: `dependency_ready_2026-07-23`
 - Dependencies: `UIR-00`, USI-01 and USI-02
 - Allowed paths:
   - `src/unified_source_index_runtime_contract.py`
