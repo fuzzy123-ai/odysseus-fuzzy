@@ -1,4 +1,5 @@
 """Built-in OpenAI-compatible function tool schema definitions."""
+from src.memory_category_policy import ALLOWED_MEMORY_CATEGORIES
 
 FUNCTION_TOOL_SCHEMAS = [
     {
@@ -477,8 +478,8 @@ FUNCTION_TOOL_SCHEMAS = [
                                "description": "The action to perform"},
                     "text": {"type": "string", "description": "Memory text (for add/edit) or search query (for search)"},
                     "memory_id": {"type": "string", "description": "Memory ID (for edit/delete)"},
-                    "category": {"type": "string", "enum": ["fact", "event", "contact", "preference"],
-                                 "description": "Memory category (for add/list filter)"},
+                    "category": {"type": "string", "enum": list(ALLOWED_MEMORY_CATEGORIES),
+                                 "description": "Memory category (for add/list filter). Todo/task items use manage_todos."},
                     "confirmed": {"type": "boolean", "description": "Required true for delete after explicit user confirmation."}
                 },
                 "required": ["action"]

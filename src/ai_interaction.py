@@ -18,6 +18,7 @@ import json
 import logging
 import uuid
 import time
+from src.memory_category_policy import MemoryCategoryPolicyError, normalize_memory_category
 from typing import Dict, Optional, Tuple
 
 from src.constants import GENERATED_IMAGES_DIR
@@ -325,19 +326,19 @@ async def do_manage_memory(content: str, session_id: Optional[str] = None, owner
     if not _memory_manager:
         return {"error": "Memory manager not available"}
 
-    raw_content = content.strip()
+    raw_content = content if isinstance(content, str) else str(content)
     parsed_args = None
-    if raw_content.startswith("{"):
+    if raw_content.lstrip().startswith("{"):
         try:
-            parsed_args = json.loads(raw_content)
+            parsed_args = json.loads(raw_content.strip())
         except Exception:
             parsed_args = None
     if isinstance(parsed_args, dict):
         _action = str(parsed_args.get("action") or "").strip().lower()
         if _action == "add":
             lines = ["add", str(parsed_args.get("text") or "")]
-            if parsed_args.get("category"):
-                lines.append(str(parsed_args["category"]))
+            if "category" in parsed_args:
+                lines.append(parsed_args["category"])
         elif _action == "edit":
             lines = ["edit", str(parsed_args.get("memory_id") or ""), str(parsed_args.get("text") or "")]
         elif _action == "delete":
@@ -392,10 +393,17 @@ async def do_manage_memory(content: str, session_id: Optional[str] = None, owner
         if len(lines) < 2:
             return {"error": "Add needs line 2: memory text"}
         text = lines[1].strip()
-        category = lines[2].strip().lower() if len(lines) > 2 and lines[2].strip() else "fact"
+        category = "fact" if len(lines) <= 2 else lines[2]
         if not text:
             return {"error": "Memory text cannot be empty"}
 
+        try:
+            category = normalize_memory_category(category)
+        except MemoryCategoryPolicyError as exc:
+            result = {"status": "rejected", "error_code": exc.code, "exit_code": 1}
+            if exc.code == "todo_storage_forbidden":
+                result["use_tool"] = "manage_todos"
+            return result
         entry = _memory_manager.add_entry(text, source="ai_agent", category=category, owner=owner)
         memories = _memory_manager.load_all()
         memories.append(entry)

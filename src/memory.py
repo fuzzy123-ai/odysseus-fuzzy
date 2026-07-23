@@ -7,6 +7,7 @@ import uuid
 import re
 from typing import List, Dict, Tuple
 from datetime import datetime
+from src.memory_category_policy import normalize_memory_category
 
 logger = logging.getLogger(__name__)
 
@@ -217,6 +218,7 @@ class MemoryManager:
         if not text.strip():
             raise ValueError("Memory text cannot be empty")
 
+        category = normalize_memory_category(category)
         entry = {
             "id": str(uuid.uuid4()),
             "text": text.strip(),
