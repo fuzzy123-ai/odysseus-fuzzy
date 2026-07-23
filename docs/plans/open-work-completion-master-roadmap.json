@@ -1,19 +1,19 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T17:14:56+02:00",
-  "status": "uix_abc21_document_bridge_in_progress",
+  "updated_at": "2026-07-23T17:31:24+02:00",
+  "status": "uix_abc21_accepted_uix_abc23_ready",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Bearbeite die offenen Odysseus-Feature-Roadmaps dependency-gesteuert ueber Open Work; beginne mit UIX-ABC20, danach UIX-ABC22, repo-only und ohne breite Tests, Push, Deploy oder Live-Mutation.",
   "goal": "Advance the dependency-ready Open Work feature-roadmap frontier with bounded repo-only claims, focused verification, Sol-reviewed Terra handoffs, durable evidence and local commits.",
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 0,
+    "safe_open_json_slices": 1,
     "unique_live_gates": 40,
     "unique_design_gates": 27,
-    "other_open_json_items": 33,
-    "queue_status": "uix_abc21_claimed_on_two_new_paths_no_other_safe_frontier",
+    "other_open_json_items": 31,
+    "queue_status": "uix_abc21_released_uix_abc23_dependency_ready_repo_only",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,14 +21,14 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "agent_maintenance_safety": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "universal_inbox_workbench": "uix_abc21_document_bridge_in_progress",
+      "universal_inbox_workbench": "uix_abc21_accepted_uix_abc23_ready",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 0,
-      "other_open_count": 33,
+      "safe_open_count": 1,
+      "other_open_count": 31,
       "unique_live_gate_count": 40,
       "unique_design_gate_count": 27,
       "decision_packet_families": [
@@ -60,24 +60,23 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "The fresh read-only handoff proved that existing window.documentModule exports and owner-scoped Document routes are sufficient. UIX-ABC21 is durably claimed on exactly two new files; static/js/document.js remains excluded.",
-        "slice": "UIX-ABC21",
+        "reason": "UIX-ABC21 passed deep Sol review and focused local acceptance. UIX-ABC23 now has both code dependencies complete, and its repo-only browser-export gate permits only an explicit user-initiated local download while provider and Nextcloud writes remain forbidden.",
+        "slice": "UIX-ABC23",
         "user_decision_required": false,
-        "safe_default": "execute_only_the_two_new_uix_abc21_bridge_paths_repo_only"
+        "safe_default": "claim_a_bounded_uix_abc23_browser_export_split_repo_only"
       },
-      "queue_exhausted": true,
+      "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-23"
     },
-    "dependency_ready_repo_only_slices": [],
-    "active_claimed_slices": [
-      "UIX-ABC21"
+    "dependency_ready_repo_only_slices": [
+      "UIX-ABC23"
     ],
+    "active_claimed_slices": [],
     "product_semantics_gated_open_slices": [],
     "handoff_gated_open_slices": [],
     "design_gated_open_slices": [],
     "dependency_blocked_slices": [
-      "UIX-ABC23",
       "UIX-ABC24"
     ]
   },
@@ -2022,7 +2021,7 @@
       "title": "Working-Copy Editor And Diff Bridge",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_in_progress",
+      "status": "completed",
       "claimable": false,
       "depends_on": [
         "UIX-ABC17",
@@ -2068,10 +2067,12 @@
           "static/js/document.js"
         ],
         "hotfiles": [],
-        "state": "claimed",
+        "state": "released_after_local_acceptance",
         "acquired_at": "2026-07-23T17:14:56+02:00",
         "lease_expires_at": "2026-07-23T21:14:56+02:00",
-        "handoff_required": true
+        "released_at": "2026-07-23T17:31:24+02:00",
+        "completion_commit": "6927f36f",
+        "handoff_required": false
       },
       "allowed_paths": [
         "static/frontpage-v3/inbox-document-bridge.js",
@@ -2144,26 +2145,40 @@
           }
         },
         "actual": {
-          "skills": [],
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            },
+            {
+              "id": "impeccable",
+              "status": "loaded_used"
+            },
+            {
+              "id": "playwright",
+              "status": "loaded_used"
+            }
+          ],
           "master": {
             "model": "gpt-5.6-sol",
             "evidence": "root surface"
           },
           "worker": {
-            "model": "pending",
-            "evidence": "pending spawn"
+            "model": "gpt-5.6-terra",
+            "effort": "high",
+            "evidence": "/root/bob_uix21_bridge handoff_ready"
           },
           "review": {
-            "model": "pending",
+            "model": "gpt-5.6-sol",
             "depth": "deep",
-            "result": "pending"
+            "result": "pass"
           }
         },
         "fallback": "none"
       },
       "evidence": {
         "target_environment": "local",
-        "observed_at": "2026-07-23T17:14:56+02:00",
+        "observed_at": "2026-07-23T17:31:24+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -2173,6 +2188,20 @@
         "temporal_window": "none",
         "positive_path_required": true
       },
+      "local_acceptance_evidence": "Commit 6927f36f; six focused Playwright tests passed independently with one worker in 754 milliseconds, covering the strict working-copy response contract, exact upload source-ref grammar, safe projected state, immutable original/extraction modes, owner-scoped preflight GET before PUT, version/timestamp/content conflicts with zero PUT, concurrent local edits, failed-save dirty preservation, the real version-list payload shape, read-only reuse of documentModule diff, malformed and oversized responses, abort/stale cleanup and no live/provider write. JavaScript syntax and the staged path-scoped diff check passed; the Impeccable deterministic detector reported []. Sol deep review corrected the production version-list shape and the history-diff restore direction. GET then PUT remains explicitly non-atomic and does not claim compare-and-swap. No broad suite, push, deployment, provider access or live mutation occurred; the transient Playwright result directory was removed after the exact run.",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "deep_pass",
+        "committed": "6927f36f",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na_controller_only",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      },
+      "completed_at": "2026-07-23T17:31:24+02:00",
       "done_when": "The bridge reuses existing owner-scoped Document versions/diff and exposes dirty/saving/saved/conflict while keeping original, extraction and working copy distinct."
     },
     {
@@ -2359,7 +2388,8 @@
       "title": "Browser Export Split",
       "class": "repo_only",
       "owner": "/root",
-      "status": "blocked_by_dependency",
+      "status": "open",
+      "claimable": true,
       "depends_on": [
         "UIX-ABC17",
         "UIX-ABC21"
@@ -2373,6 +2403,23 @@
       "gates": [
         "UIX-WORKBENCH-BROWSER-EXPORT"
       ],
+      "gate_resolution": {
+        "id": "UIX-WORKBENCH-BROWSER-EXPORT",
+        "mutation_class": "repo_only",
+        "state": "accepted_for_bounded_repo_only_implementation",
+        "authority": "current /abc goal and canonical Universal Inbox gate model",
+        "allowed": [
+          "an explicit user-initiated original download through the existing owner-scoped source endpoint",
+          "an explicit user-initiated working-copy export through an existing owner-scoped Document export endpoint",
+          "focused synthetic local verification without private content"
+        ],
+        "forbidden": [
+          "automatic download or navigation",
+          "provider or Nextcloud write",
+          "copy, move, delete or overwrite of the source",
+          "push, deployment or live mutation"
+        ]
+      },
       "done_when": "Users explicitly choose original download or working-copy export through existing endpoints; provider and Nextcloud targets remain disabled and live-gated."
     },
     {
