@@ -4,9 +4,9 @@ Stand: 2026-07-23
 
 Status: `TTD-00`, `TTD-01` und `TTD-02A` sind am 2026-07-23 akzeptiert. Der
 read-only `TTD-02`-Boundary-Recon ist abgeschlossen. `TTD-02B` ist als
-naechster exakter repo-only Claim selektiert, aber noch nicht geclaimt.
-`TTD-03` und `TTD-08` sind dependency-ready, bleiben jedoch unselektiert;
-spaetere unmet Slices und saemtliche Live-Aktionen bleiben gesperrt.
+exakter repo-only Fassade-/Registry-/Intent-Slice geclaimt. `TTD-03` und
+`TTD-08` sind dependency-ready, bleiben jedoch unselektiert; spaetere unmet
+Slices und saemtliche Live-Aktionen bleiben gesperrt.
 
 ## Durable Amendment Claim 2026-07-21
 
@@ -404,7 +404,7 @@ Akzeptanz:
 
 Owner: Bob
 
-Status: `ttd02a_accepted_ttd02b_exact_claim_next`
+Status: `ttd02a_accepted_ttd02b_claimed`
 
 Serialisierung und Acceptance:
 
@@ -432,9 +432,18 @@ Serialisierung und Acceptance:
   - Acceptance:
     `offline_go_authoritative_memory_category_policy_todo_writes_fail_closed_before_persistence_with_legacy_reads_preserved`
 - `TTD-02B-manage-todos-facade-routing`
-  - Status: `recon_complete_exact_claim_next`
-  - Als naechster repo-only Slice auf exakten Fassade-/Registry-/Intent- und
-    fokussierten Testpfaden claimbar
+  - Owner: Bob
+  - Run: `abc-ttd02b-20260723T222728+0200`
+  - Status: `claimed_2026-07-23`
+  - Exakte Pfade: neue `manage_todos`-Fassade, bestehende Import-/Dispatch-,
+    Parser-, Katalog-, Schema-, Index-, Policy-, Intent- und Prompt-Projektionen
+    sowie zwei neue und zwei bestehende fokussierte Testmodule
+  - Entfernen bleibt bestaetigungspflichtig; die Fassade nutzt nur den
+    akzeptierten Todo-Domain-Service und gibt inhaltsfreie Snapshots, Receipts
+    und sichere Fehlercodes zurueck
+  - Verboten: bestehender Notes-Writer, Todo-Service, Memory-Policy,
+    `agent_loop.py`, Telegram-, produktive Daten-, Runtime-, Provider-, Deploy-
+    und Live-Aenderungen
 
 Ziel:
 

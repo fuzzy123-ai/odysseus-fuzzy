@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_ttd02a_accepted_ttd02b_recon_complete_exact_claim_next",
-      "ai_hint": "This is the current gate authority. TTD-00, TTD-01 and TTD-02A are accepted with no active claim. The TTD-02 tool-routing recon is complete; claim only the exact TTD-02B manage_todos facade, registry, policy, intent, prompt and focused-test paths next. TTD-03 and TTD-08 remain dependency-ready but unselected; no productive-data, runtime, deploy, Telegram-send or other live authority is granted."
+      "state": "owm22_ttd02a_accepted_ttd02b_manage_todos_facade_routing_claimed",
+      "ai_hint": "This is the current gate authority. TTD-00, TTD-01 and TTD-02A are accepted. Implement only the active exact TTD-02B manage_todos facade, registry, dispatcher, policy, index, intent, prompt and focused-test claim. Preserve the existing Notes writer, accepted Todo service, Memory policy, agent_loop.py and all Telegram paths. TTD-03 and TTD-08 remain unselected; no productive-data, runtime, deploy, Telegram-send or other live authority is granted."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
