@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T17:37:00+02:00",
-  "status": "uix_abc23_browser_export_claimed",
+  "updated_at": "2026-07-23T18:02:22+02:00",
+  "status": "uix_abc23_accepted_uix_abc24_bounded_release_plan_required",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Bearbeite die offenen Odysseus-Feature-Roadmaps dependency-gesteuert ueber Open Work; beginne mit UIX-ABC20, danach UIX-ABC22, repo-only und ohne breite Tests, Push, Deploy oder Live-Mutation.",
   "goal": "Advance the dependency-ready Open Work feature-roadmap frontier with bounded repo-only claims, focused verification, Sol-reviewed Terra handoffs, durable evidence and local commits.",
@@ -12,8 +12,8 @@
     "safe_open_json_slices": 0,
     "unique_live_gates": 40,
     "unique_design_gates": 27,
-    "other_open_json_items": 32,
-    "queue_status": "uix_abc23_claimed_after_fresh_export_handoff_no_other_safe_frontier",
+    "other_open_json_items": 30,
+    "queue_status": "uix_abc23_accepted_uix_abc24_dependency_ready_but_unclaimable_until_bounded_no_broad_test_plan",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,14 +21,15 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "agent_maintenance_safety": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "universal_inbox_workbench": "uix_abc23_browser_export_in_progress",
+      "universal_inbox_workbench": "uix_abc13_through_uix_abc23_repo_complete_uix24_bounded_release_gate_parked",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
       "safe_open_count": 0,
-      "other_open_count": 32,
+      "unclaimable_open_count": 1,
+      "other_open_count": 30,
       "unique_live_gate_count": 40,
       "unique_design_gate_count": 27,
       "decision_packet_families": [
@@ -60,23 +61,22 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "UIX-ABC23 is durably claimed after a fresh read-only handoff. The bounded implementation adds one owner-checked generic Document download for non-PDF working copies, reuses the existing PDF and source endpoints, and exposes only explicit user-triggered browser downloads.",
-        "slice": "UIX-ABC23",
+        "reason": "UIX-ABC23 is locally accepted. UIX-ABC24 is dependency-ready, but its canonical integration gate spans multiple suites; the current no-broad-test constraint requires a durable evidence-reuse and minimal-gap plan before a claim.",
+        "slice": "UIX-ABC24",
         "user_decision_required": false,
-        "safe_default": "execute_only_the_claimed_uix_abc23_export_paths_repo_only"
+        "safe_default": "design_a_bounded_release_evidence_plan_without_rerunning_broad_suites"
       },
       "queue_exhausted": true,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-23"
     },
     "dependency_ready_repo_only_slices": [],
-    "active_claimed_slices": [
-      "UIX-ABC23"
-    ],
+    "active_claimed_slices": [],
     "product_semantics_gated_open_slices": [],
     "handoff_gated_open_slices": [],
     "design_gated_open_slices": [],
-    "dependency_blocked_slices": [
+    "dependency_blocked_slices": [],
+    "unclaimable_dependency_ready_slices": [
       "UIX-ABC24"
     ]
   },
@@ -2388,7 +2388,7 @@
       "title": "Browser Export Split",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_in_progress",
+      "status": "completed",
       "claimable": false,
       "depends_on": [
         "UIX-ABC17",
@@ -2459,10 +2459,12 @@
         "hotfiles": [
           "routes/document_routes.py"
         ],
-        "state": "claimed",
+        "state": "released_completed",
         "acquired_at": "2026-07-23T17:37:00+02:00",
         "lease_expires_at": "2026-07-23T21:37:00+02:00",
-        "handoff_required": false
+        "handoff_required": false,
+        "released_at": "2026-07-23T18:02:22+02:00",
+        "commit": "e3bad202"
       },
       "allowed_paths": [
         "routes/document_routes.py",
@@ -2511,20 +2513,21 @@
             "evidence": "root surface"
           },
           "worker": {
-            "model": "pending",
-            "evidence": "pending spawn"
+            "model": "gpt-5.6-terra",
+            "effort": "high",
+            "evidence": "Charlie implemented and focused-tested only the five durably claimed paths, then resolved two Sol findings without expanding scope."
           },
           "review": {
-            "model": "pending",
+            "model": "gpt-5.6-sol",
             "depth": "deep",
-            "result": "pending"
+            "result": "pass"
           }
         },
         "fallback": "none"
       },
       "evidence": {
         "target_environment": "local",
-        "observed_at": "2026-07-23T17:37:00+02:00",
+        "observed_at": "2026-07-23T18:02:22+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -2534,6 +2537,20 @@
         "temporal_window": "none",
         "positive_path_required": true
       },
+      "local_acceptance_evidence": "Commit e3bad202; three focused Python tests passed independently in 1.12 seconds and ten focused Playwright tests passed independently with one worker in 844 milliseconds. Evidence covers owner and configured-auth closure, exact current working-copy bytes without mutation, bounded UTF-8 export, safe deterministic filenames and allowlisted MIME, private no-store and nosniff, complete-only original downloads with content-free rejection of 206/partial responses, strict server-authoritative capability validation, cached working-copy reuse after source deletion, explicit original/PDF/generic endpoint selection, no automatic download, no provider method, same-origin/no-store fetches, bounded binary/header validation, compressed transfer handling, dirty/conflict/in-flight change blocking and bounded object-URL cleanup. JavaScript syntax and path-specific git diff checks passed. The transient root Playwright result directory was removed. No broad suite, private source logging, original mutation, provider or Nextcloud write, push, deployment or live mutation occurred.",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "deep_pass_after_two_fixes",
+        "committed": "e3bad202",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na_controller_and_route_only",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      },
+      "completed_at": "2026-07-23T18:02:22+02:00",
       "done_when": "Users explicitly choose original download or working-copy export through existing endpoints; provider and Nextcloud targets remain disabled and live-gated."
     },
     {
@@ -2541,7 +2558,9 @@
       "title": "Integration, Security, Accessibility And Release Gate",
       "class": "safe_offline",
       "owner": "/root",
-      "status": "blocked_by_dependency",
+      "status": "open",
+      "claimable": false,
+      "claim_blocker": "bounded_verification_plan_required_under_no_broad_tests",
       "depends_on": [
         "UIX-ABC13",
         "UIX-ABC14",
@@ -2556,6 +2575,17 @@
         "UIX-ABC23"
       ],
       "source_roadmap": "docs/plans/universal-inbox-abc-roadmap.md",
+      "release_plan": {
+        "state": "required_before_claim",
+        "constraint": "Do not rerun the canonical multi-suite matrix as a broad token-heavy test pass.",
+        "safe_next_action": "Inventory already accepted UIX-ABC13 through UIX-ABC23 evidence, map it to the UIX-ABC24 release clauses, and specify only genuinely missing synthetic integration, accessibility, responsive or security checks.",
+        "forbidden": [
+          "broad test suite",
+          "private document screenshots or logs",
+          "push or deployment",
+          "provider, Nextcloud or other live mutation"
+        ]
+      },
       "done_when": "The claimed MVP scope passes focused owner/auth/redaction/capability/source/working-copy/export, frontend, accessibility, responsive, security and synthetic browser evidence without private content."
     },
     {
@@ -3539,5 +3569,5 @@
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "No new human decision is required while the two-file UIX-ABC21 repo-only claim is active. static/js/document.js, provider access, external delivery and every live-write authority remain closed."
+  "recommended_next_human_decision": "No new human decision is required to design the bounded UIX-ABC24 evidence-reuse plan. Broad regression reruns, private-content evidence, provider access, external delivery and every live-write authority remain closed."
 }
