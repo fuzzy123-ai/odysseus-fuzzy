@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T18:29:18+02:00",
-  "status": "uix_abc24_bounded_production_composition_claimed",
+  "updated_at": "2026-07-23T18:42:38+02:00",
+  "status": "uix_abc24_accepted_universal_inbox_workbench_repo_complete",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Bearbeite die offenen Odysseus-Feature-Roadmaps dependency-gesteuert ueber Open Work; beginne mit UIX-ABC20, danach UIX-ABC22, repo-only und ohne breite Tests, Push, Deploy oder Live-Mutation.",
   "goal": "Advance the dependency-ready Open Work feature-roadmap frontier with bounded repo-only claims, focused verification, Sol-reviewed Terra handoffs, durable evidence and local commits.",
@@ -12,8 +12,8 @@
     "safe_open_json_slices": 0,
     "unique_live_gates": 40,
     "unique_design_gates": 27,
-    "other_open_json_items": 31,
-    "queue_status": "uix_abc24_claimed_after_clean_harbor_production_composition_handoff",
+    "other_open_json_items": 30,
+    "queue_status": "repo_only_dependency_ready_frontier_exhausted_after_uix_abc24_acceptance",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,7 +21,7 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "agent_maintenance_safety": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "universal_inbox_workbench": "uix_abc13_through_uix_abc23_repo_complete_uix24_bounded_production_composition_in_progress",
+      "universal_inbox_workbench": "uix_abc13_through_uix_abc24_locally_accepted_repo_complete_no_live_provider",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
@@ -29,7 +29,7 @@
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
       "safe_open_count": 0,
       "unclaimable_open_count": 0,
-      "other_open_count": 31,
+      "other_open_count": 30,
       "unique_live_gate_count": 40,
       "unique_design_gate_count": 27,
       "decision_packet_families": [
@@ -61,19 +61,17 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "UIX-ABC24 is durably claimed after a clean production-path handoff. The bounded slice wires the accepted preview and document bridge into Harbor One, hands editing to the existing Document UI through a same-origin deep link, and now includes the existing Workbench CSS solely for semantic link-button layout and mobile touch-target closure found by Sol review.",
-        "slice": "UIX-ABC24",
-        "user_decision_required": false,
-        "safe_default": "execute_only_the_six_claimed_uix_abc24_paths_without_broad_suite_or_live_action"
+        "reason": "UIX-ABC24 is locally accepted and the dependency-ready repo-only queue is exhausted. Remaining feature-roadmap work requires a bounded design, handoff, service-config or action-specific live decision; the safe default is to preserve the accepted repository state.",
+        "slice": null,
+        "user_decision_required": true,
+        "safe_default": "hold_repo_complete_state_and_do_not_cross_design_provider_or_live_gates"
       },
       "queue_exhausted": true,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-23"
     },
     "dependency_ready_repo_only_slices": [],
-    "active_claimed_slices": [
-      "UIX-ABC24"
-    ],
+    "active_claimed_slices": [],
     "product_semantics_gated_open_slices": [],
     "handoff_gated_open_slices": [],
     "design_gated_open_slices": [],
@@ -2558,7 +2556,7 @@
       "title": "Integration, Security, Accessibility And Release Gate",
       "class": "safe_offline",
       "owner": "/root",
-      "status": "claimed_in_progress",
+      "status": "completed",
       "claimable": false,
       "depends_on": [
         "UIX-ABC13",
@@ -2622,12 +2620,14 @@
           "static/frontpage-v3/inbox-workbench.js",
           "static/frontpage-v3/inbox-workbench.css"
         ],
-        "state": "claimed",
+        "state": "released_completed",
         "acquired_at": "2026-07-23T18:10:33+02:00",
         "lease_expires_at": "2026-07-23T22:10:33+02:00",
         "handoff_required": false,
         "amended_at": "2026-07-23T18:29:18+02:00",
-        "amendment_reason": "Sol review found that the new semantic Document deep links use the existing button class but need the existing Workbench CSS to become stacked, centered and 44px mobile touch targets; no new visual language or test path is authorized."
+        "amendment_reason": "Sol review found that the new semantic Document deep links use the existing button class but need the existing Workbench CSS to become stacked, centered and 44px mobile touch targets; no new visual language or test path is authorized.",
+        "released_at": "2026-07-23T18:42:38+02:00",
+        "commit": "190520dc"
       },
       "allowed_paths": [
         "static/frontpage-v3/index.html",
@@ -2644,7 +2644,7 @@
         "git diff --check -- static/frontpage-v3/index.html static/frontpage-v3/inbox-workbench.js static/frontpage-v3/inbox-workbench.css static/frontpage-v3/inbox-document-bridge.js tests/frontend/harbor-one-inbox-workbench.spec.js tests/frontend/harbor-one-inbox-document-bridge.spec.js"
       ],
       "release_plan": {
-        "state": "bounded_production_composition_claimed",
+        "state": "accepted_bounded_production_composition",
         "observed_at": "2026-07-23T18:08:45+02:00",
         "constraint": "Do not rerun the canonical multi-suite matrix as a broad token-heavy test pass; reuse accepted UIX-ABC13 through UIX-ABC23 evidence.",
         "evidence_reuse": [
@@ -2659,7 +2659,14 @@
           "A test-only composition cannot close an Integration and Release Gate while the production shell remains unwired.",
           "Sol review of the production composition found that semantic Document deep links require the existing Workbench CSS for stacked layout, centered button appearance and 44px mobile touch targets; this is a bounded accessibility correction, not a visual redesign."
         ],
-        "safe_next_action": "Execute only the six claimed production/controller/style paths, then independently Sol-review the composed synthetic Harbor result without rerunning any other accepted UIX suite.",
+        "safe_next_action": "Preserve the locally accepted Harbor composition and reuse UIX-ABC13 through UIX-ABC24 evidence; do not cross provider, Nextcloud, deployment or live-write gates without a new action-specific grant.",
+        "acceptance_result": {
+          "mvp_scope": "go_repo_only_local",
+          "markdown_text_pdf": "owner-safe inspect, dry-run route, versioned working copy, existing Document UI handoff and explicit local exports accepted; original remains immutable",
+          "docx": "existing owner-scoped extraction and working-copy handoff evidence reused; Microsoft Office round-trip fidelity remains deferred",
+          "provider_nextcloud": "disabled_and_live_gated",
+          "broad_regression": "not_rerun_by_operator_request_prior_focused_evidence_reused"
+        },
         "forbidden": [
           "broad test suite",
           "test-only release closure without production wiring",
@@ -2701,26 +2708,40 @@
           }
         },
         "actual": {
-          "skills": [],
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            },
+            {
+              "id": "impeccable",
+              "status": "loaded_used"
+            },
+            {
+              "id": "playwright",
+              "status": "loaded_used"
+            }
+          ],
           "master": {
             "model": "gpt-5.6-sol",
             "evidence": "root surface"
           },
           "worker": {
-            "model": "pending",
-            "evidence": "pending handoff"
+            "model": "gpt-5.6-terra",
+            "effort": "high",
+            "evidence": "Charlie changed only the six durable claim paths, ran the exact two focused frontend specs, resolved Sol accessibility and state-projection findings, and handed off a clean scoped diff."
           },
           "review": {
-            "model": "pending",
+            "model": "gpt-5.6-sol",
             "depth": "deep",
-            "result": "pending"
+            "result": "pass_after_independent_diff_test_and_visual_review"
           }
         },
         "fallback": "none"
       },
       "evidence": {
         "target_environment": "local",
-        "observed_at": "2026-07-23T18:10:33+02:00",
+        "observed_at": "2026-07-23T18:42:38+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -2731,6 +2752,20 @@
         "temporal_window": "none",
         "positive_path_required": true
       },
+      "local_acceptance_evidence": "Commit 190520dc; nineteen focused Playwright tests across only harbor-one-inbox-workbench.spec.js and harbor-one-inbox-document-bridge.spec.js passed independently with one worker in 10.0 seconds. Both changed JavaScript files passed node --check, the four-path Impeccable detector returned [], the six-path diff check passed, and fresh synthetic desktop/mobile screenshots were inspected by Sol before their disposable temp directory was removed. Evidence covers inert original preview, stale-selection cancellation, metadata-only fail-closed Document handoff, explicit same-origin Document UI links, original/working-copy export separation, duplicate-safe downloads, strict server-authoritative capability validation, content-free Working copy and Difference modes, dynamic roving tabs, redacted getView state, 44px visible mobile controls and no root overflow. No broad suite, private source logging, static/js/document.js load, provider or Nextcloud write, push, deployment or live mutation occurred.",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "deep_pass_after_independent_reproduction_and_visual_review",
+        "committed": "190520dc",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "yes_synthetic_desktop_and_mobile",
+        "temporal_validated": "na",
+        "product_complete": "repo_only_mvp_go_live_provider_and_office_fidelity_remain_gated"
+      },
+      "completed_at": "2026-07-23T18:42:38+02:00",
       "done_when": "The claimed MVP scope passes focused owner/auth/redaction/capability/source/working-copy/export, frontend, accessibility, responsive, security and synthetic browser evidence without private content."
     },
     {
@@ -3714,5 +3749,5 @@
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "No new human decision is required while the six-path UIX-ABC24 production-composition claim is active. Broad regression reruns, static/js/document.js loading in Harbor, private-content evidence, provider access, external delivery and every live-write authority remain closed."
+  "recommended_next_human_decision": "UIX-ABC24 is locally accepted and no dependency-ready repo-only slice remains. Choose one bounded next gate explicitly before work resumes: a design/handoff decision, missing service configuration, or an action-specific provider/live authorization. Broad regression reruns, static/js/document.js loading in Harbor, private-content evidence, external delivery and every live-write authority remain closed by default."
 }
