@@ -6,6 +6,7 @@ import os
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import JSONResponse, Response
 
 from src.auth_helpers import effective_user
 from src.universal_inbox_file_types import classify_universal_inbox_file
@@ -21,6 +22,10 @@ from src.universal_inbox_items import (
     browse_universal_inbox_items,
     load_owner_scoped_universal_inbox_items,
     resolve_universal_inbox_owner_scope,
+)
+from src.universal_inbox_source_access import (
+    UniversalInboxSourceAccessError,
+    read_selected_universal_inbox_source,
 )
 from src.universal_inbox_workspace_snapshot import (
     build_universal_inbox_workspace_snapshot,
@@ -85,6 +90,38 @@ def setup_universal_inbox_routes(upload_handler: Any = None) -> APIRouter:
             item_status=status_payload,
             live_write_allowed=False,
         ).to_dict()
+
+    @router.get("/items/{source_ref:path}/content")
+    async def get_universal_inbox_item_content(
+        request: Request,
+        source_ref: str,
+    ):
+        auth_manager = getattr(request.app.state, "auth_manager", None)
+        try:
+            content = read_selected_universal_inbox_source(
+                upload_handler,
+                source_ref,
+                owner=effective_user(request),
+                auth_manager=auth_manager,
+                range_header=request.headers.get("range"),
+            )
+        except UniversalInboxSourceAccessError as exc:
+            headers = {
+                "Cache-Control": "private, no-store",
+                "X-Content-Type-Options": "nosniff",
+                **exc.headers,
+            }
+            return JSONResponse(
+                status_code=exc.status_code,
+                content=exc.to_dict(),
+                headers=headers,
+            )
+        return Response(
+            content=content.body,
+            status_code=content.status_code,
+            media_type=content.media_type,
+            headers=content.headers(),
+        )
 
     return router
 
