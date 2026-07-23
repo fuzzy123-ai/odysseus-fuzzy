@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_ttd00_through_ttd02_accepted_ttd03_recon_complete_ttd03a_next_no_active_claim",
-      "ai_hint": "This is the current gate authority. TTD-00 through TTD-02 are accepted, the read-only TTD-03 recon is complete and no implementation claim is active. Next claim only TTD-03A on the nine exact documented receipt-adapter, manage_todos facade, narrow Agent-event, Ledger, Effect-Matrix and focused-test paths. Keep TTD-03B waiting on TTD-03A, TTD-08 unselected and later unmet successors dependency-blocked. Preserve Notes truth, the accepted Todo service, Memory policy and Telegram behavior; no productive-data, runtime, deploy, Telegram-send or other live authority is granted."
+      "state": "owm22_ttd00_through_ttd02_accepted_ttd03a_semantic_receipt_ledger_claimed",
+      "ai_hint": "This is the current gate authority. TTD-00 through TTD-02 are accepted and TTD-03A is the only active implementation claim on the nine exact documented receipt-adapter, manage_todos facade, narrow Agent-event, Ledger, Effect-Matrix and focused-test paths. Keep TTD-03B waiting, TTD-08 unselected and later unmet successors dependency-blocked. Preserve Notes truth, the accepted Todo service, Memory policy, claim gate and Telegram behavior; no productive-data, runtime, deploy, Telegram-send or other live authority is granted."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
@@ -744,8 +744,8 @@
     {
       "path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "profile": "active_serial",
-      "state": "ttd00_through_ttd02_accepted_ttd03_recon_complete_ttd03a_next_no_active_claim_live_default_off",
-      "ai_hint": "TTD-00 through TTD-02 are accepted, the read-only TTD-03 recon is complete and no implementation claim is active. Next claim only TTD-03A on the nine exact documented receipt-adapter, manage_todos facade, narrow Agent-event, Ledger, Effect-Matrix and focused-test paths. TTD-03B waits for TTD-03A; keep TTD-08 unselected and later unmet successors dependency-blocked. Notes remains the sole Todo truth; preserve the accepted service, Memory fail-closed policy and Telegram behavior, and stop before each independent deploy, production data repair, Telegram smoke or productive rollover gate."
+      "state": "ttd00_through_ttd02_accepted_ttd03a_semantic_receipt_ledger_claimed_live_default_off",
+      "ai_hint": "TTD-00 through TTD-02 are accepted and TTD-03A is the only active implementation claim on the nine exact documented receipt-adapter, manage_todos facade, narrow Agent-event, Ledger, Effect-Matrix and focused-test paths. TTD-03B waits for TTD-03A; keep TTD-08 unselected and later unmet successors dependency-blocked. Notes remains the sole Todo truth; preserve the accepted service, Memory fail-closed policy, claim gate and Telegram behavior, and stop before each independent deploy, production data repair, Telegram smoke or productive rollover gate."
     },
     {
       "path": "docs/plans/telegram-dual-session-router-hotfix-roadmap.md",

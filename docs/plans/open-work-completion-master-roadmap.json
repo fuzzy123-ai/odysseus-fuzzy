@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T23:07:15+02:00",
-  "status": "ttd02_accepted_ttd03_recon_complete_ttd03a_next_not_claimed",
+  "updated_at": "2026-07-23T23:09:23+02:00",
+  "status": "ttd02_accepted_ttd03a_semantic_receipt_ledger_claimed_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd02_accepted_ttd03_recon_complete_ttd03a_next_no_active_claim",
+    "queue_status": "ttd02_accepted_ttd03a_exact_nine_path_claim_active",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd02_accepted_ttd03_recon_complete_ttd03a_next_live_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd02_accepted_ttd03a_claimed_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,16 +85,18 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "The read-only TTD-03 recon found that a pure adapter alone would not reach runtime truth: the accepted facade receipt must cross one narrow content-free Agent event boundary before the ledger and Effect Matrix can derive closed Todo claim types. TTD-03A now has nine exact repo-only candidate paths, but no implementation claim is opened at the operator stopping boundary.",
+        "reason": "The read-only TTD-03 recon is complete and TTD-03A is durably claimed on exactly nine receipt-adapter, manage_todos facade, narrow Agent-event, Ledger, Effect-Matrix and focused-test paths. TTD-03B, Telegram and Digest remain outside this claim.",
         "slice": "TTD-03A-todo-semantic-receipt-ledger",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "resume_by_claiming_only_the_nine_exact_ttd03a_repo_paths_then_focus_test_no_claim_gate_telegram_digest_productive_data_runtime_deploy_send_or_rollover"
+        "safe_default": "implement_and_focus_test_only_the_nine_exact_ttd03a_paths_no_claim_gate_telegram_digest_productive_data_runtime_deploy_send_or_rollover"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-23"
     },
-    "active_claimed_slices": []
+    "active_claimed_slices": [
+      "TTD-03A-todo-semantic-receipt-ledger"
+    ]
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -953,7 +955,7 @@
       "id": "OWM-22",
       "name": "Telegram Todo Domain Truth And Digest Consistency",
       "priority": 4,
-      "status": "ttd00_through_ttd02_accepted_ttd03_recon_complete_ttd03a_next_live_default_off",
+      "status": "ttd00_through_ttd02_accepted_ttd03a_claimed_live_default_off",
       "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-02 are accepted: the topology is frozen, the canonical owner-scoped atomic service is available through manage_todos, and clear Todo writes fail closed at Memory boundaries. The TTD-03 read-only recon is complete; TTD-03A remains to carry content-free domain receipts into typed Ledger and Effect-Matrix evidence before TTD-03B gates final Todo success claims.",
       "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "source_gate_family": "telegram_todo_truth",
@@ -967,11 +969,11 @@
       "safe_default": "build_and_test_against_synthetic_notes_memory_and_telegram_fixtures_no_production_data_write_deploy_or_send",
       "user_gate_policy": "No user gate in TTD-00 through TTD-10, including TTD-07A. Repository work uses synthetic owner-scoped data and keeps all live actions disabled. Deployment, production data repair, Telegram smoke and productive session rollover are four separate dormant action-specific gates and each requires its own later operator Go.",
       "execution_protocol": {
-        "queue_registration": "TTD-00 through TTD-02 are accepted, the read-only TTD-03 recon is complete and no claim remains active. TTD-03A is the next exact nine-path repo-only facade-receipt, Agent-event, Ledger and Effect-Matrix slice; TTD-03B waits for TTD-03A. TTD-08 remains dependency-ready but unselected, while TTD-04 through TTD-07A and TTD-09 through TTD-10 remain blocked_by_dependency.",
+        "queue_registration": "TTD-00 through TTD-02 are accepted and the read-only TTD-03 recon is complete. TTD-03A is the only active claim on exactly nine facade-receipt, narrow Agent-event, Ledger, Effect-Matrix and focused-test paths; TTD-03B waits for TTD-03A. TTD-08 remains dependency-ready but unselected, while TTD-04 through TTD-07A and TTD-09 through TTD-10 remain blocked_by_dependency.",
         "dependency_rule": "Notes remains Todo truth; manage_todos is a domain facade over Notes, Memory rejects Todo storage, Telegram preserves semantic receipts, and every Digest claim requires a read-only include/exclude/schedule postcondition. Daily session rollover limits context but never substitutes old chat prose for domain readback.",
         "scheduling_decision": {
           "operator_priority_effective_at": "2026-07-21",
-          "position": "active_p0_corrective_track_ttd03_recon_complete_ttd03a_next_no_active_claim",
+          "position": "active_p0_corrective_track_ttd03a_semantic_receipt_ledger_claimed",
           "implementation_authority": "current_goal_repo_only_no_live_authority"
         },
         "future_goal_command": "/goal Setze OWM-22 Telegram Todo Domain Truth repo-only nach abgeschlossenem TTD-03-Recon fort; claime nur TTD-03A mit den neun exakt dokumentierten Receipt-/Event-/Ledger-/Effect-Matrix-Pfaden und fuehre weder TTD-03B, Produktionsdaten-Korrektur, Deployment, Telegram-Live-Smoke noch produktives Session-Rollover aus."
@@ -2682,6 +2684,130 @@
       "acceptance": "offline_go_owner_safe_manage_todos_facade_complete_registry_routing_and_memory_fail_closed_with_recurring_precedence",
       "next_frontier": "No active claim at the operator stopping boundary. Resume with read-only TTD-03 semantic-transaction and receipt recon; TTD-08 remains dependency-ready but unselected and all live actions remain disabled.",
       "done_when": "The accepted Todo service is reachable through one owner-exact manage_todos facade with safe confirmation and error contracts; every native schema, parser, catalog, dispatcher, policy, index, intent and prompt surface agrees; one narrow post-domain agent-loop gate removes manage_memory for clear English and German Todo intents across normal retrieval and fallback; normal Memory facts, Notes/reminders and recurring tasks keep their established routes; and focused synthetic tests prove no existing writer, productive-data, runtime or live mutation."
+    },
+    {
+      "id": "TTD-03A-todo-semantic-receipt-ledger",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "claimed_2026-07-23",
+      "claimable": false,
+      "depends_on": [
+        "TTD-00 accepted",
+        "TTD-01 accepted",
+        "TTD-02 accepted",
+        "TTD-03 read-only semantic receipt, Agent event, Ledger and Effect Matrix boundary recon complete",
+        "single writer for manage_todos facade, src/agent_loop.py, transaction ledger and Effect Matrix hotfiles"
+      ],
+      "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "claim": {
+        "run_id": "abc-ttd03a-20260723T230923+0200",
+        "thread_id": "/root",
+        "slice_id": "TTD-03A-todo-semantic-receipt-ledger",
+        "owner": "Bob",
+        "allowed_paths": [
+          "src/todo_transaction_receipts.py",
+          "src/tool_domains/todos.py",
+          "src/agent_loop.py",
+          "src/tool_transaction_ledger.py",
+          "src/effectful_tool_matrix.py",
+          "tests/test_todo_transaction_receipts.py",
+          "tests/test_manage_todos_tool.py",
+          "tests/test_tool_transaction_ledger.py",
+          "tests/test_effectful_tool_matrix.py"
+        ],
+        "excluded_paths": [
+          "docs/plans/telegram-todo-domain-truth-roadmap.md except root-owned claim and acceptance status",
+          "docs/plans/open-work-completion-master-roadmap.json and docs/plans/multi-agent-execution-guidance.json except root-owned routing claim and acceptance state",
+          "src/todo_domain_service.py and tests/test_todo_domain_service.py",
+          "src/tool_execution.py and all TTD-02 schema parser catalog index policy intent prompt and Memory paths",
+          "src/claim_evidence_gate.py src/tool_result_truth.py and all TTD-03B paths",
+          "src/telegram_truth_gate.py plugins/telegram app.py and all TTD-04 paths",
+          "todo digest scheduler delivery production Notes Memory ScheduledTask Telegram chat history settings environment provider network deploy send data repair rollover and every live path"
+        ],
+        "hotfiles": [
+          "src/tool_domains/todos.py",
+          "src/agent_loop.py",
+          "src/tool_transaction_ledger.py",
+          "src/effectful_tool_matrix.py"
+        ],
+        "preserved_hotfiles": [
+          "src/todo_domain_service.py",
+          "src/tool_execution.py",
+          "src/claim_evidence_gate.py",
+          "src/tool_result_truth.py",
+          "src/telegram_truth_gate.py",
+          "plugins/telegram/plugin.py"
+        ],
+        "state": "active",
+        "acquired_at": "2026-07-23T23:09:23+02:00",
+        "lease_expires_at": "2026-07-24T03:09:23+02:00",
+        "handoff_required": true,
+        "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
+        "new_paths": true,
+        "dependency_sha256": {
+          "docs/plans/telegram-todo-domain-truth-roadmap.md": "28A1318E7CAE3AF42788A23D3CC203EFB26E4E185AF877D0A3405DC4A5B99D30",
+          "src/todo_domain_service.py": "F36A5A2A2D8449BBC8B22C1FEDC76F1DCBBD77E9EA44422A0A60B3F886CA483F",
+          "src/tool_domains/todos.py": "B4AEDFCA479423EE2543D94903376B0E357FC17323F0308D887773FDE726478E",
+          "src/agent_loop.py": "59B440F58CEFF06C944F163B28C548CAC9E4F0F819F63F483F01A694883F557C",
+          "src/tool_transaction_ledger.py": "9A4FB536BAF061A220CBC9AC81D06ABF0B26204C14524BC4565A881B289CE72D",
+          "src/effectful_tool_matrix.py": "AD3CB42267FDDD3BD34CDED146FC8F0BDD0F864B0C7ADB47575374B6E8E53916",
+          "tests/test_manage_todos_tool.py": "A0D5D04E345413721513A24DE4EFAA780ABDF2D3AD5781BA2F545137969BFF11",
+          "tests/test_tool_transaction_ledger.py": "1E36110D49CC9D0EFC526EF638B955545A349EA60EF4998E8DB3D8A1CF0C373F",
+          "tests/test_effectful_tool_matrix.py": "C8E32D647241CE61997FD05CCED29E74B710059EA2029A00A29588C799B18C72"
+        }
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "exact shared-hotfile claim, Terra semantic-receipt implementation, focused verification and deep Sol review"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "synthetic Todo receipts, result mappings and content-free Agent tool events only",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "closed_todo_claim_types_created_completed_reopened_removed_and_list_read",
+          "semantic_envelope_derives_only_from_accepted_todo_snapshot_or_receipt_fields",
+          "facade_attaches_bounded_content_free_semantic_receipt_on_valid_success_only",
+          "narrow_agent_event_forwarder_persists_only_action_and_semantic_receipt",
+          "valid_committed_or_idempotent_noop_mutation_receipt_maps_to_verified_transaction",
+          "owner_scoped_successful_list_snapshot_maps_only_to_verified_todo_list_read",
+          "action_operation_state_and_transaction_status_must_match",
+          "generic_tool_execution_failed_blocked_conflict_rejected_and_ambiguous_do_not_verify_todo_claims",
+          "owner_list_and_item_evidence_is_redacted_and_bounded",
+          "todo_text_chat_content_tokens_host_paths_and_exception_text_never_enter_envelope_ledger_or_snapshot",
+          "effect_matrix_treats_list_as_read_only_and_mutations_as_todo_state",
+          "zero_todo_service_tool_execution_claim_gate_tool_result_truth_telegram_digest_productive_data_runtime_or_live_changes",
+          "focused_tests_and_drift_check"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true
+      },
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_todo_transaction_receipts.py tests\\test_manage_todos_tool.py tests\\test_tool_transaction_ledger.py tests\\test_effectful_tool_matrix.py",
+        "git diff --check -- src/todo_transaction_receipts.py src/tool_domains/todos.py src/agent_loop.py src/tool_transaction_ledger.py src/effectful_tool_matrix.py tests/test_todo_transaction_receipts.py tests/test_manage_todos_tool.py tests/test_tool_transaction_ledger.py tests/test_effectful_tool_matrix.py"
+      ],
+      "done_when": "One closed content-free semantic receipt envelope carries only accepted Todo snapshot or mutation receipt truth from manage_todos across one narrow Agent event boundary; the transaction ledger derives the exact Todo claim type and verified status only from a valid matching receipt; the Effect Matrix treats list as read-only and mutations as todo_state; generic success, failed, blocked, rejected, conflict and ambiguous outcomes cannot verify Todo claims; and focused synthetic tests prove redaction, bounds, state/action matching and zero out-of-scope runtime or live mutation."
     },
     {
       "id": "TAX0-deterministic-inventory",

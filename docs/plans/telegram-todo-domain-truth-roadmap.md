@@ -2,12 +2,12 @@
 
 Stand: 2026-07-23
 
-Status: `TTD-00` bis `TTD-02` sind am 2026-07-23 akzeptiert. Es besteht kein
-aktiver Claim. Der read-only `TTD-03`-Boundary-Recon ist abgeschlossen;
-`TTD-03A-todo-semantic-receipt-ledger` ist der naechste exakte repo-only
-Frontier-Slice, bleibt am heutigen Stoppunkt jedoch ungeclaimt. `TTD-08` bleibt
-dependency-ready und unselektiert. Spaetere unmet Slices und saemtliche
-Live-Aktionen bleiben gesperrt.
+Status: `TTD-00` bis `TTD-02` sind am 2026-07-23 akzeptiert. Der read-only
+`TTD-03`-Boundary-Recon ist abgeschlossen.
+`TTD-03A-todo-semantic-receipt-ledger` ist als einziger exakter repo-only
+Frontier-Slice auf neun Pfaden geclaimt. `TTD-03B` wartet auf TTD-03A;
+`TTD-08` bleibt dependency-ready und unselektiert. Spaetere unmet Slices und
+saemtliche Live-Aktionen bleiben gesperrt.
 
 ## Durable Amendment Claim 2026-07-21
 
@@ -501,7 +501,7 @@ Akzeptanz:
 
 Owner: Bob
 
-Status: `boundary_recon_complete_ttd03a_next_not_claimed`
+Status: `boundary_recon_complete_ttd03a_claimed`
 
 Read-only Boundary-Recon 2026-07-23:
 
@@ -521,7 +521,9 @@ Read-only Boundary-Recon 2026-07-23:
 Serialisierung:
 
 1. `TTD-03A-todo-semantic-receipt-ledger`
-   - Status: `dependency_ready_not_claimed`
+   - Status: `claimed_2026-07-23`
+   - Run: `abc-ttd03a-20260723T230923+0200`
+   - Owner: Bob
    - Exakte Kandidatenpfade:
      - neuer `src/todo_transaction_receipts.py`
      - `src/tool_domains/todos.py`
