@@ -82,6 +82,7 @@ _TOOL_IDS = (
     "pipeline",
     "publish_artifact",
     "python",
+    "query_knowledge",
     "read_email",
     "read_file",
     "recent_changes",
@@ -226,6 +227,7 @@ INDEX_INJECTED_PROMPT_IDS = frozenset(
         "serve_preset",
         "spawn_subagent",
         "trigger_research",
+        "query_knowledge",
     }
 )
 INTERNAL_DISPATCH_CONTROL_IDS = frozenset(
@@ -236,6 +238,7 @@ _DEFERRED_PRIORITY_IDS = frozenset(
     {
         *RUNTIME_REGISTRATION_GAPS,
         *EMAIL_ADAPTER_TOOL_IDS,
+        "query_knowledge",
         "manage_calendar",
         "manage_contact",
         "resolve_contact",
@@ -265,6 +268,7 @@ _FAMILY_MEMBERS: Mapping[str, frozenset[str]] = {
             "manage_memory",
             "manage_personal_docs",
             "manage_research",
+            "query_knowledge",
             "recent_changes",
             "trigger_research",
         }
@@ -853,14 +857,14 @@ def _validate_catalog_definition() -> None:
         )
     ):
         raise CatalogProjectionError("registration dispositions must be disjoint")
-    if len(PARSER_REGISTERED_TOOL_IDS) != 81:
-        raise CatalogProjectionError("parser registration baseline must contain 81 tools")
+    if len(PARSER_REGISTERED_TOOL_IDS) != 82:
+        raise CatalogProjectionError("parser registration baseline must contain 82 tools")
     expected_counts = {
-        "runtime_tags": 78,
-        "function_schemas": 83,
-        "tool_index": 84,
+        "runtime_tags": 79,
+        "function_schemas": 84,
+        "tool_index": 85,
         "prompt_sections": 68,
-        "dispatcher": 75,
+        "dispatcher": 76,
     }
     actual_counts = {
         name: len(values) for name, values in expected_projection_sets().items()

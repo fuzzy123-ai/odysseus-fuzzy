@@ -41,7 +41,7 @@ def test_all_six_former_gaps_have_one_explicit_registration_disposition():
 
 def test_parser_registration_adds_only_the_three_active_gated_tools():
     assert PARSER_REGISTERED_TOOL_IDS == frozenset(TOOL_TAGS) | ACTIVE_GATED_REGISTRATION_IDS
-    assert len(PARSER_REGISTERED_TOOL_IDS) == 81
+    assert len(PARSER_REGISTERED_TOOL_IDS) == 82
     assert PARSER_REGISTERED_TOOL_IDS.isdisjoint(
         DEFERRED_REGISTRATION_IDS | BLOCKED_REGISTRATION_IDS
     )

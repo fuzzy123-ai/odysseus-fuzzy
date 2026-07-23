@@ -61,12 +61,12 @@ CORE_DYNAMIC_SOURCES: tuple[str, ...] = (
 )
 
 EXPECTED_COUNTS = {
-    "builtin_tag_count": 78,
-    "function_schema_count": 83,
+    "builtin_tag_count": 79,
+    "function_schema_count": 84,
     "schema_without_runtime_count": 6,
     "runtime_without_schema_count": 1,
     "admin_metadata_count": 31,
-    "admin_fallback_count": 48,
+    "admin_fallback_count": 49,
 }
 EXPECTED_SCHEMA_WITHOUT_RUNTIME = frozenset(
     {

@@ -67,7 +67,7 @@ def test_repository_inventory_is_content_free_and_clean():
         "observation",
         "legacy",
     }
-    assert next(item for item in report["tool_identities"] if item["tool_id"] == "query_knowledge")["state"] == "planned_absent"
+    assert next(item for item in report["tool_identities"] if item["tool_id"] == "query_knowledge")["state"] == "active"
     assert "nextcloud_intake_entry" in {
         item["boundary_id"] for item in report["non_store_boundaries"]
     }

@@ -244,6 +244,13 @@
       "explanation": "runtime tool is absent from the admin_metadata projection",
       "relation": "runtime_not_surface",
       "surface": "admin_metadata",
+      "tool_id": "query_knowledge"
+    },
+    {
+      "classification": "missing",
+      "explanation": "runtime tool is absent from the admin_metadata projection",
+      "relation": "runtime_not_surface",
+      "surface": "admin_metadata",
       "tool_id": "read_email"
     },
     {
@@ -650,6 +657,13 @@
       "explanation": "runtime tool is absent from the prompt_sections projection",
       "relation": "runtime_not_surface",
       "surface": "prompt_sections",
+      "tool_id": "query_knowledge"
+    },
+    {
+      "classification": "missing",
+      "explanation": "runtime tool is absent from the prompt_sections projection",
+      "relation": "runtime_not_surface",
+      "surface": "prompt_sections",
       "tool_id": "serve_preset"
     },
     {
@@ -804,115 +818,115 @@
     {
       "kind": "mcp_schema_projection",
       "path": "plugins/mcp_server/plugin.py",
-      "sha256": "ccff00a7672977dd57a58d83eaff532062958af03f82de1badabb412cf0d6a36",
+      "sha256": "d77d35e0bb92c22581cdf441c88beac8904a1db1829f72a02a86b8cd5a73efa8",
       "surface": "dynamic"
     },
     {
       "kind": "plugin_registration_source",
       "path": "plugins/obsidian/backend/tool_specs.py",
-      "sha256": "5f901b1400b7d4c6ddd8b81326c9a9b85612eae170143a99d4aa89615570d0f9",
+      "sha256": "54fcc8dc231d239af242a0dc60268392a3e06d24f02062418ecf1947f58e80b1",
       "surface": "dynamic"
     },
     {
       "kind": "plugin_registration_source",
       "path": "plugins/obsidian/plugin.py",
-      "sha256": "218f88a8b3cee81fcbafdf0fbfbc058c0528895a89d7c2cfd5163ef35fa6e3e6",
+      "sha256": "fe074b23c3e0f6fe6fa968011ba168e3a7eb95cf1acb992b10b5be425fb9e9f2",
       "surface": "dynamic"
     },
     {
       "kind": "plugin_registration_source",
       "path": "plugins/telegram/plugin.py",
-      "sha256": "b788e4bb9debbc6a624277ca62fb5289eea2a08dc3a686e0ff8effa672695eae",
+      "sha256": "7b5e17acd50fff107f69659dbda5aff8a010a31928c5a5ac14c5667a9babc9f6",
       "surface": "dynamic"
     },
     {
       "kind": "static_surface",
       "path": "src/agent_loop_prompts.py",
-      "sha256": "b87f71b74aab8e7840d8a69ec6e6c079b337cea8c259f12cdf6daddd6e658fe9",
+      "sha256": "011e7ddd070cf68247407d49dc0b7b2caa63e3a29b47c715f7f4bc062f1e0111",
       "surface": "prompt_sections"
     },
     {
       "kind": "static_surface",
       "path": "src/agent_tools/__init__.py",
-      "sha256": "4dcc0d009fd3154cd4ac52978cbf6a6f344c2dd582c4acdad1d72faf87eeef98",
+      "sha256": "6481ce076e348a0f63ceada642c357f92a06b11e912baeabc2166a088af0379f",
       "surface": "builtin_tags"
     },
     {
       "kind": "mcp_runtime",
       "path": "src/mcp_manager.py",
-      "sha256": "589c20a8acc5405d1b3148f4e1859a4ba29190a7a77cb1fd32bbb5c5c96992d7",
+      "sha256": "51b1ab981c0e0ebde623e1c9767983046959e06369c28fc321d57ac3086be236",
       "surface": "dynamic"
     },
     {
       "kind": "plugin_registration_bridge",
       "path": "src/plugin_system.py",
-      "sha256": "bfe9c55e653e4a8c83d5a0b93cb8cad2a7c74944a786ef4f4dad8772187ec29d",
+      "sha256": "cfaffce7f056f784956a697b16ff097c27a1c851ad7a0cf597f22608393e34c6",
       "surface": "dynamic"
     },
     {
       "kind": "runtime_registration_source",
       "path": "src/sensitive_local_worker.py",
-      "sha256": "215849ba3e66d42c672b62d71a8dcb147132646f4c31b4bb2dc5147ce912fa79",
+      "sha256": "e29d698f10cb638b12ce164e22b54ffb7a9f0db44330cb02642ea4ab8822622e",
       "surface": "dynamic"
     },
     {
       "kind": "static_surface",
       "path": "src/tool_execution.py",
-      "sha256": "4baa3c97fe32069b32505d31ff83c7d518e49b2635cae9e7eb8f3738e74b6725",
+      "sha256": "1d1d24a28c14f979c892befb09f24f2910c74174c051d513a6927176f2bf62c4",
       "surface": "dispatcher"
     },
     {
       "kind": "static_surface",
       "path": "src/tool_index.py",
-      "sha256": "c05f4018ec9b0c9d0786ca2fcc64fffe6b03ee053d0d1f09ec86260056e8fce5",
+      "sha256": "35675976e197d6f5ddf9ad4dbbc21b59cac1673d9b80ccf320b9e9d8f4017471",
       "surface": "tool_index"
     },
     {
       "kind": "dynamic_registry",
       "path": "src/tool_registry.py",
-      "sha256": "0a2d11d144184e2e1baccd3ac8e635d05f2ed4b2e114bb982b0bc7a8370c69f4",
+      "sha256": "3000e0c3063eddee4ae9b2e3e2f479592518ba23a3d76276299fb0dae786e1ff",
       "surface": "dynamic"
     },
     {
       "kind": "static_surface",
       "path": "src/tool_schema_definitions.py",
-      "sha256": "a6203a99bd4baa29cb68f8841a3f7ad91abd5a07e4cfeecff8cd5494d52028d4",
+      "sha256": "1815e6351e7416113678e87170f986c01078d86edf0a4016aecde5217cb418c0",
       "surface": "function_schemas"
     },
     {
       "kind": "runtime_registration_source",
       "path": "src/tool_schemas.py",
-      "sha256": "cc5fc6aa89bf88eb832a6b96b95abc66ecb9a584a95570a825bf48672fe9094e",
+      "sha256": "f2d16386d4c67f02f43e4ab7d838c2edd62a1960d440e26c7349a77d9a446499",
       "surface": "dynamic"
     },
     {
       "kind": "static_surface",
       "path": "static/js/admin.js",
-      "sha256": "802f7e92ca49b006aa2c85bad22138bd8d5010411bcd4f07961dd686e7acbae6",
+      "sha256": "140a548be350f29386d1f060e4e52da0921a9fe3aef973fa8a5a125ff41a1374",
       "surface": "admin_metadata"
     }
   ],
   "summary": {
-    "admin_fallback_count": 48,
+    "admin_fallback_count": 49,
     "admin_metadata_count": 31,
-    "builtin_tag_count": 78,
+    "builtin_tag_count": 79,
     "clean": true,
     "content_fields_recorded": false,
     "difference_classification_counts": {
       "dynamic": 2,
       "intentional": 16,
-      "missing": 88,
+      "missing": 90,
       "stale": 1
     },
-    "difference_count": 107,
+    "difference_count": 109,
     "dynamic_source_count": 9,
-    "function_schema_count": 83,
+    "function_schema_count": 84,
     "private_paths_recorded": false,
     "runtime_modules_imported": false,
     "runtime_without_schema_count": 1,
     "schema_without_runtime_count": 6,
     "source_count": 15,
-    "source_fingerprint": "fb09d53629f76effab9ef3d697d52408b9d11a70055c38e9e1b295ed87f1714e",
+    "source_fingerprint": "d57aa787c9a5f8de2ad5a9a47fddf40e4fb67deca2730eb8b5afd14d4b6b8869",
     "violation_count": 0
   },
   "surfaces": [
@@ -954,7 +968,7 @@
       ]
     },
     {
-      "count": 78,
+      "count": 79,
       "name": "builtin_tags",
       "tool_ids": [
         "adopt_served_model",
@@ -1013,6 +1027,7 @@
         "pipeline",
         "publish_artifact",
         "python",
+        "query_knowledge",
         "read_email",
         "read_file",
         "recent_changes",
@@ -1038,7 +1053,7 @@
       ]
     },
     {
-      "count": 81,
+      "count": 82,
       "name": "dispatcher",
       "tool_ids": [
         "adopt_served_model",
@@ -1098,6 +1113,7 @@
         "pipeline",
         "publish_artifact",
         "python",
+        "query_knowledge",
         "read_file",
         "recent_changes",
         "resolve_contact",
@@ -1125,7 +1141,7 @@
       ]
     },
     {
-      "count": 83,
+      "count": 84,
       "name": "function_schemas",
       "tool_ids": [
         "adopt_served_model",
@@ -1188,6 +1204,7 @@
         "pipeline",
         "publish_artifact",
         "python",
+        "query_knowledge",
         "read_email",
         "read_file",
         "recent_changes",
@@ -1288,7 +1305,7 @@
       ]
     },
     {
-      "count": 84,
+      "count": 85,
       "name": "tool_index",
       "tool_ids": [
         "adopt_served_model",
@@ -1352,6 +1369,7 @@
         "pipeline",
         "publish_artifact",
         "python",
+        "query_knowledge",
         "read_email",
         "read_file",
         "recent_changes",

@@ -847,6 +847,10 @@ async def _execute_tool_block_impl(
         query = content.split("\n")[0].strip()
         desc = f"search_chats: {query[:80]}"
         result = await do_search_chats(query, owner=owner)
+    elif tool == "query_knowledge":
+        desc = "query_knowledge"
+        result = await _direct_fallback(tool, content, session_id=session_id, owner=owner) \
+            or {"error": "query_knowledge_failed", "exit_code": 1, "content_included": False}
     elif tool in ("chat_with_model", "ask_teacher", "list_models"):
         # Migrated to the agent_tools registry (#3629): dispatched through
         # TOOL_HANDLERS with the owner/session ctx these tools need, instead

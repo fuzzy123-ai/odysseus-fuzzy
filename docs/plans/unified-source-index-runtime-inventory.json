@@ -1457,11 +1457,11 @@
     {
       "tool_id": "query_knowledge",
       "canonical_owner": "TAX Descriptor v2 with USI provider",
-      "state": "planned_absent",
+      "state": "active",
       "required_surfaces": [
         {
-          "path": "src/tool_catalog.py",
-          "role": "descriptor owner"
+          "path": "src/builtin_tool_catalog.py",
+          "role": "canonical descriptor identity"
         },
         {
           "path": "src/tool_index.py",
@@ -1478,9 +1478,17 @@
         {
           "path": "src/agent_tools/__init__.py",
           "role": "handler registry"
+        },
+        {
+          "path": "src/agent_tools/knowledge_tools.py",
+          "role": "canonical USI planner boundary"
+        },
+        {
+          "path": "src/tool_security.py",
+          "role": "permission reachability"
         }
       ],
-      "intent": "future single bounded federated query tool"
+      "intent": "single default-off bounded federated query tool"
     },
     {
       "tool_id": "read_file",
@@ -1819,7 +1827,7 @@
         "src/context_orchestrator.py"
       ],
       "finding": "direct memory and personal-RAG injection coexists with the context provider boundary",
-      "required_resolution": "cut consumers over before activating query_knowledge"
+      "required_resolution": "bind consumer activation to the injected query_knowledge planner/runtime boundary"
     },
     {
       "risk_id": "personal_docs_owner_scope",
@@ -1855,22 +1863,22 @@
       "risk_id": "tool_identity_normalization_split",
       "owner_track": "TAX",
       "paths": [
-        "src/tool_catalog.py"
+        "src/builtin_tool_catalog.py"
       ],
-      "finding": "descriptor and manifest normalization can spell query_knowledge differently",
-      "required_resolution": "freeze one canonical ID before USI-09 registration"
+      "finding": "USI-09 freezes query_knowledge as the canonical tool identity",
+      "required_resolution": "future UIR bindings must reuse the frozen query_knowledge ID"
     },
     {
       "risk_id": "tool_projection_parity_drift",
       "owner_track": "TAX",
       "paths": [
-        "src/tool_catalog.py",
+        "src/builtin_tool_catalog.py",
         "src/tool_index.py",
         "src/tool_schema_definitions.py",
         "src/agent_tools/__init__.py"
       ],
-      "finding": "schema, tag and discovery projections currently have different cardinalities",
-      "required_resolution": "pass TAX parity before adding the USI provider"
+      "finding": "USI-09 has resolved its canonical schema, tag and discovery projection parity",
+      "required_resolution": "preserve the frozen USI-09 projections and reuse query_knowledge for future UIR bindings"
     }
   ],
   "violations": []

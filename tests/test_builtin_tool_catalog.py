@@ -70,13 +70,13 @@ def _literal_assignment(path: Path, name: str):
 def test_catalog_is_sorted_unique_and_has_the_frozen_projection_counts():
     tool_ids = tuple(item.tool_id for item in BUILTIN_TOOL_DEFINITIONS)
     assert tool_ids == tuple(sorted(tool_ids))
-    assert len(tool_ids) == len(set(tool_ids)) == 84
+    assert len(tool_ids) == len(set(tool_ids)) == 85
     assert {name: len(ids) for name, ids in expected_projection_sets().items()} == {
-        "runtime_tags": 78,
-        "function_schemas": 83,
-        "tool_index": 84,
+        "runtime_tags": 79,
+        "function_schemas": 84,
+        "tool_index": 85,
         "prompt_sections": 68,
-        "dispatcher": 75,
+        "dispatcher": 76,
     }
 
 
@@ -84,11 +84,11 @@ def test_every_current_static_projection_is_strictly_validated_by_the_catalog():
     report = validate_builtin_projections(_current_snapshot())
     assert report.clean is True
     assert dict(report.actual_counts) == {
-        "dispatcher": 81,
-        "function_schemas": 83,
+        "dispatcher": 82,
+        "function_schemas": 84,
         "prompt_sections": 68,
-        "runtime_tags": 78,
-        "tool_index": 84,
+        "runtime_tags": 79,
+        "tool_index": 85,
     }
     report.assert_valid()
 
@@ -158,7 +158,7 @@ def test_projection_exceptions_are_explicit_and_exact():
 
 def test_descriptor_v2_projection_is_complete_safe_and_alias_stable():
     catalog = build_builtin_descriptor_catalog()
-    assert len(catalog.descriptors) == 84
+    assert len(catalog.descriptors) == 85
     assert catalog.resolve("manage_rag").tool_id == "manage_personal_docs"
     assert catalog.resolve("generate_image").native_schema is False
     assert (
@@ -175,7 +175,7 @@ def test_descriptor_v2_projection_is_complete_safe_and_alias_stable():
 
 def test_catalog_audit_summary_is_content_free():
     summary = catalog_audit_summary()
-    assert summary["builtin_count"] == 84
+    assert summary["builtin_count"] == 85
     assert summary["raw_content_visible"] is False
     assert summary["schema_arguments_visible"] is False
     assert summary["secret_value_visible"] is False

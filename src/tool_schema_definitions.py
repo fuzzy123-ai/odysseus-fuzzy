@@ -4,6 +4,55 @@ FUNCTION_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "query_knowledge",
+            "description": (
+                "Read-only owner-scoped Unified Source Index query. Returns bounded "
+                "evidence references and policy-permitted snippets; exact content reads "
+                "remain with read_file or a domain reader."
+            ),
+            "parameters": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "query": {"type": "string", "minLength": 1, "maxLength": 512},
+                    "domain": {
+                        "type": "string",
+                        "enum": ["code", "document", "memory"],
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": ["lexical", "semantic", "symbol", "graph", "timeline", "hybrid"],
+                    },
+                    "scope": {
+                        "type": "array",
+                        "maxItems": 64,
+                        "items": {
+                            "type": "string",
+                            "pattern": "^usi_source_[0-9a-f]{64}$",
+                        },
+                    },
+                    "budget": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "limit": {"type": "integer", "minimum": 1, "maximum": 20},
+                            "max_candidates": {"type": "integer", "minimum": 1, "maximum": 100},
+                            "time_budget_ms": {"type": "integer", "minimum": 1, "maximum": 2000},
+                        },
+                        "required": ["limit", "max_candidates", "time_budget_ms"],
+                    },
+                    "classification": {
+                        "type": "string",
+                        "enum": ["public", "private"],
+                    },
+                },
+                "required": ["query", "domain", "mode", "scope", "budget", "classification"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "delegate",
             "description": "Delegate a focused read-only analysis subtask to an isolated worker agent. The worker receives bounded provider context and returns compact JSON; it does not mutate host files, create files, run GUI/browser checks, execute tests, or keep conversation history. Do not use this for implementation tasks such as creating pong.py; use sandbox/coding tools instead.",
             "parameters": {

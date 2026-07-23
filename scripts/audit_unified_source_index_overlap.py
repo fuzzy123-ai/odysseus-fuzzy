@@ -233,7 +233,7 @@ TOOL_IDENTITIES: tuple[ToolIdentity, ...] = (
     ToolIdentity("manage_personal_docs", "TAX Descriptor v2", "active", (("src/tool_index.py", "discovery index"), ("src/tool_schema_definitions.py", "public schema"), ("src/tool_execution.py", "dispatch")), "manage source configuration; never query knowledge"),
     ToolIdentity("manage_repos", "Repo Registry and Project Versioning through TAX", "active", (("src/tool_index.py", "discovery index"), ("src/tool_schema_definitions.py", "public schema"), ("src/tool_execution.py", "dispatch")), "repository registration and bounded Git facts remain domain-owned"),
     ToolIdentity("manage_research", "TAX Descriptor v2", "active", (("src/tool_index.py", "discovery index"), ("src/tool_schema_definitions.py", "public schema"), ("src/tool_execution.py", "dispatch")), "research lifecycle remains domain-owned"),
-    ToolIdentity("query_knowledge", "TAX Descriptor v2 with USI provider", "planned_absent", (("src/tool_catalog.py", "descriptor owner"), ("src/tool_index.py", "discovery index"), ("src/tool_schema_definitions.py", "public schema"), ("src/tool_execution.py", "dispatch"), ("src/agent_tools/__init__.py", "handler registry")), "future single bounded federated query tool"),
+    ToolIdentity("query_knowledge", "TAX Descriptor v2 with USI provider", "active", (("src/builtin_tool_catalog.py", "canonical descriptor identity"), ("src/tool_index.py", "discovery index"), ("src/tool_schema_definitions.py", "public schema"), ("src/tool_execution.py", "dispatch"), ("src/agent_tools/__init__.py", "handler registry"), ("src/agent_tools/knowledge_tools.py", "canonical USI planner boundary"), ("src/tool_security.py", "permission reachability")), "single default-off bounded federated query tool"),
     ToolIdentity("read_file", "TAX Descriptor v2", "active", (("src/tool_catalog.py", "descriptor policy"), ("src/tool_index.py", "discovery index"), ("src/tool_schema_definitions.py", "public schema"), ("src/agent_tools/__init__.py", "handler registry")), "exact raw evidence reader remains separate from retrieval"),
     ToolIdentity("recent_changes", "TAX Descriptor v2", "active", (("src/tool_index.py", "discovery index"), ("src/tool_schema_definitions.py", "public schema"), ("src/tool_execution.py", "dispatch")), "local change intelligence remains a repository-domain projection"),
     ToolIdentity("search_chats", "TAX Descriptor v2", "active", (("src/tool_index.py", "discovery index"), ("src/tool_schema_definitions.py", "public schema"), ("src/tool_execution.py", "dispatch")), "chat lookup remains owner-scoped until its adapter wave"),
@@ -284,11 +284,11 @@ NON_STORE_BOUNDARIES: tuple[NonStoreBoundary, ...] = (
 
 MIGRATION_RISKS: tuple[MigrationRisk, ...] = (
     MigrationRisk("chroma_occurrence_identity_collision", "USI/UDA", ("src/rag_vector.py",), "current vector IDs can collapse identical chunks without occurrence identity", "rebuild projections from stable USI source-version-chunk IDs"),
-    MigrationRisk("parallel_retrieval_injection", "UIR", ("src/chat_processor.py", "src/context_orchestrator.py"), "direct memory and personal-RAG injection coexists with the context provider boundary", "cut consumers over before activating query_knowledge"),
+    MigrationRisk("parallel_retrieval_injection", "UIR", ("src/chat_processor.py", "src/context_orchestrator.py"), "direct memory and personal-RAG injection coexists with the context provider boundary", "bind consumer activation to the injected query_knowledge planner/runtime boundary"),
     MigrationRisk("personal_docs_owner_scope", "UDA/ULO", ("src/personal_docs.py",), "source registry persists paths without owner scope", "migrate registration and deletion lifecycle with explicit owner IDs"),
     MigrationRisk("personal_docs_remove_delegate_missing", "UIR/UDA/ULO", ("src/personal_docs.py", "src/rag_manager.py"), "PersonalDocsManager calls a missing RAGManager.remove_directory delegate", "repair or bypass the compatibility facade before deletion parity"),
-    MigrationRisk("tool_identity_normalization_split", "TAX", ("src/tool_catalog.py",), "descriptor and manifest normalization can spell query_knowledge differently", "freeze one canonical ID before USI-09 registration"),
-    MigrationRisk("tool_projection_parity_drift", "TAX", ("src/tool_catalog.py", "src/tool_index.py", "src/tool_schema_definitions.py", "src/agent_tools/__init__.py"), "schema, tag and discovery projections currently have different cardinalities", "pass TAX parity before adding the USI provider"),
+    MigrationRisk("tool_identity_normalization_split", "TAX", ("src/builtin_tool_catalog.py",), "USI-09 freezes query_knowledge as the canonical tool identity", "future UIR bindings must reuse the frozen query_knowledge ID"),
+    MigrationRisk("tool_projection_parity_drift", "TAX", ("src/builtin_tool_catalog.py", "src/tool_index.py", "src/tool_schema_definitions.py", "src/agent_tools/__init__.py"), "USI-09 has resolved its canonical schema, tag and discovery projection parity", "preserve the frozen USI-09 projections and reuse query_knowledge for future UIR bindings"),
     MigrationRisk("tool_alias_analytics_split", "TAX/TUA", ("plugins/obsidian/backend/tool_specs.py", "src/tool_security.py", "src/tool_execution.py"), "Vault aliases and native/MCP aliases can split one logical invocation identity", "canonicalize aliases once in TAX and count once in TUA"),
 )
 
@@ -408,7 +408,7 @@ def audit_inventory(
         seen_on: list[str] = []
         for path, _role in item.required_surfaces:
             found = inspect_path(path, item.tool_id)
-            if found is not None and item.tool_id in found[1]:
+            if found is not None and item.tool_id in (found[0] | found[1]):
                 seen_on.append(path)
             elif found is not None and item.state == "active":
                 violations.append(_violation("missing_tool_surface", item.tool_id, path))

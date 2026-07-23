@@ -123,6 +123,7 @@ PLAN_MODE_READONLY_TOOLS = {
     "resolve_contact",
     "chat_with_model",
     "ask_teacher",
+    "query_knowledge",
 }
 
 ORCHESTRATOR_MODE_ALLOWED_TOOLS = {

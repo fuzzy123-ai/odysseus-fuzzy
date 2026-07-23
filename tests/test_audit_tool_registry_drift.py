@@ -43,12 +43,12 @@ def test_repository_inventory_reproduces_tax0_baseline():
     report = audit_inventory(ROOT)
 
     assert report["summary"]["clean"] is True
-    assert report["summary"]["builtin_tag_count"] == 78
-    assert report["summary"]["function_schema_count"] == 83
+    assert report["summary"]["builtin_tag_count"] == 79
+    assert report["summary"]["function_schema_count"] == 84
     assert report["summary"]["schema_without_runtime_count"] == 6
     assert report["summary"]["runtime_without_schema_count"] == 1
     assert report["summary"]["admin_metadata_count"] == 31
-    assert report["summary"]["admin_fallback_count"] == 48
+    assert report["summary"]["admin_fallback_count"] == 49
     assert report["violations"] == []
 
 
@@ -61,7 +61,7 @@ def test_known_runtime_schema_and_admin_differences_are_exact():
     assert schemas - runtime == EXPECTED_SCHEMA_WITHOUT_RUNTIME
     assert runtime - schemas == EXPECTED_RUNTIME_WITHOUT_SCHEMA
     assert admin - runtime == EXPECTED_STALE_ADMIN_METADATA
-    assert len(runtime - admin) == 48
+    assert len(runtime - admin) == 49
 
 
 def test_every_difference_has_a_controlled_classification_and_explanation():
