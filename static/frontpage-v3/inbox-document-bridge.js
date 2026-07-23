@@ -219,7 +219,8 @@
     async function createWorkingCopy(ref, createOptions) {
       if (destroyed || !SOURCE_REF.test(ref || '')) return fail('invalid_source_ref', false);
       var dm = moduleOverride || root.documentModule;
-      if (!dm || (typeof dm.injectFreshDoc !== 'function' && typeof dm.loadDocument !== 'function')) return fail('document_module_unavailable', false);
+      var handoff = typeof options.documentHandoff === 'function' ? options.documentHandoff : null;
+      if (!handoff && (!dm || (typeof dm.injectFreshDoc !== 'function' && typeof dm.loadDocument !== 'function'))) return fail('document_module_unavailable', false);
       resetForSwitch(); sourceRef = ref; var token = sequence;
       transition({ viewMode: 'working_copy', saveState: 'creating', dirty: false, conflict: null });
       try {
@@ -236,7 +237,11 @@
         content = doc.current_content; setBaseline(doc); capability = parsedCapability;
         documentMeta = { title: doc.title, language: doc.language };
         transition({ workingCopyId: doc.id, version_count: doc.version_count, saveState: 'ready', dirty: false, conflict: null, viewMode: 'working_copy' });
-        if (typeof dm.injectFreshDoc === 'function') dm.injectFreshDoc(Object.assign({}, doc, { content: doc.current_content }));
+        if (handoff) {
+          // This production handoff is deliberately metadata-only: the
+          // already-validated document bytes remain private to the bridge.
+          await handoff({ id: doc.id, title: doc.title, language: doc.language, version_count: doc.version_count });
+        } else if (typeof dm.injectFreshDoc === 'function') dm.injectFreshDoc(Object.assign({}, doc, { content: doc.current_content }));
         else await dm.loadDocument(doc.id);
         return true;
       } catch (error) {

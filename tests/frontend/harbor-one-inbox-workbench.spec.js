@@ -5,7 +5,7 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
-const screenshotRoot = path.join(os.tmpdir(), 'odysseus-uix19-playwright');
+const screenshotRoot = path.join(os.tmpdir(), 'odysseus-uix24-playwright');
 let server;
 let baseUrl;
 
@@ -63,36 +63,43 @@ async function openInbox(page, query = '') {
 }
 
 function liveInboxItem(sourceRef = `upload:${'a'.repeat(32)}.pdf`) {
+  const suffix = sourceRef.endsWith('.md') ? '.md' : '.pdf';
+  const mime = suffix === '.md' ? 'text/plain' : 'application/pdf';
   return {
     schema: 'odysseus.universal_inbox.item.v1',
     source_ref: sourceRef,
     source_kind: 'upload',
-    display_name: 'Owner-scoped document.pdf',
+    display_name: `Owner-scoped document${suffix}`,
     status: 'uploaded',
     metadata: {
-      suffix: '.pdf', mime_type: 'application/pdf', family: 'document',
-      category: 'document_extractable', size_bytes: 2048, uploaded_at: '2026-07-23T09:00:00+00:00',
+      suffix, mime_type: mime, family: suffix === '.md' ? 'text' : 'document',
+      category: suffix === '.md' ? 'text_extractable' : 'document_extractable', size_bytes: 2048, uploaded_at: '2026-07-23T09:00:00+00:00',
       extractable_now: true, review_required: false, blocked: false, reason_codes: []
     },
     capability: {
       schema: 'odysseus.universal_inbox.workbench_capability.v1',
+      source_suffix: suffix, server_family: suffix === '.md' ? 'text' : 'document', mvp_tier: 'P0',
       server_authoritative: true,
-      actions: [{ action: 'route_dry_run', state: 'allowed', reason_codes: [] }]
+      owner_authorized: true, has_working_copy: false, browser_download_allowed: false,
+      original_immutable: true, working_copy_versioned: true, browser_detection_advisory: true,
+      raw_content_visible: false, absolute_path_visible: false, live_write_authorized: false,
+      actions: ['inspect', 'route_dry_run', 'create_working_copy', 'edit_working_copy', 'download_original', 'export_working_copy'].map(action => ({
+        action, state: ['edit_working_copy', 'download_original', 'export_working_copy'].includes(action) ? 'blocked' : 'allowed', reason_codes: ['synthetic_fixture_review'], mutates_original: false, performs_live_write: false
+      }))
     },
     absolute_path_visible: false, raw_content_visible: false, owner_identifier_visible: false
   };
 }
 
-async function openLiveInbox(page, routeHandler) {
-  const item = liveInboxItem();
+async function openLiveInbox(page, routeHandler, items = [liveInboxItem()]) {
   await page.route('**/api/universal-inbox/items?*', route => route.fulfill({ json: {
     schema: 'odysseus.universal_inbox.items.v1', absolute_paths_visible: false,
-    raw_content_visible: false, items: [item], page: { returned_count: 1, has_more: false }
+    raw_content_visible: false, items, page: { returned_count: items.length, has_more: false }
   }}));
   await page.route('**/api/universal-inbox/snapshot', route => route.fulfill({ json: {
-    schema: 'odysseus.universal_inbox.snapshot.v1', total_count: 1,
+    schema: 'odysseus.universal_inbox.snapshot.v1', total_count: items.length,
     item_names_visible: false, source_refs_visible: false, absolute_paths_visible: false,
-    raw_content_visible: false, counts: { uploaded: 1 }, readiness: { state: 'ready' }
+    raw_content_visible: false, counts: { uploaded: items.length }, readiness: { state: 'ready' }
   }}));
   await page.route('**/api/universal-inbox/items/*/route-dry-run', routeHandler);
   await page.goto(`${baseUrl}/static/frontpage-v3/index.html?workspace=inbox&inboxSource=live`);
@@ -146,10 +153,6 @@ test('accepted three-zone shell is source-bound, document-primary and write-clos
   await expect(root.getByRole('button', { name: 'Apply route live' })).toBeDisabled();
   await expect(page.locator('.inbox-analysis-window')).toBeHidden();
   await expect(page.locator('.inbox-files-window')).toBeHidden();
-  await page.screenshot({
-    path: path.join(screenshotRoot, 'uix19-desktop-selected.png'),
-    fullPage: true
-  });
 });
 
 test('route dry run posts bounded advisory input and renders server policy without a live apply', async ({ page }) => {
@@ -175,6 +178,130 @@ test('route dry run posts bounded advisory input and renders server policy witho
   await expect(root.locator('[data-route-status]')).toContainText('Policy: review');
   await expect(root.getByRole('button', { name: 'Apply route live' })).toBeDisabled();
   await expect(root.getByText('UIX-NEXTCLOUD-LIVE-WRITE', { exact: false })).toBeVisible();
+});
+
+test('live composition mounts an inert bounded preview and exposes only explicit local document actions', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 960 });
+  const first = liveInboxItem(`upload:${'b'.repeat(32)}.md`);
+  const second = liveInboxItem(`upload:${'c'.repeat(32)}.md`);
+  const documentId = 'd'.repeat(32);
+  const requests = [];
+  let releaseFirst;
+  const firstContent = new Promise(resolve => { releaseFirst = resolve; });
+  const workbenchCapability = {
+    ...second.capability, has_working_copy: true, browser_download_allowed: true,
+    actions: second.capability.actions.map(action => ({
+      ...action,
+      state: ['edit_working_copy', 'download_original', 'export_working_copy'].includes(action.action) ? 'allowed' : action.state
+    }))
+  };
+  const contentHeaders = body => ({
+    'content-type': 'text/plain; charset=utf-8', 'content-length': String(Buffer.byteLength(body)),
+    'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff',
+    'x-odysseus-content-schema': 'odysseus.universal_inbox.source_content.v1',
+    'x-odysseus-content-state': 'complete', 'x-odysseus-content-truncated': 'false'
+  });
+  await page.route('**/api/universal-inbox/items/*/content**', async route => {
+    const requestUrl = route.request().url(); requests.push(requestUrl);
+    if (requestUrl.includes(encodeURIComponent(first.source_ref))) {
+      await firstContent;
+      await route.fulfill({ headers: contentHeaders('first synthetic preview') , body: 'first synthetic preview' });
+      return;
+    }
+    if (requestUrl.includes('download=true')) {
+      await route.fulfill({ headers: { ...contentHeaders('local'), 'content-disposition': 'attachment; filename="document.md"' }, body: 'local' });
+      return;
+    }
+    await route.fulfill({ headers: contentHeaders('second synthetic preview'), body: 'second synthetic preview' });
+  });
+  await page.route('**/working-copy', async route => {
+    requests.push(route.request().url());
+    await route.fulfill({ headers: safeRouteHeaders, json: {
+      id: documentId, title: 'Synthetic document', language: 'markdown', current_content: 'working bytes', version_count: 1,
+      updated_at: '2026-07-23T10:00:00Z',
+      working_copy: { schema: 'odysseus.universal_inbox.working_copy.v1', created: true, revision_created: false, working_copy_id: documentId, version: 1 },
+      workbench_capability: workbenchCapability
+    }});
+  });
+  await page.route(`**/api/document/${documentId}/export`, async route => {
+    requests.push(route.request().url());
+    await route.fulfill({ headers: { 'content-type': 'text/markdown; charset=utf-8', 'content-length': '5', 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff', 'content-disposition': 'attachment; filename="Synthetic_document-v1.md"' }, body: 'local' });
+  });
+  const root = await openLiveInbox(page, async route => route.fulfill({ headers: safeRouteHeaders, json: {
+    schema: 'odysseus.universal_inbox.route_dry_run.v1', status: 'review', policy_status: 'review', input_authority: 'advisory', confidence: 0,
+    reason_codes: ['low_confidence'], review_reasons: ['low_confidence'], no_go_reasons: [], path_redacted: true, content_redacted: true,
+    dry_run: true, copy_performed: false, move_performed: false, delete_performed: false, overwrite_performed: false,
+    memory_writes_performed: false, live_writes_performed: false, writes_performed: false, live_apply: { enabled: false, gate: 'UIX-NEXTCLOUD-LIVE-WRITE' }
+  }}), [first, second]);
+
+  const syntheticSearch = 'C:\\synthetic\\private-path';
+  await root.locator('[data-inbox-search]').fill(syntheticSearch);
+  const searchProjection = await page.evaluate(() => window.HarborInboxWorkbench.getView());
+  expect(searchProjection.hasSearch).toBe(true);
+  expect(JSON.stringify(searchProjection)).not.toContain(syntheticSearch);
+  await root.locator('[data-inbox-search]').fill('');
+  await root.locator(`[data-inbox-item="${second.source_ref}"]`).click();
+  releaseFirst();
+  await expect(root.locator('[data-preview-inert-text]')).toHaveText('second synthetic preview');
+  await expect(root.locator('[data-preview-inert-text]')).not.toContainText('first synthetic preview');
+  await root.getByRole('button', { name: 'Open working copy' }).click();
+  await expect(root.getByRole('link', { name: 'Open existing Document UI' })).toHaveAttribute('href', `/#document-${documentId}`);
+  await expect(root.getByRole('button', { name: 'Download original' })).toBeVisible();
+  await expect(root.getByRole('button', { name: 'Export working copy' })).toBeVisible();
+  await expect(root.getByRole('link', { name: 'Open document history' })).toHaveAttribute('href', `/#document-${documentId}`);
+  await root.getByRole('tab', { name: 'Original' }).press('ArrowRight');
+  await expect(root.getByRole('tab', { name: 'Working copy' })).toBeFocused();
+  await expect(root.locator('[data-preview-inert-text]')).toHaveCount(0);
+  await root.getByRole('tab', { name: 'Working copy' }).press('ArrowRight');
+  await expect(root.getByRole('tab', { name: 'Difference' })).toBeFocused();
+  await expect(root.locator('[data-preview-inert-text]')).toHaveCount(0);
+  await root.getByRole('button', { name: 'Download original' }).click();
+  await root.getByRole('button', { name: 'Export working copy' }).click();
+  await expect.poll(() => requests.filter(url => url.includes('/working-copy') || url.includes('/export') || url.includes('download=true')).length).toBeGreaterThanOrEqual(3);
+  await page.screenshot({
+    path: path.join(screenshotRoot, 'uix24-desktop-composed.png'),
+    fullPage: true
+  });
+  const projection = await page.evaluate(() => window.HarborInboxWorkbench.getView());
+  expect(JSON.stringify(projection)).not.toContain('working bytes');
+  expect(JSON.stringify(projection)).not.toContain('upload:');
+  expect(requests.some(url => /nextcloud|provider|\/(copy|move|delete|memory)(?:\/|$)/i.test(url))).toBeFalsy();
+  await expect(root.getByRole('button', { name: 'Apply route live' })).toBeDisabled();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await root.getByRole('tab', { name: 'Details' }).click();
+  await expect(root.locator('[data-workbench-panel="details"]')).toBeVisible();
+  const undersizedDetails = await root.evaluate(element => Array.from(
+    element.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled)')
+  ).flatMap(control => {
+    const style = getComputedStyle(control);
+    if (style.display === 'none' || style.visibility === 'hidden' || control.getClientRects().length === 0) return [];
+    const rect = control.getBoundingClientRect();
+    return rect.width < 44 || rect.height < 44
+      ? [{ label: control.getAttribute('aria-label') || control.textContent.trim(), width: rect.width, height: rect.height }]
+      : [];
+  }));
+  expect(undersizedDetails).toEqual([]);
+  const mobileBounds = await root.evaluate(element => ({ clientWidth: element.clientWidth, scrollWidth: element.scrollWidth }));
+  expect(mobileBounds.scrollWidth).toBeLessThanOrEqual(mobileBounds.clientWidth + 2);
+  await page.screenshot({
+    path: path.join(screenshotRoot, 'uix24-mobile-details.png'),
+    fullPage: true
+  });
+  await page.setViewportSize({ width: 1600, height: 960 });
+  await root.locator(`[data-inbox-item="${first.source_ref}"]`).click();
+  await expect(root.getByRole('tab', { name: 'Original' })).toHaveAttribute('aria-selected', 'true');
+  await expect(root.getByRole('link', { name: 'Open existing Document UI' })).toHaveCount(0);
+  await expect(root.getByRole('tab', { name: 'Working copy' })).toBeDisabled();
+});
+
+test('pre-create capability inconsistencies do not expose a working-copy POST action', async ({ page }) => {
+  const item = liveInboxItem(`upload:${'d'.repeat(32)}.md`);
+  item.capability.original_immutable = false;
+  let posts = 0;
+  await page.route('**/working-copy', route => { posts += 1; return route.abort(); });
+  const root = await openLiveInbox(page, route => route.abort(), [item]);
+  await expect(root.getByRole('button', { name: 'Open working copy' })).toHaveCount(0);
+  expect(posts).toBe(0);
 });
 
 test('route dry run exposes loading, review/no-go and content-free errors without stale results', async ({ page }) => {
@@ -256,10 +383,6 @@ test('review, working-copy and export visual fixtures stay explicit and non-live
     name: 'Universal Inbox is unavailable'
   })).toBeVisible();
   await expect(unavailable.getByText('Preview invoice.pdf', { exact: true })).toHaveCount(0);
-  await page.screenshot({
-    path: path.join(screenshotRoot, 'uix19-unavailable.png'),
-    fullPage: true
-  });
 });
 
 test('workspace, mobile panel and escape navigation return focus predictably', async ({ page }) => {
@@ -289,10 +412,6 @@ test('workspace, mobile panel and escape navigation return focus predictably', a
   await expect(root.getByRole('tab', { name: 'Document' })).toBeFocused();
   await expect(root.locator('[data-workbench-panel="document"]')).toBeVisible();
 
-  await page.screenshot({
-    path: path.join(screenshotRoot, 'uix19-mobile-document.png'),
-    fullPage: true
-  });
 });
 
 test('mobile touch, contrast, overflow and reduced motion meet local acceptance', async ({ page }) => {

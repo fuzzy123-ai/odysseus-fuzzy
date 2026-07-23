@@ -5,6 +5,8 @@
   const root = document.querySelector('[data-inbox-workbench-root]');
   const stateModule = window.HarborInboxState;
   const apiModule = window.HarborInboxApi;
+  const previewModule = window.HarborInboxPreview;
+  const bridgeModule = window.HarborInboxDocumentBridge;
   if (!root || !stateModule || !apiModule) return;
 
   const params = new URLSearchParams(window.location.search);
@@ -20,8 +22,13 @@
     search: '',
     documentMode: 'original',
     mobilePanel: 'document',
+    bridgeState: null,
+    documentLink: '',
     route: { sequence: 0, controller: null, sourceRef: '', state: 'idle', result: null, error: '' }
   };
+  let previewController = null;
+  let bridge = null;
+  let bridgeSourceRef = '';
   const documentModes = ['original', 'extraction', 'working-copy', 'difference'];
   const mobilePanels = ['source', 'document', 'details'];
 
@@ -71,6 +78,12 @@
   }
 
   function render(state) {
+    const nextItem = selectedItem(state);
+    if (state.mode !== 'live' || (bridge && (!nextItem || bridgeSourceRef !== nextItem.source_ref))) {
+      destroyPreview();
+      destroyBridge();
+      view.documentMode = 'original';
+    }
     root.dataset.inboxMode = state.mode;
     root.dataset.mobilePanel = view.mobilePanel;
     root.dataset.visualState = visualState;
@@ -82,15 +95,19 @@
       return;
     }
     if (['empty', 'unauthorized', 'unavailable', 'error'].includes(state.mode)) {
+      destroyPreview();
+      destroyBridge();
       root.innerHTML = renderBoundaryState(state);
       bindEvents(state);
       return;
     }
 
-    const item = selectedItem(state);
+    const item = nextItem;
     if (item && !view.selectedRef) view.selectedRef = item.source_ref;
     root.innerHTML = renderWorkbench(state, item);
     bindEvents(state);
+    mountPreview(state, item);
+    mountBridge(state, item);
   }
 
   function renderLoading() {
@@ -163,8 +180,8 @@
         ${renderMobileTabs()}
         <div class="uix-layout">
           ${renderSourcePanel(filteredItems, item)}
-          ${renderDocumentPanel(item, tone)}
-          ${renderDetailsPanel(item, tone)}
+          ${renderDocumentPanel(item, tone, state)}
+          ${renderDetailsPanel(item, tone, state)}
         </div>
         <p class="uix-live-region" role="status" aria-live="polite" aria-atomic="true" data-inbox-live-region>${escapeHtml(liveMessage(item, tone))}</p>
       </section>
@@ -251,7 +268,7 @@
     `;
   }
 
-  function renderDocumentPanel(item, tone) {
+  function renderDocumentPanel(item, tone, state) {
     const status = visualState === 'dirty' ? 'Dirty'
       : visualState === 'saving' ? 'Saving…'
         : visualState === 'export-success' ? 'Export ready'
@@ -266,34 +283,22 @@
           <span class="uix-document-status" data-document-status="${escapeHtml(visualState)}">${escapeHtml(status)}</span>
         </header>
         <div class="uix-document-tabs" role="tablist" aria-label="Document views">
-          ${documentModes.map((mode, index) => {
-            const disabled = index > 0;
+          ${documentModes.map(mode => {
+            const enabled = enabledDocumentModes().includes(mode);
+            const active = enabled && view.documentMode === mode;
             const label = { original: 'Original', extraction: 'Extraction', 'working-copy': 'Working copy', difference: 'Difference' }[mode];
-            return `<button type="button" role="tab" data-document-mode="${mode}" aria-selected="${view.documentMode === mode}"
-              aria-controls="uix-document-stage" tabindex="${view.documentMode === mode ? '0' : '-1'}" ${disabled ? 'disabled aria-disabled="true" title="Available in the next dependent slice"' : ''}>${label}</button>`;
+            return `<button type="button" role="tab" data-document-mode="${mode}" aria-selected="${active}"
+              aria-controls="uix-document-stage" tabindex="${active ? '0' : '-1'}" ${enabled ? '' : 'disabled aria-disabled="true" title="Create an authorized working copy first"'}>${label}</button>`;
           }).join('')}
         </div>
         <section class="uix-document-stage" id="uix-document-stage" role="tabpanel" aria-label="Document preview status">
-          <div class="uix-preview-frame" data-preview-tone="${escapeHtml(tone)}">
-            <span class="uix-preview-glyph" aria-hidden="true">${tone === 'review' ? '!' : 'DOC'}</span>
-            <div>
-              <h2>${tone === 'review' ? 'Inspect the risk before opening content' : 'Document preview is safely separated'}</h2>
-              <p>${tone === 'review'
-                ? 'This labeled preview fixture represents a source that needs explicit review. No content, routing, or export action ran.'
-                : 'UIX19 provides the focused shell. The bounded Original, Extraction, Working copy, and Difference adapters arrive through their declared dependent slices.'}</p>
-            </div>
-            <dl class="uix-preview-facts">
-              <div><dt>Original</dt><dd>Read-only</dd></div>
-              <div><dt>Content</dt><dd>Not loaded</dd></div>
-              <div><dt>Live writes</dt><dd>Disabled</dd></div>
-            </dl>
-          </div>
+          <div data-preview-root></div>
         </section>
       </main>
     `;
   }
 
-  function renderDetailsPanel(item, tone) {
+  function renderDetailsPanel(item, tone, state) {
     const metadata = item && item.metadata || {};
     const review = tone === 'review';
     const routeCapability = routeCapabilityFor(item, stateForRouteCapability());
@@ -327,13 +332,74 @@
           <button class="uix-button primary" type="button" data-focus-document ${review ? 'disabled' : ''}>Review selection</button>
           <button class="uix-button" type="button" data-route-dry-run ${routeCapability.enabled ? '' : 'disabled aria-disabled="true"'} title="${escapeHtml(routeCapability.note)}">Suggest route · dry run</button>
           ${renderRouteDryRunStatus(routeCapability)}
-          <button class="uix-button" type="button" disabled title="Working-copy UI bridge follows in UIX21">Open working copy</button>
+          <div data-working-copy-actions>${renderWorkingCopyActions(item, state)}</div>
           <button class="uix-button" type="button" disabled aria-disabled="true" title="UIX-NEXTCLOUD-LIVE-WRITE">Apply route live</button>
           <p>Live apply is disabled by UIX-NEXTCLOUD-LIVE-WRITE.</p>
           <p>No copy, move, delete, overwrite, provider, or memory write is available here.</p>
         </section>
       </aside>
     `;
+  }
+
+  function allowedAction(item, name) {
+    const capability = item && item.capability;
+    if (!capability || typeof capability !== 'object' || Array.isArray(capability)
+      || capability.schema !== 'odysseus.universal_inbox.workbench_capability.v1'
+      || capability.server_authoritative !== true || capability.owner_authorized !== true
+      || capability.original_immutable !== true || capability.working_copy_versioned !== true
+      || capability.raw_content_visible !== false || capability.absolute_path_visible !== false
+      || capability.live_write_authorized !== false || !Array.isArray(capability.actions)) return false;
+    const action = capability.actions.find(candidate => candidate && candidate.action === name);
+    return Boolean(action && action.state === 'allowed' && action.mutates_original === false
+      && action.performs_live_write === false && Array.isArray(action.reason_codes));
+  }
+
+  function workingCopyReady() {
+    return Boolean(view.bridgeState && view.bridgeState.workingCopyId
+      && (view.bridgeState.saveState === 'ready' || view.bridgeState.saveState === 'saved')
+      && !view.bridgeState.dirty && !view.bridgeState.conflict && view.documentLink);
+  }
+
+  function enabledDocumentModes() {
+    return workingCopyReady() ? ['original', 'working-copy', 'difference'] : ['original'];
+  }
+
+  function renderWorkingCopyActions(item, state) {
+    if (state.mode !== 'live') {
+      return '<p class="uix-route-status">Working-copy actions require a live owner-scoped selection; fixtures never create documents.</p>';
+    }
+    if (!allowedAction(item, 'create_working_copy')) {
+      return '<p class="uix-route-status">Server policy has not authorized a working copy for this selection.</p>';
+    }
+    const creating = view.bridgeState && view.bridgeState.saveState === 'creating';
+    const ready = workingCopyReady();
+    const downloading = view.bridgeState && view.bridgeState.exportState === 'downloading';
+    const link = ready && view.documentLink
+      ? `<a class="uix-button primary" href="${escapeHtml(view.documentLink)}" data-document-link>Open existing Document UI</a>`
+      : '';
+    return `
+      <button class="uix-button" type="button" data-create-working-copy ${creating || ready ? 'disabled aria-disabled="true"' : ''}>Open working copy</button>
+      ${ready ? `
+        ${link}
+        <button class="uix-button" type="button" data-download-original ${downloading ? 'disabled aria-disabled="true"' : ''}>Download original</button>
+        <button class="uix-button" type="button" data-export-working-copy ${downloading ? 'disabled aria-disabled="true"' : ''}>Export working copy</button>
+        <a class="uix-button" href="${escapeHtml(view.documentLink)}" data-document-history-link>Open document history</a>
+      ` : ''}
+      <p class="uix-route-status" data-working-copy-status>${escapeHtml(workingCopyStatus())}</p>
+    `;
+  }
+
+  function workingCopyStatus() {
+    if (!view.bridgeState) return 'Create a versioned working copy before local browser actions are available.';
+    if (view.bridgeState.saveState === 'creating') return 'Creating an owner-scoped versioned working copy.';
+    if (view.bridgeState.saveState === 'conflict') return 'Working copy changed remotely; local export remains closed.';
+    if (view.bridgeState.saveState === 'error') return 'Working-copy action was closed safely.';
+    if (view.bridgeState.exportState === 'downloading') return 'Local browser download is in progress.';
+    if (view.bridgeState.exportState === 'downloaded') return 'Local browser download completed without changing the original.';
+    if (view.bridgeState.exportState === 'blocked') return 'Local browser action is blocked until the working copy is ready.';
+    if (view.bridgeState.exportState === 'error') return 'Local browser download was closed safely.';
+    if (workingCopyReady()) return 'Working copy is ready. Local browser actions do not change the original.';
+    return 'Working-copy action is not ready for export.';
   }
 
   function stateForRouteCapability() {
@@ -402,6 +468,146 @@
     return item ? `${item.display_name} selected. Original remains unchanged.` : 'No document selected.';
   }
 
+  function destroyPreview() {
+    if (previewController) previewController.destroy();
+    previewController = null;
+  }
+
+  function destroyBridge() {
+    if (bridge) bridge.destroy();
+    bridge = null;
+    bridgeSourceRef = '';
+    view.bridgeState = null;
+    view.documentLink = '';
+  }
+
+  function mountPreview(state, item) {
+    destroyPreview();
+    const previewRoot = root.querySelector('[data-preview-root]');
+    if (!previewRoot) return;
+    if (state.mode !== 'live') {
+      previewRoot.innerHTML = '<div class="uix-preview-frame" data-preview-tone="fixture"><span class="uix-preview-glyph" aria-hidden="true">DOC</span><div><h2>Preview fixture remains synthetic</h2><p>No content route is requested for a fixture.</p></div></div>';
+      return;
+    }
+    if (view.documentMode !== 'original') {
+      const link = view.documentLink
+        ? `<a href="${escapeHtml(view.documentLink)}" data-document-history-link>Open document history</a>`
+        : '';
+      const copy = view.documentMode === 'difference'
+        ? 'Difference history remains in the existing Document UI.'
+        : view.documentMode === 'working-copy'
+          ? 'The versioned working copy remains in the existing Document UI.'
+          : 'Extraction is not available for this selection.';
+      previewRoot.innerHTML = `<div class="uix-preview-frame" data-preview-tone="live"><span class="uix-preview-glyph" aria-hidden="true">DOC</span><div><h2>Document handoff</h2><p>${copy}</p>${link}</div></div>`;
+      return;
+    }
+    if (!previewModule || typeof previewModule.InboxPreviewController !== 'function') {
+      previewRoot.textContent = 'Preview adapter is unavailable. Content remains closed.';
+      return;
+    }
+    previewController = new previewModule.InboxPreviewController({ root: previewRoot, fetchImpl: api.fetchImpl });
+    const previewItem = Object.assign({}, item, {
+      capability: Object.assign({}, item && item.capability, {
+        // The preview adapter's established P0 label is uppercase; the
+        // server workbench contract emits the equivalent lowercase tier.
+        mvp_tier: item && item.capability && item.capability.mvp_tier === 'p0' ? 'P0' : item && item.capability && item.capability.mvp_tier
+      })
+    });
+    previewController.load(previewItem);
+  }
+
+  function projectBridgeState(next) {
+    if (!next || typeof next !== 'object') return null;
+    return {
+      saveState: typeof next.saveState === 'string' ? next.saveState : 'error',
+      workingCopyId: typeof next.workingCopyId === 'string' ? next.workingCopyId : null,
+      version_count: Number.isInteger(next.version_count) ? next.version_count : 0,
+      dirty: next.dirty === true,
+      conflict: typeof next.conflict === 'string' ? next.conflict : null,
+      exportState: typeof next.exportState === 'string' ? next.exportState : 'idle',
+      exportTarget: typeof next.exportTarget === 'string' ? next.exportTarget : null,
+      exportError: typeof next.exportError === 'string' ? next.exportError : null
+    };
+  }
+
+  function documentHandoff(payload) {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)
+      || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(payload.id)
+      || typeof payload.title !== 'string' || payload.title.length > 512
+      || typeof payload.language !== 'string' || payload.language.length > 64
+      || !Number.isInteger(payload.version_count) || payload.version_count < 1) {
+      throw new Error('invalid_document_handoff');
+    }
+    view.documentLink = '/#document-' + encodeURIComponent(payload.id);
+    updateWorkingCopySurface();
+  }
+
+  function mountBridge(state, item) {
+    if (state.mode !== 'live' || !item || !allowedAction(item, 'create_working_copy')) {
+      destroyBridge();
+      return;
+    }
+    if (bridge && bridgeSourceRef === item.source_ref) return;
+    destroyBridge();
+    if (!bridgeModule || typeof bridgeModule.create !== 'function') return;
+    bridgeSourceRef = item.source_ref;
+    bridge = bridgeModule.create({
+      fetch: api.fetchImpl,
+      documentHandoff,
+      onChange: next => {
+        view.bridgeState = projectBridgeState(next);
+        updateWorkingCopySurface();
+      }
+    });
+  }
+
+  function updateWorkingCopySurface() {
+    const slot = root.querySelector('[data-working-copy-actions]');
+    const state = model.getState();
+    const item = selectedItem(state);
+    if (!slot || !item) return;
+    if (!syncDocumentModeControls(state)) return;
+    slot.innerHTML = renderWorkingCopyActions(item, state);
+    bindWorkingCopyEvents(state);
+  }
+
+  function syncDocumentModeControls(state) {
+    const enabled = enabledDocumentModes();
+    if (!enabled.includes(view.documentMode)) {
+      view.documentMode = 'original';
+      render(state);
+      return false;
+    }
+    root.querySelectorAll('[data-document-mode]').forEach(button => {
+      const allowed = enabled.includes(button.dataset.documentMode);
+      const active = allowed && view.documentMode === button.dataset.documentMode;
+      button.disabled = !allowed;
+      button.setAttribute('aria-selected', String(active));
+      button.tabIndex = active ? 0 : -1;
+      if (allowed) {
+        button.removeAttribute('aria-disabled');
+        button.removeAttribute('title');
+      } else {
+        button.setAttribute('aria-disabled', 'true');
+        button.setAttribute('title', 'Create an authorized working copy first');
+      }
+    });
+    return true;
+  }
+
+  function bindWorkingCopyEvents(state) {
+    root.querySelector('[data-create-working-copy]')?.addEventListener('click', () => {
+      const item = selectedItem(state);
+      if (bridge && item && allowedAction(item, 'create_working_copy')) bridge.createWorkingCopy(item.source_ref).catch(() => {});
+    });
+    root.querySelector('[data-download-original]')?.addEventListener('click', () => {
+      if (bridge && workingCopyReady()) bridge.downloadOriginal().catch(() => {});
+    });
+    root.querySelector('[data-export-working-copy]')?.addEventListener('click', () => {
+      if (bridge && workingCopyReady()) bridge.exportWorkingCopy().catch(() => {});
+    });
+  }
+
   function bindEvents(state) {
     root.querySelectorAll('[data-inbox-refresh]').forEach(button => {
       button.addEventListener('click', () => load());
@@ -437,14 +643,24 @@
       const item = selectedItem(state);
       if (item) requestRouteDryRun(state, item);
     });
-    root.querySelectorAll('[data-document-mode]:not(:disabled)').forEach(button => {
-      button.addEventListener('click', () => setDocumentMode(state, button.dataset.documentMode));
-      button.addEventListener('keydown', event => handleTabKeys(event, state, ['original'], 'documentMode', '[data-document-mode]:not(:disabled)'));
+    root.querySelectorAll('[data-document-mode]').forEach(button => {
+      button.addEventListener('click', () => {
+        if (button.disabled || !enabledDocumentModes().includes(button.dataset.documentMode)) return;
+        setDocumentMode(state, button.dataset.documentMode);
+      });
+      button.addEventListener('keydown', event => {
+        if (button.disabled || !enabledDocumentModes().includes(button.dataset.documentMode)) return;
+        handleTabKeys(event, state, enabledDocumentModes(), 'documentMode', '[data-document-mode]:not(:disabled)');
+      });
     });
+    bindWorkingCopyEvents(state);
   }
 
   function selectItem(state, sourceRef) {
     cancelRouteDryRun();
+    destroyPreview();
+    destroyBridge();
+    view.documentMode = 'original';
     view.selectedRef = sourceRef;
     render(state);
     root.querySelector('[data-inbox-item][aria-selected="true"]')?.focus();
@@ -461,7 +677,7 @@
   }
 
   function setDocumentMode(state, mode) {
-    if (!documentModes.includes(mode)) return;
+    if (!enabledDocumentModes().includes(mode)) return;
     view.documentMode = mode;
     render(state);
     root.querySelector(`[data-document-mode="${mode}"]`)?.focus();
@@ -679,13 +895,13 @@
     refresh: load,
     getState: () => model.getState(),
     getView: () => ({
-      selectedRef: view.selectedRef,
-      search: view.search,
+      hasSelection: Boolean(view.selectedRef),
+      hasSearch: Boolean(view.search.trim()),
       documentMode: view.documentMode,
       mobilePanel: view.mobilePanel,
+      workingCopy: projectBridgeState(view.bridgeState),
       route: {
         sequence: view.route.sequence,
-        sourceRef: view.route.sourceRef,
         state: view.route.state,
         result: view.route.result ? { ...view.route.result } : null,
         error: view.route.error

@@ -659,6 +659,10 @@
 .uix-actions h2 { margin-bottom: 3px; }
 
 .uix-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   min-height: 34px;
   padding: 0 10px;
   border: 1px solid color-mix(in srgb, var(--cyan-text) 28%, transparent);
@@ -666,6 +670,7 @@
   color: var(--cyan-text);
   background: color-mix(in srgb, var(--cyan) 6%, transparent);
   font: 700 9px/1 var(--mono);
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -864,7 +869,8 @@
 
   .uix-search input,
   .uix-item-row,
-  .uix-button {
+  .uix-actions .uix-button {
+    min-width: 44px;
     min-height: 44px;
   }
 

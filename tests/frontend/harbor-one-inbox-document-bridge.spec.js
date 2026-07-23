@@ -34,6 +34,32 @@ test('creates through the owner-scoped API, injects fresh doc, and projects only
   expect(JSON.stringify(bridge.getState())).not.toContain(source); expect(Object.values(bridge.getState()).some(v => typeof v === 'function')).toBeFalsy();
 });
 
+test('production document handoff is metadata-only and invalid callback paths fail closed', async () => {
+  const handoffs = [];
+  const bridge = Bridge.create({ documentHandoff: payload => handoffs.push(payload), fetch: async () => json(doc({ current_content: 'private working bytes' })) });
+  await expect(bridge.createWorkingCopy(source)).resolves.toBe(true);
+  expect(handoffs).toEqual([{ id: 'a'.repeat(32), title: 'Safe', language: 'markdown', version_count: 1 }]);
+  expect(JSON.stringify(handoffs)).not.toContain('private working bytes');
+  expect(JSON.stringify(bridge.getState())).not.toContain('private working bytes');
+
+  let calls = 0;
+  const invalidCallback = Bridge.create({ documentHandoff: {}, fetch: async () => { calls++; return json(doc()); } });
+  await expect(invalidCallback.createWorkingCopy(source)).resolves.toBe(false);
+  expect(calls).toBe(0); expect(invalidCallback.getState().saveState).toBe('error');
+
+  const syncThrown = Bridge.create({ documentHandoff: () => { throw new Error('synthetic callback throw'); }, fetch: async () => json(doc()) });
+  await expect(syncThrown.createWorkingCopy(source)).resolves.toBe(false);
+  expect(syncThrown.getState()).toEqual(expect.objectContaining({ saveState: 'error', workingCopyId: 'a'.repeat(32) }));
+
+  const malformed = Bridge.create({ documentHandoff: () => {}, fetch: async () => json(doc({ id: 'bad id' })) });
+  await expect(malformed.createWorkingCopy(source)).resolves.toBe(false);
+  expect(malformed.getState().saveState).toBe('error');
+
+  const rejected = Bridge.create({ documentHandoff: async () => { throw new Error('synthetic callback rejection'); }, fetch: async () => json(doc()) });
+  await expect(rejected.createWorkingCopy(source)).resolves.toBe(false);
+  expect(rejected.getState()).toEqual(expect.objectContaining({ saveState: 'error', workingCopyId: 'a'.repeat(32) }));
+});
+
 test('rejects unsafe/foreign-like inputs and immutable-mode edits without exposing content', async () => {
   const events = []; let calls = 0;
   const bridge = Bridge.create({ documentModule: { loadDocument: async () => {} }, onChange: s => { events.push(s); throw new Error('ignored'); }, fetch: async () => { calls++; return json(doc()); } });
