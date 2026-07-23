@@ -1,19 +1,19 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T17:31:24+02:00",
-  "status": "uix_abc21_accepted_uix_abc23_ready",
+  "updated_at": "2026-07-23T17:37:00+02:00",
+  "status": "uix_abc23_browser_export_claimed",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Bearbeite die offenen Odysseus-Feature-Roadmaps dependency-gesteuert ueber Open Work; beginne mit UIX-ABC20, danach UIX-ABC22, repo-only und ohne breite Tests, Push, Deploy oder Live-Mutation.",
   "goal": "Advance the dependency-ready Open Work feature-roadmap frontier with bounded repo-only claims, focused verification, Sol-reviewed Terra handoffs, durable evidence and local commits.",
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 1,
+    "safe_open_json_slices": 0,
     "unique_live_gates": 40,
     "unique_design_gates": 27,
-    "other_open_json_items": 31,
-    "queue_status": "uix_abc21_released_uix_abc23_dependency_ready_repo_only",
+    "other_open_json_items": 32,
+    "queue_status": "uix_abc23_claimed_after_fresh_export_handoff_no_other_safe_frontier",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,14 +21,14 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "agent_maintenance_safety": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "universal_inbox_workbench": "uix_abc21_accepted_uix_abc23_ready",
+      "universal_inbox_workbench": "uix_abc23_browser_export_in_progress",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 1,
-      "other_open_count": 31,
+      "safe_open_count": 0,
+      "other_open_count": 32,
       "unique_live_gate_count": 40,
       "unique_design_gate_count": 27,
       "decision_packet_families": [
@@ -60,19 +60,19 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "UIX-ABC21 passed deep Sol review and focused local acceptance. UIX-ABC23 now has both code dependencies complete, and its repo-only browser-export gate permits only an explicit user-initiated local download while provider and Nextcloud writes remain forbidden.",
+        "reason": "UIX-ABC23 is durably claimed after a fresh read-only handoff. The bounded implementation adds one owner-checked generic Document download for non-PDF working copies, reuses the existing PDF and source endpoints, and exposes only explicit user-triggered browser downloads.",
         "slice": "UIX-ABC23",
         "user_decision_required": false,
-        "safe_default": "claim_a_bounded_uix_abc23_browser_export_split_repo_only"
+        "safe_default": "execute_only_the_claimed_uix_abc23_export_paths_repo_only"
       },
-      "queue_exhausted": false,
+      "queue_exhausted": true,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-23"
     },
-    "dependency_ready_repo_only_slices": [
+    "dependency_ready_repo_only_slices": [],
+    "active_claimed_slices": [
       "UIX-ABC23"
     ],
-    "active_claimed_slices": [],
     "product_semantics_gated_open_slices": [],
     "handoff_gated_open_slices": [],
     "design_gated_open_slices": [],
@@ -2388,8 +2388,8 @@
       "title": "Browser Export Split",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
-      "claimable": true,
+      "status": "claimed_in_progress",
+      "claimable": false,
       "depends_on": [
         "UIX-ABC17",
         "UIX-ABC21"
@@ -2419,6 +2419,120 @@
           "copy, move, delete or overwrite of the source",
           "push, deployment or live mutation"
         ]
+      },
+      "handoff": {
+        "observed_at": "2026-07-23T17:37:00+02:00",
+        "kind": "fresh_read_only_export_path_handoff",
+        "inspected_paths": [
+          "src/universal_inbox_workbench.py",
+          "routes/universal_inbox_routes.py",
+          "routes/document_routes.py",
+          "static/js/document.js",
+          "static/frontpage-v3/inbox-document-bridge.js",
+          "core/middleware.py"
+        ],
+        "findings": [
+          "The authoritative workbench capability already distinguishes download_original and export_working_copy, requires owner authority and a working copy, and keeps provider targets behind UIX-NEXTCLOUD-LIVE-WRITE.",
+          "The existing Universal Inbox content endpoint already returns the owner-checked original with a safe filename, bounded MIME-aware bytes, private no-store and nosniff.",
+          "The existing PDF working-copy endpoint is owner-checked and preserves filled form and annotation behavior; the production SecurityHeadersMiddleware adds nosniff to every response.",
+          "Non-PDF Documents have only an internal browser Blob exporter, so a small owner-checked generic Document download endpoint is the missing tested interface.",
+          "No static/js/document.js change is required; explicit download orchestration can stay isolated in the UIX21 bridge."
+        ],
+        "decision": "claim_one_document_export_route_plus_existing_universal_inbox_and_bridge_adapters_without_static_js_document",
+        "resolved": true
+      },
+      "claim": {
+        "run_id": "abc-uix23-20260723T173700+0200",
+        "thread_id": "/root",
+        "slice_id": "UIX-ABC23",
+        "owner": "Charlie",
+        "allowed_paths": [
+          "routes/document_routes.py",
+          "routes/universal_inbox_routes.py",
+          "static/frontpage-v3/inbox-document-bridge.js",
+          "tests/test_universal_inbox_browser_export.py",
+          "tests/frontend/harbor-one-inbox-document-bridge.spec.js"
+        ],
+        "excluded_paths": [
+          "static/js/document.js"
+        ],
+        "hotfiles": [
+          "routes/document_routes.py"
+        ],
+        "state": "claimed",
+        "acquired_at": "2026-07-23T17:37:00+02:00",
+        "lease_expires_at": "2026-07-23T21:37:00+02:00",
+        "handoff_required": false
+      },
+      "allowed_paths": [
+        "routes/document_routes.py",
+        "routes/universal_inbox_routes.py",
+        "static/frontpage-v3/inbox-document-bridge.js",
+        "tests/test_universal_inbox_browser_export.py",
+        "tests/frontend/harbor-one-inbox-document-bridge.spec.js"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest tests\\test_universal_inbox_browser_export.py -q -p no:cacheprovider",
+        "node --check static\\frontpage-v3\\inbox-document-bridge.js",
+        "playwright test tests/frontend/harbor-one-inbox-document-bridge.spec.js --workers=1 --reporter=line",
+        "git diff --check -- routes/document_routes.py routes/universal_inbox_routes.py static/frontpage-v3/inbox-document-bridge.js tests/test_universal_inbox_browser_export.py tests/frontend/harbor-one-inbox-document-bridge.spec.js"
+      ],
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "dependency, gate, hotfile handoff, claim and evidence orchestration"
+            },
+            {
+              "id": "playwright",
+              "purpose": "focused explicit-download controller acceptance"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "actual": {
+          "skills": [],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "evidence": "root surface"
+          },
+          "worker": {
+            "model": "pending",
+            "evidence": "pending spawn"
+          },
+          "review": {
+            "model": "pending",
+            "depth": "deep",
+            "result": "pending"
+          }
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "local",
+        "observed_at": "2026-07-23T17:37:00+02:00",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "focused_test"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true
       },
       "done_when": "Users explicitly choose original download or working-copy export through existing endpoints; provider and Nextcloud targets remain disabled and live-gated."
     },
