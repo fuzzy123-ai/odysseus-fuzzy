@@ -1,19 +1,19 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T16:48:58+02:00",
-  "status": "uix_abc20_complete_uix_abc22_ready",
+  "updated_at": "2026-07-23T16:51:59+02:00",
+  "status": "uix_abc22_review_route_dry_run_in_progress",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Bearbeite die offenen Odysseus-Feature-Roadmaps dependency-gesteuert ueber Open Work; beginne mit UIX-ABC20, danach UIX-ABC22, repo-only und ohne breite Tests, Push, Deploy oder Live-Mutation.",
   "goal": "Advance the dependency-ready Open Work feature-roadmap frontier with bounded repo-only claims, focused verification, Sol-reviewed Terra handoffs, durable evidence and local commits.",
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 1,
+    "safe_open_json_slices": 0,
     "unique_live_gates": 40,
     "unique_design_gates": 27,
-    "other_open_json_items": 32,
-    "queue_status": "uix_abc20_complete_uix_abc21_handoff_gated_uix_abc22_dependency_ready",
+    "other_open_json_items": 33,
+    "queue_status": "uix_abc22_claimed_uix_abc21_handoff_gated_no_other_safe_frontier",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,14 +21,14 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "agent_maintenance_safety": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "universal_inbox_workbench": "uix_abc20_complete_uix_abc22_ready",
+      "universal_inbox_workbench": "uix_abc22_review_route_dry_run_in_progress",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 1,
-      "other_open_count": 32,
+      "safe_open_count": 0,
+      "other_open_count": 33,
       "unique_live_gate_count": 40,
       "unique_design_gate_count": 27,
       "decision_packet_families": [
@@ -60,16 +60,17 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "UIX-ABC20 is locally accepted and its claim is released. UIX-ABC21 is dependency-ready but remains unclaimable until its fresh document hotfile handoff; UIX-ABC22 is the next dependency-ready repo-only slice.",
+        "reason": "UIX-ABC22 is durably claimed for exactly five backend, route, focused frontend and test paths. Build an explainable route suggestion that remains a content-free dry run; UIX-ABC21 stays unclaimable until its fresh document hotfile handoff.",
         "slice": "UIX-ABC22",
         "user_decision_required": false,
-        "safe_default": "claim_only_a_bounded_uix_abc22_path_set_repo_only"
+        "safe_default": "execute_only_the_claimed_uix_abc22_paths_repo_only"
       },
       "queue_exhausted": false,
       "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-23"
     },
-    "dependency_ready_repo_only_slices": [
+    "dependency_ready_repo_only_slices": [],
+    "active_claimed_slices": [
       "UIX-ABC22"
     ],
     "product_semantics_gated_open_slices": [],
@@ -2047,8 +2048,8 @@
       "title": "Review And Route Dry-Run Actions",
       "class": "repo_only",
       "owner": "/root",
-      "status": "open",
-      "claimable": true,
+      "status": "claimed_in_progress",
+      "claimable": false,
       "depends_on": [
         "UIX-ABC13",
         "UIX-ABC14",
@@ -2062,6 +2063,133 @@
         "tests/test_universal_inbox_workbench.py",
         "tests/frontend/harbor-one-inbox-workbench.spec.js"
       ],
+      "claim": {
+        "run_id": "abc-uix22-20260723T165159+0200",
+        "thread_id": "/root",
+        "slice_id": "UIX-ABC22",
+        "owner": "Bob",
+        "allowed_paths": [
+          "src/universal_inbox_workbench.py",
+          "routes/universal_inbox_routes.py",
+          "static/frontpage-v3/inbox-workbench.js",
+          "tests/test_universal_inbox_workbench.py",
+          "tests/frontend/harbor-one-inbox-workbench.spec.js"
+        ],
+        "hotfiles": [
+          "routes/universal_inbox_routes.py",
+          "static/frontpage-v3/inbox-workbench.js",
+          "tests/frontend/harbor-one-inbox-workbench.spec.js"
+        ],
+        "state": "claimed",
+        "acquired_at": "2026-07-23T16:51:59+02:00",
+        "lease_expires_at": "2026-07-23T20:51:59+02:00",
+        "handoff_required": true
+      },
+      "allowed_paths": [
+        "src/universal_inbox_workbench.py",
+        "routes/universal_inbox_routes.py",
+        "static/frontpage-v3/inbox-workbench.js",
+        "tests/test_universal_inbox_workbench.py",
+        "tests/frontend/harbor-one-inbox-workbench.spec.js"
+      ],
+      "tests": [
+        "venv\\Scripts\\python.exe -m pytest -q tests\\test_universal_inbox_workbench.py",
+        "playwright test tests/frontend/harbor-one-inbox-workbench.spec.js --workers=1 --reporter=line",
+        "node --check static/frontpage-v3/inbox-workbench.js",
+        "git diff --check -- src/universal_inbox_workbench.py routes/universal_inbox_routes.py static/frontpage-v3/inbox-workbench.js tests/test_universal_inbox_workbench.py tests/frontend/harbor-one-inbox-workbench.spec.js"
+      ],
+      "route": {
+        "entrypoint": "/abc",
+        "recommended": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "Open Work claim, dependency, evidence and integration orchestration"
+            },
+            {
+              "id": "impeccable",
+              "purpose": "Harbor One action-state clarity, accessibility and responsive route suggestion"
+            },
+            {
+              "id": "playwright",
+              "purpose": "Focused local browser behavior and visual acceptance"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "reason": "Dry-run and live-write authority boundaries require deep integration review."
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high",
+            "reason": "Bounded backend, route and frontend implementation with focused policy tests."
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "parent orchestrator"
+            },
+            {
+              "id": "impeccable",
+              "purpose": "product UI and accessibility guidance"
+            },
+            {
+              "id": "playwright",
+              "purpose": "terminal browser acceptance"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "depth": "deep",
+            "reviewer": "root"
+          }
+        },
+        "actual": {
+          "skills": [],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "evidence": "root surface"
+          },
+          "worker": {
+            "model": "pending",
+            "evidence": "pending spawn"
+          },
+          "review": {
+            "model": "pending",
+            "depth": "deep",
+            "result": "pending"
+          }
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "local",
+        "observed_at": "2026-07-23T16:51:59+02:00",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "focused_test",
+          "visual"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true
+      },
       "done_when": "Review and route suggestions remain explainable dry runs with zero copy, move, delete, overwrite or memory mutation and disabled live actions."
     },
     {
@@ -3088,5 +3216,5 @@
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "No new human decision is required for the next bounded repo-only step: UIX-ABC22 is dependency-ready. UIX-ABC21 remains open but unclaimable until its fresh document hotfile handoff; provider access, external delivery and every live-write authority remain closed."
+  "recommended_next_human_decision": "No new human decision is required while the exact UIX-ABC22 repo-only claim is active. UIX-ABC21 remains open but unclaimable until its fresh document hotfile handoff; provider access, external delivery and every live-write authority remain closed."
 }
