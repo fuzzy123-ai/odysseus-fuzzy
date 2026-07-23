@@ -2,7 +2,7 @@
 
 Updated: 2026-07-23
 
-Status: `UIR-00 accepted / UIR-01 dependency_ready`; runtime and productive query path default-off
+Status: `UIR-00 accepted / UIR-01 claimed`; runtime and productive query path default-off
 
 Parent: `OWM-15` / `0.28.x` Unified Source Index Foundation
 
@@ -210,7 +210,26 @@ shared parent gate.
 
 - Class: `repo_only`
 - Owner: Bob
-- Status: `dependency_ready_2026-07-23`
+- Status: `claimed_2026-07-23`
+- Dependency audit: `UIR-00, USI-01 and USI-02 accepted; both declared
+  implementation paths are new and collision-free`
+- Serialized claim:
+  - run_id: `abc-uir01-20260723T203955+0200`
+  - thread_id: `/root`
+  - owner: `Bob`
+  - state: `claimed`
+  - acquired_at: `2026-07-23T20:39:55+02:00`
+  - lease_expires_at: `2026-07-24T00:39:55+02:00`
+  - worktree: `C:\tmp\odysseus-abc-usi09-20260723`
+  - allowed_paths: `src/unified_source_index_runtime_contract.py` and
+    `tests/test_unified_source_index_runtime_contract.py`
+  - excluded_paths: every existing app/route/runtime/USI query/context/RAG/
+    provider/config/environment/composition implementation, productive
+    database/source/data directory, runtime/worker/process, provider/network/
+    deploy and live path
+  - evidence: `Pure immutable value contracts only. Canary and active are
+    representable states, not runtime authorization; UDA/ULO eligibility and
+    USI-LIVE-ACTIVATION remain later dependencies.`
 - Dependencies: `UIR-00`, USI-01 and USI-02
 - Allowed paths:
   - `src/unified_source_index_runtime_contract.py`
