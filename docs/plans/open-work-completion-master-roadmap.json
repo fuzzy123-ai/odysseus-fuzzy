@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T19:37:42+02:00",
-  "status": "usi13_backup_restore_scale_claimed_repo_only",
+  "updated_at": "2026-07-23T19:53:05+02:00",
+  "status": "usi13_accepted_usi14_dependency_ready_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,7 +23,7 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "usi13_claimed_after_usi03_through_usi12_acceptance",
+    "queue_status": "usi13_accepted_usi14_dependency_ready",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -34,7 +34,7 @@
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
       "memory_observability": "gro00_through_gro15_offline_go_live_gate_eligible_not_authorized",
-      "unified_source_index": "usi00_through_usi12_accepted_usi13_claimed_four_new_paths_productive_sources_off",
+      "unified_source_index": "usi00_through_usi13_accepted_usi14_dependency_ready_productive_sources_off",
       "usi_runtime_consumer_integration": "planned_child_after_usi_core_runtime_default_off",
       "usi_domain_adapters": "planned_child_source_waves_default_off_private_domains_deferred",
       "usi_data_lifecycle_operations": "planned_child_live_actions_default_off",
@@ -85,18 +85,16 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "unified_source_index",
-        "reason": "USI-03 through USI-12 are accepted and read-only recon proved that honest backup, restore, fixed-snapshot rebuild and bounded synthetic scale evidence fit four new files without frozen-core edits.",
-        "slice": "USI-13-backup-restore-rebuild-scale-evidence",
+        "reason": "USI-03 through USI-13 are accepted with bounded backup, restore, rebuild and million-logical-record scale evidence. USI-14 is the next dependency-ready repo-only security, privacy and failure-matrix slice.",
+        "slice": "USI-14-security-privacy-failure-matrix",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "execute_only_the_four_claimed_new_paths_use_temporary_targets_and_bounded_samples_keep_productive_sources_off"
+        "safe_default": "execute_only_the_three_declared_usi14_test_and_acceptance_paths_with_synthetic_temporary_data_keep_productive_sources_off"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-23"
     },
-    "active_claimed_slices": [
-      "USI-13-backup-restore-rebuild-scale-evidence"
-    ]
+    "active_claimed_slices": []
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -762,8 +760,8 @@
       "id": "OWM-15",
       "name": "Unified Source Index Foundation",
       "priority": 9,
-      "status": "usi00_through_usi12_accepted_usi13_claimed_live_default_off",
-      "why_open": "USI-00 through USI-12 are accepted, including the canonical default-off query_knowledge projection and clean TAX/USI inventories. USI-13 is claimed on four new repo-only paths for temporary backup/restore, fixed-snapshot rebuild and bounded synthetic scale evidence; all productive sources remain disabled.",
+      "status": "usi00_through_usi13_accepted_usi14_dependency_ready_live_default_off",
+      "why_open": "USI-00 through USI-13 are accepted, including canonical default-off query_knowledge, clean TAX/USI inventories and bounded backup/restore/rebuild/scale evidence. USI-14 is dependency-ready for focused synthetic security, privacy and failure-matrix acceptance; all productive sources remain disabled.",
       "source_roadmap": "docs/plans/unified-source-index-implementation-roadmap.md",
       "source_gate_family": "unified_source_index",
       "dependencies": [
@@ -776,7 +774,7 @@
       "safe_default": "build_and_test_usi_with_temporary_fixtures_all_productive_sources_disabled",
       "user_gate_policy": "No user gate in USI-00 through USI-15 or the UIR/UDA/ULO child closure tracks. No productive source scan, real legacy cutover or persistent private-data indexing occurs. Exactly one live activation decision may be materialized after core identity/store/query plus runtime/consumer, selected domain-adapter and lifecycle/operations acceptance is green.",
       "execution_protocol": {
-        "queue_registration": "USI-13 is the active claimed core slice after accepted USI-00 through USI-12; keep USI-14 and successors blocked_by_dependency.",
+        "queue_registration": "USI-13 is accepted and its claim released. USI-14 is the next dependency-ready core slice; keep USI-15 blocked by its broader declared dependencies.",
         "dependency_rule": "USI-01 and USI-03 are identity/store barriers; UIR, UDA and ULO open only at their declared barriers and must close the selected source scope before USI-15. TAX, GRO, domain truth and Project Versioning hotfiles require explicit owner handoffs.",
         "future_goal_command": "/goal Implementiere OWM-15 im Overnight Backend Mode bis zum fertigen USI activation packet; beginne nur mit USI-00, halte Nachfolger blocked_by_dependency und aktiviere keine produktive Source."
       },
@@ -1278,14 +1276,14 @@
         "git diff --check -- src/builtin_tool_catalog.py src/tool_index.py src/tool_schema_definitions.py src/tool_execution.py src/agent_tools/__init__.py src/agent_tools/knowledge_tools.py src/tool_security.py tests/test_query_knowledge_tool.py scripts/audit_tool_registry_drift.py docs/plans/tool-taxonomy-inventory.json tests/test_audit_tool_registry_drift.py tests/test_builtin_tool_catalog.py tests/test_tool_registration_parity.py scripts/audit_unified_source_index_overlap.py docs/plans/unified-source-index-runtime-inventory.json tests/test_audit_unified_source_index_overlap.py"
       ],
       "acceptance": "offline_go_one_canonical_default_off_owner_scoped_query_knowledge_projection_with_fail_closed_policy_and_clean_tax_usi_inventories",
-      "next_frontier": "USI-13 backup restore rebuild and bounded synthetic scale evidence is dependency-ready; productive sources remain off.",
+      "next_frontier": "USI-13 is accepted; USI-14 security, privacy and failure-matrix acceptance is dependency-ready while productive sources remain off.",
       "done_when": "One default-off canonical read-only query_knowledge descriptor routes bounded owner-scoped code, document and memory queries through the injected USI planner boundary; malformed, foreign-scope, over-budget and unavailable paths fail closed without raw provider errors, writes, engine-specific tools or duplicate analytics, and both deterministic TAX and USI overlap inventories are updated without drift."
     },
     {
       "id": "USI-13-backup-restore-rebuild-scale-evidence",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_in_progress",
+      "status": "accepted",
       "claimable": false,
       "depends_on": [
         "USI-03",
@@ -1321,9 +1319,10 @@
           "every app/runtime initializer, provider, productive database, host, network and live path"
         ],
         "hotfiles": [],
-        "state": "claimed",
+        "state": "released",
         "acquired_at": "2026-07-23T19:37:42+02:00",
         "lease_expires_at": "2026-07-23T23:37:42+02:00",
+        "released_at": "2026-07-23T19:53:05+02:00",
         "handoff_required": false,
         "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
         "new_paths": true,
@@ -1372,19 +1371,19 @@
           },
           "worker": {
             "model": "gpt-5.6-terra",
-            "evidence": "read-only recon complete; implementation pending"
+            "evidence": "implemented exactly four new declared paths; all Sol review findings resolved"
           },
           "review": {
-            "model": "pending",
+            "model": "gpt-5.6-sol",
             "depth": "deep",
-            "result": "pending"
+            "result": "approved_after_exact-record-count_snapshot-immutability_self-contained-wal_and_cli-check_hardening"
           }
         },
         "fallback": "none"
       },
       "evidence": {
         "target_environment": "temporary contained SQLite databases and bounded synthetic samples",
-        "observed_at": "2026-07-23T19:37:42+02:00",
+        "observed_at": "2026-07-23T19:53:05+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -1398,13 +1397,51 @@
         ],
         "temporal_window": "none",
         "positive_path_required": true,
-        "recon": "All four declared paths are absent. Existing embedding and RAPTOR manifests do not retain a replayable sink/worker binding, so only FTS rebuild may be automatic; external projection rebuilders must be explicitly injected or reported incomplete."
+        "recon": "All four declared paths were new. Existing embedding and RAPTOR manifests do not retain a replayable sink/worker binding, so only FTS rebuild is automatic; external projection rebuilders are explicitly injected or reported incomplete.",
+        "result": {
+          "focused_tests": "5 passed, 1 unrelated SQLAlchemy declarative_base deprecation warning",
+          "benchmark_check": "passed",
+          "actual_materialized_records": 128,
+          "logical_records": 1000000,
+          "logical_loc": 100000,
+          "sample_count": 9,
+          "query_p50_ns": 20361700,
+          "query_p95_ns": 24945300,
+          "index_size_bytes": 819200,
+          "tracemalloc_peak_bytes": 2632241,
+          "contention_observed": true,
+          "recovery_restored": true,
+          "rebuild_scope": "fts_only",
+          "external_projections_rebuilt": false,
+          "postgres_migration_recommended": false,
+          "live_actions": false,
+          "blocking_findings": 0
+        }
       },
       "tests": [
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_unified_source_index_backup.py tests\\test_unified_source_index_scale.py",
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe scripts\\benchmark_unified_source_index.py --check --physical-records 128 --logical-records 1000000 --logical-loc 100000",
         "git diff --check -- src/unified_source_index_backup.py scripts/benchmark_unified_source_index.py tests/test_unified_source_index_backup.py tests/test_unified_source_index_scale.py"
       ],
+      "artifact_hashes": {
+        "src/unified_source_index_backup.py": "E1093F0373E0D2DF02FD5A2D34682E0D7160830DBE0FD6B22D6913EDC43EDA08",
+        "scripts/benchmark_unified_source_index.py": "2C2942D1FEE49348BACF7E6209A00A44C0812F2FFF8CE317B58050B73F379035",
+        "tests/test_unified_source_index_backup.py": "9A80BBACA15C283EB9C281BA3AB038D6F2A652823B3149CA90544A4DE197E05F",
+        "tests/test_unified_source_index_scale.py": "329FF88B66BF407322AFE6F9B1E1553B386C08D2A1785C4FA5FA09E59E6E6A73"
+      },
+      "implementation_commit": "a088780dfe6ee99c3ac3a3c84575082702dc27bf",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes_focused",
+        "reviewed": "yes_deep_sol",
+        "committed": "yes_local",
+        "pushed": "no",
+        "deployed": "na",
+        "live_validated": "na",
+        "product_complete": "no"
+      },
+      "acceptance": "offline_go_consistent_self_contained_sqlite_backup_fresh_restore_fixed_snapshot_fts_rebuild_explicit_external_projection_incompleteness_and_bounded_scale_evidence",
+      "next_frontier": "USI-14 security privacy and failure matrix is dependency-ready; productive sources remain off.",
       "done_when": "A consistent SQLite snapshot backs up and restores only into fresh contained temporary targets; FTS and explicitly injected projections rebuild against one fixed truth snapshot; missing external rebuilders produce an incomplete receipt; bounded physical samples report deterministic p50/p95, bytes, allocation, contention and recovery evidence for declared 100k-LOC/million-logical-record profiles without a Postgres migration claim or productive/live action."
     },
     {

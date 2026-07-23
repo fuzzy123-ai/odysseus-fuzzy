@@ -2,7 +2,7 @@
 
 Stand: 2026-07-23
 
-Status: `USI-09_accepted / USI-13_claimed / runtime_default_off`
+Status: `USI-13_accepted / USI-14_dependency_ready / runtime_default_off`
 
 Master-Track: `0.28.x`, `OWM-15`, `L21`
 
@@ -704,16 +704,17 @@ handoff; no USI worker may edit them independently.
 
 - Class: `repo_only`
 - Owner: Bob
-- Status: `claimed_2026-07-23`
+- Status: `accepted_2026-07-23`
 - Dependency audit: `USI-03 through USI-12 accepted; all four declared paths
   are new; read-only recon found no unavoidable frozen-core edit`
 - Serialized claim:
   - run_id: `abc-usi13-20260723T193742+0200`
   - thread_id: `/root`
   - owner: `Bob`
-  - state: `claimed`
+  - state: `released`
   - acquired_at: `2026-07-23T19:37:42+02:00`
   - lease_expires_at: `2026-07-23T23:37:42+02:00`
+  - released_at: `2026-07-23T19:53:05+02:00`
   - worktree: `C:\tmp\odysseus-abc-usi09-20260723`
   - allowed_paths: `src/unified_source_index_backup.py`,
     `scripts/benchmark_unified_source_index.py`,
@@ -725,7 +726,28 @@ handoff; no USI worker may edit them independently.
   - evidence: `External embedding/RAPTOR manifests do not retain replayable
     sink or worker bindings. Automatic rebuild is therefore limited to FTS;
     other required projections use explicit injected rebuilders or return an
-    incomplete receipt. Physical samples remain capped and temporary.`
+    incomplete receipt. Physical samples remain capped and temporary. Five
+    focused tests passed with one unrelated SQLAlchemy deprecation warning.
+    The exact CLI check passed with 128 materialized records, one million
+    logical records, 100k logical LOC, nine query samples, p50 20,361,700 ns,
+    p95 24,945,300 ns, 819,200 index bytes, 2,632,241 peak traced bytes,
+    observed contention, restored recovery, FTS-only rebuild, no external
+    projection success claim and no Postgres migration recommendation.`
+  - implementation_commit:
+    `a088780dfe6ee99c3ac3a3c84575082702dc27bf`
+  - artifact_hashes:
+    - backup:
+      `E1093F0373E0D2DF02FD5A2D34682E0D7160830DBE0FD6B22D6913EDC43EDA08`
+    - benchmark:
+      `2C2942D1FEE49348BACF7E6209A00A44C0812F2FFF8CE317B58050B73F379035`
+    - backup_tests:
+      `9A80BBACA15C283EB9C281BA3AB038D6F2A652823B3149CA90544A4DE197E05F`
+    - scale_tests:
+      `329FF88B66BF407322AFE6F9B1E1553B386C08D2A1785C4FA5FA09E59E6E6A73`
+  - sol_review:
+    `approved_after_exact-record-count, immutable-snapshot, self-contained-WAL
+    and strict CLI-check hardening; zero blocking findings`
+  - live_actions: `false`
 - Dependencies: `USI-03` through `USI-12`
 - Allowed paths:
   - `src/unified_source_index_backup.py`
@@ -749,12 +771,15 @@ handoff; no USI worker may edit them independently.
 - Done when: backup/restore/rebuild count hashes match and bounded query SLOs
   are reported without arbitrary LOC-based migration claims, automatic external
   projection rebuild claims or productive/live actions.
+- Acceptance:
+  `offline_go_consistent_self_contained_backup_fresh_restore_fixed_snapshot_fts_rebuild_explicit_external_projection_incompleteness_bounded_scale`
+- Next frontier: `USI-14` is dependency-ready; productive sources remain off.
 
 ### USI-14 - Security, Privacy And Failure Matrix
 
 - Class: `repo_only`
 - Owner: Charlie
-- Status: `blocked_by_USI-13_2026-07-23`
+- Status: `dependency_ready_2026-07-23`
 - Dependencies: `USI-01` through `USI-13`
 - Allowed paths:
   - `tests/test_unified_source_index_security.py`
