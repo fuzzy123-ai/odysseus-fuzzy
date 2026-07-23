@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T11:31:39+02:00",
-  "status": "uix_safe_repo_frontier_exhausted_handoff_and_design_gated",
+  "updated_at": "2026-07-23T12:07:00+02:00",
+  "status": "uix_abc17_working_copy_in_progress",
   "abc_mode": "Standard ABC",
   "goal_command": "/goal Implementiere OWM-23 Agent Maintenance Safety Harness repo-only; beginne mit AMH-01, halte Nachfolger dependency-gated, bewahre fremde Worktree-Aenderungen und fuehre weder Live-Aktionen noch ungefragte Pushes aus.",
   "goal": "Reconcile the registered OWM-23 roadmap, then implement the dependency-ready Agent Maintenance Safety Harness frontier with one scoped writer, current machine evidence and no live or external mutation.",
@@ -13,7 +13,7 @@
     "unique_live_gates": 40,
     "unique_design_gates": 28,
     "other_open_json_items": 35,
-    "queue_status": "uix_safe_repo_frontier_exhausted_uix_abc17_handoff_uix_abc19_design",
+    "queue_status": "uix_abc17_claimed_after_named_hotfile_handoff",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -21,7 +21,7 @@
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd00_through_ttd10_accepted_repo_complete_live_actions_gated",
       "agent_maintenance_safety": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "universal_inbox_workbench": "safe_repo_frontier_exhausted_uix_abc17_handoff_uix_abc19_design",
+      "universal_inbox_workbench": "uix_abc17_working_copy_in_progress_uix_abc19_design_gated",
       "tool_taxonomy_registry": "tax0_through_tax12_repo_complete_catalog_v2_default_off_live_activation_dormant",
       "tool_usage_analytics": "tua0_through_tua12_repo_complete_capture_and_real_backfill_default_off_live_activation_gated"
     },
@@ -60,20 +60,18 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "universal_inbox_workbench",
-        "reason": "UIX-ABC18 is locally implemented and focused-tested. No claimable safe repo slice remains: UIX-ABC17 requires a database, migration and Document hotfile handoff, while UIX-ABC19 requires design acceptance and a V3 hotfile handoff.",
-        "slice": null,
-        "user_decision_required": true,
-        "safe_default": "hold_handoff_and_design_gated_slices_without_editing_hotfiles"
+        "reason": "The user's 2026-07-23 Go resolved the recommended UIX-ABC17 handoff for core/database.py, core/database_migrations.py and routes/document_helpers.py. Execute the bounded working-copy bridge claim locally; UIX-ABC19 remains design gated.",
+        "slice": "UIX-ABC17",
+        "user_decision_required": false,
+        "safe_default": "execute_only_the_claimed_uix_abc17_paths_repo_only"
       },
-      "queue_exhausted": true,
-      "detail_roadmap_frontier_exists": false,
+      "queue_exhausted": false,
+      "detail_roadmap_frontier_exists": true,
       "verified_at": "2026-07-23"
     },
     "dependency_ready_repo_only_slices": [],
     "product_semantics_gated_open_slices": [],
-    "handoff_gated_open_slices": [
-      "UIX-ABC17"
-    ],
+    "handoff_gated_open_slices": [],
     "design_gated_open_slices": [
       "UIX-ABC19"
     ],
@@ -1514,7 +1512,7 @@
       "title": "Working-Copy And Provenance Bridge",
       "class": "repo_only",
       "owner": "/root",
-      "status": "blocked_by_handoff",
+      "status": "claimed_in_progress",
       "claimable": false,
       "depends_on": [
         "UIX-ABC16"
@@ -1532,7 +1530,81 @@
         "UIX-WORKBENCH-WORKING-COPY",
         "fresh path handoff for database, migration and Document hotfiles"
       ],
-      "claim_blocker": "Fresh path handoff is required before core/database.py, core/database_migrations.py or routes/document_helpers.py may be claimed.",
+      "handoff_evidence": "The user's 2026-07-23 Go accepted the immediately preceding recommended UIX-ABC17 continuation and explicitly released core/database.py, core/database_migrations.py and routes/document_helpers.py for this bounded repo-only slice.",
+      "claim": {
+        "run_id": "abc-uix17-20260723T120700+0200",
+        "thread_id": "/root",
+        "slice_id": "UIX-ABC17",
+        "owner": "root",
+        "allowed_paths": [
+          "core/database.py",
+          "core/database_migrations.py",
+          "src/universal_inbox_working_copy.py",
+          "routes/universal_inbox_routes.py",
+          "routes/document_helpers.py",
+          "tests/test_universal_inbox_working_copy.py"
+        ],
+        "hotfiles": [
+          "core/database.py",
+          "core/database_migrations.py",
+          "routes/document_helpers.py"
+        ],
+        "state": "active",
+        "acquired_at": "2026-07-23T12:07:00+02:00",
+        "lease_expires_at": "2026-07-23T16:07:00+02:00",
+        "handoff_required": false
+      },
+      "allowed_paths": [
+        "core/database.py",
+        "core/database_migrations.py",
+        "src/universal_inbox_working_copy.py",
+        "routes/universal_inbox_routes.py",
+        "routes/document_helpers.py",
+        "tests/test_universal_inbox_working_copy.py"
+      ],
+      "tests": [
+        "python -m pytest tests/test_universal_inbox_working_copy.py -q -p no:cacheprovider",
+        "git diff --check -- core/database.py core/database_migrations.py src/universal_inbox_working_copy.py routes/universal_inbox_routes.py routes/document_helpers.py tests/test_universal_inbox_working_copy.py"
+      ],
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "Open Work queue, dependency, hotfile handoff, claim and evidence orchestration"
+            }
+          ],
+          "model": {
+            "value": "surface_default",
+            "reason": "The bounded backend, SQLite migration and focused pytest slice needs no secondary skill."
+          }
+        },
+        "actual": {
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            }
+          ],
+          "model": {
+            "value": "surface_default",
+            "evidence": "current Codex surface"
+          }
+        },
+        "fallback": "native_tools"
+      },
+      "evidence": {
+        "target_environment": "local",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "focused_test"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true
+      },
       "done_when": "The owner-scoped source-to-document bridge is idempotent, provenance-preserving and never mutates original bytes or source metadata."
     },
     {
