@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T20:09:32+02:00",
-  "status": "usi14_accepted_uir00_dependency_ready_repo_only",
+  "updated_at": "2026-07-23T20:14:24+02:00",
+  "status": "uir00_runtime_caller_audit_claimed_safe_offline",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,7 +23,7 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "usi14_accepted_uir00_dependency_ready",
+    "queue_status": "uir00_claimed_after_usi14_acceptance",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -35,7 +35,7 @@
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
       "memory_observability": "gro00_through_gro15_offline_go_live_gate_eligible_not_authorized",
       "unified_source_index": "usi00_through_usi14_accepted_usi15_blocked_by_child_closure_productive_sources_off",
-      "usi_runtime_consumer_integration": "uir00_dependency_ready_runtime_default_off",
+      "usi_runtime_consumer_integration": "uir00_claimed_three_new_paths_runtime_default_off",
       "usi_domain_adapters": "planned_child_source_waves_default_off_private_domains_deferred",
       "usi_data_lifecycle_operations": "planned_child_live_actions_default_off",
       "codebase_memory_projection": "cbm00_through_cbm08_accepted_cbm09_dependency_ready_not_selected_engine_disabled",
@@ -85,16 +85,18 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "usi_runtime_consumer_integration",
-        "reason": "USI-00 through USI-14 are accepted. USI-15 remains correctly blocked by UIR-14, ULO-14 and UDA-18; the declared child-track order makes the safe-offline UIR-00 runtime caller and composition audit the next dependency-ready slice.",
+        "reason": "USI-00 through USI-14 are accepted and UIR-00 is claimed after read-only recon. A semantic path collision with the USI-00 overlap inventory was removed by assigning UIR-00 a new dedicated runtime-caller inventory; the prior inventory and generator remain unchanged.",
         "slice": "UIR-00-runtime-caller-composition-audit",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "recon_then_claim_only_uir00_inventory_audit_and_focused_test_keep_runtime_workers_shadow_prompt_cutover_and_productive_sources_off"
+        "safe_default": "execute_only_the_three_claimed_new_uir00_inventory_audit_and_test_paths_keep_runtime_workers_shadow_prompt_cutover_and_productive_sources_off"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-23"
     },
-    "active_claimed_slices": []
+    "active_claimed_slices": [
+      "UIR-00-runtime-caller-composition-audit"
+    ]
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -881,8 +883,8 @@
       "id": "OWM-19",
       "name": "USI Runtime And Consumer Integration",
       "priority": 9,
-      "status": "uir00_dependency_ready_runtime_default_off",
-      "why_open": "The USI core through USI-14 is accepted but deliberately excludes application composition, worker lifecycle and current direct retrieval consumers. UIR-00 is dependency-ready for a safe-offline caller/composition audit; runtime, workers, shadow prompt use and productive cutover remain disabled.",
+      "status": "uir00_claimed_runtime_default_off",
+      "why_open": "The USI core through USI-14 is accepted but deliberately excludes application composition, worker lifecycle and current direct retrieval consumers. UIR-00 is claimed on one new caller inventory, one new static audit and one new focused test after removing a collision with the USI-00 overlap inventory; runtime, workers, shadow prompt use and productive cutover remain disabled.",
       "source_roadmap": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
       "source_gate_family": "unified_source_index",
       "dependencies": [
@@ -895,7 +897,7 @@
       "safe_default": "runtime_disabled_shadow_results_excluded_from_prompts_productive_workers_and_cutover_disabled",
       "user_gate_policy": "No independent UIR product gate. Contracts, dependency injection, fake workers, synthetic shadow comparisons and failure tests remain repo-only. UIR-14 contributes runtime evidence to the existing USI-LIVE-ACTIVATION gate; no productive scan, prompt cutover or provider process starts before that parent decision.",
       "execution_protocol": {
-        "queue_registration": "The active Open-Work goal and accepted USI core barriers make UIR-00 the next dependency-ready slice. Register UIR-00 only after read-only collision recon and keep all runtime successors blocked_by_dependency.",
+        "queue_registration": "UIR-00 is the active claimed child slice after read-only collision recon. Keep UIR-01 and all runtime successors blocked_by_dependency.",
         "dependency_rule": "Serialize runtime hotfiles. UIR owns composition and consumers, not source extraction, domain writes, lifecycle actions, tool identity, telemetry or metrics exporters.",
         "future_goal_command": "/goal Implementiere OWM-19 als Child von OWM-15; beginne UIR-00, halte Runtime produktiv aus und speise nur das gemeinsame USI activation packet."
       },
@@ -1601,6 +1603,130 @@
       "acceptance": "offline_go_synthetic_security_privacy_failure_matrix_policy_fail_closed_optional_lanes_fail_soft_no_private_sentinel_leaks",
       "next_frontier": "USI-15 remains blocked by child closure; UIR-00 runtime caller and composition audit is dependency-ready with runtime default-off.",
       "done_when": "The focused synthetic matrix proves owner/classification/content-policy failures are fail-closed, hostile locators/FTS input/oversized payloads are bounded, unavailable optional projections degrade without false success, tombstoned or stale results do not leak by default, and private sentinel content never enters errors, outcomes, metrics, reports or Lens payloads."
+    },
+    {
+      "id": "UIR-00-runtime-caller-composition-audit",
+      "class": "safe_offline",
+      "owner": "/root",
+      "status": "claimed_in_progress",
+      "claimable": false,
+      "depends_on": [
+        "active Open-Work goal",
+        "USI-00 through USI-14 accepted",
+        "no active writer on the declared new paths"
+      ],
+      "source_roadmap": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
+      "claim": {
+        "run_id": "abc-uir00-20260723T201424+0200",
+        "thread_id": "/root",
+        "slice_id": "UIR-00-runtime-caller-composition-audit",
+        "owner": "Charlie",
+        "allowed_paths": [
+          "docs/plans/unified-source-index-runtime-caller-inventory.json",
+          "scripts/audit_unified_source_index_runtime.py",
+          "tests/test_audit_unified_source_index_runtime.py"
+        ],
+        "excluded_paths": [
+          "docs/plans/unified-source-index-runtime-inventory.json",
+          "scripts/audit_unified_source_index_overlap.py",
+          "every existing app route runtime RAG MemoryVector Personal Docs context tool provider and configuration implementation",
+          "every productive database source data directory runtime worker process provider network deploy and live path"
+        ],
+        "hotfiles": [],
+        "state": "claimed",
+        "acquired_at": "2026-07-23T20:14:24+02:00",
+        "lease_expires_at": "2026-07-24T00:14:24+02:00",
+        "handoff_required": false,
+        "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
+        "new_paths": true,
+        "dependency_sha256": {
+          "docs/plans/unified-source-index-runtime-inventory.json": "007DE337E35BEB52609D1750328BDF904626F42DCE8BBACC9A0C5F95AC72F85C",
+          "scripts/audit_unified_source_index_overlap.py": "E9864F9D085894D6EC29564C724F6B34211C62FCC33EDB2C5A62F4EEFBC55486",
+          "app.py": "A1ACA8083C8689E74B439F08076984611EECA48800DCFC143A4F654E4CF6497E",
+          "src/app_initializer.py": "36C683CE43BD9C93744A7C6839709D7A45A36FB255AA2AED15C49641B1959A1A",
+          "src/chat_processor.py": "4BF04EE62E9D20F97155996E65464797F4BB03BD47EFA91432FD59C094113F3C",
+          "src/personal_docs.py": "09AD6F7C71DC0B2DE5BEBDD7E707D37635A586B828041689E15A6F9AA820E744",
+          "src/ai_interaction.py": "495CF744A85A4184235992ED8CA17610D200EF028FEE20588762717842B05D15",
+          "src/context_orchestrator.py": "B918EEB36E4715071FDDEEF995748B9B1105C0C4596D02A50843F12FD7DAF800",
+          "src/rag_manager.py": "D63AAF986E5DB6A5C460998AEC2D37C1543D41519D48BBA3368867221F55A713",
+          "src/service_health.py": "AC18491B1F78BE263266087762226C8C7C25FB9D9FFD8E1D2E6080376B69527C",
+          "routes/diagnostics_routes.py": "7391F87F83585B46214B9BFDD8FB33D454C28DEACC6F9C22BBB24382AF2B0585",
+          "src/bg_jobs.py": "06C2165C1A053822E0748C793E3055DF0302126B62451C0E941D3153CBB79AF6",
+          "src/task_scheduler.py": "9704477B7252FE47503545F3A9A1CEF80D7CA71EE2DD157041391F764DE5377E"
+        }
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "dependency gate, collision-free three-path claim, Terra implementation and Sol review"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "actual": {
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "evidence": "root surface"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "evidence": "read-only recon complete; implementation pending"
+          },
+          "review": {
+            "model": "pending",
+            "depth": "deep",
+            "result": "pending"
+          }
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "static AST reads of repository Python sources only",
+        "observed_at": "2026-07-23T20:14:24+02:00",
+        "authority": "repo",
+        "mutation_class": "safe_offline",
+        "required": [
+          "deterministic_runtime_caller_inventory",
+          "composition_startup_read_write_lifecycle_context_health_admin_backend_and_exclusion_classification",
+          "source_file_hashes",
+          "zero_unclassified_candidates",
+          "prior_usi00_inventory_unchanged",
+          "no_module_imports",
+          "focused_test",
+          "drift_check"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true,
+        "recon": "The originally declared JSON path is the USI-00 overlap inventory and has its own full-document deterministic generator. UIR-00 was amended to a dedicated new runtime-caller inventory path, preventing two writers and preserving the accepted overlap audit unchanged. Dynamic plugin provider resolution remains an explicit generic boundary rather than an inferred concrete provider."
+      },
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_audit_unified_source_index_runtime.py",
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe scripts\\audit_unified_source_index_runtime.py --check",
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe scripts\\audit_unified_source_index_overlap.py --check",
+        "git diff --check -- docs/plans/unified-source-index-runtime-caller-inventory.json scripts/audit_unified_source_index_runtime.py tests/test_audit_unified_source_index_runtime.py"
+      ],
+      "done_when": "One deterministic static-AST inventory classifies every current direct RAG, MemoryVector, Personal Docs and generic context caller plus composition, lifecycle, health, admin, backend, scheduler and background seams; every candidate is classified or explicitly excluded with a reason, source hashes are current, no runtime module or private source is read, and the accepted USI-00 overlap inventory remains unchanged and green."
     },
     {
       "id": "TAX0-deterministic-inventory",

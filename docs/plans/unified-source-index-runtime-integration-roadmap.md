@@ -1,8 +1,8 @@
 # Unified Source Index Runtime And Consumer Integration Roadmap
 
-Updated: 2026-07-13
+Updated: 2026-07-23
 
-Status: planned child track; runtime and productive query path default-off
+Status: `UIR-00 claimed`; runtime and productive query path default-off
 
 Parent: `OWM-15` / `0.28.x` Unified Source Index Foundation
 
@@ -140,11 +140,31 @@ shared parent gate.
 
 - Class: `safe_offline`
 - Owner: Charlie
-- Status: `ready_after_goal_start`
+- Status: `claimed_2026-07-23`
+- Dependency audit: `Active Open-Work goal; USI-00 through USI-14 accepted;
+  read-only recon found no active writer on the three new worker paths`
+- Serialized claim:
+  - run_id: `abc-uir00-20260723T201424+0200`
+  - thread_id: `/root`
+  - owner: `Charlie`
+  - state: `claimed`
+  - acquired_at: `2026-07-23T20:14:24+02:00`
+  - lease_expires_at: `2026-07-24T00:14:24+02:00`
+  - worktree: `C:\tmp\odysseus-abc-usi09-20260723`
+  - allowed_paths: `docs/plans/unified-source-index-runtime-caller-inventory.json`,
+    `scripts/audit_unified_source_index_runtime.py`, and
+    `tests/test_audit_unified_source_index_runtime.py`
+  - excluded_paths: the accepted USI-00 overlap inventory and generator, every
+    existing app/route/runtime/RAG/MemoryVector/Personal Docs/context/tool/
+    provider/config implementation, productive database/source/data directory,
+    runtime/worker/process, provider/network/deploy and live path
+  - collision_resolution: `The old declared runtime-inventory path belongs to
+    USI-00 and has a full-document deterministic generator. UIR-00 now owns a
+    dedicated new runtime-caller inventory so both audits remain single-writer.`
 - Dependencies: explicit goal; current hotfile claims and dirty work inspected
 - Allowed paths:
   - `docs/plans/unified-source-index-runtime-integration-roadmap.md`
-  - `docs/plans/unified-source-index-runtime-inventory.json`
+  - `docs/plans/unified-source-index-runtime-caller-inventory.json`
   - `scripts/audit_unified_source_index_runtime.py`
   - `tests/test_audit_unified_source_index_runtime.py`
 - Work:
