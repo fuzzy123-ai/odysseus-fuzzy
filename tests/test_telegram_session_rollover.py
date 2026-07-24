@@ -4,15 +4,16 @@ import hmac
 import json
 
 import pytest
-from sqlalchemy import create_engine, delete, inspect, update
+from sqlalchemy import create_engine, delete, insert, inspect, update
 from sqlalchemy.orm import sessionmaker
 
 from core import database as database_module
 from core import database_migrations
-from core.database import Base, Session
+from core.database import Base, ChatMessage, Session
 from plugins.telegram.stores import DbAuthoritativeTelegramSessionBridge, TelegramRolloverBridgeError
 
 from src.telegram_session_rollover import (
+    AtomicTelegramSessionRolloverService,
     ReasonCode,
     LedgerError,
     RolloverConfig,
@@ -1183,6 +1184,182 @@ def test_legacy_bridge_projects_stable_handles_atomically_and_blocks_multi_owner
     ]
     assert len(blocked_alice) == 3
     assert {row["projection_status"] for row in blocked_alice} == {"blocked_multi_owner"}
+
+
+def _a4_service_binding(database, *, owner="alice", scope="normal", session_id="session-old"):
+    ledger = TelegramRolloverLedger(database, KEY)
+    binding = ledger.get_or_create_binding(
+        owner_reference=owner_ref(KEY, owner),
+        chat_reference=chat_handle_ref(KEY, "chat_012345abcdef"),
+        scope=scope,
+        active_session_id=session_id,
+        active_rollover_local_day="2026-07-23",
+    )
+    database.commit()
+    return binding
+
+
+def _a4_service(database):
+    return AtomicTelegramSessionRolloverService(
+        database=database,
+        config=RolloverConfig(enabled=True, reference_key=KEY),
+    )
+
+
+def test_atomic_rollover_creates_one_session_archives_old_and_advances_binding():
+    database = _a3_database(("session-old", "alice"))
+    binding = _a4_service_binding(database)
+    TelegramRolloverLedger(database, KEY).reserve_or_get_rollover(
+        binding_id=binding.id,
+        rollover_local_day="2026-07-24",
+        expected_generation=0,
+        state=RolloverState.DEFERRED_ACTIVE_TURN,
+        attempt_count=1,
+        retry_after=datetime.now(timezone.utc) + timedelta(minutes=5),
+        reason_code=ReasonCode.ACTIVE_TURN,
+        max_attempts=8,
+    )
+    database.add(ChatMessage(id="old-message", session_id="session-old", role="user", content="synthetic"))
+    database.execute(update(Session.__table__).where(Session.__table__.c.id == "session-old").values(
+        headers={"Authorization": "never-copy"}, rag=True, folder="never-copy",
+        is_important=True, mode="agent", crew_member_id="never-copy",
+        total_input_tokens=91, total_output_tokens=17,
+    ))
+    database.commit()
+    database.execute(Session.__table__.select())
+    with pytest.raises(LedgerError, match="rollover_requires_clean_transaction"):
+        _a4_service(database).rotate_binding(
+            binding_id=binding.id, rollover_local_day="2026-07-24", replacement_session_id="dirty-refusal"
+        )
+    database.rollback()
+    result = _a4_service(database).rotate_binding(
+        binding_id=binding.id,
+        rollover_local_day="2026-07-24",
+        replacement_session_id="session-replacement",
+    )
+    assert result.status == "committed"
+    database.commit()
+    rows = database.execute(Session.__table__.select()).mappings().all()
+    assert {row["id"] for row in rows} == {"session-old", "session-replacement"}
+    assert next(row for row in rows if row["id"] == "session-old")["archived"] is True
+    replacement = next(row for row in rows if row["id"] == "session-replacement")
+    assert replacement["headers"] == {} and replacement["rag"] is False
+    assert replacement["folder"] is None and replacement["is_important"] is False
+    assert replacement["mode"] is None and replacement["crew_member_id"] is None
+    assert replacement["total_input_tokens"] == 0 and replacement["total_output_tokens"] == 0
+    messages = database.execute(ChatMessage.__table__.select()).mappings().all()
+    assert [message["session_id"] for message in messages] == ["session-old"]
+    persisted = database.execute(database_module.TelegramSessionBinding.__table__.select()).mappings().one()
+    assert persisted["active_session_id"] == "session-replacement"
+    assert persisted["generation"] == 1 and persisted["projection_status"] == "stale"
+    rollover = database.execute(database_module.TelegramSessionRollover.__table__.select()).mappings().one()
+    assert rollover["status"] == "committed" and rollover["new_session_id"] == "session-replacement"
+    fresh = sessionmaker(bind=database.get_bind(), autoflush=False)()
+    try:
+        assert fresh.execute(Session.__table__.select().where(Session.__table__.c.id == "session-replacement")).mappings().one()["archived"] is False
+    finally:
+        fresh.close()
+
+
+def test_atomic_rollover_uniqueness_loser_reloads_winner_without_second_session(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'rollover-winner.sqlite'}")
+    Base.metadata.create_all(bind=engine)
+    factory = sessionmaker(bind=engine, autoflush=False)
+    database = factory()
+    database.add(Session(
+        id="session-old", name="Synthetic", endpoint_url="http://synthetic.invalid",
+        model="synthetic", owner="alice",
+    ))
+    database.commit()
+    binding = _a4_service_binding(database)
+    assert _a4_service(database).rotate_binding(
+        binding_id=binding.id, rollover_local_day="2026-07-24", replacement_session_id="session-winner"
+    ).status == "committed"
+    loser_database = factory()
+    with pytest.raises(LedgerError, match="database_busy"):
+        _a4_service(loser_database).rotate_binding(
+            binding_id=binding.id, rollover_local_day="2026-07-24", replacement_session_id="session-loser"
+        )
+    database.commit()
+    loser_database.rollback()
+    loser_database.execute(update(Session.__table__).where(Session.__table__.c.id == "session-winner").values(owner="bob"))
+    loser_database.commit()
+    winner = _a4_service(loser_database).rotate_binding(
+        binding_id=binding.id, rollover_local_day="2026-07-24", replacement_session_id="session-loser"
+    )
+    assert winner.status == "committed" and winner.new_session_id == "session-winner"
+    loser_database.commit()
+    assert {row["id"] for row in loser_database.execute(Session.__table__.select()).mappings().all()} == {
+        "session-old", "session-winner"
+    }
+    loser_database.close()
+    database.close()
+
+
+def test_atomic_rollover_rejects_owner_scope_or_security_mismatch_without_mutation():
+    owner_mismatch = _a3_database(("session-old", "alice"))
+    binding = _a4_service_binding(owner_mismatch)
+    owner_mismatch.execute(update(Session.__table__).where(Session.__table__.c.id == "session-old").values(owner="bob"))
+    owner_mismatch.commit()
+    blocked = _a4_service(owner_mismatch).rotate_binding(
+        binding_id=binding.id, rollover_local_day="2026-07-24", replacement_session_id="never-owner"
+    )
+    owner_mismatch.commit()
+    assert blocked.status == "blocked_invalid_binding"
+    assert owner_mismatch.execute(Session.__table__.select()).mappings().all()[0]["archived"] is False
+
+    secure = _a3_database(("session-old", "alice"))
+    secure_binding = _a4_service_binding(secure, scope="secure")
+    blocked_secure = _a4_service(secure).rotate_binding(
+        binding_id=secure_binding.id, rollover_local_day="2026-07-24", replacement_session_id="never-secure"
+    )
+    secure.commit()
+    assert blocked_secure.status == "blocked_security_policy"
+    assert {row["id"] for row in secure.execute(Session.__table__.select()).mappings().all()} == {"session-old"}
+
+    secure_valid = _a3_database(("session-old", "alice"))
+    secure_valid.execute(update(Session.__table__).where(Session.__table__.c.id == "session-old").values(
+        endpoint_url="http://host.docker.internal:11434/v1", model="synthetic"
+    ))
+    secure_valid.commit()
+    valid_binding = _a4_service_binding(secure_valid, scope="secure")
+    assert _a4_service(secure_valid).rotate_binding(
+        binding_id=valid_binding.id, rollover_local_day="2026-07-24", replacement_session_id="secure-valid"
+    ).status == "committed"
+
+    tampered = _a3_database(("session-old", "alice"))
+    tampered_binding = _a4_service_binding(tampered)
+    tampered.execute(insert(database_module.TelegramSessionRollover.__table__).values(
+        id="r1_" + "f" * 32,
+        binding_id=tampered_binding.id,
+        rollover_local_day="2026-07-24",
+        status="deferred_active_turn",
+        old_session_id="session-old",
+        attempt_count=1,
+        retry_after=datetime.now(timezone.utc) + timedelta(minutes=5),
+        reason_code="active_turn",
+    ))
+    tampered.commit()
+    with pytest.raises(LedgerError, match="invalid_rollover_identity"):
+        _a4_service(tampered).rotate_binding(
+            binding_id=tampered_binding.id, rollover_local_day="2026-07-24", replacement_session_id="never-tampered"
+        )
+    tampered.rollback()
+
+
+def test_atomic_rollover_rolls_back_session_binding_archive_and_terminal_row_together():
+    database = _a3_database(("session-old", "alice"))
+    binding = _a4_service_binding(database)
+    assert _a4_service(database).rotate_binding(
+        binding_id=binding.id, rollover_local_day="2026-07-24", replacement_session_id="rolled-back"
+    ).status == "committed"
+    database.rollback()
+    persisted = database.execute(database_module.TelegramSessionBinding.__table__.select()).mappings().one()
+    assert persisted["active_session_id"] == "session-old" and persisted["generation"] == 0
+    old = database.execute(Session.__table__.select().where(Session.__table__.c.id == "session-old")).mappings().one()
+    assert old["archived"] is False
+    assert {row["id"] for row in database.execute(Session.__table__.select()).mappings().all()} == {"session-old"}
+    assert database.execute(database_module.TelegramSessionRollover.__table__.select()).mappings().all() == []
 
 
 def test_rollover_config_is_default_off_and_invalid_values_fail_closed():

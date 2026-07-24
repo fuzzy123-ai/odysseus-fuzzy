@@ -13,12 +13,14 @@ from enum import Enum
 import hashlib
 import hmac
 import re
+import uuid
 from types import MappingProxyType
 from typing import Any, Mapping, Sequence
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import exists, func, insert, literal, select, update
 from sqlalchemy.exc import IntegrityError
+from src.secure_provider_runtime import SecureProviderRuntimeError, enforce_session_provider_runtime_gate
 
 
 DEFAULT_TIMEZONE = "Europe/Berlin"
@@ -490,6 +492,17 @@ class LedgerTurnIntake:
     reason_code: ReasonCode | None
 
 
+@dataclass(frozen=True)
+class AtomicRolloverResult:
+    """Internal result of the default-off Session lifecycle transaction."""
+
+    status: str
+    binding_id: str | None = None
+    old_session_id: str | None = None
+    new_session_id: str | None = None
+    generation: int | None = None
+
+
 class TelegramRolloverLedger:
     """A transaction-neutral repository over caller-owned SQLAlchemy state.
 
@@ -545,6 +558,23 @@ class TelegramRolloverLedger:
             raise
         except Exception as error:
             raise LedgerError("projection_transaction_unavailable") from error
+
+    def begin_atomic_rollover_transaction(self) -> None:
+        """Acquire the caller-owned write boundary before lifecycle reads."""
+
+        try:
+            if self._database.in_transaction():
+                raise LedgerError("rollover_requires_clean_transaction")
+            bind = self._database if hasattr(self._database, "dialect") else self._database.get_bind()
+            if getattr(getattr(bind, "dialect", None), "name", None) == "sqlite":
+                connection = self._database if hasattr(self._database, "dialect") else self._database.connection()
+                connection.exec_driver_sql("BEGIN IMMEDIATE")
+            else:
+                self._database.begin()
+        except LedgerError:
+            raise
+        except Exception as error:
+            raise LedgerError("database_busy") from error
 
     def session_belongs_to_owner(self, *, session_id: str, owner_reference: str) -> bool:
         """Verify one Session relationship without exposing the database handle."""
@@ -1110,6 +1140,219 @@ class TelegramRolloverLedger:
         return binding
 
 
+class AtomicTelegramSessionRolloverService:
+    """Explicit, default-off atomic replacement Session coordinator.
+
+    This is deliberately not wired to polling, routes, providers, or the
+    legacy Telegram adapter.  Its supplied SQLAlchemy Session/Connection owns
+    the final commit or rollback.
+    """
+
+    def __init__(self, *, database: Any, config: RolloverConfig):
+        self._database = database
+        self._config = config
+
+    def rotate_binding(
+        self,
+        *,
+        binding_id: str,
+        rollover_local_day: str,
+        replacement_session_id: str | None = None,
+    ) -> AtomicRolloverResult:
+        if not self._config.enabled or self._config.reference_key is None:
+            return AtomicRolloverResult("disabled")
+        _validate_policy_config(self._config)
+        _validate_binding_id(binding_id)
+        _validate_local_day(rollover_local_day)
+        replacement_id = replacement_session_id or uuid.uuid4().hex
+        _validate_internal_id(replacement_id, "replacement_session_id")
+        ledger = TelegramRolloverLedger(self._database, self._config.reference_key)
+        ledger.begin_atomic_rollover_transaction()
+        ledger.verify_reference_key()
+        tables = ledger._verified_tables()
+        binding_row = _select_one(self._database, tables["binding"], tables["binding"].c.id == binding_id)
+        if binding_row is None:
+            raise LedgerError("binding_not_found")
+        binding = _binding_from_row(binding_row)
+        expected_binding_id = _ledger_opaque_id(
+            ledger._reference_key,
+            "ttd07a-binding",
+            (binding.owner_ref, binding.chat_handle_ref, binding.scope),
+            "b1",
+        )
+        if not hmac.compare_digest(binding.id, expected_binding_id):
+            raise LedgerError("invalid_binding_identity")
+        existing_rollover = _select_one(
+            self._database,
+            tables["rollover"],
+            tables["rollover"].c.binding_id == binding.id,
+            tables["rollover"].c.rollover_local_day == rollover_local_day,
+        )
+        observed_deferred_status: RolloverState | None = None
+        if existing_rollover is not None:
+            observed = _rollover_from_row(existing_rollover)
+            expected_rollover_id = _ledger_opaque_id(
+                ledger._reference_key,
+                "ttd07a-rollover",
+                (binding.id, rollover_local_day),
+                "r1",
+            )
+            if (
+                observed.binding_id != binding.id
+                or observed.rollover_local_day != rollover_local_day
+                or not hmac.compare_digest(observed.id, expected_rollover_id)
+            ):
+                raise LedgerError("invalid_rollover_identity")
+            if observed.status in {
+                RolloverState.COMMITTED,
+                RolloverState.BLOCKED_INVALID_BINDING,
+                RolloverState.BLOCKED_SECURITY_POLICY,
+            }:
+                return AtomicRolloverResult(
+                    observed.status.value, binding.id, observed.old_session_id,
+                    observed.new_session_id, binding.generation,
+                )
+            if observed.old_session_id != binding.active_session_id:
+                raise LedgerError("invalid_deferred_rollover_binding")
+            observed_retry = observed.retry_after
+            if observed_retry is not None and (observed_retry.tzinfo is None or observed_retry.utcoffset() is None):
+                observed_retry = observed_retry.replace(tzinfo=ZoneInfo("UTC"))
+            transition = advance_rollover_state(
+                RolloverRecord(observed.status, observed.attempt_count, observed_retry, observed.reason_code),
+                event=RolloverEvent.READY,
+                now=datetime.now(ZoneInfo("UTC")),
+                config=self._config,
+            )
+            if not transition.commit_eligible:
+                raise LedgerError("invalid_deferred_rollover")
+            observed_deferred_status = observed.status
+        session_table = tables["session"]
+        old = _select_one(self._database, session_table, session_table.c.id == binding.active_session_id)
+        if old is None or not _atomic_session_owner_scope_valid(old, binding, ledger._reference_key):
+            return self._block_without_reservation(tables, binding, rollover_local_day, ReasonCode.INVALID_BINDING)
+        if binding.scope == "secure":
+            try:
+                enforce_session_provider_runtime_gate(
+                    security_mode="secure",
+                    session_id=binding.active_session_id,
+                    owner=old["owner"],
+                    provider_base_url=old["endpoint_url"],
+                    model_id=old["model"],
+                    settings={},
+                )
+            except (SecureProviderRuntimeError, TypeError, ValueError):
+                return self._block_without_reservation(tables, binding, rollover_local_day, ReasonCode.SECURITY_POLICY)
+        reservation = ledger.reserve_or_get_rollover(
+            binding_id=binding.id,
+            rollover_local_day=rollover_local_day,
+            expected_generation=binding.generation,
+            state=RolloverState.DEFERRED_ACTIVE_TURN,
+            attempt_count=1,
+            retry_after=datetime.now(ZoneInfo("UTC")) + timedelta(seconds=self._config.retry_seconds),
+            reason_code=ReasonCode.ACTIVE_TURN,
+            max_attempts=self._config.max_attempts,
+        )
+        if reservation.status not in {
+            RolloverState.DEFERRED_ACTIVE_TURN,
+            RolloverState.DEFERRED_EXHAUSTED,
+        }:
+            return AtomicRolloverResult(
+                reservation.status.value,
+                binding.id,
+                reservation.old_session_id,
+                reservation.new_session_id,
+                binding.generation,
+            )
+        if _select_one(self._database, session_table, session_table.c.id == replacement_id) is not None:
+            raise LedgerError("replacement_id_conflict")
+        self._database.execute(insert(session_table).values(
+            id=replacement_id,
+            name="Telegram rollover session",
+            endpoint_url=old["endpoint_url"],
+            model=old["model"],
+            owner=old["owner"],
+            rag=False,
+            archived=False,
+            headers={},
+            message_count=0,
+            total_input_tokens=0,
+            total_output_tokens=0,
+            is_important=False,
+            folder=None,
+        ))
+        binding_table = tables["binding"]
+        changed = self._database.execute(
+            update(binding_table).where(
+                binding_table.c.id == binding.id,
+                binding_table.c.generation == binding.generation,
+            ).values(
+                active_session_id=replacement_id,
+                active_rollover_local_day=rollover_local_day,
+                generation=binding.generation + 1,
+                projection_status="stale",
+                projection_generation=binding.generation + 1,
+                updated_at=_ledger_now(),
+            )
+        )
+        if changed.rowcount != 1:
+            raise LedgerError("stale_generation_fence")
+        archived = self._database.execute(
+            update(session_table).where(
+                session_table.c.id == binding.active_session_id,
+                session_table.c.archived.is_(False),
+            ).values(
+                archived=True, updated_at=_ledger_now()
+            )
+        )
+        if archived.rowcount != 1:
+            raise LedgerError("archive_write_failed")
+        rollover_table = tables["rollover"]
+        committed = self._database.execute(
+            update(rollover_table).where(
+                rollover_table.c.id == reservation.id,
+                rollover_table.c.status == (
+                    observed_deferred_status or RolloverState.DEFERRED_ACTIVE_TURN
+                ).value,
+            ).values(
+                status=RolloverState.COMMITTED.value,
+                new_session_id=replacement_id,
+                retry_after=None,
+                reason_code=None,
+                committed_at=_ledger_now(),
+                updated_at=_ledger_now(),
+            )
+        )
+        if committed.rowcount != 1:
+            raise LedgerError("stale_row_state")
+        return AtomicRolloverResult(
+            "committed", binding.id, binding.active_session_id, replacement_id, binding.generation + 1
+        )
+
+    def _block_without_reservation(
+        self, tables: Mapping[str, Any], binding: LedgerBinding, local_day: str, reason: ReasonCode
+    ) -> AtomicRolloverResult:
+        state = RolloverState.BLOCKED_SECURITY_POLICY if reason is ReasonCode.SECURITY_POLICY else RolloverState.BLOCKED_INVALID_BINDING
+        table = tables["rollover"]
+        existing = _select_one(self._database, table, table.c.binding_id == binding.id, table.c.rollover_local_day == local_day)
+        if existing is not None:
+            return AtomicRolloverResult(
+                str(existing["status"]), binding.id, str(existing["old_session_id"]),
+                existing.get("new_session_id"), binding.generation,
+            )
+        if existing is None:
+            self._database.execute(insert(table).values(
+                id=_ledger_opaque_id(self._config.reference_key, "ttd07a-rollover", (binding.id, local_day), "r1"),
+                binding_id=binding.id,
+                rollover_local_day=local_day,
+                status=state.value,
+                old_session_id=binding.active_session_id,
+                attempt_count=0,
+                retry_after=None,
+                reason_code=reason.value,
+            ))
+        return AtomicRolloverResult(state.value, binding.id, binding.active_session_id, None, binding.generation)
+
+
 def create_or_get_binding(database: Any, reference_key: bytes, **kwargs: Any) -> LedgerBinding:
     """Caller-injected convenience wrapper for immutable binding creation."""
 
@@ -1580,6 +1823,24 @@ def _session_belongs_to_owner(
         return False
     try:
         return hmac.compare_digest(owner_ref(reference_key, row["owner"]), owner_reference)
+    except ReferenceError:
+        return False
+
+
+def _atomic_session_owner_scope_valid(
+    row: Mapping[str, Any], binding: LedgerBinding, reference_key: bytes
+) -> bool:
+    owner = row.get("owner")
+    endpoint = row.get("endpoint_url")
+    model = row.get("model")
+    if row.get("archived") is not False:
+        return False
+    if not isinstance(owner, str) or not owner.strip() or not isinstance(endpoint, str) or not endpoint.strip():
+        return False
+    if not isinstance(model, str) or not model.strip():
+        return False
+    try:
+        return hmac.compare_digest(owner_ref(reference_key, owner), binding.owner_ref)
     except ReferenceError:
         return False
 

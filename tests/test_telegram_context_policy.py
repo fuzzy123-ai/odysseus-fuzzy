@@ -12,6 +12,10 @@ from src.telegram_context_policy import (
     TELEGRAM_CONTEXT_POLICY_SCHEMA,
     build_telegram_turn_context,
 )
+from src.telegram_session_rollover import (
+    AtomicTelegramSessionRolloverService,
+    RolloverConfig,
+)
 
 
 def test_context_bounds_recency_and_final_current_user_after_trim():
@@ -44,6 +48,17 @@ def test_context_bounds_recency_and_final_current_user_after_trim():
     ]
     assert current_positions == [len(trimmed) - 1]
     assert trimmed[0].get("_protected") is True
+
+
+def test_atomic_rollover_service_remains_default_off_without_continuity_or_route_activation():
+    config = RolloverConfig.from_mapping({})
+    assert config.enabled is False and config.continuity_enabled is False
+    service = AtomicTelegramSessionRolloverService(database=object(), config=config)
+    assert service.rotate_binding(binding_id="b1_" + "0" * 32, rollover_local_day="2026-07-24").status == "disabled"
+    with pytest.raises(ValueError, match="invalid_rollover_config"):
+        AtomicTelegramSessionRolloverService(
+            database=object(), config=RolloverConfig(enabled=True, reference_key=b"short")
+        ).rotate_binding(binding_id="b1_" + "0" * 32, rollover_local_day="2026-07-24")
 
 
 def test_system_summaries_are_omitted_and_supplemental_stays_untrusted():
