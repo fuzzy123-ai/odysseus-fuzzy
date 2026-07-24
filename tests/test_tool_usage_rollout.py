@@ -121,8 +121,9 @@ def test_machine_report_is_redacted_and_does_not_authorize_live_actions():
         "authorization:",
         "token=",
         "password=",
-        "h1_owner_",
-        "h1_session_",
+        "h1_",
+        "tue_",
+        "tui_",
     ):
         assert marker not in rendered
 
