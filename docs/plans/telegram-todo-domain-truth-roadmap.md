@@ -12,10 +12,11 @@ akzeptiert. Der read-only `TTD-05`-Recon ist abgeschlossen und hat die Arbeit
 seriell getrennt: `TTD-05A` ist fuer content-free Digest-Mitgliedschaft auf
 exakt zehn Pfaden nach drei Sol-Grenzrunden akzeptiert. Der read-only
 `TTD-05B` ist nach zwei tiefen Sol-Runden und einem unabhaengigen finalen
-Zweier-Check auf exakt zehn Pfaden akzeptiert. Der read-only `TTD-06`-Recon
-ist abgeschlossen; ein frischer disjunkter Drei-Pfad-Slice fuer Audit und
-nicht anwendbaren Repair-Preview ist geclaimt.
-der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
+Zweier-Check auf exakt zehn Pfaden akzeptiert. `TTD-06` ist nach frischem
+Recon, vier tiefen Sol-Korrekturrunden und einem finalen fokussierten
+Sechser-Check auf exakt drei neuen Pfaden akzeptiert; Audit und
+Repair-Preview bleiben strikt read-only und nicht anwendbar.
+Der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
 Audit-Store ist nach drei tiefen Sol-Review-Runden ebenfalls akzeptiert.
@@ -964,23 +965,28 @@ Akzeptanz:
 
 Owner: Alice fuer Operator-Sprache, Bob fuer read-only Audit
 
-Status: `TTD-06-read-only-drift-audit-and-repair-preview` ist nach frischem
-Recon am `2026-07-24T11:51:56+02:00` auf drei neuen Pfaden geclaimt.
+Status: `TTD-06-read-only-drift-audit-and-repair-preview` ist am
+`2026-07-24T12:22:13+02:00` akzeptiert und der Claim ist freigegeben.
 
 Serialisierter Claim:
 
 - Run: `abc-ttd06-20260724T115156+0200`
-- Lease: bis `2026-07-24T15:51:56+02:00`
+- Claim: `2026-07-24T11:51:56+02:00` bis
+  `2026-07-24T12:22:13+02:00`
+- Route: `/abc`; Bob lief explizit als `gpt-5.6-terra` mit `high`, Root/Sol
+  reviewte tief.
 - Worker-Pfade:
-  - neuer `src/todo_state_drift_audit.py`
-  - neuer `scripts/audit_todo_state_drift.py`
-  - neuer `tests/test_todo_state_drift_audit.py`
+  - `src/todo_state_drift_audit.py`
+  - `scripts/audit_todo_state_drift.py`
+  - `tests/test_todo_state_drift_audit.py`
 - Root-owned Operator-Sprache und Acceptance:
-  - neuer `docs/plans/todo-state-drift-audit-runbook.md`
+  - `docs/plans/todo-state-drift-audit-runbook.md`
   - diese Roadmap, Open-Work-Master und Multi-Agent-Guidance
+- Implementation: `d4255827f79f867b40f96cc3594036ad21037ff8`
 - Der CLI-Standardpfad verlangt exakten Owner sowie explizite Offline-Snapshot-
   Pfade. SQLite wird nur `mode=ro`, Memory-JSON direkt und ohne
-  `MemoryManager` gelesen. Es existiert kein Default auf produktive Daten.
+  `MemoryManager` gelesen. WAL-/SHM-behaftete oder unvollstaendige Snapshots
+  werden blockiert. Es existiert kein Default auf produktive Daten.
 - Der Standardreport darf nur begrenzte Counts, Status, domain-separierte
   Hashes, redigierte Refs sowie Snapshot-/Preview-Refs enthalten.
 - Exact Review braucht zwei explizite Flags, bleibt als fluechtig und nicht
@@ -992,6 +998,11 @@ Serialisierter Claim:
   sind ausgeschlossen.
 - Der divergente historische Commit `89bb5555` ist nur Prior Art: entfernte
   Imports und obsolete Digest-Signatur verhindern eine Wholesale-Uebernahme.
+- Sol-Review schloss insbesondere SQLite-Boolean-Paritaet, owner- und
+  listengebundene Identitaet, Legacy-Digest-Refs, active-only Notes,
+  malformed/unsafe Completeness, exakte Snapshot-Bindung, Manifest-Redaction,
+  typstrikte Review-Flags und die aktuelle `items=None`-/fehlendes-`done`-
+  Paritaet des TodoDomainService.
 
 Ziel:
 
@@ -1008,11 +1019,30 @@ Voraussichtliche Pfade:
 
 Akzeptanz:
 
-- Standardlauf ist read-only.
-- Persistierte Evidence enthaelt nur Counts, Status, Hashes und redigierte Refs.
-- Exakte private Inhalte erscheinen nur in einem nicht persistierten,
-  operator-autorisierten Review-Pfad.
-- Apply ist technisch getrennt und braucht `TTD-LIVE-DATA-REPAIR`.
+- `offline_go_exact_owner_read_only_notes_memory_digest_drift_audit_with_bounded_content_free_snapshot_bound_non_applying_repair_preview`
+- Root/Sol: BOM-aware AST-Parse fuer alle drei Pfade sowie zwei fokussierte
+  Dreier-Batches gruen:
+  - active/archived/unsafe/Legacy-Paritaet, listenlokale Identitaet und
+    typstrikter Exact-Review;
+  - content-free deterministische Datei-Audits, SQLite-Pinned-Digest-Paritaet
+    und CLI-Pflichtpfade/Exitcodes.
+- Je Batch genau drei benannte Nodes; kein breiter Testlauf. Einzig bekannte
+  Warnung ist die bestehende SQLAlchemy-`declarative_base`-Deprecation.
+- `git diff --cached --check` war sauber; Scope exakt drei neue Code-/Testpfade.
+- Standardlauf ist read-only, persistierbare Evidence content-free und der
+  Exact-Review fluechtig/nicht persistierbar.
+- Apply ist technisch nicht vorhanden und braucht spaeter separat Backup,
+  exakten Preview-Review und `TTD-LIVE-DATA-REPAIR`.
+- Kein Push, Deploy, Debian-/Produktivdatenzugriff, Provider, Netzwerk,
+  Telegram-Send oder Live-Smoke.
+
+Naechster Frontier:
+
+- `TTD-07` ist durch das akzeptierte `TTD-04` dependency-ready fuer einen
+  read-only Kontext-/Session-Boundary- und Exaktpfad-Recon. Noch kein
+  Implementierungsclaim.
+- `TTD-07A` wartet weiter auf `TTD-07`; `TTD-09` und `TTD-10` bleiben
+  dependency-blocked. Alle vier Live-Gates bleiben dormant.
 
 ### TTD-07 - Bounded Telegram-Kontext
 
