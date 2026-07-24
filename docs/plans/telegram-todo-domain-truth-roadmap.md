@@ -1,13 +1,16 @@
 # Telegram Todo Domain Truth Roadmap
 
-Stand: 2026-07-23
+Stand: 2026-07-24
 
 Status: `TTD-00` bis `TTD-02` sind am 2026-07-23 akzeptiert. Der read-only
 `TTD-03`-Boundary-Recon ist abgeschlossen.
-`TTD-03A-todo-semantic-receipt-ledger` ist als einziger exakter repo-only
-Frontier-Slice auf neun Pfaden geclaimt. `TTD-03B` wartet auf TTD-03A;
-`TTD-08` bleibt dependency-ready und unselektiert. Spaetere unmet Slices und
-saemtliche Live-Aktionen bleiben gesperrt.
+`TTD-03A-todo-semantic-receipt-ledger` bleibt als einziger exakter repo-only
+Receipt-Slice auf neun Pfaden reserviert. Der unterbrochene Terra-Handoff
+wurde in der tiefen Sol-Pruefung abgelehnt und wartet auf einen neuen
+Terra-Reparaturhandoff. `TTD-03B` wartet weiter auf akzeptiertes TTD-03A;
+der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
+Raw-Klassifikation und content-free Audit-Projektionen ist aktiv geclaimt.
+Spaetere unmet Slices und saemtliche Live-Aktionen bleiben gesperrt.
 
 ## Durable Amendment Claim 2026-07-21
 
@@ -501,7 +504,7 @@ Akzeptanz:
 
 Owner: Bob
 
-Status: `boundary_recon_complete_ttd03a_claimed`
+Status: `boundary_recon_complete_ttd03a_handoff_rejected_waiting_on_terra`
 
 Read-only Boundary-Recon 2026-07-23:
 
@@ -521,7 +524,7 @@ Read-only Boundary-Recon 2026-07-23:
 Serialisierung:
 
 1. `TTD-03A-todo-semantic-receipt-ledger`
-   - Status: `claimed_2026-07-23`
+   - Status: `handoff_rejected_2026-07-24_waiting_on_terra`
    - Run: `abc-ttd03a-20260723T230923+0200`
    - Owner: Bob
    - Exakte Kandidatenpfade:
@@ -558,6 +561,22 @@ Serialisierung:
      `src/tool_result_truth.py`, `src/telegram_truth_gate.py`,
      `plugins/telegram`, Digest/Scheduler, produktive Daten und alle
      Live-Aktionen.
+   - Sol-Review 2026-07-24:
+     - Die fokussierte Suite ist mit 59 Tests gruen; `git diff --check` ist
+       ebenfalls gruen.
+     - Failed, Rejected und Ambiguous koennen noch auf das generische
+       Agent-Tool-Event zurueckfallen und dadurch rohen `manage_todos`-
+       Befehlstext persistieren.
+     - Mutation-Receipts akzeptieren noch ein einzelnes `operation:*`-
+       Evidence-Ref statt des vollstaendigen begrenzten und redigierten
+       Owner/List/Item/Operation-Sets.
+     - List-Receipts sind nicht an redigierte Owner-/List-Evidence gebunden und
+       werden faelschlich wie eine committed Mutation bezeichnet.
+     - Die Agent-Verifier-Wirkung bleibt toolnamenbasiert; `manage_todos list`
+       gilt dort trotz read-only Effect-Matrix noch als effectful.
+     - Nach zwei Worker-Kanalabbruechen wird keine dritte Ersatzdelegation fuer
+       denselben Handoff gestartet. Die neun Pfade bleiben uncommitted und fuer
+       einen spaeteren Terra-Reparaturhandoff reserviert.
 2. `TTD-03B-todo-final-claim-evidence`
    - Abhaengigkeit: akzeptiertes `TTD-03A`
    - Erst nach TTD-03A exakt reconcilen und claimen.
@@ -574,6 +593,22 @@ Recon-Handoff:
 - Naechste Aktion: am naechsten Arbeitspunkt nur
   `TTD-03A-todo-semantic-receipt-ledger` mit den neun exakten Pfaden claimen
 - Kein Push, Deploy, Providerzugriff, produktiver Datenzugriff oder Live-Smoke
+
+Live-Readback 2026-07-24:
+
+- Der kanonische Debian-Zielhost wurde rein lesend als `homebase@debian`,
+  Debian 13, verifiziert.
+- `odysseus-podman.service` und der Auto-Update-Timer sind aktiv; Checkout und
+  Runtime melden denselben Commit `36f00ea5`.
+- Der Server-Checkout auf `dev` liegt einen Commit vor `fuzzy/dev`.
+- Dieser Ahead-Commit ist `36f00ea5` (`Fix agent chat stream
+  instrumentation`). Der aktuelle Feature-Worktree und `fuzzy/dev` haben nur
+  `73972865` als Merge-Base; vor einem spaeteren Deploy ist deshalb eine
+  ancestry-sichere Integration erforderlich, die den serverlokalen Commit
+  nicht ueberschreibt.
+- Es wurde keine Servermutation ausgefuehrt. Das vom Operator gewuenschte
+  Deployment bleibt unzulaessig, solange TTD-03A nicht akzeptiert ist und
+  `TTD-LIVE-DEPLOY` bis zum abgeschlossenen TTD-10-Paket dormant bleibt.
 
 Ziel:
 
@@ -782,7 +817,7 @@ Akzeptanz:
 
 Owner: Charlie
 
-Status: `dependency_ready_not_selected`
+Status: `ttd08a_truthful_classification_and_audit_projection_claimed`
 
 Ziel:
 
@@ -804,6 +839,54 @@ Akzeptanz:
 - Synthetic tests unterscheiden Raw-Conversation-Store und redigiertes Audit.
 - Diagnose-Exports enthalten standardmaessig keinen Raw-Text.
 - Keine Bestandsdatenloeschung oder -migration ohne separates Live-Go.
+
+Read-only Boundary-Recon 2026-07-24:
+
+- `TelegramInboxStore` persistiert Inbound- und Outbound-Text sowie teilweise
+  freie Fehlerwerte in `telegram_history.json`, markiert dieselben Records aber
+  mit `raw_content_visible=false`.
+- Die Admin-Route `/history` gibt `store.history()` ungefiltert zurueck.
+- Die Webhook-Response reicht gespeicherte Message-, Prompt-, Reply- und
+  weitere potenziell rohe Strukturen zurueck.
+- Die globale Telegram-Agent-Session in `app.py`, Polling-Diagnose,
+  Attachment-Spool, Exportdateien sowie Retention/Rotation sind eigene
+  Folgegrenzen und duerfen den ersten Reparaturslice nicht verbreitern.
+
+Serialisierung:
+
+1. `TTD-08A-telegram-history-truthful-classification-and-audit-projection`
+   - Status: `claimed_2026-07-24`
+   - Run: `abc-ttd08a-20260724T080106+0200`
+   - Owner: Charlie
+   - Exakte Pfade:
+     - neuer `plugins/telegram/history_privacy.py`
+     - `plugins/telegram/stores.py`
+     - `plugins/telegram/routes_admin.py`
+     - `plugins/telegram/webhook_service.py`
+     - neuer `tests/test_telegram_history_privacy.py`
+     - `tests/test_telegram_text_boundary.py`
+     - `tests/test_telegram_webhook_service.py`
+     - `tests/test_telegram_plugin.py`
+   - Vertrag:
+     - Der gemischte interne Store wird konservativ und wahrheitsgemaess als
+       Raw-persistiert/Raw-sichtbar klassifiziert.
+     - Eine geschlossene Audit-Allowlist entfernt Text, Caption, Prompt, Reply,
+       Transcript, Exception, Pfad, Token, Identifier und beliebige Extras.
+     - Admin-History und Webhook-Response liefern ausschliesslich diese
+       begrenzte content-free Projektion beziehungsweise ein Receipt.
+     - Interne Raw-History-Consumer und bestehende Dateien bleiben erhalten;
+       keine Migration, Loeschung, Rotation oder Retention-Aktivierung.
+   - Ausgeschlossen: alle TTD-03A-Pfade, `app.py`,
+     `plugins/telegram/plugin.py`, `plugins/telegram/polling.py`, Attachment-
+     und Export-Persistenz, Session-DB/FTS, produktive Daten und Live-Aktionen.
+2. `TTD-08B-audit-retention-size-and-rotation`
+   - Erst nach akzeptiertem TTD-08A reconcilen und claimen.
+   - Eigentlicher separater Audit-Store, fail-safe Retention, Record-/Byte-
+     Limit, atomare Rotation und Legacy-No-Touch-Vertrag.
+3. `TTD-08C-session-attachment-and-export-privacy-boundaries`
+   - Erst nach TTD-08A/08B und explizitem Hotfile-Recon claimen.
+   - Globale Session-/FTS-Klassifikation sowie Attachment-/Export-Retention
+     bleiben getrennt; keine Bestandsmigration oder -loeschung repo-only.
 
 ### TTD-09 - Incident-Regressionssuite
 

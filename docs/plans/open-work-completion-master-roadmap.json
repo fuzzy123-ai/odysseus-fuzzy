@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-23T23:09:23+02:00",
-  "status": "ttd02_accepted_ttd03a_semantic_receipt_ledger_claimed_repo_only",
+  "updated_at": "2026-07-24T08:01:06+02:00",
+  "status": "ttd02_accepted_ttd03a_handoff_rejected_ttd08a_history_privacy_claimed_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd02_accepted_ttd03a_exact_nine_path_claim_active",
+    "queue_status": "ttd03a_reserved_handoff_rejected_ttd08a_exact_eight_path_claim_active",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd02_accepted_ttd03a_claimed_live_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd02_accepted_ttd03a_handoff_rejected_ttd08a_claimed_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,17 +85,18 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "The read-only TTD-03 recon is complete and TTD-03A is durably claimed on exactly nine receipt-adapter, manage_todos facade, narrow Agent-event, Ledger, Effect-Matrix and focused-test paths. TTD-03B, Telegram and Digest remain outside this claim.",
-        "slice": "TTD-03A-todo-semantic-receipt-ledger",
+        "reason": "TTD-03A remains reserved after a rejected handoff. The disjoint dependency-ready TTD-08 boundary recon found that raw Telegram text is persisted in a mixed history store while records claim raw_content_visible=false, and both the admin history route and webhook response expose raw-bearing structures. TTD-08A is now claimed only for truthful raw-store classification plus closed content-free audit projections at those two export boundaries; retention, migration, app session storage, plugin hotfiles and attachment/export persistence remain separate successors.",
+        "slice": "TTD-08A-telegram-history-truthful-classification-and-audit-projection",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "implement_and_focus_test_only_the_nine_exact_ttd03a_paths_no_claim_gate_telegram_digest_productive_data_runtime_deploy_send_or_rollover"
+        "safe_default": "implement_only_the_eight_path_ttd08a_truthful_raw_classification_and_content_free_audit_projection_preserve_ttd03a_and_perform_no_retention_migration_delete_runtime_deploy_send_or_rollover"
       },
       "queue_exhausted": false,
-      "verified_at": "2026-07-23"
+      "verified_at": "2026-07-24"
     },
     "active_claimed_slices": [
-      "TTD-03A-todo-semantic-receipt-ledger"
+      "TTD-03A-todo-semantic-receipt-ledger",
+      "TTD-08A-telegram-history-truthful-classification-and-audit-projection"
     ]
   },
   "non_ui_execution_ledger": {
@@ -955,8 +956,8 @@
       "id": "OWM-22",
       "name": "Telegram Todo Domain Truth And Digest Consistency",
       "priority": 4,
-      "status": "ttd00_through_ttd02_accepted_ttd03a_claimed_live_default_off",
-      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-02 are accepted: the topology is frozen, the canonical owner-scoped atomic service is available through manage_todos, and clear Todo writes fail closed at Memory boundaries. The TTD-03 read-only recon is complete; TTD-03A remains to carry content-free domain receipts into typed Ledger and Effect-Matrix evidence before TTD-03B gates final Todo success claims.",
+      "status": "ttd00_through_ttd02_accepted_ttd03a_handoff_rejected_ttd08a_claimed_live_default_off",
+      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-02 are accepted. TTD-03A remains reserved after its interrupted Terra handoff failed deep Sol review. The disjoint TTD-08 recon additionally proved that a mixed raw Telegram history store falsely labels raw-bearing records as raw_content_visible=false and exposes them through admin history and webhook response surfaces; TTD-08A is claimed for truthful classification and closed audit projections only.",
       "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "source_gate_family": "telegram_todo_truth",
       "dependencies": [
@@ -969,14 +970,14 @@
       "safe_default": "build_and_test_against_synthetic_notes_memory_and_telegram_fixtures_no_production_data_write_deploy_or_send",
       "user_gate_policy": "No user gate in TTD-00 through TTD-10, including TTD-07A. Repository work uses synthetic owner-scoped data and keeps all live actions disabled. Deployment, production data repair, Telegram smoke and productive session rollover are four separate dormant action-specific gates and each requires its own later operator Go.",
       "execution_protocol": {
-        "queue_registration": "TTD-00 through TTD-02 are accepted and the read-only TTD-03 recon is complete. TTD-03A is the only active claim on exactly nine facade-receipt, narrow Agent-event, Ledger, Effect-Matrix and focused-test paths; TTD-03B waits for TTD-03A. TTD-08 remains dependency-ready but unselected, while TTD-04 through TTD-07A and TTD-09 through TTD-10 remain blocked_by_dependency.",
+        "queue_registration": "TTD-00 through TTD-02 are accepted. TTD-03A remains reserved on nine paths after rejected deep Sol review and awaits a later Terra repair; TTD-03B waits for accepted TTD-03A. The disjoint TTD-08A truthful-classification and audit-projection slice is active on exactly eight paths. TTD-08B retention/rotation and TTD-08C app-session/attachment/export boundaries remain unclaimed successors, while TTD-04 through TTD-07A and TTD-09 through TTD-10 remain blocked_by_dependency.",
         "dependency_rule": "Notes remains Todo truth; manage_todos is a domain facade over Notes, Memory rejects Todo storage, Telegram preserves semantic receipts, and every Digest claim requires a read-only include/exclude/schedule postcondition. Daily session rollover limits context but never substitutes old chat prose for domain readback.",
         "scheduling_decision": {
           "operator_priority_effective_at": "2026-07-21",
-          "position": "active_p0_corrective_track_ttd03a_semantic_receipt_ledger_claimed",
-          "implementation_authority": "current_goal_repo_only_no_live_authority"
+          "position": "active_p0_corrective_track_ttd03a_reserved_ttd08a_history_privacy_claimed",
+          "implementation_authority": "current_goal_repo_only_plus_read_only_debian_preflight_no_live_mutation_authority_before_ttd10"
         },
-        "future_goal_command": "/goal Setze OWM-22 Telegram Todo Domain Truth repo-only nach abgeschlossenem TTD-03-Recon fort; claime nur TTD-03A mit den neun exakt dokumentierten Receipt-/Event-/Ledger-/Effect-Matrix-Pfaden und fuehre weder TTD-03B, Produktionsdaten-Korrektur, Deployment, Telegram-Live-Smoke noch produktives Session-Rollover aus."
+        "future_goal_command": "/goal Setze OWM-22 repo-only fort: repariere TTD-03A spaeter nur per frischem Terra-Handoff und bearbeite jetzt den disjunkten TTD-08A-Achtpfad-Slice fuer wahrheitsgemaesse Raw-Klassifikation und content-free Audit-Projektionen; keine Retention, Migration, App-/Plugin-Hotfiles, Produktionsdaten, Deployments, Sends oder produktiven Rollover."
       },
       "activation_contract": {
         "id": "TTD-LIVE-DEPLOY",
@@ -2689,7 +2690,7 @@
       "id": "TTD-03A-todo-semantic-receipt-ledger",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_2026-07-23",
+      "status": "handoff_rejected_2026-07-24_waiting_on_terra",
       "claimable": false,
       "depends_on": [
         "TTD-00 accepted",
@@ -2738,7 +2739,7 @@
           "src/telegram_truth_gate.py",
           "plugins/telegram/plugin.py"
         ],
-        "state": "active",
+        "state": "reserved_handoff_rejected_waiting_on_terra",
         "acquired_at": "2026-07-23T23:09:23+02:00",
         "lease_expires_at": "2026-07-24T03:09:23+02:00",
         "handoff_required": true,
@@ -2754,6 +2755,41 @@
           "tests/test_manage_todos_tool.py": "A0D5D04E345413721513A24DE4EFAA780ABDF2D3AD5781BA2F545137969BFF11",
           "tests/test_tool_transaction_ledger.py": "1E36110D49CC9D0EFC526EF638B955545A349EA60EF4998E8DB3D8A1CF0C373F",
           "tests/test_effectful_tool_matrix.py": "C8E32D647241CE61997FD05CCED29E74B710059EA2029A00A29588C799B18C72"
+        }
+      },
+      "review": {
+        "reviewed_at": "2026-07-24T07:52:05+02:00",
+        "reviewer": "root/Sol",
+        "depth": "deep",
+        "verdict": "rejected_waiting_on_terra",
+        "worker_channel_failures": 2,
+        "focused_tests": "59 passed, 1 existing SQLAlchemy deprecation warning",
+        "diff_check": "green",
+        "material_gaps": [
+          "failed rejected or ambiguous manage_todos outcomes can fall back to the generic Agent tool event and persist raw command text",
+          "mutation receipt validation accepts operation-only evidence instead of requiring bounded redacted owner list item and operation references",
+          "list receipts are not bound to redacted owner and list evidence and are mislabeled as committed mutations",
+          "Agent completion-verifier effect tracking is tool-name based so manage_todos list is still treated as effectful despite the Effect Matrix read-only classification",
+          "focused tests do not cover the privacy fallback exact evidence-set owner/list binding or action-aware verifier behavior"
+        ],
+        "implementation_commit_allowed": false,
+        "acceptance_commit_allowed": false,
+        "live_deploy_allowed": false,
+        "live_readback": {
+          "observed_at": "2026-07-24T07:49:00+02:00",
+          "target": "odysseus-homeserver",
+          "identity": "homebase@debian Debian GNU/Linux 13",
+          "service": "active",
+          "auto_update_timer": "active",
+          "checkout_branch": "dev",
+          "checkout_commit": "36f00ea5f218b440c97594b15b35bd4b3558f667",
+          "runtime_commit": "36f00ea5",
+          "upstream_relation": "ahead_by_one",
+          "ahead_commit_subject": "Fix agent chat stream instrumentation",
+          "current_worktree_merge_base_with_fuzzy_dev": "73972865e5a421ffafc8185d58c84e4407c08a57",
+          "predeploy_reconciliation": "required; the current feature worktree and live dev have diverged and the server-local ahead commit must not be overwritten",
+          "mutation_performed": false,
+          "deploy_gate": "TTD-LIVE-DEPLOY remains dormant until TTD-00 through TTD-10 including TTD-07A are complete"
         }
       },
       "route": {
@@ -2808,6 +2844,114 @@
         "git diff --check -- src/todo_transaction_receipts.py src/tool_domains/todos.py src/agent_loop.py src/tool_transaction_ledger.py src/effectful_tool_matrix.py tests/test_todo_transaction_receipts.py tests/test_manage_todos_tool.py tests/test_tool_transaction_ledger.py tests/test_effectful_tool_matrix.py"
       ],
       "done_when": "One closed content-free semantic receipt envelope carries only accepted Todo snapshot or mutation receipt truth from manage_todos across one narrow Agent event boundary; the transaction ledger derives the exact Todo claim type and verified status only from a valid matching receipt; the Effect Matrix treats list as read-only and mutations as todo_state; generic success, failed, blocked, rejected, conflict and ambiguous outcomes cannot verify Todo claims; and focused synthetic tests prove redaction, bounds, state/action matching and zero out-of-scope runtime or live mutation."
+    },
+    {
+      "id": "TTD-08A-telegram-history-truthful-classification-and-audit-projection",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "claimed_2026-07-24",
+      "claimable": false,
+      "depends_on": [
+        "TTD-00 accepted",
+        "TTD-08 read-only raw conversation, mixed history, admin export and webhook response boundary recon complete",
+        "all eight paths are clean and disjoint from the reserved TTD-03A claim"
+      ],
+      "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "claim": {
+        "run_id": "abc-ttd08a-20260724T080106+0200",
+        "thread_id": "/root",
+        "slice_id": "TTD-08A-telegram-history-truthful-classification-and-audit-projection",
+        "owner": "Charlie",
+        "allowed_paths": [
+          "plugins/telegram/history_privacy.py",
+          "plugins/telegram/stores.py",
+          "plugins/telegram/routes_admin.py",
+          "plugins/telegram/webhook_service.py",
+          "tests/test_telegram_history_privacy.py",
+          "tests/test_telegram_text_boundary.py",
+          "tests/test_telegram_webhook_service.py",
+          "tests/test_telegram_plugin.py"
+        ],
+        "excluded_paths": [
+          "all nine reserved TTD-03A implementation and test paths",
+          "app.py plugins/telegram/plugin.py plugins/telegram/polling.py and every TTD-04 or shared Agent hotfile",
+          "plugins/telegram/live_pipeline.py plugins/telegram/attachments.py plugins/telegram/export.py and all attachment spool or export persistence",
+          "existing history migration deletion retention rotation or rewrite",
+          "session database FTS production data runtime host network deploy Telegram send and every live path",
+          "docs except root-owned claim and review state"
+        ],
+        "hotfiles": [
+          "plugins/telegram/stores.py",
+          "tests/test_telegram_plugin.py"
+        ],
+        "preserved_hotfiles": [
+          "app.py",
+          "plugins/telegram/plugin.py",
+          "plugins/telegram/polling.py",
+          "src/agent_loop.py"
+        ],
+        "state": "active",
+        "acquired_at": "2026-07-24T08:01:06+02:00",
+        "lease_expires_at": "2026-07-24T12:01:06+02:00",
+        "handoff_required": true,
+        "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
+        "new_paths": true,
+        "dependency_sha256": {
+          "plugins/telegram/stores.py": "13C702695BE5A7575EFEF89A18C88EB74799FF027A75A4C91347DAD78E4DAF57",
+          "plugins/telegram/routes_admin.py": "71692DB25F6D6B09FC1B322607B766DF9B54FBD1839EB7DA53BE56D4B0448A18",
+          "plugins/telegram/webhook_service.py": "46CEF9759B1C993064CE77E5F9D3413B974E6B4CFC9AC09B891D02BEFE4DA989",
+          "tests/test_telegram_text_boundary.py": "2FDACD074C9BC346CF0104A6B59C1EF6CED8809A54EF529EB2FF86382F3F1416",
+          "tests/test_telegram_webhook_service.py": "F5B2FF174AA3BA1E652708273F37683A075488DB0D7CE2FD6654D21795CBFD70",
+          "tests/test_telegram_plugin.py": "4BC12E93455A2E1F73FF004FDE34D7472AE97D8663A03BB21AC2E17E13824454"
+        }
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "disjoint privacy-boundary claim, Terra implementation, narrow tests and deep Sol review"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "synthetic Telegram raw history records, audit projections and webhook receipts only",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "mixed raw history records are truthfully classified as raw persisted and raw visible",
+          "one closed audit projection allowlist excludes text caption prompt reply transcript exception path token identifier and arbitrary extra values",
+          "admin history route exposes only the content-free audit projection",
+          "webhook response exposes only a bounded content-free receipt and never echoes stored message prompt reply transcript attachment or exception content",
+          "malformed nested values fail closed without raw passthrough",
+          "internal raw history behavior remains available to existing in-process consumers and no existing file is migrated rewritten deleted or rotated",
+          "no app plugin polling attachment export session database FTS TTD03A productive data runtime or live changes",
+          "focused tests and drift check"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true
+      },
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_telegram_history_privacy.py tests\\test_telegram_text_boundary.py::test_text_history_redacts_chat_and_sender_identifiers tests\\test_telegram_webhook_service.py::test_parse_and_store_webhook_update_appends_redacted_inbound tests\\test_telegram_webhook_service.py::test_build_webhook_response_payload_preserves_public_shape tests\\test_telegram_plugin.py::test_inbox_store_deduplicates_and_returns_history tests\\test_telegram_plugin.py::test_webhook_route_stores_inbound_and_returns_agent_bridge tests\\test_review_gate_routes.py",
+        "git diff --check -- plugins/telegram/history_privacy.py plugins/telegram/stores.py plugins/telegram/routes_admin.py plugins/telegram/webhook_service.py tests/test_telegram_history_privacy.py tests/test_telegram_text_boundary.py tests/test_telegram_webhook_service.py tests/test_telegram_plugin.py"
+      ],
+      "done_when": "The mixed raw Telegram history store is explicitly and conservatively classified as raw-bearing; one closed fail-closed audit projection removes every raw or free-form field; admin history and webhook responses expose only bounded content-free receipts; internal raw history consumers and legacy files are preserved without migration or deletion; and narrow synthetic tests prove the two external boundaries do not leak raw text or identifiers."
     },
     {
       "id": "TAX0-deterministic-inventory",

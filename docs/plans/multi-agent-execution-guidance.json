@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_ttd00_through_ttd02_accepted_ttd03a_semantic_receipt_ledger_claimed",
-      "ai_hint": "This is the current gate authority. TTD-00 through TTD-02 are accepted and TTD-03A is the only active implementation claim on the nine exact documented receipt-adapter, manage_todos facade, narrow Agent-event, Ledger, Effect-Matrix and focused-test paths. Keep TTD-03B waiting, TTD-08 unselected and later unmet successors dependency-blocked. Preserve Notes truth, the accepted Todo service, Memory policy, claim gate and Telegram behavior; no productive-data, runtime, deploy, Telegram-send or other live authority is granted."
+      "state": "owm22_ttd03a_handoff_rejected_ttd08a_history_privacy_claimed",
+      "ai_hint": "This is the current gate authority. TTD-03A remains reserved after rejected deep Sol review. The disjoint TTD-08A eight-path claim is active only for truthful mixed-raw-store classification and closed content-free admin-history/webhook projections. Do not edit app.py, plugin.py, polling, TTD-03A, retention, migration, session DB/FTS, attachment/export persistence or any live path. TTD-08B/08C remain successors and TTD-LIVE-DEPLOY remains dormant through TTD-10."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
@@ -744,8 +744,8 @@
     {
       "path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "profile": "active_serial",
-      "state": "ttd00_through_ttd02_accepted_ttd03a_semantic_receipt_ledger_claimed_live_default_off",
-      "ai_hint": "TTD-00 through TTD-02 are accepted and TTD-03A is the only active implementation claim on the nine exact documented receipt-adapter, manage_todos facade, narrow Agent-event, Ledger, Effect-Matrix and focused-test paths. TTD-03B waits for TTD-03A; keep TTD-08 unselected and later unmet successors dependency-blocked. Notes remains the sole Todo truth; preserve the accepted service, Memory fail-closed policy, claim gate and Telegram behavior, and stop before each independent deploy, production data repair, Telegram smoke or productive rollover gate."
+      "state": "ttd03a_handoff_rejected_ttd08a_truthful_classification_and_audit_projection_claimed_live_default_off",
+      "ai_hint": "TTD-03A remains reserved after rejected deep Sol review. TTD-08A is active on eight disjoint paths for truthful raw-bearing store classification plus fail-closed content-free admin-history and webhook projections. Preserve internal raw consumers and all legacy files; do not add retention, migration, deletion, app/plugin/polling, attachment/export, session DB/FTS, TTD-03A or live changes. TTD-08B/08C and TTD-LIVE-DEPLOY remain blocked."
     },
     {
       "path": "docs/plans/telegram-dual-session-router-hotfix-roadmap.md",
