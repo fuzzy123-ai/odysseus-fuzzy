@@ -12,6 +12,7 @@ from src.todo_transaction_receipts import (
     validated_todo_semantic_receipt_from_event,
 )
 from src.todo_digest_receipts import TODO_DIGEST_RECEIPT_FIELD, build_todo_digest_membership_receipt
+from src.todo_digest_schedule_receipts import TODO_DIGEST_SCHEDULE_RECEIPT_FIELD, build_todo_digest_schedule_receipt
 
 
 def _mutation_result(action, *, transaction_status="committed"):
@@ -285,6 +286,10 @@ def test_generic_success_and_tampered_semantic_events_are_not_todo_evidence():
     tampered["action"] = "complete"
     assert validated_todo_semantic_receipt_from_event(tampered) is None
 
+    tampered = deepcopy(event)
+    tampered[TODO_RECEIPT_FIELD]["evidence_refs"] = ("operation:reopen", "C:/private")
+    assert validated_todo_semantic_receipt_from_event(tampered) is None
+
 
 def test_closed_history_keeps_only_a_valid_digest_postcondition():
     result = attach_todo_semantic_receipt(_mutation_result("add"), "add")
@@ -309,10 +314,34 @@ def test_closed_history_keeps_only_a_valid_digest_postcondition():
     result[TODO_DIGEST_RECEIPT_FIELD] = {"private_text": "nope"}
     assert TODO_DIGEST_RECEIPT_FIELD not in todo_semantic_event(result)
 
-    tampered = deepcopy(event)
-    tampered[TODO_RECEIPT_FIELD]["evidence_refs"] = ("operation:reopen", "C:/private")
-    assert validated_todo_semantic_receipt_from_event(tampered) is None
 
+def test_closed_history_keeps_schedule_receipt_only_when_owner_binds():
+    from datetime import datetime
+    from hashlib import sha256
+    raw = _mutation_result("add")
+    raw["evidence_refs_redacted"] = (
+        f"owner:{sha256(b'alice').hexdigest()[:16]}", "list:fedcba9876543210",
+        "item:0011223344556677", "operation:add",
+    )
+    result = attach_todo_semantic_receipt(raw, "add")
+    schedule = build_todo_digest_schedule_receipt(
+        owner="alice", candidates=[{
+            "id": "private-task", "owner": "alice", "task_type": "action", "action": "todo_digest",
+            "trigger_type": "schedule", "schedule": "cron", "status": "active",
+            "cron_expression": "0 9 * * 1,2,3,4,5", "scheduled_time": "09:00", "next_run": datetime(2026, 7, 25),
+        }], now_utc=datetime(2026, 7, 24),
+    )
+    result[TODO_DIGEST_SCHEDULE_RECEIPT_FIELD] = schedule
+
+    assert todo_semantic_event(result)[TODO_DIGEST_SCHEDULE_RECEIPT_FIELD] == schedule
+    result[TODO_DIGEST_SCHEDULE_RECEIPT_FIELD] = build_todo_digest_schedule_receipt(
+        owner="bob", candidates=[{
+            "id": "bob-task", "owner": "bob", "task_type": "action", "action": "todo_digest",
+            "trigger_type": "schedule", "schedule": "cron", "status": "active",
+            "cron_expression": "0 9 * * 1-5", "scheduled_time": "09:00", "next_run": datetime(2026, 7, 25),
+        }], now_utc=datetime(2026, 7, 24),
+    )
+    assert TODO_DIGEST_SCHEDULE_RECEIPT_FIELD not in todo_semantic_event(result)
 
 @pytest.mark.parametrize("status", ["rejected", "confirmation_required", "unexpected"])
 def test_invalid_todo_history_events_are_closed_and_content_free(status):

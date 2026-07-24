@@ -248,6 +248,7 @@ def test_ambiguous_item_error_exposes_only_candidate_refs(monkeypatch):
 
 
 def test_facade_attaches_a_semantic_receipt_only_after_a_valid_success(monkeypatch):
+    from src import calendar_capability_service
     class SemanticService:
         def complete(self, **_kwargs):
             return SimpleNamespace(
@@ -270,6 +271,7 @@ def test_facade_attaches_a_semantic_receipt_only_after_a_valid_success(monkeypat
             )
 
     monkeypatch.setattr(todos, "_service_factory", SemanticService)
+    monkeypatch.setattr(calendar_capability_service, "build_todo_digest_schedule_postcondition", lambda **_kwargs: None)
 
     result = _run({"action": "complete", "list_ref": "x", "item_ref": "y"})
 
@@ -280,6 +282,7 @@ def test_facade_attaches_a_semantic_receipt_only_after_a_valid_success(monkeypat
 
 def test_facade_attaches_only_a_valid_fresh_digest_postcondition(monkeypatch):
     from src import builtin_actions
+    from src import calendar_capability_service
     from src.todo_digest_receipts import build_todo_digest_membership_receipt
 
     class SemanticService:
@@ -314,12 +317,47 @@ def test_facade_attaches_only_a_valid_fresh_digest_postcondition(monkeypatch):
 
     monkeypatch.setattr(todos, "_service_factory", SemanticService)
     monkeypatch.setattr(builtin_actions, "build_todo_digest_item_postcondition", fresh)
+    monkeypatch.setattr(calendar_capability_service, "build_todo_digest_schedule_postcondition", lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("private schedule failure")))
 
     result = _run({"action": "add", "list_ref": "list-1", "text": "private", "idempotency_key": "key-1"})
 
     assert len(calls) == 1
     assert result["todo_digest_receipt"]["claim_type"] == "todo_digest_contains"
+    assert result["todo_semantic_receipt"]["claim_type"] == "todo_item_created"
+    assert "todo_digest_schedule_receipt" not in result
     assert "private" not in repr(result["todo_digest_receipt"])
+
+
+def test_facade_attaches_a_valid_owner_bound_schedule_receipt_without_db_read(monkeypatch):
+    from datetime import datetime
+    from hashlib import sha256
+    from src import builtin_actions
+    from src import calendar_capability_service
+    from src.todo_digest_schedule_receipts import build_todo_digest_schedule_receipt
+
+    class SemanticService:
+        def add(self, **_kwargs):
+            return SimpleNamespace(to_dict=lambda: {
+                "list_ref": "list-1", "item_ref": "item-9", "operation": "add", "previous_state": None,
+                "current_state": False, "open_count": 1, "transaction_status": "committed", "verified": True,
+                "evidence_refs_redacted": (f"owner:{sha256(b'alice').hexdigest()[:16]}", "list:fedcba9876543210", "item:0011223344556677", "operation:add"),
+            })
+
+    def schedule(**_kwargs):
+        return build_todo_digest_schedule_receipt(owner="alice", candidates=[{
+            "id": "private-task", "owner": "alice", "task_type": "action", "action": "todo_digest",
+            "trigger_type": "schedule", "schedule": "cron", "status": "active",
+            "cron_expression": "0 9 * * 1-5", "scheduled_time": "09:00", "next_run": datetime(2026, 7, 25),
+        }], now_utc=datetime(2026, 7, 24))
+
+    monkeypatch.setattr(todos, "_service_factory", SemanticService)
+    monkeypatch.setattr(builtin_actions, "build_todo_digest_item_postcondition", lambda **_kwargs: None)
+    monkeypatch.setattr(calendar_capability_service, "build_todo_digest_schedule_postcondition", schedule)
+    result = _run({"action": "add", "list_ref": "list-1", "text": "private", "idempotency_key": "key-1"})
+
+    assert result["todo_semantic_receipt"]["claim_type"] == "todo_item_created"
+    assert result["todo_digest_schedule_receipt"]["claim_type"] == "todo_digest_schedule_active"
+    assert "private-task" not in repr(result["todo_digest_schedule_receipt"])
 
 
 def test_facade_attaches_read_verified_list_receipt_with_facade_redacted_refs(monkeypatch):

@@ -4,6 +4,7 @@ import pytest
 
 from src.claim_evidence_gate import build_claim_evidence_correction, evaluate_response_claims
 from src.todo_digest_receipts import TODO_DIGEST_RECEIPT_FIELD, build_todo_digest_membership_receipt
+from src.todo_digest_schedule_receipts import TODO_DIGEST_SCHEDULE_RECEIPT_FIELD, build_todo_digest_schedule_receipt
 from src.tool_transaction_ledger import ToolTransaction
 
 
@@ -25,7 +26,7 @@ def _todo_event(action: str) -> dict:
         "previous_state": None if action == "add" else False,
         "current_state": current_state,
         "evidence_refs": (
-            "owner:0123456789abcdef",
+            "owner:2bd806c97f0e00af",
             "list:fedcba9876543210",
             "item:0011223344556677",
             f"operation:{action}",
@@ -78,6 +79,22 @@ def _todo_digest_event(action: str) -> dict:
     return event
 
 
+def _todo_next_digest_event(*, include_membership: bool = True, include_schedule: bool = True) -> dict:
+    event = _todo_digest_event("add")
+    if not include_membership:
+        event.pop(TODO_DIGEST_RECEIPT_FIELD)
+    if include_schedule:
+        from datetime import datetime
+        event[TODO_DIGEST_SCHEDULE_RECEIPT_FIELD] = build_todo_digest_schedule_receipt(
+            owner="alice", candidates=[{
+                "id": "private-task", "owner": "alice", "task_type": "action", "action": "todo_digest",
+                "trigger_type": "schedule", "schedule": "cron", "status": "active",
+                "cron_expression": "0 9 * * 1,2,3,4,5", "scheduled_time": "09:00", "next_run": datetime(2026, 7, 25),
+            }], now_utc=datetime(2026, 7, 24),
+        )
+    return event
+
+
 @pytest.mark.parametrize(
     ("text", "action", "claim"),
     [
@@ -121,7 +138,9 @@ def test_digest_claim_language_handles_next_no_longer_and_negation_boundaries(tm
         "The todo item no longer appears in the digest.", [_todo_digest_event("complete")], repo_root=tmp_path
     )
 
-    assert [(item.claim_type, item.status) for item in next_report.findings] == [("todo_digest_schedule_active", "unsupported")]
+    assert [(item.claim_type, item.status) for item in next_report.findings] == [
+        ("todo_digest_contains", "supported"), ("todo_digest_schedule_active", "unsupported"),
+    ]
     assert [(item.claim_type, item.status) for item in exclusion.findings] == [("todo_digest_excludes", "supported")]
     for text in ("The item is not excluded from the digest.", "The item never appears in the digest.", "Die Aufgabe ist nicht ausgeschlossen im Digest."):
         assert evaluate_response_claims(text, [_todo_digest_event("complete")], repo_root=tmp_path).findings == ()
@@ -140,6 +159,60 @@ def test_timed_future_digest_assertion_is_schedule_unsupported_but_requests_are_
 
     assert [(item.claim_type, item.status) for item in concrete.findings] == [("todo_digest_schedule_active", "unsupported")]
     assert request.findings == plain_future.findings == ()
+
+
+def test_exact_time_and_delivery_words_stay_unsupported_even_with_schedule_receipt(tmp_path: Path):
+    for text in ("The todo item appears in the digest at 09:00.", "The todo item appears in the digest and was delivered on Telegram.", "The todo item appears in the digest after provider execution."):
+        report = evaluate_response_claims(text, [_todo_next_digest_event()], repo_root=tmp_path)
+        assert [(item.claim_type, item.status) for item in report.findings] == [("todo_digest_schedule_active", "unsupported")]
+
+
+def test_next_digest_claim_requires_independent_membership_and_schedule_receipts(tmp_path: Path):
+    text = "The todo item appears in the next digest."
+    both = evaluate_response_claims(text, [_todo_next_digest_event()], repo_root=tmp_path)
+    no_membership = evaluate_response_claims(text, [_todo_next_digest_event(include_membership=False)], repo_root=tmp_path)
+    no_schedule = evaluate_response_claims(text, [_todo_next_digest_event(include_schedule=False)], repo_root=tmp_path)
+
+    assert [(item.claim_type, item.status) for item in both.findings] == [
+        ("todo_digest_contains", "supported"), ("todo_digest_schedule_active", "supported"),
+    ]
+    assert [(item.claim_type, item.status) for item in no_membership.findings] == [
+        ("todo_digest_contains", "unsupported"), ("todo_digest_schedule_active", "unsupported"),
+    ]
+    assert [(item.claim_type, item.status) for item in no_schedule.findings] == [
+        ("todo_digest_contains", "supported"), ("todo_digest_schedule_active", "unsupported"),
+    ]
+
+
+def test_next_digest_schedule_receipt_must_share_one_event_and_owner(tmp_path: Path):
+    from datetime import datetime
+    from hashlib import sha256
+    text = "The todo item appears in the next digest."
+    split = evaluate_response_claims(text, [_todo_next_digest_event(include_schedule=False), _todo_next_digest_event(include_membership=False)], repo_root=tmp_path)
+    other_owner = _todo_next_digest_event(include_membership=False, include_schedule=False)
+    bob_ref = f"owner:{sha256(b'bob').hexdigest()[:16]}"
+    other_owner["todo_semantic_receipt"]["evidence_refs"] = (bob_ref, *other_owner["todo_semantic_receipt"]["evidence_refs"][1:])
+    other_owner[TODO_DIGEST_SCHEDULE_RECEIPT_FIELD] = build_todo_digest_schedule_receipt(
+        owner="bob", candidates=[{
+            "id": "bob-task", "owner": "bob", "task_type": "action", "action": "todo_digest",
+            "trigger_type": "schedule", "schedule": "cron", "status": "active",
+            "cron_expression": "0 9 * * 1-5", "scheduled_time": "09:00", "next_run": datetime(2026, 7, 25),
+        }], now_utc=datetime(2026, 7, 24),
+    )
+    cross_owner = evaluate_response_claims(text, [_todo_next_digest_event(include_schedule=False), other_owner], repo_root=tmp_path)
+
+    expected = [("todo_digest_contains", "supported"), ("todo_digest_schedule_active", "unsupported")]
+    assert [(item.claim_type, item.status) for item in split.findings] == expected
+    assert [(item.claim_type, item.status) for item in cross_owner.findings] == expected
+
+
+def test_exact_schedule_implications_override_generic_next_schedule_support_in_any_order(tmp_path: Path):
+    generic = "The todo item appears in the next digest."
+    expected = [("todo_digest_contains", "supported"), ("todo_digest_schedule_active", "unsupported")]
+    for exact in ("The todo item appears in the digest after provider execution.", "The todo item appears in the digest after it runs.", "Die Aufgabe erscheint im Digest und wird versendet."):
+        for text in (f"{generic} {exact}", f"{exact} {generic}"):
+            report = evaluate_response_claims(text, [_todo_next_digest_event()], repo_root=tmp_path)
+            assert [(item.claim_type, item.status) for item in report.findings] == expected
 
 
 def test_file_creation_claim_requires_file_or_tool_evidence(tmp_path: Path):

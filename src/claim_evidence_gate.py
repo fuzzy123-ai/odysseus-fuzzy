@@ -8,7 +8,8 @@ import re
 from typing import Any, Iterable, Mapping
 
 from src.tool_transaction_ledger import transaction_evidence_for_claim, transactions_from_tool_events
-from src.todo_digest_receipts import digest_receipts_from_tool_events
+from src.todo_digest_receipts import digest_receipts_from_tool_events, validated_todo_digest_receipt_from_event
+from src.todo_digest_schedule_receipts import validated_todo_digest_schedule_receipt_from_event
 
 
 _FIRST_PERSON_ACTION_RE = re.compile(
@@ -146,10 +147,11 @@ _TODO_DIGEST_REQUEST_HYPOTHETICAL_RE = re.compile(
     re.IGNORECASE,
 )
 _TODO_DIGEST_TIMING_RE = re.compile(
-    r"\b(?:tomorrow|next|morning|at\s+\d{1,2}(?::\d{2})?|sent|delivered|"
-    r"morgen|n[\u00e4]chst(?:e|en|er)?|morgens|um\s+\d{1,2}(?::\d{2})?|gesendet|zugestellt)\b",
+    r"\b(?:tomorrow|morning|monday|tuesday|wednesday|thursday|friday|saturday|sunday|at\s+\d{1,2}(?::\d{2})?|send|sends|sending|sent|emailed|deliver|delivers|delivering|delivered|telegram|slack|email|ntfy|provider|run|runs|ran|running|execute|executes|executing|executed|execution|"
+    r"morgen|morgens|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|um\s+\d{1,2}(?::\d{2})?|sende(?:t|n)?|gesendet|versendet|verschickt|geliefert|zugestellt|anbieter|ausf[\u00fcu]hren|ausgef[\u00fcu]hrt|ausf[\u00fch]rung|f[\u00fcu]hrt\s+aus|l[\u00e4a]uft|lief)\b",
     re.IGNORECASE,
 )
+_TODO_DIGEST_NEXT_RE = re.compile(r"\b(?:next\s+(?:todo\s+)?digest|n[\u00e4]chst(?:e|en|er)?\s+(?:todo\s+)?(?:digest|zusammenfassung))\b", re.IGNORECASE)
 
 
 @dataclass(frozen=True, slots=True)
@@ -396,10 +398,12 @@ def _todo_claim_findings(
 
 
 def _todo_digest_claim_findings(text: str, events: Iterable[Mapping[str, Any]]) -> tuple[ClaimEvidenceFinding, ...]:
-    """Assess only present-tense digest membership, never scheduling or delivery."""
-    receipts = digest_receipts_from_tool_events(tuple(events))
+    """Assess present membership and generic next-digest schedules; timing/delivery stays unsupported."""
+    event_snapshot = tuple(events)
+    receipts = digest_receipts_from_tool_events(event_snapshot)
     findings: list[ClaimEvidenceFinding] = []
     seen: set[str] = set()
+    stronger_schedule_unsupported = False
     unquoted = _TODO_QUOTED_TEXT_RE.sub(" ", text)
     for sentence in re.split(r"(?<=[.!?;\n])", unquoted):
         if not _TODO_DIGEST_CONTEXT_RE.search(sentence) or not _TODO_CONTEXT_RE.search(sentence):
@@ -414,7 +418,9 @@ def _todo_digest_claim_findings(text: str, events: Iterable[Mapping[str, Any]]) 
             continue
         if _NEGATED_CLAIM_PREFIX_RE.search(prefix):
             continue
+        next_digest = bool(_TODO_DIGEST_NEXT_RE.search(sentence))
         if _TODO_DIGEST_TIMING_RE.search(sentence):
+            stronger_schedule_unsupported = True
             if "todo_digest_schedule_active" not in seen:
                 findings.append(ClaimEvidenceFinding(
                     "todo_digest_schedule_active", "unsupported",
@@ -436,7 +442,45 @@ def _todo_digest_claim_findings(text: str, events: Iterable[Mapping[str, Any]]) 
                 evidence,
             ))
             seen.add(claim_type)
+        if next_digest and "todo_digest_schedule_active" not in seen:
+            evidence = _next_digest_schedule_evidence(event_snapshot, claim_type)
+            findings.append(ClaimEvidenceFinding(
+                "todo_digest_schedule_active",
+                "supported" if evidence else "unsupported",
+                "Todo digest has a verified active future schedule" if evidence else "Todo digest has no verified active future schedule receipt",
+                evidence,
+            ))
+            seen.add("todo_digest_schedule_active")
+    if stronger_schedule_unsupported:
+        without_schedule = [item for item in findings if item.claim_type != "todo_digest_schedule_active"]
+        if len(without_schedule) != len(findings):
+            findings = [*without_schedule, ClaimEvidenceFinding(
+                "todo_digest_schedule_active", "unsupported",
+                "exact timing, execution, provider, or delivery language is never proved by schedule status", (),
+            )]
     return tuple(findings)
+
+
+def _next_digest_schedule_evidence(events: Iterable[Mapping[str, Any]], membership_claim_type: str) -> tuple[str, ...]:
+    """Require both proofs in one closed event for a concrete next-digest claim."""
+    refs: list[str] = []
+    seen: set[str] = set()
+    for index, event in enumerate(events):
+        if index >= 64:
+            break
+        membership = validated_todo_digest_receipt_from_event(event)
+        schedule = validated_todo_digest_schedule_receipt_from_event(event)
+        if membership is None or schedule is None or membership.get("claim_type") != membership_claim_type:
+            continue
+        if membership["evidence_refs"][0] != schedule["evidence_refs"][0]:
+            continue
+        receipt_ref = schedule["receipt_ref"]
+        if receipt_ref not in seen:
+            seen.add(receipt_ref)
+            refs.append(receipt_ref)
+        if len(refs) == 64:
+            break
+    return tuple(refs)
 
 
 def _todo_context_binds_to_action(

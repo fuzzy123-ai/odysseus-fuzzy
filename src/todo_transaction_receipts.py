@@ -155,6 +155,15 @@ def todo_semantic_event(result: Mapping[str, Any] | Any) -> dict[str, Any] | Non
                 event[TODO_DIGEST_RECEIPT_FIELD] = digest
         except Exception:
             pass
+        try:
+            from src.todo_digest_schedule_receipts import TODO_DIGEST_SCHEDULE_RECEIPT_FIELD, validate_todo_digest_schedule_receipt
+            schedule = validate_todo_digest_schedule_receipt(
+                result.get(TODO_DIGEST_SCHEDULE_RECEIPT_FIELD), owner_ref=validated["evidence_refs"][0]
+            )
+            if schedule is not None:
+                event[TODO_DIGEST_SCHEDULE_RECEIPT_FIELD] = schedule
+        except Exception:
+            pass
     return event
 
 

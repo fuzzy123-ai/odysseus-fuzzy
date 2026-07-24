@@ -87,6 +87,7 @@ async def do_manage_todos(content: str, owner: Optional[str] = None) -> dict[str
         )
         if action in {"add", "complete", "reopen", "remove"}:
             _attach_digest_postcondition(attached, owner=owner, list_ref=list_ref)
+            _attach_schedule_postcondition(attached, owner=owner)
         return attached
     except Exception as exc:
         return _public_error_for(exc)
@@ -110,6 +111,22 @@ def _attach_digest_postcondition(result: dict[str, Any], *, owner: Any, list_ref
         validated = validate_todo_digest_receipt(candidate, semantic_receipt=semantic)
         if validated is not None:
             result[TODO_DIGEST_RECEIPT_FIELD] = validated
+    except Exception:
+        return
+
+
+def _attach_schedule_postcondition(result: dict[str, Any], *, owner: Any) -> None:
+    """Attach an independent read-only schedule proof without affecting Todo truth."""
+    semantic = result.get(TODO_RECEIPT_FIELD)
+    if not isinstance(semantic, dict):
+        return
+    try:
+        from src.calendar_capability_service import build_todo_digest_schedule_postcondition
+        from src.todo_digest_schedule_receipts import TODO_DIGEST_SCHEDULE_RECEIPT_FIELD, validate_todo_digest_schedule_receipt
+        candidate = build_todo_digest_schedule_postcondition(owner=owner)
+        validated = validate_todo_digest_schedule_receipt(candidate, owner_ref=semantic.get("evidence_refs", (None,))[0])
+        if validated is not None:
+            result[TODO_DIGEST_SCHEDULE_RECEIPT_FIELD] = validated
     except Exception:
         return
 

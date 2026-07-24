@@ -306,6 +306,47 @@ def build_telegram_todo_digest_live_gate(
         db.close()
 
 
+def build_todo_digest_schedule_postcondition(
+    *,
+    owner: str | None,
+    session_factory: Any | None = None,
+    task_model: Any | None = None,
+    now_utc: datetime | None = None,
+) -> dict[str, Any] | None:
+    """Read one owner-exact Todo-digest schedule snapshot without side effects."""
+    from src.todo_digest_schedule_receipts import build_todo_digest_schedule_receipt
+    if not isinstance(owner, str) or not owner or owner.strip() != owner:
+        return None
+    if now_utc is not None and (not isinstance(now_utc, datetime) or now_utc.tzinfo is not None):
+        return None
+    if (session_factory is None) != (task_model is None):
+        return None
+    try:
+        if session_factory is None:
+            from core.database import ScheduledTask, SessionLocal
+            session_factory, task_model = SessionLocal, ScheduledTask
+        db = session_factory()
+        try:
+            candidates = db.query(
+                task_model.id, task_model.owner, task_model.task_type, task_model.action,
+                task_model.trigger_type, task_model.schedule, task_model.status,
+                task_model.cron_expression, task_model.scheduled_time, task_model.next_run,
+            ).filter(
+                task_model.owner == owner,
+                task_model.task_type == "action",
+                task_model.action == "todo_digest",
+                task_model.trigger_type == "schedule",
+                task_model.schedule == "cron",
+            ).limit(2).all()
+        finally:
+            db.close()
+        if now_utc is None:
+            now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        return build_todo_digest_schedule_receipt(owner=owner, candidates=candidates, now_utc=now_utc)
+    except Exception:
+        return None
+
+
 def write_reminder_note(
     *,
     owner: str | None = None,
