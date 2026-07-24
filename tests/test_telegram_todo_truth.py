@@ -124,7 +124,7 @@ def test_envelope_round_trip_supports_matching_telegram_todo_claim():
     assert gated.changed is False
 
 
-def test_envelope_preserves_digest_receipts_for_timed_claim_gate():
+def test_envelope_preserves_digest_receipts_but_does_not_prove_exact_timing():
     envelope = _envelope_with_digest()
     gated = gate_telegram_reply_text(
         "Todo erscheint morgen im Digest.",
@@ -138,8 +138,8 @@ def test_envelope_preserves_digest_receipts_for_timed_claim_gate():
     )
 
     assert envelope["counts"]["digest_postconditions"] == 2
-    assert gated.status == "verified"
-    assert gated.changed is False
+    assert gated.status == "unknown"
+    assert gated.changed is True
     assert rejected.status == "unknown"
     assert rejected.changed is True
 

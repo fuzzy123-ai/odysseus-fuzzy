@@ -32,6 +32,18 @@ def build_telegram_todo_truth_envelope(
         for tx in transactions_from_tool_events(events, surface="telegram_bridge")
         if tx.claim_type.startswith("todo_")
     )
+    transaction_payloads = [tx.to_dict() for tx in transactions]
+    if not transaction_payloads:
+        transaction_payloads = [
+            {
+                "tool": "manage_todos",
+                "claim_type": receipt.claim_type,
+                "verified_done": receipt.verified,
+                "evidence_refs": [receipt.receipt_ref, *receipt.evidence_refs],
+                "raw_content_visible": False,
+            }
+            for receipt in postconditions
+        ]
     starts: list[dict[str, Any]] = []
     outputs: list[dict[str, Any]] = []
     for sequence, event in enumerate(events):
@@ -61,12 +73,12 @@ def build_telegram_todo_truth_envelope(
         "schema": TELEGRAM_TODO_TRUTH_ENVELOPE_SCHEMA,
         "tool_starts": starts,
         "tool_outputs": outputs,
-        "transactions": [tx.to_dict() for tx in transactions],
+        "transactions": transaction_payloads,
         "postconditions": [receipt.to_dict() for receipt in postconditions],
         "counts": {
             "tool_starts": len(starts),
             "tool_outputs": len(outputs),
-            "transactions": len(transactions),
+            "transactions": len(transaction_payloads),
             "postconditions": len(postconditions),
         },
         "raw_content_visible": False,

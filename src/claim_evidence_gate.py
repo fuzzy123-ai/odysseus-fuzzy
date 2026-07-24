@@ -8,8 +8,14 @@ import re
 from typing import Any, Iterable, Mapping
 
 from src.tool_transaction_ledger import transaction_evidence_for_claim, transactions_from_tool_events
-from src.todo_digest_receipts import digest_receipts_from_tool_events, validated_todo_digest_receipt_from_event
+from src.todo_digest_receipts import (
+    digest_receipts_from_tool_events,
+    todo_digest_evidence_for_claim,
+    todo_digest_receipts_from_tool_events,
+    validated_todo_digest_receipt_from_event,
+)
 from src.todo_digest_schedule_receipts import validated_todo_digest_schedule_receipt_from_event
+from src.todo_receipts import todo_receipt_evidence_for_claim, todo_receipts_from_tool_events
 
 
 _FIRST_PERSON_ACTION_RE = re.compile(
@@ -365,7 +371,7 @@ def evaluate_response_claims(
                 )
             )
 
-    findings.extend(_todo_claim_findings(text, transactions))
+    findings.extend(_todo_claim_findings(text, transactions, events))
     findings.extend(_todo_digest_claim_findings(text, events))
 
     for claim_type, pattern, supported_reason, unsupported_reason in (
@@ -428,6 +434,7 @@ def build_claim_evidence_correction(report: ClaimEvidenceReport) -> str:
 def _todo_claim_findings(
     text: str,
     transactions: Iterable[Mapping[str, Any]],
+    events: Iterable[Mapping[str, Any]] = (),
 ) -> tuple[ClaimEvidenceFinding, ...]:
     """Return only explicit, positive Todo claims bound to matching transactions."""
     findings: list[ClaimEvidenceFinding] = []
@@ -465,6 +472,10 @@ def _todo_claim_findings(
             if not has_actor and (not has_preceding_context or "?" in sentence):
                 continue
             evidence = transaction_evidence_for_claim(transactions, claim_type)
+            if not evidence:
+                evidence = todo_receipt_evidence_for_claim(
+                    todo_receipts_from_tool_events(events), claim_type
+                )
             findings.append(
                 ClaimEvidenceFinding(
                     claim_type,
@@ -484,6 +495,9 @@ def _todo_claim_findings(
 def _todo_digest_claim_findings(text: str, events: Iterable[Mapping[str, Any]]) -> tuple[ClaimEvidenceFinding, ...]:
     """Assess present membership and generic next-digest schedules; timing/delivery stays unsupported."""
     event_snapshot = tuple(events)
+    legacy_receipts = todo_digest_receipts_from_tool_events(event_snapshot)
+    if legacy_receipts:
+        return _legacy_todo_digest_claim_findings(text, legacy_receipts)
     receipts = digest_receipts_from_tool_events(event_snapshot)
     findings: list[ClaimEvidenceFinding] = []
     seen: set[str] = set()
@@ -542,6 +556,62 @@ def _todo_digest_claim_findings(text: str, events: Iterable[Mapping[str, Any]]) 
                 "todo_digest_schedule_active", "unsupported",
                 "exact timing, execution, provider, or delivery language is never proved by schedule status", (),
             )]
+    return tuple(findings)
+
+
+def _legacy_todo_digest_claim_findings(
+    text: str, receipts: Iterable[Any]
+) -> tuple[ClaimEvidenceFinding, ...]:
+    """Evaluate only the redacted v1 Telegram receipt compatibility format."""
+    findings: list[ClaimEvidenceFinding] = []
+    unquoted = _TODO_QUOTED_TEXT_RE.sub(" ", text)
+    for sentence in re.split(r"(?<=[.!?;\n])", unquoted):
+        if not _TODO_DIGEST_CONTEXT_RE.search(sentence) or not _TODO_CONTEXT_RE.search(sentence):
+            continue
+        excludes = _TODO_DIGEST_EXCLUDES_RE.search(sentence)
+        contains = _TODO_DIGEST_CONTAINS_RE.search(sentence)
+        if not excludes and not contains:
+            continue
+        claim_type = "todo_digest_excludes" if excludes else "todo_digest_contains"
+        evidence = todo_digest_evidence_for_claim(receipts, claim_type)
+        findings.append(
+            ClaimEvidenceFinding(
+                claim_type,
+                "supported" if evidence else "unsupported",
+                (
+                    "Todo digest membership has a matching verified compatibility receipt"
+                    if evidence
+                    else "Todo digest membership has no matching verified compatibility receipt"
+                ),
+                evidence,
+            )
+        )
+        if _TODO_DIGEST_TIMING_RE.search(sentence):
+            findings = [
+                ClaimEvidenceFinding(
+                    "todo_digest_schedule_active",
+                    "unsupported",
+                    "exact timing is not proved by a compatibility schedule receipt",
+                    (),
+                )
+            ]
+            continue
+        if _TODO_DIGEST_NEXT_RE.search(sentence):
+            schedule_evidence = todo_digest_evidence_for_claim(
+                receipts, "todo_digest_schedule_active"
+            )
+            findings.append(
+                ClaimEvidenceFinding(
+                    "todo_digest_schedule_active",
+                    "supported" if schedule_evidence else "unsupported",
+                    (
+                        "Todo digest has a verified active compatibility schedule"
+                        if schedule_evidence
+                        else "Todo digest has no verified active compatibility schedule receipt"
+                    ),
+                    schedule_evidence,
+                )
+            )
     return tuple(findings)
 
 

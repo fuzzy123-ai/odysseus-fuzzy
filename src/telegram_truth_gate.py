@@ -96,6 +96,7 @@ def gate_telegram_reply_text(
     *,
     repo_root: Path | str | None = None,
     tool_transactions: Iterable[Mapping[str, Any]] = (),
+    todo_truth_envelope: Mapping[str, Any] | None = None,
 ) -> TelegramTruthGateResult:
     """Return Telegram text with unsupported success claims made explicit.
 
@@ -107,6 +108,16 @@ def gate_telegram_reply_text(
 
     original = str(text or "")
     events = tuple(event for event in tool_events if isinstance(event, Mapping))
+    if todo_truth_envelope is not None:
+        from src.telegram_todo_truth import (
+            tool_events_from_telegram_todo_truth_envelope,
+        )
+
+        envelope_events = tool_events_from_telegram_todo_truth_envelope(
+            todo_truth_envelope
+        )
+        if envelope_events:
+            events = (*events, *envelope_events)
     transactions = project_telegram_todo_transactions(tool_transactions)
     report = evaluate_response_claims(
         original,

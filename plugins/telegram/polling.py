@@ -24,6 +24,7 @@ from plugins.telegram.stores import (
     TelegramSessionBridgeStore,
 )
 from src.telegram_truth_gate import project_telegram_todo_transactions
+from src.telegram_todo_truth import telegram_todo_truth_envelope_public_summary
 
 
 def _run_agent_turn(
@@ -135,10 +136,12 @@ def _normalize_agent_turn_result(result: Any) -> dict[str, Any]:
         reply_text = str(result.get("reply_text") or result.get("text") or "")
         status = str(result.get("status") or "accepted")
         todo_transactions = project_telegram_todo_transactions(result.get("todo_transactions"))
+        todo_truth_envelope = result.get("todo_truth_envelope")
     else:
         reply_text = str(result or "")
         status = "accepted"
         todo_transactions = ()
+        todo_truth_envelope = None
     normalized = {
         "status": status,
         "reply_text": reply_text,
@@ -146,13 +149,24 @@ def _normalize_agent_turn_result(result: Any) -> dict[str, Any]:
     }
     if todo_transactions:
         normalized["todo_transactions"] = todo_transactions
+    if isinstance(todo_truth_envelope, dict):
+        normalized["todo_truth_envelope"] = todo_truth_envelope
     return normalized
 
 
 def _public_agent_turn_result(result: dict[str, Any] | None) -> dict[str, Any] | None:
     if result is None:
         return None
-    public = {key: value for key, value in result.items() if key not in {"reply_text", "todo_transactions"}}
+    envelope = result.get("todo_truth_envelope")
+    public = {
+        key: value
+        for key, value in result.items()
+        if key not in {"reply_text", "todo_transactions", "todo_truth_envelope"}
+    }
+    if isinstance(envelope, dict):
+        public["todo_truth_envelope"] = telegram_todo_truth_envelope_public_summary(
+            envelope
+        )
     public["reply_text_value_visible"] = False
     return public
 
@@ -170,23 +184,39 @@ def _reply_handler_supports_todo_transactions(handler: Callable[..., Any]) -> bo
     )
 
 
+def _reply_handler_supports_todo_truth_envelope(handler: Callable[..., Any]) -> bool:
+    try:
+        parameters = inspect.signature(handler).parameters.values()
+    except Exception:
+        return False
+    return any(
+        parameter.name == "todo_truth_envelope"
+        and parameter.kind in {inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY}
+        or parameter.kind is inspect.Parameter.VAR_KEYWORD
+        for parameter in parameters
+    )
+
+
 def _deliver_agent_reply(
     reply_handler: Callable[..., Any],
     chat_id: str,
     text: str,
     source_message_id: Any,
     todo_transactions: tuple[dict[str, Any], ...] = (),
+    todo_truth_envelope: Any = None,
 ) -> Any:
     """Deliver once, adding the closed carrier only to compatible handlers."""
 
     projected = project_telegram_todo_transactions(todo_transactions)
+    kwargs: dict[str, Any] = {}
     if projected and _reply_handler_supports_todo_transactions(reply_handler):
-        return reply_handler(
-            chat_id,
-            text,
-            source_message_id,
-            todo_transactions=projected,
-        )
+        kwargs["todo_transactions"] = projected
+    if isinstance(todo_truth_envelope, dict) and _reply_handler_supports_todo_truth_envelope(
+        reply_handler
+    ):
+        kwargs["todo_truth_envelope"] = todo_truth_envelope
+    if kwargs:
+        return reply_handler(chat_id, text, source_message_id, **kwargs)
     return reply_handler(chat_id, text, source_message_id)
 
 
@@ -609,6 +639,7 @@ def run_telegram_polling_cycle_impl(
                                 reply_text,
                                 bridge.get("source_message_id"),
                                 agent_turn.get("todo_transactions"),
+                                agent_turn.get("todo_truth_envelope"),
                             )
                             replies += 1
                 finally:

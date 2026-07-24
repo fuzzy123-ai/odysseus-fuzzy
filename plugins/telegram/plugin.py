@@ -1325,6 +1325,7 @@ def setup(ctx):
         secure_transport: bool = False,
         can_start_secure_flow: bool = False,
         todo_transactions: Any = (),
+        todo_truth_envelope: Any = None,
     ) -> dict[str, Any]:
         if not _bool_env("TELEGRAM_AGENT_REPLY_ENABLED"):
             outbound = store.append_outbound(
@@ -1383,6 +1384,7 @@ def setup(ctx):
             text,
             repo_root=Path.cwd(),
             tool_transactions=todo_transactions,
+            todo_truth_envelope=todo_truth_envelope,
         )
         text = truth_gate.text
         try:
@@ -1742,11 +1744,12 @@ def setup(ctx):
         image_bytes_provider=image_bytes_provider,
         attachment_bytes_provider=attachment_bytes_provider,
         image_worker_client=image_worker_client,
-        reply_handler=lambda chat_id, text, source_message_id=None, todo_transactions=(): _reply_with_gate(
+        reply_handler=lambda chat_id, text, source_message_id=None, todo_transactions=(), todo_truth_envelope=None: _reply_with_gate(
             chat_id,
             text,
             source_message_id=source_message_id,
             todo_transactions=todo_transactions,
+            todo_truth_envelope=todo_truth_envelope,
         ),
         document_reply_handler=lambda chat_id, file_path, filename, caption, source_message_id=None: _document_reply_with_gate(
             chat_id,

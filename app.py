@@ -997,6 +997,7 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
     from core.models import ChatMessage
     from src.agent_loop import stream_agent_loop
     from src.telegram_context_policy import build_telegram_turn_context
+    from src.telegram_todo_truth import build_telegram_todo_truth_envelope
     from src.telegram_truth_gate import project_telegram_todo_transactions
     from src.workflow_skills import WorkflowSkillError, resolve_workflow_skills
 
@@ -1184,9 +1185,10 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                     ),
                 }
 
-        async def _run_agent_turn() -> tuple[str, tuple[dict, ...]]:
+        async def _run_agent_turn() -> tuple[str, tuple[dict, ...], dict | None]:
             reply_parts: list[str] = []
             todo_transactions: tuple[dict, ...] = ()
+            todo_truth_envelope: dict | None = None
             async for chunk in stream_agent_loop(
                 session.endpoint_url,
                 session.model,
@@ -1208,9 +1210,14 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                     todo_transactions = project_telegram_todo_transactions(
                         event["data"].get("tool_transactions")
                     )
-            return "".join(reply_parts).strip(), todo_transactions
+                    metric_events = event["data"].get("tool_events")
+                    if isinstance(metric_events, (list, tuple)):
+                        candidate = build_telegram_todo_truth_envelope(metric_events)
+                        if candidate.get("counts", {}).get("postconditions", 0) > 0:
+                            todo_truth_envelope = candidate
+            return "".join(reply_parts).strip(), todo_transactions, todo_truth_envelope
 
-        response, todo_transactions = _run_async_bridge(_run_agent_turn())
+        response, todo_transactions, todo_truth_envelope = _run_async_bridge(_run_agent_turn())
         if not response:
             response = "Ich habe deine Nachricht verarbeitet, aber keine Textantwort erhalten."
         if local_rebind_notice:
@@ -1220,6 +1227,8 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
         result = {"status": "accepted", "reply_text": str(response or "")}
         if todo_transactions:
             result["todo_transactions"] = todo_transactions
+        if todo_truth_envelope:
+            result["todo_truth_envelope"] = todo_truth_envelope
         return result
     except Exception as exc:
         logger.warning("Telegram agent turn failed: %s", exc)
