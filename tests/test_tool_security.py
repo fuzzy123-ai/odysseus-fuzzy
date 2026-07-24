@@ -2,14 +2,19 @@ from __future__ import annotations
 
 import pytest
 
-from src.tool_catalog import ToolEffectClass, ToolPermission
+from src.tool_catalog import (
+    ToolDescriptorV2,
+    ToolEffectClass,
+    ToolPermission,
+    ToolRiskLevel,
+    ToolSource,
+)
 from src.tool_security import (
     NON_ADMIN_BLOCKED_TOOLS,
     PLAN_MODE_READONLY_TOOLS,
     RUNTIME_ADMIN_PERMISSION_IDS,
     is_public_blocked_tool,
     plan_mode_disabled_tools,
-    runtime_tool_security_profile,
 )
 
 
@@ -38,13 +43,20 @@ def test_catalog_admin_permissions_are_never_weaker_in_public_policy() -> None:
     assert all(is_public_blocked_tool(tool_name) for tool_name in RUNTIME_ADMIN_PERMISSION_IDS)
 
 
-def test_unknown_runtime_tool_fails_closed_as_admin_control() -> None:
-    profile = runtime_tool_security_profile("unknown_diagnostic_tool")
+def test_unknown_dynamic_tool_descriptor_fails_closed_as_admin_control() -> None:
+    descriptor = ToolDescriptorV2.conservative_dynamic(
+        tool_id="unknown_diagnostic_tool",
+        source=ToolSource.PLUGIN,
+        source_id="plugin-redacted",
+    )
 
-    assert profile.permission == ToolPermission.ADMIN
-    assert profile.effect_class == ToolEffectClass.CONTROL
-    assert profile.requires_confirmation is True
-    assert profile.source == "dynamic_conservative"
+    assert descriptor.risk_level == ToolRiskLevel.DANGEROUS
+    assert descriptor.permission == ToolPermission.ADMIN
+    assert descriptor.effect_class == ToolEffectClass.CONTROL
+    assert descriptor.requires_confirmation is True
+    assert descriptor.default_enabled is False
+    assert descriptor.source == ToolSource.PLUGIN
+    assert descriptor.source_id == "plugin-redacted"
 
 
 def test_plan_mode_keeps_shell_and_mutators_disabled() -> None:

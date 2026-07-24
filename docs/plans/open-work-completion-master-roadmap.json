@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T20:21:24+02:00",
+  "updated_at": "2026-07-24T20:32:52+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -7192,7 +7192,7 @@
       "id": "TAX-REPAIR-dual-read-contract",
       "class": "repo_only",
       "owner": "Bob implementation; Sol deep acceptance",
-      "status": "sol_accepted_remote_ci_pending_2026-07-24",
+      "status": "sol_accepted_exact_ci_followup_remote_pending_2026-07-24",
       "claim": {
         "run_id": "tax-repair-20260724T195045+0200",
         "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
@@ -7242,6 +7242,26 @@
         "handoff_required": false,
         "released_at": "2026-07-24T20:21:24+02:00"
       },
+      "ci_followup_claim": {
+        "run_id": "tax-repair-ci-followup-20260724T202846+0200",
+        "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
+        "slice_id": "TAX-REPAIR-stale-tool-security-test-contract",
+        "owner": "Bob",
+        "allowed_paths": [
+          "tests/test_tool_security.py"
+        ],
+        "hotfiles": [],
+        "state": "released",
+        "acquired_at": "2026-07-24T20:28:46+02:00",
+        "lease_expires_at": "2026-07-24T21:28:46+02:00",
+        "handoff_required": true,
+        "released_at": "2026-07-24T20:32:52+02:00",
+        "handoff_result": "deep Sol PASS with no actionable security findings",
+        "root_owned_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json"
+        ],
+        "diagnosis": "Exact GitHub CI run 30116715674 exposed the sole stale AMH test import of runtime_tool_security_profile after TAX Descriptor V2 intentionally retired that parallel security profiler. Migrate the test to the canonical conservative dynamic descriptor contract; do not restore retired runtime policy code."
+      },
       "route": {
         "entrypoint": "/abc",
         "selected_skills": [
@@ -7275,7 +7295,7 @@
       },
       "evidence": {
         "target_environment": "local_and_github_ci",
-        "observed_at": "2026-07-24T20:21:24+02:00",
+        "observed_at": "2026-07-24T20:32:52+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -7298,10 +7318,13 @@
           "all verifier checks passed for strict default-off, feature-flag consistency, exact off-on-off rollback, zero security drift, redaction, alias and analytics reservation retention",
           "86 current built-ins include query_knowledge and all 14 operator-priority deferred tools remain disabled",
           "AST syntax passed for nine changed Python modules and git diff --check passed",
-          "deep Sol review passed after repairing v1 compatibility, activation-packet drift and legacy MCP isolation"
+          "deep Sol review passed after repairing v1 compatibility, activation-packet drift and legacy MCP isolation",
+          "the exact-CI collection follow-up migrated the sole stale AMH runtime_tool_security_profile test to the canonical conservative Plugin Descriptor V2 contract without production code or a compatibility shim",
+          "direct Descriptor V2 assertion, test-module import, migrated test invocation, AST, roadmap JSON and git diff checks passed",
+          "deep Sol security review found no weakening: admin/control/confirmation remain fail-closed, risk strengthens from elevated to dangerous and default_enabled remains false; existing runtime registry coverage still proves block-before-handler behavior"
         ],
         "local_pytest_exit": "twenty focused tests reached successful test dots but the Windows process did not exit cleanly; exact GitHub CI remains the required test authority",
-        "remote_ci": "pending first pushed implementation commit",
+        "remote_ci": "run 30116715674 failed during collection because tests/test_tool_security.py retained the sole stale import of the intentionally retired runtime_tool_security_profile API; the bounded canonical Descriptor V2 test migration is Sol-accepted and awaits an exact follow-up commit run",
         "known_pre_existing_out_of_scope": [
           "tool-surface audit expects removed TOOL_META",
           "raw schema audit reports duplicate manage_todos",
@@ -7312,8 +7335,8 @@
         "implemented": "yes",
         "tested": "yes",
         "sol_reviewed": "deep",
-        "committed": "no",
-        "pushed": "no",
+        "committed": "followup_pending",
+        "pushed": "followup_pending",
         "deployed": "no",
         "live_validated": "no",
         "visual_validated": "na",
