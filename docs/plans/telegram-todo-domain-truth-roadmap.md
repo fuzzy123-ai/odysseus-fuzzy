@@ -20,10 +20,10 @@ Der read-only `TTD-07`-Recon und der daraus geclaimte kleinste funktionale
 Slice fuer einen nur turn-lokalen, begrenzten Telegram-Kontext sind nach zwei
 tiefen Sol-Grenzrunden und einem finalen fokussierten Vierer-Check auf drei
 Pfaden akzeptiert.
-Der anschliessende read-only `TTD-07A`-Recon ist abgeschlossen. Er lehnt einen
-Implementierungsclaim ab, bis Poll-Start-Sweep, Owner-Scope, durable
-Idempotenz, Turn-Reservation und Crash-Recovery in einem explizit
-serialisierten Ledger-/Transaktionsvertrag aufgeloest sind.
+Der anschliessende read-only `TTD-07A`-Recon ist abgeschlossen. Der
+root-owned `TTD-07A0`-Claim `92cf62ef` authorisiert jetzt ausschliesslich den
+explizit serialisierten Ledger-/Transaktionsvertrag; Produktionscode bleibt
+bis zu dessen Abnahme ungeclaimt.
 Der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -1185,6 +1185,44 @@ Recon-Status `2026-07-24T12:56:01+02:00`:
   des aktuellen First-Poll-Vertrags implementiert werden.
 - Safe Default: kein Cherry-pick, kein Claim, kein produktiver Rollover.
 
+Contract-Amendment `TTD-07A0`:
+
+- Durable Claim: `92cf62ef`; Owner und einziger Writer: `/root`.
+- Autoritative Spezifikation:
+  `docs/plans/telegram-session-rollover-transaction-contract.md`.
+- SQLite wird nach einer fail-closed Legacy-Importgrenze die einzige Binding-
+  und Rollover-Autoritaet. `telegram_session_bridge.json` bleibt nur atomare,
+  nicht autoritative Kompatibilitaetsprojektion.
+- Vier Tabellen trennen aktuelles Binding, taegliche Reservation,
+  content-free lossless Turn-Intake und den nicht oeffentlichen
+  HMAC-Key-Fingerprint. Eindeutig sind
+  `(owner_ref, chat_handle_ref, scope)`,
+  `(binding_id, rollover_local_day)` sowie
+  `(owner_ref, chat_handle_ref, transport_update_ref)`.
+- Owner-, Chat-Handle- und Session-Evidence-Refs sind getrennte keyed HMACs;
+  der noetige Secret-Key ist bei Aktivierung Pflicht und wird nie geloggt.
+- Replacement-Session, Binding-Swap, Generation, alte Archivierung und
+  terminaler `committed`-Status werden in einer SQLite-Transaktion publiziert.
+  Vor Commit bleibt nur das alte Binding sichtbar; nach Commit ist der neue
+  Zustand vollstaendig aus der DB ladbar.
+- Ein geteilter Process-Mutex plus persistenter, tokengebundener Turn-Lease
+  serialisiert Poll, Webhook, Bridge und Agent-Turn. Der DB-Lease bleibt fuer
+  Restart- und spaetere Multi-Process-Sicherheit erforderlich.
+- Der Poll-Start-Sweep laeuft vor `fetch_updates` und damit auch bei einer
+  erfolgreichen leeren ersten Poll-Runde nach der lokalen Grenze.
+- Ein besetzter Turn-Lease verbraucht kein Update: Polling haelt den Offset,
+  Webhook liefert einen expliziten 503-Retry, und der bestehende Inbox-Record
+  markiert den Turn durable als erneut verarbeitbar.
+- Konfiguration bleibt strikt default-off. Ein neuer oder importierter Slot
+  startet am aktuellen effektiven lokalen Tag; Aktivierung verursacht keinen
+  sofortigen Massen-Rollover.
+- Base-Rollover kopiert nur Endpoint, Modell und Owner nach Security-Pruefung.
+  Headers/Secrets werden nicht kopiert, RAG ist aus, Nachrichten, Summaries,
+  Tools, Todo-Claims, Memory und Continuity fehlen.
+- Optionales Continuity-Tail ist ein spaeterer eigener default-off Slice, fuer
+  genau einen Turn begrenzt und explizit untrusted. Es ist keine Domain-
+  Evidence.
+
 Entscheidung:
 
 - Empfohlener Default ist eine taegliche Grenze um `04:00`
@@ -1222,14 +1260,24 @@ Vertrag:
 - Rollover-Evidence enthaelt nur redigierte Session-Refs, Scope, Datum, Status
   und Counts, keine Chat-ID und keinen Raw-Text.
 
-Voraussichtliche Pfade:
+Serielle Umsetzung nach Abnahme von `TTD-07A0`:
 
-- neuer isolierter `src/telegram_session_rollover.py`
-- `plugins/telegram/stores.py` oder die aktuelle Session-Bridge nach
-  Single-Writer-Handoff
-- `plugins/telegram/polling.py` fuer den idempotenten Trigger nach Handoff
-- neue `tests/test_telegram_session_rollover.py`
-- fokussierte Bridge-, Polling-, Kontext- und Restart-Tests
+1. `TTD-07A1`: reine lokale Zeit-, Config-, State-Machine- und
+   Evidence-Policy in `src/telegram_session_rollover.py` plus einem neuen
+   fokussierten Testpfad.
+2. `TTD-07A2`: DB-Modelle, idempotente Migration, eindeutige Ledger-
+   Constraints und Repository; keine Route wird aktiviert.
+3. `TTD-07A3`: DB-autoritative Bridge, einmaliger fail-closed JSON-Import und
+   atomare nicht autoritative Projektion.
+4. `TTD-07A4`: eine SQLite-Transaktion fuer neue Session, Binding-Publish,
+   Generation, alte Archivierung und terminale Reservation.
+5. `TTD-07A5`: Poll-Start-Sweep, Webhook-Rebind, `/new`-/Secure-Rebind-Guard,
+   persistenter erneuerbarer Turn-Lease und lossless Inbox-Retry hinter
+   weiterhin default-off Feature-Flag.
+6. `TTD-07A6`: optionales one-turn Continuity-Tail, separat default-off.
+
+Alle in mehreren Schritten genannten Pfade sind serielle Hotfiles. Kein
+paralleler Worker darf sie ohne committed Handoff uebernehmen.
 
 Akzeptanz:
 
