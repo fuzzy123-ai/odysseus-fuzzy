@@ -298,11 +298,11 @@ def test_foreign_path_cannot_authorize_while_gate_is_disabled(tmp_path: Path) ->
     _assert_disabled_completion_contract(report, claims_current=True)
 
 
-def test_read_only_tool_exemption_fails_closed_on_conflicting_or_unknown_metadata() -> None:
+def test_effect_matrix_classifies_normalized_read_actions_independently_of_metadata() -> None:
     read_only = build_effectful_action_snapshot(
         ({"tool": "manage_repos", "action": "status"},)
     )
-    conflicting = build_effectful_action_snapshot(
+    success_annotated = build_effectful_action_snapshot(
         (
             {
                 "tool": "manage_repos",
@@ -316,6 +316,10 @@ def test_read_only_tool_exemption_fails_closed_on_conflicting_or_unknown_metadat
     )
 
     assert read_only["effectful_count"] == 0
-    assert conflicting["effectful_count"] == 1
-    assert conflicting["categories"] == ("repository_state_control",)
+    assert read_only["categories"] == ()
+    assert success_annotated["effectful_count"] == 0
+    assert success_annotated["categories"] == ()
+    assert success_annotated["transaction_status"][0]["status"] == "succeeded"
+    assert success_annotated["transaction_status"][0]["verified_done"] is True
     assert unknown["effectful_count"] == 1
+    assert unknown["categories"] == ("repo_registry_write",)

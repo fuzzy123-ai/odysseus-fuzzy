@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T21:29:35+02:00",
+  "updated_at": "2026-07-24T21:37:30+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -7192,7 +7192,7 @@
       "id": "TAX-REPAIR-dual-read-contract",
       "class": "repo_only",
       "owner": "Bob implementation; Sol deep acceptance",
-      "status": "sol_accepted_exact_ci_shared_verifier_followup_remote_pending_2026-07-24",
+      "status": "sol_accepted_exact_ci_effect_matrix_followup_remote_pending_2026-07-24",
       "claim": {
         "run_id": "tax-repair-20260724T195045+0200",
         "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
@@ -7365,6 +7365,26 @@
         ],
         "diagnosis": "Exact GitHub CI run 30120483865 confirms the current commit-runner test path and advances to 284 passing tests, then exposes stale AMH-03/08 workflow wiring expectations. The reusable quality gate has intentionally run one exact-commit, read-only `python -m pytest -q --maxfail=1` suite since checkpoint 63dd70a7, and tests/test_ci_release_workflow_contract.py already enforces that current contract. Two older tests still require removed duplicate scripts/verify.py guards-only/full workflow commands. Migrate both stale assertions and names to the current reusable exact-commit full-suite contract while preserving the standalone scripts/verify.py entrypoint tests and adversarial-corpus collection; do not edit the workflow or add duplicate test execution."
       },
+      "effect_matrix_ci_followup_claim": {
+        "run_id": "tax-repair-effect-matrix-ci-followup-20260724T213335+0200",
+        "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
+        "slice_id": "TAX-REPAIR-stale-effect-matrix-metadata-expectation",
+        "owner": "Bob",
+        "allowed_paths": [
+          "tests/test_agent_maintenance_completion_gate.py"
+        ],
+        "hotfiles": [],
+        "state": "released",
+        "acquired_at": "2026-07-24T21:33:35+02:00",
+        "lease_expires_at": "2026-07-24T22:33:35+02:00",
+        "handoff_required": true,
+        "released_at": "2026-07-24T21:37:30+02:00",
+        "handoff_result": "deep Sol PASS with no actionable findings; normalized effect classification and fail-closed unknown actions preserved",
+        "root_owned_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json"
+        ],
+        "diagnosis": "Exact GitHub CI run 30120871519 confirms both workflow-test migrations and advances to 296 passing tests, then exposes the last stale independent assertion in test_agent_maintenance_completion_gate. Since checkpoint 63dd70a7, effect classification is derived solely from the normalized tool/action matrix: manage_repos status remains read-only regardless of transaction outcome metadata, while unknown actions fail closed as repo_registry_write. Migrate the test name and assertions to separate transaction success from effect classification; do not restore raw metadata heuristics or edit the production matrix."
+      },
       "route": {
         "entrypoint": "/abc",
         "selected_skills": [
@@ -7398,7 +7418,7 @@
       },
       "evidence": {
         "target_environment": "local_and_github_ci",
-        "observed_at": "2026-07-24T21:29:35+02:00",
+        "observed_at": "2026-07-24T21:37:30+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -7444,10 +7464,14 @@
           "the final two stale AMH-03/08 CI-wiring assertions now match the unchanged 63dd70a7 reusable gate: one exact-commit read-only `python -m pytest -q --maxfail=1` suite with compileall and node checks",
           "all three gate jobs retain github.sha checkout and persist-credentials=false, no write permission or weakening flags exist, and the adversarial collect-only corpus proof remains intact",
           "all standalone scripts/verify.py registry, lane, receipt, mutation, exit-code, UI, suppression, timeout and CLI tests remain; repo-wide scan finds no positive requirement to invoke it from quality-gate.yml",
-          "final deep Sol review found no actionable issue; AST, static workflow parsing, 63dd70a7 workflow identity, roadmap JSON and git diff checks passed without workflow, source, script, feature, deployment or live changes"
+          "final deep Sol review found no actionable issue; AST, static workflow parsing, 63dd70a7 workflow identity, roadmap JSON and git diff checks passed without workflow, source, script, feature, deployment or live changes",
+          "the final independent maintenance-completion test now separates normalized manage_repos status effect classification from the transaction ledger outcome: plain and success-annotated reads remain non-effectful",
+          "successful transaction status and verified_done remain available as separate machine evidence, while unknown and absent manage_repos actions still fail closed as repo_registry_write",
+          "history and repo scans confirm checkpoint 63dd70a7 intentionally removed raw metadata mutation heuristics and the retired repository_state_control category; no production restoration or security weakening was introduced",
+          "final deep Sol review found no actionable issue; direct snapshots, AST, history, roadmap JSON, retired-symbol scans and git diff checks passed without production, workflow, feature, deployment or live changes"
         ],
         "local_pytest_exit": "twenty focused tests reached successful test dots but the Windows process did not exit cleanly; exact GitHub CI remains the required test authority",
-        "remote_ci": "run 30120483865 on exact commit ca0ac065 passes compileall and JS syntax, validates the current commit-runner path and reaches 284 passing tests. It then exposes stale workflow assertions requiring duplicate scripts/verify.py guards-only/full invocations even though the reusable gate intentionally runs one exact-commit, read-only full Pytest suite. Both remaining stale workflow tests are claimed for test-only migration; the workflow and standalone verifier remain unchanged.",
+        "remote_ci": "run 30120871519 on exact commit 863d9346 passes compileall and JS syntax, validates both current workflow-test contracts and reaches 296 passing tests. It then exposes the last stale independent AMH completion test assertion: successful transaction metadata is incorrectly expected to promote normalized manage_repos status from read-only to effectful. A one-test migration to the current action-only effect matrix is claimed; production classification remains unchanged and unknown actions continue to fail closed.",
         "known_pre_existing_out_of_scope": [
           "tool-surface audit expects removed TOOL_META",
           "raw schema audit reports duplicate manage_todos",
@@ -7458,8 +7482,8 @@
         "implemented": "yes",
         "tested": "yes",
         "sol_reviewed": "deep",
-        "committed": "86c77394_tua_rollout_followup; 1b8d7d2d_amh_disabled_followup; ca0ac065_amh_commit_runner_followup; shared_verifier_followup_pending",
-        "pushed": "86c77394_1b8d7d2d_ca0ac065_to_fuzzy_dev; shared_verifier_followup_pending",
+        "committed": "86c77394_tua_rollout_followup; 1b8d7d2d_amh_disabled_followup; ca0ac065_amh_commit_runner_followup; 863d9346_shared_verifier_followup; effect_matrix_followup_pending",
+        "pushed": "86c77394_1b8d7d2d_ca0ac065_863d9346_to_fuzzy_dev; effect_matrix_followup_pending",
         "deployed": "no",
         "live_validated": "no",
         "visual_validated": "na",
