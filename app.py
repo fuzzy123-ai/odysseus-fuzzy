@@ -996,6 +996,7 @@ def _telegram_local_only_model_block_reply(block_reason: str) -> str:
 def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
     from core.models import ChatMessage
     from src.agent_loop import stream_agent_loop
+    from src.telegram_context_policy import build_telegram_turn_context
     from src.telegram_truth_gate import project_telegram_todo_transactions
     from src.workflow_skills import WorkflowSkillError, resolve_workflow_skills
 
@@ -1090,7 +1091,8 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
             }
         headers = _telegram_refresh_session_headers(session_id) or getattr(session, "headers", None)
         context = session.get_context_messages()
-        messages = list(context)
+        trusted_system_messages = []
+        supplemental_messages = []
         try:
             rag_preface, _rag_sources, _web_sources = chat_processor.build_context_preface(
                 message=prompt,
@@ -1104,7 +1106,14 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                 use_skills=False,
                 use_context_providers=False,
             )
-            messages.extend(rag_preface)
+            for preface_message in rag_preface:
+                if (
+                    isinstance(preface_message, dict)
+                    and str(preface_message.get("role") or "").strip().lower() == "system"
+                ):
+                    trusted_system_messages.append(preface_message)
+                else:
+                    supplemental_messages.append(preface_message)
         except Exception as rag_exc:
             logger.warning("Telegram RAG context preload failed: %s", rag_exc)
         try:
@@ -1114,7 +1123,7 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
 
                 type_counts = inventory.get("type_counts") if isinstance(inventory.get("type_counts"), dict) else {}
                 type_summary = ", ".join(f"{key}: {value}" for key, value in sorted(type_counts.items()))
-                messages.append(untrusted_context_message(
+                supplemental_messages.append(untrusted_context_message(
                     "telegram rag import status",
                     (
                         "Telegram/Nextcloud import status for this user:\n"
@@ -1131,7 +1140,24 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                 ))
         except Exception as inventory_exc:
             logger.warning("Telegram RAG inventory preload failed: %s", inventory_exc)
-        messages.append({"role": "user", "content": prompt})
+        context_window = build_telegram_turn_context(
+            context,
+            prompt,
+            trusted_system_messages=trusted_system_messages,
+            supplemental_messages=supplemental_messages,
+        )
+        messages = list(context_window.messages)
+        logger.info(
+            "Telegram bounded context: input=%s retained=%s retained_chars=%s omitted=%s trusted_system=%s supplemental=%s limits=%s/%s",
+            context_window.evidence["input_message_count"],
+            context_window.evidence["retained_history_message_count"],
+            context_window.evidence["retained_history_character_count"],
+            context_window.evidence["omitted_history_message_count"],
+            context_window.evidence["trusted_runtime_system_message_count"],
+            context_window.evidence["supplemental_message_count"],
+            context_window.evidence["history_message_limit"],
+            context_window.evidence["history_character_limit"],
+        )
         workflow_skill_resolution = None
         workflow_context = bridge.get("workflow_context") if isinstance(bridge.get("workflow_context"), dict) else None
         if workflow_context:
