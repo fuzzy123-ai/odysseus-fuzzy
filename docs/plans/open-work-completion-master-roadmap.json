@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T12:56:01+02:00",
-  "status": "ttd00_through_ttd07_ttd08a_ttd08b_accepted_ttd07a_recon_complete_no_safe_claim_live_default_off",
+  "updated_at": "2026-07-24T13:03:38+02:00",
+  "status": "ttd00_through_ttd07_ttd08a_ttd08b_accepted_ttd07a0_contract_amendment_claimed_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd00_through_ttd07_ttd08a_ttd08b_accepted_ttd07a_recon_complete_no_safe_claim_attachment_deferred",
+    "queue_status": "ttd00_through_ttd07_ttd08a_ttd08b_accepted_ttd07a0_contract_amendment_claimed_attachment_deferred",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd07_ttd08a_ttd08b_accepted_ttd07a_recon_complete_no_safe_claim_live_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd07_ttd08a_ttd08b_accepted_ttd07a0_contract_amendment_claimed_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,8 +85,8 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-07A read-only recon is complete and rejects a current implementation claim. The roadmap requires a first-empty-poll sweep, durable owner-scoped reservation, shared active-turn retry, atomic bridge visibility and crash recovery that the plain fail-open JSON bridge plus separate Session commits cannot prove.",
-        "slice": "TTD-07A-durable-rollover-ledger-and-transaction-amendment",
+        "reason": "TTD-07A0 is the active root-owned roadmap-authoring claim. It must define the first-empty-poll sweep, durable owner-scoped reservation, shared active-turn retry, atomic bridge visibility and crash recovery before any production-code claim can be opened.",
+        "slice": "TTD-07A0-durable-rollover-contract-amendment",
         "user_decision_required": false,
         "missing_runtime_gates": [],
         "safe_default": "author_root_owned_ttd07a_durable_ledger_transaction_and_serial_handoff_contract_before_any_implementation_claim; no_cherry_pick_lazy_semantic_substitution_productive_session_archive_rebind_provider_send_deploy_or_live_mutation"
@@ -94,7 +94,9 @@
       "queue_exhausted": false,
       "verified_at": "2026-07-24"
     },
-    "active_claimed_slices": []
+    "active_claimed_slices": [
+      "TTD-07A0-durable-rollover-contract-amendment"
+    ]
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -4106,6 +4108,118 @@
       "acceptance": "recon_complete_no_safe_claim_until_durable_owner_scoped_rollover_ledger_transaction_and_serial_handoffs_are_authored",
       "next_frontier": "Root must author the durable rollover ledger transaction crash-recovery and exact serial hotfile handoff amendment. No implementation claim exists and all push deploy Debian provider and productive rollover gates remain dormant.",
       "done_when": "The roadmap defines one enforceable durable owner-scoped reservation and crash-recovery transaction across poll webhook bridge and Session lifecycle before any implementation paths are claimed."
+    },
+    {
+      "id": "TTD-07A0-durable-rollover-contract-amendment",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "claimed_2026-07-24",
+      "claimable": false,
+      "depends_on": [
+        "TTD-07A-read-only-rollover-transaction-recon accepted at ab669d91"
+      ],
+      "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "claim": {
+        "run_id": "abc-ttd07a0-20260724T130338+0200",
+        "thread_id": "/root",
+        "slice_id": "TTD-07A0-durable-rollover-contract-amendment",
+        "owner": "/root",
+        "allowed_paths": [
+          "docs/plans/telegram-session-rollover-transaction-contract.md",
+          "docs/plans/telegram-todo-domain-truth-roadmap.md",
+          "docs/plans/multi-agent-execution-guidance.json",
+          "docs/plans/open-work-completion-master-roadmap.json"
+        ],
+        "hotfiles": [
+          "docs/plans/telegram-todo-domain-truth-roadmap.md",
+          "docs/plans/multi-agent-execution-guidance.json",
+          "docs/plans/open-work-completion-master-roadmap.json"
+        ],
+        "state": "claimed",
+        "acquired_at": "2026-07-24T13:03:38+02:00",
+        "lease_expires_at": null,
+        "handoff_required": false,
+        "forbidden": [
+          "all application source and test paths",
+          "all push deploy Debian provider productive Session Telegram send and live mutation paths",
+          "divergent commit 2cb685d8 as a cherry-pick or accepted evidence"
+        ]
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "recommended": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "Open-Work orchestration claim and durable evidence authority"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "reason": "shared roadmap concurrency privacy and crash-recovery contract"
+          },
+          "worker": null,
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "sole orchestrator for the root-owned amendment"
+            }
+          ],
+          "master": {
+            "model": "surface_default",
+            "effort": "high"
+          },
+          "worker": null,
+          "review": {
+            "depth": "deep",
+            "reviewer": "/root"
+          }
+        },
+        "actual": {
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            }
+          ],
+          "master": {
+            "model": "unknown",
+            "evidence": "current root surface does not expose an exact model identifier"
+          },
+          "worker": null,
+          "review": {
+            "model": "pending",
+            "depth": "deep",
+            "result": "pending"
+          }
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "repository",
+        "observed_at": "2026-07-24T13:03:38+02:00",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static contract review",
+          "both JSON routers parse",
+          "exact four-path diff check",
+          "deep invariant review"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": false
+      },
+      "acceptance": "One authoritative contract fixes the DB authority state machine transaction ordering active-turn lease recovery privacy and serial implementation DAG without opening any implementation or live gate.",
+      "next_frontier": "No implementation claim until this amendment is locally committed and deep-reviewed.",
+      "done_when": "The contract removes every TTD-07A recon ambiguity and exposes only dependency-ordered repo-only child slices with exact disjoint path ownership."
     },
     {
       "id": "TTD-08A-telegram-history-truthful-classification-and-audit-projection",
