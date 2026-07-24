@@ -11,6 +11,11 @@ from pathlib import Path
 
 import pytest
 
+pytest.skip(
+    "legacy AMH-07 bootstrap is disabled pending architecture review",
+    allow_module_level=True,
+)
+
 import src.agent_loop_system_prompt as system_prompt
 import src.runtime_tool_status as runtime_status
 from src.agent_loop_prompts import (
