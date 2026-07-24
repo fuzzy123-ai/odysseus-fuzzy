@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from src.claim_evidence_gate import build_claim_evidence_correction, evaluate_response_claims
+from src.todo_digest_receipts import TODO_DIGEST_RECEIPT_FIELD, build_todo_digest_membership_receipt
 from src.tool_transaction_ledger import ToolTransaction
 
 
@@ -54,6 +55,91 @@ def _todo_list_event() -> dict:
             ),
         },
     }
+
+
+def _todo_digest_event(action: str) -> dict:
+    event = _todo_event(action)
+    receipt = event["todo_semantic_receipt"]
+    included = action in {"add", "reopen"}
+    digest = build_todo_digest_membership_receipt(
+        action=action, evidence_refs=receipt["evidence_refs"],
+        current_state={"exists": action != "remove", "done": {"add": False, "reopen": False, "complete": True, "remove": None}[action]},
+        included=included, selection_position=0 if included else None,
+        open_item_count=1, selected_open_item_count=1 if included else 0, limit=20,
+        label_filter_active=False, list_filter_active=False, builder_date="2026-07-24",
+        snapshot_manifest={
+            "schema": "odysseus.todo_digest_snapshot.v1", "builder_date": "2026-07-24",
+            "builder_clock": "naive_local", "limit": 20, "label_filter_active": False,
+            "list_filter_active": False,
+            "selected": ([{"list_ref": receipt["evidence_refs"][1], "item_ref": receipt["evidence_refs"][2], "position": 0, "done": False}] if included else []),
+        },
+    )
+    event[TODO_DIGEST_RECEIPT_FIELD] = digest
+    return event
+
+
+@pytest.mark.parametrize(
+    ("text", "action", "claim"),
+    [
+        ("The todo item appears in the digest.", "add", "todo_digest_contains"),
+        ("Die Aufgabe erscheint im Digest.", "reopen", "todo_digest_contains"),
+        ("The todo item is excluded from the digest.", "complete", "todo_digest_excludes"),
+        ("Die Aufgabe ist nicht im Digest enthalten.", "remove", "todo_digest_excludes"),
+    ],
+)
+def test_digest_membership_claims_require_matching_closed_postconditions(tmp_path: Path, text: str, action: str, claim: str):
+    report = evaluate_response_claims(text, [_todo_digest_event(action)], repo_root=tmp_path)
+
+    assert [(item.claim_type, item.status) for item in report.findings] == [(claim, "supported")]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "I will make the todo item appear in the digest tomorrow.",
+        "\"The todo item appears in the digest.\"",
+        "Can you make the todo item appear in the digest?",
+    ],
+)
+def test_digest_membership_ignores_future_quoted_and_requested_language(tmp_path: Path, text: str):
+    assert evaluate_response_claims(text, [_todo_digest_event("add")], repo_root=tmp_path).findings == ()
+
+
+def test_digest_membership_never_proves_schedule_or_delivery(tmp_path: Path):
+    report = evaluate_response_claims(
+        "Die Aufgabe erscheint morgen im Digest.", [_todo_digest_event("add")], repo_root=tmp_path
+    )
+
+    assert {item.claim_type for item in report.unsupported} == {"todo_digest_schedule_active"}
+
+
+def test_digest_claim_language_handles_next_no_longer_and_negation_boundaries(tmp_path: Path):
+    next_report = evaluate_response_claims(
+        "The todo item appears in the next digest.", [_todo_digest_event("add")], repo_root=tmp_path
+    )
+    exclusion = evaluate_response_claims(
+        "The todo item no longer appears in the digest.", [_todo_digest_event("complete")], repo_root=tmp_path
+    )
+
+    assert [(item.claim_type, item.status) for item in next_report.findings] == [("todo_digest_schedule_active", "unsupported")]
+    assert [(item.claim_type, item.status) for item in exclusion.findings] == [("todo_digest_excludes", "supported")]
+    for text in ("The item is not excluded from the digest.", "The item never appears in the digest.", "Die Aufgabe ist nicht ausgeschlossen im Digest."):
+        assert evaluate_response_claims(text, [_todo_digest_event("complete")], repo_root=tmp_path).findings == ()
+
+
+def test_timed_future_digest_assertion_is_schedule_unsupported_but_requests_are_ignored(tmp_path: Path):
+    concrete = evaluate_response_claims(
+        "The todo item will appear in the digest tomorrow.", [_todo_digest_event("add")], repo_root=tmp_path
+    )
+    request = evaluate_response_claims(
+        "Can you make the todo item appear in the digest tomorrow?", [_todo_digest_event("add")], repo_root=tmp_path
+    )
+    plain_future = evaluate_response_claims(
+        "The todo item will appear in the digest.", [_todo_digest_event("add")], repo_root=tmp_path
+    )
+
+    assert [(item.claim_type, item.status) for item in concrete.findings] == [("todo_digest_schedule_active", "unsupported")]
+    assert request.findings == plain_future.findings == ()
 
 
 def test_file_creation_claim_requires_file_or_tool_evidence(tmp_path: Path):

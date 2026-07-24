@@ -8,6 +8,7 @@ import re
 from typing import Any, Iterable, Mapping
 
 from src.tool_transaction_ledger import transaction_evidence_for_claim, transactions_from_tool_events
+from src.todo_digest_receipts import digest_receipts_from_tool_events
 
 
 _FIRST_PERSON_ACTION_RE = re.compile(
@@ -124,6 +125,30 @@ _TODO_ACTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
         "todo_list_read",
         re.compile(r"\b(?:listed|read|showed|shown|displayed|aufgelistet|gelesen|angezeigt|gezeigt)\b", re.IGNORECASE),
     ),
+)
+_TODO_DIGEST_CONTEXT_RE = re.compile(r"\b(?:todo\s+)?digest\b|\bzusammenfassung\b", re.IGNORECASE)
+_TODO_DIGEST_CONTAINS_RE = re.compile(
+    r"\b(?:appears?|is\s+included|is\s+contained|included\s+in|erscheint|ist\s+enthalten)\b",
+    re.IGNORECASE,
+)
+_TODO_DIGEST_EXCLUDES_RE = re.compile(
+    r"\b(?:does\s+not\s+appear|no\s+longer\s+appears?|is\s+not\s+included|is\s+excluded|excluded\s+from|erscheint\s+nicht|ist\s+nicht(?:\s+\w+){0,3}\s+enthalten|ausgeschlossen)\b",
+    re.IGNORECASE,
+)
+_TODO_DIGEST_FUTURE_RE = re.compile(
+    r"\b(?:if|would|could|can\s+you|should|might|maybe|want|need|please|will|going\s+to|tomorrow|later|"
+    r"wenn|w[\u00fc]rde|k[\u00f6]nnte|sollte|vielleicht|m[\u00f6]chte|bitte|werde|morgen|sp[\u00e4]ter)\b",
+    re.IGNORECASE,
+)
+_TODO_DIGEST_REQUEST_HYPOTHETICAL_RE = re.compile(
+    r"\b(?:if|would|could|can\s+you|should|might|maybe|want|need|please|"
+    r"wenn|w[\u00fc]rde|k[\u00f6]nnte|sollte|vielleicht|m[\u00f6]chte|bitte)\b",
+    re.IGNORECASE,
+)
+_TODO_DIGEST_TIMING_RE = re.compile(
+    r"\b(?:tomorrow|next|morning|at\s+\d{1,2}(?::\d{2})?|sent|delivered|"
+    r"morgen|n[\u00e4]chst(?:e|en|er)?|morgens|um\s+\d{1,2}(?::\d{2})?|gesendet|zugestellt)\b",
+    re.IGNORECASE,
 )
 
 
@@ -255,6 +280,7 @@ def evaluate_response_claims(
             )
 
     findings.extend(_todo_claim_findings(text, transactions))
+    findings.extend(_todo_digest_claim_findings(text, events))
 
     for claim_type, pattern, supported_reason, unsupported_reason in (
         (
@@ -366,6 +392,50 @@ def _todo_claim_findings(
                 )
             )
             seen_claim_types.add(claim_type)
+    return tuple(findings)
+
+
+def _todo_digest_claim_findings(text: str, events: Iterable[Mapping[str, Any]]) -> tuple[ClaimEvidenceFinding, ...]:
+    """Assess only present-tense digest membership, never scheduling or delivery."""
+    receipts = digest_receipts_from_tool_events(tuple(events))
+    findings: list[ClaimEvidenceFinding] = []
+    seen: set[str] = set()
+    unquoted = _TODO_QUOTED_TEXT_RE.sub(" ", text)
+    for sentence in re.split(r"(?<=[.!?;\n])", unquoted):
+        if not _TODO_DIGEST_CONTEXT_RE.search(sentence) or not _TODO_CONTEXT_RE.search(sentence):
+            continue
+        contains = _TODO_DIGEST_CONTAINS_RE.search(sentence)
+        excludes = _TODO_DIGEST_EXCLUDES_RE.search(sentence)
+        if not contains and not excludes:
+            continue
+        match = excludes or contains
+        prefix = sentence[:match.start()]
+        if _TODO_DIGEST_REQUEST_HYPOTHETICAL_RE.search(prefix):
+            continue
+        if _NEGATED_CLAIM_PREFIX_RE.search(prefix):
+            continue
+        if _TODO_DIGEST_TIMING_RE.search(sentence):
+            if "todo_digest_schedule_active" not in seen:
+                findings.append(ClaimEvidenceFinding(
+                    "todo_digest_schedule_active", "unsupported",
+                    "digest membership evidence never proves scheduling, execution, or delivery", (),
+                ))
+                seen.add("todo_digest_schedule_active")
+            # A time, schedule, or delivery statement is not a present-tense
+            # membership claim.  TTD-05B is the earliest possible proof lane.
+            continue
+        if _TODO_DIGEST_FUTURE_RE.search(prefix):
+            continue
+        claim_type = "todo_digest_excludes" if excludes else "todo_digest_contains"
+        if claim_type not in seen:
+            evidence = tuple(receipt["receipt_ref"] for receipt in receipts if receipt["claim_type"] == claim_type)
+            findings.append(ClaimEvidenceFinding(
+                claim_type,
+                "supported" if evidence else "unsupported",
+                "Todo digest membership has a matching verified postcondition" if evidence else "Todo digest membership has no matching verified postcondition",
+                evidence,
+            ))
+            seen.add(claim_type)
     return tuple(findings)
 
 

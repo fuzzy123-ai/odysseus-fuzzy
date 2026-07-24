@@ -278,6 +278,50 @@ def test_facade_attaches_a_semantic_receipt_only_after_a_valid_success(monkeypat
     assert "private" not in repr(receipt)
 
 
+def test_facade_attaches_only_a_valid_fresh_digest_postcondition(monkeypatch):
+    from src import builtin_actions
+    from src.todo_digest_receipts import build_todo_digest_membership_receipt
+
+    class SemanticService:
+        def add(self, **_kwargs):
+            return SimpleNamespace(
+                to_dict=lambda: {
+                    "list_ref": "list-1", "item_ref": "item-9", "operation": "add",
+                    "previous_state": None, "current_state": False, "open_count": 1,
+                    "transaction_status": "committed", "verified": True,
+                    "evidence_refs_redacted": (
+                        "owner:0123456789abcdef", "list:fedcba9876543210",
+                        "item:0011223344556677", "operation:add",
+                    ),
+                }
+            )
+
+    calls = []
+    def fresh(**kwargs):
+        calls.append(kwargs)
+        refs = kwargs["evidence_refs"]
+        return build_todo_digest_membership_receipt(
+            action="add", evidence_refs=refs, current_state={"exists": True, "done": False},
+            included=True, selection_position=0, open_item_count=1, selected_open_item_count=1,
+            limit=20, label_filter_active=False, list_filter_active=False, builder_date="2026-07-24",
+            snapshot_manifest={
+                "schema": "odysseus.todo_digest_snapshot.v1", "builder_date": "2026-07-24",
+                "builder_clock": "naive_local", "limit": 20, "label_filter_active": False,
+                "list_filter_active": False,
+                "selected": [{"list_ref": refs[1], "item_ref": refs[2], "position": 0, "done": False}],
+            },
+        )
+
+    monkeypatch.setattr(todos, "_service_factory", SemanticService)
+    monkeypatch.setattr(builtin_actions, "build_todo_digest_item_postcondition", fresh)
+
+    result = _run({"action": "add", "list_ref": "list-1", "text": "private", "idempotency_key": "key-1"})
+
+    assert len(calls) == 1
+    assert result["todo_digest_receipt"]["claim_type"] == "todo_digest_contains"
+    assert "private" not in repr(result["todo_digest_receipt"])
+
+
 def test_facade_attaches_read_verified_list_receipt_with_facade_redacted_refs(monkeypatch):
     service = RecordingService()
     monkeypatch.setattr(todos, "_service_factory", lambda: service)

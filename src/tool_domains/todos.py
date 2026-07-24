@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from src.tool_domains.common import _parse_tool_args
-from src.todo_transaction_receipts import attach_todo_semantic_receipt
+from src.todo_transaction_receipts import TODO_RECEIPT_FIELD, attach_todo_semantic_receipt
 from src.todo_domain_service import (
     TodoAmbiguousMatchError,
     TodoConflictError,
@@ -79,14 +79,39 @@ async def do_manage_todos(content: str, owner: Optional[str] = None) -> dict[str
                 text=args.get("text"),
             )
         payload = result.to_dict()
-        return attach_todo_semantic_receipt(
+        attached = attach_todo_semantic_receipt(
             {"status": "ok", "action": action, "exit_code": 0, **payload},
             action,
             owner=owner,
             list_ref=list_ref,
         )
+        if action in {"add", "complete", "reopen", "remove"}:
+            _attach_digest_postcondition(attached, owner=owner, list_ref=list_ref)
+        return attached
     except Exception as exc:
         return _public_error_for(exc)
+
+
+def _attach_digest_postcondition(result: dict[str, Any], *, owner: Any, list_ref: Any) -> None:
+    """Best-effort, read-only postcondition; never weakens the mutation receipt."""
+    semantic = result.get(TODO_RECEIPT_FIELD)
+    if not isinstance(semantic, dict):
+        return
+    item_ref = result.get("item_ref")
+    try:
+        from src.builtin_actions import build_todo_digest_item_postcondition
+        from src.todo_digest_receipts import TODO_DIGEST_RECEIPT_FIELD, validate_todo_digest_receipt
+        current = semantic.get("current_state")
+        state = {"exists": current is not None, "done": current}
+        candidate = build_todo_digest_item_postcondition(
+            owner=owner, list_ref=list_ref, item_ref=item_ref, action=semantic.get("action"),
+            evidence_refs=semantic.get("evidence_refs"), current_state=state,
+        )
+        validated = validate_todo_digest_receipt(candidate, semantic_receipt=semantic)
+        if validated is not None:
+            result[TODO_DIGEST_RECEIPT_FIELD] = validated
+    except Exception:
+        return
 
 
 def _is_confirmed(args: dict[str, Any]) -> bool:

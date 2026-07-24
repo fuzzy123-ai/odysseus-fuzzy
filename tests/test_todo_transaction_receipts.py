@@ -11,6 +11,7 @@ from src.todo_transaction_receipts import (
     todo_semantic_event,
     validated_todo_semantic_receipt_from_event,
 )
+from src.todo_digest_receipts import TODO_DIGEST_RECEIPT_FIELD, build_todo_digest_membership_receipt
 
 
 def _mutation_result(action, *, transaction_status="committed"):
@@ -283,6 +284,30 @@ def test_generic_success_and_tampered_semantic_events_are_not_todo_evidence():
     tampered = deepcopy(event)
     tampered["action"] = "complete"
     assert validated_todo_semantic_receipt_from_event(tampered) is None
+
+
+def test_closed_history_keeps_only_a_valid_digest_postcondition():
+    result = attach_todo_semantic_receipt(_mutation_result("add"), "add")
+    semantic = result[TODO_RECEIPT_FIELD]
+    digest = build_todo_digest_membership_receipt(
+        action="add", evidence_refs=semantic["evidence_refs"],
+        current_state={"exists": True, "done": False}, included=True,
+        selection_position=0, open_item_count=1, selected_open_item_count=1, limit=20,
+        label_filter_active=False, list_filter_active=False, builder_date="2026-07-24",
+        snapshot_manifest={
+            "schema": "odysseus.todo_digest_snapshot.v1", "builder_date": "2026-07-24",
+            "builder_clock": "naive_local", "limit": 20, "label_filter_active": False,
+            "list_filter_active": False,
+            "selected": [{"list_ref": semantic["evidence_refs"][1], "item_ref": semantic["evidence_refs"][2], "position": 0, "done": False}],
+        },
+    )
+    result[TODO_DIGEST_RECEIPT_FIELD] = digest
+
+    event = todo_semantic_event(result)
+
+    assert event[TODO_DIGEST_RECEIPT_FIELD] == digest
+    result[TODO_DIGEST_RECEIPT_FIELD] = {"private_text": "nope"}
+    assert TODO_DIGEST_RECEIPT_FIELD not in todo_semantic_event(result)
 
     tampered = deepcopy(event)
     tampered[TODO_RECEIPT_FIELD]["evidence_refs"] = ("operation:reopen", "C:/private")

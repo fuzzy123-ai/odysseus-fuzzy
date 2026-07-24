@@ -137,11 +137,25 @@ def todo_semantic_event(result: Mapping[str, Any] | Any) -> dict[str, Any] | Non
     validated = _validate_semantic_receipt(action, receipt)
     if validated is None:
         return None
-    return {
+    event = {
         "tool": TODO_TOOL_NAME,
         "action": action,
         TODO_RECEIPT_FIELD: validated,
     }
+    # Digest membership is an optional, separately validated postcondition.
+    # Invalid extras are omitted so the established semantic event remains
+    # backwards-compatible and content-free.
+    if action in _MUTATION_CLAIMS:
+        try:
+            from src.todo_digest_receipts import TODO_DIGEST_RECEIPT_FIELD, validate_todo_digest_receipt
+            digest = validate_todo_digest_receipt(
+                result.get(TODO_DIGEST_RECEIPT_FIELD), semantic_receipt=validated
+            )
+            if digest is not None:
+                event[TODO_DIGEST_RECEIPT_FIELD] = digest
+        except Exception:
+            pass
+    return event
 
 
 def todo_safe_history_event(result: Mapping[str, Any] | Any) -> dict[str, Any]:

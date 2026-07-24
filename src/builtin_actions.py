@@ -1118,17 +1118,21 @@ async def action_daily_brief(owner: str, **kwargs) -> Tuple[str, bool]:
         return str(e), False
 
 
-def _todo_digest_from_notes(notes, *, label: str | None = None, list_filter: str | None = None, limit: int = 20) -> str:
+def _todo_digest_selection_from_notes(notes, *, label: str | None = None, list_filter: str | None = None, limit: int = 20, builder_date=None) -> dict:
+    """Select the default digest once, retaining raw values only in-process."""
     import json as _json
     from datetime import datetime as _dt
 
     label = (label or "").strip().lower()
     list_filter = (list_filter or "").strip().lower()
-    today = _dt.now().date()
+    # Keep the renderer's historical Python slice semantics exactly.  The
+    # receipt path independently uses its default bounded limit of 20.
+    today = builder_date or _dt.now().date()
     overdue: list[str] = []
     due_today: list[str] = []
     pinned: list[str] = []
-    open_items: list[str] = []
+    open_items: list[dict] = []
+    item_states: list[dict] = []
 
     def _due_bucket(raw: str | None) -> str:
         if not raw:
@@ -1143,7 +1147,8 @@ def _todo_digest_from_notes(notes, *, label: str | None = None, list_filter: str
             return "today"
         return ""
 
-    for note in notes:
+    from src.todo_digest_receipts import redact_ref
+    for note_index, note in enumerate(notes):
         if getattr(note, "archived", False):
             continue
         if label and (getattr(note, "label", "") or "").strip().lower() != label:
@@ -1163,14 +1168,53 @@ def _todo_digest_from_notes(notes, *, label: str | None = None, list_filter: str
                 items = _json.loads(note.items or "[]")
             except Exception:
                 items = []
-            for item in items:
-                if not isinstance(item, dict) or item.get("done"):
+            for item_index, item in enumerate(items):
+                if not isinstance(item, dict):
                     continue
                 text = " ".join(str(item.get("text") or "").split())
-                if text:
-                    open_items.append(f"{title}: {text}")
+                item_ref = item.get("id")
+                list_ref = getattr(note, "id", None)
+                manifest_list_ref = redact_ref("list", list_ref if isinstance(list_ref, str) and list_ref else f"row:{note_index}")
+                manifest_item_ref = redact_ref("item", item_ref if isinstance(item_ref, str) and item_ref else f"legacy:{note_index}:{item_index}")
+                item_states.append({
+                    "list_ref": list_ref,
+                    "item_ref": item_ref,
+                    "done": item.get("done") is True,
+                    "text_nonempty": bool(text),
+                })
+                if not item.get("done") and text:
+                    open_items.append({
+                        "render": f"{title}: {text}", "list_ref": list_ref, "item_ref": item_ref,
+                        "manifest_list_ref": manifest_list_ref, "manifest_item_ref": manifest_item_ref,
+                    })
         elif getattr(note, "pinned", False) and title:
-            open_items.append(title)
+            open_items.append({
+                "render": title, "list_ref": None, "item_ref": None,
+                "manifest_list_ref": redact_ref("list", getattr(note, "id", None) if isinstance(getattr(note, "id", None), str) and getattr(note, "id", None) else f"row:{note_index}"),
+                "manifest_item_ref": redact_ref("item", f"pinned:{note_index}"),
+            })
+
+    return {
+        "overdue": overdue,
+        "due_today": due_today,
+        "pinned": pinned,
+        "open_items": open_items,
+        "item_states": item_states,
+        "limit": limit,
+        "label_filter_active": bool(label),
+        "list_filter_active": bool(list_filter),
+        "builder_date": today.isoformat(),
+    }
+
+
+def _todo_digest_from_notes(notes, *, label: str | None = None, list_filter: str | None = None, limit: int = 20) -> str:
+    """Render the shared default-digest selection without changing its output."""
+    selection = _todo_digest_selection_from_notes(notes, label=label, list_filter=list_filter, limit=limit)
+    limit = selection["limit"]
+    overdue = selection["overdue"]
+    due_today = selection["due_today"]
+    pinned = selection["pinned"]
+    open_items = [item["render"] for item in selection["open_items"]]
 
     lines = ["Todo digest"]
     if overdue:
@@ -1192,6 +1236,86 @@ def _todo_digest_from_notes(notes, *, label: str | None = None, list_filter: str
     else:
         lines.append("- none")
     return collapse_repeated_open_item_list_prefixes("\n".join(lines))
+
+
+def build_todo_digest_item_postcondition(
+    *, owner, list_ref, item_ref, action, evidence_refs, current_state,
+) -> dict | None:
+    """Fresh owner-scoped default-digest readback for a successful mutation.
+
+    This boundary is intentionally read-only.  It neither schedules nor runs a
+    digest and only hands a redacted, content-free selection projection to the
+    receipt module.
+    """
+    if not isinstance(owner, str) or not owner or not isinstance(list_ref, str) or not list_ref or not isinstance(item_ref, str) or not item_ref:
+        return None
+    try:
+        from core.database import Note, SessionLocal
+        from src.auth_helpers import owner_filter
+        db = SessionLocal()
+        try:
+            query = owner_filter(db.query(Note).filter(Note.archived == False), Note, owner, include_shared=False)  # noqa: E712
+            notes = query.order_by(Note.pinned.desc(), Note.updated_at.desc()).all()
+        finally:
+            db.close()
+        return _todo_digest_item_postcondition_from_notes(
+            notes, list_ref=list_ref, item_ref=item_ref, action=action,
+            evidence_refs=evidence_refs, current_state=current_state,
+        )
+    except Exception:
+        return None
+
+
+def _todo_digest_item_postcondition_from_notes(
+    notes, *, list_ref, item_ref, action, evidence_refs, current_state,
+) -> dict | None:
+    """Pure postcondition projection over the one freshly-read note snapshot."""
+    from src.todo_digest_receipts import build_todo_digest_membership_receipt
+    selection = _todo_digest_selection_from_notes(notes, limit=20)
+    target_lists = [
+        note for note in notes
+        if getattr(note, "id", None) == list_ref
+        and getattr(note, "note_type", "") == "checklist"
+        and not getattr(note, "archived", False)
+    ]
+    if len(target_lists) != 1:
+        return None
+    target_items = [state for state in selection["item_states"] if state["list_ref"] == list_ref and state["item_ref"] == item_ref]
+    if len(target_items) > 1:
+        return None
+    target = target_items[0] if target_items else None
+    if action in {"add", "reopen", "complete"} and target is None:
+        return None
+    if action == "remove" and target is not None:
+        return None
+    if target is not None:
+        if {"exists": True, "done": target["done"]} != current_state:
+            return None
+    elif current_state != {"exists": False, "done": None}:
+        return None
+    selected = selection["open_items"][:20]
+    positions = [index for index, value in enumerate(selection["open_items"]) if value["list_ref"] == list_ref and value["item_ref"] == item_ref]
+    included = bool(positions and positions[0] < 20)
+    if action in {"add", "reopen"} and (not target or not target["text_nonempty"] or not included):
+        return None
+    if action in {"complete", "remove"} and included:
+        return None
+    manifest = {
+        "schema": "odysseus.todo_digest_snapshot.v1", "builder_date": selection["builder_date"],
+        "builder_clock": "naive_local", "limit": 20, "label_filter_active": False,
+        "list_filter_active": False,
+        "selected": [
+            {"list_ref": value["manifest_list_ref"], "item_ref": value["manifest_item_ref"], "position": position, "done": False}
+            for position, value in enumerate(selected)
+        ],
+    }
+    return build_todo_digest_membership_receipt(
+        action=action, evidence_refs=evidence_refs, current_state=current_state,
+        included=included, selection_position=positions[0] if included else None,
+        open_item_count=len(selection["open_items"]), selected_open_item_count=len(selected), limit=20,
+        label_filter_active=False, list_filter_active=False, builder_date=selection["builder_date"],
+        snapshot_manifest=manifest,
+    )
 
 
 async def action_todo_digest(owner: str, **kwargs) -> Tuple[str, bool]:
