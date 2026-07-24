@@ -3459,6 +3459,15 @@
         "acquired_at": "2026-07-24T11:17:10+02:00",
         "lease_expires_at": "2026-07-24T15:17:10+02:00",
         "released_at": "2026-07-24T11:44:11+02:00",
+        "exact_ci_followup": {
+          "run_id": "30129837120",
+          "commit_sha": "308e6ff6",
+          "state": "repo_fix_pending_commit",
+          "diagnosis": "The focused test is current: timing was classified before first-person future intention plus change-action; the Telegram-v1 compatibility lane lacked equivalent sentence guards.",
+          "scope": ["src/claim_evidence_gate.py", "tests/test_claim_evidence_gate.py"],
+          "safety_invariant": "Direct factual timing, provider, execution, and delivery claims remain unsupported in both receipt lanes; quotation, request, negation, generic future, and first-person/plural intention do not create claims.",
+          "verification": "No broad pytest by user direction. Direct 12 ignored plus 4 factual parser cases in current and Telegram-v1 lanes passed under Python 3.11 and 3.14; AST parse and git diff --check passed."
+        },
         "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
         "new_paths": true,
         "dependency_sha256": {

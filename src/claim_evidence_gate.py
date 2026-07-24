@@ -152,6 +152,17 @@ _TODO_DIGEST_REQUEST_HYPOTHETICAL_RE = re.compile(
     r"wenn|w[\u00fc]rde|k[\u00f6]nnte|sollte|vielleicht|m[\u00f6]chte|bitte)\b",
     re.IGNORECASE,
 )
+_TODO_DIGEST_INTENTION_PREFIX_RE = re.compile(
+    r"\b(?:"
+    r"i\s+(?:will|won['\u2019]t|will\s+not|plan\s+to|intend\s+to|want\s+to|need\s+to|hope\s+to|am\s+going\s+to)|"
+    r"i['\u2019]ll|"
+    r"we\s+(?:will|won['\u2019]t|will\s+not|plan\s+to|intend\s+to|want\s+to|need\s+to|hope\s+to|are\s+going\s+to)|"
+    r"we['\u2019]ll|"
+    r"ich\s+(?:werde|will|m\u00f6chte|plane|habe\s+vor)|"
+    r"wir\s+(?:werden|wollen|m\u00f6chten|planen|haben\s+vor)"
+    r")\s+(?:nicht\s+)?(?:daf\u00fcr\s+)?(?:make|ensure|cause|try|attempt|have|sorgen|versuchen|bitten)\b",
+    re.IGNORECASE,
+)
 _TODO_DIGEST_TIMING_RE = re.compile(
     r"\b(?:tomorrow|morning|monday|tuesday|wednesday|thursday|friday|saturday|sunday|at\s+\d{1,2}(?::\d{2})?|send|sends|sending|sent|emailed|deliver|delivers|delivering|delivered|telegram|slack|email|ntfy|provider|run|runs|ran|running|execute|executes|executing|executed|execution|"
     r"morgen|morgens|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|um\s+\d{1,2}(?::\d{2})?|sende(?:t|n)?|gesendet|versendet|verschickt|geliefert|zugestellt|anbieter|ausf[\u00fcu]hren|ausgef[\u00fcu]hrt|ausf[\u00fch]rung|f[\u00fcu]hrt\s+aus|l[\u00e4a]uft|lief)\b",
@@ -514,6 +525,8 @@ def _todo_digest_claim_findings(text: str, events: Iterable[Mapping[str, Any]]) 
         prefix = sentence[:match.start()]
         if _TODO_DIGEST_REQUEST_HYPOTHETICAL_RE.search(prefix):
             continue
+        if _TODO_DIGEST_INTENTION_PREFIX_RE.search(prefix):
+            continue
         if _NEGATED_CLAIM_PREFIX_RE.search(prefix):
             continue
         next_digest = bool(_TODO_DIGEST_NEXT_RE.search(sentence))
@@ -571,6 +584,19 @@ def _legacy_todo_digest_claim_findings(
         excludes = _TODO_DIGEST_EXCLUDES_RE.search(sentence)
         contains = _TODO_DIGEST_CONTAINS_RE.search(sentence)
         if not excludes and not contains:
+            continue
+        match = excludes or contains
+        prefix = sentence[:match.start()]
+        # Compatibility receipts only change the evidence format.  They must not
+        # make a request, intention, negation, or generic future statement into
+        # a factual claim that the current receipt lane would ignore.
+        if _TODO_DIGEST_REQUEST_HYPOTHETICAL_RE.search(prefix):
+            continue
+        if _TODO_DIGEST_INTENTION_PREFIX_RE.search(prefix):
+            continue
+        if _NEGATED_CLAIM_PREFIX_RE.search(prefix):
+            continue
+        if not _TODO_DIGEST_TIMING_RE.search(sentence) and _TODO_DIGEST_FUTURE_RE.search(prefix):
             continue
         claim_type = "todo_digest_excludes" if excludes else "todo_digest_contains"
         evidence = todo_digest_evidence_for_claim(receipts, claim_type)

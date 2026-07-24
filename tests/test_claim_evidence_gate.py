@@ -3,7 +3,11 @@ from pathlib import Path
 import pytest
 
 from src.claim_evidence_gate import build_claim_evidence_correction, evaluate_response_claims
-from src.todo_digest_receipts import TODO_DIGEST_RECEIPT_FIELD, build_todo_digest_membership_receipt
+from src.todo_digest_receipts import (
+    TODO_DIGEST_RECEIPT_FIELD,
+    build_todo_digest_membership_receipt,
+    todo_digest_receipts_from_postconditions,
+)
 from src.todo_digest_schedule_receipts import TODO_DIGEST_SCHEDULE_RECEIPT_FIELD, build_todo_digest_schedule_receipt
 from src.tool_transaction_ledger import ToolTransaction
 
@@ -95,6 +99,36 @@ def _todo_next_digest_event(*, include_membership: bool = True, include_schedule
     return event
 
 
+def _legacy_todo_digest_event() -> dict:
+    """Build a redacted Telegram-v1 compatibility event for parser parity tests."""
+    receipts = todo_digest_receipts_from_postconditions(
+        {
+            "claim_type": "todo_digest_contains",
+            "list_ref": "todo-list:v1:0123456789abcdef:list-alpha",
+            "item_ref": "todo-item:v1:itm_0123456789abcdef",
+            "included": True,
+            "current_state": {"exists": True, "done": False},
+            "projection_ref": "todo-digest-projection:v1:" + "a" * 32,
+            "transaction_status": "projected",
+            "verified": True,
+            "evidence_refs": ["notes-digest-readback:v1:" + "a" * 32],
+        },
+        {
+            "claim_type": "todo_digest_schedule_active",
+            "status": "active",
+            "schedule_ref": "todo-digest-schedule:v1:" + "b" * 12,
+            "next_run": "2026-07-25T09:00:00",
+            "verified": True,
+            "evidence_refs": ["scheduled-task-readback:v1:" + "b" * 12],
+        },
+    )
+    return {
+        "tool": "manage_todos",
+        "exit_code": 0,
+        "todo_digest_receipts": [receipt.to_dict() for receipt in receipts],
+    }
+
+
 @pytest.mark.parametrize(
     ("text", "action", "claim"),
     [
@@ -114,6 +148,13 @@ def test_digest_membership_claims_require_matching_closed_postconditions(tmp_pat
     "text",
     [
         "I will make the todo item appear in the digest tomorrow.",
+        "I'll ensure the todo item appears in the digest tomorrow.",
+        "I won't make the todo item appear in the digest tomorrow.",
+        "I won\u2019t make the todo item appear in the digest tomorrow.",
+        "We\u2019ll ensure the todo item appears in the digest tomorrow.",
+        "Wir werden daf\u00fcr sorgen, dass die Aufgabe morgen im Digest erscheint.",
+        "Ich werde nicht daf\u00fcr sorgen, dass die Aufgabe morgen im Digest erscheint.",
+        "Ich werde dafür sorgen, dass die Aufgabe morgen im Digest erscheint.",
         "\"The todo item appears in the digest.\"",
         "Can you make the todo item appear in the digest?",
     ],
@@ -159,6 +200,31 @@ def test_timed_future_digest_assertion_is_schedule_unsupported_but_requests_are_
 
     assert [(item.claim_type, item.status) for item in concrete.findings] == [("todo_digest_schedule_active", "unsupported")]
     assert request.findings == plain_future.findings == ()
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("I will make the todo item appear in the digest tomorrow.", []),
+        ("I'll ensure the todo item appears in the digest tomorrow.", []),
+        ("I won't make the todo item appear in the digest tomorrow.", []),
+        ("I won\u2019t make the todo item appear in the digest tomorrow.", []),
+        ("We\u2019ll ensure the todo item appears in the digest tomorrow.", []),
+        ("Wir werden daf\u00fcr sorgen, dass die Aufgabe morgen im Digest erscheint.", []),
+        ("Ich werde nicht daf\u00fcr sorgen, dass die Aufgabe morgen im Digest erscheint.", []),
+        ("\"The todo item appears in the digest.\"", []),
+        ("Can you make the todo item appear in the digest tomorrow?", []),
+        ("The todo item never appears in the digest tomorrow.", []),
+        ("The todo item will appear in the digest.", []),
+        ("The todo item appears in the digest.", [("todo_digest_contains", "supported")]),
+        ("The todo item will appear in the digest tomorrow.", [("todo_digest_schedule_active", "unsupported")]),
+        ("The todo item appears in the digest at 09:00.", [("todo_digest_schedule_active", "unsupported")]),
+    ],
+)
+def test_legacy_digest_receipt_parser_matches_current_sentence_guards(tmp_path: Path, text: str, expected: list[tuple[str, str]]):
+    report = evaluate_response_claims(text, [_legacy_todo_digest_event()], repo_root=tmp_path)
+
+    assert [(item.claim_type, item.status) for item in report.findings] == expected
 
 
 def test_exact_time_and_delivery_words_stay_unsupported_even_with_schedule_receipt(tmp_path: Path):
