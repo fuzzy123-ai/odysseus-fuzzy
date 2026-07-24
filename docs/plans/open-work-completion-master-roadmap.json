@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T09:07:57+02:00",
-  "status": "ttd02_ttd08a_ttd08b_accepted_ttd08c_attachment_race_recon_no_claim_raw_temp_recovery_blocked_ttd03a_handoff_rejected_live_default_off",
+  "updated_at": "2026-07-24T09:15:49+02:00",
+  "status": "ttd02_ttd08a_ttd08b_accepted_ttd08c_attachment_lifecycle_owner_required_no_safe_claim_ttd03a_handoff_rejected_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd03a_reserved_handoff_rejected_ttd08cb_recon_complete_no_claim_ttd08cb1_crash_temp_recovery_recon_next",
+    "queue_status": "ttd03a_reserved_handoff_rejected_ttd08cb1_recon_complete_no_safe_claim_lifecycle_owner_decision_required",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd02_ttd08a_ttd08b_accepted_ttd08c_attachment_race_recon_no_claim_raw_temp_recovery_blocked_ttd03a_handoff_rejected_live_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd02_ttd08a_ttd08b_accepted_ttd08c_attachment_lifecycle_owner_required_no_safe_claim_ttd03a_handoff_rejected_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,11 +85,11 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-08C-B consumer/race recon and Sol refinement are complete with a no-claim verdict. Atomic content-free per-key reservations can prevent same-key suffix and payload races, but a hard process crash can leave a hidden root-sibling staging file containing raw attachment bytes. Best-effort cleanup is insufficient and the current contract authorizes no retained-raw-temp recovery ownership. The next safe action is read-only TTD-08C-B1 recovery-contract recon only; TTD-03A remains reserved and no implementation, deletion, migration, cleanup or live action is active.",
-        "slice": "TTD-08C-B1-attachment-spool-crash-temp-recovery-contract-read-only-recon",
-        "user_decision_required": false,
+        "reason": "TTD-08C-B1 recovery-contract recon is complete with a no-claim verdict. There is no existing Telegram startup or periodic lifecycle owner, next-write cleanup is unbounded, and a path-based cross-platform writer cannot atomically prove ownership across the raw-stage-before-binding crash window. A bounded cleaner requires a separately selected lifecycle owner and explicit narrow delete authority; no other safe OWM-22 implementation claim is currently available while TTD-03A remains reserved after rejected review.",
+        "slice": "TTD-08C-B-LIFECYCLE-OWNER-DECISION",
+        "user_decision_required": true,
         "missing_runtime_gates": [],
-        "safe_default": "read_only_define_strict_module_owned_raw_temp_identity_age_lock_race_and_recovery_ownership_without_deleting_any_file_or_claiming_implementation"
+        "safe_default": "no_attachment_writer_cleaner_trigger_or_delete_claim; preserve_recon_and_resume_later_with_explicit_lifecycle_owner_direction_or_fresh_ttd03a_repair"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-24"
@@ -955,8 +955,8 @@
       "id": "OWM-22",
       "name": "Telegram Todo Domain Truth And Digest Consistency",
       "priority": 4,
-      "status": "ttd00_through_ttd02_ttd08a_ttd08b_accepted_ttd08c_attachment_race_recon_no_claim_raw_temp_recovery_blocked_ttd03a_handoff_rejected_live_default_off",
-      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-02 plus the disjoint TTD-08A history-privacy projection and TTD-08B bounded audit store are accepted. TTD-03A remains reserved after its interrupted Terra handoff failed deep Sol review. TTD-08C umbrella recon is complete; its attachment consumer/race refinement rejected an immediate claim because raw crash-staging files lack bounded recovery ownership. Session/FTS, attachment-spool recovery and export-output boundaries need separately serialized successor work; TTD-03B and all later dependency successors remain open and live activation remains dormant.",
+      "status": "ttd00_through_ttd02_ttd08a_ttd08b_accepted_ttd08c_attachment_lifecycle_owner_required_no_safe_claim_ttd03a_handoff_rejected_live_default_off",
+      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-02 plus the disjoint TTD-08A history-privacy projection and TTD-08B bounded audit store are accepted. TTD-03A remains reserved after its interrupted Terra handoff failed deep Sol review. TTD-08C umbrella, attachment consumer/race and crash-temp recovery recon are complete, but no bounded cross-platform cleanup is possible without a separately selected lifecycle owner and narrow delete authority. Session/FTS and export-output boundaries remain separate; TTD-03B and all later dependency successors stay open and live activation remains dormant.",
       "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "source_gate_family": "telegram_todo_truth",
       "dependencies": [
@@ -969,14 +969,14 @@
       "safe_default": "build_and_test_against_synthetic_notes_memory_and_telegram_fixtures_no_production_data_write_deploy_or_send",
       "user_gate_policy": "No user gate in TTD-00 through TTD-10, including TTD-07A. Repository work uses synthetic owner-scoped data and keeps all live actions disabled. Deployment, production data repair, Telegram smoke and productive session rollover are four separate dormant action-specific gates and each requires its own later operator Go.",
       "execution_protocol": {
-        "queue_registration": "TTD-00 through TTD-02 plus TTD-08A and TTD-08B are accepted. TTD-03A remains reserved on nine paths after rejected deep Sol review and awaits a later Terra repair; TTD-03B waits for accepted TTD-03A. TTD-08C umbrella and TTD-08C-B consumer/race recon are complete. No implementation claim is active: B is blocked because atomic root-sibling raw staging can survive a hard process crash without authorized recovery. Next run only read-only TTD-08C-B1 recovery-contract recon; A Session/FTS and C export-output stay separate, while TTD-04 through TTD-07A and TTD-09 through TTD-10 remain blocked_by_dependency.",
+        "queue_registration": "TTD-00 through TTD-02 plus TTD-08A and TTD-08B are accepted. TTD-03A remains reserved on nine paths after rejected deep Sol review and awaits a later Terra repair; TTD-03B waits for accepted TTD-03A. TTD-08C umbrella, B consumer/race and B1 recovery-contract recon are complete. No implementation claim is active or safe: attachment work requires an explicit new lifecycle owner plus narrow delete authority, while A Session/FTS and C export-output stay separate. TTD-04 through TTD-07A and TTD-09 through TTD-10 remain blocked_by_dependency.",
         "dependency_rule": "Notes remains Todo truth; manage_todos is a domain facade over Notes, Memory rejects Todo storage, Telegram preserves semantic receipts, and every Digest claim requires a read-only include/exclude/schedule postcondition. Daily session rollover limits context but never substitutes old chat prose for domain readback.",
         "scheduling_decision": {
           "operator_priority_effective_at": "2026-07-21",
-          "position": "active_p0_corrective_track_ttd03a_reserved_ttd08a_ttd08b_accepted_ttd08cb_no_claim_ttd08cb1_recovery_recon_next",
+          "position": "active_p0_corrective_track_ttd03a_reserved_ttd08a_ttd08b_accepted_ttd08c_no_safe_claim_lifecycle_owner_decision_required",
           "implementation_authority": "current_goal_repo_only_plus_read_only_debian_preflight_no_live_mutation_authority_before_ttd10"
         },
-        "future_goal_command": "/goal Setze OWM-22 repo-only fort: fuehre nur read-only TTD-08C-B1-Recon fuer streng identifizierte modul-eigene Raw-Temp-Reste, Alter, Locks, aktive Writer und Recovery-Ownership durch; kein Delete oder Implementierungsclaim vor einem geschlossenen Vertrag; Session/FTS und Export bleiben separat, TTD-03A wird spaeter repariert; keine Bestandsmigration, Produktionsdaten, Deployments, Sends oder produktiven Rollover."
+        "future_goal_command": "/goal Setze OWM-22 erst nach einer expliziten Richtung fort: entweder separaten Attachment-Lifecycle-Owner samt enger Delete-Autoritaet roadmapen oder TTD-03A per frischem Terra-Reparaturhandoff wiederaufnehmen; bis dahin kein Writer, Cleaner, Hook, Delete, Session/FTS, Export, Produktionsdaten, Deployment, Send oder produktiver Rollover."
       },
       "activation_contract": {
         "id": "TTD-LIVE-DEPLOY",
@@ -3269,8 +3269,8 @@
         },
         {
           "id": "TTD-08C-B-attachment-spool-boundary",
-          "status": "consumer_race_recon_complete_no_claim_raw_crash_temp_recovery_blocker",
-          "next_requirement": "read-only TTD-08C-B1 contract for strict module-owned raw temp identity age active-writer exclusion and bounded recovery ownership before any claim",
+          "status": "consumer_race_and_recovery_recon_complete_no_safe_claim_lifecycle_owner_required",
+          "next_requirement": "explicit roadmap decision selecting a separate startup or periodic lifecycle owner and narrow delete authority, or defer attachment work",
           "candidate_after_recon": "the three-path new pure spool policy plus live_pipeline.py plus one focused test remains hypothetical only; per-key reservation solves suffix and payload races but hard-crash raw staging residue blocks privacy acceptance",
           "forbidden": "delete migrate rotate or rewrite existing spools plugin polling webhook Nextcloud Memory export runtime download and live actions"
         },
@@ -3316,7 +3316,7 @@
         "live_validated": "no"
       },
       "acceptance": "read_only_go_three_separate_privacy_boundaries_no_immediate_implementation_claim",
-      "next_frontier": "TTD-08C-B consumer/race recon is complete with no claim because hard-crash raw staging residue lacks recovery ownership. Run only read-only TTD-08C-B1 recovery-contract recon. Do not claim Session/FTS or export output, and do not delete migrate rotate clean or touch existing runtime files.",
+      "next_frontier": "TTD-08C-B consumer/race and B1 recovery-contract recon are complete with no safe claim. Attachment work requires an explicit separate lifecycle-owner and narrow-delete decision; otherwise defer it. Do not claim Session/FTS or export output, and do not delete migrate rotate clean or touch existing runtime files.",
       "done_when": "The global Session/FTS, persistent attachment spool and export-output/delivery privacy boundaries are separated with exact evidence, current configuration, hotfile collisions and no-touch constraints; no implementation is claimed until the selected successor has its own complete consumer and race contract."
     },
     {
@@ -3443,8 +3443,152 @@
         "live_validated": "no"
       },
       "acceptance": "read_only_no_claim_atomic_reservation_feasible_but_hard_crash_raw_staging_recovery_ownership_missing",
-      "next_frontier": "TTD-08C-B1 read-only crash-temp recovery contract only: identify exclusively module-owned names, content and byte bounds, safe age, active-writer exclusion, symlink and race behavior, and exact authority. Do not delete any file or create an implementation claim during recon.",
+      "next_frontier": "No safe attachment implementation claim is available. Choose and roadmap a separate lifecycle owner plus narrow delete authority, or defer attachment work and later resume the already reserved TTD-03A repair with a fresh Terra handoff. Do not delete any file or create a writer or cleaner claim by inference.",
       "done_when": "The recon truthfully proves consumer-safe root-sibling staging and per-key reservation semantics while refusing implementation because raw crash residue lacks bounded recovery ownership; no current or legacy spool file is read or changed."
+    },
+    {
+      "id": "TTD-08C-B1-attachment-spool-crash-temp-recovery-contract-recon",
+      "class": "analysis_only",
+      "owner": "/root",
+      "status": "recon_complete_no_claim_2026-07-24",
+      "claimable": false,
+      "depends_on": [
+        "TTD-08C-B consumer and race recon accepted read-only",
+        "read-only lifecycle owner lock temp cleanup and platform primitive inspection"
+      ],
+      "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "recon": {
+        "run_id": "abc-ttd08cb1-recon-20260724T091549+0200",
+        "worker": "Charlie",
+        "completed_at": "2026-07-24T09:15:49+02:00",
+        "mutation_performed": false,
+        "tests_run": [],
+        "runtime_or_private_data_read": false,
+        "existing_primitive_findings": [
+          "agent_context_feedback contains the only discovered Windows msvcrt plus Unix fcntl cross-process file-lock precedent, but it is not a Telegram spool owner",
+          "Telegram audit store and Project Forge locks are process-local and cannot prove inactive writers after a process crash",
+          "existing temp writers perform normal finally cleanup only and have no stale-temp recovery trigger",
+          "app lifespan has startup and periodic hooks for other owners only; attaching Telegram cleanup would require an app.py hotfile edit and explicit ownership",
+          "the upload cleanup hook owns rate-limit cleanup rather than raw upload deletion",
+          "Telegram setup has no startup or periodic file-lifecycle hook and its pulse owns typing indicators only",
+          "background monitor scheduler and Universal Inbox write gate are domain-specific and cannot be inferred as Telegram raw-file cleaners"
+        ],
+        "evidence_refs": [
+          "src/agent_context_feedback.py:203-216",
+          "src/agent_context_feedback.py:421-475",
+          "plugins/telegram/audit_store.py:42-53",
+          "plugins/telegram/audit_store.py:157-177",
+          "src/project_forge_outbox.py:57-58",
+          "src/project_forge_outbox.py:1019-1040",
+          "src/project_forge_outbox.py:1190-1207",
+          "src/abc_execution_service.py:181-200",
+          "src/planning_revision_store.py:1316-1337",
+          "app.py:1369-1405",
+          "app.py:1571-1584",
+          "app.py:1616-1641",
+          "routes/upload_routes.py:104-109",
+          "routes/upload_routes.py:266-271",
+          "plugins/telegram/plugin.py:1256-1274",
+          "plugins/telegram/plugin.py:1290-1335",
+          "src/bg_monitor.py:138-167",
+          "src/task_scheduler.py:230-245",
+          "src/universal_inbox_write_gate.py:1-143"
+        ],
+        "recovery_trigger_verdict": {
+          "status": "missing",
+          "reason": "cleanup only on a later attachment write is unbounded because no later write is guaranteed; no existing startup or periodic owner is authorized for universal_inbox_telegram",
+          "required_expansion": "separate lifecycle owner plus an explicit startup or periodic trigger hotfile and narrow deletion authority"
+        },
+        "strict_future_owner_requirements": [
+          "closed content-free immutable reservation with key suffix size SHA-256 random stage id issued and expiry timestamps",
+          "root-contained lstat junction symlink and regular-file checks for root reservation lease stage and final",
+          "one nonblocking cross-process lock shared by writer and cleaner; unavailable lock means skip",
+          "conservative future time and clock rollback handling; invalid or future lease is never deleted",
+          "pre-delete size hash random identity link-count and final inode or file-index verification",
+          "unknown names missing or inconsistent reservation symlinks legacy finals extra children hash or size mismatch and lock conflict are always no-touch"
+        ],
+        "unclosed_crash_window": {
+          "finding": "A raw stage can exist after creation but before an atomically persistent inode or file-index ownership binding exists.",
+          "why_ordering_cannot_close_it": "binding first permits a foreign lookalike at the predicted stage identity; binding second permits a crash before the binding is durable",
+          "platform_result": "the repository and Python path-based standard-library patterns provide no common Linux and Windows unnamed delete-on-close plus later hardlink publication primitive",
+          "privacy_effect": "a strict later cleaner cannot prove that the unbound raw path is module-owned, so deleting it would exceed authority and leaving it violates bounded retention"
+        },
+        "crash_delete_matrix": [
+          {
+            "state": "before published reservation",
+            "residue": "at most content-free manifest temp",
+            "delete_authority": "none inferred; privacy-neutral no-touch"
+          },
+          {
+            "state": "reservation published before raw stage",
+            "residue": "content-free reservation and possibly empty key",
+            "delete_authority": "no raw deletion; same identity may resume"
+          },
+          {
+            "state": "raw stage created before durable file identity binding",
+            "residue": "unbound raw temp",
+            "delete_authority": "never infer ownership; blocker"
+          },
+          {
+            "state": "valid bound stage without final",
+            "residue": "raw temp",
+            "delete_authority": "future explicit owner only after lock age hash size link-count and containment checks"
+          },
+          {
+            "state": "final linked and stage link remains",
+            "residue": "final plus hidden hardlink",
+            "delete_authority": "future explicit owner may unlink only the stage name after exact same-file proof; never final"
+          },
+          {
+            "state": "legacy final mismatch or extra child",
+            "residue": "unknown or legacy",
+            "delete_authority": "never"
+          }
+        ],
+        "decision": {
+          "verdict": "no_claim",
+          "safe_default": "do not implement writer cleaner trigger or deletion",
+          "operator_direction_required": "select and roadmap a separate lifecycle owner with explicit narrow deletion authority, or defer attachment work",
+          "alternative_later_frontier": "fresh Terra repair of already reserved TTD-03A, with its focused verification, when test work is allowed again"
+        }
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "read-only cleanup ownership and cross-platform crash-boundary proof before any destructive claim"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep_boundary",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "fallback": "none"
+      },
+      "completion": {
+        "recon_complete": "yes",
+        "implementation_claim_created": "no",
+        "tested": "not_applicable_read_only",
+        "committed": "yes_local_this_evidence_commit",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no"
+      },
+      "acceptance": "read_only_no_claim_no_existing_lifecycle_trigger_and_cross_platform_raw_stage_ownership_gap",
+      "next_frontier": "No safe repo implementation claim is available under current scope. Preserve the evidence and request explicit lifecycle-owner direction later, or resume the reserved TTD-03A repair only when focused test work is allowed.",
+      "done_when": "The roadmap truthfully records that no existing startup or periodic lifecycle owner can guarantee bounded raw-temp recovery and that no cross-platform path-based primitive closes the pre-binding crash window; no file is deleted and no cleaner or writer is claimed."
     },
     {
       "id": "TAX0-deterministic-inventory",

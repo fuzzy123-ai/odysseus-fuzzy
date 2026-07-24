@@ -15,8 +15,9 @@ Audit-Store ist nach drei tiefen Sol-Review-Runden ebenfalls akzeptiert.
 Der read-only `TTD-08C`-Umbrella-Recon ist abgeschlossen und trennt Session/
 FTS, Attachment-Spool und Export-Output ohne Implementierungsclaim. Auch der
 schmale `TTD-08C-B` Consumer-/Race-Recon ist abgeschlossen, lehnt einen Claim
-wegen unbegrenzt moeglicher Raw-Crash-Temps aber ab; naechster Schritt ist nur
-der read-only `TTD-08C-B1` Recovery-Vertragsrecon.
+wegen unbegrenzt moeglicher Raw-Crash-Temps aber ab. Der read-only
+`TTD-08C-B1` Recovery-Vertragsrecon bestaetigt nun: Ohne separaten
+Lifecycle-Owner und enge Delete-Autoritaet existiert kein sicherer Claim.
 Spaetere unmet Slices und saemtliche Live-Aktionen bleiben gesperrt.
 
 ## Durable Amendment Claim 2026-07-21
@@ -1076,12 +1077,33 @@ Serialisierung:
        `plugins/telegram/live_pipeline.py` und neuer
        `tests/test_telegram_attachment_spool.py`; sie sind noch nicht
        geclaimt.
-     - Naechstens nur read-only
-       `TTD-08C-B1-attachment-spool-crash-temp-recovery-contract`: streng
-       modul-eigene Namen, Byte-/Content-Bounds, sicheres Alter, aktive
-       Writer/Locks, Symlink-/Race-Verhalten und exakte Recovery-Authority
-       definieren. In diesem Recon keine Datei loeschen und keinen Claim
-       erstellen.
+     - `TTD-08C-B1-attachment-spool-crash-temp-recovery-contract` ist
+       ebenfalls read-only abgeschlossen. Ein cross-platform
+       `msvcrt`-/`fcntl`-Lock-Praezedenzfall existiert, aber kein Telegram-
+       Startup-/Periodik-Owner. Andere App-, Upload-, Scheduler- und
+       Universal-Inbox-Hooks besitzen diese Raw-Spools nicht.
+     - Cleanup nur beim naechsten Attachment-Write ist nicht bounded, weil
+       danach nie wieder ein Write eintreten muss. Ein Anschluss an den
+       App-Lifespan oder Scheduler waere ein neuer Hotfile- und
+       Lifecycle-Owner mit eigener Delete-Autoritaet.
+     - Ein strenger kuenftiger Owner braeuchte content-free Reservation und
+       Lease, gemeinsame nonblocking Cross-Process-Locks, konservative
+       Clock-Skew-Regeln sowie Root-/Symlink-, Hash-, Size-, Linkcount- und
+       Final-Inode/File-Index-Pruefung. Unbekannte Namen, Legacy-Finals,
+       Mismatches, Extra-Children und Lock-Konflikte bleiben immer no-touch.
+     - Trotzdem bleibt ein ungeschlossenes Crashfenster: Das Raw-Stage kann
+       bereits existieren, bevor eine atomisch persistente Inode-/File-Index-
+       Bindung beweisbar ist. Bindung vorher erlaubt Lookalikes; Bindung
+       nachher erlaubt Crash davor.
+     - Linux `O_TMPFILE` plus FD-Link und Windows Delete-on-close plus
+       Hardlink bilden keinen gemeinsamen im Projekt vorhandenen
+       Python-Stdlib-Vertrag. Named Temps bleiben sichtbar und koennen nach
+       hartem Prozessende genau den blockierenden Raw-Rest hinterlassen.
+     - Endverdict: `no_claim`. Keine sichere Attachment-Implementierungsfront
+       unter aktuellem Scope. Spaeter entweder einen separaten Lifecycle-
+       Owner samt enger Delete-Autoritaet roadmapen oder Attachment-Arbeit
+       vertagen; TTD-03A kann erst mit frischem Terra-Handoff und wieder
+       erlaubter fokussierter Testarbeit repariert werden.
      - Kein Implementierungsclaim, keine Bestandsmigration/-loeschung/
        -rotation, kein Session-/FTS- oder Export-Edit und keine Live-Aktion.
 
