@@ -1,81 +1,53 @@
-# Tool Analytics Identity Contract
+# Tool Analytics Identity Contract v1
 
-Status: repository contract implemented by TAX10; analytics capture and backfill remain disabled
+Status: repo contract implemented; productive capture and UI activation remain off.
 
-Schema: `odysseus.tool_analytics_identity.v1`
+Contract ID: `odysseus.tool_analytics_identity.v1`
 
-## Boundary
+## Purpose
 
-This is the only public tool-identity projection for TUA consumers. It is
-derived from the existing `ToolDescriptorV2Index`; it is not a registry and
-does not discover, register, enable or execute tools. TUA must resolve a
-runtime tool name through this contract and persist only the returned
-`analytics_id`, `family` and `source` values.
+TAX is the only authority for the three tool identity fields consumed by TUA:
+`tool_analytics_id`, `tool_family`, and `tool_source`. Consumers call
+`build_tool_analytics_identity_contract()` or
+`resolve_tool_analytics_identity()` from `src.builtin_tool_catalog`; they do
+not maintain a second alias or family map.
 
-## Public Identity
+## Known and historical identities
 
-Each canonical descriptor produces exactly one immutable identity with these
-fields:
+A canonical built-in name resolves to its Descriptor-v2 `analytics_id`,
+`family`, and `source`. Historical names resolve through the versioned alias
+map. In v1, `manage_rag` maps to `manage_personal_docs`. Both inputs therefore
+produce the same event fields and cannot create two usage series.
 
-| Field | Rule |
-| --- | --- |
-| `schema_version` | Constant `odysseus.tool_analytics_identity.v1`. |
-| `tool_id` | Canonical technical runtime identifier. |
-| `analytics_id` | Stable lowercase counting key. |
-| `family` | Controlled `ToolFamily` value from TAX. |
-| `source` | Controlled `ToolSource` value from TAX. |
-| `aliases` | Historical technical names that resolve to this identity. |
-| `retired` | Bounded deprecation state; it never releases the identity. |
+The resolution packet may state that an alias was applied and name the safe
+canonical tool ID. It never returns the raw input separately. Historical
+aliases cannot become canonical IDs, and `retired_analytics_ids` are rejected
+if a later catalog attempts to reuse them for another capability.
 
-Aliases are resolution edges, not additional identities. Resolving a
-canonical `tool_id` or any of its aliases returns the same identity and the
-same `analytics_id`; alias use therefore cannot create a second catalog count.
-Unknown names return no identity and TUA must fail closed instead of inventing
-a name. Every next contract version must carry the previous alias-target
-snapshot forward. A historical alias cannot be removed, reassigned or promoted
-to a new canonical ID; its retired canonical identity remains as a tombstone.
+## Unreviewed dynamic identities
 
-## Source Classification
+An unreviewed runtime name is never copied or hashed into persistent identity.
+It maps only to one bounded source bucket:
 
-Built-ins, Plugins, MCP tools, Providers and Legacy descriptors retain their
-controlled TAX source enum. A dynamic tool without reviewed metadata uses
-`source=dynamic` and `family=unclassified_dynamic`. The identity has no
-`source_id`, owner label, installation label, provider name or free-form
-metadata, so an unknown dynamic source cannot introduce personal data.
+| Source | Analytics ID | Family |
+| --- | --- | --- |
+| Plugin | `dynamic.plugin.unclassified` | `unclassified_dynamic` |
+| MCP | `dynamic.mcp.unclassified` | `unclassified_dynamic` |
+| Provider | `dynamic.provider.unclassified` | `unclassified_dynamic` |
+| Legacy/unknown | `legacy.unclassified` | `unclassified_dynamic` |
 
-## Permanent Reservations
+This deliberately sacrifices per-tool statistics for unreviewed sources. A
+source becomes individually measurable only after it receives a reviewed TAX
+descriptor in the contract catalog.
 
-Every published identity reserves `analytics_id -> tool_id` from its first
-contract version onward. The contract exports the sorted reservation snapshot.
-The next version must pass the previous reservation and alias snapshots back
-when projecting the catalog. Reusing a reserved `analytics_id` for another `tool_id` fails closed,
-including after the original descriptor is deprecated or removed. Retirement
-never deletes a reservation, and aliases never own separate reservations.
+## Privacy boundary
 
-The reservation ledger contains technical IDs only. It is not an event store,
-usage counter or mutable analytics database.
+The identity contract accepts no owner, session, run, correlation, argument,
+result, prompt, path, provider account, or content field. Its event adapter
+returns exactly the three TAX-owned fields. Runtime tool names and dynamic
+source IDs are absent from fallback packets, so names containing account or
+session fragments cannot become analytics dimensions.
 
-## Privacy And Consumer Rules
-
-The public projection contains no display text, description, schema, handler,
-prompt, callable, arguments, results or arbitrary metadata. It also contains
-no owner, session, run, correlation, document, memory, mail, calendar, contact,
-path, URL, hostname, provider payload, token or secret value.
-
-TUA may consume only:
-
-- the versioned identity returned by canonical/alias resolution;
-- its `analytics_id`, `family` and `source` fields;
-- the reservation snapshot for anti-recycling validation.
-
-TUA must not infer identity from raw runtime names, create a parallel alias
-table or treat `manage_rag` as a runtime capability. TAX9 keeps that stale UI
-identifier quarantined unless a later evidence-backed alias points to a real
-canonical capability.
-
-## Deferred Activation
-
-TAX10 performs no event capture, database/settings mutation, retention job,
-legacy read, backfill, API/UI projection, metric export or feature activation.
-Those actions remain owned by their TUA slices and the dormant action-specific
-live gate.
+TUA continues to own pseudonymous event references, persistence gating,
+retention, aggregation, and capture activation. This contract neither enables
+capture nor writes events.

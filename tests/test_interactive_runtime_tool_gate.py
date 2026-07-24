@@ -14,8 +14,8 @@ async def test_native_pygame_launch_is_blocked_before_subprocess(monkeypatch):
         called = True
         return {"output": "unexpected", "exit_code": 0}
 
-    monkeypatch.setattr("src.tool_execution._call_mcp_tool", fake_call)
-    monkeypatch.setattr("src.tool_execution._owner_is_admin", lambda owner: True)
+    monkeypatch.setitem(execute_tool_block.__globals__, "_call_mcp_tool", fake_call)
+    monkeypatch.setitem(execute_tool_block.__globals__, "_owner_is_admin", lambda owner: True)
     _desc, result = await execute_tool_block(
         SimpleNamespace(tool_type="bash", content="python mario_game.py"),
         owner="alice",
@@ -35,8 +35,8 @@ async def test_pipeline_masking_is_blocked_before_subprocess(monkeypatch):
         called = True
         return {"output": "unexpected", "exit_code": 0}
 
-    monkeypatch.setattr("src.tool_execution._call_mcp_tool", fake_call)
-    monkeypatch.setattr("src.tool_execution._owner_is_admin", lambda owner: True)
+    monkeypatch.setitem(execute_tool_block.__globals__, "_call_mcp_tool", fake_call)
+    monkeypatch.setitem(execute_tool_block.__globals__, "_owner_is_admin", lambda owner: True)
     _desc, result = await execute_tool_block(
         SimpleNamespace(tool_type="bash", content="python -m pip install pygame-ce | tail -n 2"),
         owner="alice",
@@ -52,8 +52,8 @@ async def test_dummy_sdl_run_stays_headless_in_result_evidence(monkeypatch):
     async def fake_call(*args, **kwargs):
         return {"output": "frame captured", "exit_code": 0}
 
-    monkeypatch.setattr("src.tool_execution._call_mcp_tool", fake_call)
-    monkeypatch.setattr("src.tool_execution._owner_is_admin", lambda owner: True)
+    monkeypatch.setitem(execute_tool_block.__globals__, "_call_mcp_tool", fake_call)
+    monkeypatch.setitem(execute_tool_block.__globals__, "_owner_is_admin", lambda owner: True)
     _desc, result = await execute_tool_block(
         SimpleNamespace(
             tool_type="bash",
@@ -72,8 +72,8 @@ async def test_noninteractive_install_keeps_existing_command_behavior(monkeypatc
     async def fake_call(*args, **kwargs):
         return {"output": "installed", "exit_code": 0}
 
-    monkeypatch.setattr("src.tool_execution._call_mcp_tool", fake_call)
-    monkeypatch.setattr("src.tool_execution._owner_is_admin", lambda owner: True)
+    monkeypatch.setitem(execute_tool_block.__globals__, "_call_mcp_tool", fake_call)
+    monkeypatch.setitem(execute_tool_block.__globals__, "_owner_is_admin", lambda owner: True)
     _desc, result = await execute_tool_block(
         SimpleNamespace(tool_type="bash", content="python -m pip install requests"),
         owner="alice",

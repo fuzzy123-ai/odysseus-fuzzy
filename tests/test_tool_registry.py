@@ -4,7 +4,7 @@ import json
 from src.agent_tools import ToolBlock
 from src.tool_execution import execute_tool_block
 from src.tool_parsing import parse_tool_blocks
-from src.tool_registry import ToolSpec, get_tool, register_tool, tool_names, unregister_tool
+from src.tool_registry import ToolSpec, get_tool, list_tools, register_tool, unregister_tool
 from src.tool_schemas import FUNCTION_TOOL_SCHEMAS, function_call_to_tool_block
 
 
@@ -170,13 +170,14 @@ def test_tool_index_indexes_and_prunes_plugin_tools():
     ti.index_plugin_tools()
 
     lane = ti._lanes[0]
-    indexed_names = sorted(existing_names | {"plugin_echo"})
+    registered_names = [tool.name for tool in list_tools()]
     assert lane.collection.deleted == ["plugin_stale"]
     assert lane.collection.upserts[0]["ids"] == [
-        f"plugin_{name}" for name in indexed_names
+        f"plugin_{name}" for name in registered_names
     ]
     assert lane.collection.upserts[0]["metadatas"] == [
-        {"tool_name": name, "tool_type": "plugin"} for name in indexed_names
+        {"tool_name": name, "tool_type": "plugin"}
+        for name in registered_names
     ]
 
 

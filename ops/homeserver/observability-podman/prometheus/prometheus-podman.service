@@ -1,0 +1,21 @@
+[Unit]
+Description=Odysseus private Prometheus stack (activation gated)
+Documentation=https://prometheus.io/docs/prometheus/latest/
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=%h/.config/odysseus-observability/ACTIVATION_GO
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/odysseus/ops/homeserver/observability-podman/prometheus
+ExecStartPre=/usr/bin/test -r ./secrets/odysseus_metrics_token
+ExecStart=/usr/bin/podman-compose -f compose.yml up -d
+ExecStop=-/usr/bin/podman-compose -f compose.yml stop
+RemainAfterExit=yes
+Restart=no
+TimeoutStartSec=180
+TimeoutStopSec=60
+
+[Install]
+WantedBy=default.target
+

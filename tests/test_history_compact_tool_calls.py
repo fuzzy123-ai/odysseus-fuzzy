@@ -114,12 +114,19 @@ def _compact_prompt_for(monkeypatch, history):
 
     monkeypatch.setattr(endpoint_resolver, "resolve_endpoint", fake_resolve_endpoint)
     monkeypatch.setattr(llm_core, "llm_call_async", fake_llm_call_async)
+    async def fake_context_snapshot(endpoint_url, model):
+        return SimpleNamespace(context_length=1000, known=True)
+
+    monkeypatch.setattr(
+        llm_core,
+        "resolve_request_context_snapshot",
+        fake_context_snapshot,
+    )
     monkeypatch.setattr(
         model_context,
         "estimate_tokens",
         lambda messages, model_hint=None: 100,
     )
-    monkeypatch.setattr(model_context, "get_context_length", lambda endpoint_url, model: 1000)
 
     session = _FakeSession(history)
     manager = _FakeSessionManager(session)
@@ -161,6 +168,14 @@ def _registered_compact_response(monkeypatch, history, active_run=False):
 
     monkeypatch.setattr(endpoint_resolver, "resolve_endpoint", fake_resolve_endpoint)
     monkeypatch.setattr(llm_core, "llm_call_async", fake_llm_call_async)
+    async def fake_context_snapshot(endpoint_url, model):
+        return SimpleNamespace(context_length=1000, known=True)
+
+    monkeypatch.setattr(
+        llm_core,
+        "resolve_request_context_snapshot",
+        fake_context_snapshot,
+    )
 
     session = _FakeSession(history)
     manager = _FakeSessionManager(session)

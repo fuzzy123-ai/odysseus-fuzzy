@@ -36,52 +36,7 @@ from src.tool_security import runtime_tool_security_profile
 
 
 RUNTIME_TOOL_STATUS_SCHEMA = "odysseus.runtime_tool_status.v1"
-TOOL_CATALOG_PROJECTION_SCHEMA = "odysseus.tool_catalog_projection.v1"
-AGENT_MAINTENANCE_BOOTSTRAP_SCHEMA = "odysseus.agent_maintenance_bootstrap.v1"
-
-_MAINTENANCE_ROADMAP_PATH = Path(
-    "docs/plans/agent-maintenance-safety-harness-roadmap.json"
-)
-_MAINTENANCE_RUN_STATE_PATH = Path(
-    "docs/plans/telegram-todo-domain-truth-run-state.json"
-)
-_MAINTENANCE_DEFAULT_REPO_ROOT = Path(__file__).resolve().parents[1]
-_MAINTENANCE_VERIFY_COMMAND = (
-    "python -B scripts/verify.py --lane guards-only --receipt"
-)
-_MAINTENANCE_STATE_MAX_BYTES = 512 * 1024
-_MAINTENANCE_HOOK_INPUT_MAX_BYTES = 16 * 1024
-_MAINTENANCE_JSON_MAX_DEPTH = 24
-_MAINTENANCE_JSON_MAX_NODES = 30_000
-_MAINTENANCE_JSON_MAX_STRING = 8_192
-_MAINTENANCE_GIT_TIMEOUT_SECONDS = 1.0
-_MAINTENANCE_GIT_OUTPUT_MAX_BYTES = 64 * 1024
-_MAINTENANCE_DIRTY_COUNT_MAX = 99
-_MAINTENANCE_START_SOURCES = frozenset({"startup", "resume", "clear", "compact"})
-_MAINTENANCE_GIT_READS = {
-    "branch": (
-        "git",
-        "-c",
-        "core.fsmonitor=false",
-        "-c",
-        "core.untrackedCache=false",
-        "rev-parse",
-        "--abbrev-ref",
-        "HEAD",
-    ),
-    "status": (
-        "git",
-        "-c",
-        "core.fsmonitor=false",
-        "-c",
-        "core.untrackedCache=false",
-        "status",
-        "--porcelain=v1",
-        "--untracked-files=normal",
-        "--ignore-submodules=all",
-    ),
-}
-_MAINTENANCE_BRANCH_RE = re.compile(r"^[^\x00-\x20~^:?*\\\[\]]{1,160}$")
+TOOL_CATALOG_PROJECTION_SCHEMA = "odysseus.tool_catalog_projection.v2"
 
 _LIVE_NETWORK_TOOLS = {
     "web_search",
@@ -1113,6 +1068,7 @@ def build_runtime_tool_status(
     disabled = {str(item) for item in disabled_tools}
     builtin_descriptions = dict(builtin_descriptions or {})
     schemas = {_schema_name(schema): dict(schema) for schema in function_schemas if _schema_name(schema)}
+    descriptor_rows = _builtin_descriptor_rows()
     rows: list[dict[str, Any]] = []
     names = set(builtin_descriptions) | set(schemas)
     for name in sorted(names):
@@ -1123,11 +1079,9 @@ def build_runtime_tool_status(
                 description=builtin_descriptions.get(name, ""),
                 schema=schemas.get(name),
                 disabled=disabled,
-                description_registered=name in builtin_descriptions,
-                schema_registered=name in schemas,
+                descriptor=descriptor_rows.get(name),
             )
         )
-    seen = set(names)
     for tool in sorted(plugin_tools, key=lambda item: str(getattr(item, "name", ""))):
         name = str(getattr(tool, "name", "") or "")
         if not name or name in seen:
@@ -1141,29 +1095,35 @@ def build_runtime_tool_status(
                 schema={"function": {"parameters": getattr(tool, "parameters", {}) or {}}},
                 permission=str(getattr(tool, "permission", "") or "admin"),
                 disabled=disabled,
-                description_registered=True,
-                schema_registered=True,
+                descriptor=_dynamic_descriptor_row(
+                    name,
+                    source="plugin",
+                    source_id="plugin-registry",
+                    description=str(getattr(tool, "description", "") or ""),
+                ),
             )
         )
     for tool in sorted(mcp_tools, key=lambda item: str(item.get("qualified_name") or "")):
-        name = str(tool.get("qualified_name") or "").strip()
-        if not name or name in seen:
+        name = str(tool.get("qualified_name") or "")
+        if not name:
             continue
-        seen.add(name)
         rows.append(
             _tool_row(
                 name,
                 source="mcp",
                 description=str(tool.get("description") or ""),
-                schema={"parameters": tool.get("input_schema") or {}},
+                schema={"function": {"parameters": tool.get("input_schema") or {}}},
                 permission="admin",
-                disabled={name} if tool.get("is_disabled") else set(),
-                description_registered=True,
-                schema_registered=True,
+                disabled=disabled,
+                descriptor=_dynamic_descriptor_row(
+                    name,
+                    source="mcp",
+                    source_id=str(tool.get("server_id") or "mcp-server"),
+                    description=str(tool.get("description") or ""),
+                ),
             )
         )
-    rows.sort(key=lambda item: item["tool_id"])
-    drift_count = sum(1 for item in rows if item["drift_codes"])
+    rows.sort(key=lambda item: (item["tool_id"], item["source"]))
     return {
         "schema": RUNTIME_TOOL_STATUS_SCHEMA,
         "tool_count": len(rows),
@@ -1171,6 +1131,107 @@ def build_runtime_tool_status(
         "disabled_count": sum(1 for item in rows if item["availability"] == "disabled"),
         "effectful_count": sum(1 for item in rows if item["side_effect_class"] != "read_only_or_planning"),
         "drift_count": drift_count,
+        "sources": tuple(sorted({item["source"] for item in rows})),
+        "tools": tuple(rows),
+        "raw_schema_visible": False,
+        "secret_values_visible": False,
+        "raw_content_visible": False,
+    }
+
+
+def build_tool_catalog_projection(
+    *,
+    disabled_tools: Iterable[str] = (),
+    plugin_tools: Iterable[Any] = (),
+    mcp_tools: Iterable[Mapping[str, Any]] = (),
+) -> dict[str, Any]:
+    """Return the deterministic, redacted Descriptor-v2 Admin projection."""
+
+    from src.builtin_tool_catalog import (
+        PARSER_REGISTERED_TOOL_IDS,
+        build_builtin_descriptor_catalog,
+    )
+
+    disabled = {str(item) for item in disabled_tools if str(item)}
+    rows: list[dict[str, Any]] = []
+    for descriptor in build_builtin_descriptor_catalog().descriptors:
+        row = descriptor.audit_dict()
+        row.update(
+            runtime_tool_id=descriptor.tool_id,
+            enabled=descriptor.tool_id not in disabled,
+            settings_toggle_allowed=descriptor.tool_id in PARSER_REGISTERED_TOOL_IDS,
+            runtime_permission=descriptor.permission.value,
+            policy_status=(
+                "disabled_by_settings"
+                if descriptor.tool_id in disabled
+                else "catalog_unavailable"
+                if descriptor.availability.value != "available"
+                else "enabled"
+            ),
+            projection_drift=(),
+        )
+        rows.append(row)
+
+    for tool in plugin_tools:
+        runtime_id = str(getattr(tool, "name", "") or "")
+        if not runtime_id:
+            continue
+        row = _dynamic_descriptor_row(
+            runtime_id,
+            source="plugin",
+            source_id="plugin-registry",
+            description=str(getattr(tool, "description", "") or ""),
+        )
+        runtime_permission = str(getattr(tool, "permission", "") or "admin")
+        row.update(
+            runtime_tool_id=runtime_id,
+            enabled=runtime_id not in disabled,
+            settings_toggle_allowed=True,
+            runtime_permission=runtime_permission,
+            policy_status=(
+                "disabled_by_settings" if runtime_id in disabled else "dynamic_review_required"
+            ),
+            projection_drift=(
+                ("runtime_permission_narrower_than_conservative_descriptor",)
+                if runtime_permission != "admin"
+                else ()
+            ),
+        )
+        rows.append(row)
+
+    for tool in mcp_tools:
+        runtime_id = str(tool.get("qualified_name") or "")
+        if not runtime_id:
+            continue
+        row = _dynamic_descriptor_row(
+            runtime_id,
+            source="mcp",
+            source_id=str(tool.get("server_id") or "mcp-server"),
+            description=str(tool.get("description") or ""),
+        )
+        row.update(
+            runtime_tool_id=runtime_id,
+            enabled=runtime_id not in disabled and not bool(tool.get("is_disabled")),
+            settings_toggle_allowed=True,
+            runtime_permission="admin",
+            policy_status=(
+                "disabled_by_settings"
+                if runtime_id in disabled
+                else "disabled_by_mcp_server"
+                if tool.get("is_disabled")
+                else "dynamic_review_required"
+            ),
+            projection_drift=(),
+            handler_ref=f"mcp:{canonical_dynamic_tool_id(str(tool.get('server_id') or 'server'))}",
+        )
+        rows.append(row)
+
+    rows.sort(key=lambda item: (str(item.get("runtime_tool_id") or ""), item["source"]))
+    return {
+        "schema": TOOL_CATALOG_PROJECTION_SCHEMA,
+        "tool_count": len(rows),
+        "enabled_count": sum(1 for item in rows if item["enabled"]),
+        "disabled_count": sum(1 for item in rows if not item["enabled"]),
         "sources": tuple(sorted({item["source"] for item in rows})),
         "tools": tuple(rows),
         "raw_schema_visible": False,
@@ -1187,8 +1248,7 @@ def _tool_row(
     schema: Mapping[str, Any] | None,
     disabled: set[str],
     permission: str = "",
-    description_registered: bool = False,
-    schema_registered: bool = False,
+    descriptor: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     params = _parameters(schema or {})
     side_effect_class = _side_effect_class(name)
@@ -1204,42 +1264,34 @@ def _tool_row(
         schema_registered=schema_registered,
     )
     gate_status = _gate_status(name, side_effect_class, disabled=disabled)
-    if name not in disabled and spec is not None and spec.availability != ToolAvailability.AVAILABLE:
-        gate_status = "blocked_by_catalog"
-    elif (
-        name not in disabled
-        and profile.effect_class != ToolEffectClass.READ
-        and gate_status == "available"
-    ):
-        gate_status = "evidence_or_confirmation_required"
-    runtime_availability = (
-        "disabled"
-        if name in disabled
-        else "blocked"
-        if spec is not None and spec.availability != ToolAvailability.AVAILABLE
-        else "enabled"
+    descriptor = dict(descriptor or {})
+    drift: list[str] = []
+    if not descriptor:
+        drift.append("descriptor_missing")
+    if not schema:
+        drift.append("native_schema_missing")
+    runtime_permission = permission or descriptor.get("permission") or (
+        "builtin" if source == "builtin" else "admin"
     )
+    descriptor_permission = descriptor.get("permission") or "unknown"
+    if descriptor_permission == "admin" and runtime_permission not in {"admin", "builtin"}:
+        drift.append("runtime_permission_narrower_than_descriptor")
     return {
         "tool_id": name,
+        "analytics_id": descriptor.get("analytics_id") or name,
         "source": source,
-        "availability": runtime_availability,
-        "permission": profile.permission.value,
-        "risk_level": profile.risk_level.value,
-        "effect_class": profile.effect_class.value,
-        "requires_confirmation": profile.requires_confirmation,
-        "policy_projection_source": profile.source,
-        "lifecycle": spec.lifecycle.value if spec is not None else "contextual",
-        "catalog_availability": spec.availability.value if spec is not None else "available",
-        "registration_disposition": (
-            spec.registration_disposition.value if spec is not None else "dynamic"
-        ),
-        "default_policy": spec.default_policy.value if spec is not None else "dynamic_conservative",
-        "runtime_registered": spec.runtime_registered if spec is not None else True,
-        "schema_registered": schema_registered,
-        "description_registered": description_registered,
-        "drift_codes": drift_codes,
+        "availability": "disabled" if name in disabled else "enabled",
+        "catalog_availability": descriptor.get("availability") or "unknown",
+        "lifecycle": descriptor.get("lifecycle") or "unknown",
+        "family": descriptor.get("family") or "unclassified_dynamic",
+        "risk_level": descriptor.get("risk_level") or "dangerous",
+        "permission": runtime_permission,
+        "descriptor_permission": descriptor_permission,
+        "effect_class": descriptor.get("effect_class") or "control",
+        "requires_confirmation": bool(descriptor.get("requires_confirmation", True)),
         "side_effect_class": side_effect_class,
         "gate_status": gate_status,
+        "projection_drift": tuple(sorted(drift)),
         "schema_fingerprint": _schema_hash(params),
         "parameter_names": tuple(sorted(_properties(params))),
         "required_parameters": tuple(str(item) for item in params.get("required") or ()),
@@ -1250,25 +1302,79 @@ def _tool_row(
     }
 
 
-def _runtime_drift_codes(
+def _builtin_descriptor_rows() -> dict[str, dict[str, Any]]:
+    from src.builtin_tool_catalog import build_builtin_descriptor_catalog
+
+    return {
+        descriptor.tool_id: descriptor.audit_dict()
+        for descriptor in build_builtin_descriptor_catalog().descriptors
+    }
+
+
+def _dynamic_descriptor_row(
+    runtime_id: str,
     *,
-    spec: Any,
     source: str,
-    description_registered: bool,
-    schema_registered: bool,
-) -> tuple[str, ...]:
-    if source != "builtin":
-        return ()
-    if spec is None:
-        return ("runtime_or_schema_not_in_catalog",)
-    codes: list[str] = []
-    if not description_registered:
-        codes.append("missing_description_projection")
-    if spec.native_schema and not schema_registered:
-        codes.append("missing_native_schema_projection")
-    if not spec.runtime_registered:
-        codes.append(f"catalog_{spec.registration_disposition.value}")
-    return tuple(sorted(codes))
+    source_id: str,
+    description: str,
+) -> dict[str, Any]:
+    canonical_id = canonical_dynamic_tool_id(runtime_id)
+    descriptor = build_dynamic_tool_descriptor(
+        runtime_id,
+        source=source,
+        source_id=source_id,
+        description=description,
+    )
+    row = descriptor.audit_dict()
+    row["runtime_tool_id"] = runtime_id
+    if canonical_id != runtime_id:
+        row["projection_drift"] = ("runtime_id_normalized",)
+    return row
+
+
+def build_dynamic_tool_descriptor(
+    runtime_id: str,
+    *,
+    source: str,
+    source_id: str,
+    description: str = "",
+) -> Any:
+    """Build the shared fail-closed Descriptor-v2 representation for a dynamic tool."""
+
+    from src.tool_catalog import ToolCatalogError, ToolDescriptorV2
+
+    canonical_id = canonical_dynamic_tool_id(runtime_id)
+    canonical_source_id = canonical_dynamic_tool_id(source_id)
+    safe_description = _redact_description(description) or (
+        f"Registered {source} tool; unavailable until reviewed."
+    )
+    try:
+        descriptor = ToolDescriptorV2.conservative_dynamic(
+            tool_id=canonical_id,
+            source=source,
+            source_id=canonical_source_id,
+            description=safe_description,
+        )
+    except ToolCatalogError:
+        descriptor = ToolDescriptorV2.conservative_dynamic(
+            tool_id=canonical_id,
+            source=source,
+            source_id=canonical_source_id,
+        )
+    return descriptor
+
+
+def canonical_dynamic_tool_id(value: str) -> str:
+    """Return a deterministic, content-free Descriptor-v2 identity."""
+
+    raw = str(value or "").strip().lower()
+    base = re.sub(r"[^a-z0-9_.:-]+", "-", raw).strip("-._:")
+    if not base or not base[0].isalpha():
+        base = f"tool-{base or 'unknown'}"
+    if base == raw and len(base) <= 120:
+        return base
+    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
+    return f"{base[:106].rstrip('-._:')}-{digest}"
 
 
 def _schema_name(schema: Mapping[str, Any]) -> str:

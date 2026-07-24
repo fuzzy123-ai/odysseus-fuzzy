@@ -1,30 +1,22 @@
-"""Privacy-safe value contract for tool usage events."""
+"""Privacy-safe, allowlist-only tool usage event contract."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import StrEnum
 import hashlib
 import hmac
+import json
 import re
 import secrets
-from typing import Any
+from typing import Any, ClassVar, Mapping
 
-from src.tool_catalog import ToolFamily, ToolSource
-
-
-SCHEMA_VERSION = "odysseus.tool_usage_event.v1"
-_OPAQUE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{16,80}$")
-_ANALYTICS_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-_SAFE_VERSION_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z.+-]{0,31}$")
-_HMAC_REF_RE = re.compile(r"^h1_(owner|session|run|correlation)_[a-f0-9]{32}$")
-_MAX_DURATION_MS = 7 * 24 * 60 * 60 * 1000
-_MAX_RETRY_ORDINAL = 100
+from src.tool_catalog import ToolDescriptorV2, ToolFamily, ToolSource
 
 
 class ToolUsageEventError(ValueError):
-    """Raised when an event would violate the persistent allowlist contract."""
+    """Raised when a usage event cannot be represented without raw content."""
 
 
 class ToolUsageEventKind(StrEnum):
@@ -41,12 +33,14 @@ class ToolUsageStatus(StrEnum):
 
 
 class ToolUsageErrorClass(StrEnum):
-    EXECUTION_ERROR = "execution_error"
+    EXECUTION = "execution"
     TIMEOUT = "timeout"
-    DEPENDENCY_ERROR = "dependency_error"
-    VALIDATION_ERROR = "validation_error"
-    POLICY_ERROR = "policy_error"
+    VALIDATION = "validation"
+    POLICY = "policy"
+    PERMISSION = "permission"
+    DISABLED = "disabled"
     UNAVAILABLE = "unavailable"
+    CANCELLED = "cancelled"
     UNKNOWN = "unknown"
 
 
@@ -56,7 +50,16 @@ class ToolUsageBlockedReason(StrEnum):
     DISABLED = "disabled"
     UNKNOWN_TOOL = "unknown_tool"
     UNAVAILABLE = "unavailable"
-    RATE_LIMITED = "rate_limited"
+    CONFIRMATION_REQUIRED = "confirmation_required"
+
+
+class ToolUsageSurface(StrEnum):
+    CHAT = "chat"
+    AGENT = "agent"
+    SCHEDULER = "scheduler"
+    API = "api"
+    MCP = "mcp"
+    SYSTEM = "system"
 
 
 class ToolUsageSizeBucket(StrEnum):
@@ -77,15 +80,6 @@ class ToolUsageResultShape(StrEnum):
     UNKNOWN = "unknown"
 
 
-class ToolUsageSurface(StrEnum):
-    CHAT = "chat"
-    AGENT = "agent"
-    SCHEDULER = "scheduler"
-    API = "api"
-    MCP = "mcp"
-    SYSTEM = "system"
-
-
 class ToolUsageModelScope(StrEnum):
     LOCAL = "local"
     REMOTE = "remote"
@@ -96,59 +90,98 @@ class ToolUsageModelScope(StrEnum):
 class ToolUsageAgentMode(StrEnum):
     CHAT = "chat"
     AGENT = "agent"
-    BACKGROUND = "background"
-    SYSTEM = "system"
+    BACKGROUND_SYSTEM = "background_system"
 
 
-class ToolUsageReferenceKind(StrEnum):
-    OWNER = "owner"
-    SESSION = "session"
-    RUN = "run"
-    CORRELATION = "correlation"
+class ToolUsageReferenceState(StrEnum):
+    AVAILABLE = "available"
+    UNAVAILABLE = "unavailable"
+    NOT_REQUESTED = "not_requested"
 
 
-class ToolUsageSuppressionReason(StrEnum):
+class ToolUsagePersistenceReason(StrEnum):
+    ALLOWED = "allowed"
     INCOGNITO = "incognito"
     NOBODY = "nobody"
 
 
-def _enum_value(enum_type: type[StrEnum], value: Any, *, field_name: str) -> StrEnum:
+_OPAQUE_ID_RE = re.compile(r"^(?:tue|tui)_[0-9a-f]{32}$")
+_ANALYTICS_ID_RE = re.compile(r"^[a-z][a-z0-9_.:-]{0,119}$")
+_HMAC_REF_RE = re.compile(r"^h1_[0-9a-f]{32}$")
+_VERSION_RE = re.compile(r"^[0-9]+(?:\.(?:[0-9]+|x)){1,2}(?:[-+][A-Za-z0-9.-]+)?$")
+_TIMESTAMP_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$")
+_MAX_DURATION_MS = 86_400_000
+_MAX_SIZE_BYTES = 1 << 40
+_MAX_RETRY_ORDINAL = 100
+
+
+def _enum(enum_type, value: Any, *, field_name: str):
+    if isinstance(value, enum_type):
+        return value
     try:
-        return value if isinstance(value, enum_type) else enum_type(str(value))
-    except ValueError as exc:
-        allowed = ", ".join(item.value for item in enum_type)
-        raise ToolUsageEventError(f"{field_name} must be one of: {allowed}") from exc
+        return enum_type(str(value))
+    except (TypeError, ValueError) as exc:
+        raise ToolUsageEventError(f"{field_name} is not a controlled value") from exc
 
 
-def _strict_bool(value: Any, *, field_name: str) -> bool:
-    if not isinstance(value, bool):
-        raise ToolUsageEventError(f"{field_name} must be a boolean")
-    return value
-
-
-def _opaque_id(value: Any, *, field_name: str) -> str:
-    if not isinstance(value, str) or not _OPAQUE_ID_RE.fullmatch(value):
-        raise ToolUsageEventError(f"{field_name} must be an opaque identifier")
-    return value
+def _opaque_id(value: Any, *, prefix: str, field_name: str) -> str:
+    if value is None or value == "":
+        return f"{prefix}_{secrets.token_hex(16)}"
+    if callable(value):
+        raise ToolUsageEventError(f"{field_name} must not be callable")
+    text = str(value)
+    if not _OPAQUE_ID_RE.fullmatch(text) or not text.startswith(prefix + "_"):
+        raise ToolUsageEventError(f"{field_name} must be an opaque {prefix} identifier")
+    return text
 
 
 def _analytics_id(value: Any) -> str:
-    if (
-        not isinstance(value, str)
-        or len(value) > 80
-        or not _ANALYTICS_ID_RE.fullmatch(value)
-    ):
-        raise ToolUsageEventError("tool_analytics_id must be a canonical lowercase slug")
-    return value
+    if callable(value):
+        raise ToolUsageEventError("tool_analytics_id must not be callable")
+    text = str(value or "")
+    if not _ANALYTICS_ID_RE.fullmatch(text):
+        raise ToolUsageEventError("tool_analytics_id must be a canonical TAX identity")
+    return text
 
 
-def _safe_version(value: Any) -> str:
-    if not isinstance(value, str) or not _SAFE_VERSION_RE.fullmatch(value):
-        raise ToolUsageEventError("app_version must be a bounded path-free version")
-    return value
+def _app_version(value: Any) -> str:
+    if callable(value):
+        raise ToolUsageEventError("app_version must not be callable")
+    text = str(value or "")
+    if not _VERSION_RE.fullmatch(text):
+        raise ToolUsageEventError("app_version must be machine-readable")
+    return text
 
 
-def _bounded_int(value: Any, *, field_name: str, minimum: int, maximum: int) -> int:
+def _timestamp(value: datetime | str | None) -> str:
+    if value is None:
+        parsed = datetime.now(timezone.utc)
+    elif isinstance(value, datetime):
+        parsed = value
+    else:
+        text = str(value)
+        if not _TIMESTAMP_RE.fullmatch(text):
+            raise ToolUsageEventError("occurred_at must be a normalized UTC timestamp")
+        try:
+            parsed = datetime.fromisoformat(text[:-1] + "+00:00")
+        except ValueError as exc:
+            raise ToolUsageEventError("occurred_at is not a valid timestamp") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ToolUsageEventError("occurred_at must be timezone-aware")
+    normalized = parsed.astimezone(timezone.utc).isoformat(timespec="milliseconds")
+    return normalized.replace("+00:00", "Z")
+
+
+def _bounded_int(
+    value: Any,
+    *,
+    field_name: str,
+    minimum: int,
+    maximum: int,
+    allow_none: bool,
+) -> int | None:
+    if value is None and allow_none:
+        return None
     if isinstance(value, bool) or not isinstance(value, int):
         raise ToolUsageEventError(f"{field_name} must be an integer")
     if value < minimum or value > maximum:
@@ -156,81 +189,65 @@ def _bounded_int(value: Any, *, field_name: str, minimum: int, maximum: int) -> 
     return value
 
 
-def _occurred_at(value: datetime | None) -> datetime:
-    normalized = value if value is not None else datetime.now(timezone.utc)
-    if not isinstance(normalized, datetime) or normalized.tzinfo is None:
-        raise ToolUsageEventError("occurred_at must be a timezone-aware timestamp")
-    return normalized.astimezone(timezone.utc)
-
-
-def _optional_hmac_ref(value: Any, *, kind: ToolUsageReferenceKind) -> str | None:
-    if value is None:
-        return None
-    if not isinstance(value, str) or not _HMAC_REF_RE.fullmatch(value):
-        raise ToolUsageEventError(f"{kind.value}_ref must be an HMAC reference")
-    if not value.startswith(f"h1_{kind.value}_"):
-        raise ToolUsageEventError(f"{kind.value}_ref has the wrong reference namespace")
-    return value
-
-
-def _require_enum_instance(value: Any, enum_type: type[StrEnum], *, field_name: str) -> None:
-    if not isinstance(value, enum_type):
-        raise ToolUsageEventError(f"{field_name} must be a normalized {enum_type.__name__}")
-
-
-def new_event_id() -> str:
-    return f"evt_{secrets.token_urlsafe(18)}"
-
-
-def new_invocation_id() -> str:
-    return f"inv_{secrets.token_urlsafe(18)}"
-
-
-def size_bucket_for_count(value: int) -> ToolUsageSizeBucket:
-    count = _bounded_int(value, field_name="size", minimum=0, maximum=2**31 - 1)
-    if count == 0:
+def size_bucket(size_bytes: int | None) -> ToolUsageSizeBucket:
+    value = _bounded_int(
+        0 if size_bytes is None else size_bytes,
+        field_name="size_bytes",
+        minimum=0,
+        maximum=_MAX_SIZE_BYTES,
+        allow_none=False,
+    )
+    if value == 0:
         return ToolUsageSizeBucket.NONE
-    if count <= 128:
+    if value <= 256:
         return ToolUsageSizeBucket.XS
-    if count <= 1024:
+    if value <= 1024:
         return ToolUsageSizeBucket.S
-    if count <= 8192:
+    if value <= 4096:
         return ToolUsageSizeBucket.M
-    if count <= 65536:
+    if value <= 16384:
         return ToolUsageSizeBucket.L
     return ToolUsageSizeBucket.XL
 
 
-def pseudonymize_reference(
-    value: str | None,
-    *,
-    hmac_key: bytes | None,
-    kind: ToolUsageReferenceKind | str,
-) -> str | None:
-    """Return a namespaced HMAC reference or no reference when no key exists."""
+def pseudonymize_reference(kind: str, value: Any, *, key: bytes | None) -> str | None:
+    """Return a domain-separated HMAC reference or no reference without a key."""
+    if value is None or value == "":
+        return None
+    if callable(value):
+        raise ToolUsageEventError("reference values must not be callable")
+    raw = str(value)
+    if len(raw) > 512:
+        raise ToolUsageEventError("reference value exceeds the bounded input length")
+    if key is None:
+        return None
+    if not isinstance(key, bytes) or len(key) < 32:
+        raise ToolUsageEventError("HMAC key must contain at least 32 bytes")
+    if kind not in {"owner", "session", "run", "correlation"}:
+        raise ToolUsageEventError("reference kind is not allowlisted")
+    digest = hmac.new(key, f"{kind}\0{raw}".encode("utf-8"), hashlib.sha256).hexdigest()
+    return "h1_" + digest[:32]
 
-    normalized_kind = _enum_value(ToolUsageReferenceKind, kind, field_name="kind")
-    if hmac_key is None:
+
+def _hmac_ref(value: Any, *, field_name: str) -> str | None:
+    if value is None:
         return None
-    if not isinstance(hmac_key, bytes) or len(hmac_key) < 16:
-        raise ToolUsageEventError("hmac_key must contain at least 16 bytes")
-    if not isinstance(value, str) or not value:
-        return None
-    digest = hmac.new(
-        hmac_key,
-        f"{normalized_kind.value}\0{value}".encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()[:32]
-    return f"h1_{normalized_kind.value}_{digest}"
+    if callable(value):
+        raise ToolUsageEventError(f"{field_name} must not be callable")
+    text = str(value)
+    if not _HMAC_REF_RE.fullmatch(text):
+        raise ToolUsageEventError(f"{field_name} must be a keyed HMAC reference")
+    return text
 
 
 @dataclass(frozen=True, slots=True)
-class ToolUsageEvent:
-    schema_version: str
+class ToolUsageEventV1:
+    SCHEMA_ID: ClassVar[str] = "odysseus.tool_usage_event.v1"
+
     event_id: str
     invocation_id: str
     event_kind: ToolUsageEventKind
-    occurred_at: datetime
+    occurred_at: str
     duration_ms: int | None
     tool_analytics_id: str
     tool_family: ToolFamily
@@ -247,67 +264,107 @@ class ToolUsageEvent:
     session_ref: str | None
     run_ref: str | None
     correlation_ref: str | None
+    reference_state: ToolUsageReferenceState
     model_scope: ToolUsageModelScope
     agent_mode: ToolUsageAgentMode
     app_version: str
+    persistence_allowed: bool
+    persistence_reason: ToolUsagePersistenceReason
+
+    SERIALIZED_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "schema_version",
+            "event_id",
+            "invocation_id",
+            "event_kind",
+            "occurred_at",
+            "duration_ms",
+            "tool_analytics_id",
+            "tool_family",
+            "tool_source",
+            "surface",
+            "status",
+            "error_class",
+            "blocked_reason_code",
+            "retry_ordinal",
+            "argument_size_bucket",
+            "result_size_bucket",
+            "result_shape_bucket",
+            "owner_ref",
+            "session_ref",
+            "run_ref",
+            "correlation_ref",
+            "reference_state",
+            "model_scope",
+            "agent_mode",
+            "app_version",
+            "persistence_allowed",
+            "persistence_reason",
+            "raw_content_visible",
+        }
+    )
 
     def __post_init__(self) -> None:
-        if self.schema_version != SCHEMA_VERSION:
-            raise ToolUsageEventError("schema_version is immutable")
-        _opaque_id(self.event_id, field_name="event_id")
-        _opaque_id(self.invocation_id, field_name="invocation_id")
-        _analytics_id(self.tool_analytics_id)
-        _safe_version(self.app_version)
-        if not isinstance(self.occurred_at, datetime) or self.occurred_at.tzinfo is None:
-            raise ToolUsageEventError("occurred_at must be a timezone-aware timestamp")
-        if self.occurred_at.utcoffset() != timezone.utc.utcoffset(self.occurred_at):
-            raise ToolUsageEventError("occurred_at must be normalized to UTC")
-        if self.duration_ms is not None:
-            _bounded_int(
-                self.duration_ms,
-                field_name="duration_ms",
-                minimum=0,
-                maximum=_MAX_DURATION_MS,
-            )
+        if _opaque_id(self.event_id, prefix="tue", field_name="event_id") != self.event_id:
+            raise ToolUsageEventError("event_id is not canonical")
+        if _opaque_id(self.invocation_id, prefix="tui", field_name="invocation_id") != self.invocation_id:
+            raise ToolUsageEventError("invocation_id is not canonical")
+        for field_name, enum_type in (
+            ("event_kind", ToolUsageEventKind),
+            ("tool_family", ToolFamily),
+            ("tool_source", ToolSource),
+            ("surface", ToolUsageSurface),
+            ("argument_size_bucket", ToolUsageSizeBucket),
+            ("result_size_bucket", ToolUsageSizeBucket),
+            ("result_shape_bucket", ToolUsageResultShape),
+            ("reference_state", ToolUsageReferenceState),
+            ("model_scope", ToolUsageModelScope),
+            ("agent_mode", ToolUsageAgentMode),
+            ("persistence_reason", ToolUsagePersistenceReason),
+        ):
+            if not isinstance(getattr(self, field_name), enum_type):
+                raise ToolUsageEventError(f"{field_name} must use its controlled enum")
+        for field_name, enum_type in (
+            ("status", ToolUsageStatus),
+            ("error_class", ToolUsageErrorClass),
+            ("blocked_reason_code", ToolUsageBlockedReason),
+        ):
+            value = getattr(self, field_name)
+            if value is not None and not isinstance(value, enum_type):
+                raise ToolUsageEventError(f"{field_name} must use its controlled enum")
+        if _timestamp(self.occurred_at) != self.occurred_at:
+            raise ToolUsageEventError("occurred_at is not canonical")
+        if _analytics_id(self.tool_analytics_id) != self.tool_analytics_id:
+            raise ToolUsageEventError("tool_analytics_id is not canonical")
+        if _app_version(self.app_version) != self.app_version:
+            raise ToolUsageEventError("app_version is not canonical")
+        for field_name in ("owner_ref", "session_ref", "run_ref", "correlation_ref"):
+            if _hmac_ref(getattr(self, field_name), field_name=field_name) != getattr(self, field_name):
+                raise ToolUsageEventError(f"{field_name} is not canonical")
         _bounded_int(
             self.retry_ordinal,
             field_name="retry_ordinal",
             minimum=0,
             maximum=_MAX_RETRY_ORDINAL,
+            allow_none=False,
         )
-        for field_name, value, enum_type in (
-            ("event_kind", self.event_kind, ToolUsageEventKind),
-            ("tool_family", self.tool_family, ToolFamily),
-            ("tool_source", self.tool_source, ToolSource),
-            ("surface", self.surface, ToolUsageSurface),
-            ("argument_size_bucket", self.argument_size_bucket, ToolUsageSizeBucket),
-            ("result_size_bucket", self.result_size_bucket, ToolUsageSizeBucket),
-            ("result_shape_bucket", self.result_shape_bucket, ToolUsageResultShape),
-            ("model_scope", self.model_scope, ToolUsageModelScope),
-            ("agent_mode", self.agent_mode, ToolUsageAgentMode),
-        ):
-            _require_enum_instance(value, enum_type, field_name=field_name)
-        if self.status is not None:
-            _require_enum_instance(self.status, ToolUsageStatus, field_name="status")
-        if self.error_class is not None:
-            _require_enum_instance(
-                self.error_class,
-                ToolUsageErrorClass,
-                field_name="error_class",
-            )
-        if self.blocked_reason_code is not None:
-            _require_enum_instance(
-                self.blocked_reason_code,
-                ToolUsageBlockedReason,
-                field_name="blocked_reason_code",
-            )
-        _optional_hmac_ref(self.owner_ref, kind=ToolUsageReferenceKind.OWNER)
-        _optional_hmac_ref(self.session_ref, kind=ToolUsageReferenceKind.SESSION)
-        _optional_hmac_ref(self.run_ref, kind=ToolUsageReferenceKind.RUN)
-        _optional_hmac_ref(
-            self.correlation_ref,
-            kind=ToolUsageReferenceKind.CORRELATION,
+        _bounded_int(
+            self.duration_ms,
+            field_name="duration_ms",
+            minimum=0,
+            maximum=_MAX_DURATION_MS,
+            allow_none=True,
         )
+        if not isinstance(self.persistence_allowed, bool):
+            raise ToolUsageEventError("persistence_allowed must be boolean")
+        if self.persistence_allowed != (self.persistence_reason == ToolUsagePersistenceReason.ALLOWED):
+            raise ToolUsageEventError("persistence decision and reason disagree")
+
+        refs = (self.owner_ref, self.session_ref, self.run_ref, self.correlation_ref)
+        if self.reference_state == ToolUsageReferenceState.AVAILABLE and not any(refs):
+            raise ToolUsageEventError("available reference state requires at least one HMAC ref")
+        if self.reference_state != ToolUsageReferenceState.AVAILABLE and any(refs):
+            raise ToolUsageEventError("unavailable/not-requested reference state must not carry refs")
 
         if self.event_kind == ToolUsageEventKind.STARTED:
             if any(
@@ -319,150 +376,235 @@ class ToolUsageEvent:
                     self.duration_ms,
                 )
             ):
-                raise ToolUsageEventError("started event contains terminal metadata")
+                raise ToolUsageEventError("started events cannot contain terminal fields")
             if self.result_size_bucket != ToolUsageSizeBucket.NONE:
-                raise ToolUsageEventError("started event contains a result size")
+                raise ToolUsageEventError("started events cannot contain a result size")
             if self.result_shape_bucket != ToolUsageResultShape.NONE:
-                raise ToolUsageEventError("started event contains a result shape")
+                raise ToolUsageEventError("started events cannot contain a result shape")
         else:
-            if self.status is None or self.duration_ms is None:
-                raise ToolUsageEventError("terminal event is missing status or duration")
-            if self.status == ToolUsageStatus.SUCCEEDED:
-                valid = self.error_class is None and self.blocked_reason_code is None
-            elif self.status == ToolUsageStatus.FAILED:
-                valid = self.error_class is not None and self.blocked_reason_code is None
-            elif self.status in {ToolUsageStatus.BLOCKED, ToolUsageStatus.REJECTED}:
-                valid = self.error_class is None and self.blocked_reason_code is not None
-            else:
-                valid = self.error_class is None and self.blocked_reason_code is None
-            if not valid:
-                raise ToolUsageEventError("terminal event status metadata is inconsistent")
+            if self.status is None:
+                raise ToolUsageEventError("terminal events require a status")
+            if self.status == ToolUsageStatus.SUCCEEDED and (
+                self.error_class is not None or self.blocked_reason_code is not None
+            ):
+                raise ToolUsageEventError("succeeded events cannot contain error or blocked classes")
+            if self.status == ToolUsageStatus.FAILED and self.error_class is None:
+                raise ToolUsageEventError("failed events require a bounded error_class")
+            if self.status in {ToolUsageStatus.BLOCKED, ToolUsageStatus.REJECTED} and self.blocked_reason_code is None:
+                raise ToolUsageEventError("blocked/rejected events require a bounded reason code")
 
-    def to_safe_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
-            "agent_mode": self.agent_mode.value,
-            "app_version": self.app_version,
-            "argument_size_bucket": self.argument_size_bucket.value,
-            "blocked_reason_code": (
-                self.blocked_reason_code.value if self.blocked_reason_code else None
-            ),
-            "correlation_ref": self.correlation_ref,
-            "duration_ms": self.duration_ms,
-            "error_class": self.error_class.value if self.error_class else None,
+            "schema_version": self.SCHEMA_ID,
             "event_id": self.event_id,
-            "event_kind": self.event_kind.value,
             "invocation_id": self.invocation_id,
-            "model_scope": self.model_scope.value,
-            "occurred_at": self.occurred_at.isoformat().replace("+00:00", "Z"),
-            "owner_ref": self.owner_ref,
-            "raw_content_visible": False,
-            "result_shape_bucket": self.result_shape_bucket.value,
-            "result_size_bucket": self.result_size_bucket.value,
-            "retry_ordinal": self.retry_ordinal,
-            "run_ref": self.run_ref,
-            "schema_version": self.schema_version,
-            "session_ref": self.session_ref,
-            "status": self.status.value if self.status else None,
-            "surface": self.surface.value,
+            "event_kind": self.event_kind.value,
+            "occurred_at": self.occurred_at,
+            "duration_ms": self.duration_ms,
             "tool_analytics_id": self.tool_analytics_id,
             "tool_family": self.tool_family.value,
             "tool_source": self.tool_source.value,
+            "surface": self.surface.value,
+            "status": self.status.value if self.status else None,
+            "error_class": self.error_class.value if self.error_class else None,
+            "blocked_reason_code": self.blocked_reason_code.value if self.blocked_reason_code else None,
+            "retry_ordinal": self.retry_ordinal,
+            "argument_size_bucket": self.argument_size_bucket.value,
+            "result_size_bucket": self.result_size_bucket.value,
+            "result_shape_bucket": self.result_shape_bucket.value,
+            "owner_ref": self.owner_ref,
+            "session_ref": self.session_ref,
+            "run_ref": self.run_ref,
+            "correlation_ref": self.correlation_ref,
+            "reference_state": self.reference_state.value,
+            "model_scope": self.model_scope.value,
+            "agent_mode": self.agent_mode.value,
+            "app_version": self.app_version,
+            "persistence_allowed": self.persistence_allowed,
+            "persistence_reason": self.persistence_reason.value,
+            "raw_content_visible": False,
         }
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict(), sort_keys=True, separators=(",", ":"))
+
+    @classmethod
+    def from_mapping(cls, value: Mapping[str, Any]) -> "ToolUsageEventV1":
+        if not isinstance(value, Mapping):
+            raise ToolUsageEventError("event must be a mapping")
+        unknown = set(value) - cls.SERIALIZED_FIELDS
+        missing = cls.SERIALIZED_FIELDS - set(value)
+        if unknown:
+            raise ToolUsageEventError("event contains non-allowlisted fields")
+        if missing:
+            raise ToolUsageEventError("event is missing required serialized fields")
+        if value.get("schema_version") != cls.SCHEMA_ID:
+            raise ToolUsageEventError("schema_version is not supported")
+        if value.get("raw_content_visible") is not False:
+            raise ToolUsageEventError("raw_content_visible must be false")
+        return cls(
+            event_id=_opaque_id(value.get("event_id"), prefix="tue", field_name="event_id"),
+            invocation_id=_opaque_id(value.get("invocation_id"), prefix="tui", field_name="invocation_id"),
+            event_kind=_enum(ToolUsageEventKind, value.get("event_kind"), field_name="event_kind"),
+            occurred_at=_timestamp(value.get("occurred_at")),
+            duration_ms=_bounded_int(
+                value.get("duration_ms"),
+                field_name="duration_ms",
+                minimum=0,
+                maximum=_MAX_DURATION_MS,
+                allow_none=True,
+            ),
+            tool_analytics_id=_analytics_id(value.get("tool_analytics_id")),
+            tool_family=_enum(ToolFamily, value.get("tool_family"), field_name="tool_family"),
+            tool_source=_enum(ToolSource, value.get("tool_source"), field_name="tool_source"),
+            surface=_enum(ToolUsageSurface, value.get("surface"), field_name="surface"),
+            status=(
+                _enum(ToolUsageStatus, value.get("status"), field_name="status")
+                if value.get("status") is not None
+                else None
+            ),
+            error_class=(
+                _enum(ToolUsageErrorClass, value.get("error_class"), field_name="error_class")
+                if value.get("error_class") is not None
+                else None
+            ),
+            blocked_reason_code=(
+                _enum(
+                    ToolUsageBlockedReason,
+                    value.get("blocked_reason_code"),
+                    field_name="blocked_reason_code",
+                )
+                if value.get("blocked_reason_code") is not None
+                else None
+            ),
+            retry_ordinal=_bounded_int(
+                value.get("retry_ordinal"),
+                field_name="retry_ordinal",
+                minimum=0,
+                maximum=_MAX_RETRY_ORDINAL,
+                allow_none=False,
+            ),
+            argument_size_bucket=_enum(
+                ToolUsageSizeBucket,
+                value.get("argument_size_bucket"),
+                field_name="argument_size_bucket",
+            ),
+            result_size_bucket=_enum(
+                ToolUsageSizeBucket,
+                value.get("result_size_bucket"),
+                field_name="result_size_bucket",
+            ),
+            result_shape_bucket=_enum(
+                ToolUsageResultShape,
+                value.get("result_shape_bucket"),
+                field_name="result_shape_bucket",
+            ),
+            owner_ref=_hmac_ref(value.get("owner_ref"), field_name="owner_ref"),
+            session_ref=_hmac_ref(value.get("session_ref"), field_name="session_ref"),
+            run_ref=_hmac_ref(value.get("run_ref"), field_name="run_ref"),
+            correlation_ref=_hmac_ref(value.get("correlation_ref"), field_name="correlation_ref"),
+            reference_state=_enum(
+                ToolUsageReferenceState,
+                value.get("reference_state"),
+                field_name="reference_state",
+            ),
+            model_scope=_enum(
+                ToolUsageModelScope, value.get("model_scope"), field_name="model_scope"
+            ),
+            agent_mode=_enum(
+                ToolUsageAgentMode, value.get("agent_mode"), field_name="agent_mode"
+            ),
+            app_version=_app_version(value.get("app_version")),
+            persistence_allowed=value.get("persistence_allowed"),
+            persistence_reason=_enum(
+                ToolUsagePersistenceReason,
+                value.get("persistence_reason"),
+                field_name="persistence_reason",
+            ),
+        )
 
 
 @dataclass(frozen=True, slots=True)
-class ToolUsageBuildResult:
-    event: ToolUsageEvent | None
-    persistence_allowed: bool
-    suppression_reason: ToolUsageSuppressionReason | None
+class ToolUsageEventBuilder:
+    app_version: str
+    hmac_key: bytes | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
-        _strict_bool(self.persistence_allowed, field_name="persistence_allowed")
-        if self.persistence_allowed:
-            if not isinstance(self.event, ToolUsageEvent) or self.suppression_reason is not None:
-                raise ToolUsageEventError("persistable results require exactly one event")
-        else:
-            if self.event is not None or not isinstance(
-                self.suppression_reason,
-                ToolUsageSuppressionReason,
-            ):
-                raise ToolUsageEventError("suppressed results require a bounded reason and no event")
+        if _app_version(self.app_version) != self.app_version:
+            raise ToolUsageEventError("app_version is not canonical")
+        if self.hmac_key is not None and (
+            not isinstance(self.hmac_key, bytes) or len(self.hmac_key) < 32
+        ):
+            raise ToolUsageEventError("HMAC key must contain at least 32 bytes")
 
-    def to_safe_dict(self) -> dict[str, Any]:
-        return {
-            "event": self.event.to_safe_dict() if self.event else None,
-            "persistence_allowed": self.persistence_allowed,
-            "raw_content_visible": False,
-            "suppression_reason": (
-                self.suppression_reason.value if self.suppression_reason else None
-            ),
-        }
-
-
-class ToolUsageEventBuilder:
-    """Allowlist-only builder for one started or terminal usage event."""
-
-    @staticmethod
     def build(
+        self,
         *,
+        descriptor: ToolDescriptorV2,
         event_kind: ToolUsageEventKind | str,
-        invocation_id: Any,
-        tool_analytics_id: Any,
-        tool_family: ToolFamily | str,
-        tool_source: ToolSource | str,
         surface: ToolUsageSurface | str,
-        argument_size_bucket: ToolUsageSizeBucket | str,
-        result_size_bucket: ToolUsageSizeBucket | str,
-        result_shape_bucket: ToolUsageResultShape | str,
-        model_scope: ToolUsageModelScope | str,
         agent_mode: ToolUsageAgentMode | str,
-        app_version: Any,
-        event_id: Any = None,
-        occurred_at: datetime | None = None,
-        duration_ms: Any = None,
+        model_scope: ToolUsageModelScope | str = ToolUsageModelScope.UNKNOWN,
         status: ToolUsageStatus | str | None = None,
         error_class: ToolUsageErrorClass | str | None = None,
         blocked_reason_code: ToolUsageBlockedReason | str | None = None,
-        retry_ordinal: Any = 0,
-        owner_ref: Any = None,
-        session_ref: Any = None,
-        run_ref: Any = None,
-        correlation_ref: Any = None,
+        duration_ms: int | None = None,
+        retry_ordinal: int = 0,
+        argument_size_bytes: int | None = 0,
+        result_size_bytes: int | None = 0,
+        result_shape: ToolUsageResultShape | str = ToolUsageResultShape.NONE,
+        owner_identity: Any = None,
+        session_identity: Any = None,
+        run_identity: Any = None,
+        correlation_identity: Any = None,
         incognito: bool = False,
-        owner_is_nobody: bool = False,
-    ) -> ToolUsageBuildResult:
-        normalized_incognito = _strict_bool(incognito, field_name="incognito")
-        normalized_nobody = _strict_bool(owner_is_nobody, field_name="owner_is_nobody")
-        if normalized_incognito:
-            return ToolUsageBuildResult(
-                event=None,
-                persistence_allowed=False,
-                suppression_reason=ToolUsageSuppressionReason.INCOGNITO,
-            )
-        if normalized_nobody:
-            return ToolUsageBuildResult(
-                event=None,
-                persistence_allowed=False,
-                suppression_reason=ToolUsageSuppressionReason.NOBODY,
-            )
-
-        normalized_kind = _enum_value(
-            ToolUsageEventKind,
-            event_kind,
-            field_name="event_kind",
+        is_nobody: bool = False,
+        event_id: str | None = None,
+        invocation_id: str | None = None,
+        occurred_at: datetime | str | None = None,
+    ) -> ToolUsageEventV1:
+        if not isinstance(descriptor, ToolDescriptorV2):
+            raise ToolUsageEventError("descriptor must be a TAX ToolDescriptorV2")
+        if not isinstance(incognito, bool) or not isinstance(is_nobody, bool):
+            raise ToolUsageEventError("incognito and is_nobody must be boolean")
+        reference_inputs = {
+            "owner": owner_identity,
+            "session": session_identity,
+            "run": run_identity,
+            "correlation": correlation_identity,
+        }
+        refs = {
+            kind: pseudonymize_reference(kind, raw, key=self.hmac_key)
+            for kind, raw in reference_inputs.items()
+        }
+        requested_refs = any(value not in (None, "") for value in reference_inputs.values())
+        reference_state = (
+            ToolUsageReferenceState.AVAILABLE
+            if any(refs.values())
+            else ToolUsageReferenceState.UNAVAILABLE
+            if requested_refs
+            else ToolUsageReferenceState.NOT_REQUESTED
         )
-        normalized_status = (
-            _enum_value(ToolUsageStatus, status, field_name="status")
+        persistence_reason = (
+            ToolUsagePersistenceReason.INCOGNITO
+            if incognito
+            else ToolUsagePersistenceReason.NOBODY
+            if is_nobody
+            else ToolUsagePersistenceReason.ALLOWED
+        )
+        kind = _enum(ToolUsageEventKind, event_kind, field_name="event_kind")
+        status_value = (
+            _enum(ToolUsageStatus, status, field_name="status")
             if status is not None
             else None
         )
-        normalized_error = (
-            _enum_value(ToolUsageErrorClass, error_class, field_name="error_class")
+        error_value = (
+            _enum(ToolUsageErrorClass, error_class, field_name="error_class")
             if error_class is not None
             else None
         )
-        normalized_blocked = (
-            _enum_value(
+        blocked_value = (
+            _enum(
                 ToolUsageBlockedReason,
                 blocked_reason_code,
                 field_name="blocked_reason_code",
@@ -470,117 +612,59 @@ class ToolUsageEventBuilder:
             if blocked_reason_code is not None
             else None
         )
-        normalized_duration = (
-            _bounded_int(
+        return ToolUsageEventV1(
+            event_id=_opaque_id(event_id, prefix="tue", field_name="event_id"),
+            invocation_id=_opaque_id(
+                invocation_id, prefix="tui", field_name="invocation_id"
+            ),
+            event_kind=kind,
+            occurred_at=_timestamp(occurred_at),
+            duration_ms=_bounded_int(
                 duration_ms,
                 field_name="duration_ms",
                 minimum=0,
                 maximum=_MAX_DURATION_MS,
-            )
-            if duration_ms is not None
-            else None
-        )
-
-        if normalized_kind == ToolUsageEventKind.STARTED:
-            if any(
-                value is not None
-                for value in (
-                    normalized_status,
-                    normalized_error,
-                    normalized_blocked,
-                    normalized_duration,
-                )
-            ):
-                raise ToolUsageEventError(
-                    "started events cannot contain terminal status, error, reason or duration"
-                )
-            if result_size_bucket != ToolUsageSizeBucket.NONE and str(result_size_bucket) != "none":
-                raise ToolUsageEventError("started events require result_size_bucket=none")
-            if result_shape_bucket != ToolUsageResultShape.NONE and str(result_shape_bucket) != "none":
-                raise ToolUsageEventError("started events require result_shape_bucket=none")
-        else:
-            if normalized_status is None or normalized_duration is None:
-                raise ToolUsageEventError("terminal events require status and duration_ms")
-            if normalized_status == ToolUsageStatus.SUCCEEDED:
-                if normalized_error is not None or normalized_blocked is not None:
-                    raise ToolUsageEventError("succeeded events cannot contain error metadata")
-            elif normalized_status == ToolUsageStatus.FAILED:
-                if normalized_error is None or normalized_blocked is not None:
-                    raise ToolUsageEventError(
-                        "failed events require a bounded error_class and no blocked reason"
-                    )
-            elif normalized_status in {ToolUsageStatus.BLOCKED, ToolUsageStatus.REJECTED}:
-                if normalized_blocked is None or normalized_error is not None:
-                    raise ToolUsageEventError(
-                        "blocked and rejected events require a reason and no error class"
-                    )
-            elif normalized_status == ToolUsageStatus.CANCELLED:
-                if normalized_error is not None or normalized_blocked is not None:
-                    raise ToolUsageEventError("cancelled events cannot contain error metadata")
-
-        normalized_event_id = new_event_id() if event_id is None else _opaque_id(
-            event_id,
-            field_name="event_id",
-        )
-        event = ToolUsageEvent(
-            schema_version=SCHEMA_VERSION,
-            event_id=normalized_event_id,
-            invocation_id=_opaque_id(invocation_id, field_name="invocation_id"),
-            event_kind=normalized_kind,
-            occurred_at=_occurred_at(occurred_at),
-            duration_ms=normalized_duration,
-            tool_analytics_id=_analytics_id(tool_analytics_id),
-            tool_family=_enum_value(ToolFamily, tool_family, field_name="tool_family"),
-            tool_source=_enum_value(ToolSource, tool_source, field_name="tool_source"),
-            surface=_enum_value(ToolUsageSurface, surface, field_name="surface"),
-            status=normalized_status,
-            error_class=normalized_error,
-            blocked_reason_code=normalized_blocked,
+                allow_none=True,
+            ),
+            tool_analytics_id=_analytics_id(descriptor.analytics_id),
+            tool_family=descriptor.family,
+            tool_source=descriptor.source,
+            surface=_enum(ToolUsageSurface, surface, field_name="surface"),
+            status=status_value,
+            error_class=error_value,
+            blocked_reason_code=blocked_value,
             retry_ordinal=_bounded_int(
                 retry_ordinal,
                 field_name="retry_ordinal",
                 minimum=0,
                 maximum=_MAX_RETRY_ORDINAL,
+                allow_none=False,
             ),
-            argument_size_bucket=_enum_value(
-                ToolUsageSizeBucket,
-                argument_size_bucket,
-                field_name="argument_size_bucket",
+            argument_size_bucket=size_bucket(argument_size_bytes),
+            result_size_bucket=(
+                ToolUsageSizeBucket.NONE
+                if kind == ToolUsageEventKind.STARTED
+                else size_bucket(result_size_bytes)
             ),
-            result_size_bucket=_enum_value(
-                ToolUsageSizeBucket,
-                result_size_bucket,
-                field_name="result_size_bucket",
+            result_shape_bucket=(
+                ToolUsageResultShape.NONE
+                if kind == ToolUsageEventKind.STARTED
+                else _enum(
+                    ToolUsageResultShape, result_shape, field_name="result_shape"
+                )
             ),
-            result_shape_bucket=_enum_value(
-                ToolUsageResultShape,
-                result_shape_bucket,
-                field_name="result_shape_bucket",
+            owner_ref=refs["owner"],
+            session_ref=refs["session"],
+            run_ref=refs["run"],
+            correlation_ref=refs["correlation"],
+            reference_state=reference_state,
+            model_scope=_enum(
+                ToolUsageModelScope, model_scope, field_name="model_scope"
             ),
-            owner_ref=_optional_hmac_ref(owner_ref, kind=ToolUsageReferenceKind.OWNER),
-            session_ref=_optional_hmac_ref(
-                session_ref,
-                kind=ToolUsageReferenceKind.SESSION,
+            agent_mode=_enum(
+                ToolUsageAgentMode, agent_mode, field_name="agent_mode"
             ),
-            run_ref=_optional_hmac_ref(run_ref, kind=ToolUsageReferenceKind.RUN),
-            correlation_ref=_optional_hmac_ref(
-                correlation_ref,
-                kind=ToolUsageReferenceKind.CORRELATION,
-            ),
-            model_scope=_enum_value(
-                ToolUsageModelScope,
-                model_scope,
-                field_name="model_scope",
-            ),
-            agent_mode=_enum_value(
-                ToolUsageAgentMode,
-                agent_mode,
-                field_name="agent_mode",
-            ),
-            app_version=_safe_version(app_version),
-        )
-        return ToolUsageBuildResult(
-            event=event,
-            persistence_allowed=True,
-            suppression_reason=None,
+            app_version=self.app_version,
+            persistence_allowed=persistence_reason == ToolUsagePersistenceReason.ALLOWED,
+            persistence_reason=persistence_reason,
         )

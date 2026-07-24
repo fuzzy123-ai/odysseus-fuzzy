@@ -5,6 +5,7 @@ of a broken plugin.
 Uses self-contained demo plugins written to a temp dir, so nothing here depends
 on Odysseus internals.
 """
+import ast
 import json
 import os
 from pathlib import Path
@@ -317,7 +318,16 @@ def test_core_has_no_direct_obsidian_imports():
     root = Path(__file__).resolve().parents[1]
     offenders = []
     for path in (root / "src").rglob("*.py"):
-        text = path.read_text(encoding="utf-8")
-        if "plugins.obsidian" in text or "plugins/obsidian" in text:
-            offenders.append(path.relative_to(root).as_posix())
+        tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                modules = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                modules = [node.module or ""]
+            else:
+                continue
+            for module in modules:
+                if module == "plugins.obsidian" or module.startswith("plugins.obsidian."):
+                    relative = path.relative_to(root).as_posix()
+                    offenders.append(f"{relative}:{node.lineno}:{module}")
     assert offenders == []

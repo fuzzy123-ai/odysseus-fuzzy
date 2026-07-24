@@ -8,23 +8,23 @@ def test_update_database_has_single_main_guard():
     assert text.count('if __name__ == "__main__":') == 1
 
 
-def test_update_database_does_not_log_database_url():
+def test_update_database_runs_idempotent_tool_usage_migration_for_sqlite():
     script = Path(__file__).resolve().parent.parent / "scripts" / "update_database.py"
-    text = script.read_text()
+    text = script.read_text(encoding="utf-8")
 
-    assert 'print(f"Updating database at: {DATABASE_URL}")' not in text
-    assert 'print(f"Error updating database: {e}")' not in text
-    assert 'print("Updating database schema...")' in text
-    assert "details were redacted" in text
+    assert "from src.tool_usage_store import ToolUsageStore" in text
+    assert "with ToolUsageStore(db_path) as tool_usage_store:" in text
+    assert "tool_usage_store.migrate()" in text
+    assert text.index("if db_path:", text.index("TUA2:")) < text.index("tool_usage_store.migrate()")
 
 
-def test_update_database_wires_versioned_tool_usage_schema_without_activation():
+def test_update_database_runs_aggregate_only_tool_settings_migration():
     script = Path(__file__).resolve().parent.parent / "scripts" / "update_database.py"
-    text = script.read_text()
+    text = script.read_text(encoding="utf-8")
 
-    assert "def migrate_tool_usage_schema(engine):" in text
-    assert "def rollback_tool_usage_schema(engine):" in text
-    assert "usage_schema_report = migrate_tool_usage_schema(engine)" in text
-    assert "Tool usage schema migration:" in text
-    assert "tool usage capture enabled" not in text.casefold()
-    assert "backfill" not in text.casefold()
+    assert "from src.settings import migrate_tool_settings_file" in text
+    assert "tool_settings_report = migrate_tool_settings_file()" in text
+    assert "tool_settings_report['alias_rewrite_count']" in text
+    assert "tool_settings_report['quarantined_count']" in text
+    assert "unknown_disabled_tools" not in text
+    assert "legacy_enabled_deferred_tools" not in text

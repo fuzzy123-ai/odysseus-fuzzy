@@ -1,0 +1,55 @@
+{
+  "schema": "odysseus.synthetic_tool_usage_legacy_fixture.v1",
+  "source": "persisted_chat_tool_metadata",
+  "records": [
+    {
+      "source_record_id": "syn_chat_001",
+      "occurred_at": "2026-07-01T10:00:00.000Z",
+      "tool": "read_file",
+      "exit_code": 0,
+      "command": "synthetic command preview",
+      "output": "[SYNTHETIC_SECRET_MARKER]",
+      "path": "Z:/synthetic/private/example.txt",
+      "email_body": "nobody@example.invalid"
+    },
+    {
+      "source_record_id": "syn_chat_002",
+      "occurred_at": "2026-07-01T10:01:00.000Z",
+      "tool": "manage_rag",
+      "exit_code": 1,
+      "command": "synthetic legacy alias command",
+      "output": "synthetic failure preview"
+    },
+    {
+      "source_record_id": "syn_chat_003",
+      "occurred_at": "2026-07-01T10:02:00.000Z",
+      "tool": "custom_plugin_probe",
+      "exit_code": 0,
+      "output": "synthetic unreviewed tool output"
+    },
+    {
+      "source_record_id": "syn_chat_004",
+      "occurred_at": "2026-07-01T10:03:00.000Z",
+      "tool": "write_file",
+      "exit_code": null,
+      "command": "synthetic incomplete record"
+    },
+    {
+      "source_record_id": "syn_chat_005",
+      "occurred_at": "2026-07-01T10:04:00.000Z",
+      "tool": "Z:/synthetic/private/example.txt",
+      "exit_code": 0,
+      "output": "synthetic malformed identity"
+    },
+    {
+      "source_record_id": "syn_chat_001",
+      "occurred_at": "2026-07-01T10:00:00.000Z",
+      "tool": "read_file",
+      "exit_code": 0,
+      "command": "duplicate synthetic command preview"
+    }
+  ],
+  "agent_ledger_coverage": {
+    "start_count": 9
+  }
+}

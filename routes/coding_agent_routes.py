@@ -51,6 +51,8 @@ class CodingTaskPlanRequest(BaseModel):
     task_id: str = ""
     operator_decision: str = "missing"
     live_enabled: bool | None = None
+    clarification_ready_for_plan: bool = True
+    clarification_id: str = Field(default="", max_length=120)
 
 
 class CodingQualityGateRequest(BaseModel):
@@ -203,6 +205,8 @@ def setup_coding_agent_routes(
                 worktree_base=configured_worktree_base,
                 live_enabled=body.live_enabled,
                 operator_decision=body.operator_decision,
+                clarification_ready_for_plan=body.clarification_ready_for_plan,
+                clarification_id=body.clarification_id,
             )
         except CodingAgentBackendError as exc:
             status = 404 if "unknown repo" in str(exc) else 400
@@ -235,6 +239,8 @@ def setup_coding_agent_routes(
                 worktree_base=configured_worktree_base,
                 live_enabled=body.live_enabled,
                 operator_decision=body.operator_decision,
+                clarification_ready_for_plan=body.clarification_ready_for_plan,
+                clarification_id=body.clarification_id,
             )
         except CodingAgentBackendError as exc:
             status = 404 if "unknown repo" in str(exc) else 400
@@ -265,6 +271,8 @@ def setup_coding_agent_routes(
                 worktree_base=configured_worktree_base,
                 live_enabled=body.live_enabled,
                 operator_decision=body.operator_decision,
+                clarification_ready_for_plan=body.clarification_ready_for_plan,
+                clarification_id=body.clarification_id,
             )
             results = apply_coding_patch_set(
                 plan=plan,
@@ -354,6 +362,8 @@ def setup_coding_agent_routes(
                 allow_existing_worktree=True,
                 live_enabled=body.live_enabled,
                 operator_decision=body.operator_decision,
+                clarification_ready_for_plan=body.clarification_ready_for_plan,
+                clarification_id=body.clarification_id,
             )
             dispatch = dispatch_coding_checks_to_sandbox(
                 plan=plan,
@@ -543,6 +553,8 @@ def setup_coding_agent_routes(
                 allow_existing_worktree=True,
                 live_enabled=body.live_enabled,
                 operator_decision=body.operator_decision,
+                clarification_ready_for_plan=body.clarification_ready_for_plan,
+                clarification_id=body.clarification_id,
             )
             report = build_coding_subagent_plan(
                 plan=plan,

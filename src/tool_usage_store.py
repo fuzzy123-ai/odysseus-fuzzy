@@ -1,730 +1,695 @@
-"""Content-free persistence foundation for privacy-safe tool usage analytics."""
+"""SQLite persistence and retention foundation for privacy-safe tool usage."""
 
 from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
-from enum import StrEnum
-import re
-from threading import Lock
-from typing import Any, Callable, Iterable
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+import sqlite3
+import threading
+from typing import Iterable
 
-from sqlalchemy import (
-    Boolean,
-    Column,
-    Date,
-    DateTime,
-    Index,
-    Integer,
-    String,
-    UniqueConstraint,
-    delete,
-    insert,
-    select,
-    update,
-)
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-
-from core.database import Base
-from src.tool_catalog import ToolFamily, ToolSource
-from src.tool_usage_events import (
-    ToolUsageAgentMode,
-    ToolUsageEvent,
-    ToolUsageModelScope,
-    ToolUsageStatus,
-    ToolUsageSurface,
-)
+from src.tool_usage_events import ToolUsageEventKind, ToolUsageEventV1
 
 
-TOOL_USAGE_SCHEMA_COMPONENT = "tool_usage_analytics"
-TOOL_USAGE_SCHEMA_VERSION = 1
-EVENT_RETENTION_DAYS = 90
-AGGREGATE_RETENTION_DAYS = 400
-MAX_FAILURE_COUNT = 1_000_000
-_OPAQUE_EVENT_ID_RE = re.compile(r"^[A-Za-z0-9_-]{16,80}$")
-_ANALYTICS_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+SCHEMA_NAME = "odysseus.tool_usage_store"
+SCHEMA_VERSION = 2
+DEFAULT_EVENT_RETENTION_DAYS = 90
+DEFAULT_DAILY_RETENTION_DAYS = 400
+_MAX_FAILURE_COUNT = 1_000_000
+DURATION_BUCKET_BOUNDS_MS = (10, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 60000)
+DURATION_BUCKET_COLUMNS = tuple(f"duration_le_{bound}" for bound in DURATION_BUCKET_BOUNDS_MS)
+DURATION_OVERFLOW_COLUMN = "duration_gt_60000"
 
 
-class ToolUsageSchemaVersion(Base):
-    __tablename__ = "tool_usage_schema_versions"
-
-    component = Column(String(64), primary_key=True)
-    version = Column(Integer, nullable=False)
-    applied_at = Column(DateTime, nullable=False)
-
-
-class ToolUsageEventRecord(Base):
-    __tablename__ = "tool_usage_events"
-
-    event_id = Column(String(80), primary_key=True)
-    invocation_id = Column(String(80), nullable=False)
-    event_kind = Column(String(16), nullable=False)
-    occurred_at = Column(DateTime, nullable=False)
-    event_day = Column(Date, nullable=False)
-    duration_ms = Column(Integer, nullable=True)
-    tool_analytics_id = Column(String(80), nullable=False)
-    tool_family = Column(String(48), nullable=False)
-    tool_source = Column(String(32), nullable=False)
-    surface = Column(String(32), nullable=False)
-    status = Column(String(24), nullable=True)
-    error_class = Column(String(32), nullable=True)
-    blocked_reason_code = Column(String(32), nullable=True)
-    retry_ordinal = Column(Integer, nullable=False)
-    argument_size_bucket = Column(String(8), nullable=False)
-    result_size_bucket = Column(String(8), nullable=False)
-    result_shape_bucket = Column(String(16), nullable=False)
-    owner_ref = Column(String(64), nullable=True)
-    session_ref = Column(String(64), nullable=True)
-    run_ref = Column(String(64), nullable=True)
-    correlation_ref = Column(String(64), nullable=True)
-    model_scope = Column(String(16), nullable=False)
-    agent_mode = Column(String(16), nullable=False)
-    app_version = Column(String(32), nullable=False)
-    aggregated_at = Column(DateTime, nullable=True)
-
-    __table_args__ = (
-        UniqueConstraint(
-            "invocation_id",
-            "event_kind",
-            name="uq_tool_usage_events_invocation_kind",
-        ),
-        Index("ix_tool_usage_events_day", "event_day"),
-        Index("ix_tool_usage_events_analytics_id", "tool_analytics_id"),
-        Index("ix_tool_usage_events_family", "tool_family"),
-        Index("ix_tool_usage_events_source", "tool_source"),
-        Index("ix_tool_usage_events_surface", "surface"),
-        Index("ix_tool_usage_events_status", "status"),
-        Index("ix_tool_usage_events_retention", "event_day", "aggregated_at"),
-    )
-
-
-class ToolUsageDailyAggregateRecord(Base):
-    __tablename__ = "tool_usage_daily_aggregates"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    day = Column(Date, nullable=False)
-    tool_analytics_id = Column(String(80), nullable=False)
-    tool_family = Column(String(48), nullable=False)
-    tool_source = Column(String(32), nullable=False)
-    surface = Column(String(32), nullable=False)
-    status = Column(String(24), nullable=False)
-    event_count = Column(Integer, nullable=False)
-    invocation_count = Column(Integer, nullable=False)
-    aggregation_complete = Column(Boolean, nullable=False, default=False)
-    aggregated_at = Column(DateTime, nullable=False)
-
-    __table_args__ = (
-        UniqueConstraint(
-            "day",
-            "tool_analytics_id",
-            "tool_family",
-            "tool_source",
-            "surface",
-            "status",
-            name="uq_tool_usage_daily_dimensions",
-        ),
-        Index("ix_tool_usage_daily_day", "day"),
-        Index("ix_tool_usage_daily_analytics_id", "tool_analytics_id"),
-        Index("ix_tool_usage_daily_family", "tool_family"),
-        Index("ix_tool_usage_daily_source", "tool_source"),
-        Index("ix_tool_usage_daily_surface", "surface"),
-        Index("ix_tool_usage_daily_status", "status"),
-    )
-
-
-TOOL_USAGE_TABLES = (
-    ToolUsageSchemaVersion.__table__,
-    ToolUsageEventRecord.__table__,
-    ToolUsageDailyAggregateRecord.__table__,
-)
-
-
-class ToolUsageAggregateStatus(StrEnum):
-    SUCCEEDED = "succeeded"
-    FAILED = "failed"
-    BLOCKED = "blocked"
-    CANCELLED = "cancelled"
-    REJECTED = "rejected"
-    INCOMPLETE = "incomplete"
+class ToolUsageStoreError(RuntimeError):
+    """Raised for bounded store contract failures without raw DB content."""
 
 
 @dataclass(frozen=True, slots=True)
-class ToolUsageDailyAggregate:
-    day: date
-    tool_analytics_id: str
-    tool_family: ToolFamily
-    tool_source: ToolSource
-    surface: ToolUsageSurface
-    status: ToolUsageAggregateStatus
-    event_count: int
-    invocation_count: int
-    aggregation_complete: bool
-    aggregated_at: datetime
+class StoreWriteResult:
+    accepted_count: int
+    duplicate_count: int
+    persistence_rejected_count: int
+    failure_count: int
 
-    def __post_init__(self) -> None:
-        if not isinstance(self.day, date) or isinstance(self.day, datetime):
-            raise ValueError("day must be a UTC calendar date")
-        if not isinstance(self.tool_analytics_id, str) or not _ANALYTICS_ID_RE.fullmatch(
-            self.tool_analytics_id
-        ):
-            raise ValueError("tool_analytics_id must be a canonical bounded slug")
-        for value, expected, field_name in (
-            (self.tool_family, ToolFamily, "tool_family"),
-            (self.tool_source, ToolSource, "tool_source"),
-            (self.surface, ToolUsageSurface, "surface"),
-            (self.status, ToolUsageAggregateStatus, "status"),
-        ):
-            if not isinstance(value, expected):
-                raise ValueError(f"{field_name} must be normalized")
-        for value, field_name in (
-            (self.event_count, "event_count"),
-            (self.invocation_count, "invocation_count"),
-        ):
-            if (
-                isinstance(value, bool)
-                or not isinstance(value, int)
-                or not 0 <= value <= 2**63 - 1
-            ):
-                raise ValueError(f"{field_name} must be a bounded non-negative integer")
-        if not isinstance(self.aggregation_complete, bool):
-            raise ValueError("aggregation_complete must be a boolean")
-        if not isinstance(self.aggregated_at, datetime) or self.aggregated_at.tzinfo is None:
-            raise ValueError("aggregated_at must be timezone-aware")
-
-    def to_record(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, int | bool]:
         return {
-            "day": self.day,
-            "tool_analytics_id": self.tool_analytics_id,
-            "tool_family": self.tool_family.value,
-            "tool_source": self.tool_source.value,
-            "surface": self.surface.value,
-            "status": self.status.value,
-            "event_count": self.event_count,
-            "invocation_count": self.invocation_count,
-            "aggregation_complete": self.aggregation_complete,
-            "aggregated_at": _naive_utc(self.aggregated_at),
-        }
-
-
-@dataclass(frozen=True, slots=True)
-class ToolUsageWriteResult:
-    attempted: int
-    inserted: int
-    duplicates: int
-    failures: int
-
-    def to_safe_dict(self) -> dict[str, Any]:
-        return {
-            "attempted": self.attempted,
-            "inserted": self.inserted,
-            "duplicates": self.duplicates,
-            "failures": self.failures,
+            "accepted_count": self.accepted_count,
+            "duplicate_count": self.duplicate_count,
+            "persistence_rejected_count": self.persistence_rejected_count,
+            "failure_count": self.failure_count,
             "raw_content_visible": False,
         }
 
 
 @dataclass(frozen=True, slots=True)
-class ToolUsageAggregationCommitResult:
-    aggregate_count: int
-    marked_event_count: int
-    failures: int
-
-    def to_safe_dict(self) -> dict[str, Any]:
-        return {
-            "aggregate_count": self.aggregate_count,
-            "marked_event_count": self.marked_event_count,
-            "failures": self.failures,
-            "raw_content_visible": False,
-            "identifiers_visible": False,
-        }
-
-
-@dataclass(frozen=True, slots=True)
-class ToolUsageRetentionResult:
+class RetentionResult:
     dry_run: bool
-    event_retention_days: int
-    aggregate_retention_days: int
-    eligible_event_count: int
-    eligible_aggregate_count: int
+    event_cutoff: str
+    daily_cutoff: str
+    scanned_event_count: int
+    deletable_event_count: int
+    protected_event_count: int
+    deletable_daily_count: int
     deleted_event_count: int
-    deleted_aggregate_count: int
-    failures: int
+    deleted_daily_count: int
 
-    def to_safe_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, int | str | bool]:
         return {
-            "schema_version": TOOL_USAGE_SCHEMA_VERSION,
             "dry_run": self.dry_run,
-            "event_retention_days": self.event_retention_days,
-            "aggregate_retention_days": self.aggregate_retention_days,
-            "eligible_event_count": self.eligible_event_count,
-            "eligible_aggregate_count": self.eligible_aggregate_count,
+            "event_cutoff": self.event_cutoff,
+            "daily_cutoff": self.daily_cutoff,
+            "scanned_event_count": self.scanned_event_count,
+            "deletable_event_count": self.deletable_event_count,
+            "protected_event_count": self.protected_event_count,
+            "deletable_daily_count": self.deletable_daily_count,
             "deleted_event_count": self.deleted_event_count,
-            "deleted_aggregate_count": self.deleted_aggregate_count,
-            "failures": self.failures,
+            "deleted_daily_count": self.deleted_daily_count,
             "raw_content_visible": False,
-            "identifiers_visible": False,
         }
 
 
-@dataclass(frozen=True, slots=True)
-class ToolUsageStoredEvent:
-    """Allowlisted event projection used only by the aggregate service."""
+_MIGRATION_STATEMENTS = (
+    """
+    CREATE TABLE IF NOT EXISTS tool_usage_schema_meta (
+        schema_name TEXT PRIMARY KEY,
+        schema_version INTEGER NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS tool_usage_events (
+        event_id TEXT PRIMARY KEY,
+        invocation_id TEXT NOT NULL,
+        event_kind TEXT NOT NULL,
+        occurred_at TEXT NOT NULL,
+        duration_ms INTEGER,
+        tool_analytics_id TEXT NOT NULL,
+        tool_family TEXT NOT NULL,
+        tool_source TEXT NOT NULL,
+        surface TEXT NOT NULL,
+        status TEXT,
+        error_class TEXT,
+        blocked_reason_code TEXT,
+        retry_ordinal INTEGER NOT NULL,
+        argument_size_bucket TEXT NOT NULL,
+        result_size_bucket TEXT NOT NULL,
+        result_shape_bucket TEXT NOT NULL,
+        owner_ref TEXT,
+        session_ref TEXT,
+        run_ref TEXT,
+        correlation_ref TEXT,
+        reference_state TEXT NOT NULL,
+        model_scope TEXT NOT NULL,
+        agent_mode TEXT NOT NULL,
+        app_version TEXT NOT NULL,
+        UNIQUE(invocation_id, event_kind)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS tool_usage_daily (
+        day TEXT NOT NULL,
+        tool_analytics_id TEXT NOT NULL,
+        tool_family TEXT NOT NULL,
+        tool_source TEXT NOT NULL,
+        surface TEXT NOT NULL,
+        status TEXT NOT NULL,
+        invocation_count INTEGER NOT NULL DEFAULT 0,
+        duration_count INTEGER NOT NULL DEFAULT 0,
+        duration_total_ms INTEGER NOT NULL DEFAULT 0,
+        distinct_owner_count INTEGER NOT NULL DEFAULT 0,
+        distinct_session_count INTEGER NOT NULL DEFAULT 0,
+        retry_count INTEGER NOT NULL DEFAULT 0,
+        unknown_identity_count INTEGER NOT NULL DEFAULT 0,
+        duration_le_10 INTEGER NOT NULL DEFAULT 0,
+        duration_le_50 INTEGER NOT NULL DEFAULT 0,
+        duration_le_100 INTEGER NOT NULL DEFAULT 0,
+        duration_le_250 INTEGER NOT NULL DEFAULT 0,
+        duration_le_500 INTEGER NOT NULL DEFAULT 0,
+        duration_le_1000 INTEGER NOT NULL DEFAULT 0,
+        duration_le_2500 INTEGER NOT NULL DEFAULT 0,
+        duration_le_5000 INTEGER NOT NULL DEFAULT 0,
+        duration_le_10000 INTEGER NOT NULL DEFAULT 0,
+        duration_le_60000 INTEGER NOT NULL DEFAULT 0,
+        duration_gt_60000 INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY(day, tool_analytics_id, surface, status)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS tool_usage_daily_quality (
+        day TEXT PRIMARY KEY,
+        invocation_count INTEGER NOT NULL DEFAULT 0,
+        started_count INTEGER NOT NULL DEFAULT 0,
+        terminal_count INTEGER NOT NULL DEFAULT 0,
+        complete_count INTEGER NOT NULL DEFAULT 0,
+        incomplete_count INTEGER NOT NULL DEFAULT 0,
+        distinct_owner_count INTEGER NOT NULL DEFAULT 0,
+        distinct_session_count INTEGER NOT NULL DEFAULT 0,
+        unknown_identity_count INTEGER NOT NULL DEFAULT 0,
+        duplicates_rejected INTEGER NOT NULL DEFAULT 0,
+        writer_failures INTEGER NOT NULL DEFAULT 0,
+        aggregation_complete INTEGER NOT NULL DEFAULT 0
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS ix_tool_usage_events_occurred_at ON tool_usage_events(occurred_at)",
+    "CREATE INDEX IF NOT EXISTS ix_tool_usage_events_tool_status ON tool_usage_events(tool_analytics_id, status)",
+    "CREATE INDEX IF NOT EXISTS ix_tool_usage_events_refs ON tool_usage_events(owner_ref, session_ref, run_ref)",
+    "CREATE INDEX IF NOT EXISTS ix_tool_usage_daily_day ON tool_usage_daily(day)",
+    "CREATE INDEX IF NOT EXISTS ix_tool_usage_daily_quality_day ON tool_usage_daily_quality(day)",
+)
 
-    event_id: str
-    invocation_id: str
-    event_kind: str
-    occurred_at: datetime
-    duration_ms: int | None
-    tool_analytics_id: str
-    tool_family: str
-    tool_source: str
-    surface: str
-    status: str | None
-    retry_ordinal: int
-    owner_ref: str | None
-    session_ref: str | None
 
-
-@dataclass(frozen=True, slots=True)
-class ToolUsageDayReadResult:
-    events: tuple[ToolUsageStoredEvent, ...]
-    failures: int
-
-
-def _naive_utc(value: datetime) -> datetime:
-    return value.astimezone(timezone.utc).replace(tzinfo=None)
-
-
-def _event_record(event: ToolUsageEvent) -> dict[str, Any]:
-    if not isinstance(event, ToolUsageEvent):
-        raise ValueError("store accepts normalized ToolUsageEvent values only")
-    occurred_at = _naive_utc(event.occurred_at)
-    return {
-        "event_id": event.event_id,
-        "invocation_id": event.invocation_id,
-        "event_kind": event.event_kind.value,
-        "occurred_at": occurred_at,
-        "event_day": occurred_at.date(),
-        "duration_ms": event.duration_ms,
-        "tool_analytics_id": event.tool_analytics_id,
-        "tool_family": event.tool_family.value,
-        "tool_source": event.tool_source.value,
-        "surface": event.surface.value,
-        "status": event.status.value if event.status else None,
-        "error_class": event.error_class.value if event.error_class else None,
-        "blocked_reason_code": (
-            event.blocked_reason_code.value if event.blocked_reason_code else None
-        ),
-        "retry_ordinal": event.retry_ordinal,
-        "argument_size_bucket": event.argument_size_bucket.value,
-        "result_size_bucket": event.result_size_bucket.value,
-        "result_shape_bucket": event.result_shape_bucket.value,
-        "owner_ref": event.owner_ref,
-        "session_ref": event.session_ref,
-        "run_ref": event.run_ref,
-        "correlation_ref": event.correlation_ref,
-        "model_scope": event.model_scope.value,
-        "agent_mode": event.agent_mode.value,
-        "app_version": event.app_version,
-        "aggregated_at": None,
-    }
+_EVENT_COLUMNS = (
+    "event_id",
+    "invocation_id",
+    "event_kind",
+    "occurred_at",
+    "duration_ms",
+    "tool_analytics_id",
+    "tool_family",
+    "tool_source",
+    "surface",
+    "status",
+    "error_class",
+    "blocked_reason_code",
+    "retry_ordinal",
+    "argument_size_bucket",
+    "result_size_bucket",
+    "result_shape_bucket",
+    "owner_ref",
+    "session_ref",
+    "run_ref",
+    "correlation_ref",
+    "reference_state",
+    "model_scope",
+    "agent_mode",
+    "app_version",
+)
 
 
 class ToolUsageStore:
-    """Best-effort store; failures never escape into tool execution."""
-
-    def __init__(self, session_factory: Callable[[], Any] | None = None) -> None:
-        if session_factory is None:
-            from core.database import SessionLocal
-
-            session_factory = SessionLocal
-        self._session_factory = session_factory
+    def __init__(self, database: str | Path | sqlite3.Connection):
+        self._lock = threading.RLock()
         self._failure_counts: Counter[str] = Counter()
         self._quality_counts: Counter[str] = Counter()
-        self._failure_lock = Lock()
-
-    def _record_failure(self, reason: str) -> None:
-        with self._failure_lock:
-            self._failure_counts[reason] = min(
-                self._failure_counts[reason] + 1,
-                MAX_FAILURE_COUNT,
+        if isinstance(database, sqlite3.Connection):
+            self._connection = database
+            self._owns_connection = False
+        else:
+            self._connection = sqlite3.connect(
+                str(database),
+                timeout=30,
+                check_same_thread=False,
+                isolation_level=None,
             )
+            self._owns_connection = True
+        self._connection.row_factory = sqlite3.Row
+        self._connection.execute("PRAGMA foreign_keys = ON")
 
-    def _record_quality(self, name: str, amount: int = 1) -> None:
-        if amount <= 0:
-            return
-        with self._failure_lock:
-            self._quality_counts[name] = min(
-                self._quality_counts[name] + amount,
-                MAX_FAILURE_COUNT,
-            )
+    def migrate(self) -> dict[str, int | str | bool]:
+        with self._lock:
+            try:
+                self._connection.execute("BEGIN IMMEDIATE")
+                for statement in _MIGRATION_STATEMENTS:
+                    self._connection.execute(statement)
+                row = self._connection.execute(
+                    "SELECT schema_version FROM tool_usage_schema_meta WHERE schema_name = ?",
+                    (SCHEMA_NAME,),
+                ).fetchone()
+                if row is None:
+                    self._connection.execute(
+                        "INSERT INTO tool_usage_schema_meta(schema_name, schema_version) VALUES (?, ?)",
+                        (SCHEMA_NAME, SCHEMA_VERSION),
+                    )
+                elif int(row["schema_version"]) == 1:
+                    self._migrate_v1_daily_columns()
+                    self._connection.execute(
+                        "UPDATE tool_usage_schema_meta SET schema_version = ? WHERE schema_name = ?",
+                        (SCHEMA_VERSION, SCHEMA_NAME),
+                    )
+                elif int(row["schema_version"]) != SCHEMA_VERSION:
+                    raise ToolUsageStoreError("unsupported tool usage schema version")
+                self._connection.commit()
+            except ToolUsageStoreError:
+                self._rollback_safely()
+                raise
+            except sqlite3.Error as exc:
+                self._rollback_safely()
+                raise ToolUsageStoreError("tool usage schema migration failed") from exc
+        return {
+            "schema_name": SCHEMA_NAME,
+            "schema_version": SCHEMA_VERSION,
+            "event_table_ready": True,
+            "daily_table_ready": True,
+            "raw_content_visible": False,
+        }
 
-    def failure_counts(self) -> dict[str, int]:
-        with self._failure_lock:
-            return dict(sorted(self._failure_counts.items()))
+    def _migrate_v1_daily_columns(self) -> None:
+        existing = {
+            str(row["name"])
+            for row in self._connection.execute(
+                "PRAGMA table_info(tool_usage_daily)"
+            ).fetchall()
+        }
+        additions = {
+            "distinct_owner_count": "INTEGER NOT NULL DEFAULT 0",
+            "distinct_session_count": "INTEGER NOT NULL DEFAULT 0",
+            "retry_count": "INTEGER NOT NULL DEFAULT 0",
+            "unknown_identity_count": "INTEGER NOT NULL DEFAULT 0",
+            **{
+                column: "INTEGER NOT NULL DEFAULT 0"
+                for column in (*DURATION_BUCKET_COLUMNS, DURATION_OVERFLOW_COLUMN)
+            },
+        }
+        for column, declaration in additions.items():
+            if column not in existing:
+                self._connection.execute(
+                    f"ALTER TABLE tool_usage_daily ADD COLUMN {column} {declaration}"
+                )
 
-    def quality_counts(self) -> dict[str, int]:
-        """Return bounded process-local counters without invocation identifiers."""
-
-        with self._failure_lock:
-            return {
-                "duplicates_rejected": int(
-                    self._quality_counts.get("duplicates_rejected", 0)
-                ),
-                "writer_failures": int(self._quality_counts.get("writer_failures", 0)),
-            }
-
-    def write_events(self, events: Iterable[ToolUsageEvent]) -> ToolUsageWriteResult:
-        try:
-            records = tuple(_event_record(event) for event in events)
-        except Exception:
-            self._record_failure("invalid_event")
-            return ToolUsageWriteResult(0, 0, 0, 1)
-        if not records:
-            return ToolUsageWriteResult(0, 0, 0, 0)
-
-        session = None
-        inserted = 0
+    def append_events(self, events: Iterable[ToolUsageEventV1]) -> StoreWriteResult:
+        batch = tuple(events)
+        if not all(isinstance(event, ToolUsageEventV1) for event in batch):
+            raise ToolUsageStoreError("event batch must contain ToolUsageEventV1 only")
+        accepted = 0
         duplicates = 0
-        try:
-            session = self._session_factory()
-            dialect_name = session.get_bind().dialect.name
-            for record in records:
-                if dialect_name == "sqlite":
-                    statement = sqlite_insert(ToolUsageEventRecord).values(**record)
-                    statement = statement.on_conflict_do_nothing(
-                        index_elements=("invocation_id", "event_kind")
+        rejected = 0
+        with self._lock:
+            try:
+                self._connection.execute("BEGIN IMMEDIATE")
+                for event in batch:
+                    if not event.persistence_allowed:
+                        rejected += 1
+                        continue
+                    payload = event.to_dict()
+                    placeholders = ",".join("?" for _ in _EVENT_COLUMNS)
+                    columns = ",".join(_EVENT_COLUMNS)
+                    cursor = self._connection.execute(
+                        f"INSERT OR IGNORE INTO tool_usage_events ({columns}) VALUES ({placeholders})",
+                        tuple(payload[column] for column in _EVENT_COLUMNS),
                     )
-                    result = session.execute(statement)
-                    if result.rowcount == 1:
-                        inserted += 1
-                    else:
+                    if cursor.rowcount != 1:
                         duplicates += 1
-                    continue
-                try:
-                    with session.begin_nested():
-                        session.execute(insert(ToolUsageEventRecord).values(**record))
-                    inserted += 1
-                except IntegrityError:
-                    duplicates += 1
-            session.commit()
-            self._record_quality("duplicates_rejected", duplicates)
-            return ToolUsageWriteResult(len(records), inserted, duplicates, 0)
-        except Exception:
-            if session is not None:
-                session.rollback()
-            self._record_failure("writer_failure")
-            self._record_quality("writer_failures", len(records))
-            return ToolUsageWriteResult(len(records), 0, 0, len(records))
-        finally:
-            if session is not None:
-                session.close()
-
-    def write_daily_aggregates(
-        self,
-        aggregates: Iterable[ToolUsageDailyAggregate],
-    ) -> ToolUsageWriteResult:
-        try:
-            records = tuple(aggregate.to_record() for aggregate in aggregates)
-        except Exception:
-            self._record_failure("invalid_aggregate")
-            return ToolUsageWriteResult(0, 0, 0, 1)
-        if not records:
-            return ToolUsageWriteResult(0, 0, 0, 0)
-
-        session = None
-        try:
-            session = self._session_factory()
-            for record in records:
-                dimensions = {
-                    key: record[key]
-                    for key in (
-                        "day",
-                        "tool_analytics_id",
-                        "tool_family",
-                        "tool_source",
-                        "surface",
-                        "status",
-                    )
-                }
-                existing_id = session.execute(
-                    select(ToolUsageDailyAggregateRecord.id).filter_by(**dimensions)
-                ).scalar_one_or_none()
-                if existing_id is None:
-                    session.execute(
-                        insert(ToolUsageDailyAggregateRecord).values(**record)
-                    )
-                else:
-                    session.execute(
-                        update(ToolUsageDailyAggregateRecord)
-                        .where(ToolUsageDailyAggregateRecord.id == existing_id)
-                        .values(**record)
-                    )
-            session.commit()
-            return ToolUsageWriteResult(len(records), len(records), 0, 0)
-        except Exception:
-            if session is not None:
-                session.rollback()
-            self._record_failure("aggregate_writer_failure")
-            self._record_quality("writer_failures", len(records))
-            return ToolUsageWriteResult(len(records), 0, 0, len(records))
-        finally:
-            if session is not None:
-                session.close()
-
-    def read_events_for_day(self, day: date) -> ToolUsageDayReadResult:
-        """Read one UTC day's allowlisted fields without returning raw content."""
-
-        if not isinstance(day, date) or isinstance(day, datetime):
-            raise ValueError("day must be a UTC calendar date")
-        session = None
-        try:
-            session = self._session_factory()
-            rows = (
-                session.query(ToolUsageEventRecord)
-                .filter(ToolUsageEventRecord.event_day == day)
-                .order_by(
-                    ToolUsageEventRecord.occurred_at.asc(),
-                    ToolUsageEventRecord.event_id.asc(),
-                )
-                .all()
+                        continue
+                    accepted += 1
+                    if event.event_kind == ToolUsageEventKind.TERMINAL:
+                        self._upsert_daily(event)
+                self._connection.commit()
+            except sqlite3.Error as exc:
+                self._rollback_safely()
+                raise ToolUsageStoreError("tool usage event transaction failed") from exc
+            except Exception:
+                self._rollback_safely()
+                raise
+            self._quality_counts["duplicates_rejected"] = min(
+                _MAX_FAILURE_COUNT,
+                self._quality_counts["duplicates_rejected"] + duplicates,
             )
-            events = tuple(
-                ToolUsageStoredEvent(
-                    event_id=str(row.event_id),
-                    invocation_id=str(row.invocation_id),
-                    event_kind=str(row.event_kind),
-                    occurred_at=(
-                        row.occurred_at.replace(tzinfo=timezone.utc)
-                        if row.occurred_at.tzinfo is None
-                        else row.occurred_at.astimezone(timezone.utc)
-                    ),
-                    duration_ms=row.duration_ms,
-                    tool_analytics_id=str(row.tool_analytics_id),
-                    tool_family=str(row.tool_family),
-                    tool_source=str(row.tool_source),
-                    surface=str(row.surface),
-                    status=str(row.status) if row.status is not None else None,
-                    retry_ordinal=int(row.retry_ordinal),
-                    owner_ref=str(row.owner_ref) if row.owner_ref is not None else None,
-                    session_ref=(
-                        str(row.session_ref) if row.session_ref is not None else None
-                    ),
-                )
-                for row in rows
+            self._quality_counts["persistence_rejected"] = min(
+                _MAX_FAILURE_COUNT,
+                self._quality_counts["persistence_rejected"] + rejected,
             )
-            return ToolUsageDayReadResult(events=events, failures=0)
-        except Exception:
-            self._record_failure("aggregation_reader_failure")
-            return ToolUsageDayReadResult(events=(), failures=1)
-        finally:
-            if session is not None:
-                session.close()
+        return StoreWriteResult(accepted, duplicates, rejected, 0)
 
-    def commit_day_aggregation(
-        self,
-        day: date,
-        aggregates: Iterable[ToolUsageDailyAggregate],
-        event_ids: Iterable[str],
-        *,
-        aggregated_at: datetime | None = None,
-    ) -> ToolUsageAggregationCommitResult:
-        """Atomically replace one day's aggregates and mark their source events."""
-
-        if not isinstance(day, date) or isinstance(day, datetime):
-            raise ValueError("day must be a UTC calendar date")
+    def append_best_effort(self, events: Iterable[ToolUsageEventV1]) -> StoreWriteResult:
+        batch = tuple(events)
         try:
-            values = tuple(aggregates)
-            records = tuple(value.to_record() for value in values)
-            normalized_ids = tuple(dict.fromkeys(event_ids))
-        except Exception:
-            self._record_failure("invalid_aggregation_commit")
-            return ToolUsageAggregationCommitResult(0, 0, 1)
-        if any(value.day != day for value in values) or any(
-            not isinstance(event_id, str) or not _OPAQUE_EVENT_ID_RE.fullmatch(event_id)
-            for event_id in normalized_ids
-        ):
-            self._record_failure("invalid_aggregation_commit")
-            return ToolUsageAggregationCommitResult(0, 0, 1)
-        if not normalized_ids:
-            return ToolUsageAggregationCommitResult(0, 0, 0)
-        if not records or any(not record["aggregation_complete"] for record in records):
-            self._record_failure("invalid_aggregation_commit")
-            return ToolUsageAggregationCommitResult(0, 0, 1)
-
-        marked_at = _naive_utc(aggregated_at or datetime.now(timezone.utc))
-        session = None
-        try:
-            session = self._session_factory()
-            matched = (
-                session.query(ToolUsageEventRecord)
-                .filter(
-                    ToolUsageEventRecord.event_day == day,
-                    ToolUsageEventRecord.event_id.in_(normalized_ids),
-                )
-                .count()
-            )
-            if matched != len(normalized_ids):
-                session.rollback()
-                self._record_failure("aggregation_source_mismatch")
-                self._record_quality("writer_failures")
-                return ToolUsageAggregationCommitResult(0, 0, 1)
-            session.execute(
-                delete(ToolUsageDailyAggregateRecord).where(
-                    ToolUsageDailyAggregateRecord.day == day
-                )
-            )
-            for record in records:
-                session.execute(insert(ToolUsageDailyAggregateRecord).values(**record))
-            session.execute(
-                update(ToolUsageEventRecord)
-                .where(ToolUsageEventRecord.event_id.in_(normalized_ids))
-                .values(aggregated_at=marked_at)
-            )
-            session.commit()
-            return ToolUsageAggregationCommitResult(len(records), matched, 0)
-        except Exception:
-            if session is not None:
-                session.rollback()
-            self._record_failure("aggregation_commit_failure")
+            return self.append_events(batch)
+        except ToolUsageStoreError:
+            self._record_failure("store_failure")
             self._record_quality("writer_failures")
-            return ToolUsageAggregationCommitResult(0, 0, 1)
-        finally:
-            if session is not None:
-                session.close()
-
-    def mark_events_aggregated(
-        self,
-        event_ids: Iterable[str],
-        *,
-        aggregated_at: datetime | None = None,
-    ) -> int:
-        normalized_ids = tuple(dict.fromkeys(event_ids))
-        if not normalized_ids or any(
-            not isinstance(event_id, str) or not _OPAQUE_EVENT_ID_RE.fullmatch(event_id)
-            for event_id in normalized_ids
-        ):
-            self._record_failure("invalid_aggregation_marker")
-            return 0
-        marked_at = _naive_utc(aggregated_at or datetime.now(timezone.utc))
-        session = None
-        try:
-            session = self._session_factory()
-            matched = (
-                session.query(ToolUsageEventRecord)
-                .filter(ToolUsageEventRecord.event_id.in_(normalized_ids))
-                .count()
-            )
-            session.execute(
-                update(ToolUsageEventRecord)
-                .where(ToolUsageEventRecord.event_id.in_(normalized_ids))
-                .values(aggregated_at=marked_at)
-            )
-            session.commit()
-            return max(int(matched), 0)
+            return StoreWriteResult(0, 0, 0, len(batch))
         except Exception:
-            if session is not None:
-                session.rollback()
-            self._record_failure("aggregation_marker_failure")
+            self._record_failure("validation_failure")
             self._record_quality("writer_failures")
-            return 0
-        finally:
-            if session is not None:
-                session.close()
+            return StoreWriteResult(0, 0, 0, len(batch))
 
-    def enforce_retention(
+    def _upsert_daily(self, event: ToolUsageEventV1) -> None:
+        status = event.status.value if event.status else "unknown"
+        duration_count = 1 if event.duration_ms is not None else 0
+        duration_total = event.duration_ms or 0
+        bucket_counts = tuple(
+            1
+            if event.duration_ms is not None and event.duration_ms <= bound
+            else 0
+            for bound in DURATION_BUCKET_BOUNDS_MS
+        )
+        overflow_count = (
+            1
+            if event.duration_ms is not None
+            and event.duration_ms > DURATION_BUCKET_BOUNDS_MS[-1]
+            else 0
+        )
+        retry_count = int(event.retry_ordinal)
+        unknown_identity_count = (
+            1 if event.tool_analytics_id.endswith(".unclassified") else 0
+        )
+        self._connection.execute(
+            """
+            INSERT INTO tool_usage_daily (
+                day, tool_analytics_id, tool_family, tool_source, surface, status,
+                invocation_count, duration_count, duration_total_ms,
+                distinct_owner_count, distinct_session_count, retry_count,
+                unknown_identity_count, duration_le_10, duration_le_50,
+                duration_le_100, duration_le_250, duration_le_500,
+                duration_le_1000, duration_le_2500, duration_le_5000,
+                duration_le_10000, duration_le_60000, duration_gt_60000
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, 1, ?, ?, 0, 0, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
+            ON CONFLICT(day, tool_analytics_id, surface, status) DO UPDATE SET
+                invocation_count = invocation_count + 1,
+                duration_count = duration_count + excluded.duration_count,
+                duration_total_ms = duration_total_ms + excluded.duration_total_ms,
+                retry_count = retry_count + excluded.retry_count,
+                unknown_identity_count = unknown_identity_count + excluded.unknown_identity_count,
+                duration_le_10 = duration_le_10 + excluded.duration_le_10,
+                duration_le_50 = duration_le_50 + excluded.duration_le_50,
+                duration_le_100 = duration_le_100 + excluded.duration_le_100,
+                duration_le_250 = duration_le_250 + excluded.duration_le_250,
+                duration_le_500 = duration_le_500 + excluded.duration_le_500,
+                duration_le_1000 = duration_le_1000 + excluded.duration_le_1000,
+                duration_le_2500 = duration_le_2500 + excluded.duration_le_2500,
+                duration_le_5000 = duration_le_5000 + excluded.duration_le_5000,
+                duration_le_10000 = duration_le_10000 + excluded.duration_le_10000,
+                duration_le_60000 = duration_le_60000 + excluded.duration_le_60000,
+                duration_gt_60000 = duration_gt_60000 + excluded.duration_gt_60000
+            """,
+            (
+                event.occurred_at[:10],
+                event.tool_analytics_id,
+                event.tool_family.value,
+                event.tool_source.value,
+                event.surface.value,
+                status,
+                duration_count,
+                duration_total,
+                retry_count,
+                unknown_identity_count,
+                *bucket_counts,
+                overflow_count,
+            ),
+        )
+
+    def _aggregation_event_rows(self, day: str) -> tuple[dict[str, object], ...]:
+        """Internal aggregate-only input; never exposed through an HTTP/raw API."""
+
+        with self._lock:
+            rows = self._connection.execute(
+                """
+                SELECT invocation_id, event_kind, duration_ms, tool_analytics_id,
+                       tool_family, tool_source, surface, status, retry_ordinal,
+                       owner_ref, session_ref
+                FROM tool_usage_events
+                WHERE substr(occurred_at, 1, 10) = ?
+                ORDER BY invocation_id, event_kind
+                """,
+                (day,),
+            ).fetchall()
+        return tuple(dict(row) for row in rows)
+
+    def _replace_daily_analytics(
+        self,
+        day: str,
+        rows: Iterable[dict[str, object]],
+        quality: dict[str, int],
+    ) -> None:
+        batch = tuple(rows)
+        with self._lock:
+            try:
+                self._connection.execute("BEGIN IMMEDIATE")
+                self._connection.execute(
+                    "DELETE FROM tool_usage_daily WHERE day = ?",
+                    (day,),
+                )
+                for row in batch:
+                    self._connection.execute(
+                        """
+                        INSERT INTO tool_usage_daily (
+                            day, tool_analytics_id, tool_family, tool_source,
+                            surface, status, invocation_count, duration_count,
+                            duration_total_ms, distinct_owner_count,
+                            distinct_session_count, retry_count,
+                            unknown_identity_count, duration_le_10,
+                            duration_le_50, duration_le_100, duration_le_250,
+                            duration_le_500, duration_le_1000,
+                            duration_le_2500, duration_le_5000,
+                            duration_le_10000, duration_le_60000,
+                            duration_gt_60000
+                        ) VALUES (
+                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                        )
+                        """,
+                        (
+                            day,
+                            row["tool_analytics_id"],
+                            row["tool_family"],
+                            row["tool_source"],
+                            row["surface"],
+                            row["status"],
+                            row["invocation_count"],
+                            row["duration_count"],
+                            row["duration_total_ms"],
+                            row["distinct_owner_count"],
+                            row["distinct_session_count"],
+                            row["retry_count"],
+                            row["unknown_identity_count"],
+                            *(row[column] for column in DURATION_BUCKET_COLUMNS),
+                            row[DURATION_OVERFLOW_COLUMN],
+                        ),
+                    )
+                self._connection.execute(
+                    """
+                    INSERT INTO tool_usage_daily_quality (
+                        day, invocation_count, started_count, terminal_count,
+                        complete_count, incomplete_count, distinct_owner_count,
+                        distinct_session_count, unknown_identity_count,
+                        duplicates_rejected, writer_failures,
+                        aggregation_complete
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                    ON CONFLICT(day) DO UPDATE SET
+                        invocation_count = excluded.invocation_count,
+                        started_count = excluded.started_count,
+                        terminal_count = excluded.terminal_count,
+                        complete_count = excluded.complete_count,
+                        incomplete_count = excluded.incomplete_count,
+                        distinct_owner_count = excluded.distinct_owner_count,
+                        distinct_session_count = excluded.distinct_session_count,
+                        unknown_identity_count = excluded.unknown_identity_count,
+                        duplicates_rejected = excluded.duplicates_rejected,
+                        writer_failures = excluded.writer_failures,
+                        aggregation_complete = 1
+                    """,
+                    (
+                        day,
+                        quality["invocation_count"],
+                        quality["started_count"],
+                        quality["terminal_count"],
+                        quality["complete_count"],
+                        quality["incomplete_count"],
+                        quality["distinct_owner_count"],
+                        quality["distinct_session_count"],
+                        quality["unknown_identity_count"],
+                        quality["duplicates_rejected"],
+                        quality["writer_failures"],
+                    ),
+                )
+                self._connection.commit()
+            except sqlite3.Error as exc:
+                self._rollback_safely()
+                raise ToolUsageStoreError("tool usage daily aggregation failed") from exc
+
+    def _daily_analytics_rows(
+        self,
+        start_day: str,
+        end_day: str,
+    ) -> tuple[dict[str, object], ...]:
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT * FROM tool_usage_daily WHERE day BETWEEN ? AND ? ORDER BY day, tool_analytics_id, surface, status",
+                (start_day, end_day),
+            ).fetchall()
+        return tuple(dict(row) for row in rows)
+
+    def _daily_quality_rows(
+        self,
+        start_day: str,
+        end_day: str,
+    ) -> tuple[dict[str, object], ...]:
+        with self._lock:
+            rows = self._connection.execute(
+                "SELECT * FROM tool_usage_daily_quality WHERE day BETWEEN ? AND ? ORDER BY day",
+                (start_day, end_day),
+            ).fetchall()
+        return tuple(dict(row) for row in rows)
+
+    def _event_days_before(self, cutoff_day: str) -> tuple[str, ...]:
+        with self._lock:
+            rows = self._connection.execute(
+                """
+                SELECT DISTINCT substr(occurred_at, 1, 10) AS day
+                FROM tool_usage_events
+                WHERE substr(occurred_at, 1, 10) < ?
+                ORDER BY day
+                """,
+                (cutoff_day,),
+            ).fetchall()
+        return tuple(str(row["day"]) for row in rows)
+
+    def apply_retention(
         self,
         *,
         now: datetime | None = None,
+        event_days: int = DEFAULT_EVENT_RETENTION_DAYS,
+        daily_days: int = DEFAULT_DAILY_RETENTION_DAYS,
         dry_run: bool = True,
-        event_retention_days: int = EVENT_RETENTION_DAYS,
-        aggregate_retention_days: int = AGGREGATE_RETENTION_DAYS,
-    ) -> ToolUsageRetentionResult:
-        if not isinstance(dry_run, bool):
-            raise ValueError("dry_run must be a boolean")
-        for value, field_name in (
-            (event_retention_days, "event_retention_days"),
-            (aggregate_retention_days, "aggregate_retention_days"),
-        ):
-            if (
-                isinstance(value, bool)
-                or not isinstance(value, int)
-                or not 1 <= value <= 3_650
-            ):
-                raise ValueError(f"{field_name} must be between 1 and 3650")
-        reference = now or datetime.now(timezone.utc)
-        if not isinstance(reference, datetime) or reference.tzinfo is None:
-            raise ValueError("now must be timezone-aware")
-        today = reference.astimezone(timezone.utc).date()
-        event_cutoff = today - timedelta(days=event_retention_days)
-        aggregate_cutoff = today - timedelta(days=aggregate_retention_days)
+    ) -> RetentionResult:
+        if isinstance(event_days, bool) or not isinstance(event_days, int) or event_days < 1:
+            raise ToolUsageStoreError("event_days must be a positive integer")
+        if isinstance(daily_days, bool) or not isinstance(daily_days, int) or daily_days < event_days:
+            raise ToolUsageStoreError("daily_days must be an integer not smaller than event_days")
+        current = now or datetime.now(timezone.utc)
+        if current.tzinfo is None or current.utcoffset() is None:
+            raise ToolUsageStoreError("retention time must be timezone-aware")
+        event_cutoff = (current.astimezone(timezone.utc) - timedelta(days=event_days)).date().isoformat()
+        daily_cutoff = (current.astimezone(timezone.utc) - timedelta(days=daily_days)).date().isoformat()
+        with self._lock:
+            try:
+                old_rows = self._connection.execute(
+                    """
+                    SELECT substr(occurred_at, 1, 10) AS day, COUNT(*) AS count
+                    FROM tool_usage_events
+                    WHERE substr(occurred_at, 1, 10) < ?
+                    GROUP BY substr(occurred_at, 1, 10)
+                    """,
+                    (event_cutoff,),
+                ).fetchall()
+                aggregate_days = {
+                    row["day"]
+                    for row in self._connection.execute(
+                        "SELECT DISTINCT day FROM tool_usage_daily"
+                    ).fetchall()
+                }
+                scanned = sum(int(row["count"]) for row in old_rows)
+                deletable = sum(
+                    int(row["count"]) for row in old_rows if row["day"] in aggregate_days
+                )
+                protected = scanned - deletable
+                daily_count = int(
+                    self._connection.execute(
+                        "SELECT COUNT(*) AS count FROM tool_usage_daily WHERE day < ?",
+                        (daily_cutoff,),
+                    ).fetchone()["count"]
+                )
+                deleted_events = 0
+                deleted_daily = 0
+                if not dry_run:
+                    self._connection.execute("BEGIN IMMEDIATE")
+                    deleted_events = self._connection.execute(
+                        """
+                        DELETE FROM tool_usage_events
+                        WHERE substr(occurred_at, 1, 10) < ?
+                          AND substr(occurred_at, 1, 10) IN (
+                              SELECT day FROM tool_usage_daily
+                          )
+                        """,
+                        (event_cutoff,),
+                    ).rowcount
+                    deleted_daily = self._connection.execute(
+                        "DELETE FROM tool_usage_daily WHERE day < ?",
+                        (daily_cutoff,),
+                    ).rowcount
+                    self._connection.execute(
+                        "DELETE FROM tool_usage_daily_quality WHERE day < ?",
+                        (daily_cutoff,),
+                    )
+                    self._connection.commit()
+            except sqlite3.Error as exc:
+                self._rollback_safely()
+                raise ToolUsageStoreError("tool usage retention failed") from exc
+        return RetentionResult(
+            dry_run=dry_run,
+            event_cutoff=event_cutoff,
+            daily_cutoff=daily_cutoff,
+            scanned_event_count=scanned,
+            deletable_event_count=deletable,
+            protected_event_count=protected,
+            deletable_daily_count=daily_count,
+            deleted_event_count=deleted_events,
+            deleted_daily_count=deleted_daily,
+        )
 
-        session = None
+    def counts(self) -> dict[str, int | bool]:
+        with self._lock:
+            event_count = int(
+                self._connection.execute(
+                    "SELECT COUNT(*) AS count FROM tool_usage_events"
+                ).fetchone()["count"]
+            )
+            daily_count = int(
+                self._connection.execute(
+                    "SELECT COUNT(*) AS count FROM tool_usage_daily"
+                ).fetchone()["count"]
+            )
+        return {
+            "event_count": event_count,
+            "daily_aggregate_count": daily_count,
+            "raw_content_visible": False,
+        }
+
+    def failure_counts(self) -> dict[str, int | bool]:
+        with self._lock:
+            values: dict[str, int | bool] = dict(sorted(self._failure_counts.items()))
+        values["raw_content_visible"] = False
+        return values
+
+    def quality_counts(self) -> dict[str, int | bool]:
+        """Return bounded process-local counters; null/deferred use is not failure."""
+
+        with self._lock:
+            values: dict[str, int | bool] = {
+                "duplicates_rejected": int(
+                    self._quality_counts.get("duplicates_rejected", 0)
+                ),
+                "persistence_rejected": int(
+                    self._quality_counts.get("persistence_rejected", 0)
+                ),
+                "writer_failures": int(
+                    self._quality_counts.get("writer_failures", 0)
+                ),
+                "raw_content_visible": False,
+            }
+        return values
+
+    def _record_failure(self, category: str) -> None:
+        with self._lock:
+            self._failure_counts[category] = min(
+                _MAX_FAILURE_COUNT,
+                self._failure_counts[category] + 1,
+            )
+
+    def _record_quality(self, category: str) -> None:
+        with self._lock:
+            self._quality_counts[category] = min(
+                _MAX_FAILURE_COUNT,
+                self._quality_counts[category] + 1,
+            )
+
+    def _rollback_safely(self) -> None:
         try:
-            session = self._session_factory()
-            event_filter = (
-                ToolUsageEventRecord.event_day < event_cutoff,
-                ToolUsageEventRecord.aggregated_at.is_not(None),
-            )
-            aggregate_filter = (ToolUsageDailyAggregateRecord.day < aggregate_cutoff,)
-            eligible_events = session.query(ToolUsageEventRecord).filter(*event_filter).count()
-            eligible_aggregates = (
-                session.query(ToolUsageDailyAggregateRecord)
-                .filter(*aggregate_filter)
-                .count()
-            )
-            deleted_events = 0
-            deleted_aggregates = 0
-            if not dry_run:
-                deleted_events = max(
-                    int(
-                        session.execute(
-                            delete(ToolUsageEventRecord).where(*event_filter)
-                        ).rowcount
-                        or 0
-                    ),
-                    0,
-                )
-                deleted_aggregates = max(
-                    int(
-                        session.execute(
-                            delete(ToolUsageDailyAggregateRecord).where(*aggregate_filter)
-                        ).rowcount
-                        or 0
-                    ),
-                    0,
-                )
-                session.commit()
-            else:
-                session.rollback()
-            return ToolUsageRetentionResult(
-                dry_run=dry_run,
-                event_retention_days=event_retention_days,
-                aggregate_retention_days=aggregate_retention_days,
-                eligible_event_count=eligible_events,
-                eligible_aggregate_count=eligible_aggregates,
-                deleted_event_count=deleted_events,
-                deleted_aggregate_count=deleted_aggregates,
-                failures=0,
-            )
-        except Exception:
-            if session is not None:
-                session.rollback()
-            self._record_failure("retention_failure")
-            if not dry_run:
-                self._record_quality("writer_failures")
-            return ToolUsageRetentionResult(
-                dry_run=True,
-                event_retention_days=event_retention_days,
-                aggregate_retention_days=aggregate_retention_days,
-                eligible_event_count=0,
-                eligible_aggregate_count=0,
-                deleted_event_count=0,
-                deleted_aggregate_count=0,
-                failures=1,
-            )
-        finally:
-            if session is not None:
-                session.close()
+            self._connection.rollback()
+        except sqlite3.Error:
+            pass
+
+    def close(self) -> None:
+        if self._owns_connection:
+            self._connection.close()
+
+    def __enter__(self) -> "ToolUsageStore":
+        return self
+
+    def __exit__(self, exc_type, exc, traceback) -> None:
+        self.close()

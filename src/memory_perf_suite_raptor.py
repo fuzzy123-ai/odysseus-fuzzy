@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
+from src.local_model_scheduler import maintenance_cpu_checkpoint
 from src.memory_perf_suite_metrics import ResourceMonitor, evaluate_performance_gate
 from src.memory_perf_suite_models import ResourceBudget, SuiteMetric
 
@@ -83,6 +84,7 @@ def run_raptor_graph_scale_simulation(
     missing_ratio: float = 0.005,
     repeated_view_requests: int = 3,
     budget: ResourceBudget | None = None,
+    maintenance_yield_func: Callable[[], Any] | None = None,
 ) -> RaptorGraphSimulationResult:
     """Simulate a large RAPTOR graph without materializing the full payload."""
 
@@ -100,6 +102,8 @@ def run_raptor_graph_scale_simulation(
     if sum(ratios.values()) >= 1:
         raise RaptorGraphSimulationError("status ratios must leave active capacity")
 
+    checkpoint = maintenance_yield_func or maintenance_cpu_checkpoint
+    checkpoint()
     root = Path(run_dir)
     root.mkdir(parents=True, exist_ok=True)
     monitor = ResourceMonitor(root)
@@ -115,6 +119,7 @@ def run_raptor_graph_scale_simulation(
     returned_nodes = min(active_count, output_node_budget)
     returned_edges = min(edge_count, output_edge_budget)
     clipped = returned_nodes < active_count or returned_edges < edge_count
+    checkpoint()
     cache_requests, cache_hits, cache_misses = _simulate_cache_reuse(repeated_view_requests)
     monitor.sample()
 

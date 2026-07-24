@@ -1,6 +1,8 @@
+import importlib
+
 import pytest
 
-from src.agent_tools import TOOL_HANDLERS, ToolBlock
+from src.agent_tools import ToolBlock
 from src.tool_security import NON_ADMIN_BLOCKED_TOOLS, is_public_blocked_tool
 from src.tool_execution import execute_tool_block
 
@@ -18,8 +20,9 @@ async def test_interactive_deliverable_tools_dispatch_through_central_executor(
         calls.append((content, ctx))
         return {"output": "dispatched", "exit_code": 0}
 
-    monkeypatch.setitem(TOOL_HANDLERS, tool_name, fake_handler)
-    monkeypatch.setattr("src.tool_execution._owner_is_admin", lambda owner: True)
+    tool_handlers = importlib.import_module("src.agent_tools").TOOL_HANDLERS
+    monkeypatch.setitem(tool_handlers, tool_name, fake_handler)
+    monkeypatch.setitem(execute_tool_block.__globals__, "_owner_is_admin", lambda owner: True)
 
     description, result = await execute_tool_block(
         ToolBlock(tool_name, '{"path":"game.py"}'),
@@ -48,8 +51,9 @@ async def test_interactive_deliverable_tools_are_admin_only_at_execution_boundar
         called = True
         return {"output": "should not run", "exit_code": 0}
 
-    monkeypatch.setitem(TOOL_HANDLERS, tool_name, forbidden_handler)
-    monkeypatch.setattr("src.tool_execution._owner_is_admin", lambda owner: False)
+    tool_handlers = importlib.import_module("src.agent_tools").TOOL_HANDLERS
+    monkeypatch.setitem(tool_handlers, tool_name, forbidden_handler)
+    monkeypatch.setitem(execute_tool_block.__globals__, "_owner_is_admin", lambda owner: False)
 
     description, result = await execute_tool_block(
         ToolBlock(tool_name, '{"path":"game.py"}'),

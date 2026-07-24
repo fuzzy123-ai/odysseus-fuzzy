@@ -1,0 +1,6 @@
+live-inputs.env
+*.netrc
+*.curl-config
+*token-result*
+*.secret
+soak-evidence.json

@@ -220,70 +220,38 @@ def test_telegram_todo_digest_live_gate_detects_missing_and_duplicates():
     assert duplicate["gates"]["canonical_single_task"] == "blocked"
 
 
-def test_todo_digest_schedule_postcondition_requires_one_active_owner_task():
+def test_todo_digest_schedule_postcondition_reads_one_exact_owner_scope():
     from src.calendar_capability_service import build_todo_digest_schedule_postcondition
 
     _reset_db()
     db = _TS()
     try:
-        db.add(ScheduledTask(
-            id="private-schedule-id",
-            owner="alice",
-            name="Private schedule name",
-            prompt="Private prompt",
-            task_type="action",
-            action="todo_digest",
-            trigger_type="schedule",
-            schedule="daily",
-            scheduled_time="09:00",
-            status="active",
-            output_target="telegram",
-            next_run=datetime(2026, 7, 23, 7, 0),
-        ))
-        db.commit()
-    finally:
-        db.close()
-
-    packet = build_todo_digest_schedule_postcondition(owner="alice")
-
-    assert packet["verified"] is True
-    assert packet["status"] == "active"
-    assert packet["candidate_count"] == 1
-    assert packet["schedule_ref"].startswith("todo-digest-schedule:v1:")
-    assert packet["next_run"]
-    assert packet["live_actions_performed"] is False
-    assert "private" not in repr(packet).lower()
-
-
-def test_todo_digest_schedule_postcondition_fails_closed_on_missing_or_duplicate():
-    from src.calendar_capability_service import build_todo_digest_schedule_postcondition
-
-    _reset_db()
-    assert build_todo_digest_schedule_postcondition(owner="alice")["status"] == "missing"
-
-    db = _TS()
-    try:
-        for task_id in ("schedule-a", "schedule-b"):
+        for task_id, owner in (("private-alice", "alice"), ("private-bob", "bob")):
             db.add(ScheduledTask(
-                id=task_id,
-                owner="alice",
-                name="Digest",
-                task_type="action",
-                action="todo_digest",
-                trigger_type="schedule",
-                schedule="daily",
-                status="active",
-                output_target="telegram",
-                next_run=datetime(2026, 7, 23, 7, 0),
+                id=task_id, owner=owner, name="private", task_type="action", action="todo_digest",
+                trigger_type="schedule", schedule="cron", cron_expression="0 9 * * 1,2,3,4,5",
+                scheduled_time="09:00", status="active", next_run=datetime(2026, 7, 25, 7, 0),
             ))
         db.commit()
     finally:
         db.close()
 
-    duplicate = build_todo_digest_schedule_postcondition(owner="alice")
-    assert duplicate["status"] == "ambiguous"
-    assert duplicate["verified"] is False
-    assert duplicate["schedule_ref"] == ""
+    receipt = build_todo_digest_schedule_postcondition(owner="alice", session_factory=_TS, task_model=ScheduledTask, now_utc=datetime(2026, 7, 24, 8, 0))
+
+    assert receipt and receipt["claim_type"] == "todo_digest_schedule_active"
+    assert "private-alice" not in repr(receipt)
+
+    db = _TS()
+    try:
+        db.add(ScheduledTask(
+            id="private-paused", owner="alice", name="private", task_type="action", action="todo_digest",
+            trigger_type="schedule", schedule="cron", cron_expression="0 9 * * 1,2,3,4,5",
+            scheduled_time="09:00", status="paused", next_run=datetime(2026, 7, 25, 7, 0),
+        ))
+        db.commit()
+    finally:
+        db.close()
+    assert build_todo_digest_schedule_postcondition(owner="alice", session_factory=_TS, task_model=ScheduledTask, now_utc=datetime(2026, 7, 24, 8, 0)) is None
 
 
 def test_calendar_readiness_reports_redacted_counts(monkeypatch):

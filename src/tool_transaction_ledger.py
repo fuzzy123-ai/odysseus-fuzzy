@@ -9,7 +9,7 @@ from pathlib import PurePosixPath
 import re
 from typing import Any, Iterable, Mapping
 
-from src.todo_receipts import TodoReceipt, todo_receipts_from_tool_events
+from src.todo_transaction_receipts import TODO_TOOL_NAME, validated_todo_semantic_receipt_from_event
 
 
 TOOL_TRANSACTION_LEDGER_SCHEMA = "odysseus.tool_transaction_ledger.v1"
@@ -184,6 +184,23 @@ def transaction_from_tool_event(
     claim_type: str | None = None,
     index: int = 0,
 ) -> ToolTransaction:
+    todo_receipt = validated_todo_semantic_receipt_from_event(event)
+    if event.get("tool") == TODO_TOOL_NAME and todo_receipt is None:
+        raise ToolTransactionError("Todo event requires a valid semantic receipt")
+    if todo_receipt is not None:
+        requested_claim = claim_type or todo_receipt["claim_type"]
+        if requested_claim != todo_receipt["claim_type"]:
+            raise ToolTransactionError("Todo claim does not match its semantic receipt")
+        return ToolTransaction.create(
+            surface=surface,
+            tool=TODO_TOOL_NAME,
+            claim_type=todo_receipt["claim_type"],
+            status=ToolTransactionStatus.VERIFIED,
+            evidence_refs=todo_receipt["evidence_refs"],
+            exit_code=0,
+            command="",
+            transaction_id=f"{surface}:{index}:{TODO_TOOL_NAME}:{todo_receipt['claim_type']}",
+        )
     tool = str(event.get("tool") or "tool").strip() or "tool"
     command = str(event.get("command") or "")
     output = str(event.get("output") or event.get("stdout") or event.get("stderr") or "")
@@ -247,6 +264,11 @@ def _transaction_from_mapping(item: Mapping[str, Any]) -> ToolTransaction | None
 
 
 def _claim_types_for_event(event: Mapping[str, Any]) -> tuple[str, ...]:
+    todo_receipt = validated_todo_semantic_receipt_from_event(event)
+    if todo_receipt is not None:
+        return (todo_receipt["claim_type"],)
+    if event.get("tool") == TODO_TOOL_NAME:
+        return ()
     text = _event_text(event)
     tool = str(event.get("tool") or "").strip()
     claims: list[str] = []

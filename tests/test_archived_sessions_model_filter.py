@@ -63,7 +63,7 @@ def archived_endpoint(monkeypatch):
 
     _stub_multipart_if_missing(monkeypatch)
     monkeypatch.setattr(sr, "SessionLocal", _TS)
-    monkeypatch.setattr(sr, "effective_user", lambda request: "alice")
+    monkeypatch.setattr(sr, "_chat_effective_user", lambda request: "alice")
     router = sr.setup_session_routes(MagicMock(), {})
     return _route(router, "/api/sessions/archived")
 

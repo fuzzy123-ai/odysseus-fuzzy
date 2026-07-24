@@ -604,6 +604,8 @@ def build_coding_task_plan(
     allow_existing_worktree: bool = False,
     live_enabled: bool | None = None,
     operator_decision: Any = "missing",
+    clarification_ready_for_plan: bool = True,
+    clarification_id: Any = "",
 ) -> CodingTaskPlan:
     if not isinstance(registry, RepoRegistry):
         raise CodingAgentBackendError("registry must be a RepoRegistry")
@@ -633,6 +635,9 @@ def build_coding_task_plan(
     worktree_path = _resolve_child(base_dir, base_dir / record.repo_id / normalized_task_id, label="worktree path")
 
     blockers: list[str] = []
+    if not bool(clarification_ready_for_plan):
+        suffix = f" ({_normalize_text(clarification_id, field_name='clarification_id', allow_empty=True, max_len=120)})" if clarification_id else ""
+        blockers.append(f"clarification must be ready_for_plan before coding plan execution{suffix}")
     if normalized_operator == "no_go":
         blockers.append("operator decision is no_go")
     if normalized_operator != "go":
@@ -770,6 +775,8 @@ def create_coding_worktree(
     worktree_base: str | Path | None = None,
     live_enabled: bool | None = None,
     operator_decision: Any = "missing",
+    clarification_ready_for_plan: bool = True,
+    clarification_id: Any = "",
     command_runner: CodingCommandRunner | None = None,
 ) -> CodingWorktreeReport:
     plan = build_coding_task_plan(
@@ -785,6 +792,8 @@ def create_coding_worktree(
         worktree_base=worktree_base,
         live_enabled=live_enabled,
         operator_decision=operator_decision,
+        clarification_ready_for_plan=clarification_ready_for_plan,
+        clarification_id=clarification_id,
     )
     if not plan.can_create_worktree:
         return CodingWorktreeReport(

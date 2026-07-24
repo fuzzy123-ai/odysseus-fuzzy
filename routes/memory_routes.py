@@ -33,6 +33,7 @@ from src.endpoint_resolver import resolve_endpoint
 from src.task_endpoint import resolve_task_endpoint
 from src.upload_limits import read_upload_limited, MEMORY_IMPORT_MAX_BYTES
 from src.memory_store_stats import build_memory_store_stats
+from src.memory_category_policy import MemoryCategoryPolicyError, normalize_memory_category
 
 logger = logging.getLogger(__name__)
 
@@ -537,13 +538,21 @@ def setup_memory_routes(memory_manager: MemoryManager, session_manager: SessionM
     @router.put("/{memory_id}")
     def update_memory(request: Request, memory_id: str, text: str = Form(...), category: str = Form(None)):
         """Update an existing memory item with new text and optional category."""
+        if category is not None:
+            try:
+                category = normalize_memory_category(category)
+            except MemoryCategoryPolicyError as exc:
+                detail = {"error_code": exc.code}
+                if exc.code == "todo_storage_forbidden":
+                    detail["use_tool"] = "manage_todos"
+                raise HTTPException(422, detail=detail) from exc
         user = _owner(request)
         all_mem = memory_manager.load_all()
         for i, memory in enumerate(all_mem):
             if memory["id"] == memory_id:
                 _verify_memory_owner(memory, user)
                 all_mem[i]["text"] = text.strip()
-                if category:
+                if category is not None:
                     all_mem[i]["category"] = category
                 all_mem[i]["timestamp"] = int(time.time())
 

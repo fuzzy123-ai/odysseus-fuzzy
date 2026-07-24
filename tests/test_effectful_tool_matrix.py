@@ -1,3 +1,4 @@
+from src.agent_loop import _tool_execution_is_effectful
 from src.agent_loop_orchestration import _VERIFIER_EFFECTFUL_TOOLS, _build_actions_snapshot
 from src.effectful_tool_matrix import build_effectful_action_snapshot, effectful_tool_names, tool_effect_category
 
@@ -5,29 +6,49 @@ from src.effectful_tool_matrix import build_effectful_action_snapshot, effectful
 def test_effectful_matrix_includes_modern_side_effects():
     names = set(effectful_tool_names())
 
-    assert {"telegram_document_reply", "browser_screenshot", "git_commit", "sandbox_submit", "bash", "manage_todos"} <= names
+    assert {"telegram_document_reply", "browser_screenshot", "git_commit", "commit_project", "sandbox_submit", "bash"} <= names
     assert _VERIFIER_EFFECTFUL_TOOLS >= names
     assert tool_effect_category("telegram_photo") == "telegram_outbound"
-    assert tool_effect_category("manage_todos") == "todo_domain_transaction"
+    assert tool_effect_category("commit_project") == "project_versioning"
 
 
-def test_effectful_matrix_covers_sensitive_catalog_control_families():
-    assert tool_effect_category("manage_plugins") == "plugin_supply_chain_control"
-    assert tool_effect_category("manage_settings") == "settings_control"
-    assert tool_effect_category("manage_tokens") == "credential_control"
-    assert tool_effect_category("manage_repos") == "repository_state_control"
-    assert tool_effect_category("manage_embeddings") == "embedding_runtime_control"
-    assert tool_effect_category("manage_personal_docs") == "document_source_control"
-    for tool_id in (
-        "download_model",
-        "serve_model",
-        "serve_preset",
-        "stop_served_model",
-        "cancel_download",
-        "adopt_served_model",
-    ):
-        assert tool_effect_category(tool_id) == "model_runtime_control"
-    assert tool_effect_category("tail_serve_output") == ""
+def test_mixed_admin_tools_classify_read_and_mutation_actions_separately():
+    assert tool_effect_category("manage_plugins", "list") == ""
+    assert tool_effect_category("manage_plugins", "enable") == "plugin_state"
+    assert tool_effect_category("manage_settings", "get") == ""
+    assert tool_effect_category("manage_settings", "set") == "settings_write"
+    assert tool_effect_category("manage_tokens", "list") == ""
+    assert tool_effect_category("manage_tokens", "revoke") == "token_state"
+    assert tool_effect_category("manage_repos", "status") == ""
+    assert tool_effect_category("manage_repos", "update_policy") == "repo_registry_write"
+    assert tool_effect_category("manage_repos", "unknown_future_action") == "repo_registry_write"
+    assert tool_effect_category("manage_todos", "list") == ""
+    assert tool_effect_category("manage_todos", "add") == "todo_state"
+    assert tool_effect_category("manage_todos", "complete") == "todo_state"
+    assert tool_effect_category("manage_todos", "reopen") == "todo_state"
+    assert tool_effect_category("manage_todos", "remove") == "todo_state"
+    assert tool_effect_category("manage_todos", "unknown_future_action") == "todo_state"
+    assert tool_effect_category("manage_todos") == "todo_state"
+
+
+def test_verifier_effect_tracking_normalizes_todo_action_and_fails_closed():
+    assert _tool_execution_is_effectful("manage_todos", {"action": " LIST "}) is False
+    assert _tool_execution_is_effectful("manage_todos", {"action": "add"}) is True
+    assert _tool_execution_is_effectful("manage_todos", {"action": "future_action"}) is True
+    assert _tool_execution_is_effectful("manage_todos", {}) is True
+    assert _tool_execution_is_effectful("manage_todos", None) is True
+
+
+def test_snapshot_uses_content_free_action_for_mixed_tool_effects():
+    snapshot = build_effectful_action_snapshot(
+        [
+            {"tool": "manage_settings", "action": "get", "exit_code": 0},
+            {"tool": "manage_settings", "action": "set", "exit_code": 0},
+        ]
+    )
+
+    assert snapshot["effectful_count"] == 1
+    assert snapshot["categories"] == ("settings_write",)
 
 
 def test_effectful_snapshot_keeps_failed_transaction_failed_and_redacted():

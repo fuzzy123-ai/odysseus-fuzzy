@@ -7,6 +7,7 @@ from src.coding_agent_runner_state import (
     CodingRunnerState,
     CodingRunnerStateError,
     CodingRunnerStateStore,
+    transition_from_clarification_run,
     transition_from_sandbox_dispatch,
     transition_from_task_control_event,
 )
@@ -63,6 +64,51 @@ def test_store_upserts_from_task_plan_without_raw_objective(tmp_path):
     assert payload["gates_waiting"] == ["operator_go"]
     assert "objective" not in payload
     assert "Private implementation" not in str(payload)
+
+
+def test_runner_state_reflects_clarification_lifecycle(tmp_path):
+    store = CodingRunnerStateStore(tmp_path / "runner-state")
+
+    clarifying = transition_from_clarification_run(
+        store=store,
+        task_id="task-alpha",
+        repo_id="demo",
+        clarification_run={
+            "clarification_id": "clar-12345678",
+            "status": "clarifying",
+            "unresolved_required_count": 2,
+            "ready_for_plan": False,
+        },
+    )
+    review = transition_from_clarification_run(
+        store=store,
+        task_id="task-alpha",
+        repo_id="demo",
+        clarification_run={
+            "clarification_id": "clar-12345678",
+            "status": "understanding_review",
+            "unresolved_required_count": 0,
+            "ready_for_plan": False,
+        },
+    )
+    ready = transition_from_clarification_run(
+        store=store,
+        task_id="task-alpha",
+        repo_id="demo",
+        clarification_run={
+            "clarification_id": "clar-12345678",
+            "status": "ready_for_plan",
+            "unresolved_required_count": 0,
+            "ready_for_plan": True,
+        },
+    )
+
+    assert clarifying.phase == "clarifying"
+    assert clarifying.gates_waiting == ("clarification_required",)
+    assert review.phase == "understanding_review"
+    assert review.gates_waiting == ("confirm_understanding",)
+    assert ready.phase == "ready_for_plan"
+    assert ready.gates_waiting == ("create_plan",)
 
 
 def test_runner_state_consumes_successful_sandbox_dispatch_as_review_ready(tmp_path):

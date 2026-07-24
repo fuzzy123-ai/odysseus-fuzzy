@@ -4,12 +4,15 @@ import pytest
 
 from src.observability_metrics import (
     ObservabilityMetricsError,
+    build_process_runtime_metrics_snapshot,
     build_runtime_metric_sample,
     build_runtime_metrics_from_diagnostics,
     build_runtime_metrics_snapshot,
     metrics_readiness,
+    render_process_runtime_metrics,
     render_prometheus_text,
 )
+from src.memory_runtime_metrics import MemoryRuntimeMetricsRegistry
 
 
 def test_renders_prometheus_text_for_known_content_free_metrics():
@@ -62,14 +65,58 @@ def test_builds_metrics_from_redacted_diagnostic_summaries():
     samples = {sample["name"]: sample for sample in snapshot["samples"]}
 
     assert samples["llm_call_failures_total"]["value"] == 3.0
-    assert samples["local_model_latency_seconds"]["value"] == 1.25
+    assert "local_model_latency_seconds" not in samples
     assert samples["memory_write_success_total"]["value"] == 3.0
     assert samples["memory_write_blocked_total"]["value"] == 2.0
-    assert samples["raptorgraph_maintenance_runs_total"]["value"] == 2.0
+    assert "raptorgraph_maintenance_runs_total" not in samples
+    assert "raptorgraph_maintenance_failures_total" not in samples
     assert samples["scheduler_due_tasks"]["value"] == 4.0
     assert samples["universal_inbox_blocked_total"]["value"] == 1.0
     assert snapshot["raw_content_visible"] is False
     assert snapshot["high_cardinality_labels_allowed"] is False
+    assert snapshot["prometheus_scrape_eligible"] is False
+
+
+def test_process_snapshot_renders_typed_memory_histograms_and_signed_rss():
+    registry = MemoryRuntimeMetricsRegistry.for_tests()
+    labels = {
+        "component": "raptorgraph",
+        "operation": "rebuild",
+        "phase": "total",
+        "outcome": "success",
+        "runtime": "benchmark",
+    }
+    assert registry.observe_histogram(
+        "odysseus_memory_operation_duration_seconds", labels, 0.75
+    )
+    assert registry.set_gauge(
+        "odysseus_raptor_rebuild_rss_delta_bytes",
+        {"runtime": "benchmark"},
+        -4096,
+    )
+
+    snapshot = build_process_runtime_metrics_snapshot(memory_registry=registry)
+    text = render_process_runtime_metrics(memory_registry=registry)
+
+    assert snapshot["source_kind"] == "process_local_registries"
+    assert snapshot["filesystem_reads"] == 0
+    assert snapshot["ledger_reads"] == 0
+    assert snapshot["vault_reads"] == 0
+    assert snapshot["network_calls"] == 0
+    assert "# TYPE odysseus_memory_operation_duration_seconds histogram" in text
+    assert "odysseus_memory_operation_duration_seconds_bucket" in text
+    assert 'odysseus_raptor_rebuild_rss_delta_bytes{runtime="benchmark"} -4096' in text
+    assert "local_model_latency_seconds" not in text
+    assert "raptorgraph_maintenance_failures_total" not in text
+
+
+def test_memory_metrics_reject_noncontract_labels_at_export_boundary():
+    with pytest.raises(ObservabilityMetricsError, match="fixed contract"):
+        build_runtime_metric_sample(
+            "odysseus_memory_operations_total",
+            1,
+            labels={"component": "memory"},
+        )
 
 
 def test_readiness_lists_only_safe_metric_contract():
@@ -82,3 +129,9 @@ def test_readiness_lists_only_safe_metric_contract():
     assert "chat_id" not in str(readiness).lower()
     assert readiness["raw_content_visible"] is False
     assert readiness["high_cardinality_labels_allowed"] is False
+    assert readiness["scrape_source_kind"] == "process_local_registries"
+    assert readiness["scrape_scope"] == "observability:read"
+    assert readiness["additional_scrape_scopes_allowed"] is False
+    assert readiness["prometheus_configured"] is False
+    assert readiness["grafana_configured"] is False
+    assert readiness["live_scrape_configured"] is False

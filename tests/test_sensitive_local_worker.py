@@ -33,6 +33,7 @@ def test_sensitive_local_worker_builds_redacted_external_safe_result():
     assert result["local_job_request"]["status"] == "ready"
     assert result["local_job_request"]["maintenance_route"]["raw_content_allowed"] is False
     assert result["local_job_request"]["maintenance_route"]["api_escalation_allowed"] is False
+    assert result["local_job_request"]["maintenance_route"]["model_ref"] == "gemma3:4b"
 
 
 def test_sensitive_local_worker_rejects_raw_text_arguments():

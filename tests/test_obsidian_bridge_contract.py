@@ -193,11 +193,11 @@ async def test_invalid_tool_call_feedback_reaches_the_next_agent_round():
     assert "mcp__vault__obsidian_write_note" in result["error"]
 
 
-def test_public_users_can_use_owner_scoped_vault_mcp_but_not_foreign_mcp_servers(monkeypatch):
+def test_public_users_can_use_readonly_owner_scoped_vault_mcp_but_not_writes_or_foreign_servers(monkeypatch):
     monkeypatch.setattr("src.tool_security.owner_is_admin_or_single_user", lambda owner: False)
 
     assert is_public_blocked_tool("mcp__vault__obsidian_read_note") is False
-    assert is_public_blocked_tool("mcp__vault__obsidian_write_note") is False
+    assert is_public_blocked_tool("mcp__vault__obsidian_write_note") is True
     assert is_public_blocked_tool("mcp__email__send_email") is True
     assert is_public_blocked_tool("mcp__filesystem__read_file") is True
 

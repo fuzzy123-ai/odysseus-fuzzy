@@ -9,9 +9,9 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
-from src.model_context import get_context_length, estimate_tokens
+from src.model_context import estimate_tokens
 from src.token_estimator import estimate_character_capacity, estimate_text_tokens
-from src.llm_core import llm_call_async
+from src.llm_core import llm_call_async, resolve_request_context_snapshot
 from src.endpoint_resolver import resolve_endpoint
 from core.models import ChatMessage
 
@@ -627,7 +627,8 @@ async def maybe_compact(
 
     Returns (messages, context_length, was_compacted).
     """
-    context_length = get_context_length(endpoint_url, model)
+    context_snapshot = await resolve_request_context_snapshot(endpoint_url, model)
+    context_length = context_snapshot.context_length
     effective_model_hint = model_hint or model
     used = _estimate_messages_tokens(messages, model_hint=effective_model_hint)
     pct = (used / context_length) * 100 if context_length else 0

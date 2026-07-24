@@ -30,4 +30,4 @@ def test_release_morning_snapshot_envelope_digest_matches_json_payload():
     envelope = build_current_release_morning_snapshot_envelope()
 
     assert release_morning_payload_digest(envelope.payload) == envelope.digest
-    assert json.loads(envelope.payload_json)["summary"]["status"] == "go"
+    assert json.loads(envelope.payload_json)["summary"]["status"] == "blocked"

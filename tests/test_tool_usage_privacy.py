@@ -1,215 +1,153 @@
-from datetime import datetime, timezone
-
 import pytest
 
-from src.tool_catalog import ToolFamily, ToolSource
+from src.tool_catalog import (
+    ToolAvailability,
+    ToolDescriptorV2,
+    ToolEffectClass,
+    ToolFamily,
+    ToolLifecycle,
+    ToolPermission,
+    ToolRiskLevel,
+    ToolSource,
+    ToolVisibility,
+)
 from src.tool_usage_events import (
     ToolUsageAgentMode,
-    ToolUsageBuildResult,
     ToolUsageEventBuilder,
     ToolUsageEventError,
-    ToolUsageEventKind,
-    ToolUsageModelScope,
-    ToolUsageReferenceKind,
-    ToolUsageResultShape,
-    ToolUsageSizeBucket,
-    ToolUsageSuppressionReason,
+    ToolUsageEventV1,
     ToolUsageSurface,
     pseudonymize_reference,
 )
 
 
-def _event_values(**overrides):
+HMAC_KEY = b"p" * 32
+EVENT_ID = "tue_" + "1" * 32
+INVOCATION_ID = "tui_" + "2" * 32
+OCCURRED_AT = "2026-07-17T12:00:00.000Z"
+
+
+def _descriptor() -> ToolDescriptorV2:
+    return ToolDescriptorV2.create(
+        tool_id="send_email",
+        display_name="Send Email",
+        description="Send a confirmed message through the configured mail adapter.",
+        family=ToolFamily.PLANNING_COMMUNICATION,
+        source=ToolSource.BUILTIN,
+        lifecycle=ToolLifecycle.CONTEXTUAL,
+        availability=ToolAvailability.AVAILABLE,
+        default_enabled=False,
+        default_visibility=ToolVisibility.HIDDEN,
+        risk_level=ToolRiskLevel.DANGEROUS,
+        permission=ToolPermission.OWNER,
+        effect_class=ToolEffectClass.EXTERNAL_WRITE,
+        requires_confirmation=True,
+        schema_ref="function:send_email",
+        handler_ref="mcp:send_email",
+        prompt_ref="index:send_email",
+        introduced_in="0.24.0",
+    )
+
+
+def _event(**overrides):
     values = {
-        "event_kind": ToolUsageEventKind.STARTED,
-        "event_id": "evt_000000000101",
-        "invocation_id": "inv_000000000101",
-        "occurred_at": datetime(2026, 2, 3, tzinfo=timezone.utc),
-        "tool_analytics_id": "safe-tool",
-        "tool_family": ToolFamily.EXPERIMENTAL,
-        "tool_source": ToolSource.LEGACY,
-        "surface": ToolUsageSurface.SYSTEM,
-        "argument_size_bucket": ToolUsageSizeBucket.NONE,
-        "result_size_bucket": ToolUsageSizeBucket.NONE,
-        "result_shape_bucket": ToolUsageResultShape.NONE,
-        "model_scope": ToolUsageModelScope.UNKNOWN,
-        "agent_mode": ToolUsageAgentMode.SYSTEM,
-        "app_version": "0.25.0-test",
+        "descriptor": _descriptor(),
+        "event_kind": "started",
+        "surface": ToolUsageSurface.AGENT,
+        "agent_mode": ToolUsageAgentMode.AGENT,
+        "event_id": EVENT_ID,
+        "invocation_id": INVOCATION_ID,
+        "occurred_at": OCCURRED_AT,
     }
     values.update(overrides)
-    return values
+    return ToolUsageEventBuilder(app_version="0.25.0", hmac_key=HMAC_KEY).build(**values)
 
 
-def test_hmac_references_are_deterministic_namespaced_and_nonreversible():
-    key = b"k" * 32
-    owner = pseudonymize_reference(
-        "synthetic-owner-a",
-        hmac_key=key,
-        kind=ToolUsageReferenceKind.OWNER,
-    )
-    owner_again = pseudonymize_reference(
-        "synthetic-owner-a",
-        hmac_key=key,
-        kind=ToolUsageReferenceKind.OWNER,
-    )
-    session = pseudonymize_reference(
-        "synthetic-owner-a",
-        hmac_key=key,
-        kind=ToolUsageReferenceKind.SESSION,
-    )
+def test_serialized_field_allowlist_has_no_generic_or_raw_content_slots():
+    event = _event()
+    payload = event.to_dict()
 
-    assert owner == owner_again
-    assert owner.startswith("h1_owner_")
-    assert session.startswith("h1_session_")
-    assert owner != session
-    assert "synthetic-owner-a" not in owner
-
-
-@pytest.mark.parametrize("value", [None, "synthetic-reference"])
-def test_missing_hmac_key_has_no_raw_fallback(value):
-    assert (
-        pseudonymize_reference(
-            value,
-            hmac_key=None,
-            kind=ToolUsageReferenceKind.CORRELATION,
-        )
-        is None
-    )
-
-
-def test_hmac_helper_rejects_short_keys_and_unknown_namespaces():
-    with pytest.raises(ToolUsageEventError):
-        pseudonymize_reference(
-            "synthetic-reference",
-            hmac_key=b"short",
-            kind=ToolUsageReferenceKind.RUN,
-        )
-    with pytest.raises(ToolUsageEventError):
-        pseudonymize_reference(
-            "synthetic-reference",
-            hmac_key=b"k" * 32,
-            kind="user",
-        )
-
-
-def test_builder_accepts_only_namespaced_hmac_references():
-    key = b"k" * 32
-    owner_ref = pseudonymize_reference(
-        "synthetic-owner",
-        hmac_key=key,
-        kind=ToolUsageReferenceKind.OWNER,
-    )
-    result = ToolUsageEventBuilder.build(**_event_values(owner_ref=owner_ref))
-
-    assert result.event.owner_ref == owner_ref
-    assert "synthetic-owner" not in repr(result.to_safe_dict())
-
-    with pytest.raises(ToolUsageEventError):
-        ToolUsageEventBuilder.build(**_event_values(owner_ref="synthetic-owner"))
-    with pytest.raises(ToolUsageEventError):
-        ToolUsageEventBuilder.build(
-            **_event_values(owner_ref=owner_ref.replace("owner", "session", 1))
-        )
-
-
-def test_incognito_short_circuits_before_event_construction_and_forbids_persistence():
-    result = ToolUsageEventBuilder.build(**_event_values(incognito=True))
-
-    assert result.event is None
-    assert result.persistence_allowed is False
-    assert result.suppression_reason == ToolUsageSuppressionReason.INCOGNITO
-    assert result.to_safe_dict() == {
-        "event": None,
-        "persistence_allowed": False,
-        "raw_content_visible": False,
-        "suppression_reason": "incognito",
-    }
-
-
-def test_nobody_short_circuits_before_event_construction_and_forbids_persistence():
-    result = ToolUsageEventBuilder.build(**_event_values(owner_is_nobody=True))
-
-    assert result.event is None
-    assert result.persistence_allowed is False
-    assert result.suppression_reason == ToolUsageSuppressionReason.NOBODY
-
-
-@pytest.mark.parametrize("field", ["incognito", "owner_is_nobody"])
-def test_persistence_policy_flags_must_be_real_booleans(field):
-    with pytest.raises(ToolUsageEventError):
-        ToolUsageEventBuilder.build(**_event_values(**{field: "false"}))
-
-
-@pytest.mark.parametrize(
-    "forbidden_field",
-    [
-        "metadata",
-        "payload",
-        "args",
-        "result",
-        "prompt",
-        "command",
-        "path",
-        "url",
-        "exception_message",
-        "owner_id",
-        "session_id",
-        "chat_id",
-        "credential",
-    ],
-)
-def test_builder_fails_closed_on_fields_outside_the_allowlist(forbidden_field):
-    values = _event_values()
-    values[forbidden_field] = "forbidden-marker"
-    with pytest.raises(TypeError):
-        ToolUsageEventBuilder.build(**values)
-
-
-def test_error_class_rejects_free_text_without_echoing_it():
-    marker = "unbounded-error-detail"
-    with pytest.raises(ToolUsageEventError) as exc_info:
-        ToolUsageEventBuilder.build(**_event_values(error_class=marker))
-
-    assert marker not in str(exc_info.value)
-
-
-def test_safe_serialization_has_only_allowlisted_fields_and_explicit_redaction():
-    payload = ToolUsageEventBuilder.build(**_event_values()).event.to_safe_dict()
-
-    assert set(payload) == {
-        "agent_mode",
-        "app_version",
-        "argument_size_bucket",
-        "blocked_reason_code",
-        "correlation_ref",
-        "duration_ms",
-        "error_class",
-        "event_id",
-        "event_kind",
-        "invocation_id",
-        "model_scope",
-        "occurred_at",
-        "owner_ref",
-        "raw_content_visible",
-        "result_shape_bucket",
-        "result_size_bucket",
-        "retry_ordinal",
-        "run_ref",
-        "schema_version",
-        "session_ref",
-        "status",
-        "surface",
-        "tool_analytics_id",
-        "tool_family",
-        "tool_source",
-    }
+    assert set(payload) == ToolUsageEventV1.SERIALIZED_FIELDS
     assert payload["raw_content_visible"] is False
+    forbidden = {
+        "args",
+        "arguments",
+        "command",
+        "content",
+        "error_message",
+        "exception",
+        "headers",
+        "metadata",
+        "output",
+        "payload",
+        "prompt",
+        "result",
+        "token",
+        "url",
+    }
+    assert not (set(payload) & forbidden)
 
 
-def test_build_result_cannot_claim_persistence_without_an_event():
-    with pytest.raises(ToolUsageEventError):
-        ToolUsageBuildResult(
-            event=None,
-            persistence_allowed=True,
-            suppression_reason=None,
+def test_raw_identity_secret_path_and_message_values_never_serialize():
+    private_values = {
+        "owner_identity": "user@example.test",
+        "session_identity": "private-session-id",
+        "run_identity": r"C:\Users\alice\private-run",
+        "correlation_identity": "api_key=do-not-store",
+    }
+    event = _event(**private_values)
+    serialized = event.to_json()
+
+    assert all(value not in serialized for value in private_values.values())
+    assert serialized.count("h1_") == 4
+
+
+def test_free_metadata_exception_messages_and_raw_results_are_not_builder_inputs():
+    with pytest.raises(TypeError):
+        _event(metadata={"anything": "raw"})
+    with pytest.raises(TypeError):
+        _event(error_message="provider leaked a private message")
+    with pytest.raises(TypeError):
+        _event(result={"body": "private"})
+    with pytest.raises(TypeError):
+        _event(command="rm private-file")
+
+
+def test_mapping_rejects_raw_fields_and_true_visibility_marker():
+    payload = _event().to_dict()
+    with pytest.raises(ToolUsageEventError, match="non-allowlisted"):
+        ToolUsageEventV1.from_mapping(dict(payload, owner_id="raw-owner"))
+    with pytest.raises(ToolUsageEventError, match="must be false"):
+        ToolUsageEventV1.from_mapping(dict(payload, raw_content_visible=True))
+
+
+def test_hmac_key_is_not_represented_and_short_keys_fail_closed():
+    builder = ToolUsageEventBuilder(app_version="0.25.0", hmac_key=HMAC_KEY)
+
+    assert HMAC_KEY.decode("ascii") not in repr(builder)
+    with pytest.raises(ToolUsageEventError, match="at least 32 bytes"):
+        ToolUsageEventBuilder(app_version="0.25.0", hmac_key=b"short")
+    with pytest.raises(ToolUsageEventError, match="at least 32 bytes"):
+        pseudonymize_reference("owner", "value", key=b"short")
+
+
+def test_unsafe_ids_versions_and_callable_references_fail_closed():
+    with pytest.raises(ToolUsageEventError, match="opaque tue"):
+        _event(event_id="user@example.test")
+    with pytest.raises(ToolUsageEventError, match="machine-readable"):
+        ToolUsageEventBuilder(app_version=r"C:\private\build", hmac_key=HMAC_KEY)
+    with pytest.raises(ToolUsageEventError, match="callable"):
+        _event(owner_identity=lambda: "raw")
+
+
+def test_builder_requires_tax_descriptor_instead_of_accepting_free_tool_metadata():
+    with pytest.raises(ToolUsageEventError, match="TAX ToolDescriptorV2"):
+        ToolUsageEventBuilder(app_version="0.25.0", hmac_key=HMAC_KEY).build(
+            descriptor={"tool_id": "send_email"},
+            event_kind="started",
+            surface="agent",
+            agent_mode="agent",
+            event_id=EVENT_ID,
+            invocation_id=INVOCATION_ID,
+            occurred_at=OCCURRED_AT,
         )

@@ -1,0 +1,54 @@
+services:
+  grafana:
+    image: docker.io/grafana/grafana:13.1.0
+    container_name: odysseus-grafana
+    restart: "no"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      PROMETHEUS_URL: ${PROMETHEUS_URL:?set PROMETHEUS_URL in the gated activation environment}
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:?set GRAFANA_ADMIN_USER in the gated activation environment}
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_UNIFIED_ALERTING_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_PLUGINS_PLUGIN_ADMIN_ENABLED: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/memory-overview.json
+    volumes:
+      - type: bind
+        source: ./provisioning
+        target: /etc/grafana/provisioning
+        read_only: true
+      - type: bind
+        source: ./dashboards
+        target: /var/lib/grafana/dashboards
+        read_only: true
+      - type: bind
+        source: ./secrets/grafana_admin_password
+        target: /run/secrets/grafana_admin_password
+        read_only: true
+      - type: volume
+        source: grafana-data
+        target: /var/lib/grafana
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -q --spider http://127.0.0.1:3000/api/health || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    stop_grace_period: 30s
+
+volumes:
+  grafana-data:
+    name: odysseus-grafana-data-v1
+

@@ -1,7 +1,7 @@
 import asyncio
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -245,13 +245,14 @@ def test_calendar_mcp_write_event_requires_confirmation(monkeypatch):
 def test_calendar_mcp_write_event_confirmed_creates_owner_scoped_event(monkeypatch):
     _reset_db()
     monkeypatch.setenv("ODYSSEUS_MCP_CALENDAR_OWNER", "alice")
+    starts_at = datetime.now().replace(microsecond=0) + timedelta(days=2)
 
     payload = _tool_json("calendar_write_event", {
         "action": "create_event",
         "confirmed": True,
         "summary": "Confirmed planning",
-        "dtstart": "2026-07-04T09:00:00",
-        "dtend": "2026-07-04T10:00:00",
+        "dtstart": starts_at.isoformat(),
+        "dtend": (starts_at + timedelta(hours=1)).isoformat(),
         "reminder_minutes": 15,
     })
 

@@ -12,6 +12,7 @@ from core.models import ChatMessage
 from src.request_models import SessionResponse
 from core.database import Session as DbSession, SessionLocal, Document, GalleryImage, utcnow_naive
 from src.auth_helpers import _auth_disabled, owner_filter, scoped_effective_user
+from src.clarification_attention import build_session_clarification_attention
 from src.session_actions import is_session_recently_active
 from routes.session_format_helpers import (
     COMPARE_SESSION_PREFIX,
@@ -262,8 +263,13 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
                 
                 # Determine is_attention (waiting for ask_user input)
                 is_attention = False
+                clarification_attention = build_session_clarification_attention(owner=user, session_id=sid)
+                if clarification_attention.get("active"):
+                    is_attention = True
+                    status_reason_map[sid] = "clarification_required"
+                    status_message_map[sid] = clarification_attention.get("message") or "Waiting for required clarification input"
                 last_m = last_msg_details.get(sid)
-                if last_m and last_m["role"] == "assistant":
+                if not is_attention and last_m and last_m["role"] == "assistant":
                     content_str = last_m["content"]
                     meta_str = last_m["meta_data"]
                     if "ask_user" in content_str or "ask_user" in meta_str:
@@ -1376,8 +1382,8 @@ def setup_session_routes(session_manager: SessionManager, config: dict, webhook_
         if not session.endpoint_url or not session.model:
             return {"context_length": None}
         try:
-            from src.model_context import get_context_length
-            ctx = get_context_length(session.endpoint_url, session.model)
+            from src.model_context import get_context_length_async
+            ctx = await get_context_length_async(session.endpoint_url, session.model)
             return {"context_length": ctx, "model": session.model}
         except Exception:
             return {"context_length": None}

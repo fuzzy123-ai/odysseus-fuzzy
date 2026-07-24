@@ -1118,16 +1118,8 @@ async def action_daily_brief(owner: str, **kwargs) -> Tuple[str, bool]:
         return str(e), False
 
 
-def _todo_digest_from_notes(
-    notes,
-    *,
-    label: str | None = None,
-    list_filter: str | None = None,
-    limit: int = 20,
-    owner: str | None = None,
-    projection: dict | None = None,
-) -> str:
-    import hashlib as _hashlib
+def _todo_digest_selection_from_notes(notes, *, label: str | None = None, list_filter: str | None = None, limit: int = 20, builder_date=None) -> dict:
+    """Select the default digest once, retaining raw values only in-process."""
     import json as _json
     from datetime import datetime as _dt
 
@@ -1135,12 +1127,14 @@ def _todo_digest_from_notes(
 
     label = (label or "").strip().lower()
     list_filter = (list_filter or "").strip().lower()
-    today = _dt.now().date()
+    # Keep the renderer's historical Python slice semantics exactly.  The
+    # receipt path independently uses its default bounded limit of 20.
+    today = builder_date or _dt.now().date()
     overdue: list[str] = []
     due_today: list[str] = []
     pinned: list[str] = []
-    open_items: list[tuple[str, str | None]] = []
-    item_states: dict[str, dict[str, object]] = {}
+    open_items: list[dict] = []
+    item_states: list[dict] = []
 
     def _due_bucket(raw: str | None) -> str:
         if not raw:
@@ -1155,7 +1149,8 @@ def _todo_digest_from_notes(
             return "today"
         return ""
 
-    for note in notes:
+    from src.todo_digest_receipts import redact_ref
+    for note_index, note in enumerate(notes):
         if getattr(note, "archived", False):
             continue
         if label and (getattr(note, "label", "") or "").strip().lower() != label:
@@ -1177,25 +1172,53 @@ def _todo_digest_from_notes(
                 items = _json.loads(note.items or "[]")
             except Exception:
                 items = []
-            for item in items:
+            for item_index, item in enumerate(items):
                 if not isinstance(item, dict):
                     continue
-                item_id = str(item.get("id") or "").strip()
-                item_ref = f"todo-item:v1:{item_id}" if item_id else None
-                done = bool(item.get("done"))
-                if item_ref and note_list_ref:
-                    item_states[item_ref] = {
-                        "list_ref": note_list_ref,
-                        "exists": True,
-                        "done": done,
-                    }
-                if done:
-                    continue
                 text = " ".join(str(item.get("text") or "").split())
-                if text:
-                    open_items.append((f"{title}: {text}", item_ref))
+                item_ref = item.get("id")
+                list_ref = getattr(note, "id", None)
+                manifest_list_ref = redact_ref("list", list_ref if isinstance(list_ref, str) and list_ref else f"row:{note_index}")
+                manifest_item_ref = redact_ref("item", item_ref if isinstance(item_ref, str) and item_ref else f"legacy:{note_index}:{item_index}")
+                item_states.append({
+                    "list_ref": list_ref,
+                    "item_ref": item_ref,
+                    "done": item.get("done") is True,
+                    "text_nonempty": bool(text),
+                })
+                if not item.get("done") and text:
+                    open_items.append({
+                        "render": f"{title}: {text}", "list_ref": list_ref, "item_ref": item_ref,
+                        "manifest_list_ref": manifest_list_ref, "manifest_item_ref": manifest_item_ref,
+                    })
         elif getattr(note, "pinned", False) and title:
-            open_items.append((title, None))
+            open_items.append({
+                "render": title, "list_ref": None, "item_ref": None,
+                "manifest_list_ref": redact_ref("list", getattr(note, "id", None) if isinstance(getattr(note, "id", None), str) and getattr(note, "id", None) else f"row:{note_index}"),
+                "manifest_item_ref": redact_ref("item", f"pinned:{note_index}"),
+            })
+
+    return {
+        "overdue": overdue,
+        "due_today": due_today,
+        "pinned": pinned,
+        "open_items": open_items,
+        "item_states": item_states,
+        "limit": limit,
+        "label_filter_active": bool(label),
+        "list_filter_active": bool(list_filter),
+        "builder_date": today.isoformat(),
+    }
+
+
+def _todo_digest_from_notes(notes, *, label: str | None = None, list_filter: str | None = None, limit: int = 20) -> str:
+    """Render the shared default-digest selection without changing its output."""
+    selection = _todo_digest_selection_from_notes(notes, label=label, list_filter=list_filter, limit=limit)
+    limit = selection["limit"]
+    overdue = selection["overdue"]
+    due_today = selection["due_today"]
+    pinned = selection["pinned"]
+    open_items = [item["render"] for item in selection["open_items"]]
 
     lines = ["Todo digest"]
     if overdue:
@@ -1247,91 +1270,83 @@ def _todo_digest_from_notes(
 
 
 def build_todo_digest_item_postcondition(
-    *,
-    owner: str,
-    list_ref: str,
-    item_ref: str,
-    current_state: dict,
-    label: str | None = None,
-    list_filter: str | None = None,
-    limit: int = 20,
-    session_factory=None,
-) -> dict:
-    """Read Notes and return a content-free digest membership postcondition."""
-    from core.database import Note, SessionLocal
+    *, owner, list_ref, item_ref, action, evidence_refs, current_state,
+) -> dict | None:
+    """Fresh owner-scoped default-digest readback for a successful mutation.
 
-    if not isinstance(owner, str) or not owner.strip():
-        raise ValueError("owner is required for a Todo digest postcondition")
-    db = (session_factory or SessionLocal)()
+    This boundary is intentionally read-only.  It neither schedules nor runs a
+    digest and only hands a redacted, content-free selection projection to the
+    receipt module.
+    """
+    if not isinstance(owner, str) or not owner or not isinstance(list_ref, str) or not list_ref or not isinstance(item_ref, str) or not item_ref:
+        return None
     try:
-        notes = (
-            db.query(Note)
-            .filter(Note.owner == owner, Note.archived.is_(False))
-            .order_by(Note.pinned.desc(), Note.updated_at.desc())
-            .all()
+        from core.database import Note, SessionLocal
+        from src.auth_helpers import owner_filter
+        db = SessionLocal()
+        try:
+            query = owner_filter(db.query(Note).filter(Note.archived == False), Note, owner, include_shared=False)  # noqa: E712
+            notes = query.order_by(Note.pinned.desc(), Note.updated_at.desc()).all()
+        finally:
+            db.close()
+        return _todo_digest_item_postcondition_from_notes(
+            notes, list_ref=list_ref, item_ref=item_ref, action=action,
+            evidence_refs=evidence_refs, current_state=current_state,
         )
-    finally:
-        db.close()
+    except Exception:
+        return None
 
-    projection: dict = {}
-    _todo_digest_from_notes(
-        notes,
-        label=label,
-        list_filter=list_filter,
-        limit=limit,
-        owner=owner,
-        projection=projection,
-    )
-    included = item_ref in projection.get("included_item_refs", ())
-    observed = projection.get("item_states", {}).get(item_ref)
-    expected_exists = current_state.get("exists") if isinstance(current_state, dict) else None
-    expected_done = current_state.get("done") if isinstance(current_state, dict) else None
-    if expected_exists is False:
-        state_matches = observed is None and expected_done is None
-        claim_type = "todo_digest_excludes"
-        semantic_match = not included
-    elif expected_exists is True and expected_done is True:
-        state_matches = bool(
-            isinstance(observed, dict)
-            and observed.get("list_ref") == list_ref
-            and observed.get("exists") is True
-            and observed.get("done") is True
-        )
-        claim_type = "todo_digest_excludes"
-        semantic_match = not included
-    elif expected_exists is True and expected_done is False:
-        state_matches = bool(
-            isinstance(observed, dict)
-            and observed.get("list_ref") == list_ref
-            and observed.get("exists") is True
-            and observed.get("done") is False
-        )
-        claim_type = "todo_digest_contains"
-        semantic_match = included
-    else:
-        state_matches = False
-        claim_type = "todo_digest_excludes"
-        semantic_match = False
-    return {
-        "schema": "odysseus.todo_digest_postcondition.v1",
-        "claim_type": claim_type,
-        "list_ref": list_ref,
-        "item_ref": item_ref,
-        "included": included,
-        "current_state": {
-            "exists": expected_exists,
-            "done": expected_done,
-        },
-        "projection_ref": projection.get("projection_ref"),
-        "transaction_status": "projected",
-        "verified": bool(
-            projection.get("owner_scoped")
-            and state_matches
-            and semantic_match
-        ),
-        "evidence_refs": list(projection.get("evidence_refs") or ()),
-        "raw_content_visible": False,
+
+def _todo_digest_item_postcondition_from_notes(
+    notes, *, list_ref, item_ref, action, evidence_refs, current_state,
+) -> dict | None:
+    """Pure postcondition projection over the one freshly-read note snapshot."""
+    from src.todo_digest_receipts import build_todo_digest_membership_receipt
+    selection = _todo_digest_selection_from_notes(notes, limit=20)
+    target_lists = [
+        note for note in notes
+        if getattr(note, "id", None) == list_ref
+        and getattr(note, "note_type", "") == "checklist"
+        and not getattr(note, "archived", False)
+    ]
+    if len(target_lists) != 1:
+        return None
+    target_items = [state for state in selection["item_states"] if state["list_ref"] == list_ref and state["item_ref"] == item_ref]
+    if len(target_items) > 1:
+        return None
+    target = target_items[0] if target_items else None
+    if action in {"add", "reopen", "complete"} and target is None:
+        return None
+    if action == "remove" and target is not None:
+        return None
+    if target is not None:
+        if {"exists": True, "done": target["done"]} != current_state:
+            return None
+    elif current_state != {"exists": False, "done": None}:
+        return None
+    selected = selection["open_items"][:20]
+    positions = [index for index, value in enumerate(selection["open_items"]) if value["list_ref"] == list_ref and value["item_ref"] == item_ref]
+    included = bool(positions and positions[0] < 20)
+    if action in {"add", "reopen"} and (not target or not target["text_nonempty"] or not included):
+        return None
+    if action in {"complete", "remove"} and included:
+        return None
+    manifest = {
+        "schema": "odysseus.todo_digest_snapshot.v1", "builder_date": selection["builder_date"],
+        "builder_clock": "naive_local", "limit": 20, "label_filter_active": False,
+        "list_filter_active": False,
+        "selected": [
+            {"list_ref": value["manifest_list_ref"], "item_ref": value["manifest_item_ref"], "position": position, "done": False}
+            for position, value in enumerate(selected)
+        ],
     }
+    return build_todo_digest_membership_receipt(
+        action=action, evidence_refs=evidence_refs, current_state=current_state,
+        included=included, selection_position=positions[0] if included else None,
+        open_item_count=len(selection["open_items"]), selected_open_item_count=len(selected), limit=20,
+        label_filter_active=False, list_filter_active=False, builder_date=selection["builder_date"],
+        snapshot_manifest=manifest,
+    )
 
 
 async def action_todo_digest(owner: str, **kwargs) -> Tuple[str, bool]:
@@ -1362,10 +1377,27 @@ async def action_todo_digest(owner: str, **kwargs) -> Tuple[str, bool]:
 
 
 async def action_local_maintenance_dry_run(owner: str, **kwargs) -> Tuple[str, bool]:
-    """Prepare local maintenance work without calling a model or writing truth."""
+    """Prepare maintenance work and optionally exercise the trusted local lane.
+
+    Runtime activation accepts only an internal ``MaintenanceModelProfile``
+    object.  JSON/action arguments therefore cannot turn the default-off lane
+    on.  Even when enabled, the action returns only content-free evidence and
+    never retains model output or writes truth.
+    """
     try:
         import json as _json
         from src.gemma4_maintenance_router import plan_gemma4_maintenance_route
+        from src.maintenance_model_policy import (
+            MaintenanceModelProfile,
+            default_maintenance_model_profile,
+        )
+
+        profile = kwargs.get("_maintenance_profile")
+        if profile is None:
+            profile = default_maintenance_model_profile()
+        if not isinstance(profile, MaintenanceModelProfile):
+            raise TypeError("_maintenance_profile must be a trusted MaintenanceModelProfile")
+        excerpt = str(kwargs.get("_maintenance_excerpt") or "")
 
         plan = plan_gemma4_maintenance_route(
             surface=kwargs.get("surface") or "memory",
@@ -1375,16 +1407,131 @@ async def action_local_maintenance_dry_run(owner: str, **kwargs) -> Tuple[str, b
             input_chars=int(kwargs.get("input_chars") or 0),
             chunk_count=int(kwargs.get("chunk_count") or 1),
             source_refs=tuple(kwargs.get("source_refs") or (f"owner:{owner or 'default'}",)),
-            excerpt="",
+            excerpt=excerpt,
+            profile=profile,
         )
         payload = plan.to_dict()
         payload["dry_run"] = True
         payload["truth_write_allowed"] = False
         payload["model_called"] = False
+        if profile.runtime_enabled:
+            payload["runtime_evidence"] = await _call_builtin_maintenance_runtime(
+                plan=plan,
+                profile=profile,
+                excerpt=excerpt,
+                endpoint=str(kwargs.get("_maintenance_endpoint") or "http://127.0.0.1:11434"),
+                attempt=kwargs.get("_maintenance_attempt"),
+                registry=kwargs.get("_maintenance_registry"),
+            )
+            payload["model_called"] = bool(payload["runtime_evidence"]["model_called"])
         return _json.dumps(payload, ensure_ascii=False, sort_keys=True), True
     except Exception as e:
         logger.error(f"local_maintenance_dry_run action failed: {e}")
         return str(e), False
+
+
+async def _call_builtin_maintenance_runtime(
+    *,
+    plan,
+    profile,
+    excerpt: str,
+    endpoint: str,
+    attempt=None,
+    registry=None,
+) -> dict:
+    """Call only the typed maintenance boundary and return content-free evidence."""
+
+    from src.maintenance_llm_runtime import (
+        MAINTENANCE_LLM_RESULT_SCHEMA,
+        MaintenanceLLMMessage,
+        MaintenanceLLMRequest,
+        MaintenanceLLMRuntimeError,
+    )
+    from src.maintenance_model_policy import MaintenanceModelRole
+    from src.maintenance_output_validator import (
+        call_validated_maintenance_llm_async,
+        maintenance_output_schema_instruction,
+    )
+
+    prompt = plan.capsule.build_prompt(
+        metadata={
+            "consumer": "builtin_action",
+            "surface": plan.surface.value,
+            "workload": plan.capsule.workload.value,
+            "classification_scope": "local_private",
+        },
+        excerpt=excerpt,
+    )
+    prompt += "\n" + maintenance_output_schema_instruction(
+        plan.capsule,
+        allowed_source_hashes=plan.source_hashes,
+    )
+    request = MaintenanceLLMRequest(
+        endpoint=endpoint,
+        messages=(
+            MaintenanceLLMMessage(
+                "system",
+                "You are the isolated Odysseus maintenance worker. Return only the requested JSON.",
+            ),
+            MaintenanceLLMMessage("user", prompt),
+        ),
+        profile=profile,
+        role=MaintenanceModelRole.MAINTENANCE,
+        max_tokens=profile.token_budget,
+        timeout_ms=profile.latency_budget_ms,
+        max_attempts=1,
+        temperature=0.0,
+        stream=False,
+        fallback_requested=False,
+        truth_write_requested=False,
+    )
+    try:
+        validated = await call_validated_maintenance_llm_async(
+            request,
+            capsule=plan.capsule,
+            allowed_source_hashes=plan.source_hashes,
+            attempt=attempt,
+            registry=registry,
+        )
+        result_audit = validated.audit_dict()
+        review_required = validated.validation.review_required
+        status = "review_required" if review_required else "validated_candidate"
+        model_called = True
+    except MaintenanceLLMRuntimeError as exc:
+        audit = getattr(exc, "audit_dict", None)
+        result_audit = audit() if callable(audit) else {
+            "schema": MAINTENANCE_LLM_RESULT_SCHEMA,
+            "outcome": "failed",
+            "reason": _maintenance_consumer_failure_reason(exc),
+            "attempts": 0,
+            "retryable": False,
+        }
+        status = "review_required"
+        model_called = False
+        review_required = True
+    return {
+        "schema": "odysseus.maintenance_consumer_evidence.v1",
+        "consumer": "builtin_action",
+        "status": status,
+        "prompt_capsule_id": plan.capsule.capsule_id,
+        "request": request.audit_dict(),
+        "result": result_audit,
+        "model_called": model_called,
+        "output_retained": False,
+        "streaming_used": False,
+        "fallback_used": False,
+        "truth_write_performed": False,
+        "review_required": review_required,
+    }
+
+
+def _maintenance_consumer_failure_reason(exc: Exception) -> str:
+    name = type(exc).__name__
+    return {
+        "MaintenanceLLMDisabledError": "runtime_disabled",
+        "MaintenanceLLMAdmissionError": "admission_unavailable",
+        "MaintenanceLLMContractError": "contract_rejected",
+    }.get(name, "runtime_failure")
 
 
 async def action_test_skills(owner: str, **kwargs) -> Tuple[str, bool]:

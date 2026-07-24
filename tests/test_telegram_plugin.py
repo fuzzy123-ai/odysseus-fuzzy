@@ -33,6 +33,7 @@ from src.image_tools_worker import ImageToolsWorkerResult
 from src import agent_task_ledger
 from src.plugin_capability_boundary import validate_plugin_capability_boundary
 from src.server_project_registry import ServerProjectRegistry
+from src.tool_transaction_ledger import TOOL_TRANSACTION_LEDGER_SCHEMA
 from src.telegram_voice_pipeline import VoiceAgentTurn
 
 
@@ -45,6 +46,34 @@ def _json_contains_exact_value(value: Any, needle: str) -> bool:
     if isinstance(value, list):
         return any(_json_contains_exact_value(item, needle) for item in value)
     return value == needle
+
+
+def _todo_transaction(claim_type: str = "todo_item_created") -> dict[str, Any]:
+    action = {
+        "todo_item_created": "add",
+        "todo_item_completed": "complete",
+        "todo_item_reopened": "reopen",
+        "todo_item_removed": "remove",
+        "todo_list_read": "list",
+    }[claim_type]
+    refs = ["owner:0123456789abcdef", "list:fedcba9876543210"]
+    if action != "list":
+        refs.append("item:0011223344556677")
+    refs.append(f"operation:{action}")
+    return {
+        "schema": TOOL_TRANSACTION_LEDGER_SCHEMA,
+        "transaction_id": f"agent:0:manage_todos:{claim_type}",
+        "surface": "agent",
+        "tool": "manage_todos",
+        "claim_type": claim_type,
+        "status": "verified",
+        "evidence_refs": refs,
+        "exit_code": 0,
+        "artifact_refs": [],
+        "command_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb924",
+        "verified_done": True,
+        "raw_content_visible": False,
+    }
 
 
 @dataclass
@@ -85,6 +114,21 @@ def test_manifest_passes_plugin_capability_boundary():
     assert report.warning_codes == ()
 
 
+def test_rollover_bridge_keeps_existing_runtime_call_sites_on_legacy_adapter(tmp_path):
+    """A3 exposes an explicit adapter only; legacy runtime store stays unchanged."""
+
+    store = TelegramSessionBridgeStore(tmp_path)
+    result = store.bind_chat(
+        chat_id="runtime-chat-id",
+        session_alias="telegram:runtime-chat-id",
+        recommended_session_name="Telegram runtime",
+        creator=lambda **_kwargs: {"session_id": "legacy-runtime-session"},
+    )
+    assert result["session_id"] == "legacy-runtime-session"
+    assert result["mapping"]["chat_handle"].startswith("chat_")
+    assert (tmp_path / "telegram_session_bridge.json").exists()
+
+
 def test_core_telegram_bridge_uses_agent_loop_for_tool_access():
     source = (ROOT / "app.py").read_text(encoding="utf-8")
     start = source.index("def _telegram_agent_turn_handler")
@@ -92,6 +136,10 @@ def test_core_telegram_bridge_uses_agent_loop_for_tool_access():
     body = source[start:end]
 
     assert "stream_agent_loop" in body
+    assert 'event.get("type") == "metrics"' in body
+    assert 'event["data"].get("tool_transactions")' in body
+    assert 'result["todo_transactions"]' in body
+    assert "tool_events" not in body
     assert "llm_call(" not in body
     assert "enforce_session_provider_runtime_gate" in body
     assert "_telegram_rebind_local_session" in body
@@ -112,6 +160,58 @@ def test_core_telegram_bridge_uses_agent_loop_for_tool_access():
     assert "only proves that redacted sources are currently present" in body
     assert "Do not claim that the automatic Nextcloud/background import workflow is active" in body
     assert "Do not mention unrelated builds, model downloads, or pending operations" in body
+
+
+def test_polling_agent_reply_forwards_capable_todo_carrier_and_keeps_legacy_handler(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    capable_replies = []
+    legacy_replies = []
+    source_transaction = _todo_transaction()
+
+    def _agent_turn(_bridge):
+        return {
+            "status": "accepted",
+            "reply_text": "I created the todo item.",
+            "todo_transactions": [source_transaction],
+        }
+
+    def _capable(chat_id, text, source_message_id=None, *, todo_transactions=()):
+        capable_replies.append((chat_id, text, source_message_id, todo_transactions))
+        return {"ok": True}
+
+    first = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 1,
+            "message": {"message_id": 11, "chat": {"id": 123}, "text": "add"},
+        }],
+        session_creator=lambda **_kwargs: {"session_id": "poll-capable"},
+        agent_turn_handler=_agent_turn,
+        reply_handler=_capable,
+    )
+
+    def _legacy(chat_id, text, source_message_id=None):
+        legacy_replies.append((chat_id, text, source_message_id))
+        return {"ok": True}
+
+    second = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 2,
+            "message": {"message_id": 12, "chat": {"id": 123}, "text": "add again"},
+        }],
+        session_creator=lambda **_kwargs: {"session_id": "poll-legacy"},
+        agent_turn_handler=_agent_turn,
+        reply_handler=_legacy,
+    )
+
+    assert first["replies"] == 1
+    assert capable_replies[0][:3] == ("123", "I created the todo item.", 11)
+    assert capable_replies[0][3][0]["claim_type"] == "todo_item_created"
+    assert capable_replies[0][3][0] is not source_transaction
+    assert second["replies"] == 1
+    assert legacy_replies == [("123", "I created the todo item.", 12)]
 
 
 def test_voice_transcript_forces_local_only_in_dsgvo(monkeypatch):
@@ -649,6 +749,7 @@ def test_inbox_store_deduplicates_and_returns_history(tmp_path):
     assert store.counts()["inbound"] == 1
     assert store.counts()["duplicates"] == 1
     assert any(item.get("text") == "hi" for item in store.history(chat_id="abc"))
+    assert store.history(chat_id="abc")[0]["raw_content_visible"] is True
     persisted = json.loads((tmp_path / "telegram_history.json").read_text(encoding="utf-8"))
     persisted_text = json.dumps(persisted, ensure_ascii=False)
     assert '"chat_id"' not in persisted_text
@@ -683,19 +784,18 @@ def test_webhook_route_stores_inbound_and_returns_agent_bridge(tmp_path, monkeyp
     assert response.status_code == 200
     payload = response.json()
     assert payload["stored"] is True
-    assert payload["message"]["chat_handle"].startswith("chat_")
-    assert "chat_id" not in payload["message"]
-    assert payload["message"]["sender"]["handle"].startswith("sender_")
-    assert "id" not in payload["message"]["sender"]
-    assert payload["agent_bridge"]["ready_for_agent"] is True
-    assert payload["agent_bridge"]["session_alias"].startswith("telegram:chat_")
-    assert payload["agent_bridge"]["session_id"] == "sess-123"
-    assert "Bitte fasse" in payload["agent_bridge"]["prompt"]
+    assert payload["receipt"]["kind"] == "text"
+    assert payload["receipt"]["record_class"] == "raw_bearing"
+    assert "Bitte fasse" not in response.text
     assert created_sessions[0]["chat_id"] == "123"
 
     history_response = client.get("/api/plugins/telegram/history?chat_id=123")
     assert history_response.status_code == 200
-    assert history_response.json()["messages"][0]["text"] == "Bitte fasse den Stand zusammen"
+    audit_message = history_response.json()["messages"][0]
+    assert audit_message["record_class"] == "raw_bearing"
+    assert audit_message["raw_content_visible"] is False
+    assert "text" not in audit_message
+    assert "Bitte fasse den Stand zusammen" not in history_response.text
     persisted = json.loads((tmp_path / "telegram_history.json").read_text(encoding="utf-8"))
     persisted_text = json.dumps(persisted, ensure_ascii=False)
     assert '"chat_id"' not in persisted_text
@@ -720,8 +820,9 @@ def test_webhook_blocks_disallowed_chat_and_persists_redacted_block_event(tmp_pa
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["agent_bridge"]["ready_for_agent"] is False
-    assert payload["message"]["intake_status"] == "blocked_chat"
+    assert payload["receipt"]["kind"] == "text"
+    assert payload["receipt"]["raw_content_visible"] is False
+    assert "ignore me" not in response.text
     history = TelegramInboxStore(tmp_path).history(limit=20)
     assert any(item.get("kind") == "blocked" and item.get("status") == "chat_not_allowed" for item in history)
     persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
@@ -787,14 +888,84 @@ def test_webhook_invokes_agent_turn_handler_and_gated_reply(tmp_path, monkeypatc
     payload = response.json()
     assert turns[0]["session_id"] == "sess-telegram"
     assert turns[0]["prompt"] == "Bitte antworte"
-    assert payload["agent_turn"]["status"] == "accepted"
-    assert payload["agent_turn"]["reply_text_present"] is True
-    assert payload["agent_turn"]["reply_text_value_visible"] is False
-    assert "Antwort vom Agenten" not in json.dumps(payload["agent_turn"], ensure_ascii=False)
-    assert payload["reply"]["sent"]["telegram_message_id"] == 88
+    assert payload["receipt"]["kind"] == "text"
+    assert "Antwort vom Agenten" not in response.text
     history = TelegramInboxStore(tmp_path).history(chat_id="123", limit=20)
     assert any(item.get("kind") == "agent_turn" for item in history)
     assert any(item.get("direction") == "outbound" and item.get("delivery_status") == "sent" for item in history)
+
+
+def test_webhook_todo_claims_use_matching_transaction_carrier_before_mocked_send(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_CHAT_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    sent = []
+
+    def _session_bridge(**_kwargs):
+        return {"session_id": "sess-todo"}
+
+    def _agent_turn(bridge):
+        prompt = bridge["prompt"]
+        carrier = {
+            "matching": [_todo_transaction()],
+            "missing": [],
+            "wrong": [_todo_transaction("todo_item_completed")],
+        }[prompt]
+        return {
+            "status": "accepted",
+            "reply_text": "I created the todo item.",
+            "todo_transactions": carrier,
+        }
+
+    monkeypatch.setattr(
+        "plugins.telegram.plugin.send_telegram_text",
+        lambda chat_id, text: sent.append((chat_id, text)) or {
+            "ok": True,
+            "telegram_message_id": 91,
+            "token_value_visible": False,
+        },
+    )
+    app = FastAPI()
+    ctx = _PluginContext(app=app, data_dir=tmp_path, telegram_agent_turn_handler=_agent_turn)
+    ctx.telegram_session_bridge = _session_bridge
+    setup(ctx)
+    client = TestClient(app)
+    responses = []
+
+    for update_id, prompt in enumerate(("matching", "missing", "wrong"), start=1):
+        response = client.post("/api/plugins/telegram/webhook", json={
+            "update_id": update_id,
+            "message": {
+                "message_id": update_id + 10,
+                "chat": {"id": 123},
+                "from": {"id": 1, "first_name": "User"},
+                "text": prompt,
+            },
+        })
+        assert response.status_code == 200
+        responses.append(response)
+
+    assert sent[0] == ("123", "I created the todo item.")
+    assert all("nicht verifiziert" in text for _, text in sent[1:])
+    for response in responses:
+        assert "todo_transactions" not in response.text
+        assert "transaction_id" not in response.text
+        assert "command_hash" not in response.text
+        assert "owner:0123456789abcdef" not in response.text
+        assert "list:fedcba9876543210" not in response.text
+        assert "item:0011223344556677" not in response.text
+        assert "operation:add" not in response.text
+    history = TelegramInboxStore(tmp_path).history(chat_id="123", limit=20)
+    assert all("todo_transactions" not in item for item in history)
+    persisted = json.dumps(history)
+    assert "odysseus.tool_transaction_ledger.v1" not in persisted
+    assert "agent:0:manage_todos:todo_item_created" not in persisted
+    assert "sha256:e3b0c44298fc1c149afbf4c8996fb924" not in persisted
+    assert "owner:0123456789abcdef" not in persisted
+    assert "list:fedcba9876543210" not in persisted
+    assert "item:0011223344556677" not in persisted
+    assert "operation:add" not in persisted
 
 
 def test_webhook_keeps_typing_indicator_until_agent_reply(tmp_path, monkeypatch):
@@ -904,7 +1075,7 @@ def test_webhook_capability_question_uses_diagnostics_not_model_memory(tmp_path,
     payload = response.json()
     assert turns == []
     assert typing_calls == []
-    assert payload["agent_turn"]["source"] == "tool_capability_diagnostics"
+    assert payload["receipt"]["kind"] == "text"
     assert "tool-capabilities-telegram" in replies[0][1]
     assert "sandbox-bound Worker/Runner" in replies[0][1]
     assert "copy-only Universal-Inbox-Transfer" in replies[0][1]
@@ -957,10 +1128,8 @@ def test_webhook_allowed_text_reaches_coding_agent_task_bridge(tmp_path, monkeyp
         "coding_task_scope_review",
         "sandbox_execution_policy",
     )
-    assert payload["agent_bridge"]["ready_for_agent"] is True
-    assert payload["agent_bridge"]["task_intent"]["task_type"] == "coding_agent_task"
-    assert payload["agent_turn"]["reply_text_value_visible"] is False
-    assert "Coding task accepted" not in json.dumps(payload["agent_turn"], ensure_ascii=False)
+    assert payload["receipt"]["kind"] == "text"
+    assert "Coding task accepted" not in response.text
 
 
 def test_webhook_uses_app_state_agent_bridge_when_context_has_no_direct_hooks(tmp_path, monkeypatch):
@@ -1003,10 +1172,8 @@ def test_webhook_uses_app_state_agent_bridge_when_context_has_no_direct_hooks(tm
     assert response.status_code == 200
     payload = response.json()
     assert turns[0]["session_id"] == "sess-from-app-state"
-    assert payload["agent_turn"]["status"] == "accepted"
-    assert payload["agent_turn"]["reply_text_present"] is True
-    assert "App-state Antwort" not in json.dumps(payload["agent_turn"], ensure_ascii=False)
-    assert payload["reply"]["sent"]["telegram_message_id"] == 89
+    assert payload["receipt"]["kind"] == "text"
+    assert "App-state Antwort" not in response.text
 
 
 def test_reply_route_is_blocked_without_explicit_gate(tmp_path, monkeypatch):
@@ -2439,11 +2606,8 @@ def test_voice_identifiers_are_redacted_in_persisted_history(tmp_path, monkeypat
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["message"]["media"]["file_handle"].startswith("voice_file_")
-    assert payload["message"]["media"]["file_unique_handle"].startswith("voice_unique_")
-    assert payload["message"]["voice_status"] == "pending_stt"
-    assert "file_id" not in payload["message"]["media"]
-    assert "file_unique_id" not in payload["message"]["media"]
+    assert payload["receipt"]["kind"] == "voice"
+    assert "voice-file-id" not in response.text
     persisted = json.loads((tmp_path / "telegram_history.json").read_text(encoding="utf-8"))
     persisted_text = json.dumps(persisted, ensure_ascii=False)
     assert "voice-file-id" not in persisted_text
@@ -2470,13 +2634,8 @@ def test_image_identifiers_are_redacted_and_actions_are_default_off(tmp_path, mo
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["message"]["kind"] == "image"
-    assert payload["message"]["media"]["file_handle"].startswith("image_file_")
-    assert payload["message"]["media"]["file_unique_handle"].startswith("image_unique_")
-    assert payload["image_action"]["plan"]["status"] == "disabled"
-    assert payload["agent_bridge"]["note"] == "image_action_pending"
-    assert "file_id" not in payload["message"]["media"]
-    assert "file_unique_id" not in payload["message"]["media"]
+    assert payload["receipt"]["kind"] == "image"
+    assert "large-image-file-id" not in response.text
     persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
     assert "large-image-file-id" not in persisted_text
     assert "large-unique" not in persisted_text
@@ -2515,17 +2674,10 @@ def test_document_attachment_is_redacted_and_processed_by_universal_inbox(tmp_pa
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["message"]["kind"] == "document"
-    assert payload["message"]["media"]["file_handle"].startswith("document_file_")
-    assert payload["message"]["media"]["file_unique_handle"].startswith("document_unique_")
-    assert payload["message"]["universal_inbox_status"] == "processed"
-    assert payload["universal_inbox_attachment"]["status"] == "processed"
-    assert payload["universal_inbox_attachment"]["processable_count"] == 1
-    assert payload["agent_bridge"]["ready_for_agent"] is False
+    assert payload["receipt"]["kind"] == "document"
+    assert "Rechnung Test" not in response.text
     assert sent
     assert "Anhang" in sent[0][1]
-    assert "file_id" not in payload["message"]["media"]
-    assert "file_unique_id" not in payload["message"]["media"]
     persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
     assert "document-file-id" not in persisted_text
     assert "document-unique" not in persisted_text
@@ -2598,12 +2750,10 @@ def test_document_attachment_go_auto_copies_to_nextcloud_and_context_knows(tmp_p
 
     assert response.status_code == 200
     payload = response.json()
-    attachment = payload["universal_inbox_attachment"]
+    attachment = TelegramInboxStore(tmp_path).latest_universal_inbox_attachment(chat_id="document-chat-999")
+    assert attachment is not None
     assert attachment["status"] == "processed"
     assert attachment["universal_inbox_status"] == "go"
-    assert attachment["nextcloud_transfer_status"] == "completed"
-    assert attachment["nextcloud_writes_performed"] is True
-    assert attachment["nextcloud_verified"] is True
     assert sent[-1][1] == "✅ Datei abgelegt."
     assert fake_client.files
     assert fake_client.sidecars
@@ -2616,6 +2766,9 @@ def test_document_attachment_go_auto_copies_to_nextcloud_and_context_knows(tmp_p
     )
     assert transfer is not None
     assert transfer["status"] == "completed"
+    assert transfer["nextcloud_transfer_status"] == "completed"
+    assert transfer["writes_performed"] is True
+    assert transfer["verified"] is True
     context = build_recent_telegram_attachment_context(
         data_dir=tmp_path,
         store=store,
@@ -3320,7 +3473,7 @@ def test_review_memory_ok_confirms_latest_memory_write_intent(tmp_path, monkeypa
     assert attachment_event["memory_write_intent_status"] == "ready"
     assert attachment_event["queue_status"] == "completed"
     assert attachment_event["queue_concurrency"] == 1
-    assert attachment_event["maintenance_model_ref"] == "gemma4:e4b"
+    assert attachment_event["maintenance_model_ref"] == "gemma3:4b"
     assert attachment_event["maintenance_provider"] == "local_ollama"
     assert attachment_event["maintenance_action"] == "stay_on_maintenance_model"
     assert attachment_event["memory_records_planned"] == 1
@@ -3550,11 +3703,7 @@ def test_webhook_image_action_uses_injected_worker_without_raw_image_payload(tmp
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["image_action"]["plan"]["allowed"] is True
-    assert payload["image_action"]["worker"]["called"] is True
-    assert payload["image_action"]["worker"]["ok"] is True
-    assert payload["image_action"]["worker"]["output_image_present"] is True
-    assert payload["image_action"]["worker"]["raw_image_visible"] is False
+    assert payload["receipt"]["kind"] == "image"
     assert calls and calls[0][0].startswith(b"source:image_file_")
     assert "image-file-id" not in response.text
 
@@ -3597,11 +3746,7 @@ def test_webhook_voice_pipeline_can_create_fake_stt_agent_turn_without_persistin
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["voice_pipeline"]["download"]["allowed"] is True
-    assert payload["voice_pipeline"]["stt"]["transcript_present"] is True
-    assert payload["voice_pipeline"]["stt"]["transcript_value_visible"] is False
-    assert payload["agent_bridge"]["ready_for_agent"] is True
-    assert payload["agent_bridge"]["note"] == "voice_transcribed"
+    assert payload["receipt"]["kind"] == "voice"
     assert "Bitte fasse meine Notiz" in turns[0]["prompt"]
     assert "raw-secret" not in turns[0]["prompt"]
     persisted_text = (tmp_path / "telegram_history.json").read_text(encoding="utf-8")
@@ -3961,8 +4106,8 @@ def test_blocked_chat_voice_stays_redacted_and_skips_session_bridge(tmp_path, mo
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["message"]["intake_status"] == "blocked_chat"
-    assert payload["agent_bridge"]["ready_for_agent"] is False
+    assert payload["receipt"]["kind"] == "voice"
+    assert payload["receipt"]["raw_content_visible"] is False
     assert created_sessions == []
     history = TelegramInboxStore(tmp_path).history(limit=20)
     assert any(item.get("kind") == "blocked" and item.get("status") == "chat_not_allowed" for item in history)

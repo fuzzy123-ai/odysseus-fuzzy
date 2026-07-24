@@ -5,15 +5,16 @@ import pytest
 from src.agent_identity import AgentIdentity
 from src.context_capsule import ContextCapsule
 from src.tool_catalog import (
+    ToolAvailability,
     ToolCatalogError,
     ToolAvailability,
     ToolDescriptor,
+    ToolDescriptorCatalogV2,
     ToolDescriptorV2,
-    ToolDescriptorV2Index,
     ToolEffectClass,
     ToolFamily,
-    ToolLifecycle,
     ToolManifest,
+    ToolLifecycle,
     ToolPermission,
     ToolRiskLevel,
     ToolSelectionRequest,
@@ -53,12 +54,11 @@ def _capsule() -> ContextCapsule:
     )
 
 
-def _v2(**overrides) -> ToolDescriptorV2:
+def _descriptor_v2(**overrides) -> ToolDescriptorV2:
     values = {
         "tool_id": "read_file",
-        "analytics_id": "read-file",
-        "display_name": "Read file",
-        "description": "Read a repository file.",
+        "display_name": "Read File",
+        "description": "Read a workspace file through the bounded file adapter.",
         "family": ToolFamily.CODE_FILESYSTEM,
         "source": ToolSource.BUILTIN,
         "lifecycle": ToolLifecycle.ACTIVE,
@@ -66,15 +66,13 @@ def _v2(**overrides) -> ToolDescriptorV2:
         "default_enabled": True,
         "default_visibility": ToolVisibility.VISIBLE,
         "risk_level": ToolRiskLevel.SAFE,
-        "permission": ToolPermission.OWNER,
+        "permission": ToolPermission.USER,
         "effect_class": ToolEffectClass.READ,
         "requires_confirmation": False,
         "schema_ref": "function:read_file",
-        "handler_ref": "tool_execution:read_file",
-        "prompt_ref": "tool_index:read_file",
-        "aliases": ("read-file-legacy",),
-        "feature_flag": "tool-catalog-v2",
-        "introduced_in": "0.24",
+        "handler_ref": "builtin:read_file",
+        "prompt_ref": "index:read_file",
+        "introduced_in": "0.24.0",
     }
     values.update(overrides)
     return ToolDescriptorV2.create(**values)
@@ -403,224 +401,194 @@ def test_deferred_schema_selection_requires_relevant_ids_unless_explicit_fallbac
     assert fallback.warnings == ("fallback_full_schema_selection",)
 
 
-def test_descriptor_v2_normalizes_controlled_fields_and_emits_safe_audit_summary():
-    descriptor = _v2(aliases=("z-legacy", "a-legacy"))
+def test_descriptor_v2_serializes_controlled_content_free_metadata_deterministically():
+    descriptor = _descriptor_v2(
+        aliases=["legacy_read_file"],
+        feature_flag="tool_catalog_v2",
+    )
 
-    assert descriptor.schema_version == "odysseus.tool_descriptor.v2"
-    assert descriptor.family == ToolFamily.CODE_FILESYSTEM
-    assert descriptor.source == ToolSource.BUILTIN
-    assert descriptor.lifecycle == ToolLifecycle.ACTIVE
-    assert descriptor.availability == ToolAvailability.AVAILABLE
-    assert descriptor.effect_class == ToolEffectClass.READ
-    assert descriptor.aliases == ("a-legacy", "z-legacy")
+    audit = descriptor.audit_dict()
 
-    audit = descriptor.audit_summary()
-    assert audit["raw_content_visible"] is False
+    assert audit["contract"] == "odysseus.tool_descriptor.v2"
+    assert audit["tool_id"] == "read_file"
+    assert audit["analytics_id"] == "read_file"
+    assert audit["family"] == "code_filesystem"
+    assert audit["source"] == "builtin"
+    assert audit["lifecycle"] == "active"
+    assert audit["availability"] == "available"
+    assert audit["effect_class"] == "read"
+    assert audit["default_visibility"] == "visible"
+    assert audit["aliases"] == ("legacy_read_file",)
     assert audit["callable_visible"] is False
-    assert audit["tool_arguments_visible"] is False
-    assert audit["tool_results_visible"] is False
-    assert audit["secret_values_visible"] is False
-    assert "display_name" not in audit
-    assert "description" not in audit
-    assert "Read a repository file" not in repr(audit)
+    assert audit["arguments_visible"] is False
+    assert audit["raw_content_visible"] is False
+    assert audit["secret_value_visible"] is False
+    assert descriptor.audit_json() == descriptor.audit_json()
 
 
 @pytest.mark.parametrize(
     ("field", "value"),
     [
-        ("family", "other"),
-        ("source", "unknown-provider"),
-        ("lifecycle", "retired"),
-        ("availability", "maybe"),
+        ("family", "Other"),
+        ("source", "runtime-maybe"),
+        ("lifecycle", "enabled-ish"),
+        ("availability", "probably"),
+        ("effect_class", "mutation"),
+        ("risk_level", "unknown"),
         ("default_visibility", "sometimes"),
-        ("risk_level", "critical"),
-        ("permission", "superuser"),
-        ("effect_class", "remote_shell"),
+        ("permission", "superuser-ish"),
     ],
 )
 def test_descriptor_v2_rejects_values_outside_controlled_enums(field, value):
     with pytest.raises(ToolCatalogError):
-        _v2(**{field: value})
+        _descriptor_v2(**{field: value})
 
 
-@pytest.mark.parametrize("analytics_id", ["Read-File", "read_file", "read file", "../read-file", ""])
-def test_descriptor_v2_rejects_noncanonical_analytics_ids(analytics_id):
+def test_descriptor_v2_enforces_lifecycle_availability_and_effect_defaults():
     with pytest.raises(ToolCatalogError):
-        _v2(analytics_id=analytics_id)
-
-
-@pytest.mark.parametrize("field", ["default_enabled", "requires_confirmation"])
-def test_descriptor_v2_rejects_non_boolean_policy_flags(field):
+        _descriptor_v2(lifecycle=ToolLifecycle.DEFERRED, default_enabled=True)
     with pytest.raises(ToolCatalogError):
-        _v2(**{field: "false"})
-
-
-@pytest.mark.parametrize(
-    ("field", "value"),
-    [
-        ("schema_ref", "/private/schema"),
-        ("handler_ref", "C:/private/handler"),
-        ("prompt_ref", "https://invalid.example/prompt"),
-        ("feature_flag", "flag with dynamic content"),
-    ],
-)
-def test_descriptor_v2_rejects_nonstatic_or_absolute_references(field, value):
+        _descriptor_v2(
+            availability=ToolAvailability.NOT_CONFIGURED,
+            availability_reason=None,
+            default_enabled=False,
+        )
     with pytest.raises(ToolCatalogError):
-        _v2(**{field: value})
+        _descriptor_v2(
+            effect_class=ToolEffectClass.EXTERNAL_WRITE,
+            requires_confirmation=False,
+        )
 
 
-@pytest.mark.parametrize(
-    "aliases",
-    [
-        ("read_file",),
-        ("same-alias", "same-alias"),
-        ("../unsafe",),
-    ],
-)
-def test_descriptor_v2_rejects_invalid_alias_sets(aliases):
-    with pytest.raises(ToolCatalogError):
-        _v2(aliases=aliases)
-
-
-@pytest.mark.parametrize(
-    "lifecycle",
-    [
-        ToolLifecycle.DEFERRED,
-        ToolLifecycle.EXPERIMENTAL,
-        ToolLifecycle.DEPRECATED,
-        ToolLifecycle.BLOCKED,
-    ],
-)
-def test_descriptor_v2_default_off_lifecycles_cannot_be_enabled(lifecycle):
-    values = {"lifecycle": lifecycle}
-    if lifecycle == ToolLifecycle.DEPRECATED:
-        values["deprecated_in"] = "0.25"
-    with pytest.raises(ToolCatalogError):
-        _v2(**values)
-
-
-@pytest.mark.parametrize(
-    ("field", "value"),
-    [
-        ("availability", ToolAvailability.UNAVAILABLE),
-        ("default_visibility", ToolVisibility.HIDDEN),
-        ("default_visibility", ToolVisibility.BLOCKED),
-        ("default_visibility", ToolVisibility.UNAVAILABLE),
-    ],
-)
-def test_descriptor_v2_unavailable_or_hidden_tools_cannot_be_enabled(field, value):
-    with pytest.raises(ToolCatalogError):
-        _v2(**{field: value})
-
-
-@pytest.mark.parametrize(
-    ("field", "value"),
-    [
-        ("risk_level", ToolRiskLevel.DANGEROUS),
-        ("effect_class", ToolEffectClass.EXTERNAL_WRITE),
-        ("effect_class", ToolEffectClass.DESTRUCTIVE),
-    ],
-)
-def test_descriptor_v2_effectful_contracts_require_confirmation(field, value):
-    with pytest.raises(ToolCatalogError):
-        _v2(**{field: value, "requires_confirmation": False})
-
-
-def test_descriptor_v2_deprecation_metadata_is_lifecycle_bound():
-    with pytest.raises(ToolCatalogError):
-        _v2(lifecycle=ToolLifecycle.DEPRECATED, default_enabled=False)
-    with pytest.raises(ToolCatalogError):
-        _v2(deprecated_in="0.25")
-
-    descriptor = _v2(
-        lifecycle=ToolLifecycle.DEPRECATED,
-        default_enabled=False,
-        deprecated_in="0.25",
-    )
-    assert descriptor.deprecated_in == "0.25"
-
-
-def test_descriptor_v2_dynamic_unknown_tool_is_conservative_and_default_off():
+def test_unknown_dynamic_tool_defaults_fail_closed():
     descriptor = ToolDescriptorV2.conservative_dynamic(
-        tool_id="plugin:unclassified",
-        display_name="Unclassified plugin tool",
-        description="Awaiting a reviewed taxonomy mapping.",
+        tool_id="provider_lookup",
+        source=ToolSource.PROVIDER,
+        source_id="redacted-provider",
     )
 
     assert descriptor.family == ToolFamily.UNCLASSIFIED_DYNAMIC
-    assert descriptor.source == ToolSource.DYNAMIC
-    assert descriptor.lifecycle == ToolLifecycle.BLOCKED
-    assert descriptor.availability == ToolAvailability.UNKNOWN
+    assert descriptor.lifecycle == ToolLifecycle.EXPERIMENTAL
+    assert descriptor.availability == ToolAvailability.UNAVAILABLE
     assert descriptor.default_enabled is False
-    assert descriptor.default_visibility == ToolVisibility.HIDDEN
-    assert descriptor.risk_level == ToolRiskLevel.ELEVATED
+    assert descriptor.default_visibility == ToolVisibility.UNAVAILABLE
+    assert descriptor.risk_level == ToolRiskLevel.DANGEROUS
     assert descriptor.permission == ToolPermission.ADMIN
-    assert descriptor.effect_class == ToolEffectClass.CONTROL
     assert descriptor.requires_confirmation is True
+    assert descriptor.source_id == "redacted-provider"
 
 
-def test_v1_manifest_is_deterministically_readable_as_descriptor_v2():
+def test_catalog_aliases_resolve_to_one_immutable_analytics_identity():
+    descriptor = _descriptor_v2(aliases=["legacy_read_file", "read_workspace_file"])
+    catalog = ToolDescriptorCatalogV2.create([descriptor])
+
+    assert catalog.resolve("read_file") is descriptor
+    assert catalog.resolve("legacy_read_file") is descriptor
+    assert catalog.resolve("read_workspace_file").analytics_id == "read_file"
+    assert catalog.aliases == (
+        ("legacy_read_file", "read_file"),
+        ("read_workspace_file", "read_file"),
+    )
+
+
+def test_catalog_rejects_alias_and_analytics_collisions():
+    first = _descriptor_v2(aliases=["legacy_file"])
+    second = _descriptor_v2(
+        tool_id="write_file",
+        analytics_id="read_file",
+        display_name="Write File",
+        schema_ref="function:write_file",
+        handler_ref="builtin:write_file",
+        prompt_ref="index:write_file",
+    )
+    with pytest.raises(ToolCatalogError, match="analytics_id collision"):
+        ToolDescriptorCatalogV2.create([first, second])
+
+    canonical_collision = _descriptor_v2(
+        tool_id="legacy_file",
+        display_name="Legacy File",
+        schema_ref="function:legacy_file",
+        handler_ref="builtin:legacy_file",
+        prompt_ref="index:legacy_file",
+    )
+    with pytest.raises(ToolCatalogError, match="alias collides"):
+        ToolDescriptorCatalogV2.create([first, canonical_collision])
+
+
+def test_lifecycle_transitions_preserve_identity_and_fail_closed():
+    active = _descriptor_v2()
+    deprecated = active.transition_lifecycle(
+        ToolLifecycle.DEPRECATED,
+        changed_in="0.25.0",
+    )
+    blocked = deprecated.transition_lifecycle(
+        ToolLifecycle.BLOCKED,
+        changed_in="0.26.0",
+    )
+
+    assert deprecated.analytics_id == active.analytics_id
+    assert deprecated.deprecated_in == "0.25.0"
+    assert deprecated.default_enabled is False
+    assert blocked.analytics_id == active.analytics_id
+    assert blocked.default_visibility == ToolVisibility.BLOCKED
+    assert blocked.availability == ToolAvailability.DISABLED
+    with pytest.raises(ToolCatalogError, match="not allowed"):
+        blocked.transition_lifecycle(ToolLifecycle.ACTIVE, changed_in="0.27.0")
+
+
+def test_v1_manifests_migrate_to_v2_deterministically():
     manifest = ToolManifest.create(
         tool_id="write_file",
         family="filesystem",
-        short_description="Write a repository file.",
-        capabilities=("write",),
+        short_description="Write a bounded workspace file.",
+        capabilities=["write"],
         risk_level=ToolRiskLevel.DANGEROUS,
         schema_ref="function:write_file",
-        visibility_state=ToolVisibility.REQUIRES_APPROVAL,
+        visibility_state=ToolVisibility.HIDDEN,
     )
 
     first = ToolDescriptorV2.from_v1_manifest(manifest)
-    second = ToolDescriptorV2.from_v1_manifest(manifest)
+    second = ToolDescriptorV2.from_v1_manifest(manifest.compact_prompt_dict())
+    catalog = ToolDescriptorCatalogV2.from_v1_manifests([manifest])
 
-    assert first == second
-    assert first.analytics_id == "write-file"
+    assert first.audit_json() == second.audit_json()
     assert first.family == ToolFamily.CODE_FILESYSTEM
-    assert first.source == ToolSource.LEGACY
+    assert first.lifecycle == ToolLifecycle.CONTEXTUAL
+    assert first.default_enabled is True
     assert first.effect_class == ToolEffectClass.LOCAL_WRITE
-    assert first.requires_confirmation is True
-    assert first.default_enabled is False
+    assert first.permission == ToolPermission.ADMIN
+    assert catalog.resolve("write_file").audit_json() == first.audit_json()
 
 
-def test_descriptor_v2_index_resolves_aliases_without_changing_analytics_identity():
-    descriptor = _v2()
-    index = ToolDescriptorV2Index.build([descriptor])
-
-    assert index.resolve("read_file") is descriptor
-    assert index.resolve("read-file-legacy") is descriptor
-    assert index.resolve("missing") is None
-    assert index.resolve("read-file-legacy").analytics_id == "read-file"
-    assert index.audit_summary()["raw_content_visible"] is False
+def test_descriptor_v2_rejects_secret_like_private_or_callable_content():
+    with pytest.raises(ToolCatalogError, match="secret-like"):
+        _descriptor_v2(description="Use password=plaintext for the provider.")
+    with pytest.raises(ToolCatalogError, match="private-path"):
+        _descriptor_v2(description=r"Read C:\Users\alice\private.txt")
+    with pytest.raises(ToolCatalogError, match="callable"):
+        _descriptor_v2(handler_ref=lambda: None)
 
 
-@pytest.mark.parametrize(
-    "descriptors",
-    [
-        [_v2(), _v2(analytics_id="second-id")],
-        [_v2(), _v2(tool_id="second_tool")],
-        [_v2(), _v2(tool_id="second_tool", analytics_id="second-id", aliases=("read_file",))],
-        [_v2(), _v2(tool_id="second_tool", analytics_id="second-id", aliases=("read-file-legacy",))],
-    ],
-)
-def test_descriptor_v2_index_fails_closed_on_id_or_alias_collisions(descriptors):
-    with pytest.raises(ToolCatalogError):
-        ToolDescriptorV2Index.build(descriptors)
-
-
-def test_descriptor_v2_analytics_identity_is_immutable():
-    descriptor = _v2()
-    with pytest.raises(FrozenInstanceError):
-        descriptor.analytics_id = "replacement-id"
-
-
-def test_descriptor_v2_lifecycle_transitions_fail_closed():
-    assert (
-        validate_tool_lifecycle_transition(ToolLifecycle.CONTEXTUAL, ToolLifecycle.ACTIVE)
-        == ToolLifecycle.ACTIVE
+def test_non_native_schema_projection_requires_an_explicit_reason():
+    descriptor = _descriptor_v2(
+        tool_id="generate_image",
+        display_name="Generate Image",
+        schema_ref=None,
+        handler_ref="builtin:generate_image",
+        prompt_ref="index:generate_image",
+        native_schema=False,
+        projection_exception_reason="legacy-non-native-projection",
     )
-    with pytest.raises(ToolCatalogError):
-        validate_tool_lifecycle_transition(ToolLifecycle.DEPRECATED, ToolLifecycle.ACTIVE)
-    with pytest.raises(ToolCatalogError):
-        validate_tool_lifecycle_transition(ToolLifecycle.BLOCKED, ToolLifecycle.CONTEXTUAL)
-    with pytest.raises(ToolCatalogError):
-        validate_tool_lifecycle_transition("retired", ToolLifecycle.ACTIVE)
+
+    assert descriptor.schema_ref is None
+    assert descriptor.native_schema is False
+    with pytest.raises(ToolCatalogError, match="projection exception"):
+        _descriptor_v2(
+            tool_id="generate_image",
+            display_name="Generate Image",
+            schema_ref=None,
+            handler_ref="builtin:generate_image",
+            prompt_ref="index:generate_image",
+            native_schema=False,
+            projection_exception_reason=None,
+        )

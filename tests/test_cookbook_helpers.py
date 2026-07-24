@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -31,6 +32,34 @@ from routes.cookbook_helpers import (
     _shell_path,
     run_ssh_command_async,
 )
+
+
+def _bash_for_semantics_test() -> str:
+    """Prefer Git Bash over the WSL launcher on Windows."""
+    if os.name == "nt":
+        git = shutil.which("git")
+        if git:
+            candidate = Path(git).resolve().parent.parent / "bin" / "bash.exe"
+            if candidate.is_file():
+                return str(candidate)
+    return shutil.which("bash") or "bash"
+
+
+def _run_bash_semantics(
+    script: str, *, timeout: int = 15, cwd: Path | None = None
+) -> subprocess.CompletedProcess:
+    bash = _bash_for_semantics_test()
+    env = dict(os.environ)
+    if os.name == "nt":
+        env["PATH"] = os.pathsep.join((str(Path(bash).parent), env.get("PATH", "")))
+    return subprocess.run(
+        [bash, "-c", script],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        env=env,
+        cwd=cwd,
+    )
 
 
 def test_safe_env_prefix_accepts_quoted_venv_path():
@@ -294,18 +323,11 @@ def test_pip_install_fallback_chain_propagates_failure_in_venv():
 
 def test_pip_install_fallback_chain_tries_user_outside_venv():
     """When base install fails outside a venv, the chain should try --user."""
-    # Force "not in venv" by making venv_check return 1 directly.
-    script = (
-        "bash -c '"
-        "python3 -c \"import sys; sys.exit(1)\" || "
-        "{ ! python3 -c \"import sys; sys.exit(1)\" "  # venv_check=1 → negated to 0 → user runs
-        "&& echo user_attempt; }"
-        "'"
-    )
-    result = subprocess.run(
-        ["bash", "-c", script],
-        capture_output=True, text=True, timeout=10,
-    )
+    # ``false`` models both a failed base install and a not-in-venv check.
+    # Wrapper generation is asserted separately; this isolates the
+    # ``! check && user`` Bash behavior without a host python3 launcher.
+    script = "false || { ! false && echo user_attempt; }"
+    result = _run_bash_semantics(script, timeout=10)
     assert "user_attempt" in result.stdout, "Chain should try --user when not in venv and base fails"
 
 
@@ -417,45 +439,23 @@ def test_pip_install_attempt_no_bare_pipe_tail():
 
 
 def test_pip_install_attempt_failure_propagates_real_exit_code():
-    """Run the generated snippet against a deliberately broken pip install
-    to confirm the subshell exits with pip's non-zero status."""
-    snippet = _pip_install_attempt("python3 -m pip install __nonexistent_package_12345__")
-    if sys.platform == "win32":
-        snippet = snippet.replace("$", "\\$")
-    result = subprocess.run(
-        ["bash", "-c", snippet],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode != 0, "pip install of a nonexistent package should fail"
+    """The generated wrapper must preserve a command's non-zero status."""
+    snippet = _pip_install_attempt("false")
+    result = _run_bash_semantics(snippet)
+    assert result.returncode != 0
 
 
 def test_pip_install_attempt_success_exits_zero():
-    """When pip succeeds, the subshell should exit 0."""
-    snippet = _pip_install_attempt("python3 -c 'pass'")
-    if sys.platform == "win32":
-        snippet = snippet.replace("$", "\\$")
-    result = subprocess.run(
-        ["bash", "-c", snippet],
-        capture_output=True,
-        text=True,
-        timeout=15,
-    )
+    """When the wrapped command succeeds, the subshell should exit 0."""
+    snippet = _pip_install_attempt("true")
+    result = _run_bash_semantics(snippet)
     assert result.returncode == 0
 
 
 def test_pip_install_attempt_surfaces_stderr_on_failure():
     """On failure, the last 5 lines of pip output should appear in stdout."""
-    snippet = _pip_install_attempt("python3 -m pip install __nonexistent_package_12345__")
-    if sys.platform == "win32":
-        snippet = snippet.replace("$", "\\$")
-    result = subprocess.run(
-        ["bash", "-c", snippet],
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
+    snippet = _pip_install_attempt("{ printf nonexistent >&2; false; }")
+    result = _run_bash_semantics(snippet)
     # pip's error message should be visible in the output (not swallowed)
     combined = result.stdout + result.stderr
     assert "nonexistent" in combined.lower() or result.returncode != 0
@@ -725,16 +725,10 @@ def test_local_windows_download_pid_tracks_inner_bash_and_stop_kills_tree():
 
 def test_llama_cpp_rebuild_cmd_runs_clean_on_a_fresh_home(tmp_path):
     """The command should succeed even when neither path exists yet."""
-    import os
-    from core.platform_compat import find_bash, git_bash_path
-
-    bash = find_bash() or "bash"
-    env = dict(os.environ)
-    env["HOME"] = git_bash_path(tmp_path)
-    result = subprocess.run(
-        [bash, "-c", _llama_cpp_rebuild_cmd()],
-        capture_output=True, text=True, env=env, timeout=10,
-    )
+    # Reset HOME after Bash startup so the sandboxed Git Bash process uses a
+    # cwd-relative writable test home instead of traversing host ancestors.
+    script = f"HOME=.; export HOME; {_llama_cpp_rebuild_cmd()}"
+    result = _run_bash_semantics(script, cwd=tmp_path, timeout=10)
 
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "bin").is_dir()

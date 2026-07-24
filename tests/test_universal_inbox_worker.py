@@ -54,7 +54,7 @@ def test_worker_dry_run_produces_redacted_go_report(tmp_path):
     assert payload["host_paths_visible"] is False
     assert payload["raw_content_visible"] is False
     assert payload["item_count"] == 1
-    assert payload["maintenance_model"]["model_ref"] == "gemma4:e4b"
+    assert payload["maintenance_model"]["model_ref"] == "gemma3:4b"
     assert payload["maintenance_model"]["token_budget"] == 1200
     assert payload["items"][0]["placement_plan"]["operation"] == "copy"
     assert payload["items"][0]["maintenance_route"]["action"] == "stay_on_maintenance_model"
@@ -179,10 +179,10 @@ def test_worker_dry_run_uses_maintenance_settings_without_ui(tmp_path):
     )
     payload = report.to_dict()
 
-    assert payload["maintenance_model"]["model_ref"] == "gemma4:e4b"
+    assert payload["maintenance_model"]["model_ref"] == "gemma3:4b"
     assert payload["maintenance_model"]["token_budget"] == 900
     assert payload["items"][0]["maintenance_route"]["token_budget"] == 900
     intent_route = payload["items"][0]["pipeline_report"]["memory_write_intent"]["memory_records"][0]["metadata"]["maintenance_route"]
-    assert intent_route["model_ref"] == "gemma4:e4b"
+    assert intent_route["model_ref"] == "gemma3:4b"
     assert intent_route["token_budget"] == 900
     assert intent_route["raw_content_allowed"] is False

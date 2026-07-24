@@ -4,8 +4,8 @@
   "roadmap_id": "AMH",
   "title": "Agent Maintenance Safety Harness Roadmap",
   "created_at": "2026-07-18T16:16:30+02:00",
-  "updated_at": "2026-07-22T15:13:00+02:00",
-  "status": "implementation_running_amh06_handoff_reconciliation",
+  "updated_at": "2026-07-18T16:25:50+02:00",
+  "status": "roadmap_authored_open_work_registered_implementation_not_started",
   "abc_mode": "Standard ABC",
   "master_roadmap": "docs/plans/open-work-completion-master-roadmap.json",
   "canonical_open_work_queue": "docs/plans/open-work-completion-master-roadmap.json",
@@ -87,12 +87,12 @@
     "No modification of active unrelated roadmap queues merely to make AMH appear first."
   ],
   "queue_scope": {
-    "phase": "repository_implementation",
+    "phase": "roadmap_authoring",
     "supervision": "interactive",
     "queue": "open_work",
     "mutation_authority": "repo_only",
-    "implementation_state": "explicit_goal_active_amh01_ready",
-    "registration_rule": "The explicit 2026-07-22 goal activated OWM-23 after OWM-22 reached its repo-complete handoff. Execute one dependency-ready AMH slice at a time."
+    "implementation_state": "not_started",
+    "registration_rule": "Registration does not preempt the active queue. Start AMH-01 only after an explicit goal or Open Work reprioritization."
   },
   "route": {
     "entrypoint": "abc",
@@ -289,8 +289,8 @@
           "AMH-03-shared-verification-entrypoint",
           "AMH-05-canonical-handoff-and-owner-projection"
         ],
-          "max_parallel_workers": 3,
-          "rule": "The user's explicit GO AMH-HANDOFF and run-state revisions 47-51 provide the later scoped handoff required for up to three writers. Parallel work is limited to the persisted disjoint AMH-02 hotfiles, AMH-02 validator provenance package, AMH-03 workflow package and AMH-05 Planning/clarification package; root remains the sole roadmap/run-state writer."
+        "max_parallel_workers": 1,
+        "rule": "Use one scoped writer for AMH implementation because policy, workflow, prompt, Planning and Git enforcement are consequential shared boundaries. Read-only inventory or review may run in parallel; split into multiple writers only through a later explicit roadmap revision with disjoint hotfile proof."
       },
       {
         "frontier": 2,
@@ -375,7 +375,7 @@
     },
     {
       "id": "AMH-01-root-policy-and-runbook",
-      "execution_status": "accepted_2026-07-22",
+      "execution_status": "planned_after_explicit_goal",
       "mutation_class": "repo_only",
       "priority": "P0",
       "owner": "Alice",
@@ -417,7 +417,7 @@
     },
     {
       "id": "AMH-02-secret-safe-diagnostics",
-      "execution_status": "completed_local_repo_evidence_2026-07-22",
+      "execution_status": "planned_after_explicit_goal",
       "mutation_class": "repo_only",
       "priority": "P0",
       "owner": "Bob",
@@ -428,18 +428,11 @@
         "src/secret_safe_diagnostics.py",
         "src/tool_security.py",
         "src/tool_execution.py",
-        "src/maintenance_model_policy.py",
-        "src/local_model_scheduler.py",
-        "src/maintenance_llm_runtime.py",
         "src/maintenance_output_validator.py",
         "routes/diagnostics_routes.py",
         "tests/test_secret_safe_diagnostics.py",
         "tests/test_tool_security.py",
-        "tests/test_maintenance_model_policy.py",
-        "tests/test_local_model_scheduler.py",
-        "tests/test_maintenance_llm_runtime.py",
-        "tests/test_maintenance_output_validator.py",
-        "tests/test_diagnostics_logs.py"
+        "tests/test_maintenance_output_validator.py"
       ],
       "hotfiles": [
         "src/tool_execution.py",
@@ -455,11 +448,9 @@
         "synthetic canary and bypass regression tests"
       ],
       "tests": [
-        "python -m pytest -q tests/test_secret_safe_diagnostics.py tests/test_tool_security.py tests/test_maintenance_model_policy.py tests/test_local_model_scheduler.py tests/test_maintenance_llm_runtime.py tests/test_maintenance_output_validator.py tests/test_diagnostics_logs.py",
-        "git diff --check -- src/secret_safe_diagnostics.py src/tool_security.py src/tool_execution.py src/maintenance_model_policy.py src/local_model_scheduler.py src/maintenance_llm_runtime.py src/maintenance_output_validator.py routes/diagnostics_routes.py tests/test_secret_safe_diagnostics.py tests/test_diagnostics_logs.py"
+        "python -m pytest -q tests/test_secret_safe_diagnostics.py tests/test_tool_security.py tests/test_maintenance_output_validator.py",
+        "git diff --check -- src/secret_safe_diagnostics.py src/tool_security.py src/tool_execution.py src/maintenance_output_validator.py routes/diagnostics_routes.py tests/test_secret_safe_diagnostics.py"
       ],
-      "local_acceptance_evidence": "Commit 34d463ad; all four GMI source hashes match the accepted manifest; the declared AMH-02 suite passed 164 tests with one pre-existing SQLAlchemy deprecation warning; AST/compile and path-scoped diff checks passed.",
-      "verification_limit": "Four broader legacy consumer assertions still expect gemma4:e4b in test_gemma4_cookbook_control.py and test_universal_inbox_worker.py. Those files and consumers were outside GO GMI-DEPS and were not changed; migrate them in a separately claimed compatibility slice before full-suite acceptance.",
       "evidence_required": [
         "no credential value, prefix, suffix, length or hash reaches returned output",
         "env, printenv, .env reads, docker inspect and unredacted compose config are rejected as raw evidence sources",
@@ -476,7 +467,7 @@
     },
     {
       "id": "AMH-03-shared-verification-entrypoint",
-      "execution_status": "completed_local_repo_evidence_2026-07-22",
+      "execution_status": "planned_after_explicit_goal",
       "mutation_class": "repo_only",
       "priority": "P0",
       "owner": "Bob",
@@ -525,7 +516,7 @@
     },
     {
       "id": "AMH-04-machine-verification-receipts",
-      "execution_status": "completed_local_repo_evidence_2026-07-22",
+      "execution_status": "blocked_by_dependency",
       "mutation_class": "repo_only",
       "priority": "P0",
       "owner": "Bob",
@@ -557,12 +548,10 @@
         "python -m json.tool specs/agent-maintenance-verification-receipt.v1.schema.json",
         "git diff --check -- specs/agent-maintenance-verification-receipt.v1.schema.json src/agent_verification_receipt.py scripts/verify.py tests/test_agent_verification_receipt.py"
       ],
-      "local_acceptance_evidence": "Commit e7cb2926; 34 focused tests passed and one host-dependent real-symlink test skipped while the deterministic symlink-admission regression passed; guards-only passed 3 of 3 checks; a clean-HEAD receipt passed and bound to e7cb292612a7943fe55ff836d1bf64729d6087c2.",
-      "verification_limit": "The public schema and SHA-256 digest prove structure, integrity and current repository binding, not non-forgeable machine origin. AMH-06 must rerun the current-state gate and cannot treat receipt producer metadata as authentication.",
       "evidence_required": [
         "receipt revision or diff digest changes when verified code changes",
         "receipt cannot contain raw stdout, stderr, exception, API payload, environment value or private path",
-        "a stale receipt cannot satisfy completion; an agent-authored public receipt cannot independently grant completion and AMH-06 must rerun current-state validation",
+        "an agent-authored or stale receipt cannot satisfy completion",
         "skipped, unavailable and not_verified remain distinguishable",
         "schema and validator reject unknown result states"
       ],
@@ -575,7 +564,7 @@
     },
     {
       "id": "AMH-05-canonical-handoff-and-owner-projection",
-      "execution_status": "completed_local_repo_evidence_2026-07-22",
+      "execution_status": "planned_after_explicit_goal",
       "mutation_class": "repo_only",
       "priority": "P1",
       "owner": "Alice; Bob for projection code",
@@ -626,7 +615,7 @@
     },
     {
       "id": "AMH-06-enforced-completion-and-git-rails",
-      "execution_status": "completed_local_repo_evidence_2026-07-22",
+      "execution_status": "blocked_by_dependency",
       "mutation_class": "repo_only",
       "priority": "P0",
       "owner": "Charlie; Bob for policy code",
@@ -641,16 +630,13 @@
         "src/repo_remote_policy.py",
         "src/repo_commit_runner.py",
         "src/repo_push_runner.py",
-        "src/project_forge_github.py",
         "src/live_quality_gate_command_runner.py",
         "src/server_project_runner.py",
         "src/effectful_tool_matrix.py",
         "tests/test_agent_maintenance_completion_gate.py",
         "tests/test_repo_commit_runner.py",
         "tests/test_repo_push_runner.py",
-        "tests/test_live_quality_gate_command_runner.py",
-        "tests/test_server_project_runner.py",
-        "tests/test_project_forge_github.py"
+        "tests/test_live_quality_gate_command_runner.py"
       ],
       "hotfiles": [
         "src/claim_evidence_gate.py",
@@ -668,25 +654,9 @@
         "negative bypass tests"
       ],
       "tests": [
-        "python -m pytest -q tests/test_agent_maintenance_completion_gate.py tests/test_repo_commit_runner.py tests/test_repo_push_runner.py tests/test_live_quality_gate_command_runner.py tests/test_server_project_runner.py",
-        "python -m pytest -q tests/test_project_forge_github.py",
-        "git diff --check -- src/claim_evidence_gate.py src/repo_remote_policy.py src/repo_commit_runner.py src/repo_push_runner.py src/project_forge_github.py src/live_quality_gate_command_runner.py src/server_project_runner.py src/effectful_tool_matrix.py tests/test_agent_maintenance_completion_gate.py tests/test_repo_commit_runner.py tests/test_repo_push_runner.py tests/test_live_quality_gate_command_runner.py tests/test_server_project_runner.py tests/test_project_forge_github.py"
+        "python -m pytest -q tests/test_agent_maintenance_completion_gate.py tests/test_repo_commit_runner.py tests/test_repo_push_runner.py tests/test_live_quality_gate_command_runner.py",
+        "git diff --check -- src/claim_evidence_gate.py src/repo_remote_policy.py src/repo_commit_runner.py src/repo_push_runner.py src/live_quality_gate_command_runner.py src/server_project_runner.py src/effectful_tool_matrix.py tests/test_agent_maintenance_completion_gate.py"
       ],
-      "handoff_gate": {
-        "state": "granted_reconciled_released_2026-07-22",
-        "reason": "The primary checkout has active uncommitted work on six AMH-06 paths. Four directly implement incomplete commit/push rails and two mix AMH-relevant effect/claim logic with unrelated product work, so no disjoint completion-capable subset exists.",
-        "grant": "User replied go to the explicit GO AMH06-HANDOFF request; repository-only semantic reconciliation and local commit are authorized, while push, deploy, live access and primary-checkout mutation remain excluded.",
-        "paths": [
-          "src/claim_evidence_gate.py",
-          "src/effectful_tool_matrix.py",
-          "src/repo_commit_runner.py",
-          "src/repo_push_runner.py",
-          "tests/test_repo_commit_runner.py",
-          "tests/test_repo_push_runner.py"
-        ]
-      },
-      "local_acceptance_evidence": "Commit 9bbcf849; the final combined AMH-06 and adjacent-consumer suite passed 242 tests with one host-dependent skip and one pre-existing SQLAlchemy deprecation warning; focused implementation evidence passed 110 tests; guards-only passed 3 of 3; the clean-HEAD receipt bound to 9bbcf849cf246290e79839131bc16d49a653e04d with digest 2ed30171d1e2c856e78087e63433fd7ce4a584f02bf680f22ff1dd308bf31cb1; two independent post-fix reviews reported no actionable findings.",
-      "verification_limit": "Integration, UI, live and temporal behavior were not exercised. A deliberately broader compatibility run exposed three legacy ProjectCommitService positive-path tests that cannot yet mint the new typed completion and commit authorities; that trusted control-plane adapter migration is separately claimable debt and was not weakened or bypassed for AMH-06 acceptance.",
       "evidence_required": [
         "missing, stale, weaker-lane or mismatched receipt blocks done",
         "force push, reset --hard, clean and history rewrite remain denied",
@@ -703,7 +673,7 @@
     },
     {
       "id": "AMH-07-read-only-session-bootstrap",
-      "execution_status": "completed_local_repo_evidence",
+      "execution_status": "blocked_by_dependency",
       "mutation_class": "repo_only",
       "priority": "P1",
       "owner": "Alice; Bob for runtime projection",
@@ -715,69 +685,26 @@
       "allowed_paths": [
         ".codex/hooks.json",
         "src/agent_loop_prompts.py",
-        "src/agent_loop_system_prompt.py",
         "src/runtime_tool_status.py",
         "docs/agent-maintenance-runbook.md",
         "tests/test_agent_maintenance_bootstrap.py"
       ],
       "hotfiles": [
         ".codex/hooks.json",
-        "src/agent_loop_prompts.py",
-        "src/agent_loop_system_prompt.py"
+        "src/agent_loop_prompts.py"
       ],
       "objective": "Present the bounded policy and current handoff at session start through read-only, idempotent checks without installation, service start, network access or background mutation.",
       "deliverables": [
         "branch and dirty-worktree warning",
         "bounded active-slice and owner-question summary",
         "verification entrypoint pointer",
-        "read-only hook and dynamic internal-agent projection parity",
+        "read-only hook and internal-agent projection parity",
         "timeout, missing-file and stale-state tests"
       ],
       "tests": [
         "python -m pytest -q tests/test_agent_maintenance_bootstrap.py",
-        "git diff --check -- .codex/hooks.json src/agent_loop_prompts.py src/agent_loop_system_prompt.py src/runtime_tool_status.py docs/agent-maintenance-runbook.md tests/test_agent_maintenance_bootstrap.py"
+        "git diff --check -- .codex/hooks.json src/agent_loop_prompts.py src/runtime_tool_status.py docs/agent-maintenance-runbook.md tests/test_agent_maintenance_bootstrap.py"
       ],
-      "handoff_gate": {
-        "state": "resolved_local_commit_e2449573_claim_released",
-        "reason": "The primary checkout contains uncommitted foreign Pygame/artifact and clarification changes in agent_loop_prompts.py, operator-priority tool-catalog changes in agent_loop_system_prompt.py, a substantial unrelated Descriptor-v2 tool-catalog projection in runtime_tool_status.py, and an ignored existing .codex/hooks.json. AMH-07 requires these exact hook, prompt and runtime hotfiles for dynamic parity, so no disjoint completion-capable subset exists.",
-        "required_grant": "GO AMH07-HANDOFF",
-        "scope": "Read the four named primary paths, preserve and semantically reconcile all foreign behavior with the AMH-07 read-only bootstrap, test and commit locally in the isolated branch only.",
-        "grant": "User replied go to the explicit GO AMH07-HANDOFF request; repository-only read-only absorption, semantic reconciliation, tests and local commit are authorized while every excluded action remains closed.",
-        "granted_at": "2026-07-22T19:29:30+02:00",
-        "primary_source_hashes": {
-          ".codex/hooks.json": "sha256:6ebf56abe50762b3da36c3adb092e7dd2356e6b06a691b5b4029c81a8ea24228",
-          "src/agent_loop_prompts.py": "sha256:b87f71b74aab8e7840d8a69ec6e6c079b337cea8c259f12cdf6daddd6e658fe9",
-          "src/agent_loop_system_prompt.py": "sha256:aebf53b1c5319aeac39a5948cbd82a1985a9b75ccb74c98221c40258016471cb",
-          "src/runtime_tool_status.py": "sha256:54bc965628e6431c2155a8f1f800c03e9a8f6f4a2dc1d0a08b0b0b254fb9f786"
-        },
-        "excluded": [
-          "push",
-          "deploy",
-          "live_access",
-          "primary_checkout_mutation",
-          "destructive_git"
-        ],
-        "paths": [
-          ".codex/hooks.json",
-          "src/agent_loop_prompts.py",
-          "src/agent_loop_system_prompt.py",
-          "src/runtime_tool_status.py"
-        ]
-      },
-      "local_acceptance": {
-        "commit": "e24495734e8afc122cf36621cde5d8c1e94d7669",
-        "focused": "37 passed, 1 host-dependent symlink test skipped",
-        "integration": "253 passed, 1 host-dependent symlink test skipped across 21 declared modules; 14 pre-existing deprecation warnings",
-        "static": "guards-only passed 3 of 3; JSON, AST, exact six-path cached diff, primary handoff hashes and two independent final reviews passed; clean-HEAD receipt 9677f44f86a6a22acfc55557d4fb0b9480d5187f205402c6ca8c9328f91b2e79 bound to 501d7b969b2c112abec937da1cb35d2ed2760231",
-        "hook_contract": "Exact Windows SessionStart command passed with hostile inherited GIT_DIR and emitted matching hookSpecificOutput.additionalContext with all action authorities false",
-        "not_verified": [
-          "actual Codex hook trust and installed-client SessionStart execution",
-          "exact POSIX hook execution on a POSIX host",
-          "UI, live, visual and temporal behavior"
-        ],
-        "pushed": false,
-        "deployed": false
-      },
       "evidence_required": [
         "bootstrap performs no write, install, network call or service start",
         "missing or malformed state produces a bounded warning and safe stop",
@@ -794,7 +721,7 @@
     },
     {
       "id": "AMH-08-adversarial-and-ci-acceptance",
-      "execution_status": "partial_implementation_committed_fast_lane_open",
+      "execution_status": "blocked_by_dependency",
       "mutation_class": "repo_only",
       "priority": "P0",
       "owner": "Charlie",
@@ -817,21 +744,6 @@
         ".github/workflows/quality-gate.yml",
         "scripts/verify.py"
       ],
-      "claim": {
-        "owner": "Charlie",
-        "thread_id": "/root/amh07_charlie_review",
-        "state": "released_after_partial_commit",
-        "acquired_at": "2026-07-22T20:39:39+02:00",
-        "lease_expires_at": "2026-07-22T22:39:39+02:00",
-        "released_at": "2026-07-22T22:18:30+02:00",
-        "partial_commit": "8d806627"
-      },
-      "hotfile_audit": {
-        "state": "satisfied_existing_grant_and_clean_isolated_paths",
-        "quality_gate_primary_state": "The primary workflow is the pre-existing untracked source already released and resolved under GO AMH-HANDOFF; the isolated tracked workflow is the accepted AMH-03 version and the isolated worktree is clean.",
-        "scripts_verify_primary_state": "Absent in primary and tracked clean in the isolated accepted branch.",
-        "foreign_staged_paths": []
-      },
       "objective": "Prove the harness against realistic forgetful, weak, overconfident and adversarial-agent failure modes and make the guards a blocking CI lane.",
       "deliverables": [
         "adversarial maintenance corpus",
@@ -847,8 +759,6 @@
         "python scripts/verify.py --lane fast",
         "git diff --check -- tests/test_agent_maintenance_adversarial.py .github/workflows/quality-gate.yml scripts/verify.py"
       ],
-      "partial_local_evidence": "Commit 8d806627 adds the adversarial corpus and a blocking shared guards-only CI job. The new corpus passed 10 tests; the declared four-file focus passed 125 with one host-dependent skip; receipt, handoff and verifier regression passed 49 with one host-dependent skip; and guards-only produced a current dirty-tree PASS receipt before the final timeout experiment was reverted.",
-      "verification_limit": "AMH-08 is not accepted. The canonical fast lane timed out at its fixed 1,200 second bound with all three static checks passed and no reported assertion failure. A later 3,600 second diagnostic run used an unavailable TEMP/TMP target, also timed out, and was reverted; it is not acceptance evidence. Per the owner stop condition, no further long tests were run.",
       "evidence_required": [
         "every seeded unsafe behavior fails for the intended mechanical reason",
         "positive maintenance path reaches a current PASS receipt",
@@ -918,21 +828,19 @@
   "gate_queue": [
     {
       "gate_id": "AMH-GATE-EXPLICIT-GOAL-OR-REPRIORITIZATION",
-      "state": "satisfied_2026-07-22",
+      "state": "not_requested",
       "blocks": [
         "AMH-01-root-policy-and-runbook",
         "AMH-02-secret-safe-diagnostics",
         "AMH-03-shared-verification-entrypoint",
         "AMH-05-canonical-handoff-and-owner-projection"
       ],
-      "decision_needed": "Satisfied by the user's explicit 8-12 hour /abc goal naming AMH after OWM-22 reached a repo-complete safe handoff.",
-      "safe_default": "Execute only the dependency-ready repo-only AMH frontier with one scoped writer; keep all external effects disabled."
+      "decision_needed": "Start OWM-23 explicitly or reprioritize Open Work after the active queue reaches a safe handoff.",
+      "safe_default": "Keep AMH registered and implementation not started; do not preempt active TAX, TUA or other claimed work."
     },
     {
       "gate_id": "AMH-GATE-SHARED-HOTFILE-HANDOFF",
-      "state": "satisfied_amh08_single_owner_claim_2026_07_22",
-      "disposition": "pending_per_slice",
-      "activation": "Reactivate as pending for a concrete slice only when an allowed path has an active claim or overlapping foreign hunk; otherwise this policy gate is nonblocking.",
+      "state": "pending_per_slice",
       "blocks": [
         "Any AMH slice whose allowed path has an active claim or overlapping foreign hunk"
       ],
@@ -997,5 +905,5 @@
       "No commit, push, deploy, live mutation, provider call or external write was performed."
     ]
   },
-  "recommended_next_step": "Claim the AMH-08 adversarial-and-CI paths with one writer, activate the shared-hotfile handoff gate only for any concrete overlap, seed only synthetic canaries and temporary repositories, and require the shared local/CI guards plus a positive current receipt before local acceptance."
+  "recommended_next_step": "Keep OWM-23 dormant until an explicit goal or Open Work reprioritization. Then claim AMH-01, AMH-02 and AMH-03 only on disjoint handed-off paths, keep AMH-04 onward dependency-blocked, and preserve every unrelated worktree change."
 }

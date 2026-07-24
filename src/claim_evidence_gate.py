@@ -10,14 +10,8 @@ from typing import Any, Iterable, Mapping
 
 from src.agent_verification_receipt import ReceiptError, validate_verification_receipt
 from src.tool_transaction_ledger import transaction_evidence_for_claim, transactions_from_tool_events
-from src.todo_digest_receipts import (
-    todo_digest_evidence_for_claim,
-    todo_digest_receipts_from_tool_events,
-)
-from src.todo_receipts import (
-    todo_receipt_evidence_for_claim,
-    todo_receipts_from_tool_events,
-)
+from src.todo_digest_receipts import digest_receipts_from_tool_events, validated_todo_digest_receipt_from_event
+from src.todo_digest_schedule_receipts import validated_todo_digest_schedule_receipt_from_event
 
 
 _FIRST_PERSON_ACTION_RE = re.compile(
@@ -76,59 +70,6 @@ _INTERACTIVE_PREVIEW_RE = re.compile(
     r"laeuft\s+interaktiv|läuft\s+interaktiv)\b",
     re.IGNORECASE,
 )
-_TODO_CLAIM_PATTERNS = (
-    (
-        "todo_item_created",
-        re.compile(
-            r"\b(?:(?:todo|to-do)s?|aufgaben?)\b.{0,48}\b(?:gespeichert|hinzugef(?:ue|\u00fc)gt|angelegt|saved|created|added)\b",
-            re.IGNORECASE,
-        ),
-    ),
-    (
-        "todo_item_completed",
-        re.compile(
-            r"\b(?:(?:todo|to-do)s?|aufgaben?)\b.{0,48}\b(?:erledigt|abgehakt|completed|done)\b",
-            re.IGNORECASE,
-        ),
-    ),
-    (
-        "todo_item_reopened",
-        re.compile(
-            r"\b(?:(?:todo|to-do)s?|aufgaben?)\b.{0,48}\b(?:wieder\s+ge(?:oe|\u00f6)ffnet|reopened)\b",
-            re.IGNORECASE,
-        ),
-    ),
-    (
-        "todo_item_removed",
-        re.compile(
-            r"\b(?:(?:todo|to-do)s?|aufgaben?)\b.{0,48}\b(?:entfernt|gel(?:oe|\u00f6)scht|removed|deleted)\b",
-            re.IGNORECASE,
-        ),
-    ),
-    (
-        "todo_list_read",
-        re.compile(
-            r"\b(?:todo|to-do)[-\s]?(?:liste|list)\b.{0,48}\b(?:gelesen|geladen|read|loaded)\b",
-            re.IGNORECASE,
-        ),
-    ),
-)
-_TODO_DIGEST_CONTAINS_RE = re.compile(
-    r"\b(?:todo|to-do|aufgabe)\b.{0,80}(?:(?:erscheint|auftaucht|appears).{0,56}\b(?:digest|zusammenfassung)\b|\b(?:digest|zusammenfassung)\b.{0,40}\b(?:enthalten|included)\b)",
-    re.IGNORECASE,
-)
-_TODO_DIGEST_EXCLUDES_RE = re.compile(
-    r"\b(?:todo|to-do|aufgabe)\b.{0,80}(?:(?:nicht\s+mehr|no\s+longer|excluded).{0,56}\b(?:digest|zusammenfassung)\b|\b(?:digest|zusammenfassung)\b.{0,40}\b(?:nicht\s+(?:mehr\s+)?enthalten|excluded)\b)",
-    re.IGNORECASE,
-)
-_TODO_DIGEST_UNVERIFIED_RE = re.compile(
-    r"\b(?:nicht\s+verifiziert|unverified|nicht\s+sicher|cannot\s+verify|can't\s+verify)\b",
-    re.IGNORECASE,
-)
-_TODO_DIGEST_TIMING_RE = re.compile(
-    r"\b(?:morgen|tomorrow|naechst(?:e|en|er|es)?|n(?:ae|ä)chste(?:n|r|s)?|next|um\s+[0-2]?\d(?::[0-5]\d)?|at\s+[0-2]?\d(?::[0-5]\d)?)\b",
-    re.IGNORECASE,
-)
 _NEGATED_CLAIM_PREFIX_RE = re.compile(
     r"\b(?:not|never|no|cannot|can't|couldn't|didn't|nicht|nie|konnte\s+nicht|kein(?:e|en|em|er|es)?|unverified|unavailable|nicht\s+verifiziert)\b.{0,36}$",
     re.IGNORECASE,
@@ -137,35 +78,82 @@ _NEGATED_CLAIM_WITHIN_RE = re.compile(
     r"\b(?:not|never|no|cannot|can't|couldn't|didn't|nicht|nie|konnte\s+nicht|kein(?:e|en|em|er|es)?|unverified|unavailable)\b",
     re.IGNORECASE,
 )
-_TODO_QUANTITY_PREFIX_RE = re.compile(
-    r"\b(?:(?P<count>[1-9]\d{0,2})|(?P<count_word>beide|both|zwei|two))\s*$",
+_TODO_CONTEXT_RE = re.compile(
+    r"\b(?:todo(?:[-\s]?(?:item|task|list|liste|eintrag|aufgabe))?|to[-\s]?do|"
+    r"task|checklist|list(?:\s+item)?|item|aufgabe|eintrag|liste)\b",
     re.IGNORECASE,
 )
-_TODO_PLURAL_CLAIM_RE = re.compile(r"^(?:todos|to-dos|aufgaben)\b", re.IGNORECASE)
-_VERIFICATION_EVIDENCE_RANK = {
-    "none": 0,
-    "static": 1,
-    "fast": 2,
-    "ui_contract": 3,
-    "visual": 4,
-    "full": 5,
-    "ui_contract_plus_visual_artifact": 6,
-}
-_LANE_STRONGEST_EVIDENCE = {
-    "guards-only": "static",
-    "fast": "fast",
-    "full": "full",
-    "ui": "ui_contract_plus_visual_artifact",
-}
-_LANE_COMPATIBLE_MINIMUMS = {
-    "guards-only": frozenset({"static"}),
-    "fast": frozenset({"static", "fast"}),
-    "full": frozenset({"static", "fast", "full"}),
-    "ui": frozenset(
-        {"static", "ui_contract", "visual", "ui_contract_plus_visual_artifact"}
+_TODO_EN_ACTOR_RE = re.compile(r"\bi(?:\s+(?:have|did)|['’]ve)?\b", re.IGNORECASE)
+_TODO_DE_ACTOR_RE = re.compile(r"\bich\s+(?:habe|hab)\b", re.IGNORECASE)
+_TODO_NONPOSITIVE_RE = re.compile(
+    r"\b(?:not|never|no|without|cannot|can't|couldn't|didn't|"
+    r"nicht|nie|kein(?:e|en|em|er|es)?|ohne|"
+    r"if|would|could|should|might|maybe|when|falls|wenn|w[üu]rde|k[öo]nnte|sollte|vielleicht|"
+    r"will|going\s+to|want(?:\s+you)?\s+to|need(?:\s+you)?\s+to|intend\s+to|"
+    r"plan(?:s)?\s+to|hope\s+to|later|tomorrow|"
+    r"werde|will|m[öo]chte|plane|vorhabe|sp[äa]ter|morgen|"
+    r"said|says|reported|reports|according\s+to|quoted|asked|ask|whether|"
+    r"sagte|sagt|berichtete|berichtet|laut|zitiert|fragte|frage|ob)\b",
+    re.IGNORECASE,
+)
+_TODO_QUOTED_TEXT_RE = re.compile(
+    r'"[^"\n]*"|“[^”\n]*”|„[^“\n]*“|(?<!\w)\'[^\'\n]*\'(?!\w)|`[^`\n]*`'
+)
+_TODO_ACTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "todo_item_created",
+        re.compile(r"\b(?:added|created|saved|hinzugef[üu]gt|erstellt|angelegt|gespeichert)\b", re.IGNORECASE),
     ),
-}
-_MAX_OWNERSHIP_PATHS = 128
+    (
+        "todo_item_completed",
+        re.compile(
+            r"\b(?:completed|checked\s+off|marked\b.{0,48}?\b(?:as\s+)?done|done|finished|"
+            r"erledigt|abgeschlossen|abgehakt)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "todo_item_reopened",
+        re.compile(
+            r"\b(?:reopened|uncompleted|undid(?:\s+(?:the\s+)?completion)?|"
+            r"wieder\s+(?:ge[öo]ffnet)|wiederer[öo]ffnet|r[üu]ckg[äa]ngig\s+gemacht)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "todo_item_removed",
+        re.compile(r"\b(?:removed|deleted|gel[öo]scht|entfernt)\b", re.IGNORECASE),
+    ),
+    (
+        "todo_list_read",
+        re.compile(r"\b(?:listed|read|showed|shown|displayed|aufgelistet|gelesen|angezeigt|gezeigt)\b", re.IGNORECASE),
+    ),
+)
+_TODO_DIGEST_CONTEXT_RE = re.compile(r"\b(?:todo\s+)?digest\b|\bzusammenfassung\b", re.IGNORECASE)
+_TODO_DIGEST_CONTAINS_RE = re.compile(
+    r"\b(?:appears?|is\s+included|is\s+contained|included\s+in|erscheint|ist\s+enthalten)\b",
+    re.IGNORECASE,
+)
+_TODO_DIGEST_EXCLUDES_RE = re.compile(
+    r"\b(?:does\s+not\s+appear|no\s+longer\s+appears?|is\s+not\s+included|is\s+excluded|excluded\s+from|erscheint\s+nicht|ist\s+nicht(?:\s+\w+){0,3}\s+enthalten|ausgeschlossen)\b",
+    re.IGNORECASE,
+)
+_TODO_DIGEST_FUTURE_RE = re.compile(
+    r"\b(?:if|would|could|can\s+you|should|might|maybe|want|need|please|will|going\s+to|tomorrow|later|"
+    r"wenn|w[\u00fc]rde|k[\u00f6]nnte|sollte|vielleicht|m[\u00f6]chte|bitte|werde|morgen|sp[\u00e4]ter)\b",
+    re.IGNORECASE,
+)
+_TODO_DIGEST_REQUEST_HYPOTHETICAL_RE = re.compile(
+    r"\b(?:if|would|could|can\s+you|should|might|maybe|want|need|please|"
+    r"wenn|w[\u00fc]rde|k[\u00f6]nnte|sollte|vielleicht|m[\u00f6]chte|bitte)\b",
+    re.IGNORECASE,
+)
+_TODO_DIGEST_TIMING_RE = re.compile(
+    r"\b(?:tomorrow|morning|monday|tuesday|wednesday|thursday|friday|saturday|sunday|at\s+\d{1,2}(?::\d{2})?|send|sends|sending|sent|emailed|deliver|delivers|delivering|delivered|telegram|slack|email|ntfy|provider|run|runs|ran|running|execute|executes|executing|executed|execution|"
+    r"morgen|morgens|montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag|um\s+\d{1,2}(?::\d{2})?|sende(?:t|n)?|gesendet|versendet|verschickt|geliefert|zugestellt|anbieter|ausf[\u00fcu]hren|ausgef[\u00fcu]hrt|ausf[\u00fch]rung|f[\u00fcu]hrt\s+aus|l[\u00e4a]uft|lief)\b",
+    re.IGNORECASE,
+)
+_TODO_DIGEST_NEXT_RE = re.compile(r"\b(?:next\s+(?:todo\s+)?digest|n[\u00e4]chst(?:e|en|er)?\s+(?:todo\s+)?(?:digest|zusammenfassung))\b", re.IGNORECASE)
 
 
 @dataclass(frozen=True, slots=True)
@@ -529,93 +517,8 @@ def evaluate_response_claims(
                 )
             )
 
-    for claim_type, pattern in _TODO_CLAIM_PATTERNS:
-        matches = _positive_claim_matches(pattern, text)
-        if not matches:
-            continue
-        required_count = max(_todo_claim_count(text, match) for match in matches)
-        matching_receipt_count = len({
-            receipt.receipt_ref
-            for receipt in todo_receipts
-            if receipt.claim_type == claim_type and receipt.verified
-        })
-        evidence = todo_receipt_evidence_for_claim(todo_receipts, claim_type)
-        if matching_receipt_count < required_count:
-            evidence = ()
-        findings.append(
-            ClaimEvidenceFinding(
-                claim_type,
-                "supported" if evidence else "unsupported",
-                (
-                    "Todo claim has enough unique verified semantic receipts"
-                    if evidence
-                    else "Todo claim has fewer unique verified semantic receipts than claimed"
-                ),
-                evidence,
-            )
-        )
-
-    digest_claim_found = False
-    excludes_match = _TODO_DIGEST_EXCLUDES_RE.search(text)
-    if excludes_match:
-        prefix = text[max(0, excludes_match.start() - 48) : excludes_match.start()]
-        if (
-            not _NEGATED_CLAIM_PREFIX_RE.search(prefix)
-            and not _TODO_DIGEST_UNVERIFIED_RE.search(excludes_match.group(0))
-        ):
-            digest_claim_found = True
-            evidence = todo_digest_evidence_for_claim(
-                todo_digest_receipts,
-                "todo_digest_excludes",
-            )
-            findings.append(
-                ClaimEvidenceFinding(
-                    "todo_digest_excludes",
-                    "supported" if evidence else "unsupported",
-                    (
-                        "Todo digest exclusion has a matching read-only projection receipt"
-                        if evidence
-                        else "Todo digest exclusion has no matching read-only projection receipt"
-                    ),
-                    evidence,
-                )
-            )
-    elif _has_positive_claim(_TODO_DIGEST_CONTAINS_RE, text):
-        digest_claim_found = True
-        evidence = todo_digest_evidence_for_claim(
-            todo_digest_receipts,
-            "todo_digest_contains",
-        )
-        findings.append(
-            ClaimEvidenceFinding(
-                "todo_digest_contains",
-                "supported" if evidence else "unsupported",
-                (
-                    "Todo digest membership has a matching read-only projection receipt"
-                    if evidence
-                    else "Todo digest membership has no matching read-only projection receipt"
-                ),
-                evidence,
-            )
-        )
-
-    if digest_claim_found and _TODO_DIGEST_TIMING_RE.search(text):
-        evidence = todo_digest_evidence_for_claim(
-            todo_digest_receipts,
-            "todo_digest_schedule_active",
-        )
-        findings.append(
-            ClaimEvidenceFinding(
-                "todo_digest_schedule_active",
-                "supported" if evidence else "unsupported",
-                (
-                    "Timed Todo digest claim has one active owner-scoped schedule receipt"
-                    if evidence
-                    else "Timed Todo digest claim has no canonical active schedule receipt"
-                ),
-                evidence,
-            )
-        )
+    findings.extend(_todo_claim_findings(text, transactions))
+    findings.extend(_todo_digest_claim_findings(text, events))
 
     for claim_type, pattern, supported_reason, unsupported_reason in (
         (
@@ -672,6 +575,174 @@ def build_claim_evidence_correction(report: ClaimEvidenceReport) -> str:
         "\n\nHinweis: Einige Erfolgsclaims sind noch nicht maschinenlesbar belegt "
         f"({claim_types}). Behandle diese Punkte als nicht verifiziert, bis passende Evidence vorliegt."
     )
+
+
+def _todo_claim_findings(
+    text: str,
+    transactions: Iterable[Mapping[str, Any]],
+) -> tuple[ClaimEvidenceFinding, ...]:
+    """Return only explicit, positive Todo claims bound to matching transactions."""
+    findings: list[ClaimEvidenceFinding] = []
+    seen_claim_types: set[str] = set()
+    unquoted = _TODO_QUOTED_TEXT_RE.sub(" ", text)
+    for sentence in re.split(r"(?<=[.!?;\n])", unquoted):
+        action_matches = sorted(
+            (match.start(), match.end(), claim_type)
+            for claim_type, action_pattern in _TODO_ACTION_PATTERNS
+            for match in action_pattern.finditer(sentence)
+        )
+        todo_context_matches = tuple(_TODO_CONTEXT_RE.finditer(sentence))
+        for action_start, action_end, claim_type in action_matches:
+            if claim_type in seen_claim_types:
+                continue
+            prefix = sentence[:action_start]
+            if _TODO_NONPOSITIVE_RE.search(prefix):
+                continue
+            has_actor = bool(_TODO_EN_ACTOR_RE.search(prefix) or _TODO_DE_ACTOR_RE.search(prefix))
+            has_bound_context = _todo_context_binds_to_action(
+                action_start, action_end, action_matches, todo_context_matches
+            )
+            has_preceding_context = _todo_context_binds_to_action(
+                action_start,
+                action_end,
+                action_matches,
+                todo_context_matches,
+                preceding_only=True,
+            )
+            is_bare_done = sentence[action_start:action_end].strip().lower() == "done"
+            if is_bare_done and not has_preceding_context:
+                continue
+            if not has_bound_context:
+                continue
+            if not has_actor and (not has_preceding_context or "?" in sentence):
+                continue
+            evidence = transaction_evidence_for_claim(transactions, claim_type)
+            findings.append(
+                ClaimEvidenceFinding(
+                    claim_type,
+                    "supported" if evidence else "unsupported",
+                    (
+                        "Todo success claim has a matching verified semantic receipt"
+                        if evidence
+                        else "Todo success claim has no matching verified semantic receipt"
+                    ),
+                    evidence,
+                )
+            )
+            seen_claim_types.add(claim_type)
+    return tuple(findings)
+
+
+def _todo_digest_claim_findings(text: str, events: Iterable[Mapping[str, Any]]) -> tuple[ClaimEvidenceFinding, ...]:
+    """Assess present membership and generic next-digest schedules; timing/delivery stays unsupported."""
+    event_snapshot = tuple(events)
+    receipts = digest_receipts_from_tool_events(event_snapshot)
+    findings: list[ClaimEvidenceFinding] = []
+    seen: set[str] = set()
+    stronger_schedule_unsupported = False
+    unquoted = _TODO_QUOTED_TEXT_RE.sub(" ", text)
+    for sentence in re.split(r"(?<=[.!?;\n])", unquoted):
+        if not _TODO_DIGEST_CONTEXT_RE.search(sentence) or not _TODO_CONTEXT_RE.search(sentence):
+            continue
+        contains = _TODO_DIGEST_CONTAINS_RE.search(sentence)
+        excludes = _TODO_DIGEST_EXCLUDES_RE.search(sentence)
+        if not contains and not excludes:
+            continue
+        match = excludes or contains
+        prefix = sentence[:match.start()]
+        if _TODO_DIGEST_REQUEST_HYPOTHETICAL_RE.search(prefix):
+            continue
+        if _NEGATED_CLAIM_PREFIX_RE.search(prefix):
+            continue
+        next_digest = bool(_TODO_DIGEST_NEXT_RE.search(sentence))
+        if _TODO_DIGEST_TIMING_RE.search(sentence):
+            stronger_schedule_unsupported = True
+            if "todo_digest_schedule_active" not in seen:
+                findings.append(ClaimEvidenceFinding(
+                    "todo_digest_schedule_active", "unsupported",
+                    "digest membership evidence never proves scheduling, execution, or delivery", (),
+                ))
+                seen.add("todo_digest_schedule_active")
+            # A time, schedule, or delivery statement is not a present-tense
+            # membership claim.  TTD-05B is the earliest possible proof lane.
+            continue
+        if _TODO_DIGEST_FUTURE_RE.search(prefix):
+            continue
+        claim_type = "todo_digest_excludes" if excludes else "todo_digest_contains"
+        if claim_type not in seen:
+            evidence = tuple(receipt["receipt_ref"] for receipt in receipts if receipt["claim_type"] == claim_type)
+            findings.append(ClaimEvidenceFinding(
+                claim_type,
+                "supported" if evidence else "unsupported",
+                "Todo digest membership has a matching verified postcondition" if evidence else "Todo digest membership has no matching verified postcondition",
+                evidence,
+            ))
+            seen.add(claim_type)
+        if next_digest and "todo_digest_schedule_active" not in seen:
+            evidence = _next_digest_schedule_evidence(event_snapshot, claim_type)
+            findings.append(ClaimEvidenceFinding(
+                "todo_digest_schedule_active",
+                "supported" if evidence else "unsupported",
+                "Todo digest has a verified active future schedule" if evidence else "Todo digest has no verified active future schedule receipt",
+                evidence,
+            ))
+            seen.add("todo_digest_schedule_active")
+    if stronger_schedule_unsupported:
+        without_schedule = [item for item in findings if item.claim_type != "todo_digest_schedule_active"]
+        if len(without_schedule) != len(findings):
+            findings = [*without_schedule, ClaimEvidenceFinding(
+                "todo_digest_schedule_active", "unsupported",
+                "exact timing, execution, provider, or delivery language is never proved by schedule status", (),
+            )]
+    return tuple(findings)
+
+
+def _next_digest_schedule_evidence(events: Iterable[Mapping[str, Any]], membership_claim_type: str) -> tuple[str, ...]:
+    """Require both proofs in one closed event for a concrete next-digest claim."""
+    refs: list[str] = []
+    seen: set[str] = set()
+    for index, event in enumerate(events):
+        if index >= 64:
+            break
+        membership = validated_todo_digest_receipt_from_event(event)
+        schedule = validated_todo_digest_schedule_receipt_from_event(event)
+        if membership is None or schedule is None or membership.get("claim_type") != membership_claim_type:
+            continue
+        if membership["evidence_refs"][0] != schedule["evidence_refs"][0]:
+            continue
+        receipt_ref = schedule["receipt_ref"]
+        if receipt_ref not in seen:
+            seen.add(receipt_ref)
+            refs.append(receipt_ref)
+        if len(refs) == 64:
+            break
+    return tuple(refs)
+
+
+def _todo_context_binds_to_action(
+    action_start: int,
+    action_end: int,
+    action_matches: Iterable[tuple[int, int, str]],
+    todo_context_matches: Iterable[re.Match[str]],
+    *,
+    preceding_only: bool = False,
+) -> bool:
+    """Accept only a nearby Todo token whose nearest action is this action."""
+    for context in todo_context_matches:
+        if preceding_only and context.end() > action_start:
+            continue
+        distance = min(abs(context.start() - action_end), abs(context.end() - action_start))
+        if distance > 72:
+            continue
+        nearest = min(
+            action_matches,
+            key=lambda candidate: min(
+                abs(context.start() - candidate[1]), abs(context.end() - candidate[0])
+            ),
+        )
+        if nearest[:2] == (action_start, action_end):
+            return True
+    return False
 
 
 def _extract_repo_paths(text: str) -> tuple[str, ...]:
@@ -753,31 +824,14 @@ def _successful_telegram_events(events: Iterable[Mapping[str, Any]]) -> tuple[st
 
 
 def _has_positive_claim(pattern: re.Pattern[str], text: str) -> bool:
-    return bool(_positive_claim_matches(pattern, text))
-
-
-def _positive_claim_matches(
-    pattern: re.Pattern[str], text: str
-) -> tuple[re.Match[str], ...]:
-    matches: list[re.Match[str]] = []
     for match in pattern.finditer(text):
         prefix = text[max(0, match.start() - 48) : match.start()]
         if (
             not _NEGATED_CLAIM_PREFIX_RE.search(prefix)
             and not _NEGATED_CLAIM_WITHIN_RE.search(match.group(0))
         ):
-            matches.append(match)
-    return tuple(matches)
-
-
-def _todo_claim_count(text: str, match: re.Match[str]) -> int:
-    prefix = text[max(0, match.start() - 24) : match.start()]
-    quantity = _TODO_QUANTITY_PREFIX_RE.search(prefix)
-    if quantity is None:
-        return 2 if _TODO_PLURAL_CLAIM_RE.match(match.group(0)) else 1
-    if quantity.group("count_word"):
-        return 2
-    return max(1, min(int(quantity.group("count") or 1), 999))
+            return True
+    return False
 
 
 def _structured_claim_evidence(

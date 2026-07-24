@@ -98,6 +98,28 @@ def test_coding_task_plan_ready_with_branch_permission_checks_and_go(tmp_path: P
     assert str(tmp_path) not in json.dumps(plan.to_dict())
 
 
+def test_coding_task_plan_blocks_until_clarification_ready_for_plan(tmp_path: Path):
+    _repo_root(tmp_path)
+    plan = build_coding_task_plan(
+        registry=_registry(),
+        repo_id="demo",
+        workspace_base=tmp_path,
+        objective="Add a focused backend route",
+        allowed_paths=["src", "tests"],
+        checks=[_check()],
+        task_id="backend-route",
+        worktree_base=tmp_path / "worktrees",
+        live_enabled=True,
+        operator_decision="go",
+        clarification_ready_for_plan=False,
+        clarification_id="clar-12345678",
+    )
+
+    assert plan.decision == "hold"
+    assert plan.can_create_worktree is False
+    assert "clarification must be ready_for_plan before coding plan execution (clar-12345678)" in plan.blockers
+
+
 def test_coding_task_plan_requires_repo_branch_action(tmp_path: Path):
     _repo_root(tmp_path)
     plan = build_coding_task_plan(

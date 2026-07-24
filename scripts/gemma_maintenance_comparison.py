@@ -16,13 +16,14 @@ from src.gemma_maintenance_comparison import (  # noqa: E402
     run_maintenance_comparison,
 )
 from src.gemma_memory_benchmark import deterministic_fixture_call  # noqa: E402
+from src.maintenance_model_policy import DEFAULT_MAINTENANCE_MODEL  # noqa: E402
 
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Run a redacted Gemma4 E4B vs DeepSeek maintenance comparison."
+        description="Run a redacted Gemma 3 vs DeepSeek maintenance comparison."
     )
-    parser.add_argument("--gemma-model", default="gemma4:e4b")
+    parser.add_argument("--gemma-model", default=DEFAULT_MAINTENANCE_MODEL)
     parser.add_argument("--gemma-provider", default="local_ollama")
     parser.add_argument("--gemma-base-url", default="http://localhost:11434/api")
     parser.add_argument("--deepseek-model", default="deepseek-v4-flash")

@@ -6,7 +6,11 @@ from types import SimpleNamespace
 import src.agent_loop as al
 from src.agent_tools import ToolBlock
 from src.tool_execution import execute_tool_block
-from src.tool_policy import build_effective_tool_policy, detect_guide_only_turn
+from src.tool_policy import (
+    CLARIFICATION_OPEN_DIRECTIVE,
+    build_effective_tool_policy,
+    detect_guide_only_turn,
+)
 
 
 def _collect(gen):
@@ -97,6 +101,28 @@ def test_orchestrator_policy_blocks_mutating_host_tools():
         assert "orchestrator mode" in policy.reason_for(tool)
 
 
+def test_commit_project_is_treated_as_effectful_and_plan_blocked():
+    from src.tool_security import NON_ADMIN_BLOCKED_TOOLS, plan_mode_disabled_tools
+
+    assert "commit_project" in NON_ADMIN_BLOCKED_TOOLS
+    assert "commit_project" in plan_mode_disabled_tools()
+
+
+def test_clarification_open_policy_allows_only_context_and_ask_user_tools():
+    policy = build_effective_tool_policy(
+        last_user_message="Continue",
+        clarification_open=True,
+    )
+
+    assert policy.mode == "clarification_open"
+    assert policy.disable_mcp is True
+    for tool in ("ask_user", "read_file", "grep", "glob", "ls", "search_chats"):
+        assert not policy.blocks(tool), f"{tool} should remain available during clarification"
+    for tool in ("update_plan", "write_file", "edit_file", "bash", "python", "manage_memory", "create_document"):
+        assert policy.blocks(tool), f"{tool} must be blocked while clarification is open"
+        assert "clarification" in policy.reason_for(tool).lower()
+
+
 def test_executor_policy_backstop_blocks_tools():
     policy = build_effective_tool_policy(last_user_message="Do not use tools.")
     desc, result = asyncio.run(
@@ -105,6 +131,16 @@ def test_executor_policy_backstop_blocks_tools():
     assert desc == "bash: BLOCKED"
     assert result["exit_code"] == 1
     assert "forbade" in result["error"]
+
+
+def test_executor_blocks_plan_update_during_open_clarification():
+    policy = build_effective_tool_policy(clarification_open=True)
+    desc, result = asyncio.run(
+        execute_tool_block(ToolBlock("update_plan", "- [ ] should not change"), tool_policy=policy)
+    )
+    assert desc == "update_plan: BLOCKED"
+    assert result["exit_code"] == 1
+    assert "clarification" in result["error"].lower()
 
 
 def test_agent_loop_blocks_guide_only_fenced_tool_before_start(monkeypatch):
@@ -167,6 +203,42 @@ def test_guide_only_hides_api_function_schemas(monkeypatch):
     )
 
     assert sent_tools == [None]
+
+
+def test_clarification_open_hides_mutating_function_schemas_and_injects_directive(monkeypatch):
+    _patch_loop_basics(monkeypatch)
+    sent_tool_names = []
+    prompt_payloads = []
+
+    async def _fake_stream(_candidates, messages, **kwargs):
+        prompt_payloads.append("\n\n".join(str(msg.get("content", "")) for msg in messages))
+        sent_tool_names.extend(
+            (tool.get("function") or {}).get("name") or tool.get("name")
+            for tool in (kwargs.get("tools") or [])
+        )
+        yield _delta_chunk("I need one clarification.")
+        yield "data: [DONE]\n\n"
+
+    monkeypatch.setattr(al, "stream_llm_with_fallback", _fake_stream, raising=False)
+    policy = build_effective_tool_policy(clarification_open=True)
+
+    _collect(
+        al.stream_agent_loop(
+            "https://api.openai.com/v1",
+            "gpt-test",
+            [{"role": "user", "content": "Continue"}],
+            max_rounds=1,
+            relevant_tools={"ask_user", "read_file", "update_plan", "write_file", "bash"},
+            tool_policy=policy,
+        )
+    )
+
+    assert prompt_payloads
+    assert CLARIFICATION_OPEN_DIRECTIVE in prompt_payloads[0]
+    assert "ask_user" in sent_tool_names
+    assert "update_plan" not in sent_tool_names
+    assert "write_file" not in sent_tool_names
+    assert "bash" not in sent_tool_names
 
 
 def test_guide_only_skips_tool_retrieval(monkeypatch):

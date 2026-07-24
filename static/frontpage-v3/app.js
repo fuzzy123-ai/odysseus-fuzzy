@@ -273,6 +273,11 @@
     document.getElementById('privacy-toggle')?.addEventListener('click', event => {
       const pressed = event.currentTarget.getAttribute('aria-pressed') !== 'true';
       event.currentTarget.setAttribute('aria-pressed', String(pressed));
+      event.currentTarget.setAttribute('aria-label', pressed ? 'Secure mode locked' : 'Secure mode unlocked');
+      event.currentTarget.setAttribute('title', pressed ? 'Secure mode: locked' : 'Secure mode: unlocked');
+      const label = event.currentTarget.querySelector('.secure-label');
+      if (label) label.textContent = pressed ? 'Locked' : 'Unlocked';
+      event.currentTarget.closest('.secure-cluster')?.classList.toggle('secure-on', pressed);
       stage.classList.toggle('privacy-on', pressed);
     });
     document.querySelector('.composer-menu-button')?.addEventListener('click', event => {

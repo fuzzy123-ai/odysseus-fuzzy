@@ -1,158 +1,151 @@
-from __future__ import annotations
-
-from copy import deepcopy
-import importlib.util
+import copy
 import json
-from pathlib import Path
 import re
+from pathlib import Path, PurePosixPath
+
+from scripts.audit_tool_registry_drift import (
+    CLASSIFICATIONS,
+    EMAIL_SCHEMA_ADAPTER_TOOLS,
+    EXPECTED_RUNTIME_WITHOUT_SCHEMA,
+    EXPECTED_SCHEMA_WITHOUT_RUNTIME,
+    EXPECTED_STALE_ADMIN_METADATA,
+    _baseline_violations,
+    _extract_admin_metadata_text,
+    audit_inventory,
+    main,
+    render_inventory,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT_PATH = ROOT / "scripts" / "audit_tool_registry_drift.py"
-SNAPSHOT_PATH = ROOT / "docs" / "plans" / "tool-taxonomy-inventory.json"
-
-SPEC = importlib.util.spec_from_file_location("audit_tool_registry_drift", SCRIPT_PATH)
-assert SPEC and SPEC.loader
-audit = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(audit)
 
 
-def test_inventory_reproduces_tax0_baseline() -> None:
-    inventory = audit.build_inventory(ROOT)
-
-    assert inventory["baseline"]["status"] == "matches"
-    assert inventory["baseline"]["errors"] == []
-    expected_counts = {
-        "runtime_tags": 79,
-        "function_schemas": 84,
-        "schema_without_runtime_tag": 6,
-        "runtime_without_function_schema": 1,
-        "admin_metadata": 85,
-        "runtime_without_admin_metadata": 0,
-        "admin_catalog_without_runtime_tag": 6,
-        "stale_admin_metadata": 0,
+def _surface_map(report: dict) -> dict[str, set[str]]:
+    return {
+        item["name"]: set(item["tool_ids"])
+        for item in report["surfaces"]
     }
-    assert {key: inventory["counts"][key] for key in expected_counts} == expected_counts
 
-    assert [item["tool_id"] for item in inventory["drift"]["schema_without_runtime_tag"]] == [
-        "manage_assistant",
-        "manage_embeddings",
-        "manage_personal_docs",
-        "manage_plugins",
-        "manage_presets",
-        "tail_serve_output",
-    ]
-    assert [item["tool_id"] for item in inventory["drift"]["runtime_without_function_schema"]] == [
-        "generate_image"
-    ]
-    assert inventory["drift"]["stale_admin_metadata"] == []
-    assert [
-        item["tool_id"]
-        for item in inventory["drift"]["admin_catalog_without_runtime_tag"]
-    ] == [
-        "manage_assistant",
-        "manage_embeddings",
-        "manage_personal_docs",
-        "manage_plugins",
-        "manage_presets",
-        "tail_serve_output",
-    ]
-    assert inventory["admin_projection"] == {
-        "mode": "descriptor_v2_api",
-        "endpoint": "/api/tools",
-        "legacy_static_metadata": False,
+
+def _all_strings(value):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            yield str(key)
+            yield from _all_strings(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _all_strings(item)
+
+
+def test_repository_inventory_reproduces_tax0_baseline():
+    report = audit_inventory(ROOT)
+
+    assert report["summary"]["clean"] is True
+    assert report["summary"]["builtin_tag_count"] == 80
+    assert report["summary"]["function_schema_count"] == 85
+    assert report["summary"]["schema_without_runtime_count"] == 6
+    assert report["summary"]["runtime_without_schema_count"] == 1
+    assert report["summary"]["admin_metadata_count"] == 31
+    assert report["summary"]["admin_fallback_count"] == 50
+    assert report["violations"] == []
+
+
+def test_known_runtime_schema_and_admin_differences_are_exact():
+    surfaces = _surface_map(audit_inventory(ROOT))
+    runtime = surfaces["builtin_tags"]
+    schemas = surfaces["function_schemas"]
+    admin = surfaces["admin_metadata"]
+
+    assert schemas - runtime == EXPECTED_SCHEMA_WITHOUT_RUNTIME
+    assert runtime - schemas == EXPECTED_RUNTIME_WITHOUT_SCHEMA
+    assert admin - runtime == EXPECTED_STALE_ADMIN_METADATA
+    assert len(runtime - admin) == 50
+
+
+def test_every_difference_has_a_controlled_classification_and_explanation():
+    report = audit_inventory(ROOT)
+
+    assert report["differences"]
+    assert {item["classification"] for item in report["differences"]} <= CLASSIFICATIONS
+    assert all(item["explanation"] for item in report["differences"])
+    assert any(item["classification"] == "intentional" for item in report["differences"])
+    assert any(item["classification"] == "missing" for item in report["differences"])
+    assert any(item["classification"] == "stale" for item in report["differences"])
+    assert any(item["classification"] == "dynamic" for item in report["differences"])
+    dispatcher_adapter_rows = {
+        item["tool_id"]: item["classification"]
+        for item in report["differences"]
+        if item["surface"] == "dispatcher"
+        and item["relation"] == "runtime_not_surface"
     }
-    assert "manage_rag" not in inventory["projections"]["admin_metadata"]
-    assert "const TOOL_META" not in (ROOT / "static" / "js" / "admin.js").read_text(
-        encoding="utf-8"
+    assert dispatcher_adapter_rows == {
+        tool_id: "intentional" for tool_id in EMAIL_SCHEMA_ADAPTER_TOOLS
+    }
+
+
+def test_inventory_is_content_free_and_uses_only_repo_relative_paths():
+    report = audit_inventory(ROOT)
+    strings = list(_all_strings(report))
+
+    assert report["summary"]["content_fields_recorded"] is False
+    assert report["summary"]["private_paths_recorded"] is False
+    assert report["summary"]["runtime_modules_imported"] is False
+    assert not ({"arguments", "parameters", "prompt", "result", "raw_content"} & set(report))
+    for item in report["sources"] + report["dynamic_sources"]:
+        path = item["path"]
+        assert not PurePosixPath(path).is_absolute()
+        assert ".." not in PurePosixPath(path).parts
+    assert all(str(ROOT).replace("\\", "/") not in value.replace("\\", "/") for value in strings)
+    assert all(re.fullmatch(r"[0-9a-f]{64}", item["sha256"]) for item in report["sources"])
+
+
+def test_rendering_is_byte_stable_and_sorted():
+    first = audit_inventory(ROOT)
+    second = audit_inventory(ROOT)
+
+    assert first == second
+    assert render_inventory(first).encode("utf-8") == render_inventory(second).encode("utf-8")
+    assert first["surfaces"] == sorted(first["surfaces"], key=lambda item: item["name"])
+    assert first["sources"] == sorted(
+        first["sources"],
+        key=lambda item: (item["path"], item["surface"], item["kind"]),
     )
 
 
-def test_inventory_is_deterministic_and_content_free() -> None:
-    first = audit.build_inventory(ROOT)
-    second = audit.build_inventory(ROOT)
+def test_admin_metadata_parser_ignores_nested_fields():
+    text = """
+const TOOL_META = {
+  alpha: { name: 'Alpha', desc: 'not a tool id' },
+  'beta-tool': { name: 'Beta' },
+};
+"""
 
-    assert audit.render_inventory(first) == audit.render_inventory(second)
-    assert first["privacy"] == {
-        "private_paths_visible": False,
-        "prompt_text_visible": False,
-        "provider_output_visible": False,
-        "raw_content_visible": False,
-        "secret_values_visible": False,
-        "tool_arguments_visible": False,
-        "tool_results_visible": False,
+    assert _extract_admin_metadata_text(text) == {"alpha", "beta-tool"}
+
+
+def test_unknown_baseline_drift_is_a_violation():
+    report = audit_inventory(ROOT)
+    surfaces = _surface_map(report)
+    drifted = copy.deepcopy(surfaces)
+    drifted["builtin_tags"].add("unexpected_tool")
+
+    violations = _baseline_violations(drifted)
+
+    assert {item["code"] for item in violations} == {
+        "baseline_count_drift",
+        "baseline_identity_drift",
     }
-    serialized = audit.render_inventory(first)
-    assert str(ROOT).casefold() not in serialized.casefold()
-    assert "C:\\" not in serialized
-    assert "sk-" not in serialized.casefold()
-    assert "bearer " not in serialized.casefold()
-    assert "telegram_bot_token=" not in serialized.casefold()
 
 
-def test_source_hashes_are_relative_sorted_sha256_metadata() -> None:
-    inventory = audit.build_inventory(ROOT)
-    source_hashes = inventory["source_hashes_sha256"]
+def test_check_mode_detects_persisted_snapshot_drift(tmp_path):
+    output = tmp_path / "tool-taxonomy-inventory.json"
+    assert main(["--root", str(ROOT), "--output", str(output)]) == 0
+    assert main(["--root", str(ROOT), "--output", str(output), "--check"]) == 0
 
-    assert list(source_hashes) == sorted(source_hashes)
-    assert set(source_hashes) == set(audit.SOURCE_PATHS)
-    assert all(not Path(path).is_absolute() and ":" not in path for path in source_hashes)
-    assert all(re.fullmatch(r"[0-9a-f]{64}", digest) for digest in source_hashes.values())
-    assert re.fullmatch(r"[0-9a-f]{64}", inventory["source_digest_sha256"])
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    payload["summary"]["builtin_tag_count"] = 0
+    output.write_text(json.dumps(payload), encoding="utf-8")
 
-
-def test_every_difference_has_a_bounded_classification() -> None:
-    inventory = audit.build_inventory(ROOT)
-    records = [item for items in inventory["drift"].values() for item in items]
-
-    assert records
-    assert {item["classification"] for item in records} <= {
-        "intentional",
-        "missing",
-        "stale",
-        "dynamic",
-    }
-    assert all(set(item) == {"tool_id", "classification", "reason_code"} for item in records)
-
-
-def test_dynamic_registry_mcp_and_plugin_sources_are_inventory_only() -> None:
-    dynamic = audit.build_inventory(ROOT)["dynamic_sources"]
-
-    assert dynamic["registry"] == {
-        "path": "src/tool_registry.py",
-        "classification": "dynamic",
-        "registration_mode": "runtime_ToolSpec_registry",
-        "default_permission": "admin",
-        "static_runtime_count": None,
-    }
-    assert dynamic["mcp"]["qualified_prefix"] == "mcp__"
-    assert dynamic["mcp"]["classification"] == "dynamic"
-    assert dynamic["plugin_registration_sources"]
-    assert all(item["classification"] == "dynamic" for item in dynamic["plugin_registration_sources"])
-    assert all(isinstance(item["registration_call_count"], int) for item in dynamic["plugin_registration_sources"])
-
-
-def test_baseline_validator_rejects_unknown_drift() -> None:
-    inventory = audit.build_inventory(ROOT)
-    changed = deepcopy(inventory)
-    changed["counts"]["runtime_tags"] += 1
-
-    assert audit.validate_baseline(changed) == ["runtime_tags: expected 79, found 80"]
-
-
-def test_snapshot_matches_current_checkout() -> None:
-    inventory = audit.build_inventory(ROOT)
-
-    assert audit.snapshot_errors(inventory, SNAPSHOT_PATH) == []
-
-
-def test_snapshot_check_rejects_stale_or_missing_file(tmp_path: Path) -> None:
-    inventory = audit.build_inventory(ROOT)
-    missing = tmp_path / "missing.json"
-    stale = tmp_path / "stale.json"
-    stale.write_text(json.dumps({"schema_version": "stale"}) + "\n", encoding="utf-8")
-
-    assert audit.snapshot_errors(inventory, missing) == ["snapshot is missing"]
-    assert audit.snapshot_errors(inventory, stale) == [
-        "snapshot differs from deterministic repository inventory"
-    ]
+    assert main(["--root", str(ROOT), "--output", str(output), "--check"]) == 1

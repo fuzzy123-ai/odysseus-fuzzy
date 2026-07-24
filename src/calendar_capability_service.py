@@ -308,82 +308,43 @@ def build_telegram_todo_digest_live_gate(
 
 def build_todo_digest_schedule_postcondition(
     *,
-    owner: str,
-    session_factory=None,
-) -> dict[str, Any]:
-    """Prove one canonical active Telegram Todo digest schedule, read-only."""
-    from core.database import ScheduledTask, SessionLocal
-
-    if not isinstance(owner, str) or not owner.strip():
-        return {
-            "schema": CALENDAR_CAPABILITY_SCHEMA,
-            "kind": "todo_digest_schedule_postcondition",
-            "claim_type": "todo_digest_schedule_active",
-            "status": "blocked",
-            "reason": "owner_scope_required",
-            "verified": False,
-            "candidate_count": 0,
-            "raw_content_visible": False,
-        }
-    db = (session_factory or SessionLocal)()
+    owner: str | None,
+    session_factory: Any | None = None,
+    task_model: Any | None = None,
+    now_utc: datetime | None = None,
+) -> dict[str, Any] | None:
+    """Read one owner-exact Todo-digest schedule snapshot without side effects."""
+    from src.todo_digest_schedule_receipts import build_todo_digest_schedule_receipt
+    if not isinstance(owner, str) or not owner or owner.strip() != owner:
+        return None
+    if now_utc is not None and (not isinstance(now_utc, datetime) or now_utc.tzinfo is not None):
+        return None
+    if (session_factory is None) != (task_model is None):
+        return None
     try:
-        candidates = (
-            db.query(ScheduledTask)
-            .filter(
-                ScheduledTask.owner == owner,
-                ScheduledTask.task_type == "action",
-                ScheduledTask.action == "todo_digest",
-                ScheduledTask.trigger_type == "schedule",
-                ScheduledTask.output_target.in_(("telegram", "notification:telegram")),
-                ScheduledTask.status.in_(("active", "paused")),
-            )
-            .order_by(ScheduledTask.created_at.asc(), ScheduledTask.id.asc())
-            .all()
-        )
-        active = [
-            task
-            for task in candidates
-            if str(getattr(task, "status", "") or "") == "active"
-            and getattr(task, "next_run", None) is not None
-        ]
-        canonical = active[0] if len(candidates) == 1 and len(active) == 1 else None
-        if canonical is not None:
-            task_hash = _stable_short_hash(getattr(canonical, "id", "") or "")
-            schedule_ref = f"todo-digest-schedule:v1:{task_hash}"
-            status = "active"
-            reason = "single_active_owner_scoped_todo_digest_schedule"
-            evidence_refs = [f"scheduled-task-readback:v1:{task_hash}"]
-            next_run = _iso(getattr(canonical, "next_run", None))
-        else:
-            schedule_ref = ""
-            next_run = ""
-            evidence_refs = []
-            if len(candidates) > 1:
-                status = "ambiguous"
-                reason = "multiple_matching_todo_digest_schedules"
-            elif candidates:
-                status = "inactive"
-                reason = "matching_todo_digest_schedule_not_active_or_not_runnable"
-            else:
-                status = "missing"
-                reason = "matching_todo_digest_schedule_missing"
-        return {
-            "schema": CALENDAR_CAPABILITY_SCHEMA,
-            "kind": "todo_digest_schedule_postcondition",
-            "claim_type": "todo_digest_schedule_active",
-            "status": status,
-            "reason": reason,
-            "schedule_ref": schedule_ref,
-            "next_run": next_run,
-            "candidate_count": len(candidates),
-            "verified": canonical is not None,
-            "evidence_refs": evidence_refs,
-            "owner_scoped": True,
-            "live_actions_performed": False,
-            "raw_content_visible": False,
-        }
-    finally:
-        db.close()
+        if session_factory is None:
+            from core.database import ScheduledTask, SessionLocal
+            session_factory, task_model = SessionLocal, ScheduledTask
+        db = session_factory()
+        try:
+            candidates = db.query(
+                task_model.id, task_model.owner, task_model.task_type, task_model.action,
+                task_model.trigger_type, task_model.schedule, task_model.status,
+                task_model.cron_expression, task_model.scheduled_time, task_model.next_run,
+            ).filter(
+                task_model.owner == owner,
+                task_model.task_type == "action",
+                task_model.action == "todo_digest",
+                task_model.trigger_type == "schedule",
+                task_model.schedule == "cron",
+            ).limit(2).all()
+        finally:
+            db.close()
+        if now_utc is None:
+            now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        return build_todo_digest_schedule_receipt(owner=owner, candidates=candidates, now_utc=now_utc)
+    except Exception:
+        return None
 
 
 def write_reminder_note(

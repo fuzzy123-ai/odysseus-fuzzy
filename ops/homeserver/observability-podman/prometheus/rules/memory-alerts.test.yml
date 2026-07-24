@@ -1,0 +1,47 @@
+rule_files:
+  - memory-recording.rules.yml
+  - memory-alerts.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    input_series: []
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: OdysseusMemoryQueryP95High
+        exp_alerts: []
+      - eval_time: 1m
+        alertname: OdysseusMemoryStatusP95High
+        exp_alerts: []
+      - eval_time: 1m
+        alertname: OdysseusRaptorStatusP95High
+        exp_alerts: []
+      - eval_time: 1m
+        alertname: OdysseusMemoryEventLoopLagHigh
+        exp_alerts: []
+      - eval_time: 1m
+        alertname: OdysseusRaptorRebuildError
+        exp_alerts: []
+      - eval_time: 1m
+        alertname: OdysseusRaptorRebuildErrorsRepeated
+        exp_alerts: []
+      - eval_time: 1m
+        alertname: OdysseusRaptorCacheHitRateLow
+        exp_alerts: []
+      - eval_time: 1m
+        alertname: OdysseusQueryCacheEntriesHigh
+        exp_alerts: []
+      - eval_time: 1m
+        alertname: OdysseusQueryCacheBytesHigh
+        exp_alerts: []
+      - eval_time: 1m
+        alertname: OdysseusMetricsTargetDown
+        exp_alerts: []
+      - eval_time: 1m
+        alertname: OdysseusRaptorArtifactAgeHigh
+        exp_alerts: []
+      - eval_time: 1m
+        alertname: OdysseusMetricsSamplesDropped
+        exp_alerts: []
+

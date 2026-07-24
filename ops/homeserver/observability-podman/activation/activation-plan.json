@@ -1,0 +1,273 @@
+{
+  "schema": "odysseus.memory_observability_activation_plan.v1",
+  "packet_version": 1,
+  "status": "eligible_awaiting_live_go",
+  "mutation_class": "future_live_activation_only",
+  "single_live_gate": "GRO-LIVE-ACTIVATION",
+  "single_go_phrase": "GO GRO-LIVE-ACTIVATION",
+  "current_execution_authorized": false,
+  "safe_default": "prometheus_grafana_and_productive_scrape_disabled",
+  "offline_barrier": {
+    "evidence": "docs/plans/graphrag-raptor-observability-offline-acceptance.json",
+    "required_verdict": "offline_go",
+    "observed_verdict": "offline_go",
+    "on_mismatch": "stop_before_live_read_or_mutation"
+  },
+  "required_live_inputs": [
+    "EXPECTED_SSH_ALIAS",
+    "EXPECTED_USER",
+    "EXPECTED_HOSTNAME",
+    "ODYSSEUS_ROOT",
+    "EXPECTED_COMMIT",
+    "ODYSSEUS_CONTAINER",
+    "GRAFANA_ADMIN_USER",
+    "PROMETHEUS_URL",
+    "RESTIC_PASSWORD_FILE",
+    "SOAK_HOURS"
+  ],
+  "invariants": {
+    "odysseus_runtime_restart_allowed": false,
+    "productive_rebuild_allowed": false,
+    "public_binding_allowed": false,
+    "host_network_allowed": false,
+    "privileged_container_allowed": false,
+    "remote_write_allowed": false,
+    "external_alert_delivery_allowed": false,
+    "destructive_volume_rollback_allowed": false,
+    "scrape_token_scopes": [
+      "observability:read"
+    ],
+    "prometheus_binding": "loopback_only",
+    "grafana_binding": "loopback_only",
+    "prometheus_retention_days": 30,
+    "prometheus_retention_size_gb": 5,
+    "scrape_interval_seconds": 15,
+    "scrape_timeout_seconds": 5,
+    "soak_min_hours": 12,
+    "soak_max_hours": 24
+  },
+  "phase_order": [
+    "offline_barrier",
+    "live_identity_readback",
+    "capacity_and_port_preflight",
+    "backup_checkpoint",
+    "default_off_staging",
+    "scoped_secret_creation",
+    "staged_validation",
+    "private_activation",
+    "functional_verification",
+    "bounded_soak",
+    "finalize_or_rollback"
+  ],
+  "phases": [
+    {
+      "id": "offline_barrier",
+      "mutates": false,
+      "required_evidence": [
+        "offline_acceptance_verdict_offline_go",
+        "prometheus_assets_valid",
+        "grafana_assets_valid",
+        "packet_valid"
+      ],
+      "failure_action": "stop"
+    },
+    {
+      "id": "live_identity_readback",
+      "mutates": false,
+      "required_evidence": [
+        "explicit_single_go_phrase",
+        "ssh_alias_matches",
+        "user_matches",
+        "hostname_matches",
+        "repository_root_matches",
+        "clean_worktree",
+        "commit_matches"
+      ],
+      "failure_action": "stop"
+    },
+    {
+      "id": "capacity_and_port_preflight",
+      "mutates": false,
+      "required_evidence": [
+        "rootless_podman_available",
+        "podman_compose_available",
+        "promtool_available",
+        "free_memory_gib_gte_4",
+        "free_disk_gib_gte_10",
+        "backup_mount_healthy",
+        "loopback_ports_free",
+        "odysseus_health_green"
+      ],
+      "failure_action": "stop"
+    },
+    {
+      "id": "backup_checkpoint",
+      "mutates": true,
+      "required_evidence": [
+        "pre_update_snapshot_id",
+        "backup_health_green",
+        "preexisting_user_units_archived",
+        "preexisting_activation_files_archived"
+      ],
+      "rollback_ref": "RB-01",
+      "failure_action": "rollback"
+    },
+    {
+      "id": "default_off_staging",
+      "mutates": true,
+      "required_evidence": [
+        "assets_match_approved_hash_manifest",
+        "units_installed_not_enabled_not_started",
+        "activation_markers_absent",
+        "containers_absent",
+        "loopback_ports_still_free"
+      ],
+      "rollback_ref": "RB-02",
+      "failure_action": "rollback"
+    },
+    {
+      "id": "scoped_secret_creation",
+      "mutates": true,
+      "required_evidence": [
+        "token_id_captured_without_token_value",
+        "token_scope_exact_observability_read",
+        "secret_files_mode_0600",
+        "grafana_admin_password_generated",
+        "environment_file_mode_0600"
+      ],
+      "rollback_ref": "RB-03",
+      "failure_action": "rollback"
+    },
+    {
+      "id": "staged_validation",
+      "mutates": false,
+      "required_evidence": [
+        "promtool_config_green",
+        "promtool_rules_green",
+        "promtool_alert_tests_green",
+        "prometheus_compose_config_green",
+        "grafana_compose_config_green",
+        "no_secret_in_rendered_config",
+        "no_public_binding_in_rendered_config"
+      ],
+      "rollback_ref": "RB-03",
+      "failure_action": "rollback"
+    },
+    {
+      "id": "private_activation",
+      "mutates": true,
+      "required_evidence": [
+        "prometheus_marker_created",
+        "prometheus_unit_started",
+        "grafana_marker_created",
+        "grafana_unit_started",
+        "only_loopback_listeners_present"
+      ],
+      "rollback_ref": "RB-04",
+      "failure_action": "rollback"
+    },
+    {
+      "id": "functional_verification",
+      "mutates": false,
+      "required_evidence": [
+        "prometheus_healthy",
+        "grafana_healthy",
+        "target_up",
+        "bearer_scope_exact",
+        "six_dashboard_uids_present",
+        "twelve_alert_rules_loaded",
+        "no_dropped_samples",
+        "odysseus_health_unchanged"
+      ],
+      "rollback_ref": "RB-04",
+      "failure_action": "rollback"
+    },
+    {
+      "id": "bounded_soak",
+      "mutates": false,
+      "duration_hours": {
+        "minimum": 12,
+        "maximum": 24
+      },
+      "sample_interval_seconds": 15,
+      "required_evidence": [
+        "target_up_throughout",
+        "no_critical_alerts",
+        "no_sample_drops",
+        "retention_growth_bounded",
+        "odysseus_health_unchanged",
+        "resource_budget_green",
+        "volume_exports_created"
+      ],
+      "rollback_ref": "RB-04",
+      "failure_action": "rollback"
+    },
+    {
+      "id": "finalize_or_rollback",
+      "mutates": true,
+      "required_evidence": [
+        "single_final_verdict",
+        "redacted_evidence_complete",
+        "secret_values_absent",
+        "rollback_verified_if_not_go"
+      ],
+      "rollback_ref": "RB-ALL",
+      "failure_action": "rollback"
+    }
+  ],
+  "rollback": {
+    "automatic_triggers": [
+      "public_listener_detected",
+      "odysseus_health_regressed",
+      "prometheus_target_down_for_two_minutes",
+      "critical_memory_alert_firing",
+      "metrics_samples_dropped",
+      "resource_budget_exceeded",
+      "secret_or_private_value_in_evidence",
+      "soak_interrupted_or_incomplete"
+    ],
+    "ordered_steps": [
+      "remove_activation_markers",
+      "stop_grafana_user_unit",
+      "stop_prometheus_user_unit",
+      "verify_loopback_ports_closed",
+      "revoke_scoped_api_token_by_recorded_id",
+      "remove_untracked_secret_and_environment_files",
+      "restore_or_remove_staged_user_units",
+      "daemon_reload_user_systemd",
+      "verify_odysseus_health_unchanged",
+      "retain_versioned_volumes_for_forensics"
+    ],
+    "volume_policy": "retain_unless_separately_approved_for_destruction",
+    "odysseus_restart": false
+  },
+  "evidence_policy": {
+    "allowed": [
+      "timestamps",
+      "boolean_gates",
+      "versions",
+      "commit_hash",
+      "token_id",
+      "container_names",
+      "dashboard_uids",
+      "alert_names",
+      "counts",
+      "durations",
+      "resource_totals",
+      "file_hashes"
+    ],
+    "forbidden": [
+      "token_value",
+      "password_value",
+      "cookie",
+      "private_key",
+      "query_text",
+      "prompt_text",
+      "source_name",
+      "vault_id",
+      "private_path",
+      "raw_metric_payload",
+      "raw_log_content"
+    ]
+  }
+}

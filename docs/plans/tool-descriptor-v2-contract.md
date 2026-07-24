@@ -1,121 +1,114 @@
 # Tool Descriptor V2 Contract
 
-Status: repository contract, implemented by TAX1, not product-activated
-Schema: `odysseus.tool_descriptor.v2`
+Status: repository contract implemented for TAX1 on 2026-07-17; productive
+catalog projection and activation remain disabled until their later slices.
+
+Contract ID: `odysseus.tool_descriptor.v2`
 
 ## Purpose
 
-Descriptor V2 gives built-in, plugin, MCP, provider, legacy, and dynamic tools
-one deterministic identity and policy vocabulary. It does not register a tool,
-grant a permission, expose a schema to a model, or enable the Catalog V2 read
-path. Runtime projections and activation remain later TAX slices.
+`ToolDescriptorV2` in `src/tool_catalog.py` is the normalization contract for
+built-in, plugin, MCP, provider and legacy tool identities. It does not replace
+the dynamic adapter in `src/tool_registry.py`, execute tools, discover live MCP
+servers or activate any catalog projection.
 
-## Fields
-
-Every descriptor is an immutable value with these fields:
-
-| Field | Contract |
-| --- | --- |
-| `schema_version` | Exactly `odysseus.tool_descriptor.v2`. |
-| `tool_id` | Canonical runtime ID; safely normalized and unique in an index. |
-| `analytics_id` | Pre-normalized lowercase hyphenated slug; immutable and unique in an index. Aliases resolve to this same identity. |
-| `display_name`, `description` | Static human-facing text. Neither is included in audit serialization. |
-| `family` | One controlled `ToolFamily` value. |
-| `source` | One controlled `ToolSource` value. |
-| `lifecycle` | One controlled `ToolLifecycle` value. |
-| `availability` | One controlled `ToolAvailability` value. |
-| `default_enabled` | Strict boolean. Deferred, experimental, deprecated, blocked, unavailable, and hidden tools cannot start enabled. |
-| `default_visibility` | Existing controlled `ToolVisibility` value, independent of registration and availability. |
-| `risk_level` | Existing controlled `ToolRiskLevel` value. |
-| `permission` | One controlled `ToolPermission` value. This metadata never bypasses runtime enforcement. |
-| `effect_class` | One controlled `ToolEffectClass` value. External-write and destructive effects require confirmation. |
-| `requires_confirmation` | Strict boolean. Dangerous tools also require confirmation. |
-| `schema_ref`, `handler_ref`, `prompt_ref` | Optional static projection references. TAX2 validates catalog-wide projection completeness and uniqueness. |
-| `aliases` | Sorted canonical runtime IDs; cannot repeat their own canonical ID or collide anywhere in a descriptor index. |
-| `feature_flag` | Optional static rollout reference. Its presence does not activate the feature. |
-| `introduced_in`, `deprecated_in` | Static lifecycle history. `deprecated_in` is required only for deprecated descriptors. |
+The contract keeps registration, technical availability, default enablement,
+UI/prompt visibility and per-call confirmation separate. A registered tool can
+therefore remain unavailable, disabled or hidden without being represented as a
+second identity.
 
 ## Controlled Values
 
-Families:
+| Field | Values |
+| --- | --- |
+| `family` | `code_filesystem`, `search_web`, `knowledge_memory`, `documents_media`, `model_ops`, `projects_repositories`, `orchestration_sessions`, `planning_communication`, `admin_system`, `plugins_mcp`, `external_providers`, `experimental`, internal fail-closed `unclassified_dynamic` |
+| `source` | `builtin`, `plugin`, `mcp`, `provider`, `legacy` |
+| `lifecycle` | `active`, `contextual`, `deferred`, `experimental`, `deprecated`, `blocked` |
+| `availability` | `available`, `unavailable`, `not_configured`, `disabled`, `degraded` |
+| `risk_level` | `safe`, `elevated`, `dangerous` |
+| `permission` | `public`, `user`, `owner`, `admin`, `system` |
+| `effect_class` | `read`, `local_write`, `external_write`, `destructive`, `control` |
+| `default_visibility` | `visible`, `hidden`, `blocked`, `requires_approval`, `unavailable` |
 
-`code_filesystem`, `search_web`, `knowledge_memory`, `documents_media`,
-`model_ops`, `projects_repositories`, `orchestration_sessions`,
-`planning_communication`, `admin_system`, `plugins_mcp`,
-`external_providers`, `experimental`, `unclassified_dynamic`.
+No `Other`, arbitrary family, guessed permission or unknown risk string is
+accepted. Plugin, MCP and provider descriptors require a redacted stable
+`source_id`; built-ins cannot persist one.
 
-Sources:
+## Identity And Alias Invariants
 
-`builtin`, `plugin`, `mcp`, `provider`, `legacy`, `dynamic`.
+- `tool_id`, `analytics_id` and aliases are exact lowercase technical IDs. The
+  normalizer rejects unsafe or silently changed values.
+- A frozen descriptor never rewrites `analytics_id` during lifecycle changes.
+- `ToolDescriptorCatalogV2` rejects duplicate canonical IDs, duplicate
+  analytics IDs, aliases shared by two descriptors and aliases colliding with
+  any canonical ID.
+- Alias lookup resolves directly to one canonical descriptor. Alias chains and
+  cycles cannot enter the catalog.
+- Versions use a machine-readable `major.minor[.patch|.x]` form.
 
-Lifecycle:
+## Availability, Lifecycle And Effects
 
-`active`, `contextual`, `deferred`, `experimental`, `deprecated`, `blocked`.
+- Non-available descriptors carry a content-free reason code and default
+  disabled. Available descriptors carry no unavailable reason.
+- `deferred`, `experimental`, `deprecated` and `blocked` default disabled.
+- Deferred, experimental and deprecated descriptors cannot default visible;
+  blocked descriptors use `blocked` or `unavailable` visibility.
+- External-write and destructive effects always require per-call confirmation.
+- Active and contextual descriptors require a prompt/index reference.
+- Native Function tools require one `schema_ref`. A non-native projection has
+  no schema reference and must name a content-free exception reason.
+- Lifecycle transitions use the allowlist in `src/tool_catalog.py`.
+  `deprecated -> blocked` is terminal; a blocked identity cannot silently
+  return to active.
 
-Availability:
+These descriptor checks complement, but never replace, runtime owner, role,
+policy and confirmation enforcement.
 
-`available`, `unavailable`, `unconfigured`, `disabled`, `blocked`, `unknown`.
+## Conservative Dynamic Default
 
-Effects:
+`ToolDescriptorV2.conservative_dynamic(...)` creates an unclassified plugin,
+MCP or provider descriptor as:
 
-`read`, `local_write`, `external_write`, `destructive`, `control`.
+- `family=unclassified_dynamic`;
+- `lifecycle=experimental` and `availability=unavailable`;
+- default disabled and unavailable in projections;
+- dangerous, admin-only and confirmation-required.
 
-Permissions:
+Classification and activation therefore require an explicit later catalog
+decision. Discovery alone grants no execution authority.
 
-`public`, `owner`, `admin`, `system`.
+## V1 Migration
 
-Risk and visibility retain their existing controlled values:
+`ToolDescriptorV2.from_v1_manifest(...)` and
+`ToolDescriptorCatalogV2.from_v1_manifests(...)` provide a deterministic,
+side-effect-free read path for existing `ToolManifest` objects or their compact
+mappings. The adapter:
 
-- risk: `safe`, `elevated`, `dangerous`;
-- visibility: `visible`, `hidden`, `blocked`, `requires_approval`, `unavailable`.
+- maps every known v1 family to a controlled v2 family and rejects unknown
+  families;
+- preserves the tool ID as its initial analytics ID;
+- derives effect and conservative permission from v1 capability/risk metadata;
+- keeps v1 visibility distinct from lifecycle and enablement;
+- binds only content-free schema, handler and prompt references.
 
-No free-form fallback such as `Other` is valid. An unreviewed dynamic tool uses
-`unclassified_dynamic` and the conservative contract below.
+The adapter does not import runtime registries, inspect credentials or enable a
+tool. TAX2 owns the later canonical built-in dataset and projections.
 
-## Fail-Closed Policy
+## Safe Audit Serialization
 
-- Unknown enum values, unsafe IDs, non-boolean policy flags, and self-aliases
-  are rejected.
-- An enabled descriptor must be available, visible or approval-gated, and have
-  an active or contextual lifecycle.
-- Dangerous, external-write, and destructive descriptors require confirmation.
-- Deprecated descriptors require lifecycle metadata and cannot return to an
-  active lifecycle. Blocked descriptors cannot leave blocked.
-- An index rejects duplicate canonical IDs, analytics IDs, aliases, and aliases
-  that shadow a canonical ID.
-- The immutable descriptor and collision checks prevent an alias from creating
-  a second analytics identity.
+`audit_dict()` and `audit_json()` are deterministic and expose only normalized
+descriptor metadata. They explicitly emit:
 
-## Dynamic And Legacy Reads
+```json
+{
+  "arguments_visible": false,
+  "callable_visible": false,
+  "raw_content_visible": false,
+  "secret_value_visible": false
+}
+```
 
-An unknown dynamic tool is represented as `unclassified_dynamic`, source
-`dynamic`, lifecycle `blocked`, availability `unknown`, hidden, default-off,
-elevated risk, admin-only, control effect, and confirmation-required. This is a
-diagnostic state, not an activation route.
-
-A V1 `ToolManifest` is deterministically readable as V2. Its legacy family,
-capabilities, visibility, risk, and schema reference map to controlled values;
-the result remains default-off and uses source `legacy`. This is a compatibility
-read only. It does not mutate V1 data or enable Catalog V2.
-
-## Audit Serialization
-
-`audit_summary()` contains only stable IDs, controlled policy values, static
-references, lifecycle metadata, and aggregate flags. It omits display text and
-descriptions and explicitly reports:
-
-- `raw_content_visible=false`;
-- `callable_visible=false`;
-- `tool_arguments_visible=false`;
-- `tool_results_visible=false`;
-- `secret_values_visible=false`.
-
-No callables, raw schemas, arguments, results, prompts, tokens, credentials,
-provider responses, private paths, or document contents belong in the
-descriptor audit contract.
-
-## Activation Boundary
-
-TAX1 defines and tests a repository-only contract. Feature activation, runtime
-projection changes, capture, backfill, provider writes, deployment, and service
-restart remain disabled and out of scope.
+Descriptor text rejects callable values, secret-assignment patterns and private
+host paths. References accept only bounded content-free identifiers; no schema
+arguments, tool results, provider output, credentials or raw prompts are
+serialized.

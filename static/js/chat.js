@@ -16,6 +16,7 @@ import { svgifyEmoji } from './markdown.js';
 import spinnerModule from './spinner.js';
 import presetsModule from './presets.js';
 import fileHandlerModule from './fileHandler.js';
+import { stampToolNodeFinish, stampToolNodeStart, updateAgentToolSummary } from './agentToolSummary.js';
 import searchModule from './search.js';
 import documentModule from './document.js';
 import * as emailInbox from './emailInbox.js';
@@ -2116,10 +2117,12 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                 const toolIcon = _toolIcons[json.tool.toLowerCase()] || '\u25B6';
                 const node = document.createElement('div')
                 node.className = 'agent-thread-node running';
+                stampToolNodeStart(node, toolLabel);
                 const cmdHtml = cmd ? `<pre class="agent-thread-cmd">${esc(cmd)}</pre>` : '';
                 node.innerHTML = `<div class="agent-thread-dot"></div><div class="agent-thread-header"><span class="agent-thread-icon">${toolIcon}</span><span class="agent-thread-tool">${esc(toolLabel)}</span><span class="agent-thread-wave">▁▂▃</span></div><div class="agent-thread-content">${cmdHtml}</div>`;
                 // Expand/collapse via delegated click handler (init at module bottom).
                 threadWrap.appendChild(node);
+                updateAgentToolSummary(threadWrap);
                 currentToolBubble = node;
                 // Animate the wave
                 const waveEl = node.querySelector('.agent-thread-wave');
@@ -2175,6 +2178,7 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                   tailEl.textContent = tailStr;
                   tailEl.scrollTop = tailEl.scrollHeight;
                 }
+                updateAgentToolSummary(currentToolBubble.closest('.agent-thread'));
                 uiModule.scrollHistory();
 
               } else if (json.type === 'tool_output') {
@@ -2231,6 +2235,8 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                   const _wasOpen = currentToolBubble.classList.contains('open');
                   currentToolBubble.className = 'agent-thread-node' + (ok ? '' : ' error') + (_wasOpen ? ' open' : '');
                   currentToolBubble.innerHTML = `<div class="agent-thread-dot"></div><div class="agent-thread-header"><span class="agent-thread-icon">${ok ? '\u2713' : '\u2717'}</span><span class="agent-thread-tool">${esc(json.tool)}</span><span class="agent-thread-status">${ok ? 'done' : 'failed'}</span><span class="agent-thread-chevron">\u25B6</span></div><div class="agent-thread-content">${cmdHtml2}${outHtml}${diffHtml}</div>`;
+                  stampToolNodeFinish(currentToolBubble, json.tool, ok);
+                  updateAgentToolSummary(currentToolBubble.closest('.agent-thread'));
                   // Reset so thinking spinner between tools says "Thinking" not the old tool's label
                   _lastToolName = '';
                   uiModule.scrollHistory();
@@ -2343,145 +2349,6 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
                 _removeThinkingSpinner();
                 chatRenderer.renderAskUserCard(json.data || {});
                 continue;
-                const _aq = json.data || {};
-                const _opts = Array.isArray(_aq.options) ? _aq.options : [];
-                if (_aq.question && _opts.length) {
-                  const chatBox = document.getElementById('chat-history');
-                  // Drop any prior unanswered card so only the latest shows.
-                  chatBox.querySelectorAll('.ask-user-card').forEach(n => n.remove());
-                  const card = document.createElement('div');
-                  card.className = 'ask-user-card';
-                  const multi = !!_aq.multi;
-                  // Group the choices for assistive tech and label the group with
-                  // the question (set below); make the card focusable so it can be
-                  // moved to when it appears.
-                  card.setAttribute('role', 'group');
-                  card.tabIndex = -1;
-                  // Render any emoji in agent-supplied text through the app's
-                  // pipeline: escape, then svgify to monochrome theme-tinted
-                  // glyphs (project rule: never colorful emoji; respects the
-                  // "Text-only Emojis" setting like the rest of the chat).
-                  const _emo = (s) => svgifyEmoji(uiModule.esc(String(s)));
-
-                  // Header row holds the close (×) to dismiss the affordances and
-                  // just type a reply instead.
-                  const head = document.createElement('div');
-                  head.className = 'ask-user-head';
-                  const closeBtn = document.createElement('button');
-                  closeBtn.type = 'button';
-                  closeBtn.className = 'modal-close ask-user-close';
-                  closeBtn.setAttribute('aria-label', 'Dismiss question');
-                  closeBtn.textContent = '×';
-                  closeBtn.addEventListener('click', () => {
-                    card.remove();
-                    const mi = uiModule.el('message');
-                    if (mi) mi.focus();
-                  });
-                  head.appendChild(closeBtn);
-                  card.appendChild(head);
-
-                  // Render the question inside the card so it's self-contained:
-                  // some models call ask_user without first narrating the question
-                  // as assistant text, in which case the card would otherwise show
-                  // bare options with no prompt.
-                  if (_aq.question) {
-                    const q = document.createElement('div');
-                    q.className = 'ask-user-question';
-                    q.id = `ask-user-q-${Date.now()}-${Math.floor(Math.random() * 1e4)}`;
-                    q.innerHTML = _emo(_aq.question);
-                    card.appendChild(q);
-                    // Label the choice group with the question for screen readers.
-                    card.setAttribute('aria-labelledby', q.id);
-                  } else {
-                    card.setAttribute('aria-label', 'Question from the assistant');
-                  }
-
-                  const list = document.createElement('div');
-                  list.className = 'ask-user-options';
-                  card.appendChild(list);
-
-                  const _send = (text) => {
-                    if (!text) return;
-                    // Remove the card once answered — the choice is sent as a
-                    // normal user message (and the question persists as the
-                    // assistant text above), so the affordances are spent.
-                    card.remove();
-                    const mi = uiModule.el('message');
-                    if (mi) mi.value = text;
-                    const sb = document.querySelector('.send-btn');
-                    if (sb) sb.click();
-                  };
-
-                  _opts.forEach((opt, i) => {
-                    const label = (opt && opt.label) ? String(opt.label) : String(opt || '');
-                    if (!label) return;
-                    const descr = (opt && opt.description) ? String(opt.description) : '';
-                    const row = document.createElement(multi ? 'label' : 'button');
-                    row.className = 'ask-user-option';
-                    if (multi) {
-                      const cb = document.createElement('input');
-                      cb.type = 'checkbox';
-                      cb.value = label;
-                      row.appendChild(cb);
-                    }
-                    const txt = document.createElement('span');
-                    txt.className = 'ask-user-option-label';
-                    txt.innerHTML = _emo(label);
-                    row.appendChild(txt);
-                    if (descr) {
-                      const d = document.createElement('span');
-                      d.className = 'ask-user-option-desc';
-                      d.innerHTML = _emo(descr);
-                      row.appendChild(d);
-                    }
-                    if (!multi) {
-                      row.type = 'button';
-                      row.addEventListener('click', () => _send(label));
-                    }
-                    list.appendChild(row);
-                  });
-
-                  // Free-text "Other" — type a custom answer + send (Enter or →).
-                  const other = document.createElement('div');
-                  other.className = 'ask-user-other';
-                  const otherInput = document.createElement('input');
-                  otherInput.type = 'text';
-                  otherInput.className = 'styled-prompt-input ask-user-other-input';
-                  otherInput.placeholder = multi ? 'Other (added to selection)…' : 'Other… (type your own answer)';
-                  otherInput.setAttribute('aria-label', multi ? 'Add a custom option' : 'Type a custom answer');
-                  const otherSend = document.createElement('button');
-                  otherSend.type = 'button';
-                  otherSend.className = 'confirm-btn confirm-btn-primary ask-user-other-send';
-                  otherSend.setAttribute('aria-label', 'Send answer');
-                  otherSend.textContent = multi ? 'Send selection' : 'Send';
-                  const _submit = () => {
-                    const free = otherInput.value.trim();
-                    if (multi) {
-                      const picked = Array.from(card.querySelectorAll('.ask-user-option input:checked')).map(c => c.value);
-                      if (free) picked.push(free);
-                      if (picked.length) _send(picked.join(', '));
-                    } else if (free) {
-                      _send(free);
-                    }
-                  };
-                  otherSend.addEventListener('click', _submit);
-                  otherInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-                      e.preventDefault();
-                      _submit();
-                    }
-                  });
-                  other.appendChild(otherInput);
-                  other.appendChild(otherSend);
-                  card.appendChild(other);
-
-                  chatBox.appendChild(card);
-                  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                  // Move focus to the card so keyboard/screen-reader users land on
-                  // the question + choices when it appears.
-                  try { card.focus(); } catch (_) {}
-                }
-
               } else if (json.type === 'plan_update') {
                 if (_isBg) continue;
                 // Agent wrote back to the plan (ticked a step / revised). Update

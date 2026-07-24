@@ -90,6 +90,13 @@ output.txt.txt
 # Reports and temp files
 .pytest_cache/
 .pytest-tmp-*/
+/.pytest_tmp_*/
+/.gmi[0-9]*/
+/.tua[0-9]*/
+/.t_pvf*/
+/.tmp/
+/test-tmp-*/
+/test-results/
 backups/
 reports/
 tasks/

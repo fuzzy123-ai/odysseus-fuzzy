@@ -322,58 +322,54 @@ const projectSamples = [
 
 const planningRoadmapDemo = {
   title: 'Agent Autonomy Extensions Master Roadmap',
-  subtitle: 'Selected JSON master roadmap. The spine reads left to right, branches show dependent work, and gates block or release the next roadmap.',
+  subtitle: 'Selected JSON master roadmap. The spine reads left to right, branches show dependent capability tracks, and gates release the next roadmap.',
   source: 'agent-autonomy-extensions-master-roadmap.json',
   schema: 'schema_version 1 - kind odysseus.agent_autonomy_extensions_master_roadmap - status done - updated 2026-07-02',
   fromVersion: 'v0.1',
   toVersion: 'v0.2',
-  canvas: { width: 1640, height: 620 },
+  canvas: { width: 1360, height: 560 },
   nodes: [
-    { id: 'v0.1', title: 'Version 0.1', state: 'done', kind: 'version', x: 72, y: 318 },
-    { id: 'AAE-1', title: 'Telegram Task Orchestrator', state: 'done', kind: 'roadmap', x: 205, y: 318 },
-    { id: 'G-1', title: 'Scope approved', state: 'done', kind: 'gate', x: 302, y: 318, affects: ['AAE-1', 'AAE-2'], label: 'Scope approved. Target and limits are clear, so the next roadmap can start.' },
-    { id: 'AAE-2', title: 'Website Research Pipeline', state: 'done', kind: 'roadmap', x: 400, y: 318 },
-    { id: 'G-2', title: 'Memory policy', state: 'done', kind: 'gate', x: 505, y: 318, affects: ['AAE-2', 'AAE-3', 'AAE-6', 'Evidence'], label: 'Memory policy passed. Reviewed research may be saved to memory.' },
-    { id: 'AAE-3', title: 'Browser DevTools Understanding', state: 'done', kind: 'roadmap', x: 610, y: 318 },
-    { id: 'AAE-6', title: 'Memory and RaptorGraph Commit', state: 'done', kind: 'roadmap', x: 620, y: 172 },
-    { id: 'Evidence', title: 'Telegram, sandbox, memory smoke', state: 'done', kind: 'roadmap', x: 820, y: 172 },
-    { id: 'G-3', title: 'Sandbox gate', state: 'blocked', kind: 'gate', x: 715, y: 438, affects: ['AAE-3', 'AAE-5', 'AAE-4'], label: 'Sandbox gate blocked. Safe execution is not proven yet, so this path must wait.' },
-    { id: 'AAE-5', title: 'Sandbox Code Execution', state: 'blocked', kind: 'roadmap', x: 850, y: 438 },
-    { id: 'AAE-4', title: 'No-GPU Visual Observer', state: 'future', kind: 'roadmap', x: 935, y: 318 },
-    { id: 'v0.2', title: 'Version 0.2', state: 'future', kind: 'version', x: 1110, y: 318 },
-    { id: '0.2-A', title: 'Planning MCP', state: 'working', kind: 'roadmap', x: 1275, y: 318 },
-    { id: '0.2-B', title: 'Roadmap Runner UI', state: 'future', kind: 'roadmap', x: 1440, y: 226 },
-    { id: '0.2-C', title: 'Context Notifications', state: 'future', kind: 'roadmap', x: 1440, y: 410 }
+    { id: 'v0.1', title: 'Version 0.1', state: 'done', kind: 'version', x: 70, y: 292 },
+    { id: 'AAE-1', title: 'Telegram Task Orchestrator', state: 'done', kind: 'roadmap', x: 220, y: 292 },
+    { id: 'G-WEB', title: 'Live web approved', state: 'done', kind: 'gate', x: 350, y: 292, affects: ['AAE-1', 'AAE-2', 'AAE-3', 'AAE-4'], label: 'Live web target approved. Domain, crawl depth, page cap, rate limit and login handling are bounded.' },
+    { id: 'AAE-2', title: 'Website Research Pipeline', state: 'done', kind: 'roadmap', x: 480, y: 292 },
+    { id: 'G-MEM', title: 'Memory policy passed', state: 'done', kind: 'gate', x: 610, y: 176, affects: ['AAE-2', 'AAE-6'], label: 'Memory write policy passed. Reviewed research abstractions may become source-linked Memory and RaptorGraph entries.' },
+    { id: 'AAE-6', title: 'Memory And RaptorGraph Knowledge Commit', state: 'done', kind: 'roadmap', x: 760, y: 176 },
+    { id: 'AAE-3', title: 'Browser DevTools Understanding', state: 'done', kind: 'roadmap', x: 740, y: 292 },
+    { id: 'AAE-4', title: 'No-GPU Visual Observer', state: 'done', kind: 'roadmap', x: 980, y: 292 },
+    { id: 'G-SANDBOX', title: 'Sandbox live go', state: 'done', kind: 'gate', x: 350, y: 426, affects: ['AAE-1', 'AAE-5'], label: 'Sandbox execution live go passed. Disposable Podman jobs are allowed with resource limits, scoped mounts and redacted artifacts.' },
+    { id: 'AAE-5', title: 'Sandbox Code Execution', state: 'done', kind: 'roadmap', x: 610, y: 426 },
+    { id: 'G-EVIDENCE', title: 'Evidence verified', state: 'done', kind: 'gate', x: 1125, y: 292, affects: ['AAE-4', 'AAE-5', 'AAE-6', 'v0.2'], label: 'Evidence verified. Telegram, browser, sandbox and Memory/RaptorGraph smoke evidence is recorded without raw private content.' },
+    { id: 'v0.2', title: 'Version 0.2', state: 'done', kind: 'version', x: 1260, y: 292 }
   ],
   edges: [
     { from: 'v0.1', to: 'AAE-1', dashed: true },
-    { from: 'AAE-1', to: 'G-1' },
-    { from: 'G-1', to: 'AAE-2' },
-    { from: 'AAE-2', to: 'G-2' },
-    { from: 'G-2', to: 'AAE-3' },
-    { from: 'G-2', to: 'AAE-6' },
-    { from: 'G-2', to: 'Evidence' },
-    { from: 'AAE-3', to: 'G-3', targetState: 'blocked' },
-    { from: 'G-3', to: 'AAE-5', targetState: 'blocked' },
-    { from: 'AAE-3', to: 'AAE-4', targetState: 'future' },
-    { from: 'AAE-4', to: 'v0.2', targetState: 'future', arrow: true },
-    { from: 'v0.2', to: '0.2-A', targetState: 'working' },
-    { from: '0.2-A', to: '0.2-B', targetState: 'future' },
-    { from: '0.2-A', to: '0.2-C', targetState: 'future' }
+    { from: 'AAE-1', to: 'G-WEB' },
+    { from: 'G-WEB', to: 'AAE-2' },
+    { from: 'AAE-2', to: 'AAE-3' },
+    { from: 'AAE-3', to: 'AAE-4' },
+    { from: 'AAE-2', to: 'G-MEM' },
+    { from: 'G-MEM', to: 'AAE-6' },
+    { from: 'AAE-1', to: 'G-SANDBOX' },
+    { from: 'G-SANDBOX', to: 'AAE-5' },
+    { from: 'AAE-4', to: 'G-EVIDENCE' },
+    { from: 'AAE-6', to: 'G-EVIDENCE' },
+    { from: 'AAE-5', to: 'G-EVIDENCE' },
+    { from: 'G-EVIDENCE', to: 'v0.2', arrow: true }
   ],
   gates: [
-    { id: 'live-web-target-approval', state: 'done', x: 205, y: 318, label: 'done. Target, crawl caps and live web bounds were approved.' },
-    { id: 'memory-write-policy', state: 'done', x: 382, y: 318, label: 'done. Reviewed knowledge writes are allowed by policy.' },
-    { id: 'sandbox-execution-live-go', state: 'done', x: 720, y: 318, label: 'done. Disposable sandbox jobs are allowed with resource limits.' }
+    { id: 'live-web-target-approval', state: 'done', x: 350, y: 292, label: 'done. Target, crawl caps and live web bounds were approved.' },
+    { id: 'memory-write-policy', state: 'done', x: 610, y: 176, label: 'done. Reviewed knowledge writes are allowed by policy.' },
+    { id: 'sandbox-execution-live-go', state: 'done', x: 350, y: 426, label: 'done. Disposable sandbox jobs are allowed with resource limits.' },
+    { id: 'live-evidence-verified', state: 'done', x: 1125, y: 292, label: 'done. Live smoke evidence is recorded and redacted.' }
   ],
   rows: [
     ['AAE-1', 'Telegram Task Orchestrator', 'Starts, pauses, queries and reports long-running bounded agent tasks through Telegram.', 'done'],
     ['AAE-2', 'Website Research Pipeline', 'Approved site scopes, crawl caps, source inventory, gaps and redacted synthesis.', 'done'],
     ['AAE-3', 'Browser DevTools Understanding', 'Console, network, DOM, accessibility tree, storage metadata and failed request evidence.', 'done'],
     ['AAE-4', 'No-GPU Visual Observer', 'Software-rendered screenshots, frame sampling and diff evidence without GPU dependency.', 'done'],
-    ['AAE-5', 'Sandbox Code Execution', 'Disposable Podman sandboxes with scoped mounts, resource limits and redacted artifacts.', 'branch done'],
-    ['AAE-6', 'Memory And RaptorGraph Knowledge Commit', 'Source-linked candidates become policy-approved knowledge entries with provenance.', 'branch done'],
-    ['memory-write-policy', 'Gate - memory-write-policy', 'Done. Decides when research abstractions may auto-write versus require review.', 'passed']
+    ['AAE-5', 'Sandbox Code Execution', 'Disposable Podman sandboxes with scoped mounts, resource limits and redacted artifacts.', 'done'],
+    ['AAE-6', 'Memory And RaptorGraph Knowledge Commit', 'Source-linked candidates become policy-approved knowledge entries with provenance.', 'done']
   ]
 };
 

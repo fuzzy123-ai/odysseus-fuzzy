@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from copy import deepcopy
+from dataclasses import dataclass, replace
 from enum import StrEnum
-import os
+import json
 import re
-from types import MappingProxyType
-from typing import Any, Iterable, Mapping
+from typing import Any, ClassVar, Iterable, Mapping
 
 from src.agent_identity import AgentIdentity
 from src.context_capsule import ContextCapsule
@@ -18,22 +18,18 @@ _MAX_SUMMARY_CHARS = 140
 _MAX_SCHEMA_REF_LENGTH = 120
 _NON_SLUG_CHARS_RE = re.compile(r"[^a-z0-9]+")
 _TOOL_ID_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,120}$")
-_STATIC_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,119}$")
-_WINDOWS_ABSOLUTE_REF_RE = re.compile(r"^[A-Za-z]:/")
-CATALOG_V2_FEATURE_FLAG = "tool-catalog-v2"
-CATALOG_V2_ENV = "ODYSSEUS_TOOL_CATALOG_V2_ENABLED"
-CATALOG_V2_DEFAULT_ENABLED = False
-_TRUE_FEATURE_VALUES = frozenset({"1", "true", "yes", "on"})
+_DESCRIPTOR_ID_RE = re.compile(r"^[a-z][a-z0-9_.:-]{0,119}$")
+_REFERENCE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,159}$")
+_VERSION_RE = re.compile(r"^[0-9]+(?:\.(?:[0-9]+|x)){1,2}(?:[-+][A-Za-z0-9.-]+)?$")
+_SECRET_ASSIGNMENT_RE = re.compile(
+    r"(?i)(?:api[_ -]?key|access[_ -]?token|secret|password|credential)\s*[:=]"
+)
+_PRIVATE_PATH_RE = re.compile(r"(?:[A-Za-z]:[\\/]|/home/|/Users/|/root/|\\\\)")
 
-
-def catalog_v2_enabled(environ: Mapping[str, str] | None = None) -> bool:
-    """Return the explicit Catalog-v2 read-path selection, defaulting off."""
-
-    source = os.environ if environ is None else environ
-    raw = source.get(CATALOG_V2_ENV)
-    if raw is None:
-        return CATALOG_V2_DEFAULT_ENABLED
-    return str(raw).strip().casefold() in _TRUE_FEATURE_VALUES
+TOOL_SETTINGS_SCHEMA_VERSION = 1
+TOOL_SETTINGS_SCHEMA_KEY = "tool_settings_schema_version"
+TOOL_SETTINGS_MIGRATION_KEY = "tool_settings_migration"
+TOOL_SETTINGS_QUARANTINE_KEY = "disabled_tools_quarantine"
 
 
 class ToolCatalogError(ValueError):
@@ -76,16 +72,13 @@ class ToolSource(StrEnum):
     MCP = "mcp"
     PROVIDER = "provider"
     LEGACY = "legacy"
-    DYNAMIC = "dynamic"
 
 
-class ToolIdentifierDisposition(StrEnum):
-    """Outcome of resolving a persisted tool identifier during migration."""
-
+class ToolAnalyticsResolution(StrEnum):
     CANONICAL = "canonical"
-    ALIAS = "alias"
-    LEGACY_NON_RUNTIME = "legacy_non_runtime"
-    UNKNOWN = "unknown"
+    HISTORICAL_ALIAS = "historical_alias"
+    SOURCE_BUCKET = "source_bucket"
+    LEGACY_BUCKET = "legacy_bucket"
 
 
 class ToolLifecycle(StrEnum):
@@ -100,10 +93,9 @@ class ToolLifecycle(StrEnum):
 class ToolAvailability(StrEnum):
     AVAILABLE = "available"
     UNAVAILABLE = "unavailable"
-    UNCONFIGURED = "unconfigured"
+    NOT_CONFIGURED = "not_configured"
     DISABLED = "disabled"
-    BLOCKED = "blocked"
-    UNKNOWN = "unknown"
+    DEGRADED = "degraded"
 
 
 class ToolEffectClass(StrEnum):
@@ -116,26 +108,49 @@ class ToolEffectClass(StrEnum):
 
 class ToolPermission(StrEnum):
     PUBLIC = "public"
+    USER = "user"
     OWNER = "owner"
     ADMIN = "admin"
     SYSTEM = "system"
 
 
-LEGACY_NON_RUNTIME_TOOL_IDS: Mapping[str, str] = MappingProxyType(
-    {
-        "manage_rag": "legacy_ui_identifier_without_runtime_tool",
-    }
-)
-
-
-@dataclass(frozen=True, slots=True)
-class ToolIdentifierResolution:
-    """Safe canonicalization result for one persisted tool identifier."""
-
-    supplied_id: str
-    canonical_id: str | None
-    disposition: ToolIdentifierDisposition
-    reason_code: str
+_LIFECYCLE_TRANSITIONS: Mapping[ToolLifecycle, frozenset[ToolLifecycle]] = {
+    ToolLifecycle.ACTIVE: frozenset(
+        {
+            ToolLifecycle.CONTEXTUAL,
+            ToolLifecycle.DEFERRED,
+            ToolLifecycle.DEPRECATED,
+            ToolLifecycle.BLOCKED,
+        }
+    ),
+    ToolLifecycle.CONTEXTUAL: frozenset(
+        {
+            ToolLifecycle.ACTIVE,
+            ToolLifecycle.DEFERRED,
+            ToolLifecycle.DEPRECATED,
+            ToolLifecycle.BLOCKED,
+        }
+    ),
+    ToolLifecycle.DEFERRED: frozenset(
+        {
+            ToolLifecycle.ACTIVE,
+            ToolLifecycle.CONTEXTUAL,
+            ToolLifecycle.DEPRECATED,
+            ToolLifecycle.BLOCKED,
+        }
+    ),
+    ToolLifecycle.EXPERIMENTAL: frozenset(
+        {
+            ToolLifecycle.ACTIVE,
+            ToolLifecycle.CONTEXTUAL,
+            ToolLifecycle.DEFERRED,
+            ToolLifecycle.DEPRECATED,
+            ToolLifecycle.BLOCKED,
+        }
+    ),
+    ToolLifecycle.DEPRECATED: frozenset({ToolLifecycle.BLOCKED}),
+    ToolLifecycle.BLOCKED: frozenset(),
+}
 
 
 def _normalize_slug(value: Any, *, field_name: str) -> str:
@@ -239,618 +254,59 @@ def _normalize_slug_list(values: Iterable[Any], *, field_name: str, allow_empty:
     return tuple(sorted(normalized))
 
 
-def _strict_analytics_id(value: Any) -> str:
-    raw = str(value or "").strip()
-    normalized = _normalize_slug(raw, field_name="analytics_id")
-    if normalized != raw:
-        raise ToolCatalogError("analytics_id must already be a lowercase hyphenated slug")
-    return normalized
-
-
-def _enum_value(enum_type: type[StrEnum], value: Any, *, field_name: str) -> StrEnum:
+def _controlled_enum(enum_type, value: Any, *, field_name: str):
+    if isinstance(value, enum_type):
+        return value
     try:
-        return value if isinstance(value, enum_type) else enum_type(str(value))
-    except ValueError as exc:
-        allowed = ", ".join(item.value for item in enum_type)
-        raise ToolCatalogError(f"{field_name} must be one of: {allowed}") from exc
+        return enum_type(str(value))
+    except (TypeError, ValueError) as exc:
+        raise ToolCatalogError(f"{field_name} is not a controlled value") from exc
 
 
-def _strict_bool(value: Any, *, field_name: str) -> bool:
-    if not isinstance(value, bool):
-        raise ToolCatalogError(f"{field_name} must be a boolean")
-    return value
+def _strict_descriptor_id(value: Any, *, field_name: str) -> str:
+    if callable(value):
+        raise ToolCatalogError(f"{field_name} must not be callable")
+    text = str(value or "")
+    if not text or text != text.strip() or not _DESCRIPTOR_ID_RE.fullmatch(text):
+        raise ToolCatalogError(f"{field_name} must be a stable lowercase technical id")
+    return text
 
 
-def _optional_ref(value: Any, *, field_name: str) -> str | None:
-    if value is None or not str(value).strip():
+def _safe_descriptor_text(value: Any, *, field_name: str, limit: int) -> str:
+    if callable(value):
+        raise ToolCatalogError(f"{field_name} must not be callable")
+    text = " ".join(str(value or "").split())
+    if not text:
+        raise ToolCatalogError(f"{field_name} must not be empty")
+    if len(text) > limit:
+        raise ToolCatalogError(f"{field_name} exceeds max length {limit}")
+    if _SECRET_ASSIGNMENT_RE.search(text) or _PRIVATE_PATH_RE.search(text):
+        raise ToolCatalogError(f"{field_name} contains secret-like or private-path content")
+    return text
+
+
+def _safe_optional_code(value: Any, *, field_name: str) -> str | None:
+    if value is None or value == "":
         return None
-    normalized = _normalize_text(
-        value,
-        field_name=field_name,
-        allow_empty=False,
-        limit=_MAX_SCHEMA_REF_LENGTH,
-    )
-    if (
-        not _STATIC_REF_RE.fullmatch(normalized)
-        or normalized.startswith("/")
-        or _WINDOWS_ABSOLUTE_REF_RE.match(normalized)
-        or "://" in normalized
-    ):
-        raise ToolCatalogError(f"{field_name} must be a static non-absolute reference")
-    return normalized
+    if callable(value):
+        raise ToolCatalogError(f"{field_name} must not be callable")
+    text = str(value)
+    if text != text.strip() or not _REFERENCE_RE.fullmatch(text):
+        raise ToolCatalogError(f"{field_name} must be a content-free reference")
+    return text
 
 
-def _aliases(values: Iterable[Any], *, tool_id: str) -> tuple[str, ...]:
-    aliases = sorted(_normalize_tool_id(value, field_name="alias") for value in values)
-    if len(aliases) != len(set(aliases)):
-        raise ToolCatalogError("aliases must not contain duplicates")
-    if tool_id in aliases:
-        raise ToolCatalogError("aliases must not repeat the canonical tool_id")
-    return tuple(aliases)
-
-
-_DEFAULT_OFF_LIFECYCLES = {
-    ToolLifecycle.DEFERRED,
-    ToolLifecycle.EXPERIMENTAL,
-    ToolLifecycle.DEPRECATED,
-    ToolLifecycle.BLOCKED,
-}
-
-_ALLOWED_LIFECYCLE_TRANSITIONS = {
-    ToolLifecycle.ACTIVE: {
-        ToolLifecycle.ACTIVE,
-        ToolLifecycle.CONTEXTUAL,
-        ToolLifecycle.DEFERRED,
-        ToolLifecycle.DEPRECATED,
-        ToolLifecycle.BLOCKED,
-    },
-    ToolLifecycle.CONTEXTUAL: {
-        ToolLifecycle.ACTIVE,
-        ToolLifecycle.CONTEXTUAL,
-        ToolLifecycle.DEFERRED,
-        ToolLifecycle.DEPRECATED,
-        ToolLifecycle.BLOCKED,
-    },
-    ToolLifecycle.DEFERRED: {
-        ToolLifecycle.ACTIVE,
-        ToolLifecycle.CONTEXTUAL,
-        ToolLifecycle.DEFERRED,
-        ToolLifecycle.DEPRECATED,
-        ToolLifecycle.BLOCKED,
-    },
-    ToolLifecycle.EXPERIMENTAL: {
-        ToolLifecycle.ACTIVE,
-        ToolLifecycle.CONTEXTUAL,
-        ToolLifecycle.DEFERRED,
-        ToolLifecycle.EXPERIMENTAL,
-        ToolLifecycle.DEPRECATED,
-        ToolLifecycle.BLOCKED,
-    },
-    ToolLifecycle.DEPRECATED: {
-        ToolLifecycle.DEPRECATED,
-        ToolLifecycle.BLOCKED,
-    },
-    ToolLifecycle.BLOCKED: {
-        ToolLifecycle.BLOCKED,
-    },
-}
-
-
-def validate_tool_lifecycle_transition(
-    previous: ToolLifecycle | str,
-    next_value: ToolLifecycle | str,
-) -> ToolLifecycle:
-    previous_value = _enum_value(ToolLifecycle, previous, field_name="previous_lifecycle")
-    normalized_next = _enum_value(ToolLifecycle, next_value, field_name="next_lifecycle")
-    if normalized_next not in _ALLOWED_LIFECYCLE_TRANSITIONS[previous_value]:
-        raise ToolCatalogError(
-            f"lifecycle transition {previous_value.value}->{normalized_next.value} is not allowed"
-        )
-    return normalized_next
-
-
-_LEGACY_FAMILY_MAP = {
-    "filesystem": ToolFamily.CODE_FILESYSTEM,
-    "execution": ToolFamily.CODE_FILESYSTEM,
-    "network": ToolFamily.SEARCH_WEB,
-    "knowledge": ToolFamily.KNOWLEDGE_MEMORY,
-    "content": ToolFamily.DOCUMENTS_MEDIA,
-    "email": ToolFamily.PLANNING_COMMUNICATION,
-    "planning": ToolFamily.PLANNING_COMMUNICATION,
-    "orchestration": ToolFamily.ORCHESTRATION_SESSIONS,
-    "admin": ToolFamily.ADMIN_SYSTEM,
-    "mcp": ToolFamily.PLUGINS_MCP,
-    "general": ToolFamily.EXPERIMENTAL,
-}
-
-
-def _effect_from_capabilities(capabilities: Iterable[str]) -> ToolEffectClass:
-    values = set(capabilities)
-    if "destructive" in values:
-        return ToolEffectClass.DESTRUCTIVE
-    if "external-send" in values:
-        return ToolEffectClass.EXTERNAL_WRITE
-    if "write" in values:
-        return ToolEffectClass.LOCAL_WRITE
-    if {"execute", "manage", "schedule"} & values:
-        return ToolEffectClass.CONTROL
-    return ToolEffectClass.READ
-
-
-@dataclass(frozen=True, slots=True)
-class ToolDescriptorV2:
-    schema_version: str
-    tool_id: str
-    analytics_id: str
-    display_name: str
-    description: str
-    family: ToolFamily
-    source: ToolSource
-    lifecycle: ToolLifecycle
-    availability: ToolAvailability
-    default_enabled: bool
-    default_visibility: ToolVisibility
-    risk_level: ToolRiskLevel
-    permission: ToolPermission
-    effect_class: ToolEffectClass
-    requires_confirmation: bool
-    schema_ref: str | None
-    handler_ref: str | None
-    prompt_ref: str | None
-    aliases: tuple[str, ...]
-    feature_flag: str | None
-    introduced_in: str
-    deprecated_in: str | None
-
-    SCHEMA_VERSION = "odysseus.tool_descriptor.v2"
-
-    @classmethod
-    def create(
-        cls,
-        *,
-        tool_id: Any,
-        analytics_id: Any,
-        display_name: Any,
-        description: Any,
-        family: ToolFamily | str,
-        source: ToolSource | str,
-        lifecycle: ToolLifecycle | str,
-        availability: ToolAvailability | str,
-        default_enabled: bool,
-        default_visibility: ToolVisibility | str,
-        risk_level: ToolRiskLevel | str,
-        permission: ToolPermission | str,
-        effect_class: ToolEffectClass | str,
-        requires_confirmation: bool,
-        schema_ref: Any = None,
-        handler_ref: Any = None,
-        prompt_ref: Any = None,
-        aliases: Iterable[Any] = (),
-        feature_flag: Any = None,
-        introduced_in: Any = "unknown",
-        deprecated_in: Any = None,
-    ) -> "ToolDescriptorV2":
-        normalized_tool_id = _normalize_tool_id(tool_id)
-        normalized_lifecycle = _enum_value(ToolLifecycle, lifecycle, field_name="lifecycle")
-        normalized_availability = _enum_value(
-            ToolAvailability,
-            availability,
-            field_name="availability",
-        )
-        normalized_visibility = _enum_value(
-            ToolVisibility,
-            default_visibility,
-            field_name="default_visibility",
-        )
-        normalized_risk = _enum_value(ToolRiskLevel, risk_level, field_name="risk_level")
-        normalized_effect = _enum_value(
-            ToolEffectClass,
-            effect_class,
-            field_name="effect_class",
-        )
-        enabled = _strict_bool(default_enabled, field_name="default_enabled")
-        confirmed = _strict_bool(requires_confirmation, field_name="requires_confirmation")
-
-        if enabled and normalized_lifecycle in _DEFAULT_OFF_LIFECYCLES:
-            raise ToolCatalogError(f"{normalized_lifecycle.value} tools must be default_enabled=false")
-        if enabled and normalized_availability != ToolAvailability.AVAILABLE:
-            raise ToolCatalogError("only available tools may be default_enabled")
-        if enabled and normalized_visibility in {
-            ToolVisibility.HIDDEN,
-            ToolVisibility.BLOCKED,
-            ToolVisibility.UNAVAILABLE,
-        }:
-            raise ToolCatalogError("enabled tools require a visible or approval-gated default visibility")
-        if normalized_risk == ToolRiskLevel.DANGEROUS and not confirmed:
-            raise ToolCatalogError("dangerous tools require confirmation")
-        if normalized_effect in {
-            ToolEffectClass.EXTERNAL_WRITE,
-            ToolEffectClass.DESTRUCTIVE,
-        } and not confirmed:
-            raise ToolCatalogError(f"{normalized_effect.value} tools require confirmation")
-
-        normalized_deprecated_in = _optional_ref(deprecated_in, field_name="deprecated_in")
-        if normalized_lifecycle == ToolLifecycle.DEPRECATED and not normalized_deprecated_in:
-            raise ToolCatalogError("deprecated tools require deprecated_in")
-        if normalized_lifecycle != ToolLifecycle.DEPRECATED and normalized_deprecated_in:
-            raise ToolCatalogError("deprecated_in is only valid for deprecated tools")
-
-        return cls(
-            schema_version=cls.SCHEMA_VERSION,
-            tool_id=normalized_tool_id,
-            analytics_id=_strict_analytics_id(analytics_id),
-            display_name=_normalize_text(
-                display_name,
-                field_name="display_name",
-                allow_empty=False,
-                limit=80,
-            ),
-            description=_normalize_text(
-                description,
-                field_name="description",
-                allow_empty=False,
-                limit=160,
-            ),
-            family=_enum_value(ToolFamily, family, field_name="family"),
-            source=_enum_value(ToolSource, source, field_name="source"),
-            lifecycle=normalized_lifecycle,
-            availability=normalized_availability,
-            default_enabled=enabled,
-            default_visibility=normalized_visibility,
-            risk_level=normalized_risk,
-            permission=_enum_value(ToolPermission, permission, field_name="permission"),
-            effect_class=normalized_effect,
-            requires_confirmation=confirmed,
-            schema_ref=_optional_ref(schema_ref, field_name="schema_ref"),
-            handler_ref=_optional_ref(handler_ref, field_name="handler_ref"),
-            prompt_ref=_optional_ref(prompt_ref, field_name="prompt_ref"),
-            aliases=_aliases(aliases, tool_id=normalized_tool_id),
-            feature_flag=_optional_ref(feature_flag, field_name="feature_flag"),
-            introduced_in=_normalize_text(
-                introduced_in,
-                field_name="introduced_in",
-                allow_empty=False,
-                limit=40,
-            ),
-            deprecated_in=normalized_deprecated_in,
-        )
-
-    @classmethod
-    def conservative_dynamic(
-        cls,
-        *,
-        tool_id: Any,
-        display_name: Any,
-        description: Any,
-    ) -> "ToolDescriptorV2":
-        normalized_tool_id = _normalize_tool_id(tool_id)
-        return cls.create(
-            tool_id=normalized_tool_id,
-            analytics_id=_normalize_slug(normalized_tool_id, field_name="analytics_id"),
-            display_name=display_name,
-            description=description,
-            family=ToolFamily.UNCLASSIFIED_DYNAMIC,
-            source=ToolSource.DYNAMIC,
-            lifecycle=ToolLifecycle.BLOCKED,
-            availability=ToolAvailability.UNKNOWN,
-            default_enabled=False,
-            default_visibility=ToolVisibility.HIDDEN,
-            risk_level=ToolRiskLevel.ELEVATED,
-            permission=ToolPermission.ADMIN,
-            effect_class=ToolEffectClass.CONTROL,
-            requires_confirmation=True,
-            introduced_in="dynamic",
-        )
-
-    @classmethod
-    def from_v1_manifest(
-        cls,
-        manifest: "ToolManifest",
-        *,
-        source: ToolSource | str = ToolSource.LEGACY,
-    ) -> "ToolDescriptorV2":
-        if not isinstance(manifest, ToolManifest):
-            raise ToolCatalogError("manifest must be a ToolManifest")
-        effect = _effect_from_capabilities(manifest.capabilities)
-        availability = (
-            ToolAvailability.UNAVAILABLE
-            if manifest.visibility_state == ToolVisibility.UNAVAILABLE
-            else ToolAvailability.BLOCKED
-            if manifest.visibility_state == ToolVisibility.BLOCKED
-            else ToolAvailability.AVAILABLE
-        )
-        confirmation = manifest.risk_level == ToolRiskLevel.DANGEROUS or effect in {
-            ToolEffectClass.EXTERNAL_WRITE,
-            ToolEffectClass.DESTRUCTIVE,
-        }
-        return cls.create(
-            tool_id=manifest.tool_id,
-            analytics_id=_normalize_slug(manifest.tool_id, field_name="analytics_id"),
-            display_name=manifest.tool_id.replace("_", " ").replace("-", " ").title(),
-            description=manifest.short_description,
-            family=_LEGACY_FAMILY_MAP.get(manifest.family, ToolFamily.EXPERIMENTAL),
-            source=source,
-            lifecycle=ToolLifecycle.CONTEXTUAL,
-            availability=availability,
-            default_enabled=False,
-            default_visibility=manifest.visibility_state,
-            risk_level=manifest.risk_level,
-            permission=(
-                ToolPermission.ADMIN
-                if manifest.risk_level == ToolRiskLevel.DANGEROUS
-                else ToolPermission.OWNER
-            ),
-            effect_class=effect,
-            requires_confirmation=confirmation,
-            schema_ref=manifest.schema_ref,
-            introduced_in="legacy-v1",
-        )
-
-    def audit_summary(self) -> dict[str, Any]:
-        return {
-            "schema_version": self.schema_version,
-            "tool_id": self.tool_id,
-            "analytics_id": self.analytics_id,
-            "family": self.family.value,
-            "source": self.source.value,
-            "lifecycle": self.lifecycle.value,
-            "availability": self.availability.value,
-            "default_enabled": self.default_enabled,
-            "default_visibility": self.default_visibility.value,
-            "risk_level": self.risk_level.value,
-            "permission": self.permission.value,
-            "effect_class": self.effect_class.value,
-            "requires_confirmation": self.requires_confirmation,
-            "schema_ref": self.schema_ref,
-            "handler_ref": self.handler_ref,
-            "prompt_ref": self.prompt_ref,
-            "aliases": self.aliases,
-            "feature_flag": self.feature_flag,
-            "introduced_in": self.introduced_in,
-            "deprecated_in": self.deprecated_in,
-            "raw_content_visible": False,
-            "callable_visible": False,
-            "tool_arguments_visible": False,
-            "tool_results_visible": False,
-            "secret_values_visible": False,
-        }
-
-    def analytics_identity(self) -> "ToolAnalyticsIdentity":
-        """Project this descriptor into the public TAX10 identity contract."""
-
-        return ToolAnalyticsIdentity.from_descriptor(self)
-
-
-@dataclass(frozen=True, slots=True)
-class ToolAnalyticsIdentity:
-    """Content-free public identity consumed by tool-usage analytics."""
-
-    schema_version: str
-    tool_id: str
-    analytics_id: str
-    family: ToolFamily
-    source: ToolSource
-    aliases: tuple[str, ...]
-    retired: bool
-
-    SCHEMA_VERSION = "odysseus.tool_analytics_identity.v1"
-
-    @classmethod
-    def from_descriptor(cls, descriptor: ToolDescriptorV2) -> "ToolAnalyticsIdentity":
-        if not isinstance(descriptor, ToolDescriptorV2):
-            raise ToolCatalogError("analytics identity requires a ToolDescriptorV2")
-        return cls(
-            schema_version=cls.SCHEMA_VERSION,
-            tool_id=descriptor.tool_id,
-            analytics_id=descriptor.analytics_id,
-            family=descriptor.family,
-            source=descriptor.source,
-            aliases=descriptor.aliases,
-            retired=descriptor.lifecycle == ToolLifecycle.DEPRECATED,
-        )
-
-    @property
-    def counting_key(self) -> str:
-        return self.analytics_id
-
-    def to_public_dict(self) -> dict[str, Any]:
-        return {
-            "schema_version": self.schema_version,
-            "tool_id": self.tool_id,
-            "analytics_id": self.analytics_id,
-            "family": self.family.value,
-            "source": self.source.value,
-            "aliases": self.aliases,
-            "retired": self.retired,
-        }
-
-
-@dataclass(frozen=True, slots=True)
-class ToolAnalyticsIdentityIndex:
-    """Versioned identity projection with alias and anti-recycling ledgers."""
-
-    schema_version: str
-    identities: tuple[ToolAnalyticsIdentity, ...]
-    alias_targets: tuple[tuple[str, str], ...]
-    analytics_id_reservations: tuple[tuple[str, str], ...]
-
-    SCHEMA_VERSION = ToolAnalyticsIdentity.SCHEMA_VERSION
-
-    @classmethod
-    def from_descriptor_index(
-        cls,
-        descriptor_index: "ToolDescriptorV2Index",
-        *,
-        historical_reservations: Mapping[Any, Any] | None = None,
-        historical_alias_targets: Mapping[Any, Any] | None = None,
-    ) -> "ToolAnalyticsIdentityIndex":
-        if not isinstance(descriptor_index, ToolDescriptorV2Index):
-            raise ToolCatalogError(
-                "analytics identity index requires a ToolDescriptorV2Index"
-            )
-
-        identities = tuple(
-            descriptor.analytics_identity()
-            for descriptor in descriptor_index.descriptors
-        )
-        by_tool_id = {identity.tool_id: identity for identity in identities}
-        alias_targets: dict[str, str] = {}
-        for alias, tool_id in (historical_alias_targets or {}).items():
-            normalized_alias = _normalize_tool_id(alias, field_name="historical_alias")
-            normalized_tool_id = _normalize_tool_id(
-                tool_id,
-                field_name="historical_alias_target",
-            )
-            if normalized_alias in by_tool_id:
-                raise ToolCatalogError(
-                    "historical alias collides with a canonical tool ID"
-                )
-            if normalized_tool_id not in by_tool_id:
-                raise ToolCatalogError(
-                    "historical alias target must remain a canonical identity"
-                )
-            alias_targets[normalized_alias] = normalized_tool_id
-
-        for alias, tool_id in descriptor_index.alias_targets:
-            historical_target = alias_targets.get(alias)
-            if historical_target is not None and historical_target != tool_id:
-                raise ToolCatalogError(
-                    f"historical alias {alias} is permanently assigned to "
-                    f"{historical_target}"
-                )
-            alias_targets[alias] = tool_id
-
-        reservations: dict[str, str] = {}
-        for analytics_id, tool_id in (historical_reservations or {}).items():
-            normalized_analytics_id = _strict_analytics_id(analytics_id)
-            normalized_tool_id = _normalize_tool_id(
-                tool_id,
-                field_name="reserved_tool_id",
-            )
-            reservations[normalized_analytics_id] = normalized_tool_id
-
-        for identity in identities:
-            reserved_owner = reservations.get(identity.analytics_id)
-            if reserved_owner is not None and reserved_owner != identity.tool_id:
-                raise ToolCatalogError(
-                    f"analytics_id {identity.analytics_id} is permanently reserved "
-                    f"for {reserved_owner}"
-                )
-            # Every published identity is reserved from introduction onward.
-            # Carrying this snapshot forward prevents reuse after deprecation.
-            reservations[identity.analytics_id] = identity.tool_id
-
-        return cls(
-            schema_version=cls.SCHEMA_VERSION,
-            identities=identities,
-            alias_targets=tuple(sorted(alias_targets.items())),
-            analytics_id_reservations=tuple(sorted(reservations.items())),
-        )
-
-    def resolve(self, tool_id_or_alias: Any) -> ToolAnalyticsIdentity | None:
-        value = _normalize_tool_id(
-            tool_id_or_alias,
-            field_name="tool_id_or_alias",
-        )
-        by_tool_id = {identity.tool_id: identity for identity in self.identities}
-        canonical_tool_id = value if value in by_tool_id else dict(
-            self.alias_targets
-        ).get(value)
-        return by_tool_id.get(canonical_tool_id) if canonical_tool_id else None
-
-    def counting_key_for(self, tool_id_or_alias: Any) -> str | None:
-        identity = self.resolve(tool_id_or_alias)
-        return identity.counting_key if identity else None
-
-    def to_public_dict(self) -> dict[str, Any]:
-        return {
-            "schema_version": self.schema_version,
-            "identity_count": len(self.identities),
-            "alias_count": len(self.alias_targets),
-            "identities": tuple(
-                identity.to_public_dict() for identity in self.identities
-            ),
-            "alias_targets": self.alias_targets,
-            "analytics_id_reservations": self.analytics_id_reservations,
-            "raw_content_visible": False,
-            "owner_data_visible": False,
-            "session_data_visible": False,
-            "provider_payload_visible": False,
-            "secret_values_visible": False,
-        }
-
-
-@dataclass(frozen=True, slots=True)
-class ToolDescriptorV2Index:
-    descriptors: tuple[ToolDescriptorV2, ...]
-    alias_targets: tuple[tuple[str, str], ...]
-
-    @classmethod
-    def build(cls, descriptors: Iterable[ToolDescriptorV2]) -> "ToolDescriptorV2Index":
-        values = tuple(descriptors)
-        if any(not isinstance(item, ToolDescriptorV2) for item in values):
-            raise ToolCatalogError("descriptor index accepts ToolDescriptorV2 values only")
-        ordered = tuple(sorted(values, key=lambda item: item.tool_id))
-
-        by_tool_id: dict[str, ToolDescriptorV2] = {}
-        analytics_ids: dict[str, str] = {}
-        for descriptor in ordered:
-            if descriptor.tool_id in by_tool_id:
-                raise ToolCatalogError(f"duplicate tool_id {descriptor.tool_id}")
-            by_tool_id[descriptor.tool_id] = descriptor
-            previous_tool = analytics_ids.get(descriptor.analytics_id)
-            if previous_tool:
-                raise ToolCatalogError(
-                    f"analytics_id {descriptor.analytics_id} collides between "
-                    f"{previous_tool} and {descriptor.tool_id}"
-                )
-            analytics_ids[descriptor.analytics_id] = descriptor.tool_id
-
-        alias_targets: dict[str, str] = {}
-        for descriptor in ordered:
-            for alias in descriptor.aliases:
-                if alias in by_tool_id:
-                    raise ToolCatalogError(f"alias {alias} collides with canonical tool_id")
-                if alias in alias_targets:
-                    raise ToolCatalogError(f"alias {alias} is assigned more than once")
-                alias_targets[alias] = descriptor.tool_id
-        return cls(
-            descriptors=ordered,
-            alias_targets=tuple(sorted(alias_targets.items())),
-        )
-
-    def resolve(self, tool_id_or_alias: Any) -> ToolDescriptorV2 | None:
-        value = _normalize_tool_id(tool_id_or_alias, field_name="tool_id_or_alias")
-        by_tool_id = {item.tool_id: item for item in self.descriptors}
-        if value in by_tool_id:
-            return by_tool_id[value]
-        alias_targets = dict(self.alias_targets)
-        target = alias_targets.get(value)
-        return by_tool_id.get(target) if target else None
-
-    def analytics_identity_contract(
-        self,
-        *,
-        historical_reservations: Mapping[Any, Any] | None = None,
-        historical_alias_targets: Mapping[Any, Any] | None = None,
-    ) -> ToolAnalyticsIdentityIndex:
-        return ToolAnalyticsIdentityIndex.from_descriptor_index(
-            self,
-            historical_reservations=historical_reservations,
-            historical_alias_targets=historical_alias_targets,
-        )
-
-    def audit_summary(self) -> dict[str, Any]:
-        return {
-            "schema_version": ToolDescriptorV2.SCHEMA_VERSION,
-            "descriptor_count": len(self.descriptors),
-            "tool_ids": tuple(item.tool_id for item in self.descriptors),
-            "analytics_ids": tuple(item.analytics_id for item in self.descriptors),
-            "alias_targets": self.alias_targets,
-            "raw_content_visible": False,
-            "callable_visible": False,
-            "secret_values_visible": False,
-        }
+def _version(value: Any, *, field_name: str, required: bool) -> str | None:
+    if value is None or value == "":
+        if required:
+            raise ToolCatalogError(f"{field_name} must not be empty")
+        return None
+    if callable(value):
+        raise ToolCatalogError(f"{field_name} must not be callable")
+    text = str(value)
+    if text != text.strip() or not _VERSION_RE.fullmatch(text):
+        raise ToolCatalogError(f"{field_name} must be a machine-readable version")
+    return text
 
 
 def _budget_for(tool: "ToolDescriptor") -> int:
@@ -988,6 +444,958 @@ class ToolManifest:
             "raw_content_visible": False,
             "token_value_visible": False,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class ToolDescriptorV2:
+    """Canonical, content-free descriptor contract for every tool source."""
+
+    CONTRACT_ID: ClassVar[str] = "odysseus.tool_descriptor.v2"
+
+    tool_id: str
+    analytics_id: str
+    display_name: str
+    description: str
+    family: ToolFamily
+    source: ToolSource
+    source_id: str | None
+    lifecycle: ToolLifecycle
+    availability: ToolAvailability
+    availability_reason: str | None
+    default_enabled: bool
+    default_visibility: ToolVisibility
+    risk_level: ToolRiskLevel
+    permission: ToolPermission
+    effect_class: ToolEffectClass
+    requires_confirmation: bool
+    schema_ref: str | None
+    handler_ref: str
+    prompt_ref: str | None
+    aliases: tuple[str, ...]
+    feature_flag: str | None
+    introduced_in: str
+    deprecated_in: str | None
+    native_schema: bool
+    projection_exception_reason: str | None
+
+    def __post_init__(self) -> None:
+        if _strict_descriptor_id(self.tool_id, field_name="tool_id") != self.tool_id:
+            raise ToolCatalogError("tool_id is not canonical")
+        if _strict_descriptor_id(self.analytics_id, field_name="analytics_id") != self.analytics_id:
+            raise ToolCatalogError("analytics_id is not canonical")
+        if _safe_descriptor_text(self.display_name, field_name="display_name", limit=80) != self.display_name:
+            raise ToolCatalogError("display_name is not canonical")
+        if _safe_descriptor_text(self.description, field_name="description", limit=240) != self.description:
+            raise ToolCatalogError("description is not canonical")
+        for field_name, enum_type in (
+            ("family", ToolFamily),
+            ("source", ToolSource),
+            ("lifecycle", ToolLifecycle),
+            ("availability", ToolAvailability),
+            ("default_visibility", ToolVisibility),
+            ("risk_level", ToolRiskLevel),
+            ("permission", ToolPermission),
+            ("effect_class", ToolEffectClass),
+        ):
+            if not isinstance(getattr(self, field_name), enum_type):
+                raise ToolCatalogError(f"{field_name} must use its controlled enum")
+        for field_name in ("default_enabled", "requires_confirmation", "native_schema"):
+            if not isinstance(getattr(self, field_name), bool):
+                raise ToolCatalogError(f"{field_name} must be boolean")
+
+        normalized_source_id = (
+            _strict_descriptor_id(self.source_id, field_name="source_id")
+            if self.source_id is not None
+            else None
+        )
+        if normalized_source_id != self.source_id:
+            raise ToolCatalogError("source_id is not canonical")
+        if self.source in {ToolSource.PLUGIN, ToolSource.MCP, ToolSource.PROVIDER} and not self.source_id:
+            raise ToolCatalogError("dynamic and provider sources require a redacted source_id")
+        if self.source == ToolSource.BUILTIN and self.source_id is not None:
+            raise ToolCatalogError("builtin sources must not invent a source_id")
+
+        reason = _safe_optional_code(self.availability_reason, field_name="availability_reason")
+        if reason != self.availability_reason:
+            raise ToolCatalogError("availability_reason is not canonical")
+        if self.availability == ToolAvailability.AVAILABLE and self.availability_reason is not None:
+            raise ToolCatalogError("available tools must not carry an unavailable reason")
+        if self.availability != ToolAvailability.AVAILABLE and not self.availability_reason:
+            raise ToolCatalogError("non-available tools require a content-free reason code")
+
+        for field_name in ("schema_ref", "handler_ref", "prompt_ref", "feature_flag", "projection_exception_reason"):
+            normalized = _safe_optional_code(getattr(self, field_name), field_name=field_name)
+            if normalized != getattr(self, field_name):
+                raise ToolCatalogError(f"{field_name} is not canonical")
+        if not self.handler_ref:
+            raise ToolCatalogError("handler_ref must not be empty")
+        if self.lifecycle in {ToolLifecycle.ACTIVE, ToolLifecycle.CONTEXTUAL} and not self.prompt_ref:
+            raise ToolCatalogError("active/contextual tools require a prompt_ref")
+
+        if self.native_schema and not self.schema_ref:
+            raise ToolCatalogError("native-schema tools require a schema_ref")
+        if self.native_schema and self.projection_exception_reason:
+            raise ToolCatalogError("native-schema tools must not carry a projection exception")
+        if not self.native_schema and self.schema_ref:
+            raise ToolCatalogError("non-native tools must not carry a schema_ref")
+        if not self.native_schema and not self.projection_exception_reason:
+            raise ToolCatalogError("non-native tools require a projection exception reason")
+
+        normalized_aliases = tuple(
+            sorted(
+                {
+                    _strict_descriptor_id(alias, field_name="alias")
+                    for alias in self.aliases
+                }
+            )
+        )
+        if normalized_aliases != self.aliases:
+            raise ToolCatalogError("aliases must be unique and sorted")
+        if self.tool_id in self.aliases:
+            raise ToolCatalogError("aliases must not repeat the canonical tool_id")
+
+        introduced = _version(self.introduced_in, field_name="introduced_in", required=True)
+        deprecated = _version(self.deprecated_in, field_name="deprecated_in", required=False)
+        if introduced != self.introduced_in or deprecated != self.deprecated_in:
+            raise ToolCatalogError("version fields are not canonical")
+        if self.lifecycle == ToolLifecycle.DEPRECATED and not self.deprecated_in:
+            raise ToolCatalogError("deprecated tools require deprecated_in")
+        if self.lifecycle not in {ToolLifecycle.DEPRECATED, ToolLifecycle.BLOCKED} and self.deprecated_in:
+            raise ToolCatalogError("only deprecated/blocked tools may carry deprecated_in")
+
+        if self.lifecycle in {
+            ToolLifecycle.DEFERRED,
+            ToolLifecycle.EXPERIMENTAL,
+            ToolLifecycle.DEPRECATED,
+            ToolLifecycle.BLOCKED,
+        } and self.default_enabled:
+            raise ToolCatalogError("deferred/experimental/deprecated/blocked tools default disabled")
+        if self.availability != ToolAvailability.AVAILABLE and self.default_enabled:
+            raise ToolCatalogError("non-available tools default disabled")
+        if self.lifecycle in {
+            ToolLifecycle.DEFERRED,
+            ToolLifecycle.EXPERIMENTAL,
+            ToolLifecycle.DEPRECATED,
+        } and self.default_visibility == ToolVisibility.VISIBLE:
+            raise ToolCatalogError("non-active lifecycle must not default visible")
+        if self.lifecycle == ToolLifecycle.BLOCKED and self.default_visibility not in {
+            ToolVisibility.BLOCKED,
+            ToolVisibility.UNAVAILABLE,
+        }:
+            raise ToolCatalogError("blocked tools require blocked/unavailable visibility")
+        if self.effect_class in {ToolEffectClass.EXTERNAL_WRITE, ToolEffectClass.DESTRUCTIVE} and not self.requires_confirmation:
+            raise ToolCatalogError("external/destructive effects require confirmation")
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        tool_id: str,
+        display_name: str,
+        description: str,
+        family: ToolFamily | str,
+        source: ToolSource | str,
+        lifecycle: ToolLifecycle | str,
+        availability: ToolAvailability | str,
+        default_enabled: bool,
+        default_visibility: ToolVisibility | str,
+        risk_level: ToolRiskLevel | str,
+        permission: ToolPermission | str,
+        effect_class: ToolEffectClass | str,
+        requires_confirmation: bool,
+        schema_ref: str | None,
+        handler_ref: str,
+        prompt_ref: str | None,
+        introduced_in: str,
+        analytics_id: str | None = None,
+        source_id: str | None = None,
+        availability_reason: str | None = None,
+        aliases: Iterable[str] = (),
+        feature_flag: str | None = None,
+        deprecated_in: str | None = None,
+        native_schema: bool = True,
+        projection_exception_reason: str | None = None,
+    ) -> "ToolDescriptorV2":
+        canonical_tool_id = _strict_descriptor_id(tool_id, field_name="tool_id")
+        alias_values = tuple(
+            sorted(
+                {
+                    _strict_descriptor_id(alias, field_name="alias")
+                    for alias in aliases
+                }
+            )
+        )
+        return cls(
+            tool_id=canonical_tool_id,
+            analytics_id=_strict_descriptor_id(
+                analytics_id if analytics_id is not None else canonical_tool_id,
+                field_name="analytics_id",
+            ),
+            display_name=_safe_descriptor_text(display_name, field_name="display_name", limit=80),
+            description=_safe_descriptor_text(description, field_name="description", limit=240),
+            family=_controlled_enum(ToolFamily, family, field_name="family"),
+            source=_controlled_enum(ToolSource, source, field_name="source"),
+            source_id=(
+                _strict_descriptor_id(source_id, field_name="source_id")
+                if source_id is not None
+                else None
+            ),
+            lifecycle=_controlled_enum(ToolLifecycle, lifecycle, field_name="lifecycle"),
+            availability=_controlled_enum(ToolAvailability, availability, field_name="availability"),
+            availability_reason=_safe_optional_code(
+                availability_reason, field_name="availability_reason"
+            ),
+            default_enabled=default_enabled,
+            default_visibility=_controlled_enum(
+                ToolVisibility, default_visibility, field_name="default_visibility"
+            ),
+            risk_level=_controlled_enum(ToolRiskLevel, risk_level, field_name="risk_level"),
+            permission=_controlled_enum(ToolPermission, permission, field_name="permission"),
+            effect_class=_controlled_enum(ToolEffectClass, effect_class, field_name="effect_class"),
+            requires_confirmation=requires_confirmation,
+            schema_ref=_safe_optional_code(schema_ref, field_name="schema_ref"),
+            handler_ref=str(_safe_optional_code(handler_ref, field_name="handler_ref") or ""),
+            prompt_ref=_safe_optional_code(prompt_ref, field_name="prompt_ref"),
+            aliases=alias_values,
+            feature_flag=_safe_optional_code(feature_flag, field_name="feature_flag"),
+            introduced_in=str(_version(introduced_in, field_name="introduced_in", required=True)),
+            deprecated_in=_version(deprecated_in, field_name="deprecated_in", required=False),
+            native_schema=native_schema,
+            projection_exception_reason=_safe_optional_code(
+                projection_exception_reason,
+                field_name="projection_exception_reason",
+            ),
+        )
+
+    @classmethod
+    def conservative_dynamic(
+        cls,
+        *,
+        tool_id: str,
+        source: ToolSource | str,
+        source_id: str,
+        display_name: str | None = None,
+        description: str = "Unclassified dynamic tool; unavailable until reviewed.",
+        introduced_in: str = "0.24.0",
+    ) -> "ToolDescriptorV2":
+        source_value = _controlled_enum(ToolSource, source, field_name="source")
+        if source_value not in {ToolSource.PLUGIN, ToolSource.MCP, ToolSource.PROVIDER}:
+            raise ToolCatalogError("conservative dynamic defaults require plugin, mcp or provider source")
+        canonical_tool_id = _strict_descriptor_id(tool_id, field_name="tool_id")
+        return cls.create(
+            tool_id=canonical_tool_id,
+            analytics_id=canonical_tool_id,
+            display_name=display_name or canonical_tool_id.replace("_", " ").replace("-", " ").title(),
+            description=description,
+            family=ToolFamily.UNCLASSIFIED_DYNAMIC,
+            source=source_value,
+            source_id=source_id,
+            lifecycle=ToolLifecycle.EXPERIMENTAL,
+            availability=ToolAvailability.UNAVAILABLE,
+            availability_reason="unclassified-dynamic-source",
+            default_enabled=False,
+            default_visibility=ToolVisibility.UNAVAILABLE,
+            risk_level=ToolRiskLevel.DANGEROUS,
+            permission=ToolPermission.ADMIN,
+            effect_class=ToolEffectClass.CONTROL,
+            requires_confirmation=True,
+            schema_ref=f"dynamic:{canonical_tool_id}",
+            handler_ref=f"registry:{canonical_tool_id}",
+            prompt_ref=None,
+            aliases=(),
+            feature_flag=None,
+            introduced_in=introduced_in,
+        )
+
+    @classmethod
+    def from_v1_manifest(
+        cls,
+        manifest: ToolManifest | Mapping[str, Any],
+        *,
+        introduced_in: str = "0.24.0",
+        source: ToolSource | str = ToolSource.BUILTIN,
+        source_id: str | None = None,
+        aliases: Iterable[str] = (),
+    ) -> "ToolDescriptorV2":
+        if isinstance(manifest, ToolManifest):
+            tool_id = manifest.tool_id
+            family = manifest.family
+            description = manifest.short_description
+            capabilities = manifest.capabilities
+            risk = manifest.risk_level
+            schema_ref = manifest.schema_ref
+            visibility = manifest.visibility_state
+        elif isinstance(manifest, Mapping):
+            tool_id = manifest.get("tool_id")
+            family = manifest.get("family")
+            description = manifest.get("short_description", manifest.get("description"))
+            capabilities = manifest.get("capabilities") or ()
+            risk = manifest.get("risk_level")
+            schema_ref = manifest.get("schema_ref")
+            visibility = manifest.get("visibility_state", ToolVisibility.HIDDEN)
+        else:
+            raise ToolCatalogError("v1 manifest must be ToolManifest or mapping")
+
+        canonical_tool_id = _strict_descriptor_id(tool_id, field_name="tool_id")
+        visibility_value = _controlled_enum(
+            ToolVisibility, visibility, field_name="visibility_state"
+        )
+        risk_value = _controlled_enum(ToolRiskLevel, risk, field_name="risk_level")
+        capability_values = _normalize_slug_list(
+            capabilities, field_name="capability", allow_empty=False
+        )
+        blocked = visibility_value in {ToolVisibility.BLOCKED, ToolVisibility.UNAVAILABLE}
+        unavailable = visibility_value == ToolVisibility.UNAVAILABLE
+        effect = _effect_from_v1(capability_values, risk_value)
+        return cls.create(
+            tool_id=canonical_tool_id,
+            analytics_id=canonical_tool_id,
+            display_name=canonical_tool_id.replace("_", " ").replace("-", " ").title(),
+            description=description,
+            family=_family_from_v1(str(family or "")),
+            source=source,
+            source_id=source_id,
+            lifecycle=ToolLifecycle.BLOCKED if blocked else ToolLifecycle.CONTEXTUAL,
+            availability=ToolAvailability.UNAVAILABLE if unavailable else (
+                ToolAvailability.DISABLED if blocked else ToolAvailability.AVAILABLE
+            ),
+            availability_reason=(
+                "v1-visibility-unavailable" if unavailable else (
+                    "v1-visibility-blocked" if blocked else None
+                )
+            ),
+            default_enabled=not blocked,
+            default_visibility=visibility_value,
+            risk_level=risk_value,
+            permission=(
+                ToolPermission.ADMIN
+                if risk_value == ToolRiskLevel.DANGEROUS
+                else ToolPermission.OWNER
+                if risk_value == ToolRiskLevel.ELEVATED
+                else ToolPermission.USER
+            ),
+            effect_class=effect,
+            requires_confirmation=(
+                risk_value == ToolRiskLevel.DANGEROUS
+                or effect in {ToolEffectClass.EXTERNAL_WRITE, ToolEffectClass.DESTRUCTIVE}
+            ),
+            schema_ref=schema_ref,
+            handler_ref=f"builtin:{canonical_tool_id}",
+            prompt_ref=f"index:{canonical_tool_id}",
+            aliases=aliases,
+            introduced_in=introduced_in,
+        )
+
+    def transition_lifecycle(
+        self,
+        lifecycle: ToolLifecycle | str,
+        *,
+        changed_in: str,
+    ) -> "ToolDescriptorV2":
+        target = _controlled_enum(ToolLifecycle, lifecycle, field_name="lifecycle")
+        _version(changed_in, field_name="changed_in", required=True)
+        if target == self.lifecycle:
+            return self
+        if target not in _LIFECYCLE_TRANSITIONS[self.lifecycle]:
+            raise ToolCatalogError(
+                f"lifecycle transition {self.lifecycle.value}->{target.value} is not allowed"
+            )
+        updates: dict[str, Any] = {"lifecycle": target}
+        if target == ToolLifecycle.DEPRECATED:
+            updates.update(
+                deprecated_in=changed_in,
+                default_enabled=False,
+                default_visibility=ToolVisibility.HIDDEN,
+            )
+        elif target == ToolLifecycle.BLOCKED:
+            updates.update(
+                default_enabled=False,
+                default_visibility=ToolVisibility.BLOCKED,
+                availability=ToolAvailability.DISABLED,
+                availability_reason="lifecycle-blocked",
+            )
+        elif target in {ToolLifecycle.DEFERRED, ToolLifecycle.EXPERIMENTAL}:
+            updates.update(
+                default_enabled=False,
+                default_visibility=ToolVisibility.HIDDEN,
+            )
+        return replace(self, **updates)
+
+    def audit_dict(self) -> dict[str, Any]:
+        return {
+            "contract": self.CONTRACT_ID,
+            "tool_id": self.tool_id,
+            "analytics_id": self.analytics_id,
+            "display_name": self.display_name,
+            "description": self.description,
+            "family": self.family.value,
+            "source": self.source.value,
+            "source_id": self.source_id,
+            "lifecycle": self.lifecycle.value,
+            "availability": self.availability.value,
+            "availability_reason": self.availability_reason,
+            "default_enabled": self.default_enabled,
+            "default_visibility": self.default_visibility.value,
+            "risk_level": self.risk_level.value,
+            "permission": self.permission.value,
+            "effect_class": self.effect_class.value,
+            "requires_confirmation": self.requires_confirmation,
+            "schema_ref": self.schema_ref,
+            "handler_ref": self.handler_ref,
+            "prompt_ref": self.prompt_ref,
+            "aliases": self.aliases,
+            "feature_flag": self.feature_flag,
+            "introduced_in": self.introduced_in,
+            "deprecated_in": self.deprecated_in,
+            "native_schema": self.native_schema,
+            "projection_exception_reason": self.projection_exception_reason,
+            "callable_visible": False,
+            "arguments_visible": False,
+            "raw_content_visible": False,
+            "secret_value_visible": False,
+        }
+
+    def audit_json(self) -> str:
+        return json.dumps(self.audit_dict(), sort_keys=True, separators=(",", ":"))
+
+
+@dataclass(frozen=True, slots=True)
+class ToolDescriptorCatalogV2:
+    descriptors: tuple[ToolDescriptorV2, ...]
+    aliases: tuple[tuple[str, str], ...]
+
+    @classmethod
+    def create(cls, descriptors: Iterable[ToolDescriptorV2]) -> "ToolDescriptorCatalogV2":
+        ordered = tuple(sorted(descriptors, key=lambda item: item.tool_id))
+        if not all(isinstance(item, ToolDescriptorV2) for item in ordered):
+            raise ToolCatalogError("catalog entries must be ToolDescriptorV2")
+        canonical_ids = [item.tool_id for item in ordered]
+        analytics_ids = [item.analytics_id for item in ordered]
+        if len(set(canonical_ids)) != len(canonical_ids):
+            raise ToolCatalogError("canonical tool_id collision")
+        if len(set(analytics_ids)) != len(analytics_ids):
+            raise ToolCatalogError("analytics_id collision")
+
+        canonical = set(canonical_ids)
+        alias_map: dict[str, str] = {}
+        for item in ordered:
+            for alias in item.aliases:
+                if alias in canonical:
+                    raise ToolCatalogError("alias collides with a canonical tool_id")
+                if alias in alias_map:
+                    raise ToolCatalogError("alias collision")
+                alias_map[alias] = item.tool_id
+        return cls(
+            descriptors=ordered,
+            aliases=tuple(sorted(alias_map.items())),
+        )
+
+    @classmethod
+    def from_v1_manifests(
+        cls,
+        manifests: Iterable[ToolManifest | Mapping[str, Any]],
+        *,
+        introduced_in: str = "0.24.0",
+    ) -> "ToolDescriptorCatalogV2":
+        descriptors = (
+            ToolDescriptorV2.from_v1_manifest(
+                manifest,
+                introduced_in=introduced_in,
+            )
+            for manifest in manifests
+        )
+        return cls.create(descriptors)
+
+    def resolve(self, tool_or_alias: str) -> ToolDescriptorV2:
+        identity = _strict_descriptor_id(tool_or_alias, field_name="tool_or_alias")
+        canonical = dict(self.aliases).get(identity, identity)
+        for descriptor in self.descriptors:
+            if descriptor.tool_id == canonical:
+                return descriptor
+        raise ToolCatalogError("unknown tool identity")
+
+    def audit_summary(self) -> dict[str, Any]:
+        return {
+            "contract": ToolDescriptorV2.CONTRACT_ID,
+            "descriptor_count": len(self.descriptors),
+            "alias_count": len(self.aliases),
+            "descriptors": tuple(item.audit_dict() for item in self.descriptors),
+            "aliases": self.aliases,
+            "raw_content_visible": False,
+            "secret_value_visible": False,
+        }
+
+
+_TOOL_ANALYTICS_SOURCE_BUCKETS: Mapping[ToolSource, str] = {
+    ToolSource.PLUGIN: "dynamic.plugin.unclassified",
+    ToolSource.MCP: "dynamic.mcp.unclassified",
+    ToolSource.PROVIDER: "dynamic.provider.unclassified",
+    ToolSource.LEGACY: "legacy.unclassified",
+}
+
+
+@dataclass(frozen=True, slots=True)
+class ToolAnalyticsIdentityV1:
+    """Content-free identity packet consumed by usage analytics."""
+
+    CONTRACT_ID: ClassVar[str] = "odysseus.tool_analytics_identity.v1"
+
+    analytics_id: str
+    family: ToolFamily
+    source: ToolSource
+    resolution: ToolAnalyticsResolution
+    canonical_tool_id: str | None
+    alias_applied: bool
+    source_bucket: bool
+
+    def __post_init__(self) -> None:
+        if _strict_descriptor_id(self.analytics_id, field_name="analytics_id") != self.analytics_id:
+            raise ToolCatalogError("analytics_id is not canonical")
+        if not isinstance(self.family, ToolFamily):
+            raise ToolCatalogError("family must use the controlled ToolFamily enum")
+        if not isinstance(self.source, ToolSource):
+            raise ToolCatalogError("source must use the controlled ToolSource enum")
+        if not isinstance(self.resolution, ToolAnalyticsResolution):
+            raise ToolCatalogError("resolution must use the controlled analytics enum")
+        if not isinstance(self.alias_applied, bool) or not isinstance(self.source_bucket, bool):
+            raise ToolCatalogError("analytics identity flags must be boolean")
+        if self.canonical_tool_id is not None:
+            if _strict_descriptor_id(
+                self.canonical_tool_id,
+                field_name="canonical_tool_id",
+            ) != self.canonical_tool_id:
+                raise ToolCatalogError("canonical_tool_id is not canonical")
+        if self.source_bucket:
+            if self.canonical_tool_id is not None or self.alias_applied:
+                raise ToolCatalogError("source buckets must not carry runtime or alias identities")
+            if self.family != ToolFamily.UNCLASSIFIED_DYNAMIC:
+                raise ToolCatalogError("source buckets must remain unclassified")
+        elif self.canonical_tool_id is None:
+            raise ToolCatalogError("catalog identities require a canonical_tool_id")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "contract": self.CONTRACT_ID,
+            "analytics_id": self.analytics_id,
+            "family": self.family.value,
+            "source": self.source.value,
+            "resolution": self.resolution.value,
+            "canonical_tool_id": self.canonical_tool_id,
+            "alias_applied": self.alias_applied,
+            "source_bucket": self.source_bucket,
+            "owner_identity_visible": False,
+            "session_identity_visible": False,
+            "source_identity_visible": False,
+            "raw_content_visible": False,
+        }
+
+    def to_event_fields(self) -> dict[str, str]:
+        """Return exactly the three TAX-owned fields in ToolUsageEventV1."""
+
+        return {
+            "tool_analytics_id": self.analytics_id,
+            "tool_family": self.family.value,
+            "tool_source": self.source.value,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ToolAnalyticsIdentityContractV1:
+    """Versioned resolver joining TAX descriptors to the TUA event contract."""
+
+    CONTRACT_ID: ClassVar[str] = ToolAnalyticsIdentityV1.CONTRACT_ID
+
+    catalog: ToolDescriptorCatalogV2
+    historical_aliases: tuple[tuple[str, str], ...]
+    retired_analytics_ids: tuple[str, ...]
+
+    @classmethod
+    def create(
+        cls,
+        catalog: ToolDescriptorCatalogV2,
+        *,
+        historical_aliases: Mapping[str, str] | Iterable[tuple[str, str]] = (),
+        retired_analytics_ids: Iterable[str] = (),
+    ) -> "ToolAnalyticsIdentityContractV1":
+        if not isinstance(catalog, ToolDescriptorCatalogV2):
+            raise ToolCatalogError("analytics contract requires a Descriptor-v2 catalog")
+        canonical_ids = {descriptor.tool_id for descriptor in catalog.descriptors}
+        alias_map = dict(catalog.aliases)
+        supplied_aliases = (
+            historical_aliases.items()
+            if isinstance(historical_aliases, Mapping)
+            else historical_aliases
+        )
+        for raw_alias, raw_target in supplied_aliases:
+            alias = _strict_descriptor_id(raw_alias, field_name="historical_alias")
+            target = _strict_descriptor_id(raw_target, field_name="historical_alias_target")
+            if alias in canonical_ids:
+                raise ToolCatalogError("historical alias cannot be recycled as a canonical tool_id")
+            if target not in canonical_ids:
+                raise ToolCatalogError("historical alias target is not in the catalog")
+            existing = alias_map.get(alias)
+            if existing is not None and existing != target:
+                raise ToolCatalogError("historical alias has conflicting canonical targets")
+            alias_map[alias] = target
+
+        retired = tuple(
+            sorted(
+                {
+                    _strict_descriptor_id(value, field_name="retired_analytics_id")
+                    for value in retired_analytics_ids
+                }
+            )
+        )
+        active_analytics = {descriptor.analytics_id for descriptor in catalog.descriptors}
+        source_buckets = set(_TOOL_ANALYTICS_SOURCE_BUCKETS.values())
+        if active_analytics & set(retired):
+            raise ToolCatalogError("retired analytics identity cannot be reused")
+        if active_analytics & source_buckets:
+            raise ToolCatalogError("catalog analytics identity collides with a reserved source bucket")
+        return cls(
+            catalog=catalog,
+            historical_aliases=tuple(sorted(alias_map.items())),
+            retired_analytics_ids=retired,
+        )
+
+    def resolve(
+        self,
+        tool_or_alias: Any,
+        *,
+        source: ToolSource | str | None = None,
+    ) -> ToolAnalyticsIdentityV1:
+        """Resolve known IDs or return a non-personal aggregate source bucket."""
+
+        raw_identity = str(tool_or_alias or "").strip().lower()
+        descriptor_by_id = {
+            descriptor.tool_id: descriptor for descriptor in self.catalog.descriptors
+        }
+        alias_map = dict(self.historical_aliases)
+        canonical = alias_map.get(raw_identity, raw_identity)
+        descriptor = descriptor_by_id.get(canonical)
+        if descriptor is not None:
+            return ToolAnalyticsIdentityV1(
+                analytics_id=descriptor.analytics_id,
+                family=descriptor.family,
+                source=descriptor.source,
+                resolution=(
+                    ToolAnalyticsResolution.HISTORICAL_ALIAS
+                    if canonical != raw_identity
+                    else ToolAnalyticsResolution.CANONICAL
+                ),
+                canonical_tool_id=descriptor.tool_id,
+                alias_applied=canonical != raw_identity,
+                source_bucket=False,
+            )
+
+        source_value = (
+            ToolSource.LEGACY
+            if source is None
+            else _controlled_enum(ToolSource, source, field_name="source")
+        )
+        if source_value == ToolSource.BUILTIN:
+            raise ToolCatalogError("unknown built-in analytics identity")
+        bucket = _TOOL_ANALYTICS_SOURCE_BUCKETS.get(source_value)
+        if bucket is None:
+            raise ToolCatalogError("unknown source requires a fail-closed analytics bucket")
+        return ToolAnalyticsIdentityV1(
+            analytics_id=bucket,
+            family=ToolFamily.UNCLASSIFIED_DYNAMIC,
+            source=source_value,
+            resolution=(
+                ToolAnalyticsResolution.LEGACY_BUCKET
+                if source_value == ToolSource.LEGACY
+                else ToolAnalyticsResolution.SOURCE_BUCKET
+            ),
+            canonical_tool_id=None,
+            alias_applied=False,
+            source_bucket=True,
+        )
+
+    def resolve_descriptor(self, descriptor: ToolDescriptorV2) -> ToolAnalyticsIdentityV1:
+        if not isinstance(descriptor, ToolDescriptorV2):
+            raise ToolCatalogError("analytics resolution requires ToolDescriptorV2")
+        known = {
+            item.tool_id: item for item in self.catalog.descriptors
+        }.get(descriptor.tool_id)
+        if known is not None and known == descriptor:
+            return self.resolve(descriptor.tool_id)
+        return self.resolve("", source=descriptor.source)
+
+    def audit_dict(self) -> dict[str, Any]:
+        return {
+            "contract": self.CONTRACT_ID,
+            "descriptor_count": len(self.catalog.descriptors),
+            "historical_alias_count": len(self.historical_aliases),
+            "retired_analytics_id_count": len(self.retired_analytics_ids),
+            "dynamic_source_buckets": tuple(
+                (source.value, analytics_id)
+                for source, analytics_id in sorted(
+                    _TOOL_ANALYTICS_SOURCE_BUCKETS.items(),
+                    key=lambda item: item[0].value,
+                )
+            ),
+            "owner_identity_visible": False,
+            "session_identity_visible": False,
+            "source_identity_visible": False,
+            "raw_content_visible": False,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ToolSettingsMigrationReport:
+    """Aggregate-only result of the settings migration; never contains IDs or values."""
+
+    from_version: int
+    to_version: int
+    changed: bool
+    disabled_setting_present: bool
+    disabled_count: int
+    alias_rewrite_count: int
+    quarantined_count: int
+    invalid_value_count: int
+    legacy_enabled_deferred_count: int
+
+    def audit_dict(self) -> dict[str, Any]:
+        return {
+            "contract": "odysseus.tool_settings_migration.v1",
+            "from_version": self.from_version,
+            "to_version": self.to_version,
+            "changed": self.changed,
+            "disabled_setting_present": self.disabled_setting_present,
+            "disabled_count": self.disabled_count,
+            "alias_rewrite_count": self.alias_rewrite_count,
+            "quarantined_count": self.quarantined_count,
+            "invalid_value_count": self.invalid_value_count,
+            "legacy_enabled_deferred_count": self.legacy_enabled_deferred_count,
+            "raw_values_visible": False,
+            "user_data_visible": False,
+            "provider_data_visible": False,
+        }
+
+
+def migrate_tool_settings(
+    settings: Mapping[str, Any],
+) -> tuple[dict[str, Any], ToolSettingsMigrationReport]:
+    """Migrate legacy tool settings once while retaining exact rollback state.
+
+    Unknown string identities remain in the denylist and are additionally
+    quarantined. This preserves the safest legacy behavior without pretending
+    that an unknown identity is a registered tool.
+    """
+
+    if not isinstance(settings, Mapping):
+        raise ToolCatalogError("settings must be a mapping")
+    current_version = _tool_settings_version(settings.get(TOOL_SETTINGS_SCHEMA_KEY, 0))
+    if current_version > TOOL_SETTINGS_SCHEMA_VERSION:
+        raise ToolCatalogError("tool settings schema is newer than this runtime")
+    disabled_setting_present = "disabled_tools" in settings
+    if current_version == TOOL_SETTINGS_SCHEMA_VERSION:
+        disabled = settings.get("disabled_tools")
+        disabled_count = len(disabled) if isinstance(disabled, list) else 0
+        quarantine = settings.get(TOOL_SETTINGS_QUARANTINE_KEY)
+        quarantined_count = len(quarantine) if isinstance(quarantine, list) else 0
+        report = ToolSettingsMigrationReport(
+            from_version=current_version,
+            to_version=current_version,
+            changed=False,
+            disabled_setting_present=disabled_setting_present,
+            disabled_count=disabled_count,
+            alias_rewrite_count=0,
+            quarantined_count=quarantined_count,
+            invalid_value_count=0,
+            legacy_enabled_deferred_count=0,
+        )
+        return deepcopy(dict(settings)), report
+
+    from src.builtin_tool_catalog import (
+        BUILTIN_TOOL_DEFINITIONS,
+        OPERATOR_PRIORITY_DEFERRED_IDS,
+    )
+
+    canonical_ids = {definition.tool_id for definition in BUILTIN_TOOL_DEFINITIONS}
+    aliases = {
+        alias: definition.tool_id
+        for definition in BUILTIN_TOOL_DEFINITIONS
+        for alias in definition.aliases
+    }
+    raw_disabled = settings.get("disabled_tools", [])
+    if isinstance(raw_disabled, str):
+        disabled_values: list[Any] = [raw_disabled]
+    elif isinstance(raw_disabled, (list, tuple, set)):
+        disabled_values = list(raw_disabled)
+    elif raw_disabled is None:
+        disabled_values = []
+    else:
+        disabled_values = [raw_disabled]
+
+    disabled: set[str] = set()
+    quarantined: set[str] = set()
+    alias_occurrences: dict[tuple[str, str], int] = {}
+    invalid_value_count = 0
+    for value in disabled_values:
+        if not isinstance(value, str) or not value.strip():
+            invalid_value_count += 1
+            continue
+        identity = value.strip()
+        canonical = aliases.get(identity, identity)
+        if canonical != identity:
+            key = (identity, canonical)
+            alias_occurrences[key] = alias_occurrences.get(key, 0) + 1
+        disabled.add(canonical)
+        if canonical not in canonical_ids:
+            quarantined.add(canonical)
+
+    existing_quarantine = settings.get(TOOL_SETTINGS_QUARANTINE_KEY, [])
+    if isinstance(existing_quarantine, str):
+        existing_quarantine_values: list[Any] = [existing_quarantine]
+    elif isinstance(existing_quarantine, (list, tuple, set)):
+        existing_quarantine_values = list(existing_quarantine)
+    elif existing_quarantine is None:
+        existing_quarantine_values = []
+    else:
+        existing_quarantine_values = [existing_quarantine]
+    for value in existing_quarantine_values:
+        if not isinstance(value, str) or not value.strip():
+            invalid_value_count += 1
+            continue
+        identity = value.strip()
+        quarantined.add(identity)
+        disabled.add(identity)
+
+    legacy_enabled_deferred = (
+        set(OPERATOR_PRIORITY_DEFERRED_IDS) - disabled
+        if disabled_setting_present
+        else set()
+    )
+    disabled.update(OPERATOR_PRIORITY_DEFERRED_IDS)
+
+    tracked_keys = (
+        "disabled_tools",
+        TOOL_SETTINGS_QUARANTINE_KEY,
+        TOOL_SETTINGS_SCHEMA_KEY,
+        TOOL_SETTINGS_MIGRATION_KEY,
+    )
+    rollback = {
+        key: {
+            "present": key in settings,
+            "value": deepcopy(settings.get(key)),
+        }
+        for key in tracked_keys
+    }
+    migration_metadata = {
+        "contract": "odysseus.tool_settings_migration.v1",
+        "from_version": current_version,
+        "to_version": TOOL_SETTINGS_SCHEMA_VERSION,
+        "alias_rewrites": [
+            {
+                "alias": alias,
+                "canonical": canonical,
+                "occurrences": alias_occurrences[(alias, canonical)],
+            }
+            for alias, canonical in sorted(alias_occurrences)
+        ],
+        "unknown_disabled_tools": sorted(quarantined),
+        "legacy_enabled_deferred_tools": sorted(legacy_enabled_deferred),
+        "invalid_disabled_tool_value_count": invalid_value_count,
+        "rollback": rollback,
+    }
+    migrated = deepcopy(dict(settings))
+    migrated["disabled_tools"] = sorted(disabled)
+    migrated[TOOL_SETTINGS_QUARANTINE_KEY] = sorted(quarantined)
+    migrated[TOOL_SETTINGS_MIGRATION_KEY] = migration_metadata
+    migrated[TOOL_SETTINGS_SCHEMA_KEY] = TOOL_SETTINGS_SCHEMA_VERSION
+    report = ToolSettingsMigrationReport(
+        from_version=current_version,
+        to_version=TOOL_SETTINGS_SCHEMA_VERSION,
+        changed=True,
+        disabled_setting_present=disabled_setting_present,
+        disabled_count=len(disabled),
+        alias_rewrite_count=sum(alias_occurrences.values()),
+        quarantined_count=len(quarantined),
+        invalid_value_count=invalid_value_count,
+        legacy_enabled_deferred_count=len(legacy_enabled_deferred),
+    )
+    return migrated, report
+
+
+def rollback_tool_settings_migration(settings: Mapping[str, Any]) -> dict[str, Any]:
+    """Restore the exact pre-migration values of every migration-owned key."""
+
+    if not isinstance(settings, Mapping):
+        raise ToolCatalogError("settings must be a mapping")
+    metadata = settings.get(TOOL_SETTINGS_MIGRATION_KEY)
+    if not isinstance(metadata, Mapping) or metadata.get("contract") != "odysseus.tool_settings_migration.v1":
+        raise ToolCatalogError("tool settings rollback metadata is missing")
+    rollback = metadata.get("rollback")
+    if not isinstance(rollback, Mapping):
+        raise ToolCatalogError("tool settings rollback state is missing")
+
+    restored = deepcopy(dict(settings))
+    for key in (
+        "disabled_tools",
+        TOOL_SETTINGS_QUARANTINE_KEY,
+        TOOL_SETTINGS_SCHEMA_KEY,
+        TOOL_SETTINGS_MIGRATION_KEY,
+    ):
+        snapshot = rollback.get(key)
+        if not isinstance(snapshot, Mapping) or "present" not in snapshot:
+            raise ToolCatalogError("tool settings rollback state is incomplete")
+        if snapshot["present"]:
+            restored[key] = deepcopy(snapshot.get("value"))
+        else:
+            restored.pop(key, None)
+    return restored
+
+
+def _tool_settings_version(value: Any) -> int:
+    if isinstance(value, bool):
+        raise ToolCatalogError("tool settings schema version must be an integer")
+    try:
+        version = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ToolCatalogError("tool settings schema version must be an integer") from exc
+    if version < 0 or str(version) != str(value):
+        raise ToolCatalogError("tool settings schema version must be a canonical integer")
+    return version
+
+
+_V1_FAMILY_MAP: Mapping[str, ToolFamily] = {
+    "admin": ToolFamily.ADMIN_SYSTEM,
+    "content": ToolFamily.DOCUMENTS_MEDIA,
+    "email": ToolFamily.PLANNING_COMMUNICATION,
+    "execution": ToolFamily.CODE_FILESYSTEM,
+    "filesystem": ToolFamily.CODE_FILESYSTEM,
+    "general": ToolFamily.EXPERIMENTAL,
+    "knowledge": ToolFamily.KNOWLEDGE_MEMORY,
+    "mcp": ToolFamily.PLUGINS_MCP,
+    "network": ToolFamily.SEARCH_WEB,
+    "orchestration": ToolFamily.ORCHESTRATION_SESSIONS,
+    "planning": ToolFamily.PLANNING_COMMUNICATION,
+}
+
+
+def _family_from_v1(value: str) -> ToolFamily:
+    try:
+        return _V1_FAMILY_MAP[value]
+    except KeyError as exc:
+        raise ToolCatalogError("v1 family has no controlled v2 mapping") from exc
+
+
+def _effect_from_v1(
+    capabilities: Iterable[str],
+    risk_level: ToolRiskLevel,
+) -> ToolEffectClass:
+    values = set(capabilities)
+    if "destructive" in values:
+        return ToolEffectClass.DESTRUCTIVE
+    if "external-send" in values or "network" in values and "write" in values:
+        return ToolEffectClass.EXTERNAL_WRITE
+    if "write" in values:
+        return ToolEffectClass.LOCAL_WRITE
+    if "execute" in values or "manage" in values or risk_level == ToolRiskLevel.DANGEROUS:
+        return ToolEffectClass.CONTROL
+    return ToolEffectClass.READ
 
 
 def build_tool_manifests_from_function_schemas(

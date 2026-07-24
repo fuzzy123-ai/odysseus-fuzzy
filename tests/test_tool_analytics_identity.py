@@ -1,211 +1,138 @@
-from dataclasses import FrozenInstanceError
-
 import pytest
 
 from src.builtin_tool_catalog import (
-    CATALOG_TOOL_IDS,
-    build_builtin_analytics_identity_contract,
+    HISTORICAL_TOOL_ALIASES,
+    build_tool_analytics_identity_contract,
+    resolve_tool_analytics_identity,
 )
+from src.runtime_tool_status import build_dynamic_tool_descriptor
 from src.tool_catalog import (
-    ToolAnalyticsIdentity,
-    ToolAvailability,
+    ToolAnalyticsIdentityContractV1,
     ToolCatalogError,
-    ToolDescriptorV2,
-    ToolDescriptorV2Index,
-    ToolEffectClass,
-    ToolFamily,
-    ToolLifecycle,
-    ToolPermission,
-    ToolRiskLevel,
-    ToolSource,
-    ToolVisibility,
 )
 
 
-def _descriptor(**overrides) -> ToolDescriptorV2:
-    values = {
-        "tool_id": "read_file",
-        "analytics_id": "read-file",
-        "display_name": "Read file",
-        "description": "Read a repository file.",
-        "family": ToolFamily.CODE_FILESYSTEM,
-        "source": ToolSource.BUILTIN,
-        "lifecycle": ToolLifecycle.ACTIVE,
-        "availability": ToolAvailability.AVAILABLE,
-        "default_enabled": False,
-        "default_visibility": ToolVisibility.VISIBLE,
-        "risk_level": ToolRiskLevel.SAFE,
-        "permission": ToolPermission.OWNER,
-        "effect_class": ToolEffectClass.READ,
-        "requires_confirmation": False,
-        "schema_ref": "function:read_file",
-        "handler_ref": "agent_tools:read_file",
-        "prompt_ref": "tool_index:read_file",
-        "aliases": ("legacy_read_file",),
-        "introduced_in": "legacy-v1",
+def test_public_contract_resolves_canonical_identity_and_exact_event_fields():
+    contract = build_tool_analytics_identity_contract()
+    identity = contract.resolve("read_file")
+
+    assert contract.CONTRACT_ID == "odysseus.tool_analytics_identity.v1"
+    assert identity.to_event_fields() == {
+        "tool_analytics_id": "read_file",
+        "tool_family": "code_filesystem",
+        "tool_source": "builtin",
     }
-    values.update(overrides)
-    return ToolDescriptorV2.create(**values)
+    assert identity.to_dict()["resolution"] == "canonical"
+    assert identity.to_dict()["canonical_tool_id"] == "read_file"
+    assert identity.to_dict()["alias_applied"] is False
 
 
-def test_aliases_resolve_to_one_canonical_counting_identity():
-    descriptor_index = ToolDescriptorV2Index.build([_descriptor()])
+def test_historical_alias_and_canonical_name_cannot_double_count():
+    contract = build_tool_analytics_identity_contract()
+    canonical = contract.resolve("manage_personal_docs")
+    legacy = contract.resolve("manage_rag")
 
-    contract = descriptor_index.analytics_identity_contract()
-    canonical = contract.resolve("read_file")
-    legacy = contract.resolve("legacy_read_file")
-
-    assert canonical is legacy
-    assert canonical.analytics_id == "read-file"
-    assert contract.counting_key_for("read_file") == "read-file"
-    assert contract.counting_key_for("legacy_read_file") == "read-file"
-    assert contract.counting_key_for("missing") is None
-    assert len(contract.identities) == 1
-    assert contract.to_public_dict()["alias_count"] == 1
-
-
-def test_published_analytics_id_reservation_blocks_recycling():
-    retired = _descriptor(
-        lifecycle=ToolLifecycle.DEPRECATED,
-        deprecated_in="0.24",
-    )
-    old_contract = ToolDescriptorV2Index.build(
-        [retired]
-    ).analytics_identity_contract()
-    reservations = dict(old_contract.analytics_id_reservations)
-    replacement = _descriptor(
-        tool_id="replacement_reader",
-        aliases=(),
-    )
-
-    with pytest.raises(ToolCatalogError, match="permanently reserved"):
-        ToolDescriptorV2Index.build(
-            [replacement]
-        ).analytics_identity_contract(
-            historical_reservations=reservations,
-        )
-
-
-def test_original_tool_can_carry_its_reserved_identity_forward():
-    contract = ToolDescriptorV2Index.build([_descriptor()]).analytics_identity_contract(
-        historical_reservations={"read-file": "read_file"},
-    )
-
-    assert contract.analytics_id_reservations == (("read-file", "read_file"),)
-
-
-def test_historical_alias_remains_losslessly_resolvable():
-    descriptor_without_current_alias = _descriptor(aliases=())
-
-    contract = ToolDescriptorV2Index.build(
-        [descriptor_without_current_alias]
-    ).analytics_identity_contract(
-        historical_alias_targets={"legacy_read_file": "read_file"},
-    )
-
-    assert contract.resolve("legacy_read_file") == contract.resolve("read_file")
-    assert contract.alias_targets == (("legacy_read_file", "read_file"),)
-
-
-def test_historical_alias_cannot_be_reassigned_or_orphaned():
-    replacement = _descriptor(
-        tool_id="replacement_reader",
-        analytics_id="replacement-reader",
-        aliases=("legacy_read_file",),
-    )
-
-    with pytest.raises(ToolCatalogError, match="permanently assigned"):
-        ToolDescriptorV2Index.build(
-            [_descriptor(aliases=()), replacement]
-        ).analytics_identity_contract(
-            historical_alias_targets={"legacy_read_file": "read_file"},
-        )
-
-    with pytest.raises(ToolCatalogError, match="must remain a canonical identity"):
-        ToolDescriptorV2Index.build(
-            [replacement]
-        ).analytics_identity_contract(
-            historical_alias_targets={"old_reader": "read_file"},
-        )
-
-
-def test_unknown_dynamic_identity_is_bounded_and_non_personal():
-    descriptor = ToolDescriptorV2.conservative_dynamic(
-        tool_id="dynamic:unclassified",
-        display_name="Operator supplied label",
-        description="Runtime supplied description.",
-    )
-
-    identity = descriptor.analytics_identity()
-    public = identity.to_public_dict()
-
-    assert identity.family == ToolFamily.UNCLASSIFIED_DYNAMIC
-    assert identity.source == ToolSource.DYNAMIC
-    assert public == {
-        "schema_version": "odysseus.tool_analytics_identity.v1",
-        "tool_id": "dynamic:unclassified",
-        "analytics_id": "dynamic-unclassified",
-        "family": "unclassified_dynamic",
-        "source": "dynamic",
-        "aliases": (),
-        "retired": False,
-    }
-
-
-def test_public_contract_has_only_content_free_identity_fields():
-    contract = ToolDescriptorV2Index.build([_descriptor()]).analytics_identity_contract()
-    payload = contract.to_public_dict()
-
-    assert set(payload["identities"][0]) == {
-        "schema_version",
-        "tool_id",
-        "analytics_id",
-        "family",
-        "source",
-        "aliases",
-        "retired",
-    }
-    assert payload["raw_content_visible"] is False
-    assert payload["owner_data_visible"] is False
-    assert payload["session_data_visible"] is False
-    assert payload["provider_payload_visible"] is False
-    assert payload["secret_values_visible"] is False
-
-
-def test_builtin_catalog_has_one_public_identity_and_reservation_per_tool():
-    descriptions = {
-        tool_id: f"Use the {tool_id.replace('_', ' ')} built-in capability."
-        for tool_id in CATALOG_TOOL_IDS
-    }
-
-    contract = build_builtin_analytics_identity_contract(descriptions)
-
-    assert contract.schema_version == "odysseus.tool_analytics_identity.v1"
-    assert len(contract.identities) == len(CATALOG_TOOL_IDS) == 85
-    assert len(contract.analytics_id_reservations) == 85
-    assert {identity.source for identity in contract.identities} == {
-        ToolSource.BUILTIN
-    }
-    assert contract.to_public_dict()["identity_count"] == 85
+    assert HISTORICAL_TOOL_ALIASES == {"manage_rag": "manage_personal_docs"}
+    assert legacy.analytics_id == canonical.analytics_id == "manage_personal_docs"
+    assert legacy.family == canonical.family
+    assert legacy.source == canonical.source
+    assert legacy.to_dict()["resolution"] == "historical_alias"
+    assert legacy.to_dict()["alias_applied"] is True
+    assert legacy.to_event_fields() == canonical.to_event_fields()
 
 
 @pytest.mark.parametrize(
-    "reservations",
+    ("source", "expected_id"),
     [
-        {"Read_File": "read_file"},
-        {"read-file": "unsafe tool id"},
+        ("plugin", "dynamic.plugin.unclassified"),
+        ("mcp", "dynamic.mcp.unclassified"),
+        ("provider", "dynamic.provider.unclassified"),
+        ("legacy", "legacy.unclassified"),
     ],
 )
-def test_malformed_historical_reservations_fail_closed(reservations):
-    with pytest.raises(ToolCatalogError):
-        ToolDescriptorV2Index.build([_descriptor()]).analytics_identity_contract(
-            historical_reservations=reservations,
+def test_unknown_identity_uses_non_personal_source_bucket(source, expected_id):
+    private_runtime_id = "mcp__alice@example.test__session-private-note"
+
+    identity = resolve_tool_analytics_identity(private_runtime_id, source=source)
+    payload = identity.to_dict()
+
+    assert identity.analytics_id == expected_id
+    assert identity.family.value == "unclassified_dynamic"
+    assert identity.canonical_tool_id is None
+    assert identity.source_bucket is True
+    assert "alice" not in repr(payload)
+    assert "example.test" not in repr(payload)
+    assert "session-private-note" not in repr(payload)
+    assert payload["owner_identity_visible"] is False
+    assert payload["session_identity_visible"] is False
+    assert payload["source_identity_visible"] is False
+    assert payload["raw_content_visible"] is False
+
+
+def test_unknown_tools_in_same_dynamic_source_share_only_the_bounded_source_class():
+    contract = build_tool_analytics_identity_contract()
+
+    first = contract.resolve("owner-a-private-tool", source="plugin")
+    second = contract.resolve("owner-b-private-tool", source="plugin")
+
+    assert first.to_event_fields() == second.to_event_fields()
+    assert first.analytics_id == "dynamic.plugin.unclassified"
+
+
+def test_unreviewed_dynamic_descriptor_cannot_leak_tool_or_source_identity():
+    descriptor = build_dynamic_tool_descriptor(
+        "private_owner_tool",
+        source="mcp",
+        source_id="alice.example",
+        description="Private owner operation.",
+    )
+
+    identity = build_tool_analytics_identity_contract().resolve_descriptor(descriptor)
+
+    assert identity.analytics_id == "dynamic.mcp.unclassified"
+    assert "private_owner_tool" not in repr(identity.to_dict())
+    assert "alice.example" not in repr(identity.to_dict())
+
+
+def test_unknown_builtin_fails_closed_without_echoing_the_supplied_identity():
+    private_identity = "unknown_owner_alice"
+
+    with pytest.raises(ToolCatalogError) as exc_info:
+        resolve_tool_analytics_identity(private_identity, source="builtin")
+
+    assert "unknown built-in analytics identity" in str(exc_info.value)
+    assert private_identity not in str(exc_info.value)
+
+
+def test_historical_alias_and_retired_analytics_ids_are_reserved_against_reuse():
+    contract = build_tool_analytics_identity_contract()
+
+    with pytest.raises(ToolCatalogError, match="cannot be recycled"):
+        ToolAnalyticsIdentityContractV1.create(
+            contract.catalog,
+            historical_aliases={"read_file": "bash"},
+        )
+    with pytest.raises(ToolCatalogError, match="retired analytics identity cannot be reused"):
+        ToolAnalyticsIdentityContractV1.create(
+            contract.catalog,
+            retired_analytics_ids={"read_file"},
         )
 
 
-def test_public_identity_values_are_immutable():
-    identity = _descriptor().analytics_identity()
+def test_contract_audit_is_aggregate_and_contains_only_bounded_source_buckets():
+    audit = build_tool_analytics_identity_contract().audit_dict()
 
-    assert isinstance(identity, ToolAnalyticsIdentity)
-    with pytest.raises(FrozenInstanceError):
-        identity.analytics_id = "replacement-id"
+    assert audit["contract"] == "odysseus.tool_analytics_identity.v1"
+    assert audit["descriptor_count"] == 84
+    assert audit["historical_alias_count"] == 1
+    assert audit["retired_analytics_id_count"] == 0
+    assert dict(audit["dynamic_source_buckets"]) == {
+        "legacy": "legacy.unclassified",
+        "mcp": "dynamic.mcp.unclassified",
+        "plugin": "dynamic.plugin.unclassified",
+        "provider": "dynamic.provider.unclassified",
+    }
+    assert audit["owner_identity_visible"] is False
+    assert audit["session_identity_visible"] is False
+    assert audit["source_identity_visible"] is False
+    assert audit["raw_content_visible"] is False

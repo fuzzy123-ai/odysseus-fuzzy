@@ -16,6 +16,15 @@ from .vault_security import require_unlocked
 TEXT_EXTENSIONS = (".md", ".txt", ".json", ".html", ".js", ".css")
 
 
+def _notify_raptor_cache_mutation(vault_dir: str, event: str) -> None:
+    try:
+        from .raptor_cache import notify_raptor_vault_changed
+
+        notify_raptor_vault_changed(vault_dir, event=event)
+    except Exception:
+        pass
+
+
 @dataclass(frozen=True)
 class SearchMatch:
     line: int
@@ -154,6 +163,7 @@ def write_file(
         batch_id=batch_id,
         actor=actor,
     )
+    _notify_raptor_cache_mutation(vault_dir, "write")
     return apply_write_rule_metadata(
         {"success": True, "path": path, "created": not exists},
         path,
@@ -222,6 +232,7 @@ def delete_file(
         batch_id=batch_id,
         actor=actor,
     )
+    _notify_raptor_cache_mutation(vault_dir, "delete")
     return {"success": True, "path": path}
 
 
@@ -369,6 +380,7 @@ def create_folder(vault_dir: str, path: str, *, owner: Optional[str], tool: str)
         raise FileExistsError(f"Path already exists: {path}")
     os.makedirs(abs_path, exist_ok=False)
     record_action(vault_dir, action="create_folder", owner=owner, tool=tool, paths=[path], reversible=False)
+    _notify_raptor_cache_mutation(vault_dir, "write")
     return {"success": True, "path": path}
 
 
@@ -383,6 +395,7 @@ def delete_folder(vault_dir: str, path: str, *, owner: Optional[str], tool: str,
     else:
         os.rmdir(abs_path)
     record_action(vault_dir, action="delete_folder", owner=owner, tool=tool, paths=[path], reversible=False)
+    _notify_raptor_cache_mutation(vault_dir, "delete")
     return {"success": True, "path": path}
 
 
@@ -406,6 +419,7 @@ def rename_item(vault_dir: str, old_path: str, new_path: str, *, owner: Optional
         before={"path": old_path},
         after={"path": new_path},
     )
+    _notify_raptor_cache_mutation(vault_dir, "rename")
     return {"success": True, "old_path": old_path, "new_path": new_path}
 
 

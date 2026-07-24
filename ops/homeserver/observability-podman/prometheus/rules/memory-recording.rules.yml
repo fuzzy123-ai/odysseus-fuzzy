@@ -1,0 +1,32 @@
+groups:
+  - name: odysseus-memory-runtime
+    interval: 15s
+    limit: 128
+    rules:
+      - record: operation:odysseus_memory_operation_duration_seconds:p50_5m
+        expr: histogram_quantile(0.50, sum by (le, operation) (rate(odysseus_memory_operation_duration_seconds_bucket{phase="total",outcome="success"}[5m])))
+      - record: operation:odysseus_memory_operation_duration_seconds:p95_5m
+        expr: histogram_quantile(0.95, sum by (le, operation) (rate(odysseus_memory_operation_duration_seconds_bucket{phase="total",outcome="success"}[5m])))
+      - record: operation:odysseus_memory_operation_duration_seconds:p99_5m
+        expr: histogram_quantile(0.99, sum by (le, operation) (rate(odysseus_memory_operation_duration_seconds_bucket{phase="total",outcome="success"}[5m])))
+      - record: operation:odysseus_memory_operations:rate5m
+        expr: sum by (operation, outcome) (rate(odysseus_memory_operations_total[5m]))
+      - record: operation:odysseus_memory_operation_error_ratio:rate5m
+        expr: sum by (operation) (rate(odysseus_memory_operations_total{outcome="error"}[5m])) / clamp_min(sum by (operation) (rate(odysseus_memory_operations_total[5m])), 0.000000001)
+      - record: job:odysseus_raptor_cache_requests:rate30m
+        expr: sum(rate(odysseus_raptor_cache_requests_total{cache_result=~"hit|miss"}[30m]))
+      - record: job:odysseus_raptor_cache_hit_ratio:rate30m
+        expr: sum(rate(odysseus_raptor_cache_requests_total{cache_result="hit"}[30m])) / clamp_min(sum(rate(odysseus_raptor_cache_requests_total{cache_result=~"hit|miss"}[30m])), 0.000000001)
+      - record: phase:odysseus_raptor_rebuild_duration_seconds:p95_15m
+        expr: histogram_quantile(0.95, sum by (le, phase) (rate(odysseus_raptor_rebuild_duration_seconds_bucket{outcome="success"}[15m])))
+      - record: job:odysseus_raptor_artifact_age_seconds:max
+        expr: max(odysseus_raptor_artifact_age_seconds)
+      - record: operation:odysseus_memory_worker_queue_depth:max
+        expr: max by (operation) (odysseus_memory_worker_queue_depth)
+      - record: job:odysseus_query_cache_entries:max
+        expr: max(odysseus_query_cache_entries)
+      - record: job:odysseus_query_cache_bytes:max
+        expr: max(odysseus_query_cache_bytes)
+      - record: job:odysseus_metrics_render_duration_seconds:p95_5m
+        expr: histogram_quantile(0.95, sum by (le) (rate(odysseus_metrics_render_duration_seconds_bucket{outcome="success"}[5m])))
+

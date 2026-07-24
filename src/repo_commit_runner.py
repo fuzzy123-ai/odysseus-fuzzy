@@ -381,23 +381,6 @@ def run_repo_local_commit(
     for path in plan.changed_paths:
         _assert_exact_commit_path(repo_path, path, plan.status_entries)
 
-    completion_verified, action_authorized = _current_commit_gates(
-        repo_path=repo_path,
-        repo_id=record.repo_id,
-        changed_paths=plan.changed_paths,
-        completion_evidence=completion_evidence,
-        commit_authority=commit_authority,
-    )
-    if not completion_verified or not action_authorized:
-        return RepoCommitReport(
-            status="blocked",
-            executed=False,
-            plan=plan,
-            command_results=tuple(results),
-            committed_paths=(),
-            blockers=("current completion evidence or commit authority changed",),
-        )
-
     add_command = ("git", "add", "--", *plan.changed_paths)
     add_result = runner(add_command, cwd=repo_path, timeout_seconds=_MAX_TIMEOUT_SECONDS, env={})
     results.append(add_result)
@@ -428,96 +411,12 @@ def run_repo_local_commit(
             blockers=("staging_requires_review: staged paths do not exactly match reviewed paths",),
         )
 
-    if not _commit_authority_matches_current(
-        commit_authority,
-        repo_path=repo_path,
-        repo_id=record.repo_id,
-        changed_paths=plan.changed_paths,
-    ):
-        return RepoCommitReport(
-            status="failed",
-            executed=True,
-            plan=plan,
-            command_results=tuple(results),
-            committed_paths=(),
-            blockers=("staging_requires_review: repository diff binding changed",),
-        )
-
-    binding_results, binding_ok = _read_staged_review_binding(
-        runner,
-        repo_path=repo_path,
-        paths=plan.changed_paths,
-        authority=commit_authority,
-    )
-    results.extend(binding_results)
-    if not binding_ok:
-        return RepoCommitReport(
-            status="failed",
-            executed=True,
-            plan=plan,
-            command_results=tuple(results),
-            committed_paths=(),
-            blockers=("staging_requires_review: stage-0 index blob differs from reviewed bytes",),
-        )
-
-    final_binding_results, final_binding_ok = _read_staged_review_binding(
-        runner,
-        repo_path=repo_path,
-        paths=plan.changed_paths,
-        authority=commit_authority,
-    )
-    results.extend(final_binding_results)
-    if not final_binding_ok:
-        return RepoCommitReport(
-            status="failed",
-            executed=True,
-            plan=plan,
-            command_results=tuple(results),
-            committed_paths=(),
-            blockers=("staging_requires_review: reviewed index changed before commit",),
-        )
-
-    # Plain commit consumes only the index state that was validated immediately
-    # above. Supplying pathspecs here would make Git refresh those paths from the
-    # worktree and reopen a TOCTOU window after the final index/blob binding.
     commit_command = (
-        (
-            "git",
-            "commit",
-            "--no-verify",
-            "--no-gpg-sign",
-            "-m",
-            plan.commit_message,
-            "-m",
-            plan.commit_body,
-        )
+        ("git", "commit", "-m", plan.commit_message, "-m", plan.commit_body)
         if plan.commit_body
-        else (
-            "git",
-            "commit",
-            "--no-verify",
-            "--no-gpg-sign",
-            "-m",
-            plan.commit_message,
-        )
+        else ("git", "commit", "-m", plan.commit_message)
     )
-    git_metadata_dir = _git_metadata_directory(repo_path)
-    with tempfile.TemporaryDirectory(
-        prefix="odysseus-empty-hooks-",
-        dir=git_metadata_dir,
-    ) as empty_hooks_path:
-        commit_result = runner(
-            commit_command,
-            cwd=repo_path,
-            timeout_seconds=_MAX_TIMEOUT_SECONDS,
-            env={
-                "GIT_CONFIG_COUNT": "2",
-                "GIT_CONFIG_KEY_0": "core.hooksPath",
-                "GIT_CONFIG_VALUE_0": empty_hooks_path,
-                "GIT_CONFIG_KEY_1": "commit.gpgSign",
-                "GIT_CONFIG_VALUE_1": "false",
-            },
-        )
+    commit_result = runner(commit_command, cwd=repo_path, timeout_seconds=_MAX_TIMEOUT_SECONDS, env={})
     results.append(commit_result)
     if not commit_result.ok:
         return RepoCommitReport(
@@ -567,8 +466,6 @@ def build_repo_commit_plan(
     status_output: str,
     commit_message: Any | None = None,
     commit_body: Any | None = None,
-    completion_verified: bool = False,
-    action_authorized: bool = False,
 ) -> RepoCommitPlan:
     if not isinstance(record, RepoRecord):
         raise RepoCommitRunnerError("record must be a RepoRecord")
@@ -624,8 +521,6 @@ def build_repo_commit_plan(
         checks_passed=checks_passed if checks_are_bool else False,
         content_reviewed=content_reviewed if content_is_bool else False,
         confirmed=confirmed if confirmed_is_bool else False,
-        completion_verified=completion_verified is True,
-        action_authorized=action_authorized is True,
         decision=_normalize_choice(decision, field_name="decision", choices=_DECISIONS),
         blockers=tuple(dict.fromkeys(blockers)),
         status_entries=entries,
@@ -708,23 +603,16 @@ def repo_commit_command_is_allowed(argv: tuple[str, ...]) -> bool:
         return all(_path_arg_is_safe(path) for path in argv[3:])
     if argv == ("git", "diff", "--cached", "--name-only", "-z"):
         return True
-    if len(argv) >= 6 and argv[:4] == ("git", "ls-files", "--stage", "-z") and argv[4] == "--":
-        return all(_path_arg_is_safe(path) for path in argv[5:])
-    if (
-        len(argv) == 6
-        and argv[:3] == ("git", "hash-object", "--path")
-        and argv[4] == "--"
-    ):
-        return _path_arg_is_safe(argv[3]) and argv[3] == argv[5]
-    if (
-        len(argv) in {6, 8}
-        and argv[:5] == ("git", "commit", "--no-verify", "--no-gpg-sign", "-m")
-    ):
+    if len(argv) == 4 and argv[:3] == ("git", "commit", "-m"):
         try:
-            _normalize_commit_title(argv[5])
-            if len(argv) == 8:
-                return argv[6] == "-m" and bool(_normalize_commit_body(argv[7]))
+            _normalize_commit_title(argv[3])
             return True
+        except RepoCommitRunnerError:
+            return False
+    if len(argv) == 6 and argv[:3] == ("git", "commit", "-m") and argv[4] == "-m":
+        try:
+            _normalize_commit_title(argv[3])
+            return bool(_normalize_commit_body(argv[5]))
         except RepoCommitRunnerError:
             return False
     if argv == ("git", "rev-parse", "--verify", "HEAD^{commit}"):
@@ -764,8 +652,6 @@ def _blocked_plan(
         checks_passed=checks_passed if type(checks_passed) is bool else False,
         content_reviewed=content_reviewed if type(content_reviewed) is bool else False,
         confirmed=confirmed if type(confirmed) is bool else False,
-        completion_verified=completion_verified is True,
-        action_authorized=action_authorized is True,
         decision="blocked",
         blockers=(reason,),
         status_entries=entries,
@@ -801,15 +687,13 @@ def _assert_exact_commit_path(repo_path: Path, path: str, entries: tuple[RepoCom
     matching_entries = tuple(entry for entry in entries if entry.path == path)
     if not matching_entries:
         raise RepoCommitRunnerError(f"changed_path `{path}` is not changed in the initial repository status")
-    if any("D" in entry.code for entry in matching_entries):
-        raise RepoCommitRunnerError(f"changed_path `{path}` is a deletion and cannot be committed")
-    if any("R" in entry.code or "C" in entry.code for entry in matching_entries):
-        raise RepoCommitRunnerError(f"changed_path `{path}` is a rename or copy and cannot be committed")
     candidate = (repo_path / path).resolve()
     _assert_child_path(repo_path, candidate)
     if candidate.is_dir():
         raise RepoCommitRunnerError(f"changed_path `{path}` is a directory; provide exact file paths")
     if candidate.exists():
+        return
+    if any("D" in entry.code for entry in matching_entries):
         return
     raise RepoCommitRunnerError(f"changed_path `{path}` does not exist and is not a tracked deletion")
 
@@ -1090,88 +974,6 @@ def _parse_staged_paths(output: str) -> tuple[str, ...]:
     if len(set(paths)) != len(paths):
         raise RepoCommitRunnerError("staged path output contains duplicates")
     return paths
-
-
-def _parse_index_entries(output: str) -> tuple[RepoCommitIndexEntry, ...]:
-    raw = str(output or "")
-    if not raw:
-        return ()
-    if not raw.endswith("\x00"):
-        raise RepoCommitRunnerError("index output is not NUL terminated")
-    entries: list[RepoCommitIndexEntry] = []
-    for field in raw[:-1].split("\x00"):
-        try:
-            metadata, path_value = field.split("\t", 1)
-            mode, blob_id, stage_value = metadata.split(" ", 2)
-            stage_value_int = int(stage_value)
-        except (TypeError, ValueError) as exc:
-            raise RepoCommitRunnerError("index output is malformed") from exc
-        path = _normalize_repo_path(path_value, field_name="index_path")
-        if mode not in {"100644", "100755"}:
-            raise RepoCommitRunnerError("index mode is unsupported")
-        if not _COMMIT_SHA_RE.fullmatch(blob_id) or stage_value_int != 0:
-            raise RepoCommitRunnerError("index entry is not an exact stage-0 blob")
-        entries.append(
-            RepoCommitIndexEntry(
-                mode=mode,
-                blob_id=blob_id,
-                stage=stage_value_int,
-                path=path,
-            )
-        )
-    if len({entry.path for entry in entries}) != len(entries):
-        raise RepoCommitRunnerError("index output contains duplicate paths")
-    return tuple(entries)
-
-
-def _parse_hash_object_output(output: str, *, paths: tuple[str, ...]) -> tuple[str, ...]:
-    lines = str(output or "").splitlines()
-    if len(lines) != len(paths) or any(_COMMIT_SHA_RE.fullmatch(line) is None for line in lines):
-        raise RepoCommitRunnerError("reviewed blob readback is invalid")
-    return tuple(lines)
-
-
-def _read_index_entries_direct(
-    repo_path: Path,
-    paths: tuple[str, ...],
-) -> tuple[RepoCommitIndexEntry, ...]:
-    completed = subprocess.run(
-        ["git", "ls-files", "--stage", "-z", "--", *paths],
-        cwd=repo_path,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        timeout=30,
-        check=False,
-    )
-    if completed.returncode != 0 or len(completed.stdout) > 4 * 1024 * 1024:
-        raise RepoCommitRunnerError("reviewed index metadata is unavailable")
-    try:
-        output = completed.stdout.decode("utf-8", errors="strict")
-    except UnicodeError as exc:
-        raise RepoCommitRunnerError("reviewed index metadata is unavailable") from exc
-    return _parse_index_entries(output)
-
-
-def _read_filtered_blob_id(repo_path: Path, path: str) -> str:
-    """Hash a reviewed worktree path with the same clean filters used by git add."""
-
-    completed = subprocess.run(
-        ["git", "hash-object", "--path", path, "--", path],
-        cwd=repo_path,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        timeout=30,
-        check=False,
-    )
-    if completed.returncode != 0 or len(completed.stdout) > 256:
-        raise RepoCommitRunnerError("reviewed filtered blob id is unavailable")
-    try:
-        output = completed.stdout.decode("ascii", errors="strict")
-    except UnicodeError as exc:
-        raise RepoCommitRunnerError("reviewed filtered blob id is unavailable") from exc
-    return _parse_hash_object_output(output, paths=(path,))[0]
 
 
 def _parse_commit_sha(output: str) -> str:

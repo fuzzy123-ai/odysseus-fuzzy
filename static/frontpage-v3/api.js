@@ -261,6 +261,158 @@
     }
   }
 
+  class AiLensApiError extends Error {
+    constructor(code, message, status) {
+      super(message);
+      this.name = 'AiLensApiError';
+      this.code = code;
+      this.status = status || 0;
+    }
+  }
+
+  function aiLensIdentifier(value) {
+    const text = String(value || '').trim();
+    if (!/^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,119}$/.test(text)) {
+      throw new AiLensApiError('invalid_session_id', 'AI Lens session identifier is invalid.');
+    }
+    return encodeURIComponent(text);
+  }
+
+  function assertAiLensEnvelope(value, schema) {
+    if (!value || typeof value !== 'object' || Array.isArray(value) || value.schema !== schema) {
+      throw new AiLensApiError('invalid_schema', `AI Lens returned an unsupported ${schema} payload.`);
+    }
+    if (value.raw_content_visible !== false) {
+      throw new AiLensApiError('unsafe_payload', 'AI Lens payload did not confirm that raw content is hidden.');
+    }
+    return value;
+  }
+
+  function assertAiLensEvent(value) {
+    const event = assertAiLensEnvelope(value, 'odysseus.ai_lens.event.v1');
+    const requiredStrings = ['event_id', 'session_id', 'turn_id', 'created_at', 'event_type', 'phase', 'status', 'truth_level', 'observation_origin', 'privacy_level', 'redaction_level'];
+    if (requiredStrings.some(key => typeof event[key] !== 'string' || !event[key])) {
+      throw new AiLensApiError('invalid_event', 'AI Lens event fields are incomplete.');
+    }
+    if (!Number.isInteger(event.sequence) || event.sequence < 1 || !Array.isArray(event.source_refs)) {
+      throw new AiLensApiError('invalid_event', 'AI Lens event sequence or source references are invalid.');
+    }
+    if (!event.payload || typeof event.payload !== 'object' || Array.isArray(event.payload)) {
+      throw new AiLensApiError('invalid_event', 'AI Lens event payload is invalid.');
+    }
+    return event;
+  }
+
+  function assertAiLensService(value) {
+    const service = assertAiLensEnvelope(value, 'odysseus.ai_lens.service.v1');
+    if (!service.limits || typeof service.limits !== 'object' || !Number.isInteger(service.session_count)) {
+      throw new AiLensApiError('invalid_service', 'AI Lens service metadata is invalid.');
+    }
+    return service;
+  }
+
+  function assertAiLensSessions(value) {
+    const page = assertAiLensEnvelope(value, 'odysseus.ai_lens.sessions.v1');
+    if (!Array.isArray(page.sessions) || !Number.isInteger(page.session_count)) {
+      throw new AiLensApiError('invalid_sessions', 'AI Lens session page is invalid.');
+    }
+    page.sessions.forEach(session => {
+      if (!session || session.schema !== 'odysseus.ai_lens.session_summary.v1' || typeof session.session_id !== 'string' || session.raw_content_visible !== false) {
+        throw new AiLensApiError('invalid_session', 'AI Lens session summary is invalid.');
+      }
+    });
+    return page;
+  }
+
+  function assertAiLensSnapshot(value) {
+    const snapshot = assertAiLensEnvelope(value, 'odysseus.ai_lens.snapshot.v1');
+    if (!Array.isArray(snapshot.events) || typeof snapshot.session_id !== 'string') {
+      throw new AiLensApiError('invalid_snapshot', 'AI Lens snapshot is invalid.');
+    }
+    snapshot.events = snapshot.events.map(assertAiLensEvent);
+    return snapshot;
+  }
+
+  class AiLensApi {
+    constructor(options) {
+      const settings = options || {};
+      this.baseUrl = String(settings.baseUrl || '/api/ai-lens').replace(/\/$/, '');
+      this.fetchImpl = settings.fetchImpl || window.fetch.bind(window);
+      this.eventSourceFactory = settings.eventSourceFactory || (url => new window.EventSource(url, { withCredentials: true }));
+    }
+
+    async request(path) {
+      const response = await this.fetchImpl(this.baseUrl + path, {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      });
+      let payload;
+      try {
+        payload = await response.json();
+      } catch {
+        throw new AiLensApiError('invalid_response', 'AI Lens returned a non-JSON response.', response.status);
+      }
+      if (!response.ok) {
+        const detail = payload && (payload.detail || payload.error);
+        throw new AiLensApiError('request_failed', String(detail || `AI Lens request failed (${response.status}).`), response.status);
+      }
+      return payload;
+    }
+
+    async getService() {
+      return assertAiLensService(await this.request('/service'));
+    }
+
+    async listSessions() {
+      return assertAiLensSessions(await this.request('/sessions'));
+    }
+
+    async getSnapshot(sessionId, limit) {
+      const query = new URLSearchParams();
+      if (limit != null) query.set('limit', String(Math.min(128, Math.max(1, Number(limit) || 1))));
+      const suffix = query.size ? `?${query}` : '';
+      return assertAiLensSnapshot(await this.request(`/sessions/${aiLensIdentifier(sessionId)}/snapshot${suffix}`));
+    }
+
+    streamSession(sessionId, options) {
+      const settings = options || {};
+      const query = new URLSearchParams({
+        event_limit: String(Math.min(128, Math.max(1, Number(settings.eventLimit) || 64))),
+        heartbeat_every: String(Math.min(64, Math.max(1, Number(settings.heartbeatEvery) || 8)))
+      });
+      const source = this.eventSourceFactory(`${this.baseUrl}/sessions/${aiLensIdentifier(sessionId)}/stream?${query}`);
+      let closed = false;
+      const close = () => {
+        if (closed) return;
+        closed = true;
+        source.close();
+      };
+      source.addEventListener('ai_lens_event', event => {
+        try {
+          settings.onEvent?.(assertAiLensEvent(JSON.parse(event.data)));
+        } catch (error) {
+          close();
+          settings.onError?.(error instanceof AiLensApiError ? error : new AiLensApiError('invalid_stream_event', 'AI Lens stream emitted invalid JSON.'));
+        }
+      });
+      source.addEventListener('stream_end', event => {
+        try {
+          const payload = assertAiLensEnvelope(JSON.parse(event.data), 'odysseus.ai_lens.stream_end.v1');
+          settings.onEnd?.(payload);
+        } catch (error) {
+          settings.onError?.(error instanceof AiLensApiError ? error : new AiLensApiError('invalid_stream_end', 'AI Lens stream ended with invalid metadata.'));
+        } finally {
+          close();
+        }
+      });
+      source.addEventListener('error', () => {
+        close();
+        settings.onError?.(new AiLensApiError('stream_unavailable', 'AI Lens stream is unavailable; the bounded snapshot remains visible.'));
+      });
+      return close;
+    }
+  }
+
   window.HarborPlanningApi = Object.freeze({
     GATE_RUNTIME_KEYS,
     PlanningApiError,
@@ -272,5 +424,13 @@
     AgentOperationsApi,
     AgentOperationsApiError,
     assertAgentProjection
+  });
+  window.HarborAiLensApi = Object.freeze({
+    AiLensApi,
+    AiLensApiError,
+    assertAiLensEvent,
+    assertAiLensService,
+    assertAiLensSessions,
+    assertAiLensSnapshot
   });
 })();

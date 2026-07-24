@@ -51,6 +51,62 @@ EFFECTFUL_TOOL_MATRIX: dict[str, str] = {
     "sandbox_checks": "completion_gate",
     "git_commit": "git_remote_state",
     "git_push": "git_remote_state",
+    "manage_plugins": "plugin_state",
+    "manage_settings": "settings_write",
+    "manage_tokens": "token_state",
+    "manage_repos": "repo_registry_write",
+    "download_model": "model_runtime",
+    "serve_model": "model_runtime",
+    "serve_preset": "model_runtime",
+    "stop_served_model": "model_runtime",
+    "cancel_download": "model_runtime",
+    "adopt_served_model": "model_runtime",
+    "manage_todos": "todo_state",
+}
+
+
+# Mixed read/mutation tools remain conservatively effectful when the action is
+# absent or unknown, but explicit inspection actions do not create a false
+# mutation receipt.  Callers should pass a normalized, content-free action
+# field rather than parsing or retaining raw tool arguments here.
+EFFECTFUL_TOOL_ACTION_MATRIX: dict[str, dict[str, str]] = {
+    "manage_plugins": {
+        "list": "",
+        "get": "",
+        "status": "",
+        "*": "plugin_state",
+    },
+    "manage_settings": {
+        "list": "",
+        "get": "",
+        "status": "",
+        "*": "settings_write",
+    },
+    "manage_tokens": {
+        "list": "",
+        "get": "",
+        "status": "",
+        "*": "token_state",
+    },
+    "manage_repos": {
+        "list": "",
+        "get": "",
+        "status": "",
+        "log": "",
+        "diff_stat": "",
+        "changed_paths": "",
+        "remotes": "",
+        "commit_plan": "",
+        "push_plan": "",
+        "forge_plan": "",
+        "changes": "",
+        "change_history": "",
+        "*": "repo_registry_write",
+    },
+    "manage_todos": {
+        "list": "",
+        "*": "todo_state",
+    },
 }
 
 
@@ -118,51 +174,6 @@ def tool_effect_category(tool: Any, action: Any = None) -> str:
     return EFFECTFUL_TOOL_MATRIX.get(tool_name, "")
 
 
-def _event_effect_category(event: Mapping[str, Any]) -> str:
-    tool = event.get("tool")
-    action = event.get("action")
-    if not isinstance(tool, str) or not isinstance(action, str):
-        return EFFECTFUL_TOOL_MATRIX.get(str(tool or "").strip(), "")
-    tool_name = tool.strip()
-    action_name = action.strip().lower()
-    action_map = EFFECTFUL_TOOL_ACTION_MATRIX.get(tool_name)
-    if action_map is None:
-        return EFFECTFUL_TOOL_MATRIX.get(tool_name, "")
-    if action_name not in action_map or action_name == "*":
-        return action_map.get("*", EFFECTFUL_TOOL_MATRIX.get(tool_name, ""))
-    category = action_map[action_name]
-    if category:
-        return category
-    if _read_only_event_has_conflicting_metadata(event):
-        return action_map.get("*", EFFECTFUL_TOOL_MATRIX.get(tool_name, ""))
-    return ""
-
-
-def _read_only_event_has_conflicting_metadata(event: Mapping[str, Any]) -> bool:
-    for key in _MUTATION_SIGNAL_KEYS:
-        if key not in event:
-            continue
-        value = event.get(key)
-        if value not in (None, False, "", (), [], {}):
-            return True
-    command = str(event.get("command") or "").strip().lower()
-    if command and any(
-        token in command
-        for token in (
-            " commit",
-            " push",
-            " delete",
-            " remove",
-            " update",
-            " create",
-            " write",
-            " mutate",
-        )
-    ):
-        return True
-    return False
-
-
 def build_effectful_action_snapshot(tool_events: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     events = tuple(event for event in tool_events if isinstance(event, Mapping))
     transactions = tuple(tx.to_dict() for tx in transactions_from_tool_events(events, surface="agent"))
@@ -172,7 +183,7 @@ def build_effectful_action_snapshot(tool_events: Iterable[Mapping[str, Any]]) ->
                 category
                 for event in events
                 for category in (
-                    _event_effect_category(event),
+                    tool_effect_category(event.get("tool"), event.get("action")),
                 )
                 if category
             }
@@ -183,7 +194,7 @@ def build_effectful_action_snapshot(tool_events: Iterable[Mapping[str, Any]]) ->
         "effectful_count": sum(
             1
             for event in events
-            if _event_effect_category(event)
+            if tool_effect_category(event.get("tool"), event.get("action"))
         ),
         "categories": categories,
         "transactions": transactions,

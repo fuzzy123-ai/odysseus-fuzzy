@@ -54,7 +54,27 @@ _VAULT_MCP_RATE_LIMIT_MAX = 10
 _VAULT_MCP_RATE_LIMIT_WINDOW = 60
 
 
-_ADMIN_TOOLS = set(RUNTIME_ADMIN_TOOLS)
+_ADMIN_TOOLS = {
+    "app_api",
+    "manage_endpoints",
+    "manage_mcp",
+    "manage_webhooks",
+    "manage_tokens",
+    "manage_presets",
+    "manage_personal_docs",
+    "manage_embeddings",
+    "manage_plugins",
+    "manage_repos",
+    "manage_github_issues",
+    "manage_settings",
+    "recent_changes",
+    "download_model",
+    "serve_model",
+    "serve_preset",
+    "stop_served_model",
+    "tail_serve_output",
+    "cancel_download",
+}
 
 
 def _owner_is_admin(owner: Optional[str]) -> bool:
@@ -353,23 +373,8 @@ async def execute_tool_block(
     """
     token = _active_workspace.set(workspace or None)
     started_at = time.perf_counter()
-    usage_metadata = None
-    usage_span = None
-    if ai_lens_emitter is not None or tool_usage_instrumentation is not None:
-        usage_metadata = _build_tool_usage_metadata(block)
-    usage_span = _begin_tool_usage(
-        tool_usage_instrumentation,
-        usage_metadata,
-        owner=owner,
-        session_id=session_id,
-    )
-    _emit_ai_lens_tool_event(
-        ai_lens_emitter,
-        block,
-        event_type="tool_call_started",
-        status="started",
-        usage_metadata=usage_metadata,
-    )
+    usage_invocation = _begin_tool_usage(tool_usage_instrumentation, block)
+    _emit_ai_lens_tool_event(ai_lens_emitter, block, event_type="tool_call_started", status="started")
     try:
         outcome = await _execute_tool_block_impl(
             block,
@@ -383,25 +388,75 @@ async def execute_tool_block(
             context_length=context_length,
             tool_policy=tool_policy,
         )
+        duration_ms = max(1, int((time.perf_counter() - started_at) * 1000))
+        normalized = (
+            _normalized_tool_usage_outcome(
+                description=outcome[0],
+                result=outcome[1],
+            )
+            if tool_usage_instrumentation is not None
+            else None
+        )
+        _finish_tool_usage(
+            tool_usage_instrumentation,
+            usage_invocation,
+            normalized,
+            duration_ms,
+        )
         _emit_ai_lens_tool_event(
             ai_lens_emitter,
             block,
             event_type="tool_call_result",
-            status="failed" if _tool_result_failed(outcome[1]) else "succeeded",
+            status=(
+                normalized.ai_lens_status
+                if normalized is not None
+                else "failed" if _tool_result_failed(outcome[1]) else "succeeded"
+            ),
             result=outcome[1],
-            latency_ms=max(1, int((time.perf_counter() - started_at) * 1000)),
-            usage_metadata=usage_metadata,
+            latency_ms=duration_ms,
         )
         _finish_tool_usage(usage_span, outcome=outcome, result=outcome[1])
         return outcome
-    except asyncio.CancelledError as exc:
+    except asyncio.CancelledError:
+        duration_ms = max(1, int((time.perf_counter() - started_at) * 1000))
+        normalized = (
+            _normalized_tool_usage_outcome(cancelled=True)
+            if tool_usage_instrumentation is not None
+            else None
+        )
+        _finish_tool_usage(
+            tool_usage_instrumentation,
+            usage_invocation,
+            normalized,
+            duration_ms,
+        )
         _emit_ai_lens_tool_event(
             ai_lens_emitter,
             block,
             event_type="tool_call_result",
             status="failed",
-            latency_ms=max(1, int((time.perf_counter() - started_at) * 1000)),
-            usage_metadata=usage_metadata,
+            latency_ms=duration_ms,
+        )
+        raise
+    except Exception:
+        duration_ms = max(1, int((time.perf_counter() - started_at) * 1000))
+        normalized = (
+            _normalized_tool_usage_outcome(exception=True)
+            if tool_usage_instrumentation is not None
+            else None
+        )
+        _finish_tool_usage(
+            tool_usage_instrumentation,
+            usage_invocation,
+            normalized,
+            duration_ms,
+        )
+        _emit_ai_lens_tool_event(
+            ai_lens_emitter,
+            block,
+            event_type="tool_call_result",
+            status="failed",
+            latency_ms=duration_ms,
         )
         _finish_tool_usage(usage_span, exception=exc)
         raise
@@ -426,82 +481,41 @@ def _tool_result_failed(result: Any) -> bool:
     return bool(result.get("error")) or result.get("exit_code") not in (None, 0, "0")
 
 
-def _secret_safe_diagnostic_source_refusal(
-    tool: object,
-    content: object,
-) -> Optional[Dict[str, Any]]:
-    """Reject raw secret-bearing diagnostic sources without echoing input."""
-
-    if tool not in ("bash", "python"):
+def _begin_tool_usage(instrumentation: Any, block: Any) -> Any:
+    if instrumentation is None:
         return None
-    from src.secret_safe_diagnostics import (
-        DiagnosticContract,
-        diagnostic_source_is_forbidden,
-        project_diagnostic,
-    )
-
-    if not diagnostic_source_is_forbidden(content):
-        return None
-    projection = project_diagnostic(
-        DiagnosticContract(source_id="tool_diagnostic_source"),
-        {},
-        command_source=content,
-    )
-    return {
-        "error": (
-            "Raw secret-bearing diagnostics are forbidden. "
-            "Use a registered narrow evidence contract."
-        ),
-        "exit_code": 1,
-        "diagnostic": projection.to_dict(),
-    }
-
-
-def _build_tool_usage_metadata(block: Any) -> Any:
     try:
-        from src.tool_usage_instrumentation import build_tool_usage_call_metadata
-
-        return build_tool_usage_call_metadata(block)
+        return instrumentation.begin(
+            getattr(block, "tool_type", ""),
+            getattr(block, "content", ""),
+        )
     except (Exception, asyncio.CancelledError):
         return None
 
 
-def _begin_tool_usage(
-    instrumentation: Any,
-    metadata: Any,
-    *,
-    owner: Optional[str],
-    session_id: Optional[str],
-) -> Any:
-    if instrumentation is None or metadata is None:
-        return None
+def _normalized_tool_usage_outcome(**kwargs: Any) -> Any:
     try:
-        return instrumentation.begin(metadata, owner=owner, session_id=session_id)
+        from src.tool_usage_instrumentation import normalize_tool_usage_outcome
+
+        return normalize_tool_usage_outcome(**kwargs)
     except (Exception, asyncio.CancelledError):
         return None
 
 
 def _finish_tool_usage(
-    span: Any,
-    *,
-    outcome: Optional[Tuple[str, Dict]] = None,
-    result: Any = None,
-    exception: Optional[BaseException] = None,
+    instrumentation: Any,
+    invocation: Any,
+    outcome: Any,
+    duration_ms: int,
 ) -> None:
-    if span is None:
+    if instrumentation is None or invocation is None or outcome is None:
         return
     try:
-        from src.tool_usage_instrumentation import (
-            classify_tool_usage_outcome,
-            exception_outcome,
+        instrumentation.finish(
+            invocation,
+            outcome=outcome,
+            duration_ms=duration_ms,
         )
-
-        terminal = (
-            exception_outcome(exception)
-            if exception is not None
-            else classify_tool_usage_outcome(outcome[0], outcome[1])
-        )
-        span.finish(terminal, result=result)
     except (Exception, asyncio.CancelledError):
         pass
 
@@ -616,6 +630,8 @@ async def _execute_tool_block_impl(
         do_app_api,
     )
 
+    tool = block.tool_type
+    content = block.content
     interactive_runtime_decision = None
 
     # Misformatted tool call detection: model put JSON inside ```python``` (or
@@ -767,13 +783,10 @@ async def _execute_tool_block_impl(
                         "interactive_runtime": interactive_runtime_decision.audit_summary(),
                     },
                 )
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as exc:
             return (
                 f"{tool}: BLOCKED by interactive runtime policy",
-                {
-                    "error": "Interactive runtime policy could not safely classify the command.",
-                    "exit_code": 1,
-                },
+                {"error": f"Interactive runtime policy could not safely classify the command: {exc}", "exit_code": 1},
             )
 
     # update_plan: the agent writes back to the active plan — tick an item done
@@ -827,9 +840,8 @@ async def _execute_tool_block_impl(
         result = await _direct_fallback(tool, content, progress_cb=progress_cb, owner=owner) \
             or {"error": f"{tool}: execution failed", "exit_code": 1}
     elif tool in ("publish_artifact", "verify_pygame_headless", "commit_project"):
-        # Generated-deliverable tools live in the direct agent registry.  Keep
-        # them on the same owner/workspace-bound execution path as file tools;
-        # schema registration alone does not make a tool dispatchable here.
+        # Owner/workspace-bound effectful tools live in the direct agent
+        # registry; schema registration alone does not make them dispatchable.
         first_line = content.split(chr(10))[0][:80]
         desc = f"{tool}: {first_line}"
         result = await _direct_fallback(
@@ -879,6 +891,10 @@ async def _execute_tool_block_impl(
         query = content.split("\n")[0].strip()
         desc = f"search_chats: {query[:80]}"
         result = await do_search_chats(query, owner=owner)
+    elif tool == "query_knowledge":
+        desc = "query_knowledge"
+        result = await _direct_fallback(tool, content, session_id=session_id, owner=owner) \
+            or {"error": "query_knowledge_failed", "exit_code": 1, "content_included": False}
     elif tool in ("chat_with_model", "ask_teacher", "list_models"):
         # Migrated to the agent_tools registry (#3629): dispatched through
         # TOOL_HANDLERS with the owner/session ctx these tools need, instead

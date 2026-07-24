@@ -2,7 +2,10 @@
 
 Date: 2026-07-05
 
-Status: repo-only complete under Standard ABC; live/design/breaking gates deferred
+Follow-up: 2026-07-14
+
+Status: Roadmaps 1-10 repo-only complete; Roadmap 11 contract frozen as a
+named post-MVP follow-up, canonical Open Work registration pending
 
 ABC mode: Standard ABC
 
@@ -53,6 +56,14 @@ operator surfaces.
 - `routes/universal_inbox_routes.py`
 - `routes/legacy_chat_contract_routes.py`
 - `routes/version_one_readiness_routes.py`
+- `.github/workflows/ci.yml`
+- `.github/workflows/docker-publish.yml`
+- `src/release_readiness_pipeline.py`
+- `src/endpoint_resolver.py`
+- `src/bg_jobs.py`
+- `src/token_budget.py`
+- `src/llm_runtime_state.py`
+- `docs/plans/temporal-light-agent-execution-roadmap.json`
 
 Test inventory signals found broad coverage around Agent/Orchestration,
 Release/Evidence, Memory/RAG, Security/Policy, Plugin/MCP, Nextcloud/Universal
@@ -86,6 +97,13 @@ and GitHub Issue Intelligence. This plan should preserve those guarantees.
 | 8 | `ops-security-console-roadmap.md` | P2 | repo_only + needs_live_go | Observability, System Health and Security Ops should share an ops console model. |
 | 9 | `mcp-workbench-productization-roadmap.md` | P2 | repo_only | MCP needs per-client scopes, policy previews and audit before broader exposure. |
 | 10 | `codebase-architecture-cleanup-roadmap.md` | P2 | repo_only | Module sprawl should be reduced after contracts are stabilized. |
+| 11 | `system-assurance-runtime-hardening-roadmap.json` | P0-P2 | repo_only + needs_live_go | Binding same-commit CI and release evidence, endpoint expiry, one-worker/background-state boundaries and measured LLM hardening close verified operational gaps without duplicating Temporal. |
+
+Roadmap 11 is linked here as a named follow-up but is deliberately not added
+to the generic Open Work execution queue while that shared registry contains
+uncommitted work from another thread. Its own registration contract defines
+the later append-only handoff. This master link grants no implementation,
+push, release, multi-worker or live authority.
 
 ## Execution Order
 
@@ -102,6 +120,12 @@ and GitHub Issue Intelligence. This plan should preserve those guarantees.
    and evidence surfaces.
 7. Codebase Architecture Cleanup is last; it should move proven boundaries,
    not invent them.
+8. System Assurance And Runtime Hardening is the post-completion follow-up.
+   After canonical registration, execute its dependency-safe repository lanes;
+   release evidence precedes any release claim, the single-worker boundary
+   precedes background-state work, and HTTP/2 or Agent policy caching remains
+   measure-only until its declared threshold passes. Temporal Light remains the
+   sole owner of 12-24 hour workflow history, Activities and heartbeats.
 
 ## Execution Progress
 

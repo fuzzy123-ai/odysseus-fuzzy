@@ -1,9 +1,9 @@
 # Interactive Game Artifact Closure Roadmap
 
-Status: repository implementation complete; live validation pending
-Mode: Standard ABC, repository-only implementation
+Status: production deploy and bounded live validation passed; upstream publication hygiene pending
+Mode: Standard ABC, repository plus bounded live deployment
 Started: 2026-07-12
-Live gate: a production deployment or homeserver mutation needs a separate, bounded Go
+Live gate: granted by the user on 2026-07-12 with `Go deploy`
 
 ## Outcome
 
@@ -111,8 +111,9 @@ The assistant must never present a dummy-SDL run as an interactive preview. If t
 ### G5 — live validation (separate Go)
 
 - Deploy only an explicitly reviewed commit to the homeserver.
-- Repeat the smoke with a disposable owner/chat.
-- Verify logs and remove disposable artifacts.
+- Repeat the runtime smoke with disposable owner storage and no retained artifact.
+- Verify the deployed Linux image, owner/download routes, persistence contract, UI hooks, logs, and cleanup.
+- Run a persistent disposable-chat canary only when per-artifact cleanup exists or retention is explicitly accepted.
 - Roll back if auth scope, persistence, rendering or claim evidence regresses.
 
 ## Stop rules
@@ -137,4 +138,14 @@ Repository implementation is complete only when G1–G4 pass. A production resul
 - End-to-end/claim closeout: 13 passed.
 - Python compilation, both edited JavaScript syntax checks, and `git diff --check` passed. Git reported only existing LF/CRLF notices.
 - Impeccable review: the new Download control uses the existing product tokens, a documented 5px radius, visible focus, and a 44px mobile target. Detector findings elsewhere in the large legacy chat/style files predate this slice and were left unchanged.
-- G5 remains pending and requires a bounded live Go. No homeserver deploy, production mutation, commit, or push was performed in this run.
+- G5 deploy/smoke passed under the bounded live Go. A persistent chat-history canary remains intentionally deferred because production has no owner-scoped single-artifact cleanup endpoint; no old chat was backfilled.
+
+### 2026-07-12 live closeout
+
+- Production now runs feature-only commit `25e7d11b6a27` and image `9987d90fa3a1`, based directly on the prior production commit so unrelated, root-owned `data/skills` updates were not forced into this release.
+- The current production overlay was preserved exactly at 18 Git porcelain entries. The pre-update Restic snapshot is `9b1db66e`; repository check and restore smoke both passed. A separate rollback packet contains the old HEAD, tracked binary patch, untracked archive, and old image ID.
+- Release tests passed on both the production-base commit and the current upstream-base cherry-pick: `148 passed, 4 skipped`; the real Pygame dummy-SDL test passed explicitly. The current Linux candidate added `11 passed`, and the post-deploy owner/download/reload suite added `77 passed`.
+- The running container passed an ephemeral central-dispatch smoke with `pygame-ce 2.5.6`, a valid 6,255-byte PNG, `headless_verified=true`, `interactive_ready=false`, `download_ready=true`, and cross-owner denial. Its temporary workspace/upload store was removed automatically.
+- Live `/api/health`, Chroma heartbeat, served attachment UI hooks, and `/api/version` passed. Post-deploy logs contained zero `Traceback`, zero `Unknown tool type`, and zero owner-readback failures.
+- The GitHub push was not performed because the external remote ownership was not independently approved. Production therefore reports an available/diverged upstream state, and the pre-existing dirty worktree still prevents the automatic updater from running. This is an operations follow-up, not a runtime failure of this release.
+- No persistent disposable chat/artifact was created, and the old Mario chat was deliberately not mutated or backfilled.

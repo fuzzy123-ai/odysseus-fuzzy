@@ -7,10 +7,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Iterable, Mapping, Optional, Set, Tuple
 
-from src.builtin_tool_catalog import (
-    DEFAULT_DEFERRED_TOOLS,
-    EMAIL_DISPATCH_FAMILY,
-)
+from src.builtin_tool_catalog import resolve_operator_priority_disabled
 
 
 GUIDE_ONLY_DIRECTIVE = (
@@ -19,6 +16,16 @@ GUIDE_ONLY_DIRECTIVE = (
     "run shell commands, and do not inspect local files or the environment. "
     "Respond in normal text by guiding the user or asking them to paste the "
     "output they will produce locally."
+)
+
+CLARIFICATION_OPEN_DIRECTIVE = (
+    "## CLARIFICATION OPEN - TOOL POLICY\n"
+    "A required clarification is still open. Do not create or update a plan, do "
+    "not run mutating tools, and do not proceed with implementation. You may "
+    "inspect bounded context with read-only tools and may call `ask_user` to "
+    "collect or refine material missing information. When enough information is "
+    "available, summarize what is understood and wait for the clarification "
+    "state to be completed server-side."
 )
 
 
@@ -97,33 +104,38 @@ _COMMON_TOOL_NAMES = {
     "write_file",
     "publish_artifact",
     "verify_pygame_headless",
+    "commit_project",
     "obsidian_read_note",
     "obsidian_write_note",
     "obsidian_search_notes",
     "obsidian_graph",
 }
 
-_EMAIL_MCP_RUNTIME_NAMES = frozenset(
-    f"mcp__email__{tool_id}"
-    for tool_id in EMAIL_DISPATCH_FAMILY | {"download_attachment"}
+CLARIFICATION_OPEN_ALLOWED_TOOLS = frozenset(
+    {
+        "ask_user",
+        "read_file",
+        "grep",
+        "glob",
+        "ls",
+        "get_workspace",
+        "web_search",
+        "web_fetch",
+        "search_chats",
+        "list_sessions",
+        "list_models",
+        "list_cached_models",
+        "list_served_models",
+        "list_downloads",
+        "list_serve_presets",
+        "list_cookbook_servers",
+        "resolve_contact",
+        "sensitive_local_analysis",
+        "obsidian_read_note",
+        "obsidian_search_notes",
+        "obsidian_graph",
+    }
 )
-DEFAULT_DEFERRED_RUNTIME_TOOLS = frozenset(
-    DEFAULT_DEFERRED_TOOLS
-    | _EMAIL_MCP_RUNTIME_NAMES
-    | {"download_attachment"}
-)
-
-
-def expand_runtime_disabled_tool_names(
-    tool_names: Iterable[object],
-) -> frozenset[str]:
-    expanded = {str(tool).strip() for tool in tool_names if str(tool).strip()}
-    for tool in tuple(expanded):
-        if tool in EMAIL_DISPATCH_FAMILY or tool == "download_attachment":
-            expanded.add(f"mcp__email__{tool}")
-        elif tool.startswith("mcp__email__"):
-            expanded.add(tool.removeprefix("mcp__email__"))
-    return frozenset(expanded)
 
 _DSGVO_TOOL_SAFETY_CLASSES: Mapping[str, str] = MappingProxyType({
     "api_call": "unsafe",
@@ -146,6 +158,7 @@ _DSGVO_TOOL_SAFETY_CLASSES: Mapping[str, str] = MappingProxyType({
     "python": "unsafe",
     "publish_artifact": "unsafe",
     "verify_pygame_headless": "unsafe",
+    "commit_project": "unsafe",
     "read_email": "external",
     "reply_to_email": "external",
     "search_hf_models": "external",
@@ -289,6 +302,8 @@ def build_effective_tool_policy(
     disabled_tools: Optional[Iterable[str]] = None,
     last_user_message: object = "",
     orchestrator_mode: bool = False,
+    clarification_open: bool = False,
+    clarification_reason: str = "",
     settings: Optional[Mapping[str, object]] = None,
 ) -> ToolPolicy:
     """Compose the effective policy for one agent turn.
@@ -314,6 +329,22 @@ def build_effective_tool_policy(
             else "Tool is deferred by operator priority until explicit Admin activation.",
         )
 
+    setting_present = bool(settings is not None and "disabled_tools" in settings)
+    disabled_with_defaults, defaults_applied = resolve_operator_priority_disabled(
+        disabled,
+        setting_present=setting_present,
+    )
+    if defaults_applied:
+        priority_defaults = set(disabled_with_defaults) - disabled
+        disabled.update(priority_defaults)
+        hidden.update(priority_defaults)
+        reasons.update(
+            {
+                tool: "Tool is deferred by operator priority until explicit reviewed activation."
+                for tool in priority_defaults
+            }
+        )
+
     guide_reason = detect_guide_only_turn(last_user_message)
     if guide_reason:
         all_tools = known_tool_names()
@@ -326,6 +357,20 @@ def build_effective_tool_policy(
             reasons=MappingProxyType(dict(reasons)),
             mode="guide_only",
             block_all_tool_calls=True,
+            disable_mcp=True,
+        )
+
+    if clarification_open:
+        all_tools = known_tool_names()
+        clarification_disabled = all_tools - set(CLARIFICATION_OPEN_ALLOWED_TOOLS)
+        disabled.update(clarification_disabled)
+        reason = clarification_reason or "A required clarification is still open; planning and mutation are blocked."
+        reasons.update({tool: reason for tool in clarification_disabled})
+        return ToolPolicy(
+            disabled_tools=frozenset(disabled),
+            hidden_tools=frozenset(clarification_disabled),
+            reasons=MappingProxyType(dict(reasons)),
+            mode="clarification_open",
             disable_mcp=True,
         )
 

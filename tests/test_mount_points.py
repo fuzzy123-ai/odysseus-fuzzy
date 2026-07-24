@@ -19,10 +19,7 @@ def mount_file(tmp_path, monkeypatch):
 
 @pytest.fixture
 def admin(monkeypatch):
-    monkeypatch.setattr(
-        "src.tool_execution.owner_is_admin_or_single_user",
-        lambda owner: True,
-    )
+    monkeypatch.setitem(execute_tool_block.__globals__, "_owner_is_admin", lambda owner: True)
 
 
 def _write_mounts(mount_file, mounts):

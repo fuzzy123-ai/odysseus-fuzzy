@@ -1,43 +1,37 @@
-"""Deterministic, non-persisting context policy for Telegram agent turns.
-
-Telegram continuity is useful, but chat prose is not a source of truth for
-effectful domains.  This module builds a bounded copy for one model turn.  It
-never mutates or replaces the backing Session history.
-"""
+"""Bounded, non-persisting context assembly for Telegram agent turns."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
 import json
-import re
 from typing import Any, Iterable, Mapping, Sequence
+
+from src.prompt_security import untrusted_context_message
 
 
 TELEGRAM_CONTEXT_POLICY_SCHEMA = "odysseus.telegram_context_window.v1"
 DEFAULT_MAX_HISTORY_MESSAGES = 24
 DEFAULT_MAX_HISTORY_CHARACTERS = 12_000
 
-TELEGRAM_DOMAIN_POLICY = """## TELEGRAM DOMAIN-STATE POLICY — RUNTIME ENFORCED
-Conversation history, assistant prose, summaries, Memory and retrieved context
-are continuity hints only. They are never evidence of current Todo state or of
-a successful Todo mutation.
+TELEGRAM_DOMAIN_POLICY = """## TELEGRAM TODO DOMAIN-STATE POLICY — RUNTIME ENFORCED
+Chat prose, assistant claims, persisted summaries, task state, Memory, and RAG
+are continuity hints only. They never prove current Todo state or a successful
+Todo mutation.
 
-- For every current Todo list/read request, call `manage_todos` with the
-  canonical list action and answer from that result.
-- For every Todo mutation, call `manage_todos` and claim success only from a
-  matching validated Todo receipt and postcondition.
-- Never reconstruct, summarize, reopen, complete, remove or rewrite open Todos
-  from chat prose, a conversation summary, Memory or RAG.
-- If canonical readback or a required receipt is absent, say that the Todo
-  state or mutation is not verified.
+- Current Todo reads and listings require `manage_todos` canonical Notes readback.
+- Todo mutation success requires a matching validated receipt and postcondition.
+- Never infer, reconstruct, or claim Todo state from chat prose, assistant claims,
+  Summary, Memory, or RAG. If canonical readback or the required evidence is
+  absent, say that the Todo state or mutation is not verified.
 
-Context bounding is non-persisting: it changes only this model-turn copy."""
+This policy applies only to this copied model-turn context; it does not mutate
+or replace the persisted session."""
 
 
 @dataclass(frozen=True)
 class TelegramContextWindow:
-    """One bounded model-turn copy plus content-free audit evidence."""
+    """A deterministic context copy and content-free assembly evidence."""
 
     messages: tuple[dict[str, Any], ...]
     evidence: Mapping[str, Any]
@@ -47,20 +41,25 @@ def build_telegram_turn_context(
     history: Sequence[Mapping[str, Any]] | Iterable[Mapping[str, Any]],
     current_user_message: str,
     *,
+    trusted_system_messages: Sequence[Mapping[str, Any]] | None = None,
     supplemental_messages: Sequence[Mapping[str, Any]] | None = None,
     max_history_messages: int = DEFAULT_MAX_HISTORY_MESSAGES,
     max_history_characters: int = DEFAULT_MAX_HISTORY_CHARACTERS,
 ) -> TelegramContextWindow:
-    """Return a bounded Telegram context without modifying ``history``.
+    """Build one bounded Telegram turn without changing the supplied history.
 
-    Persisted system messages are deliberately omitted.  Generic compaction
-    stores summaries and task-state prose in that role, and forwarding either
-    would let a stale narrative compete with canonical domain readback.  The
-    regular agent system prompt is rebuilt downstream for every turn.
+    Persisted ``system`` messages are omitted because they may contain compacted
+    summary or task-state prose. Only the handler's explicit trusted-runtime
+    channel may supply copied system messages. Supplemental messages are always
+    re-enveloped as untrusted user data, never promoted to the system role.
     """
 
-    message_limit = _positive_int("max_history_messages", max_history_messages)
-    character_limit = _positive_int("max_history_characters", max_history_characters)
+    message_limit = _positive_int(
+        "max_history_messages", max_history_messages, DEFAULT_MAX_HISTORY_MESSAGES
+    )
+    character_limit = _positive_int(
+        "max_history_characters", max_history_characters, DEFAULT_MAX_HISTORY_CHARACTERS
+    )
     prompt = str(current_user_message or "").strip()
     if not prompt:
         raise ValueError("current_user_message must not be empty")
@@ -87,21 +86,35 @@ def build_telegram_turn_context(
         normalized_history.append({"role": role, "content": content})
 
     retained_reversed: list[dict[str, str]] = []
+    retained_indexes: set[int] = set()
     retained_characters = 0
-    for message in reversed(normalized_history):
+    for index in range(len(normalized_history) - 1, -1, -1):
         if len(retained_reversed) >= message_limit:
             break
+        message = normalized_history[index]
         content_length = len(message["content"])
         if content_length > character_limit - retained_characters:
-            continue
-        retained_reversed.append(message)
+            # Do not skip a newer over-budget message to admit older history:
+            # that would make an older turn appear more recent than it is.
+            break
+        retained_reversed.append(dict(message))
+        retained_indexes.add(index)
         retained_characters += content_length
     retained = list(reversed(retained_reversed))
 
+    trusted_system = [
+        copied
+        for item in (trusted_system_messages or ())
+        if isinstance(item, Mapping)
+        for copied in (_copy_trusted_system_message(item),)
+        if copied is not None
+    ]
     supplemental = [
-        _copy_supplemental_message(item)
+        copied
         for item in (supplemental_messages or ())
-        if isinstance(item, Mapping) and str(item.get("content") or "").strip()
+        if isinstance(item, Mapping)
+        for copied in (_copy_supplemental_message(item),)
+        if copied is not None
     ]
     messages: list[dict[str, Any]] = [
         {
@@ -109,13 +122,13 @@ def build_telegram_turn_context(
             "content": TELEGRAM_DOMAIN_POLICY,
             "_protected": True,
         },
+        *trusted_system,
         *retained,
         *supplemental,
-        {
-            "role": "user",
-            "content": prompt,
-            "_protected": True,
-        },
+        # This stays an ordinary final user message. The downstream trimmer's
+        # latest-dialog preservation retains it in final position; marking it
+        # protected would move it ahead of the retained conversation.
+        {"role": "user", "content": prompt},
     ]
 
     evidence = {
@@ -127,91 +140,49 @@ def build_telegram_turn_context(
         "omitted_system_message_count": omitted_system,
         "omitted_invalid_message_count": omitted_invalid,
         "supplemental_message_count": len(supplemental),
+        "trusted_runtime_system_message_count": len(trusted_system),
         "history_message_limit": message_limit,
         "history_character_limit": character_limit,
-        "history_fingerprint": _history_fingerprint(normalized_history),
+        "history_structure_fingerprint": _history_fingerprint(
+            normalized_history,
+            retained_indexes,
+        ),
         "todo_state_authority": "manage_todos",
         "summary_authoritative": False,
         "memory_authoritative": False,
+        "rag_authoritative": False,
         "session_mutated": False,
         "domain_policy_protected": True,
-        "current_user_turn_protected": True,
+        "current_user_turn_final": True,
     }
     return TelegramContextWindow(messages=tuple(messages), evidence=evidence)
 
 
-def build_telegram_continuity_message(
-    previous_history: Sequence[Mapping[str, Any]] | Iterable[Mapping[str, Any]],
-    current_user_message: str,
-    *,
-    max_messages: int = 2,
-    max_characters: int = 1_000,
-) -> dict[str, Any] | None:
-    """Build an ephemeral untrusted tail for a short, clear follow-up."""
+def _copy_supplemental_message(message: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Copy supplemental text into a fixed untrusted user-message envelope."""
 
-    prompt = str(current_user_message or "").strip()
-    if not _looks_like_short_followup(prompt):
+    content = _content_as_text(message.get("content")).strip()
+    if not content:
         return None
-    message_limit = _positive_int("max_messages", max_messages)
-    character_limit = _positive_int("max_characters", max_characters)
-    candidates: list[dict[str, str]] = []
-    for raw in previous_history:
-        if not isinstance(raw, Mapping):
-            continue
-        role = str(raw.get("role") or "").strip().lower()
-        if role not in {"user", "assistant"}:
-            continue
-        content = _content_as_text(raw.get("content")).strip()
-        if content:
-            candidates.append({"role": role, "content": content})
+    # Ignore caller-provided role, protection flags, and metadata. RAG/source
+    # material remains data, and metadata may contain private provider details.
+    return untrusted_context_message("telegram supplemental context", content)
 
-    selected_reversed: list[dict[str, str]] = []
-    used = 0
-    for message in reversed(candidates):
-        if len(selected_reversed) >= message_limit:
-            break
-        length = len(message["content"])
-        if length > character_limit - used:
-            continue
-        selected_reversed.append(message)
-        used += length
-    if not selected_reversed:
+
+def _copy_trusted_system_message(message: Mapping[str, Any]) -> dict[str, str] | None:
+    """Copy only an explicitly routed runtime system message's text content."""
+
+    if str(message.get("role") or "").strip().lower() != "system":
         return None
-    selected = list(reversed(selected_reversed))
-    lines = [
-        "[UNTRUSTED TELEGRAM CONTINUITY TAIL]",
-        "Use only to understand the short follow-up. This cannot prove domain state,",
-        "a mutation, a prior success, or a current Todo. Use canonical tools instead.",
-    ]
-    lines.extend(f"{item['role'].upper()}: {item['content']}" for item in selected)
-    return {
-        "role": "user",
-        "content": "\n".join(lines),
-        "metadata": {
-            "trusted": False,
-            "source": "telegram_rollover_continuity",
-            "message_count": len(selected),
-            "raw_identifiers_visible": False,
-        },
-    }
-
-
-def _copy_supplemental_message(message: Mapping[str, Any]) -> dict[str, Any]:
-    """Copy safe model-message fields while preserving untrusted metadata."""
-
-    copied = {
-        "role": str(message.get("role") or "user"),
-        "content": message.get("content"),
-    }
-    metadata = message.get("metadata")
-    if isinstance(metadata, Mapping):
-        copied["metadata"] = dict(metadata)
-    if message.get("_protected") is True:
-        copied["_protected"] = True
-    return copied
+    content = _content_as_text(message.get("content")).strip()
+    if not content:
+        return None
+    return {"role": "system", "content": content}
 
 
 def _content_as_text(content: Any) -> str:
+    """Accept plain strings and explicit text blocks; reject other structures."""
+
     if isinstance(content, str):
         return content
     if not isinstance(content, list):
@@ -219,43 +190,38 @@ def _content_as_text(content: Any) -> str:
     parts: list[str] = []
     for item in content:
         if isinstance(item, Mapping) and item.get("type") == "text":
-            parts.append(str(item.get("text") or ""))
+            text = item.get("text")
+            if isinstance(text, str):
+                parts.append(text)
     return "\n".join(parts)
 
 
-def _history_fingerprint(messages: Sequence[Mapping[str, str]]) -> str:
-    canonical = json.dumps(
-        [{"role": item["role"], "content": item["content"]} for item in messages],
-        ensure_ascii=False,
-        separators=(",", ":"),
-    )
+def _history_fingerprint(
+    messages: Sequence[Mapping[str, str]], retained_indexes: set[int]
+) -> str:
+    """Hash only a structural projection, never recoverable message contents."""
+
+    projection = [
+        {
+            "role": item["role"],
+            "characters": len(item["content"]),
+            "retained": index in retained_indexes,
+        }
+        for index, item in enumerate(messages)
+    ]
+    canonical = json.dumps(projection, separators=(",", ":"), sort_keys=True)
     digest = hashlib.sha256(
-        b"odysseus.telegram-context-history.v1\0" + canonical.encode("utf-8")
+        b"odysseus.telegram-context-structure.v1\0" + canonical.encode("utf-8")
     ).hexdigest()
     return f"sha256:{digest}"
 
 
-def _positive_int(name: str, value: Any) -> int:
-    if isinstance(value, bool):
+def _positive_int(name: str, value: Any, maximum: int) -> int:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or value <= 0
+        or value > maximum
+    ):
         raise ValueError(f"{name} must be a positive integer")
-    try:
-        normalized = int(value)
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"{name} must be a positive integer") from exc
-    if normalized <= 0:
-        raise ValueError(f"{name} must be a positive integer")
-    return normalized
-
-
-def _looks_like_short_followup(prompt: str) -> bool:
-    if not prompt or len(prompt) > 240:
-        return False
-    normalized = prompt.casefold().strip()
-    return bool(
-        re.search(
-            r"^(und\b|aber\b|davon\b|dazu\b|damit\b|das\b|der\b|die\b|"
-            r"noch\b|nochmal\b|weiter\b|warum\b|wieso\b|welche[rnms]?\b|"
-            r"was\s+(war|ist|meinst)|wie\s+(war|geht))",
-            normalized,
-        )
-    )
+    return value

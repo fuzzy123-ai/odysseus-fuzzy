@@ -1,7 +1,11 @@
 import json
 import os
+import asyncio
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
+
+from src.memory_runtime_metrics import get_memory_runtime_metrics_registry
 
 from . import vault_service
 from .derived_index import build_derived_index, derived_index_status
@@ -13,6 +17,39 @@ from .vault_security import VaultSecurityError
 
 JOB_ID = "obsidian.memory_automation"
 AUTOMATION_REPORT_PATH = ".obsidian/odysseus/memory/automation_status.json"
+_METRICS_CLOCK = time.perf_counter
+
+
+def _record_automation_metrics(outcome: str, started: float) -> None:
+    try:
+        registry = get_memory_runtime_metrics_registry()
+        registry.observe_histogram(
+            "odysseus_memory_operation_duration_seconds",
+            {
+                "component": "memory",
+                "operation": "automation",
+                "phase": "total",
+                "outcome": outcome,
+                "runtime": "worker",
+            },
+            max(0.0, _METRICS_CLOCK() - started),
+        )
+        registry.increment_counter(
+            "odysseus_memory_operations_total",
+            {
+                "component": "memory",
+                "operation": "automation",
+                "outcome": outcome,
+                "runtime": "worker",
+            },
+        )
+        registry.set_gauge(
+            "odysseus_memory_worker_queue_depth",
+            {"component": "memory", "operation": "automation", "runtime": "worker"},
+            0,
+        )
+    except Exception:
+        pass
 
 
 def _utcnow() -> datetime:
@@ -149,7 +186,7 @@ def memory_automation_status(vault_dir: str) -> Dict[str, Any]:
     }
 
 
-def run_memory_automation(
+def _run_memory_automation_impl(
     owner: Optional[str] = None,
     trigger: Optional[str] = None,
     context: Optional[Dict[str, Any]] = None,
@@ -302,6 +339,42 @@ def run_memory_automation(
             "raptor_cache_warming": True,
         },
     }
+
+
+def run_memory_automation(
+    owner: Optional[str] = None,
+    trigger: Optional[str] = None,
+    context: Optional[Dict[str, Any]] = None,
+    *,
+    force: bool = False,
+) -> Dict[str, Any]:
+    started = _METRICS_CLOCK()
+    outcome = "error"
+    try:
+        result = _run_memory_automation_impl(
+            owner=owner,
+            trigger=trigger,
+            context=context,
+            force=force,
+        )
+        if bool(result.get("skipped")):
+            outcome = "blocked"
+        elif bool(result.get("failed")):
+            outcome = "error"
+        else:
+            outcome = "success"
+        return result
+    except (asyncio.CancelledError, TimeoutError):
+        outcome = "cancelled"
+        raise
+    except (FileNotFoundError, PermissionError, ValueError, VaultSecurityError):
+        outcome = "blocked"
+        raise
+    except Exception:
+        outcome = "error"
+        raise
+    finally:
+        _record_automation_metrics(outcome, started)
 
 
 def job_spec() -> Dict[str, Any]:

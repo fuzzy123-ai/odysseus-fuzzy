@@ -1,266 +1,329 @@
-"""Synthetic-only metadata backfill preview for privacy-safe tool analytics."""
+"""Synthetic-only metadata backfill planning for privacy-safe tool usage.
+
+This module intentionally has no database writer and no production-data
+reader. It validates the one bundled persisted-chat metadata fixture, builds
+content-free terminal events in memory, and returns category counts only.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 import hashlib
-from itertools import islice
+import json
 import re
 from typing import Any, Iterable, Mapping
 
-from src.builtin_tool_catalog import build_builtin_analytics_identity_contract
-from src.tool_catalog import ToolAnalyticsIdentityIndex, ToolCatalogError
-from src.tool_index import BUILTIN_TOOL_DESCRIPTIONS
-
-
-TOOL_USAGE_BACKFILL_SCHEMA = "odysseus.tool_usage_backfill.v1"
-SYNTHETIC_PRIMARY_SOURCE = "synthetic_primary_legacy"
-MAX_BACKFILL_RECORDS = 10_000
-
-_REQUIRED_FIELDS = frozenset(
-    {
-        "source_id",
-        "legacy_event_id",
-        "tool_name",
-        "occurred_at",
-        "status",
-        "terminal",
-    }
+from src.builtin_tool_catalog import resolve_tool_analytics_identity
+from src.tool_catalog import ToolAnalyticsIdentityV1, ToolSource
+from src.tool_usage_events import (
+    ToolUsageAgentMode,
+    ToolUsageErrorClass,
+    ToolUsageEventKind,
+    ToolUsageEventV1,
+    ToolUsageModelScope,
+    ToolUsagePersistenceReason,
+    ToolUsageReferenceState,
+    ToolUsageResultShape,
+    ToolUsageSizeBucket,
+    ToolUsageStatus,
+    ToolUsageSurface,
 )
-_SAFE_EVENT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
-_STATUS_MAP = {
-    "success": "succeeded",
-    "succeeded": "succeeded",
-    "error": "failed",
-    "failed": "failed",
-    "blocked": "blocked",
-    "cancelled": "cancelled",
-    "rejected": "rejected",
-}
-_COUNT_FIELDS = (
+
+
+BACKFILL_SCHEMA = "odysseus.tool_usage_legacy_backfill.v1"
+SYNTHETIC_FIXTURE_SCHEMA = "odysseus.synthetic_tool_usage_legacy_fixture.v1"
+PRIMARY_SOURCE = "persisted_chat_tool_metadata"
+BACKFILL_COUNT_FIELDS = (
     "imported",
     "skipped",
     "deduped",
     "unsafe_rejected",
     "unknown",
 )
+MAX_SYNTHETIC_RECORDS = 10_000
+_MAX_COUNT = 1_000_000_000
+_SOURCE_RECORD_ID_RE = re.compile(r"^syn_[a-z0-9_-]{1,64}$")
+_LEGACY_TOOL_NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,79}$")
+_CHECKPOINT_RE = re.compile(r"^bf1_[0-9a-f]{32}$")
 
 
 class ToolUsageBackfillError(ValueError):
-    """Raised when the bounded dry-run contract itself is invalid."""
+    """Raised when the synthetic backfill contract is malformed."""
 
 
 @dataclass(frozen=True, slots=True)
-class ToolUsageBackfillCheckpoint:
-    """Immutable in-memory checkpoint; dry-runs never persist it."""
+class BackfillCounts:
+    imported: int = 0
+    skipped: int = 0
+    deduped: int = 0
+    unsafe_rejected: int = 0
+    unknown: int = 0
 
-    seen_keys: frozenset[str] = frozenset()
+    def __post_init__(self) -> None:
+        for field_name in BACKFILL_COUNT_FIELDS:
+            _bounded_count(getattr(self, field_name), field_name)
 
-    def contains(self, key: str) -> bool:
-        return key in self.seen_keys
+    def to_dict(self) -> dict[str, int]:
+        return {field: int(getattr(self, field)) for field in BACKFILL_COUNT_FIELDS}
 
 
 @dataclass(frozen=True, slots=True)
-class ToolUsageBackfillPreviewRecord:
-    dedupe_key: str
-    occurred_at: str
-    tool_analytics_id: str
-    tool_family: str
-    tool_source: str
-    status: str
-    duration_ms: None = None
-    historical: bool = True
+class BackfillReport:
+    counts: BackfillCounts
 
-    def to_safe_dict(self) -> dict[str, object]:
+    def __post_init__(self) -> None:
+        if not isinstance(self.counts, BackfillCounts):
+            raise ToolUsageBackfillError("backfill report requires bounded counts")
+
+    def to_dict(self) -> dict[str, Any]:
         return {
-            "dedupe_key": self.dedupe_key,
-            "occurred_at": self.occurred_at,
-            "tool_analytics_id": self.tool_analytics_id,
-            "tool_family": self.tool_family,
-            "tool_source": self.tool_source,
-            "status": self.status,
-            "duration_ms": None,
-            "historical": True,
-        }
-
-
-@dataclass(frozen=True, slots=True)
-class ToolUsageBackfillResult:
-    records: tuple[ToolUsageBackfillPreviewRecord, ...]
-    checkpoint: ToolUsageBackfillCheckpoint
-    counts: tuple[tuple[str, int], ...]
-    coverage_comparison: str
-
-    def to_safe_report(self) -> dict[str, object]:
-        return {
-            "schema_version": TOOL_USAGE_BACKFILL_SCHEMA,
-            "status": "dry_run",
-            "source": "synthetic-fixture",
-            "counts": dict(self.counts),
-            "coverage_comparison": self.coverage_comparison,
-            "writes_performed": False,
-            "apply_mode_available": False,
+            "schema": BACKFILL_SCHEMA,
+            "dry_run": True,
+            "counts": self.counts.to_dict(),
             "raw_content_visible": False,
-            "direct_identifiers_visible": False,
         }
 
 
 @dataclass(frozen=True, slots=True)
-class _ValidatedLegacyRecord:
-    dedupe_key: str
+class LegacyCoverageComparison:
+    primary_record_count: int
+    agent_ledger_start_count: int
+    agent_ledger_imported_count: int = 0
+    additive: bool = False
+
+    def __post_init__(self) -> None:
+        for field_name in (
+            "primary_record_count",
+            "agent_ledger_start_count",
+            "agent_ledger_imported_count",
+        ):
+            _bounded_count(getattr(self, field_name), field_name)
+        if self.agent_ledger_imported_count != 0 or self.additive is not False:
+            raise ToolUsageBackfillError("agent ledger must remain coverage-only")
+
+
+@dataclass(frozen=True, slots=True)
+class LegacyBackfillDryRunResult:
+    report: BackfillReport
+    coverage: LegacyCoverageComparison
+
+
+class BackfillCheckpoint:
+    """In-memory, content-free dedupe checkpoint for synthetic dry-runs."""
+
+    def __init__(self, fingerprints: Iterable[str] = ()):
+        self._fingerprints: set[str] = set()
+        for fingerprint in fingerprints:
+            self.add(fingerprint)
+
+    def __contains__(self, fingerprint: object) -> bool:
+        return isinstance(fingerprint, str) and fingerprint in self._fingerprints
+
+    def __len__(self) -> int:
+        return len(self._fingerprints)
+
+    def add(self, fingerprint: str) -> None:
+        text = str(fingerprint or "")
+        if not _CHECKPOINT_RE.fullmatch(text):
+            raise ToolUsageBackfillError("checkpoint fingerprint is not canonical")
+        self._fingerprints.add(text)
+
+    def snapshot(self) -> tuple[str, ...]:
+        return tuple(sorted(self._fingerprints))
+
+
+@dataclass(frozen=True, slots=True)
+class _LegacyCandidate:
+    fingerprint: str
     occurred_at: str
-    tool_name: str
-    status: str
-    terminal: bool
+    identity: ToolAnalyticsIdentityV1
+    status: ToolUsageStatus
 
 
-def default_tool_usage_identity_contract() -> ToolAnalyticsIdentityIndex:
-    """Return the canonical TAX10 identity and alias resolver."""
-
-    return build_builtin_analytics_identity_contract(BUILTIN_TOOL_DESCRIPTIONS)
+class _SkipRecord(Exception):
+    pass
 
 
-def preview_tool_usage_backfill(
-    records: Iterable[Mapping[str, Any]],
+class _UnsafeRecord(Exception):
+    pass
+
+
+def dry_run_synthetic_fixture(
+    fixture: Mapping[str, Any],
     *,
-    identity_contract: ToolAnalyticsIdentityIndex | None = None,
-    checkpoint: ToolUsageBackfillCheckpoint | None = None,
-    agent_ledger_coverage_count: int | None = None,
-) -> ToolUsageBackfillResult:
-    """Preview one primary legacy source without writes or count summation."""
+    checkpoint: BackfillCheckpoint | None = None,
+) -> LegacyBackfillDryRunResult:
+    """Validate the bundled source shape and perform an in-memory dry-run."""
 
-    if isinstance(records, (str, bytes, Mapping)):
-        raise ToolUsageBackfillError("records must be a bounded iterable of mappings")
-    try:
-        source_records = tuple(islice(records, MAX_BACKFILL_RECORDS + 1))
-    except TypeError as exc:
-        raise ToolUsageBackfillError(
-            "records must be a bounded iterable of mappings"
-        ) from exc
-    if len(source_records) > MAX_BACKFILL_RECORDS:
-        raise ToolUsageBackfillError("record count exceeds the dry-run limit")
-    contract = identity_contract or default_tool_usage_identity_contract()
-    if not isinstance(contract, ToolAnalyticsIdentityIndex):
-        raise ToolUsageBackfillError("identity_contract must be a TAX10 identity index")
-    prior = checkpoint or ToolUsageBackfillCheckpoint()
-    if not isinstance(prior, ToolUsageBackfillCheckpoint):
-        raise ToolUsageBackfillError("checkpoint must be immutable backfill state")
-    coverage_count = _coverage_count(agent_ledger_coverage_count)
+    records, agent_start_count = _fixture_inputs(fixture)
+    state = checkpoint if checkpoint is not None else BackfillCheckpoint()
+    totals = {field: 0 for field in BACKFILL_COUNT_FIELDS}
 
-    counts = {field: 0 for field in _COUNT_FIELDS}
-    seen = set(prior.seen_keys)
-    preview: list[ToolUsageBackfillPreviewRecord] = []
-    primary_terminal_count = 0
-
-    for raw in source_records:
-        if _is_primary_terminal_coverage_record(raw):
-            primary_terminal_count += 1
+    for record in records:
         try:
-            record = _validate_record(raw)
-        except ToolUsageBackfillError:
-            counts["unsafe_rejected"] += 1
+            candidate = _candidate_from_record(record)
+        except _SkipRecord:
+            totals["skipped"] += 1
             continue
-        if record.dedupe_key in seen:
-            counts["deduped"] += 1
+        except (ToolUsageBackfillError, _UnsafeRecord, ValueError, TypeError):
+            totals["unsafe_rejected"] += 1
             continue
-        if not record.terminal:
-            counts["skipped"] += 1
-            seen.add(record.dedupe_key)
-            continue
-        try:
-            identity = contract.resolve(record.tool_name)
-        except (ToolCatalogError, TypeError, ValueError):
-            counts["unsafe_rejected"] += 1
-            continue
-        if identity is None:
-            counts["unknown"] += 1
-            continue
-        preview.append(
-            ToolUsageBackfillPreviewRecord(
-                dedupe_key=record.dedupe_key,
-                occurred_at=record.occurred_at,
-                tool_analytics_id=identity.analytics_id,
-                tool_family=identity.family.value,
-                tool_source=identity.source.value,
-                status=record.status,
-            )
-        )
-        counts["imported"] += 1
-        seen.add(record.dedupe_key)
 
-    comparison = _coverage_comparison(primary_terminal_count, coverage_count)
-    return ToolUsageBackfillResult(
-        records=tuple(preview),
-        checkpoint=ToolUsageBackfillCheckpoint(frozenset(seen)),
-        counts=tuple((field, counts[field]) for field in _COUNT_FIELDS),
-        coverage_comparison=comparison,
+        if candidate.fingerprint in state:
+            totals["deduped"] += 1
+            continue
+        _build_terminal_event(candidate)
+        state.add(candidate.fingerprint)
+        totals["imported"] += 1
+        if candidate.identity.source_bucket:
+            totals["unknown"] += 1
+
+    counts = BackfillCounts(**totals)
+    return LegacyBackfillDryRunResult(
+        report=BackfillReport(counts),
+        coverage=LegacyCoverageComparison(
+            primary_record_count=len(records),
+            agent_ledger_start_count=agent_start_count,
+        ),
     )
 
 
-def _is_primary_terminal_coverage_record(raw: object) -> bool:
-    """Count source coverage without accepting or inspecting unsafe payload fields."""
+def _fixture_inputs(
+    fixture: Mapping[str, Any],
+) -> tuple[tuple[Mapping[str, Any], ...], int]:
+    if not isinstance(fixture, Mapping):
+        raise ToolUsageBackfillError("synthetic fixture must be a mapping")
+    if set(fixture) != {
+        "schema",
+        "source",
+        "records",
+        "agent_ledger_coverage",
+    }:
+        raise ToolUsageBackfillError("synthetic fixture fields are not allowlisted")
+    if fixture.get("schema") != SYNTHETIC_FIXTURE_SCHEMA:
+        raise ToolUsageBackfillError("synthetic fixture schema is unsupported")
+    if fixture.get("source") != PRIMARY_SOURCE:
+        raise ToolUsageBackfillError("only persisted chat metadata is a primary source")
+    raw_records = fixture.get("records")
+    if not isinstance(raw_records, (list, tuple)):
+        raise ToolUsageBackfillError("synthetic records must be a bounded sequence")
+    if len(raw_records) > MAX_SYNTHETIC_RECORDS:
+        raise ToolUsageBackfillError("synthetic record limit exceeded")
 
-    return (
-        isinstance(raw, Mapping)
-        and raw.get("source_id") == SYNTHETIC_PRIMARY_SOURCE
-        and raw.get("terminal") is True
+    coverage = fixture.get("agent_ledger_coverage")
+    if not isinstance(coverage, Mapping) or set(coverage) != {"start_count"}:
+        raise ToolUsageBackfillError("agent ledger coverage must be count-only")
+    agent_start_count = _bounded_count(
+        coverage.get("start_count"), "agent ledger start count"
+    )
+    return tuple(raw_records), agent_start_count
+
+
+def _candidate_from_record(record: Mapping[str, Any]) -> _LegacyCandidate:
+    if not isinstance(record, Mapping):
+        raise _UnsafeRecord
+
+    source_record_id = record.get("source_record_id")
+    tool_name = record.get("tool")
+    occurred_at = record.get("occurred_at")
+    if source_record_id in (None, "") or tool_name in (None, "") or occurred_at in (None, ""):
+        raise _UnsafeRecord
+    if "exit_code" not in record or record.get("exit_code") is None:
+        raise _SkipRecord
+    if not isinstance(source_record_id, str) or not _SOURCE_RECORD_ID_RE.fullmatch(
+        source_record_id
+    ):
+        raise _UnsafeRecord
+    if not isinstance(tool_name, str) or not _LEGACY_TOOL_NAME_RE.fullmatch(tool_name):
+        raise _UnsafeRecord
+    timestamp = _canonical_timestamp(occurred_at)
+    exit_code = record.get("exit_code")
+    if isinstance(exit_code, bool) or not isinstance(exit_code, int):
+        raise _UnsafeRecord
+    if exit_code < -255 or exit_code > 255:
+        raise _UnsafeRecord
+
+    identity = resolve_tool_analytics_identity(tool_name, source=ToolSource.LEGACY)
+    status = ToolUsageStatus.SUCCEEDED if exit_code == 0 else ToolUsageStatus.FAILED
+    fingerprint_payload = {
+        "source_record_id": source_record_id,
+        "occurred_at": timestamp,
+        "tool_analytics_id": identity.analytics_id,
+        "status": status.value,
+    }
+    encoded = json.dumps(
+        fingerprint_payload,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    fingerprint = "bf1_" + hashlib.sha256(encoded).hexdigest()[:32]
+    return _LegacyCandidate(
+        fingerprint=fingerprint,
+        occurred_at=timestamp,
+        identity=identity,
+        status=status,
     )
 
 
-def _validate_record(raw: Mapping[str, Any]) -> _ValidatedLegacyRecord:
-    if not isinstance(raw, Mapping) or set(raw) != _REQUIRED_FIELDS:
-        raise ToolUsageBackfillError("record fields are not allowlisted")
-    if raw.get("source_id") != SYNTHETIC_PRIMARY_SOURCE:
-        raise ToolUsageBackfillError("record source is not the synthetic primary source")
-    event_id = raw.get("legacy_event_id")
-    if not isinstance(event_id, str) or not _SAFE_EVENT_ID_RE.fullmatch(event_id):
-        raise ToolUsageBackfillError("legacy event ID is unsafe")
-    tool_name = raw.get("tool_name")
-    if not isinstance(tool_name, str) or not 1 <= len(tool_name) <= 80:
-        raise ToolUsageBackfillError("tool name is unsafe")
-    status = raw.get("status")
-    if not isinstance(status, str) or status not in _STATUS_MAP:
-        raise ToolUsageBackfillError("legacy status is not allowlisted")
-    terminal = raw.get("terminal")
-    if not isinstance(terminal, bool):
-        raise ToolUsageBackfillError("terminal marker must be boolean")
-    occurred_at = _utc_timestamp(raw.get("occurred_at"))
-    dedupe_key = hashlib.sha256(
-        f"{SYNTHETIC_PRIMARY_SOURCE}:{event_id}".encode("utf-8")
-    ).hexdigest()
-    return _ValidatedLegacyRecord(
-        dedupe_key=dedupe_key,
-        occurred_at=occurred_at,
-        tool_name=tool_name,
-        status=_STATUS_MAP[status],
-        terminal=terminal,
+def _build_terminal_event(candidate: _LegacyCandidate) -> ToolUsageEventV1:
+    if not isinstance(candidate, _LegacyCandidate):
+        raise ToolUsageBackfillError("legacy candidate is invalid")
+    seed = candidate.fingerprint.encode("ascii")
+    invocation_id = "tui_" + hashlib.sha256(b"invocation\0" + seed).hexdigest()[:32]
+    event_id = "tue_" + hashlib.sha256(b"event\0" + seed).hexdigest()[:32]
+    return ToolUsageEventV1(
+        event_id=event_id,
+        invocation_id=invocation_id,
+        event_kind=ToolUsageEventKind.TERMINAL,
+        occurred_at=candidate.occurred_at,
+        duration_ms=None,
+        tool_analytics_id=candidate.identity.analytics_id,
+        tool_family=candidate.identity.family,
+        tool_source=candidate.identity.source,
+        surface=ToolUsageSurface.CHAT,
+        status=candidate.status,
+        error_class=(
+            ToolUsageErrorClass.EXECUTION
+            if candidate.status == ToolUsageStatus.FAILED
+            else None
+        ),
+        blocked_reason_code=None,
+        retry_ordinal=0,
+        argument_size_bucket=ToolUsageSizeBucket.NONE,
+        result_size_bucket=ToolUsageSizeBucket.NONE,
+        result_shape_bucket=ToolUsageResultShape.NONE,
+        owner_ref=None,
+        session_ref=None,
+        run_ref=None,
+        correlation_ref=None,
+        reference_state=ToolUsageReferenceState.NOT_REQUESTED,
+        model_scope=ToolUsageModelScope.UNKNOWN,
+        agent_mode=ToolUsageAgentMode.CHAT,
+        app_version="0.25.0-legacy",
+        persistence_allowed=True,
+        persistence_reason=ToolUsagePersistenceReason.ALLOWED,
     )
 
 
-def _utc_timestamp(value: Any) -> str:
-    if not isinstance(value, str) or not 20 <= len(value) <= 35:
-        raise ToolUsageBackfillError("timestamp is invalid")
+def _canonical_timestamp(value: Any) -> str:
+    if not isinstance(value, str) or not value.endswith("Z"):
+        raise _UnsafeRecord
     try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value[:-1] + "+00:00")
     except ValueError as exc:
-        raise ToolUsageBackfillError("timestamp is invalid") from exc
-    if parsed.tzinfo is None:
-        raise ToolUsageBackfillError("timestamp must include an offset")
-    return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+        raise _UnsafeRecord from exc
+    if parsed.utcoffset() is None or parsed.utcoffset().total_seconds() != 0:
+        raise _UnsafeRecord
+    normalized = parsed.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    if normalized != value:
+        raise _UnsafeRecord
+    return normalized
 
 
-def _coverage_count(value: int | None) -> int | None:
-    if value is None:
-        return None
-    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= MAX_BACKFILL_RECORDS:
-        raise ToolUsageBackfillError("coverage count must be bounded")
+def _bounded_count(value: Any, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ToolUsageBackfillError(f"{field_name} must be an integer")
+    if value < 0 or value > _MAX_COUNT:
+        raise ToolUsageBackfillError(f"{field_name} is outside the bounded range")
     return value
-
-
-def _coverage_comparison(primary_count: int, reference_count: int | None) -> str:
-    if reference_count is None:
-        return "not_supplied"
-    if primary_count == reference_count:
-        return "equal"
-    return "primary_lower" if primary_count < reference_count else "primary_higher"

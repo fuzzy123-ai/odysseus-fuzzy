@@ -41,7 +41,10 @@ Aber in `MS1A` gilt ausdruecklich:
 - kein UMAP/GMM
 
 Postgres ist Zielwahrheit fuer spaetere Migration.
-Qdrant und Kuzu bleiben spaetere, rebuildbare Accelerator.
+Qdrant bleibt ein moeglicher spaeterer, rebuildbarer Accelerator. Kuzu wird
+nach dem USI1B-Sourcing-Entscheid nicht neu eingefuehrt, weil das
+Upstream-Projekt nicht mehr maintained wird. Ein anderer Graph-Accelerator
+benoetigt einen eigenen, spaeteren Entscheid und bleibt ebenfalls rebuildbar.
 
 ## Was ist ein Store Interface?
 
@@ -317,7 +320,8 @@ Die zentrale Produktregel fuer `MS1A` ist:
 
 Regel:
 
-- Was spaeter in Qdrant oder Kuzu landet, darf nicht die einzige Wahrheit sein.
+- Was spaeter in Qdrant oder einem freigegebenen Graph-Accelerator landet,
+  darf nicht die einzige Wahrheit sein.
 - Accelerator-Daten muessen rebuildbar bleiben.
 
 ## Nutzer- und Charlie-Sicht
@@ -364,12 +368,13 @@ Ein Store-Vertrag ist fuer Charlie gut, wenn daraus spaeter kleine Gates ableitb
 
 ## Accelerator-Regeln
 
-Qdrant und Kuzu sind in dieser Phase nicht aktive Basis, sondern spaetere Spezialmotoren.
+Qdrant ist in dieser Phase keine aktive Basis, sondern hoechstens ein spaeterer
+Spezialmotor. Kuzu ist nach USI1B kein neuer Backend-Kandidat mehr.
 
 Regeln:
 
 - Postgres bleibt spaetere Wahrheit
-- Qdrant und Kuzu bleiben rebuildbare Accelerator
+- Qdrant und jeder spaeter freigegebene Graph-Accelerator bleiben rebuildbar
 - kein Accelerator wird in `MS1A` aktiviert
 - Accelerator-Einfuehrung ist erst nach Diagnostics zulaessig
 - Accelerator-Daten muessen aus Wahrheit rebuildbar bleiben
@@ -428,5 +433,6 @@ Minimum-Regeln fuer das Modell:
 - Budget-Begriffe `limit`, `cursor`, `time_budget_ms`, `token_budget`, `max_nodes`, `max_edges`, `depth`, `stale_after` festliegen
 - Nutzer- und Charlie-Sicht klar machen, wie bounded Verhalten erkennbar wird
 - Migration-Nichtziele Big-Bang-Refactors und Runtime-Switches verhindern
-- Accelerator-Regeln Qdrant/Kuzu/UMAP-GMM klar spaeter und rebuildbar halten
+- Accelerator-Regeln fuer Qdrant, spaeter freigegebene Graph-Backends und
+  UMAP/GMM klar spaeter und rebuildbar halten
 - Bob einen kleinen, konkreten Validierungs-Handoff fuer sein Interface-Modell bekommt

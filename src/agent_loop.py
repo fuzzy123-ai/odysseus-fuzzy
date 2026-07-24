@@ -15,19 +15,25 @@ import logging
 from pathlib import Path
 from typing import AsyncGenerator, List, Dict, Optional, Set
 
-from src.llm_core import stream_llm, stream_llm_with_fallback, _is_ollama_native_url
+from src.llm_core import (
+    _is_ollama_native_url,
+    resolve_request_context_snapshot,
+    stream_llm,
+    stream_llm_with_fallback,
+)
 from src.model_context import estimate_tokens
 from src.settings import get_setting
 from src.claim_evidence_gate import build_claim_evidence_correction, evaluate_response_claims
 from src.tool_transaction_ledger import transactions_from_tool_events
-from src.todo_receipts import render_todo_receipt_response, todo_receipts_from_tool_events
+from src.todo_transaction_receipts import todo_safe_history_event
+from src.effectful_tool_matrix import tool_effect_category
 from src.tool_security import (
     PUBLIC_MCP_SERVER_ALLOWLIST,
     blocked_tools_for_owner,
     orchestrator_mode_disabled_tools,
     plan_mode_disabled_tools,
 )
-from src.tool_policy import GUIDE_ONLY_DIRECTIVE, ToolPolicy
+from src.tool_policy import CLARIFICATION_OPEN_DIRECTIVE, GUIDE_ONLY_DIRECTIVE, ToolPolicy
 from src.tool_utils import _truncate, get_mcp_manager
 from src.agent_tools import (
     strip_tool_blocks,
@@ -48,7 +54,6 @@ from src.agent_loop_tool_mechanics import (
 from src.agent_loop_orchestration import (
     ORCHESTRATOR_MODE_DIRECTIVE,
     PLAN_MODE_DIRECTIVE,
-    _VERIFIER_EFFECTFUL_TOOLS,
     _VERIFIER_MAX_ROUNDS,
     _build_actions_snapshot,
     _detect_runaway_call,
@@ -63,6 +68,18 @@ from src.agent_loop_orchestration import (
 from src.tool_schemas import get_function_tool_schemas
 
 logger = logging.getLogger(__name__)
+
+
+def _todo_tool_event_forward(result: object) -> dict:
+    """Forward only a closed, content-free Todo event into history."""
+    return todo_safe_history_event(result)
+
+
+def _tool_execution_is_effectful(tool: object, result: object) -> bool:
+    """Use normalized action semantics; absent or unknown actions fail closed."""
+    action = result.get("action") if isinstance(result, dict) else None
+    action = action.strip().lower() if isinstance(action, str) else None
+    return bool(tool_effect_category(tool, action))
 
 
 def _load_mcp_disabled_map() -> Dict[str, set]:
@@ -202,6 +219,34 @@ def _build_base_prompt(
 _BUILD_BASE_PROMPT_WRAPPER = _build_base_prompt
 
 
+def _bind_tool_usage_instrumentation(context: Any, instrumentation: Any) -> Any:
+    if context is None or instrumentation is None:
+        return None
+    try:
+        return instrumentation.with_context(context)
+    except Exception:
+        # Telemetry setup is best-effort and must never alter chat execution.
+        return None
+
+
+async def _resolve_agent_context_snapshot(
+    endpoint_url: str,
+    model: str,
+    context_length: int,
+):
+    supplied = context_length if isinstance(context_length, int) and context_length > 0 else None
+    return await resolve_request_context_snapshot(
+        endpoint_url,
+        model,
+        supplied_context_length=supplied,
+        supplied_known=supplied is not None,
+        # Main chat binds a discovered snapshot in context_compactor. Direct
+        # agent entrypoints without one stay conservative until GMI-09B moves
+        # their route-specific lookup to the async service.
+        probe_if_missing=False,
+    )
+
+
 
 async def stream_agent_loop(
     endpoint_url: str,
@@ -233,7 +278,8 @@ async def stream_agent_loop(
     audit_correlation_id: Optional[str] = None,
     audit_task_id: Optional[str] = None,
     audit_doc_id: Optional[str] = None,
-    tool_usage_instrumentation: Optional[object] = None,
+    tool_usage_context: Optional[Any] = None,
+    tool_usage_instrumentation: Optional[Any] = None,
 ) -> AsyncGenerator[str, None]:
     """Streaming agent loop generator.
 
@@ -246,7 +292,17 @@ async def stream_agent_loop(
       - data: [DONE]                                        (end)
     """
 
+    context_snapshot = await _resolve_agent_context_snapshot(
+        endpoint_url,
+        model,
+        context_length,
+    )
+    context_length = context_snapshot.context_length
     mcp_mgr = get_mcp_manager()
+    bound_tool_usage_instrumentation = _bind_tool_usage_instrumentation(
+        tool_usage_context,
+        tool_usage_instrumentation,
+    )
     prep_timings: Dict[str, float] = {}
     disabled_tools = set(disabled_tools or [])
     workflow_skill_resolution = workflow_skill_resolution if isinstance(workflow_skill_resolution, dict) else {}
@@ -265,6 +321,7 @@ async def stream_agent_loop(
         if tool_policy.disable_mcp:
             mcp_mgr = None
     guide_only = bool(tool_policy and tool_policy.mode == "guide_only")
+    clarification_open = bool(tool_policy and tool_policy.mode == "clarification_open")
     public_blocked_tools = blocked_tools_for_owner(owner)
     public_mcp_allowlist = None
     if public_blocked_tools:
@@ -430,12 +487,6 @@ async def stream_agent_loop(
             if _target in ("browser_preview", "dual"):
                 _relevant_tools.add("create_document")
 
-        # A clear Todo turn has one domain facade. Memory is ambient by default,
-        # so remove it deterministically instead of asking the model to choose
-        # between two persistent stores.
-        from src.todo_intent import route_todo_toolset
-        _relevant_tools = route_todo_toolset(_relevant_tools, _last_user)
-
     # If a document is open the model needs the editing tools available
     # regardless of which selection path (RAG, keyword, caller-provided) ran
     # or what keywords were in the latest user message.
@@ -482,6 +533,10 @@ async def stream_agent_loop(
             logger.debug(f"[tool-rag] skill-aware tool include skipped: {_e}")
 
     if _relevant_tools is not None:
+        from src.agent_loop_intent import remove_memory_for_todo_domain
+        _relevant_tools = remove_memory_for_todo_domain(
+            _relevant_tools, set(_intent.get("domains") or set())
+        )
         logger.info("[agent-intent] selected_tools=%s", sorted(_relevant_tools)[:50])
 
     prep_timings["tool_selection"] = time.time() - _t1
@@ -594,7 +649,12 @@ async def stream_agent_loop(
             messages[0]["content"] = _deliverable_note + "\n\n" + (messages[0].get("content") or "")
         else:
             messages.insert(0, {"role": "system", "content": _deliverable_note})
-    if workspace and not guide_only:
+    if clarification_open:
+        if messages and messages[0].get("role") == "system":
+            messages[0]["content"] = CLARIFICATION_OPEN_DIRECTIVE + "\n\n" + (messages[0].get("content") or "")
+        else:
+            messages.insert(0, {"role": "system", "content": CLARIFICATION_OPEN_DIRECTIVE})
+    elif workspace and not guide_only:
         # PREPEND (not append) so it dominates the large base prompt — appended
         # at the end, small models ignored it and asked the user for code. The
         # folder IS the project; the agent must explore it, not ask.
@@ -615,7 +675,7 @@ async def stream_agent_loop(
         else:
             messages.insert(0, {"role": "system", "content": _ws_note})
         logger.info("[workspace] active for this turn: %s", workspace)
-    if plan_mode and not guide_only:
+    if plan_mode and not guide_only and not clarification_open:
         # Steer the model to investigate-then-propose. Hard tool gating handles
         # every write path except shell; this directive is what keeps the
         # intentionally-allowed bash/python read-only, so it must DOMINATE. Put
@@ -625,12 +685,12 @@ async def stream_agent_loop(
             messages[0]["content"] = PLAN_MODE_DIRECTIVE + "\n\n" + (messages[0].get("content") or "")
         else:
             messages.insert(0, {"role": "system", "content": PLAN_MODE_DIRECTIVE})
-    elif orchestrator_mode and not guide_only:
+    elif orchestrator_mode and not guide_only and not clarification_open:
         if messages and messages[0].get("role") == "system":
             messages[0]["content"] = ORCHESTRATOR_MODE_DIRECTIVE + "\n\n" + (messages[0].get("content") or "")
         else:
             messages.insert(0, {"role": "system", "content": ORCHESTRATOR_MODE_DIRECTIVE})
-    elif approved_plan and approved_plan.strip() and not guide_only:
+    elif approved_plan and approved_plan.strip() and not guide_only and not clarification_open:
         # EXECUTING an approved plan. Pin the checklist as a top-of-context
         # system note so a long plan on a weak model survives history
         # truncation — the agent can always re-read the plan instead of losing
@@ -652,7 +712,6 @@ async def stream_agent_loop(
     try:
         from src.context_compactor import latest_dialog_pair_preserved, trim_for_context
         from src.context_budget import DEFAULT_HARD_MAX, DEFAULT_BUDGET, budget_is_explicit as _budget_is_explicit, resolve_input_token_budget
-        from src.model_context import budget_context_for_model
 
         soft_budget = int(get_setting("agent_input_token_budget", DEFAULT_BUDGET) or 0)
         if soft_budget > 0:
@@ -674,7 +733,7 @@ async def stream_agent_loop(
             # Scale only off a window we actually discovered, bound to the value it
             # proves (else 0) — not the passed-in context_length, which can be stale
             # or unset for some callers (#4122 review).
-            ctx_for_budget = budget_context_for_model(endpoint_url, model, fallback=context_length)
+            ctx_for_budget = context_snapshot.context_length if context_snapshot.known else 0
             budget_decision = resolve_input_token_budget(
                 soft_budget,
                 ctx_for_budget,
@@ -1392,7 +1451,7 @@ async def stream_agent_loop(
                             model=model,
                             headers=headers or {},
                             context_length=context_length,
-                            tool_usage_instrumentation=tool_usage_instrumentation,
+                            tool_usage_instrumentation=bound_tool_usage_instrumentation,
                         )
                     finally:
                         # Sentinel so the drainer knows to stop.
@@ -1631,7 +1690,6 @@ async def stream_agent_loop(
             for k in (
                 "attachment", "artifact_evidence", "interactive_runtime",
                 "headless_evidence", "pygame_headless_plan", "screenshot_ref",
-                "todo_receipts", "todo_digest_receipts",
             ):
                 if k in result:
                     tool_output_data[k] = result[k]
@@ -1687,35 +1745,42 @@ async def stream_agent_loop(
                 yield 'data: ' + json.dumps({"delta": _anchor}) + '\n\n'
 
             # Save for history persistence
-            tool_event = {
-                "round": round_num,
-                "tool": block.tool_type,
-                "command": cmd_display,
-                "output": output_text,
-                "exit_code": result.get("exit_code"),
-            }
-            if result.get("image_url"):
-                for ik in ("image_url", "image_prompt", "image_model", "image_size", "image_quality"):
-                    if result.get(ik):
-                        tool_event[ik] = result[ik]
-            if result.get("doc_id"):
-                tool_event["doc_id"] = result["doc_id"]
-                tool_event["doc_title"] = result.get("title", "")
-            # Persist the file-write/edit diff so it re-renders on reload — without
-            # this the diff shows live but vanishes from saved history.
-            if result.get("diff"):
-                tool_event["diff"] = result["diff"]
-            for key in (
-                "attachment", "artifact_evidence", "interactive_runtime",
-                "headless_evidence", "pygame_headless_plan", "screenshot_ref",
-                "todo_receipts", "todo_digest_receipts",
-            ):
-                if result.get(key):
-                    tool_event[key] = result[key]
-            if _pending_ask_user_event:
-                tool_event["ask_user"] = _pending_ask_user_event
+            _todo_event = (
+                _todo_tool_event_forward(result)
+                if block.tool_type == "manage_todos"
+                else None
+            )
+            if block.tool_type == "manage_todos":
+                tool_event = {"round": round_num, **_todo_event}
+            else:
+                tool_event = {
+                    "round": round_num,
+                    "tool": block.tool_type,
+                    "command": cmd_display,
+                    "output": output_text,
+                    "exit_code": result.get("exit_code"),
+                }
+                if result.get("image_url"):
+                    for ik in ("image_url", "image_prompt", "image_model", "image_size", "image_quality"):
+                        if result.get(ik):
+                            tool_event[ik] = result[ik]
+                if result.get("doc_id"):
+                    tool_event["doc_id"] = result["doc_id"]
+                    tool_event["doc_title"] = result.get("title", "")
+                # Persist the file-write/edit diff so it re-renders on reload — without
+                # this the diff shows live but vanishes from saved history.
+                if result.get("diff"):
+                    tool_event["diff"] = result["diff"]
+                for key in (
+                    "attachment", "artifact_evidence", "interactive_runtime",
+                    "headless_evidence", "pygame_headless_plan", "screenshot_ref",
+                ):
+                    if result.get(key):
+                        tool_event[key] = result[key]
+                if _pending_ask_user_event:
+                    tool_event["ask_user"] = _pending_ask_user_event
             tool_events.append(tool_event)
-            if block.tool_type in _VERIFIER_EFFECTFUL_TOOLS:
+            if _tool_execution_is_effectful(block.tool_type, result):
                 _effectful_used = True
 
             formatted = format_tool_result(desc, result)

@@ -3,8 +3,10 @@ import json
 
 import pytest
 
+from plugins.telegram.polling import _deliver_agent_reply as deliver_polling_agent_reply
 from plugins.telegram.stores import TelegramInboxStore
 from plugins.telegram.webhook_service import (
+    _deliver_agent_reply,
     TelegramWebhookIntakeError,
     build_webhook_agent_turn_event_payload,
     build_webhook_attachment_event_payload,
@@ -23,6 +25,80 @@ from plugins.telegram.webhook_service import (
     run_webhook_media_pipelines,
     run_webhook_project_intake_branch,
 )
+from src.tool_transaction_ledger import TOOL_TRANSACTION_LEDGER_SCHEMA
+
+
+def _todo_transaction() -> dict:
+    return {
+        "schema": TOOL_TRANSACTION_LEDGER_SCHEMA,
+        "transaction_id": "agent:0:manage_todos:todo_item_created",
+        "surface": "agent",
+        "tool": "manage_todos",
+        "claim_type": "todo_item_created",
+        "status": "verified",
+        "evidence_refs": [
+            "owner:0123456789abcdef",
+            "list:fedcba9876543210",
+            "item:0011223344556677",
+            "operation:add",
+        ],
+        "exit_code": 0,
+        "artifact_refs": [],
+        "command_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb924",
+        "verified_done": True,
+        "raw_content_visible": False,
+    }
+
+
+def test_webhook_legacy_reply_handler_receives_one_delivery_with_todo_carrier():
+    deliveries = []
+
+    def _legacy(chat_id, text, *, source_message_id=None):
+        deliveries.append((chat_id, text, source_message_id))
+        return {"ok": True}
+
+    result = _deliver_agent_reply(
+        _legacy,
+        "chat_safe",
+        "I created the todo item.",
+        5,
+        [_todo_transaction()],
+    )
+
+    assert result == {"ok": True}
+    assert deliveries == [("chat_safe", "I created the todo item.", 5)]
+
+
+def test_hostile_signature_reply_handlers_fall_back_to_one_legacy_delivery():
+    webhook_deliveries = []
+    polling_deliveries = []
+
+    class HostileWebhookHandler:
+        @property
+        def __signature__(self):
+            raise RuntimeError("signature lookup must not escape")
+
+        def __call__(self, chat_id, text, *, source_message_id=None):
+            webhook_deliveries.append((chat_id, text, source_message_id))
+            return {"ok": True}
+
+    class HostilePollingHandler:
+        @property
+        def __signature__(self):
+            raise ValueError("signature lookup must not escape")
+
+        def __call__(self, chat_id, text, source_message_id=None):
+            polling_deliveries.append((chat_id, text, source_message_id))
+            return {"ok": True}
+
+    assert _deliver_agent_reply(
+        HostileWebhookHandler(), "chat_safe", "I created the todo item.", 5, [_todo_transaction()]
+    ) == {"ok": True}
+    assert deliver_polling_agent_reply(
+        HostilePollingHandler(), "chat_safe", "I created the todo item.", 6, [_todo_transaction()]
+    ) == {"ok": True}
+    assert webhook_deliveries == [("chat_safe", "I created the todo item.", 5)]
+    assert polling_deliveries == [("chat_safe", "I created the todo item.", 6)]
 
 
 def test_parse_and_store_webhook_update_appends_redacted_inbound(tmp_path):
@@ -124,28 +200,33 @@ def test_run_webhook_media_pipelines_builds_live_voice_provider_when_no_injected
     assert built == [{"chat_id": "chat-1"}]
 
 
-def test_build_webhook_response_payload_preserves_public_shape():
+def test_build_webhook_response_payload_is_a_content_free_receipt():
     payload = build_webhook_response_payload(
-        stored={"stored": True, "message": {"kind": "text", "chat_handle": "chat_safe"}},
-        agent_bridge={"ready_for_agent": True},
-        voice_pipeline={"status": "skipped"},
+        stored={"stored": True, "message": {"kind": "text", "text": "private input", "chat_handle": "chat_safe"}},
+        agent_bridge={"ready_for_agent": True, "prompt": "private prompt"},
+        voice_pipeline={"status": "skipped", "transcript": "private transcript"},
         image_action={"status": "disabled"},
         universal_inbox_attachment=None,
-        agent_turn={"status": "accepted"},
-        reply={"ok": True},
-        extra={"control_command": {"status": "handled"}},
+        agent_turn={"status": "accepted", "reply_text": "private reply"},
+        reply={"ok": True, "error": "private failure"},
+        extra={"control_command": {"status": "handled", "secret": "private"}},
     )
 
     assert payload == {
         "stored": True,
-        "message": {"kind": "text", "chat_handle": "chat_safe"},
-        "agent_bridge": {"ready_for_agent": True},
-        "voice_pipeline": {"status": "skipped"},
-        "image_action": {"status": "disabled"},
-        "universal_inbox_attachment": None,
-        "control_command": {"status": "handled"},
-        "agent_turn": {"status": "accepted"},
-        "reply": {"ok": True},
+        "receipt": {
+            "schema": "odysseus.telegram.audit_receipt.v1",
+            "record_class": "raw_bearing",
+            "direction": "unknown",
+            "kind": "text",
+            "status": "unknown",
+            "recorded_at": 0,
+            "raw_content_visible": False,
+            "raw_identifiers_visible": False,
+            "token_value_visible": False,
+        },
+        "raw_content_visible": False,
+        "raw_identifiers_visible": False,
         "token_value_visible": False,
     }
 
@@ -536,6 +617,75 @@ async def test_run_webhook_agent_turn_branch_binds_runs_types_and_replies():
     ]
     assert replies == [("chat_safe", "Agent reply", 34)]
     assert "Agent reply" not in json.dumps(events)
+
+
+@pytest.mark.asyncio
+async def test_webhook_agent_turn_forwards_closed_todo_transactions_without_audit_leak():
+    events = []
+    replies = []
+    source_transaction = _todo_transaction()
+
+    class Sessions:
+        def bind_chat(self, **_kwargs):
+            return {"session_id": "session-1"}
+
+    class Store:
+        def append_event(self, **payload):
+            events.append(payload)
+
+    async def _run_agent(_handler, _bridge):
+        return {
+            "status": "accepted",
+            "reply_text": "I created the todo item.",
+            "reply_text_present": True,
+            "todo_transactions": [source_transaction],
+        }
+
+    class Stop:
+        def set(self):
+            return None
+
+    async def _typing(*_args, **_kwargs):
+        return Stop(), asyncio.create_task(asyncio.sleep(0))
+
+    def _reply(chat_id, text, *, source_message_id=None, todo_transactions=()):
+        replies.append((chat_id, text, source_message_id, todo_transactions))
+        return {"exit_code": 0}
+
+    _, _, reply = await run_webhook_agent_turn_branch(
+        stored_message={"kind": "text"},
+        bridge={
+            "ready_for_agent": True,
+            "chat_id": "chat_safe",
+            "session_alias": "alias",
+            "recommended_session_name": "name",
+            "desired_session_scope": "normal",
+        },
+        raw_chat_id="raw-chat",
+        sessions=Sessions(),
+        session_creator=None,
+        store=Store(),
+        voice_agent_turn=None,
+        recent_attachment_context=None,
+        agent_turn_handler=lambda _bridge: None,
+        build_agent_bridge_request=lambda _message, **kwargs: {
+            "ready_for_agent": True,
+            "chat_id": "chat_safe",
+            "session_id": kwargs["session_binding"]["session_id"],
+            "source_message_id": 7,
+        },
+        deterministic_agent_turn=lambda _bridge: None,
+        run_agent_turn_async=_run_agent,
+        typing_pulse=_typing,
+        agent_failure_reply=lambda _turn: "failed",
+        reply_with_gate=_reply,
+    )
+
+    assert reply == {"exit_code": 0}
+    assert replies[0][:3] == ("chat_safe", "I created the todo item.", 7)
+    assert replies[0][3][0] is not source_transaction
+    assert replies[0][3][0]["claim_type"] == "todo_item_created"
+    assert all("todo_transactions" not in event for event in events)
 
 
 @pytest.mark.asyncio

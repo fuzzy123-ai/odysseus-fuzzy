@@ -1,314 +1,154 @@
-"""Agent-facing Todo facade backed exclusively by owner-scoped Notes."""
-
+"""Safe tool facade for the owner-scoped Todo domain service."""
 from __future__ import annotations
 
-import hashlib
-import json
-from typing import Dict, Optional
+from typing import Any, Optional
 
-from sqlalchemy.exc import IntegrityError
-
-from core.database import Note, SessionLocal
-from src.todo_domain_service import (
-    TodoDomainError,
-    TodoDomainService,
-    TodoListSnapshot,
-    make_list_ref,
-)
-from src.todo_intent import normalize_todo_match_text
-from src.todo_digest_receipts import todo_digest_receipts_from_postconditions
-from src.todo_receipts import todo_receipts_from_tool_result
 from src.tool_domains.common import _parse_tool_args
+from src.todo_transaction_receipts import TODO_RECEIPT_FIELD, attach_todo_semantic_receipt
+from src.todo_domain_service import (
+    TodoAmbiguousMatchError,
+    TodoConflictError,
+    TodoDataError,
+    TodoDomainError,
+    TodoIdempotencyConflictError,
+    TodoNotFoundError,
+    TodoValidationError,
+    TodoDomainService,
+)
+
+_ACTION_ALIASES = {
+    "create": "add",
+    "delete": "remove",
+    "done": "complete",
+    "finish": "complete",
+    "new": "add",
+    "uncomplete": "reopen",
+    "undo": "reopen",
+}
+_SUPPORTED_ACTIONS = frozenset({"list", "add", "complete", "reopen", "remove"})
 
 
-_SESSION_FACTORY = SessionLocal
-_DEFAULT_LIST_TITLE = "Todos"
+def _service_factory():
+    return TodoDomainService.from_core_database()
 
 
-def _error(message: str, *, status: str = "rejected", **extra) -> Dict:
-    return {
-        "error": message,
-        "status": status,
-        "domain": "todos",
-        "exit_code": 1,
-        **extra,
-    }
+def _error(code: str, **extra: Any) -> dict[str, Any]:
+    return {"status": "rejected", "error": code, "error_code": code, "exit_code": 1, **extra}
 
 
-def _with_receipts(result: Dict, *, owner: str) -> Dict:
-    receipts = todo_receipts_from_tool_result(result)
-    result["todo_receipts"] = [receipt.to_dict() for receipt in receipts]
-    digest_receipts = ()
-    if (
-        result.get("exit_code") in (0, "0", None)
-        and result.get("action") in {"add", "complete", "reopen", "remove"}
-        and result.get("list_ref")
-        and result.get("item_ref")
-    ):
-        try:
-            from src.builtin_actions import build_todo_digest_item_postcondition
-            from src.calendar_capability_service import build_todo_digest_schedule_postcondition
-
-            projection = build_todo_digest_item_postcondition(
-                owner=owner,
-                list_ref=result["list_ref"],
-                item_ref=result["item_ref"],
-                current_state=result.get("current_state") or {},
-                session_factory=_SESSION_FACTORY,
-            )
-            schedule = build_todo_digest_schedule_postcondition(
-                owner=owner,
-                session_factory=_SESSION_FACTORY,
-            )
-            digest_receipts = todo_digest_receipts_from_postconditions(
-                projection,
-                schedule,
-            )
-        except Exception:
-            # The Todo mutation receipt remains authoritative. Digest claims
-            # fail closed when the independent read-only projection is absent.
-            digest_receipts = ()
-    result["todo_digest_receipts"] = [receipt.to_dict() for receipt in digest_receipts]
-    return result
-
-
-def _active_list_refs(owner: str) -> list[str]:
-    db = _SESSION_FACTORY()
-    try:
-        notes = (
-            db.query(Note)
-            .filter(
-                Note.owner == owner,
-                Note.note_type == "checklist",
-                Note.archived.is_(False),
-            )
-            .order_by(Note.created_at.asc(), Note.id.asc())
-            .all()
-        )
-        return [make_list_ref(owner, note.id) for note in notes]
-    finally:
-        db.close()
-
-
-def _default_note_id(owner: str) -> str:
-    digest = hashlib.sha256(f"todo-default-list:v1\0{owner}".encode("utf-8")).hexdigest()[:32]
-    return f"todo-default-{digest}"
-
-
-def _ensure_default_list(owner: str) -> str:
-    note_id = _default_note_id(owner)
-    db = _SESSION_FACTORY()
-    try:
-        existing = (
-            db.query(Note)
-            .filter(Note.id == note_id, Note.owner == owner)
-            .first()
-        )
-        if existing is None:
-            db.add(
-                Note(
-                    id=note_id,
-                    owner=owner,
-                    title=_DEFAULT_LIST_TITLE,
-                    items="[]",
-                    note_type="checklist",
-                    archived=False,
-                    source="agent",
-                )
-            )
-            try:
-                db.commit()
-            except IntegrityError:
-                # A concurrent first add may have created the same deterministic
-                # owner-scoped list. Re-read and accept only an exact owner match.
-                db.rollback()
-                existing = (
-                    db.query(Note)
-                    .filter(Note.id == note_id, Note.owner == owner)
-                    .first()
-                )
-                if existing is None:
-                    raise
-        return make_list_ref(owner, note_id)
-    finally:
-        db.close()
-
-
-def _snapshots(service: TodoDomainService, owner: str) -> list[TodoListSnapshot]:
-    return [
-        service.list_items(owner=owner, list_ref=list_ref)
-        for list_ref in _active_list_refs(owner)
-    ]
-
-
-def _resolve_list_by_title(
-    snapshots: list[TodoListSnapshot], list_title: str
-) -> tuple[str | None, Dict | None]:
-    normalized = normalize_todo_match_text(list_title)
-    matches = [
-        snapshot for snapshot in snapshots
-        if normalize_todo_match_text(snapshot.title) == normalized
-    ]
-    if len(matches) == 1:
-        return matches[0].list_ref, None
-    if len(matches) > 1:
-        return None, _error(
-            "Todo list title is ambiguous; retry with a stable list_ref",
-            status="ambiguous",
-            candidate_refs=[snapshot.list_ref for snapshot in matches],
-        )
-    return None, _error("Todo list not found", status="not_found")
-
-
-def _resolve_target_list(
-    *,
-    snapshots: list[TodoListSnapshot],
-    item_ref: str | None,
-    text: str | None,
-) -> tuple[str | None, Dict | None]:
-    if (item_ref is None) == (text is None):
-        return None, _error("Provide exactly one of item_ref or text")
-    if item_ref is not None:
-        matches = [
-            (snapshot, item.item_ref)
-            for snapshot in snapshots
-            for item in snapshot.items
-            if item.item_ref == item_ref
-        ]
-    else:
-        normalized = normalize_todo_match_text(text or "")
-        matches = [
-            (snapshot, item.item_ref)
-            for snapshot in snapshots
-            for item in snapshot.items
-            if normalize_todo_match_text(item.text) == normalized
-        ]
-    if len(matches) == 1:
-        return matches[0][0].list_ref, None
-    if len(matches) > 1:
-        candidate_refs = sorted({item_ref for _snapshot, item_ref in matches})
-        return None, _error(
-            "Todo item is ambiguous; retry with stable list_ref and item_ref",
-            status="ambiguous",
-            candidate_refs=candidate_refs,
-        )
-    if len(snapshots) == 1:
-        # Let the canonical service return a content-free not_found outcome.
-        return snapshots[0].list_ref, None
-    return None, _error("Todo item not found", status="not_found")
-
-
-async def do_manage_todos(content: str, owner: Optional[str] = None) -> Dict:
-    """List and mutate Todo items through ``TodoDomainService`` only."""
+async def do_manage_todos(content: str, owner: Optional[str] = None) -> dict[str, Any]:
+    """Call the Todo service without exposing checklist item text in receipts."""
     try:
         args = _parse_tool_args(content)
     except ValueError:
-        return _error("Invalid JSON arguments")
-    if not isinstance(owner, str) or not owner.strip():
-        return _error("An authenticated owner scope is required")
+        return _error("invalid_arguments")
+    if not isinstance(args, dict):
+        return _error("invalid_arguments")
 
-    action = str(args.get("action") or "").replace("-", "_").strip().lower()
-    action = {
-        "create": "add",
-        "new": "add",
-        "done": "complete",
-        "comlete": "complete",
-        "complte": "complete",
-        "uncomplete": "reopen",
-        "reopn": "reopen",
-        "delete": "remove",
-        "remve": "remove",
-    }.get(action, action)
-    if action not in {"list", "add", "complete", "reopen", "remove"}:
-        return _error("Unknown action; use list/add/complete/reopen/remove")
+    requested_action = str(args.get("action") or "").strip().lower().replace("-", "_")
+    action = _ACTION_ALIASES.get(requested_action, requested_action)
+    if action not in _SUPPORTED_ACTIONS:
+        return _error("invalid_action")
 
-    service = TodoDomainService(_SESSION_FACTORY)
+    if action == "remove" and not _is_confirmed(args):
+        return {
+            "status": "confirmation_required",
+            "requires_confirmation": True,
+            "action": "remove",
+            "exit_code": 0,
+        }
+
+    list_ref = args.get("list_ref")
     try:
-        explicit_list_ref = args.get("list_ref")
-        list_title = args.get("list_title")
-        snapshots = _snapshots(service, owner)
-
+        service = _service_factory()
         if action == "list":
-            if explicit_list_ref:
-                snapshots = [service.list_items(owner=owner, list_ref=explicit_list_ref)]
-            elif list_title:
-                resolved, problem = _resolve_list_by_title(snapshots, str(list_title))
-                if problem:
-                    return problem
-                snapshots = [service.list_items(owner=owner, list_ref=resolved or "")]
-            return _with_receipts({
-                "action": "list",
-                "domain": "todos",
-                "lists": [snapshot.as_dict() for snapshot in snapshots],
-                "list_count": len(snapshots),
-                "open_count": sum(snapshot.open_count for snapshot in snapshots),
-                "exit_code": 0,
-            }, owner=owner)
-
-        idempotency_key = args.get("idempotency_key")
-        if not isinstance(idempotency_key, str) or not idempotency_key.strip():
-            return _error("idempotency_key is required for Todo mutations")
-
-        if explicit_list_ref:
-            list_ref = str(explicit_list_ref)
-            service.list_items(owner=owner, list_ref=list_ref)
-        elif list_title:
-            list_ref, problem = _resolve_list_by_title(snapshots, str(list_title))
-            if problem:
-                return problem
+            result = service.list(owner=owner, list_ref=list_ref)
         elif action == "add":
-            if len(snapshots) == 1:
-                list_ref = snapshots[0].list_ref
-            elif not snapshots:
-                list_ref = _ensure_default_list(owner)
-            else:
-                return _error(
-                    "Multiple Todo lists exist; retry with a stable list_ref",
-                    status="ambiguous",
-                    candidate_refs=[snapshot.list_ref for snapshot in snapshots],
-                )
+            result = service.add(
+                owner=owner,
+                list_ref=list_ref,
+                text=args.get("text"),
+                idempotency_key=args.get("idempotency_key"),
+            )
         else:
-            list_ref, problem = _resolve_target_list(
-                snapshots=snapshots,
+            method = getattr(service, action)
+            result = method(
+                owner=owner,
+                list_ref=list_ref,
                 item_ref=args.get("item_ref"),
                 text=args.get("text"),
             )
-            if problem:
-                return problem
-
-        if action == "add":
-            outcome = service.add_item(
-                owner=owner,
-                list_ref=list_ref or "",
-                text=args.get("text") or "",
-                idempotency_key=idempotency_key,
-            )
-        else:
-            operation = {
-                "complete": service.complete_item,
-                "reopen": service.reopen_item,
-                "remove": service.remove_item,
-            }[action]
-            outcome = operation(
-                owner=owner,
-                list_ref=list_ref or "",
-                item_ref=args.get("item_ref"),
-                text=args.get("text"),
-                idempotency_key=idempotency_key,
-            )
-        result = outcome.as_dict()
-        result.update(
-            action=action,
-            domain="todos",
-            exit_code=(
-                0 if outcome.transaction_status in {"committed", "idempotent"} else 1
-            ),
+        payload = result.to_dict()
+        attached = attach_todo_semantic_receipt(
+            {"status": "ok", "action": action, "exit_code": 0, **payload},
+            action,
+            owner=owner,
+            list_ref=list_ref,
         )
-        if result["exit_code"]:
-            result["error"] = f"Todo mutation {outcome.transaction_status}; no success claim is allowed"
-        return _with_receipts(result, owner=owner)
-    except TodoDomainError as exc:
-        return _error(str(exc))
+        if action in {"add", "complete", "reopen", "remove"}:
+            _attach_digest_postcondition(attached, owner=owner, list_ref=list_ref)
+            _attach_schedule_postcondition(attached, owner=owner)
+        return attached
+    except Exception as exc:
+        return _public_error_for(exc)
 
 
-__all__ = ["do_manage_todos"]
+def _attach_digest_postcondition(result: dict[str, Any], *, owner: Any, list_ref: Any) -> None:
+    """Best-effort, read-only postcondition; never weakens the mutation receipt."""
+    semantic = result.get(TODO_RECEIPT_FIELD)
+    if not isinstance(semantic, dict):
+        return
+    item_ref = result.get("item_ref")
+    try:
+        from src.builtin_actions import build_todo_digest_item_postcondition
+        from src.todo_digest_receipts import TODO_DIGEST_RECEIPT_FIELD, validate_todo_digest_receipt
+        current = semantic.get("current_state")
+        state = {"exists": current is not None, "done": current}
+        candidate = build_todo_digest_item_postcondition(
+            owner=owner, list_ref=list_ref, item_ref=item_ref, action=semantic.get("action"),
+            evidence_refs=semantic.get("evidence_refs"), current_state=state,
+        )
+        validated = validate_todo_digest_receipt(candidate, semantic_receipt=semantic)
+        if validated is not None:
+            result[TODO_DIGEST_RECEIPT_FIELD] = validated
+    except Exception:
+        return
+
+
+def _attach_schedule_postcondition(result: dict[str, Any], *, owner: Any) -> None:
+    """Attach an independent read-only schedule proof without affecting Todo truth."""
+    semantic = result.get(TODO_RECEIPT_FIELD)
+    if not isinstance(semantic, dict):
+        return
+    try:
+        from src.calendar_capability_service import build_todo_digest_schedule_postcondition
+        from src.todo_digest_schedule_receipts import TODO_DIGEST_SCHEDULE_RECEIPT_FIELD, validate_todo_digest_schedule_receipt
+        candidate = build_todo_digest_schedule_postcondition(owner=owner)
+        validated = validate_todo_digest_schedule_receipt(candidate, owner_ref=semantic.get("evidence_refs", (None,))[0])
+        if validated is not None:
+            result[TODO_DIGEST_SCHEDULE_RECEIPT_FIELD] = validated
+    except Exception:
+        return
+
+
+def _is_confirmed(args: dict[str, Any]) -> bool:
+    """Only a JSON boolean confirmation authorizes a destructive mutation."""
+    return args.get("confirmed") is True or args.get("confirm") is True
+
+
+def _public_error_for(exc: Exception) -> dict[str, Any]:
+    """Map service failures to stable, content-free tool errors."""
+    if isinstance(exc, TodoAmbiguousMatchError):
+        return _error("ambiguous_item", candidate_refs=list(exc.candidate_refs))
+
+    for error_type, code in (
+        (TodoValidationError, "invalid_arguments"),
+        (TodoNotFoundError, "not_found"),
+        (TodoIdempotencyConflictError, "idempotency_conflict"),
+        (TodoConflictError, "conflict"),
+        (TodoDataError, "invalid_data"),
+        (TodoDomainError, "todo_error"),
+    ):
+        if isinstance(exc, error_type):
+            return _error(code)
+    return _error("todo_error")

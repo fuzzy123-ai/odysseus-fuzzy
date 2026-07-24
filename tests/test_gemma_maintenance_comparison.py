@@ -7,6 +7,7 @@ from src.gemma_maintenance_comparison import (
     weak_deepseek_fixture_call,
 )
 from src.gemma_memory_benchmark import deterministic_fixture_call
+from scripts.gemma_maintenance_comparison import _parser
 
 
 def test_deterministic_comparison_passes_without_raw_material():
@@ -18,6 +19,7 @@ def test_deterministic_comparison_passes_without_raw_material():
     assert payload["status"] == "passed"
     assert payload["winner"] == "tie"
     assert payload["models"]["gemma"]["live"] is False
+    assert payload["models"]["gemma"]["model"] == "gemma3:4b"
     assert payload["models"]["deepseek"]["live"] is False
     assert payload["metrics"]["gemma"]["json_valid_rate"] == 100.0
     assert payload["metrics"]["deepseek"]["local_only_gate_pass_rate"] == 100.0
@@ -26,6 +28,15 @@ def test_deterministic_comparison_passes_without_raw_material():
     assert "redacted_context" not in encoded
     assert "The operator states" not in encoded
     assert "A redacted invoice-like document" not in encoded
+
+
+def test_cli_defaults_to_canonical_gemma3_without_enabling_live_calls():
+    args = _parser().parse_args([])
+
+    assert args.gemma_model == "gemma3:4b"
+    assert args.live_gemma is False
+    assert args.live_deepseek is False
+    assert args.output == ""
 
 
 def test_comparison_flags_weaker_deepseek_fixture_for_review():

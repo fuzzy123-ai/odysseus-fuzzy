@@ -37,6 +37,12 @@ _ADMIN_SCHEMA_NAMES = frozenset([
 ])
 _TOOL_SELECTION_TIMEOUT_SECONDS = 1.5
 
+def remove_memory_for_todo_domain(tool_names: Set[str], domains: Set[str]) -> Set[str]:
+    selected = set(tool_names or set())
+    if "todos" in set(domains or set()):
+        selected.discard("manage_memory")
+    return selected
+
 
 def _is_ollama_openai_compat_url(endpoint_url: str) -> bool:
     """Return True for local Ollama's OpenAI-compatible /v1 surface.
@@ -197,13 +203,19 @@ def _classify_agent_request(messages: List[Dict], last_user: str) -> Dict[str, o
         domains.add("cookbook")
     if has(r"\b(emails?|mails?|gmail|inbox|reply|forward|cc|bcc|send email|compose email|draft email|message chris|message him|message her)\b"):
         domains.add("email")
-    if has(r"\b(note|todo|to-do|checklist|task list|remind me|reminder|buy|pickup|pick up)\b"):
+    if has(
+        r"\b(todo|todos|to-do|to-dos|todolist|todo list|task list|checklist|checklists|cheklist|toodo)\b",
+        r"\b(aufgabe|aufgaben|checkliste|checklisten)\b",
+    ):
+        domains.add("todos")
+    if has(r"\b(note|remind me|reminder|buy|pickup|pick up)\b"):
         domains.add("notes_calendar_tasks")
     if has(
         r"\b(every day|every morning|every evening|recurring|automatically|cron|scheduled task|background task)\b",
         r"\b(jeden morgen|jeden tag|jeden abend|taeglich|täglich|woechentlich|wöchentlich|monatlich|automatisch|wiederkehrend|regelmaessig|regelmäßig|geplanter task|geplante aufgabe)\b",
     ):
         domains.add("notes_calendar_tasks")
+        domains.discard("todos")
     if has(r"\b(calendar|event|meeting|appointment|schedule)\b"):
         domains.add("notes_calendar_tasks")
     if has(r"\b(documents?|docs?|draft|compose|poem|story|essay|outline|letter|edit|rewrite|proofread|suggest|feedback|review this|make a file)\b"):

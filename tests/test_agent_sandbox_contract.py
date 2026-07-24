@@ -1,10 +1,12 @@
 import pytest
 
 from src.agent_sandbox_contract import (
+    SANDBOX_CAPABILITY_PROFILE_SCHEMA,
     SandboxContractError,
     SandboxJobRequest,
     SandboxMount,
     evaluate_sandbox_job,
+    list_sandbox_capability_profiles,
 )
 
 
@@ -65,3 +67,25 @@ def test_sandbox_job_requires_allowlist_for_allowlist_network():
         network_allowlist=["example.org"],
     )
     assert job.network_allowlist == ("example.org",)
+
+
+def test_sandbox_capability_profiles_are_frontend_safe_and_gated():
+    profiles = {profile["profile_id"]: profile for profile in list_sandbox_capability_profiles()}
+
+    assert set(profiles) == {"python", "node", "webdev_playwright", "godot"}
+    assert profiles["python"]["schema"] == SANDBOX_CAPABILITY_PROFILE_SCHEMA
+    assert profiles["python"]["status"] == "available"
+    assert "python_pytest" in profiles["python"]["default_template_ids"]
+    assert profiles["webdev_playwright"]["status"] == "available"
+    assert "browser_gui" in profiles["webdev_playwright"]["capabilities"]
+    assert profiles["godot"]["status"] == "planned"
+    assert profiles["godot"]["default_template_ids"] == ()
+
+    for profile in profiles.values():
+        assert profile["default_network_mode"] == "none"
+        assert profile["network_modes_allowed"] == ("none",)
+        assert profile["live_execution_gated"] is True
+        assert profile["write_action_enabled"] is False
+        assert profile["secrets_allowed"] is False
+        assert profile["fullweb_allowed"] is False
+        assert profile["raw_content_visible"] is False

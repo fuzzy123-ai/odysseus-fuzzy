@@ -1,9 +1,12 @@
-"""Gemma4 E4B maintenance router contracts.
+"""Compatibility router contracts for the Gemma 3 maintenance lane.
 
 This module is deliberately side-effect free: it does not call models, read
 documents, persist prompts, or write memories. It turns trusted runtime
 metadata into a small Gemma maintenance route, prompt capsule, output contract,
 and queue/budget decision.
+
+The ``gemma4_*`` symbols, schemas, and capsule IDs remain stable for existing
+persisted records and callers; the canonical profile selects ``gemma3:4b``.
 """
 
 from __future__ import annotations

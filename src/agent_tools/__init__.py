@@ -28,6 +28,7 @@ from .session_tools import CreateSessionTool, ListSessionsTool, SendToSessionToo
 from .artifact_tools import PublishArtifactTool
 from .pygame_tools import VerifyPygameHeadlessTool
 from .project_commit_tools import CommitProjectAgentTool
+from .knowledge_tools import QueryKnowledgeTool
 
 TOOL_HANDLERS = {
     "bash": BashTool().execute,
@@ -57,6 +58,7 @@ TOOL_HANDLERS = {
     "publish_artifact": PublishArtifactTool().execute,
     "verify_pygame_headless": VerifyPygameHeadlessTool().execute,
     "commit_project": CommitProjectAgentTool().execute,
+    "query_knowledge": QueryKnowledgeTool().execute,
 }
 
 # ---------------------------------------------------------------------------
@@ -76,7 +78,7 @@ TOOL_TAGS = {"bash", "python", "web_search", "web_fetch", "read_file", "write_fi
              "spawn_subagent", "manage_subagents",
              "send_to_session",
              "pipeline",
-             "manage_session", "manage_memory", "list_models",
+             "manage_session", "manage_memory", "list_models", "query_knowledge",
              "ui_control", "generate_image", "ask_user", "update_plan",
              "manage_tasks", "api_call", "ask_teacher", "manage_skills",
              "recent_changes", "manage_repos", "manage_github_issues", "manage_nextcloud_transfer",

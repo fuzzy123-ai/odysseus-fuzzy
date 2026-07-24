@@ -15,7 +15,6 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Protocol, runtime_checkable
-from urllib.parse import urlsplit
 
 from src.project_forge_sync import ForgeSyncOutcome, ForgeSyncRequest
 from src.project_forge_outbox import normalize_sha256
@@ -136,7 +135,6 @@ class GitHubForgeReceipt:
             remote_name=remote_name,
             branch_name=branch_name,
             commit_sha=commit_sha,
-            push_target_url=f"https://github.com/{identity}.git",
         )
         del remote
         return cls(
@@ -413,9 +411,6 @@ class GitHubForgeSyncAdapter:
         if actual_identity != identity:
             return self._outcome(request, "blocked", error_code="remote_identity_mismatch")
 
-        if not self._url_rewrites_are_clear(commands.url_rewrites, cwd=target.repo_path):
-            return self._outcome(request, "blocked", error_code="url_rewrite_config_blocked")
-
         remote_result = self._run(commands.remote_ref, cwd=target.repo_path)
         if remote_result is None:
             return self._outcome(request, "retryable_failure", error_code="remote_check_failed")
@@ -452,22 +447,6 @@ class GitHubForgeSyncAdapter:
                     "already_synced",
                     provider_fingerprint=persisted.provider_fingerprint,
                 )
-
-        final_remote = self._run(commands.remote_url, cwd=target.repo_path)
-        if final_remote is None:
-            return self._outcome(request, "blocked", error_code="remote_config_invalid")
-        final_urls = [line.strip() for line in final_remote.stdout.splitlines() if line.strip()]
-        if len(final_urls) != 1:
-            return self._outcome(request, "blocked", error_code="remote_identity_ambiguous")
-        try:
-            final_identity = normalize_github_remote_identity(final_urls[0])
-        except RepoForgeProviderError:
-            return self._outcome(request, "blocked", error_code="remote_identity_invalid")
-        if final_identity != identity:
-            return self._outcome(request, "blocked", error_code="remote_identity_mismatch")
-
-        if not self._url_rewrites_are_clear(commands.url_rewrites, cwd=target.repo_path):
-            return self._outcome(request, "blocked", error_code="url_rewrite_config_blocked")
 
         pushed = self._run(commands.push, cwd=target.repo_path)
         if pushed is None:
@@ -547,15 +526,11 @@ class GitHubForgeSyncAdapter:
         )
         if remote is None:
             raise ValueError("target remote is not registered")
-        parsed_remote = urlsplit(remote.url_redacted)
-        if parsed_remote.scheme.lower() != "https" or not parsed_remote.hostname:
-            raise ValueError("GitHub Forge requires an HTTPS remote")
         identity = normalize_github_remote_identity(remote.url_redacted)
         commands = build_repo_forge_git_transport_commands(
             remote_name=target.remote_name,
             branch_name=target.branch_name,
             commit_sha=request.commit_sha,
-            push_target_url=remote.url_redacted,
         )
         return identity, commands
 
@@ -564,16 +539,6 @@ class GitHubForgeSyncAdapter:
         if result is None or not result.ok:
             return None
         return result
-
-    def _url_rewrites_are_clear(self, argv: tuple[str, ...], *, cwd: Path) -> bool:
-        result = self._run_allow_failure(argv, cwd=cwd)
-        return bool(
-            result is not None
-            and result.exit_code == 1
-            and not result.timed_out
-            and result.stdout == ""
-            and result.stderr == ""
-        )
 
     def _run_allow_failure(
         self,

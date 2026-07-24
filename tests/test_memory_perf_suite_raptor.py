@@ -39,6 +39,19 @@ def test_raptor_graph_scale_simulation_passes_large_bounded_budget(tmp_path):
     }
 
 
+def test_raptor_graph_scale_simulation_calls_maintenance_yield_checkpoint(tmp_path):
+    calls = 0
+
+    def checkpoint() -> None:
+        nonlocal calls
+        calls += 1
+
+    result = run_raptor_graph_scale_simulation(run_dir=tmp_path, maintenance_yield_func=checkpoint)
+
+    assert result.passed is True
+    assert calls >= 2
+
+
 def test_raptor_graph_scale_simulation_serializes_counts_without_full_payload(tmp_path):
     result = run_raptor_graph_scale_simulation(run_dir=tmp_path, output_node_budget=10, output_edge_budget=20)
     payload = result.to_dict()

@@ -83,7 +83,7 @@ def test_autonomous_coding_agent_dry_run_flow(tmp_path: Path):
         commit_message="feat: add small feature",
         commit_confirmed=True,
         push_confirmed=True,
-        operator_go=True,
+        operator_go=False,
     )
     report = write_evidence_report(
         report_ref="autonomous_coding_agent/e2e-dry-run.json",
@@ -92,13 +92,14 @@ def test_autonomous_coding_agent_dry_run_flow(tmp_path: Path):
             "dispatch": dispatch.to_dict(),
             "quality": quality.to_dict(),
             "publish_ready": publish.ready,
+            "publish_blockers": publish.blockers,
         },
         root=tmp_path / "reports",
     )
     memory_intent = build_coding_agent_memory_write_intent(
         {
             "title": "Autonomous coding dry run",
-            "summary": "Coding task dry run reached sandbox dispatch, quality gate and publish plan.",
+            "summary": "Coding task dry run reached sandbox dispatch and done gate; publish stayed operator-gated.",
             "content_hash": report.content_hash,
             "confidence": 0.9,
         },
@@ -107,10 +108,15 @@ def test_autonomous_coding_agent_dry_run_flow(tmp_path: Path):
 
     assert intent.task_type == "coding_agent_task"
     assert dispatch.statuses[0].status == "dry_run"
+    assert dispatch.jobs[0].network_mode == "none"
+    assert dispatch.jobs[0].secrets_attached is False
     assert dispatch.quality_gate["verified"] is True
     assert quality.verified is True
     assert done.done is True
-    assert publish.ready is True
+    assert publish.ready is False
+    assert publish.mutation_allowed is False
+    assert "operator_go must be true" in publish.blockers
+    assert publish.to_dict()["operator_gate"]["requires_separate_review"] is True
     assert report.written is True
     assert memory_intent["policy"]["review_required"] is True
     assert memory_intent["raw_content_visible"] is False

@@ -1,240 +1,275 @@
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timezone
+import sqlite3
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+import pytest
 
-from scripts.update_database import migrate_tool_usage_schema
-from src.tool_catalog import ToolFamily, ToolSource
-from src.tool_usage_events import (
-    ToolUsageAgentMode,
-    ToolUsageEventBuilder,
-    ToolUsageEventKind,
-    ToolUsageModelScope,
-    ToolUsageResultShape,
-    ToolUsageSizeBucket,
-    ToolUsageStatus,
-    ToolUsageSurface,
+from src.tool_catalog import (
+    ToolAvailability,
+    ToolDescriptorV2,
+    ToolEffectClass,
+    ToolFamily,
+    ToolLifecycle,
+    ToolPermission,
+    ToolRiskLevel,
+    ToolSource,
+    ToolVisibility,
 )
+from src.tool_usage_events import ToolUsageEventBuilder
 from src.tool_usage_store import (
-    AGGREGATE_RETENTION_DAYS,
-    EVENT_RETENTION_DAYS,
-    ToolUsageAggregateStatus,
-    ToolUsageDailyAggregate,
-    ToolUsageDailyAggregateRecord,
-    ToolUsageEventRecord,
+    SCHEMA_NAME,
+    SCHEMA_VERSION,
     ToolUsageStore,
+    ToolUsageStoreError,
 )
 
 
-NOW = datetime(2026, 7, 16, 6, 0, tzinfo=timezone.utc)
+def _descriptor() -> ToolDescriptorV2:
+    return ToolDescriptorV2.create(
+        tool_id="read_file",
+        display_name="Read File",
+        description="Read a workspace file through the bounded adapter.",
+        family=ToolFamily.CODE_FILESYSTEM,
+        source=ToolSource.BUILTIN,
+        lifecycle=ToolLifecycle.ACTIVE,
+        availability=ToolAvailability.AVAILABLE,
+        default_enabled=True,
+        default_visibility=ToolVisibility.VISIBLE,
+        risk_level=ToolRiskLevel.SAFE,
+        permission=ToolPermission.USER,
+        effect_class=ToolEffectClass.READ,
+        requires_confirmation=False,
+        schema_ref="function:read_file",
+        handler_ref="builtin:read_file",
+        prompt_ref="index:read_file",
+        introduced_in="0.24.0",
+    )
 
 
-def _session_factory(engine):
-    return sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
-
-
-def _event(*, event_id: str, invocation_id: str, occurred_at: datetime = NOW):
-    result = ToolUsageEventBuilder.build(
-        event_id=event_id,
-        invocation_id=invocation_id,
-        event_kind=ToolUsageEventKind.TERMINAL,
+def _event(
+    *,
+    event_kind="terminal",
+    event_hex="a",
+    invocation_hex="b",
+    occurred_at="2026-07-17T10:00:00.000Z",
+    incognito=False,
+):
+    terminal = event_kind == "terminal"
+    return ToolUsageEventBuilder(app_version="0.25.0", hmac_key=b"s" * 32).build(
+        descriptor=_descriptor(),
+        event_kind=event_kind,
+        surface="agent",
+        agent_mode="agent",
+        status="succeeded" if terminal else None,
+        duration_ms=10 if terminal else None,
+        result_size_bytes=20 if terminal else 0,
+        result_shape="scalar" if terminal else "none",
+        event_id="tue_" + event_hex * 32,
+        invocation_id="tui_" + invocation_hex * 32,
         occurred_at=occurred_at,
-        duration_ms=12,
-        tool_analytics_id="read-file",
-        tool_family=ToolFamily.CODE_FILESYSTEM,
-        tool_source=ToolSource.BUILTIN,
-        surface=ToolUsageSurface.AGENT,
-        status=ToolUsageStatus.SUCCEEDED,
-        argument_size_bucket=ToolUsageSizeBucket.XS,
-        result_size_bucket=ToolUsageSizeBucket.S,
-        result_shape_bucket=ToolUsageResultShape.SCALAR,
-        model_scope=ToolUsageModelScope.LOCAL,
-        agent_mode=ToolUsageAgentMode.AGENT,
-        app_version="0.25.0",
-    )
-    assert result.persistence_allowed is True
-    assert result.event is not None
-    return result.event
-
-
-def _store(engine):
-    migrate_tool_usage_schema(engine)
-    return ToolUsageStore(_session_factory(engine))
-
-
-def test_batch_writer_is_idempotent_and_duplicate_is_noop():
-    engine = create_engine("sqlite:///:memory:")
-    store = _store(engine)
-    event = _event(
-        event_id="evt_0000000000000001",
-        invocation_id="inv_0000000000000001",
+        incognito=incognito,
     )
 
-    first = store.write_events([event])
-    second = store.write_events([event])
 
-    assert first.to_safe_dict() == {
-        "attempted": 1,
-        "inserted": 1,
-        "duplicates": 0,
-        "failures": 0,
+def _store(tmp_path):
+    store = ToolUsageStore(tmp_path / "usage.sqlite3")
+    store.migrate()
+    return store
+
+
+def test_migration_is_idempotent_and_creates_versioned_tables_and_indexes(tmp_path):
+    database = tmp_path / "usage.sqlite3"
+    with ToolUsageStore(database) as store:
+        first = store.migrate()
+        second = store.migrate()
+
+    assert first == second == {
+        "schema_name": SCHEMA_NAME,
+        "schema_version": SCHEMA_VERSION,
+        "event_table_ready": True,
+        "daily_table_ready": True,
         "raw_content_visible": False,
     }
-    assert second.inserted == 0
-    assert second.duplicates == 1
-    with _session_factory(engine)() as session:
-        assert session.query(ToolUsageEventRecord).count() == 1
-
-
-def test_parallel_same_invocation_event_is_stored_at_most_once(tmp_path):
-    engine = create_engine(
-        f"sqlite:///{(tmp_path / 'usage.db').as_posix()}",
-        connect_args={"check_same_thread": False},
-    )
-    store = _store(engine)
-    left = _event(
-        event_id="evt_0000000000000002",
-        invocation_id="inv_0000000000000002",
-    )
-    right = _event(
-        event_id="evt_0000000000000003",
-        invocation_id="inv_0000000000000002",
-    )
-
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        results = list(executor.map(store.write_events, ([left], [right])))
-
-    assert sum(result.inserted for result in results) == 1
-    assert sum(result.duplicates for result in results) == 1
-    assert sum(result.failures for result in results) == 0
-    with _session_factory(engine)() as session:
-        assert session.query(ToolUsageEventRecord).count() == 1
-
-
-def test_invalid_event_and_store_failure_are_isolated_and_bounded():
-    class BrokenFactory:
-        def __call__(self):
-            raise RuntimeError("synthetic store unavailable")
-
-    store = ToolUsageStore(BrokenFactory())
-    event = _event(
-        event_id="evt_0000000000000004",
-        invocation_id="inv_0000000000000004",
-    )
-
-    invalid = store.write_events([{"raw": "forbidden"}])
-    failed = store.write_events([event])
-
-    assert invalid.failures == 1
-    assert failed.failures == 1
-    assert store.failure_counts() == {"invalid_event": 1, "writer_failure": 1}
-    assert "synthetic store unavailable" not in str(store.failure_counts())
-
-
-def test_daily_aggregate_upsert_is_idempotent_not_additive():
-    engine = create_engine("sqlite:///:memory:")
-    store = _store(engine)
-    aggregate = ToolUsageDailyAggregate(
-        day=date(2026, 7, 15),
-        tool_analytics_id="read-file",
-        tool_family=ToolFamily.CODE_FILESYSTEM,
-        tool_source=ToolSource.BUILTIN,
-        surface=ToolUsageSurface.AGENT,
-        status=ToolUsageAggregateStatus.SUCCEEDED,
-        event_count=4,
-        invocation_count=2,
-        aggregation_complete=True,
-        aggregated_at=NOW,
-    )
-
-    assert store.write_daily_aggregates([aggregate]).failures == 0
-    assert store.write_daily_aggregates([aggregate]).failures == 0
-    with _session_factory(engine)() as session:
-        rows = session.query(ToolUsageDailyAggregateRecord).all()
-        assert len(rows) == 1
-        assert rows[0].event_count == 4
-        assert rows[0].invocation_count == 2
-
-
-def test_retention_dry_run_is_count_only_and_keeps_unaggregated_events():
-    engine = create_engine("sqlite:///:memory:")
-    factory = _session_factory(engine)
-    store = _store(engine)
-    old_day = NOW - timedelta(days=EVENT_RETENTION_DAYS + 2)
-    recent_day = NOW - timedelta(days=10)
-    old_aggregated = _event(
-        event_id="evt_0000000000000005",
-        invocation_id="inv_0000000000000005",
-        occurred_at=old_day,
-    )
-    old_unaggregated = _event(
-        event_id="evt_0000000000000006",
-        invocation_id="inv_0000000000000006",
-        occurred_at=old_day,
-    )
-    recent = _event(
-        event_id="evt_0000000000000007",
-        invocation_id="inv_0000000000000007",
-        occurred_at=recent_day,
-    )
-    assert store.write_events([old_aggregated, old_unaggregated, recent]).inserted == 3
-    assert store.mark_events_aggregated([old_aggregated.event_id, recent.event_id], aggregated_at=NOW) == 2
-
-    with factory() as session:
-        session.add(
-            ToolUsageDailyAggregateRecord(
-                day=(NOW - timedelta(days=AGGREGATE_RETENTION_DAYS + 2)).date(),
-                tool_analytics_id="read-file",
-                tool_family=ToolFamily.CODE_FILESYSTEM.value,
-                tool_source=ToolSource.BUILTIN.value,
-                surface=ToolUsageSurface.AGENT.value,
-                status=ToolUsageAggregateStatus.SUCCEEDED.value,
-                event_count=1,
-                invocation_count=1,
-                aggregation_complete=True,
-                aggregated_at=NOW.replace(tzinfo=None),
+    with sqlite3.connect(database) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
             )
-        )
-        session.commit()
+        }
+        indexes = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='index'"
+            )
+        }
+        version = connection.execute(
+            "SELECT schema_version FROM tool_usage_schema_meta WHERE schema_name = ?",
+            (SCHEMA_NAME,),
+        ).fetchone()[0]
 
-    dry_run = store.enforce_retention(now=NOW)
-    assert dry_run.to_safe_dict() == {
-        "schema_version": 1,
-        "dry_run": True,
-        "event_retention_days": 90,
-        "aggregate_retention_days": 400,
-        "eligible_event_count": 1,
-        "eligible_aggregate_count": 1,
-        "deleted_event_count": 0,
-        "deleted_aggregate_count": 0,
-        "failures": 0,
+    assert {"tool_usage_schema_meta", "tool_usage_events", "tool_usage_daily"} <= tables
+    assert {
+        "ix_tool_usage_events_occurred_at",
+        "ix_tool_usage_events_tool_status",
+        "ix_tool_usage_daily_day",
+    } <= indexes
+    assert version == SCHEMA_VERSION
+
+
+def test_start_and_terminal_store_once_and_terminal_updates_daily_aggregate(tmp_path):
+    store = _store(tmp_path)
+    start = _event(event_kind="started", event_hex="1", invocation_hex="2")
+    terminal = _event(event_kind="terminal", event_hex="3", invocation_hex="2")
+
+    first = store.append_events([start, terminal])
+    duplicate = store.append_events([start, terminal])
+
+    assert first.to_dict() == {
+        "accepted_count": 2,
+        "duplicate_count": 0,
+        "persistence_rejected_count": 0,
+        "failure_count": 0,
         "raw_content_visible": False,
-        "identifiers_visible": False,
     }
-    with factory() as session:
-        assert session.query(ToolUsageEventRecord).count() == 3
-        assert session.query(ToolUsageDailyAggregateRecord).count() == 1
+    assert duplicate.accepted_count == 0
+    assert duplicate.duplicate_count == 2
+    assert store.counts() == {
+        "event_count": 2,
+        "daily_aggregate_count": 1,
+        "raw_content_visible": False,
+    }
+    store.close()
 
-    applied = store.enforce_retention(now=NOW, dry_run=False)
+
+def test_parallel_duplicate_terminal_is_persisted_and_aggregated_at_most_once(tmp_path):
+    store = _store(tmp_path)
+    event = _event(event_hex="4", invocation_hex="5")
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(lambda _: store.append_events([event]), range(12)))
+
+    assert sum(item.accepted_count for item in results) == 1
+    assert sum(item.duplicate_count for item in results) == 11
+    assert store.counts()["event_count"] == 1
+    assert store.counts()["daily_aggregate_count"] == 1
+    store.close()
+
+
+def test_incognito_event_is_rejected_before_any_write(tmp_path):
+    store = _store(tmp_path)
+    event = _event(event_hex="6", invocation_hex="7", incognito=True)
+
+    result = store.append_events([event])
+
+    assert result.persistence_rejected_count == 1
+    assert result.accepted_count == 0
+    assert store.counts()["event_count"] == 0
+    store.close()
+
+
+def test_invalid_batch_fails_before_transaction_and_preserves_database(tmp_path):
+    store = _store(tmp_path)
+    event = _event(event_hex="8", invocation_hex="9")
+
+    with pytest.raises(ToolUsageStoreError, match="ToolUsageEventV1"):
+        store.append_events([event, {"raw": "payload"}])
+
+    assert store.counts()["event_count"] == 0
+    store.close()
+
+
+def test_best_effort_store_failure_never_raises_and_uses_bounded_counts(tmp_path):
+    store = _store(tmp_path)
+    event = _event(event_hex="a", invocation_hex="c")
+    store.close()
+
+    result = store.append_best_effort([event])
+
+    assert result.failure_count == 1
+    assert result.accepted_count == 0
+    assert store.failure_counts() == {
+        "store_failure": 1,
+        "raw_content_visible": False,
+    }
+
+
+def test_retention_dry_run_is_count_only_and_protects_non_aggregated_days(tmp_path):
+    store = _store(tmp_path)
+    incomplete = _event(
+        event_kind="started",
+        event_hex="d",
+        invocation_hex="e",
+        occurred_at="2024-01-02T10:00:00.000Z",
+    )
+    aggregated = _event(
+        event_hex="e",
+        invocation_hex="f",
+        occurred_at="2024-01-03T10:00:00.000Z",
+    )
+    store.append_events([incomplete, aggregated])
+    now = datetime(2026, 7, 17, tzinfo=timezone.utc)
+
+    dry_run = store.apply_retention(now=now, dry_run=True)
+    applied = store.apply_retention(now=now, dry_run=False)
+
+    assert dry_run.scanned_event_count == 2
+    assert dry_run.deletable_event_count == 1
+    assert dry_run.protected_event_count == 1
+    assert dry_run.deletable_daily_count == 1
+    assert dry_run.deleted_event_count == 0
+    assert dry_run.deleted_daily_count == 0
+    assert dry_run.to_dict()["raw_content_visible"] is False
     assert applied.deleted_event_count == 1
-    assert applied.deleted_aggregate_count == 1
-    with factory() as session:
-        remaining = session.query(ToolUsageEventRecord).all()
-        assert {row.event_id for row in remaining} == {
-            old_unaggregated.event_id,
-            recent.event_id,
+    assert applied.deleted_daily_count == 1
+    assert store.counts()["event_count"] == 1
+    assert store.counts()["daily_aggregate_count"] == 0
+    store.close()
+
+
+def test_schema_version_mismatch_rolls_back_without_touching_existing_meta(tmp_path):
+    database = tmp_path / "usage.sqlite3"
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "CREATE TABLE tool_usage_schema_meta (schema_name TEXT PRIMARY KEY, schema_version INTEGER NOT NULL)"
+        )
+        connection.execute(
+            "INSERT INTO tool_usage_schema_meta(schema_name, schema_version) VALUES (?, ?)",
+            (SCHEMA_NAME, 999),
+        )
+
+    with ToolUsageStore(database) as store:
+        with pytest.raises(ToolUsageStoreError, match="unsupported"):
+            store.migrate()
+
+    with sqlite3.connect(database) as connection:
+        version = connection.execute(
+            "SELECT schema_version FROM tool_usage_schema_meta WHERE schema_name = ?",
+            (SCHEMA_NAME,),
+        ).fetchone()[0]
+    assert version == 999
+
+
+def test_event_table_has_only_allowlisted_content_free_columns(tmp_path):
+    database = tmp_path / "usage.sqlite3"
+    with ToolUsageStore(database) as store:
+        store.migrate()
+    with sqlite3.connect(database) as connection:
+        columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(tool_usage_events)")
         }
 
-
-def test_retention_failure_returns_count_only_noop():
-    class BrokenFactory:
-        def __call__(self):
-            raise RuntimeError("synthetic retention failure")
-
-    result = ToolUsageStore(BrokenFactory()).enforce_retention(now=NOW, dry_run=False)
-
-    assert result.failures == 1
-    assert result.deleted_event_count == 0
-    assert result.deleted_aggregate_count == 0
-    assert result.dry_run is True
+    forbidden = {
+        "args",
+        "command",
+        "content",
+        "error_message",
+        "metadata",
+        "output",
+        "payload",
+        "prompt",
+        "result",
+        "token",
+        "url",
+    }
+    assert not (columns & forbidden)

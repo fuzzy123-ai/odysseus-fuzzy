@@ -10,6 +10,7 @@ import settingsModule from './settings.js';
 import spinnerModule from './spinner.js';
 import { bindMenuDismiss } from './escMenuStack.js';
 import { matchModelKey } from './model/matchKey.js';
+import { updateAgentToolSummary } from './agentToolSummary.js';
 
 const SEARCH_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>';
 const REPORT_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>';
@@ -909,34 +910,41 @@ export function stripToolBlocks(text) {
   return cleaned.trim();
 }
 
-export function renderAskUserCard(data) {
+export function renderAskUserCard(data, options = {}) {
   const aq = data || {};
   const opts = Array.isArray(aq.options) ? aq.options : [];
   if (!aq.question || !opts.length) return null;
   const chatBox = document.getElementById('chat-history');
-  if (!chatBox) return null;
-  chatBox.querySelectorAll('.ask-user-card').forEach(n => n.remove());
+  const mount = options.mount || chatBox;
+  if (!chatBox || !mount) return null;
+  const interactive = options.interactive !== false && !aq.read_only && !aq.resolved;
+  if (interactive) {
+    chatBox.querySelectorAll('.ask-user-card:not(.read-only)').forEach(n => n.remove());
+  }
   const card = document.createElement('div');
-  card.className = 'ask-user-card';
+  card.className = interactive ? 'ask-user-card' : 'ask-user-card read-only';
+  card.dataset.askUserInteractive = interactive ? 'true' : 'false';
   card.setAttribute('role', 'group');
   card.tabIndex = -1;
   const multi = !!aq.multi;
   const emo = (s) => svgifyEmoji(uiModule.esc(String(s)));
 
-  const head = document.createElement('div');
-  head.className = 'ask-user-head';
-  const closeBtn = document.createElement('button');
-  closeBtn.type = 'button';
-  closeBtn.className = 'modal-close ask-user-close';
-  closeBtn.setAttribute('aria-label', 'Dismiss question');
-  closeBtn.textContent = 'x';
-  closeBtn.addEventListener('click', () => {
-    card.remove();
-    const mi = uiModule.el('message');
-    if (mi) mi.focus();
-  });
-  head.appendChild(closeBtn);
-  card.appendChild(head);
+  if (interactive) {
+    const head = document.createElement('div');
+    head.className = 'ask-user-head';
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'modal-close ask-user-close';
+    closeBtn.setAttribute('aria-label', 'Dismiss question');
+    closeBtn.textContent = 'x';
+    closeBtn.addEventListener('click', () => {
+      card.remove();
+      const mi = uiModule.el('message');
+      if (mi) mi.focus();
+    });
+    head.appendChild(closeBtn);
+    card.appendChild(head);
+  }
 
   const q = document.createElement('div');
   q.className = 'ask-user-question';
@@ -966,6 +974,7 @@ export function renderAskUserCard(data) {
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.value = label;
+      if (!interactive) cb.disabled = true;
       row.appendChild(cb);
     }
     const txt = document.createElement('span');
@@ -978,48 +987,63 @@ export function renderAskUserCard(data) {
       d.innerHTML = emo(descr);
       row.appendChild(d);
     }
-    if (!multi) {
+    if (interactive && !multi) {
       row.type = 'button';
       row.addEventListener('click', () => send(label));
+    } else if (!interactive) {
+      if (!multi) row.type = 'button';
+      row.disabled = true;
+      row.setAttribute('aria-disabled', 'true');
     }
     list.appendChild(row);
   });
 
-  const other = document.createElement('div');
-  other.className = 'ask-user-other';
-  const otherInput = document.createElement('input');
-  otherInput.type = 'text';
-  otherInput.className = 'styled-prompt-input ask-user-other-input';
-  otherInput.placeholder = multi ? 'Other (added to selection)...' : 'Other...';
-  otherInput.setAttribute('aria-label', multi ? 'Add a custom option' : 'Type a custom answer');
-  const otherSend = document.createElement('button');
-  otherSend.type = 'button';
-  otherSend.className = 'confirm-btn confirm-btn-primary ask-user-other-send';
-  otherSend.setAttribute('aria-label', 'Send answer');
-  otherSend.textContent = multi ? 'Send selection' : 'Send';
-  const submit = () => {
-    const free = otherInput.value.trim();
-    if (multi) {
-      const picked = Array.from(card.querySelectorAll('.ask-user-option input:checked')).map(c => c.value);
-      if (free) picked.push(free);
-      if (picked.length) send(picked.join(', '));
-    } else if (free) {
-      send(free);
-    }
-  };
-  otherSend.addEventListener('click', submit);
-  otherInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-      e.preventDefault();
-      submit();
-    }
-  });
-  other.appendChild(otherInput);
-  other.appendChild(otherSend);
-  card.appendChild(other);
-  chatBox.appendChild(card);
-  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  try { card.focus(); } catch (_) {}
+  if (interactive) {
+    const other = document.createElement('div');
+    other.className = 'ask-user-other';
+    const otherInput = document.createElement('input');
+    otherInput.type = 'text';
+    otherInput.className = 'styled-prompt-input ask-user-other-input';
+    otherInput.placeholder = multi ? 'Other (added to selection)...' : 'Other...';
+    otherInput.setAttribute('aria-label', multi ? 'Add a custom option' : 'Type a custom answer');
+    const otherSend = document.createElement('button');
+    otherSend.type = 'button';
+    otherSend.className = 'confirm-btn confirm-btn-primary ask-user-other-send';
+    otherSend.setAttribute('aria-label', 'Send answer');
+    otherSend.textContent = multi ? 'Send selection' : 'Send';
+    const submit = () => {
+      const free = otherInput.value.trim();
+      if (multi) {
+        const picked = Array.from(card.querySelectorAll('.ask-user-option input:checked')).map(c => c.value);
+        if (free) picked.push(free);
+        if (picked.length) send(picked.join(', '));
+      } else if (free) {
+        send(free);
+      }
+    };
+    otherSend.addEventListener('click', submit);
+    otherInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+        e.preventDefault();
+        submit();
+      }
+    });
+    other.appendChild(otherInput);
+    other.appendChild(otherSend);
+    card.appendChild(other);
+  } else {
+    const status = document.createElement('div');
+    status.className = 'ask-user-status';
+    status.textContent = aq.resolved ? 'Clarification resolved' : 'Archived clarification question';
+    card.appendChild(status);
+  }
+  mount.appendChild(card);
+  if (options.scroll !== false) {
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  if (interactive) {
+    try { card.focus(); } catch (_) {}
+  }
   return card;
 }
 
@@ -2234,7 +2258,7 @@ export function addMessage(role, content, modelName, metadata) {
             }
             const screenshotSrc = safeToolScreenshotSrc(ev.screenshot);
             if (screenshotSrc) {
-              outHtml += `<details class="agent-tool-output"><summary>Screenshot</summary><img src="${esc(screenshotSrc)}" style="max-width:100%;border-radius:6px;margin-top:6px;border:1px solid var(--border)" /></details>`;
+              outHtml += `<details class="agent-tool-output"><summary>Screenshot</summary><img src="${esc(screenshotSrc)}" class="agent-tool-screenshot" /></details>`;
             }
             // File-write/edit diff (persisted in the tool event) \u2014 re-render it
             // so it survives reload, matching the live stream.
@@ -2260,18 +2284,20 @@ export function addMessage(role, content, modelName, metadata) {
             }
             const node = document.createElement('div');
             node.className = 'agent-thread-node' + (ok ? '' : ' error');
+            node.dataset.toolName = String(ev.tool || 'tool');
             // Hide the raw JSON command when a diff says it better (same as live).
             const evCmdHtml = (ev.command && !(ev.diff && ev.diff.text)) ? `<pre class="agent-thread-cmd">${esc(ev.command)}</pre>` : '';
             node.innerHTML = `<div class="agent-thread-dot"></div><div class="agent-thread-header"><span class="agent-thread-icon">${ok ? '\u2713' : '\u2717'}</span><span class="agent-thread-tool">${esc(ev.tool)}</span><span class="agent-thread-status">${ok ? 'done' : 'failed'}</span><span class="agent-thread-chevron">\u25B6</span></div><div class="agent-thread-content">${evCmdHtml}${outHtml}${evDiffHtml}</div>`;
             // Click handling is delegated globally \u2014 see chat.js init.
             threadWrap.appendChild(node);
             if (ev.ask_user) {
-              renderAskUserCard(ev.ask_user);
+              renderAskUserCard(ev.ask_user, { interactive: false, mount: threadWrap, scroll: false });
             }
           }
           // Check if next round has text — extend line down to connect
           const nextTxt = (roundTexts[r + 1] || '').trim();
           if (nextTxt) threadWrap.classList.add('has-bottom');
+          updateAgentToolSummary(threadWrap);
           lastWrap = threadWrap;
 
           for (const ev of roundTools) {

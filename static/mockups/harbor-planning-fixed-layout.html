@@ -1,0 +1,1042 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Harbor One - Fixed Planning Layout</title>
+  <style>
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    :root {
+      color-scheme: dark;
+      --bg: #02070d;
+      --panel: #06111b;
+      --panel-2: #081622;
+      --ink: rgba(205, 229, 236, 0.82);
+      --ink-strong: rgba(225, 244, 249, 0.9);
+      --muted: rgba(126, 161, 174, 0.78);
+      --dim: rgba(91, 126, 141, 0.58);
+      --cyan: #10b6ca;
+      --cyan-soft: #79bbc7;
+      --blue: #4b8cff;
+      --green: #4ade80;
+      --amber: #f7b955;
+      --red: #ff5c73;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+      --font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+    }
+
+    button,
+    input {
+      color: inherit;
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      display: grid;
+      grid-template-rows: 76px minmax(0, 1fr);
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 78%, rgba(10, 164, 214, 0.16), transparent 28%),
+        radial-gradient(circle at 14% 12%, rgba(30, 92, 182, 0.18), transparent 32%),
+        radial-gradient(circle at 88% 20%, rgba(21, 214, 245, 0.12), transparent 30%),
+        #02070d;
+    }
+
+    .stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        radial-gradient(circle, rgba(32, 199, 216, 0.22) 0 1px, transparent 2px),
+        linear-gradient(30deg, transparent 0 48%, rgba(37, 171, 202, 0.06) 50%, transparent 52%);
+      background-size: 128px 128px, 260px 260px;
+      opacity: 0.42;
+      mask-image: radial-gradient(circle at 50% 52%, black 0 52%, transparent 82%);
+    }
+
+    .stage::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 5px);
+      opacity: 0.14;
+      mix-blend-mode: screen;
+    }
+
+    .topline {
+      position: relative;
+      z-index: 5;
+      display: grid;
+      grid-template-columns: 180px minmax(0, 1fr) 190px;
+      align-items: center;
+      gap: 18px;
+      padding: 14px 24px 8px;
+    }
+
+    .brand {
+      display: inline-grid;
+      grid-template-columns: 50px minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 50px;
+      height: 50px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      background: transparent;
+      color: color-mix(in srgb, var(--cyan) 82%, white 8%);
+      padding: 0;
+    }
+
+    .brand-mark svg {
+      width: 46px;
+      height: 46px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2.1;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: drop-shadow(0 0 10px color-mix(in srgb, var(--cyan) 30%, transparent));
+    }
+
+    .brand-copy {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+      color: rgba(121, 187, 199, 0.78);
+      font-family: var(--mono);
+    }
+
+    .brand-copy strong {
+      overflow: hidden;
+      color: rgba(207, 244, 249, 0.82);
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .brand-copy span {
+      overflow: hidden;
+      color: rgba(121, 187, 199, 0.48);
+      font-size: 9px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .screen-tabs {
+      justify-self: center;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(128px, 1fr));
+      width: min(840px, 100%);
+      min-height: 54px;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid color-mix(in srgb, var(--cyan) 16%, transparent);
+      border-radius: 13px;
+      background:
+        linear-gradient(180deg, rgba(10, 26, 39, 0.88), rgba(2, 9, 16, 0.92)),
+        rgba(2, 9, 16, 0.9);
+      padding: 7px;
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.018),
+        0 10px 28px rgba(0, 0, 0, 0.2);
+    }
+
+    .screen-tab {
+      min-width: 0;
+      height: 40px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      background: transparent;
+      color: rgba(177, 206, 215, 0.72);
+      padding: 0 12px;
+      text-align: left;
+      font: 700 12px/1 var(--mono);
+    }
+
+    .screen-tab i {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--tab) 46%, rgba(255, 255, 255, 0.18));
+      box-shadow: 0 0 8px color-mix(in srgb, var(--tab) 24%, transparent);
+    }
+
+    .screen-tab span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .screen-tab b {
+      min-width: 20px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--tab) 40%, transparent);
+      border-radius: 999px;
+      color: color-mix(in srgb, var(--tab) 78%, white 8%);
+      font-size: 10px;
+    }
+
+    .screen-tab.active {
+      border-color: color-mix(in srgb, var(--tab) 56%, transparent);
+      background:
+        radial-gradient(circle at 0% 50%, color-mix(in srgb, var(--tab) 14%, transparent), transparent 48%),
+        color-mix(in srgb, var(--tab) 8%, transparent);
+      color: rgba(232, 249, 252, 0.9);
+      box-shadow: 0 0 18px color-mix(in srgb, var(--tab) 12%, transparent);
+    }
+
+    .top-actions {
+      display: flex;
+      justify-content: end;
+      gap: 9px;
+    }
+
+    .tool-button {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--cyan) 22%, transparent);
+      border-radius: 10px;
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--cyan) 7%, transparent), rgba(2, 9, 16, 0.92)),
+        rgba(2, 9, 16, 0.9);
+      color: rgba(215, 247, 255, 0.72);
+    }
+
+    .tool-button svg {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .planning-shell {
+      position: relative;
+      z-index: 2;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 300px minmax(560px, 1fr) 326px;
+      grid-template-rows: minmax(360px, 1fr) 220px;
+      grid-template-areas:
+        "projects overview roadmaps"
+        "projects detail todos";
+      gap: 12px;
+      padding: 18px 24px 22px;
+    }
+
+    .region {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      border: 1px solid color-mix(in srgb, var(--accent, var(--cyan)) 14%, transparent);
+      border-radius: 10px;
+      background:
+        radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--accent, var(--cyan)) 7%, transparent), transparent 48%),
+        linear-gradient(180deg, rgba(7, 18, 29, 0.92), rgba(2, 9, 16, 0.9)),
+        rgba(2, 9, 16, 0.86);
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.018),
+        0 16px 36px rgba(0, 0, 0, 0.22);
+      overflow: hidden;
+    }
+
+    .region-head {
+      min-height: 42px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid color-mix(in srgb, var(--accent, var(--cyan)) 12%, transparent);
+      padding: 0 12px;
+    }
+
+    .region-title {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+      font-family: var(--mono);
+    }
+
+    .region-title strong {
+      overflow: hidden;
+      color: rgba(224, 243, 249, 0.84);
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .region-title span {
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 9px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .compact-action,
+    .search-button {
+      height: 28px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--accent, var(--cyan)) 22%, transparent);
+      border-radius: 7px;
+      background: color-mix(in srgb, var(--accent, var(--cyan)) 6%, rgba(2, 9, 16, 0.82));
+      color: color-mix(in srgb, var(--accent, var(--cyan)) 74%, white 8%);
+      padding: 0 9px;
+      font: 700 10px/1 var(--mono);
+    }
+
+    .projects {
+      grid-area: projects;
+      --accent: var(--green);
+      grid-template-rows: auto auto minmax(0, 1fr);
+    }
+
+    .project-search,
+    .roadmap-search {
+      min-height: 36px;
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      align-items: center;
+      border-bottom: 1px solid color-mix(in srgb, var(--accent, var(--cyan)) 10%, transparent);
+      color: var(--dim);
+      padding: 0 11px;
+    }
+
+    .project-search input,
+    .roadmap-search input {
+      width: 100%;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+      font: 10px/1 var(--mono);
+    }
+
+    .project-list {
+      min-height: 0;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      overflow: auto;
+      padding: 11px;
+    }
+
+    .project-row {
+      --row: var(--cyan);
+      min-height: 72px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+      gap: 10px;
+      border: 1px solid color-mix(in srgb, var(--row) 14%, transparent);
+      border-radius: 8px;
+      background:
+        radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--row) 8%, transparent), transparent 42%),
+        rgba(1, 8, 14, 0.52);
+      color: var(--ink);
+      padding: 10px;
+      text-align: left;
+    }
+
+    .project-row.active {
+      border-color: color-mix(in srgb, var(--row) 46%, transparent);
+      background: color-mix(in srgb, var(--row) 8%, rgba(1, 8, 14, 0.68));
+      box-shadow: 0 0 16px color-mix(in srgb, var(--row) 10%, transparent);
+    }
+
+    .project-row strong,
+    .project-row small,
+    .roadmap-row strong,
+    .roadmap-row small {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .project-row strong {
+      color: var(--ink-strong);
+      font: 700 11px/1.2 var(--mono);
+    }
+
+    .project-row small {
+      margin-top: 4px;
+      color: var(--muted);
+      font: 10px/1.2 var(--mono);
+    }
+
+    .project-row b {
+      min-width: 32px;
+      color: color-mix(in srgb, var(--row) 74%, white 8%);
+      font: 700 10px/1 var(--mono);
+      text-align: right;
+    }
+
+    .chips {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .chip {
+      min-height: 18px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--row, var(--cyan)) 20%, transparent);
+      border-radius: 999px;
+      color: color-mix(in srgb, var(--row, var(--cyan)) 72%, rgba(225, 244, 249, 0.7));
+      padding: 0 6px;
+      font: 700 8px/1 var(--mono);
+    }
+
+    .overview {
+      grid-area: overview;
+      --accent: var(--cyan);
+      grid-template-rows: auto minmax(0, 1fr) 32px;
+    }
+
+    .overview-head-actions {
+      display: inline-flex;
+      gap: 7px;
+    }
+
+    .graph-scroll {
+      min-width: 0;
+      min-height: 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 10px 0 0;
+    }
+
+    .graph-canvas {
+      position: relative;
+      width: 1240px;
+      height: 100%;
+      min-height: 390px;
+    }
+
+    .graph-lines {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .edge {
+      fill: none;
+      stroke: var(--green);
+      stroke-width: 7;
+      stroke-linecap: round;
+      opacity: 0.58;
+      filter: drop-shadow(0 0 8px color-mix(in srgb, currentColor 22%, transparent));
+    }
+
+    .edge.branch {
+      stroke-width: 5;
+      opacity: 0.54;
+    }
+
+    .edge.blue {
+      stroke: var(--blue);
+    }
+
+    .edge.done {
+      stroke: var(--green);
+    }
+
+    .edge.dashed {
+      stroke-dasharray: 8 8;
+    }
+
+    .node {
+      --node: var(--cyan);
+      position: absolute;
+      left: var(--x);
+      top: var(--y);
+      min-width: 82px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--node) 44%, transparent);
+      border-radius: 8px;
+      background:
+        radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--node) 14%, transparent), transparent 58%),
+        rgba(2, 10, 17, 0.98);
+      color: color-mix(in srgb, var(--node) 78%, white 8%);
+      padding: 0 11px;
+      font: 800 11px/1 var(--mono);
+      transform: translate(-50%, -50%);
+      transition:
+        border-color 140ms ease,
+        box-shadow 140ms ease,
+        transform 140ms ease,
+        opacity 140ms ease;
+    }
+
+    .node:hover,
+    .node.active {
+      z-index: 4;
+      border-color: color-mix(in srgb, var(--node) 76%, white 8%);
+      box-shadow:
+        0 0 0 7px rgba(1, 7, 13, 0.86),
+        0 0 22px color-mix(in srgb, var(--node) 24%, transparent);
+    }
+
+    .node.version {
+      min-width: 72px;
+      height: 32px;
+      border-radius: 999px;
+      color: rgba(218, 244, 249, 0.72);
+    }
+
+    .node.gate {
+      width: 34px;
+      min-width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      padding: 0;
+    }
+
+    .node.gate svg {
+      width: 21px;
+      height: 21px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .node.done {
+      --node: var(--green);
+    }
+
+    .node.open {
+      --node: var(--blue);
+    }
+
+    .node.working {
+      --node: var(--amber);
+    }
+
+    .graph-legend {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-top: 1px solid color-mix(in srgb, var(--cyan) 10%, transparent);
+      color: var(--dim);
+      padding: 0 12px;
+      font: 700 9px/1 var(--mono);
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend-item i {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--legend);
+      box-shadow: 0 0 8px color-mix(in srgb, var(--legend) 32%, transparent);
+    }
+
+    .roadmaps {
+      grid-area: roadmaps;
+      --accent: var(--blue);
+      grid-template-rows: auto auto minmax(0, 1fr);
+    }
+
+    .roadmap-filters {
+      display: flex;
+      gap: 6px;
+      border-bottom: 1px solid color-mix(in srgb, var(--blue) 9%, transparent);
+      padding: 8px 10px;
+    }
+
+    .roadmap-filters button {
+      height: 24px;
+      border: 1px solid color-mix(in srgb, var(--blue) 18%, transparent);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--muted);
+      padding: 0 9px;
+      font: 700 9px/1 var(--mono);
+    }
+
+    .roadmap-filters button.active {
+      border-color: color-mix(in srgb, var(--blue) 48%, transparent);
+      color: color-mix(in srgb, var(--blue) 64%, white 18%);
+      background: color-mix(in srgb, var(--blue) 8%, transparent);
+    }
+
+    .roadmap-list {
+      min-height: 0;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      overflow: auto;
+      padding: 10px;
+    }
+
+    .roadmap-row {
+      --row: var(--green);
+      min-height: 54px;
+      display: grid;
+      grid-template-columns: 36px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      border: 1px solid color-mix(in srgb, var(--row) 14%, transparent);
+      border-radius: 8px;
+      background: rgba(1, 8, 14, 0.52);
+      color: var(--ink);
+      padding: 8px;
+      text-align: left;
+    }
+
+    .roadmap-row.active {
+      border-color: color-mix(in srgb, var(--row) 56%, transparent);
+      background: color-mix(in srgb, var(--row) 8%, rgba(1, 8, 14, 0.7));
+    }
+
+    .seq {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--row) 38%, transparent);
+      border-radius: 7px;
+      color: color-mix(in srgb, var(--row) 78%, white 8%);
+      font: 800 10px/1 var(--mono);
+    }
+
+    .roadmap-row strong {
+      color: rgba(225, 244, 249, 0.84);
+      font: 700 11px/1.15 var(--mono);
+    }
+
+    .roadmap-row small {
+      margin-top: 3px;
+      color: var(--muted);
+      font: 10px/1.2 var(--font);
+    }
+
+    .roadmap-row em {
+      color: color-mix(in srgb, var(--row) 72%, white 8%);
+      font: 700 9px/1 var(--mono);
+      font-style: normal;
+    }
+
+    .detail {
+      grid-area: detail;
+      --accent: var(--amber);
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .detail-body {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 210px;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .summary-block {
+      min-height: 0;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .summary-block h2 {
+      margin: 0;
+      color: rgba(225, 244, 249, 0.88);
+      font: 800 18px/1.1 var(--mono);
+    }
+
+    .summary-block p {
+      max-width: 72ch;
+      margin: 0;
+      color: rgba(180, 210, 220, 0.78);
+      font: 13px/1.45 var(--font);
+    }
+
+    .meta-grid {
+      display: grid;
+      gap: 7px;
+      align-content: start;
+    }
+
+    .meta-row {
+      min-height: 28px;
+      display: grid;
+      grid-template-columns: 70px minmax(0, 1fr);
+      align-items: center;
+      gap: 8px;
+      border: 1px solid color-mix(in srgb, var(--amber) 10%, transparent);
+      border-radius: 7px;
+      background: rgba(1, 8, 14, 0.42);
+      padding: 0 8px;
+      font: 700 9px/1 var(--mono);
+    }
+
+    .meta-row span:first-child {
+      color: var(--dim);
+    }
+
+    .meta-row span:last-child {
+      min-width: 0;
+      overflow: hidden;
+      color: rgba(218, 239, 246, 0.78);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .todos {
+      grid-area: todos;
+      --accent: var(--green);
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .todo-list {
+      min-height: 0;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      overflow: auto;
+      padding: 10px;
+    }
+
+    .todo {
+      min-height: 46px;
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid color-mix(in srgb, var(--state, var(--green)) 14%, transparent);
+      border-radius: 8px;
+      background: rgba(1, 8, 14, 0.48);
+      padding: 8px;
+    }
+
+    .todo i {
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--state, var(--green)) 54%, transparent);
+      border-radius: 50%;
+      color: color-mix(in srgb, var(--state, var(--green)) 80%, white 8%);
+      font: 900 11px/1 var(--mono);
+      font-style: normal;
+    }
+
+    .todo strong,
+    .todo small {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .todo strong {
+      color: rgba(224, 243, 249, 0.82);
+      font: 700 11px/1.2 var(--mono);
+    }
+
+    .todo small {
+      margin-top: 3px;
+      color: var(--muted);
+      font: 10px/1.2 var(--font);
+    }
+
+    .todo b {
+      color: color-mix(in srgb, var(--state, var(--green)) 70%, white 8%);
+      font: 700 9px/1 var(--mono);
+    }
+
+    .watermark {
+      position: absolute;
+      right: 42px;
+      bottom: 16px;
+      z-index: 1;
+      color: rgba(121, 187, 199, 0.08);
+      font: 800 44px/0.9 var(--mono);
+      pointer-events: none;
+      text-align: right;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 1120px) {
+      .topline {
+        grid-template-columns: 72px minmax(0, 1fr) auto;
+      }
+
+      .brand-copy {
+        display: none;
+      }
+
+      .screen-tabs {
+        grid-template-columns: repeat(4, minmax(90px, 1fr));
+      }
+
+      .planning-shell {
+        grid-template-columns: 260px minmax(520px, 1fr);
+        grid-template-rows: 260px minmax(360px, 1fr) 220px;
+        grid-template-areas:
+          "projects roadmaps"
+          "overview overview"
+          "detail todos";
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <header class="topline">
+      <div class="brand">
+        <button class="brand-mark" aria-label="Agent home">
+          <svg viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M10 50h44"></path>
+            <path d="M14 43h36"></path>
+            <path d="M18 36h28"></path>
+            <path d="M18 36V18"></path>
+            <path d="M46 36V18"></path>
+            <path d="M14 18h12"></path>
+            <path d="M38 18h12"></path>
+            <path d="M22 18l10 9 10-9"></path>
+            <path d="M32 27v9"></path>
+          </svg>
+        </button>
+        <span class="brand-copy">
+          <strong>Harbor One</strong>
+          <span>Retrieve. Plan. Execute.</span>
+        </span>
+      </div>
+
+      <nav class="screen-tabs" aria-label="Screens">
+        <button class="screen-tab" style="--tab:var(--blue)" type="button"><i></i><span>Agent</span><b>3</b></button>
+        <button class="screen-tab" style="--tab:var(--cyan)" type="button"><i></i><span>Knowledge</span><b>0</b></button>
+        <button class="screen-tab active" style="--tab:var(--cyan)" type="button"><i></i><span>Planning</span><b>1</b></button>
+        <button class="screen-tab" style="--tab:var(--green)" type="button"><i></i><span>Inbox</span><b>2</b></button>
+      </nav>
+
+      <div class="top-actions">
+        <button class="tool-button" type="button" aria-label="Undo">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 8H4v5"></path><path d="M4 13a8 8 0 1 0 2.3-5.7L4 8"></path></svg>
+        </button>
+        <button class="tool-button" type="button" aria-label="Notifications">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 16v-5a6 6 0 0 0-12 0v5l-2 3h16l-2-3Z"></path><path d="M9.5 21a3 3 0 0 0 5 0"></path></svg>
+        </button>
+        <button class="tool-button" type="button" aria-label="Tools">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h7"></path><path d="M15 7h5"></path><path d="M4 17h5"></path><path d="M13 17h7"></path><circle cx="13" cy="7" r="2.2"></circle><circle cx="11" cy="17" r="2.2"></circle></svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="planning-shell" aria-label="Planning">
+      <aside class="region projects">
+        <header class="region-head">
+          <span class="region-title"><strong>Projects</strong><span>JSON master roadmaps</span></span>
+          <button class="compact-action" type="button">+</button>
+        </header>
+        <label class="project-search"><span>⌕</span><input value="" placeholder="Find project"></label>
+        <div class="project-list">
+          <button class="project-row active" style="--row:var(--green)" type="button">
+            <span><strong>Agent Autonomy</strong><small>completed JSON master</small></span><b>6/6</b>
+            <span class="chips"><span class="chip">master</span><span class="chip">json</span><span class="chip">gates passed</span></span>
+          </button>
+          <button class="project-row" style="--row:var(--blue)" type="button">
+            <span><strong>Frontend V2</strong><small>active - needs review</small></span><b>8/14</b>
+            <span class="chips"><span class="chip">repo ready</span><span class="chip">push held</span></span>
+          </button>
+          <button class="project-row" style="--row:var(--green)" type="button">
+            <span><strong>Memory Debug</strong><small>ready - checks green</small></span><b>5/5</b>
+            <span class="chips"><span class="chip">ready</span><span class="chip">trace cap</span></span>
+          </button>
+          <button class="project-row" style="--row:var(--amber)" type="button">
+            <span><strong>Local Models</strong><small>waiting - choose setup</small></span><b>2/7</b>
+            <span class="chips"><span class="chip">waiting</span><span class="chip">local</span></span>
+          </button>
+          <button class="project-row" style="--row:var(--red)" type="button">
+            <span><strong>Project Atlas</strong><small>blocked - repo missing</small></span><b>1/9</b>
+            <span class="chips"><span class="chip">blocked</span><span class="chip">repo missing</span></span>
+          </button>
+        </div>
+      </aside>
+
+      <section class="region overview">
+        <header class="region-head">
+          <span class="region-title"><strong>Agent Autonomy</strong><span>agent-autonomy-extensions-master-roadmap.json</span></span>
+          <span class="overview-head-actions">
+            <button class="search-button" type="button">Search</button>
+            <button class="compact-action" type="button">New roadmap</button>
+          </span>
+        </header>
+        <div class="graph-scroll">
+          <div class="graph-canvas">
+            <svg class="graph-lines" viewBox="0 0 1240 420" preserveAspectRatio="none" aria-hidden="true">
+              <path class="edge done dashed" d="M78 220 C118 220 138 220 170 220"></path>
+              <path class="edge done" d="M252 220 C282 220 300 220 332 220"></path>
+              <path class="edge done" d="M368 220 C398 220 422 220 438 220"></path>
+              <path class="edge done" d="M522 220 C574 220 622 220 684 220"></path>
+              <path class="edge done" d="M796 220 C848 220 878 220 930 220"></path>
+              <path class="edge branch done" d="M480 220 C515 154 548 122 592 112"></path>
+              <path class="edge branch done" d="M626 112 C668 112 692 112 724 112"></path>
+              <path class="edge branch done" d="M220 220 C246 312 290 336 332 336"></path>
+              <path class="edge branch done" d="M368 336 C430 336 500 336 568 336"></path>
+              <path class="edge branch done" d="M980 220 C1040 220 1068 220 1104 220"></path>
+              <path class="edge branch done" d="M804 112 C920 112 1018 160 1104 220"></path>
+              <path class="edge branch done" d="M652 336 C812 336 994 294 1104 220"></path>
+              <path class="edge done" d="M1138 220 C1164 220 1182 220 1200 220"></path>
+            </svg>
+
+            <button class="node version done" style="--x:70px;--y:220px" type="button">v0.1</button>
+            <button class="node done active" style="--x:220px;--y:220px" type="button">AAE-1</button>
+            <button class="node gate done" style="--x:350px;--y:220px" type="button" aria-label="Live web approved">
+              <svg viewBox="0 0 24 24"><path d="M7 18V9a5 5 0 0 1 10 0v9"></path><path d="M5 18h14"></path></svg>
+            </button>
+            <button class="node done" style="--x:480px;--y:220px" type="button">AAE-2</button>
+            <button class="node gate done" style="--x:610px;--y:112px" type="button" aria-label="Memory policy passed">
+              <svg viewBox="0 0 24 24"><path d="M7 18V9a5 5 0 0 1 10 0v9"></path><path d="M5 18h14"></path></svg>
+            </button>
+            <button class="node done" style="--x:760px;--y:112px" type="button">AAE-6</button>
+            <button class="node done" style="--x:740px;--y:220px" type="button">AAE-3</button>
+            <button class="node done" style="--x:980px;--y:220px" type="button">AAE-4</button>
+            <button class="node gate done" style="--x:350px;--y:336px" type="button" aria-label="Sandbox live go">
+              <svg viewBox="0 0 24 24"><path d="M7 18V9a5 5 0 0 1 10 0v9"></path><path d="M5 18h14"></path></svg>
+            </button>
+            <button class="node done" style="--x:610px;--y:336px" type="button">AAE-5</button>
+            <button class="node gate done" style="--x:1125px;--y:220px" type="button" aria-label="Evidence verified">
+              <svg viewBox="0 0 24 24"><path d="M7 18V9a5 5 0 0 1 10 0v9"></path><path d="M5 18h14"></path></svg>
+            </button>
+            <button class="node version done" style="--x:1210px;--y:220px" type="button">v0.2</button>
+          </div>
+        </div>
+        <footer class="graph-legend">
+          <span class="legend-item"><i style="--legend:var(--green)"></i>done</span>
+          <span class="legend-item"><i style="--legend:var(--blue)"></i>open</span>
+          <span class="legend-item"><i style="--legend:var(--amber)"></i>working</span>
+          <span class="legend-item"><i style="--legend:var(--red)"></i>blocked</span>
+        </footer>
+      </section>
+
+      <aside class="region roadmaps">
+        <header class="region-head">
+          <span class="region-title"><strong>Roadmaps</strong><span>selected project</span></span>
+          <button class="compact-action" type="button">+</button>
+        </header>
+        <label class="roadmap-search"><span>⌕</span><input placeholder="Find roadmap, gate, summary"></label>
+        <div class="roadmap-filters">
+          <button class="active" type="button">All</button>
+          <button type="button">Open</button>
+          <button type="button">Gates</button>
+        </div>
+        <div class="roadmap-list">
+          <button class="roadmap-row active" style="--row:var(--green)" type="button"><span class="seq">1</span><span><strong>Telegram Task Orchestrator</strong><small>Remote task lifecycle and status.</small></span><em>AAE-1</em></button>
+          <button class="roadmap-row" style="--row:var(--green)" type="button"><span class="seq">2</span><span><strong>Website Research Pipeline</strong><small>Approved scopes, crawl caps, synthesis.</small></span><em>AAE-2</em></button>
+          <button class="roadmap-row" style="--row:var(--green)" type="button"><span class="seq">2.1</span><span><strong>Memory And RaptorGraph</strong><small>Source-linked knowledge entries.</small></span><em>AAE-6</em></button>
+          <button class="roadmap-row" style="--row:var(--green)" type="button"><span class="seq">3</span><span><strong>Browser DevTools</strong><small>DOM, console, network evidence.</small></span><em>AAE-3</em></button>
+          <button class="roadmap-row" style="--row:var(--green)" type="button"><span class="seq">3.1</span><span><strong>Sandbox Code Execution</strong><small>Podman sandbox jobs and artifacts.</small></span><em>AAE-5</em></button>
+          <button class="roadmap-row" style="--row:var(--green)" type="button"><span class="seq">4</span><span><strong>No-GPU Visual Observer</strong><small>Software screenshots and diffs.</small></span><em>AAE-4</em></button>
+        </div>
+      </aside>
+
+      <section class="region detail">
+        <header class="region-head">
+          <span class="region-title"><strong>Selected roadmap</strong><span>readable JSON document view</span></span>
+          <button class="compact-action" type="button">Spark</button>
+        </header>
+        <div class="detail-body">
+          <article class="summary-block">
+            <h2>Telegram Task Orchestrator</h2>
+            <p>Starts, pauses, queries and reports long-running bounded agent tasks through Telegram. It is the first visible step in the autonomy spine because every later track depends on a clear remote task lifecycle.</p>
+            <span class="chips"><span class="chip" style="--row:var(--green)">done</span><span class="chip" style="--row:var(--cyan)">JSON</span><span class="chip" style="--row:var(--green)">gate passed</span></span>
+          </article>
+          <div class="meta-grid">
+            <span class="meta-row"><span>File</span><span>aae-1.json</span></span>
+            <span class="meta-row"><span>Status</span><span>done</span></span>
+            <span class="meta-row"><span>Blocks</span><span>AAE-2, AAE-5</span></span>
+            <span class="meta-row"><span>Updated</span><span>2026-07-02</span></span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="region todos">
+        <header class="region-head">
+          <span class="region-title"><strong>Todos</strong><span>current roadmap</span></span>
+          <button class="compact-action" type="button">All</button>
+        </header>
+        <div class="todo-list">
+          <article class="todo" style="--state:var(--green)"><i>✓</i><span><strong>Task lifecycle</strong><small>Start, pause, query and status events.</small></span><b>done</b></article>
+          <article class="todo" style="--state:var(--green)"><i>✓</i><span><strong>Redacted run ledger</strong><small>No raw private content in task records.</small></span><b>done</b></article>
+          <article class="todo" style="--state:var(--green)"><i>✓</i><span><strong>Status summary</strong><small>Operator-visible progress signal.</small></span><b>done</b></article>
+        </div>
+      </aside>
+    </section>
+
+    <div class="watermark">Harbor One</div>
+  </main>
+</body>
+</html>

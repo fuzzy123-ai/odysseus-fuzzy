@@ -271,7 +271,7 @@ TUA0-TUA2 dürfen nach TAX1 auf disjunkten Pfaden parallel vorbereitet werden.
 
 ### TAX0 Deterministic Inventory And Drift Baseline
 
-Status: `ready`
+Status: `accepted_2026-07-17`
 
 Class: `safe_offline`
 
@@ -308,7 +308,7 @@ venv\Scripts\python.exe scripts\audit_tool_registry_drift.py --check --output do
 
 ### TAX1 Descriptor V2 And Controlled Enums
 
-Status: `pending`
+Status: `accepted_2026-07-17`
 
 Class: `repo_only`
 
@@ -344,7 +344,7 @@ venv\Scripts\python.exe -m pytest -q tests\test_tool_catalog.py
 
 ### TAX2 Canonical Built-in Catalog And Projections
 
-Status: `pending`
+Status: `accepted_2026-07-17`
 
 Class: `repo_only`
 
@@ -385,7 +385,7 @@ venv\Scripts\python.exe -m pytest -q tests\test_builtin_tool_catalog.py tests\te
 
 ### TAX3 Close The Six Registration Gaps
 
-Status: `pending`
+Status: `accepted_2026-07-17`
 
 Class: `repo_only`
 
@@ -431,7 +431,7 @@ venv\Scripts\python.exe -m pytest -q tests\test_tool_registration_parity.py test
 
 ### TAX4 Operator Priority Defaults And Deferred Families
 
-Status: `pending`
+Status: `accepted_2026-07-17`
 
 Class: `repo_only`
 
@@ -472,7 +472,24 @@ venv\Scripts\python.exe -m pytest -q tests\test_tool_priority_defaults.py tests\
 
 ### TAX5 Security And Effect-Class Closure
 
-Status: `pending`
+Status: `accepted_2026-07-17`
+
+Active claim:
+
+- run_id: `post-mvp-tax-20260717T162958+0200`
+- owner: `root` acting as Bob; Charlie-Abnahme durch root
+- lease: `2026-07-17T16:29:58+02:00` bis `2026-07-17T20:29:58+02:00`
+- scope extension: `src/builtin_tool_catalog.py` ist zusätzlich erforderlich,
+  weil die Done-Bedingung "Katalog nicht schwächer als Runtime" nicht allein
+  aus den ursprünglich gelisteten Runtime-Dateien erfüllt werden kann
+- state: `released_2026-07-17T16:42:52+02:00`
+- acceptance: `43 focused TAX5 tests; 100 catalog/security/parity tests; 229
+  dispatcher/model/repo/provider integration tests; taxonomy and usage-source
+  drift clean`
+- evidence: Descriptor/Admin runtime parity, conservative dynamic default,
+  action-specific mixed-tool effects, public/foreign-owner denial and a
+  registered/current/fixed-path-only Cookbook log boundary are green
+- next_frontier: `TAX6`
 
 Class: `repo_only`
 
@@ -514,7 +531,21 @@ venv\Scripts\python.exe -m pytest -q tests\test_tool_security_catalog.py tests\t
 
 ### TAX6 Admin And Runtime API Projection
 
-Status: `pending`
+Status: `accepted_2026-07-17`
+
+Active claim:
+
+- run_id: `post-mvp-tax-20260717T164701+0200`
+- owner: `root` acting as Bob
+- lease: `2026-07-17T16:47:01+02:00` bis `2026-07-17T20:47:01+02:00`
+- state: `released_2026-07-17T16:53:58+02:00`
+- acceptance: `10 focused TAX6 API/status tests; 216 combined Model Route,
+  TAX4/TAX5 catalog/security/parity tests; taxonomy and usage-source drift clean`
+- evidence: complete deterministic Descriptor-v2 GET projection, redacted
+  dynamic Plugin/MCP sources, runtime lifecycle/availability/policy/drift,
+  Admin scope and known-only compatibility-preserving POST are green
+- next_frontier: `TAX7` is UI-owned; non-UI routing must skip it unless the UI
+  scope is explicitly resumed
 
 Class: `repo_only`
 
@@ -592,7 +623,21 @@ node --check static\js\admin.js
 
 ### TAX8 Dynamic Plugin And MCP Normalization
 
-Status: `pending`
+Status: `accepted_2026-07-17`
+
+Active claim:
+
+- run_id: `post-mvp-tax-20260717T165621+0200`
+- owner: `root` acting as Bob
+- lease: `2026-07-17T16:56:21+02:00` bis `2026-07-17T20:56:21+02:00`
+- state: `released_2026-07-17T17:05:03+02:00`
+- acceptance: `27 focused TAX8 tests; 36 TAX6/MCP/index regression tests;
+  Python compile, taxonomy/usage-source drift and scoped whitespace clean`
+- evidence: Plugin registration owns conservative Descriptor-v2 projections,
+  rejects Built-in/Alias collisions and refreshes schema/prompt/index generation;
+  MCP projections are deterministic, de-duplicated, redacted and generation-bound
+  while the existing MCP execution/plan policy remains authoritative
+- next_frontier: `TAX9`
 
 Class: `repo_only`
 
@@ -630,7 +675,23 @@ venv\Scripts\python.exe -m pytest -q tests\test_tool_registry.py tests\test_dyna
 
 ### TAX9 Settings And Alias Migration
 
-Status: `pending`
+Status: `accepted_2026-07-17`
+
+Active claim:
+
+- run_id: `post-mvp-tax-20260717T170743+0200`
+- owner: `root` acting as Bob
+- lease: `2026-07-17T17:07:43+02:00` bis `2026-07-17T21:07:43+02:00`
+- state: `released_2026-07-17T17:12:58+02:00`
+- preserved_foreign_hunks: TAX1 Descriptor-v2 additions in `src/tool_catalog.py`;
+  TUA2 SQLite usage-store migration in `scripts/update_database.py` and its test
+- acceptance: `11 focused TAX9 tests; 98 catalog/policy/settings/API regression
+  tests; Python compile, JSON readback, taxonomy/usage-source drift and scoped
+  whitespace clean`
+- evidence: schema-v1 migration is idempotent and byte-stable, canonicalizes
+  `manage_rag`, quarantines unknown IDs without reactivation, applies deferred
+  defaults once, keeps exact rollback state and emits aggregate-only diagnostics
+- next_frontier: `TAX10`
 
 Class: `repo_only`
 
@@ -668,7 +729,24 @@ venv\Scripts\python.exe -m pytest -q tests\test_tool_settings_migration.py tests
 
 ### TAX10 Analytics Identity Contract
 
-Status: `pending`
+Status: `accepted_2026-07-17`
+
+Active claim:
+
+- run_id: `post-mvp-tax-20260717T171511+0200`
+- owner: `root` acting as Bob; TUA consumer review by contract tests
+- lease: `2026-07-17T17:15:11+02:00` bis `2026-07-17T21:15:11+02:00`
+- state: `released_2026-07-17T17:19:49+02:00`
+- preserved_foreign_hunks: released TAX1/TAX9 contracts in `src/tool_catalog.py`
+  and released TAX2-TAX6 catalog projections in `src/builtin_tool_catalog.py`
+- acceptance: `41 focused TAX10/catalog tests; 50 built-in/dynamic/TUA
+  event/privacy/store/settings regression tests; Python compile, JSON readback,
+  taxonomy/usage-source drift and scoped whitespace clean`
+- evidence: the public v1 resolver emits exactly Analytics-ID/family/source,
+  collapses `manage_rag` into the canonical series, uses non-personal dynamic
+  source buckets and reserves historical/retired identities against reuse
+- next_frontier: `TAX11` remains dependency-blocked by UI-owned TAX7; route to
+  the next dependency-satisfied non-UI TUA slice
 
 Class: `repo_only`
 

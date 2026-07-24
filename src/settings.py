@@ -170,7 +170,7 @@ DEFAULT_SETTINGS = {
     "memory.graph_extract_model": "default",
     "memory.global_synthesis_model": "default",
     "memory.embedding_model": "",
-    "maintenance_model_ref": "gemma4:e4b",
+    "maintenance_model_ref": "gemma3:4b",
     "maintenance_model_provider": "local_ollama",
     "maintenance_model_fallback_ref": "api-review-model",
     "maintenance_model_token_budget": 1200,
@@ -179,6 +179,7 @@ DEFAULT_SETTINGS = {
     "maintenance_model_source_ref_budget": 4,
     "maintenance_model_latency_budget_ms": 45000,
     "maintenance_model_api_fallback_enabled": False,
+    "maintenance_runtime_enabled": False,
     "teacher_model": "",
     "teacher_enabled": False,
     # Skills: minimum self-reported confidence for an auto-written (LLM-authored)
@@ -474,6 +475,57 @@ def save_settings(settings: dict):
     from core.atomic_io import atomic_write_json
     atomic_write_json(SETTINGS_FILE, settings, indent=2)
     _invalidate_caches()
+
+
+def migrate_tool_settings_file(settings_file: Any = None) -> dict[str, Any] | None:
+    """Apply the versioned tool-settings migration without logging raw values."""
+
+    target = settings_file or SETTINGS_FILE
+    try:
+        with open(target, "r", encoding="utf-8") as handle:
+            saved = json.load(handle)
+    except FileNotFoundError:
+        return None
+    if not isinstance(saved, dict):
+        raise ValueError("settings must be an object")
+
+    from core.atomic_io import atomic_write_json
+    from src.tool_catalog import migrate_tool_settings
+
+    migrated, report = migrate_tool_settings(saved)
+    if report.changed:
+        atomic_write_json(target, migrated, indent=2)
+        if str(target) == str(SETTINGS_FILE):
+            _invalidate_caches()
+        audit = report.audit_dict()
+        logger.info(
+            "Tool settings migration applied: version=%d aliases=%d quarantined=%d invalid=%d",
+            audit["to_version"],
+            audit["alias_rewrite_count"],
+            audit["quarantined_count"],
+            audit["invalid_value_count"],
+        )
+    return report.audit_dict()
+
+
+def rollback_tool_settings_file(settings_file: Any = None) -> dict[str, Any]:
+    """Restore migration-owned settings keys from the embedded rollback packet."""
+
+    target = settings_file or SETTINGS_FILE
+    with open(target, "r", encoding="utf-8") as handle:
+        saved = json.load(handle)
+    if not isinstance(saved, dict):
+        raise ValueError("settings must be an object")
+
+    from core.atomic_io import atomic_write_json
+    from src.tool_catalog import rollback_tool_settings_migration
+
+    restored = rollback_tool_settings_migration(saved)
+    atomic_write_json(target, restored, indent=2)
+    if str(target) == str(SETTINGS_FILE):
+        _invalidate_caches()
+    logger.info("Tool settings migration rollback applied")
+    return restored
 
 
 def get_setting(key: str, default: Any = None) -> Any:

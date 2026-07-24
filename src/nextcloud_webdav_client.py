@@ -16,6 +16,7 @@ import httpx
 _UNSAFE_PATH_CHARS = set('<>:"|?*')
 _DAV = "{DAV:}"
 _DEFAULT_MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024
+_DEFAULT_MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 
 class NextcloudWebDAVClientError(RuntimeError):
@@ -132,6 +133,70 @@ class NextcloudWebDAVClient:
             "etag": _clean_etag(response.headers.get("ETag", "")),
         }
 
+    def put_bytes_create_only(
+        self,
+        relative_path: str,
+        content: bytes,
+        *,
+        max_bytes: int = _DEFAULT_MAX_UPLOAD_BYTES,
+    ) -> Mapping[str, Any]:
+        """Create an in-memory payload without exposing it in errors.
+
+        This Forge-only primitive can never replace remote evidence.  The
+        older ``put_file``/``put_text`` methods retain their existing path and
+        overwrite semantics for their review-gated callers.
+        """
+
+        if not isinstance(content, bytes):
+            raise ValueError("content must be bytes")
+        if type(max_bytes) is not int or max_bytes <= 0:
+            raise ValueError("max_bytes must be a positive integer")
+        if len(content) > max_bytes:
+            raise NextcloudWebDAVClientError("WebDAV payload exceeds upload limit")
+        path = self._strict_path(relative_path)
+        self._ensure_parent_dirs(path)
+        headers = {
+            "Content-Type": "application/octet-stream",
+            "If-None-Match": "*",
+        }
+        response = self._client.put(self._url(path), content=content, headers=headers)
+        _raise_for_status(response, expected={201})
+        return {
+            "size_bytes": len(content),
+            "etag": _clean_etag(response.headers.get("ETag", "")),
+        }
+
+    def move_create_only(
+        self,
+        source_relative: str,
+        destination_relative: str,
+    ) -> Mapping[str, Any]:
+        """Promote a path with WebDAV MOVE and fail closed on overwrite.
+
+        Automatic overwrite is intentionally unsupported.  A future live
+        policy gate may define stable-pointer replacement separately; this
+        primitive only supports immutable create-only promotion.
+        """
+
+        source = self._strict_path(source_relative)
+        destination = self._strict_path(destination_relative)
+        if source == destination:
+            raise ValueError("source and destination must differ")
+        self._ensure_parent_dirs(destination)
+        response = self._client.request(
+            "MOVE",
+            self._url(source),
+            headers={
+                "Destination": self._url(destination),
+                "Overwrite": "F",
+            },
+        )
+        _raise_for_status(response, expected={201})
+        return {
+            "created": True,
+            "etag": _clean_etag(response.headers.get("ETag", "")),
+        }
+
     def _ensure_parent_dirs(self, relative_path: str) -> None:
         parent = posixpath.dirname(relative_path)
         if not parent:
@@ -148,6 +213,10 @@ class NextcloudWebDAVClient:
 
     def _path(self, relative_path: str) -> str:
         child = _normalize_relative_path(relative_path)
+        return f"{self.root}/{child}" if self.root else child
+
+    def _strict_path(self, relative_path: str) -> str:
+        child = _normalize_strict_relative_path(relative_path)
         return f"{self.root}/{child}" if self.root else child
 
     def _url(self, relative_path: str) -> str:
@@ -249,3 +318,10 @@ def _normalize_relative_path(value: Any, *, allow_empty: bool = False) -> str:
         if any(ch in _UNSAFE_PATH_CHARS for ch in part):
             raise ValueError("relative path contains unsafe characters")
     return "/".join(parts)
+
+
+def _normalize_strict_relative_path(value: Any) -> str:
+    raw_input = str(value or "").strip()
+    if "\\" in raw_input or "\x00" in raw_input:
+        raise ValueError("relative path must use forward slashes")
+    return _normalize_relative_path(raw_input)

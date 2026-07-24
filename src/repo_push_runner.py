@@ -28,12 +28,8 @@ _WINDOWS_PATH_RE = re.compile(r"[A-Za-z]:[\\/][^\s\t]+")
 _ABSOLUTE_PATH_RE = re.compile(r"(?<![A-Za-z0-9._-])/(?:[^\s/]+/)*[^\s]+")
 _REMOTE_URL_RE = re.compile(r"(?i)\b(?:file|https?|ssh)://[^\s]+")
 _SAFE_REMOTE_RE = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
+_COMMIT_SHA_RE = re.compile(r"^[A-Fa-f0-9]{7,40}$")
 _FULL_COMMIT_SHA_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
-_URL_REWRITE_KEY_RE = (
-    r"^[Uu][Rr][Ll]\..*\."
-    r"([Ii][Nn][Ss][Tt][Ee][Aa][Dd][Oo][Ff]|"
-    r"[Pp][Uu][Ss][Hh][Ii][Nn][Ss][Tt][Ee][Aa][Dd][Oo][Ff])$"
-)
 
 
 class RepoPushRunnerError(ValueError):
@@ -81,19 +77,8 @@ class RepoForgeGitTransportCommands:
 
     verify_commit: tuple[str, ...]
     remote_url: tuple[str, ...]
-    url_rewrites: tuple[str, ...]
     remote_ref: tuple[str, ...]
     push: tuple[str, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class RepoPushAuthority:
-    action: str
-    repo_id: str
-    remote_name: str
-    branch_name: str
-    commit_sha: str
-    granted: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -445,26 +430,22 @@ def repo_push_command_is_allowed(argv: tuple[str, ...]) -> bool:
     if len(argv) == 6 and argv[:5] == ("git", "remote", "get-url", "--push", "--all"):
         _normalize_remote_name(argv[5])
         return True
-    if argv == _fixed_url_rewrite_check_command():
+    if len(argv) == 5 and argv[:3] == ("git", "ls-remote", "--heads"):
+        _normalize_remote_name(argv[3])
+        _branch_from_remote_ref(argv[4])
         return True
-    if len(argv) == 12 and argv[:2] == ("git", "-c") and argv[7] == "ls-remote":
-        target_url = _normalize_transport_target(argv[-2])
-        remote_ref = argv[-1]
-        _branch_from_remote_ref(remote_ref)
-        return argv == _fixed_remote_ref_command(target_url, remote_ref)
-    if len(argv) == 25 and argv[:2] == ("git", "-c"):
-        mirror_config = argv[6]
-        if not mirror_config.startswith("remote.") or not mirror_config.endswith(".mirror=false"):
-            return False
-        remote = _normalize_remote_name(mirror_config[len("remote.") : -len(".mirror=false")])
-        target_url = _normalize_transport_target(argv[-2])
-        if ":" not in argv[-1] or argv[-1].startswith("+"):
-            return False
-        source, destination = argv[-1].split(":", 1)
-        if not _FULL_COMMIT_SHA_RE.fullmatch(source):
-            return False
-        _branch_from_remote_ref(destination)
-        return argv == _fixed_push_command(remote, target_url, source, destination)
+    if len(argv) == 4 and argv[:2] == ("git", "push"):
+        _normalize_remote_name(argv[2])
+        if ":" in argv[3]:
+            source, destination = argv[3].split(":", 1)
+            if not _FULL_COMMIT_SHA_RE.fullmatch(source):
+                return False
+            _branch_from_remote_ref(destination)
+        else:
+            if argv[3].startswith(("+", "refs/")):
+                return False
+            branch = normalize_branch_name(argv[3])
+        return True
     if len(argv) == 5 and argv[:3] == ("git", "merge-base", "--is-ancestor"):
         return bool(
             _FULL_COMMIT_SHA_RE.fullmatch(argv[3])
@@ -473,84 +454,11 @@ def repo_push_command_is_allowed(argv: tuple[str, ...]) -> bool:
     return False
 
 
-def _fixed_push_command(
-    remote: str,
-    target_url: str,
-    source_sha: str,
-    destination_ref: str,
-) -> tuple[str, ...]:
-    """Neutralize repository widening/transport config for one exact refspec.
-
-    An empty credential.helper deliberately disables ambient credential helper
-    execution. HTTPS delivery therefore requires credentials supplied by a
-    separately trusted transport adapter; this runner never prompts or invokes
-    repository-configured helpers.
-    """
-
-    return (
-        "git",
-        "-c",
-        "push.followTags=false",
-        "-c",
-        "push.useForceIfIncludes=false",
-        "-c",
-        f"remote.{remote}.mirror=false",
-        "-c",
-        "protocol.ext.allow=never",
-        "-c",
-        "core.sshCommand=",
-        "-c",
-        "credential.helper=",
-        "-c",
-        "push.pushOption=",
-        "push",
-        "--no-verify",
-        "--no-mirror",
-        "--no-tags",
-        "--no-follow-tags",
-        "--no-force-if-includes",
-        "--no-push-option",
-        "--receive-pack=git-receive-pack",
-        target_url,
-        f"{source_sha}:{destination_ref}",
-    )
-
-
-def _fixed_remote_ref_command(target_url: str, remote_ref: str) -> tuple[str, ...]:
-    return (
-        "git",
-        "-c",
-        "protocol.ext.allow=never",
-        "-c",
-        "core.sshCommand=",
-        "-c",
-        "credential.helper=",
-        "ls-remote",
-        "--upload-pack=git-upload-pack",
-        "--heads",
-        target_url,
-        remote_ref,
-    )
-
-
-def _fixed_url_rewrite_check_command() -> tuple[str, ...]:
-    return (
-        "git",
-        "config",
-        "--includes",
-        "--null",
-        "--name-only",
-        "--get-regexp",
-        _URL_REWRITE_KEY_RE,
-    )
-
-
 def build_repo_forge_git_transport_commands(
     *,
     remote_name: Any,
     branch_name: Any,
     commit_sha: Any,
-    push_target_url: Any,
 ) -> RepoForgeGitTransportCommands:
     """Build the only Git transport argv accepted by the GitHub adapter."""
 
@@ -560,21 +468,13 @@ def build_repo_forge_git_transport_commands(
     if not _FULL_COMMIT_SHA_RE.fullmatch(sha):
         raise RepoPushRunnerError("commit_sha must be a full Git object id")
     remote_ref = f"refs/heads/{branch}"
-    target_url = _normalize_transport_target(push_target_url)
     commands = RepoForgeGitTransportCommands(
         verify_commit=("git", "rev-parse", "--verify", f"{sha}^{{commit}}"),
         remote_url=("git", "remote", "get-url", "--push", "--all", remote),
-        url_rewrites=_fixed_url_rewrite_check_command(),
-        remote_ref=_fixed_remote_ref_command(target_url, remote_ref),
-        push=_fixed_push_command(remote, target_url, sha, remote_ref),
+        remote_ref=("git", "ls-remote", "--heads", remote, remote_ref),
+        push=("git", "push", remote, f"{sha}:{remote_ref}"),
     )
-    for argv in (
-        commands.verify_commit,
-        commands.remote_url,
-        commands.url_rewrites,
-        commands.remote_ref,
-        commands.push,
-    ):
+    for argv in (commands.verify_commit, commands.remote_url, commands.remote_ref, commands.push):
         if not repo_push_command_is_allowed(argv):
             raise RepoPushRunnerError("generated Forge Git command is not allowed")
     return commands
@@ -1137,45 +1037,6 @@ def _normalize_remote_name(value: Any) -> str:
     if not _SAFE_REMOTE_RE.fullmatch(remote) or remote.startswith("-"):
         raise RepoPushRunnerError("remote_name contains unsupported characters")
     return remote
-
-
-def _push_authority_matches(
-    authority: RepoPushAuthority | None,
-    *,
-    repo_id: Any,
-    remote_name: Any,
-    branch_name: Any,
-    commit_sha: Any,
-) -> bool:
-    if not isinstance(authority, RepoPushAuthority):
-        return False
-    try:
-        normalized_repo = _normalize_text(repo_id, field_name="repo_id", max_len=120)
-        remote = _normalize_remote_name(remote_name)
-        branch = normalize_branch_name(branch_name)
-        sha = _normalize_commit_sha(commit_sha, field_name="commit_sha")
-    except (RepoPushRunnerError, ValueError):
-        return False
-    return (
-        authority.action == "push"
-        and authority.granted is True
-        and authority.repo_id == normalized_repo
-        and authority.remote_name == remote
-        and authority.branch_name == branch
-        and authority.commit_sha == sha
-    )
-
-
-def _parse_exact_full_sha(output: Any) -> str:
-    raw = str(output or "")
-    if raw.endswith("\r\n"):
-        candidate = raw[:-2]
-    elif raw.endswith("\n"):
-        candidate = raw[:-1]
-    else:
-        candidate = raw
-    candidate = candidate.lower()
-    return candidate if _FULL_COMMIT_SHA_RE.fullmatch(candidate) else ""
 
 
 def _branch_from_remote_ref(value: Any) -> str:

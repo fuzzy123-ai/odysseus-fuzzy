@@ -126,7 +126,7 @@ def test_nvidia_odysseus_adds_only_overlay(base):
 
     # No AMD-only keys leaked in.
     assert "devices" not in svc
-    assert svc["group_add"] == base_svc["group_add"]
+    assert svc.get("group_add", []) == base_svc.get("group_add", [])
 
 
 def test_amd_odysseus_adds_only_overlay(base):
@@ -141,7 +141,7 @@ def test_amd_odysseus_adds_only_overlay(base):
     # the AMD overlay groups.
     assert "devices" not in base_svc
     assert svc["devices"] == ["/dev/kfd", "/dev/dri"]
-    assert svc["group_add"] == base_svc["group_add"] + ["video", "${RENDER_GID:-render}"]
+    assert svc["group_add"] == base_svc.get("group_add", []) + ["video", "${RENDER_GID:-render}"]
 
     # No NVIDIA-only keys leaked in.
     assert "deploy" not in svc

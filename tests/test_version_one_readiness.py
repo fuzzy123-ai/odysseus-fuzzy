@@ -47,10 +47,20 @@ def _legacy_backend_ready(open_contracts=()):
     return {"evidence": evidence, "open_backend_contracts": list(open_contracts)}
 
 
+def _green_release_gates():
+    return {
+        "clarification_first": {"status": "ok", "accepted": True},
+        "workspace_snapshot": {"status": "ok", "blocked_count": 0, "degraded_count": 0},
+        "sandbox_python_acceptance": {"status": "passed"},
+        "memory_local_model": {"status": "ok"},
+    }
+
+
 def test_version_one_blocks_when_ui_is_not_live():
     payload = build_version_one_readiness(
         mvp_state=_complete_mvp(ui_live=False),
         legacy_roadmap=_legacy_backend_ready(),
+        **_green_release_gates(),
     )
     encoded = json.dumps(payload, sort_keys=True)
 
@@ -60,6 +70,8 @@ def test_version_one_blocks_when_ui_is_not_live():
     assert payload["mvp"]["overall_percent"] == 100
     assert payload["legacy_chat"]["backend_ready"] is True
     assert payload["ui"]["live"] is False
+    assert payload["readiness_gates"][1]["id"] == "harbor_one_live"
+    assert payload["readiness_gates"][1]["ready"] is False
     assert payload["release"]["external_release_allowed"] is False
     assert payload["release"]["deploy_allowed"] is False
     assert payload["live_probe_performed"] is False
@@ -72,22 +84,56 @@ def test_version_one_ready_only_when_mvp_backend_and_ui_are_ready():
     payload = build_version_one_readiness(
         mvp_state=_complete_mvp(ui_live=True),
         legacy_roadmap=_legacy_backend_ready(),
+        **_green_release_gates(),
     )
 
     assert payload["status"] == "ready"
     assert payload["version_1_0_ready"] is True
     assert payload["release"]["tag_allowed"] is True
+    assert payload["blocking_gate_ids"] == ()
 
 
 def test_version_one_blocks_when_backend_contracts_are_open():
     payload = build_version_one_readiness(
         mvp_state=_complete_mvp(ui_live=True),
         legacy_roadmap=_legacy_backend_ready(open_contracts=("lc7",)),
+        **_green_release_gates(),
     )
 
     assert payload["status"] == "backend_contracts_incomplete"
     assert payload["version_1_0_ready"] is False
     assert payload["legacy_chat"]["open_backend_contracts"] == ("lc7",)
+
+
+def test_version_one_blocks_on_missing_clarification_first_acceptance():
+    gates = _green_release_gates()
+    gates.pop("clarification_first")
+    payload = build_version_one_readiness(
+        mvp_state=_complete_mvp(ui_live=True),
+        legacy_roadmap=_legacy_backend_ready(),
+        **gates,
+    )
+
+    assert payload["status"] == "clarification_first_acceptance_required"
+    assert payload["version_1_0_ready"] is False
+    assert "clarification_first_acceptance" in payload["blocking_gate_ids"]
+    assert payload["readiness_gates"][0]["next_action"].startswith("Run the clarification-first")
+
+
+def test_version_one_blocks_on_degraded_workspace_snapshot():
+    gates = _green_release_gates()
+    gates["workspace_snapshot"] = {"status": "attention", "degraded_count": 1}
+    payload = build_version_one_readiness(
+        mvp_state=_complete_mvp(ui_live=True),
+        legacy_roadmap=_legacy_backend_ready(),
+        **gates,
+    )
+
+    workspace_gate = {gate["id"]: gate for gate in payload["readiness_gates"]}["workspace_snapshot_green"]
+    assert payload["status"] == "workspace_snapshot_green_required"
+    assert workspace_gate["status"] == "partial"
+    assert workspace_gate["ready"] is False
+    assert payload["partial_gate_ids"] == ("workspace_snapshot_green",)
 
 
 def test_version_one_route_requires_admin():

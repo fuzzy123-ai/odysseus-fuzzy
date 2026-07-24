@@ -290,7 +290,7 @@ Writer besitzt jeweils die gemeinsamen Hotfiles.
 
 ### TUA0 Source Coverage And Overlap Matrix
 
-Status: `ready_after_TAX1`
+Status: `accepted_2026-07-17`
 
 Class: `safe_offline`
 
@@ -330,7 +330,7 @@ venv\Scripts\python.exe scripts\audit_tool_usage_sources.py --aggregate-only --o
 
 ### TUA1 Privacy-Safe Event And Status Contract
 
-Status: `pending`
+Status: `accepted_2026-07-17`
 
 Class: `repo_only`
 
@@ -369,7 +369,7 @@ venv\Scripts\python.exe -m pytest -q tests\test_tool_usage_events.py tests\test_
 
 ### TUA2 Persistence, Migration And Retention Foundation
 
-Status: `pending`
+Status: `accepted_2026-07-17`
 
 Class: `repo_only`
 
@@ -409,7 +409,26 @@ venv\Scripts\python.exe -m pytest -q tests\test_tool_usage_store.py tests\test_d
 
 ### TUA3 Central Execution Boundary Instrumentation
 
-Status: `pending`
+Status: `accepted_2026-07-17`
+
+Active claim:
+
+- run_id: `post-mvp-tua-20260717T172259+0200`
+- owner: `root` acting as Bob
+- lease: initial `2026-07-17T17:22:59+02:00` bis
+  `2026-07-17T21:22:59+02:00`; closeout renewal after a local clock jump at
+  `2026-07-17T23:30:54+02:00`
+- state: `released_2026-07-17T23:30:54+02:00`
+- preserved_foreign_hunks: released TAX5 security/admin enforcement and the
+  existing fail-open AI-Lens wrapper events in `src/tool_execution.py`
+- acceptance: `41 focused TUA3/AI-Lens/policy tests; 228 dispatcher, security,
+  plugin/MCP, workspace and TUA regression tests passed with 2 expected skips;
+  Python compile, JSON readback, taxonomy/usage-source drift and whitespace clean`
+- evidence: one central monotonic measurement feeds bounded success/block/
+  failure/cancel outcomes; one invocation owns at most one start/terminal pair;
+  sink and AI-Lens failures are isolated and the non-injected path performs no
+  Usage import, classification or persistence
+- next_frontier: `TUA4`
 
 Class: `repo_only`
 
@@ -449,7 +468,32 @@ venv\Scripts\python.exe -m pytest -q tests\test_tool_usage_instrumentation.py te
 
 ### TUA4 Trusted Context And Incognito Propagation
 
-Status: `pending`
+Status: `accepted_2026-07-17`
+
+Active claim:
+
+- run_id: `post-mvp-tua-20260717T233349+0200`
+- owner: `root` acting as Bob
+- lease: `2026-07-17T23:33:49+02:00` bis `2026-07-18T03:33:49+02:00`
+- state: `released_2026-07-17T23:41:58+02:00`
+- preserved_foreign_hunks: existing Agent-loop orchestration in
+  `src/agent_loop.py` and Chat routing/context/policy changes in
+  `routes/chat_routes.py`
+- acceptance: `51 focused trusted-context/incognito/chat-helper tests; 100
+  adjacent chat, route, streaming, agent-loop and AI-Lens regression tests; 8
+  isolated central-instrumentation tests; 45 privacy/event/store/identity/
+  registry regressions; Python compile, master JSON readback and scoped
+  whitespace checks passed`
+- evidence: server-derived context owns surface, mode and model scope; raw
+  owner/session/run/correlation identities are repr-hidden and passed only to
+  the event builder for keyed HMAC projection; missing keys emit null
+  references; Incognito/Nobody returns before builder, sink or durable
+  aggregate work; tool arguments cannot override trusted fields
+- collection_note: `one mixed 108-test collection exposed an existing
+  src.tool_execution module-reload/early-import test-order artifact (102 passed,
+  6 false public-policy blocks); the affected file passed 8/8 in isolation and
+  22/22 with AI-Lens under the explicit single-user deployment mode`
+- next_frontier: `TUA5`
 
 Class: `repo_only`
 
@@ -462,9 +506,11 @@ Allowed paths:
 - `src/agent_loop.py`
 - `routes/chat_routes.py`
 - `routes/chat_helpers.py`
+- `src/tool_usage_context.py` (neu)
 - `src/tool_usage_instrumentation.py`
 - `tests/test_tool_usage_context.py` (neu)
 - `tests/test_tool_usage_incognito.py` (neu)
+- `tests/test_chat_helpers.py`
 
 Deliverables:
 
@@ -487,9 +533,112 @@ Tests:
 venv\Scripts\python.exe -m pytest -q tests\test_tool_usage_context.py tests\test_tool_usage_incognito.py tests\test_chat_helpers.py
 ```
 
+### TUA4R Agent-Streaming Regression Guard
+
+Status: `pending_p0_production_regression`
+
+Priority: `P0` - the affected Agent mode is unavailable on the productive
+website. This is a correctness regression, not a telemetry activation task.
+
+Detected: `2026-07-19`, from a read-only Debian production inspection with no
+chat content, identifiers, secrets or configuration values recorded.
+
+Evidence:
+
+- `POST /api/chat_stream` starts successfully, then the Agent-run generator
+  aborts with `NameError: tool_usage_instrumentation is not defined` at the
+  `stream_agent_loop(...)` call in `routes/chat_routes.py`;
+- the regression was introduced by the trusted tool-usage context propagation
+  work: the non-streaming `/api/chat` path initializes the value, while the
+  streaming Agent path forwards an uninitialized name;
+- plain Chat mode uses the direct LLM streaming branch and is not affected;
+- the website, application container and local Ollama reachability were all
+  healthy during the inspection, so a restart without this code fix cannot
+  resolve the failure.
+
+Class: `repo_only` for the code/test repair; `needs_live_go` for the later
+Debian deploy/recreate and authenticated post-deploy smoke.
+
+Owner: Bob for the focused repair; Charlie for the separate deploy packet and
+redacted live verification.
+
+Dependencies: TUA4 accepted. This remediation does not enable persistent
+telemetry and does not authorize TUA-LIVE-ACTIVATION.
+
+Allowed paths:
+
+- `routes/chat_routes.py`;
+- `tests/test_chat_route_tool_policy.py` or a focused new streaming-route
+  regression test;
+- `tests/test_tool_usage_context.py` only when needed to prove the existing
+  trusted-context and Incognito contract remains intact;
+- this roadmap entry.
+
+Deliverables:
+
+- initialize the server-owned instrumentation value in `/api/chat_stream`
+  immediately after the trusted chat context exists, before the Agent branch
+  can pass it to `stream_agent_loop`;
+- preserve the fail-open `None` behavior when capture is disabled or no valid
+  factory is configured;
+- preserve trusted server-owned context, HMAC projection and Incognito/no-write
+  behavior; no request field may enable or spoof instrumentation;
+- add a regression test that drains the Agent streaming generator with a fake
+  model/tool path and proves that no `NameError` occurs;
+- add an enabled-factory coverage case if necessary, with only synthetic,
+  content-free test values.
+
+Done when:
+
+- Agent-mode streaming reaches its normal terminal SSE event in the focused
+  regression test;
+- disabled instrumentation remains a no-op and the trusted-context/Incognito
+  tests remain green;
+- no prompt, tool argument, output, raw owner/session/run identifier, secret
+  or host detail is introduced into telemetry, tests or roadmap evidence;
+- the code fix has a reviewed, separate Debian deploy/recreate packet with a
+  rollback target. Deployment and any authenticated website smoke require a
+  later explicit operator Go.
+
+Immediate workaround: select **Chat** instead of **Agent** in the website;
+close an active document or other agent-forcing context first, because it can
+auto-select Agent mode again.
+
+Tests:
+
+```powershell
+venv\Scripts\python.exe -m pytest -q tests\test_chat_route_tool_policy.py tests\test_tool_usage_context.py tests\test_tool_usage_incognito.py
+git diff --check -- routes/chat_routes.py tests/test_chat_route_tool_policy.py tests/test_tool_usage_context.py docs/plans/privacy-safe-tool-analytics-roadmap.md
+```
+
 ### TUA5 Source Adapters And Double-Count Prevention
 
-Status: `pending`
+Status: `accepted_2026-07-18`
+
+Active claim:
+
+- run_id: `post-mvp-tua-20260717T234629+0200`
+- owner: `root` acting as Bob
+- lease: `2026-07-17T23:46:29+02:00` bis `2026-07-18T03:46:29+02:00`
+- state: `released_2026-07-18T00:03:15+02:00`
+- preserved_foreign_hunks: released TAX8 registry normalization in
+  `src/tool_registry.py`, MCP normalization in `src/mcp_manager.py` and its
+  existing registry/policy tests; TUA5 will consume these contracts without
+  rewriting their foreign hunks
+- acceptance: `31 focused source/registry/MCP-policy tests; 35 scheduler and
+  TUA4 regressions; 22 central-instrumentation/AI-Lens regressions; 36 privacy,
+  event, store and identity regressions; 78 dispatcher, MCP, plugin, policy and
+  security regressions; Python compile, source-overlap audit, taxonomy audit,
+  master JSON readback and scoped whitespace checks passed`
+- evidence: Built-in, Plugin and MCP wrapper calls own exactly one shared
+  start/terminal invocation pair; internal MCP reconnect remains retry ordinal
+  zero for the same logical attempt; explicit bypass attempts use bounded
+  zero-based retry ordinals and trusted HMAC correlation; only executed
+  scheduler actions, Notes calls and MCP Check-in/Delivery calls use the bypass
+  adapter, while setup, cache hits and unavailable-manager previews emit none;
+  malformed/unknown identities persist only source buckets with
+  `rejected/unknown_tool`
+- next_frontier: `TUA6`
 
 Class: `repo_only`
 
@@ -503,9 +652,13 @@ Allowed paths:
 - `src/tool_registry.py`
 - `src/mcp_manager.py`
 - `src/task_scheduler.py`
+- `src/task_scheduler_checkin.py`
+- `src/task_scheduler_delivery.py`
 - `tests/test_tool_usage_sources.py` (neu)
 - `tests/test_tool_registry.py`
 - `tests/test_mcp_server_tool_policy.py`
+- `tests/test_task_scheduler_session_delivery.py`
+- `tests/test_task_shell_tools.py`
 
 Deliverables:
 
@@ -530,7 +683,33 @@ venv\Scripts\python.exe -m pytest -q tests\test_tool_usage_sources.py tests\test
 
 ### TUA6 Aggregation, Quality And Retention Service
 
-Status: `pending`
+Status: `accepted_2026-07-18`
+
+Active claim:
+
+- run_id: `post-mvp-tua-20260718T000646+0200`
+- owner: `root` acting as Bob
+- lease: `2026-07-18T00:06:46+02:00` bis `2026-07-18T04:06:46+02:00`
+- state: `released_2026-07-18T00:19:59+02:00`
+- preserved_foreign_hunks: accepted TUA2 migration, append, duplicate,
+  fail-open and retention behavior in `src/tool_usage_store.py`; TUA6 adds an
+  idempotent aggregate-complete layer without weakening those guarantees
+- acceptance: `7 focused aggregation/retention tests; 29 TUA1/TUA2 event,
+  privacy, store, database and updater regressions; 23 TUA3/TUA4 central
+  context/incognito regressions; 42 TUA5 source/identity/registry/MCP
+  regressions; Python compile, aggregate-only source audit, taxonomy audit,
+  master JSON readback and scoped whitespace checks passed`
+- evidence: schema v1 upgrades transactionally and idempotently to v2;
+  aggregate-day replaces rather than increments rows; bounded cumulative
+  duration histograms yield deterministic p50/p95; owner/session values survive
+  only as numeric daily Distinct aggregates; coverage/incomplete/unknown/
+  duplicate/writer quality is count-only; empty or deferred periods have null
+  coverage/percentiles and no false warning; the retention service validates,
+  aggregates every old event day and only then invokes count-safe retention
+- runner_note: `one combined upstream collection process ended with exit -1
+  and no test output; the identical scope was split into 23-test and 42-test
+  groups and both completed green`
+- next_frontier: `TUA7`
 
 Class: `repo_only`
 
@@ -569,7 +748,29 @@ venv\Scripts\python.exe -m pytest -q tests\test_tool_usage_analytics.py tests\te
 
 ### TUA7 Admin-Only Aggregate API
 
-Status: `pending`
+Status: `accepted_2026-07-18`
+
+Active claim:
+
+- run_id: `post-mvp-tua-20260718T002216+0200`
+- owner: `root` acting as Bob
+- lease: `2026-07-18T00:22:16+02:00` bis `2026-07-18T04:22:16+02:00`
+- state: `released_2026-07-18T00:27:09+02:00`
+- preserved_foreign_hunks: existing Admin-gated service, log, AI activity,
+  memory, observability and open-work endpoints in
+  `routes/diagnostics_routes.py`; TUA7 adds one isolated aggregate-only GET
+- acceptance: `22 focused admin API/analytics tests; 29 existing diagnostics,
+  observability and security-gate regressions; Python compile, aggregate-only
+  source audit, taxonomy audit, master JSON readback and scoped whitespace
+  checks passed`
+- evidence: Admin authorization runs before injected or default store access;
+  the default App router opens the existing SQLite aggregate store without GET
+  migration; canonical TAX tool plus controlled family/source/surface/status
+  filters, 90-day span and 250-row hard caps fail closed; a router-level second
+  allowlist returns calls, days, numeric Distinct aggregates, status rates,
+  bounded duration p50/p95, retry, coverage and count-only quality; the only
+  Tool-Usage diagnostics surface is one GET with no raw/mutating sibling
+- next_frontier: `TUA8`
 
 Class: `repo_only`
 
@@ -607,7 +808,37 @@ venv\Scripts\python.exe -m pytest -q tests\test_tool_usage_diagnostics_routes.py
 
 ### TUA8 Low-Cardinality Prometheus Projection
 
-Status: `pending`
+Status: `accepted_2026-07-18`
+
+Active claim:
+
+- run_id: `post-mvp-tua-20260718T003331+0200`
+- owner: `root` acting as Bob
+- lease: `2026-07-18T00:33:31+02:00` bis `2026-07-18T04:33:31+02:00`
+- state: `released_2026-07-18T00:46:05+02:00`
+- allowed_paths: `src/observability_metrics.py`,
+  `tests/test_observability_metrics.py`, `tests/test_tool_usage_metrics.py`,
+  `docs/plans/privacy-safe-tool-analytics-roadmap.md`,
+  `docs/plans/open-work-completion-master-roadmap.json`
+- preserved_foreign_hunks: none in the three implementation/test paths at
+  claim time; all unrelated dirty workspace paths remain out of scope
+- route: `abc` with native repository tools; surface-default model
+- acceptance_declared: local repo-only static review, focused tests, existing
+  observability integration regressions, privacy/cardinality negative tests
+  and master-roadmap readback; positive aggregate-to-Prometheus path required
+- acceptance: `9 focused exporter/tool-metric tests and 64 observability,
+  privacy, store, aggregate and Admin-API integration tests passed; Python
+  compile, source-overlap audit, taxonomy audit, JSON readback and scoped
+  whitespace checks passed`
+- evidence: daily-store rows are collapsed from tool identity into at most 256
+  controlled family/source/surface/status label sets; invocation, failed and
+  blocked counters plus real fixed-bucket `_bucket`/`_sum`/`_count` duration
+  histograms render without Tool-/Owner-/Session-/Run-/Correlation-Labels;
+  raw-event fields, pseudonymous refs, unknown values, duplicate rows,
+  malformed histograms and excessive cardinality fail closed; Prometheus
+  `le` is generated only from the fixed bucket contract and cannot be supplied
+  as a data label; existing runtime metrics remain compatible
+- next_frontier: `TUA10`; `TUA9` remains UI-gated and outside this run
 
 Class: `repo_only`
 
@@ -679,7 +910,40 @@ node --check static\js\admin.js
 
 ### TUA10 Metadata-Only Legacy Backfill Tool
 
-Status: `pending`
+Status: `accepted_2026-07-18`
+
+Active claim:
+
+- run_id: `post-mvp-tua-20260718T005000+0200`
+- owner: `root` acting as Charlie
+- lease: `2026-07-18T00:50:00+02:00` bis `2026-07-18T04:50:00+02:00`
+- state: `released_2026-07-18T00:56:49+02:00`
+- allowed_paths: `scripts/backfill_tool_usage.py`,
+  `src/tool_usage_backfill.py`, `tests/test_tool_usage_backfill.py`,
+  `tests/fixtures/tool_usage/`,
+  `docs/plans/privacy-safe-tool-analytics-roadmap.md`,
+  `docs/plans/open-work-completion-master-roadmap.json`
+- preserved_foreign_hunks: all implementation, test and fixture paths are new;
+  unrelated dirty workspace paths remain out of scope
+- route: `abc` with native repository tools; surface-default model
+- acceptance_declared: local safe-offline static review, focused tests,
+  synthetic CLI dry-run, TAX identity/store/privacy integration negatives and
+  master-roadmap readback; repeated-checkpoint positive path required
+- acceptance: `5 focused backfill tests and 53 TAX identity, event, privacy,
+  store, aggregate, retention and metric integration tests passed; bundled
+  synthetic CLI dry-run, Python compile, source-overlap audit, taxonomy audit,
+  fixture/master JSON readback and scoped whitespace checks passed`
+- evidence: the CLI accepts only the repository-owned synthetic fixture and
+  has no arbitrary fixture/output/database or apply option; metadata extraction
+  reads one persisted-chat source, ignores raw preview fields, maps aliases via
+  TAX10, collapses reviewed-unknown names to `legacy.unclassified`, retains
+  null duration and no references, rejects unsafe identities count-only and
+  keeps Agent-Ledger starts in a separate non-additive coverage comparison;
+  the in-memory opaque checkpoint makes repeated runs idempotent and the
+  serialized report contains only the five bounded count categories plus
+  schema/dry-run/privacy flags
+- next_frontier: none in the non-UI TUA queue; `TUA9` is UI-owned and `TUA11`
+  depends on TUA1-TUA10 including TUA9
 
 Class: `safe_offline`
 

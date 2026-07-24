@@ -3,13 +3,13 @@
   "kind": "odysseus.planning_mcp_roadmap",
   "title": "Planning MCP Roadmap",
   "created_at": "2026-07-08",
-  "updated_at": "2026-07-15",
-  "status": "repo_complete_live_operations_gated",
+  "updated_at": "2026-07-13",
+  "status": "repo_slices_done_live_gated_definition_split_planned",
   "abc_mode": "Standard ABC",
   "goal": "Expose versioned Planning definitions as a reliable JSON-first capability so internal agents, Codex and trusted external MCP clients can create, retrieve, validate, revise and hand off roadmaps without storing or mutating any execution state in Planning.",
   "problem_statement": {
     "user_need": "Every AI should be able to use Planning to create and revise roadmap definitions, find an exact approved revision, load definition context and prepare a pinned Agent handoff.",
-    "current_gap": "The repository definition-v2 boundary and non-launching Agent handoff are complete. Only separately authorized real Planning apply/delete operations and the bounded external MCP client smoke remain gated.",
+    "current_gap": "The existing MCP surface is implemented but still carries legacy status/progress and live-gate semantics. It lacks the canonical definition-v2 denylist and the exact non-launching Agent handoff.",
     "design_principle": "Planning truth stays JSON-first and definition-only. Markdown may be a rendered view only. MCP tools return compact, bounded, source-linked payloads and reject runtime fields recursively."
   },
   "definition_runtime_boundary": {
@@ -634,7 +634,7 @@
       "id": "PMCP-9-definition-runtime-separation",
       "class": "repo_only",
       "owner": "Bob",
-      "status": "completed",
+      "status": "planned",
       "depends_on": [
         "PMCP-1-service-contract",
         "PMCP-2-readonly-stdio-server",
@@ -690,17 +690,6 @@
         "safe_default": "Repository tests only; PLANNING-WRITE-GO still governs every real definition apply."
       },
       "done_when": "PASS only if all named tests exit zero, the target tool inventory contains no runtime mutation/read tool, the exact handoff is non-launching and canonical Planning payloads contain none of the PDE runtime-field denylist at any depth.",
-      "completed_at": "2026-07-15T18:51:21.9386281+02:00",
-      "completion_evidence": {
-        "focused_tests": "148 passed, 1 skipped across the five roadmap-pinned PMCP-9 test files",
-        "skipped_boundary": "The single skipped test is environment-specific external server availability and remains governed by PMCP-8/EXTERNAL-MCP-CLIENT-GO.",
-        "definition_boundary": "Recursive runtime and gate-runtime denylist fixtures pass; canonical Planning results do not re-emit denied fields.",
-        "gate_tool": "planning_read_gate_definitions returns immutable definition requirements and safe defaults without runtime decisions.",
-        "agent_handoff": "planning_create_agent_handoff returns a positive approved revision, matching content hash and launch_authorized=false.",
-        "compatibility": "planning_mark_status and planning_gate_status are absent from the target tool inventory; compatibility handlers return deprecation metadata and perform no read or write.",
-        "launch_spy": "The PMCP-9 suite proves Planning handlers do not call Agent or Temporal start APIs.",
-        "live_effects": "No real Planning apply, delete, Agent start, Temporal start or external MCP smoke was performed."
-      },
       "stop_rules": [
         "Stop on an unclaimed shared hotfile or overlapping writer.",
         "Stop if a compatibility requirement would reintroduce runtime state into canonical Planning output.",
@@ -738,5 +727,5 @@
     "no_go": "Any design exposes generic API, shell, Python, arbitrary file access, private raw content, runtime state, runtime gate decisions, direct run start or ungated definition writes.",
     "blocked": "Planning truth cannot be validated as odysseus.planning.definition.v2, the runtime-field denylist fails or the MCP tool surface cannot be classified safely."
   },
-  "recommended_next_step": "Keep the completed definition-only MCP surface read-only until an exact PMCP-8 external-client smoke or PMCP-7 apply/delete envelope is separately authorized. Do not reopen completed PMCP slices."
+  "recommended_next_step": "After PDE-01 and PDE-04 are complete and shared hotfiles are freshly claimed, execute PMCP-9-definition-runtime-separation. Do not reopen completed PMCP slices and do not run a real Planning write during this migration."
 }

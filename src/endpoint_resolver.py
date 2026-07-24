@@ -8,6 +8,9 @@ import json
 import logging
 import socket
 import subprocess
+import threading
+import time
+from dataclasses import dataclass
 from typing import Optional, Tuple, Dict
 from urllib.parse import urlparse, urlunparse
 
@@ -89,48 +92,115 @@ def resolve_endpoint_runtime(ep, owner: Optional[str] = None) -> Tuple[str, Opti
     return base, api_key
 
 
-# Cache for Tailscale hostname → IP resolution
-_tailscale_cache: Dict[str, Optional[str]] = {}
+# Process-local cache for Tailscale hostname → IP resolution. Positive
+# overrides remain useful longer than negative decisions, while both are
+# deliberately short-lived so endpoint recovery never requires a restart.
+_TAILSCALE_POSITIVE_TTL_SECONDS = 60.0
+_TAILSCALE_NEGATIVE_TTL_SECONDS = 10.0
+
+
+@dataclass(frozen=True)
+class _TailscaleCacheEntry:
+    ip: Optional[str]
+    resolved_at: float
+    ttl_seconds: float
+
+    def is_fresh(self, now: float) -> bool:
+        age = now - self.resolved_at
+        return 0.0 <= age < self.ttl_seconds
+
+
+_tailscale_cache: Dict[str, _TailscaleCacheEntry] = {}
+_tailscale_cache_lock = threading.RLock()
+
+
+def _tailscale_cache_key(hostname: str) -> str:
+    return (hostname or "").strip().rstrip(".").lower()
+
+
+def _tailscale_now() -> float:
+    return time.monotonic()
+
+
+def _cache_tailscale_result(hostname: str, ip: Optional[str]) -> None:
+    ttl_seconds = (
+        _TAILSCALE_POSITIVE_TTL_SECONDS
+        if ip is not None
+        else _TAILSCALE_NEGATIVE_TTL_SECONDS
+    )
+    _tailscale_cache[hostname] = _TailscaleCacheEntry(
+        ip=ip,
+        resolved_at=_tailscale_now(),
+        ttl_seconds=ttl_seconds,
+    )
+
+
+def invalidate_tailscale_cache(hostname: Optional[str] = None) -> int:
+    """Invalidate one cached hostname, or every entry when omitted.
+
+    The returned count makes connection-failure recovery deterministic for
+    callers without exposing cached hostnames or addresses.
+    """
+    with _tailscale_cache_lock:
+        if hostname is None:
+            removed = len(_tailscale_cache)
+            _tailscale_cache.clear()
+            return removed
+
+        key = _tailscale_cache_key(hostname)
+        if key in _tailscale_cache:
+            del _tailscale_cache[key]
+            return 1
+        return 0
 
 
 def _resolve_tailscale_host(hostname: str) -> Optional[str]:
     """Try to resolve a hostname via 'tailscale status' if DNS fails."""
-    if hostname in _tailscale_cache:
-        return _tailscale_cache[hostname]
+    key = _tailscale_cache_key(hostname)
 
-    # First check if normal DNS works
-    try:
-        socket.getaddrinfo(hostname, None, socket.AF_INET)
-        _tailscale_cache[hostname] = None  # DNS works, no override needed
+    # Keep lookup and mutation under the same lock. Concurrent callers for an
+    # expired hostname therefore perform exactly one DNS/Tailscale resolution;
+    # the remaining callers consume the newly written entry.
+    with _tailscale_cache_lock:
+        cached = _tailscale_cache.get(key)
+        if cached is not None:
+            if cached.is_fresh(_tailscale_now()):
+                return cached.ip
+            del _tailscale_cache[key]
+
+        # First check if normal DNS works.
+        try:
+            socket.getaddrinfo(hostname, None, socket.AF_INET)
+            _cache_tailscale_result(key, None)  # DNS works; no override needed.
+            return None
+        except socket.gaierror:
+            pass
+
+        # DNS failed — try Tailscale.
+        try:
+            result = subprocess.run(
+                ["tailscale", "status", "--json"],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0:
+                import json as _json
+                data = _json.loads(result.stdout)
+                peers = data.get("Peer", {})
+                for _id, peer in peers.items():
+                    peer_name = (peer.get("HostName") or "").lower()
+                    dns_name = (peer.get("DNSName") or "").split(".")[0].lower()
+                    if peer_name == key or dns_name == key:
+                        addrs = peer.get("TailscaleIPs", [])
+                        if addrs:
+                            ip = addrs[0]
+                            logger.info(f"Resolved '{hostname}' via Tailscale → {ip}")
+                            _cache_tailscale_result(key, ip)
+                            return ip
+        except Exception as e:
+            logger.debug(f"Tailscale resolution failed for '{hostname}': {e}")
+
+        _cache_tailscale_result(key, None)
         return None
-    except socket.gaierror:
-        pass
-
-    # DNS failed — try tailscale
-    try:
-        result = subprocess.run(
-            ["tailscale", "status", "--json"],
-            capture_output=True, text=True, timeout=5
-        )
-        if result.returncode == 0:
-            import json as _json
-            data = _json.loads(result.stdout)
-            peers = data.get("Peer", {})
-            for _id, peer in peers.items():
-                peer_name = (peer.get("HostName") or "").lower()
-                dns_name = (peer.get("DNSName") or "").split(".")[0].lower()
-                if peer_name == hostname.lower() or dns_name == hostname.lower():
-                    addrs = peer.get("TailscaleIPs", [])
-                    if addrs:
-                        ip = addrs[0]
-                        logger.info(f"Resolved '{hostname}' via Tailscale → {ip}")
-                        _tailscale_cache[hostname] = ip
-                        return ip
-    except Exception as e:
-        logger.debug(f"Tailscale resolution failed for '{hostname}': {e}")
-
-    _tailscale_cache[hostname] = None
-    return None
 
 
 def resolve_url(url: str) -> str:

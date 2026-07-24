@@ -4,6 +4,55 @@ FUNCTION_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
+            "name": "query_knowledge",
+            "description": (
+                "Read-only owner-scoped Unified Source Index query. Returns bounded "
+                "evidence references and policy-permitted snippets; exact content reads "
+                "remain with read_file or a domain reader."
+            ),
+            "parameters": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "query": {"type": "string", "minLength": 1, "maxLength": 512},
+                    "domain": {
+                        "type": "string",
+                        "enum": ["code", "document", "memory"],
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": ["lexical", "semantic", "symbol", "graph", "timeline", "hybrid"],
+                    },
+                    "scope": {
+                        "type": "array",
+                        "maxItems": 64,
+                        "items": {
+                            "type": "string",
+                            "pattern": "^usi_source_[0-9a-f]{64}$",
+                        },
+                    },
+                    "budget": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "limit": {"type": "integer", "minimum": 1, "maximum": 20},
+                            "max_candidates": {"type": "integer", "minimum": 1, "maximum": 100},
+                            "time_budget_ms": {"type": "integer", "minimum": 1, "maximum": 2000},
+                        },
+                        "required": ["limit", "max_candidates", "time_budget_ms"],
+                    },
+                    "classification": {
+                        "type": "string",
+                        "enum": ["public", "private"],
+                    },
+                },
+                "required": ["query", "domain", "mode", "scope", "budget", "classification"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "delegate",
             "description": "Delegate a focused read-only analysis subtask to an isolated worker agent. The worker receives bounded provider context and returns compact JSON; it does not mutate host files, create files, run GUI/browser checks, execute tests, or keep conversation history. Do not use this for implementation tasks such as creating pong.py; use sandbox/coding tools instead.",
             "parameters": {
@@ -428,8 +477,8 @@ FUNCTION_TOOL_SCHEMAS = [
                                "description": "The action to perform"},
                     "text": {"type": "string", "description": "Memory text (for add/edit) or search query (for search)"},
                     "memory_id": {"type": "string", "description": "Memory ID (for edit/delete)"},
-                    "category": {"type": "string", "enum": ["fact", "event", "contact", "preference"],
-                                 "description": "Memory category (for add/list filter)"},
+                    "category": {"type": "string", "enum": ["fact", "event", "contact", "preference", "identity", "project", "goal"],
+                                 "description": "Memory category (for add/list filter). Todo/task items use manage_todos."},
                     "confirmed": {"type": "boolean", "description": "Required true for delete after explicit user confirmation."}
                 },
                 "required": ["action"]
@@ -666,6 +715,25 @@ FUNCTION_TOOL_SCHEMAS = [
                     "confirmed": {"type": "boolean", "description": "Required true for delete after explicit user confirmation."}
                 },
                 "required": ["action"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "manage_todos",
+            "description": "Manage items in an existing active checklist. Use for todo mutations only; use manage_notes for notes, reminders, and finding/creating checklist notes. Actions: list, add, complete, reopen, remove. add requires list_ref, text, and a stable idempotency_key. complete/reopen/remove require list_ref and exactly one of item_ref or exact text. remove requires confirmed=true.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "enum": ["list", "add", "complete", "reopen", "remove"], "description": "Action. Aliases create/new, done/finish, undo/uncomplete, and delete are accepted by the facade."},
+                    "list_ref": {"type": "string", "description": "Full checklist Note ID; never use an ID prefix."},
+                    "item_ref": {"type": "string", "description": "Exact stable item ID for complete/reopen/remove. Provide item_ref OR text, never both."},
+                    "text": {"type": "string", "description": "Item text for add, or an exact unique text selector for complete/reopen/remove."},
+                    "idempotency_key": {"type": "string", "description": "Stable caller key required for add retries."},
+                    "confirmed": {"type": "boolean", "description": "Required true for remove."}
+                },
+                "required": ["action", "list_ref"]
             }
         }
     },

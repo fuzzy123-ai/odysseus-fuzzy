@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-07-22T12:00:00+02:00",
+  "updated_at": "2026-07-24T10:31:21+02:00",
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
@@ -198,8 +198,8 @@
     {
       "path": "docs/plans/agent-maintenance-safety-harness-roadmap.json",
       "profile": "active_serial",
-      "state": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
-      "ai_hint": "The current repo-only frontier is exhausted. AMH-02 diagnostics and AMH-05 handoff projection are adversarially hardened and the AMH-03 verifier foundation is accepted, but all three remain incomplete on foreign integration paths. Resume only after an exact durable handoff or a new dependency-ready queue entry."
+      "state": "roadmap_registered_goal_not_started",
+      "ai_hint": "Do not start implementation without an explicit OWM-23 goal or Open Work reprioritization. Then claim only dependency-ready AMH slices on disjoint handed-off paths; keep Planning JSON, claims, gate_queue and clarification as canonical authorities, redact diagnostics before consumption, require current machine receipts, and perform no automatic commit, push, deploy or live action."
     },
     {
       "path": "docs/plans/agent-browser-sense-roadmap.json",
@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "repo_frontier_exhausted_waiting_on_handoffs_and_gates",
-      "ai_hint": "This is the current gate authority. The queue audit reports zero safe open slices and one unclaimable product-semantics item. Keep foreign paths read-only and resume only after a durable handoff, an explicit product decision, or an action-specific gate approval."
+      "state": "owm22_ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
+      "ai_hint": "This is the current gate authority. TTD-07A4 is accepted at c48f47c8 after an exact five-node check and deep Sol PASS. The TTD-07A5 implementation claim was released gated after two rejected incomplete attempts. Do not resume the partial diff or start a third routine implementation attempt. Re-enter through a read-only architecture handoff that freezes stable transport intake identity, per-operation DB lifetime, atomic lease/intake fencing, poll offset hold and explicit Telegram owner cutover. TTD-07A6 remains blocked."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
@@ -744,8 +744,14 @@
     {
       "path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "profile": "active_serial",
-      "state": "operator_prioritized_p0_next_safe_frontier_not_started_live_default_off",
-      "ai_hint": "Operator steering from 2026-07-21 places this at the next clean Single-Writer boundary; then claim TTD-00 only and keep all successors, including TTD-07A daily rollover, dependency-blocked. Keep Notes as the sole Todo truth, add no Memory mirror, serialize Agent/Telegram/truth-gate hotfiles, use synthetic owner-scoped fixtures, and stop before each independent deploy, production data repair, Telegram smoke or productive rollover gate."
+      "state": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
+      "ai_hint": "TTD-04 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A4 are accepted. TTD-07A5 is gated after two rejected incomplete attempts; no active implementation claim remains. A fresh read-only architecture handoff and later durable reclaim must precede more writes. Preserve TTD-07A6, continuity, provider, productive enablement and live paths."
+    },
+    {
+      "path": "docs/plans/telegram-session-rollover-transaction-contract.md",
+      "profile": "active_serial_contract",
+      "state": "ttd07a0_through_ttd07a4_accepted_ttd07a5_architecture_reentry_gated",
+      "ai_hint": "This is the accepted TTD-07A implementation contract at 4fb9ba62. TTD-07A1 is accepted at daca1dc4, TTD-07A2 at 090ede31, TTD-07A3 at 53109195 and TTD-07A4 at c48f47c8. TTD-07A5 has no active implementation claim after two rejected attempts. Freeze the stable transport-intake, per-operation DB, lease-fencing, poll-offset and explicit-owner design in a fresh read-only handoff before reclaiming. TTD-07A6 stays blocked."
     },
     {
       "path": "docs/plans/telegram-dual-session-router-hotfix-roadmap.md",

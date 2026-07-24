@@ -1,0 +1,137 @@
+{
+  "kind": "odysseus.system_assurance_optimization_baseline",
+  "live_actions_performed": false,
+  "roadmap_id": "SAR",
+  "schema_version": 1,
+  "sections": {
+    "agent_policy_load": {
+      "benchmark_id": "SAR-09-agent-policy-load",
+      "decision": {
+        "criteria": {
+          "at_least_1000_starts": true,
+          "latency_threshold_exceeded": false,
+          "synchronous_invalidation_proven": false
+        },
+        "observed": {
+          "query_share_percent": 1.246524
+        },
+        "reason_codes": [
+          "latency_threshold_exceeded",
+          "synchronous_invalidation_proven"
+        ],
+        "result": "retain_current",
+        "thresholds": {
+          "minimum_iterations": 1000,
+          "p95_query_latency_ms_strictly_greater_than": 10.0,
+          "query_share_percent_strictly_greater_than": 2.0
+        }
+      },
+      "inputs": {
+        "iterations": 1000
+      },
+      "invalidation": {
+        "synchronous_proof": "not_proven"
+      },
+      "live_actions_performed": false,
+      "measurement_origin": "synthetic_contract",
+      "metrics": {
+        "p95_query_latency_ms": 3.353,
+        "p95_start_latency_ms": 268.988
+      },
+      "network_calls_performed": false,
+      "provider_calls_performed": false,
+      "schema_version": 1
+    },
+    "llm_response_cache": {
+      "benchmark_id": "SAR-09-llm-response-cache",
+      "candidate_policy": "lru",
+      "current_policy": "fifo",
+      "decision": {
+        "criteria": {
+          "candidate_evictions_not_higher": true,
+          "candidate_hit_rate_improvement_at_least_5_points": true,
+          "measured_runtime_evidence": false,
+          "trace_distinguishes_policies": true
+        },
+        "observed": {
+          "hit_rate_improvement_percentage_points": 16.666667
+        },
+        "reason_codes": [
+          "measured_runtime_evidence"
+        ],
+        "result": "retain_current",
+        "thresholds": {
+          "maximum_additional_evictions": 0,
+          "minimum_hit_rate_improvement_percentage_points": 5.0
+        }
+      },
+      "live_actions_performed": false,
+      "measurement_origin": "synthetic_contract",
+      "metrics": {
+        "fifo": {
+          "churn_count": 64,
+          "eviction_count": 317,
+          "hit_count": 64,
+          "miss_count": 320
+        },
+        "lru": {
+          "churn_count": 0,
+          "eviction_count": 253,
+          "hit_count": 128,
+          "miss_count": 256
+        }
+      },
+      "network_calls_performed": false,
+      "provider_calls_performed": false,
+      "schema_version": 1
+    },
+    "llm_transport": {
+      "benchmark_id": "SAR-09-llm-transport",
+      "compatibility": {
+        "local_provider": "not_measured",
+        "local_tls": "not_measured",
+        "proxy": "not_measured"
+      },
+      "decision": {
+        "criteria": {
+          "concurrency_is_16": true,
+          "error_rate_not_worse": true,
+          "local_provider_compatible": false,
+          "local_tls_compatible": false,
+          "measured_local_evidence": false,
+          "p95_improvement_at_least_15_percent": true,
+          "proxy_compatible": false
+        },
+        "observed": {
+          "p95_improvement_percent": 16.53958
+        },
+        "reason_codes": [
+          "local_provider_compatible",
+          "local_tls_compatible",
+          "measured_local_evidence",
+          "proxy_compatible"
+        ],
+        "result": "retain_current",
+        "thresholds": {
+          "minimum_p95_improvement_percent": 15.0,
+          "required_concurrency": 16
+        }
+      },
+      "inputs": {
+        "concurrency": 16,
+        "sample_count": 160
+      },
+      "live_actions_performed": false,
+      "measurement_origin": "synthetic_contract",
+      "metrics": {
+        "http1_error_count": 0,
+        "http1_p95_latency_ms": 23.737,
+        "http2_error_count": 0,
+        "http2_p95_latency_ms": 19.811
+      },
+      "network_calls_performed": false,
+      "provider_calls_performed": false,
+      "schema_version": 1
+    }
+  }
+}

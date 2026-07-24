@@ -1,618 +1,298 @@
-"""Owner-scoped, atomic Todo operations on the existing Notes store.
+"""Owner-isolated, content-safe Todo operations over ``Note.items`` JSON.
 
-This module is deliberately independent from tool routing.  Notes remain the
-only domain authority; callers get stable, redacted references and content-free
-postcondition evidence that later slices can turn into semantic receipts.
+No ``core.database`` import happens at module load: callers inject both the
+session factory and model, keeping this domain service independent of any live
+application database.
 """
-
 from __future__ import annotations
 
-import hashlib
+from dataclasses import asdict, dataclass
+from hashlib import sha256
 import json
 import re
-import time
-from dataclasses import dataclass
-from typing import Callable, Iterable, Sequence
-from urllib.parse import quote, unquote
+from typing import Any, Callable, Optional, Sequence
+from uuid import UUID, uuid5
 
 from sqlalchemy import update
-from sqlalchemy.exc import OperationalError
 
-from core.database import Note, SessionLocal
-
-
-_ITEM_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,128}$")
-_LIST_REF_PREFIX = "todo-list:v1:"
-_ITEM_REF_PREFIX = "todo-item:v1:"
+_ID_MAX, _TEXT_MAX, _KEY_MAX = 256, 5000, 256
+_LEGACY_NS = UUID("8c8b9c31-43fa-4eb9-824b-aec71630c7a2")
+_IDEMPOTENCY_NS = UUID("f2ff8136-965b-4fe4-a1cc-8e523f6d69cb")
+_FRONTEND_ITEM_REF = re.compile(r"[a-z0-9]{8}", flags=re.ASCII)
 
 
-class TodoDomainError(RuntimeError):
-    """Base class for fail-closed Todo domain errors."""
+class TodoDomainError(Exception):
+    """Public errors deliberately never include private item text."""
 
 
-class TodoValidationError(TodoDomainError):
-    """The caller supplied an invalid owner, reference, or mutation payload."""
+class TodoValidationError(TodoDomainError): pass
+class TodoNotFoundError(TodoDomainError): pass
+class TodoConflictError(TodoDomainError): pass
+class TodoDataError(TodoDomainError): pass
+class TodoIdempotencyConflictError(TodoDomainError): pass
 
 
-class TodoListNotFoundError(TodoDomainError):
-    """No active checklist exists for the owner-scoped list reference."""
-
-
-class TodoDataIntegrityError(TodoDomainError):
-    """Stored checklist data cannot be safely normalized or mutated."""
-
-
-class TodoIdempotencyConflictError(TodoDomainError):
-    """An idempotency key was replayed with a different add payload."""
-
-
-class TodoConcurrencyError(TodoDomainError):
-    """The optimistic mutation retry budget was exhausted."""
+class TodoAmbiguousMatchError(TodoDomainError):
+    def __init__(self, candidate_refs: Sequence[str]):
+        self.candidate_refs = tuple(candidate_refs)
+        super().__init__("item text selector is ambiguous; use an exact item_ref")
 
 
 @dataclass(frozen=True)
-class TodoItemView:
-    item_ref: str
-    text: str
-    done: bool
-
-    def as_dict(self) -> dict:
-        return {
-            "item_ref": self.item_ref,
-            "text": self.text,
-            "done": self.done,
-        }
+class TodoItemSnapshot:
+    item_ref: Optional[str]
+    completed: bool
 
 
 @dataclass(frozen=True)
 class TodoListSnapshot:
+    """A list read is content-free; legacy rows are read without changing them."""
     list_ref: str
-    title: str
-    items: tuple[TodoItemView, ...]
+    items: tuple[TodoItemSnapshot, ...]
     open_count: int
-    version: str
-
-    def as_dict(self) -> dict:
-        return {
-            "list_ref": self.list_ref,
-            "title": self.title,
-            "items": [item.as_dict() for item in self.items],
-            "open_count": self.open_count,
-            "version": self.version,
-        }
+    def to_dict(self) -> dict[str, Any]: return asdict(self)
 
 
 @dataclass(frozen=True)
-class TodoMutationOutcome:
+class TodoReceipt:
+    """Typed, content-free receipt for a mutation."""
+    list_ref: str
+    item_ref: str
     operation: str
-    list_ref: str
-    item_ref: str | None
-    transaction_status: str
-    previous_state: dict
-    current_state: dict
+    previous_state: Optional[bool]
+    current_state: Optional[bool]
     open_count: int
+    transaction_status: str
     verified: bool
-    candidate_refs: tuple[str, ...] = ()
-    evidence_refs: tuple[str, ...] = ()
-
-    @property
-    def mutated(self) -> bool:
-        return self.transaction_status == "committed"
-
-    def as_dict(self) -> dict:
-        return {
-            "operation": self.operation,
-            "list_ref": self.list_ref,
-            "item_ref": self.item_ref,
-            "transaction_status": self.transaction_status,
-            "previous_state": dict(self.previous_state),
-            "current_state": dict(self.current_state),
-            "open_count": self.open_count,
-            "verified": self.verified,
-            "candidate_refs": list(self.candidate_refs),
-            "evidence_refs": list(self.evidence_refs),
-        }
-
-
-@dataclass(frozen=True)
-class _StoredItem:
-    item_id: str
-    text: str
-    done: bool
-    persisted_id: bool
-    has_unknown_fields: bool
-
-    @property
-    def item_ref(self) -> str:
-        return f"{_ITEM_REF_PREFIX}{self.item_id}"
-
-
-def _owner_scope_ref(owner: str) -> str:
-    return hashlib.sha256(f"todo-owner:v1\0{owner}".encode("utf-8")).hexdigest()[:16]
-
-
-def make_list_ref(owner: str, note_id: str) -> str:
-    """Build a stable list ref without exposing the owner identifier."""
-    owner = _require_nonempty(owner, "owner", max_length=512)
-    note_id = _require_nonempty(note_id, "note_id", max_length=512)
-    return f"{_LIST_REF_PREFIX}{_owner_scope_ref(owner)}:{quote(note_id, safe='-._~')}"
-
-
-def _parse_list_ref(owner: str, list_ref: str) -> str:
-    owner = _require_nonempty(owner, "owner", max_length=512)
-    list_ref = _require_nonempty(list_ref, "list_ref", max_length=1200)
-    if not list_ref.startswith(_LIST_REF_PREFIX):
-        raise TodoValidationError("Invalid Todo list reference")
-    remainder = list_ref[len(_LIST_REF_PREFIX):]
-    scope_ref, separator, encoded_note_id = remainder.partition(":")
-    if (
-        separator != ":"
-        or scope_ref != _owner_scope_ref(owner)
-        or not encoded_note_id
-    ):
-        # Do not reveal whether a list exists in a different owner scope.
-        raise TodoListNotFoundError("Todo list not found")
-    note_id = unquote(encoded_note_id)
-    if not note_id or quote(note_id, safe="-._~") != encoded_note_id:
-        raise TodoValidationError("Invalid Todo list reference")
-    return note_id
-
-
-def _require_nonempty(value: str, field: str, *, max_length: int) -> str:
-    if not isinstance(value, str) or not value.strip() or len(value) > max_length:
-        raise TodoValidationError(f"{field} must be a non-empty string")
-    return value
-
-
-def _item_id_for_add(list_ref: str, idempotency_key: str) -> str:
-    digest = hashlib.sha256(
-        f"todo-add:v1\0{list_ref}\0{idempotency_key}".encode("utf-8")
-    ).hexdigest()[:32]
-    return f"itm_{digest}"
-
-
-def _legacy_item_id(note_id: str, index: int, text: str, done: bool) -> str:
-    payload = json.dumps(
-        {"note_id": note_id, "index": index, "text": text, "done": done},
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-    return f"itm_{hashlib.sha256(f'todo-legacy:v1\0{payload}'.encode('utf-8')).hexdigest()[:32]}"
-
-
-def _version_for(raw_items: str | None) -> str:
-    return hashlib.sha256((raw_items or "").encode("utf-8")).hexdigest()[:24]
-
-
-def _normalize_match_text(value: str) -> str:
-    return " ".join(value.split()).casefold()
-
-
-def _decode_items(raw_items: str | None, note_id: str) -> tuple[list[_StoredItem], str]:
-    if raw_items in (None, ""):
-        payload = []
-    else:
-        try:
-            payload = json.loads(raw_items)
-        except (TypeError, ValueError) as exc:
-            raise TodoDataIntegrityError("Checklist items are not valid JSON") from exc
-    if not isinstance(payload, list):
-        raise TodoDataIntegrityError("Checklist items must be a JSON array")
-
-    items: list[_StoredItem] = []
-    persisted_flags: list[bool] = []
-    seen_ids: set[str] = set()
-    for index, item in enumerate(payload):
-        if not isinstance(item, dict):
-            raise TodoDataIntegrityError("Checklist item must be an object")
-        text = item.get("text")
-        done = item.get("done", False)
-        if not isinstance(text, str) or not text.strip() or not isinstance(done, bool):
-            raise TodoDataIntegrityError("Checklist item has invalid text or done state")
-        persisted_id = "id" in item
-        item_id = item.get("id") if persisted_id else _legacy_item_id(note_id, index, text, done)
-        if not isinstance(item_id, str) or not _ITEM_ID_RE.fullmatch(item_id):
-            raise TodoDataIntegrityError("Checklist item has an invalid stable id")
-        if item_id in seen_ids:
-            raise TodoDataIntegrityError("Checklist item ids must be unique")
-        seen_ids.add(item_id)
-        persisted_flags.append(persisted_id)
-        items.append(
-            _StoredItem(
-                item_id=item_id,
-                text=text,
-                done=done,
-                persisted_id=persisted_id,
-                has_unknown_fields=bool(set(item) - {"id", "text", "done"}),
-            )
-        )
-
-    if not persisted_flags:
-        shape = "empty"
-    elif all(persisted_flags):
-        shape = "canonical"
-    elif any(persisted_flags):
-        shape = "mixed"
-    else:
-        shape = "legacy"
-    return items, shape
-
-
-def _encode_canonical_items(items: Iterable[_StoredItem]) -> str:
-    return json.dumps(
-        [{"id": item.item_id, "text": item.text, "done": item.done} for item in items],
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-
-
-def _state(item: _StoredItem | None) -> dict:
-    return {
-        "exists": item is not None,
-        "done": item.done if item is not None else None,
-    }
+    evidence_refs_redacted: tuple[str, ...]
+    def to_dict(self) -> dict[str, Any]: return asdict(self)
 
 
 class TodoDomainService:
-    """Atomic owner-scoped Todo operations backed by ``core.database.Note``."""
+    """Bounded CAS mutations. A CAS miss rolls back and re-reads fresh state."""
+    def __init__(self, session_factory: Callable[[], Any], note_model: Any, *, max_retries: int = 3):
+        if not callable(session_factory) or note_model is None:
+            raise TodoValidationError("session_factory and note_model are required")
+        if not isinstance(max_retries, int) or not 1 <= max_retries <= 10:
+            raise TodoValidationError("max_retries must be between 1 and 10")
+        self._session_factory, self._Note, self._max_retries = session_factory, note_model, max_retries
 
-    def __init__(
-        self,
-        session_factory: Callable = SessionLocal,
-        *,
-        max_retries: int = 8,
-        retry_backoff_seconds: float = 0.005,
-        sleep: Callable[[float], None] = time.sleep,
-    ) -> None:
-        if max_retries < 1:
-            raise ValueError("max_retries must be at least one")
-        self._session_factory = session_factory
-        self._max_retries = max_retries
-        self._retry_backoff_seconds = retry_backoff_seconds
-        self._sleep = sleep
+    @classmethod
+    def from_core_database(cls, *, max_retries: int = 3) -> "TodoDomainService":
+        """Opt-in convenience constructor; core is imported only at this call site."""
+        from core.database import Note, SessionLocal
+        return cls(SessionLocal, Note, max_retries=max_retries)
 
-    def list_items(self, *, owner: str, list_ref: str) -> TodoListSnapshot:
-        owner = _require_nonempty(owner, "owner", max_length=512)
-        note_id = _parse_list_ref(owner, list_ref)
-        db = self._session_factory()
+    def list(self, *, owner: Optional[str], list_ref: str) -> TodoListSnapshot:
+        owner, list_ref = _owner(owner), _ident(list_ref, "list_ref")
+        session = self._session_factory()
         try:
-            note = self._find_note(db, owner=owner, note_id=note_id)
-            return self._snapshot(note, list_ref)
+            note = self._note(session, owner, list_ref)
+            if note is None: raise TodoNotFoundError("todo list not found")
+            items = _decode(note.items)
+            _validate_read_items(items)
+            snapshots = tuple(TodoItemSnapshot(_stored_ref(i), _state(i)) for i in items)
+            return TodoListSnapshot(list_ref, snapshots, sum(not i.completed for i in snapshots))
+        except TodoDomainError:
+            raise
+        except Exception:
+            raise TodoDomainError("todo list read failed") from None
         finally:
-            db.close()
+            session.close()
 
-    def add_item(
-        self,
-        *,
-        owner: str,
-        list_ref: str,
-        text: str,
-        idempotency_key: str,
-    ) -> TodoMutationOutcome:
-        text = _require_nonempty(text, "text", max_length=10_000)
-        return self._mutate(
-            owner=owner,
-            list_ref=list_ref,
-            operation="add_item",
-            idempotency_key=idempotency_key,
-            add_text=text,
-        )
+    def add(self, *, owner: Optional[str], list_ref: str, text: str, idempotency_key: str) -> TodoReceipt:
+        owner, list_ref, text, key = _owner(owner), _ident(list_ref, "list_ref"), _text(text), _key(idempotency_key)
+        digest = sha256(json.dumps({"text": text}, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+        idempotency_ref = _idempotency_ref(owner, list_ref, key)
+        item_ref = _idempotent_item_ref(owner, list_ref, idempotency_ref)
+        def apply(items):
+            prior = [i for i in items if i.get("idempotency_ref") == idempotency_ref or i.get("id") == item_ref]
+            if prior:
+                prior_item = prior[0] if len(prior) == 1 else None
+                if (prior_item is None or prior_item.get("text") != text or
+                    (prior_item.get("idempotency_payload_hash") is not None and
+                     prior_item.get("idempotency_payload_hash") != digest)):
+                    raise TodoIdempotencyConflictError("idempotency key conflicts with existing request")
+                return prior_item["id"], None, _state(prior_item), True
+            items.append({"id": item_ref, "text": text, "done": False,
+                          "idempotency_ref": idempotency_ref, "idempotency_payload_hash": digest})
+            return item_ref, None, False, False
+        return self._mutate(owner, list_ref, "add", apply)
 
-    def complete_item(
-        self,
-        *,
-        owner: str,
-        list_ref: str,
-        idempotency_key: str,
-        item_ref: str | None = None,
-        text: str | None = None,
-    ) -> TodoMutationOutcome:
-        return self._mutate(
-            owner=owner,
-            list_ref=list_ref,
-            operation="complete_item",
-            idempotency_key=idempotency_key,
-            item_ref=item_ref,
-            match_text=text,
-        )
+    def complete(self, *, owner: Optional[str], list_ref: str, item_ref: Optional[str] = None, text: Optional[str] = None) -> TodoReceipt:
+        return self._set(owner, list_ref, item_ref, text, True, "complete")
 
-    def reopen_item(
-        self,
-        *,
-        owner: str,
-        list_ref: str,
-        idempotency_key: str,
-        item_ref: str | None = None,
-        text: str | None = None,
-    ) -> TodoMutationOutcome:
-        return self._mutate(
-            owner=owner,
-            list_ref=list_ref,
-            operation="reopen_item",
-            idempotency_key=idempotency_key,
-            item_ref=item_ref,
-            match_text=text,
-        )
+    def reopen(self, *, owner: Optional[str], list_ref: str, item_ref: Optional[str] = None, text: Optional[str] = None) -> TodoReceipt:
+        return self._set(owner, list_ref, item_ref, text, False, "reopen")
 
-    def remove_item(
-        self,
-        *,
-        owner: str,
-        list_ref: str,
-        idempotency_key: str,
-        item_ref: str | None = None,
-        text: str | None = None,
-    ) -> TodoMutationOutcome:
-        return self._mutate(
-            owner=owner,
-            list_ref=list_ref,
-            operation="remove_item",
-            idempotency_key=idempotency_key,
-            item_ref=item_ref,
-            match_text=text,
-        )
+    def remove(self, *, owner: Optional[str], list_ref: str, item_ref: Optional[str] = None, text: Optional[str] = None) -> TodoReceipt:
+        owner, list_ref, selector = _owner(owner), _ident(list_ref, "list_ref"), _selector(item_ref, text)
+        def apply(items):
+            item = items.pop(_find(items, selector))
+            return item["id"], _state(item), None, False
+        return self._mutate(owner, list_ref, "remove", apply)
 
-    @staticmethod
-    def _find_note(db, *, owner: str, note_id: str):
-        note = (
-            db.query(Note)
-            .filter(
-                Note.id == note_id,
-                Note.owner == owner,
-                Note.note_type == "checklist",
-                Note.archived.is_(False),
-            )
-            .first()
-        )
-        if note is None:
-            raise TodoListNotFoundError("Todo list not found")
-        return note
+    def _set(self, owner, list_ref, item_ref, text, value, operation):
+        owner, list_ref, selector = _owner(owner), _ident(list_ref, "list_ref"), _selector(item_ref, text)
+        def apply(items):
+            item = items[_find(items, selector)]
+            previous = _state(item)
+            item["done"] = value
+            return item["id"], previous, value, False
+        return self._mutate(owner, list_ref, operation, apply)
 
-    @staticmethod
-    def _snapshot(note, list_ref: str) -> TodoListSnapshot:
-        items, _shape = _decode_items(note.items, note.id)
-        views = tuple(
-            TodoItemView(item_ref=item.item_ref, text=item.text, done=item.done)
-            for item in items
-        )
-        return TodoListSnapshot(
-            list_ref=list_ref,
-            title=note.title or "",
-            items=views,
-            open_count=sum(not item.done for item in items),
-            version=_version_for(note.items),
-        )
-
-    @staticmethod
-    def _resolve_target(
-        items: Sequence[_StoredItem],
-        *,
-        item_ref: str | None,
-        match_text: str | None,
-    ) -> tuple[_StoredItem | None, tuple[str, ...]]:
-        if (item_ref is None) == (match_text is None):
-            raise TodoValidationError("Provide exactly one of item_ref or text")
-        if item_ref is not None:
-            item_ref = _require_nonempty(item_ref, "item_ref", max_length=256)
-            if not item_ref.startswith(_ITEM_REF_PREFIX):
-                raise TodoValidationError("Invalid Todo item reference")
-            item_id = item_ref[len(_ITEM_REF_PREFIX):]
-            if not _ITEM_ID_RE.fullmatch(item_id):
-                raise TodoValidationError("Invalid Todo item reference")
-            matches = [item for item in items if item.item_id == item_id]
-        else:
-            match_text = _require_nonempty(match_text, "text", max_length=10_000)
-            normalized = _normalize_match_text(match_text)
-            matches = [item for item in items if _normalize_match_text(item.text) == normalized]
-        if len(matches) == 1:
-            return matches[0], ()
-        return None, tuple(item.item_ref for item in matches)
-
-    @staticmethod
-    def _readback_evidence(snapshot: TodoListSnapshot) -> tuple[str, ...]:
-        return (f"notes-readback:v1:{snapshot.version}",)
-
-    def _mutate(
-        self,
-        *,
-        owner: str,
-        list_ref: str,
-        operation: str,
-        idempotency_key: str,
-        add_text: str | None = None,
-        item_ref: str | None = None,
-        match_text: str | None = None,
-    ) -> TodoMutationOutcome:
-        owner = _require_nonempty(owner, "owner", max_length=512)
-        note_id = _parse_list_ref(owner, list_ref)
-        idempotency_key = _require_nonempty(
-            idempotency_key, "idempotency_key", max_length=1024
-        )
-
+    def _mutate(self, owner, list_ref, operation, apply) -> TodoReceipt:
         for attempt in range(self._max_retries):
-            db = self._session_factory()
+            session = self._session_factory()
+            rolled_back = False
             try:
-                note = self._find_note(db, owner=owner, note_id=note_id)
-                original_raw = note.items
-                items, shape = _decode_items(original_raw, note.id)
-                if shape == "mixed":
-                    raise TodoDataIntegrityError(
-                        "Mixed legacy and canonical item ids require an explicit repair"
-                    )
-                if any(item.has_unknown_fields for item in items):
-                    raise TodoDataIntegrityError(
-                        "Checklist item contains fields the canonical writer cannot preserve"
-                    )
-
-                before_open_count = sum(not item.done for item in items)
-                evidence_refs: tuple[str, ...] = ()
-                if shape == "legacy":
-                    evidence_refs = (
-                        f"notes-pre-upgrade:v1:{_version_for(original_raw)}",
-                    )
-
-                if operation == "add_item":
-                    target_id = _item_id_for_add(list_ref, idempotency_key)
-                    existing = next((item for item in items if item.item_id == target_id), None)
-                    if existing is not None:
-                        if existing.text != add_text:
-                            raise TodoIdempotencyConflictError(
-                                "Idempotency key was already used with a different Todo item"
-                            )
-                        return TodoMutationOutcome(
-                            operation=operation,
-                            list_ref=list_ref,
-                            item_ref=existing.item_ref,
-                            transaction_status="idempotent",
-                            previous_state=_state(existing),
-                            current_state=_state(existing),
-                            open_count=before_open_count,
-                            verified=True,
-                            evidence_refs=(f"notes-readback:v1:{_version_for(original_raw)}",),
-                        )
-                    previous_state = _state(None)
-                    target = _StoredItem(
-                        item_id=target_id,
-                        text=add_text or "",
-                        done=False,
-                        persisted_id=True,
-                        has_unknown_fields=False,
-                    )
-                    new_items = [*items, target]
-                    current_state = _state(target)
-                else:
-                    target, candidates = self._resolve_target(
-                        items, item_ref=item_ref, match_text=match_text
-                    )
-                    if target is None:
-                        status = "ambiguous" if len(candidates) > 1 else "not_found"
-                        return TodoMutationOutcome(
-                            operation=operation,
-                            list_ref=list_ref,
-                            item_ref=None,
-                            transaction_status=status,
-                            previous_state=_state(None),
-                            current_state=_state(None),
-                            open_count=before_open_count,
-                            verified=False,
-                            candidate_refs=candidates,
-                        )
-                    previous_state = _state(target)
-                    target_index = next(
-                        index for index, candidate in enumerate(items)
-                        if candidate.item_id == target.item_id
-                    )
-                    new_items = list(items)
-                    if operation in {"complete_item", "reopen_item"}:
-                        desired_done = operation == "complete_item"
-                        if target.done == desired_done:
-                            return TodoMutationOutcome(
-                                operation=operation,
-                                list_ref=list_ref,
-                                item_ref=target.item_ref,
-                                transaction_status="idempotent",
-                                previous_state=previous_state,
-                                current_state=previous_state,
-                                open_count=before_open_count,
-                                verified=True,
-                                evidence_refs=(
-                                    f"notes-readback:v1:{_version_for(original_raw)}",
-                                ),
-                            )
-                        target = _StoredItem(
-                            item_id=target.item_id,
-                            text=target.text,
-                            done=desired_done,
-                            persisted_id=True,
-                            has_unknown_fields=False,
-                        )
-                        new_items[target_index] = target
-                        current_state = _state(target)
-                    elif operation == "remove_item":
-                        del new_items[target_index]
-                        current_state = _state(None)
-                    else:
-                        raise TodoValidationError("Unsupported Todo operation")
-
-                new_raw = _encode_canonical_items(new_items)
-                statement = (
-                    update(Note)
-                    .where(
-                        Note.id == note_id,
-                        Note.owner == owner,
-                        Note.note_type == "checklist",
-                        Note.archived.is_(False),
-                        Note.items == original_raw,
-                    )
-                    .values(items=new_raw)
-                )
-                result = db.execute(statement)
-                if result.rowcount != 1:
-                    db.rollback()
-                    self._backoff(attempt)
-                    continue
-                db.commit()
-                target_ref = target.item_ref
-            except OperationalError as exc:
-                db.rollback()
-                if not self._retryable_operational_error(exc) or attempt + 1 >= self._max_retries:
-                    raise
-                self._backoff(attempt)
-                continue
-            except Exception:
-                db.rollback()
+                note = self._note(session, owner, list_ref)
+                if note is None: raise TodoNotFoundError("todo list not found")
+                old = note.items
+                items = _normalise(_decode(old), list_ref)
+                item_ref, previous, current, idempotent = apply(items)
+                if idempotent:
+                    session.rollback()
+                    rolled_back = True
+                    return _receipt(owner, list_ref, item_ref, operation, previous, current, _open(items), "idempotent_noop")
+                new = json.dumps(items, ensure_ascii=False, separators=(",", ":"))
+                result = session.execute(update(self._Note).where(
+                    self._Note.id == list_ref, self._owner_clause(owner),
+                    self._Note.archived == False,  # noqa: E712 -- matches read gate
+                    self._Note.note_type == "checklist",
+                    self._Note.items.is_(None) if old is None else self._Note.items == old,
+                ).values(items=new))
+                if result.rowcount == 1:
+                    session.commit()
+                    return _receipt(owner, list_ref, item_ref, operation, previous, current, _open(items), "committed")
+                session.rollback()
+                rolled_back = True
+                session.expire_all()
+                if attempt + 1 == self._max_retries:
+                    raise TodoConflictError("todo list changed concurrently; retry the request")
+            except TodoDomainError:
+                if not rolled_back:
+                    session.rollback()
                 raise
+            except Exception:
+                session.rollback()
+                raise TodoDomainError("todo mutation failed") from None
             finally:
-                db.close()
+                session.close()
+        raise TodoConflictError("todo list changed concurrently; retry the request")
 
-            snapshot = self.list_items(owner=owner, list_ref=list_ref)
-            persisted = next(
-                (entry for entry in snapshot.items if entry.item_ref == target_ref),
-                None,
-            )
-            if operation == "remove_item":
-                verified = persisted is None
-            else:
-                verified = (
-                    persisted is not None
-                    and persisted.done == current_state["done"]
-                )
-            return TodoMutationOutcome(
-                operation=operation,
-                list_ref=list_ref,
-                item_ref=target_ref,
-                transaction_status="committed",
-                previous_state=previous_state,
-                current_state=current_state,
-                open_count=snapshot.open_count,
-                verified=verified,
-                evidence_refs=(*evidence_refs, *self._readback_evidence(snapshot)),
-            )
+    def _note(self, session, owner, list_ref):
+        return session.query(self._Note).filter(
+            self._Note.id == list_ref,
+            self._owner_clause(owner),
+            self._Note.archived == False,  # noqa: E712 -- explicit canonical list predicate
+            self._Note.note_type == "checklist",
+        ).one_or_none()
 
-        raise TodoConcurrencyError("Todo list changed too often; no mutation was applied")
-
-    @staticmethod
-    def _retryable_operational_error(exc: OperationalError) -> bool:
-        message = str(exc).casefold()
-        return "locked" in message or "serialization" in message or "deadlock" in message
-
-    def _backoff(self, attempt: int) -> None:
-        if self._retry_backoff_seconds > 0:
-            self._sleep(self._retry_backoff_seconds * (2 ** min(attempt, 6)))
+    def _owner_clause(self, owner):
+        # None is NULL-owner only, deliberately never a wildcard.
+        return self._Note.owner.is_(None) if owner is None else self._Note.owner == owner
 
 
-__all__ = [
-    "TodoConcurrencyError",
-    "TodoDataIntegrityError",
-    "TodoDomainError",
-    "TodoDomainService",
-    "TodoIdempotencyConflictError",
-    "TodoItemView",
-    "TodoListNotFoundError",
-    "TodoListSnapshot",
-    "TodoMutationOutcome",
-    "TodoValidationError",
-    "make_list_ref",
-]
+def _ident(value, field):
+    if not isinstance(value, str) or not value or len(value) > _ID_MAX or value.strip() != value:
+        raise TodoValidationError(f"{field} must be a non-empty exact identifier")
+    return value
+
+def _owner(value): return None if value is None else _ident(value, "owner")
+
+def _text(value):
+    if not isinstance(value, str) or not value.strip() or len(value) > _TEXT_MAX:
+        raise TodoValidationError("text must be a non-empty string within the size limit")
+    return value
+
+def _key(value):
+    if not isinstance(value, str) or not value or len(value) > _KEY_MAX or value.strip() != value:
+        raise TodoValidationError("idempotency_key must be a non-empty exact identifier")
+    return value
+
+def _selector(item_ref, text):
+    if (item_ref is None) == (text is None): raise TodoValidationError("provide exactly one of item_ref or text")
+    return ("ref", _opaque_item_ref(item_ref, "item_ref")) if item_ref is not None else ("text", _text(text))
+
+def _decode(raw):
+    if raw is None or raw == "": return []
+    if not isinstance(raw, str): raise TodoDataError("todo items must be JSON text")
+    try: value = json.loads(raw)
+    except (TypeError, ValueError): raise TodoDataError("todo items contain invalid JSON") from None
+    if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
+        raise TodoDataError("todo items must be a JSON array of objects")
+    return value
+
+def _legacy_ref(list_ref, index): return str(uuid5(_LEGACY_NS, f"{list_ref}:{index}"))
+
+def _normalise(items, list_ref):
+    out, seen = [], set()
+    for index, original in enumerate(items):
+        item = dict(original)  # Retains unknown frontend fields, including indent.
+        if not isinstance(item.get("text"), str): raise TodoDataError("todo item text must be a string")
+        if "done" in item and not isinstance(item["done"], bool): raise TodoDataError("todo item completion state must be boolean")
+        item.setdefault("done", False)
+        item_ref = item.get("id")
+        if item_ref is None:
+            item_ref = _legacy_ref(list_ref, index)
+            item["id"] = item_ref
+        else: _opaque_item_ref(item_ref, "stored item id")
+        if item_ref in seen: raise TodoDataError("todo item identifiers must be unique")
+        seen.add(item_ref); out.append(item)
+    return out
+
+def _stored_ref(item):
+    value = item.get("id")
+    return value if isinstance(value, str) and value else None
+
+def _state(item):
+    value = item.get("done", False)
+    if not isinstance(value, bool): raise TodoDataError("todo item completion state must be boolean")
+    return value
+
+def _find(items, selector):
+    kind, value = selector
+    matches = [i for i, item in enumerate(items) if (item["id"] if kind == "ref" else item["text"]) == value]
+    if not matches: raise TodoNotFoundError("todo item not found")
+    if len(matches) != 1: raise TodoAmbiguousMatchError([items[i]["id"] for i in matches])
+    return matches[0]
+
+def _open(items): return sum(not _state(item) for item in items)
+
+def _validate_read_items(items):
+    seen = set()
+    for item in items:
+        if not isinstance(item.get("text"), str): raise TodoDataError("todo item text must be a string")
+        if "done" in item and not isinstance(item["done"], bool): raise TodoDataError("todo item completion state must be boolean")
+        item_ref = item.get("id")
+        if item_ref is None: continue  # Legacy IDs remain absent on read.
+        _opaque_item_ref(item_ref, "stored item id")
+        if item_ref in seen: raise TodoDataError("todo item identifiers must be unique")
+        seen.add(item_ref)
+
+def _opaque_item_ref(value, field):
+    value = _ident(value, field)
+    if _FRONTEND_ITEM_REF.fullmatch(value):
+        return value
+    try:
+        parsed = UUID(value)
+    except (TypeError, ValueError):
+        raise TodoValidationError(f"{field} must be an opaque UUID") from None
+    if str(parsed) != value:
+        raise TodoValidationError(f"{field} must be an opaque UUID")
+    return value
+
+def _idempotency_ref(owner, list_ref, key):
+    material = json.dumps({"owner": owner, "list_ref": list_ref, "key": key}, sort_keys=True, separators=(",", ":"))
+    return sha256(material.encode()).hexdigest()
+
+def _idempotent_item_ref(owner, list_ref, idempotency_ref):
+    material = json.dumps({"owner": owner, "list_ref": list_ref, "idempotency_ref": idempotency_ref}, sort_keys=True, separators=(",", ":"))
+    return str(uuid5(_IDEMPOTENCY_NS, material))
+
+def _redact(kind, value): return f"{kind}:{sha256((value if value is not None else '<null>').encode()).hexdigest()[:16]}"
+
+def _receipt(owner, list_ref, item_ref, operation, previous, current, open_count, status):
+    return TodoReceipt(list_ref, item_ref, operation, previous, current, open_count, status, True,
+                       (_redact("owner", owner), _redact("list", list_ref), _redact("item", item_ref), f"operation:{operation}"))

@@ -11,20 +11,23 @@ from contextlib import contextmanager
 import hashlib
 import json
 import os
+import re
+import tempfile
 import time
+from errno import EACCES, EINVAL, ENOTSUP, EOPNOTSUPP, EPERM
 from pathlib import Path
 import threading
 from typing import Any, Callable, Mapping
 
-from src.telegram_history_privacy import (
-    TelegramHistoryPolicy,
-    build_history_diagnostic_export,
-    encoded_record_size,
-    encoded_store_size,
-    mark_raw_conversation_record,
-    mark_redacted_audit_record,
-)
+from plugins.telegram.audit_store import TelegramAuditStore
+from plugins.telegram.history_privacy import record_has_raw_content
 from src.runtime_event_envelope import RuntimeEventEnvelopeError, build_runtime_event, stable_payload_hash
+from src.telegram_session_rollover import (
+    LedgerError,
+    TelegramRolloverLedger,
+    chat_handle_ref,
+    owner_ref,
+)
 
 _HISTORY_FILE = "telegram_history.json"
 _AUDIT_FILE = "telegram_audit.json"
@@ -32,14 +35,8 @@ _POLLING_FILE = "telegram_polling_state.json"
 _SESSION_FILE = "telegram_session_bridge.json"
 _PINNED_PRIVACY_FILE = "telegram_privacy_pin_state.json"
 _SAFE_EVENT_VALUE_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.:@/-")
-_SESSION_BRIDGE_LOCK_GUARD = threading.Lock()
-_SESSION_BRIDGE_LOCKS: dict[str, threading.RLock] = {}
-
-
-def _session_bridge_lock(path: Path) -> threading.RLock:
-    key = str(path.resolve()).casefold()
-    with _SESSION_BRIDGE_LOCK_GUARD:
-        return _SESSION_BRIDGE_LOCKS.setdefault(key, threading.RLock())
+_LEGACY_STABLE_CHAT_HANDLE_RE = re.compile(r"^chat_[0-9a-f]{12}$")
+_LEGACY_RAW_CHAT_KEY_RE = re.compile(r"^-?[1-9][0-9]{0,19}$")
 
 
 def _stable_handle(prefix: str, value: Any) -> str:
@@ -245,6 +242,7 @@ class _LegacyTelegramInboxStore:
     def __init__(self, data_dir: str | Path):
         self.data_dir = Path(data_dir)
         self.path = self.data_dir / _HISTORY_FILE
+        self.audit_store = TelegramAuditStore(self.data_dir)
 
     def _read(self) -> dict[str, Any]:
         if not self.path.exists():
@@ -263,6 +261,14 @@ class _LegacyTelegramInboxStore:
     def _write(self, data: dict[str, Any]) -> None:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def _append_audit(self, record: Mapping[str, Any]) -> None:
+        """Audit persistence is best-effort and never changes legacy-write success."""
+
+        try:
+            self.audit_store.append(record, scope_ref=str(record.get("chat_handle") or ""))
+        except Exception:
+            pass
 
     def append_event(self, *, kind: str, status: str, chat_id: str = "", **extra: Any) -> dict[str, Any]:
         data = self._read()
@@ -292,10 +298,12 @@ class _LegacyTelegramInboxStore:
             component="store",
             extra={key: value for key, value in event.items() if key not in {"runtime_event"}},
         )
-        event["raw_content_visible"] = False
+        event["raw_content_visible"] = record_has_raw_content(event)
+        event["raw_content_persisted"] = event["raw_content_visible"]
         event["raw_identifiers_visible"] = False
         data["messages"].append(event)
         self._write(data)
+        self._append_audit(event)
         return event
 
     def append_inbound(self, message: dict[str, Any]) -> dict[str, Any]:
@@ -346,10 +354,12 @@ class _LegacyTelegramInboxStore:
                 "universal_inbox_status": stored.get("universal_inbox_status"),
             },
         )
-        stored["raw_content_visible"] = False
+        stored["raw_content_visible"] = record_has_raw_content(stored)
+        stored["raw_content_persisted"] = stored["raw_content_visible"]
         stored["raw_identifiers_visible"] = False
         messages.append(stored)
         self._write(data)
+        self._append_audit(stored)
         if stored.get("intake_status") == "blocked_chat":
             self.append_event(
                 kind="blocked",
@@ -397,6 +407,9 @@ class _LegacyTelegramInboxStore:
                 existing["universal_inbox_status"] = universal_inbox_status
             existing["updated_at"] = int(time.time())
             self._write(data)
+            audit_record = dict(existing)
+            audit_record["stored_at"] = existing["updated_at"]
+            self._append_audit(audit_record)
             return dict(existing)
         return None
 
@@ -451,13 +464,17 @@ class _LegacyTelegramInboxStore:
                 "truth_gate_changed": bool((truth_gate or {}).get("changed") or False),
             },
         )
-        message["raw_content_visible"] = False
+        message["raw_content_visible"] = record_has_raw_content(message)
+        message["raw_content_persisted"] = message["raw_content_visible"]
         message["raw_identifiers_visible"] = False
         data["messages"].append(message)
         self._write(data)
+        self._append_audit(message)
         return message
 
     def history(self, *, chat_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+        """Return internal mixed records for Telegram runtime consumers only."""
+
         limit = max(1, min(int(limit or 50), 200))
         messages = self._read()["messages"]
         if chat_id:
@@ -467,6 +484,12 @@ class _LegacyTelegramInboxStore:
                 if str(m.get("chat_handle") or "") == chat_handle or str(m.get("chat_id") or "") == str(chat_id)
             ]
         return list(reversed(messages[-limit:]))
+
+    def audit_history(self, *, chat_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+        """Return closed content-free receipts for admin/diagnostic consumers."""
+
+        scope_ref = _chat_handle(chat_id) if chat_id else None
+        return self.audit_store.history(scope_ref=scope_ref, limit=limit)
 
     def counts(self) -> dict[str, int]:
         messages = self._read()["messages"]
@@ -571,475 +594,351 @@ class _LegacyTelegramInboxStore:
         return None
 
 
-class TelegramInboxStore(_LegacyTelegramInboxStore):
-    """Separated raw-conversation and redacted-audit stores.
+class TelegramRolloverBridgeError(ValueError):
+    """Deterministic, content-free DB-aware bridge refusal."""
 
-    Legacy mixed files remain readable. New raw messages and audit events are
-    never written into the same segment, and capacity rotation is append-only.
+
+class DbAuthoritativeTelegramSessionBridge:
+    """Explicit owner-injected adapter for the A3 DB-authoritative bridge.
+
+    It is intentionally not wired into ``TelegramSessionBridgeStore`` or any
+    productive call site.  Callers own the SQLAlchemy transaction and supply a
+    stable chat handle for DB lookups/projection; HMAC references are never
+    reversed into handles.
     """
 
-    def __init__(self, data_dir: str | Path):
-        self.data_dir = Path(data_dir)
-        self.path = self.data_dir / _HISTORY_FILE
-        self.audit_path = self.data_dir / _AUDIT_FILE
-        self._lock = _session_bridge_lock(self.path)
-        if not self.path.exists():
-            with self._lock:
-                if not self.path.exists():
-                    self._write_file(self.path, [], store_class="raw_conversation")
-
-    def _read_file(self, path: Path) -> list[dict[str, Any]]:
-        if not path.exists():
-            return []
+    def __init__(
+        self,
+        *,
+        database: Any,
+        owner: str,
+        reference_key: bytes,
+        legacy_path: str | Path,
+        rollover_local_day: str,
+    ):
         try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
-            return []
-        if not isinstance(data, dict) or not isinstance(data.get("messages"), list):
-            return []
-        return [dict(item) for item in data["messages"] if isinstance(item, dict)]
+            self._ledger = TelegramRolloverLedger(database, reference_key)
+            # Verify/initialize the key fingerprint before deriving *any* HMAC
+            # reference from the supplied key.  A mismatched key must fail
+            # without turning caller identity into a derived reference.
+            self._ledger.verify_reference_key()
+            self._owner_ref = owner_ref(reference_key, owner)
+        except (LedgerError, ValueError) as error:
+            raise TelegramRolloverBridgeError("invalid_bridge_identity") from error
+        if not _is_iso_local_day(rollover_local_day):
+            raise TelegramRolloverBridgeError("invalid_rollover_local_day")
+        self._reference_key = reference_key
+        self._legacy_path = Path(legacy_path)
+        self._rollover_local_day = rollover_local_day
 
-    def _raw_paths(self) -> list[Path]:
-        paths = [self.path] if self.path.exists() else []
-        paths.extend(sorted(self.data_dir.glob("telegram_history.[0-9][0-9][0-9][0-9].json")))
-        return paths
+    def resolve(self, *, stable_chat_handle: str, scope: str) -> dict[str, Any] | None:
+        """Read one DB binding; JSON is never consulted on this path."""
 
-    def _audit_paths(self) -> list[Path]:
-        paths = [self.audit_path] if self.audit_path.exists() else []
-        paths.extend(sorted(self.data_dir.glob("telegram_audit.[0-9][0-9][0-9][0-9].json")))
-        return paths
-
-    def _raw_records(self) -> list[dict[str, Any]]:
-        records: list[dict[str, Any]] = []
-        for path in self._raw_paths():
-            for item in self._read_file(path):
-                # Existing mixed files are classified at read time only. They
-                # are not migrated or rewritten by this repository slice.
-                if (
-                    item.get("store_class") != "raw_conversation"
-                    and item.get("direction") == "system"
-                    and not item.get("text")
-                ):
-                    continue
-                records.append(item)
-        return records
-
-    def _legacy_audit_records(self) -> list[dict[str, Any]]:
-        records: list[dict[str, Any]] = []
-        for path in self._raw_paths():
-            for item in self._read_file(path):
-                if (
-                    item.get("store_class") != "raw_conversation"
-                    and item.get("direction") == "system"
-                    and not item.get("text")
-                ):
-                    records.append(mark_redacted_audit_record(item))
-        return records
-
-    def _audit_records(self) -> list[dict[str, Any]]:
-        records = self._legacy_audit_records()
-        for path in self._audit_paths():
-            records.extend(self._read_file(path))
-        return records
-
-    def _read(self) -> dict[str, Any]:
-        messages = [*self._raw_records(), *self._audit_records()]
-        messages.sort(
-            key=lambda item: (
-                int(item.get("stored_at") or 0),
-                int(item.get("storage_order_ns") or 0),
-                str(item.get("correlation_id") or ""),
-            )
-        )
-        return {"messages": messages}
-
-    def _write_file(
-        self,
-        path: Path,
-        records: list[dict[str, Any]],
-        *,
-        store_class: str,
-    ) -> None:
-        self.data_dir.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "schema": (
-                "odysseus.telegram_raw_conversation_store.v1"
-                if store_class == "raw_conversation"
-                else "odysseus.telegram_redacted_audit_store.v1"
-            ),
-            "store_class": store_class,
-            "raw_content_visible": store_class == "raw_conversation"
-            and any(bool(item.get("raw_content_visible")) for item in records),
-            "raw_identifiers_visible": False,
-            "messages": records,
-        }
-        temporary = path.with_name(
-            f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
-        )
+        _require_stable_chat_handle(stable_chat_handle)
+        _require_scope(scope)
         try:
-            temporary.write_text(
-                json.dumps(payload, ensure_ascii=False, indent=2),
-                encoding="utf-8",
+            binding = self._ledger.get_binding_for_identity(
+                owner_reference=self._owner_ref,
+                chat_reference=chat_handle_ref(self._reference_key, stable_chat_handle),
+                scope=scope,
             )
-            temporary.replace(path)
-        finally:
-            if temporary.exists():
-                temporary.unlink()
-
-    def _write(self, data: dict[str, Any]) -> None:
-        """Compatibility helper for tests; runtime uses bounded append/update."""
-
-        messages = data.get("messages") if isinstance(data, dict) else []
-        records = [
-            mark_raw_conversation_record(item)
-            for item in messages
-            if isinstance(item, dict) and item.get("direction") != "system"
-        ]
-        self._write_file(self.path, records, store_class="raw_conversation")
-
-    def _append_record(self, record: dict[str, Any], *, audit: bool) -> bool:
-        policy = TelegramHistoryPolicy.from_environment()
-        store_class = "redacted_audit" if audit else "raw_conversation"
-        normalized = (
-            mark_redacted_audit_record(record)
-            if audit
-            else mark_raw_conversation_record(record)
-        )
-        normalized.setdefault("storage_order_ns", time.time_ns())
-        if encoded_record_size(normalized) > policy.max_entry_bytes:
-            return False
-        with self._lock:
-            base = self.audit_path if audit else self.path
-            paths = self._audit_paths() if audit else self._raw_paths()
-            # Legacy mixed base files stay read-only: start a new raw segment
-            # rather than rewriting them during the first post-upgrade append.
-            legacy_mixed = bool(
-                not audit
-                and self.path.exists()
-                and any(
-                    item.get("store_class") != "raw_conversation"
-                    and item.get("direction") == "system"
-                    for item in self._read_file(self.path)
-                )
-            )
-            active = paths[-1] if paths else base
-            if legacy_mixed and active == self.path:
-                if len(paths or [base]) >= policy.max_segments:
-                    return False
-                records: list[dict[str, Any]] = []
-                active = self.path.with_name(f"{self.path.stem}.0001{self.path.suffix}")
-                paths = [*paths, active]
-            else:
-                records = self._read_file(active)
-            candidate = [*records, normalized]
-            fits = (
-                len(candidate) <= policy.max_entries_per_segment
-                and encoded_store_size(candidate, store_class=store_class)
-                <= policy.max_file_bytes
-            )
-            if fits:
-                self._write_file(active, candidate, store_class=store_class)
-                return True
-            if not policy.rotation_enabled or len(paths or [base]) >= policy.max_segments:
-                return False
-            index = len(paths or [base])
-            rotated = base.with_name(f"{base.stem}.{index:04d}{base.suffix}")
-            if encoded_store_size([normalized], store_class=store_class) > policy.max_file_bytes:
-                return False
-            self._write_file(rotated, [normalized], store_class=store_class)
-            return True
-
-    def _update_raw_record(
-        self,
-        key: tuple[Any, Any, Any],
-        updates: Mapping[str, Any],
-    ) -> dict[str, Any] | None:
-        with self._lock:
-            for path in self._raw_paths():
-                records = self._read_file(path)
-                for existing in records:
-                    existing_key = (
-                        existing.get("direction"),
-                        existing.get("update_id"),
-                        existing.get("message_id"),
-                    )
-                    if existing_key != key:
-                        continue
-                    existing.update(updates)
-                    marked = mark_raw_conversation_record(existing)
-                    existing.clear()
-                    existing.update(marked)
-                    self._write_file(path, records, store_class="raw_conversation")
-                    return dict(existing)
-        return None
-
-    def append_event(self, *, kind: str, status: str, chat_id: str = "", **extra: Any) -> dict[str, Any]:
-        chat_handle = _chat_handle(chat_id)
-        contains_operational_payload = any(
-            isinstance(value, (Mapping, list, tuple))
-            for key, value in extra.items()
-            if key not in {"runtime_event"}
-        )
-        event = {
-            "direction": "system",
-            "kind": kind,
-            "status": status,
-            "chat_handle": chat_handle,
-            "stored_at": int(time.time()),
-            "token_value_visible": False,
-            "chat_id_value_visible": False,
-        }
-        if contains_operational_payload:
-            event.update(
-                {
-                    key: value
-                    for key, value in extra.items()
-                    if value is not None and key not in {"chat_id", "token"}
-                }
-            )
-        else:
-            event.update(_safe_event_metadata(extra))
-        event["correlation_id"] = str(event.get("correlation_id") or _message_correlation_id(
-            chat_handle=chat_handle,
-            update_id=event.get("update_id"),
-            message_id=event.get("message_id"),
-        ))
-        event["runtime_event"] = _build_telegram_runtime_event(
-            kind=kind,
-            status=status,
-            chat_handle=chat_handle,
-            update_id=event.get("update_id"),
-            message_id=event.get("message_id"),
-            direction="system",
-            component="store",
-            extra={key: value for key, value in event.items() if key != "runtime_event"},
-        )
-        if contains_operational_payload:
-            event["raw_content_visible"] = True
-            event = mark_raw_conversation_record(event)
-            persisted = self._append_record(event, audit=False)
-        else:
-            event = mark_redacted_audit_record(event)
-            persisted = self._append_record(event, audit=True)
-        event["persistence_status"] = "stored" if persisted else "capacity_blocked"
-        return event
-
-    def append_inbound(self, message: dict[str, Any]) -> dict[str, Any]:
-        messages = self._read()["messages"]
-        raw_chat_id = str(message.get("chat_id") or "")
-        key = (message.get("direction"), message.get("update_id"), message.get("message_id"))
-        for existing in messages:
-            existing_key = (
-                existing.get("direction"),
-                existing.get("update_id"),
-                existing.get("message_id"),
-            )
-            if existing_key == key:
-                retry_pending_voice = (
-                    existing.get("kind") == "voice"
-                    and existing.get("transcript_status") == "pending_stt"
-                    and message.get("kind") == "voice"
-                )
-                self.append_event(
-                    kind="duplicate",
-                    status="duplicate_pending_stt_retry" if retry_pending_voice else "duplicate_ignored",
-                    chat_id=raw_chat_id,
-                    update_id=message.get("update_id"),
-                    message_id=message.get("message_id"),
-                )
-                return {"stored": False, "message": existing, "retry_pending_voice": retry_pending_voice}
-
-        stored = _sanitize_persisted_message(message)
-        stored["stored_at"] = int(time.time())
-        stored["correlation_id"] = _message_correlation_id(
-            chat_handle=str(stored.get("chat_handle") or ""),
-            update_id=stored.get("update_id"),
-            message_id=stored.get("message_id"),
-        )
-        stored["runtime_event"] = _build_telegram_runtime_event(
-            kind=str(stored.get("kind") or "inbound"),
-            status=str(stored.get("intake_status") or "received"),
-            chat_handle=str(stored.get("chat_handle") or ""),
-            update_id=stored.get("update_id"),
-            message_id=stored.get("message_id"),
-            direction="inbound",
-            component="inbound",
-            extra={
-                "kind": stored.get("kind"),
-                "intake_status": stored.get("intake_status"),
-                "transcript_status": stored.get("transcript_status"),
-                "universal_inbox_status": stored.get("universal_inbox_status"),
-            },
-        )
-        stored = mark_raw_conversation_record(stored)
-        persisted = self._append_record(stored, audit=False)
-        stored["persistence_status"] = "stored" if persisted else "capacity_blocked"
-        if not persisted:
-            self.append_event(
-                kind="raw_history_capacity",
-                status="capacity_blocked",
-                chat_id=raw_chat_id,
-                update_id=stored.get("update_id"),
-                message_id=stored.get("message_id"),
-            )
-            return {"stored": False, "message": stored, "retry_pending_voice": False}
-        if stored.get("intake_status") == "blocked_chat":
-            self.append_event(
-                kind="blocked",
-                status="chat_not_allowed",
-                chat_id=raw_chat_id,
-                update_id=stored.get("update_id"),
-                message_id=stored.get("message_id"),
-            )
-        elif stored.get("kind") == "unsupported":
-            self.append_event(
-                kind="unsupported",
-                status="unsupported_message",
-                chat_id=raw_chat_id,
-                update_id=stored.get("update_id"),
-                message_id=stored.get("message_id"),
-            )
-        return {"stored": True, "message": stored, "retry_pending_voice": False}
-
-    def update_inbound_status(
-        self,
-        message: dict[str, Any],
-        *,
-        transcript_status: str | None = None,
-        voice_status: str | None = None,
-        intake_status: str | None = None,
-        universal_inbox_status: str | None = None,
-    ) -> dict[str, Any] | None:
-        updates: dict[str, Any] = {"updated_at": int(time.time())}
-        if transcript_status is not None:
-            updates["transcript_status"] = transcript_status
-        if voice_status is not None:
-            updates["voice_status"] = voice_status
-        if intake_status is not None:
-            updates["intake_status"] = intake_status
-        if universal_inbox_status is not None:
-            updates["universal_inbox_status"] = universal_inbox_status
-        key = (message.get("direction"), message.get("update_id"), message.get("message_id"))
-        return self._update_raw_record(key, updates)
-
-    def append_outbound(
-        self,
-        chat_id: str,
-        text: str,
-        *,
-        source_message_id: int | None = None,
-        delivery_status: str = "sent",
-        failure_reason: str | None = None,
-        delivery_mode: str = "",
-        formatting_mode: str = "",
-        truth_gate: Mapping[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        message = {
-            "direction": "outbound",
-            "kind": "text",
-            "chat_handle": _chat_handle(chat_id),
-            "message_id": f"local-{int(time.time() * 1000)}",
-            "source_message_id": source_message_id,
-            "text": text,
-            "delivery_status": delivery_status,
-            "failure_reason": failure_reason or "",
-            "delivery_mode": delivery_mode,
-            "formatting_mode": formatting_mode,
-            "stored_at": int(time.time()),
-            "token_value_visible": False,
-            "chat_id_value_visible": False,
-            "raw_rich_payload_visible": False,
-        }
-        if truth_gate:
-            message["truth_gate"] = dict(truth_gate)
-        message["correlation_id"] = _message_correlation_id(
-            chat_handle=str(message.get("chat_handle") or ""),
-            message_id=message.get("source_message_id") or message.get("message_id"),
-        )
-        message["runtime_event"] = _build_telegram_runtime_event(
-            kind="reply_delivery",
-            status=delivery_status,
-            chat_handle=str(message.get("chat_handle") or ""),
-            message_id=message.get("source_message_id") or message.get("message_id"),
-            direction="outbound",
-            component="reply",
-            extra={
-                "delivery_status": delivery_status,
-                "delivery_mode": delivery_mode,
-                "formatting_mode": formatting_mode,
-                "failure_reason": failure_reason or "",
-                "truth_gate_status": str((truth_gate or {}).get("status") or ""),
-                "truth_gate_changed": bool((truth_gate or {}).get("changed") or False),
-            },
-        )
-        message = mark_raw_conversation_record(message)
-        persisted = self._append_record(message, audit=False)
-        message["persistence_status"] = "stored" if persisted else "capacity_blocked"
-        if not persisted:
-            self.append_event(
-                kind="raw_history_capacity",
-                status="capacity_blocked",
-                chat_id=chat_id,
-                source_message_id=source_message_id,
-            )
-        return message
-
-    def diagnostic_export(
-        self,
-        *,
-        chat_id: str | None = None,
-        limit: int = 50,
-        review_details: bool = False,
-        operator_authorized: bool = False,
-    ) -> dict[str, Any]:
-        raw_records = self._raw_records()
-        audit_records = self._audit_records()
-        if chat_id:
-            chat_handle = _chat_handle(chat_id)
-            raw_records = [
-                item for item in raw_records if item.get("chat_handle") == chat_handle
-            ]
-            audit_records = [
-                item for item in audit_records if item.get("chat_handle") == chat_handle
-            ]
-        return build_history_diagnostic_export(
-            raw_records=raw_records,
-            audit_records=audit_records,
-            policy=TelegramHistoryPolicy.from_environment(),
-            limit=limit,
-            review_details=review_details,
-            operator_authorized=operator_authorized,
-        )
-
-    def history(self, *, chat_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
-        limit = max(1, min(int(limit or 50), 200))
-        messages = self._read()["messages"]
-        if chat_id:
-            chat_handle = _chat_handle(chat_id)
-            messages = [
-                item
-                for item in messages
-                if str(item.get("chat_handle") or "") == chat_handle
-            ]
-        return list(reversed(messages[-limit:]))
-
-    def counts(self) -> dict[str, int]:
-        messages = self._read()["messages"]
+        except LedgerError as error:
+            raise TelegramRolloverBridgeError("db_binding_unavailable") from error
+        if binding is None:
+            return None
         return {
-            "total": len(messages),
-            "raw_conversation": len(self._raw_records()),
-            "redacted_audit": len(self._audit_records()),
-            "inbound": sum(1 for item in messages if item.get("direction") == "inbound"),
-            "outbound": sum(1 for item in messages if item.get("direction") == "outbound"),
-            "voice": sum(1 for item in messages if item.get("kind") == "voice"),
-            "image": sum(1 for item in messages if item.get("kind") == "image"),
-            "document": sum(1 for item in messages if item.get("kind") == "document"),
-            "blocked": sum(1 for item in messages if item.get("kind") == "blocked"),
-            "duplicates": sum(1 for item in messages if item.get("kind") == "duplicate"),
-            "pending_stt": sum(1 for item in messages if item.get("transcript_status") == "pending_stt"),
-            "pending_image_action": sum(1 for item in messages if item.get("image_action_status") == "pending_image_action"),
-            "pending_universal_inbox": sum(1 for item in messages if item.get("universal_inbox_status") == "pending_universal_inbox"),
+            "binding_id": binding.id,
+            "scope": binding.scope,
+            "active_session_id": binding.active_session_id,
+            "generation": binding.generation,
+            "source": "database",
+            "raw_identity_visible": False,
         }
+
+    def import_legacy_once(self) -> tuple[dict[str, Any], ...]:
+        """Import each missing owner/chat/scope legacy slot exactly once.
+
+        The entire source is parsed and Session ownership is prevalidated before
+        a binding write, so malformed source cannot result in a partial import.
+        """
+
+        try:
+            legacy = _read_legacy_bridge_strict(self._legacy_path)
+        except TelegramRolloverBridgeError:
+            # A durable binding is authoritative even if an old compatibility
+            # file is no longer parseable.  There are no trustworthy legacy
+            # candidates to fill, so leave the source untouched.
+            try:
+                if self._ledger.list_bindings_for_owner(owner_reference=self._owner_ref):
+                    return ()
+            except LedgerError as error:
+                raise TelegramRolloverBridgeError("db_binding_unavailable") from error
+            raise
+        candidates = _legacy_slot_candidates(legacy)
+        missing: list[tuple[str, str, str]] = []
+        try:
+            for stable_handle, scope, session_id in candidates:
+                if self._ledger.get_binding_for_identity(
+                    owner_reference=self._owner_ref,
+                    chat_reference=chat_handle_ref(self._reference_key, stable_handle),
+                    scope=scope,
+                ) is None:
+                    missing.append((stable_handle, scope, session_id))
+        except LedgerError as error:
+            raise TelegramRolloverBridgeError("db_binding_unavailable") from error
+        _validate_legacy_sessions(
+            self._ledger, self._owner_ref, tuple(missing)
+        )
+        imported: list[dict[str, Any]] = []
+        try:
+            # The ledger helper anchors a physical SQLite BEGIN before the
+            # SAVEPOINT.  This keeps every newly-created slot rollbackable by
+            # the caller if any later candidate is rejected.
+            with self._ledger.begin_nested_transaction():
+                for stable_handle, scope, session_id in missing:
+                    chat_reference = chat_handle_ref(self._reference_key, stable_handle)
+                    existing = self._ledger.get_binding_for_identity(
+                        owner_reference=self._owner_ref,
+                        chat_reference=chat_reference,
+                        scope=scope,
+                    )
+                    if existing is not None:
+                        continue
+                    binding = self._ledger.get_or_create_binding(
+                        owner_reference=self._owner_ref,
+                        chat_reference=chat_reference,
+                        scope=scope,
+                        active_session_id=session_id,
+                        active_rollover_local_day=self._rollover_local_day,
+                    )
+                    # Imported bindings have no durable compatibility
+                    # projection until the atomic file projection succeeds.
+                    binding = self._ledger.set_projection_status(
+                        binding_id=binding.id,
+                        expected_generation=binding.generation,
+                        status="stale",
+                    )
+                    imported.append({
+                        "binding_id": binding.id,
+                        "stable_chat_handle": stable_handle,
+                        "scope": scope,
+                        "generation": binding.generation,
+                        "raw_identity_visible": False,
+                    })
+        except LedgerError as error:
+            raise TelegramRolloverBridgeError("legacy_import_blocked") from error
+        return tuple(imported)
+
+    def project_compatibility(self, *, stable_handle_by_binding: Mapping[str, str]) -> dict[str, Any]:
+        """Atomically project explicit stable handles, never opaque HMAC refs."""
+
+        if not isinstance(stable_handle_by_binding, Mapping):
+            raise TelegramRolloverBridgeError("invalid_projection_mapping")
+        try:
+            self._ledger.begin_projection_transaction()
+            bindings = self._ledger.list_bindings_for_owner(owner_reference=self._owner_ref)
+        except LedgerError as error:
+            raise TelegramRolloverBridgeError("projection_transaction_unavailable") from error
+        handles: dict[str, str] = {}
+        for binding in bindings:
+            handle = stable_handle_by_binding.get(binding.id)
+            if not isinstance(handle, str) or not _is_stable_chat_handle(handle):
+                raise TelegramRolloverBridgeError("stable_handle_mapping_required")
+            if chat_handle_ref(self._reference_key, handle) != binding.chat_handle_ref:
+                raise TelegramRolloverBridgeError("stable_handle_mapping_mismatch")
+            handles[binding.id] = handle
+        if set(stable_handle_by_binding) != set(handles):
+            raise TelegramRolloverBridgeError("stable_handle_mapping_required")
+        conflicting_chat_references: set[str] = set()
+        for binding in bindings:
+            try:
+                conflicts = self._ledger.list_bindings_for_chat_reference(
+                    chat_reference=binding.chat_handle_ref
+                )
+            except LedgerError as error:
+                raise TelegramRolloverBridgeError("db_binding_unavailable") from error
+            if any(item.owner_ref != self._owner_ref for item in conflicts):
+                conflicting_chat_references.add(binding.chat_handle_ref)
+        if conflicting_chat_references:
+            try:
+                with self._ledger.begin_nested_transaction():
+                    for owned in bindings:
+                        if owned.chat_handle_ref not in conflicting_chat_references:
+                            continue
+                        self._ledger.set_projection_status(
+                            binding_id=owned.id,
+                            expected_generation=owned.generation,
+                            status="blocked_multi_owner",
+                        )
+            except LedgerError as error:
+                raise TelegramRolloverBridgeError("projection_blocked") from error
+            return {"status": "blocked_multi_owner", "written": False, "raw_identity_visible": False}
+        sessions: dict[str, dict[str, Any]] = {}
+        for binding in bindings:
+            handle = handles[binding.id]
+            mapping = sessions.setdefault(handle, {
+                "chat_handle": handle,
+                "normal_session_id": "",
+                "secure_session_id": "",
+            })
+            mapping[f"{binding.scope}_session_id"] = binding.active_session_id
+        for mapping in sessions.values():
+            selected = "normal" if mapping["normal_session_id"] else "secure"
+            mapping["last_selected_scope"] = selected
+            mapping["active_session_id"] = mapping[f"{selected}_session_id"]
+            mapping["session_id"] = mapping["active_session_id"]
+            mapping["session_slots"] = {
+                "normal": bool(mapping["normal_session_id"]),
+                "secure": bool(mapping["secure_session_id"]),
+            }
+        _atomic_write_json(self._legacy_path, {"sessions": sessions})
+        try:
+            with self._ledger.begin_nested_transaction():
+                for binding in bindings:
+                    self._ledger.set_projection_status(
+                        binding_id=binding.id,
+                        expected_generation=binding.generation,
+                        status="current",
+                    )
+        except LedgerError as error:
+            raise TelegramRolloverBridgeError("projection_status_unavailable") from error
+        return {"status": "current", "written": True, "binding_count": len(bindings), "raw_identity_visible": False}
+
+
+def _is_stable_chat_handle(value: Any) -> bool:
+    return isinstance(value, str) and _LEGACY_STABLE_CHAT_HANDLE_RE.fullmatch(value) is not None
+
+
+def _require_stable_chat_handle(value: Any) -> None:
+    if not _is_stable_chat_handle(value):
+        raise TelegramRolloverBridgeError("invalid_stable_chat_handle")
+
+
+def _require_scope(value: Any) -> None:
+    if value not in {"normal", "secure"}:
+        raise TelegramRolloverBridgeError("invalid_scope")
+
+
+def _is_iso_local_day(value: Any) -> bool:
+    try:
+        from datetime import date
+        return isinstance(value, str) and date.fromisoformat(value).isoformat() == value
+    except (TypeError, ValueError):
+        return False
+
+
+def _read_legacy_bridge_strict(path: Path) -> Mapping[str, Any]:
+    if not path.exists():
+        return {"sessions": {}}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as error:
+        raise TelegramRolloverBridgeError("legacy_json_invalid") from error
+    if not isinstance(data, dict) or not isinstance(data.get("sessions"), dict):
+        raise TelegramRolloverBridgeError("legacy_json_invalid")
+    return data
+
+
+def _legacy_slot_candidates(legacy: Mapping[str, Any]) -> tuple[tuple[str, str, str], ...]:
+    candidates: dict[tuple[str, str], str] = {}
+    for raw_key, mapping in legacy["sessions"].items():
+        if not isinstance(raw_key, str) or not isinstance(mapping, dict):
+            raise TelegramRolloverBridgeError("legacy_mapping_invalid")
+        supplied_handle = mapping.get("chat_handle")
+        if supplied_handle is not None:
+            if not _is_stable_chat_handle(supplied_handle):
+                raise TelegramRolloverBridgeError("legacy_mapping_invalid")
+            handle = supplied_handle
+        elif _is_stable_chat_handle(raw_key):
+            handle = raw_key
+        elif _LEGACY_RAW_CHAT_KEY_RE.fullmatch(raw_key):
+            handle = _chat_handle(raw_key)
+        else:
+            raise TelegramRolloverBridgeError("legacy_mapping_invalid")
+        normal = mapping.get("normal_session_id")
+        secure = mapping.get("secure_session_id")
+        # Match TelegramSessionBridgeStore normalization: an old single
+        # ``session_id`` remains the normal slot whenever both scoped fields
+        # are absent *or normalize to empty strings*.
+        if not str(normal or "").strip() and not str(secure or "").strip():
+            normal = mapping.get("session_id")
+        for scope, session_id in (("normal", normal), ("secure", secure)):
+            if session_id is None or (isinstance(session_id, str) and not session_id.strip()):
+                continue
+            if not isinstance(session_id, str) or not session_id.strip() or len(session_id) > 512:
+                raise TelegramRolloverBridgeError("legacy_mapping_invalid")
+            identity = (handle, scope)
+            normalized_session_id = session_id.strip()
+            previous = candidates.get(identity)
+            if previous is not None and previous != normalized_session_id:
+                raise TelegramRolloverBridgeError("legacy_mapping_invalid")
+            candidates[identity] = normalized_session_id
+    return tuple((handle, scope, session_id) for (handle, scope), session_id in candidates.items())
+
+
+def _validate_legacy_sessions(
+    ledger: TelegramRolloverLedger,
+    owner_reference: str,
+    candidates: tuple[tuple[str, str, str], ...],
+) -> None:
+    for _handle, _scope, session_id in candidates:
+        try:
+            if not ledger.session_belongs_to_owner(
+                session_id=session_id, owner_reference=owner_reference
+            ):
+                raise TelegramRolloverBridgeError("legacy_session_invalid")
+        except LedgerError as error:
+            raise TelegramRolloverBridgeError("legacy_session_invalid") from error
+
+
+def _atomic_write_json(path: Path, value: Mapping[str, Any]) -> None:
+    descriptor: int | None = None
+    temporary: str | None = None
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            descriptor = None
+            json.dump(value, handle, ensure_ascii=False, indent=2, sort_keys=True)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        temporary = None
+        _fsync_parent_directory(path.parent)
+    except Exception as error:
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+        try:
+            if temporary is not None:
+                os.unlink(temporary)
+        except OSError:
+            pass
+        raise TelegramRolloverBridgeError("compatibility_projection_failed") from error
+
+
+def _fsync_parent_directory(path: Path) -> None:
+    descriptor: int | None = None
+    try:
+        descriptor = os.open(path, os.O_RDONLY)
+        os.fsync(descriptor)
+    except OSError as error:
+        if _directory_fsync_unsupported(error):
+            return
+        raise
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def _directory_fsync_unsupported(error: OSError) -> bool:
+    """Recognize only documented platform-level directory-fsync gaps."""
+
+    if error.errno in {EINVAL, ENOTSUP, EOPNOTSUPP}:
+        return True
+    return os.name == "nt" and error.errno in {EACCES, EPERM}
 
 
 class TelegramPollingStateStore:

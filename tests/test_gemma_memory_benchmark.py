@@ -4,6 +4,7 @@ import json
 from src.gemma_memory_benchmark import (
     default_benchmark_cases,
     deterministic_fixture_call,
+    normalize_model_triage,
     parse_model_json,
     report_to_json,
     run_benchmark,
@@ -118,6 +119,51 @@ def test_empty_sensitive_invoice_recall_uses_redacted_fallback():
         "27ae41e4649b934ca495991b7852b855"
     )
     assert case["failure_reasons"] == ()
+
+
+def test_normalizer_corrects_overconservative_local_only_gate():
+    case = default_benchmark_cases()[0]
+    parsed = normalize_model_triage(
+        case,
+        {
+            "classification": "private",
+            "document_type": "project",
+            "should_remember": True,
+            "memory_write_intent_status": "ready",
+            "local_only_required": True,
+            "api_escalation_allowed": False,
+            "raptor_target": "project_decisions",
+            "recall_answer": "Odysseus server operations use Podman instead of Docker.",
+            "tags": ["odysseus", "podman", "server"],
+        },
+    )
+
+    assert parsed["local_only_required"] is False
+    assert parsed["api_escalation_allowed"] is True
+    assert parsed["memory_write_intent_status"] == "ready"
+
+
+def test_normalizer_skips_transient_smalltalk_memory():
+    case = default_benchmark_cases()[3]
+    parsed = normalize_model_triage(
+        case,
+        {
+            "classification": "public",
+            "document_type": "transient",
+            "should_remember": True,
+            "memory_write_intent_status": "ready",
+            "local_only_required": True,
+            "api_escalation_allowed": False,
+            "raptor_target": "conversation",
+            "recall_answer": "Short friendly smalltalk.",
+            "tags": ["smalltalk"],
+        },
+    )
+
+    assert parsed["should_remember"] is False
+    assert parsed["memory_write_intent_status"] == "skipped"
+    assert parsed["local_only_required"] is False
+    assert parsed["api_escalation_allowed"] is True
 
 
 def test_invalid_json_fails_schema_without_leaking_output():

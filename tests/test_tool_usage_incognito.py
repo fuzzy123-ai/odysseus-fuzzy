@@ -1,113 +1,120 @@
 import asyncio
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
 
-import src.tool_execution as tool_execution
-import src.tool_usage_instrumentation as tool_usage_instrumentation
-from src.tool_usage_events import (
-    ToolUsageAgentMode,
-    ToolUsageModelScope,
-    ToolUsageSurface,
-)
-from src.tool_usage_instrumentation import (
-    ToolUsageInstrumentation,
-    ToolUsageTrustedContext,
-)
+from src.tool_execution import execute_tool_block
+from src.tool_usage_context import TrustedToolUsageContext
+from src.tool_usage_events import ToolUsageEventBuilder
+from src.tool_usage_instrumentation import ToolUsageInstrumentation
 
 
-class RecordingSink:
+FIXED_TIME = datetime(2026, 7, 17, 21, 0, tzinfo=timezone.utc)
+
+
+class _WriterSpy:
     def __init__(self):
-        self.write_calls = 0
+        self.calls = 0
         self.events = []
 
-    def write_events(self, events):
-        self.write_calls += 1
+    def append_best_effort(self, events):
+        self.calls += 1
         self.events.extend(events)
+        return SimpleNamespace(failure_count=0)
 
 
-def _incognito_instrumentation(sink):
-    context = ToolUsageTrustedContext(
-        surface=ToolUsageSurface.AGENT,
-        model_scope=ToolUsageModelScope.LOCAL,
-        agent_mode=ToolUsageAgentMode.AGENT,
-        owner="runtime-owner",
-        session_id="runtime-session",
-        run_id="runtime-run",
-        incognito=True,
+def _instrumentation(*, incognito=False, is_nobody=False):
+    writer = _WriterSpy()
+    context = TrustedToolUsageContext.create(
+        surface="chat",
+        agent_mode="agent",
+        model_scope="remote",
+        owner_identity="private-owner",
+        session_identity="private-session",
+        run_identity="private-run",
+        incognito=incognito,
+        is_nobody=is_nobody,
     )
-    return ToolUsageInstrumentation(
-        trusted_context=context,
-        sink=sink,
-        hmac_key=b"synthetic-incognito-key-material",
-        app_version="0.25.0",
-        monotonic=lambda: 10.0,
+    instrumentation = ToolUsageInstrumentation(
+        builder=ToolUsageEventBuilder(app_version="0.25.0", hmac_key=b"i" * 32),
+        sink=writer,
+        context=context,
+        clock=lambda: FIXED_TIME,
     )
+    return instrumentation, writer
+
+
+@pytest.mark.parametrize(
+    ("flags", "reason"),
+    [
+        ({"incognito": True}, "incognito"),
+        ({"is_nobody": True}, "nobody"),
+    ],
+)
+def test_incognito_and_nobody_short_circuit_before_every_writer(flags, reason):
+    instrumentation, writer = _instrumentation(**flags)
+
+    assert instrumentation.begin("read_file", "private argument") is None
+    assert instrumentation.begin("bash", "private failing argument") is None
+    assert instrumentation.begin("unknown_private_tool", "private blocked argument") is None
+
+    assert writer.calls == 0
+    assert writer.events == []
+    assert instrumentation.diagnostics()["suppressed"] == {reason: 3}
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "outcome",
-    (
-        ("read_file: ok", {"exit_code": 0}),
-        ("read_file: failed", {"error": "private", "exit_code": 1}),
-        ("read_file: BLOCKED", {"error": "disabled", "exit_code": 1}),
-    ),
+    ("outcome", "raised"),
+    [
+        (("read_file", {"output": "ok", "exit_code": 0}), None),
+        (("bash: BLOCKED", {"error": "blocked", "exit_code": 1}), None),
+        (None, RuntimeError("private main-path failure")),
+    ],
 )
-async def test_incognito_success_failure_and_blockade_never_reach_writer(
-    monkeypatch,
-    outcome,
+async def test_incognito_writes_zero_records_for_success_block_or_exception(
+    monkeypatch, outcome, raised
 ):
-    sink = RecordingSink()
-    instrumentation = _incognito_instrumentation(sink)
+    instrumentation, writer = _instrumentation(incognito=True)
 
-    def forbid_pseudonymization(*_args, **_kwargs):
-        raise AssertionError("incognito must short-circuit before HMAC work")
-
-    async def execute(*_args, **_kwargs):
+    async def _impl(*_args, **_kwargs):
+        if raised is not None:
+            raise raised
         return outcome
 
-    monkeypatch.setattr(
-        tool_usage_instrumentation,
-        "pseudonymize_reference",
-        forbid_pseudonymization,
-    )
-    monkeypatch.setattr(tool_execution, "_execute_tool_block_impl", execute)
+    monkeypatch.setattr("src.tool_execution._execute_tool_block_impl", _impl)
+    block = SimpleNamespace(tool_type="read_file", content="private")
+    if raised is None:
+        assert await execute_tool_block(
+            block,
+            tool_usage_instrumentation=instrumentation,
+        ) is outcome
+    else:
+        with pytest.raises(RuntimeError) as exc_info:
+            await execute_tool_block(
+                block,
+                tool_usage_instrumentation=instrumentation,
+            )
+        assert exc_info.value is raised
 
-    actual = await tool_execution.execute_tool_block(
-        SimpleNamespace(
-            tool_type="read_file",
-            content='{"owner":"spoof","incognito":false}',
-        ),
-        owner="wrapper-owner",
-        session_id="wrapper-session",
-        tool_usage_instrumentation=instrumentation,
-    )
-
-    assert actual is outcome
-    assert sink.write_calls == 0
-    assert sink.events == []
-    assert instrumentation.diagnostics()["counts"] == {"suppressed_invocations": 1}
+    assert writer.calls == 0
+    assert writer.events == []
 
 
 @pytest.mark.asyncio
-async def test_incognito_exception_and_cancellation_remain_unpersisted(monkeypatch):
-    for exception in (RuntimeError("private failure"), asyncio.CancelledError()):
-        sink = RecordingSink()
-        instrumentation = _incognito_instrumentation(sink)
+async def test_incognito_cancellation_writes_zero_records(monkeypatch):
+    instrumentation, writer = _instrumentation(incognito=True)
 
-        async def fail(*_args, _exception=exception, **_kwargs):
-            raise _exception
+    async def _impl(*_args, **_kwargs):
+        raise asyncio.CancelledError()
 
-        monkeypatch.setattr(tool_execution, "_execute_tool_block_impl", fail)
-        with pytest.raises(type(exception)):
-            await tool_execution.execute_tool_block(
-                SimpleNamespace(tool_type="read_file", content="private"),
-                tool_usage_instrumentation=instrumentation,
-            )
+    monkeypatch.setattr("src.tool_execution._execute_tool_block_impl", _impl)
+    with pytest.raises(asyncio.CancelledError):
+        await execute_tool_block(
+            SimpleNamespace(tool_type="read_file", content="private"),
+            tool_usage_instrumentation=instrumentation,
+        )
 
-        assert sink.write_calls == 0
-        assert sink.events == []
-        assert instrumentation.diagnostics()["counts"] == {
-            "suppressed_invocations": 1
-        }
+    assert writer.calls == 0
+    assert writer.events == []

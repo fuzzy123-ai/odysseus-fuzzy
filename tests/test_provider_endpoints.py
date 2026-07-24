@@ -14,7 +14,9 @@ Anthropic, Gemini, Groq, xAI, OpenRouter, OpenAI, DeepSeek — plus Ollama
 """
 import json
 import socket
+import threading
 import types
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -202,10 +204,26 @@ def test_ollama_api_root(base, expected):
 # ROADMAP flags plain-HTTP Tailscale URLs as a self-host trap; resolve_url is
 # the hop that rewrites an unresolvable hostname to its Tailscale IP.
 
+
+class _FakeMonotonicClock:
+    def __init__(self, now=100.0):
+        self.now = now
+
+    def monotonic(self):
+        return self.now
+
+    def set(self, now):
+        self.now = now
+
+
 class TestResolveUrlTailscale:
-    def setup_method(self):
-        # The module memoizes hostname→IP; clear it so cases don't bleed.
-        er._tailscale_cache.clear()
+    @pytest.fixture(autouse=True)
+    def fake_clock_and_empty_cache(self, monkeypatch):
+        self.clock = _FakeMonotonicClock()
+        monkeypatch.setattr(er, "_tailscale_now", self.clock.monotonic)
+        er.invalidate_tailscale_cache()
+        yield
+        er.invalidate_tailscale_cache()
 
     def test_dns_success_returns_url_unchanged(self, monkeypatch):
         monkeypatch.setattr(
@@ -242,3 +260,210 @@ class TestResolveUrlTailscale:
 
     def test_url_without_hostname_is_returned_as_is(self):
         assert er.resolve_url("") == ""
+
+    def test_dns_success_negative_entry_expires_at_exactly_ten_seconds(self, monkeypatch):
+        dns_calls = 0
+
+        def _dns_works(*args, **kwargs):
+            nonlocal dns_calls
+            dns_calls += 1
+            return [(2, 1, 6, "", ("1.2.3.4", 0))]
+
+        monkeypatch.setattr(er.socket, "getaddrinfo", _dns_works)
+        monkeypatch.setattr(
+            er.subprocess,
+            "run",
+            lambda *args, **kwargs: pytest.fail("DNS success must not invoke Tailscale"),
+        )
+
+        url = "http://myhost:7000/api"
+        assert er.resolve_url(url) == url
+        self.clock.set(109.999)
+        assert er.resolve_url(url) == url
+        assert dns_calls == 1
+
+        self.clock.set(110.0)
+        assert er.resolve_url(url) == url
+        assert dns_calls == 2
+
+    def test_positive_entry_expires_at_sixty_seconds_and_replaces_ip(self, monkeypatch):
+        dns_calls = 0
+        tailscale_calls = 0
+        peer_ip = "100.64.0.5"
+
+        def _dns_fails(*args, **kwargs):
+            nonlocal dns_calls
+            dns_calls += 1
+            raise socket.gaierror("no DNS")
+
+        def _tailscale_status(*args, **kwargs):
+            nonlocal tailscale_calls
+            tailscale_calls += 1
+            peers = {"Peer": {"x": {
+                "HostName": "myhost",
+                "DNSName": "myhost.tail.ts.net.",
+                "TailscaleIPs": [peer_ip],
+            }}}
+            return types.SimpleNamespace(returncode=0, stdout=json.dumps(peers))
+
+        monkeypatch.setattr(er.socket, "getaddrinfo", _dns_fails)
+        monkeypatch.setattr(er.subprocess, "run", _tailscale_status)
+
+        url = "http://myhost:7000/api"
+        assert er.resolve_url(url) == "http://100.64.0.5:7000/api"
+        peer_ip = "100.64.0.9"
+        self.clock.set(159.999)
+        assert er.resolve_url(url) == "http://100.64.0.5:7000/api"
+        assert (dns_calls, tailscale_calls) == (1, 1)
+
+        self.clock.set(160.0)
+        assert er.resolve_url(url) == "http://100.64.0.9:7000/api"
+        assert (dns_calls, tailscale_calls) == (2, 2)
+
+    def test_peer_miss_negative_entry_recovers_at_ten_seconds(self, monkeypatch):
+        tailscale_calls = 0
+        peer_available = False
+
+        def _dns_fails(*args, **kwargs):
+            raise socket.gaierror("no DNS")
+
+        def _tailscale_status(*args, **kwargs):
+            nonlocal tailscale_calls
+            tailscale_calls += 1
+            peers = {}
+            if peer_available:
+                peers["x"] = {
+                    "HostName": "myhost",
+                    "DNSName": "myhost.tail.ts.net.",
+                    "TailscaleIPs": ["100.64.0.5"],
+                }
+            return types.SimpleNamespace(
+                returncode=0,
+                stdout=json.dumps({"Peer": peers}),
+            )
+
+        monkeypatch.setattr(er.socket, "getaddrinfo", _dns_fails)
+        monkeypatch.setattr(er.subprocess, "run", _tailscale_status)
+
+        url = "http://myhost:7000/api"
+        assert er.resolve_url(url) == url
+        peer_available = True
+        self.clock.set(109.999)
+        assert er.resolve_url(url) == url
+        assert tailscale_calls == 1
+
+        self.clock.set(110.0)
+        assert er.resolve_url(url) == "http://100.64.0.5:7000/api"
+        assert tailscale_calls == 2
+
+    def test_resolver_error_negative_entry_recovers_at_ten_seconds(self, monkeypatch):
+        tailscale_calls = 0
+
+        monkeypatch.setattr(
+            er.socket,
+            "getaddrinfo",
+            lambda *args, **kwargs: (_ for _ in ()).throw(socket.gaierror("no DNS")),
+        )
+
+        def _tailscale_status(*args, **kwargs):
+            nonlocal tailscale_calls
+            tailscale_calls += 1
+            if tailscale_calls == 1:
+                raise OSError("resolver unavailable")
+            peers = {"Peer": {"x": {
+                "HostName": "myhost",
+                "DNSName": "myhost.tail.ts.net.",
+                "TailscaleIPs": ["100.64.0.5"],
+            }}}
+            return types.SimpleNamespace(returncode=0, stdout=json.dumps(peers))
+
+        monkeypatch.setattr(er.subprocess, "run", _tailscale_status)
+
+        url = "http://myhost:7000/api"
+        assert er.resolve_url(url) == url
+        self.clock.set(109.999)
+        assert er.resolve_url(url) == url
+        assert tailscale_calls == 1
+
+        self.clock.set(110.0)
+        assert er.resolve_url(url) == "http://100.64.0.5:7000/api"
+        assert tailscale_calls == 2
+
+    def test_targeted_and_full_invalidation_are_deterministic(self, monkeypatch):
+        tailscale_calls = 0
+        peers = {"Peer": {
+            "alpha": {
+                "HostName": "alpha",
+                "DNSName": "alpha.tail.ts.net.",
+                "TailscaleIPs": ["100.64.0.1"],
+            },
+            "beta": {
+                "HostName": "beta",
+                "DNSName": "beta.tail.ts.net.",
+                "TailscaleIPs": ["100.64.0.2"],
+            },
+        }}
+
+        monkeypatch.setattr(
+            er.socket,
+            "getaddrinfo",
+            lambda *args, **kwargs: (_ for _ in ()).throw(socket.gaierror("no DNS")),
+        )
+
+        def _tailscale_status(*args, **kwargs):
+            nonlocal tailscale_calls
+            tailscale_calls += 1
+            return types.SimpleNamespace(returncode=0, stdout=json.dumps(peers))
+
+        monkeypatch.setattr(er.subprocess, "run", _tailscale_status)
+
+        alpha = "http://alpha:7000/api"
+        beta = "http://beta:7000/api"
+        assert er.resolve_url(alpha) == "http://100.64.0.1:7000/api"
+        assert er.resolve_url(beta) == "http://100.64.0.2:7000/api"
+        assert tailscale_calls == 2
+
+        assert er.invalidate_tailscale_cache("ALPHA.") == 1
+        assert er.invalidate_tailscale_cache("missing") == 0
+        assert er.resolve_url(beta) == "http://100.64.0.2:7000/api"
+        assert er.resolve_url(alpha) == "http://100.64.0.1:7000/api"
+        assert tailscale_calls == 3
+
+        assert er.invalidate_tailscale_cache() == 2
+        assert er.invalidate_tailscale_cache() == 0
+        assert er.resolve_url(beta) == "http://100.64.0.2:7000/api"
+        assert tailscale_calls == 4
+
+    def test_parallel_callers_share_one_lookup(self, monkeypatch):
+        dns_calls = 0
+        tailscale_calls = 0
+        worker_count = 8
+        start = threading.Barrier(worker_count)
+
+        def _dns_fails(*args, **kwargs):
+            nonlocal dns_calls
+            dns_calls += 1
+            raise socket.gaierror("no DNS")
+
+        def _tailscale_status(*args, **kwargs):
+            nonlocal tailscale_calls
+            tailscale_calls += 1
+            peers = {"Peer": {"x": {
+                "HostName": "myhost",
+                "DNSName": "myhost.tail.ts.net.",
+                "TailscaleIPs": ["100.64.0.5"],
+            }}}
+            return types.SimpleNamespace(returncode=0, stdout=json.dumps(peers))
+
+        monkeypatch.setattr(er.socket, "getaddrinfo", _dns_fails)
+        monkeypatch.setattr(er.subprocess, "run", _tailscale_status)
+
+        def _resolve():
+            start.wait()
+            return er.resolve_url("http://myhost:7000/api")
+
+        with ThreadPoolExecutor(max_workers=worker_count) as pool:
+            results = list(pool.map(lambda _index: _resolve(), range(worker_count)))
+
+        assert results == ["http://100.64.0.5:7000/api"] * worker_count
+        assert (dns_calls, tailscale_calls) == (1, 1)

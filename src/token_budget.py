@@ -75,7 +75,7 @@ def count_text_tokens(text: str, model_hint: str | None = None) -> int:
 
     Calls without a model hint retain the historical ``chars * 0.3`` result.
     A non-empty hint selects either the explicit exact reference scheme or a
-    disclosed conservative offline upper-bound fallback. No provider accuracy
+    disclosed conservative offline upper-bound fallback.  No provider accuracy
     is claimed without immutable local tokenizer assets.
     """
 

@@ -5,14 +5,22 @@ Query and cache model context window sizes from OpenAI-compatible APIs.
 Provides token estimation for context usage tracking.
 """
 
+import asyncio
+from dataclasses import dataclass
 import ipaddress
 import logging
+import math
 import sys
+import time
 from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Awaitable, Mapping
 
 from urllib.parse import urlparse
+from urllib.parse import urlunparse
 
 import httpx
+
+from src.maintenance_model_policy import DEFAULT_MAINTENANCE_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -412,6 +420,554 @@ def _query_context_length(endpoint_url: str, model: str) -> Tuple[int, bool]:
         return known, True
 
     return DEFAULT_CONTEXT, False
+
+
+# ---------------------------------------------------------------------------
+# Async TTL context service
+# ---------------------------------------------------------------------------
+
+ASYNC_CONTEXT_SNAPSHOT_SCHEMA = "odysseus.async_model_context_snapshot.v1"
+ASYNC_CONTEXT_REGISTRY_SCHEMA = "odysseus.async_model_context_registry.v1"
+DEFAULT_CONTEXT_FRESH_TTL_SECONDS = 300.0
+DEFAULT_CONTEXT_STALE_TTL_SECONDS = 3_600.0
+DEFAULT_CONTEXT_NEGATIVE_TTL_SECONDS = 30.0
+DEFAULT_CONTEXT_REGISTRY_MAX_ENTRIES = 128
+
+
+@dataclass(frozen=True, slots=True)
+class ContextProbeHTTPResponse:
+    status_code: int
+    payload: Any = None
+
+
+@dataclass(frozen=True, slots=True)
+class ContextLengthSnapshot:
+    context_length: int
+    known: bool
+    cache_status: str
+    endpoint_generation: int
+    schema: str = ASYNC_CONTEXT_SNAPSHOT_SCHEMA
+
+    def audit_dict(self) -> Dict[str, Any]:
+        """Return content-free state without endpoint or model identifiers."""
+
+        return {
+            "schema": self.schema,
+            "context_length": self.context_length,
+            "known": self.known,
+            "cache_status": self.cache_status,
+            "endpoint_generation": self.endpoint_generation,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class _ContextProbeResult:
+    context_length: int
+    known: bool
+    source: str
+
+
+@dataclass(slots=True)
+class _AsyncContextCacheEntry:
+    context_length: int
+    known: bool
+    negative: bool
+    fresh_until: float
+    stale_until: float
+    last_access: int
+
+
+AsyncContextTransport = Callable[[str, float], Awaitable[ContextProbeHTTPResponse]]
+_AsyncContextKey = Tuple[str, int, str]
+
+
+def _record_gmi_context_metric(
+    event: str,
+    *,
+    status: str,
+    value: float | int = 1,
+) -> None:
+    """Best-effort closed metrics; context discovery must never depend on them."""
+
+    try:
+        from src.observability_metrics import record_gmi_runtime_event
+
+        record_gmi_runtime_event(event, status=status, value=value)
+    except Exception:
+        pass
+
+
+class AsyncModelContextService:
+    """Bounded async context discovery with TTL and per-key single-flight."""
+
+    def __init__(
+        self,
+        *,
+        fresh_ttl_seconds: float = DEFAULT_CONTEXT_FRESH_TTL_SECONDS,
+        stale_ttl_seconds: float = DEFAULT_CONTEXT_STALE_TTL_SECONDS,
+        negative_ttl_seconds: float = DEFAULT_CONTEXT_NEGATIVE_TTL_SECONDS,
+        max_entries: int = DEFAULT_CONTEXT_REGISTRY_MAX_ENTRIES,
+        request_timeout_seconds: float = REQUEST_TIMEOUT,
+        clock: Callable[[], float] = time.monotonic,
+        transport: AsyncContextTransport | None = None,
+    ) -> None:
+        self.fresh_ttl_seconds = _positive_float("fresh_ttl_seconds", fresh_ttl_seconds)
+        self.stale_ttl_seconds = _nonnegative_float("stale_ttl_seconds", stale_ttl_seconds)
+        self.negative_ttl_seconds = _positive_float(
+            "negative_ttl_seconds", negative_ttl_seconds
+        )
+        if isinstance(max_entries, bool) or not isinstance(max_entries, int) or max_entries <= 0:
+            raise ValueError("max_entries must be a positive integer")
+        self.max_entries = max_entries
+        self.request_timeout_seconds = _positive_float(
+            "request_timeout_seconds", request_timeout_seconds
+        )
+        if not callable(clock):
+            raise ValueError("clock must be callable")
+        self._clock = clock
+        self._transport = transport or _default_async_context_transport
+        self._condition = asyncio.Condition()
+        self._entries: Dict[_AsyncContextKey, _AsyncContextCacheEntry] = {}
+        self._inflight: Dict[_AsyncContextKey, asyncio.Task[ContextLengthSnapshot]] = {}
+        self._generations: Dict[str, int] = {}
+        self._access_sequence = 0
+        self._stats = {
+            "probes_total": 0,
+            "fresh_hits_total": 0,
+            "stale_hits_total": 0,
+            "negative_hits_total": 0,
+            "singleflight_joins_total": 0,
+            "evictions_total": 0,
+            "invalidations_total": 0,
+        }
+
+    async def get_snapshot(self, endpoint_url: str, model: str) -> ContextLengthSnapshot:
+        endpoint_key = _async_context_endpoint_key(endpoint_url)
+        model_key = str(model or "").strip()
+        if not model_key:
+            raise ValueError("model must not be empty")
+        track_gmi = model_key == DEFAULT_MAINTENANCE_MODEL
+
+        while True:
+            now = float(self._clock())
+            async with self._condition:
+                generation = self._generations.get(endpoint_key, 0)
+                key = (endpoint_key, generation, model_key)
+                entry = self._entries.get(key)
+                if entry is not None and now < entry.fresh_until:
+                    entry.last_access = self._touch_locked()
+                    if entry.negative:
+                        self._stats["negative_hits_total"] += 1
+                        status = "negative_cache"
+                        if track_gmi:
+                            _record_gmi_context_metric(
+                                "context_cache", status="negative"
+                            )
+                    else:
+                        self._stats["fresh_hits_total"] += 1
+                        status = "fresh_cache"
+                        if track_gmi:
+                            _record_gmi_context_metric(
+                                "context_cache", status="hit"
+                            )
+                    return _snapshot_from_entry(entry, status, generation)
+
+                if entry is not None and entry.known and now < entry.stale_until:
+                    entry.last_access = self._touch_locked()
+                    self._stats["stale_hits_total"] += 1
+                    if track_gmi:
+                        _record_gmi_context_metric(
+                            "context_cache", status="stale"
+                        )
+                    if key not in self._inflight:
+                        self._start_probe_locked(key, endpoint_url, model_key)
+                    return _snapshot_from_entry(entry, "stale_cache", generation)
+
+                if entry is not None and key not in self._inflight:
+                    del self._entries[key]
+
+                task = self._inflight.get(key)
+                if task is not None:
+                    self._stats["singleflight_joins_total"] += 1
+                else:
+                    if not self._ensure_capacity_locked(key):
+                        await self._condition.wait()
+                        continue
+                    if track_gmi:
+                        _record_gmi_context_metric(
+                            "context_cache", status="miss"
+                        )
+                    task = self._start_probe_locked(key, endpoint_url, model_key)
+
+            try:
+                return await asyncio.shield(task)
+            except asyncio.CancelledError:
+                if track_gmi:
+                    _record_gmi_context_metric(
+                        "cancellation", status="context_wait"
+                    )
+                raise
+
+    async def get_context_length(self, endpoint_url: str, model: str) -> int:
+        return (await self.get_snapshot(endpoint_url, model)).context_length
+
+    async def get_context_length_known(
+        self, endpoint_url: str, model: str
+    ) -> Tuple[int, bool]:
+        snapshot = await self.get_snapshot(endpoint_url, model)
+        return snapshot.context_length, snapshot.known
+
+    async def invalidate_endpoint(self, endpoint_url: str) -> int:
+        """Advance an endpoint generation and fence old cached/in-flight work."""
+
+        endpoint_key = _async_context_endpoint_key(endpoint_url)
+        async with self._condition:
+            generation = self._generations.get(endpoint_key, 0) + 1
+            self._generations[endpoint_key] = generation
+            for key in [key for key in self._entries if key[0] == endpoint_key]:
+                del self._entries[key]
+            self._stats["invalidations_total"] += 1
+            self._condition.notify_all()
+            return generation
+
+    async def clear(self) -> None:
+        async with self._condition:
+            endpoints = set(self._generations)
+            endpoints.update(key[0] for key in self._entries)
+            endpoints.update(key[0] for key in self._inflight)
+            for endpoint_key in endpoints:
+                self._generations[endpoint_key] = self._generations.get(endpoint_key, 0) + 1
+            self._entries.clear()
+            self._stats["invalidations_total"] += 1
+            self._condition.notify_all()
+
+    async def wait_for_idle(self) -> None:
+        """Wait for background stale refreshes using cancellation-safe joins."""
+
+        while True:
+            async with self._condition:
+                tasks = tuple(self._inflight.values())
+            if not tasks:
+                return
+            await asyncio.gather(
+                *(asyncio.shield(task) for task in tasks), return_exceptions=True
+            )
+
+    async def registry_snapshot(self) -> Dict[str, int | str]:
+        async with self._condition:
+            positive = sum(1 for entry in self._entries.values() if not entry.negative)
+            negative = len(self._entries) - positive
+            keys = set(self._entries) | set(self._inflight)
+            return {
+                "schema": ASYNC_CONTEXT_REGISTRY_SCHEMA,
+                "registry_key_count": len(keys),
+                "entry_count": len(self._entries),
+                "positive_entry_count": positive,
+                "negative_entry_count": negative,
+                "inflight_count": len(self._inflight),
+                "endpoint_generation_count": len(self._generations),
+                "max_entries": self.max_entries,
+                **self._stats,
+            }
+
+    def _start_probe_locked(
+        self,
+        key: _AsyncContextKey,
+        endpoint_url: str,
+        model: str,
+    ) -> asyncio.Task[ContextLengthSnapshot]:
+        self._stats["probes_total"] += 1
+        task = asyncio.create_task(
+            self._run_probe(key, endpoint_url, model),
+            name="odysseus-model-context-probe",
+        )
+        self._inflight[key] = task
+        return task
+
+    async def _run_probe(
+        self,
+        key: _AsyncContextKey,
+        endpoint_url: str,
+        model: str,
+    ) -> ContextLengthSnapshot:
+        generation = key[1]
+        track_gmi = model == DEFAULT_MAINTENANCE_MODEL
+        probe_started = time.monotonic()
+        probe_status = "failure"
+        try:
+            try:
+                result = await _probe_context_length_async(
+                    endpoint_url,
+                    model,
+                    transport=self._transport,
+                    timeout_seconds=self.request_timeout_seconds,
+                )
+            except asyncio.CancelledError:
+                probe_status = "cancelled"
+                if track_gmi:
+                    _record_gmi_context_metric(
+                        "cancellation", status="context_probe"
+                    )
+                raise
+            except Exception:
+                result = _ContextProbeResult(DEFAULT_CONTEXT, False, "probe_error")
+            if result.known:
+                probe_status = "success"
+
+            now = float(self._clock())
+            async with self._condition:
+                current_generation = self._generations.get(key[0], 0)
+                existing = self._entries.get(key)
+                if current_generation != generation:
+                    return ContextLengthSnapshot(
+                        result.context_length,
+                        result.known,
+                        "generation_superseded",
+                        generation,
+                    )
+
+                if not result.known and existing is not None and existing.known and now < existing.stale_until:
+                    existing.fresh_until = min(
+                        existing.stale_until,
+                        now + self.negative_ttl_seconds,
+                    )
+                    existing.last_access = self._touch_locked()
+                    return _snapshot_from_entry(existing, "stale_if_error", generation)
+
+                negative = not result.known
+                fresh_ttl = (
+                    self.negative_ttl_seconds if negative else self.fresh_ttl_seconds
+                )
+                fresh_until = now + fresh_ttl
+                stale_until = (
+                    fresh_until if negative else fresh_until + self.stale_ttl_seconds
+                )
+                entry = _AsyncContextCacheEntry(
+                    context_length=result.context_length,
+                    known=result.known,
+                    negative=negative,
+                    fresh_until=fresh_until,
+                    stale_until=stale_until,
+                    last_access=self._touch_locked(),
+                )
+                self._entries[key] = entry
+                return _snapshot_from_entry(entry, "probe", generation)
+        finally:
+            if track_gmi:
+                _record_gmi_context_metric(
+                    "context_probe",
+                    status=probe_status,
+                    value=time.monotonic() - probe_started,
+                )
+            async with self._condition:
+                current_task = asyncio.current_task()
+                if self._inflight.get(key) is current_task:
+                    del self._inflight[key]
+                self._condition.notify_all()
+
+    def _ensure_capacity_locked(self, key: _AsyncContextKey) -> bool:
+        keys = set(self._entries) | set(self._inflight)
+        if key in keys:
+            return True
+        while len(keys) >= self.max_entries:
+            candidates = [
+                (entry.last_access, existing_key)
+                for existing_key, entry in self._entries.items()
+                if existing_key not in self._inflight
+            ]
+            if not candidates:
+                return False
+            _, oldest_key = min(candidates, key=lambda item: (item[0], item[1]))
+            del self._entries[oldest_key]
+            self._stats["evictions_total"] += 1
+            keys = set(self._entries) | set(self._inflight)
+        return True
+
+    def _touch_locked(self) -> int:
+        self._access_sequence += 1
+        return self._access_sequence
+
+
+async def _default_async_context_transport(
+    url: str, timeout_seconds: float
+) -> ContextProbeHTTPResponse:
+    async with httpx.AsyncClient(follow_redirects=False, trust_env=False) as client:
+        response = await client.get(url, timeout=timeout_seconds)
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = None
+    return ContextProbeHTTPResponse(response.status_code, payload)
+
+
+async def _probe_context_length_async(
+    endpoint_url: str,
+    model: str,
+    *,
+    transport: AsyncContextTransport,
+    timeout_seconds: float,
+) -> _ContextProbeResult:
+    """Async equivalent of context discovery without calling the sync probe."""
+
+    known = _lookup_known(model)
+    configured_kind = _configured_endpoint_kind(endpoint_url)
+    if configured_kind in ("api", "proxy"):
+        if known:
+            return _ContextProbeResult(known, True, "known_table")
+        return _ContextProbeResult(DEFAULT_CONTEXT, False, "configured_remote_default")
+
+    local = is_local_endpoint(endpoint_url)
+    if local:
+        try:
+            response = await transport(
+                _async_slots_url(endpoint_url), timeout_seconds
+            )
+            if 200 <= response.status_code < 300 and isinstance(response.payload, list):
+                if response.payload and isinstance(response.payload[0], Mapping):
+                    n_ctx = response.payload[0].get("n_ctx")
+                    if isinstance(n_ctx, int) and not isinstance(n_ctx, bool) and n_ctx > 0:
+                        return _ContextProbeResult(n_ctx, True, "slots")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            pass
+
+    from src.copilot import is_copilot_base
+
+    if is_copilot_base(endpoint_url):
+        if known:
+            return _ContextProbeResult(known, True, "known_table")
+        return _ContextProbeResult(DEFAULT_CONTEXT, False, "copilot_default")
+
+    from src.endpoint_resolver import build_models_url
+
+    api_ctx: int | None = None
+    try:
+        response = await transport(build_models_url(endpoint_url), timeout_seconds)
+        if 200 <= response.status_code < 300 and isinstance(response.payload, Mapping):
+            models_list = response.payload.get("data") or []
+            if isinstance(models_list, list):
+                api_ctx = _context_from_models_payload(models_list, model)
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        pass
+
+    if api_ctx and known:
+        if local and api_ctx < known:
+            return _ContextProbeResult(api_ctx, True, "models")
+        return _ContextProbeResult(max(api_ctx, known), True, "models_and_known")
+    if api_ctx:
+        return _ContextProbeResult(api_ctx, True, "models")
+    if known:
+        return _ContextProbeResult(known, True, "known_table")
+    return _ContextProbeResult(DEFAULT_CONTEXT, False, "default")
+
+
+def _context_from_models_payload(models_list: List[Any], model: str) -> int | None:
+    for item in models_list:
+        if not isinstance(item, Mapping):
+            continue
+        model_id = str(item.get("id") or "")
+        if model_id != model and model_id.split("/")[-1] != model.split("/")[-1]:
+            continue
+        for field in (
+            "context_length",
+            "context_window",
+            "max_model_len",
+            "max_context_length",
+            "max_seq_len",
+        ):
+            value = item.get(field)
+            if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0:
+                return int(value)
+        metadata = item.get("meta") or item.get("model_extra") or {}
+        if isinstance(metadata, Mapping):
+            for field in ("n_ctx", "context_length", "context_window", "max_model_len"):
+                value = metadata.get(field)
+                if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0:
+                    return int(value)
+        return None
+    return None
+
+
+def _async_context_endpoint_key(endpoint_url: str) -> str:
+    normalized = _normalize_base_for_compare(endpoint_url)
+    try:
+        parsed = urlparse(normalized)
+        port = parsed.port
+    except (TypeError, ValueError) as exc:
+        raise ValueError("invalid context endpoint") from exc
+    scheme = (parsed.scheme or "").lower()
+    host = (parsed.hostname or "").lower().rstrip(".")
+    if scheme not in {"http", "https"} or not host:
+        raise ValueError("context endpoint requires an http(s) host")
+    default_port = 443 if scheme == "https" else 80
+    port_part = "" if port in {None, default_port} else f":{port}"
+    host_label = f"[{host}]" if ":" in host else host
+    return urlunparse((scheme, f"{host_label}{port_part}", parsed.path.rstrip("/"), "", "", ""))
+
+
+def _async_slots_url(endpoint_url: str) -> str:
+    parsed = urlparse(_normalize_base_for_compare(endpoint_url))
+    path = parsed.path.rstrip("/")
+    if path.endswith("/v1"):
+        path = path[:-3]
+    return urlunparse((parsed.scheme, parsed.netloc, f"{path}/slots", "", "", ""))
+
+
+def _snapshot_from_entry(
+    entry: _AsyncContextCacheEntry, status: str, generation: int
+) -> ContextLengthSnapshot:
+    return ContextLengthSnapshot(
+        entry.context_length,
+        entry.known,
+        status,
+        generation,
+    )
+
+
+def _positive_float(name: str, value: Any) -> float:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(float(value))
+        or float(value) <= 0
+    ):
+        raise ValueError(f"{name} must be > 0")
+    return float(value)
+
+
+def _nonnegative_float(name: str, value: Any) -> float:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(float(value))
+        or float(value) < 0
+    ):
+        raise ValueError(f"{name} must be >= 0")
+    return float(value)
+
+
+_async_context_service = AsyncModelContextService()
+
+
+async def get_context_snapshot_async(endpoint_url: str, model: str) -> ContextLengthSnapshot:
+    return await _async_context_service.get_snapshot(endpoint_url, model)
+
+
+async def get_context_length_async(endpoint_url: str, model: str) -> int:
+    return await _async_context_service.get_context_length(endpoint_url, model)
+
+
+async def get_context_length_known_async(
+    endpoint_url: str, model: str
+) -> Tuple[int, bool]:
+    return await _async_context_service.get_context_length_known(endpoint_url, model)
+
+
+async def invalidate_context_endpoint_async(endpoint_url: str) -> int:
+    return await _async_context_service.invalidate_endpoint(endpoint_url)
 
 
 def estimate_tokens(messages: List[Dict], model_hint: Optional[str] = None) -> int:

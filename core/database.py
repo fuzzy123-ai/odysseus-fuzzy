@@ -3,7 +3,7 @@ import logging
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from sqlalchemy import event, create_engine, Column, String, Text, Boolean, DateTime, Integer, ForeignKey, JSON, Index, func, text
+from sqlalchemy import CheckConstraint, event, create_engine, Column, String, Text, Boolean, DateTime, Integer, ForeignKey, JSON, Index, func, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.types import TypeDecorator
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
@@ -188,6 +188,165 @@ class Session(TimestampMixin, Base):
             'total_output_tokens': self.total_output_tokens or 0,
             'crew_member_id': self.crew_member_id,
         }
+
+
+class TelegramSessionBinding(TimestampMixin, Base):
+    """Content-free, immutable-identity Telegram Session binding ledger row."""
+
+    __tablename__ = "telegram_session_bindings"
+
+    id = Column(String, primary_key=True)
+    owner_ref = Column(String, nullable=False)
+    chat_handle_ref = Column(String, nullable=False)
+    scope = Column(String, nullable=False)
+    active_session_id = Column(
+        String, ForeignKey("sessions.id", ondelete="RESTRICT"), nullable=False
+    )
+    active_rollover_local_day = Column(String, nullable=False)
+    generation = Column(Integer, nullable=False, default=0)
+    turn_lease_ref = Column(String, nullable=True)
+    active_turn_ref = Column(String, nullable=True)
+    turn_lease_expires_at = Column(DateTime, nullable=True)
+    turn_started_at = Column(DateTime, nullable=True)
+    projection_status = Column(String, nullable=False, default="current")
+    projection_generation = Column(Integer, nullable=False, default=0)
+
+    __table_args__ = (
+        CheckConstraint("length(owner_ref) > 0", name="ck_tsb_owner_ref_nonempty"),
+        CheckConstraint("length(chat_handle_ref) > 0", name="ck_tsb_chat_handle_ref_nonempty"),
+        CheckConstraint("scope IN ('normal', 'secure')", name="ck_tsb_scope"),
+        CheckConstraint("length(active_session_id) > 0", name="ck_tsb_active_session_nonempty"),
+        CheckConstraint(
+            "active_rollover_local_day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+            name="ck_tsb_active_rollover_day_format",
+        ),
+        CheckConstraint("generation >= 0", name="ck_tsb_generation_nonnegative"),
+        CheckConstraint("projection_generation >= 0", name="ck_tsb_projection_generation_nonnegative"),
+        CheckConstraint(
+            "projection_status IN ('current', 'stale', 'blocked_multi_owner')",
+            name="ck_tsb_projection_status",
+        ),
+        CheckConstraint(
+            "(turn_lease_ref IS NULL AND active_turn_ref IS NULL "
+            "AND turn_lease_expires_at IS NULL AND turn_started_at IS NULL) OR "
+            "(turn_lease_ref IS NOT NULL AND active_turn_ref IS NOT NULL "
+            "AND turn_lease_expires_at IS NOT NULL AND turn_started_at IS NOT NULL)",
+            name="ck_tsb_turn_lease_shape",
+        ),
+        Index(
+            "ux_tsb_owner_chat_scope", "owner_ref", "chat_handle_ref", "scope", unique=True
+        ),
+    )
+
+
+class TelegramSessionRollover(TimestampMixin, Base):
+    """Content-free per-binding local-day rollover reservation ledger row."""
+
+    __tablename__ = "telegram_session_rollovers"
+
+    id = Column(String, primary_key=True)
+    binding_id = Column(
+        String, ForeignKey("telegram_session_bindings.id", ondelete="RESTRICT"), nullable=False
+    )
+    rollover_local_day = Column(String, nullable=False)
+    status = Column(String, nullable=False)
+    old_session_id = Column(
+        String, ForeignKey("sessions.id", ondelete="RESTRICT"), nullable=False
+    )
+    new_session_id = Column(
+        String, ForeignKey("sessions.id", ondelete="RESTRICT"), nullable=True
+    )
+    attempt_count = Column(Integer, nullable=False, default=0)
+    retry_after = Column(DateTime, nullable=True)
+    reason_code = Column(String, nullable=True)
+    committed_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("length(binding_id) > 0", name="ck_tsr_binding_nonempty"),
+        CheckConstraint("length(old_session_id) > 0", name="ck_tsr_old_session_nonempty"),
+        CheckConstraint(
+            "rollover_local_day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+            name="ck_tsr_rollover_day_format",
+        ),
+        CheckConstraint("attempt_count >= 0 AND attempt_count <= 24", name="ck_tsr_attempt_count"),
+        CheckConstraint(
+            "status IN ('deferred_active_turn', 'deferred_exhausted', "
+            "'blocked_invalid_binding', 'blocked_security_policy', 'committed')",
+            name="ck_tsr_status",
+        ),
+        CheckConstraint(
+            "reason_code IS NULL OR reason_code IN "
+            "('active_turn', 'retry_exhausted', 'expired_turn_lease_recovered', "
+            "'invalid_binding', 'security_policy', 'indeterminate_turn_pair')",
+            name="ck_tsr_reason_code",
+        ),
+        CheckConstraint(
+            "status != 'committed' OR (new_session_id IS NOT NULL AND length(new_session_id) > 0)",
+            name="ck_tsr_committed_new_session",
+        ),
+        Index("ux_tsr_binding_day", "binding_id", "rollover_local_day", unique=True),
+    )
+
+
+class TelegramTurnIntake(TimestampMixin, Base):
+    """Content-free, replay-safe Telegram update lifecycle ledger row."""
+
+    __tablename__ = "telegram_turn_intakes"
+
+    id = Column(String, primary_key=True)
+    owner_ref = Column(String, nullable=False)
+    chat_handle_ref = Column(String, nullable=False)
+    transport_update_ref = Column(String, nullable=False)
+    scope = Column(String, nullable=False)
+    binding_id = Column(
+        String, ForeignKey("telegram_session_bindings.id", ondelete="RESTRICT"), nullable=False
+    )
+    expected_session_id = Column(
+        String, ForeignKey("sessions.id", ondelete="RESTRICT"), nullable=False
+    )
+    status = Column(String, nullable=False, default="pending")
+    retry_count = Column(Integer, nullable=False, default=0)
+    next_retry_at = Column(DateTime, nullable=True)
+    reason_code = Column(String, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("length(owner_ref) > 0", name="ck_tti_owner_ref_nonempty"),
+        CheckConstraint("length(chat_handle_ref) > 0", name="ck_tti_chat_handle_ref_nonempty"),
+        CheckConstraint("length(transport_update_ref) > 0", name="ck_tti_update_ref_nonempty"),
+        CheckConstraint("scope IN ('normal', 'secure')", name="ck_tti_scope"),
+        CheckConstraint("length(expected_session_id) > 0", name="ck_tti_expected_session_nonempty"),
+        CheckConstraint("retry_count >= 0 AND retry_count <= 24", name="ck_tti_retry_count"),
+        CheckConstraint(
+            "status IN ('pending', 'lease_retry', 'running', 'reply_pending', 'completed', "
+            "'indeterminate_turn', 'blocked_invalid_binding', 'blocked_security_policy')",
+            name="ck_tti_status",
+        ),
+        CheckConstraint(
+            "reason_code IS NULL OR reason_code IN "
+            "('active_turn', 'retry_exhausted', 'expired_turn_lease_recovered', "
+            "'invalid_binding', 'security_policy', 'indeterminate_turn_pair')",
+            name="ck_tti_reason_code",
+        ),
+        Index(
+            "ux_tti_owner_chat_update", "owner_ref", "chat_handle_ref", "transport_update_ref", unique=True
+        ),
+    )
+
+
+class TelegramRolloverMetadata(TimestampMixin, Base):
+    """Singleton reference-key namespace fingerprint; never returned as evidence."""
+
+    __tablename__ = "telegram_rollover_metadata"
+
+    id = Column(String, primary_key=True, default="reference_key_v1")
+    schema_version = Column(Integer, nullable=False, default=1)
+    reference_key_fingerprint = Column(String, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("id = 'reference_key_v1'", name="ck_trm_singleton_id"),
+        CheckConstraint("schema_version = 1", name="ck_trm_schema_version"),
+        CheckConstraint("length(reference_key_fingerprint) = 64", name="ck_trm_fingerprint_length"),
+    )
 
 class ChatMessage(Base):
     """
@@ -589,6 +748,56 @@ class CrewMember(TimestampMixin, Base):
 
     session = relationship("Session", foreign_keys=[session_id],
                            backref=backref("crew_member", uselist=False))
+
+
+class ClarificationRun(TimestampMixin, Base):
+    """Owner-scoped clarification run for ask_user v2 intake."""
+    __tablename__ = "clarification_runs"
+
+    id = Column(String, primary_key=True, index=True)
+    owner = Column(String, nullable=False, index=True)
+    session_id = Column(String, nullable=False, index=True)
+    scope = Column(String, nullable=False, default="conversation", index=True)
+    status = Column(String, nullable=False, default="clarifying", index=True)
+    version = Column(Integer, nullable=False, default=1)
+    project_slug = Column(String, nullable=True, index=True)
+    coding_task_id = Column(String, nullable=True, index=True)
+    intent_summary = Column(Text, nullable=False, default="")
+    request_json = Column(Text, nullable=False, default="{}")
+    answers_json = Column(Text, nullable=False, default="{}")
+    unresolved_required_json = Column(Text, nullable=False, default="[]")
+    understanding_summary = Column(Text, nullable=False, default="")
+    ready_for_plan = Column(Boolean, nullable=False, default=False)
+    raw_content_visible = Column(Boolean, nullable=False, default=False)
+
+    events = relationship("ClarificationEvent", back_populates="run", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("ix_clarification_runs_owner_session_status", "owner", "session_id", "status"),
+        Index("ix_clarification_runs_owner_project", "owner", "project_slug", "status"),
+    )
+
+
+class ClarificationEvent(Base):
+    """Append-only clarification event with idempotency support."""
+    __tablename__ = "clarification_events"
+
+    id = Column(String, primary_key=True, index=True)
+    clarification_id = Column(String, ForeignKey("clarification_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    owner = Column(String, nullable=False, index=True)
+    event_type = Column(String, nullable=False, index=True)
+    version = Column(Integer, nullable=False)
+    question_id = Column(String, nullable=True, index=True)
+    idempotency_key = Column(String, nullable=True)
+    payload_json = Column(Text, nullable=False, default="{}")
+    created_at = Column(DateTime, default=utcnow_naive, nullable=False)
+
+    run = relationship("ClarificationRun", back_populates="events")
+
+    __table_args__ = (
+        Index("ix_clarification_events_run_version", "clarification_id", "version"),
+        Index("ix_clarification_events_idempotency", "clarification_id", "idempotency_key", unique=True),
+    )
 
 
 class ScheduledTask(TimestampMixin, Base):

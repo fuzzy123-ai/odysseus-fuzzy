@@ -1,46 +1,26 @@
-"""Declarative built-in tool identity, policy, and projection contract."""
+"""Declarative source of truth for Odysseus built-in tool projections.
+
+The module intentionally imports only the Python standard library at import
+time.  Agent startup paths can therefore validate or consume its primitive
+projection sets without pulling in the heavier catalog/runtime dependency
+graph.  Descriptor V2 construction imports :mod:`src.tool_catalog` lazily.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
-from typing import Any, Iterable, Mapping
-
-from src.tool_catalog import (
-    ToolAvailability,
-    ToolAnalyticsIdentityIndex,
-    ToolCatalogError,
-    ToolDescriptorV2,
-    ToolDescriptorV2Index,
-    ToolEffectClass,
-    ToolFamily,
-    ToolLifecycle,
-    ToolPermission,
-    ToolRiskLevel,
-    ToolSource,
-    ToolVisibility,
-)
+from typing import Iterable, Mapping
 
 
-class BuiltInCatalogError(ToolCatalogError):
-    """Raised when a built-in declaration or consumer projection drifts."""
+CATALOG_VERSION = "0.24.0"
+STATIC_PROMPT_BASELINE_CHARACTERS = 42_000
+HISTORICAL_TOOL_ALIASES: Mapping[str, str] = {
+    "manage_rag": "manage_personal_docs",
+}
+RETIRED_TOOL_ANALYTICS_IDS: frozenset[str] = frozenset()
 
 
-class BuiltInRegistrationDisposition(StrEnum):
-    ACTIVE_RUNTIME = "active_runtime"
-    CONFIRMED_ROUTE_ONLY = "confirmed_route_only"
-    DEFERRED = "deferred"
-    SECURITY_BLOCKED = "security_blocked"
-
-
-class BuiltInDefaultPolicy(StrEnum):
-    STANDARD = "standard"
-    DEFERRED_BY_OPERATOR_PRIORITY = "deferred_by_operator_priority"
-    DEPENDENT_DEFERRED = "dependent_deferred"
-    DEFERRED = "deferred"
-
-
-CATALOG_TOOL_IDS = (
+_TOOL_IDS = (
     "adopt_served_model",
     "api_call",
     "app_api",
@@ -86,7 +66,6 @@ CATALOG_TOOL_IDS = (
     "manage_memory",
     "manage_nextcloud_transfer",
     "manage_notes",
-    "manage_todos",
     "manage_personal_docs",
     "manage_plugins",
     "manage_presets",
@@ -97,12 +76,14 @@ CATALOG_TOOL_IDS = (
     "manage_skills",
     "manage_subagents",
     "manage_tasks",
+    "manage_todos",
     "manage_tokens",
     "manage_webhooks",
     "mark_email_read",
     "pipeline",
     "publish_artifact",
     "python",
+    "query_knowledge",
     "read_email",
     "read_file",
     "recent_changes",
@@ -128,7 +109,7 @@ CATALOG_TOOL_IDS = (
     "write_file",
 )
 
-REGISTRATION_GAPS = frozenset(
+RUNTIME_REGISTRATION_GAPS = frozenset(
     {
         "manage_assistant",
         "manage_embeddings",
@@ -138,13 +119,98 @@ REGISTRATION_GAPS = frozenset(
         "tail_serve_output",
     }
 )
-DEFERRED_REGISTRATION_GAPS = frozenset({"manage_assistant", "manage_presets"})
-CONFIRMED_ROUTE_REGISTRATION_GAPS = frozenset(
+ACTIVE_GATED_REGISTRATION_IDS = frozenset(
     {"manage_embeddings", "manage_personal_docs", "manage_plugins"}
 )
-SECURITY_BLOCKED_REGISTRATION_GAPS = frozenset({"tail_serve_output"})
-NON_NATIVE_SCHEMA_TOOLS = frozenset({"generate_image"})
-RAG_ONLY_PROMPT_TOOLS = frozenset(
+DEFERRED_REGISTRATION_IDS = frozenset({"manage_assistant", "manage_presets"})
+BLOCKED_REGISTRATION_IDS = frozenset({"tail_serve_output"})
+NON_NATIVE_SCHEMA_IDS = frozenset({"generate_image"})
+EMAIL_ADAPTER_TOOL_IDS = frozenset(
+    {
+        "archive_email",
+        "bulk_email",
+        "delete_email",
+        "list_email_accounts",
+        "list_emails",
+        "mark_email_read",
+        "read_email",
+        "reply_to_email",
+        "send_email",
+    }
+)
+OPERATOR_PRIORITY_DEFERRED_IDS = frozenset(
+    {
+        *EMAIL_ADAPTER_TOOL_IDS,
+        "manage_assistant",
+        "manage_calendar",
+        "manage_contact",
+        "manage_presets",
+        "resolve_contact",
+    }
+)
+
+# Deployment-level runtime policy is intentionally stricter than family/risk
+# inference for these built-ins.  Keep the exact permission in the canonical
+# descriptor so Admin/API consumers can never advertise a weaker role than the
+# dispatcher actually accepts.  The security layer imports this stdlib-only
+# constant, avoiding a second independently maintained permission inventory.
+RUNTIME_ADMIN_PERMISSION_IDS = frozenset(
+    {
+        "adopt_served_model",
+        "api_call",
+        "app_api",
+        "bash",
+        "bulk_email",
+        "cancel_download",
+        "commit_project",
+        "delete_email",
+        "download_model",
+        "edit_file",
+        "get_workspace",
+        "glob",
+        "grep",
+        "list_emails",
+        "ls",
+        "manage_assistant",
+        "manage_bg_jobs",
+        "manage_calendar",
+        "manage_contact",
+        "manage_documents",
+        "manage_embeddings",
+        "manage_endpoints",
+        "manage_github_issues",
+        "manage_mcp",
+        "manage_memory",
+        "manage_nextcloud_transfer",
+        "manage_personal_docs",
+        "manage_plugins",
+        "manage_presets",
+        "manage_repos",
+        "manage_settings",
+        "manage_skills",
+        "manage_subagents",
+        "manage_tasks",
+        "manage_tokens",
+        "manage_webhooks",
+        "publish_artifact",
+        "python",
+        "read_email",
+        "read_file",
+        "recent_changes",
+        "reply_to_email",
+        "resolve_contact",
+        "search_chats",
+        "send_email",
+        "serve_model",
+        "serve_preset",
+        "spawn_subagent",
+        "stop_served_model",
+        "tail_serve_output",
+        "verify_pygame_headless",
+        "write_file",
+    }
+)
+INDEX_INJECTED_PROMPT_IDS = frozenset(
     {
         "adopt_served_model",
         "api_call",
@@ -162,104 +228,67 @@ RAG_ONLY_PROMPT_TOOLS = frozenset(
         "serve_preset",
         "spawn_subagent",
         "trigger_research",
+        "query_knowledge",
     }
 )
-EMAIL_DISPATCH_FAMILY = frozenset(
-    {
-        "archive_email",
-        "bulk_email",
-        "delete_email",
-        "list_email_accounts",
-        "list_emails",
-        "mark_email_read",
-        "read_email",
-        "reply_to_email",
-        "send_email",
-    }
-)
-OPERATOR_PRIORITY_DEFERRED_TOOLS = EMAIL_DISPATCH_FAMILY | frozenset(
-    {"manage_calendar"}
-)
-DEPENDENT_CONTACT_DEFERRED_TOOLS = frozenset(
-    {"manage_contact", "resolve_contact"}
-)
-OTHER_DEFAULT_DEFERRED_TOOLS = frozenset(
-    {"manage_assistant", "manage_presets"}
-)
-DEFAULT_DEFERRED_TOOLS = (
-    OPERATOR_PRIORITY_DEFERRED_TOOLS
-    | DEPENDENT_CONTACT_DEFERRED_TOOLS
-    | OTHER_DEFAULT_DEFERRED_TOOLS
-)
-AGENT_HANDLER_TOOLS = frozenset(
-    {
-        "ask_teacher",
-        "bash",
-        "chat_with_model",
-        "commit_project",
-        "create_document",
-        "create_session",
-        "edit_document",
-        "edit_file",
-        "get_workspace",
-        "glob",
-        "grep",
-        "list_models",
-        "list_sessions",
-        "ls",
-        "manage_bg_jobs",
-        "manage_documents",
-        "manage_session",
-        "publish_artifact",
-        "python",
-        "read_file",
-        "send_to_session",
-        "suggest_document",
-        "update_document",
-        "verify_pygame_headless",
-        "web_fetch",
-        "web_search",
-        "write_file",
-    }
+INTERNAL_DISPATCH_CONTROL_IDS = frozenset(
+    {"invalid_tool_call", "json", "vault_get", "vault_search", "vault_unlock", "xml"}
 )
 
-_FAMILY_GROUPS: Mapping[ToolFamily, frozenset[str]] = {
-    ToolFamily.CODE_FILESYSTEM: frozenset(
+_DEFERRED_PRIORITY_IDS = frozenset(
+    {
+        *RUNTIME_REGISTRATION_GAPS,
+        *EMAIL_ADAPTER_TOOL_IDS,
+        "query_knowledge",
+        "manage_calendar",
+        "manage_contact",
+        "resolve_contact",
+    }
+)
+_EXPERIMENTAL_IDS = frozenset({"delegate", "manage_subagents", "spawn_subagent"})
+
+_FAMILY_MEMBERS: Mapping[str, frozenset[str]] = {
+    "code_filesystem": frozenset(
         {
             "bash",
-            "commit_project",
             "edit_file",
             "get_workspace",
             "glob",
             "grep",
             "ls",
-            "publish_artifact",
             "python",
             "read_file",
             "verify_pygame_headless",
             "write_file",
         }
     ),
-    ToolFamily.SEARCH_WEB: frozenset(
-        {"manage_research", "trigger_research", "web_fetch", "web_search"}
+    "search_web": frozenset({"api_call", "web_fetch", "web_search"}),
+    "knowledge_memory": frozenset(
+        {
+            "manage_embeddings",
+            "manage_memory",
+            "manage_personal_docs",
+            "manage_research",
+            "query_knowledge",
+            "recent_changes",
+            "trigger_research",
+        }
     ),
-    ToolFamily.KNOWLEDGE_MEMORY: frozenset({"manage_memory", "search_chats"}),
-    ToolFamily.DOCUMENTS_MEDIA: frozenset(
+    "documents_media": frozenset(
         {
             "create_document",
             "edit_document",
             "edit_image",
             "generate_image",
             "manage_documents",
-            "manage_personal_docs",
+            "publish_artifact",
             "suggest_document",
             "update_document",
         }
     ),
-    ToolFamily.MODEL_OPS: frozenset(
+    "model_ops": frozenset(
         {
             "adopt_served_model",
-            "ask_teacher",
             "cancel_download",
             "chat_with_model",
             "download_model",
@@ -269,7 +298,8 @@ _FAMILY_GROUPS: Mapping[ToolFamily, frozenset[str]] = {
             "list_models",
             "list_serve_presets",
             "list_served_models",
-            "manage_embeddings",
+            "manage_endpoints",
+            "manage_presets",
             "search_hf_models",
             "serve_model",
             "serve_preset",
@@ -277,11 +307,11 @@ _FAMILY_GROUPS: Mapping[ToolFamily, frozenset[str]] = {
             "tail_serve_output",
         }
     ),
-    ToolFamily.PROJECTS_REPOSITORIES: frozenset(
-        {"manage_github_issues", "manage_repos", "recent_changes"}
-    ),
-    ToolFamily.ORCHESTRATION_SESSIONS: frozenset(
+    "projects_repositories": frozenset({"commit_project", "manage_repos"}),
+    "orchestration_sessions": frozenset(
         {
+            "ask_teacher",
+            "ask_user",
             "create_session",
             "delegate",
             "list_sessions",
@@ -289,19 +319,19 @@ _FAMILY_GROUPS: Mapping[ToolFamily, frozenset[str]] = {
             "manage_session",
             "manage_subagents",
             "pipeline",
+            "search_chats",
             "send_to_session",
             "spawn_subagent",
+            "update_plan",
         }
     ),
-    ToolFamily.PLANNING_COMMUNICATION: frozenset(
+    "planning_communication": frozenset(
         {
             "archive_email",
-            "ask_user",
             "bulk_email",
             "delete_email",
             "list_email_accounts",
             "list_emails",
-            "manage_assistant",
             "manage_calendar",
             "manage_contact",
             "manage_notes",
@@ -312,448 +342,540 @@ _FAMILY_GROUPS: Mapping[ToolFamily, frozenset[str]] = {
             "reply_to_email",
             "resolve_contact",
             "send_email",
-            "update_plan",
         }
     ),
-    ToolFamily.ADMIN_SYSTEM: frozenset(
+    "admin_system": frozenset(
         {
-            "manage_endpoints",
-            "manage_presets",
+            "app_api",
+            "manage_assistant",
             "manage_settings",
-            "manage_skills",
             "manage_tokens",
             "manage_webhooks",
             "ui_control",
         }
     ),
-    ToolFamily.PLUGINS_MCP: frozenset({"manage_mcp", "manage_plugins"}),
-    ToolFamily.EXTERNAL_PROVIDERS: frozenset(
-        {"api_call", "app_api", "manage_nextcloud_transfer"}
+    "plugins_mcp": frozenset({"manage_mcp", "manage_plugins", "manage_skills"}),
+    "external_providers": frozenset(
+        {"manage_github_issues", "manage_nextcloud_transfer"}
     ),
-    ToolFamily.EXPERIMENTAL: frozenset(),
 }
 
-_READ_EFFECT_TOOLS = frozenset(
+_DESTRUCTIVE_IDS = frozenset({"delete_email"})
+_EXTERNAL_WRITE_IDS = frozenset(
     {
-        "ask_teacher",
-        "get_workspace",
-        "glob",
-        "grep",
-        "list_cached_models",
-        "list_cookbook_servers",
-        "list_downloads",
-        "list_email_accounts",
-        "list_emails",
-        "list_models",
-        "list_serve_presets",
-        "list_served_models",
-        "list_sessions",
-        "ls",
-        "read_email",
-        "read_file",
-        "recent_changes",
-        "resolve_contact",
-        "search_chats",
-        "search_hf_models",
-        "tail_serve_output",
-        "web_fetch",
-        "web_search",
-    }
-)
-_LOCAL_WRITE_EFFECT_TOOLS = frozenset(
-    {
-        "commit_project",
-        "create_document",
-        "edit_document",
-        "edit_file",
-        "edit_image",
-        "generate_image",
-        "publish_artifact",
-        "suggest_document",
-        "update_document",
-        "write_file",
-    }
-)
-_EXTERNAL_WRITE_EFFECT_TOOLS = frozenset(
-    {
-        "api_call",
-        "app_api",
         "archive_email",
         "bulk_email",
         "manage_calendar",
         "manage_contact",
+        "manage_github_issues",
         "manage_nextcloud_transfer",
+        "manage_webhooks",
+        "mark_email_read",
         "reply_to_email",
         "send_email",
     }
 )
-_DESTRUCTIVE_EFFECT_TOOLS = frozenset({"delete_email"})
-_ADMIN_PERMISSION_TOOLS = frozenset(
+_LOCAL_WRITE_IDS = frozenset(
     {
+        "commit_project",
+        "create_document",
+        "create_session",
+        "edit_document",
+        "edit_file",
+        "edit_image",
+        "generate_image",
+        "manage_documents",
+        "manage_memory",
+        "manage_notes",
+        "manage_todos",
+        "manage_personal_docs",
+        "manage_repos",
+        "manage_session",
+        "manage_tasks",
+        "publish_artifact",
+        "suggest_document",
+        "update_document",
+        "update_plan",
+        "write_file",
+    }
+)
+_CONTROL_IDS = frozenset(
+    {
+        "adopt_served_model",
         "app_api",
+        "ask_teacher",
+        "ask_user",
         "bash",
+        "cancel_download",
+        "delegate",
+        "download_model",
+        "manage_assistant",
+        "manage_bg_jobs",
+        "manage_embeddings",
         "manage_endpoints",
         "manage_mcp",
         "manage_plugins",
+        "manage_presets",
         "manage_settings",
+        "manage_skills",
+        "manage_subagents",
         "manage_tokens",
-        "manage_webhooks",
+        "pipeline",
         "python",
+        "serve_model",
+        "serve_preset",
+        "spawn_subagent",
+        "stop_served_model",
         "tail_serve_output",
+        "trigger_research",
+        "ui_control",
+        "verify_pygame_headless",
     }
 )
-
-
-def _family_map() -> dict[str, ToolFamily]:
-    result: dict[str, ToolFamily] = {}
-    for family, tool_ids in _FAMILY_GROUPS.items():
-        for tool_id in tool_ids:
-            if tool_id in result:
-                raise BuiltInCatalogError(f"tool {tool_id} belongs to multiple families")
-            result[tool_id] = family
-    missing = set(CATALOG_TOOL_IDS) - set(result)
-    extra = set(result) - set(CATALOG_TOOL_IDS)
-    if missing or extra:
-        raise BuiltInCatalogError(
-            f"family partition drift; missing={sorted(missing)}, extra={sorted(extra)}"
-        )
-    return result
-
-
-_FAMILY_BY_TOOL = _family_map()
-
-
-def _effect_for(tool_id: str) -> ToolEffectClass:
-    if tool_id in _DESTRUCTIVE_EFFECT_TOOLS:
-        return ToolEffectClass.DESTRUCTIVE
-    if tool_id in _EXTERNAL_WRITE_EFFECT_TOOLS:
-        return ToolEffectClass.EXTERNAL_WRITE
-    if tool_id in _LOCAL_WRITE_EFFECT_TOOLS:
-        return ToolEffectClass.LOCAL_WRITE
-    if tool_id in _READ_EFFECT_TOOLS:
-        return ToolEffectClass.READ
-    return ToolEffectClass.CONTROL
-
-
-def _display_name(tool_id: str) -> str:
-    acronyms = {
-        "ai": "AI",
-        "api": "API",
-        "bg": "background",
-        "hf": "Hugging Face",
-        "mcp": "MCP",
-        "ui": "UI",
+_DANGEROUS_IDS = frozenset(
+    {
+        "api_call",
+        "bash",
+        "bulk_email",
+        "delete_email",
+        "edit_file",
+        "manage_mcp",
+        "manage_plugins",
+        "manage_repos",
+        "manage_settings",
+        "manage_tokens",
+        "python",
+        "reply_to_email",
+        "send_email",
+        "write_file",
     }
-    value = " ".join(acronyms.get(part, part) for part in tool_id.split("_"))
-    return value[:1].upper() + value[1:]
+)
+_ELEVATED_IDS = frozenset(
+    {
+        *_DEFERRED_PRIORITY_IDS,
+        *_EXTERNAL_WRITE_IDS,
+        *_LOCAL_WRITE_IDS,
+        "read_file",
+        "web_fetch",
+        "web_search",
+    }
+) - _DANGEROUS_IDS
 
 
-def _safe_short_description(tool_id: str, description: str) -> str:
-    normalized = " ".join(str(description).split())
-    first_sentence = normalized.split(". ", 1)[0].rstrip(".")
-    if (
-        not first_sentence
-        or "/" in first_sentence
-        or "\\" in first_sentence
-        or "://" in first_sentence
-    ):
-        first_sentence = f"Use the {_display_name(tool_id)} built-in capability"
-    return first_sentence + "."
+class CatalogProjectionError(ValueError):
+    """Raised when a static built-in projection drifts from the catalog."""
 
 
 @dataclass(frozen=True, slots=True)
-class BuiltInToolSpec:
+class BuiltinToolDefinition:
     tool_id: str
-    family: ToolFamily
-    lifecycle: ToolLifecycle
-    availability: ToolAvailability
-    risk_level: ToolRiskLevel
-    permission: ToolPermission
-    effect_class: ToolEffectClass
-    registration_disposition: BuiltInRegistrationDisposition
-    default_policy: BuiltInDefaultPolicy
+    family: str
+    lifecycle: str
+    availability: str
+    availability_reason: str | None
+    risk_level: str
+    permission: str
+    effect_class: str
     runtime_registered: bool
     native_schema: bool
-    searchable_index: bool
-    dedicated_prompt_section: bool
-    handler_ref: str
-    projection_exceptions: tuple[str, ...]
+    static_prompt_section: bool
+    handler_projection: str
+    registration_disposition: str
+    aliases: tuple[str, ...] = ()
 
-    def build_descriptor(self, description: str) -> ToolDescriptorV2:
-        available = self.availability == ToolAvailability.AVAILABLE
-        return ToolDescriptorV2.create(
-            tool_id=self.tool_id,
-            analytics_id=self.tool_id.replace("_", "-"),
-            display_name=_display_name(self.tool_id),
-            description=_safe_short_description(self.tool_id, description),
-            family=self.family,
-            source=ToolSource.BUILTIN,
-            lifecycle=self.lifecycle,
-            availability=self.availability,
-            default_enabled=False,
-            default_visibility=(
-                ToolVisibility.HIDDEN
-                if available and self.default_policy != BuiltInDefaultPolicy.STANDARD
-                else ToolVisibility.VISIBLE
-                if available
-                else ToolVisibility.BLOCKED
-            ),
-            risk_level=self.risk_level,
-            permission=self.permission,
-            effect_class=self.effect_class,
-            requires_confirmation=self.effect_class != ToolEffectClass.READ,
-            schema_ref=f"function:{self.tool_id}" if self.native_schema else None,
-            handler_ref=self.handler_ref,
-            prompt_ref=f"tool_index:{self.tool_id}",
-            feature_flag="tool-catalog-v2",
-            introduced_in="legacy-v1",
+    @property
+    def display_name(self) -> str:
+        return self.tool_id.replace("_", " ").title()
+
+    @property
+    def projection_exceptions(self) -> tuple[tuple[str, str], ...]:
+        exceptions: list[tuple[str, str]] = []
+        if not self.runtime_registered:
+            exceptions.append(("runtime_tags", self.registration_disposition))
+        if not self.native_schema:
+            exceptions.append(("function_schemas", "non-native-image-schema-adapter"))
+        if not self.static_prompt_section:
+            exceptions.append(("prompt_sections", "index-injected-prompt"))
+        if self.handler_projection == "email_adapter":
+            exceptions.append(("dispatcher", "qualified-email-schema-adapter"))
+        return tuple(exceptions)
+
+    @property
+    def parser_registered(self) -> bool:
+        return self.registration_disposition in {"runtime", "active-gated"}
+
+
+@dataclass(frozen=True, slots=True)
+class BuiltinProjectionSnapshot:
+    runtime_tags: frozenset[str]
+    function_schemas: frozenset[str]
+    tool_index: frozenset[str]
+    prompt_sections: frozenset[str]
+    dispatcher: frozenset[str]
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        runtime_tags: Iterable[str],
+        function_schemas: Iterable[str],
+        tool_index: Iterable[str],
+        prompt_sections: Iterable[str],
+        dispatcher: Iterable[str],
+    ) -> "BuiltinProjectionSnapshot":
+        return cls(
+            runtime_tags=frozenset(runtime_tags),
+            function_schemas=frozenset(function_schemas),
+            tool_index=frozenset(tool_index),
+            prompt_sections=frozenset(prompt_sections),
+            dispatcher=frozenset(dispatcher),
         )
 
 
-def _build_specs() -> tuple[BuiltInToolSpec, ...]:
-    specs: list[BuiltInToolSpec] = []
-    for tool_id in CATALOG_TOOL_IDS:
-        is_gap = tool_id in REGISTRATION_GAPS
-        effect = _effect_for(tool_id)
-        exceptions: list[str] = []
-        if is_gap:
-            exceptions.append("registration_gap_deferred_to_TAX3")
-            if tool_id in CONFIRMED_ROUTE_REGISTRATION_GAPS:
-                exceptions.append("legacy_tag_gap_closed_by_confirmed_catalog_route")
-            elif tool_id in DEFERRED_REGISTRATION_GAPS:
-                exceptions.append("deferred_by_catalog_policy")
-            else:
-                exceptions.append("blocked_until_TAX5_owner_session_binding")
-        if tool_id in OPERATOR_PRIORITY_DEFERRED_TOOLS:
-            exceptions.append("deferred_by_operator_priority")
-        elif tool_id in DEPENDENT_CONTACT_DEFERRED_TOOLS:
-            exceptions.append("dependent_deferred_by_communications_priority")
-        elif tool_id in OTHER_DEFAULT_DEFERRED_TOOLS:
-            exceptions.append("default_deferred")
-        if tool_id in NON_NATIVE_SCHEMA_TOOLS:
-            exceptions.append("text_only_no_native_schema")
-        if tool_id in RAG_ONLY_PROMPT_TOOLS:
-            exceptions.append("rag_index_only_no_dedicated_prompt_section")
-        if tool_id in AGENT_HANDLER_TOOLS:
-            handler_ref = f"agent_tools:{tool_id}"
-        elif tool_id in EMAIL_DISPATCH_FAMILY:
-            handler_ref = "dispatcher:email_family"
-        elif is_gap:
-            handler_ref = f"dispatcher_reserved:{tool_id}"
-        else:
-            handler_ref = f"dispatcher:{tool_id}"
-        specs.append(
-            BuiltInToolSpec(
-                tool_id=tool_id,
-                family=_FAMILY_BY_TOOL[tool_id],
-                lifecycle=(
-                    ToolLifecycle.DEFERRED
-                    if tool_id in DEFAULT_DEFERRED_TOOLS
-                    else ToolLifecycle.BLOCKED
-                    if is_gap
-                    else ToolLifecycle.CONTEXTUAL
-                ),
-                availability=(
-                    ToolAvailability.BLOCKED if is_gap else ToolAvailability.AVAILABLE
-                ),
-                risk_level=(
-                    ToolRiskLevel.SAFE
-                    if effect == ToolEffectClass.READ
-                    else ToolRiskLevel.ELEVATED
-                    if effect == ToolEffectClass.CONTROL
-                    else ToolRiskLevel.DANGEROUS
-                ),
-                permission=(
-                    ToolPermission.ADMIN
-                    if tool_id in _ADMIN_PERMISSION_TOOLS
-                    else ToolPermission.OWNER
-                ),
-                effect_class=effect,
-                registration_disposition=(
-                    BuiltInRegistrationDisposition.CONFIRMED_ROUTE_ONLY
-                    if tool_id in CONFIRMED_ROUTE_REGISTRATION_GAPS
-                    else BuiltInRegistrationDisposition.DEFERRED
-                    if tool_id in DEFERRED_REGISTRATION_GAPS
-                    else BuiltInRegistrationDisposition.SECURITY_BLOCKED
-                    if tool_id in SECURITY_BLOCKED_REGISTRATION_GAPS
-                    else BuiltInRegistrationDisposition.ACTIVE_RUNTIME
-                ),
-                default_policy=(
-                    BuiltInDefaultPolicy.DEFERRED_BY_OPERATOR_PRIORITY
-                    if tool_id in OPERATOR_PRIORITY_DEFERRED_TOOLS
-                    else BuiltInDefaultPolicy.DEPENDENT_DEFERRED
-                    if tool_id in DEPENDENT_CONTACT_DEFERRED_TOOLS
-                    else BuiltInDefaultPolicy.DEFERRED
-                    if tool_id in OTHER_DEFAULT_DEFERRED_TOOLS
-                    else BuiltInDefaultPolicy.STANDARD
-                ),
-                runtime_registered=not is_gap,
-                native_schema=tool_id not in NON_NATIVE_SCHEMA_TOOLS,
-                searchable_index=True,
-                dedicated_prompt_section=tool_id not in RAG_ONLY_PROMPT_TOOLS,
-                handler_ref=handler_ref,
-                projection_exceptions=tuple(sorted(exceptions)),
-            )
+@dataclass(frozen=True, slots=True)
+class BuiltinProjectionIssue:
+    surface: str
+    relation: str
+    tool_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class BuiltinProjectionReport:
+    expected_counts: tuple[tuple[str, int], ...]
+    actual_counts: tuple[tuple[str, int], ...]
+    issues: tuple[BuiltinProjectionIssue, ...]
+
+    @property
+    def clean(self) -> bool:
+        return not self.issues
+
+    def assert_valid(self) -> None:
+        if self.clean:
+            return
+        detail = "; ".join(
+            f"{issue.surface}:{issue.relation}={','.join(issue.tool_ids)}"
+            for issue in self.issues
         )
-    return tuple(specs)
+        raise CatalogProjectionError(f"built-in projection drift: {detail}")
 
 
-BUILTIN_TOOL_SPECS = _build_specs()
+def _family_for(tool_id: str) -> str:
+    matches = [family for family, members in _FAMILY_MEMBERS.items() if tool_id in members]
+    if len(matches) != 1:
+        raise CatalogProjectionError(
+            f"tool family must resolve exactly once: {tool_id} ({len(matches)})"
+        )
+    return matches[0]
 
 
-def builtin_spec(tool_id: str) -> BuiltInToolSpec | None:
-    normalized = str(tool_id or "").strip()
-    return next((spec for spec in BUILTIN_TOOL_SPECS if spec.tool_id == normalized), None)
+def _effect_for(tool_id: str) -> str:
+    if tool_id in _DESTRUCTIVE_IDS:
+        return "destructive"
+    if tool_id in _EXTERNAL_WRITE_IDS:
+        return "external_write"
+    if tool_id in _LOCAL_WRITE_IDS:
+        return "local_write"
+    if tool_id in _CONTROL_IDS:
+        return "control"
+    return "read"
 
 
-def catalog_call_allowed(tool_id: str) -> bool:
-    spec = builtin_spec(tool_id)
-    return bool(
-        spec
-        and spec.registration_disposition
-        in {
-            BuiltInRegistrationDisposition.ACTIVE_RUNTIME,
-            BuiltInRegistrationDisposition.CONFIRMED_ROUTE_ONLY,
-        }
+def _risk_for(tool_id: str) -> str:
+    if tool_id in _DANGEROUS_IDS:
+        return "dangerous"
+    if tool_id in _ELEVATED_IDS:
+        return "elevated"
+    return "safe"
+
+
+def _permission_for(tool_id: str, risk_level: str, effect_class: str) -> str:
+    if tool_id in RUNTIME_ADMIN_PERMISSION_IDS or risk_level == "dangerous":
+        return "admin"
+    if effect_class in {"external_write", "destructive"} or risk_level == "elevated":
+        return "owner"
+    return "user"
+
+
+def _definition(tool_id: str) -> BuiltinToolDefinition:
+    registration_disposition = (
+        "active-gated"
+        if tool_id in ACTIVE_GATED_REGISTRATION_IDS
+        else "deferred"
+        if tool_id in DEFERRED_REGISTRATION_IDS
+        else "blocked-until-tax5"
+        if tool_id in BLOCKED_REGISTRATION_IDS
+        else "runtime"
+    )
+    lifecycle = (
+        "experimental"
+        if tool_id in _EXPERIMENTAL_IDS
+        else "deferred"
+        if tool_id in _DEFERRED_PRIORITY_IDS
+        else "contextual"
+    )
+    availability = "disabled" if tool_id in RUNTIME_REGISTRATION_GAPS else "available"
+    availability_reason = (
+        f"registration-{registration_disposition}"
+        if availability == "disabled"
+        else None
+    )
+    effect_class = _effect_for(tool_id)
+    risk_level = _risk_for(tool_id)
+    return BuiltinToolDefinition(
+        tool_id=tool_id,
+        family=_family_for(tool_id),
+        lifecycle=lifecycle,
+        availability=availability,
+        availability_reason=availability_reason,
+        risk_level=risk_level,
+        permission=_permission_for(tool_id, risk_level, effect_class),
+        effect_class=effect_class,
+        runtime_registered=tool_id not in RUNTIME_REGISTRATION_GAPS,
+        native_schema=tool_id not in NON_NATIVE_SCHEMA_IDS,
+        static_prompt_section=tool_id not in INDEX_INJECTED_PROMPT_IDS,
+        handler_projection=(
+            "email_adapter" if tool_id in EMAIL_ADAPTER_TOOL_IDS else "dispatcher"
+        ),
+        registration_disposition=registration_disposition,
+        aliases=("manage_rag",) if tool_id == "manage_personal_docs" else (),
     )
 
 
-def catalog_fenced_tool_names() -> frozenset[str]:
-    return frozenset(spec.tool_id for spec in BUILTIN_TOOL_SPECS if catalog_call_allowed(spec.tool_id))
+BUILTIN_TOOL_DEFINITIONS = tuple(_definition(tool_id) for tool_id in _TOOL_IDS)
+PARSER_REGISTERED_TOOL_IDS = frozenset(
+    definition.tool_id
+    for definition in BUILTIN_TOOL_DEFINITIONS
+    if definition.parser_registered
+)
 
 
-def _as_set(values: Iterable[str]) -> set[str]:
-    return {str(value) for value in values}
+def definitions_by_id() -> Mapping[str, BuiltinToolDefinition]:
+    return {definition.tool_id: definition for definition in BUILTIN_TOOL_DEFINITIONS}
 
 
-def _assert_projection(name: str, actual: Iterable[str], expected: set[str]) -> None:
-    normalized = _as_set(actual)
-    if normalized != expected:
-        raise BuiltInCatalogError(
-            f"{name} projection drift; missing={sorted(expected - normalized)}, "
-            f"unexpected={sorted(normalized - expected)}"
-        )
+def resolve_operator_priority_disabled(
+    configured_tool_ids: Iterable[str] = (),
+    *,
+    setting_present: bool,
+) -> tuple[frozenset[str], bool]:
+    """Resolve safe defaults without rewriting an explicit legacy setting.
+
+    ``setting_present=False`` represents a new installation or settings file
+    without a ``disabled_tools`` key.  Once that key exists, even an explicit
+    empty list remains authoritative until the TAX9 migration can review it.
+    """
+    configured = frozenset(
+        str(tool_id).strip()
+        for tool_id in configured_tool_ids
+        if str(tool_id).strip()
+    )
+    if setting_present:
+        return configured, False
+    return configured | OPERATOR_PRIORITY_DEFERRED_IDS, True
+
+
+def expected_projection_sets() -> Mapping[str, frozenset[str]]:
+    definitions = BUILTIN_TOOL_DEFINITIONS
+    return {
+        "runtime_tags": frozenset(
+            item.tool_id for item in definitions if item.runtime_registered
+        ),
+        "function_schemas": frozenset(
+            item.tool_id for item in definitions if item.native_schema
+        ),
+        "tool_index": frozenset(item.tool_id for item in definitions),
+        "prompt_sections": frozenset(
+            item.tool_id for item in definitions if item.static_prompt_section
+        ),
+        "dispatcher": frozenset(
+            item.tool_id
+            for item in definitions
+            if item.handler_projection == "dispatcher"
+        ),
+    }
 
 
 def validate_builtin_projections(
-    *,
-    runtime_tags: Iterable[str],
-    function_schemas: Iterable[str],
-    tool_index_entries: Iterable[str],
-    prompt_sections: Iterable[str],
-    agent_handlers: Iterable[str],
-    dispatcher_condition_ids: Iterable[str],
-) -> None:
-    """Strictly validate every existing built-in consumer against the catalog."""
+    snapshot: BuiltinProjectionSnapshot,
+) -> BuiltinProjectionReport:
+    expected = expected_projection_sets()
+    actual = {
+        "runtime_tags": snapshot.runtime_tags,
+        "function_schemas": snapshot.function_schemas,
+        "tool_index": snapshot.tool_index,
+        "prompt_sections": snapshot.prompt_sections,
+        "dispatcher": snapshot.dispatcher,
+    }
+    issues: list[BuiltinProjectionIssue] = []
+    for surface in (
+        "runtime_tags",
+        "function_schemas",
+        "tool_index",
+        "prompt_sections",
+        "dispatcher",
+    ):
+        expected_ids = expected[surface]
+        actual_ids = actual[surface]
+        allowed_extras = INTERNAL_DISPATCH_CONTROL_IDS if surface == "dispatcher" else frozenset()
+        missing = tuple(sorted(expected_ids - actual_ids))
+        unexpected = tuple(sorted(actual_ids - expected_ids - allowed_extras))
+        if missing:
+            issues.append(BuiltinProjectionIssue(surface, "missing", missing))
+        if unexpected:
+            issues.append(BuiltinProjectionIssue(surface, "unexpected", unexpected))
+    return BuiltinProjectionReport(
+        expected_counts=tuple((name, len(expected[name])) for name in sorted(expected)),
+        actual_counts=tuple((name, len(actual[name])) for name in sorted(actual)),
+        issues=tuple(issues),
+    )
 
-    if len(BUILTIN_TOOL_SPECS) != len(CATALOG_TOOL_IDS):
-        raise BuiltInCatalogError("built-in catalog contains duplicate tool IDs")
-    catalog_ids = set(CATALOG_TOOL_IDS)
-    _assert_projection(
-        "runtime",
-        runtime_tags,
-        {spec.tool_id for spec in BUILTIN_TOOL_SPECS if spec.runtime_registered},
-    )
-    _assert_projection(
-        "function schema",
-        function_schemas,
-        {spec.tool_id for spec in BUILTIN_TOOL_SPECS if spec.native_schema},
-    )
-    _assert_projection(
-        "tool index",
-        tool_index_entries,
-        {spec.tool_id for spec in BUILTIN_TOOL_SPECS if spec.searchable_index},
-    )
-    _assert_projection(
-        "dedicated prompt",
-        prompt_sections,
-        {spec.tool_id for spec in BUILTIN_TOOL_SPECS if spec.dedicated_prompt_section},
+
+def build_builtin_descriptor_catalog():
+    """Build Descriptor V2 objects without adding an agent-startup import."""
+    from src.tool_catalog import (  # Deliberately lazy; see module docstring.
+        ToolDescriptorCatalogV2,
+        ToolDescriptorV2,
     )
 
-    handlers = _as_set(agent_handlers)
-    dispatcher = _as_set(dispatcher_condition_ids)
-    _assert_projection("agent handler", handlers, set(AGENT_HANDLER_TOOLS))
-    for spec in BUILTIN_TOOL_SPECS:
-        if spec.tool_id in REGISTRATION_GAPS:
-            if spec.tool_id not in dispatcher:
-                raise BuiltInCatalogError(
-                    f"reserved registration gap {spec.tool_id} has no dispatcher projection"
-                )
-            continue
-        if spec.tool_id in EMAIL_DISPATCH_FAMILY:
-            continue
-        if spec.tool_id in AGENT_HANDLER_TOOLS:
-            continue
-        if spec.tool_id not in dispatcher:
-            raise BuiltInCatalogError(
-                f"runtime tool {spec.tool_id} has no handler or dispatcher projection"
+    descriptors = []
+    for definition in BUILTIN_TOOL_DEFINITIONS:
+        native_schema = definition.native_schema
+        descriptors.append(
+            ToolDescriptorV2.create(
+                tool_id=definition.tool_id,
+                analytics_id=definition.tool_id,
+                display_name=definition.display_name,
+                description=(
+                    f"Built-in {definition.display_name} capability in the "
+                    f"{definition.family.replace('_', ' ')} family."
+                ),
+                family=definition.family,
+                source="builtin",
+                lifecycle=definition.lifecycle,
+                availability=definition.availability,
+                availability_reason=definition.availability_reason,
+                default_enabled=(
+                    definition.lifecycle == "contextual"
+                    and definition.availability == "available"
+                ),
+                default_visibility="hidden",
+                risk_level=definition.risk_level,
+                permission=definition.permission,
+                effect_class=definition.effect_class,
+                requires_confirmation=(
+                    definition.effect_class in {"external_write", "destructive"}
+                    or definition.risk_level == "dangerous"
+                    or definition.tool_id in ACTIVE_GATED_REGISTRATION_IDS
+                ),
+                schema_ref=f"function:{definition.tool_id}" if native_schema else None,
+                handler_ref=(
+                    f"email-adapter:{definition.tool_id}"
+                    if definition.handler_projection == "email_adapter"
+                    else f"dispatcher:{definition.tool_id}"
+                ),
+                prompt_ref=(
+                    f"prompt:{definition.tool_id}"
+                    if definition.static_prompt_section
+                    else f"index:{definition.tool_id}"
+                ),
+                aliases=definition.aliases,
+                feature_flag="builtin-tool-catalog-v2",
+                introduced_in=CATALOG_VERSION,
+                native_schema=native_schema,
+                projection_exception_reason=(
+                    None if native_schema else "non-native-image-schema-adapter"
+                ),
             )
-
-    declared_ids = {spec.tool_id for spec in BUILTIN_TOOL_SPECS}
-    if declared_ids != catalog_ids:
-        raise BuiltInCatalogError("catalog declarations do not match canonical tool IDs")
-
-
-def build_builtin_descriptors(
-    descriptions: Mapping[str, str],
-) -> ToolDescriptorV2Index:
-    expected = set(CATALOG_TOOL_IDS)
-    actual = set(descriptions)
-    if actual != expected:
-        raise BuiltInCatalogError(
-            f"description projection drift; missing={sorted(expected - actual)}, "
-            f"unexpected={sorted(actual - expected)}"
         )
-    return ToolDescriptorV2Index.build(
-        spec.build_descriptor(descriptions[spec.tool_id]) for spec in BUILTIN_TOOL_SPECS
+    return ToolDescriptorCatalogV2.create(descriptors)
+
+
+def build_tool_analytics_identity_contract():
+    """Return the versioned public TAX identity resolver consumed by TUA."""
+
+    from src.tool_catalog import ToolAnalyticsIdentityContractV1
+
+    return ToolAnalyticsIdentityContractV1.create(
+        build_builtin_descriptor_catalog(),
+        historical_aliases=HISTORICAL_TOOL_ALIASES,
+        retired_analytics_ids=RETIRED_TOOL_ANALYTICS_IDS,
     )
 
 
-def build_builtin_analytics_identity_contract(
-    descriptions: Mapping[str, str],
-    *,
-    historical_reservations: Mapping[str, str] | None = None,
-    historical_alias_targets: Mapping[str, str] | None = None,
-) -> ToolAnalyticsIdentityIndex:
-    """Project the canonical built-in catalog into the public TAX10 contract."""
+def resolve_tool_analytics_identity(tool_or_alias, *, source=None):
+    """Resolve one runtime identity without exposing dynamic source identifiers."""
 
-    return build_builtin_descriptors(descriptions).analytics_identity_contract(
-        historical_reservations=historical_reservations,
-        historical_alias_targets=historical_alias_targets,
+    return build_tool_analytics_identity_contract().resolve(
+        tool_or_alias,
+        source=source,
     )
 
 
-def builtin_catalog_audit_summary() -> dict[str, Any]:
-    counts = {
-        "catalog": len(BUILTIN_TOOL_SPECS),
-        "runtime_registered": sum(spec.runtime_registered for spec in BUILTIN_TOOL_SPECS),
-        "native_schema": sum(spec.native_schema for spec in BUILTIN_TOOL_SPECS),
-        "searchable_index": sum(spec.searchable_index for spec in BUILTIN_TOOL_SPECS),
-        "dedicated_prompt_section": sum(
-            spec.dedicated_prompt_section for spec in BUILTIN_TOOL_SPECS
-        ),
-        "registration_gaps": len(REGISTRATION_GAPS),
-    }
+def catalog_audit_summary() -> dict[str, object]:
+    expected = expected_projection_sets()
     return {
-        "schema_version": ToolDescriptorV2.SCHEMA_VERSION,
-        "counts": counts,
-        "tool_ids": CATALOG_TOOL_IDS,
-        "registration_gap_ids": tuple(sorted(REGISTRATION_GAPS)),
-        "registration_dispositions": {
-            "confirmed_route_only": tuple(sorted(CONFIRMED_ROUTE_REGISTRATION_GAPS)),
-            "deferred": tuple(sorted(DEFERRED_REGISTRATION_GAPS)),
-            "security_blocked": tuple(sorted(SECURITY_BLOCKED_REGISTRATION_GAPS)),
+        "catalog_version": CATALOG_VERSION,
+        "builtin_count": len(BUILTIN_TOOL_DEFINITIONS),
+        "projection_counts": {
+            name: len(tool_ids) for name, tool_ids in sorted(expected.items())
         },
-        "default_policies": {
-            "deferred_by_operator_priority": tuple(
-                sorted(OPERATOR_PRIORITY_DEFERRED_TOOLS)
-            ),
-            "dependent_deferred": tuple(sorted(DEPENDENT_CONTACT_DEFERRED_TOOLS)),
-            "deferred": tuple(sorted(OTHER_DEFAULT_DEFERRED_TOOLS)),
-        },
+        "runtime_registration_gap_ids": tuple(sorted(RUNTIME_REGISTRATION_GAPS)),
+        "active_gated_registration_ids": tuple(
+            sorted(ACTIVE_GATED_REGISTRATION_IDS)
+        ),
+        "deferred_registration_ids": tuple(sorted(DEFERRED_REGISTRATION_IDS)),
+        "blocked_registration_ids": tuple(sorted(BLOCKED_REGISTRATION_IDS)),
+        "operator_priority_deferred_ids": tuple(
+            sorted(OPERATOR_PRIORITY_DEFERRED_IDS)
+        ),
+        "parser_registered_count": len(PARSER_REGISTERED_TOOL_IDS),
+        "non_native_schema_ids": tuple(sorted(NON_NATIVE_SCHEMA_IDS)),
+        "email_adapter_ids": tuple(sorted(EMAIL_ADAPTER_TOOL_IDS)),
+        "index_injected_prompt_ids": tuple(sorted(INDEX_INJECTED_PROMPT_IDS)),
+        "internal_dispatch_control_ids": tuple(sorted(INTERNAL_DISPATCH_CONTROL_IDS)),
         "raw_content_visible": False,
-        "callable_visible": False,
-        "tool_arguments_visible": False,
-        "tool_results_visible": False,
-        "secret_values_visible": False,
+        "schema_arguments_visible": False,
+        "secret_value_visible": False,
     }
+
+
+def _validate_catalog_definition() -> None:
+    ids = tuple(item.tool_id for item in BUILTIN_TOOL_DEFINITIONS)
+    if ids != tuple(sorted(ids)) or len(ids) != len(set(ids)):
+        raise CatalogProjectionError("built-in definitions must be unique and sorted")
+    if set(ids) != set().union(*_FAMILY_MEMBERS.values()):
+        raise CatalogProjectionError("family membership must cover the catalog exactly")
+    gap_dispositions = (
+        ACTIVE_GATED_REGISTRATION_IDS
+        | DEFERRED_REGISTRATION_IDS
+        | BLOCKED_REGISTRATION_IDS
+    )
+    if gap_dispositions != RUNTIME_REGISTRATION_GAPS:
+        raise CatalogProjectionError("registration dispositions must cover all six gaps")
+    if any(
+        (
+            ACTIVE_GATED_REGISTRATION_IDS & DEFERRED_REGISTRATION_IDS,
+            ACTIVE_GATED_REGISTRATION_IDS & BLOCKED_REGISTRATION_IDS,
+            DEFERRED_REGISTRATION_IDS & BLOCKED_REGISTRATION_IDS,
+        )
+    ):
+        raise CatalogProjectionError("registration dispositions must be disjoint")
+    if len(PARSER_REGISTERED_TOOL_IDS) != 83:
+        raise CatalogProjectionError("parser registration baseline must contain 83 tools")
+    expected_counts = {
+        "runtime_tags": 80,
+        "function_schemas": 85,
+        "tool_index": 86,
+        "prompt_sections": 69,
+        "dispatcher": 77,
+    }
+    actual_counts = {
+        name: len(values) for name, values in expected_projection_sets().items()
+    }
+    if actual_counts != expected_counts:
+        raise CatalogProjectionError(
+            f"built-in projection baseline mismatch: {actual_counts!r}"
+        )
+
+
+_validate_catalog_definition()

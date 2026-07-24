@@ -40,6 +40,7 @@ from routes.chat_endpoint_helpers import (
 from routes.chat_helpers import (
     resolve_session_auth,
     build_chat_context,
+    build_trusted_chat_tool_usage_context,
     build_deterministic_capability_self_report,
     save_assistant_response,
     run_post_response_tasks,
@@ -60,34 +61,24 @@ def _chat_effective_user(request: Request) -> str | None:
     return scoped_effective_user(request, "chat")
 
 
-def _tool_usage_instrumentation_from_runtime(
-    request: Request,
-    trusted_context,
-) -> ToolUsageInstrumentation | None:
-    """Resolve the optional server-owned capture consumer.
+def _clarification_gate_for_session(
+    *,
+    owner: str | None,
+    session_id: str | None,
+    store: Any = None,
+) -> dict[str, Any]:
+    from src.clarification_attention import build_session_clarification_attention
 
-    Capture stays off unless application bootstrap supplies both the explicit
-    runtime gate and a factory. Request/form/tool values cannot enable it.
-    """
-
-    state = getattr(getattr(request, "app", None), "state", None)
-    if state is None or getattr(state, "tool_usage_capture_enabled", False) is not True:
-        return None
-    factory = getattr(state, "tool_usage_instrumentation_factory", None)
-    if not callable(factory):
-        return None
-    try:
-        instrumentation = factory(trusted_context)
-    except Exception:
-        logger.warning("Tool usage instrumentation factory failed", exc_info=True)
-        return None
-    if not isinstance(instrumentation, ToolUsageInstrumentation):
-        logger.warning("Tool usage instrumentation factory returned an invalid consumer")
-        return None
-    if instrumentation.trusted_context != trusted_context:
-        logger.warning("Tool usage instrumentation context mismatch")
-        return None
-    return instrumentation
+    attention = build_session_clarification_attention(owner=owner, session_id=session_id, store=store)
+    if not attention.get("active"):
+        return {"open": False, "reason": "", "clarification_id": str(attention.get("clarification_id") or "")}
+    return {
+        "open": True,
+        "reason": f"Clarification {attention.get('clarification_id') or ''} is {attention.get('status') or 'open'}; planning and mutation are blocked until required input is resolved.",
+        "clarification_id": str(attention.get("clarification_id") or ""),
+        "status": str(attention.get("status") or ""),
+        "unresolved_required_count": int(attention.get("unresolved_required_count") or 0),
+    }
 
 
 def _stream_set(session_id: str, **fields) -> None:
@@ -924,10 +915,13 @@ def setup_chat_routes(
             from src.tool_security import plan_mode_disabled_tools
             disabled_tools.update(plan_mode_disabled_tools())
 
+        clarification_gate = _clarification_gate_for_session(owner=ctx.user, session_id=session)
         tool_policy = build_effective_tool_policy(
             disabled_tools=disabled_tools,
             last_user_message=message,
             orchestrator_mode=orchestrator_mode,
+            clarification_open=bool(clarification_gate.get("open")),
+            clarification_reason=str(clarification_gate.get("reason") or ""),
         )
         disabled_tools = tool_policy.all_disabled_names()
         research_blocked_by_policy = bool(
@@ -1119,6 +1113,27 @@ def setup_chat_routes(
                 _fallback_candidates = resolve_chat_fallback_candidates(owner=_user)
             except Exception:
                 _fallback_candidates = []
+            try:
+                _tool_usage_context = build_trusted_chat_tool_usage_context(
+                    owner=_user,
+                    session_id=session,
+                    endpoint_urls=[sess.endpoint_url] + [
+                        candidate[0]
+                        for candidate in _fallback_candidates
+                        if isinstance(candidate, (list, tuple)) and candidate
+                    ],
+                    agent_mode=(chat_mode == "agent"),
+                    incognito=incognito,
+                )
+                _tool_usage_instrumentation = getattr(
+                    getattr(request.app, "state", None),
+                    "tool_usage_instrumentation",
+                    None,
+                )
+            except Exception:
+                # Context/capture setup is optional and must not affect chat.
+                _tool_usage_context = None
+                _tool_usage_instrumentation = None
 
             # Send model name early so the frontend can show it during streaming
             _model_suffix = "Research" if effective_do_research else None
@@ -1350,7 +1365,8 @@ def setup_chat_routes(
                         workspace=workspace or None,
                         audit_surface=_agent_audit_surface,
                         audit_correlation_id=session,
-                        tool_usage_instrumentation=tool_usage_instrumentation,
+                        tool_usage_context=_tool_usage_context,
+                        tool_usage_instrumentation=_tool_usage_instrumentation,
                     ):
                         if chunk.startswith("data: ") and not chunk.startswith("data: [DONE]"):
                             try:

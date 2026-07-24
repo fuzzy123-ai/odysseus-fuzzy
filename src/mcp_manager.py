@@ -257,6 +257,9 @@ class McpManager:
         self._connect_tasks: Dict[str, Any] = {}
         # Tracking updates to tools/connections for RAG indexing / prompt cache
         self._generation = 0
+        # Descriptor projections are derived state and must track discovery generation.
+        self._descriptor_cache_key = None
+        self._descriptor_cache: Tuple[Dict[str, Any], ...] = ()
 
     def generation(self) -> int:
         """Return the generation used to invalidate MCP catalog consumers."""
@@ -740,12 +743,8 @@ class McpManager:
         disabled_map: optional {server_id: set_of_disabled_tool_names} to filter out.
         """
         schemas = []
-        for server_id in sorted(self._tools):
-            tools = self._tools[server_id]
-            name_counts: Dict[str, int] = {}
-            for tool in tools:
-                name = str(tool.get("name") or "")
-                name_counts[name] = name_counts.get(name, 0) + 1
+        seen: Set[str] = set()
+        for server_id, tools in sorted(self._tools.items()):
             # Skip most builtin Python servers; only explicit builtins keep
             # their qualified MCP function-calling surface visible.
             if self.is_builtin(server_id) and server_id not in PROMPT_VISIBLE_BUILTIN_SERVERS:
@@ -769,6 +768,9 @@ class McpManager:
                 if not metadata["catalog_enabled"]:
                     continue
                 qualified = f"mcp__{server_id}__{tool['name']}"
+                if qualified in seen:
+                    continue
+                seen.add(qualified)
                 schema = {
                     "type": "function",
                     "function": {
@@ -784,21 +786,20 @@ class McpManager:
     def get_all_tools(self, disabled_map: Optional[Dict[str, set]] = None) -> List[Dict]:
         """Return a flat list of all discovered tools with server info."""
         result = []
-        for server_id in sorted(self._tools):
-            tools = self._tools[server_id]
+        seen: Set[str] = set()
+        for server_id, tools in sorted(self._tools.items()):
             conn = self._connections.get(server_id, {})
             disabled = (disabled_map or {}).get(server_id, set())
-            name_counts: Dict[str, int] = {}
-            for tool in tools:
-                name = str(tool.get("name") or "")
-                name_counts[name] = name_counts.get(name, 0) + 1
             for tool in sorted(tools, key=lambda item: str(item.get("name") or "")):
-                is_disabled = tool["name"] in disabled
-                row = {
+                qualified = f"mcp__{server_id}__{tool['name']}"
+                if qualified in seen:
+                    continue
+                seen.add(qualified)
+                result.append({
                     "server_id": server_id,
                     "server_name": conn.get("name", server_id),
                     "name": tool["name"],
-                    "qualified_name": f"mcp__{server_id}__{tool['name']}",
+                    "qualified_name": qualified,
                     "description": tool.get("description", ""),
                     "input_schema": tool.get("input_schema") or {},
                     "is_disabled": is_disabled,
@@ -814,6 +815,55 @@ class McpManager:
                 )
                 result.append(row)
         return result
+
+    def get_descriptor_projections(
+        self,
+        disabled_map: Optional[Dict[str, set]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Return deterministic fail-closed Descriptor-v2 projections for MCP tools."""
+
+        from src.runtime_tool_status import (
+            build_dynamic_tool_descriptor,
+            canonical_dynamic_tool_id,
+        )
+
+        disabled_key = frozenset(
+            (str(server_id), frozenset(str(name) for name in names))
+            for server_id, names in (disabled_map or {}).items()
+        )
+        cache_key = (self._generation, disabled_key)
+        if self._descriptor_cache_key == cache_key:
+            return [dict(row) for row in self._descriptor_cache]
+
+        rows: List[Dict[str, Any]] = []
+        for tool in self.get_all_tools(disabled_map):
+            runtime_id = str(tool["qualified_name"])
+            source_id = str(tool["server_id"] or "mcp-server")
+            descriptor = build_dynamic_tool_descriptor(
+                runtime_id,
+                source="mcp",
+                source_id=source_id,
+                description=str(tool.get("description") or ""),
+            )
+            row = descriptor.audit_dict()
+            row.update(
+                runtime_tool_id=runtime_id,
+                server_name=str(tool.get("server_name") or source_id),
+                runtime_permission="admin",
+                enabled=not bool(tool.get("is_disabled")),
+                policy_status=(
+                    "disabled_by_mcp_server"
+                    if tool.get("is_disabled")
+                    else "dynamic_review_required"
+                ),
+                handler_ref=f"mcp:{canonical_dynamic_tool_id(source_id)}",
+                projection_drift=(),
+            )
+            rows.append(row)
+        rows.sort(key=lambda item: str(item["runtime_tool_id"]))
+        self._descriptor_cache_key = cache_key
+        self._descriptor_cache = tuple(dict(row) for row in rows)
+        return [dict(row) for row in rows]
 
     def plan_mode_blocked_mcp(self) -> Tuple[Dict[str, Set[str]], Set[str]]:
         """Plan mode: block every MCP tool that isn't clearly read-only.

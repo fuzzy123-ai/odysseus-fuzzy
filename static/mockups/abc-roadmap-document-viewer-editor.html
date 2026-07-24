@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Harbor One - Roadmap Document Viewer Mockup</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #02060d;
+      --surface: rgba(2, 10, 17, 0.86);
+      --surface-strong: rgba(3, 14, 24, 0.96);
+      --ink: rgba(190, 218, 226, 0.8);
+      --ink-strong: rgba(224, 242, 247, 0.9);
+      --muted: rgba(126, 158, 171, 0.72);
+      --cyan: #10b6ca;
+      --blue: #4b8cff;
+      --green: #59d98b;
+      --amber: #f4b956;
+      --red: #ff5d76;
+      --font: "Segoe UI Variable Text", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-weight: 600;
+      font-style: normal;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+    }
+
+    button,
+    textarea {
+      color: inherit;
+      font: inherit;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      min-width: 1180px;
+      min-height: 720px;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 16% 18%, rgba(75, 140, 255, 0.16), transparent 28%),
+        radial-gradient(circle at 76% 28%, rgba(16, 182, 202, 0.12), transparent 32%),
+        radial-gradient(circle at 48% 86%, rgba(244, 185, 86, 0.07), transparent 24%),
+        #02060d;
+    }
+
+    .stage::before,
+    .stage::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .stage::before {
+      z-index: -2;
+      background:
+        linear-gradient(rgba(16, 182, 202, 0.026) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(16, 182, 202, 0.026) 1px, transparent 1px);
+      background-size: 54px 54px;
+      mask-image: radial-gradient(circle at 50% 50%, black 0 56%, transparent 86%);
+    }
+
+    .stage::after {
+      z-index: -1;
+      background: repeating-linear-gradient(180deg, rgba(255,255,255,0.033) 0 1px, transparent 1px 5px);
+      opacity: 0.13;
+      mix-blend-mode: screen;
+    }
+
+    .network {
+      position: absolute;
+      inset: -8%;
+      z-index: -1;
+      pointer-events: none;
+      opacity: 0.55;
+    }
+
+    .network line {
+      stroke: rgba(16, 182, 202, 0.13);
+      stroke-width: 1;
+    }
+
+    .network circle {
+      fill: rgba(16, 182, 202, 0.45);
+      filter: drop-shadow(0 0 8px rgba(16, 182, 202, 0.45));
+    }
+
+    .topbar {
+      position: fixed;
+      top: 14px;
+      left: 18px;
+      right: 18px;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: 110px minmax(620px, 760px) 1fr;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .brand {
+      color: rgba(118, 214, 226, 0.86);
+      font: 900 16px/1 var(--mono);
+      letter-spacing: 0;
+      text-shadow: 0 0 14px rgba(16, 182, 202, 0.22);
+    }
+
+    .workspace-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(128px, 1fr));
+      gap: 10px;
+      min-height: 48px;
+      border: 1px solid rgba(16, 182, 202, 0.17);
+      border-radius: 12px;
+      background:
+        linear-gradient(180deg, rgba(16, 182, 202, 0.05), rgba(2, 9, 16, 0.92)),
+        rgba(2, 9, 16, 0.9);
+      padding: 7px;
+      box-shadow: inset 0 0 0 1px rgba(215, 247, 255, 0.025);
+    }
+
+    .workspace-tab {
+      height: 34px;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      color: rgba(215, 247, 255, 0.56);
+      padding: 0 10px;
+      text-align: left;
+      font: 700 13px/1 var(--mono);
+    }
+
+    .workspace-tab.active {
+      border-color: rgba(244, 185, 86, 0.62);
+      background: rgba(244, 185, 86, 0.1);
+      color: rgba(236, 253, 255, 0.88);
+      box-shadow: 0 0 16px rgba(244, 185, 86, 0.12);
+    }
+
+    .workspace-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: 0.7;
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    .workspace-count {
+      min-width: 20px;
+      height: 20px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid currentColor;
+      border-radius: 10px;
+      font-size: 11px;
+      opacity: 0.82;
+    }
+
+    .shell {
+      position: absolute;
+      inset: 86px 24px 26px;
+      display: grid;
+      grid-template-columns: 280px minmax(480px, 1fr) minmax(430px, 560px);
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .window {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: 34px minmax(0, 1fr);
+      border: 1px solid rgba(16, 182, 202, 0.28);
+      border-radius: 8px;
+      background:
+        radial-gradient(circle at 100% 0%, rgba(16, 182, 202, 0.08), transparent 36%),
+        rgba(2, 10, 17, 0.83);
+      box-shadow:
+        0 24px 70px rgba(0, 0, 0, 0.34),
+        0 0 32px rgba(16, 182, 202, 0.08);
+      overflow: hidden;
+    }
+
+    .window-head {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      border-bottom: 1px solid rgba(16, 182, 202, 0.13);
+      background: rgba(1, 8, 14, 0.62);
+      padding: 0 12px;
+    }
+
+    .window-title {
+      justify-self: center;
+      color: rgba(224, 242, 247, 0.88);
+      font: 800 12px/1 var(--mono);
+      white-space: nowrap;
+    }
+
+    .window-subtitle {
+      justify-self: start;
+      color: rgba(126, 158, 171, 0.7);
+      font: 800 9px/1 var(--mono);
+    }
+
+    .window-actions {
+      justify-self: end;
+      display: inline-flex;
+      align-items: center;
+      gap: 13px;
+      color: rgba(16, 182, 202, 0.72);
+      font: 700 12px/1 var(--mono);
+    }
+
+    .window-action {
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .roadmap-list {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .search {
+      height: 34px;
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr);
+      align-items: center;
+      border: 1px solid rgba(16, 182, 202, 0.18);
+      border-radius: 8px;
+      background: rgba(2, 10, 17, 0.62);
+      color: rgba(126, 158, 171, 0.8);
+      padding: 0 8px;
+      font: 11px/1 var(--mono);
+    }
+
+    .search input {
+      min-width: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+      font: inherit;
+    }
+
+    .rows {
+      display: grid;
+      align-content: start;
+      gap: 7px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .roadmap-row {
+      --row: var(--blue);
+      min-height: 58px;
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      border: 1px solid color-mix(in srgb, var(--row) 16%, transparent);
+      border-radius: 8px;
+      background:
+        radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--row) 8%, transparent), transparent 48%),
+        rgba(2, 10, 17, 0.52);
+      color: rgba(222, 244, 250, 0.8);
+      padding: 8px 9px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .roadmap-row.active {
+      border-color: color-mix(in srgb, var(--row) 72%, white 6%);
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--row) 18%, transparent),
+        0 0 24px color-mix(in srgb, var(--row) 18%, transparent);
+    }
+
+    .seq {
+      height: 30px;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--row) 24%, transparent);
+      border-radius: 7px;
+      background: color-mix(in srgb, var(--row) 7%, rgba(2, 10, 17, 0.78));
+      color: color-mix(in srgb, var(--row) 88%, white 10%);
+      text-shadow: 0 0 10px color-mix(in srgb, var(--row) 56%, transparent);
+      font: 900 10px/1 var(--mono);
+    }
+
+    .row-copy {
+      min-width: 0;
+      display: grid;
+      gap: 4px;
+    }
+
+    .row-copy strong,
+    .row-copy small {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .row-copy strong {
+      color: rgba(224, 242, 247, 0.86);
+      font: 800 11px/1.1 var(--mono);
+    }
+
+    .row-copy small {
+      color: rgba(151, 184, 196, 0.72);
+      font: 10px/1.2 var(--font);
+    }
+
+    .file-tag {
+      color: color-mix(in srgb, var(--row) 82%, white 8%);
+      font: 800 9px/1 var(--mono);
+      white-space: nowrap;
+    }
+
+    .graph {
+      position: relative;
+      min-height: 0;
+      padding: 0;
+    }
+
+    .graph-body {
+      position: relative;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .graph-title {
+      position: absolute;
+      top: 18px;
+      left: 20px;
+      z-index: 4;
+      color: rgba(224, 242, 247, 0.86);
+      font: 900 18px/1 var(--mono);
+    }
+
+    .graph-lines {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .graph-lines path {
+      fill: none;
+      stroke-width: 7;
+      stroke-linecap: round;
+      opacity: 0.58;
+    }
+
+    .node {
+      --node: var(--blue);
+      position: absolute;
+      width: 84px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--node) 36%, transparent);
+      border-radius: 7px;
+      background:
+        radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--node) 13%, transparent), transparent 48%),
+        linear-gradient(180deg, rgba(3, 14, 24, 0.98), rgba(1, 8, 14, 0.98));
+      color: color-mix(in srgb, var(--node) 82%, white 10%);
+      font: 900 11px/1 var(--mono);
+      text-align: center;
+      cursor: pointer;
+      transform: translate(-50%, -50%);
+      box-shadow:
+        0 0 0 7px rgba(1, 7, 13, 0.88),
+        0 0 16px color-mix(in srgb, var(--node) 9%, transparent);
+    }
+
+    .node.active {
+      z-index: 5;
+      border-color: color-mix(in srgb, var(--node) 84%, white 8%);
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--node) 36%, transparent),
+        0 0 0 7px rgba(1, 7, 13, 0.94),
+        0 0 28px color-mix(in srgb, var(--node) 38%, transparent),
+        0 0 54px color-mix(in srgb, var(--node) 18%, transparent);
+    }
+
+    .document-viewer {
+      grid-template-rows: 34px minmax(0, 1fr);
+    }
+
+    .doc-body {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      background: rgba(1, 7, 13, 0.38);
+    }
+
+    .doc-modebar {
+      min-height: 42px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid rgba(16, 182, 202, 0.12);
+      padding: 0 14px;
+    }
+
+    .doc-path {
+      min-width: 0;
+      overflow: hidden;
+      color: rgba(126, 158, 171, 0.74);
+      font: 10px/1 var(--mono);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mode-switch {
+      display: inline-flex;
+      border: 1px solid rgba(16, 182, 202, 0.22);
+      border-radius: 7px;
+      overflow: hidden;
+      background: rgba(2, 10, 17, 0.62);
+    }
+
+    .mode-switch button {
+      height: 26px;
+      border: 0;
+      border-right: 1px solid rgba(16, 182, 202, 0.13);
+      background: transparent;
+      color: rgba(126, 158, 171, 0.82);
+      padding: 0 10px;
+      cursor: pointer;
+      font: 800 10px/1 var(--mono);
+    }
+
+    .mode-switch button:last-child { border-right: 0; }
+    .mode-switch button.active {
+      color: color-mix(in srgb, var(--amber) 82%, white 8%);
+      background: rgba(244, 185, 86, 0.1);
+    }
+
+    .doc-scroll {
+      min-height: 0;
+      overflow: auto;
+      padding: 22px 24px 26px;
+    }
+
+    .read-view {
+      max-width: 70ch;
+      margin: 0 auto;
+    }
+
+    .doc-kicker {
+      color: color-mix(in srgb, var(--amber) 76%, white 8%);
+      font: 900 10px/1 var(--mono);
+    }
+
+    .doc-title {
+      margin: 8px 0 10px;
+      color: rgba(224, 242, 247, 0.9);
+      font: 900 24px/1.1 var(--mono);
+      text-wrap: balance;
+    }
+
+    .summary-card {
+      border: 1px solid rgba(244, 185, 86, 0.2);
+      border-radius: 8px;
+      background:
+        radial-gradient(circle at 100% 0%, rgba(244, 185, 86, 0.09), transparent 48%),
+        rgba(4, 17, 28, 0.46);
+      padding: 12px;
+    }
+
+    .summary-card textarea {
+      width: 100%;
+      min-height: 92px;
+      resize: vertical;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: rgba(202, 225, 232, 0.86);
+      font: 14px/1.55 var(--font);
+    }
+
+    .section {
+      margin-top: 22px;
+    }
+
+    .section h3 {
+      margin: 0 0 10px;
+      color: rgba(224, 242, 247, 0.84);
+      font: 900 12px/1 var(--mono);
+    }
+
+    .task-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .task {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr) auto;
+      align-items: start;
+      gap: 10px;
+      border: 1px solid rgba(16, 182, 202, 0.12);
+      border-radius: 7px;
+      background: rgba(2, 10, 17, 0.44);
+      padding: 9px 10px;
+    }
+
+    .task-check {
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(89, 217, 139, 0.5);
+      border-radius: 50%;
+      color: rgba(89, 217, 139, 0.86);
+      font: 900 11px/1 var(--mono);
+      box-shadow: 0 0 12px rgba(89, 217, 139, 0.12);
+    }
+
+    .task-copy {
+      min-width: 0;
+      display: grid;
+      gap: 3px;
+    }
+
+    .task-copy strong {
+      color: rgba(224, 242, 247, 0.84);
+      font: 800 12px/1.2 var(--mono);
+    }
+
+    .task-copy span {
+      color: rgba(151, 184, 196, 0.74);
+      font: 12px/1.35 var(--font);
+    }
+
+    .task-state {
+      color: rgba(126, 158, 171, 0.74);
+      font: 800 9px/1 var(--mono);
+    }
+
+    .gate-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .gate {
+      display: inline-grid;
+      grid-template-columns: auto auto;
+      align-items: center;
+      gap: 7px;
+      min-height: 28px;
+      border: 1px solid rgba(255, 93, 118, 0.3);
+      border-radius: 999px;
+      background: rgba(255, 93, 118, 0.07);
+      color: rgba(255, 157, 170, 0.86);
+      padding: 0 10px;
+      font: 800 10px/1 var(--mono);
+    }
+
+    .gate.done {
+      border-color: rgba(89, 217, 139, 0.3);
+      background: rgba(89, 217, 139, 0.07);
+      color: rgba(137, 239, 174, 0.84);
+    }
+
+    .data-view {
+      display: none;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .document-viewer[data-mode="data"] .read-view { display: none; }
+    .document-viewer[data-mode="data"] .data-view { display: grid; }
+
+    .json-editor {
+      width: 100%;
+      min-height: 100%;
+      resize: none;
+      border: 1px solid rgba(16, 182, 202, 0.16);
+      border-radius: 8px;
+      outline: 0;
+      background:
+        linear-gradient(90deg, rgba(16, 182, 202, 0.05), transparent 18%),
+        rgba(1, 7, 13, 0.62);
+      color: rgba(202, 225, 232, 0.84);
+      padding: 14px 16px;
+      font: 12px/1.56 var(--mono);
+      tab-size: 2;
+    }
+
+    .save-hint {
+      position: fixed;
+      right: 30px;
+      bottom: 22px;
+      z-index: 30;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid rgba(89, 217, 139, 0.22);
+      border-radius: 999px;
+      background: rgba(3, 14, 24, 0.86);
+      color: rgba(160, 236, 188, 0.82);
+      padding: 8px 12px;
+      font: 800 10px/1 var(--mono);
+      box-shadow: 0 0 22px rgba(89, 217, 139, 0.08);
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <svg class="network" viewBox="0 0 1200 800" aria-hidden="true">
+      <line x1="40" y1="170" x2="250" y2="90"></line>
+      <line x1="250" y1="90" x2="520" y2="210"></line>
+      <line x1="520" y1="210" x2="760" y2="120"></line>
+      <line x1="760" y1="120" x2="1120" y2="260"></line>
+      <line x1="110" y1="620" x2="430" y2="520"></line>
+      <line x1="430" y1="520" x2="760" y2="650"></line>
+      <line x1="760" y1="650" x2="1080" y2="520"></line>
+      <line x1="220" y1="92" x2="430" y2="520"></line>
+      <line x1="760" y1="120" x2="760" y2="650"></line>
+      <circle cx="40" cy="170" r="4"></circle>
+      <circle cx="250" cy="90" r="3"></circle>
+      <circle cx="520" cy="210" r="4"></circle>
+      <circle cx="760" cy="120" r="3"></circle>
+      <circle cx="1120" cy="260" r="4"></circle>
+      <circle cx="110" cy="620" r="4"></circle>
+      <circle cx="430" cy="520" r="3"></circle>
+      <circle cx="760" cy="650" r="4"></circle>
+      <circle cx="1080" cy="520" r="3"></circle>
+    </svg>
+
+    <header class="topbar">
+      <div class="brand">HARBOR ONE</div>
+      <nav class="workspace-tabs" aria-label="Workspaces">
+        <button class="workspace-tab"><span class="workspace-dot"></span><span>Agent</span><span class="workspace-count">2</span></button>
+        <button class="workspace-tab"><span class="workspace-dot"></span><span>Knowledge</span><span class="workspace-count">1</span></button>
+        <button class="workspace-tab active"><span class="workspace-dot"></span><span>Planning</span><span class="workspace-count">3</span></button>
+        <button class="workspace-tab"><span class="workspace-dot"></span><span>Inbox</span><span class="workspace-count">1</span></button>
+      </nav>
+    </header>
+
+    <section class="shell">
+      <article class="window">
+        <header class="window-head">
+          <div class="window-subtitle">Harbor One</div>
+          <div class="window-title">Roadmaps</div>
+          <div class="window-actions"><button class="window-action">-</button><button class="window-action">□</button><button class="window-action">x</button></div>
+        </header>
+        <div class="roadmap-list">
+          <label class="search"><span>⌕</span><input value="" placeholder="Find roadmap"></label>
+          <div class="rows" id="rows"></div>
+        </div>
+      </article>
+
+      <article class="window graph">
+        <header class="window-head">
+          <div class="window-subtitle">v0.1 -> v0.2</div>
+          <div class="window-title">Overview</div>
+          <div class="window-actions"><button class="window-action">-</button><button class="window-action">□</button><button class="window-action">x</button></div>
+        </header>
+        <div class="graph-body">
+          <div class="graph-title">Agent Autonomy Extensions</div>
+          <svg class="graph-lines" viewBox="0 0 650 580" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M45 302 C160 302 210 302 300 302" stroke="#59d98b"></path>
+            <path d="M300 302 C392 302 438 302 560 302" stroke="#4b8cff"></path>
+            <path d="M260 302 C310 160 430 142 510 198" stroke="#59d98b"></path>
+            <path d="M318 302 C374 420 452 438 532 365" stroke="#ff5d76"></path>
+          </svg>
+          <button class="node" style="--node:var(--green); left:14%; top:52%;" data-id="AAE-1">AAE-1</button>
+          <button class="node active" style="--node:var(--green); left:34%; top:52%;" data-id="AAE-2">AAE-2</button>
+          <button class="node" style="--node:var(--blue); left:55%; top:52%;" data-id="AAE-3">AAE-3</button>
+          <button class="node" style="--node:var(--blue); left:78%; top:52%;" data-id="AAE-4">AAE-4</button>
+          <button class="node" style="--node:var(--green); left:69%; top:32%;" data-id="AAE-6">AAE-6</button>
+          <button class="node" style="--node:var(--red); left:72%; top:69%;" data-id="AAE-5">AAE-5</button>
+        </div>
+      </article>
+
+      <article class="window document-viewer" id="viewer" data-mode="read">
+        <header class="window-head">
+          <div class="window-subtitle" id="doc-state">roadmap json</div>
+          <div class="window-title" id="doc-window-title">AAE-2 - Website Research Pipeline</div>
+          <div class="window-actions"><button class="window-action">-</button><button class="window-action">□</button><button class="window-action">x</button></div>
+        </header>
+        <div class="doc-body">
+          <div class="doc-modebar">
+            <div class="doc-path" id="doc-path">projects/agent-autonomy/roadmaps/aae-2-website-research-pipeline.json</div>
+            <div class="mode-switch">
+              <button class="active" data-mode="read">Read</button>
+              <button data-mode="data">Data</button>
+            </div>
+          </div>
+          <div class="doc-scroll">
+            <section class="read-view">
+              <div class="doc-kicker" id="doc-kicker">Roadmap 2</div>
+              <h1 class="doc-title" id="doc-title">Website Research Pipeline</h1>
+              <div class="summary-card">
+                <textarea id="doc-summary">Approved site scopes, crawl caps, source inventory, gaps and redacted synthesis. This roadmap defines how external research is bounded, reviewed and converted into durable context.</textarea>
+              </div>
+
+              <section class="section">
+                <h3>Tasks</h3>
+                <div class="task-list" id="task-list"></div>
+              </section>
+
+              <section class="section">
+                <h3>Gates</h3>
+                <div class="gate-strip" id="gate-list"></div>
+              </section>
+            </section>
+            <section class="data-view">
+              <textarea class="json-editor" id="json-editor" spellcheck="false"></textarea>
+            </section>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <div class="save-hint">autosaved draft - json validation ready</div>
+  </main>
+
+  <script>
+    const roadmaps = [
+      {
+        id: "AAE-1",
+        seq: "1",
+        title: "Telegram Task Orchestrator",
+        state: "done",
+        color: "var(--green)",
+        path: "projects/agent-autonomy/roadmaps/aae-1-telegram-task-orchestrator.json",
+        summary: "Starts, pauses, queries and reports long-running bounded agent tasks through Telegram.",
+        tasks: [["done", "Task control", "Start, pause and inspect agent runs."], ["done", "Run status", "Show compact progress for humans."]],
+        gates: [["done", "Scope approved"]]
+      },
+      {
+        id: "AAE-2",
+        seq: "2",
+        title: "Website Research Pipeline",
+        state: "done",
+        color: "var(--green)",
+        path: "projects/agent-autonomy/roadmaps/aae-2-website-research-pipeline.json",
+        summary: "Approved site scopes, crawl caps, source inventory, gaps and redacted synthesis. This roadmap defines how external research is bounded, reviewed and converted into durable context.",
+        tasks: [["done", "Source scope", "Define allowed domains and crawl limits."], ["done", "Evidence list", "Collect sources, gaps and confidence notes."], ["done", "Redacted synthesis", "Prepare shareable results without leaking sensitive data."]],
+        gates: [["done", "Memory policy passed"], ["done", "Source review complete"]]
+      },
+      {
+        id: "AAE-3",
+        seq: "3",
+        title: "Browser DevTools Understanding",
+        state: "future",
+        color: "var(--blue)",
+        path: "projects/agent-autonomy/roadmaps/aae-3-browser-devtools-understanding.json",
+        summary: "Console, network, DOM, accessibility tree, storage metadata and failed request evidence for browser debugging.",
+        tasks: [["open", "Console capture", "Collect warnings and errors."], ["open", "Network evidence", "Store failed requests and timing notes."]],
+        gates: [["blocked", "Sandbox gate not ready"]]
+      },
+      {
+        id: "AAE-6",
+        seq: "2.1",
+        title: "Memory And RaptorGraph Knowledge Commit",
+        state: "done",
+        color: "var(--green)",
+        path: "projects/agent-autonomy/roadmaps/aae-6-memory-raptorgraph-commit.json",
+        summary: "Source-linked candidates become policy-approved knowledge entries with provenance.",
+        tasks: [["done", "Candidate review", "Separate durable knowledge from temporary notes."], ["done", "Graph commit", "Write approved knowledge with source links."]],
+        gates: [["done", "Memory write policy"]]
+      },
+      {
+        id: "AAE-5",
+        seq: "3.1",
+        title: "Sandbox Code Execution",
+        state: "blocked",
+        color: "var(--red)",
+        path: "projects/agent-autonomy/roadmaps/aae-5-sandbox-code-execution.json",
+        summary: "Disposable sandboxes with scoped mounts, resource limits and redacted artifacts.",
+        tasks: [["open", "Scoped mount policy", "Keep project access explicit."], ["open", "Resource limits", "Prevent runaway work."]],
+        gates: [["blocked", "Safe execution not proven"]]
+      }
+    ];
+
+    const rows = document.getElementById("rows");
+    const viewer = document.getElementById("viewer");
+    const docWindowTitle = document.getElementById("doc-window-title");
+    const docState = document.getElementById("doc-state");
+    const docPath = document.getElementById("doc-path");
+    const docKicker = document.getElementById("doc-kicker");
+    const docTitle = document.getElementById("doc-title");
+    const docSummary = document.getElementById("doc-summary");
+    const taskList = document.getElementById("task-list");
+    const gateList = document.getElementById("gate-list");
+    const jsonEditor = document.getElementById("json-editor");
+
+    function stateLabel(state) {
+      if (state === "done") return "done";
+      if (state === "blocked") return "blocked";
+      return "open";
+    }
+
+    function renderRows() {
+      rows.innerHTML = roadmaps.map(item => `
+        <button class="roadmap-row${item.id === "AAE-2" ? " active" : ""}" style="--row:${item.color}" data-id="${item.id}">
+          <span class="seq">${item.seq}</span>
+          <span class="row-copy"><strong>${item.title}</strong><small>${item.summary}</small></span>
+          <span class="file-tag">${item.id}</span>
+        </button>
+      `).join("");
+    }
+
+    function renderRoadmap(id) {
+      const item = roadmaps.find(entry => entry.id === id) || roadmaps[1];
+      document.querySelectorAll("[data-id]").forEach(element => element.classList.toggle("active", element.dataset.id === item.id));
+      docWindowTitle.textContent = `${item.id} - ${item.title}`;
+      docState.textContent = `${stateLabel(item.state)} roadmap`;
+      docPath.textContent = item.path;
+      docKicker.textContent = `Roadmap ${item.seq}`;
+      docTitle.textContent = item.title;
+      docSummary.value = item.summary;
+      taskList.innerHTML = item.tasks.map(task => `
+        <div class="task">
+          <span class="task-check">${task[0] === "done" ? "✓" : ""}</span>
+          <span class="task-copy"><strong>${task[1]}</strong><span>${task[2]}</span></span>
+          <span class="task-state">${task[0]}</span>
+        </div>
+      `).join("");
+      gateList.innerHTML = item.gates.map(gate => `<span class="gate ${gate[0] === "done" ? "done" : ""}">${gate[0]}<span>${gate[1]}</span></span>`).join("");
+      jsonEditor.value = JSON.stringify({
+        id: item.id,
+        title: item.title,
+        status: item.state,
+        sequence: item.seq,
+        path: item.path,
+        summary: item.summary,
+        tasks: item.tasks.map(task => ({ status: task[0], title: task[1], detail: task[2] })),
+        gates: item.gates.map(gate => ({ status: gate[0], title: gate[1] }))
+      }, null, 2);
+    }
+
+    renderRows();
+    renderRoadmap("AAE-2");
+
+    document.addEventListener("click", event => {
+      const target = event.target.closest("[data-id]");
+      if (target) renderRoadmap(target.dataset.id);
+      const mode = event.target.closest("[data-mode]");
+      if (mode) {
+        viewer.dataset.mode = mode.dataset.mode;
+        document.querySelectorAll("[data-mode]").forEach(button => button.classList.toggle("active", button === mode));
+      }
+    });
+  </script>
+</body>
+</html>

@@ -104,6 +104,113 @@ recreates the Podman deployment, and verifies the app plus ChromaDB. If a
 fast-forward update is available, it requires a clean worktree and runs the
 same backup-before-deploy flow after updating the checkout.
 
+## Local Model Maintenance Priority
+
+The Debian homeserver is CPU-only for local Gemma3. Foreground document checks,
+sensitive triage, and user-triggered memory decisions must stay ahead of
+Memory/RAPTOR maintenance.
+
+Priority classes:
+
+- `P0`: foreground local model calls. Use the app path; do not launch as an
+  external maintenance process.
+- `P1`: small interactive support checks. Use the app path.
+- `P2`: routine memory or graph hygiene. External runs must use low CPU/IO
+  priority.
+- `P3`: bulk rebuilds, full backfills, or large simulations. Requires explicit
+  operator Go and a quiet maintenance window.
+
+External P2/P3 commands should be planned with
+`src.local_maintenance_priority.build_low_priority_maintenance_plan`. The helper
+renders command argv only; it does not execute host commands.
+
+For external maintenance that runs inside `odysseus_odysseus_1`, prefer
+`src.local_maintenance_priority.build_foreground_aware_maintenance_plan`. It
+adds a wait guard inside the app container before the actual maintenance command
+so it can see the same foreground marker as the app process:
+
+```bash
+python -m src.local_maintenance_priority --wait-foreground-clear --timeout 600 -- <maintenance-command>
+```
+
+The foreground marker path defaults to
+`/tmp/odysseus-local-model-foreground.json` inside the app container. App-side
+foreground local model calls create this TTL marker while waiting/running and
+clear it after the local-model slot exits. Stale markers are ignored.
+
+For production launch planning, use
+`src.local_maintenance_priority.build_guarded_maintenance_launcher_plan`. It is
+still a non-executing planner, but it requires one auditable contract for:
+
+- foreground-aware guard insertion;
+- low CPU/IO priority;
+- load-average threshold;
+- available-RAM threshold;
+- required warm model evidence, normally `gemma3:4b`;
+- active-maintenance check;
+- command timeout;
+- redacted report path metadata.
+
+Planner statuses:
+
+- `ready`: supplied evidence satisfies all preflight gates.
+- `unknown`: evidence is missing or incomplete; do not auto-launch.
+- `blocked`: load/RAM/model/active-maintenance evidence failed; do not launch.
+
+Live evidence from 2026-07-11:
+
+- Guard-only smoke passed: the guard waited `7.857s`, ran the command, and the
+  marker cleared.
+- Bounded live smoke passed with guarded synthetic Memory/RAPTOR maintenance
+  plus Gemma3 adversarial benchmark: score `100.0`, retrieval precision `1.0`,
+  average latency `22.12s`, max latency `26.03s`.
+- Gemma3 stayed warm in Ollama with `UNTIL Forever`.
+
+Preferred external wrapper:
+
+```bash
+nice -n 10 ionice -c2 -n7 <maintenance-command>
+```
+
+For P3 bulk/offline maintenance, use the stronger idle wrapper:
+
+```bash
+nice -n 19 ionice -c3 <maintenance-command>
+```
+
+Alternative when user systemd scopes are available:
+
+```bash
+systemd-run --user --scope -p CPUWeight=20 -p IOWeight=20 <maintenance-command>
+```
+
+Start gate before external P2/P3 maintenance:
+
+- Gemma3 is already warm in `ollama ps` with `UNTIL Forever`.
+- Host load is below `2.0` for P2 and below `1.0` for P3.
+- Available RAM is above `4 GiB`.
+- The foreground marker is absent or stale, or the foreground-aware guard waits
+  until it is clear.
+- No other maintenance process is running.
+- P3 has explicit operator Go.
+
+Stop gate:
+
+- Gemma3 latency exceeds `45s`.
+- Host load exceeds `4.0` for more than one sample.
+- Available RAM falls below `3 GiB`.
+- Ollama unloads Gemma3.
+- Any command would persist raw private content, secrets, chat IDs, or provider
+  raw output.
+
+Operational decision:
+
+- `Go`: same-process maintenance through the app queue/checkpoints.
+- `Go`: external Memory/RAPTOR maintenance only when launched through the
+  guarded launcher contract and the maintenance code keeps checkpointing.
+- `No-Go`: arbitrary external CPU-heavy maintenance while foreground Gemma3
+  latency must stay below `45s`.
+
 Telegram plugin status and recent history:
 
 ```bash
@@ -129,6 +236,30 @@ Existing helper scripts for Telegram checks:
 - `check-telegram-delivery.sh`
 - `send-odysseus-telegram-reply.sh`
 - `probe-server-deepseek-key.sh`
+
+## Default-off Memory observability assets
+
+Repository-only Prometheus assets live under
+`ops/homeserver/observability-podman/prometheus/`. They are not evidence of a
+live deployment. The stack is deliberately fail-closed: loopback-only web
+binding, absent Git-ignored scrape-token file, `restart: "no"`, and a systemd
+user-unit template guarded by an explicit activation marker.
+
+GRO-10 permits offline lint and tests only. Do not install the unit, create the
+marker or token, pull/start the container, create a productive scrape, or touch
+the versioned data volume before the single `GRO-LIVE-ACTIVATION` packet is
+accepted. That later packet must re-read live host state over the canonical SSH
+alias, verify backup/capacity/private binding, and own activation plus rollback.
+
+Offline validation from the repository root:
+
+```powershell
+venv\Scripts\python.exe ops\homeserver\observability-podman\prometheus\validate_assets.py --json
+venv\Scripts\python.exe -m pytest -q tests\test_homeserver_prometheus_assets.py
+```
+
+The Prometheus target uses `host.containers.internal:7000` inside the rootless
+Podman network and never publishes the Odysseus metrics endpoint itself.
 
 ## Access Note
 

@@ -1,8 +1,8 @@
 # Unified Source Index Implementation Roadmap
 
-Stand: 2026-07-13
+Stand: 2026-07-23
 
-Status: `USI-12_accepted / USI-09_and_USI-13_dependency_blocked / runtime_default_off`
+Status: `USI-14_accepted / USI-15_blocked_by_child_closure / UIR-00_dependency_ready / runtime_default_off`
 
 Master-Track: `0.28.x`, `OWM-15`, `L21`
 
@@ -460,26 +460,99 @@ Every list/query contract is bounded. Depending on mode it accepts `limit`,
 
 - Class: `repo_only`
 - Owner: Bob
-- Status: `pending_dependencies_2026-07-17`
-- Dependency audit: `TAX0=ready; TAX1/TAX5/TAX8=pending; no serialized TAX handoff, so shared hotfiles remain unclaimed`
+- Status: `accepted_2026-07-23`
+- Acceptance: `40 focused query/catalog/registration/security/TAX-audit tests
+  and 8 focused USI-overlap tests passed; both deterministic inventories clean;
+  deep Sol review approved after fail-closed JSON/provider-policy, exact-limit,
+  exact owner-free evidence, deferred lifecycle and overlap findings were
+  resolved`
+- Dependency audit: `USI-07 accepted; canonical Open-Work evidence marks TAX1/TAX5/TAX8 complete; four focused Descriptor-V2, security, dynamic-provider and USI-query dependency checks passed on the hydrated dev checkpoint`
+- Serialized claim:
+  - run_id: `abc-usi09-20260723T185258+0200`
+  - thread_id: `/root`
+  - owner: `Bob`
+  - state: `released`
+  - acquired_at: `2026-07-23T18:52:58+02:00`
+  - lease_expires_at: `2026-07-23T22:52:58+02:00`
+  - amended_at: `2026-07-23T19:23:50+02:00`
+  - amendment_reason: `Adding the one canonical identity necessarily updates
+    the frozen TAX0 catalog projections and deterministic inventory; the four
+    initially added paths close only that bounded parity surface. The authorized
+    focused parity run then exposed one additional frozen parser-count
+    assertion, so tests/test_tool_registration_parity.py is the sole second
+    amendment. Final Sol review then proved that the USI overlap inventory still
+    classified the now-present identity as planned_absent; its auditor, persisted
+    inventory and focused test are the exact three-path third amendment.`
+  - released_at: `2026-07-23T19:30:06+02:00`
+  - worktree: `C:\tmp\odysseus-abc-usi09-20260723`
+  - allowed_paths: `src/builtin_tool_catalog.py`, `src/tool_index.py`,
+    `src/tool_schema_definitions.py`, `src/tool_execution.py`,
+    `src/agent_tools/__init__.py`, new
+    `src/agent_tools/knowledge_tools.py`, `src/tool_security.py`, and new
+    `tests/test_query_knowledge_tool.py`,
+    `scripts/audit_tool_registry_drift.py`,
+    `docs/plans/tool-taxonomy-inventory.json`,
+    `tests/test_audit_tool_registry_drift.py`, and
+    `tests/test_builtin_tool_catalog.py`, plus
+    `tests/test_tool_registration_parity.py`,
+    `scripts/audit_unified_source_index_overlap.py`,
+    `docs/plans/unified-source-index-runtime-inventory.json`, and
+    `tests/test_audit_unified_source_index_overlap.py`
+  - excluded_paths: `src/tool_catalog.py`, `src/tool_registry.py`,
+    `src/unified_source_index_query.py`, every app/runtime initializer,
+    provider, MCP, database, migration, live and external path
+  - handoff_required: `false`
+  - evidence: `The UIX branch intentionally lacks USI dependencies; a clean
+    dev-based worktree supplies the accepted USI-07 planner and TAX contracts
+    without a broad cross-branch merge. Bob recon added builtin catalog and
+    plan-mode security as required fail-closed projections. Terra implemented
+    the sixteen-path amended claim; Sol resolved malformed-shape/raw-error,
+    ignored-limit, incomplete-evidence, lifecycle and overlap-inventory findings.
+    Runtime composition remains absent and therefore content-free unavailable.`
+  - implementation_commit:
+    `46f77c2a8cfa43e0129b8aadb98ac74f2e6ee0d3`
+  - artifact_hashes: handler
+    `9F866C70D2A51DB90F70BE9D6D4E84E4CCF3700626CB8F6CA3E0998272156E8F`,
+    focused test
+    `D10BCE1790C1455C41635D49B13114CBA23CED82C31EF1B08041FB9B899FF436`,
+    catalog
+    `7FC1BD2658A764456B6E23C732207134C11BF182766BE65574B53117867F528B`,
+    TAX inventory
+    `B0E135419AFB698FB94F7E021F4FEF5BEF70D0F5D6E789B0D6A3FF266A7FE78E`,
+    USI inventory
+    `007DE337E35BEB52609D1750328BDF904626F42DCE8BBACC9A0C5F95AC72F85C`
+  - next_frontier: `USI-13` is dependency-ready; productive sources, runtime
+    planner injection and live activation remain off
 - Dependencies: `USI-07`, TAX1 identity, TAX5 security, TAX8 dynamic provider
   normalization
 - Allowed paths:
-  - `src/tool_catalog.py`
+  - `src/builtin_tool_catalog.py`
   - `src/tool_index.py`
   - `src/tool_schema_definitions.py`
   - `src/tool_execution.py`
   - `src/agent_tools/__init__.py`
   - `src/agent_tools/knowledge_tools.py`
+  - `src/tool_security.py`
   - `tests/test_query_knowledge_tool.py`
+  - `scripts/audit_tool_registry_drift.py`
+  - `docs/plans/tool-taxonomy-inventory.json`
+  - `tests/test_audit_tool_registry_drift.py`
+  - `tests/test_builtin_tool_catalog.py`
+  - `tests/test_tool_registration_parity.py`
+  - `scripts/audit_unified_source_index_overlap.py`
+  - `docs/plans/unified-source-index-runtime-inventory.json`
+  - `tests/test_audit_unified_source_index_overlap.py`
 - Work:
   - expose one read-only descriptor with domain/mode/scope/budget fields;
   - no direct CBM MCP tool registration;
   - exact source reads continue through `read_file` or a domain reader;
   - TUA sees one canonical invocation; internal provider spans remain metrics.
-- Tests: `python -m pytest -q tests/test_query_knowledge_tool.py`
+- Tests: `python -m pytest -q tests/test_query_knowledge_tool.py`; focused
+  builtin-registration/security/audit parity; deterministic registry-drift
+  snapshot check; focused USI overlap inventory and persisted snapshot check
 - Done when: code, document and memory fixtures route through one descriptor
-  with policy parity and no `Other` fallback.
+  with policy parity, no `Other` fallback and no TAX or USI overlap inventory
+  drift.
 
 These shared TAX paths are a single serialized integration claim after TAX
 handoff; no USI worker may edit them independently.
@@ -609,11 +682,10 @@ handoff; no USI worker may edit them independently.
     `8008DAA6818B5551D73798EC951231384EC7029D2DBA87287A816CB829760B8E`,
     dashboard
     `5B610A2DCF284C89D85549232204FD1E6DB21C8DFAFF68F7277037E5F71EE098`
-  - next_frontier: `USI-09` remains blocked by TAX1/TAX5/TAX8; because USI-13
-    depends on USI-03 through USI-12, it remains blocked by USI-09 rather than
-    becoming executable by dependency bypass
-- Dependency audit: `USI-04=accepted; GRO-00 through GRO-15=offline_go;
-  serialized GRO handoff acquired; USI-09 remains independently TAX-blocked`
+  - next_frontier: `USI-09` is accepted after the TAX1/TAX5/TAX8 dependency
+    handoff; `USI-13` is now dependency-ready
+- Dependency audit: `USI-04 and USI-09 accepted; GRO-00 through
+  GRO-15=offline_go; serialized GRO and TAX handoffs released`
 - Dependencies: `USI-04`, GRO-00 metric contract; serialize shared GRO files
 - Allowed paths:
   - `src/unified_source_index_diagnostics.py`
@@ -632,7 +704,50 @@ handoff; no USI worker may edit them independently.
 
 - Class: `repo_only`
 - Owner: Bob
-- Status: `blocked_by_USI-09_TAX_handoff_2026-07-18`
+- Status: `accepted_2026-07-23`
+- Dependency audit: `USI-03 through USI-12 accepted; all four declared paths
+  are new; read-only recon found no unavoidable frozen-core edit`
+- Serialized claim:
+  - run_id: `abc-usi13-20260723T193742+0200`
+  - thread_id: `/root`
+  - owner: `Bob`
+  - state: `released`
+  - acquired_at: `2026-07-23T19:37:42+02:00`
+  - lease_expires_at: `2026-07-23T23:37:42+02:00`
+  - released_at: `2026-07-23T19:53:05+02:00`
+  - worktree: `C:\tmp\odysseus-abc-usi09-20260723`
+  - allowed_paths: `src/unified_source_index_backup.py`,
+    `scripts/benchmark_unified_source_index.py`,
+    `tests/test_unified_source_index_backup.py`, and
+    `tests/test_unified_source_index_scale.py`
+  - excluded_paths: existing SQLite/migration/store/lexical/embedding/RAPTOR
+    core, every app/runtime initializer, productive database, provider, host,
+    network and live path
+  - evidence: `External embedding/RAPTOR manifests do not retain replayable
+    sink or worker bindings. Automatic rebuild is therefore limited to FTS;
+    other required projections use explicit injected rebuilders or return an
+    incomplete receipt. Physical samples remain capped and temporary. Five
+    focused tests passed with one unrelated SQLAlchemy deprecation warning.
+    The exact CLI check passed with 128 materialized records, one million
+    logical records, 100k logical LOC, nine query samples, p50 20,361,700 ns,
+    p95 24,945,300 ns, 819,200 index bytes, 2,632,241 peak traced bytes,
+    observed contention, restored recovery, FTS-only rebuild, no external
+    projection success claim and no Postgres migration recommendation.`
+  - implementation_commit:
+    `a088780dfe6ee99c3ac3a3c84575082702dc27bf`
+  - artifact_hashes:
+    - backup:
+      `E1093F0373E0D2DF02FD5A2D34682E0D7160830DBE0FD6B22D6913EDC43EDA08`
+    - benchmark:
+      `2C2942D1FEE49348BACF7E6209A00A44C0812F2FFF8CE317B58050B73F379035`
+    - backup_tests:
+      `9A80BBACA15C283EB9C281BA3AB038D6F2A652823B3149CA90544A4DE197E05F`
+    - scale_tests:
+      `329FF88B66BF407322AFE6F9B1E1553B386C08D2A1785C4FA5FA09E59E6E6A73`
+  - sol_review:
+    `approved_after_exact-record-count, immutable-snapshot, self-contained-WAL
+    and strict CLI-check hardening; zero blocking findings`
+  - live_actions: `false`
 - Dependencies: `USI-03` through `USI-12`
 - Allowed paths:
   - `src/unified_source_index_backup.py`
@@ -640,21 +755,69 @@ handoff; no USI worker may edit them independently.
   - `tests/test_unified_source_index_backup.py`
   - `tests/test_unified_source_index_scale.py`
 - Work:
-  - consistent SQLite backup and restore to temporary targets;
-  - rebuild all projections from index truth;
-  - 100k+ LOC and million-record synthetic scale profiles;
+  - consistent SQLite backup and restore to fresh contained temporary targets;
+  - rebuild FTS plus explicitly injected projections at one fixed truth
+    snapshot; missing external rebuilders must return incomplete, never success;
+  - 100k+ LOC and million-record logical synthetic scale profiles backed by at
+    most 1,024 physically materialized sample records;
   - p50/p95, index size, RAM, writer contention and recovery evidence;
-  - Postgres remains a later measured gate.
+  - label physical measurements as sample-only; Postgres remains a later
+    measured gate with `migration_recommended=false`.
 - Tests:
-  - `python -m pytest -q tests/test_unified_source_index_backup.py tests/test_unified_source_index_scale.py`
+  - `python -m pytest -q -p no:cacheprovider
+    tests/test_unified_source_index_backup.py tests/test_unified_source_index_scale.py`
+  - `python scripts/benchmark_unified_source_index.py --check
+    --physical-records 128 --logical-records 1000000 --logical-loc 100000`
 - Done when: backup/restore/rebuild count hashes match and bounded query SLOs
-  are reported without arbitrary LOC-based migration claims.
+  are reported without arbitrary LOC-based migration claims, automatic external
+  projection rebuild claims or productive/live actions.
+- Acceptance:
+  `offline_go_consistent_self_contained_backup_fresh_restore_fixed_snapshot_fts_rebuild_explicit_external_projection_incompleteness_bounded_scale`
+- Next frontier: `USI-14` is dependency-ready; productive sources remain off.
 
 ### USI-14 - Security, Privacy And Failure Matrix
 
 - Class: `repo_only`
 - Owner: Charlie
-- Status: `blocked_by_USI-12_and_USI-13_2026-07-17`
+- Status: `accepted_2026-07-23`
+- Dependency audit: `USI-01 through USI-13 accepted; all three declared paths
+  are new; read-only recon found no unavoidable production-code edit`
+- Serialized claim:
+  - run_id: `abc-usi14-20260723T195751+0200`
+  - thread_id: `/root`
+  - owner: `Charlie`
+  - state: `released`
+  - acquired_at: `2026-07-23T19:57:51+02:00`
+  - lease_expires_at: `2026-07-23T23:57:51+02:00`
+  - released_at: `2026-07-23T20:09:32+02:00`
+  - worktree: `C:\tmp\odysseus-abc-usi09-20260723`
+  - allowed_paths: `tests/test_unified_source_index_security.py`,
+    `tests/test_unified_source_index_failure_matrix.py`, and
+    `docs/plans/unified-source-index-acceptance.md`
+  - excluded_paths: every existing USI, CBM, Lens, diagnostics, route, app,
+    runtime, provider, productive database, source, SDK, host, network, deploy
+    and live path
+  - evidence: `The generic matrix is fully test-/documentation-only with
+    temporary SQLite and synthetic providers/sinks. Chroma SDK/live service
+    behavior and real CBM/RAPTOR runtime integration remain outside USI-14;
+    existing injected boundaries provide the honest repo-only evidence.
+    Twenty-one focused tests passed with zero blockers and one existing
+    SQLAlchemy deprecation warning. Deep Sol review added genuine corrupt-temp-
+    SQLite, federated/snippet/inline payload bounds, literal FTS compilation
+    across every match mode and explicit no-log sentinel evidence.`
+  - implementation_commit:
+    `7e7c481675fdbc8796662dc1a685cd8ba13d73e3`
+  - artifact_hashes:
+    - security_tests:
+      `F510EA071B03376C985892BC832E75B640A6035ECD30A75EC892D899BB1BE26E`
+    - failure_matrix_tests:
+      `EA8D260E6075B9C6DB038D863187750A238AFED6E89BD131CFA2E6DAA36D69A0`
+    - acceptance_matrix:
+      `FBFB7F3DE6CF6FA83B7A456A4D66DFF01A67FF05944D3FF73CBA7A9088BB1D80`
+  - sol_review:
+    `approved_after_corrupt-sqlite, oversized-payload, literal-FTS and no-log-
+    sentinel hardening; zero blocking findings`
+  - live_actions: `false`
 - Dependencies: `USI-01` through `USI-13`
 - Allowed paths:
   - `tests/test_unified_source_index_security.py`
@@ -670,11 +833,16 @@ handoff; no USI worker may edit them independently.
   - `python -m pytest -q tests/test_unified_source_index_security.py tests/test_unified_source_index_failure_matrix.py`
 - Done when: failures are fail-closed for policy and fail-soft for optional
   projections, with no false success state.
+- Acceptance:
+  `offline_go_synthetic_security_privacy_failure_matrix_policy_fail_closed_optional_lanes_fail_soft_no_private_sentinel_leaks`
+- Next frontier: `USI-15` remains blocked by `UIR-14`, `ULO-14` and `UDA-18`;
+  `UIR-00` is the next dependency-ready safe-offline child slice.
 
 ### USI-15 - Synthetic Staging And Activation Packet
 
 - Class: `repo_only`
 - Owner: Charlie
+- Status: `blocked_by_UIR-14_ULO-14_UDA-18_2026-07-23`
 - Dependencies: `USI-00` through `USI-14`, `UIR-14`, `ULO-14` and `UDA-18`
   for every selected source scope; CBM, lineage and Lens may remain separate
   Partial tracks if clearly declared

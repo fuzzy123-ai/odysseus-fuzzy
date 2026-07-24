@@ -1,0 +1,39 @@
+global:
+  scrape_interval: 15s
+  scrape_timeout: 5s
+  evaluation_interval: 15s
+
+storage:
+  tsdb:
+    retention:
+      time: 30d
+      size: 5GB
+
+rule_files:
+  - /etc/prometheus/rules/*.rules.yml
+
+scrape_configs:
+  - job_name: odysseus-memory
+    scrape_interval: 15s
+    scrape_timeout: 5s
+    metrics_path: /api/diagnostics/runtime-metrics
+    scheme: http
+    honor_labels: false
+    follow_redirects: false
+    enable_http2: false
+    body_size_limit: 1MB
+    sample_limit: 512
+    label_limit: 8
+    label_name_length_limit: 64
+    label_value_length_limit: 64
+    target_limit: 1
+    authorization:
+      type: Bearer
+      credentials_file: /run/secrets/odysseus_metrics_token
+    static_configs:
+      - targets:
+          - host.containers.internal:7000
+        labels:
+          service: odysseus
+          observability_scope: memory
+

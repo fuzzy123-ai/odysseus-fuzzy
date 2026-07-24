@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "odysseus.clarification_request.v2",
+  "title": "Odysseus Clarification Request v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "scope",
+    "intent_summary",
+    "questions",
+    "batch",
+    "defaults_visible"
+  ],
+  "properties": {
+    "schema": {
+      "const": "odysseus.clarification_request.v2"
+    },
+    "scope": {
+      "enum": ["conversation", "project", "coding_task"]
+    },
+    "intent_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "questions": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "type", "prompt", "required", "reason"],
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]{2,79}$"
+          },
+          "type": {
+            "enum": [
+              "single_select",
+              "multi_select",
+              "boolean",
+              "short_text",
+              "long_text",
+              "number",
+              "date",
+              "resource_ref"
+            ]
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "options": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["label"],
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "description": {
+                  "type": "string",
+                  "maxLength": 240
+                },
+                "recommended": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "default": {},
+          "depends_on": {
+            "type": "string",
+            "maxLength": 80
+          }
+        }
+      }
+    },
+    "batch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "index", "total", "max_visible_questions"],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_visible_questions": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        }
+      }
+    },
+    "defaults_visible": {
+      "type": "boolean"
+    }
+  }
+}

@@ -1,19 +1,65 @@
+import os
+import threading
+import time
+from collections import OrderedDict
+from copy import deepcopy
 from typing import Any, Dict, List
 
-from .derived_index import derived_index_status
+from src.memory_runtime_metrics import get_memory_runtime_metrics_registry
+
+from .derived_index import DERIVED_INDEX_PATH, derived_index_status
 from .freshness import audit_knowledge, quarantine_list
 from .hybrid_retrieval import raptor_status
-from .memory_ledger import memory_ledger_status
-from .query_layer import query_layer_status
+from .memory_ledger import LEDGER_DB_PATH, memory_ledger_status
+from .query_layer import QUERY_CACHE_PATH, query_layer_status
 from .memory_tree import memory_tree_status
-from .raptor_cache import bounded_raptor_graph_view
+from .raptor_cache import bounded_raptor_graph_view, build_raptor_cache_key
 from .readiness import readiness_gate_from_family
 
 
 BASELINE_SCHEMA_VERSION = "orca-memory-baseline-v1"
+_METRICS_CLOCK = time.perf_counter
+MEMORY_STATUS_CACHE_TTL_SECONDS = 5.0
+_MEMORY_STATUS_CACHE_MAX_VAULTS = 32
+_MEMORY_STATUS_CACHE_CLOCK = time.monotonic
+_MEMORY_STATUS_CACHE_LOCK = threading.RLock()
+_MEMORY_STATUS_LOCK_STRIPES = tuple(threading.RLock() for _ in range(16))
+_MEMORY_STATUS_CACHE: OrderedDict[str, Dict[str, Any]] = OrderedDict()
 
 
-def memory_status(vault_dir: str) -> Dict[str, Any]:
+def _record_memory_status_duration(outcome: str, started: float) -> None:
+    try:
+        get_memory_runtime_metrics_registry().observe_histogram(
+            "odysseus_memory_operation_duration_seconds",
+            {
+                "component": "memory",
+                "operation": "memory_status",
+                "phase": "total",
+                "outcome": outcome,
+                "runtime": "app",
+            },
+            max(0.0, _METRICS_CLOCK() - started),
+        )
+    except Exception:
+        pass
+
+
+def _record_memory_status_outcome(outcome: str) -> None:
+    try:
+        get_memory_runtime_metrics_registry().increment_counter(
+            "odysseus_memory_operations_total",
+            {
+                "component": "memory",
+                "operation": "memory_status",
+                "outcome": outcome,
+                "runtime": "app",
+            },
+        )
+    except Exception:
+        pass
+
+
+def _memory_status_impl(vault_dir: str) -> Dict[str, Any]:
     """Return a compact read-only status across all derived memory layers."""
 
     somt = memory_tree_status(vault_dir)
@@ -88,6 +134,7 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
     return {
         "read_only": True,
         "writes_supported": False,
+        "raptor_capability_level": "graph_cluster_summary",
         "filtering_state": filtering_state,
         "families": families,
         "readiness_signals": readiness_signals,
@@ -124,6 +171,7 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
             "quarantine_items": quarantine.get("summary", {}).get("total", 0),
             "freshness_isolation_flags": freshness_isolation_flags,
             "raptor_sources": raptor.get("summary", {}).get("source_count", 0),
+            "raptor_capability_level": "graph_cluster_summary",
             "raptor_lineage_flags": raptor_lineage_flags,
             "raptor_write_gate": raptor_write_gate,
             "writes_supported": False,
@@ -132,6 +180,90 @@ def memory_status(vault_dir: str) -> Dict[str, Any]:
         "flags": flags,
         "warnings": warnings,
     }
+
+
+def _status_file_signature(vault_dir: str, relative_path: str) -> tuple[int, int]:
+    path = os.path.join(vault_dir, relative_path.replace("/", os.sep))
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return (0, 0)
+    return (int(stat.st_mtime_ns), int(stat.st_size))
+
+
+def _memory_status_cache_key(vault_dir: str) -> str:
+    ledger_path = os.path.join(vault_dir, LEDGER_DB_PATH.replace("/", os.sep))
+    try:
+        ledger_wal = os.stat(f"{ledger_path}-wal")
+        ledger_wal_signature = (int(ledger_wal.st_mtime_ns), int(ledger_wal.st_size))
+    except OSError:
+        ledger_wal_signature = (0, 0)
+    return build_raptor_cache_key(
+        vault_dir,
+        "memory_status_snapshot",
+        {
+            "derived_index": _status_file_signature(vault_dir, DERIVED_INDEX_PATH),
+            "ledger": _status_file_signature(vault_dir, LEDGER_DB_PATH),
+            "ledger_wal": ledger_wal_signature,
+            "query_cache": _status_file_signature(vault_dir, QUERY_CACHE_PATH),
+        },
+    )
+
+
+def _clear_memory_status_cache(vault_dir: str | None = None) -> None:
+    with _MEMORY_STATUS_CACHE_LOCK:
+        if vault_dir is None:
+            _MEMORY_STATUS_CACHE.clear()
+            return
+        _MEMORY_STATUS_CACHE.pop(os.path.abspath(vault_dir), None)
+
+
+def _cached_memory_status(vault_dir: str) -> Dict[str, Any]:
+    target = os.path.abspath(vault_dir)
+    stripe = _MEMORY_STATUS_LOCK_STRIPES[hash(target) % len(_MEMORY_STATUS_LOCK_STRIPES)]
+    with stripe:
+        now = _MEMORY_STATUS_CACHE_CLOCK()
+        key = _memory_status_cache_key(target)
+        with _MEMORY_STATUS_CACHE_LOCK:
+            entry = _MEMORY_STATUS_CACHE.get(target)
+            if (
+                entry is not None
+                and entry.get("key") == key
+                and now - float(entry.get("created_at") or 0.0)
+                <= MEMORY_STATUS_CACHE_TTL_SECONDS
+            ):
+                _MEMORY_STATUS_CACHE.move_to_end(target)
+                return deepcopy(entry["payload"])
+
+        payload = _memory_status_impl(target)
+        with _MEMORY_STATUS_CACHE_LOCK:
+            _MEMORY_STATUS_CACHE[target] = {
+                "key": key,
+                "created_at": now,
+                "payload": deepcopy(payload),
+            }
+            _MEMORY_STATUS_CACHE.move_to_end(target)
+            while len(_MEMORY_STATUS_CACHE) > _MEMORY_STATUS_CACHE_MAX_VAULTS:
+                _MEMORY_STATUS_CACHE.popitem(last=False)
+        return deepcopy(payload)
+
+
+def memory_status(vault_dir: str) -> Dict[str, Any]:
+    started = _METRICS_CLOCK()
+    outcome = "error"
+    try:
+        result = _cached_memory_status(vault_dir)
+        outcome = "success" if str((result.get("summary") or {}).get("readiness_state")) == "ready" else "blocked"
+        return result
+    except (FileNotFoundError, PermissionError, ValueError):
+        outcome = "blocked"
+        raise
+    except Exception:
+        outcome = "error"
+        raise
+    finally:
+        _record_memory_status_duration(outcome, started)
+        _record_memory_status_outcome(outcome)
 
 
 def memory_baseline_report(vault_dir: str) -> Dict[str, Any]:

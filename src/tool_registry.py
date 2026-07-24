@@ -52,14 +52,11 @@ class ToolSpec:
     execute: Callable[..., Any]
     permission: str = "admin"
     prompt: Optional[str] = None
-    family: str = ToolFamily.PLUGINS_MCP.value
-    lifecycle: str = ToolLifecycle.CONTEXTUAL.value
-    availability: str = ToolAvailability.AVAILABLE.value
-    source_id: str = "plugin:local"
-    aliases: tuple[str, ...] = ()
+    source_id: str = "plugin-registry"
 
 
 _TOOLS: Dict[str, ToolSpec] = {}
+_DESCRIPTORS: Dict[str, Any] = {}
 _LOCK = threading.RLock()
 _GENERATION = 0
 
@@ -105,7 +102,7 @@ def _from_dict(spec: Dict[str, Any]) -> ToolSpec:
     handler = spec.get("execute") or spec.get("handler")
     permission = spec.get("permission") or "admin"
     prompt = spec.get("prompt")
-    aliases = spec.get("aliases")
+    source_id = spec.get("source_id") or "plugin-registry"
     if not handler:
         raise ValueError(f"Tool {name or '<unknown>'} has no execute/handler callable")
     return ToolSpec(
@@ -115,11 +112,7 @@ def _from_dict(spec: Dict[str, Any]) -> ToolSpec:
         execute=handler,
         permission=str(permission or "admin"),
         prompt=prompt if isinstance(prompt, str) else None,
-        family=str(spec.get("family") or ToolFamily.PLUGINS_MCP.value),
-        lifecycle=str(spec.get("lifecycle") or ToolLifecycle.CONTEXTUAL.value),
-        availability=str(spec.get("availability") or ToolAvailability.AVAILABLE.value),
-        source_id=str(spec.get("source_id") or "plugin:local"),
-        aliases=tuple(aliases) if isinstance(aliases, (list, tuple, set)) else (),
+        source_id=str(source_id or "plugin-registry"),
     )
 
 
@@ -134,79 +127,25 @@ def _coerce_spec(spec: ToolSpec | Dict[str, Any]) -> ToolSpec:
         raise ValueError(f"Invalid tool name: {out.name!r}")
     if not callable(out.execute):
         raise ValueError(f"Tool {out.name!r} execute handler is not callable")
-    if out.name.startswith("mcp__"):
-        raise ValueError("Plugin tool names must not use the reserved mcp__ namespace")
-    source_id = str(out.source_id or "").strip()
-    if not _SOURCE_ID_RE.fullmatch(source_id):
-        raise ValueError("Plugin tool source_id must be a bounded non-path identifier")
-    aliases = tuple(sorted({str(alias).strip() for alias in out.aliases}))
-    if len(aliases) != len(tuple(out.aliases)):
-        raise ValueError("Plugin tool aliases must not contain duplicates")
-    if out.name in aliases:
-        raise ValueError("Plugin tool aliases must not repeat the canonical name")
-    if any(not _NAME_RE.fullmatch(alias) or alias.startswith("mcp__") for alias in aliases):
-        raise ValueError("Plugin tool aliases must be safe non-MCP tool identifiers")
-
-    try:
-        family = ToolFamily(str(out.family).strip().lower())
-    except ValueError:
-        family = ToolFamily.UNCLASSIFIED_DYNAMIC
-    try:
-        lifecycle = ToolLifecycle(str(out.lifecycle).strip().lower())
-    except ValueError:
-        lifecycle = ToolLifecycle.BLOCKED
-    try:
-        availability = ToolAvailability(str(out.availability).strip().lower())
-    except ValueError:
-        availability = ToolAvailability.BLOCKED
-    permission_value = str(out.permission or "admin").strip().lower()
-    permission = "owner" if permission_value in {"owner", "user"} else "admin"
-    if family == ToolFamily.UNCLASSIFIED_DYNAMIC:
-        lifecycle = ToolLifecycle.BLOCKED
-        availability = ToolAvailability.BLOCKED
-    if lifecycle == ToolLifecycle.BLOCKED or availability in {
-        ToolAvailability.BLOCKED,
-        ToolAvailability.UNAVAILABLE,
-        ToolAvailability.UNKNOWN,
-    }:
-        lifecycle = ToolLifecycle.BLOCKED
-
-    return replace(
-        out,
-        permission=permission,
-        family=family.value,
-        lifecycle=lifecycle.value,
-        availability=availability.value,
-        source_id=source_id,
-        aliases=aliases,
-    )
-
-
-def _validate_registry_collisions(tool: ToolSpec) -> None:
-    from src.builtin_tool_catalog import BUILTIN_TOOL_SPECS
-
-    builtin_names = {spec.tool_id for spec in BUILTIN_TOOL_SPECS}
-    if tool.name in builtin_names or builtin_names.intersection(tool.aliases):
-        raise ValueError("Plugin tool name or alias collides with a built-in tool")
-
-    occupied: dict[str, str] = {}
-    for existing in _TOOLS.values():
-        if existing.name == tool.name:
-            continue
-        occupied[existing.name] = existing.name
-        occupied.update((alias, existing.name) for alias in existing.aliases)
-    collisions = sorted({tool.name, *tool.aliases}.intersection(occupied))
-    if collisions:
-        raise ValueError(
-            "Plugin tool name or alias collision: " + ", ".join(collisions)
-        )
+    if out.name.casefold() in _reserved_builtin_names():
+        raise ValueError(f"Dynamic tool name collides with a built-in tool or alias: {out.name!r}")
+    return out
 
 
 def register_tool(spec: ToolSpec | Dict[str, Any]) -> ToolSpec:
     tool = _coerce_spec(spec)
+    from src.runtime_tool_status import build_dynamic_tool_descriptor
+
+    descriptor = build_dynamic_tool_descriptor(
+        tool.name,
+        source="plugin",
+        source_id=tool.source_id,
+        description=tool.description,
+    )
     with _LOCK:
         _validate_registry_collisions(tool)
         _TOOLS[tool.name] = tool
+        _DESCRIPTORS[tool.name] = descriptor
         _bump_generation()
     _sync_legacy_schema_list(tool)
     logger.debug("Registered plugin tool: %s", tool.name)
@@ -216,6 +155,7 @@ def register_tool(spec: ToolSpec | Dict[str, Any]) -> ToolSpec:
 def unregister_tool(name: str) -> None:
     with _LOCK:
         if _TOOLS.pop(str(name), None) is not None:
+            _DESCRIPTORS.pop(str(name), None)
             _bump_generation()
             _sync_legacy_schema_remove(str(name))
             logger.info("Unregistered plugin tool: %s", name)
@@ -243,6 +183,16 @@ def usage_identity_for_tool(name: str) -> tuple[str, ToolFamily] | None:
 def list_tools() -> list[ToolSpec]:
     with _LOCK:
         return [tool for _, tool in sorted(_TOOLS.items())]
+
+
+def get_descriptor(name: str) -> Any | None:
+    with _LOCK:
+        return _DESCRIPTORS.get(str(name))
+
+
+def list_descriptors() -> list[Any]:
+    with _LOCK:
+        return [descriptor for _, descriptor in sorted(_DESCRIPTORS.items())]
 
 
 def tool_names() -> set[str]:
@@ -370,8 +320,14 @@ def _sync_legacy_schema_list(tool: ToolSpec) -> None:
 
         schemas = getattr(tool_schemas, "FUNCTION_TOOL_SCHEMAS", None)
         if isinstance(schemas, list):
-            schemas[:] = [schema for schema in schemas if _schema_name(schema) != tool.name]
-            schemas.append(_schema_for(tool))
+            replacement = _schema_for(tool)
+            replaced = False
+            for index, schema in enumerate(schemas):
+                if _schema_name(schema) == tool.name:
+                    schemas[index] = replacement
+                    replaced = True
+            if not replaced:
+                schemas.append(replacement)
     except Exception:
         pass
 
@@ -387,16 +343,16 @@ def _sync_legacy_schema_remove(name: str) -> None:
         pass
 
 
-def _analytics_id(tool_id: str) -> str:
-    normalized = re.sub(r"[^a-z0-9]+", "-", tool_id.lower()).strip("-")
-    return normalized or "dynamic-plugin"
+def _reserved_builtin_names() -> frozenset[str]:
+    """Return case-insensitive built-in IDs and aliases without an import cycle."""
 
+    from src.builtin_tool_catalog import BUILTIN_TOOL_DEFINITIONS
 
-def _safe_catalog_description(description: object) -> str:
-    text = " ".join(str(description or "").split())
-    if not text or _SECRET_RE.search(text) or "/" in text or "\\" in text or "://" in text:
-        return "Discovered Plugin capability with conservative runtime policy."
-    return text[:160]
+    return frozenset(
+        value.casefold()
+        for definition in BUILTIN_TOOL_DEFINITIONS
+        for value in (definition.tool_id, *definition.aliases)
+    )
 
 
 def _is_legacy_signature_typeerror(exc: TypeError, tool_name: str) -> bool:

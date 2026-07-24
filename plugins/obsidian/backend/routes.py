@@ -106,9 +106,10 @@ from .memory_spark import (
 from .freshness import audit_knowledge, quarantine_list
 from .derived_index import build_derived_index, derived_index_status, retrieve_derived_chunks
 from .hybrid_retrieval import raptor_status
-from .raptor_cache import bounded_raptor_graph_view
+from .raptor_cache import bounded_raptor_graph_view, notify_raptor_vault_changed
 from .raptor_rebuild import rebuild_raptor_artifacts
 from .memory_automation import memory_automation_status, run_memory_automation
+from .memory_worker import MemoryWorkerQueueFull, run_memory_work
 from .memory_ledger import memory_ledger_status, sync_memory_ledger
 from .query_layer import answer_query, answer_query_async, query_layer_status
 from .rebuild_proof import rebuild_proof_status, run_rebuild_proof
@@ -261,6 +262,32 @@ def vault_error(exc: VaultSecurityError) -> HTTPException:
     elif "conflict" in detail.lower():
         status = 409
     return HTTPException(status_code=status, detail=detail)
+
+
+async def _run_memory_route_work(
+    vault_dir: str,
+    operation: str,
+    access: str,
+    function,
+    /,
+    *args,
+    **kwargs,
+):
+    try:
+        return await run_memory_work(
+            vault_dir,
+            operation,
+            access,
+            function,
+            *args,
+            **kwargs,
+        )
+    except MemoryWorkerQueueFull as exc:
+        raise HTTPException(status_code=503, detail="Memory worker queue is full") from exc
+
+
+def _answer_query_in_worker(vault_dir: str, query: str, **kwargs):
+    return asyncio.run(answer_query_async(vault_dir, query, **kwargs))
 
 
 def _vault_watch_signature(vault_dir: str) -> Tuple[int, Tuple[Tuple[str, int, int], ...]]:
@@ -618,6 +645,7 @@ async def vault_events(request: Request):
                     yield f"event: ready\ndata: {json.dumps({'latest': latest})}\n\n"
                 elif signature != last_signature:
                     last_signature = signature
+                    notify_raptor_vault_changed(vault_dir, event="watcher")
                     yield f"event: vault_changed\ndata: {json.dumps({'latest': latest})}\n\n"
                 else:
                     yield ": keepalive\n\n"
@@ -1441,28 +1469,36 @@ async def spark_apply(req: SparkApplyRequest, request: Request):
 async def memory_tree(request: Request):
     """Return read-only SOMT health and branch summary."""
     vault_dir = get_unlocked_vault_path(request)
-    return memory_tree_status(vault_dir)
+    return await _run_memory_route_work(
+        vault_dir, "memory_status", "read", memory_tree_status, vault_dir
+    )
 
 
 @router.get("/memory/status")
 async def memory_status_route(request: Request):
     """Return read-only status across SOMT, Freshness Gate, quarantine, and RAPTOR."""
     vault_dir = get_unlocked_vault_path(request)
-    return memory_status(vault_dir)
+    return await _run_memory_route_work(
+        vault_dir, "memory_status", "read", memory_status, vault_dir
+    )
 
 
 @router.get("/memory/baseline")
 async def memory_baseline_route(request: Request):
     """Return summary-only baseline evidence for ORCA activation planning."""
     vault_dir = get_unlocked_vault_path(request)
-    return memory_baseline_report(vault_dir)
+    return await _run_memory_route_work(
+        vault_dir, "memory_status", "read", memory_baseline_report, vault_dir
+    )
 
 
 @router.get("/memory/ledger")
 async def memory_ledger_route(request: Request):
     """Return SQLite source/index ledger status for the derived memory pipeline."""
     vault_dir = get_unlocked_vault_path(request)
-    return memory_ledger_status(vault_dir)
+    return await _run_memory_route_work(
+        vault_dir, "memory_status", "read", memory_ledger_status, vault_dir
+    )
 
 
 @router.post("/memory/ledger/sync")
@@ -1470,14 +1506,18 @@ async def memory_ledger_sync_route(request: Request):
     """Synchronize the derived source ledger from current vault files."""
     vault_dir = get_unlocked_vault_path(request)
     _require_vault_scope(request, VAULT_WRITE_SCOPE)
-    return sync_memory_ledger(vault_dir)
+    return await _run_memory_route_work(
+        vault_dir, "rebuild", "write", sync_memory_ledger, vault_dir
+    )
 
 
 @router.get("/memory/index")
 async def derived_index_route(request: Request):
     """Return derived chunk/index status for the memory pipeline."""
     vault_dir = get_unlocked_vault_path(request)
-    return derived_index_status(vault_dir)
+    return await _run_memory_route_work(
+        vault_dir, "memory_status", "read", derived_index_status, vault_dir
+    )
 
 
 @router.post("/memory/index/rebuild")
@@ -1485,28 +1525,50 @@ async def derived_index_rebuild_route(request: Request):
     """Build or rebuild the derived chunk index from current vault sources."""
     vault_dir = get_unlocked_vault_path(request)
     _require_vault_scope(request, VAULT_WRITE_SCOPE)
-    return build_derived_index(vault_dir)
+    return await _run_memory_route_work(
+        vault_dir, "rebuild", "write", build_derived_index, vault_dir
+    )
 
 
 @router.get("/memory/index/retrieve")
 async def derived_index_retrieve_route(request: Request, q: str, top_k: int = 5, path_prefix: str = ""):
     """Run lightweight retrieval against the derived chunk index."""
     vault_dir = get_unlocked_vault_path(request)
-    return retrieve_derived_chunks(vault_dir, q, top_k=top_k, path_prefix=path_prefix)
+    return await _run_memory_route_work(
+        vault_dir,
+        "query",
+        "read",
+        retrieve_derived_chunks,
+        vault_dir,
+        q,
+        top_k=top_k,
+        path_prefix=path_prefix,
+    )
 
 
 @router.get("/memory/query/status")
 async def query_layer_status_route(request: Request):
     """Return read-only status for the lightweight query layer."""
     vault_dir = get_unlocked_vault_path(request)
-    return query_layer_status(vault_dir, owner=current_owner(request))
+    return await _run_memory_route_work(
+        vault_dir,
+        "query",
+        "read",
+        query_layer_status,
+        vault_dir,
+        owner=current_owner(request),
+    )
 
 
 @router.get("/memory/query")
 async def query_layer_route(request: Request, q: str, top_k: int = 5, path_prefix: str = "", answer_mode: str = "auto"):
     """Answer a query from the derived index with citations and confidence."""
     vault_dir = get_unlocked_vault_path(request)
-    return await answer_query_async(
+    return await _run_memory_route_work(
+        vault_dir,
+        "query",
+        "read",
+        _answer_query_in_worker,
         vault_dir,
         q,
         top_k=top_k,
@@ -1520,22 +1582,35 @@ async def query_layer_route(request: Request, q: str, top_k: int = 5, path_prefi
 async def memory_automation_status_route(request: Request):
     """Return status for low-risk background memory automation."""
     vault_dir = get_unlocked_vault_path(request)
-    return memory_automation_status(vault_dir)
+    return await _run_memory_route_work(
+        vault_dir, "automation", "read", memory_automation_status, vault_dir
+    )
 
 
 @router.post("/memory/automation/run")
 async def memory_automation_run_route(request: Request, force: bool = False):
     """Run one low-risk memory automation pass for derived data maintenance."""
     _require_vault_scope(request, VAULT_WRITE_SCOPE)
-    get_unlocked_vault_path(request)
-    return run_memory_automation(current_owner(request), trigger="manual", context={}, force=force)
+    vault_dir = get_unlocked_vault_path(request)
+    return await _run_memory_route_work(
+        vault_dir,
+        "automation",
+        "write",
+        run_memory_automation,
+        current_owner(request),
+        trigger="manual",
+        context={},
+        force=force,
+    )
 
 
 @router.get("/memory/rebuild-proof")
 async def rebuild_proof_status_route(request: Request):
     """Return the latest derived memory rebuild proof report status."""
     vault_dir = get_unlocked_vault_path(request)
-    return rebuild_proof_status(vault_dir)
+    return await _run_memory_route_work(
+        vault_dir, "memory_status", "read", rebuild_proof_status, vault_dir
+    )
 
 
 @router.post("/memory/rebuild-proof/run")
@@ -1543,19 +1618,34 @@ async def rebuild_proof_run_route(request: Request, q: Optional[str] = None, top
     """Run a full ledger/index/query rebuild proof and persist its report."""
     _require_vault_scope(request, VAULT_WRITE_SCOPE)
     vault_dir = get_unlocked_vault_path(request)
-    return await asyncio.to_thread(run_rebuild_proof, vault_dir, query=q, top_k=top_k)
+    return await _run_memory_route_work(
+        vault_dir,
+        "rebuild",
+        "write",
+        run_rebuild_proof,
+        vault_dir,
+        query=q,
+        top_k=top_k,
+    )
 
 
 @router.get("/memory/external-upgrade-proof")
 async def external_upgrade_proof_status_route(request: Request):
     """Return release-evidence status for external plugin distribution and version sync."""
-    get_unlocked_vault_path(request)
+    vault_dir = get_unlocked_vault_path(request)
     plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return {
-        "plugin_root": plugin_dir,
-        "version_sync": collect_version_sync(plugin_dir),
-        "distribution_layout": collect_distribution_layout(plugin_dir, ignore_runtime_artifacts=True),
-    }
+    return await _run_memory_route_work(
+        vault_dir,
+        "memory_status",
+        "read",
+        lambda: {
+            "plugin_root": plugin_dir,
+            "version_sync": collect_version_sync(plugin_dir),
+            "distribution_layout": collect_distribution_layout(
+                plugin_dir, ignore_runtime_artifacts=True
+            ),
+        },
+    )
 
 
 @router.post("/memory/external-upgrade-proof/run")
@@ -1570,7 +1660,10 @@ async def external_upgrade_proof_run_route(
     _require_vault_scope(request, VAULT_WRITE_SCOPE)
     vault_dir = get_unlocked_vault_path(request)
     plugin_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return await asyncio.to_thread(
+    return await _run_memory_route_work(
+        vault_dir,
+        "rebuild",
+        "write",
         collect_external_upgrade_proof,
         plugin_dir,
         vault_dir,
@@ -1585,35 +1678,51 @@ async def external_upgrade_proof_run_route(
 async def memory_tree_analyze(request: Request, limit: Optional[int] = None):
     """Analyze the vault into a read-only SOMT candidate report."""
     vault_dir = get_unlocked_vault_path(request)
-    return analyze_memory_tree(vault_dir, limit=limit)
+    return await _run_memory_route_work(
+        vault_dir, "memory_status", "read", analyze_memory_tree, vault_dir, limit=limit
+    )
 
 
 @router.get("/knowledge-audit")
 async def knowledge_audit(request: Request):
     """Run the read-only Freshness Gate audit."""
     vault_dir = get_unlocked_vault_path(request)
-    return audit_knowledge(vault_dir)
+    return await _run_memory_route_work(
+        vault_dir, "memory_status", "read", audit_knowledge, vault_dir
+    )
 
 
 @router.get("/quarantine")
 async def quarantine(request: Request):
     """List knowledge isolated from default retrieval without deleting it."""
     vault_dir = get_unlocked_vault_path(request)
-    return quarantine_list(vault_dir)
+    return await _run_memory_route_work(
+        vault_dir, "memory_status", "read", quarantine_list, vault_dir
+    )
 
 
 @router.get("/raptor/status")
 async def raptor_status_route(request: Request):
     """Return RAPTOR index status and write-gate readiness."""
     vault_dir = get_unlocked_vault_path(request)
-    return raptor_status(vault_dir)
+    return await _run_memory_route_work(
+        vault_dir, "raptor_status", "read", raptor_status, vault_dir
+    )
 
 
 @router.get("/raptor/graph")
 async def raptor_graph_route(request: Request, edge_offset: int = 0, limit: int = 500):
     """Return a bounded cached RAPTOR graph edge view."""
     vault_dir = get_unlocked_vault_path(request)
-    return bounded_raptor_graph_view(vault_dir, edge_offset=edge_offset, limit=limit)
+    return await _run_memory_route_work(
+        vault_dir,
+        "cache_lookup",
+        "read",
+        bounded_raptor_graph_view,
+        vault_dir,
+        edge_offset=edge_offset,
+        limit=limit,
+    )
 
 
 @router.post("/raptor/rebuild")
@@ -1621,7 +1730,10 @@ async def raptor_rebuild_route(request: Request, max_sources: int = 2000, max_ed
     """Rebuild derived RAPTOR artifacts when explicit write gates allow it."""
     vault_dir = get_unlocked_vault_path(request)
     _require_vault_scope(request, VAULT_WRITE_SCOPE)
-    return await asyncio.to_thread(
+    return await _run_memory_route_work(
+        vault_dir,
+        "rebuild",
+        "write",
         rebuild_raptor_artifacts,
         vault_dir,
         max_sources=max(1, min(int(max_sources), 100_000)),

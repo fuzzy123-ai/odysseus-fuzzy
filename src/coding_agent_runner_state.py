@@ -253,30 +253,17 @@ def transition_from_clarification_run(
 
     if not isinstance(clarification_run, Mapping):
         raise CodingRunnerStateError("clarification_run must be an object")
-    raw_status = clarification_run.get("status")
-    status = raw_status if type(raw_status) is str else ""
-    ready = clarification_run.get("ready_for_plan") is True
-    raw_unresolved = clarification_run.get("unresolved_required_count")
-    unresolved = _progress(raw_unresolved if type(raw_unresolved) is int else 0)
-    unresolved_is_zero = type(raw_unresolved) is int and raw_unresolved == 0
-    clarification_id = _safe_label(
-        clarification_run.get("clarification_id") or "clarification",
-        "clarification_id",
-    )
-    inconsistent_readiness = (
-        (status == "ready_for_plan") != ready
-        or (
-            status in {"ready_for_plan", "understanding_review"}
-            and not unresolved_is_zero
-        )
-    )
-    if ready and status == "ready_for_plan" and unresolved_is_zero:
+    status = str(clarification_run.get("status") or "").strip().lower()
+    ready = bool(clarification_run.get("ready_for_plan"))
+    unresolved = _progress(clarification_run.get("unresolved_required_count") or 0)
+    clarification_id = _safe_label(clarification_run.get("clarification_id") or "clarification", "clarification_id")
+    if ready and status == "ready_for_plan":
         phase = "ready_for_plan"
         progress = 15
         gates = ("create_plan",)
         blockers: tuple[str, ...] = ()
         decision = "Clarification is ready for plan; create or approve the coding plan next."
-    elif status == "understanding_review" and unresolved_is_zero and not ready:
+    elif status == "understanding_review" and unresolved == 0:
         phase = "understanding_review"
         progress = 10
         gates = ("confirm_understanding",)
@@ -286,12 +273,7 @@ def transition_from_clarification_run(
         phase = "clarifying"
         progress = 5
         gates = ("clarification_required",)
-        blocker = (
-            f"clarification {clarification_id} has inconsistent readiness state"
-            if inconsistent_readiness
-            else f"clarification {clarification_id} has {unresolved} unresolved required question(s)"
-        )
-        blockers = (blocker,)
+        blockers = (f"clarification {clarification_id} has {unresolved} unresolved required question(s)",)
         decision = "Answer required clarification questions before creating a coding plan."
     return store.write(
         CodingRunnerState.create(

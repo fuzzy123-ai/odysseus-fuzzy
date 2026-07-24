@@ -1,8 +1,9 @@
-"""Build and verify the content-free TAX0 tool registry inventory.
+#!/usr/bin/env python3
+"""Build and verify a deterministic, content-free tool-surface inventory.
 
-The audit intentionally reads source code as data instead of importing runtime
-modules.  That keeps the result deterministic and avoids plugin, provider,
-database, network, or application-startup side effects.
+The audit deliberately parses source files instead of importing Odysseus.  Its
+persisted output contains tool identities, repo-relative source paths and source
+hashes, but never schema arguments, prompt text, tool results or host paths.
 """
 
 from __future__ import annotations
@@ -11,491 +12,702 @@ import argparse
 import ast
 import hashlib
 import json
-from pathlib import Path
 import re
-from typing import Any, Iterable
+import sys
+from dataclasses import dataclass
+from pathlib import Path, PurePosixPath
+from typing import Iterable, Mapping, Sequence
 
 
-ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_OUTPUT = Path("docs/plans/tool-taxonomy-inventory.json")
+SCHEMA_VERSION = 1
+INVENTORY_KIND = "odysseus.tool_taxonomy_inventory"
+BASELINE_DATE = "2026-07-23"
+CLASSIFICATIONS = frozenset({"intentional", "missing", "stale", "dynamic"})
 
-SOURCE_PATHS = (
-    "src/agent_tools/__init__.py",
-    "src/tool_schema_definitions.py",
-    "src/tool_index.py",
-    "src/agent_loop_prompts.py",
-    "src/tool_execution.py",
-    "static/js/admin.js",
-    "src/tool_catalog.py",
-    "src/builtin_tool_catalog.py",
+
+@dataclass(frozen=True)
+class SourceSpec:
+    surface: str
+    path: str
+    assignment: str | None = None
+
+
+SURFACE_SPECS: tuple[SourceSpec, ...] = (
+    SourceSpec("builtin_tags", "src/agent_tools/__init__.py", "TOOL_TAGS"),
+    SourceSpec(
+        "function_schemas",
+        "src/tool_schema_definitions.py",
+        "FUNCTION_TOOL_SCHEMAS",
+    ),
+    SourceSpec("prompt_sections", "src/agent_loop_prompts.py", "TOOL_SECTIONS"),
+    SourceSpec(
+        "tool_index",
+        "src/tool_index.py",
+        "BUILTIN_TOOL_DESCRIPTIONS",
+    ),
+    SourceSpec("dispatcher", "src/tool_execution.py", "_execute_tool_block_impl"),
+    SourceSpec("admin_metadata", "static/js/admin.js", "TOOL_META"),
+)
+
+CORE_DYNAMIC_SOURCES: tuple[str, ...] = (
     "src/tool_registry.py",
     "src/plugin_system.py",
     "src/mcp_manager.py",
     "src/sensitive_local_worker.py",
-    "plugins/telegram/plugin.py",
+    "plugins/mcp_server/plugin.py",
     "plugins/obsidian/plugin.py",
+    "plugins/obsidian/backend/tool_specs.py",
+    "plugins/telegram/plugin.py",
 )
 
 EXPECTED_COUNTS = {
-    "runtime_tags": 79,
-    "function_schemas": 84,
-    "schema_without_runtime_tag": 6,
-    "runtime_without_function_schema": 1,
-    "admin_metadata": 85,
-    "runtime_without_admin_metadata": 0,
-    "admin_catalog_without_runtime_tag": 6,
-    "stale_admin_metadata": 0,
+    "builtin_tag_count": 80,
+    "function_schema_count": 85,
+    "schema_without_runtime_count": 6,
+    "runtime_without_schema_count": 1,
+    "admin_metadata_count": 31,
+    "admin_fallback_count": 50,
 }
-EXPECTED_SCHEMA_WITHOUT_RUNTIME = (
-    "manage_assistant",
-    "manage_embeddings",
-    "manage_personal_docs",
-    "manage_plugins",
-    "manage_presets",
-    "tail_serve_output",
+EXPECTED_SCHEMA_WITHOUT_RUNTIME = frozenset(
+    {
+        "manage_assistant",
+        "manage_embeddings",
+        "manage_personal_docs",
+        "manage_plugins",
+        "manage_presets",
+        "tail_serve_output",
+    }
 )
-EXPECTED_RUNTIME_WITHOUT_SCHEMA = ("generate_image",)
-EXPECTED_ADMIN_CATALOG_WITHOUT_RUNTIME = EXPECTED_SCHEMA_WITHOUT_RUNTIME
-EXPECTED_STALE_ADMIN_METADATA: tuple[str, ...] = ()
+EXPECTED_RUNTIME_WITHOUT_SCHEMA = frozenset({"generate_image"})
+EXPECTED_STALE_ADMIN_METADATA = frozenset({"manage_rag"})
+EMAIL_SCHEMA_ADAPTER_TOOLS = frozenset(
+    {
+        "archive_email",
+        "bulk_email",
+        "delete_email",
+        "list_email_accounts",
+        "list_emails",
+        "mark_email_read",
+        "read_email",
+        "reply_to_email",
+        "send_email",
+    }
+)
+INTERNAL_DISPATCH_CONTROLS = frozenset(
+    {
+        "invalid_tool_call",
+        "json",
+        "vault_get",
+        "vault_search",
+        "vault_unlock",
+        "xml",
+    }
+)
 
 
-class InventoryError(ValueError):
-    """Raised when a source cannot be read as the declared static contract."""
+def _violation(code: str, entity: str, detail: str) -> dict[str, str]:
+    return {"code": code, "entity": entity, "detail": detail}
 
 
-def _read(root: Path, relative_path: str) -> str:
-    path = root / relative_path
+def _repo_path(root: Path, relative: str) -> Path | None:
+    pure = PurePosixPath(relative)
+    if pure.is_absolute() or not pure.parts or ".." in pure.parts:
+        return None
+    candidate = (root / Path(*pure.parts)).resolve()
     try:
-        return path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError) as exc:
-        raise InventoryError(f"cannot read declared source {relative_path}: {exc}") from exc
+        candidate.relative_to(root.resolve())
+    except ValueError:
+        return None
+    return candidate
 
 
-def _parse(root: Path, relative_path: str) -> ast.Module:
-    try:
-        return ast.parse(_read(root, relative_path), filename=relative_path)
-    except SyntaxError as exc:
-        raise InventoryError(f"cannot parse declared source {relative_path}: {exc}") from exc
+def _source_bytes(root: Path, relative: str) -> bytes:
+    path = _repo_path(root, relative)
+    if path is None:
+        raise ValueError(f"unsafe repo-relative source path: {relative}")
+    return path.read_bytes()
+
+
+def _source_text(root: Path, relative: str) -> str:
+    return _source_bytes(root, relative).decode("utf-8")
+
+
+def _source_hash(root: Path, relative: str) -> str:
+    return hashlib.sha256(_source_bytes(root, relative)).hexdigest()
+
+
+def _python_tree(root: Path, relative: str) -> ast.Module:
+    return ast.parse(_source_text(root, relative), filename=relative)
 
 
 def _assignment_node(tree: ast.Module, name: str) -> ast.AST:
     for node in tree.body:
-        if isinstance(node, ast.Assign):
-            if any(isinstance(target, ast.Name) and target.id == name for target in node.targets):
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            if any(isinstance(target, ast.Name) and target.id == name for target in targets):
+                if node.value is None:
+                    break
                 return node.value
-        elif isinstance(node, ast.AnnAssign):
-            if isinstance(node.target, ast.Name) and node.target.id == name:
-                return node.value
-    raise InventoryError(f"missing declared assignment {name}")
+    raise ValueError(f"assignment not found: {name}")
 
 
-def _literal_assignment(root: Path, relative_path: str, name: str) -> Any:
-    node = _assignment_node(_parse(root, relative_path), name)
-    try:
-        return ast.literal_eval(node)
-    except (ValueError, TypeError) as exc:
-        raise InventoryError(f"assignment {name} in {relative_path} is not static") from exc
+def _literal_assignment(root: Path, relative: str, name: str):
+    return ast.literal_eval(_assignment_node(_python_tree(root, relative), name))
 
 
-def _dict_keys(root: Path, relative_path: str, name: str) -> set[str]:
-    node = _assignment_node(_parse(root, relative_path), name)
-    if not isinstance(node, ast.Dict):
-        raise InventoryError(f"assignment {name} in {relative_path} is not a dict")
-    keys = {
-        key.value
-        for key in node.keys
-        if isinstance(key, ast.Constant) and isinstance(key.value, str)
-    }
-    if len(keys) != len(node.keys):
-        raise InventoryError(f"assignment {name} in {relative_path} has dynamic keys")
-    return keys
+def _extract_builtin_tags(root: Path, spec: SourceSpec) -> set[str]:
+    value = _literal_assignment(root, spec.path, str(spec.assignment))
+    if not isinstance(value, (set, frozenset, list, tuple)):
+        raise ValueError("TOOL_TAGS must be a literal collection")
+    return {item for item in value if isinstance(item, str) and item}
 
 
-def _schema_names(root: Path) -> set[str]:
-    schemas = _literal_assignment(
-        root,
-        "src/tool_schema_definitions.py",
-        "FUNCTION_TOOL_SCHEMAS",
-    )
+def _extract_function_schemas(root: Path, spec: SourceSpec) -> set[str]:
+    value = _literal_assignment(root, spec.path, str(spec.assignment))
+    if not isinstance(value, list):
+        raise ValueError("FUNCTION_TOOL_SCHEMAS must be a literal list")
     names: set[str] = set()
-    for schema in schemas:
-        if not isinstance(schema, dict):
-            raise InventoryError("function schema entry is not an object")
-        function = schema.get("function")
+    for item in value:
+        if not isinstance(item, dict):
+            raise ValueError("function schema entry must be an object")
+        function = item.get("function")
         name = function.get("name") if isinstance(function, dict) else None
         if not isinstance(name, str) or not name:
-            raise InventoryError("function schema entry has no static name")
+            raise ValueError("function schema entry has no string name")
         if name in names:
-            raise InventoryError(f"duplicate function schema name {name}")
+            raise ValueError(f"duplicate function schema name: {name}")
         names.add(name)
     return names
 
 
-def _admin_metadata_keys(root: Path) -> set[str]:
-    """Return canonical backend-driven Admin catalog IDs.
-
-    TAX7 removed the partial static TOOL_META fallback. The Admin surface now
-    consumes Descriptor V2 from /api/tools, so its deterministic inventory is
-    the canonical built-in catalog guarded by explicit client wiring markers.
-    """
-
-    text = _read(root, "static/js/admin.js")
-    if re.search(r"^const TOOL_META\s*=", text, re.MULTILINE):
-        raise InventoryError("static/js/admin.js must not restore legacy TOOL_META")
-    required_markers = (
-        "const TOOL_FAMILY_PRESENTATION = Object.freeze({",
-        "async function loadBuiltinTools()",
-        "fetch('/api/tools'",
-        "data.descriptors || data.tools || []",
-        "toolCatalogGroup(t)",
-    )
-    missing = [marker for marker in required_markers if marker not in text]
-    if missing:
-        raise InventoryError(
-            "static/js/admin.js is missing canonical catalog wiring: "
-            + ", ".join(missing)
-        )
-
-    values = _literal_assignment(
-        root,
-        "src/builtin_tool_catalog.py",
-        "CATALOG_TOOL_IDS",
-    )
-    if not isinstance(values, (tuple, list)) or not values:
-        raise InventoryError("CATALOG_TOOL_IDS must be a non-empty static sequence")
-    if any(not isinstance(item, str) or not item for item in values):
-        raise InventoryError("CATALOG_TOOL_IDS contains an invalid tool ID")
-    if len(values) != len(set(values)):
-        raise InventoryError("CATALOG_TOOL_IDS contains duplicate tool IDs")
-    return set(values)
+def _extract_mapping_keys(root: Path, spec: SourceSpec) -> set[str]:
+    value = _literal_assignment(root, spec.path, str(spec.assignment))
+    if not isinstance(value, dict):
+        raise ValueError(f"{spec.assignment} must be a literal mapping")
+    names: set[str] = set()
+    for key in value:
+        if isinstance(key, str):
+            names.add(key)
+        elif isinstance(key, tuple) and all(isinstance(item, str) for item in key):
+            names.update(key)
+        else:
+            raise ValueError(f"unsupported key in {spec.assignment}")
+    return names
 
 
-def _string_values(node: ast.AST) -> set[str]:
-    if isinstance(node, ast.Constant) and isinstance(node.value, str):
-        return {node.value}
-    if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
-        values: set[str] = set()
-        for item in node.elts:
-            values.update(_string_values(item))
-        return values
+_ADMIN_KEY_RE = re.compile(
+    r"^\s{2}(?:(?:\"([^\"]+)\")|(?:'([^']+)')|([A-Za-z_$][\w$]*))\s*:",
+    re.MULTILINE,
+)
+
+
+def _extract_admin_metadata_text(text: str) -> set[str]:
+    marker = "const TOOL_META = {"
+    start = text.find(marker)
+    if start < 0:
+        raise ValueError("TOOL_META declaration not found")
+    body_start = start + len(marker)
+    end = text.find("\n};", body_start)
+    if end < 0:
+        raise ValueError("TOOL_META terminator not found")
+    body = text[body_start:end]
+    return {
+        next(group for group in match.groups() if group is not None)
+        for match in _ADMIN_KEY_RE.finditer(body)
+    }
+
+
+def _extract_admin_metadata(root: Path, spec: SourceSpec) -> set[str]:
+    return _extract_admin_metadata_text(_source_text(root, spec.path))
+
+
+def _strings_from_literal(node: ast.AST) -> set[str]:
+    try:
+        value = ast.literal_eval(node)
+    except (ValueError, TypeError):
+        return set()
+    if isinstance(value, str):
+        return {value}
+    if isinstance(value, (tuple, list, set, frozenset)):
+        return {item for item in value if isinstance(item, str)}
     return set()
 
 
-def _dispatcher_condition_ids(root: Path) -> set[str]:
-    tree = _parse(root, "src/tool_execution.py")
+def _contains_tool_name(node: ast.AST) -> bool:
+    return any(isinstance(item, ast.Name) and item.id == "tool" for item in ast.walk(node))
+
+
+def _extract_dispatcher(root: Path, spec: SourceSpec) -> tuple[set[str], set[str]]:
+    tree = _python_tree(root, spec.path)
     function = next(
         (
             node
             for node in tree.body
-            if isinstance(node, ast.AsyncFunctionDef) and node.name == "_execute_tool_block_impl"
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name == spec.assignment
         ),
         None,
     )
     if function is None:
-        raise InventoryError("src/tool_execution.py has no _execute_tool_block_impl")
+        raise ValueError(f"dispatcher function not found: {spec.assignment}")
+
     names: set[str] = set()
+    patterns: set[str] = set()
     for node in ast.walk(function):
-        if not isinstance(node, ast.Compare) or len(node.ops) != 1 or len(node.comparators) != 1:
-            continue
-        if not isinstance(node.left, ast.Name) or node.left.id != "tool":
-            continue
-        if isinstance(node.ops[0], (ast.Eq, ast.In)):
-            names.update(_string_values(node.comparators[0]))
-    names.update(_dict_keys(root, "src/tool_execution.py", "_MCP_TOOL_MAP"))
-    return names
+        if isinstance(node, ast.Compare):
+            operands = [node.left, *node.comparators]
+            if any(_contains_tool_name(operand) for operand in operands):
+                for operand in operands:
+                    if not _contains_tool_name(operand):
+                        names.update(_strings_from_literal(operand))
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "startswith"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "tool"
+            and node.args
+        ):
+            patterns.update(f"{value}*" for value in _strings_from_literal(node.args[0]))
+
+    mcp_map = ast.literal_eval(_assignment_node(tree, "_MCP_TOOL_MAP"))
+    if not isinstance(mcp_map, dict) or not all(isinstance(key, str) for key in mcp_map):
+        raise ValueError("_MCP_TOOL_MAP must be a literal string-keyed mapping")
+    names.update(mcp_map)
+    return names, patterns
 
 
-def _call_name(node: ast.Call) -> str:
-    if isinstance(node.func, ast.Name):
-        return node.func.id
-    if isinstance(node.func, ast.Attribute):
-        return node.func.attr
-    return ""
+def _surface_specs_by_name(specs: Sequence[SourceSpec]) -> dict[str, SourceSpec]:
+    result = {spec.surface: spec for spec in specs}
+    if len(result) != len(specs):
+        raise ValueError("surface names must be unique")
+    return result
 
 
-def _literal_tool_spec_names(tree: ast.Module) -> set[str]:
-    names: set[str] = set()
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call) or _call_name(node) != "ToolSpec":
-            continue
-        for keyword in node.keywords:
-            if keyword.arg == "name" and isinstance(keyword.value, ast.Constant):
-                if isinstance(keyword.value.value, str):
-                    names.add(keyword.value.value)
-    return names
-
-
-def _registration_summary(root: Path, relative_path: str) -> dict[str, Any]:
-    tree = _parse(root, relative_path)
-    registration_calls = sum(
-        1
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call) and _call_name(node) in {"register_tool", "_register_tool"}
-    )
-    return {
-        "path": relative_path,
-        "classification": "dynamic",
-        "registration_call_count": registration_calls,
-        "literal_tool_ids": sorted(_literal_tool_spec_names(tree)),
+def _extract_surfaces(
+    root: Path,
+    specs: Sequence[SourceSpec],
+) -> tuple[dict[str, set[str]], set[str]]:
+    by_name = _surface_specs_by_name(specs)
+    required = {
+        "builtin_tags",
+        "function_schemas",
+        "prompt_sections",
+        "tool_index",
+        "dispatcher",
+        "admin_metadata",
     }
+    missing = required - set(by_name)
+    if missing:
+        raise ValueError(f"missing surface specs: {', '.join(sorted(missing))}")
+
+    dispatcher, patterns = _extract_dispatcher(root, by_name["dispatcher"])
+    surfaces = {
+        "builtin_tags": _extract_builtin_tags(root, by_name["builtin_tags"]),
+        "function_schemas": _extract_function_schemas(
+            root, by_name["function_schemas"]
+        ),
+        "prompt_sections": _extract_mapping_keys(root, by_name["prompt_sections"]),
+        "tool_index": _extract_mapping_keys(root, by_name["tool_index"]),
+        "dispatcher": dispatcher,
+        "admin_metadata": _extract_admin_metadata(root, by_name["admin_metadata"]),
+    }
+    return surfaces, patterns
 
 
-def _source_hashes(root: Path) -> dict[str, str]:
-    hashes: dict[str, str] = {}
-    for relative_path in sorted(SOURCE_PATHS):
-        path = root / relative_path
-        try:
-            payload = path.read_bytes()
-        except OSError as exc:
-            raise InventoryError(f"cannot hash declared source {relative_path}: {exc}") from exc
-        hashes[relative_path] = hashlib.sha256(payload).hexdigest()
-    return hashes
+def _dynamic_source_kind(relative: str) -> str:
+    if relative == "src/tool_registry.py":
+        return "dynamic_registry"
+    if relative == "src/plugin_system.py":
+        return "plugin_registration_bridge"
+    if relative == "src/mcp_manager.py":
+        return "mcp_runtime"
+    if relative == "plugins/mcp_server/plugin.py":
+        return "mcp_schema_projection"
+    if relative.startswith("plugins/"):
+        return "plugin_registration_source"
+    return "runtime_registration_source"
 
 
-def _records(tool_ids: Iterable[str], classification: str, reason_code: str) -> list[dict[str, str]]:
-    return [
+def _discover_dynamic_sources(root: Path) -> list[str]:
+    candidates = set(CORE_DYNAMIC_SOURCES)
+    markers = (
+        "register_tool(",
+        "ToolSpec(",
+        "VaultToolSpec(",
+        "get_function_schemas()",
+    )
+    for top in ("src", "plugins"):
+        base = _repo_path(root, top)
+        if base is None or not base.is_dir():
+            continue
+        for path in base.rglob("*.py"):
+            relative = path.relative_to(root).as_posix()
+            parts = PurePosixPath(relative).parts
+            if "tests" in parts or path.name.startswith("test_"):
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeError):
+                continue
+            if any(marker in text for marker in markers):
+                candidates.add(relative)
+    return sorted(candidates)
+
+
+def _source_records(
+    root: Path,
+    specs: Sequence[SourceSpec],
+    dynamic_sources: Sequence[str],
+) -> list[dict[str, str]]:
+    records = [
         {
-            "tool_id": tool_id,
-            "classification": classification,
-            "reason_code": reason_code,
+            "kind": "static_surface",
+            "path": spec.path,
+            "sha256": _source_hash(root, spec.path),
+            "surface": spec.surface,
         }
-        for tool_id in sorted(tool_ids)
+        for spec in specs
     ]
+    records.extend(
+        {
+            "kind": _dynamic_source_kind(relative),
+            "path": relative,
+            "sha256": _source_hash(root, relative),
+            "surface": "dynamic",
+        }
+        for relative in dynamic_sources
+    )
+    return sorted(records, key=lambda item: (item["path"], item["surface"], item["kind"]))
 
 
-def validate_baseline(inventory: dict[str, Any]) -> list[str]:
-    """Return stable drift errors for the TAX0 acceptance baseline."""
+def _fingerprint(records: Sequence[Mapping[str, str]]) -> str:
+    payload = json.dumps(list(records), sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
-    errors: list[str] = []
-    counts = inventory.get("counts") or {}
+
+def _difference(
+    tool_id: str,
+    surface: str,
+    relation: str,
+    classification: str,
+    explanation: str,
+) -> dict[str, str]:
+    if classification not in CLASSIFICATIONS:
+        raise ValueError(f"invalid classification: {classification}")
+    return {
+        "classification": classification,
+        "explanation": explanation,
+        "relation": relation,
+        "surface": surface,
+        "tool_id": tool_id,
+    }
+
+
+def _classify_differences(
+    surfaces: Mapping[str, set[str]],
+    dispatcher_patterns: Iterable[str],
+) -> list[dict[str, str]]:
+    runtime = surfaces["builtin_tags"]
+    rows: list[dict[str, str]] = []
+    for surface in (
+        "function_schemas",
+        "prompt_sections",
+        "tool_index",
+        "dispatcher",
+        "admin_metadata",
+    ):
+        values = surfaces[surface]
+        for tool_id in sorted(runtime - values):
+            if surface == "function_schemas" and tool_id in EXPECTED_RUNTIME_WITHOUT_SCHEMA:
+                classification = "intentional"
+                explanation = "legacy runtime projection intentionally has no native Function schema"
+            elif surface == "dispatcher" and tool_id in EMAIL_SCHEMA_ADAPTER_TOOLS:
+                classification = "intentional"
+                explanation = "Function-call normalization routes this built-in identity through the qualified email MCP adapter"
+            else:
+                classification = "missing"
+                explanation = f"runtime tool is absent from the {surface} projection"
+            rows.append(
+                _difference(
+                    tool_id,
+                    surface,
+                    "runtime_not_surface",
+                    classification,
+                    explanation,
+                )
+            )
+        for tool_id in sorted(values - runtime):
+            if surface == "admin_metadata":
+                classification = "stale"
+                explanation = "Admin metadata is present for a non-runtime legacy identity"
+            elif tool_id in EXPECTED_SCHEMA_WITHOUT_RUNTIME:
+                classification = "missing"
+                explanation = "projection exists but the built-in runtime registration is missing"
+            elif surface == "dispatcher" and tool_id in INTERNAL_DISPATCH_CONTROLS:
+                classification = "intentional"
+                explanation = "internal dispatcher control is not an advertised built-in tool"
+            else:
+                classification = "stale"
+                explanation = f"{surface} identity is not present in the built-in runtime allowlist"
+            rows.append(
+                _difference(
+                    tool_id,
+                    surface,
+                    "surface_not_runtime",
+                    classification,
+                    explanation,
+                )
+            )
+    for pattern in sorted(set(dispatcher_patterns)):
+        rows.append(
+            _difference(
+                pattern,
+                "dispatcher",
+                "dynamic_pattern",
+                "dynamic",
+                "runtime-qualified identity is supplied by an MCP or plugin source",
+            )
+        )
+    return sorted(
+        rows,
+        key=lambda item: (
+            item["surface"],
+            item["relation"],
+            item["tool_id"],
+            item["classification"],
+        ),
+    )
+
+
+def _count_summary(surfaces: Mapping[str, set[str]]) -> dict[str, int]:
+    runtime = surfaces["builtin_tags"]
+    schemas = surfaces["function_schemas"]
+    admin = surfaces["admin_metadata"]
+    return {
+        "builtin_tag_count": len(runtime),
+        "function_schema_count": len(schemas),
+        "schema_without_runtime_count": len(schemas - runtime),
+        "runtime_without_schema_count": len(runtime - schemas),
+        "admin_metadata_count": len(admin),
+        "admin_fallback_count": len(runtime - admin),
+    }
+
+
+def _baseline_violations(surfaces: Mapping[str, set[str]]) -> list[dict[str, str]]:
+    violations: list[dict[str, str]] = []
+    counts = _count_summary(surfaces)
     for key, expected in EXPECTED_COUNTS.items():
-        actual = counts.get(key)
+        actual = counts[key]
         if actual != expected:
-            errors.append(f"{key}: expected {expected}, found {actual}")
+            violations.append(
+                _violation(
+                    "baseline_count_drift",
+                    key,
+                    f"expected {expected}, observed {actual}",
+                )
+            )
 
-    drift = inventory.get("drift") or {}
-    exact_sets = {
-        "schema_without_runtime_tag": EXPECTED_SCHEMA_WITHOUT_RUNTIME,
-        "runtime_without_function_schema": EXPECTED_RUNTIME_WITHOUT_SCHEMA,
-        "admin_catalog_without_runtime_tag": EXPECTED_ADMIN_CATALOG_WITHOUT_RUNTIME,
-        "stale_admin_metadata": EXPECTED_STALE_ADMIN_METADATA,
-    }
-    for key, expected in exact_sets.items():
-        actual = tuple(item.get("tool_id") for item in drift.get(key, []))
+    runtime = surfaces["builtin_tags"]
+    schemas = surfaces["function_schemas"]
+    admin = surfaces["admin_metadata"]
+    exact_checks = (
+        (
+            "schema_without_runtime",
+            schemas - runtime,
+            EXPECTED_SCHEMA_WITHOUT_RUNTIME,
+        ),
+        (
+            "runtime_without_schema",
+            runtime - schemas,
+            EXPECTED_RUNTIME_WITHOUT_SCHEMA,
+        ),
+        (
+            "stale_admin_metadata",
+            admin - runtime,
+            EXPECTED_STALE_ADMIN_METADATA,
+        ),
+    )
+    for entity, actual, expected in exact_checks:
         if actual != expected:
-            errors.append(f"{key}: expected {list(expected)}, found {list(actual)}")
-    return errors
+            violations.append(
+                _violation(
+                    "baseline_identity_drift",
+                    entity,
+                    "expected="
+                    + ",".join(sorted(expected))
+                    + "; observed="
+                    + ",".join(sorted(actual)),
+                )
+            )
+    return sorted(violations, key=lambda item: (item["code"], item["entity"], item["detail"]))
 
 
-def build_inventory(root: Path = ROOT) -> dict[str, Any]:
+def audit_inventory(
+    root: Path,
+    *,
+    specs: Sequence[SourceSpec] = SURFACE_SPECS,
+    dynamic_sources: Sequence[str] | None = None,
+) -> dict:
+    """Return the deterministic TAX0 inventory for ``root`` without imports."""
     root = root.resolve()
-    runtime_tags = set(
-        _literal_assignment(root, "src/agent_tools/__init__.py", "TOOL_TAGS")
-    )
-    function_schemas = _schema_names(root)
-    tool_index = _dict_keys(root, "src/tool_index.py", "BUILTIN_TOOL_DESCRIPTIONS")
-    prompt_sections = _dict_keys(root, "src/agent_loop_prompts.py", "TOOL_SECTIONS")
-    agent_handlers = _dict_keys(root, "src/agent_tools/__init__.py", "TOOL_HANDLERS")
-    admin_metadata = _admin_metadata_keys(root)
-    mcp_legacy_routes = _dict_keys(root, "src/tool_execution.py", "_MCP_TOOL_MAP")
-    dispatcher_conditions = _dispatcher_condition_ids(root)
-
-    schema_without_runtime = function_schemas - runtime_tags
-    runtime_without_schema = runtime_tags - function_schemas
-    admin_catalog_without_runtime = admin_metadata - runtime_tags
-    stale_admin = admin_catalog_without_runtime - set(
-        EXPECTED_ADMIN_CATALOG_WITHOUT_RUNTIME
-    )
-    runtime_without_admin = runtime_tags - admin_metadata
-
-    source_hashes = _source_hashes(root)
-    source_digest = hashlib.sha256(
-        json.dumps(source_hashes, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
-
-    inventory: dict[str, Any] = {
-        "schema_version": "odysseus.tool_taxonomy_inventory.v1",
-        "deterministic": True,
-        "scope": "static_repository_metadata_only",
-        "privacy": {
-            "raw_content_visible": False,
-            "tool_arguments_visible": False,
-            "tool_results_visible": False,
-            "prompt_text_visible": False,
-            "private_paths_visible": False,
-            "provider_output_visible": False,
-            "secret_values_visible": False,
-        },
-        "counts": {
-            "runtime_tags": len(runtime_tags),
-            "function_schemas": len(function_schemas),
-            "schema_without_runtime_tag": len(schema_without_runtime),
-            "runtime_without_function_schema": len(runtime_without_schema),
-            "tool_index_entries": len(tool_index),
-            "prompt_sections": len(prompt_sections),
-            "agent_handlers": len(agent_handlers),
-            "dispatcher_condition_ids": len(dispatcher_conditions),
-            "admin_metadata": len(admin_metadata),
-            "runtime_without_admin_metadata": len(runtime_without_admin),
-            "admin_catalog_without_runtime_tag": len(admin_catalog_without_runtime),
-            "stale_admin_metadata": len(stale_admin),
-            "mcp_legacy_routes": len(mcp_legacy_routes),
-        },
-        "projections": {
-            "runtime_tags": sorted(runtime_tags),
-            "function_schemas": sorted(function_schemas),
-            "tool_index_entries": sorted(tool_index),
-            "prompt_sections": sorted(prompt_sections),
-            "agent_handlers": sorted(agent_handlers),
-            "dispatcher_condition_ids": sorted(dispatcher_conditions),
-            "admin_metadata": sorted(admin_metadata),
-            "mcp_legacy_routes": sorted(mcp_legacy_routes),
-        },
-        "drift": {
-            "schema_without_runtime_tag": _records(
-                schema_without_runtime,
-                "missing",
-                "native_schema_rejected_before_dispatch_without_runtime_tag",
-            ),
-            "runtime_without_function_schema": _records(
-                runtime_without_schema,
-                "intentional",
-                "text_only_or_non_native_projection_requires_explicit_contract",
-            ),
-            "tool_index_without_runtime_tag": _records(
-                tool_index - runtime_tags,
-                "missing",
-                "index_entry_has_no_runtime_registration",
-            ),
-            "runtime_without_tool_index": _records(
-                runtime_tags - tool_index,
-                "missing",
-                "runtime_tag_has_no_searchable_index_entry",
-            ),
-            "prompt_without_runtime_tag": _records(
-                prompt_sections - runtime_tags,
-                "missing",
-                "prompt_section_has_no_runtime_registration",
-            ),
-            "runtime_without_prompt_section": _records(
-                runtime_tags - prompt_sections,
-                "missing",
-                "runtime_tag_has_no_dedicated_prompt_section",
-            ),
-            "stale_admin_metadata": _records(
-                stale_admin,
-                "stale",
-                "admin_metadata_has_no_runtime_registration",
-            ),
-            "admin_catalog_without_runtime_tag": _records(
-                admin_catalog_without_runtime,
-                "intentional",
-                "catalog_includes_blocked_or_deferred_non_runtime_identity",
-            ),
-            "runtime_without_admin_metadata": _records(
-                runtime_without_admin,
-                "missing",
-                "runtime_tag_missing_from_canonical_admin_catalog",
-            ),
-        },
-        "admin_projection": {
-            "mode": "descriptor_v2_api",
-            "endpoint": "/api/tools",
-            "legacy_static_metadata": False,
-        },
-        "dynamic_sources": {
-            "registry": {
-                "path": "src/tool_registry.py",
-                "classification": "dynamic",
-                "registration_mode": "runtime_ToolSpec_registry",
-                "default_permission": "admin",
-                "static_runtime_count": None,
+    violations: list[dict[str, str]] = []
+    try:
+        surfaces, dispatcher_patterns = _extract_surfaces(root, specs)
+        discovered_dynamic_sources = (
+            sorted(set(dynamic_sources))
+            if dynamic_sources is not None
+            else _discover_dynamic_sources(root)
+        )
+        records = _source_records(root, specs, discovered_dynamic_sources)
+    except (OSError, SyntaxError, UnicodeError, ValueError) as exc:
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "kind": INVENTORY_KIND,
+            "baseline_date": BASELINE_DATE,
+            "summary": {
+                "clean": False,
+                "content_fields_recorded": False,
+                "private_paths_recorded": False,
+                "runtime_modules_imported": False,
+                "violation_count": 1,
             },
-            "mcp": {
-                "path": "src/mcp_manager.py",
-                "classification": "dynamic",
-                "registration_mode": "qualified_mcp_tool_names",
-                "qualified_prefix": "mcp__",
-                "legacy_routes": sorted(mcp_legacy_routes),
-            },
-            "plugin_registration_sources": [
-                _registration_summary(root, "src/plugin_system.py"),
-                _registration_summary(root, "src/sensitive_local_worker.py"),
-                _registration_summary(root, "plugins/telegram/plugin.py"),
-                _registration_summary(root, "plugins/obsidian/plugin.py"),
+            "surfaces": [],
+            "differences": [],
+            "dynamic_sources": [],
+            "sources": [],
+            "violations": [
+                _violation("inventory_source_error", "repository", type(exc).__name__)
             ],
-        },
-        "source_hashes_sha256": source_hashes,
-        "source_digest_sha256": source_digest,
-    }
-    errors = validate_baseline(inventory)
-    inventory["baseline"] = {
-        "status": "matches" if not errors else "drift",
-        "expected_counts": dict(sorted(EXPECTED_COUNTS.items())),
-        "errors": errors,
-    }
-    return inventory
+        }
 
-
-def render_inventory(inventory: dict[str, Any]) -> str:
-    return json.dumps(inventory, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
-
-
-def snapshot_errors(inventory: dict[str, Any], output_path: Path) -> list[str]:
-    errors = validate_baseline(inventory)
-    if not output_path.is_file():
-        return [*errors, "snapshot is missing"]
-    try:
-        current = output_path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError) as exc:
-        return [*errors, f"snapshot cannot be read: {exc}"]
-    if current != render_inventory(inventory):
-        errors.append("snapshot differs from deterministic repository inventory")
-    return errors
-
-
-def _resolve_output(root: Path, output: Path) -> Path:
-    return output if output.is_absolute() else root / output
-
-
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Build or verify the deterministic content-free TAX0 tool registry inventory."
+    violations.extend(_baseline_violations(surfaces))
+    differences = _classify_differences(surfaces, dispatcher_patterns)
+    counts = _count_summary(surfaces)
+    surface_rows = [
+        {
+            "count": len(names),
+            "name": name,
+            "tool_ids": sorted(names),
+        }
+        for name, names in sorted(surfaces.items())
+    ]
+    dynamic_rows = [
+        {
+            "classification": "dynamic",
+            "kind": _dynamic_source_kind(relative),
+            "path": relative,
+        }
+        for relative in discovered_dynamic_sources
+    ]
+    ordered_violations = sorted(
+        violations, key=lambda item: (item["code"], item["entity"], item["detail"])
     )
-    parser.add_argument("--root", type=Path, default=ROOT)
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
-    parser.add_argument("--check", action="store_true")
-    args = parser.parse_args(argv)
+    classification_counts = {
+        name: sum(item["classification"] == name for item in differences)
+        for name in sorted(CLASSIFICATIONS)
+    }
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "kind": INVENTORY_KIND,
+        "baseline_date": BASELINE_DATE,
+        "summary": {
+            **counts,
+            "source_count": len(records),
+            "dynamic_source_count": len(dynamic_rows),
+            "difference_count": len(differences),
+            "difference_classification_counts": classification_counts,
+            "source_fingerprint": _fingerprint(records),
+            "content_fields_recorded": False,
+            "private_paths_recorded": False,
+            "runtime_modules_imported": False,
+            "violation_count": len(ordered_violations),
+            "clean": not ordered_violations,
+        },
+        "surfaces": surface_rows,
+        "differences": differences,
+        "dynamic_sources": dynamic_rows,
+        "sources": records,
+        "violations": ordered_violations,
+    }
 
-    root = args.root.resolve()
-    output_path = _resolve_output(root, args.output)
+
+def render_inventory(payload: Mapping) -> str:
+    return json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+
+
+def _read_json(path: Path) -> dict:
     try:
-        inventory = build_inventory(root)
-    except InventoryError as exc:
-        print(f"TAX0 inventory error: {exc}")
-        return 1
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"cannot read tool inventory: {type(exc).__name__}") from exc
+    if not isinstance(value, dict):
+        raise ValueError("tool inventory must be a JSON object")
+    return value
+
+
+def _write_json(path: Path, payload: Mapping) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(render_inventory(payload), encoding="utf-8")
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("docs/plans/tool-taxonomy-inventory.json"),
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="fail when the persisted inventory differs from the current checkout",
+    )
+    parser.add_argument("--print", action="store_true", dest="print_payload")
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    root = args.root.resolve()
+    output = args.output if args.output.is_absolute() else root / args.output
+    payload = audit_inventory(root)
+    if args.print_payload:
+        print(render_inventory(payload), end="")
 
     if args.check:
-        errors = snapshot_errors(inventory, output_path)
-        if errors:
-            for error in errors:
-                print(f"TAX0 drift: {error}")
+        if not output.is_file():
+            print("Tool taxonomy inventory missing; generate the declared output first.", file=sys.stderr)
             return 1
-        counts = inventory["counts"]
-        print(
-            "TAX0 inventory check passed: "
-            f"{counts['runtime_tags']} runtime tags, "
-            f"{counts['function_schemas']} schemas, "
-            f"{counts['admin_metadata']} admin metadata entries"
-        )
-        return 0
+        try:
+            existing = _read_json(output)
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        if payload != existing:
+            print("Tool taxonomy inventory drift detected; regenerate the declared output.", file=sys.stderr)
+            return 1
+    else:
+        _write_json(output, payload)
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(render_inventory(inventory), encoding="utf-8", newline="\n")
-    for error in validate_baseline(inventory):
-        print(f"TAX0 drift: {error}")
-    print(f"Wrote deterministic TAX0 inventory to {args.output.as_posix()}")
-    return 0 if not validate_baseline(inventory) else 1
+    if payload["violations"]:
+        for item in payload["violations"]:
+            print(
+                f"{item['code']}: {item['entity']}: {item['detail']}",
+                file=sys.stderr,
+            )
+        return 1
+
+    summary = payload["summary"]
+    print(
+        "Tool taxonomy inventory clean: "
+        f"{summary['builtin_tag_count']} tags, "
+        f"{summary['function_schema_count']} schemas, "
+        f"{summary['admin_metadata_count']} Admin metadata entries, "
+        f"{summary['admin_fallback_count']} Admin fallbacks"
+    )
+    return 0
 
 
 if __name__ == "__main__":

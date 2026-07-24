@@ -1,213 +1,220 @@
 import asyncio
-from datetime import datetime, timedelta, timezone
-import inspect
-import json
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
 
-import src.tool_execution as tool_execution
-from src.tool_usage_events import ToolUsageStatus
+from src.tool_execution import execute_tool_block
+from src.tool_usage_events import ToolUsageEventBuilder
 from src.tool_usage_instrumentation import (
     ToolUsageInstrumentation,
-    build_tool_usage_call_metadata,
-    classify_tool_usage_outcome,
+    normalize_tool_usage_outcome,
 )
 
 
-FIXED_TIME = datetime(2026, 7, 16, 6, 0, tzinfo=timezone.utc)
+FIXED_TIME = datetime(2026, 7, 17, 15, 0, tzinfo=timezone.utc)
 
 
-class SequenceClock:
-    def __init__(self, values):
-        self.values = iter(values)
+class _Sink:
+    def __init__(self, *, fail=False):
+        self.events = []
+        self.fail = fail
 
-    def __call__(self):
-        return next(self.values)
+    def append_best_effort(self, events):
+        if self.fail:
+            raise RuntimeError("private sink failure")
+        self.events.extend(events)
+        return SimpleNamespace(failure_count=0)
 
 
-def _instrumentation(events, *, sink=None, monotonic=(10.0, 10.125), **kwargs):
-    wall_values = (FIXED_TIME, FIXED_TIME + timedelta(milliseconds=125))
+class _Emitter:
+    def __init__(self, *, fail=False):
+        self.events = []
+        self.fail = fail
+
+    def emit(self, **event):
+        if self.fail:
+            raise RuntimeError("private lens failure")
+        self.events.append(event)
+
+    def record_rejection(self, _reason):
+        return None
+
+
+def _instrumentation(sink=None):
     return ToolUsageInstrumentation(
-        sink=events.append if sink is None else sink,
-        hmac_key=b"synthetic-local-key-material",
-        app_version="0.25.0",
-        monotonic=SequenceClock(monotonic),
-        wall_clock=SequenceClock(wall_values),
-        **kwargs,
+        builder=ToolUsageEventBuilder(app_version="0.25.0", hmac_key=None),
+        sink=sink or _Sink(),
+        clock=lambda: FIXED_TIME,
     )
+
+
+def _block(name="read_file", content="private argument body"):
+    return SimpleNamespace(tool_type=name, content=content)
+
+
+def _patch_impl(monkeypatch, *, outcome=None, error=None):
+    async def _impl(*_args, **_kwargs):
+        if error is not None:
+            raise error
+        return outcome
+
+    monkeypatch.setattr("src.tool_execution._execute_tool_block_impl", _impl)
 
 
 @pytest.mark.asyncio
-async def test_success_emits_one_start_terminal_pair_and_preserves_result_identity(monkeypatch):
-    events = []
-    instrumentation = _instrumentation(events)
-    block = SimpleNamespace(tool_type="read_file", content="private path and content")
-    expected_result = {"stdout": "private result", "exit_code": 0}
-    expected_outcome = ("read_file: ok", expected_result)
+async def test_success_emits_one_start_and_terminal_without_changing_return_tuple(monkeypatch):
+    result = {"output": "private result body", "exit_code": 0}
+    returned = ("read_file: private path", result)
+    _patch_impl(monkeypatch, outcome=returned)
+    ticks = iter((10.0, 10.125))
+    monkeypatch.setattr("src.tool_execution.time.perf_counter", lambda: next(ticks))
+    sink = _Sink()
 
-    async def execute(*_args, **_kwargs):
-        return expected_outcome
-
-    monkeypatch.setattr(tool_execution, "_execute_tool_block_impl", execute)
-    outcome = await tool_execution.execute_tool_block(
-        block,
-        owner="private-owner",
-        session_id="private-session",
-        tool_usage_instrumentation=instrumentation,
+    actual = await execute_tool_block(
+        _block(),
+        tool_usage_instrumentation=_instrumentation(sink),
     )
 
-    assert outcome is expected_outcome
-    assert outcome[1] is expected_result
-    assert len(events) == 2
-    assert events[0].invocation_id == events[1].invocation_id
-    assert events[0].event_kind.value == "started"
-    assert events[1].event_kind.value == "terminal"
-    assert events[1].status == ToolUsageStatus.SUCCEEDED
-    assert events[1].duration_ms == 125
-    assert events[0].owner_ref.startswith("h1_owner_")
-    assert events[0].session_ref.startswith("h1_session_")
-    encoded = json.dumps([event.to_safe_dict() for event in events], sort_keys=True)
-    for private_value in (
-        "private path and content",
-        "private result",
-        "private-owner",
-        "private-session",
-    ):
-        assert private_value not in encoded
+    assert actual is returned
+    assert actual[1] is result
+    assert [event.event_kind.value for event in sink.events] == ["started", "terminal"]
+    assert sink.events[0].invocation_id == sink.events[1].invocation_id
+    assert sink.events[1].status.value == "succeeded"
+    assert sink.events[1].duration_ms == 125
+    encoded = " ".join(event.to_json() for event in sink.events)
+    assert "private argument body" not in encoded
+    assert "private result body" not in encoded
+    assert "private path" not in encoded
 
 
 @pytest.mark.asyncio
-async def test_blocked_unknown_exception_and_cancellation_have_bounded_terminal_statuses(monkeypatch):
-    cases = [
-        (
-            ("read_file: BLOCKED", {"error": "disabled by user", "exit_code": 1}),
-            ToolUsageStatus.BLOCKED,
-        ),
-        (
-            ("unknown: private_dynamic_tool", {"error": "unknown", "exit_code": 1}),
-            ToolUsageStatus.REJECTED,
-        ),
-    ]
-    for index, (returned, expected_status) in enumerate(cases):
-        events = []
-        instrumentation = _instrumentation(
-            events,
-            monotonic=(20.0 + index, 20.1 + index),
-        )
+async def test_blocked_result_uses_bounded_reason_and_shared_lens_status(monkeypatch):
+    returned = (
+        "bash: BLOCKED by policy",
+        {"error": "Tool blocked by policy", "exit_code": 1},
+    )
+    _patch_impl(monkeypatch, outcome=returned)
+    sink = _Sink()
+    emitter = _Emitter()
 
-        async def execute(*_args, _returned=returned, **_kwargs):
-            return _returned
-
-        monkeypatch.setattr(tool_execution, "_execute_tool_block_impl", execute)
-        await tool_execution.execute_tool_block(
-            SimpleNamespace(tool_type="read_file", content="private"),
-            tool_usage_instrumentation=instrumentation,
-        )
-        assert [event.status for event in events if event.status] == [expected_status]
-
-    error_events = []
-    error_instrumentation = _instrumentation(error_events, monotonic=(30.0, 30.1))
-    original = RuntimeError("private main path exception")
-
-    async def fail(*_args, **_kwargs):
-        raise original
-
-    monkeypatch.setattr(tool_execution, "_execute_tool_block_impl", fail)
-    with pytest.raises(RuntimeError) as raised:
-        await tool_execution.execute_tool_block(
-            SimpleNamespace(tool_type="read_file", content="private"),
-            tool_usage_instrumentation=error_instrumentation,
-        )
-    assert raised.value is original
-    assert error_events[-1].status == ToolUsageStatus.FAILED
-
-    cancelled_events = []
-    cancelled_instrumentation = _instrumentation(
-        cancelled_events,
-        monotonic=(40.0, 40.1),
+    actual = await execute_tool_block(
+        _block("bash"),
+        tool_usage_instrumentation=_instrumentation(sink),
+        ai_lens_emitter=emitter,
     )
 
-    async def cancel(*_args, **_kwargs):
-        raise asyncio.CancelledError()
+    terminal = sink.events[-1]
+    assert actual is returned
+    assert terminal.status.value == "blocked"
+    assert terminal.blocked_reason_code.value == "policy"
+    assert terminal.error_class is None
+    assert [event["status"] for event in emitter.events] == ["started", "blocked"]
 
-    monkeypatch.setattr(tool_execution, "_execute_tool_block_impl", cancel)
+
+@pytest.mark.asyncio
+async def test_exception_emits_failed_terminal_and_propagates_same_exception(monkeypatch):
+    failure = RuntimeError("private main-path failure")
+    _patch_impl(monkeypatch, error=failure)
+    sink = _Sink()
+
+    with pytest.raises(RuntimeError) as exc_info:
+        await execute_tool_block(
+            _block(),
+            tool_usage_instrumentation=_instrumentation(sink),
+        )
+
+    assert exc_info.value is failure
+    assert [event.event_kind.value for event in sink.events] == ["started", "terminal"]
+    assert sink.events[-1].status.value == "failed"
+    assert sink.events[-1].error_class.value == "execution"
+    assert "private main-path failure" not in sink.events[-1].to_json()
+
+
+@pytest.mark.asyncio
+async def test_cancellation_is_terminal_cancelled_and_never_success(monkeypatch):
+    _patch_impl(monkeypatch, error=asyncio.CancelledError())
+    sink = _Sink()
+
     with pytest.raises(asyncio.CancelledError):
-        await tool_execution.execute_tool_block(
-            SimpleNamespace(tool_type="read_file", content="private"),
-            tool_usage_instrumentation=cancelled_instrumentation,
+        await execute_tool_block(
+            _block(),
+            tool_usage_instrumentation=_instrumentation(sink),
         )
-    assert cancelled_events[-1].status == ToolUsageStatus.CANCELLED
+
+    assert [event.event_kind.value for event in sink.events] == ["started", "terminal"]
+    assert sink.events[-1].status.value == "cancelled"
+    assert sink.events[-1].error_class.value == "cancelled"
+
+
+def test_invocation_accepts_at_most_one_terminal_event():
+    sink = _Sink()
+    instrumentation = _instrumentation(sink)
+    invocation = instrumentation.begin("read_file", "private")
+    outcome = normalize_tool_usage_outcome(result={"output": "ok", "exit_code": 0})
+
+    instrumentation.finish(invocation, outcome=outcome, duration_ms=5)
+    instrumentation.finish(invocation, outcome=outcome, duration_ms=9)
+
+    assert [event.event_kind.value for event in sink.events] == ["started", "terminal"]
+    assert sink.events[-1].duration_ms == 5
 
 
 @pytest.mark.asyncio
-async def test_sink_failure_is_fully_isolated_from_existing_tool_semantics(monkeypatch):
-    class FailingSink:
-        def __call__(self, _event):
-            raise RuntimeError("private telemetry failure")
+async def test_usage_sink_failure_and_lens_failure_are_independent_and_fail_open(monkeypatch):
+    result = {"output": "unchanged", "exit_code": 0}
+    returned = ("read_file", result)
+    _patch_impl(monkeypatch, outcome=returned)
+    broken_sink = _Sink(fail=True)
+    instrumentation = _instrumentation(broken_sink)
+    working_lens = _Emitter()
 
-    instrumentation = _instrumentation([], sink=FailingSink())
-    expected = ("read_file: ok", {"stdout": "unchanged", "exit_code": 0})
-
-    async def execute(*_args, **_kwargs):
-        return expected
-
-    monkeypatch.setattr(tool_execution, "_execute_tool_block_impl", execute)
-    actual = await tool_execution.execute_tool_block(
-        SimpleNamespace(tool_type="read_file", content="private"),
+    actual = await execute_tool_block(
+        _block(),
         tool_usage_instrumentation=instrumentation,
+        ai_lens_emitter=working_lens,
     )
 
-    assert actual is expected
-    assert instrumentation.diagnostics()["counts"] == {"sink_failures": 2}
-    assert "private telemetry failure" not in json.dumps(instrumentation.diagnostics())
+    assert actual is returned
+    assert actual[1] is result
+    assert [event["status"] for event in working_lens.events] == ["started", "succeeded"]
+    assert instrumentation.diagnostics()["failures"] == {"sink_failure": 2}
 
-
-def test_span_closes_once_and_default_sink_discards_without_persistence():
-    instrumentation = ToolUsageInstrumentation(
-        app_version="0.25.0",
-        monotonic=SequenceClock((1.0, 1.1)),
-        wall_clock=SequenceClock((FIXED_TIME, FIXED_TIME)),
+    working_sink = _Sink()
+    actual_again = await execute_tool_block(
+        _block(),
+        tool_usage_instrumentation=_instrumentation(working_sink),
+        ai_lens_emitter=_Emitter(fail=True),
     )
-    metadata = build_tool_usage_call_metadata(
-        SimpleNamespace(tool_type="read_file", content="private")
+    assert actual_again is returned
+    assert [event.event_kind.value for event in working_sink.events] == ["started", "terminal"]
+
+
+@pytest.mark.asyncio
+async def test_private_dynamic_runtime_name_maps_only_to_mcp_source_bucket(monkeypatch):
+    private_name = "mcp__alice@example.test__session-private-note"
+    _patch_impl(monkeypatch, outcome=("mcp", {"output": "ok", "exit_code": 0}))
+    sink = _Sink()
+
+    await execute_tool_block(
+        _block(private_name),
+        tool_usage_instrumentation=_instrumentation(sink),
     )
-    span = instrumentation.begin(metadata)
-    outcome = classify_tool_usage_outcome("read_file: ok", {"exit_code": 0})
 
-    span.finish(outcome, result={"private": "result"})
-    span.finish(outcome, result={"private": "result"})
-
-    assert instrumentation.diagnostics()["counts"] == {
-        "discarded_events": 2,
-        "duplicate_terminal_attempts": 1,
+    assert {event.tool_analytics_id for event in sink.events} == {
+        "dynamic.mcp.unclassified"
     }
+    assert {event.tool_source.value for event in sink.events} == {"mcp"}
+    assert private_name not in " ".join(event.to_json() for event in sink.events)
 
 
-def test_metadata_normalizes_unknown_and_mcp_without_raw_dynamic_identity():
-    raw_unknown = "private_provider_tool_123"
-    raw_mcp = "mcp__private-server__private-tool"
-    unknown = build_tool_usage_call_metadata(
-        SimpleNamespace(tool_type=raw_unknown, content="private")
+@pytest.mark.asyncio
+async def test_instrumentation_is_default_off_when_not_injected(monkeypatch):
+    returned = ("read_file", {"output": "ok", "exit_code": 0})
+    _patch_impl(monkeypatch, outcome=returned)
+    monkeypatch.setattr(
+        "src.tool_execution._normalized_tool_usage_outcome",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("default-off path imported usage")),
     )
-    mcp = build_tool_usage_call_metadata(
-        SimpleNamespace(tool_type=raw_mcp, content="private")
-    )
-    encoded = json.dumps([unknown.to_safe_dict(), mcp.to_safe_dict()], sort_keys=True)
 
-    assert unknown.tool_analytics_id == "dynamic-unclassified"
-    assert mcp.tool_analytics_id == "dynamic-mcp"
-    assert raw_unknown not in encoded
-    assert raw_mcp not in encoded
-
-
-def test_no_instrumentation_object_means_capture_is_default_off():
-    metadata = build_tool_usage_call_metadata(
-        SimpleNamespace(tool_type="read_file", content="private")
-    )
-    parameter = inspect.signature(
-        tool_execution.execute_tool_block
-    ).parameters["tool_usage_instrumentation"]
-
-    assert metadata.to_safe_dict()["raw_content_visible"] is False
-    assert parameter.default is None
+    assert await execute_tool_block(_block()) is returned

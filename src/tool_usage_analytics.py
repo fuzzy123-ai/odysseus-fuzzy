@@ -1,877 +1,446 @@
-"""Deterministic aggregate and retention service for privacy-safe tool usage."""
+"""Deterministic aggregate-only analytics for privacy-safe tool usage."""
 
 from __future__ import annotations
 
-from collections import defaultdict
-from dataclasses import dataclass
+from collections import Counter
 from datetime import date, datetime, timedelta, timezone
-from enum import StrEnum
 import math
 import re
-from typing import Callable, Iterable
+from typing import Any, Mapping
 
 from src.tool_catalog import ToolFamily, ToolSource
-from src.tool_usage_events import ToolUsageEventKind, ToolUsageStatus, ToolUsageSurface
+from src.tool_usage_events import ToolUsageStatus, ToolUsageSurface
 from src.tool_usage_store import (
-    ToolUsageAggregateStatus,
-    ToolUsageDailyAggregate,
-    ToolUsageRetentionResult,
+    DEFAULT_DAILY_RETENTION_DAYS,
+    DEFAULT_EVENT_RETENTION_DAYS,
+    DURATION_BUCKET_BOUNDS_MS,
+    DURATION_BUCKET_COLUMNS,
+    DURATION_OVERFLOW_COLUMN,
     ToolUsageStore,
-    ToolUsageStoredEvent,
 )
 
 
-TOOL_USAGE_ANALYTICS_SCHEMA_VERSION = "odysseus.tool_usage_analytics.v1"
-MAX_QUERY_SPAN_DAYS = 90
-MAX_QUERY_RESULT_ROWS = 200
-MAX_DURATION_MS = 7 * 24 * 60 * 60 * 1_000
-DURATION_HISTOGRAM_BOUNDS_MS = (
-    1,
-    5,
-    10,
-    25,
-    50,
-    100,
-    250,
-    500,
-    1_000,
-    2_500,
-    5_000,
-    10_000,
-    30_000,
-    60_000,
-    300_000,
-    900_000,
-    3_600_000,
-    21_600_000,
-    86_400_000,
-    MAX_DURATION_MS,
-)
-_ANALYTICS_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+ANALYTICS_SCHEMA = "odysseus.tool_usage_analytics.v1"
+_MAX_QUALITY_COUNT = 1_000_000_000
+MAX_API_SPAN_DAYS = 90
+MAX_RESULT_ROWS = 250
+_ANALYTICS_ID_RE = re.compile(r"^[a-z][a-z0-9_.:-]{0,119}$")
 
 
-class ToolUsageExpectedState(StrEnum):
-    ACTIVE = "active"
-    DEFERRED = "deferred"
-    DEFAULT_OFF = "default_off"
-
-
-class ToolUsageObservedState(StrEnum):
-    OBSERVED = "observed"
-    NO_USAGE = "no_usage"
-    DEFERRED = "deferred"
-    DEFAULT_OFF = "default_off"
-    READ_FAILED = "read_failed"
-
-
-class ToolUsageQualityWarning(StrEnum):
-    INCOMPLETE_INVOCATIONS = "incomplete_invocations"
-    UNKNOWN_IDENTITY = "unknown_identity"
-    DUPLICATES_REJECTED = "duplicates_rejected"
-    WRITER_FAILURES = "writer_failures"
-    DETAIL_COVERAGE_PARTIAL = "detail_coverage_partial"
-    RESULT_TRUNCATED = "result_truncated"
-
-
-@dataclass(frozen=True, slots=True)
-class ToolUsageDataQuality:
-    coverage_rate: float | None
-    incomplete: int
-    duplicates_rejected: int
-    writer_failures: int
-    unknown_identity: int
-    aggregation_complete: bool
-    instrumentation_error: bool
-
-    def to_safe_dict(self) -> dict[str, object]:
-        return {
-            "coverage_rate": self.coverage_rate,
-            "incomplete": self.incomplete,
-            "duplicates_rejected": self.duplicates_rejected,
-            "writer_failures": self.writer_failures,
-            "unknown_identity": self.unknown_identity,
-            "aggregation_complete": self.aggregation_complete,
-            "instrumentation_error": self.instrumentation_error,
-        }
-
-
-@dataclass(frozen=True, slots=True)
-class ToolUsageAggregateRow:
-    day: date
-    tool_analytics_id: str
-    tool_family: ToolFamily
-    tool_source: ToolSource
-    surface: ToolUsageSurface
-    status: ToolUsageAggregateStatus
-    event_count: int
-    invocation_count: int
-
-    def to_store_value(
-        self,
-        *,
-        aggregated_at: datetime,
-        aggregation_complete: bool,
-    ) -> ToolUsageDailyAggregate:
-        return ToolUsageDailyAggregate(
-            day=self.day,
-            tool_analytics_id=self.tool_analytics_id,
-            tool_family=self.tool_family,
-            tool_source=self.tool_source,
-            surface=self.surface,
-            status=self.status,
-            event_count=self.event_count,
-            invocation_count=self.invocation_count,
-            aggregation_complete=aggregation_complete,
-            aggregated_at=aggregated_at,
-        )
-
-    def to_safe_dict(self) -> dict[str, object]:
-        return {
-            "day": self.day.isoformat(),
-            "tool_analytics_id": self.tool_analytics_id,
-            "tool_family": self.tool_family.value,
-            "tool_source": self.tool_source.value,
-            "surface": self.surface.value,
-            "status": self.status.value,
-            "event_count": self.event_count,
-            "invocation_count": self.invocation_count,
-        }
-
-
-@dataclass(frozen=True, slots=True)
-class ToolUsageDailyAnalytics:
-    day: date
-    expected_state: ToolUsageExpectedState
-    observed_state: ToolUsageObservedState
-    rows: tuple[ToolUsageAggregateRow, ...]
-    invocations_total: int
-    terminal_invocations: int
-    retry_invocations: int
-    distinct_owner_count: int
-    distinct_session_count: int
-    duration_histogram_counts: tuple[int, ...]
-    duration_p50_ms: int | None
-    duration_p95_ms: int | None
-    quality: ToolUsageDataQuality
-
-    def to_safe_dict(self) -> dict[str, object]:
-        status_counts = {
-            status.value: sum(
-                row.invocation_count for row in self.rows if row.status == status
-            )
-            for status in ToolUsageAggregateStatus
-        }
-        status_rates = {
-            status: (
-                count / self.terminal_invocations
-                if self.terminal_invocations
-                and status != ToolUsageAggregateStatus.INCOMPLETE.value
-                else None
-            )
-            for status, count in status_counts.items()
-        }
-        return {
-            "schema_version": TOOL_USAGE_ANALYTICS_SCHEMA_VERSION,
-            "day": self.day.isoformat(),
-            "expected_state": self.expected_state.value,
-            "observed_state": self.observed_state.value,
-            "rows": [row.to_safe_dict() for row in self.rows],
-            "summary": {
-                "invocations_total": self.invocations_total,
-                "terminal_invocations": self.terminal_invocations,
-                "retry_invocations": self.retry_invocations,
-                "distinct_owner_count": self.distinct_owner_count,
-                "distinct_session_count": self.distinct_session_count,
-                "status_counts": status_counts,
-                "status_rates": status_rates,
-                "duration_samples": sum(self.duration_histogram_counts),
-                "duration_p50_ms": self.duration_p50_ms,
-                "duration_p95_ms": self.duration_p95_ms,
-            },
-            "duration_histogram": {
-                "bounds_ms": list(DURATION_HISTOGRAM_BOUNDS_MS),
-                "counts": list(self.duration_histogram_counts),
-            },
-            "quality": self.quality.to_safe_dict(),
-            "raw_content_visible": False,
-            "direct_identifiers_visible": False,
-        }
-
-
-@dataclass(frozen=True, slots=True)
-class ToolUsageAggregationRetentionResult:
-    analytics: ToolUsageDailyAnalytics
-    retention_attempted: bool
-    retention: ToolUsageRetentionResult | None
-
-    def to_safe_dict(self) -> dict[str, object]:
-        return {
-            "analytics": self.analytics.to_safe_dict(),
-            "retention_attempted": self.retention_attempted,
-            "retention": self.retention.to_safe_dict() if self.retention else None,
-            "raw_content_visible": False,
-            "direct_identifiers_visible": False,
-        }
-
-
-@dataclass(frozen=True, slots=True)
-class ToolUsageRangeRow:
-    tool_analytics_id: str
-    tool_family: ToolFamily
-    tool_source: ToolSource
-    surface: ToolUsageSurface
-    status: ToolUsageAggregateStatus
-    calls: int
-
-    def to_safe_dict(self) -> dict[str, object]:
-        return {
-            "tool_analytics_id": self.tool_analytics_id,
-            "tool_family": self.tool_family.value,
-            "tool_source": self.tool_source.value,
-            "surface": self.surface.value,
-            "status": self.status.value,
-            "calls": self.calls,
-        }
-
-
-@dataclass(frozen=True, slots=True)
-class ToolUsageRangeAnalytics:
-    start_day: date
-    end_day: date
-    rows: tuple[ToolUsageRangeRow, ...]
-    calls: int
-    active_days: int
-    terminal_invocations: int
-    retry_invocations: int
-    distinct_owner_count: int
-    distinct_session_count: int
-    duration_histogram_counts: tuple[int, ...]
-    duration_p50_ms: int | None
-    duration_p95_ms: int | None
-    coverage_rate: float | None
-    status_counts: tuple[int, ...]
-    incomplete: int
-    unknown_identity: int
-    duplicates_rejected: int
-    writer_failures: int
-    warnings: tuple[ToolUsageQualityWarning, ...]
-    result_truncated: bool
-    tool_filter: str | None
-    family_filter: ToolFamily | None
-    source_filter: ToolSource | None
-    surface_filter: ToolUsageSurface | None
-    status_filter: ToolUsageAggregateStatus | None
-
-    def to_safe_dict(self) -> dict[str, object]:
-        status_counts = {
-            status.value: count
-            for status, count in zip(ToolUsageAggregateStatus, self.status_counts)
-        }
-        status_rates = {
-            status: (
-                count / self.terminal_invocations
-                if self.terminal_invocations
-                and status != ToolUsageAggregateStatus.INCOMPLETE.value
-                else None
-            )
-            for status, count in status_counts.items()
-        }
-        return {
-            "schema_version": TOOL_USAGE_ANALYTICS_SCHEMA_VERSION,
-            "range": {
-                "start": self.start_day.isoformat(),
-                "end": self.end_day.isoformat(),
-                "days": (self.end_day - self.start_day).days + 1,
-            },
-            "filters": {
-                "tool": self.tool_filter,
-                "family": self.family_filter.value if self.family_filter else None,
-                "source": self.source_filter.value if self.source_filter else None,
-                "surface": self.surface_filter.value if self.surface_filter else None,
-                "status": self.status_filter.value if self.status_filter else None,
-            },
-            "summary": {
-                "calls": self.calls,
-                "active_days": self.active_days,
-                "pseudonymous_distinct_owner_count": self.distinct_owner_count,
-                "pseudonymous_distinct_session_count": self.distinct_session_count,
-                "status_counts": status_counts,
-                "status_rates": status_rates,
-                "duration_samples": sum(self.duration_histogram_counts),
-                "duration_p50_ms": self.duration_p50_ms,
-                "duration_p95_ms": self.duration_p95_ms,
-                "retry_invocations": self.retry_invocations,
-                "calls_per_session": (
-                    self.calls / self.distinct_session_count
-                    if self.distinct_session_count
-                    else None
-                ),
-                "coverage_rate": self.coverage_rate,
-            },
-            "quality": {
-                "incomplete": self.incomplete,
-                "duplicates_rejected": self.duplicates_rejected,
-                "writer_failures": self.writer_failures,
-                "unknown_identity": self.unknown_identity,
-                "warnings": [warning.value for warning in self.warnings],
-                "query_complete": ToolUsageQualityWarning.DETAIL_COVERAGE_PARTIAL
-                not in self.warnings,
-                "result_truncated": self.result_truncated,
-            },
-            "duration_histogram": {
-                "bounds_ms": list(DURATION_HISTOGRAM_BOUNDS_MS),
-                "counts": list(self.duration_histogram_counts),
-            },
-            "rows": [row.to_safe_dict() for row in self.rows],
-            "raw_records_visible": False,
-            "raw_content_visible": False,
-            "direct_identifiers_visible": False,
-        }
-
-
-@dataclass(frozen=True, slots=True)
-class _BuiltDay:
-    rows: tuple[ToolUsageAggregateRow, ...]
-    event_ids: tuple[str, ...]
-    invocations_total: int
-    terminal_invocations: int
-    retry_invocations: int
-    distinct_owner_count: int
-    distinct_session_count: int
-    histogram_counts: tuple[int, ...]
-    duration_p50_ms: int | None
-    duration_p95_ms: int | None
-    incomplete: int
-    unknown_identity: int
-
-
-def _duration_histogram(values: Iterable[int]) -> tuple[int, ...]:
-    counts = [0] * len(DURATION_HISTOGRAM_BOUNDS_MS)
-    for value in values:
-        bounded = min(max(int(value), 0), MAX_DURATION_MS)
-        for index, upper_bound in enumerate(DURATION_HISTOGRAM_BOUNDS_MS):
-            if bounded <= upper_bound:
-                counts[index] += 1
-                break
-    return tuple(counts)
-
-
-def _histogram_percentile(counts: tuple[int, ...], percentile: float) -> int | None:
-    total = sum(counts)
-    if total == 0:
-        return None
-    rank = max(1, math.ceil(total * percentile))
-    cumulative = 0
-    for upper_bound, count in zip(DURATION_HISTOGRAM_BOUNDS_MS, counts):
-        cumulative += count
-        if cumulative >= rank:
-            return upper_bound
-    return DURATION_HISTOGRAM_BOUNDS_MS[-1]
-
-
-def _identity(
-    event: ToolUsageStoredEvent,
-) -> tuple[str, ToolFamily, ToolSource, ToolUsageSurface, bool]:
-    unknown = False
-    analytics_id = event.tool_analytics_id
-    if not _ANALYTICS_ID_RE.fullmatch(analytics_id):
-        analytics_id = "dynamic-unclassified"
-        unknown = True
-    try:
-        family = ToolFamily(event.tool_family)
-    except ValueError:
-        family = ToolFamily.UNCLASSIFIED_DYNAMIC
-        unknown = True
-    try:
-        source = ToolSource(event.tool_source)
-    except ValueError:
-        source = ToolSource.DYNAMIC
-        unknown = True
-    try:
-        surface = ToolUsageSurface(event.surface)
-    except ValueError:
-        surface = ToolUsageSurface.SYSTEM
-        unknown = True
-    if (
-        analytics_id == "dynamic-unclassified"
-        or family == ToolFamily.UNCLASSIFIED_DYNAMIC
-        or source == ToolSource.DYNAMIC
-    ):
-        unknown = True
-    return analytics_id, family, source, surface, unknown
-
-
-def _build_day(day: date, events: tuple[ToolUsageStoredEvent, ...]) -> _BuiltDay:
-    by_invocation: dict[str, list[ToolUsageStoredEvent]] = defaultdict(list)
-    for event in events:
-        by_invocation[event.invocation_id].append(event)
-
-    counts: dict[
-        tuple[str, ToolFamily, ToolSource, ToolUsageSurface, ToolUsageAggregateStatus],
-        list[int],
-    ] = {}
-    durations: list[int] = []
-    owners: set[str] = set()
-    sessions: set[str] = set()
-    terminal_invocations = 0
-    retry_invocations = 0
-    incomplete = 0
-    unknown_identity = 0
-
-    for invocation_events in by_invocation.values():
-        invocation_events.sort(key=lambda item: (item.occurred_at, item.event_id))
-        terminal = next(
-            (
-                item
-                for item in invocation_events
-                if item.event_kind == ToolUsageEventKind.TERMINAL.value
-            ),
-            None,
-        )
-        representative = terminal or invocation_events[0]
-        identity = _identity(representative)
-        analytics_id, family, source, surface, identity_unknown = identity
-        if any(_identity(item)[:4] != identity[:4] for item in invocation_events):
-            analytics_id = "dynamic-unclassified"
-            family = ToolFamily.UNCLASSIFIED_DYNAMIC
-            source = ToolSource.DYNAMIC
-            surface = ToolUsageSurface.SYSTEM
-            identity_unknown = True
-
-        if terminal is None:
-            status = ToolUsageAggregateStatus.INCOMPLETE
-            incomplete += 1
-        else:
-            terminal_invocations += 1
-            try:
-                status = ToolUsageAggregateStatus(ToolUsageStatus(terminal.status).value)
-            except (TypeError, ValueError):
-                status = ToolUsageAggregateStatus.REJECTED
-                identity_unknown = True
-            if (
-                isinstance(terminal.duration_ms, int)
-                and not isinstance(terminal.duration_ms, bool)
-                and 0 <= terminal.duration_ms <= MAX_DURATION_MS
-            ):
-                durations.append(terminal.duration_ms)
-
-        if identity_unknown:
-            unknown_identity += 1
-        if any(item.retry_ordinal > 0 for item in invocation_events):
-            retry_invocations += 1
-        owners.update(item.owner_ref for item in invocation_events if item.owner_ref)
-        sessions.update(item.session_ref for item in invocation_events if item.session_ref)
-
-        key = (analytics_id, family, source, surface, status)
-        bucket = counts.setdefault(key, [0, 0])
-        bucket[0] += len(invocation_events)
-        bucket[1] += 1
-
-    rows = tuple(
-        ToolUsageAggregateRow(
-            day=day,
-            tool_analytics_id=key[0],
-            tool_family=key[1],
-            tool_source=key[2],
-            surface=key[3],
-            status=key[4],
-            event_count=value[0],
-            invocation_count=value[1],
-        )
-        for key, value in sorted(
-            counts.items(),
-            key=lambda item: tuple(
-                component.value if isinstance(component, StrEnum) else component
-                for component in item[0]
-            ),
-        )
-    )
-    histogram = _duration_histogram(durations)
-    return _BuiltDay(
-        rows=rows,
-        event_ids=tuple(event.event_id for event in events),
-        invocations_total=len(by_invocation),
-        terminal_invocations=terminal_invocations,
-        retry_invocations=retry_invocations,
-        distinct_owner_count=len(owners),
-        distinct_session_count=len(sessions),
-        histogram_counts=histogram,
-        duration_p50_ms=_histogram_percentile(histogram, 0.50),
-        duration_p95_ms=_histogram_percentile(histogram, 0.95),
-        incomplete=incomplete,
-        unknown_identity=unknown_identity,
-    )
+class ToolUsageAnalyticsError(ValueError):
+    """Raised when an aggregate request cannot be represented safely."""
 
 
 class ToolUsageAnalyticsService:
-    """Aggregate one UTC day and permit retention only after durable completion."""
-
-    def __init__(
-        self,
-        store: ToolUsageStore,
-        *,
-        clock: Callable[[], datetime] | None = None,
-    ) -> None:
+    def __init__(self, store: ToolUsageStore):
         if not isinstance(store, ToolUsageStore):
-            raise ValueError("store must be a ToolUsageStore")
+            raise TypeError("analytics requires ToolUsageStore")
         self._store = store
-        self._clock = clock or (lambda: datetime.now(timezone.utc))
 
     def aggregate_day(
         self,
-        day: date,
+        day: str,
         *,
-        expected_state: ToolUsageExpectedState = ToolUsageExpectedState.ACTIVE,
-    ) -> ToolUsageDailyAnalytics:
-        if not isinstance(day, date) or isinstance(day, datetime):
-            raise ValueError("day must be a UTC calendar date")
-        if not isinstance(expected_state, ToolUsageExpectedState):
-            raise ValueError("expected_state must be normalized")
-        aggregated_at = self._clock()
-        if not isinstance(aggregated_at, datetime) or aggregated_at.tzinfo is None:
-            raise ValueError("clock must return a timezone-aware timestamp")
-        aggregated_at = aggregated_at.astimezone(timezone.utc)
+        duplicates_rejected: int = 0,
+        writer_failures: int = 0,
+    ) -> dict[str, Any]:
+        normalized_day = _day(day)
+        duplicate_count = _count(duplicates_rejected, "duplicates_rejected")
+        writer_failure_count = _count(writer_failures, "writer_failures")
+        events = self._store._aggregation_event_rows(normalized_day)
+        started = {
+            str(row["invocation_id"])
+            for row in events
+            if row["event_kind"] == "started"
+        }
+        terminal = {
+            str(row["invocation_id"])
+            for row in events
+            if row["event_kind"] == "terminal"
+        }
+        groups: dict[tuple[str, ...], dict[str, Any]] = {}
+        all_owner_refs: set[str] = set()
+        all_session_refs: set[str] = set()
+        unknown_total = 0
 
-        read = self._store.read_events_for_day(day)
-        built = _build_day(day, read.events)
-        current_failed = read.failures > 0
-        if not current_failed:
-            completed = tuple(
-                row.to_store_value(
-                    aggregated_at=aggregated_at,
-                    aggregation_complete=True,
-                )
-                for row in built.rows
+        for event in events:
+            if event["event_kind"] != "terminal":
+                continue
+            analytics_id = str(event["tool_analytics_id"])
+            key = (
+                analytics_id,
+                str(event["tool_family"]),
+                str(event["tool_source"]),
+                str(event["surface"]),
+                str(event["status"] or "unknown"),
             )
-            committed = self._store.commit_day_aggregation(
-                day,
-                completed,
-                built.event_ids,
-                aggregated_at=aggregated_at,
+            group = groups.setdefault(
+                key,
+                {
+                    "invocations": set(),
+                    "durations": [],
+                    "owners": set(),
+                    "sessions": set(),
+                    "retry_count": 0,
+                    "unknown_identity_count": 0,
+                },
             )
-            current_failed = (
-                committed.failures > 0
-                or committed.marked_event_count != len(built.event_ids)
-            )
+            group["invocations"].add(str(event["invocation_id"]))
+            duration = event["duration_ms"]
+            if isinstance(duration, int) and not isinstance(duration, bool) and duration >= 0:
+                group["durations"].append(duration)
+            owner_ref = event["owner_ref"]
+            session_ref = event["session_ref"]
+            if owner_ref:
+                group["owners"].add(str(owner_ref))
+                all_owner_refs.add(str(owner_ref))
+            if session_ref:
+                group["sessions"].add(str(session_ref))
+                all_session_refs.add(str(session_ref))
+            group["retry_count"] += max(0, int(event["retry_ordinal"] or 0))
+            if analytics_id.endswith(".unclassified"):
+                group["unknown_identity_count"] += 1
+                unknown_total += 1
 
-        quality_counts = self._store.quality_counts()
-        coverage = (
-            built.terminal_invocations / built.invocations_total
-            if built.invocations_total
-            else None
+        aggregate_rows = []
+        for key, group in sorted(groups.items()):
+            analytics_id, family, source, surface, status = key
+            durations = tuple(group["durations"])
+            row: dict[str, Any] = {
+                "tool_analytics_id": analytics_id,
+                "tool_family": family,
+                "tool_source": source,
+                "surface": surface,
+                "status": status,
+                "invocation_count": len(group["invocations"]),
+                "duration_count": len(durations),
+                "duration_total_ms": sum(durations),
+                "distinct_owner_count": len(group["owners"]),
+                "distinct_session_count": len(group["sessions"]),
+                "retry_count": group["retry_count"],
+                "unknown_identity_count": group["unknown_identity_count"],
+            }
+            for bound, column in zip(
+                DURATION_BUCKET_BOUNDS_MS,
+                DURATION_BUCKET_COLUMNS,
+            ):
+                row[column] = sum(1 for duration in durations if duration <= bound)
+            row[DURATION_OVERFLOW_COLUMN] = sum(
+                1 for duration in durations if duration > DURATION_BUCKET_BOUNDS_MS[-1]
+            )
+            aggregate_rows.append(row)
+
+        invocation_ids = started | terminal
+        quality = {
+            "invocation_count": len(invocation_ids),
+            "started_count": len(started),
+            "terminal_count": len(terminal),
+            "complete_count": len(started & terminal),
+            "incomplete_count": len(started ^ terminal),
+            "distinct_owner_count": len(all_owner_refs),
+            "distinct_session_count": len(all_session_refs),
+            "unknown_identity_count": unknown_total,
+            "duplicates_rejected": duplicate_count,
+            "writer_failures": writer_failure_count,
+        }
+        self._store._replace_daily_analytics(
+            normalized_day,
+            aggregate_rows,
+            quality,
         )
-        if read.failures:
-            observed_state = ToolUsageObservedState.READ_FAILED
-        elif built.invocations_total:
-            observed_state = ToolUsageObservedState.OBSERVED
-        elif expected_state == ToolUsageExpectedState.DEFERRED:
-            observed_state = ToolUsageObservedState.DEFERRED
-        elif expected_state == ToolUsageExpectedState.DEFAULT_OFF:
-            observed_state = ToolUsageObservedState.DEFAULT_OFF
-        else:
-            observed_state = ToolUsageObservedState.NO_USAGE
+        return {
+            "schema": ANALYTICS_SCHEMA,
+            "day": normalized_day,
+            "group_count": len(aggregate_rows),
+            **quality,
+            "coverage": _rate(quality["complete_count"], quality["invocation_count"]),
+            "raw_content_visible": False,
+        }
 
-        return ToolUsageDailyAnalytics(
-            day=day,
-            expected_state=expected_state,
-            observed_state=observed_state,
-            rows=built.rows,
-            invocations_total=built.invocations_total,
-            terminal_invocations=built.terminal_invocations,
-            retry_invocations=built.retry_invocations,
-            distinct_owner_count=built.distinct_owner_count,
-            distinct_session_count=built.distinct_session_count,
-            duration_histogram_counts=built.histogram_counts,
-            duration_p50_ms=built.duration_p50_ms,
-            duration_p95_ms=built.duration_p95_ms,
-            quality=ToolUsageDataQuality(
-                coverage_rate=coverage,
-                incomplete=built.incomplete,
-                duplicates_rejected=quality_counts["duplicates_rejected"],
-                writer_failures=quality_counts["writer_failures"],
-                unknown_identity=built.unknown_identity,
-                aggregation_complete=not current_failed,
-                instrumentation_error=current_failed,
+    def summarize(
+        self,
+        start_day: str,
+        end_day: str,
+        *,
+        tool_analytics_id: str | None = None,
+        tool_family: ToolFamily | str | None = None,
+        tool_source: ToolSource | str | None = None,
+        surface: ToolUsageSurface | str | None = None,
+        status: ToolUsageStatus | str | None = None,
+        row_limit: int = MAX_RESULT_ROWS,
+        max_span_days: int = 400,
+    ) -> dict[str, Any]:
+        start = _day(start_day)
+        end = _day(end_day)
+        if start > end:
+            raise ToolUsageAnalyticsError("start_day must not be after end_day")
+        span_days = (date.fromisoformat(end) - date.fromisoformat(start)).days + 1
+        if (
+            isinstance(max_span_days, bool)
+            or not isinstance(max_span_days, int)
+            or max_span_days < 1
+        ):
+            raise ToolUsageAnalyticsError("max_span_days must be a positive integer")
+        if span_days > max_span_days:
+            raise ToolUsageAnalyticsError("requested period exceeds the maximum span")
+        if (
+            isinstance(row_limit, bool)
+            or not isinstance(row_limit, int)
+            or row_limit < 1
+            or row_limit > MAX_RESULT_ROWS
+        ):
+            raise ToolUsageAnalyticsError("row_limit is outside the bounded range")
+        filters = {
+            "tool_analytics_id": _canonical_tool_id(tool_analytics_id),
+            "tool_family": _enum_filter(ToolFamily, tool_family, "tool_family"),
+            "tool_source": _enum_filter(ToolSource, tool_source, "tool_source"),
+            "surface": _enum_filter(ToolUsageSurface, surface, "surface"),
+            "status": _enum_filter(ToolUsageStatus, status, "status"),
+        }
+        all_rows = self._store._daily_analytics_rows(start, end)
+        rows = tuple(
+            row
+            for row in all_rows
+            if all(
+                expected is None or str(row[field]) == expected
+                for field, expected in filters.items()
+            )
+        )
+        quality_rows = self._store._daily_quality_rows(start, end)
+        calls = sum(int(row["invocation_count"]) for row in rows)
+        duration_count = sum(int(row["duration_count"]) for row in rows)
+        duration_total = sum(int(row["duration_total_ms"]) for row in rows)
+        histogram = {
+            column: sum(int(row[column]) for row in rows)
+            for column in DURATION_BUCKET_COLUMNS
+        }
+        overflow = sum(int(row[DURATION_OVERFLOW_COLUMN]) for row in rows)
+        status_counts = Counter()
+        for row in rows:
+            status_counts[str(row["status"])] += int(row["invocation_count"])
+
+        quality_totals = {
+            key: sum(int(row[key]) for row in quality_rows)
+            for key in (
+                "invocation_count",
+                "started_count",
+                "terminal_count",
+                "complete_count",
+                "incomplete_count",
+                "distinct_owner_count",
+                "distinct_session_count",
+                "unknown_identity_count",
+                "duplicates_rejected",
+                "writer_failures",
+            )
+        }
+        complete_days = {
+            str(row["day"])
+            for row in quality_rows
+            if int(row["aggregation_complete"]) == 1
+        }
+        row_days = {str(row["day"]) for row in rows}
+        missing_complete_days = row_days - complete_days
+        warnings = []
+        if quality_totals["incomplete_count"]:
+            warnings.append("incomplete_invocations")
+        if quality_totals["unknown_identity_count"]:
+            warnings.append("unknown_identity")
+        if quality_totals["duplicates_rejected"]:
+            warnings.append("duplicates_rejected")
+        if quality_totals["writer_failures"]:
+            warnings.append("writer_failures")
+        if missing_complete_days:
+            warnings.append("aggregation_incomplete")
+        if duration_count and not histogram[DURATION_BUCKET_COLUMNS[-1]] and not overflow:
+            warnings.append("histogram_incomplete")
+
+        public_rows = tuple(
+            {
+                "day": str(row["day"]),
+                "tool_analytics_id": str(row["tool_analytics_id"]),
+                "tool_family": str(row["tool_family"]),
+                "tool_source": str(row["tool_source"]),
+                "surface": str(row["surface"]),
+                "status": str(row["status"]),
+                "invocation_count": int(row["invocation_count"]),
+                "duration_count": int(row["duration_count"]),
+                "duration_total_ms": int(row["duration_total_ms"]),
+                "distinct_owner_count": int(row["distinct_owner_count"]),
+                "distinct_session_count": int(row["distinct_session_count"]),
+                "retry_count": int(row["retry_count"]),
+                "unknown_identity_count": int(row["unknown_identity_count"]),
+            }
+            for row in rows[:row_limit]
+        )
+        active_days = len(
+            {
+                str(row["day"])
+                for row in rows
+                if int(row["invocation_count"]) > 0
+            }
+        )
+        return {
+            "schema": ANALYTICS_SCHEMA,
+            "start_day": start,
+            "end_day": end,
+            "filters": {
+                key: value for key, value in filters.items() if value is not None
+            },
+            "calls": calls,
+            "active_days": active_days,
+            "duration_count": duration_count,
+            "duration_total_ms": duration_total,
+            "duration_mean_ms": (
+                round(duration_total / duration_count, 3)
+                if duration_count
+                else None
             ),
-        )
+            "duration_p50_ms": _percentile(histogram, overflow, duration_count, 0.50),
+            "duration_p95_ms": _percentile(histogram, overflow, duration_count, 0.95),
+            "duration_overflow_count": overflow,
+            "retry_count": sum(int(row["retry_count"]) for row in rows),
+            "status_counts": dict(sorted(status_counts.items())),
+            "status_rates": {
+                key: _rate(value, calls)
+                for key, value in sorted(status_counts.items())
+            },
+            "daily_distinct_owner_total": quality_totals["distinct_owner_count"],
+            "daily_distinct_session_total": quality_totals["distinct_session_count"],
+            "filtered_group_distinct_owner_total": sum(
+                int(row["distinct_owner_count"]) for row in rows
+            ),
+            "filtered_group_distinct_session_total": sum(
+                int(row["distinct_session_count"]) for row in rows
+            ),
+            "coverage": _rate(
+                quality_totals["complete_count"],
+                quality_totals["invocation_count"],
+            ),
+            "quality": {
+                **quality_totals,
+                "scope": "period_global",
+                "aggregation_complete_day_count": len(complete_days),
+                "warning_codes": tuple(warnings),
+                "raw_content_visible": False,
+            },
+            "row_count": len(rows),
+            "rows_truncated": len(rows) > row_limit,
+            "rows": public_rows,
+            "raw_content_visible": False,
+        }
 
     def aggregate_then_retain(
         self,
-        day: date,
         *,
-        now: datetime,
+        now: datetime | None = None,
+        event_days: int = DEFAULT_EVENT_RETENTION_DAYS,
+        daily_days: int = DEFAULT_DAILY_RETENTION_DAYS,
         dry_run: bool = True,
-        expected_state: ToolUsageExpectedState = ToolUsageExpectedState.ACTIVE,
-    ) -> ToolUsageAggregationRetentionResult:
-        analytics = self.aggregate_day(day, expected_state=expected_state)
-        if not analytics.quality.aggregation_complete:
-            return ToolUsageAggregationRetentionResult(
-                analytics=analytics,
-                retention_attempted=False,
-                retention=None,
-            )
-        retention = self._store.enforce_retention(now=now, dry_run=dry_run)
-        return ToolUsageAggregationRetentionResult(
-            analytics=analytics,
-            retention_attempted=True,
-            retention=retention,
-        )
-
-
-class ToolUsageAnalyticsQueryService:
-    """Read bounded recent aggregate projections without exposing source rows."""
-
-    def __init__(self, store: ToolUsageStore) -> None:
-        if not isinstance(store, ToolUsageStore):
-            raise ValueError("store must be a ToolUsageStore")
-        self._store = store
-
-    def query_range(
-        self,
-        *,
-        start_day: date,
-        end_day: date,
-        tool_filter: str | None = None,
-        family_filter: ToolFamily | None = None,
-        source_filter: ToolSource | None = None,
-        surface_filter: ToolUsageSurface | None = None,
-        status_filter: ToolUsageAggregateStatus | None = None,
-        limit: int = 100,
-    ) -> ToolUsageRangeAnalytics:
-        if any(
-            not isinstance(value, date) or isinstance(value, datetime)
-            for value in (start_day, end_day)
-        ):
-            raise ValueError("range bounds must be UTC calendar dates")
-        span_days = (end_day - start_day).days + 1
-        if span_days < 1:
-            raise ValueError("range start must not be after range end")
-        if span_days > MAX_QUERY_SPAN_DAYS:
-            raise ValueError(f"range must not exceed {MAX_QUERY_SPAN_DAYS} days")
-        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= MAX_QUERY_RESULT_ROWS:
-            raise ValueError(f"limit must be between 1 and {MAX_QUERY_RESULT_ROWS}")
-
-        all_events: list[ToolUsageStoredEvent] = []
-        read_failures = 0
-        current_day = start_day
-        while current_day <= end_day:
-            read = self._store.read_events_for_day(current_day)
-            all_events.extend(read.events)
-            read_failures += read.failures
-            current_day += timedelta(days=1)
-
-        by_invocation: dict[str, list[ToolUsageStoredEvent]] = defaultdict(list)
-        for event in all_events:
-            by_invocation[event.invocation_id].append(event)
-
-        row_counts: dict[
-            tuple[str, ToolFamily, ToolSource, ToolUsageSurface, ToolUsageAggregateStatus],
-            int,
-        ] = defaultdict(int)
-        status_counts = {status: 0 for status in ToolUsageAggregateStatus}
-        histogram_counts = [0] * len(DURATION_HISTOGRAM_BOUNDS_MS)
-        owners: set[str] = set()
-        sessions: set[str] = set()
-        active_days: set[date] = set()
-        calls = 0
-        terminal_invocations = 0
-        retry_invocations = 0
-        incomplete = 0
-        unknown_identity = 0
-
-        for invocation_events in by_invocation.values():
-            invocation_events.sort(key=lambda item: (item.occurred_at, item.event_id))
-            terminal = next(
-                (
-                    item
-                    for item in invocation_events
-                    if item.event_kind == ToolUsageEventKind.TERMINAL.value
-                ),
-                None,
-            )
-            representative = terminal or invocation_events[0]
-            built = _build_day(representative.occurred_at.date(), tuple(invocation_events))
-            if not built.rows:
-                continue
-            row = built.rows[0]
-            if tool_filter is not None and row.tool_analytics_id != tool_filter:
-                continue
-            if family_filter is not None and row.tool_family != family_filter:
-                continue
-            if source_filter is not None and row.tool_source != source_filter:
-                continue
-            if surface_filter is not None and row.surface != surface_filter:
-                continue
-            if status_filter is not None and row.status != status_filter:
-                continue
-
-            key = (
-                row.tool_analytics_id,
-                row.tool_family,
-                row.tool_source,
-                row.surface,
-                row.status,
-            )
-            row_counts[key] += 1
-            status_counts[row.status] += 1
-            calls += 1
-            terminal_invocations += built.terminal_invocations
-            retry_invocations += built.retry_invocations
-            incomplete += built.incomplete
-            unknown_identity += built.unknown_identity
-            active_days.add(representative.occurred_at.date())
-            owners.update(item.owner_ref for item in invocation_events if item.owner_ref)
-            sessions.update(item.session_ref for item in invocation_events if item.session_ref)
-            for index, count in enumerate(built.histogram_counts):
-                histogram_counts[index] += count
-
-        all_rows = tuple(
-            ToolUsageRangeRow(
-                tool_analytics_id=key[0],
-                tool_family=key[1],
-                tool_source=key[2],
-                surface=key[3],
-                status=key[4],
-                calls=count,
-            )
-            for key, count in sorted(
-                row_counts.items(),
-                key=lambda item: (
-                    -item[1],
-                    item[0][0],
-                    item[0][1].value,
-                    item[0][2].value,
-                    item[0][3].value,
-                    item[0][4].value,
-                ),
-            )
-        )
-        result_truncated = len(all_rows) > limit
-        bounded_rows = all_rows[:limit]
-        quality_counts = self._store.quality_counts()
-        warnings: list[ToolUsageQualityWarning] = []
-        for condition, warning in (
-            (incomplete > 0, ToolUsageQualityWarning.INCOMPLETE_INVOCATIONS),
-            (unknown_identity > 0, ToolUsageQualityWarning.UNKNOWN_IDENTITY),
-            (
-                quality_counts["duplicates_rejected"] > 0,
-                ToolUsageQualityWarning.DUPLICATES_REJECTED,
-            ),
-            (
-                quality_counts["writer_failures"] > 0,
-                ToolUsageQualityWarning.WRITER_FAILURES,
-            ),
-            (read_failures > 0, ToolUsageQualityWarning.DETAIL_COVERAGE_PARTIAL),
-            (result_truncated, ToolUsageQualityWarning.RESULT_TRUNCATED),
-        ):
-            if condition:
-                warnings.append(warning)
-        histogram = tuple(histogram_counts)
-        return ToolUsageRangeAnalytics(
-            start_day=start_day,
-            end_day=end_day,
-            rows=bounded_rows,
-            calls=calls,
-            active_days=len(active_days),
-            terminal_invocations=terminal_invocations,
-            retry_invocations=retry_invocations,
-            distinct_owner_count=len(owners),
-            distinct_session_count=len(sessions),
-            duration_histogram_counts=histogram,
-            duration_p50_ms=_histogram_percentile(histogram, 0.50),
-            duration_p95_ms=_histogram_percentile(histogram, 0.95),
-            coverage_rate=terminal_invocations / calls if calls else None,
-            status_counts=tuple(
-                status_counts[status] for status in ToolUsageAggregateStatus
-            ),
-            incomplete=incomplete,
-            unknown_identity=unknown_identity,
-            duplicates_rejected=quality_counts["duplicates_rejected"],
-            writer_failures=quality_counts["writer_failures"],
-            warnings=tuple(warnings),
-            result_truncated=result_truncated,
-            tool_filter=tool_filter,
-            family_filter=family_filter,
-            source_filter=source_filter,
-            surface_filter=surface_filter,
-            status_filter=status_filter,
-        )
-
-
-def _parse_query_day(value: str | None, *, field_name: str) -> date | None:
-    if value is None:
-        return None
-    if not isinstance(value, str) or len(value) != 10:
-        raise ValueError(f"invalid {field_name} date")
-    try:
-        parsed = date.fromisoformat(value)
-    except ValueError as exc:
-        raise ValueError(f"invalid {field_name} date") from exc
-    if parsed.isoformat() != value:
-        raise ValueError(f"invalid {field_name} date")
-    return parsed
-
-
-def _parse_query_enum(enum_type, value: str | None, *, field_name: str):
-    if value is None:
-        return None
-    if not isinstance(value, str) or not 1 <= len(value) <= 64:
-        raise ValueError(f"invalid {field_name} filter")
-    try:
-        return enum_type(value)
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"invalid {field_name} filter") from exc
-
-
-def read_tool_usage_analytics(
-    *,
-    start: str | None = None,
-    end: str | None = None,
-    tool: str | None = None,
-    family: str | None = None,
-    source: str | None = None,
-    surface: str | None = None,
-    status: str | None = None,
-    limit: int = 100,
-    session_factory=None,
-    now: datetime | None = None,
-) -> dict[str, object]:
-    """Return one bounded, aggregate-only Admin diagnostics projection."""
-
-    reference = now or datetime.now(timezone.utc)
-    if not isinstance(reference, datetime) or reference.tzinfo is None:
-        raise ValueError("now must be timezone-aware")
-    default_end = reference.astimezone(timezone.utc).date()
-    end_day = _parse_query_day(end, field_name="end") or default_end
-    start_day = _parse_query_day(start, field_name="start") or (
-        end_day - timedelta(days=29)
-    )
-    normalized_tool = None
-    if tool is not None:
+        quality_by_day: Mapping[str, Mapping[str, int]] | None = None,
+    ) -> dict[str, Any]:
+        current = now or datetime.now(timezone.utc)
+        if current.tzinfo is None or current.utcoffset() is None:
+            raise ToolUsageAnalyticsError("retention time must be timezone-aware")
+        if isinstance(event_days, bool) or not isinstance(event_days, int) or event_days < 1:
+            raise ToolUsageAnalyticsError("event_days must be a positive integer")
         if (
-            not isinstance(tool, str)
-            or len(tool) > 80
-            or not _ANALYTICS_ID_RE.fullmatch(tool)
+            isinstance(daily_days, bool)
+            or not isinstance(daily_days, int)
+            or daily_days < event_days
         ):
-            raise ValueError("invalid tool filter")
-        normalized_tool = tool
-    store = ToolUsageStore(session_factory)
-    result = ToolUsageAnalyticsQueryService(store).query_range(
-        start_day=start_day,
-        end_day=end_day,
-        tool_filter=normalized_tool,
-        family_filter=_parse_query_enum(ToolFamily, family, field_name="family"),
-        source_filter=_parse_query_enum(ToolSource, source, field_name="source"),
-        surface_filter=_parse_query_enum(
-            ToolUsageSurface,
-            surface,
-            field_name="surface",
-        ),
-        status_filter=_parse_query_enum(
-            ToolUsageAggregateStatus,
-            status,
-            field_name="status",
-        ),
-        limit=limit,
-    )
-    return result.to_safe_dict()
+            raise ToolUsageAnalyticsError(
+                "daily_days must be an integer not smaller than event_days"
+            )
+        cutoff = (
+            current.astimezone(timezone.utc) - timedelta(days=event_days)
+        ).date().isoformat()
+        days = self._store._event_days_before(cutoff)
+        for day in days:
+            supplied = (quality_by_day or {}).get(day, {})
+            self.aggregate_day(
+                day,
+                duplicates_rejected=supplied.get("duplicates_rejected", 0),
+                writer_failures=supplied.get("writer_failures", 0),
+            )
+        retention = self._store.apply_retention(
+            now=current,
+            event_days=event_days,
+            daily_days=daily_days,
+            dry_run=dry_run,
+        )
+        return {
+            "schema": ANALYTICS_SCHEMA,
+            "aggregated_day_count": len(days),
+            "retention": retention.to_dict(),
+            "raw_content_visible": False,
+        }
+
+
+def _day(value: Any) -> str:
+    text = str(value or "")
+    try:
+        parsed = date.fromisoformat(text)
+    except ValueError as exc:
+        raise ToolUsageAnalyticsError("day must be YYYY-MM-DD") from exc
+    if parsed.isoformat() != text:
+        raise ToolUsageAnalyticsError("day must be canonical YYYY-MM-DD")
+    return text
+
+
+def _count(value: Any, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ToolUsageAnalyticsError(f"{field_name} must be an integer")
+    if value < 0 or value > _MAX_QUALITY_COUNT:
+        raise ToolUsageAnalyticsError(f"{field_name} is outside the bounded range")
+    return value
+
+
+def _canonical_tool_id(value: Any) -> str | None:
+    if value is None or value == "":
+        return None
+    text = str(value).strip().lower()
+    if not _ANALYTICS_ID_RE.fullmatch(text):
+        raise ToolUsageAnalyticsError("tool_analytics_id is not canonical")
+    from src.builtin_tool_catalog import build_tool_analytics_identity_contract
+
+    contract = build_tool_analytics_identity_contract()
+    allowed = {
+        descriptor.analytics_id for descriptor in contract.catalog.descriptors
+    }
+    allowed.update(value for _, value in contract.audit_dict()["dynamic_source_buckets"])
+    if text not in allowed:
+        raise ToolUsageAnalyticsError("tool_analytics_id is not in the TAX contract")
+    return text
+
+
+def _enum_filter(enum_type, value: Any, field_name: str) -> str | None:
+    if value is None or value == "":
+        return None
+    try:
+        return enum_type(str(value)).value
+    except (TypeError, ValueError) as exc:
+        raise ToolUsageAnalyticsError(f"{field_name} is not a controlled value") from exc
+
+
+def _rate(numerator: int, denominator: int) -> float | None:
+    if denominator <= 0:
+        return None
+    return round(numerator / denominator, 6)
+
+
+def _percentile(
+    histogram: Mapping[str, int],
+    overflow: int,
+    count: int,
+    quantile: float,
+) -> int | None:
+    if count <= 0:
+        return None
+    rank = max(1, math.ceil(count * quantile))
+    for bound, column in zip(DURATION_BUCKET_BOUNDS_MS, DURATION_BUCKET_COLUMNS):
+        if int(histogram[column]) >= rank:
+            return bound
+    if overflow > 0:
+        return DURATION_BUCKET_BOUNDS_MS[-1]
+    return None

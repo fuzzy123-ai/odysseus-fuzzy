@@ -31,14 +31,11 @@ def test_default_gemma3_profile_is_bounded_local_maintenance_worker():
     assert payload["truth_write_allowed"] is False
 
 
-def test_current_legacy_settings_normalize_to_safe_maintenance_defaults():
-    profile = maintenance_model_profile_from_settings(dict(DEFAULT_SETTINGS))
-
-    assert profile.model_ref == "gemma3:4b"
-    assert profile.role is MaintenanceModelRole.MAINTENANCE
-    assert profile.runtime_enabled is False
-    assert profile.fallback_allowed is False
-    assert profile.truth_write_allowed is False
+def test_settings_default_only_changes_the_maintenance_lane():
+    assert DEFAULT_SETTINGS["maintenance_model_ref"] == "gemma3:4b"
+    assert DEFAULT_SETTINGS["maintenance_runtime_enabled"] is False
+    assert DEFAULT_SETTINGS["default_model"] == ""
+    assert DEFAULT_SETTINGS["utility_model"] == ""
 
 
 def test_sensitive_dsgvo_inbox_stays_local_and_blocks_api_escalation():

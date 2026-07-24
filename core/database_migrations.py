@@ -1361,6 +1361,44 @@ def _migrate_add_calendar_metadata():
             pass
 
 
+def _migrate_clarification_tables():
+    """Ensure clarification v2 run/event tables exist on upgraded installs."""
+    try:
+        runs = Base.metadata.tables.get("clarification_runs")
+        events = Base.metadata.tables.get("clarification_events")
+        if runs is not None:
+            runs.create(bind=engine, checkfirst=True)
+        if events is not None:
+            events.create(bind=engine, checkfirst=True)
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"clarification table migration failed: {e}")
+
+
+def _migrate_telegram_session_rollover_tables():
+    """Create the durable Telegram rollover ledger without touching Sessions.
+
+    Each table is declared in ``Base.metadata`` and created with ``checkfirst``
+    so an upgraded database receives exactly the same schema as a fresh one.
+    No data migration, backfill, or legacy bridge import belongs to this slice.
+    """
+    try:
+        for name in (
+            "telegram_session_bindings",
+            "telegram_session_rollovers",
+            "telegram_turn_intakes",
+            "telegram_rollover_metadata",
+        ):
+            table = Base.metadata.tables.get(name)
+            if table is None:
+                raise RuntimeError("telegram_rollover_schema_missing")
+            table.create(bind=engine, checkfirst=True)
+    except Exception as e:
+        logging.getLogger(__name__).warning(
+            "telegram rollover ledger migration failed: %s", type(e).__name__
+        )
+        raise RuntimeError("telegram_rollover_schema_migration_failed") from e
+
+
 for _name, _func in list(globals().items()):
     if _name.startswith("_migrate_") and callable(_func):
         globals()[_name] = _with_database_context(_func)
@@ -1411,6 +1449,8 @@ def run_database_migrations() -> None:
     _migrate_add_calendar_origin()
     _migrate_add_calendar_account_id()
     _migrate_add_caldav_sync_columns()
+    _migrate_clarification_tables()
+    _migrate_telegram_session_rollover_tables()
     _migrate_chat_messages_fts()
     _migrate_encrypt_email_passwords()
     _migrate_encrypt_signatures()

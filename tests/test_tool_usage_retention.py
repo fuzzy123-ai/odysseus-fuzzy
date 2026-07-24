@@ -1,214 +1,151 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
+import sqlite3
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-from scripts.update_database import migrate_tool_usage_schema
-from src.tool_catalog import ToolFamily, ToolSource
-from src.tool_usage_analytics import ToolUsageAnalyticsService, ToolUsageObservedState
-from src.tool_usage_events import (
-    ToolUsageAgentMode,
-    ToolUsageEventBuilder,
-    ToolUsageEventKind,
-    ToolUsageModelScope,
-    ToolUsageResultShape,
-    ToolUsageSizeBucket,
-    ToolUsageStatus,
-    ToolUsageSurface,
-)
-from src.tool_usage_store import (
-    EVENT_RETENTION_DAYS,
-    ToolUsageAggregationCommitResult,
-    ToolUsageDailyAggregateRecord,
-    ToolUsageDayReadResult,
-    ToolUsageEventRecord,
-    ToolUsageStore,
-    ToolUsageStoredEvent,
-)
+from src.tool_usage_analytics import ToolUsageAnalyticsService
+from src.tool_usage_store import SCHEMA_NAME, SCHEMA_VERSION, ToolUsageStore
+from tests.test_tool_usage_analytics import _pair
 
 
-NOW = datetime(2026, 7, 16, 9, 0, tzinfo=timezone.utc)
+def _store(tmp_path):
+    store = ToolUsageStore(tmp_path / "retention.sqlite3")
+    store.migrate()
+    return store
 
 
-def _session_factory(engine):
-    return sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
-
-
-def _event(*, index, event_kind, occurred_at, duration_ms=None, status=None):
-    built = ToolUsageEventBuilder.build(
-        event_id=f"evt_{index:016d}",
-        invocation_id="inv_0000000000000100",
-        event_kind=event_kind,
-        occurred_at=occurred_at,
-        duration_ms=duration_ms,
-        tool_analytics_id="read-file",
-        tool_family=ToolFamily.CODE_FILESYSTEM,
-        tool_source=ToolSource.BUILTIN,
-        surface=ToolUsageSurface.SCHEDULER,
-        status=status,
-        argument_size_bucket=ToolUsageSizeBucket.XS,
-        result_size_bucket=(
-            ToolUsageSizeBucket.S
-            if event_kind == ToolUsageEventKind.TERMINAL
-            else ToolUsageSizeBucket.NONE
-        ),
-        result_shape_bucket=(
-            ToolUsageResultShape.SCALAR
-            if event_kind == ToolUsageEventKind.TERMINAL
-            else ToolUsageResultShape.NONE
-        ),
-        model_scope=ToolUsageModelScope.LOCAL,
-        agent_mode=ToolUsageAgentMode.BACKGROUND,
-        app_version="0.25.0",
-    )
-    assert built.event is not None
-    return built.event
-
-
-def test_old_events_are_retained_until_successful_aggregation_then_deleted():
-    engine = create_engine("sqlite:///:memory:")
-    migrate_tool_usage_schema(engine)
-    factory = _session_factory(engine)
-    store = ToolUsageStore(factory)
-    old_time = NOW - timedelta(days=EVENT_RETENTION_DAYS + 2)
-    events = (
-        _event(index=100, event_kind=ToolUsageEventKind.STARTED, occurred_at=old_time),
-        _event(
-            index=101,
-            event_kind=ToolUsageEventKind.TERMINAL,
-            occurred_at=old_time + timedelta(milliseconds=10),
-            duration_ms=10,
-            status=ToolUsageStatus.SUCCEEDED,
-        ),
-    )
-    assert store.write_events(events).inserted == 2
-
-    before_aggregation = store.enforce_retention(now=NOW, dry_run=False)
-    assert before_aggregation.eligible_event_count == 0
-    assert before_aggregation.deleted_event_count == 0
-
-    result = ToolUsageAnalyticsService(store, clock=lambda: NOW).aggregate_then_retain(
-        old_time.date(),
-        now=NOW,
-        dry_run=False,
-    )
-
-    assert result.analytics.quality.aggregation_complete is True
-    assert result.retention_attempted is True
-    assert result.retention is not None
-    assert result.retention.deleted_event_count == 2
-    assert result.retention.deleted_aggregate_count == 0
-    with factory() as session:
-        assert session.query(ToolUsageEventRecord).count() == 0
-        aggregates = session.query(ToolUsageDailyAggregateRecord).all()
-        assert len(aggregates) == 1
-        assert aggregates[0].aggregation_complete is True
-
-
-def test_default_dry_run_follows_aggregation_and_preserves_rows():
-    engine = create_engine("sqlite:///:memory:")
-    migrate_tool_usage_schema(engine)
-    factory = _session_factory(engine)
-    store = ToolUsageStore(factory)
-    old_time = NOW - timedelta(days=EVENT_RETENTION_DAYS + 2)
-    assert store.write_events(
-        [
-            _event(index=110, event_kind=ToolUsageEventKind.STARTED, occurred_at=old_time),
-            _event(
-                index=111,
-                event_kind=ToolUsageEventKind.TERMINAL,
-                occurred_at=old_time + timedelta(milliseconds=25),
-                duration_ms=25,
-                status=ToolUsageStatus.SUCCEEDED,
-            ),
-        ]
-    ).inserted == 2
-
-    result = ToolUsageAnalyticsService(store, clock=lambda: NOW).aggregate_then_retain(
-        old_time.date(),
-        now=NOW,
-    )
-
-    assert result.retention_attempted is True
-    assert result.retention is not None
-    assert result.retention.dry_run is True
-    assert result.retention.eligible_event_count == 2
-    assert result.retention.deleted_event_count == 0
-    with factory() as session:
-        assert session.query(ToolUsageEventRecord).count() == 2
-
-
-class _AggregateWriterFailureStore(ToolUsageStore):
-    def __init__(self):
-        super().__init__(lambda: None)
-        self.commit_called = False
-        self.retention_called = False
-
-    def read_events_for_day(self, day):
-        return ToolUsageDayReadResult(
-            events=(
-                ToolUsageStoredEvent(
-                    event_id="evt_0000000000000200",
-                    invocation_id="inv_0000000000000200",
-                    event_kind=ToolUsageEventKind.STARTED.value,
-                    occurred_at=NOW,
-                    duration_ms=None,
-                    tool_analytics_id="read-file",
-                    tool_family=ToolFamily.CODE_FILESYSTEM.value,
-                    tool_source=ToolSource.BUILTIN.value,
-                    surface=ToolUsageSurface.SYSTEM.value,
-                    status=None,
-                    retry_ordinal=0,
-                    owner_ref=None,
-                    session_ref=None,
-                ),
-            ),
-            failures=0,
+def test_schema_v1_upgrades_idempotently_to_histogram_and_quality_schema(tmp_path):
+    database = tmp_path / "v1.sqlite3"
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "CREATE TABLE tool_usage_schema_meta (schema_name TEXT PRIMARY KEY, schema_version INTEGER NOT NULL)"
+        )
+        connection.execute(
+            "INSERT INTO tool_usage_schema_meta(schema_name, schema_version) VALUES (?, 1)",
+            (SCHEMA_NAME,),
+        )
+        connection.execute(
+            """
+            CREATE TABLE tool_usage_daily (
+                day TEXT NOT NULL,
+                tool_analytics_id TEXT NOT NULL,
+                tool_family TEXT NOT NULL,
+                tool_source TEXT NOT NULL,
+                surface TEXT NOT NULL,
+                status TEXT NOT NULL,
+                invocation_count INTEGER NOT NULL DEFAULT 0,
+                duration_count INTEGER NOT NULL DEFAULT 0,
+                duration_total_ms INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY(day, tool_analytics_id, surface, status)
+            )
+            """
         )
 
-    def commit_day_aggregation(self, day, aggregates, event_ids, *, aggregated_at=None):
-        self.commit_called = True
-        self._record_quality("writer_failures")
-        return ToolUsageAggregationCommitResult(0, 0, 1)
+    with ToolUsageStore(database) as store:
+        first = store.migrate()
+        second = store.migrate()
 
-    def enforce_retention(self, **kwargs):
-        self.retention_called = True
-        raise AssertionError("retention must not run after aggregate failure")
+    assert first == second
+    assert first["schema_version"] == SCHEMA_VERSION == 2
+    with sqlite3.connect(database) as connection:
+        version = connection.execute(
+            "SELECT schema_version FROM tool_usage_schema_meta WHERE schema_name = ?",
+            (SCHEMA_NAME,),
+        ).fetchone()[0]
+        daily_columns = {
+            row[1]
+            for row in connection.execute("PRAGMA table_info(tool_usage_daily)")
+        }
+        tables = {
+            row[0]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )
+        }
+
+    assert version == 2
+    assert {
+        "distinct_owner_count",
+        "distinct_session_count",
+        "retry_count",
+        "unknown_identity_count",
+        "duration_le_10",
+        "duration_le_60000",
+        "duration_gt_60000",
+    } <= daily_columns
+    assert "tool_usage_daily_quality" in tables
 
 
-def test_aggregate_writer_failure_blocks_marking_and_retention():
-    store = _AggregateWriterFailureStore()
+def test_retention_service_aggregates_first_and_is_dry_run_safe(tmp_path):
+    store = _store(tmp_path)
+    complete = _pair(30, day="2024-01-03")
+    incomplete = _pair(31, day="2024-01-02")[0]
+    store.append_events([*complete, incomplete])
+    analytics = ToolUsageAnalyticsService(store)
+    now = datetime(2026, 7, 18, tzinfo=timezone.utc)
 
-    result = ToolUsageAnalyticsService(store, clock=lambda: NOW).aggregate_then_retain(
-        NOW.date(),
-        now=NOW,
+    dry_run = analytics.aggregate_then_retain(
+        now=now,
+        dry_run=True,
+        quality_by_day={
+            "2024-01-03": {
+                "duplicates_rejected": 2,
+                "writer_failures": 1,
+            }
+        },
+    )
+    report = analytics.summarize("2024-01-02", "2024-01-03")
+
+    assert dry_run["aggregated_day_count"] == 2
+    assert dry_run["retention"]["dry_run"] is True
+    assert dry_run["retention"]["scanned_event_count"] == 3
+    assert dry_run["retention"]["deletable_event_count"] == 2
+    assert dry_run["retention"]["protected_event_count"] == 1
+    assert dry_run["retention"]["deleted_event_count"] == 0
+    assert store.counts()["event_count"] == 3
+    assert report["calls"] == 1
+    assert report["quality"]["incomplete_count"] == 1
+    assert report["quality"]["duplicates_rejected"] == 2
+    assert report["quality"]["writer_failures"] == 1
+
+    applied = analytics.aggregate_then_retain(
+        now=now,
         dry_run=False,
+        quality_by_day={
+            "2024-01-03": {
+                "duplicates_rejected": 2,
+                "writer_failures": 1,
+            }
+        },
     )
 
-    assert result.analytics.observed_state == ToolUsageObservedState.OBSERVED
-    assert result.analytics.quality.aggregation_complete is False
-    assert result.analytics.quality.instrumentation_error is True
-    assert result.analytics.quality.writer_failures == 1
-    assert result.retention_attempted is False
-    assert result.retention is None
-    assert store.commit_called is True
-    assert store.retention_called is False
+    assert applied["aggregated_day_count"] == 2
+    assert applied["retention"]["deleted_event_count"] == 2
+    assert applied["retention"]["deleted_daily_count"] == 1
+    assert store.counts() == {
+        "event_count": 1,
+        "daily_aggregate_count": 0,
+        "raw_content_visible": False,
+    }
+    store.close()
 
 
-def test_reader_failure_is_stable_and_never_attempts_retention():
-    class BrokenFactory:
-        def __call__(self):
-            raise RuntimeError("synthetic unavailable")
+def test_retention_validation_happens_before_any_aggregation_write(tmp_path):
+    store = _store(tmp_path)
+    store.append_events(_pair(40, day="2024-01-03"))
+    analytics = ToolUsageAnalyticsService(store)
 
-    store = ToolUsageStore(BrokenFactory())
-    result = ToolUsageAnalyticsService(store, clock=lambda: NOW).aggregate_then_retain(
-        NOW.date(),
-        now=NOW,
-        dry_run=False,
-    )
+    try:
+        analytics.aggregate_then_retain(
+            now=datetime(2026, 7, 18, tzinfo=timezone.utc),
+            event_days=90,
+            daily_days=10,
+            dry_run=False,
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("invalid retention window must fail")
 
-    assert result.analytics.observed_state == ToolUsageObservedState.READ_FAILED
-    assert result.analytics.quality.aggregation_complete is False
-    assert result.analytics.quality.instrumentation_error is True
-    assert result.retention_attempted is False
-    assert result.retention is None
+    assert store._daily_quality_rows("2024-01-03", "2024-01-03") == ()
+    assert store.counts()["event_count"] == 2
+    store.close()
+

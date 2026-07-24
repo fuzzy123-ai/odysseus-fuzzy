@@ -90,7 +90,7 @@ def test_manage_github_issues_native_function_call_converts_to_tool_block():
 @pytest.mark.asyncio
 async def test_duplicate_search_runs_locally_and_dispatches(monkeypatch):
     monkeypatch.setattr("src.tool_domains.github_issues.SessionLocal", _session_factory())
-    monkeypatch.setattr("src.tool_execution._owner_is_admin", lambda owner: True)
+    monkeypatch.setitem(execute_tool_block.__globals__, "_owner_is_admin", lambda owner: True)
 
     desc, result = await execute_tool_block(
         ToolBlock(

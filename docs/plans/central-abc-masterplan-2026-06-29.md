@@ -14,14 +14,50 @@ operator gates.
 This is an integration plan, not a replacement for the source roadmaps. The
 source roadmaps remain the detailed contracts for their domains.
 
-Current `/goal` alignment, updated 2026-07-03:
+## Mandatory AI Execution Guidance
+
+Before an agent claims work from this master or any linked roadmap, it must load
+the per-roadmap entry from
+`docs/plans/multi-agent-execution-guidance.json`:
+
+```powershell
+C:\Users\nkatz\odysseus\venv\Scripts\python.exe scripts\roadmap_multi_agent_guidance.py --roadmap docs/plans/central-abc-masterplan-2026-06-29.md --format markdown
+```
+
+The index classifies every roadmap as `canonical_router`, `active_parallel`,
+`active_serial`, `gate_only`, `historical_done`, or `needs_normalization` and
+provides a concrete AI instruction for that file. Current dated completion and
+gate evidence wins over stale queue prose. A missing index entry, overlapping
+allowed paths, or missing slice owner/tests/gate downgrades the work to
+read-only normalization; it is not permission to interpret the gap.
+
+Current `/goal` alignment, updated 2026-07-13:
 
 - Keep implementing the integrated roadmaps with ABC in Standard mode.
-- Prefer repo-only backend/logik slices and stop at live gates.
-- Treat Calendar/Coding, Observability/Security and Automated Orchestration
-  as current active master tracks; their remaining meaningful work is live
-  evidence, not speculative UI or broad refactoring.
+- Prefer repo-only backend/logik slices and request no user decision while the
+  new Tool Taxonomy and Tool Usage Analytics tracks are being built, tested,
+  migrated or staged locally.
+- Materialize exactly one user gate per new tool track only after its complete
+  acceptance and rollback packet is ready for the first productive activation.
+- Treat Calendar and E-Mail as `deferred_by_operator_priority`; keep Contacts
+  default-off as their dependent communication capability. Retain code,
+  evidence and runtime security gates, but schedule no new feature or
+  live-rollout work for them.
+- Keep autonomous coding, observability/security and automated orchestration
+  evidence intact; do not let their older live-gate recommendations displace
+  the newly approved repo-only tool tracks.
 - Do not touch legacy or v2 UI hotfiles from this backend track.
+
+Operator steering, updated 2026-07-21:
+
+- L28 / `OWM-22` is the next P0 corrective at the next clean Single-Writer
+  integration boundary, before opening new strategic P1/P2 feature slices.
+- Finish an already in-flight writer on shared hotfiles first; then register
+  only `TTD-00`. Roadmap authoring itself starts no implementation queue.
+- The added daily Telegram session rollover is context hygiene, not Todo state
+  recovery. Notes remains canonical and every domain claim needs readback.
+- Deployment, productive data repair, Telegram send and productive session
+  rollover remain four separate, default-off future live actions.
 
 ## Source Roadmaps
 
@@ -66,6 +102,21 @@ Primary sources:
 - `docs/plans/agent-capability-expansion-master-roadmap.json`
 - `docs/plans/recent-changes-patch-notes-roadmap.md`
 - `docs/plans/github-issue-intelligence-roadmap.md`
+- `docs/plans/project-versioning-forge-provider-roadmap.md`
+- `docs/plans/headless-write-agent-orchestration-roadmap.md`
+- `docs/plans/tool-taxonomy-registration-roadmap.md`
+- `docs/plans/privacy-safe-tool-analytics-roadmap.md`
+- `docs/plans/gemma3-memory-ops-optimization-roadmap.md`
+- `docs/plans/graphrag-raptor-observability-prometheus-grafana-roadmap.md`
+- `docs/plans/unified-source-index-implementation-roadmap.md`
+- `docs/plans/unified-source-index-integration-impact-map.md`
+- `docs/plans/unified-source-index-runtime-integration-roadmap.md`
+- `docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md`
+- `docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md`
+- `docs/plans/codebase-memory-integration-roadmap.md`
+- `docs/plans/code-lineage-timeline-roadmap.md`
+- `docs/plans/lens-code-graph-roadmap.md`
+- `docs/plans/telegram-todo-domain-truth-roadmap.md`
 - `docs/plans/remaining-features-roadmap-2026-06-20.md`
 - `docs/plans/legacy-chat-new-functions-master-roadmap.json`
 - `docs/plans/legacy-chat-new-functions-integration-roadmap.md`
@@ -128,6 +179,20 @@ Run at most three active implementation lanes at the same time.
 | L12 Recent Changes + Patch Notes | P1 | Limited | Local patch-note history helps Odysseus answer "what changed" from repo evidence; backend-safe slices are implemented and tested; UI placement remains UI-owned. |
 | L13 Automated Agent Handoff Orchestration | P1 | Limited | Native Alice/Bob/Charlie orchestration foundation is implemented as safe stores, dry-run bridges, quality gates and evidence models; real thread sends, command execution and scheduler activation remain gated. |
 | L14 GitHub Issue Intelligence | Post-MVP P1 | Limited | Provider-neutral issue fields, owner-scoped persistence, fake-client read-only sync, repo-only issue index, duplicate preview service, gated agent tool, backend route contracts, token-free projection contracts and narrow read-only MCP exposure are implemented without GitHub tokens or network writes; live rollout remains gated. |
+| L15 Project Versioning + Forge Providers | Post-MVP P1 | Gate only after backend closeout | Backend Partial complete: canonical Local Forge, one public `commit_project` workflow, owner-scoped API, durable outbox/retry, ServerProject binding and offline Nextcloud/GitHub adapters are green with 289 tests; UI and live provider writes remain separate gates. |
+| L16 Headless Write Agents + Promotion Pipeline | Post-MVP P0/P1 | Limited, contract-first | New user-approved follow-up: verified subagent intents must flow through the single `commit_project` authority; provider delivery consumes the leased outbox, while merge and deploy remain separate promotion stages. HWA0-HWA1 are repo-complete; durable state/fencing is next, and real runner, scheduler, commit bridge, push, merge and deploy actions retain individual gates. |
+| L17 Tool Taxonomy + Registry Governance | Post-MVP P0 | Active serial; read-only scouts parallel | Canonical Descriptor v2, explicit lifecycle/priority defaults, closure of six registration gaps, removal of 48 `Other` fallbacks and security closure precede any activation. E-Mail, Kalender und Kontakte bleiben deferred. TAX0-TAX12 have no user gates; one dormant activation contract may materialize only after acceptance. |
+| L18 Privacy-Safe Tool Usage Analytics | Post-MVP P1 | Parallel after TAX1 on disjoint paths | Content-free invocation telemetry, dedupe, retention, aggregate API and bounded metrics consume stable TAX identities. TUA0-TUA2 may start after TAX1; instrumentation waits for TAX5 and UI integration for TAX7. TUA0-TUA12 have no user gates; one dormant activation contract may materialize only after privacy and rollback acceptance. |
+| L19 Gemma3 Maintenance Runtime Isolation | Post-MVP P1 | Planned parallel after new goal | Exact `gemma3:4b` maintenance eligibility, per-key admission, async context and non-regression for all other models; no Agent/Chat/Truth Write and one dormant live gate. |
+| L20 GraphRAG/RAPTOR Performance & Observability | Post-MVP P1 | Planned parallel after new goal | Correct bounded runtime histograms, cache/event-loop hardening, real backend benchmark and private Prometheus/Grafana assets; shared observability hotfiles serialize with L19. |
+| L21 Unified Source Index Foundation | Post-MVP P0 | Planned serial core | One source/version/chunk/entity/relation/lineage/job identity plane implements existing Store contracts; Domain Truth, TAX/TUA, GMI/GRO and project versioning remain separate owners. |
+| L22 Codebase Memory Code Intelligence | Post-MVP P0 | Planned after USI identity | Pinned CBM runs as rebuildable codegraph and hybrid structural provider; no second repo registry, public tool family, planner or source truth. |
+| L23 Code Lineage & Timeline | Post-MVP P1 | Planned after USI identity | Git and Project Versioning remain history truth while USI gains evidence-bound rename/copy/refactor/timeline queries and first-observable sort. |
+| L24 Lens > Code Graph | Post-MVP P1 | UI-owned after bounded graph API | CBM visual technology becomes a native progressive Knowledge/Lens view with source evidence and separate Code Graph/Timeline/Semantic/Trace truth labels. |
+| L25 USI Runtime & Consumer Integration | Post-MVP P0 child | Planned serial after USI core contracts | One injected runtime composes JobStore workers, health, Personal Docs, Chat, Agent and `query_knowledge` with shadow/fallback/rollback; it shares the USI gate. |
+| L26 USI Domain Adapter Rollout | Post-MVP P0 child | Planned source waves on disjoint adapters | One SourceAdapter registry connects domain-owned readers and best-effort change signals; communication domains remain deferred/default-off and it shares the USI gate. |
+| L27 USI Data Lifecycle & Operations | Post-MVP P0 child | Planned serial at owner/ops hotfiles | Stable owner scope, delete/access, export, backup/restore, wipe, retention and recovery integrate with existing owners; no second operations plane or gate. |
+| L28 Telegram Todo Domain Truth | Post-MVP P0 corrective | Prioritized next at clean Single-Writer frontier | Notes becomes the enforced Todo truth; atomic Todo operations, fail-closed Memory routing, semantic receipts, Telegram tool-event propagation, Digest postconditions, drift repair preview, daily idempotent session rollover and honest history privacy close the observed split-brain and long-context failure modes. |
 
 Integration rule:
 
@@ -1756,7 +1821,7 @@ Stop or defer the active slice if:
    production readiness. Repo-only implementation is complete there; the next
    meaningful work is bounded live evidence, not more speculative backend code.
 
-## Active Lane L9: Calendar MCP + Autonomous Coding Control
+## Deferred Calendar Subtrack / Active Coding Control Lane L9
 
 Goal:
 
@@ -1786,6 +1851,16 @@ Current evidence:
   Memory/RaptorGraph capability records, diagnostics readback and live
   acceptance are recorded in the source JSON.
 
+Operator priority update 2026-07-13:
+
+- Calendar, reminder and E-Mail feature investment has no current priority and
+  is `deferred_by_operator_priority`; contact resolution remains default-off as
+  the dependent communication capability.
+- Existing implementations, data models, tests and gate evidence remain
+  intact; no open gate is falsely marked complete.
+- Autonomous coding remains a separate valid capability track, but its live
+  evidence is not the next user decision while L17/L18 have safe repo work.
+
 Open gates:
 
 - `CAL-MCP-7-live-telegram-reminder-smoke`: needs exact harmless live reminder
@@ -1806,10 +1881,11 @@ Non-goals for this backend ABC lane:
 
 Recommended next backend action:
 
-- Do not add more repo-only feature slices for L9 unless a regression is found.
-  The next useful work is either a bounded live Telegram reminder smoke, a
-  bounded CalDAV writeback smoke, or a bounded workstation-to-Telegram coding
-  control smoke with concrete operator input.
+- Do not add Calendar/E-Mail/Contact feature slices or request their live
+  smokes while the operator deferral is active.
+- Do not add more repo-only autonomous-coding slices unless a regression is
+  found. Resume a bounded coding-control smoke only after the active L17/L18
+  repo queue is closed or the operator explicitly reprioritizes it.
 
 ## Active Lane L10: Observability + Security Ops
 
@@ -2102,9 +2178,238 @@ Recommended next backend action:
   Next action is a bounded live rollout decision if GitHub Issue Intelligence
   should sync or write to a real repository.
 
+## Active Lane L17: Tool Taxonomy + Registry Governance
+
+Goal:
+
+One canonical Tool Descriptor v2 contract governs built-ins, plugins, MCP
+tools and compatibility aliases across runtime allowlisting, native schemas,
+prompt/index selection, dispatch, security/effect classification, Admin API,
+Admin UI and analytics identity.
+
+Primary source:
+
+- `docs/plans/tool-taxonomy-registration-roadmap.md`
+
+Current evidence:
+
+- The literal built-in runtime allowlist contains 78 tags while the literal
+  function-schema inventory contains 83 names.
+- Six implemented/schema-indexed tools are missing from `TOOL_TAGS`:
+  `manage_assistant`, `manage_embeddings`, `manage_personal_docs`,
+  `manage_plugins`, `manage_presets` and `tail_serve_output`.
+- `generate_image` is the one runtime tag without an equivalent literal native
+  schema and therefore needs an intentional projection exception.
+- The Admin UI has metadata for 31 tools; 48 runtime tools fall into `Other`,
+  and stale `manage_rag` metadata pretends that a non-runtime tag is active.
+- `src/tool_catalog.py`, `src/tool_registry.py` and runtime diagnostics already
+  provide useful foundations; L17 extends and reconciles them rather than
+  creating a third registry.
+
+Frozen priority defaults:
+
+- Personal Docs, Embeddings and Plugins are high-value capabilities and must
+  become correctly registered with their existing role/confirmation controls.
+- `tail_serve_output` remains unavailable until owner/admin and trusted-session
+  security is fail-closed.
+- Assistant and Presets are registered but deferred/default-hidden.
+- E-Mail, Calendar and Contacts remain
+  `deferred_by_operator_priority`, default-disabled and hidden.
+
+Execution queue:
+
+1. TAX0 produces a deterministic, content-free inventory and drift baseline.
+2. TAX1 freezes Descriptor v2, stable families, lifecycle and analytics IDs.
+3. TAX2-TAX3 build canonical projections and close the six registration gaps.
+4. TAX4-TAX5 enforce priority defaults, permissions and effect classes.
+5. TAX6-TAX10 migrate API/UI/dynamic sources/settings and publish the
+   analytics identity contract.
+6. TAX11-TAX12 run parity/security acceptance, synthetic staging and rollback.
+
+Gate policy:
+
+- TAX0-TAX12 are `safe_offline` or `repo_only` and require no user gate.
+- `TAX-LIVE-ACTIVATION` is a dormant contract, not an open queue gate. It may
+  materialize exactly once only after all acceptance and rollback evidence is
+  green and the feature remains default-off.
+- The later activation does not remove any per-action confirmation, admin
+  policy or external-write gate.
+
+Recommended next action:
+
+- Start TAX0, then TAX1. Serialize `src/tool_catalog.py`,
+  `src/tool_execution.py`, `routes/model_routes.py` and `static/js/admin.js`.
+- Report `Go`, `Partial`, `No-Go`, `Deferred` or `Blocked`; do not ask the user
+  to classify intermediate details already covered by reversible defaults.
+
+## Active Lane L18: Privacy-Safe Tool Usage Analytics
+
+Goal:
+
+Create one content-free, deduplicated invocation telemetry contract that can
+answer tool/family usage, technical status, duration, retry and coverage
+questions without storing prompts, arguments, commands, outputs, private
+paths, secrets or direct user/session identities.
+
+Primary source:
+
+- `docs/plans/privacy-safe-tool-analytics-roadmap.md`
+
+Dependencies and current evidence:
+
+- TAX1 supplies the Descriptor identity contract; TAX10 supplies stable alias
+  migration. TUA instrumentation on `src/tool_execution.py` also waits for
+  TAX5 security closure.
+- The inspected Chat DB contains 1,104 tool events across 46 names, 84
+  messages and 32 sessions for 2026-06-06 through 2026-06-17.
+- The inspected Agent Run Ledger contains 607 starts, 606 outputs, 43 names
+  and 111 runs for 2026-06-13 through 2026-07-05.
+- These sources overlap and have different schemas; their counts must not be
+  added. AI Activity measures model calls, while MCP/transaction ledgers are
+  domain audits rather than a global usage source.
+- `execute_tool_block` is the primary runtime boundary and already measures
+  latency for optional AI Lens events.
+
+Privacy defaults:
+
+- Only allowlisted event fields, bounded enums/size buckets and keyed-HMAC
+  owner/session/run references may persist.
+- Incognito/Nobody produces no persistent events or aggregates.
+- Default retention is 90 days for invocation events and 400 days for daily
+  aggregates.
+- Admin endpoints expose aggregates only. Prometheus labels are limited to
+  bounded family, source, surface and status; never tool/user/session IDs.
+- E-Mail, Calendar and Contacts remain deferred and null usage is labelled as
+  default-off rather than a defect.
+
+Execution queue:
+
+1. TUA0 documents source overlap; TUA1 freezes privacy/status semantics.
+2. TUA2 builds the normalized event/aggregate store and retention foundation.
+3. TUA3-TUA5 instrument the central boundary, propagate trusted context and
+   cover sources without double-counting.
+4. TUA6-TUA9 build aggregation, admin-only API, bounded Prometheus metrics and
+   existing Admin-surface integration.
+5. TUA10 builds a synthetic/default-dry-run metadata-only backfill tool.
+6. TUA11-TUA12 run privacy/performance/failure-isolation acceptance,
+   synthetic staging and rollback.
+
+Gate policy:
+
+- TUA0-TUA12 are `safe_offline` or `repo_only` and require no user gate.
+- Real historical data is not read or backfilled before activation.
+- `TUA-LIVE-ACTIVATION` is a dormant contract, not an open queue gate. It may
+  materialize exactly once only after privacy, incognito, dedupe, retention,
+  performance and rollback acceptance is green.
+
+Recommended next action:
+
+- After TAX1, TUA0-TUA2 may proceed on disjoint paths. TUA3 waits for TAX5 and
+  TUA9 waits for TAX7.
+- Keep telemetry best-effort: any writer/export failure must leave the tool
+  result and user response unchanged.
+
+## Planned Lanes L19-L27: Runtime Evidence And Unified Code Knowledge
+
+Primary sources:
+
+- `docs/plans/gemma3-memory-ops-optimization-roadmap.md`
+- `docs/plans/graphrag-raptor-observability-prometheus-grafana-roadmap.md`
+- `docs/plans/unified-source-index-implementation-roadmap.md`
+- `docs/plans/unified-source-index-integration-impact-map.md`
+- `docs/plans/unified-source-index-runtime-integration-roadmap.md`
+- `docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md`
+- `docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md`
+- `docs/plans/codebase-memory-integration-roadmap.md`
+- `docs/plans/code-lineage-timeline-roadmap.md`
+- `docs/plans/lens-code-graph-roadmap.md`
+
+Canonical boundaries:
+
+| Lane | Owns | Must not own |
+| --- | --- | --- |
+| L19 GMI | exact Gemma3 maintenance admission/context/runtime | USI, model-wide budgets, Agent/Chat or truth writes |
+| L20 GRO | one runtime metrics/Prometheus/Grafana plane | source truth, query identity or separate product UI |
+| L21 USI | source/version/chunk/policy/provenance identity and bounded query | domain truth, commits, model scheduler, duplicate metrics/tools |
+| L22 CBM | rebuildable code structure graph and hybrid provider | repo/version/lineage truth, public upstream tools, hooks/config |
+| L23 Lineage | evidence-bound Git-derived lineage/timeline | commits, repo registry, absolute creation claims |
+| L24 Lens Code | native progressive codegraph experience | second app shell, raw engine control, AI-trace truth |
+| L25 UIR | app composition, worker lifecycle and knowledge consumers | source extraction, domain truth, second scheduler/tool/prompt path |
+| L26 UDA | adapter registry, policy-aware domain reads and change signals | domain writes, provider bypass, second domain/query store |
+| L27 ULO | owner/index lifecycle and operations integration | account/domain actions, second backup primitive or operations gate |
+
+Dependency order:
+
+1. The current TAX/TUA queue remains first unless the operator reprioritizes.
+2. A later goal may start only GMI-00 and GRO-00, with their successors blocked
+   by dependencies and shared observability files serialized.
+3. USI-00 reconciles stores/writers. USI-01/USI-03 freeze identity and SQLite
+   before CBM or Lineage writes projection data.
+4. After the USI contract barriers, UIR-00, UDA-00 and ULO-00 inventory their
+   distinct runtime, domain and lifecycle paths. UIR/ULO serialize hotfiles;
+   UDA adapter files may proceed in bounded disjoint waves.
+5. USI-15 waits for UIR-14, ULO-14 and UDA-18 for every selected source scope;
+   all three child lanes contribute to `USI-LIVE-ACTIVATION` and create no
+   independent product gate.
+6. CBM-00/CBM-01 may prepare vendor/benchmark evidence, but CBM-02/CBM-04 wait
+   for USI identity/job contracts.
+7. CLT-00/CLT-01 may prepare semantics after USI identity; Git/Project
+   Versioning remain the only history authority.
+8. Lens backend fixture/API work waits for CBM-08 and UIR read-only service
+   composition. Timeline UI waits for
+   CLT-10. Production UI remains UI-owned and separately gated.
+
+Collision rules:
+
+- TAX serializes tool catalog/schema/index/security files before USI/CBM tool
+  projection.
+- GRO serializes `src/observability_metrics.py`, Prometheus/Grafana assets and
+  shared metric contracts.
+- Project Versioning serializes repo/version/commit stores and provider files.
+- USI query/store files, CBM process/query files, Lineage Git/store files and
+  Lens UI files have distinct owners.
+- UIR serializes app/Chat/Agent/runtime routes; UDA touches domain writes only
+  in explicit post-parity handoffs; ULO serializes Auth/backup/restore/wipe.
+- No engine activation implies USI, history backfill or UI activation. Product
+  lanes retain independent gates; L25-L27 share the single USI gate as child
+  closure and retain action-specific destructive-operation confirmations.
+
+Recommended future execution:
+
+- Finish or explicitly reprioritize TAX/TUA first.
+- Then run GMI/GRO from their documented goal packet if runtime evidence is the
+  priority.
+- For persistent code knowledge, start USI-00. CBM-00/CBM-01 may run as a
+  disjoint read-only/vendor benchmark lane; all deeper integration follows USI
+  identity.
+- After USI identity/store contracts, execute UIR/UDA/ULO by their barriers and
+  close the selected source scope before USI-15. Append-only lane numbering
+  does not place L25-L27 after productive CBM or Lens activation.
+- Keep Code Planet/Lens work in fixtures until the bounded graph API and UI
+  design ownership are explicit.
+
 ## Current Master Status
 
-Safe queue audit 2026-07-03:
+Current follow-up update 2026-07-13:
+
+- Two newly approved post-MVP roadmaps reopen a real safe repository queue:
+  TAX0 for Tool Taxonomy/Registry and, after TAX1, TUA0 for privacy-safe Tool
+  Usage Analytics.
+- This does not change the fixed ten-roadmap MVP result of 100% or the separate
+  Version-1 UI-live state.
+- No user decision is required during TAX0-TAX12 or TUA0-TUA12. The first
+  decision per feature is requested only when its default-off activation and
+  rollback packet is fully machine-verified.
+- Calendar, E-Mail and Contacts are deferred by operator priority and are not
+  the recommended next live decision.
+- GMI/GRO are complete planning packets (`L19/L20`) and USI/CBM/Lineage/Lens
+  Code plus the USI runtime/domain/lifecycle child closures are normalized
+  follow-up packets (`L21-L27`). They are not
+  claimable from this prose and do not silently replace the current TAX/TUA
+  goal; a new goal or explicit reprioritization must open their first slices.
+
+Historical safe queue audit 2026-07-03, superseded for queue selection by the
+2026-07-13 follow-up above:
 
 - `scripts/roadmap_safe_queue_audit.py --format markdown` scans JSON roadmaps
   for open `safe_offline`/`repo_only` slices and live/design gates.
@@ -2135,14 +2440,43 @@ Safe queue audit 2026-07-03:
 | L6 Long PDF Extraction + RAG/Ingestion Reliability | backend complete | L6-0 through L6-6 are implemented and tested; UI/operator visibility is tracked in L8 rather than this backend lane. |
 | L7 Large File Refactoring | backend accepted / parked | R0/R1, R7A-R7H, R8A-R8E, R9A-R9L, R10A, R11A-R11K and R12A-R12CU are complete; the formerly active backend hotspots are reduced below candidate threshold, `src/llm_core.py` is accepted at 1199 lines against the operator's 1200-line ceiling, and remaining warning-band cleanup is no longer a blocker unless a backend-only hotfile is explicitly selected. CSS, legacy UI and v2 UI refactoring are out of this backend track. |
 | L8 UI/V2 + Legacy Chat Integration | backend contracts ready, UI/live-gated | Backend ABC exposes contracts, diagnostics, `GET /api/legacy-chat/contracts` and `GET /api/version-one/readiness`; LC1-LC9 are UI-agent wiring work, LC10 live affordances remain bounded operator-gated, and no legacy/V2 UI file should be edited by backend ABC. |
-| L9 Calendar MCP + Autonomous Coding Control | repo slices complete, live-gated | Calendar/reminder normalization, Calendar MCP, Telegram agent chat, Telegram reminder controls, autonomous coding runner state, sandbox evidence, remote-control consumption, deploy gates and maintenance self-knowledge are implemented; live Telegram reminder, Telegram agent-chat smoke, CalDAV writeback and workstation-to-Telegram coding smokes still need bounded operator input. |
+| L9 Calendar MCP + Autonomous Coding Control | Calendar deferred / coding live-gated | Existing Calendar/reminder and coding repo work remains complete. Calendar, E-Mail and Contacts are deferred by operator priority; no reminder or CalDAV decision is currently requested. Coding smokes remain available only after later reprioritization and bounded input. |
 | L10 Observability + Security Ops | repo slices complete, live-gated | Unified runtime logging, MCP debugging, incident response and Debian observability contracts are prepared; Debian setup, Loki/Prometheus retention/exposure decisions, tabletop smoke and CrowdSec/remediation actions require explicit live/operator gates. |
 | L11 Agent Autonomy Extensions | backend/live pilot complete, UI-gated for operations | Browser sense, website research, no-GPU observation, sandbox execution and Memory/RaptorGraph write intent are implemented with bounded live evidence; future pilots need concrete target bounds and the operator-facing UI remains outside this backend track. |
 | L12 Recent Changes + Patch Notes | backend complete, UI-gated | Foundation, RCH4 quality, RCH5 retention/automation, RCH6 agent routing and RCH7 security/privacy closeout are implemented and tested; only the patch-notes button remains UI-owned. |
 | L13 Automated Agent Handoff Orchestration | repo foundation complete, live-gated | Plan/run stores, thread refs, heartbeat planning, handoff parsing, quality gates, dashboard snapshots, activation readiness, dry-run live bridge/command plans and Subagent Runtime v1 fake backend/tool/status path are implemented; real thread sends, runtime command execution, scheduler activation and UI placement require explicit gates. |
 | L14 GitHub Issue Intelligence | backend complete, live-gated | GHISS0-GHISS8 are implemented and tested: provider-neutral issue fields, owner-scoped persistence, fake-client read-only sync, repo-only issue index, duplicate preview service, gated agent tool, backend routes, token-free projection contracts and narrow read-only MCP exposure. Live GitHub token setup, provider sync/write rollout and optional scheduled sync remain gated. |
+| L17 Tool Taxonomy + Registry Governance | active repo execution / live default-off | TAX0-TAX12 close registry, taxonomy, security, API/UI and migration drift without user gates. The only future activation contract remains dormant until acceptance and rollback are green. |
+| L18 Privacy-Safe Tool Usage Analytics | planned repo execution after TAX1 / live default-off | TUA0-TUA12 build content-free invocation statistics, dedupe, retention and aggregate-only diagnostics without user gates. Real collection/backfill and the one activation decision remain dormant until full privacy acceptance. |
+| L19 Gemma3 Maintenance Runtime Isolation | planned goal not started / live default-off | GMI-00 through GMI-15 are execution-ready, but do not displace TAX/TUA; exact maintenance-only runtime and one rollback-safe activation packet remain to be implemented. |
+| L20 GraphRAG/RAPTOR Performance & Observability | planned goal not started / live default-off | GRO-00 through GRO-14 are execution-ready; correct metrics/cache/event-loop/backend-benchmark work precedes one private Prometheus/Grafana activation. |
+| L21 Unified Source Index Foundation | planned after current queue / live default-off | USI1/USI1B architecture and sourcing are frozen; USI-00 through USI-15 plus L25-L27 child closure implement the shared identity/store/query/runtime/domain/lifecycle plane without replacing Domain Truth. |
+| L22 Codebase Memory Code Intelligence | preferred engine under validation / live default-off | Repository, UI and paper review select CBM first, but Odysseus-local edge/locator/hybrid/security/scale evidence and USI mapping are required before activation. |
+| L23 Code Lineage & Timeline | planned after USI identity / live default-off | CLT-00 through CLT-13 add Git-evidence lineage and first-observable sorting without creating commits, fetching history or claiming absolute creation. |
+| L24 Lens > Code Graph | planned after bounded graph API / UI default-off | LCG-00 through LCG-13 integrate the graph as a native Lens mode; production UI waits for CBM/USI APIs, optional timeline bridge, visual QA and one UI-live gate. |
+| L25 USI Runtime & Consumer Integration | planned child closure / runtime default-off | UIR-00 through UIR-14 compose one runtime, JobStore worker and bounded consumer path; direct RAG/Chat/Agent cutover remains shadowed and rollback-safe under the parent USI gate. |
+| L26 USI Domain Adapter Rollout | planned child closure / source waves default-off | UDA-00 through UDA-18 add one adapter contract and selected domain waves without moving domain writes; Email/Calendar/Todos/Contacts/Chat content stay deferred/default-off until reprioritized. |
+| L27 USI Data Lifecycle & Operations | planned child closure / live actions default-off | ULO-00 through ULO-14 prove owner scope, delete/access, export, backup/restore, wipe, retention and recovery while existing action authorization and USI-13 backup primitives remain canonical. |
+| L28 Telegram Todo Domain Truth | operator-prioritized P0 next safe frontier / live actions default-off | TTD-00 through TTD-10, including TTD-07A daily internal session rollover, are registered under OWM-22 but not added to the active queue by roadmap authoring. Repo work uses synthetic data; deployment, production data repair, Telegram smoke and productive rollover stay four independent future gates. |
 
-Recommended next human decision:
+Recommended next execution, no human decision required:
+
+- Execute TAX0, then TAX1. After TAX1, TUA0-TUA2 may proceed on disjoint paths.
+- Continue the detailed child-roadmap queues with automated tests and
+  reversible defaults; do not create design, review, staging or implementation
+  user gates.
+- Ask for one bounded live decision per feature only after TAX12 or TUA12 has
+  produced a green activation packet and verified rollback.
+- Keep Calendar, E-Mail and Contacts deferred/default-off.
+- Treat the 2026-07-21 operator reprioritization as satisfied for scheduling
+  L28 at the next clean Single-Writer integration boundary. Do not interrupt an
+  in-flight shared-hotfile writer; after that boundary register `TTD-00` only.
+- This authoring update grants no implementation, deploy, repair, Telegram-send
+  or productive-rollover authority.
+
+Superseded 2026-07-03 gate recommendations below are retained only as
+historical evidence and must not be selected while the L17/L18 safe queue is
+open:
 
 - Work through gate families in this order unless the operator explicitly
   selects another live target: `version_release`, `calendar_reminders`,

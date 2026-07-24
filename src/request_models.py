@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+from src.memory_category_policy import normalize_memory_category
 
 
 # Request Models
@@ -42,14 +43,17 @@ class MemoryAddRequest(BaseModel):
     @field_validator('category')
     @classmethod
     def validate_category(cls, v):
-        if v not in ['fact', 'contact', 'task', 'preference', 'identity', 'project', 'goal']:
-            return 'fact'  # Default to 'fact' if invalid
-        return v
+        return normalize_memory_category(v)
 
 
 class MemoryUpdateRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000, description="Updated memory text")
-    category: Optional[str] = Field(default=None, pattern="^(fact|contact|task|preference|identity|project|goal)$", description="Memory category")
+    category: Optional[str] = Field(default=None, description="Memory category")
+
+    @field_validator('category')
+    @classmethod
+    def validate_category(cls, v):
+        return None if v is None else normalize_memory_category(v)
 
 
 class PresetUpdateRequest(BaseModel):

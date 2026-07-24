@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Form, Query, Request, Response
 from services.youtube.youtube_handler import extract_youtube_id, extract_transcript_async
 from core.constants import DEFAULT_HOST, DATA_DIR
 from core.middleware import require_admin
-from src.secret_safe_diagnostics import DiagnosticContract, project_diagnostic
+from src.auth_helpers import require_api_token_exact_scope
 
 logger = logging.getLogger(__name__)
 
@@ -305,41 +305,14 @@ def setup_diagnostics_routes(
     async def get_runtime_metrics(request: Request) -> Response:
         """Render only process-local content-free registries for Prometheus."""
 
-        token_request = False
-        try:
-            from src.auth_helpers import require_api_token_exact_scope
-
-            token_request = require_api_token_exact_scope(
-                request,
-                "observability:read",
-            )
-        except ImportError:
-            # Older isolated catalogs do not expose scoped API-token auth yet.
-            # The safe compatibility default is the stricter admin-only route.
-            token_request = False
+        token_request = require_api_token_exact_scope(request, "observability:read")
         if not token_request:
             require_admin(request)
         try:
-            try:
-                from src.observability_metrics import render_process_runtime_metrics
-
-                rendered_metrics = render_process_runtime_metrics()
-            except ImportError:
-                from src.ai_activity_ledger import read_ai_activity
-                from src.memory_provenance_ledger import read_memory_provenance
-                from src.observability_metrics import (
-                    build_runtime_metrics_from_diagnostics,
-                    render_prometheus_text,
-                )
-
-                snapshot = build_runtime_metrics_from_diagnostics(
-                    ai_activity=read_ai_activity(day=None, limit=1000),
-                    memory_provenance=read_memory_provenance(day=None, limit=1000),
-                )
-                rendered_metrics = render_prometheus_text(snapshot)
+            from src.observability_metrics import render_process_runtime_metrics
 
             return Response(
-                rendered_metrics,
+                render_process_runtime_metrics(),
                 media_type="text/plain; version=0.0.4; charset=utf-8",
             )
         except ValueError:
@@ -397,6 +370,63 @@ def setup_diagnostics_routes(
         except Exception:
             logger.error("Open-work diagnostics retrieval failed")
             raise HTTPException(500, "Failed to retrieve open-work diagnostics")
+
+    @router.get("/api/diagnostics/tool-usage")
+    async def get_tool_usage_analytics(
+        request: Request,
+        start_day: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+        end_day: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+        tool: str | None = Query(None, max_length=120),
+        family: str | None = Query(None, max_length=80),
+        source: str | None = Query(None, max_length=40),
+        surface: str | None = Query(None, max_length=40),
+        status: str | None = Query(None, max_length=40),
+        limit: int = Query(100, ge=1, le=250),
+    ) -> Dict[str, Any]:
+        """Return bounded aggregate-only tool usage diagnostics for admins."""
+
+        # Authenticate before resolving or opening any analytics store.
+        require_admin(request)
+        current_day = datetime.now(timezone.utc).date()
+        resolved_end = end_day or current_day.isoformat()
+        resolved_start = start_day or (
+            current_day - timedelta(days=6)
+        ).isoformat()
+        service = tool_usage_analytics
+        owned_store = None
+        try:
+            if service is None:
+                from core.database import DATABASE_URL
+                from src.tool_usage_analytics import ToolUsageAnalyticsService
+                from src.tool_usage_store import ToolUsageStore
+
+                if not str(DATABASE_URL).startswith("sqlite:///"):
+                    raise RuntimeError("tool usage analytics store is unavailable")
+                database_path = str(DATABASE_URL).replace("sqlite:///", "", 1)
+                owned_store = ToolUsageStore(database_path)
+                service = ToolUsageAnalyticsService(owned_store)
+            report = service.summarize(
+                resolved_start,
+                resolved_end,
+                tool_analytics_id=tool,
+                tool_family=family,
+                tool_source=source,
+                surface=surface,
+                status=status,
+                row_limit=limit,
+                max_span_days=90,
+            )
+            return _project_tool_usage_report(report)
+        except HTTPException:
+            raise
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+        except Exception:
+            logger.error("Tool usage aggregate diagnostics retrieval failed", exc_info=True)
+            raise HTTPException(503, "Tool usage aggregate diagnostics unavailable")
+        finally:
+            if owned_store is not None:
+                owned_store.close()
 
     @router.get("/api/db/stats")
     async def get_database_stats(request: Request) -> Dict[str, Any]:
@@ -463,17 +493,10 @@ def setup_diagnostics_routes(
 
 
 def _project_tool_usage_report(report: Dict[str, Any]) -> Dict[str, Any]:
-    """Allowlist aggregate tool-usage output against future internal fields."""
+    """Allowlist the aggregate API response against future internal fields."""
 
-    if type(report) is not dict:
-        return {
-            "schema": None,
-            "quality": {"raw_content_visible": False},
-            "rows": (),
-            "raw_content_visible": False,
-        }
-    quality = report.get("quality") if type(report.get("quality")) is dict else {}
-    rows = report.get("rows") if type(report.get("rows")) in (list, tuple) else ()
+    quality = report.get("quality") if isinstance(report.get("quality"), dict) else {}
+    rows = report.get("rows") if isinstance(report.get("rows"), (list, tuple)) else ()
     row_fields = (
         "day",
         "tool_analytics_id",
@@ -492,7 +515,7 @@ def _project_tool_usage_report(report: Dict[str, Any]) -> Dict[str, Any]:
     projected_rows = tuple(
         {field: row.get(field) for field in row_fields}
         for row in rows
-        if type(row) is dict
+        if isinstance(row, dict)
     )
     quality_fields = (
         "invocation_count",

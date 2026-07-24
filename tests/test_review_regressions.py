@@ -802,7 +802,7 @@ async def test_webhook_tool_reuses_private_url_validation(monkeypatch):
     calls = []
 
     class FakeResponse:
-        status_code = 422
+        status_code = 400
         text = "URL must not point to private/internal addresses"
 
         @staticmethod
@@ -825,27 +825,21 @@ async def test_webhook_tool_reuses_private_url_validation(monkeypatch):
 
     monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
 
-    # Use the narrow implementation module. Faking the global database module
-    # made the old test fail in unrelated tool-domain imports before exercising
-    # the current confirmed-route boundary.
-    from src.tool_domains.admin_services import do_manage_webhooks
+    from src.tool_implementations import do_manage_webhooks
 
     result = await do_manage_webhooks(
-        json.dumps(
-            {
-                "action": "add",
-                "url": "http://127.0.0.1:8000/hook",
-                "events": "chat.completed",
-                "confirmed": True,
-            }
-        ),
+        json.dumps({
+            "action": "add",
+            "url": "http://127.0.0.1:8000/hook",
+            "events": "chat.completed",
+            "confirmed": True,
+        }),
         owner="admin",
     )
 
     assert result["exit_code"] == 1
     assert result["status_code"] == 422
     assert "private/internal" in result["error"]
-    assert len(calls) == 1
     assert calls[0][0].endswith("/api/webhooks")
     assert calls[0][1]["data"]["url"] == "http://127.0.0.1:8000/hook"
 

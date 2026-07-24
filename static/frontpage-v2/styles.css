@@ -448,7 +448,7 @@ button {
   position: relative;
   min-height: 38px;
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) auto;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
   align-items: center;
   gap: 9px;
   border: 1px solid transparent;
@@ -478,6 +478,48 @@ button {
   border: 1px solid var(--workspace-accent);
   border-radius: 50%;
   box-shadow: 0 0 10px color-mix(in srgb, var(--workspace-accent) 38%, transparent);
+}
+
+.header-menu-icon svg {
+  display: none;
+}
+
+.header-menu-icon[data-tool-icon] {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--workspace-accent) 22%, transparent);
+  border-radius: 7px;
+  background:
+    radial-gradient(circle at 50% 12%, color-mix(in srgb, var(--workspace-accent) 13%, transparent), transparent 56%),
+    color-mix(in srgb, var(--bg) 76%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--workspace-accent) 5%, transparent),
+    0 0 10px color-mix(in srgb, var(--workspace-accent) 8%, transparent);
+}
+
+.header-menu-icon[data-tool-icon] svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+  fill: none;
+  stroke: color-mix(in srgb, var(--workspace-accent) 82%, rgba(236, 253, 255, 0.68));
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--workspace-accent) 18%, transparent));
+}
+
+.header-menu-row:hover .header-menu-icon[data-tool-icon],
+.header-menu-row:focus-visible .header-menu-icon[data-tool-icon] {
+  border-color: color-mix(in srgb, var(--workspace-accent) 46%, transparent);
+  background: color-mix(in srgb, var(--workspace-accent) 9%, rgba(2, 9, 16, 0.92));
+}
+
+.header-menu-row:hover .header-menu-icon[data-tool-icon] svg,
+.header-menu-row:focus-visible .header-menu-icon[data-tool-icon] svg {
+  stroke: color-mix(in srgb, var(--workspace-accent) 72%, white 18%);
 }
 
 .header-menu-row strong {
@@ -776,18 +818,30 @@ button {
   transform: translateY(0) scale(1);
 }
 
-.tools-button-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 3px);
-  gap: 3px;
+.tools-button-icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: rgba(215, 247, 255, 0.66);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition:
+    stroke 150ms ease,
+    filter 150ms ease,
+    transform 150ms ease;
 }
 
-.tools-button-grid span {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: rgba(215, 247, 255, 0.58);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--cyan) 28%, transparent);
+.tools-button-icon circle {
+  fill: color-mix(in srgb, var(--cyan) 10%, rgba(2, 9, 16, 0.9));
+}
+
+.tools-button:hover .tools-button-icon,
+.tools-button:focus-visible .tools-button-icon,
+.tools-cluster:focus-within .tools-button-icon {
+  stroke: rgba(236, 253, 255, 0.94);
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--cyan) 34%, transparent));
+  transform: translateY(-1px);
 }
 
 .tools-cluster .header-dropdown {
@@ -1360,8 +1414,10 @@ button {
   z-index: 2;
   width: 100%;
   height: 100%;
-  padding: 40px;
+  padding: 40px 40px 0;
   overflow: hidden;
+  overflow: clip;
+  overscroll-behavior: none;
   transform-origin: 50% 54%;
   transition:
     transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -3211,17 +3267,6 @@ button {
   transform: scale(1);
 }
 
-.window-snap-preview.dock {
-  border: 1px solid color-mix(in srgb, var(--cyan) 46%, transparent);
-  border-radius: 12px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--cyan) 12%, transparent), color-mix(in srgb, var(--blue) 8%, transparent)),
-    rgba(2, 12, 20, 0.2);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--cyan) 12%, transparent),
-    0 0 24px color-mix(in srgb, var(--cyan) 18%, transparent);
-}
-
 .window-snap-preview span {
   position: absolute;
   display: inline-grid;
@@ -3248,18 +3293,6 @@ button {
   left: 50%;
   top: 50%;
   transform: translate(-50%, 8px);
-}
-
-.window-snap-preview.dock-right span {
-  right: 10px;
-  top: 10px;
-  transform: none;
-}
-
-.window-snap-preview.dock-top span {
-  left: 50%;
-  top: 10px;
-  transform: translateX(-50%);
 }
 
 .projects-overview-window {
@@ -6196,6 +6229,127 @@ button {
   font: 11px/1.3 var(--mono);
 }
 
+.agent-tool-brief {
+  width: min(590px, 78%);
+  align-self: flex-start;
+  border: 1px solid color-mix(in srgb, var(--red) 18%, transparent);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(255, 91, 125, 0.07), rgba(255, 91, 125, 0.025) 64%, transparent),
+    rgba(4, 10, 18, 0.5);
+  color: rgba(255, 219, 228, 0.9);
+  font: 11px/1.3 var(--mono);
+  overflow: hidden;
+}
+
+.agent-tool-brief summary {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: 15px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 9px 6px 8px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.agent-tool-brief summary::-webkit-details-marker {
+  display: none;
+}
+
+.agent-tool-brief summary:hover,
+.agent-tool-brief summary:focus-visible {
+  outline: none;
+  background: rgba(255, 91, 125, 0.055);
+}
+
+.agent-tool-brief-dot {
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--red);
+  border-radius: 50%;
+  background: rgba(10, 7, 14, 0.96);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--red) 48%, transparent);
+}
+
+.agent-tool-brief-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.agent-tool-brief-copy strong {
+  overflow: hidden;
+  color: var(--red);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-tool-brief-copy span {
+  overflow: hidden;
+  color: var(--ink-dim);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-tool-brief-meta {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.agent-tool-brief-meta span {
+  min-height: 19px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--red) 20%, transparent);
+  border-radius: 5px;
+  color: rgba(255, 219, 228, 0.76);
+  background: rgba(2, 9, 16, 0.42);
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.agent-tool-brief-grid {
+  display: grid;
+  gap: 1px;
+  border-top: 1px solid color-mix(in srgb, var(--red) 12%, transparent);
+  padding: 5px 8px 8px 30px;
+}
+
+.agent-tool-brief-step {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 2px;
+  padding: 5px 0;
+}
+
+.agent-tool-brief-step span {
+  color: color-mix(in srgb, var(--red) 78%, white 8%);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.agent-tool-brief-step strong {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(244, 252, 255, 0.9);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-tool-brief-step small {
+  grid-column: 2;
+  color: rgba(189, 217, 226, 0.56);
+  font: 11px/1.35 var(--font);
+}
+
 .work-run::before {
   content: "";
   position: absolute;
@@ -6442,6 +6596,10 @@ button {
 
 .context-nodge[data-context-type="project"] {
   --context-color: var(--red);
+}
+
+.context-nodge[data-context-type="roadmap"] {
+  --context-color: var(--amber);
 }
 
 .context-nodge[data-context-type="chat"],
@@ -7825,6 +7983,11 @@ button {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--cyan) 16%, transparent);
 }
 
+.document-spark-control {
+  color: color-mix(in srgb, var(--amber) 82%, white 8%);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--amber) 34%, transparent);
+}
+
 .document-viewer-window .window-body {
   background:
     radial-gradient(circle at 70% 20%, color-mix(in srgb, var(--cyan) 5%, transparent), transparent 40%),
@@ -7898,6 +8061,235 @@ button {
 
 .document-text-surface li {
   margin: 8px 0 0 20px;
+}
+
+.document-roadmap-mode {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.roadmap-document-bar {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--amber) 11%, transparent);
+  background: color-mix(in srgb, var(--bg) 84%, transparent);
+  padding: 0 16px;
+}
+
+.roadmap-document-path {
+  min-width: 0;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--muted) 82%, transparent);
+  font: 10px/1 var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roadmap-document-tabs {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--amber) 20%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+}
+
+.roadmap-document-tabs button {
+  height: 24px;
+  border: 0;
+  border-right: 1px solid color-mix(in srgb, var(--amber) 12%, transparent);
+  background: transparent;
+  color: color-mix(in srgb, var(--muted) 84%, transparent);
+  padding: 0 10px;
+  cursor: pointer;
+  font: 700 10px/1 var(--mono);
+}
+
+.roadmap-document-tabs button:last-child {
+  border-right: 0;
+}
+
+.roadmap-document-tabs button.active {
+  background: color-mix(in srgb, var(--amber) 9%, transparent);
+  color: color-mix(in srgb, var(--amber) 78%, white 8%);
+}
+
+.roadmap-document-content {
+  min-height: 0;
+  overflow: auto;
+  padding: 36px 54px 58px;
+}
+
+.roadmap-readable {
+  max-width: 76ch;
+  margin: 0 auto;
+}
+
+.roadmap-doc-kicker {
+  color: color-mix(in srgb, var(--amber) 72%, white 6%);
+  font: 800 10px/1 var(--mono);
+}
+
+.roadmap-readable h1 {
+  margin: 8px 0 18px;
+  color: color-mix(in srgb, var(--ink) 88%, transparent);
+  font: 800 24px/1.14 var(--mono);
+  text-wrap: balance;
+}
+
+.roadmap-doc-summary,
+.roadmap-doc-task,
+.roadmap-doc-gate {
+  border: 1px solid color-mix(in srgb, var(--cyan) 12%, transparent);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--amber) 5%, transparent), transparent 48%),
+    color-mix(in srgb, var(--bg) 72%, transparent);
+}
+
+.roadmap-doc-summary {
+  padding: 12px;
+}
+
+.roadmap-doc-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: color-mix(in srgb, var(--muted) 88%, transparent);
+  font: 800 10px/1 var(--mono);
+}
+
+.roadmap-doc-summary textarea {
+  width: 100%;
+  min-height: 94px;
+  resize: vertical;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: color-mix(in srgb, var(--ink) 82%, transparent);
+  font: 14px/1.56 var(--font);
+}
+
+.roadmap-doc-section {
+  margin-top: 22px;
+}
+
+.roadmap-doc-section h2 {
+  margin: 0 0 10px;
+  color: color-mix(in srgb, var(--ink) 82%, transparent);
+  font: 800 12px/1 var(--mono);
+}
+
+.roadmap-doc-task-list {
+  display: grid;
+  gap: 8px;
+}
+
+.roadmap-doc-task {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto auto;
+  align-items: start;
+  gap: 10px;
+  padding: 9px 10px;
+}
+
+.roadmap-doc-check {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--green) 42%, transparent);
+  border-radius: 50%;
+  color: color-mix(in srgb, var(--green) 84%, white 8%);
+  font: 900 11px/1 var(--mono);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--green) 10%, transparent);
+}
+
+.roadmap-doc-task-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.roadmap-doc-task-copy strong,
+.roadmap-doc-task-copy span {
+  outline: 0;
+}
+
+.roadmap-doc-task-copy strong {
+  color: color-mix(in srgb, var(--ink) 84%, transparent);
+  font: 800 12px/1.2 var(--mono);
+}
+
+.roadmap-doc-task-copy span {
+  color: color-mix(in srgb, var(--muted) 86%, transparent);
+  font: 12px/1.35 var(--font);
+}
+
+.roadmap-doc-task-copy strong:focus,
+.roadmap-doc-task-copy span:focus,
+.roadmap-doc-summary textarea:focus,
+.roadmap-json-editor:focus {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--amber) 22%, transparent);
+}
+
+.roadmap-doc-task-state {
+  color: color-mix(in srgb, var(--muted) 78%, transparent);
+  font: 800 9px/1 var(--mono);
+}
+
+.roadmap-doc-gates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.roadmap-doc-gate {
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, auto) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  border-color: color-mix(in srgb, var(--red) 24%, transparent);
+  background: color-mix(in srgb, var(--red) 6%, rgba(2, 10, 17, 0.72));
+  color: color-mix(in srgb, var(--red) 72%, white 8%);
+  padding: 3px 4px 3px 10px;
+  font: 800 10px/1 var(--mono);
+}
+
+.roadmap-doc-gate.done {
+  border-color: color-mix(in srgb, var(--green) 24%, transparent);
+  background: color-mix(in srgb, var(--green) 6%, rgba(2, 10, 17, 0.72));
+  color: color-mix(in srgb, var(--green) 78%, white 8%);
+}
+
+.roadmap-doc-gate strong {
+  color: color-mix(in srgb, var(--ink) 78%, transparent);
+  font-weight: 800;
+}
+
+.roadmap-document-data {
+  padding: 16px;
+}
+
+.roadmap-json-editor {
+  width: 100%;
+  min-height: 100%;
+  resize: none;
+  border: 1px solid color-mix(in srgb, var(--cyan) 14%, transparent);
+  border-radius: 8px;
+  outline: 0;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--cyan) 4%, transparent), transparent 18%),
+    color-mix(in srgb, var(--bg) 78%, transparent);
+  color: color-mix(in srgb, var(--ink) 80%, transparent);
+  padding: 14px 16px;
+  font: 12px/1.56 var(--mono);
+  tab-size: 2;
 }
 
 .document-code-mode {

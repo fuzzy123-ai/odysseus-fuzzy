@@ -1532,159 +1532,108 @@ def setup_model_routes(model_discovery):
 
     # ── Tool management ──
 
-    def _connected_mcp_tools() -> list[dict]:
-        """Read the already-discovered MCP inventory without connecting or probing."""
-        try:
-            from src.tool_utils import get_mcp_manager
+    def _runtime_dynamic_tool_sources():
+        from src.tool_registry import list_tools as list_plugin_tools
+        from src.tool_utils import get_mcp_manager
 
-            manager = get_mcp_manager()
-            return list(manager.get_all_tools()) if manager is not None else []
+        plugin_tools = list_plugin_tools()
+        manager = get_mcp_manager()
+        try:
+            mcp_tools = manager.get_all_tools() if manager is not None else []
         except Exception:
-            return []
+            mcp_tools = []
+        return plugin_tools, mcp_tools
 
     @router.get("/tools")
-    def list_tools():
-        """Return complete redacted descriptors and legacy-compatible tool rows."""
-        from src.agent_tools import TOOL_TAGS
-        from src.builtin_tool_catalog import catalog_call_allowed
+    def list_tools(request: Request):
+        """Return the complete redacted Descriptor-v2 Admin projection."""
+        require_admin(request)
+        from src.builtin_tool_catalog import resolve_operator_priority_disabled
         from src.runtime_tool_status import build_tool_catalog_projection
-        from src.tool_catalog import (
-            CATALOG_V2_ENV,
-            CATALOG_V2_FEATURE_FLAG,
-            catalog_v2_enabled,
-        )
-        from src.tool_index import BUILTIN_TOOL_DESCRIPTIONS
-        from src.tool_registry import list_tools as list_plugin_tools
-        from src.tool_policy import operator_priority_disabled_tools
 
         settings = _load_settings()
-        disabled_tools = operator_priority_disabled_tools(settings)
-        plugin_tools = list_plugin_tools()
-        if not catalog_v2_enabled():
-            disabled = set(disabled_tools)
-            tools = [
-                {
-                    "id": tag,
-                    "enabled": tag not in disabled and catalog_call_allowed(tag),
-                }
-                for tag in sorted(TOOL_TAGS)
-            ]
-            tools.extend(
-                {
-                    "id": tool.name,
-                    "name": tool.name,
-                    "desc": tool.description,
-                    "cat": "Plugins",
-                    "ctx": "~plugin",
-                    "permission": tool.permission,
-                    "enabled": tool.name not in disabled,
-                }
-                for tool in plugin_tools
-            )
-            return {"tools": tools}
-
-        projection = build_tool_catalog_projection(
-            disabled_tools=disabled_tools,
-            builtin_descriptions=BUILTIN_TOOL_DESCRIPTIONS,
+        disabled, priority_defaults_applied = resolve_operator_priority_disabled(
+            settings.get("disabled_tools", []),
+            setting_present="disabled_tools" in settings,
+        )
+        plugin_tools, mcp_tools = _runtime_dynamic_tool_sources()
+        payload = build_tool_catalog_projection(
+            disabled_tools=disabled,
             plugin_tools=plugin_tools,
-            mcp_tools=_connected_mcp_tools(),
+            mcp_tools=mcp_tools,
         )
-        mutable_by_id = {item["id"]: item for item in projection["tools"]}
-        legacy_rows = [
-            mutable_by_id[tag]
-            for tag in sorted(TOOL_TAGS)
-            if tag in mutable_by_id
-        ]
-        legacy_rows.extend(
-            item
-            for item in projection["tools"]
-            if item["source"] == "plugin" and item["id"] not in TOOL_TAGS
-        )
-        legacy_rows.sort(key=lambda item: item["id"])
-        projection["tools"] = tuple(legacy_rows)
-        projection["mutable_tool_count"] = len(legacy_rows)
-        projection["feature_flag"] = {
-            "name": CATALOG_V2_FEATURE_FLAG,
-            "environment": CATALOG_V2_ENV,
-            "enabled": True,
-        }
-        return projection
+        payload["operator_priority_defaults_applied"] = priority_defaults_applied
+        return payload
 
     @router.get("/system/runtime-tools")
     def runtime_tools_status(request: Request):
         """Return redacted live tool inventory, schemas and gate classes."""
         require_admin(request)
         from src.runtime_tool_status import build_runtime_tool_status
+        from src.builtin_tool_catalog import resolve_operator_priority_disabled
         from src.tool_index import BUILTIN_TOOL_DESCRIPTIONS
-        from src.tool_registry import list_tools as list_plugin_tools
         from src.tool_schema_definitions import FUNCTION_TOOL_SCHEMAS
         from src.tool_policy import operator_priority_disabled_tools
 
         settings = _load_settings()
+        disabled, _priority_defaults_applied = resolve_operator_priority_disabled(
+            settings.get("disabled_tools", []),
+            setting_present="disabled_tools" in settings,
+        )
+        plugin_tools, mcp_tools = _runtime_dynamic_tool_sources()
         return build_runtime_tool_status(
-            disabled_tools=operator_priority_disabled_tools(settings),
+            disabled_tools=disabled,
             builtin_descriptions=BUILTIN_TOOL_DESCRIPTIONS,
             function_schemas=FUNCTION_TOOL_SCHEMAS,
-            plugin_tools=list_plugin_tools(),
-            mcp_tools=_connected_mcp_tools(),
+            plugin_tools=plugin_tools,
+            mcp_tools=mcp_tools,
         )
 
     class ToolsUpdate(BaseModel):
-        disabled: list = []
+        disabled: List[str] = []
 
     @router.post("/tools")
     def update_tools(body: ToolsUpdate, request: Request):
-        """Update known mutable tool IDs while preserving legacy settings entries."""
+        """Update known toggleable tool IDs while retaining legacy settings."""
         require_admin(request)
-        from src.builtin_tool_catalog import (
-            BUILTIN_TOOL_SPECS,
-            catalog_call_allowed,
-        )
-        from src.tool_catalog import ToolAvailability
-        from src.tool_registry import list_tools as list_plugin_tools
+        from src.runtime_tool_status import build_tool_catalog_projection
 
-        requested = list(body.disabled or [])
-        if any(not isinstance(item, str) for item in requested):
-            raise HTTPException(422, "disabled must contain only tool ID strings")
-        known_mutable = {
-            spec.tool_id
-            for spec in BUILTIN_TOOL_SPECS
-            if catalog_call_allowed(spec.tool_id)
-            and spec.availability == ToolAvailability.AVAILABLE
-        }
-        known_mutable.update(
-            str(tool.name)
-            for tool in list_plugin_tools()
-            if str(getattr(tool, "name", "") or "")
+        settings = _load_settings()
+        plugin_tools, mcp_tools = _runtime_dynamic_tool_sources()
+        projection = build_tool_catalog_projection(
+            disabled_tools=settings.get("disabled_tools", []),
+            plugin_tools=plugin_tools,
+            mcp_tools=mcp_tools,
         )
-        normalized = [item.strip() for item in requested]
-        invalid = sorted({item for item in normalized if not item or item not in known_mutable})
-        if invalid:
+        known_allowed = {
+            str(item.get("runtime_tool_id") or "")
+            for item in projection["tools"]
+            if item.get("settings_toggle_allowed")
+        }
+        requested = {str(item).strip() for item in body.disabled if str(item).strip()}
+        unknown = tuple(sorted(requested - known_allowed))
+        if unknown:
             raise HTTPException(
-                422,
-                {
-                    "error": "unknown_or_immutable_tool_ids",
-                    "tool_ids": invalid,
-                    "settings_written": False,
+                status_code=400,
+                detail={
+                    "code": "unknown_or_non_toggleable_tool_ids",
+                    "tool_ids": unknown,
                 },
             )
-        settings = _load_settings()
-        existing = settings.get("disabled_tools")
-        preserved_legacy = (
-            {
-                item
-                for item in existing
-                if isinstance(item, str) and item not in known_mutable
-            }
-            if isinstance(existing, list)
-            else set()
-        )
-        stored = sorted(set(normalized) | preserved_legacy)
+
+        current = {
+            str(item).strip()
+            for item in settings.get("disabled_tools", [])
+            if str(item).strip()
+        }
+        preserved_legacy = current - known_allowed
+        stored = sorted(requested | preserved_legacy)
         settings["disabled_tools"] = stored
         _save_settings(settings)
         return {
             "ok": True,
-            "disabled": tuple(sorted(set(normalized))),
+            "disabled": stored,
+            "requested_disabled": sorted(requested),
             "preserved_legacy_count": len(preserved_legacy),
         }
 

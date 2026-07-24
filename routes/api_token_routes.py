@@ -30,6 +30,7 @@ ALLOWED_SCOPES = {
     "vault:read",
     "vault:write",
     "vault:delete",
+    "observability:read",
 }
 TOKEN_PROFILES = {
     "chat": ["chat"],
@@ -41,6 +42,7 @@ TOKEN_PROFILES = {
     "obsidian_memory_context": ["chat", "memory:read", "memory:write", "vault:read"],
     "obsidian_writer": ["vault:read", "vault:write"],
     "obsidian_maintenance": ["vault:read", "vault:write", "vault:delete"],
+    "observability_readonly": ["observability:read"],
 }
 
 

@@ -1,177 +1,192 @@
-import copy
 import json
-from pathlib import Path
-import subprocess
-import sys
-
-import pytest
+import re
+from pathlib import Path, PurePosixPath
 
 from scripts.audit_tool_usage_sources import (
-    build_snapshot,
-    render_snapshot,
-    validate_snapshot,
+    CLASSIFICATIONS,
+    SourceEvidence,
+    UsageSource,
+    _validate_sources,
+    audit_usage_sources,
+    main,
+    render_report,
 )
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SNAPSHOT_PATH = ROOT / "docs" / "plans" / "tool-usage-source-overlap.json"
-SCRIPT_PATH = ROOT / "scripts" / "audit_tool_usage_sources.py"
 
 
-def _by_id(snapshot):
-    return {item["source_id"]: item for item in snapshot["sources"]}
+def _source_map(report: dict) -> dict[str, dict]:
+    return {item["source_id"]: item for item in report["sources"]}
 
 
-def test_snapshot_reproduces_both_frozen_historical_baselines_without_a_total():
-    snapshot = build_snapshot()
-    sources = _by_id(snapshot)
+def _all_strings(value):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            yield str(key)
+            yield from _all_strings(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _all_strings(item)
 
-    assert sources["chat_metadata"]["observed_counts"] == {
-        "messages_with_tool_events": 84,
-        "sessions": 32,
-        "tool_events": 1104,
-        "tool_names": 46,
+
+def test_repository_usage_source_baseline_is_clean_and_exact():
+    report = audit_usage_sources(ROOT)
+    summary = report["summary"]
+
+    assert summary["clean"] is True
+    assert summary["chat_baseline"] == {
+        "tool_event_count": 1104,
+        "distinct_tool_name_count": 46,
+        "message_count": 84,
+        "session_count": 32,
     }
+    assert summary["agent_run_baseline"] == {
+        "run_started_event_count": 607,
+        "output_event_count": 606,
+        "distinct_tool_name_count": 43,
+        "run_count": 111,
+    }
+    assert report["violations"] == []
+
+
+def test_every_source_has_one_allowed_role_and_one_primary_candidate():
+    report = audit_usage_sources(ROOT)
+    sources = report["sources"]
+
+    assert {item["classification"] for item in sources} == CLASSIFICATIONS
+    assert [
+        item["source_id"]
+        for item in sources
+        if item["classification"] == "primary_candidate"
+    ] == ["tool_execution_boundary"]
+    assert report["summary"]["classification_counts"] == {
+        "coverage_only": 3,
+        "domain_audit": 2,
+        "not_usage": 2,
+        "primary_candidate": 1,
+    }
+
+
+def test_overlap_policy_explicitly_prevents_legacy_double_counting():
+    report = audit_usage_sources(ROOT)
+
+    assert report["summary"]["legacy_counts_additive"] is False
+    assert report["summary"]["independent_legacy_invocation_total"] is None
+    assert report["counting_policy"]["legacy_sources"] == "coverage_only_not_additive"
+    chat_agent = next(
+        item
+        for item in report["overlaps"]
+        if {item["left"], item["right"]} == {"chat_metadata", "agent_run_ledger"}
+    )
+    assert chat_agent["aggregation_rule"] == "never_sum"
+    assert chat_agent["shared_key_capability"] == "no_reliable_common_invocation_key"
+
+
+def test_source_rows_explain_scope_time_keys_status_duration_privacy_and_gaps():
+    sources = _source_map(audit_usage_sources(ROOT))
+
+    for item in sources.values():
+        assert item["scope"]
+        assert item["time_basis"]
+        assert item["key_capabilities"]
+        assert item["status_capabilities"]
+        assert item["duration_capability"]
+        assert item["privacy_posture"]
+        assert item["historically_missing"]
+        assert item["evidence"]
     assert sources["chat_metadata"]["time_bounds"] == {
         "start": "2026-06-06",
         "end": "2026-06-17",
-    }
-    assert sources["agent_run_ledger"]["observed_counts"] == {
-        "runs": 111,
-        "tool_names": 43,
-        "tool_outputs": 606,
-        "tool_starts": 607,
     }
     assert sources["agent_run_ledger"]["time_bounds"] == {
         "start": "2026-06-13",
         "end": "2026-07-05",
     }
-    assert snapshot["counting_policy"]["independent_invocation_total"] is None
-    assert snapshot["counting_policy"]["may_sum_across_sources"] is False
 
 
-def test_all_six_sources_have_the_required_controlled_classification():
-    snapshot = build_snapshot()
-    assert {
-        item["source_id"]: item["classification"] for item in snapshot["sources"]
-    } == {
-        "agent_run_ledger": "coverage_only",
-        "ai_activity_ledger": "not_usage",
-        "ai_lens": "primary_candidate",
-        "chat_metadata": "coverage_only",
-        "mcp_audit": "domain_audit",
-        "tool_transaction_ledger": "domain_audit",
-    }
-    assert snapshot["classification_counts"] == {
-        "coverage_only": 2,
-        "domain_audit": 2,
-        "not_usage": 1,
-        "primary_candidate": 1,
-    }
+def test_aggregate_report_contains_no_runtime_or_private_values():
+    report = audit_usage_sources(ROOT)
+    summary = report["summary"]
+    strings = list(_all_strings(report))
+
+    assert summary["aggregate_only"] is True
+    assert summary["runtime_or_private_data_read"] is False
+    assert summary["raw_message_visible"] is False
+    assert summary["command_visible"] is False
+    assert summary["tool_output_visible"] is False
+    assert summary["direct_identity_visible"] is False
+    assert all(str(ROOT).replace("\\", "/") not in text.replace("\\", "/") for text in strings)
+    for source in report["sources"]:
+        for evidence in source["evidence"]:
+            assert not PurePosixPath(evidence["path"]).is_absolute()
+            assert re.fullmatch(r"[0-9a-f]{64}", evidence["sha256"])
 
 
-def test_every_source_explains_overlap_and_historical_schema_gaps():
-    for source in build_snapshot()["sources"]:
-        assert source["overlap"]["may_sum_with_other_sources"] is False
-        assert source["overlap"]["risk"]
-        assert source["scope_capabilities"]
-        assert source["key_capabilities"]
-        assert source["status_capabilities"]
-        assert source["historically_missing_fields"]
-
-
-def test_snapshot_is_aggregate_only_and_contains_no_raw_records_or_identifiers():
-    snapshot = build_snapshot()
-    validate_snapshot(snapshot)
-
-    assert snapshot["aggregate_only"] is True
-    assert snapshot["privacy"] == {
-        "direct_identifiers_visible": False,
-        "raw_content_visible": False,
-        "raw_records_read": False,
-    }
-    for source in snapshot["sources"]:
-        privacy = source["privacy_capabilities"]
-        assert privacy["aggregate_only"] is True
-        assert privacy["direct_identifiers_visible"] is False
-        assert privacy["raw_content_visible"] is False
-        assert set(source) == {
-            "classification",
-            "historically_missing_fields",
-            "key_capabilities",
-            "observed_counts",
-            "overlap",
-            "privacy_capabilities",
-            "scope_capabilities",
-            "source_id",
-            "status_capabilities",
-            "time_bounds",
-        }
-
-
-@pytest.mark.parametrize(
-    "mutation",
-    [
-        lambda value: value["counting_policy"].update(may_sum_across_sources=True),
-        lambda value: value["counting_policy"].update(independent_invocation_total=1711),
-        lambda value: value["sources"][0]["overlap"].update(
-            may_sum_with_other_sources=True
-        ),
-        lambda value: value["sources"][0]["privacy_capabilities"].update(
-            raw_content_visible=True
-        ),
-        lambda value: value["sources"][0].update(classification="other"),
-    ],
-)
-def test_validation_fails_closed_on_additive_privacy_or_classification_drift(mutation):
-    snapshot = copy.deepcopy(build_snapshot())
-    mutation(snapshot)
-    with pytest.raises(ValueError):
-        validate_snapshot(snapshot)
-
-
-def test_rendering_is_byte_stable_sorted_json():
-    first = render_snapshot(build_snapshot())
-    second = render_snapshot(build_snapshot())
+def test_report_is_byte_stable_and_sorted():
+    first = audit_usage_sources(ROOT)
+    second = audit_usage_sources(ROOT)
 
     assert first == second
-    assert first.endswith("\n")
-    assert json.loads(first) == build_snapshot()
+    assert render_report(first).encode("utf-8") == render_report(second).encode("utf-8")
+    assert first["sources"] == sorted(first["sources"], key=lambda item: item["source_id"])
 
 
-def test_checked_in_snapshot_matches_the_deterministic_builder():
-    assert SNAPSHOT_PATH.read_text(encoding="utf-8") == render_snapshot(build_snapshot())
-
-
-def test_cli_requires_aggregate_only_guard(tmp_path):
-    result = subprocess.run(
-        [sys.executable, str(SCRIPT_PATH), "--output", str(tmp_path / "snapshot.json")],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
+def test_missing_declared_source_symbol_fails_closed(tmp_path):
+    source_path = tmp_path / "source.py"
+    source_path.write_text("def present():\n    return None\n", encoding="utf-8")
+    source = UsageSource(
+        "tool_execution_boundary",
+        "Fixture",
+        "primary_candidate",
+        "fixture",
+        "fixture",
+        None,
+        None,
+        ("fixture_key",),
+        ("fixture_status",),
+        "fixture_duration",
+        "content_free",
+        (),
+        ("fixture_gap",),
+        (SourceEvidence("source.py", ("missing",)),),
     )
 
-    assert result.returncode != 0
-    assert "--aggregate-only is required" in result.stderr
+    violations = _validate_sources(tmp_path, (source,))
+
+    assert {item["code"] for item in violations} == {"missing_source_symbol"}
 
 
-def test_cli_writes_only_the_deterministic_aggregate_snapshot(tmp_path):
-    output = tmp_path / "snapshot.json"
-    result = subprocess.run(
+def test_cli_requires_aggregate_only_and_detects_snapshot_drift(tmp_path):
+    output = tmp_path / "overlap.json"
+    assert main(["--root", str(ROOT), "--output", str(output)]) == 2
+    assert main(
+        ["--root", str(ROOT), "--aggregate-only", "--output", str(output)]
+    ) == 0
+    assert main(
         [
-            sys.executable,
-            str(SCRIPT_PATH),
+            "--root",
+            str(ROOT),
             "--aggregate-only",
+            "--check",
             "--output",
             str(output),
-        ],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+        ]
+    ) == 0
 
-    assert result.returncode == 0, result.stderr
-    assert output.read_text(encoding="utf-8") == render_snapshot(build_snapshot())
-    assert "no additive total" in result.stdout
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    payload["summary"]["legacy_counts_additive"] = True
+    output.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert main(
+        [
+            "--root",
+            str(ROOT),
+            "--aggregate-only",
+            "--check",
+            "--output",
+            str(output),
+        ]
+    ) == 1

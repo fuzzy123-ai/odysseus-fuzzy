@@ -1,12 +1,13 @@
 import asyncio
+import importlib
 import json
 
-from routes import contacts_routes as contacts
 from src.tool_implementations import do_manage_contact
 
 
 def test_manage_contact_delete_requires_confirmation(monkeypatch):
     calls = []
+    contacts = importlib.import_module("routes.contacts_routes")
 
     def fake_delete(uid):
         calls.append(uid)
@@ -26,6 +27,7 @@ def test_manage_contact_delete_requires_confirmation(monkeypatch):
 
 def test_manage_contact_delete_runs_after_confirmation(monkeypatch):
     calls = []
+    contacts = importlib.import_module("routes.contacts_routes")
 
     def fake_delete(uid):
         calls.append(uid)

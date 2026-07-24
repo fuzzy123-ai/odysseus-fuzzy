@@ -1,188 +1,174 @@
-from datetime import datetime, timedelta, timezone
-import json
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
 
-import routes.chat_routes as chat_routes
-import src.tool_execution as tool_execution
-from routes.chat_helpers import build_trusted_tool_usage_context
-from src.tool_usage_events import (
-    ToolUsageAgentMode,
-    ToolUsageModelScope,
-    ToolUsageSurface,
-    pseudonymize_reference,
-)
-from src.tool_usage_instrumentation import (
-    ToolUsageInstrumentation,
-    build_tool_usage_call_metadata,
-    classify_tool_usage_outcome,
-)
+from routes.chat_helpers import build_trusted_chat_tool_usage_context
+from src.agent_loop import _bind_tool_usage_instrumentation
+from src.tool_execution import execute_tool_block
+from src.tool_usage_context import TrustedToolUsageContext, trusted_model_scope
+from src.tool_usage_events import ToolUsageEventBuilder, pseudonymize_reference
+from src.tool_usage_instrumentation import ToolUsageInstrumentation
 
 
-FIXED_TIME = datetime(2026, 7, 16, 7, 0, tzinfo=timezone.utc)
-HMAC_KEY = b"synthetic-context-key-material"
+HMAC_KEY = b"context-key-" * 3
+FIXED_TIME = datetime(2026, 7, 17, 21, 0, tzinfo=timezone.utc)
 
 
-class SequenceClock:
-    def __init__(self, values):
-        self._values = iter(values)
+class _Sink:
+    def __init__(self):
+        self.events = []
 
-    def __call__(self):
-        return next(self._values)
+    def append_best_effort(self, events):
+        self.events.extend(events)
+        return SimpleNamespace(failure_count=0)
 
 
-def _instrumentation(context, events, *, hmac_key=HMAC_KEY):
+def _instrumentation(context, sink, *, key=HMAC_KEY):
     return ToolUsageInstrumentation(
-        trusted_context=context,
-        sink=events.append,
-        hmac_key=hmac_key,
-        app_version="0.25.0",
-        monotonic=SequenceClock((10.0, 10.1)),
-        wall_clock=SequenceClock((FIXED_TIME, FIXED_TIME + timedelta(milliseconds=100))),
+        builder=ToolUsageEventBuilder(app_version="0.25.0", hmac_key=key),
+        sink=sink,
+        context=context,
+        clock=lambda: FIXED_TIME,
     )
 
 
-def test_chat_helper_builds_normalized_context_from_server_runtime_values():
-    context = build_trusted_tool_usage_context(
-        SimpleNamespace(endpoint_url="http://127.0.0.1:11434/v1"),
-        owner="runtime-owner",
-        session_id="runtime-session",
-        run_id="runtime-run",
+def test_trusted_context_is_bounded_and_audit_packet_excludes_raw_references():
+    context = TrustedToolUsageContext.create(
+        surface="chat",
+        agent_mode="agent",
+        model_scope="local",
+        owner_identity="private-owner",
+        session_identity="private-session",
+        run_identity="private-run",
+        correlation_identity="private-correlation",
+    )
+
+    encoded = repr(context.audit_dict()) + repr(context)
+    assert context.persistence_allowed is True
+    assert context.audit_dict()["surface"] == "chat"
+    assert context.audit_dict()["agent_mode"] == "agent"
+    assert context.audit_dict()["model_scope"] == "local"
+    for private_value in (
+        "private-owner",
+        "private-session",
+        "private-run",
+        "private-correlation",
+    ):
+        assert private_value not in encoded
+    assert context.audit_dict()["raw_content_visible"] is False
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "scope"),
+    [
+        ("http://127.0.0.1:11434", "local"),
+        ("http://localhost:8000/v1", "local"),
+        ("https://models.example.test/v1", "remote"),
+        ("", "unknown"),
+    ],
+)
+def test_model_scope_uses_only_server_selected_endpoint(endpoint, scope):
+    assert trusted_model_scope(endpoint).value == scope
+
+
+def test_chat_context_builder_marks_mixed_fallback_scope_and_server_run_identity():
+    context = build_trusted_chat_tool_usage_context(
+        owner="alice",
+        session_id="session-1",
+        endpoint_urls=["http://localhost:11434", "https://api.example.test/v1"],
         agent_mode=True,
         incognito=False,
+        run_identity="server-run-1",
     )
 
-    assert context.surface == ToolUsageSurface.AGENT
-    assert context.agent_mode == ToolUsageAgentMode.AGENT
-    assert context.model_scope == ToolUsageModelScope.LOCAL
-    assert context.owner == "runtime-owner"
-    assert context.session_id == "runtime-session"
-    assert context.run_id == "runtime-run"
-    assert context.incognito is False
-
-
-def test_capture_requires_server_app_gate_and_matching_trusted_factory():
-    context = build_trusted_tool_usage_context(
-        SimpleNamespace(endpoint_url="https://models.example.invalid/v1"),
-        owner="runtime-owner",
-        session_id="runtime-session",
-        run_id="runtime-run",
-        agent_mode=False,
-        incognito=False,
-    )
-    factory_calls = []
-
-    def factory(received):
-        factory_calls.append(received)
-        return ToolUsageInstrumentation(trusted_context=received)
-
-    request = SimpleNamespace(
-        app=SimpleNamespace(
-            state=SimpleNamespace(tool_usage_instrumentation_factory=factory)
-        )
-    )
-    assert chat_routes._tool_usage_instrumentation_from_runtime(request, context) is None
-    assert factory_calls == []
-
-    request.app.state.tool_usage_capture_enabled = True
-    instrumentation = chat_routes._tool_usage_instrumentation_from_runtime(
-        request,
-        context,
-    )
-    assert instrumentation is not None
-    assert instrumentation.trusted_context is context
-    assert factory_calls == [context]
+    assert context.surface.value == "chat"
+    assert context.agent_mode.value == "agent"
+    assert context.model_scope.value == "mixed"
+    assert context.owner_identity == "alice"
+    assert context.session_identity == "session-1"
+    assert context.run_identity == "server-run-1"
+    assert context.correlation_identity == "session-1"
 
 
 @pytest.mark.asyncio
-async def test_tool_arguments_cannot_spoof_trusted_telemetry_identity(monkeypatch):
-    context = build_trusted_tool_usage_context(
-        SimpleNamespace(endpoint_url="https://models.example.invalid/v1"),
-        owner="runtime-owner",
-        session_id="runtime-session",
-        run_id="runtime-run",
-        agent_mode=True,
-        incognito=False,
+async def test_tool_arguments_cannot_spoof_identity_surface_mode_or_model_scope(monkeypatch):
+    trusted = TrustedToolUsageContext.create(
+        surface="chat",
+        agent_mode="agent",
+        model_scope="local",
+        owner_identity="trusted-owner",
+        session_identity="trusted-session",
+        run_identity="trusted-run",
+        correlation_identity="trusted-correlation",
     )
-    events = []
-    instrumentation = _instrumentation(context, events)
+    sink = _Sink()
+    instrumentation = _instrumentation(trusted, sink)
+    spoofed_arguments = (
+        '{"owner":"attacker","session":"attacker-session",'
+        '"surface":"system","agent_mode":"background_system",'
+        '"model_scope":"remote"}'
+    )
 
-    async def execute(*_args, **_kwargs):
-        return "read_file: ok", {"exit_code": 0}
+    async def _impl(*_args, **_kwargs):
+        return "read_file", {"output": "ok", "exit_code": 0}
 
-    monkeypatch.setattr(tool_execution, "_execute_tool_block_impl", execute)
-    await tool_execution.execute_tool_block(
-        SimpleNamespace(
-            tool_type="read_file",
-            content=json.dumps(
-                {
-                    "owner": "spoof-owner",
-                    "session_id": "spoof-session",
-                    "run_id": "spoof-run",
-                    "surface": "system",
-                    "incognito": False,
-                }
-            ),
-        ),
-        owner="wrapper-owner",
-        session_id="wrapper-session",
+    monkeypatch.setattr("src.tool_execution._execute_tool_block_impl", _impl)
+    await execute_tool_block(
+        SimpleNamespace(tool_type="read_file", content=spoofed_arguments),
         tool_usage_instrumentation=instrumentation,
     )
 
-    assert len(events) == 2
-    for event in events:
-        assert event.owner_ref == pseudonymize_reference(
-            "runtime-owner", hmac_key=HMAC_KEY, kind="owner"
+    assert len(sink.events) == 2
+    for event in sink.events:
+        assert event.surface.value == "chat"
+        assert event.agent_mode.value == "agent"
+        assert event.model_scope.value == "local"
+        assert event.owner_ref == pseudonymize_reference("owner", "trusted-owner", key=HMAC_KEY)
+        assert event.session_ref == pseudonymize_reference("session", "trusted-session", key=HMAC_KEY)
+        assert event.run_ref == pseudonymize_reference("run", "trusted-run", key=HMAC_KEY)
+        assert event.correlation_ref == pseudonymize_reference(
+            "correlation", "trusted-correlation", key=HMAC_KEY
         )
-        assert event.session_ref == pseudonymize_reference(
-            "runtime-session", hmac_key=HMAC_KEY, kind="session"
-        )
-        assert event.run_ref == pseudonymize_reference(
-            "runtime-run", hmac_key=HMAC_KEY, kind="run"
-        )
-        assert event.surface == ToolUsageSurface.AGENT
-        assert event.model_scope == ToolUsageModelScope.REMOTE
-    encoded = json.dumps([event.to_safe_dict() for event in events], sort_keys=True)
-    for forbidden in (
-        "runtime-owner",
-        "runtime-session",
-        "runtime-run",
-        "spoof-owner",
-        "spoof-session",
-        "spoof-run",
-        "wrapper-owner",
-        "wrapper-session",
-    ):
-        assert forbidden not in encoded
+    encoded = " ".join(event.to_json() for event in sink.events)
+    assert "attacker" not in encoded
+    assert "attacker-session" not in encoded
 
 
 def test_missing_hmac_key_produces_null_references_without_raw_fallback():
-    context = build_trusted_tool_usage_context(
-        SimpleNamespace(endpoint_url="https://models.example.invalid/v1"),
-        owner="runtime-owner",
-        session_id="runtime-session",
-        run_id="runtime-run",
-        agent_mode=True,
-        incognito=False,
+    context = TrustedToolUsageContext.create(
+        surface="chat",
+        agent_mode="agent",
+        owner_identity="private-owner",
+        session_identity="private-session",
     )
-    events = []
-    instrumentation = _instrumentation(context, events, hmac_key=None)
-    metadata = build_tool_usage_call_metadata(
-        SimpleNamespace(tool_type="read_file", content="private")
-    )
+    sink = _Sink()
+    instrumentation = _instrumentation(context, sink, key=None)
 
-    span = instrumentation.begin(
-        metadata,
-        owner="wrapper-owner",
-        session_id="wrapper-session",
-    )
-    span.finish(
-        classify_tool_usage_outcome("read_file: ok", {"exit_code": 0}),
-        result={"exit_code": 0},
-    )
+    invocation = instrumentation.begin("read_file", "private argument")
 
-    assert len(events) == 2
-    assert all(event.owner_ref is None for event in events)
-    assert all(event.session_ref is None for event in events)
-    assert all(event.run_ref is None for event in events)
+    assert invocation is not None
+    event = sink.events[0]
+    assert event.owner_ref is None
+    assert event.session_ref is None
+    assert event.reference_state.value == "unavailable"
+    assert "private-owner" not in event.to_json()
+    assert "private-session" not in event.to_json()
+
+
+def test_agent_loop_binding_requires_trusted_context_and_is_fail_open():
+    context = TrustedToolUsageContext.create(surface="chat", agent_mode="agent")
+
+    class _Factory:
+        def with_context(self, supplied):
+            assert supplied is context
+            return "bound"
+
+    class _BrokenFactory:
+        def with_context(self, _supplied):
+            raise RuntimeError("private bind failure")
+
+    assert _bind_tool_usage_instrumentation(context, _Factory()) == "bound"
+    assert _bind_tool_usage_instrumentation(None, _Factory()) is None
+    assert _bind_tool_usage_instrumentation(context, None) is None
+    assert _bind_tool_usage_instrumentation(context, _BrokenFactory()) is None

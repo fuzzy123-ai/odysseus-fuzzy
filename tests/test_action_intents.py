@@ -37,6 +37,18 @@ def test_note_todo_and_reminder_actions_promote_to_agent():
     assert message_needs_tools("set a reminder to call Pat at 4pm")
 
 
+def test_todo_mutations_have_their_own_category_without_stealing_recurring_tasks():
+    for text in (
+        "Can you add a todo?", "Neue To-do: Aufgabe Alpha", "complete my todos",
+        "checklist reopen the first item", "lösche die Aufgaben", "Checklisten wiederöffnen",
+        "add a cheklist\nwith milk", "remove this toodo item",
+    ):
+        assert classify_tool_intent(text).category == "todos", text
+    assert classify_tool_intent("create a todo digest every morning").category == "tasks"
+    assert classify_tool_intent("take a note about the server").category == "notes"
+    assert classify_tool_intent("set a reminder for tomorrow").category == "notes"
+
+
 def test_recurring_daily_task_requests_promote_to_agent():
     assert message_needs_tools("set up a todo digest every morning")
     assert classify_tool_intent("set up a todo digest every morning").category == "tasks"

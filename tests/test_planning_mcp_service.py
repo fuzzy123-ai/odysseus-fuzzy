@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 
 from src.planning_mcp_service import (
+    CANONICAL_ROADMAP_KIND,
+    LEGACY_HARBOR_ROADMAP_KIND,
     PlanningMcpService,
     PlanningServiceError,
     planning_create_roadmap_draft,
@@ -26,7 +28,7 @@ def _write_json(path: Path, payload: object) -> None:
 def _roadmap_payload(*, slice_count: int = 2) -> dict:
     return {
         "schema_version": 1,
-        "kind": "harbor.planning.roadmap",
+        "kind": CANONICAL_ROADMAP_KIND,
         "project_id": "demo-project",
         "roadmap_id": "core-map",
         "revision": 1,
@@ -476,6 +478,24 @@ def test_canonical_validation_rejects_id_path_mismatch_without_exposing_value():
     mismatch = next(item for item in result["errors"] if item["code"] == "roadmap_id_path_mismatch")
     assert mismatch["field"] == "$.roadmap_id"
     assert "different" not in mismatch["message"]
+
+
+def test_odysseus_planning_kind_is_canonical_and_harbor_kind_is_alias():
+    canonical = _roadmap_payload()
+    legacy = _roadmap_payload()
+    legacy["kind"] = LEGACY_HARBOR_ROADMAP_KIND
+
+    assert planning_validate_roadmap(canonical)["valid"] is True
+    assert planning_validate_roadmap(legacy)["valid"] is True
+
+    canonical_bad = dict(canonical)
+    canonical_bad["roadmap_id"] = "wrong"
+    result = planning_validate_roadmap(
+        canonical_bad,
+        source_ref="docs/plans/roadmaps/core-map.roadmap.json",
+    )
+    assert result["valid"] is False
+    assert any(item["code"] == "roadmap_id_path_mismatch" for item in result["errors"])
 
 
 def test_context_pack_is_bounded_source_linked_prioritizes_node_and_contains_no_raw_dump(tmp_path: Path):

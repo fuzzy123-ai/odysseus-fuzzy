@@ -1,7 +1,8 @@
+import importlib
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from routes.model_routes import setup_model_routes
 from src.tool_registry import ToolSpec, get_tool, register_tool, unregister_tool
 
 
@@ -19,10 +20,13 @@ def test_runtime_tool_status_route_returns_redacted_live_inventory(monkeypatch):
         )
     )
     try:
-        monkeypatch.setattr("routes.model_routes.require_admin", lambda _request: None)
-        monkeypatch.setattr("routes.model_routes._load_settings", lambda: {"disabled_tools": ["bash"]})
+        model_routes = importlib.import_module("routes.model_routes")
+        monkeypatch.setattr(model_routes, "require_admin", lambda _request: None)
+        monkeypatch.setattr(
+            model_routes, "_load_settings", lambda: {"disabled_tools": ["bash"]}
+        )
         app = FastAPI()
-        app.include_router(setup_model_routes(model_discovery=None))
+        app.include_router(model_routes.setup_model_routes(model_discovery=None))
         response = TestClient(app).get("/api/system/runtime-tools")
     finally:
         unregister_tool("telegram_document_reply")

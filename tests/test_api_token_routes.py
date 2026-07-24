@@ -222,6 +222,13 @@ def test_cookbook_launch_scope_implies_read(monkeypatch, token_routes_mod):
     assert resp["scopes"] == ["cookbook:read", "cookbook:launch"]
 
 
+def test_observability_readonly_profile_is_exact_and_available(token_routes_mod):
+    assert "observability:read" in token_routes_mod.ALLOWED_SCOPES
+    assert token_routes_mod._normalize_scopes(
+        profile="observability_readonly"
+    ) == ["observability:read"]
+
+
 # ---------------------------------------------------------------------------
 # 3. GET /api/tokens — safe display fields only, no hash or raw token
 # ---------------------------------------------------------------------------

@@ -2,6 +2,8 @@
 
 Stand: 2026-06-23
 
+Letztes Post-MVP-Follow-up: 2026-07-13
+
 Status: **aktive MVP-Konsolidierungsroadmap**
 
 Diese Roadmap fasst die offenen Odysseus-Arbeiten zu einem MVP zusammen. Sie
@@ -10,7 +12,7 @@ Integrationsrisiko.
 
 ## Leitentscheidung
 
-Das MVP besteht aus den Prioritaeten 1-10. Die Punkte 11 bis 13 bleiben
+Das MVP besteht aus den Prioritaeten 1-10. Die Punkte 11 bis 17 bleiben
 Post-MVP-Ideen und werden erst relevant, wenn der Kern stabil laeuft.
 
 MVP heisst hier:
@@ -63,8 +65,26 @@ Wenn diese Roadmap mit Detailplaenen kollidiert, gilt:
 | Prio | Track | Status | Warum spaeter |
 | ---: | --- | --- | --- |
 | 11 | GitHub Issue Intelligence | GHISS0 complete / post-MVP | Provider-neutrales Issue-Feldmodell mit Mapping/Label-Fallback ist umgesetzt; Persistence, Sync, Duplicate Index, UI und MCP-Gates bleiben Post-MVP. |
-| 12 | Qdrant/Kuzu/UMAP/GMM Research | deferred | Infrastruktur- und Research-Arbeit nur starten, wenn Diagnostics echte Performance- oder Qualitaetsluecken zeigen. |
+| 12 | Qdrant/Graph-Accelerator/UMAP/GMM Research | deferred | Infrastruktur- und Research-Arbeit nur starten, wenn Diagnostics echte Performance- oder Qualitaetsluecken zeigen. Kuzu wird nach USI1B nicht neu eingefuehrt. |
 | 13 | RAG Memory Tokenization und Semantic Chunking | repo-only done | Detailplan: `docs/plans/rag-memory-tokenization-roadmap.md`. Token-, struktur- und provenance-bewusstes Chunking ist backendseitig implementiert; Live-Reindex/Runtime-Umschaltung echter Collections bleibt operator-gated. |
+| 14 | Tool Taxonomy, Registration & Lifecycle | active post-MVP repo queue / live default-off | Detailplan: `docs/plans/tool-taxonomy-registration-roadmap.md`. Ein kanonischer Descriptor-Katalog schliesst sechs Registrierungsluecken, klassifiziert alle Tool-Flaechen und ersetzt ungeklärte `Other`-Fallbacks; E-Mail, Kalender und Kontakte bleiben deferred. Keine User-Gates vor dem fertigen Live-Aktivierungspaket. |
+| 15 | Privacy-Safe Tool Usage Analytics | planned after Tool Taxonomy / live default-off | Detailplan: `docs/plans/privacy-safe-tool-analytics-roadmap.md`. Content-free Invocation-Events, Dedupe, Retention und Aggregate beantworten die reale Toolnutzung, ohne Prompts, Argumente, Outputs, Pfade oder direkte Identitaeten zu speichern. Keine User-Gates vor dem fertigen Live-Aktivierungspaket. |
+| 16 | Gemma3 Maintenance Runtime Isolation | ready for goal / live default-off | Detailplan: [Gemma3 Maintenance Runtime Isolation](gemma3-memory-ops-optimization-roadmap.md). Nur exakt `gemma3:4b` wird pro Endpoint/Modell serialisiert und als Maintenance-only betrieben; Agent-, Chat-, Fallback- und autonome Truth-Write-Nutzung werden technisch ausgeschlossen. Async Context Discovery, Bypass-Nichtregression und Content-free Telemetrie werden offline vollstaendig geprueft. Keine User-Gates vor dem einzigen fertigen Live-Aktivierungspaket. |
+| 17 | GraphRAG/RAPTOR Memory Performance & Observability | ready for goal / live default-off | Detailplan: [GraphRAG/RAPTOR Performance & Observability](graphrag-raptor-observability-prometheus-grafana-roadmap.md). Echte Query-/Status-/Rebuild-Histogramme, Cache- und Event-Loop-Hardening, Production-Code-Benchmarks sowie private Prometheus-/Grafana-Assets liefern eine 30-Tage-Performancehistorie. Keine User-Gates vor dem einzigen fertigen Live-Aktivierungspaket. |
+| 18 | Unified Source Index Foundation | planned after current queue / live default-off | Detailplan: [Unified Source Index Implementation](unified-source-index-implementation-roadmap.md). Ein Source-neutraler SQLite-Control-Plane vereinheitlicht Source-/Version-/Chunk-/Entity-/Relation-/Lineage-/Job-Identitaet und Retrieval, ohne Domain Truth, Chroma, RAPTOR, Tooling oder Metriken zu duplizieren. |
+| 19 | Codebase Memory Code Intelligence | preferred engine under validation / live default-off | Detailplan: [Codebase Memory Integration](codebase-memory-integration-roadmap.md). CBM wird als rebuildbarer Symbol-/Call-/Import-/Impact-Graph und Hybrid-Retrieval-Motor integriert; USI, Repo Registry, Project Versioning, TAX und bestehende Exact-Read-Tools bleiben kanonisch. |
+| 20 | Code Lineage & Timeline | planned after USI identity / live default-off | Detailplan: [Code Lineage And Timeline](code-lineage-timeline-roadmap.md). Git- und Project-Version-Evidence bildet Rename, Move, Copy, Refactor, Delete und first-observable Zeit ab, damit aktueller Code ehrlich nach Entstehungsnachweis sortierbar wird. |
+| 21 | Lens > Code Graph | planned after bounded graph API / UI default-off | Detailplan: [Lens Code Graph](lens-code-graph-roadmap.md). Die starke CBM-Graph-UI wird als native, progressive und evidence-bound Code-Sicht in die bestehende Knowledge-/Lens-Shell integriert, ohne zweite App oder Vermischung mit AI-Lens-Runtime-Trace. |
+| 22 | USI Runtime & Consumer Integration | child closure of Track 18 / live default-off | Detailplan: [USI Runtime And Consumer Integration](unified-source-index-runtime-integration-roadmap.md). App-Composition, JobStore-Worker, Health, Personal Docs, Chat, Agent und `query_knowledge` verwenden eine injizierte Runtime mit Shadow, Fallback und Rollback statt direkter paralleler Retrieval-Pfade. |
+| 23 | USI Domain Adapter Rollout | child closure of Track 18 / source waves default-off | Detailplan: [USI Domain Adapter Rollout](unified-source-index-domain-adapter-rollout-roadmap.md). Domain Truth bleibt kanonisch; ein gemeinsamer Adaptervertrag bindet Memory, Personal Docs, ORCA, Planning, Library, Research, Inbox und Nextcloud an. E-Mail, Kalender, Todos, Kontakte und Session-Inhalt bleiben entsprechend aktueller Prioritaet deferred/default-off. |
+| 24 | USI Data Lifecycle & Operations | child closure of Track 18 / live actions default-off | Detailplan: [USI Data Lifecycle And Operations](unified-source-index-data-lifecycle-operations-roadmap.md). Stabile Owner Scopes, Delete/Access-Tombstones, Export, Backup/Restore, Wipe, Retention und Recovery werden in bestehende Owner-/Operations-Flows integriert, ohne zweite Account- oder Backup-Wahrheit. |
+
+Die Post-MVP-Tracks 11 bis 24 liegen ausserhalb des abgeschlossenen
+1-10-MVP-Nenners. Sie veraendern weder dessen 100-%-Stand noch das separate
+Version-1.0-UI-Live-Gate. Die append-only Tracks 22 bis 24 sind keine neuen
+Produktfeatures: Sie sind verpflichtende Child-Closure-Tracks von Track 18 und
+laufen abhaengigkeitsbedingt vor dessen produktiver Aktivierung sowie vor einer
+darauf angewiesenen CBM-Aktivierung.
 
 ## UI-Gestaltung Spaeter
 
@@ -633,4 +653,5 @@ Das MVP ist erreicht, wenn:
 - Homeserver Health, Telegram, Image Worker und GameDev Mounts als echte
   Backend-/Betriebspfade eingeordnet sind.
 - UI-Neugestaltung als eigener gemeinsamer Folgeblock vorbereitet ist.
-- Post-MVP-Ideen 11 bis 13 nicht mehr mit MVP-Arbeit konkurrieren.
+- Post-MVP-/Follow-up-Tracks ab 11 nicht mit dem abgeschlossenen
+  1-10-MVP-Nenner konkurrieren oder dessen 100-%-Stand zuruecksetzen.

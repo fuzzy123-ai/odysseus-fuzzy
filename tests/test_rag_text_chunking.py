@@ -5,6 +5,7 @@ from src.rag_text_chunking import (
     split_text_into_token_chunks,
 )
 from src.rag_vector import VectorRAG
+from src.token_budget import count_text_tokens
 
 
 def test_split_text_into_chunks_keeps_short_text_unchanged():
@@ -48,6 +49,21 @@ def test_split_text_into_token_chunks_uses_token_budget_adapter():
         "Beta two. Gamma three.",
         "Gamma three. Delta four.",
     ]
+
+
+def test_split_text_into_token_chunks_routes_model_and_hard_caps_unicode_code():
+    model_hint = "unknown/model"
+    text = "Grüße Ω code() " * 20
+
+    chunks = split_text_into_token_chunks(
+        text,
+        max_tokens=24,
+        overlap_tokens=4,
+        model_hint=model_hint,
+    )
+
+    assert len(chunks) > 1
+    assert all(count_text_tokens(chunk, model_hint=model_hint) <= 24 for chunk in chunks)
 
 
 def test_split_structured_text_into_chunks_keeps_code_fence_atomic():

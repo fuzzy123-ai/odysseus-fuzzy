@@ -21,6 +21,7 @@ from src.gemma_memory_benchmark import (
     deterministic_fixture_call,
     run_benchmark,
 )
+from src.maintenance_model_policy import DEFAULT_MAINTENANCE_MODEL
 
 
 COMPARISON_SCHEMA = "odysseus.gemma_deepseek_maintenance_comparison.v1"
@@ -134,7 +135,7 @@ async def run_maintenance_comparison(
     *,
     gemma_call_model: ModelCaller = deterministic_fixture_call,
     deepseek_call_model: ModelCaller = deterministic_fixture_call,
-    gemma_model: str = "gemma4:e4b",
+    gemma_model: str = DEFAULT_MAINTENANCE_MODEL,
     gemma_provider: str = "local_ollama",
     deepseek_model: str = "deepseek-v4-flash",
     deepseek_provider: str = "deepseek",

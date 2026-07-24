@@ -1,9 +1,12 @@
-"""Gemma4 local maintenance path for Telegram voice and attachment follow-ups.
+"""Compatibility path for Gemma 3 Telegram maintenance follow-ups.
 
 The Telegram plugin owns live polling/webhook behavior. This module is a
 side-effect-free contract that turns trusted Telegram runtime metadata into a
 bounded local Gemma task without persisting voice transcripts, chat IDs, host
 paths, attachment bodies, or raw tool output.
+
+The legacy module, public symbol, and schema names remain stable for callers
+and persisted records; routing resolves through the canonical Gemma 3 profile.
 """
 
 from __future__ import annotations
