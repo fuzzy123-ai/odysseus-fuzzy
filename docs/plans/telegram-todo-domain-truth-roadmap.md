@@ -26,10 +26,11 @@ Der anschliessende read-only `TTD-07A`-Recon ist abgeschlossen.
 tiefen Sol-Reviews und einem finalen fokussierten Fuenfer-Check am
 Implementierungscommit `daca1dc4` akzeptiert. `TTD-07A2` ist nach Root-Check,
 mehreren Terra-Korrekturen und tiefem Sol-PASS am Implementierungscommit
-`090ede31` akzeptiert. `TTD-07A3` ist der einzige aktive Vierpfad-Claim fuer
-DB-autoritative Bridge, fail-closed Legacy-Import und atomare
-Kompatibilitaetsprojektion; Session-Lifecycle, Polling, Webhook und Live bleiben
-ungeclaimt.
+`090ede31` akzeptiert. `TTD-07A3` ist nach mehreren Root-/Terra-Korrekturrunden
+und finalem tiefen Sol-PASS am Implementierungscommit `53109195` akzeptiert.
+`TTD-07A4` ist der einzige aktive Fuenfpfad-Claim fuer die atomare
+Replacement-Session-, Archiv-, Binding-Generation- und terminale
+Rollover-Transaktion; Polling, Webhook und Live bleiben ungeclaimt.
 Der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -1308,17 +1309,27 @@ Akzeptierte Child-Slices:
   Transaction-neutral Repository, Winner-Reload und fail-closed Beziehungen
 - nur synthetische temporaere/in-memory SQLite-Instanzen; keine produktive DB
 
+- `TTD-07A3-db-authoritative-bridge-and-legacy-import`
+- Claim `16f16d54`; Implementierung `53109195`
+- exakt fuenf benannte fokussierte Nodes: `5 passed` in `1.83s`
+- AST auf allen vier Pfaden, exakter Vierpfad-Diff und tiefe read-only
+  Sol-Abnahme: `PASS`
+- explizit injizierte DB-autoritative Bridge, per-Identity Legacy-Import,
+  committed-stale-vor-Projektion, `BEGIN IMMEDIATE`, atomarer Dateireplace und
+  all-or-none Projektionsstatus
+- bestehende produktive Call-Sites bleiben auf dem Legacy-Adapter
+
 Aktiver Child-Claim:
 
-- `TTD-07A3-db-authoritative-bridge-and-legacy-import`
-- exakt `plugins/telegram/stores.py`, `src/telegram_session_rollover.py`,
-  `tests/test_telegram_plugin.py` und
-  `tests/test_telegram_session_rollover.py`
+- `TTD-07A4-atomic-session-lifecycle`
+- exakt `app.py`, `core/session_manager.py`,
+  `src/telegram_session_rollover.py`,
+  `tests/test_telegram_session_rollover.py` und
+  `tests/test_telegram_context_policy.py`
 - Bob/Terra high; tiefe Sol-Abnahme; exakt fuenf benannte fokussierte Nodes
-- nur synthetische Owner/Session-/JSON-Fixtures und temporaere Dateien;
-  bestehende produktive Call-Sites bleiben auf dem Legacy-Adapter
-- keine Session-Lifecycle-, Polling-, Webhook-, Route-, Provider-, Send-,
-  Debian- oder Live-Aktion
+- nur synthetische Owner/Session-Fixtures und temporaere SQLite-Instanzen
+- keine Continuity-, Polling-, Webhook-, Route-, Provider-, Send-, Debian- oder
+  Live-Aktion
 
 Akzeptanz:
 
