@@ -4,10 +4,10 @@ Stand: 2026-07-24
 
 Status: `TTD-00` bis `TTD-02` sind am 2026-07-23 akzeptiert. Der read-only
 `TTD-03`-Boundary-Recon ist abgeschlossen.
-`TTD-03A-todo-semantic-receipt-ledger` ist als einziger exakter repo-only
-Receipt-Slice auf neun Pfaden reserviert. Nach der abgelehnten tiefen
-Sol-Pruefung ist ein frischer Charlie/Terra-Reparaturhandoff fuer genau die
-fuenf dokumentierten Luecken aktiv. `TTD-03B` wartet weiter auf akzeptiertes TTD-03A;
+`TTD-03A-todo-semantic-receipt-ledger` ist nach einem frischen Charlie/Terra-
+Reparaturhandoff und zwei tiefen Sol-Runden auf exakt neun Pfaden akzeptiert.
+`TTD-03B` ist damit fuer einen read-only Final-Claim-Consumer- und Pfad-Recon
+dependency-ready; ein Implementierungsclaim besteht noch nicht.
 der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -512,7 +512,7 @@ Akzeptanz:
 
 Owner: Bob
 
-Status: `boundary_recon_complete_ttd03a_handoff_rejected_waiting_on_terra`
+Status: `ttd03a_accepted_ttd03b_read_only_recon_next`
 
 Read-only Boundary-Recon 2026-07-23:
 
@@ -532,11 +532,14 @@ Read-only Boundary-Recon 2026-07-23:
 Serialisierung:
 
 1. `TTD-03A-todo-semantic-receipt-ledger`
-   - Status: `active_repair_handoff_2026-07-24`
+   - Status: `accepted_2026-07-24`
    - Run: `abc-ttd03a-repair-20260724T092213+0200`
    - Vorheriger Run: `abc-ttd03a-20260723T230923+0200`
    - Owner: Charlie
-   - Lease: 2026-07-24T09:22:13+02:00 bis 2026-07-24T13:22:13+02:00
+   - Lease: 2026-07-24T09:22:13+02:00 bis zur Freigabe
+     2026-07-24T09:36:14+02:00
+   - Implementierungscommit:
+     `4620cac700eeed5eea483a9c364d8f33c970a99c`
    - Exakte Kandidatenpfade:
      - neuer `src/todo_transaction_receipts.py`
      - `src/tool_domains/todos.py`
@@ -591,21 +594,33 @@ Serialisierung:
        `manage_todos`, exakte Owner/List/Item/Operation-Evidence fuer Mutationen,
        Owner/List/Operation-Bindung mit `read_verified` fuer List-Reads,
        action-aware Verifier-Wirkung und fokussierte negative Tests.
+   - Acceptance:
+     - Initialer Repair: 21 gezielte plus 17 betroffene Bestands-Nodes gruen.
+     - Sol-Runde 1 fand und schloss reale Add-Idempotenz- und List-Snapshot-
+       Bindungsluecken; der fokussierte Repair-Check hatte 13 gruene Nodes.
+     - Finale unabhaengige Sol-Grenzmenge: 12 gruen, nur die bestehende
+       SQLAlchemy-Deprecation-Warnung.
+     - Exakt neun erlaubte Pfade, kein ausgeschlossener Pfad; Diff- und
+       Whitespace-Checks gruen.
+     - Kein Push, Deploy, Providerzugriff, produktiver Datenzugriff oder
+       Live-Smoke.
 2. `TTD-03B-todo-final-claim-evidence`
-   - Abhaengigkeit: akzeptiertes `TTD-03A`
-   - Erst nach TTD-03A exakt reconcilen und claimen.
+   - Abhaengigkeit: akzeptiertes `TTD-03A` ist erfuellt.
+   - Naechster Schritt: ausschliesslich read-only Runtime-Consumer- und
+     Exaktpfad-Recon; erst danach den kleinsten nachgewiesenen Slice claimen.
    - Die Finalantwort-Grenze erkennt Todo-Erfolgsprosa action-spezifisch und
      setzt `verified=true` nur mit dem passenden semantischen Ledger-Receipt.
      `tool_result_truth.py` wird nur geclaimt, wenn ein nachgewiesener
      Runtime-Consumer diesen Vertrag benoetigt.
 
-Recon-Handoff:
+Naechste Frontier:
 
-- Phase: `analysis_only`; keine Implementierungsdatei geaendert
+- Phase: `analysis_only`; fuer TTD-03B keine Implementierungsdatei aendern
 - Scout: Charlie/Terra read-only; Reduktion und Scope-Korrektur: root/Sol
 - Claim: keiner; aktive Claims: 0
-- Naechste Aktion: am naechsten Arbeitspunkt nur
-  `TTD-03A-todo-semantic-receipt-ledger` mit den neun exakten Pfaden claimen
+- Naechste Aktion: nachweisen, welcher Runtime-Consumer die finalen Todo-Claims
+  tatsaechlich rendert und ob `claim_evidence_gate.py` oder
+  `tool_result_truth.py` ueberhaupt im kleinsten Slice benoetigt wird
 - Kein Push, Deploy, Providerzugriff, produktiver Datenzugriff oder Live-Smoke
 
 Live-Readback 2026-07-24:
@@ -620,9 +635,9 @@ Live-Readback 2026-07-24:
   `73972865` als Merge-Base; vor einem spaeteren Deploy ist deshalb eine
   ancestry-sichere Integration erforderlich, die den serverlokalen Commit
   nicht ueberschreibt.
-- Es wurde keine Servermutation ausgefuehrt. Das vom Operator gewuenschte
-  Deployment bleibt unzulaessig, solange TTD-03A nicht akzeptiert ist und
-  `TTD-LIVE-DEPLOY` bis zum abgeschlossenen TTD-10-Paket dormant bleibt.
+- Es wurde keine Servermutation ausgefuehrt. TTD-03A ist inzwischen akzeptiert;
+  das vom Operator gewuenschte Deployment bleibt dennoch unzulaessig, solange
+  `TTD-LIVE-DEPLOY` bis zum abgeschlossenen TTD-10-Paket dormant ist.
 
 Ziel:
 
