@@ -9,9 +9,14 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Protocol
+from urllib.parse import urlsplit
 
+from src.claim_evidence_gate import (
+    AgentMaintenanceCompletionEvidence,
+    evaluate_agent_maintenance_completion,
+)
 from src.constants import MAX_OUTPUT_CHARS
-from src.repo_registry import RepoRecord, RepoRegistry, RepoRegistryError
+from src.repo_registry import RepoRecord, RepoRegistry, RepoRegistryError, redact_remote_url
 from src.repo_remote_policy import RepoRemotePolicyDecision, evaluate_remote_branch_policy, normalize_branch_name
 
 
@@ -21,9 +26,14 @@ _MAX_LIST_ITEMS = 120
 _SECRET_RE = re.compile(r"(?i)\b(token|secret|password|passwd|api[_-]?key|bearer)\b\s*[:=]\s*\S+")
 _WINDOWS_PATH_RE = re.compile(r"[A-Za-z]:[\\/][^\s\t]+")
 _ABSOLUTE_PATH_RE = re.compile(r"(?<![A-Za-z0-9._-])/(?:[^\s/]+/)*[^\s]+")
+_REMOTE_URL_RE = re.compile(r"(?i)\b(?:file|https?|ssh)://[^\s]+")
 _SAFE_REMOTE_RE = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
-_COMMIT_SHA_RE = re.compile(r"^[A-Fa-f0-9]{7,40}$")
 _FULL_COMMIT_SHA_RE = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+_URL_REWRITE_KEY_RE = (
+    r"^[Uu][Rr][Ll]\..*\."
+    r"([Ii][Nn][Ss][Tt][Ee][Aa][Dd][Oo][Ff]|"
+    r"[Pp][Uu][Ss][Hh][Ii][Nn][Ss][Tt][Ee][Aa][Dd][Oo][Ff])$"
+)
 
 
 class RepoPushRunnerError(ValueError):
@@ -71,8 +81,19 @@ class RepoForgeGitTransportCommands:
 
     verify_commit: tuple[str, ...]
     remote_url: tuple[str, ...]
+    url_rewrites: tuple[str, ...]
     remote_ref: tuple[str, ...]
     push: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class RepoPushAuthority:
+    action: str
+    repo_id: str
+    remote_name: str
+    branch_name: str
+    commit_sha: str
+    granted: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +117,8 @@ class RepoPushPlan:
     confirmed: bool
     operator_go: bool
     live_enabled: bool
+    completion_verified: bool
+    action_authorized: bool
     decision: str
     blockers: tuple[str, ...]
     remote_policy: RepoRemotePolicyDecision
@@ -119,6 +142,8 @@ class RepoPushPlan:
             "confirmed": self.confirmed,
             "operator_go": self.operator_go,
             "live_enabled": self.live_enabled,
+            "completion_verified": self.completion_verified,
+            "action_authorized": self.action_authorized,
             "can_push": self.can_push,
             "decision": self.decision,
             "blockers": list(self.blockers),
@@ -149,6 +174,26 @@ class RepoPushReport:
         }
 
 
+def build_repo_push_authority(
+    *,
+    repo_id: Any,
+    remote_name: Any,
+    branch_name: Any,
+    commit_sha: Any,
+    granted: bool,
+) -> RepoPushAuthority:
+    if type(granted) is not bool:
+        raise RepoPushRunnerError("granted must be a boolean")
+    return RepoPushAuthority(
+        action="push",
+        repo_id=_normalize_text(repo_id, field_name="repo_id", max_len=120),
+        remote_name=_normalize_remote_name(remote_name),
+        branch_name=normalize_branch_name(branch_name),
+        commit_sha=_normalize_commit_sha(commit_sha, field_name="commit_sha"),
+        granted=granted,
+    )
+
+
 def plan_repo_push(
     *,
     registry: RepoRegistry,
@@ -162,6 +207,8 @@ def plan_repo_push(
     live_enabled: bool | None = None,
     repo_roots: Mapping[str, str | os.PathLike[str]] | None = None,
     command_runner: RepoPushCommandRunner | None = None,
+    completion_evidence: AgentMaintenanceCompletionEvidence | None = None,
+    push_authority: RepoPushAuthority | None = None,
 ) -> RepoPushReport:
     return _run_push_flow(
         registry=registry,
@@ -176,6 +223,8 @@ def plan_repo_push(
         repo_roots=repo_roots,
         command_runner=command_runner,
         execute_push=False,
+        completion_evidence=completion_evidence,
+        push_authority=push_authority,
     )
 
 
@@ -192,6 +241,8 @@ def run_repo_push(
     live_enabled: bool | None = None,
     repo_roots: Mapping[str, str | os.PathLike[str]] | None = None,
     command_runner: RepoPushCommandRunner | None = None,
+    completion_evidence: AgentMaintenanceCompletionEvidence | None = None,
+    push_authority: RepoPushAuthority | None = None,
 ) -> RepoPushReport:
     return _run_push_flow(
         registry=registry,
@@ -206,6 +257,8 @@ def run_repo_push(
         repo_roots=repo_roots,
         command_runner=command_runner,
         execute_push=True,
+        completion_evidence=completion_evidence,
+        push_authority=push_authority,
     )
 
 
@@ -221,6 +274,8 @@ def build_repo_push_plan(
     confirmed: bool,
     operator_go: bool,
     live_enabled: bool | None = None,
+    completion_verified: bool = False,
+    action_authorized: bool = False,
 ) -> RepoPushPlan:
     if not isinstance(record, RepoRecord):
         raise RepoPushRunnerError("record must be a RepoRecord")
@@ -229,7 +284,16 @@ def build_repo_push_plan(
     expected_sha = _normalize_commit_sha(commit_sha, field_name="commit_sha")
     current_branch = normalize_branch_name(actual_branch, repo_id=record.repo_id)
     current_sha = _normalize_commit_sha(actual_commit_sha, field_name="actual_commit_sha")
-    resolved_live = _bool_env(os.getenv("ODYSSEUS_REPO_PUSH_RUNNER_LIVE_ENABLED")) if live_enabled is None else bool(live_enabled)
+    confirmed_is_bool = type(confirmed) is bool
+    operator_go_is_bool = type(operator_go) is bool
+    live_is_bool = live_enabled is None or type(live_enabled) is bool
+    resolved_live = (
+        _bool_env(os.getenv("ODYSSEUS_REPO_PUSH_RUNNER_LIVE_ENABLED"))
+        if live_enabled is None
+        else live_enabled
+        if type(live_enabled) is bool
+        else False
+    )
     _, entries = parse_repo_push_status(status_output)
     policy = evaluate_remote_branch_policy(
         record=record,
@@ -237,22 +301,40 @@ def build_repo_push_plan(
         branch_name=branch,
         action="push",
     )
+    selected_remote = next(
+        (item for item in record.remotes if item.name == remote),
+        None,
+    )
 
     blockers: list[str] = []
     if policy.decision == "blocked":
         blockers.append(policy.reason)
     elif policy.decision == "hold":
         blockers.append(policy.reason)
-    if not confirmed:
+    if selected_remote is None or not _transport_url_is_allowed(selected_remote.url_redacted):
+        blockers.append("remote transport scheme must be HTTPS or file")
+    if not confirmed_is_bool:
+        blockers.append("confirmed must be a boolean")
+    elif not confirmed:
         blockers.append("confirmed=true is required before pushing a registered repo")
-    if not operator_go:
+    if not operator_go_is_bool:
+        blockers.append("operator_go must be a boolean")
+    elif not operator_go:
         blockers.append("operator_go=true is required for live push")
-    if not resolved_live:
+    if not live_is_bool:
+        blockers.append("live_enabled must be a boolean or None")
+    elif not resolved_live:
         blockers.append("ODYSSEUS_REPO_PUSH_RUNNER_LIVE_ENABLED or live_enabled=true is required for live push")
+    if completion_verified is not True:
+        blockers.append("current claims and machine verification receipt are required before push")
+    if action_authorized is not True:
+        blockers.append("typed explicit push authority is required")
     if current_branch != branch:
         blockers.append(f"branch_name `{branch}` does not match current branch `{current_branch}`")
     if current_sha != expected_sha:
         blockers.append("commit_sha does not match current HEAD")
+    if entries:
+        blockers.append("repository must be clean before push")
 
     if policy.decision == "blocked":
         decision = "blocked"
@@ -269,9 +351,11 @@ def build_repo_push_plan(
         commit_sha=expected_sha,
         actual_branch=current_branch,
         actual_commit_sha=current_sha,
-        confirmed=bool(confirmed),
-        operator_go=bool(operator_go),
+        confirmed=confirmed if confirmed_is_bool else False,
+        operator_go=operator_go if operator_go_is_bool else False,
         live_enabled=resolved_live,
+        completion_verified=completion_verified is True,
+        action_authorized=action_authorized is True,
         decision=_normalize_choice(decision, field_name="decision", choices=_DECISIONS),
         blockers=tuple(dict.fromkeys(blockers)),
         remote_policy=policy,
@@ -280,7 +364,11 @@ def build_repo_push_plan(
             {"step_id": "git_status", "summary": "capture registered repo status before push", "executes": True},
             {"step_id": "git_branch", "summary": "verify current branch matches requested branch", "executes": True},
             {"step_id": "git_rev_parse", "summary": "verify current HEAD matches requested commit_sha", "executes": True},
-            {"step_id": "git_push", "summary": f"push {branch} to {remote}", "executes": True},
+            {
+                "step_id": "git_push",
+                "summary": f"push exact {expected_sha}:refs/heads/{branch} to {remote}",
+                "executes": True,
+            },
         ),
         next_human_decision=_next_human_decision(decision, policy),
     )
@@ -357,22 +445,26 @@ def repo_push_command_is_allowed(argv: tuple[str, ...]) -> bool:
     if len(argv) == 6 and argv[:5] == ("git", "remote", "get-url", "--push", "--all"):
         _normalize_remote_name(argv[5])
         return True
-    if len(argv) == 5 and argv[:3] == ("git", "ls-remote", "--heads"):
-        _normalize_remote_name(argv[3])
-        _branch_from_remote_ref(argv[4])
+    if argv == _fixed_url_rewrite_check_command():
         return True
-    if len(argv) == 4 and argv[:2] == ("git", "push"):
-        _normalize_remote_name(argv[2])
-        if ":" in argv[3]:
-            source, destination = argv[3].split(":", 1)
-            if not _FULL_COMMIT_SHA_RE.fullmatch(source):
-                return False
-            _branch_from_remote_ref(destination)
-        else:
-            if argv[3].startswith(("+", "refs/")):
-                return False
-            branch = normalize_branch_name(argv[3])
-        return True
+    if len(argv) == 12 and argv[:2] == ("git", "-c") and argv[7] == "ls-remote":
+        target_url = _normalize_transport_target(argv[-2])
+        remote_ref = argv[-1]
+        _branch_from_remote_ref(remote_ref)
+        return argv == _fixed_remote_ref_command(target_url, remote_ref)
+    if len(argv) == 25 and argv[:2] == ("git", "-c"):
+        mirror_config = argv[6]
+        if not mirror_config.startswith("remote.") or not mirror_config.endswith(".mirror=false"):
+            return False
+        remote = _normalize_remote_name(mirror_config[len("remote.") : -len(".mirror=false")])
+        target_url = _normalize_transport_target(argv[-2])
+        if ":" not in argv[-1] or argv[-1].startswith("+"):
+            return False
+        source, destination = argv[-1].split(":", 1)
+        if not _FULL_COMMIT_SHA_RE.fullmatch(source):
+            return False
+        _branch_from_remote_ref(destination)
+        return argv == _fixed_push_command(remote, target_url, source, destination)
     if len(argv) == 5 and argv[:3] == ("git", "merge-base", "--is-ancestor"):
         return bool(
             _FULL_COMMIT_SHA_RE.fullmatch(argv[3])
@@ -381,11 +473,84 @@ def repo_push_command_is_allowed(argv: tuple[str, ...]) -> bool:
     return False
 
 
+def _fixed_push_command(
+    remote: str,
+    target_url: str,
+    source_sha: str,
+    destination_ref: str,
+) -> tuple[str, ...]:
+    """Neutralize repository widening/transport config for one exact refspec.
+
+    An empty credential.helper deliberately disables ambient credential helper
+    execution. HTTPS delivery therefore requires credentials supplied by a
+    separately trusted transport adapter; this runner never prompts or invokes
+    repository-configured helpers.
+    """
+
+    return (
+        "git",
+        "-c",
+        "push.followTags=false",
+        "-c",
+        "push.useForceIfIncludes=false",
+        "-c",
+        f"remote.{remote}.mirror=false",
+        "-c",
+        "protocol.ext.allow=never",
+        "-c",
+        "core.sshCommand=",
+        "-c",
+        "credential.helper=",
+        "-c",
+        "push.pushOption=",
+        "push",
+        "--no-verify",
+        "--no-mirror",
+        "--no-tags",
+        "--no-follow-tags",
+        "--no-force-if-includes",
+        "--no-push-option",
+        "--receive-pack=git-receive-pack",
+        target_url,
+        f"{source_sha}:{destination_ref}",
+    )
+
+
+def _fixed_remote_ref_command(target_url: str, remote_ref: str) -> tuple[str, ...]:
+    return (
+        "git",
+        "-c",
+        "protocol.ext.allow=never",
+        "-c",
+        "core.sshCommand=",
+        "-c",
+        "credential.helper=",
+        "ls-remote",
+        "--upload-pack=git-upload-pack",
+        "--heads",
+        target_url,
+        remote_ref,
+    )
+
+
+def _fixed_url_rewrite_check_command() -> tuple[str, ...]:
+    return (
+        "git",
+        "config",
+        "--includes",
+        "--null",
+        "--name-only",
+        "--get-regexp",
+        _URL_REWRITE_KEY_RE,
+    )
+
+
 def build_repo_forge_git_transport_commands(
     *,
     remote_name: Any,
     branch_name: Any,
     commit_sha: Any,
+    push_target_url: Any,
 ) -> RepoForgeGitTransportCommands:
     """Build the only Git transport argv accepted by the GitHub adapter."""
 
@@ -395,13 +560,21 @@ def build_repo_forge_git_transport_commands(
     if not _FULL_COMMIT_SHA_RE.fullmatch(sha):
         raise RepoPushRunnerError("commit_sha must be a full Git object id")
     remote_ref = f"refs/heads/{branch}"
+    target_url = _normalize_transport_target(push_target_url)
     commands = RepoForgeGitTransportCommands(
         verify_commit=("git", "rev-parse", "--verify", f"{sha}^{{commit}}"),
         remote_url=("git", "remote", "get-url", "--push", "--all", remote),
-        remote_ref=("git", "ls-remote", "--heads", remote, remote_ref),
-        push=("git", "push", remote, f"{sha}:{remote_ref}"),
+        url_rewrites=_fixed_url_rewrite_check_command(),
+        remote_ref=_fixed_remote_ref_command(target_url, remote_ref),
+        push=_fixed_push_command(remote, target_url, sha, remote_ref),
     )
-    for argv in (commands.verify_commit, commands.remote_url, commands.remote_ref, commands.push):
+    for argv in (
+        commands.verify_commit,
+        commands.remote_url,
+        commands.url_rewrites,
+        commands.remote_ref,
+        commands.push,
+    ):
         if not repo_push_command_is_allowed(argv):
             raise RepoPushRunnerError("generated Forge Git command is not allowed")
     return commands
@@ -455,6 +628,8 @@ def _run_push_flow(
     repo_roots: Mapping[str, str | os.PathLike[str]] | None,
     command_runner: RepoPushCommandRunner | None,
     execute_push: bool,
+    completion_evidence: AgentMaintenanceCompletionEvidence | None,
+    push_authority: RepoPushAuthority | None,
 ) -> RepoPushReport:
     record, repo_path = _resolve_repo(
         registry=registry,
@@ -463,6 +638,17 @@ def _run_push_flow(
         repo_roots=repo_roots,
     )
     runner = command_runner or run_git_push_subprocess_command
+    completion_verified = evaluate_agent_maintenance_completion(
+        completion_evidence,
+        repo_root=repo_path,
+    ).completed
+    action_authorized = _push_authority_matches(
+        push_authority,
+        repo_id=record.repo_id,
+        remote_name=remote_name,
+        branch_name=branch_name,
+        commit_sha=commit_sha,
+    )
     read_commands = (
         ("git", "status", "--short", "--branch"),
         ("git", "branch", "--show-current"),
@@ -482,6 +668,8 @@ def _run_push_flow(
                 operator_go=operator_go,
                 live_enabled=live_enabled,
                 reason=f"push preflight command failed: {' '.join(command[:2])}",
+                completion_verified=completion_verified,
+                action_authorized=action_authorized,
             )
             return RepoPushReport(
                 status="blocked",
@@ -503,6 +691,8 @@ def _run_push_flow(
         confirmed=confirmed,
         operator_go=operator_go,
         live_enabled=live_enabled,
+        completion_verified=completion_verified,
+        action_authorized=action_authorized,
     )
     if not execute_push:
         return RepoPushReport(
@@ -523,8 +713,232 @@ def _run_push_flow(
             blockers=plan.blockers,
         )
 
+    completion_verified = evaluate_agent_maintenance_completion(
+        completion_evidence,
+        repo_root=repo_path,
+    ).completed
+    action_authorized = _push_authority_matches(
+        push_authority,
+        repo_id=record.repo_id,
+        remote_name=plan.remote_name,
+        branch_name=plan.branch_name,
+        commit_sha=plan.commit_sha,
+    )
+    if not completion_verified or not action_authorized:
+        return RepoPushReport(
+            status="blocked",
+            executed=False,
+            plan=plan,
+            command_results=tuple(results),
+            pushed_ref="",
+            blockers=("current completion evidence or push authority changed",),
+        )
+
+    expected_remote_url = next(
+        (
+            remote.url_redacted
+            for remote in record.remotes
+            if remote.name == plan.remote_name
+        ),
+        "",
+    )
+    commands = build_repo_forge_git_transport_commands(
+        remote_name=plan.remote_name,
+        branch_name=plan.branch_name,
+        commit_sha=plan.commit_sha,
+        push_target_url=expected_remote_url,
+    )
+    verify_result = runner(
+        commands.verify_commit,
+        cwd=repo_path,
+        timeout_seconds=_MAX_TIMEOUT_SECONDS,
+        env={},
+    )
+    results.append(verify_result)
+    if not verify_result.ok or _parse_exact_full_sha(verify_result.stdout) != plan.commit_sha:
+        return RepoPushReport(
+            status="blocked",
+            executed=False,
+            plan=plan,
+            command_results=tuple(results),
+            pushed_ref="",
+            blockers=("push source full object id could not be verified",),
+        )
+
+    sanitized_remote_result, remote_url_matches = _read_sanitized_remote_url(
+        runner,
+        command=commands.remote_url,
+        repo_path=repo_path,
+        expected_remote_url=expected_remote_url,
+    )
+    results.append(sanitized_remote_result)
+    if not remote_url_matches:
+        return RepoPushReport(
+            status="blocked",
+            executed=False,
+            plan=plan,
+            command_results=tuple(results),
+            pushed_ref="",
+            blockers=("push remote URL could not be verified",),
+        )
+
+    rewrite_result, rewrites_clear = _read_url_rewrite_gate(
+        runner,
+        command=commands.url_rewrites,
+        repo_path=repo_path,
+    )
+    results.append(rewrite_result)
+    if not rewrites_clear:
+        return RepoPushReport(
+            status="blocked",
+            executed=False,
+            plan=plan,
+            command_results=tuple(results),
+            pushed_ref="",
+            blockers=("Git URL rewrite configuration is present or unverifiable",),
+        )
+
+    remote_before_result = runner(
+        commands.remote_ref,
+        cwd=repo_path,
+        timeout_seconds=_MAX_TIMEOUT_SECONDS,
+        env={},
+    )
+    results.append(remote_before_result)
+    try:
+        remote_before = (
+            parse_repo_remote_head_sha(
+                remote_before_result.stdout,
+                branch_name=plan.branch_name,
+            )
+            if remote_before_result.ok
+            else None
+        )
+    except RepoPushRunnerError:
+        remote_before = None
+        remote_before_valid = False
+    else:
+        remote_before_valid = remote_before_result.ok
+    if not remote_before_valid:
+        return RepoPushReport(
+            status="blocked",
+            executed=False,
+            plan=plan,
+            command_results=tuple(results),
+            pushed_ref="",
+            blockers=("remote branch preflight is unavailable or ambiguous",),
+        )
+
+    if remote_before and remote_before != plan.commit_sha:
+        ancestry_command = build_repo_forge_ancestry_command(
+            ancestor_sha=remote_before,
+            descendant_sha=plan.commit_sha,
+        )
+        ancestry_result = runner(
+            ancestry_command,
+            cwd=repo_path,
+            timeout_seconds=_MAX_TIMEOUT_SECONDS,
+            env={},
+        )
+        results.append(ancestry_result)
+        if not ancestry_result.ok:
+            return RepoPushReport(
+                status="blocked",
+                executed=False,
+                plan=plan,
+                command_results=tuple(results),
+                pushed_ref="",
+                blockers=("remote history is not an ancestor of the authorized commit",),
+            )
+
+    final_status_result = runner(
+        ("git", "status", "--short", "--branch"),
+        cwd=repo_path,
+        timeout_seconds=_MAX_TIMEOUT_SECONDS,
+        env={},
+    )
+    results.append(final_status_result)
+    try:
+        _, final_status_entries = (
+            parse_repo_push_status(final_status_result.stdout)
+            if final_status_result.ok
+            else ("", ())
+        )
+    except RepoPushRunnerError:
+        final_status_entries = ()
+        final_status_valid = False
+    else:
+        final_status_valid = final_status_result.ok and not final_status_entries
+    if not final_status_valid:
+        return RepoPushReport(
+            status="blocked",
+            executed=False,
+            plan=plan,
+            command_results=tuple(results),
+            pushed_ref="",
+            blockers=("repository changed or became dirty before push",),
+        )
+
+    completion_verified = evaluate_agent_maintenance_completion(
+        completion_evidence,
+        repo_root=repo_path,
+    ).completed
+    action_authorized = _push_authority_matches(
+        push_authority,
+        repo_id=record.repo_id,
+        remote_name=plan.remote_name,
+        branch_name=plan.branch_name,
+        commit_sha=plan.commit_sha,
+    )
+    if not completion_verified or not action_authorized:
+        return RepoPushReport(
+            status="blocked",
+            executed=False,
+            plan=plan,
+            command_results=tuple(results),
+            pushed_ref="",
+            blockers=("current completion evidence or push authority changed before push",),
+        )
+
+    # Git has no immutable remote-handle primitive. This exact sanitized
+    # readback is therefore the final trust-boundary check immediately before
+    # the fixed push argv; a remote/config swap after the earlier preflight is
+    # detected without persisting the raw (potentially credentialed) URL.
+    final_remote_result, final_remote_matches = _read_sanitized_remote_url(
+        runner,
+        command=commands.remote_url,
+        repo_path=repo_path,
+        expected_remote_url=expected_remote_url,
+    )
+    results.append(final_remote_result)
+    if not final_remote_matches:
+        return RepoPushReport(
+            status="blocked",
+            executed=False,
+            plan=plan,
+            command_results=tuple(results),
+            pushed_ref="",
+            blockers=("push remote URL changed before push",),
+        )
+
+    final_rewrite_result, final_rewrites_clear = _read_url_rewrite_gate(
+        runner,
+        command=commands.url_rewrites,
+        repo_path=repo_path,
+    )
+    results.append(final_rewrite_result)
+    if not final_rewrites_clear:
+        return RepoPushReport(
+            status="blocked",
+            executed=False,
+            plan=plan,
+            command_results=tuple(results),
+            pushed_ref="",
+            blockers=("Git URL rewrite configuration changed before push",),
+        )
+
     push_result = runner(
-        ("git", "push", plan.remote_name, plan.branch_name),
+        commands.push,
         cwd=repo_path,
         timeout_seconds=_MAX_TIMEOUT_SECONDS,
         env={},
@@ -538,6 +952,33 @@ def _run_push_flow(
             command_results=tuple(results),
             pushed_ref="",
             blockers=("push command failed: git push",),
+        )
+    remote_after_result = runner(
+        commands.remote_ref,
+        cwd=repo_path,
+        timeout_seconds=_MAX_TIMEOUT_SECONDS,
+        env={},
+    )
+    results.append(remote_after_result)
+    try:
+        remote_after = (
+            parse_repo_remote_head_sha(
+                remote_after_result.stdout,
+                branch_name=plan.branch_name,
+            )
+            if remote_after_result.ok
+            else None
+        )
+    except RepoPushRunnerError:
+        remote_after = None
+    if remote_after != plan.commit_sha:
+        return RepoPushReport(
+            status="reconcile_required",
+            executed=True,
+            plan=plan,
+            command_results=tuple(results),
+            pushed_ref="",
+            blockers=("push returned but exact remote full object id was not verified",),
         )
     return RepoPushReport(
         status="pushed",
@@ -559,6 +1000,8 @@ def _blocked_plan(
     operator_go: bool,
     live_enabled: bool | None,
     reason: str,
+    completion_verified: bool = False,
+    action_authorized: bool = False,
 ) -> RepoPushPlan:
     policy = evaluate_remote_branch_policy(
         record=record,
@@ -566,7 +1009,13 @@ def _blocked_plan(
         branch_name=branch_name,
         action="push",
     )
-    resolved_live = _bool_env(os.getenv("ODYSSEUS_REPO_PUSH_RUNNER_LIVE_ENABLED")) if live_enabled is None else bool(live_enabled)
+    resolved_live = (
+        _bool_env(os.getenv("ODYSSEUS_REPO_PUSH_RUNNER_LIVE_ENABLED"))
+        if live_enabled is None
+        else live_enabled
+        if type(live_enabled) is bool
+        else False
+    )
     return RepoPushPlan(
         repo_id=record.repo_id,
         repo_path_ref=record.path_ref,
@@ -575,15 +1024,80 @@ def _blocked_plan(
         commit_sha=_normalize_commit_sha(commit_sha, field_name="commit_sha"),
         actual_branch="",
         actual_commit_sha="",
-        confirmed=bool(confirmed),
-        operator_go=bool(operator_go),
+        confirmed=confirmed if type(confirmed) is bool else False,
+        operator_go=operator_go if type(operator_go) is bool else False,
         live_enabled=resolved_live,
+        completion_verified=completion_verified is True,
+        action_authorized=action_authorized is True,
         decision="blocked",
         blockers=(reason,),
         remote_policy=policy,
         status_entries=(),
         planned_steps=({"step_id": "git_status", "summary": "capture registered repo status before push", "executes": True},),
         next_human_decision="Fix push preflight before trying again.",
+    )
+
+
+def _read_sanitized_remote_url(
+    runner: RepoPushCommandRunner,
+    *,
+    command: tuple[str, ...],
+    repo_path: Path,
+    expected_remote_url: str,
+) -> tuple[RepoPushCommandResult, bool]:
+    raw_result = runner(
+        command,
+        cwd=repo_path,
+        timeout_seconds=_MAX_TIMEOUT_SECONDS,
+        env={},
+    )
+    matches = False
+    if raw_result.ok:
+        lines = [line.strip() for line in raw_result.stdout.splitlines() if line.strip()]
+        if len(lines) == 1:
+            try:
+                matches = redact_remote_url(lines[0]) == expected_remote_url
+            except (TypeError, ValueError):
+                matches = False
+    return (
+        RepoPushCommandResult(
+            exit_code=raw_result.exit_code,
+            stdout="remote_readback_verified" if matches else "",
+            stderr="",
+            timed_out=raw_result.timed_out,
+            duration_seconds=raw_result.duration_seconds,
+        ),
+        matches,
+    )
+
+
+def _read_url_rewrite_gate(
+    runner: RepoPushCommandRunner,
+    *,
+    command: tuple[str, ...],
+    repo_path: Path,
+) -> tuple[RepoPushCommandResult, bool]:
+    raw_result = runner(
+        command,
+        cwd=repo_path,
+        timeout_seconds=_MAX_TIMEOUT_SECONDS,
+        env={},
+    )
+    clear = (
+        raw_result.exit_code == 1
+        and not raw_result.timed_out
+        and raw_result.stdout == ""
+        and raw_result.stderr == ""
+    )
+    return (
+        RepoPushCommandResult(
+            exit_code=0 if clear else 1,
+            stdout="",
+            stderr="",
+            timed_out=raw_result.timed_out,
+            duration_seconds=raw_result.duration_seconds,
+        ),
+        clear,
     )
 
 
@@ -625,6 +1139,45 @@ def _normalize_remote_name(value: Any) -> str:
     return remote
 
 
+def _push_authority_matches(
+    authority: RepoPushAuthority | None,
+    *,
+    repo_id: Any,
+    remote_name: Any,
+    branch_name: Any,
+    commit_sha: Any,
+) -> bool:
+    if not isinstance(authority, RepoPushAuthority):
+        return False
+    try:
+        normalized_repo = _normalize_text(repo_id, field_name="repo_id", max_len=120)
+        remote = _normalize_remote_name(remote_name)
+        branch = normalize_branch_name(branch_name)
+        sha = _normalize_commit_sha(commit_sha, field_name="commit_sha")
+    except (RepoPushRunnerError, ValueError):
+        return False
+    return (
+        authority.action == "push"
+        and authority.granted is True
+        and authority.repo_id == normalized_repo
+        and authority.remote_name == remote
+        and authority.branch_name == branch
+        and authority.commit_sha == sha
+    )
+
+
+def _parse_exact_full_sha(output: Any) -> str:
+    raw = str(output or "")
+    if raw.endswith("\r\n"):
+        candidate = raw[:-2]
+    elif raw.endswith("\n"):
+        candidate = raw[:-1]
+    else:
+        candidate = raw
+    candidate = candidate.lower()
+    return candidate if _FULL_COMMIT_SHA_RE.fullmatch(candidate) else ""
+
+
 def _branch_from_remote_ref(value: Any) -> str:
     remote_ref = str(value or "")
     prefix = "refs/heads/"
@@ -634,9 +1187,9 @@ def _branch_from_remote_ref(value: Any) -> str:
 
 
 def _normalize_commit_sha(value: Any, *, field_name: str) -> str:
-    text = _normalize_text(value, field_name=field_name, max_len=40)
-    if not _COMMIT_SHA_RE.fullmatch(text):
-        raise RepoPushRunnerError(f"{field_name} must be a 7-40 character Git hash")
+    text = _normalize_text(value, field_name=field_name, max_len=64).lower()
+    if not _FULL_COMMIT_SHA_RE.fullmatch(text):
+        raise RepoPushRunnerError(f"{field_name} must be a full Git object id")
     return text.lower()
 
 
@@ -679,6 +1232,7 @@ def _bounded_redacted(value: str) -> str:
 def _redact_output(value: str) -> str:
     text = str(value or "")
     text = _SECRET_RE.sub("[redacted-secret]", text)
+    text = _REMOTE_URL_RE.sub("[redacted-remote]", text)
     text = _WINDOWS_PATH_RE.sub("[redacted-path]", text)
     return _ABSOLUTE_PATH_RE.sub("[redacted-path]", text)
 
@@ -689,3 +1243,26 @@ def _merge_env(extra: Mapping[str, str]) -> dict[str, str]:
     merged.update({str(key): str(value) for key, value in extra.items()})
     merged["GIT_TERMINAL_PROMPT"] = "0"
     return merged
+
+
+def _transport_url_is_allowed(value: str) -> bool:
+    try:
+        parsed = urlsplit(str(value or "").strip())
+    except ValueError:
+        return False
+    if parsed.scheme.lower() == "https":
+        return bool(parsed.hostname)
+    if parsed.scheme.lower() == "file":
+        return not parsed.username and not parsed.password and bool(parsed.path)
+    return False
+
+
+def _normalize_transport_target(value: Any) -> str:
+    raw = str(value or "").strip()
+    try:
+        redacted = redact_remote_url(raw)
+    except (RepoRegistryError, TypeError, ValueError) as exc:
+        raise RepoPushRunnerError("push target URL is invalid") from exc
+    if raw != redacted or not _transport_url_is_allowed(redacted):
+        raise RepoPushRunnerError("push target URL must be credential-free HTTPS or file")
+    return redacted

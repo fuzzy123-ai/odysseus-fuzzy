@@ -308,6 +308,20 @@ async def do_pipeline(content: str, session_id: Optional[str] = None, owner: Opt
 # Memory management tool
 # ---------------------------------------------------------------------------
 
+_ALLOWED_MEMORY_CATEGORIES = frozenset({"fact", "event", "contact", "preference"})
+
+
+def _memory_category_error(category: str) -> Dict:
+    return {
+        "error": (
+            f"Unsupported Memory category '{category}'. "
+            "Use fact, event, contact, or preference. Todo content belongs in manage_todos."
+        ),
+        "status": "domain_mismatch",
+        "redirect_tool": "manage_todos",
+        "exit_code": 1,
+    }
+
 async def do_manage_memory(content: str, session_id: Optional[str] = None, owner: Optional[str] = None) -> Dict:
     """Manage memories: list, add, edit, delete, search.
 
@@ -372,6 +386,8 @@ async def do_manage_memory(content: str, session_id: Optional[str] = None, owner
 
     if action == "list":
         category_filter = lines[1].strip().lower() if len(lines) > 1 and lines[1].strip() else None
+        if category_filter and category_filter not in _ALLOWED_MEMORY_CATEGORIES:
+            return _memory_category_error(category_filter)
         memories = _memory_manager.load(owner=owner)
         if category_filter:
             memories = [m for m in memories if m.get("category", "").lower() == category_filter]
@@ -395,6 +411,16 @@ async def do_manage_memory(content: str, session_id: Optional[str] = None, owner
         category = lines[2].strip().lower() if len(lines) > 2 and lines[2].strip() else "fact"
         if not text:
             return {"error": "Memory text cannot be empty"}
+        if category not in _ALLOWED_MEMORY_CATEGORIES:
+            return _memory_category_error(category)
+        from src.todo_intent import is_todo_memory_payload
+        if is_todo_memory_payload(text=text, category=category):
+            return {
+                "error": "Todo content is not valid Memory; use manage_todos.",
+                "status": "domain_mismatch",
+                "redirect_tool": "manage_todos",
+                "exit_code": 1,
+            }
 
         entry = _memory_manager.add_entry(text, source="ai_agent", category=category, owner=owner)
         memories = _memory_manager.load_all()
@@ -428,6 +454,14 @@ async def do_manage_memory(content: str, session_id: Optional[str] = None, owner
         new_text = lines[2].strip()
         if not new_text:
             return {"error": "New text cannot be empty"}
+        from src.todo_intent import is_todo_memory_payload
+        if is_todo_memory_payload(text=new_text, category=None):
+            return {
+                "error": "Todo content is not valid Memory; use manage_todos.",
+                "status": "domain_mismatch",
+                "redirect_tool": "manage_todos",
+                "exit_code": 1,
+            }
 
         memories = _memory_manager.load_all()
         found = False

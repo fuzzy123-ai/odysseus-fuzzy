@@ -68,7 +68,7 @@ def test_all_static_builtin_projections_validate_against_one_catalog():
         dispatcher_condition_ids=projections["dispatcher_condition_ids"],
     )
     catalog = set(CATALOG_TOOL_IDS)
-    assert len(catalog) == 84
+    assert len(catalog) == 85
     assert set(projections["runtime_tags"]) | REGISTRATION_GAPS == catalog
     assert set(projections["function_schemas"]) == catalog - {"generate_image"}
     assert set(projections["tool_index_entries"]) == catalog
@@ -94,7 +94,7 @@ def test_six_gaps_and_previous_admin_fallbacks_have_exact_dispositions():
     }
     assert DEFERRED_REGISTRATION_GAPS == {"manage_assistant", "manage_presets"}
     assert SECURITY_BLOCKED_REGISTRATION_GAPS == {"tail_serve_output"}
-    assert inventory["counts"]["admin_metadata"] == 84
+    assert inventory["counts"]["admin_metadata"] == 85
     assert inventory["counts"]["runtime_without_admin_metadata"] == 0
     assert inventory["counts"]["stale_admin_metadata"] == 0
     assert "manage_rag" not in inventory["projections"]["admin_metadata"]
@@ -111,7 +111,7 @@ def test_api_ui_and_analytics_are_deterministic_catalog_projections():
         encoding="utf-8"
     )
 
-    assert api_projection["tool_count"] == 84
+    assert api_projection["tool_count"] == 85
     assert {item["id"] for item in api_projection["descriptors"]} == set(
         CATALOG_TOOL_IDS
     )
@@ -120,8 +120,8 @@ def test_api_ui_and_analytics_are_deterministic_catalog_projections():
         family.value for family in ToolFamily
     }
     assert analytics.schema_version == "odysseus.tool_analytics_identity.v1"
-    assert len(analytics.identities) == len(analytics.analytics_id_reservations) == 84
-    assert len({item.analytics_id for item in analytics.identities}) == 84
+    assert len(analytics.identities) == len(analytics.analytics_id_reservations) == 85
+    assert len({item.analytics_id for item in analytics.identities}) == 85
     assert "const TOOL_META" not in admin_source
     assert "fetch('/api/tools'" in admin_source
     assert "TOOL_FAMILY_PRESENTATION" in admin_source
@@ -158,10 +158,10 @@ def test_role_effect_and_confirmation_matrix_fails_closed():
         ToolEffectClass.LOCAL_WRITE: 10,
         ToolEffectClass.EXTERNAL_WRITE: 9,
         ToolEffectClass.DESTRUCTIVE: 1,
-        ToolEffectClass.CONTROL: 41,
+        ToolEffectClass.CONTROL: 42,
     }
-    assert permission_counts == {ToolPermission.OWNER: 74, ToolPermission.ADMIN: 10}
-    assert len(descriptors.identities) == 84
+    assert permission_counts == {ToolPermission.OWNER: 75, ToolPermission.ADMIN: 10}
+    assert len(descriptors.identities) == 85
     for descriptor in descriptor_index.values():
         if descriptor.effect_class != ToolEffectClass.READ:
             assert descriptor.requires_confirmation is True

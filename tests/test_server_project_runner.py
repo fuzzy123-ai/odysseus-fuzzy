@@ -59,8 +59,10 @@ def test_ready_for_operator_go_requires_all_gates_and_operator_go():
     )
 
     assert plan.decision == "ready_for_operator_go"
-    assert plan.live_execution_allowed is True
-    assert plan.to_dict()["operator_gate"]["mutation_allowed"] is True
+    assert plan.live_execution_allowed is False
+    assert plan.operator_live_go_ready is True
+    assert plan.to_dict()["live_execution_allowed"] is False
+    assert plan.to_dict()["operator_gate"]["mutation_allowed"] is False
     assert plan.to_dict()["operator_gate"]["operator_decision"] == "go"
     assert plan.blockers == ()
 
@@ -171,6 +173,48 @@ def test_private_paths_and_secrets_are_redacted_in_serialized_plan():
 def test_rejects_empty_quality_gate_list():
     with pytest.raises(ValueError, match="quality_gate_command"):
         build_server_project_runner_plan(quality_gate_commands=())
+
+
+@pytest.mark.parametrize(
+    "command",
+    (
+        "git push --force fuzzy dev",
+        "git rebase main",
+        "git update-ref refs/heads/main HEAD",
+        "git branch -D main",
+        "python -m pytest tests/test_server_project_runner.py | git status",
+    ),
+)
+def test_quality_gate_commands_use_structured_safe_argv_only(command):
+    plan = build_server_project_runner_plan(
+        quality_gate_commands=(command,),
+        backup_evidence_green=True,
+        smoke_target="tests/test_server_project_runner.py",
+        rollback_plan="hold",
+    )
+
+    assert plan.decision == "blocked"
+    assert any("unsafe argv" in blocker for blocker in plan.blockers)
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    ("live_go", "backup_evidence_green", "ui_scope_requested", "cloudflare_tunnel_requested"),
+)
+def test_server_boolean_gates_never_coerce_string_false(field_name):
+    kwargs = {
+        "backup_evidence_green": True,
+        "smoke_target": "tests/test_server_project_runner.py",
+        "rollback_plan": "hold",
+        "operator_decision": "go",
+        "live_go": True,
+    }
+    kwargs[field_name] = "false"
+
+    plan = build_server_project_runner_plan(**kwargs)
+
+    assert plan.operator_live_go_ready is False
+    assert f"{field_name} must be a boolean" in plan.blockers
 
 
 def test_source_has_no_subprocess_or_network_runtime():

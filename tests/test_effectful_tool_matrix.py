@@ -5,9 +5,10 @@ from src.effectful_tool_matrix import build_effectful_action_snapshot, effectful
 def test_effectful_matrix_includes_modern_side_effects():
     names = set(effectful_tool_names())
 
-    assert {"telegram_document_reply", "browser_screenshot", "git_commit", "sandbox_submit", "bash"} <= names
+    assert {"telegram_document_reply", "browser_screenshot", "git_commit", "sandbox_submit", "bash", "manage_todos"} <= names
     assert _VERIFIER_EFFECTFUL_TOOLS >= names
     assert tool_effect_category("telegram_photo") == "telegram_outbound"
+    assert tool_effect_category("manage_todos") == "todo_domain_transaction"
 
 
 def test_effectful_matrix_covers_sensitive_catalog_control_families():

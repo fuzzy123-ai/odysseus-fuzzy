@@ -1,0 +1,943 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.multi_agent_execution_guidance",
+  "updated_at": "2026-07-22T12:00:00+02:00",
+  "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
+  "inventory": {
+    "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
+    "docs_plans_count": 123,
+    "structured_specs_discovery": "All JSON files directly under specs/roadmaps.",
+    "structured_specs_count": 7,
+    "total_count": 130,
+    "excluded": [
+      "specs/roadmaps/odysseus-multiagent-start-2026-06-22.prompt.txt",
+      "docs/plans/multi-agent-execution-guidance.json"
+    ]
+  },
+  "authority": {
+    "structure_and_claimability": "specs/roadmaps/odysseus-multiagent-roadmap.v1.json",
+    "current_open_work_and_gate_state": "docs/plans/open-work-completion-master-roadmap.json",
+    "mvp_completion_state": "docs/plans/mvp-roadmap-runner-state.json",
+    "integration_priority": "docs/plans/central-abc-masterplan-2026-06-29.md",
+    "product_direction": "docs/plans/unified-odysseus-roadmap.md",
+    "domain_contract": "The selected domain roadmap after reconciliation with the authorities above.",
+    "conflict_rule": "Current dated completion and gate evidence wins over stale queue prose. A recommendation in the June structured seed is not claimable until reconciled with the July open-work and runner state. Never infer that an old unchecked or next-slice line reopens completed work."
+  },
+  "analysis_summary": {
+    "profile_counts": {
+      "active_parallel": 8,
+      "active_serial": 15,
+      "canonical_router": 9,
+      "gate_only": 56,
+      "historical_done": 35,
+      "needs_normalization": 7
+    },
+    "parallel_write_candidates": [
+      "docs/plans/code-lineage-timeline-roadmap.md",
+      "docs/plans/diagnostics-legacy-fix-roadmap.md",
+      "docs/plans/gemma3-memory-ops-optimization-roadmap.md",
+      "docs/plans/graphrag-raptor-observability-prometheus-grafana-roadmap.md",
+      "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md",
+      "docs/plans/privacy-safe-tool-analytics-roadmap.md",
+      "docs/plans/system-assurance-runtime-hardening-roadmap.json",
+      "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md"
+    ],
+    "serial_design_or_hotfile_tracks": [
+      "docs/plans/abc-frontpage-v2-build-plan.md",
+      "docs/plans/agent-maintenance-safety-harness-roadmap.json",
+      "docs/plans/ai-lens-design-roadmap.json",
+      "docs/plans/anti-hallucination-evidence-roadmap.md",
+      "docs/plans/codebase-memory-integration-roadmap.md",
+      "docs/plans/headless-write-agent-orchestration-roadmap.md",
+      "docs/plans/lens-code-graph-roadmap.md",
+      "docs/plans/planning-definition-editor-roadmap.json",
+      "docs/plans/project-versioning-forge-provider-roadmap.md",
+      "docs/plans/product-planning-skills-integration-roadmap.md",
+      "docs/plans/temporal-light-agent-execution-roadmap.json",
+      "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "docs/plans/tool-taxonomy-registration-roadmap.md",
+      "docs/plans/unified-source-index-implementation-roadmap.md",
+      "docs/plans/unified-source-index-runtime-integration-roadmap.md",
+      "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md"
+    ],
+    "normalization_queue": [
+      "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+      "docs/plans/development-orchestration-foundation-roadmap.md",
+      "docs/plans/remaining-features-roadmap-2026-06-20.md",
+      "docs/plans/telegram-plugin-rich-streaming-roadmap.md",
+      "docs/plans/universal-inbox-abc-roadmap.md",
+      "docs/plans/updates-backups-ui-roadmap.md",
+      "specs/roadmaps/private-data-memory-ingestion-roadmap.v1.json"
+    ],
+    "findings": [
+      "The previous safe repository queue was exhausted, but the operator opened normalized TAX/TUA post-MVP roadmaps on 2026-07-13. Their scoped repo-only slices are now the current safe queue and do not reopen the fixed ten-roadmap MVP runner.",
+      "Several old roadmaps retain active or in-progress wording after their slices were completed or superseded. Current evidence must outrank old queue prose.",
+      "Multi-agent throughput is constrained mainly by shared UI, Telegram, planning and runtime hot files. Read-only scouts scale safely; write agents require disjoint path claims.",
+      "Master roadmaps and runner state are routers, not worker tasks. They require one orchestrator writer and report reduction from workers.",
+      "GMI and GRO are runtime execution and observability tracks only. USI owns index identity, CBM is a rebuildable codegraph provider, Git/Project Versioning owns history, and Lens Code is a UI consumer; no one track may absorb the others.",
+      "The normalized USI/CBM/Lineage/Lens roadmaps are planned follow-ups and do not replace the current TAX/TUA queue. On a future goal, only each roadmap's first declared slice becomes claimable. Productive CBM, Lineage and Lens activation remains independently gated; the UIR/UDA/ULO child closures share the parent USI gate.",
+      "USI core is not activation-complete without its three child closures: UIR owns composition and consumers, UDA owns policy-aware domain adapters and best-effort change signals, and ULO owns index participation in existing owner/data lifecycle operations. None may absorb domain truth, existing operations, TAX/TUA, GRO/GMI, CBM/Lineage or Lens ownership.",
+      "Clarification is a planning precondition for the Harbor One autonomous workspace; missing product decisions must be asked, not inferred."
+    ]
+  },
+  "profiles": {
+    "canonical_router": {
+      "write_mode": "single_orchestrator_writer",
+      "parallelism": "Read-only scouts may run in parallel; only the orchestrator may reduce reports, change queue state, accept claims, or mutate the router artifact.",
+      "required_behavior": [
+        "Reconcile all candidate work with the current gate and completion authorities before dispatch.",
+        "Require a claim or lease and reject overlapping allowed paths.",
+        "Do not execute a router, master plan, or runner state as if it were an implementation slice."
+      ]
+    },
+    "active_parallel": {
+      "write_mode": "disjoint_scoped_writers",
+      "parallelism": "Alice, Bob, and Charlie may work concurrently only when slice dependencies are satisfied and allowed paths do not overlap. Charlie owns integration.",
+      "required_behavior": [
+        "Claim one explicit slice with class, owner, allowed paths, tests, evidence, and gate.",
+        "Serialize shared hot files and any path omitted from the slice contract.",
+        "Stop at live, design, provider, data, deploy, or destructive gates."
+      ]
+    },
+    "active_serial": {
+      "write_mode": "single_scoped_writer",
+      "parallelism": "Parallel work is limited to read-only audits or design alternatives; one accepted owner writes after the orchestrator resolves dependencies and hot files.",
+      "required_behavior": [
+        "Freeze a current slice and allowed paths before editing.",
+        "Do not let multiple workers edit shared UI, plugin, runtime, or roadmap hot files.",
+        "Use a handoff and fresh tests before the next writer starts."
+      ]
+    },
+    "gate_only": {
+      "write_mode": "no_new_implementation_without_decision",
+      "parallelism": "Read-only evidence collection may run in parallel. Gate execution is one bounded operator-approved action at a time.",
+      "required_behavior": [
+        "Do not invent backend cleanup or implementation slices to avoid the gate.",
+        "Prepare a decision packet with target, safe default, evidence path, forbidden actions, and rollback or stop rule.",
+        "Never claim live completion from repo tests or dry-run evidence."
+      ]
+    },
+    "historical_done": {
+      "write_mode": "read_only_reference",
+      "parallelism": "No implementation dispatch. Scouts may cite verified evidence or compare it with current code.",
+      "required_behavior": [
+        "Do not reopen completed slices or overwrite historical evidence.",
+        "Route new work to a current roadmap or create a new normalized follow-up.",
+        "Treat deferred ideas as unapproved, not as an active queue."
+      ]
+    },
+    "needs_normalization": {
+      "write_mode": "read_only_until_normalized",
+      "parallelism": "Multiple read-only scouts may inspect code, tests, and newer plans; no worker writes implementation until one orchestrator publishes a current status and scoped queue.",
+      "required_behavior": [
+        "Resolve contradictory status, stale next-slice text, and superseding roadmaps first.",
+        "Add or select an explicit owner, allowed paths, tests, dependencies, and gate before dispatch.",
+        "If normalization needs product intent, ask the user instead of interpreting the gap."
+      ]
+    }
+  },
+  "global_ai_preflight": [
+    "Resolve the exact roadmap path and load its entry from this index.",
+    "Load current open-work, MVP runner, integration priority, and domain status before trusting an old queue.",
+    "Inspect git status plus active claims or leases; preserve unrelated dirty files.",
+    "Select exactly one claimable slice and record id, class, owner, dependencies, allowed paths, tests, evidence, and gate.",
+    "Downgrade to read-only normalization if any required claim field is missing or paths collide.",
+    "Ask focused clarification questions when intent, UX, live target, privacy boundary, or acceptance criteria are material and unavailable from context.",
+    "Stop before live sends, host changes, provider calls, private-data reads or writes, deployment, destructive actions, and design decisions without their explicit gate.",
+    "A done claim requires machine-readable test or runtime evidence appropriate to the slice; prose is not evidence."
+  ],
+  "required_handoff": [
+    "roadmap_path",
+    "slice_id",
+    "owner",
+    "status",
+    "changed_paths",
+    "tests_and_results",
+    "evidence_refs",
+    "remaining_gate_or_blocker",
+    "collision_check",
+    "recommended_next_action"
+  ],
+  "roadmaps": [
+    {
+      "path": "docs/plans/1.1-private-source-ops-roadmap.md",
+      "profile": "gate_only",
+      "state": "offline_feature_complete_live_actions_gated",
+      "ai_hint": "Use this as updater and private-source evidence. Do not restart offline implementation; prepare exactly one bounded updater, Nextcloud, or source-provider gate packet."
+    },
+    {
+      "path": "docs/plans/abc-frontpage-v2-build-plan.md",
+      "profile": "active_serial",
+      "state": "isolated_frontend_build_active",
+      "ai_hint": "Treat Frontpage v2/v3 files as UI hot files. Let Alice settle the UX contract, use read-only review in parallel, and allow only one frontend integration writer after the design decision."
+    },
+    {
+      "path": "docs/plans/abc-prioritized-execution-roadmap.md",
+      "profile": "historical_done",
+      "state": "repository_offline_closure_complete",
+      "ai_hint": "This records the closed offline ABC sequence. Cite its evidence only; use the current open-work master for new decisions."
+    },
+    {
+      "path": "docs/plans/abc-roadmap-completion-handoff.md",
+      "profile": "historical_done",
+      "state": "completion_handoff",
+      "ai_hint": "Read as a closure handoff. Never derive an active queue from its historical next-step language."
+    },
+    {
+      "path": "docs/plans/agent-automation-foundation-roadmap.md",
+      "profile": "historical_done",
+      "state": "foundation_complete_followup_deferred",
+      "ai_hint": "AAF1-AAF3 are closed and AAF4 is deferred. Route any timer or watcher follow-up through a new current slice rather than reopening this foundation."
+    },
+    {
+      "path": "docs/plans/agent-autonomy-extensions-master-roadmap.json",
+      "profile": "historical_done",
+      "state": "done",
+      "ai_hint": "All declared extension tracks are complete. Use this master only for capability provenance and route production gaps to the current readiness roadmap."
+    },
+    {
+      "path": "docs/plans/agent-maintenance-safety-harness-roadmap.json",
+      "profile": "active_serial",
+      "state": "repo_frontier_exhausted_amh02_amh05_hardened_amh03_foundation_foreign_handoffs_required",
+      "ai_hint": "The current repo-only frontier is exhausted. AMH-02 diagnostics and AMH-05 handoff projection are adversarially hardened and the AMH-03 verifier foundation is accepted, but all three remain incomplete on foreign integration paths. Resume only after an exact durable handoff or a new dependency-ready queue entry."
+    },
+    {
+      "path": "docs/plans/agent-browser-sense-roadmap.json",
+      "profile": "historical_done",
+      "state": "done",
+      "ai_hint": "Browser-sense implementation is closed. New browser defects need a fresh scoped issue or roadmap with current evidence."
+    },
+    {
+      "path": "docs/plans/agent-capability-expansion-master-roadmap.json",
+      "profile": "historical_done",
+      "state": "done",
+      "ai_hint": "Do not dispatch its completed capability slices. Reuse the contracts and tests as prerequisites for newer autonomy work."
+    },
+    {
+      "path": "docs/plans/agent-context-transparency-roadmap.json",
+      "profile": "gate_only",
+      "state": "backend_ready_ui_gated",
+      "ai_hint": "Backend contracts are ready. Limit parallel work to redacted evidence review; UI context-rail or memory-influence presentation requires the explicit design gate."
+    },
+    {
+      "path": "docs/plans/agent-extension-browser-devtools-roadmap.json",
+      "profile": "historical_done",
+      "state": "done",
+      "ai_hint": "DevTools observation work is complete. Do not reactivate it without a newly observed browser evidence gap."
+    },
+    {
+      "path": "docs/plans/agent-extension-memory-ingestion-roadmap.json",
+      "profile": "historical_done",
+      "state": "done",
+      "ai_hint": "The extension slice is closed. Use current Memory, Universal Inbox, or private-ingestion plans for new work."
+    },
+    {
+      "path": "docs/plans/agent-extension-nogpu-visual-observer-roadmap.json",
+      "profile": "historical_done",
+      "state": "done",
+      "ai_hint": "The no-GPU observer is complete. Treat additional visual engines as a separately gated capability track."
+    },
+    {
+      "path": "docs/plans/agent-extension-sandbox-execution-roadmap.json",
+      "profile": "historical_done",
+      "state": "done",
+      "ai_hint": "Sandbox extension implementation is closed. Production runner gaps belong to autonomous-coding readiness, not this roadmap."
+    },
+    {
+      "path": "docs/plans/agent-extension-telegram-task-orchestrator-roadmap.json",
+      "profile": "historical_done",
+      "state": "done",
+      "ai_hint": "The Telegram orchestration extension is complete. Live sends and scheduling remain governed by current Telegram and open-work gates."
+    },
+    {
+      "path": "docs/plans/agent-extension-website-research-roadmap.json",
+      "profile": "historical_done",
+      "state": "done",
+      "ai_hint": "Website research implementation is closed. Open a focused defect slice only when current tests or runtime evidence show a regression."
+    },
+    {
+      "path": "docs/plans/agent-profile-foundation-roadmap.md",
+      "profile": "gate_only",
+      "state": "backend_complete_ui_deferred",
+      "ai_hint": "Do not reopen APF1-APF4. APF5 is a deferred UI decision and may start only through the active design process."
+    },
+    {
+      "path": "docs/plans/agent-result-observer-roadmap.json",
+      "profile": "historical_done",
+      "state": "done",
+      "ai_hint": "Result-observer work is complete. Reuse its artifact contract; do not create parallel observers without a measured gap."
+    },
+    {
+      "path": "docs/plans/agent-sandbox-pod-roadmap.json",
+      "profile": "historical_done",
+      "state": "done",
+      "ai_hint": "Pod sandbox scope is closed. Runtime deployment or additional language support belongs to production readiness."
+    },
+    {
+      "path": "docs/plans/agent-team-card-api-roadmap.md",
+      "profile": "historical_done",
+      "state": "done",
+      "ai_hint": "The read-only Team Card API is complete. UI presentation is a separate design-gated concern."
+    },
+    {
+      "path": "docs/plans/ai-lens-design-roadmap.json",
+      "profile": "active_serial",
+      "state": "planned_design_first",
+      "ai_hint": "Run parallel read-only design research only. One accepted design owner must resolve placement, hierarchy, and states before any UI writer starts."
+    },
+    {
+      "path": "docs/plans/ai-lens-master-roadmap.json",
+      "profile": "gate_only",
+      "state": "backend_contracts_ready_ui_live_gated",
+      "ai_hint": "Do not invent backend work. Choose one bounded AI Lens runtime evidence target or pass the UI work to the approved design roadmap."
+    },
+    {
+      "path": "docs/plans/ai-lens-technical-roadmap.json",
+      "profile": "gate_only",
+      "state": "repo_slices_done_live_gated",
+      "ai_hint": "Technical repo slices are closed. Only a redacted, bounded local-internals or provider-stream gate may advance this roadmap."
+    },
+    {
+      "path": "docs/plans/anti-hallucination-evidence-roadmap.md",
+      "profile": "active_serial",
+      "state": "critical_domains_implemented_followups_unscoped",
+      "ai_hint": "Select one currently unsupported claim domain, audit it read-only, then assign one evidence-resolver writer. Serialize changes to final-answer, tool-ledger, and claim-gate hot paths."
+    },
+    {
+      "path": "docs/plans/autonomous-coding-agent-sandbox-execution-roadmap.json",
+      "profile": "historical_done",
+      "state": "done_with_live_evidence",
+      "ai_hint": "The sandbox execution foundation and bounded live proof are complete. Use its evidence as a prerequisite, not an active implementation queue."
+    },
+    {
+      "path": "docs/plans/autonomous-coding-production-readiness-roadmap.json",
+      "profile": "gate_only",
+      "state": "remote_control_live_smoke_done_deploy_gated",
+      "ai_hint": "Repository and remote-control work is closed. Advance only one reviewed deployment, allowlist, or production-control gate with pause/stop evidence."
+    },
+    {
+      "path": "docs/plans/autonomy-calendar-coding-master-roadmap.json",
+      "profile": "gate_only",
+      "state": "repo_slices_done_live_gated",
+      "ai_hint": "Use as a domain gate router. Do not parallelize live calendar and coding mutations; choose one bounded family and record redacted evidence."
+    },
+    {
+      "path": "docs/plans/calendar-mcp-reminder-backbone-roadmap.json",
+      "profile": "gate_only",
+      "state": "repo_slices_done_live_gated",
+      "ai_hint": "The reminder backend is ready. A single Telegram or CalDAV smoke may run only after concrete server-side target and operator Go are present."
+    },
+    {
+      "path": "docs/plans/central-abc-masterplan-2026-06-29.md",
+      "profile": "canonical_router",
+      "state": "active_integration_baseline",
+      "ai_hint": "Use this to choose and sequence domain work, never as a worker slice. Enforce at most three disjoint implementation lanes and serialize every shared file."
+    },
+    {
+      "path": "docs/plans/codebase-architecture-cleanup-roadmap.md",
+      "profile": "gate_only",
+      "state": "repo_complete_broad_moves_gated",
+      "ai_hint": "Do not resume broad moves or alias removal from this roadmap. Require a measured boundary problem and a new scoped migration gate."
+    },
+    {
+      "path": "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+      "profile": "needs_normalization",
+      "state": "header_says_in_progress_but_declared_slices_are_done",
+      "ai_hint": "Reconcile the stale in-progress header against CAO1-CAO7 evidence and current production-readiness plans before dispatching any write work."
+    },
+    {
+      "path": "docs/plans/context-budget-dynamic-abc-roadmap.md",
+      "profile": "gate_only",
+      "state": "repo_implementation_complete_live_deploy_gated",
+      "ai_hint": "CB-A through CB-C and root hardening are complete. Do not reopen repo implementation; only a bounded production deploy and smoke may proceed after explicit live authorization and fresh scoped verification."
+    },
+    {
+      "path": "docs/plans/debian-observability-security-handoff-roadmap.json",
+      "profile": "gate_only",
+      "state": "repo_contracts_done_live_gated",
+      "ai_hint": "Keep scouts read-only. Pick one host inventory, retention, exposure, or security action and require an explicit bounded Debian gate."
+    },
+    {
+      "path": "docs/plans/deepseek-rl-lite-abc-roadmap.md",
+      "profile": "gate_only",
+      "state": "repo_foundation_complete_live_provider_and_training_gated",
+      "ai_hint": "Do not start training or provider export from repo readiness. Build a separate approved experiment packet with privacy, budget, and rollback evidence."
+    },
+    {
+      "path": "docs/plans/development-orchestration-foundation-roadmap.md",
+      "profile": "needs_normalization",
+      "state": "stale_active_label_foundation_later_reported_complete",
+      "ai_hint": "Compare this old next-build sequence with the completed 0.12 foundation and current PlanRuntime before deciding whether any slice remains. No implementation write before reconciliation."
+    },
+    {
+      "path": "docs/plans/diagnostics-legacy-fix-roadmap.md",
+      "profile": "active_parallel",
+      "state": "needs_fix_slices_declared",
+      "ai_hint": "First re-run the focused audit because the roadmap has no dated completion block. If still valid, DLF slices may run on disjoint paths; serialize shared tool-registry files and let Charlie integrate."
+    },
+    {
+      "path": "docs/plans/dsgvo-security-gate-roadmap.md",
+      "profile": "gate_only",
+      "state": "backend_complete_ui_and_live_decisions_external",
+      "ai_hint": "Backend privacy gates are closed. New channel or UI behavior requires an explicit product/privacy decision and must not weaken existing defaults."
+    },
+    {
+      "path": "docs/plans/gamedev-project-access-roadmap.md",
+      "profile": "gate_only",
+      "state": "repo_complete_runtime_and_write_smoke_gated",
+      "ai_hint": "Do not add more mount code. Prepare one disposable, confined runtime or write smoke with exact path, rollback-free cleanup, and operator Go."
+    },
+    {
+      "path": "docs/plans/gate-evidence-core-rework-roadmap.md",
+      "profile": "gate_only",
+      "state": "additive_core_done_breaking_migration_gated",
+      "ai_hint": "Treat the additive core as complete. A compatibility-breaking adapter or route migration needs a dedicated migration gate and consumer inventory."
+    },
+    {
+      "path": "docs/plans/gemma3-chunk-graphrag-abc-roadmap.md",
+      "profile": "historical_done",
+      "state": "benchmark_and_guard_evidence_complete_superseded_by_memory_ops",
+      "ai_hint": "Use this as Gemma3 retrieval and latency evidence. Route production launcher, scheduler, and remaining maintenance work to gemma3-memory-ops-optimization-roadmap.md."
+    },
+    {
+      "path": "docs/plans/gemma3-local-model-priority-process.md",
+      "profile": "historical_done",
+      "state": "active_operator_contract_not_a_work_queue",
+      "ai_hint": "Apply its P0-P3 priority rules to execution. Do not claim headings in this process document as slices; mutate runtime through the Memory Ops roadmap."
+    },
+    {
+      "path": "docs/plans/gemma3-memory-ops-optimization-roadmap.md",
+      "profile": "active_parallel",
+      "state": "ready_for_goal_start_live_default_off",
+      "ai_hint": "This is the single canonical Gemma queue. On goal start claim only GMI-00, keep successors blocked_by_dependency, and parallelize only the roadmap's disjoint waves. Serialize scheduler, model_context, llm_core, chat_helpers and observability hotfiles. Enforce exact gemma3:4b maintenance-only eligibility, preserve all other model/agent budgets and stop before the single GMI-LIVE-ACTIVATION gate."
+    },
+    {
+      "path": "docs/plans/gemma4-e4b-optimization-roadmap.md",
+      "profile": "historical_done",
+      "state": "complete_live_smoke_passed",
+      "ai_hint": "This is closed evidence showing Gemma4/E4B performance limits. Do not optimize this model path unless new hardware or a new explicit target is approved."
+    },
+    {
+      "path": "docs/plans/gemma4-maintenance-inbox-roadmap.md",
+      "profile": "gate_only",
+      "state": "backend_complete_live_smoke_gated",
+      "ai_hint": "The backend path is complete. Use Gemma3 plans for current local-model work; any legacy Gemma4 live smoke requires a separate bounded decision."
+    },
+    {
+      "path": "docs/plans/graphrag-raptor-observability-prometheus-grafana-roadmap.md",
+      "profile": "active_parallel",
+      "state": "ready_for_goal_start_live_default_off",
+      "ai_hint": "On goal start claim only GRO-00 and advance dependency-satisfied slices. Correct metric semantics before dashboards, use disjoint writers for registry, plugin performance and offline ops assets, and serialize observability_metrics.py, plugin routes, query_layer.py, raptor_cache.py and all Prometheus/Grafana assets. Keep scrape and services disabled until the single GRO-LIVE-ACTIVATION gate."
+    },
+    {
+      "path": "docs/plans/github-issue-intelligence-roadmap.md",
+      "profile": "gate_only",
+      "state": "repo_slices_complete_provider_sync_and_write_gated",
+      "ai_hint": "Do not invent issue backend slices. Choose read-only provider sync or one confirmation-gated write, with token handling and duplicate evidence, after operator Go."
+    },
+    {
+      "path": "docs/plans/headless-write-agent-orchestration-roadmap.md",
+      "profile": "active_serial",
+      "state": "hwa0_hwa1_complete_durable_state_next_live_actions_gated",
+      "ai_hint": "HWA0-HWA1 are complete. Claim the durable owner-scoped state, worktree-evidence and lease-fencing slice next with one scoped writer. Preserve commit_project as the only commit authority; provider delivery, merge and deploy are separate stages. Stop before real runner, scheduler, commit bridge, provider, merge or deploy actions without prerequisites and the exact named gate."
+    },
+    {
+      "path": "docs/plans/harbor-planning-integration-master-roadmap.json",
+      "profile": "gate_only",
+      "state": "backend_contracts_ready_ui_live_gated",
+      "ai_hint": "Planning contracts are ready. UI placement and external planning mutations must be selected through their design or write gate, one target at a time."
+    },
+    {
+      "path": "docs/plans/homeserver-backup-roadmap.md",
+      "profile": "gate_only",
+      "state": "backup_gate_go_deploy_separate",
+      "ai_hint": "Use existing backup evidence. Deployment, restore, retention changes, or a new target remain individual operator-approved host actions."
+    },
+    {
+      "path": "docs/plans/internal-knowledge-reference-roadmap.md",
+      "profile": "gate_only",
+      "state": "backend_complete_ui_deferred",
+      "ai_hint": "Do not extend the backend without a current gap. UI reference presentation waits for the active design lane."
+    },
+    {
+      "path": "docs/plans/interactive-game-artifact-closure-roadmap.md",
+      "profile": "gate_only",
+      "state": "production_complete_upstream_publication_hygiene_gated",
+      "ai_hint": "Repository and bounded production validation are complete. Do not reopen artifact runtime work; any upstream push, persistent canary, cleanup endpoint, or publication action needs its own reviewed scope and operator gate."
+    },
+    {
+      "path": "docs/plans/large-file-refactoring-tool-implementations-map.md",
+      "profile": "historical_done",
+      "state": "implementation_map_complete",
+      "ai_hint": "This is an evidence map, not an execution queue. Start a new scoped refactor only when current file metrics exceed the documented threshold."
+    },
+    {
+      "path": "docs/plans/legacy-chat-new-functions-integration-roadmap.md",
+      "profile": "gate_only",
+      "state": "backend_contracts_ready_ui_live_gated",
+      "ai_hint": "Backend integration is closed. Legacy chat presentation requires an explicit UI decision and must not compete with Harbor One hot files."
+    },
+    {
+      "path": "docs/plans/legacy-chat-new-functions-master-roadmap.json",
+      "profile": "gate_only",
+      "state": "backend_contracts_ready_ui_live_gated",
+      "ai_hint": "Use this only to form legacy-chat decision packets. Do not dispatch new backend work from completed contract slices."
+    },
+    {
+      "path": "docs/plans/maintenance-ai-knowledge-master-roadmap.json",
+      "profile": "historical_done",
+      "state": "done",
+      "ai_hint": "The maintenance knowledge master is complete. Current local-model maintenance work is governed by the Gemma3 Memory Ops roadmap."
+    },
+    {
+      "path": "docs/plans/mcp-workbench-productization-roadmap.md",
+      "profile": "gate_only",
+      "state": "all_repo_slices_done_live_and_external_access_gated",
+      "ai_hint": "Ignore the stale in-progress header; MCP1-MCP6 are done. Advance only a policy-reviewed external server, credential, or live mutation gate."
+    },
+    {
+      "path": "docs/plans/memory-cleanup-readiness-roadmap.md",
+      "profile": "gate_only",
+      "state": "backend_complete_ui_optional",
+      "ai_hint": "Memory cleanup readiness is closed backend work. UI labels or real cleanup actions need a separate review and data-safety gate."
+    },
+    {
+      "path": "docs/plans/memory-durability-performance-suite-roadmap.md",
+      "profile": "historical_done",
+      "state": "headless_mvp_done",
+      "ai_hint": "Use the suite as verification infrastructure. Add scenarios only through a current performance roadmap with a measured risk."
+    },
+    {
+      "path": "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
+      "profile": "gate_only",
+      "state": "mem1_mem6_done_live_reindex_and_breaking_aliases_gated",
+      "ai_hint": "Ignore the stale in-progress header. Do not reopen MEM1-MEM6; prepare only a bounded reindex or compatibility-removal decision."
+    },
+    {
+      "path": "docs/plans/memory-scale-foundation-roadmap.md",
+      "profile": "gate_only",
+      "state": "foundation_reported_complete_optional_tracks_measurement_gated",
+      "ai_hint": "MS foundation work is complete in the unified roadmap. Qdrant, Kuzu, or research tracks may start only after current diagnostics prove the documented need."
+    },
+    {
+      "path": "docs/plans/mvp-master-roadmap.md",
+      "profile": "canonical_router",
+      "state": "legacy_active_label_runner_reports_100_percent",
+      "ai_hint": "Use as human prioritization history, but trust mvp-roadmap-runner-state.json for completion. Do not reopen points 1-10 from this older active label."
+    },
+    {
+      "path": "docs/plans/mvp-roadmap-runner.md",
+      "profile": "canonical_router",
+      "state": "runner_contract_queue_exhausted",
+      "ai_hint": "Follow the runner protocol, but do not create a slice when the state has no active roadmap or active slice. Route next work through open-work decisions."
+    },
+    {
+      "path": "docs/plans/mvp-roadmap-runner-state.json",
+      "profile": "canonical_router",
+      "state": "all_ten_roadmaps_complete_no_active_slice_ui_live_false",
+      "ai_hint": "This is machine-readable MVP completion state. Only the orchestrator may update it from verified evidence; workers must never manufacture progress."
+    },
+    {
+      "path": "docs/plans/nextcloud-import-preparation-roadmap.md",
+      "profile": "gate_only",
+      "state": "safe_backend_prep_complete_document_and_memory_writes_gated",
+      "ai_hint": "Do not perform real imports from repo readiness. Prepare one copy-only, redacted document pilot or memory-write packet with explicit privacy Go."
+    },
+    {
+      "path": "docs/plans/observability-security-ops-master-roadmap.json",
+      "profile": "gate_only",
+      "state": "repo_slices_done_live_gated",
+      "ai_hint": "Route one observability or security decision at a time. Never parallelize host mutations, firewall changes, restarts, or external exposure."
+    },
+    {
+      "path": "docs/plans/odysseus-functional-roadmap-2026-07-02.md",
+      "profile": "gate_only",
+      "state": "repo_complete_live_sends_and_policy_decisions_gated",
+      "ai_hint": "All named backend slices are done. Use its G1-G4 entries only as decision context and prefer the current open-work master for execution."
+    },
+    {
+      "path": "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md",
+      "profile": "active_parallel",
+      "state": "researched_proposed_execution_roadmap",
+      "ai_hint": "Complete clarification contracts and ask-state foundations before plan generation. Parallelize read-only audits and disjoint backend contracts; serialize Agent-screen hot files and require design/live gates for frontend or runtime activation."
+    },
+    {
+      "path": "docs/plans/odysseus-mcp-server-roadmap.md",
+      "profile": "historical_done",
+      "state": "done",
+      "ai_hint": "The MCP server roadmap is complete. Production activation belongs to MCP Workbench or open-work gate packets."
+    },
+    {
+      "path": "docs/plans/odysseus-notification-mcp-roadmap.md",
+      "profile": "historical_done",
+      "state": "contract_and_adapter_implemented_by_functional_track",
+      "ai_hint": "Treat NOTIFY0-NOTIFY4 as completed evidence. A standalone external MCP server remains deferred and needs a fresh policy-reviewed roadmap."
+    },
+    {
+      "path": "docs/plans/open-work-completion-master-roadmap.json",
+      "profile": "canonical_router",
+      "state": "repo_frontier_exhausted_waiting_on_handoffs_and_gates",
+      "ai_hint": "This is the current gate authority. The queue audit reports zero safe open slices and one unclaimable product-semantics item. Keep foreign paths read-only and resume only after a durable handoff, an explicit product decision, or an action-specific gate approval."
+    },
+    {
+      "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
+      "profile": "canonical_router",
+      "state": "current_priority_decision_record_with_p0_normalization_required",
+      "ai_hint": "Use this as the dated operator priority decision, not as permission to mutate the dirty primary checkout. Its P0 requires a clean-worktree reconciliation of UIX, stale PMCP9 and the Open-Work DAG before implementation. OWM-22 was separately reprioritized by the operator on 2026-07-21; the current Open-Work and central master authorities define its next-safe-frontier position."
+    },
+    {
+      "path": "docs/plans/operator-dashboard-review-queue-roadmap.md",
+      "profile": "gate_only",
+      "state": "repo_backend_complete_ui_live_deferred",
+      "ai_hint": "Backend review projections are complete. UI dashboard placement and live controls must wait for an approved design and action gate."
+    },
+    {
+      "path": "docs/plans/ops-security-console-roadmap.md",
+      "profile": "gate_only",
+      "state": "repo_complete_live_gated",
+      "ai_hint": "No new console backend slices. A host probe or remediation must be bounded, read-only by default, and individually operator-approved."
+    },
+    {
+      "path": "docs/plans/p0-p2-feature-closure-roadmap.md",
+      "profile": "gate_only",
+      "state": "operator_closure_bundle",
+      "ai_hint": "Use this as closure evidence. Any unfinished external evidence must be chosen through the newer release or open-work gate authority."
+    },
+    {
+      "path": "docs/plans/pdf-long-document-extraction-roadmap.md",
+      "profile": "gate_only",
+      "state": "backend_complete_integrated_into_central_master",
+      "ai_hint": "Do not reopen extraction backend work. UI visibility, OCR provider use, or real private-document runs each require their current gate."
+    },
+    {
+      "path": "docs/plans/planning-definition-editor-roadmap.json",
+      "profile": "active_serial",
+      "state": "active_serial_contract_frozen",
+      "ai_hint": "After the shared-router handoff, claim PDE-01 only. Keep definition writes serial; do not start UI, Planning mutations or Agent runtime work in parallel, and stop at the named write and live gates."
+    },
+    {
+      "path": "docs/plans/planning-mcp-roadmap.json",
+      "profile": "gate_only",
+      "state": "repo_slices_done_live_gated",
+      "ai_hint": "Keep Planning MCP read-only unless one exact project or roadmap mutation has preview, audit classification, undo metadata, and explicit Go."
+    },
+    {
+      "path": "docs/plans/plugin-system-hardening-roadmap.md",
+      "profile": "gate_only",
+      "state": "repo_hardening_done_live_install_gated",
+      "ai_hint": "Schema and lifecycle hardening are complete. Real plugin install, enablement, or compatibility removal requires a focused operator gate."
+    },
+    {
+      "path": "docs/plans/pre-1.0-context-efficiency-roadmap.md",
+      "profile": "historical_done",
+      "state": "done",
+      "ai_hint": "The repo-only context foundation is complete. New context-budget work needs current measurements and a new performance slice."
+    },
+    {
+      "path": "docs/plans/product-planning-skills-integration-roadmap.md",
+      "profile": "active_serial",
+      "state": "planned_waiting_for_operator_activation",
+      "ai_hint": "This is an execution-ready follow-up created from the Kimchi skill review. Do not dispatch implementation until the operator says GO PPS repo-only implementation. After Go, PPS-1 and PPS-2 may run on their disjoint paths; Charlie alone integrates runtime contracts and roadmap state."
+    },
+    {
+      "path": "docs/plans/rag-memory-tokenization-roadmap.md",
+      "profile": "gate_only",
+      "state": "repo_backend_done_live_reindex_and_research_productization_gated",
+      "ai_hint": "Do not trust the stale Next safe slice line; RMT0-RMT7 are done. Only live reindex or research productization decisions remain."
+    },
+    {
+      "path": "docs/plans/raptor-dynamic-cache-abc-roadmap.md",
+      "profile": "historical_done",
+      "state": "implementation_complete_followups_deferred",
+      "ai_hint": "Cache implementation is closed. Disk cache, UI controls, or warming require new measured justification and scoped acceptance criteria."
+    },
+    {
+      "path": "docs/plans/raptor-memory-write-enable-abc-roadmap.md",
+      "profile": "historical_done",
+      "state": "implementation_complete_followups_deferred",
+      "ai_hint": "The gated write path is implemented. Real writes are governed by live data gates, not by reopening these repo slices."
+    },
+    {
+      "path": "docs/plans/recent-changes-patch-notes-roadmap.md",
+      "profile": "gate_only",
+      "state": "backend_done_ui_button_owned_elsewhere",
+      "ai_hint": "RCH backend slices are closed. The patch-notes button is an active UI design concern and must not be implemented from a backend lane."
+    },
+    {
+      "path": "docs/plans/release-runtime-readiness-roadmap.md",
+      "profile": "gate_only",
+      "state": "external_release_evidence_gates_remain",
+      "ai_hint": "Use this for release evidence only. Run one provider, vault, deployment, or distribution proof after exact operator Go; never infer external 1.0 readiness from local tests."
+    },
+    {
+      "path": "docs/plans/remaining-features-roadmap-2026-06-20.md",
+      "profile": "needs_normalization",
+      "state": "older_operator_queue_most_tracks_superseded_or_completed",
+      "ai_hint": "Reconcile every P0-P9 item with newer domain roadmaps and open-work status before selecting anything. Do not execute its old order directly."
+    },
+    {
+      "path": "docs/plans/privacy-safe-tool-analytics-roadmap.md",
+      "profile": "active_parallel",
+      "state": "approved_repo_queue_live_capture_default_off",
+      "ai_hint": "Load TAX Descriptor v2 identity before implementation. TUA0-TUA2 may run on disjoint new files after TAX1; TUA3 must wait for TAX5 before sharing tool_execution.py and TUA9 must wait for TAX7 before sharing admin.js. Use only allowlisted content-free events, persist nothing in incognito, keep real backfill/capture disabled, and request no user gate until the single fully verified live activation packet exists."
+    },
+    {
+      "path": "docs/plans/project-versioning-forge-provider-roadmap.md",
+      "profile": "gate_only",
+      "state": "offline_backend_complete_partial_ui_and_live_provider_gated",
+      "ai_hint": "PVF1-PVF8 and PVF13 are complete with one public commit_project workflow and 289 green tests. Do not reopen backend cleanup; start only the explicit UI-design gate or one bounded Nextcloud/GitHub live provider gate with exact operator scope."
+    },
+    {
+      "path": "docs/plans/repo-control-roadmap.md",
+      "profile": "historical_done",
+      "state": "backend_track_complete",
+      "ai_hint": "RC1-RC10 are complete. New Git operations need a current coding-project slice and existing confirmation/evidence gates."
+    },
+    {
+      "path": "docs/plans/security-incident-response-escalation-roadmap.json",
+      "profile": "gate_only",
+      "state": "repo_slices_done_live_gated",
+      "ai_hint": "Run only one tabletop, probe, or remediation packet at a time. Firewall, CrowdSec, restart, rotation, and rollback actions require explicit host-level Go."
+    },
+    {
+      "path": "docs/plans/server-project-runner-roadmap.md",
+      "profile": "gate_only",
+      "state": "non_ui_backend_done_visual_ui_and_provider_creation_gated",
+      "ai_hint": "Project runner backend is complete. Provider repo creation and visual project UI are separate gated tracks; do not add backend substitutes."
+    },
+    {
+      "path": "docs/plans/subagent-runtime-v1-roadmap.md",
+      "profile": "gate_only",
+      "state": "repo_complete_live_thread_backend_gated",
+      "ai_hint": "Fake/backend runtime contracts are complete. A real thread or command backend needs a bounded live adapter gate and stop-control evidence."
+    },
+    {
+      "path": "docs/plans/system-assurance-runtime-hardening-roadmap.json",
+      "profile": "active_parallel",
+      "state": "named_roadmap_implementation_in_progress_serial_run_active",
+      "ai_hint": "Resume only from the durable SAR run state and its dependency-safe frontier. The current grant is serial with one writer even though the normalized roadmap permits disjoint workers; preserve foreign hunks, never rerun SAR-03, SAR-08 or SAR-09, and stop before live, Docker, network or Temporal actions."
+    },
+    {
+      "path": "docs/plans/system-optimization-master-roadmap.md",
+      "profile": "gate_only",
+      "state": "repo_complete_live_design_breaking_gates_deferred",
+      "ai_hint": "Do not create generic optimization slices. Choose a measured live, design, or compatibility decision from current evidence."
+    },
+    {
+      "path": "docs/plans/temporal-light-agent-execution-roadmap.json",
+      "profile": "active_serial",
+      "state": "active_serial_contract_frozen",
+      "ai_hint": "After the shared-router handoff and PDE-04 completion, claim TLR-01 only. Serialize runtime hotfiles and require deterministic replay, authority and projection contracts before Agent UI, real Activities, service start, soak or external effects."
+    },
+    {
+      "path": "docs/plans/telegram-agent-chat-roadmap.md",
+      "profile": "gate_only",
+      "state": "backend_complete_live_smoke_gated",
+      "ai_hint": "Chat backend is complete. Run at most one allowed-chat live smoke with redacted delivery evidence after server-side configuration and Go."
+    },
+    {
+      "path": "docs/plans/telegram-agent-truth-runtime-roadmap.md",
+      "profile": "gate_only",
+      "state": "repo_side_done_live_screenshot_and_sequence_smoke_gated",
+      "ai_hint": "TTR0-TTR7 are complete. Only the bounded Telegram truth-state or screenshot delivery smoke remains; never claim sent from preview evidence."
+    },
+    {
+      "path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "profile": "active_serial",
+      "state": "operator_prioritized_p0_next_safe_frontier_not_started_live_default_off",
+      "ai_hint": "Operator steering from 2026-07-21 places this at the next clean Single-Writer boundary; then claim TTD-00 only and keep all successors, including TTD-07A daily rollover, dependency-blocked. Keep Notes as the sole Todo truth, add no Memory mirror, serialize Agent/Telegram/truth-gate hotfiles, use synthetic owner-scoped fixtures, and stop before each independent deploy, production data repair, Telegram smoke or productive rollover gate."
+    },
+    {
+      "path": "docs/plans/telegram-dual-session-router-hotfix-roadmap.md",
+      "profile": "gate_only",
+      "state": "repo_implemented_live_smoke_gated",
+      "ai_hint": "The hotfix is implemented. Avoid more router edits unless a current regression test fails; live behavior needs one controlled session smoke."
+    },
+    {
+      "path": "docs/plans/telegram-plugin-finish-roadmap.md",
+      "profile": "gate_only",
+      "state": "offline_done_manual_live_smoke_gated",
+      "ai_hint": "Do not edit the shared Telegram plugin from this old queue. Re-audit current status, then run only the explicit manual live smoke if approved."
+    },
+    {
+      "path": "docs/plans/telegram-plugin-refactor-roadmap.md",
+      "profile": "gate_only",
+      "state": "repo_complete_live_gated",
+      "ai_hint": "Refactor slices are closed. Further plugin decomposition needs a new measured boundary issue and must serialize the Telegram hot file."
+    },
+    {
+      "path": "docs/plans/telegram-plugin-rich-streaming-roadmap.md",
+      "profile": "needs_normalization",
+      "state": "broad_design_without_current_status_or_slice_ledger",
+      "ai_hint": "Audit current Telegram code and tests, then split rich rendering, async flow, and delivery into dependency-ordered slices. Keep all plugin writes serial and live drafts gated."
+    },
+    {
+      "path": "docs/plans/telegram-project-intake-completion-roadmap.md",
+      "profile": "gate_only",
+      "state": "backend_api_telegram_complete_ui_gated",
+      "ai_hint": "Backend and Telegram intake are closed. UI design must proceed through Harbor One clarification and design gates."
+    },
+    {
+      "path": "docs/plans/telegram-voice-processing-roadmap.md",
+      "profile": "gate_only",
+      "state": "backend_complete_live_smoke_gated",
+      "ai_hint": "Voice backend is complete. Any real download, STT, or reply must be one bounded live action with privacy and provider/local-model policy."
+    },
+    {
+      "path": "docs/plans/telegram-web-research-memory-roadmap.json",
+      "profile": "historical_done",
+      "state": "done",
+      "ai_hint": "The combined research-memory track is complete. New web or memory behavior belongs to its current domain roadmap."
+    },
+    {
+      "path": "docs/plans/tool-capability-maintenance-phase2-roadmap.json",
+      "profile": "historical_done",
+      "state": "done",
+      "ai_hint": "Phase 2 is complete. Add tool capabilities only through a new capability contract with sandbox, policy, and self-test evidence."
+    },
+    {
+      "path": "docs/plans/tool-taxonomy-registration-roadmap.md",
+      "profile": "active_serial",
+      "state": "approved_repo_queue_live_projection_default_off",
+      "ai_hint": "Start with TAX0 then TAX1. Keep tool_catalog.py, tool_execution.py, model_routes.py and admin.js single-writer hotfiles; read-only scouts may inventory in parallel. Preserve all runtime confirmations and admin/effect policies, keep email/calendar/contacts plus assistant/presets deferred/default-hidden, secure tail_serve_output before reachability, and request no user gate until the single fully verified live activation packet exists."
+    },
+    {
+      "path": "docs/plans/codebase-memory-integration-roadmap.md",
+      "profile": "active_serial",
+      "state": "preferred_engine_planned_after_usi_identity_live_default_off",
+      "ai_hint": "On a future explicit goal claim CBM-00 only. Treat CBM as a pinned rebuildable codegraph provider, never as repo/source/version/lineage/tool/planning truth. CBM-01 may prepare a disjoint benchmark harness, but persistent mapping waits for USI identity; serialize process, projection and query files, keep installer/hooks/auto-config/network/direct upstream tools disabled, and stop before CBM-LIVE-ACTIVATION."
+    },
+    {
+      "path": "docs/plans/code-lineage-timeline-roadmap.md",
+      "profile": "active_parallel",
+      "state": "planned_after_usi_identity_real_history_default_off",
+      "ai_hint": "On a future goal claim CLT-00 only. Use synthetic Git repositories until the final gate, preserve Repo Registry/Git Adapter/Project Version Store as history truth, label time first-observable, and represent rename/copy/split/merge uncertainty with methods and confidence. Parallelize only disjoint contract/fixture work and stop before real history backfill or identity export."
+    },
+    {
+      "path": "docs/plans/lens-code-graph-roadmap.md",
+      "profile": "active_serial",
+      "state": "planned_after_bounded_cbm_graph_api_ui_default_off",
+      "ai_hint": "On a future goal claim LCG-00 only. Backend fixture/API work may advance after dependencies, but one UI owner must serialize the selected Knowledge/Lens surface. Preserve the visually strong full-project Code Planet through progressive LOD, keep Code Graph/Timeline/Semantic/Trace truth labels separate, verify responsive/a11y/Playwright/canvas nonblank states, and stop before LCG-UI-LIVE."
+    },
+    {
+      "path": "docs/plans/unified-source-index-implementation-roadmap.md",
+      "profile": "active_serial",
+      "state": "planned_after_current_queue_productive_sources_default_off",
+      "ai_hint": "On a future explicit goal claim USI-00 only and keep successors blocked_by_dependency. Implement the existing Source/Chunk/Graph/Job Store boundaries rather than inventing parallel stores; preserve domain truth, TAX/TUA tool/telemetry ownership, GMI/GRO runtime ownership and Project Versioning history. USI-15 waits for UIR-14, ULO-14 and UDA-18 for every selected source scope. Serialize schema/query integration and stop before productive source scans, legacy cutover or USI-LIVE-ACTIVATION."
+    },
+    {
+      "path": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
+      "profile": "active_serial",
+      "state": "planned_after_usi_core_runtime_and_consumers_default_off",
+      "ai_hint": "On a future parent goal claim UIR-00 only after the USI contract barrier. Serialize app.py, app_initializer.py, Personal Docs/RAG, Chat, Agent and runtime-route hotfiles. Compose one dependency-injected runtime and JobStore worker, use shadow results only for comparison, preserve exact/legacy fallback, create no second scheduler/tool/prompt path, and contribute UIR-14 to USI-LIVE-ACTIVATION rather than opening a new gate."
+    },
+    {
+      "path": "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md",
+      "profile": "active_parallel",
+      "state": "planned_source_waves_private_domains_deferred",
+      "ai_hint": "On a future parent goal claim UDA-00 only; after UDA-01, parallelize at most three disjoint new adapter files. Preserve each domain's truth, write, provider, review and exact-reader boundaries; change signals are content-free/best-effort and cannot fail domain commits. Keep Email, Calendar, Todos, Contacts and raw Session content blocked/default-off until explicit reprioritization, and contribute selected-wave UDA-18 evidence to the parent USI gate only."
+    },
+    {
+      "path": "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md",
+      "profile": "active_serial",
+      "state": "planned_owner_lifecycle_backup_restore_default_off",
+      "ai_hint": "On a future parent goal claim ULO-00 only using synthetic owners and temporary databases. Serialize Auth rename, backup/restore, Admin Wipe, constants and provider lifecycle hotfiles. Keep account/domain/system actions canonical, reuse USI-13 backup primitives, require stable owner scope plus eligibility/purge/rebuild verification, perform no real destructive or backup action, and contribute ULO-14 to USI-LIVE-ACTIVATION without replacing action-specific authorization."
+    },
+    {
+      "path": "docs/plans/unified-feature-completion-roadmap.md",
+      "profile": "gate_only",
+      "state": "p0_p2_closure_view_p3_deferred",
+      "ai_hint": "Use as operator closure history. Execute remaining provider or runtime smokes through newer gate packets; do not start deferred P3 planning automatically."
+    },
+    {
+      "path": "docs/plans/unified-odysseus-roadmap.md",
+      "profile": "canonical_router",
+      "state": "active_product_direction_with_historical_sections",
+      "ai_hint": "Use this for product direction and collision resolution, then consult current machine state. Only Charlie updates priority; workers claim domain slices, not version rows."
+    },
+    {
+      "path": "docs/plans/unified-runtime-logging-mcp-debugging-roadmap.json",
+      "profile": "gate_only",
+      "state": "repo_slices_done_live_gated",
+      "ai_hint": "Logging and MCP debug contracts are ready. Host logs, retention, exposure, or live debug access each need a bounded redacted gate."
+    },
+    {
+      "path": "docs/plans/universal-file-io-roadmap.md",
+      "profile": "gate_only",
+      "state": "offline_slices_done_delivery_gated",
+      "ai_hint": "The backend/logik file pipeline is complete. Real Telegram or destination delivery remains an explicit target-specific gate."
+    },
+    {
+      "path": "docs/plans/universal-inbox-abc-roadmap.md",
+      "profile": "needs_normalization",
+      "state": "older_execution_and_live_readiness_sections_without_final_status",
+      "ai_hint": "Reconcile UIX0-UIX11 with newer Nextcloud preparation and flow-rework completion before dispatch. Do not reuse embedded old delegation prompts as current claims."
+    },
+    {
+      "path": "docs/plans/universal-inbox-nextcloud-flow-rework-roadmap.md",
+      "profile": "gate_only",
+      "state": "repo_flow_integration_complete_design_live_gated",
+      "ai_hint": "Flow integration is complete. Only a copy-only live pilot or approved design presentation may advance this track."
+    },
+    {
+      "path": "docs/plans/updates-backups-ui-roadmap.md",
+      "profile": "needs_normalization",
+      "state": "implementation_plan_without_current_completion_ledger",
+      "ai_hint": "Audit routes, UI, and newer remaining-feature evidence before editing. If work remains, separate backend status, UI design, safe actions, and host verification; serialize UI and host-action writers."
+    },
+    {
+      "path": "docs/plans/upstream-hardening-backport-roadmap.md",
+      "profile": "historical_done",
+      "state": "done_with_focused_tests",
+      "ai_hint": "UH-01 through UH-06 are closed. New upstream differences need a fresh code comparison and must not be inferred from missing commit IDs alone."
+    },
+    {
+      "path": "docs/plans/workflow-skills-universal-inbox-roadmap.md",
+      "profile": "historical_done",
+      "state": "implemented",
+      "ai_hint": "Workflow skills are implemented. Use the current Universal Inbox and Memory Ops gates for live behavior or maintenance."
+    },
+    {
+      "path": "specs/roadmaps/abc-roadmap-continuation-runtime.v1.json",
+      "profile": "canonical_router",
+      "state": "active_but_june_feature_pointer_requires_reconciliation",
+      "ai_hint": "Use the serial continuation protocol, but do not execute its old visual-agent-programming pointer until reconciled with July Harbor One and open-work state. One orchestrator mutates this router."
+    },
+    {
+      "path": "specs/roadmaps/abc-roadmap-reconciliation-import.v1.json",
+      "profile": "historical_done",
+      "state": "live_installed",
+      "ai_hint": "The reconciliation import is completed evidence. Do not reinstall or replay it; use the current guidance index for new roadmap reconciliation."
+    },
+    {
+      "path": "specs/roadmaps/odysseus-multiagent-roadmap.v1.json",
+      "profile": "canonical_router",
+      "state": "canonical_structure_seed_with_stale_recommended_node",
+      "ai_hint": "Treat graph shape, claimability, leases, gates, collisions, and report reduction as authoritative. Reconcile its June recommended node with current open-work state before every dispatch."
+    },
+    {
+      "path": "specs/roadmaps/orca-memory-graph-migration-roadmap.v1.json",
+      "profile": "gate_only",
+      "state": "draft_canonical_planning_only_until_operator_go",
+      "ai_hint": "Do not start broad ORCA renames. Require a current compatibility inventory, explicit migration slice, allowed paths, and operator Go for each breaking phase."
+    },
+    {
+      "path": "specs/roadmaps/orca-memory-live-activation-roadmap.v1.json",
+      "profile": "historical_done",
+      "state": "completed",
+      "ai_hint": "Live activation is completed evidence. New Memory/RAPTOR performance work belongs to the current Gemma3 or consolidation track."
+    },
+    {
+      "path": "specs/roadmaps/private-data-memory-ingestion-roadmap.v1.json",
+      "profile": "needs_normalization",
+      "state": "draft_canonical_with_june_evidence_and_large_live_scope",
+      "ai_hint": "Reconcile this 100GB plan with current Universal Inbox and Memory implementations. Keep scouts read-only until target paths, disk budget, privacy policy, checkpoint store, and live gates are current."
+    },
+    {
+      "path": "specs/roadmaps/roadmap-reconciliation-report-reduction.v1.json",
+      "profile": "historical_done",
+      "state": "live_installed_reduction_evidence",
+      "ai_hint": "Read as accepted report-reduction evidence. Never edit accepted history or treat old raw scout findings as current execution state."
+    }
+  ]
+}

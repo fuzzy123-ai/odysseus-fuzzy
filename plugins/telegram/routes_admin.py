@@ -30,7 +30,34 @@ def register_telegram_admin_routes(
     @router.get("/history")
     async def history(request: Request, chat_id: str | None = None, limit: int = 50):
         require_admin(request)
-        return {"messages": inbox_store.history(chat_id=chat_id, limit=limit)}
+        return {
+            "messages": inbox_store.history(chat_id=chat_id, limit=limit),
+            "privacy": {
+                "mode": "raw_conversation_review",
+                "raw_content_visible": True,
+                "not_for_persistence": True,
+            },
+        }
+
+    @router.get("/history/diagnostics")
+    async def history_diagnostics(
+        request: Request,
+        chat_id: str | None = None,
+        limit: int = 50,
+        review_details: bool = False,
+        operator_authorized: bool = False,
+    ):
+        require_admin(request)
+        export = inbox_store.diagnostic_export(
+            chat_id=chat_id,
+            limit=limit,
+            review_details=review_details,
+            operator_authorized=operator_authorized,
+        )
+        return {
+            "messages": export.pop("events"),
+            "privacy": export,
+        }
 
     @router.get("/app")
     async def app_page(request: Request):

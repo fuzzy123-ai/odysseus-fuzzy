@@ -47,10 +47,19 @@ Windows is not actively tested. Docker on Linux or a Linux/macOS manual install 
 Run the smallest relevant checks for your change:
 
 ```bash
+python scripts/verify.py --lane guards-only
 python -m pytest
 python -m py_compile app.py routes/*.py src/*.py
 node --check static/js/<file-you-changed>.js
 ```
+
+The shared verifier exposes `guards-only`, `fast`, `full`, and `ui`
+lanes. Use `python scripts/verify.py --list` to inspect the fixed registry and
+`--dry-run` to preview a content-free plan. A weaker lane never implies that
+a stronger one passed. The `ui` lane requires an existing visual artifact via
+`--visual-evidence` under `artifacts/`, `test-results/`, or
+`playwright-report/` and records availability separately from semantic review.
+The verifier never installs dependencies or starts services implicitly.
 
 For Docker-related changes:
 
@@ -61,6 +70,24 @@ docker compose logs --tail=120 odysseus
 ```
 
 Mention what you ran in the pull request description. If you could not run a check, say so.
+
+## Agent-assisted maintenance
+
+Agents and contributors using automation must follow the repository-wide
+[agent policy](AGENTS.md) and
+[maintenance runbook](docs/agent-maintenance-runbook.md).
+
+- Inspect current structured roadmap, gate, claim, clarification, Git, and
+  staged-path state before editing.
+- Preserve unrelated working-tree changes and use one dependency-ready,
+  path-scoped claim.
+- Run focused checks first and every stronger evidence lane required by the
+  change.
+- In the pull request or handoff, list both **Verification** (commands and
+  results that actually ran) and **Not verified** (unavailable, gated, visual,
+  live, or temporal evidence).
+- Automation does not imply authority to stage, commit, push, deploy, call a
+  provider, change a host, or perform a live action.
 
 ## Pull Requests
 

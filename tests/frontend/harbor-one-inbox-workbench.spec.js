@@ -1,0 +1,523 @@
+const { test, expect } = require('playwright/test');
+const http = require('node:http');
+const os = require('node:os');
+const path = require('node:path');
+const fs = require('node:fs/promises');
+
+const repoRoot = path.resolve(__dirname, '..', '..');
+const screenshotRoot = path.join(os.tmpdir(), 'odysseus-uix24-playwright');
+let server;
+let baseUrl;
+
+const mimeTypes = {
+  '.css': 'text/css; charset=utf-8',
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.woff2': 'font/woff2'
+};
+
+test.beforeAll(async () => {
+  await fs.mkdir(screenshotRoot, { recursive: true });
+  server = http.createServer(async (request, response) => {
+    try {
+      const url = new URL(request.url, 'http://127.0.0.1');
+      const relative = decodeURIComponent(url.pathname).replace(/^\/+/, '')
+        || 'static/frontpage-v3/index.html';
+      const target = path.resolve(repoRoot, relative);
+      if (!target.startsWith(repoRoot + path.sep)) {
+        response.writeHead(403).end('forbidden');
+        return;
+      }
+      const body = await fs.readFile(target);
+      response.writeHead(200, {
+        'Cache-Control': 'no-store',
+        'Content-Type': mimeTypes[path.extname(target).toLowerCase()]
+          || 'application/octet-stream'
+      });
+      response.end(body);
+    } catch {
+      response.writeHead(404).end('not found');
+    }
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  baseUrl = `http://127.0.0.1:${server.address().port}`;
+});
+
+test.afterAll(async () => {
+  if (server) await new Promise(resolve => server.close(resolve));
+});
+
+async function openInbox(page, query = '') {
+  const suffix = query ? `&${query}` : '';
+  await page.goto(
+    `${baseUrl}/static/frontpage-v3/index.html?workspace=inbox&inboxSource=fixture${suffix}`
+  );
+  const root = page.locator('[data-inbox-workbench-root]');
+  await expect(root).not.toHaveAttribute('data-inbox-mode', 'loading');
+  return root;
+}
+
+function liveInboxItem(sourceRef = `upload:${'a'.repeat(32)}.pdf`) {
+  const suffix = sourceRef.endsWith('.md') ? '.md' : '.pdf';
+  const mime = suffix === '.md' ? 'text/plain' : 'application/pdf';
+  return {
+    schema: 'odysseus.universal_inbox.item.v1',
+    source_ref: sourceRef,
+    source_kind: 'upload',
+    display_name: `Owner-scoped document${suffix}`,
+    status: 'uploaded',
+    metadata: {
+      suffix, mime_type: mime, family: suffix === '.md' ? 'text' : 'document',
+      category: suffix === '.md' ? 'text_extractable' : 'document_extractable', size_bytes: 2048, uploaded_at: '2026-07-23T09:00:00+00:00',
+      extractable_now: true, review_required: false, blocked: false, reason_codes: []
+    },
+    capability: {
+      schema: 'odysseus.universal_inbox.workbench_capability.v1',
+      source_suffix: suffix, server_family: suffix === '.md' ? 'text' : 'document', mvp_tier: 'P0',
+      server_authoritative: true,
+      owner_authorized: true, has_working_copy: false, browser_download_allowed: false,
+      original_immutable: true, working_copy_versioned: true, browser_detection_advisory: true,
+      raw_content_visible: false, absolute_path_visible: false, live_write_authorized: false,
+      actions: ['inspect', 'route_dry_run', 'create_working_copy', 'edit_working_copy', 'download_original', 'export_working_copy'].map(action => ({
+        action, state: ['edit_working_copy', 'download_original', 'export_working_copy'].includes(action) ? 'blocked' : 'allowed', reason_codes: ['synthetic_fixture_review'], mutates_original: false, performs_live_write: false
+      }))
+    },
+    absolute_path_visible: false, raw_content_visible: false, owner_identifier_visible: false
+  };
+}
+
+async function openLiveInbox(page, routeHandler, items = [liveInboxItem()]) {
+  await page.route('**/api/universal-inbox/items?*', route => route.fulfill({ json: {
+    schema: 'odysseus.universal_inbox.items.v1', absolute_paths_visible: false,
+    raw_content_visible: false, items, page: { returned_count: items.length, has_more: false }
+  }}));
+  await page.route('**/api/universal-inbox/snapshot', route => route.fulfill({ json: {
+    schema: 'odysseus.universal_inbox.snapshot.v1', total_count: items.length,
+    item_names_visible: false, source_refs_visible: false, absolute_paths_visible: false,
+    raw_content_visible: false, counts: { uploaded: items.length }, readiness: { state: 'ready' }
+  }}));
+  await page.route('**/api/universal-inbox/items/*/route-dry-run', routeHandler);
+  await page.goto(`${baseUrl}/static/frontpage-v3/index.html?workspace=inbox&inboxSource=live`);
+  const root = page.locator('[data-inbox-workbench-root]');
+  await expect(root).toHaveAttribute('data-inbox-mode', 'live');
+  return root;
+}
+
+const safeRouteHeaders = {
+  'content-type': 'application/json; charset=utf-8',
+  'cache-control': 'private, no-store',
+  'x-content-type-options': 'nosniff'
+};
+
+test('accepted three-zone shell is source-bound, document-primary and write-closed', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 960 });
+  const root = await openInbox(page);
+
+  await expect(root).toHaveAttribute('data-inbox-mode', 'fixture');
+  await expect(root.getByText('Preview fixture', { exact: true })).toBeVisible();
+  await expect(root.getByText('Original protected', { exact: true })).toBeVisible();
+  await expect(root.locator('[data-workbench-panel="source"]')).toBeVisible();
+  await expect(root.locator('[data-workbench-panel="document"]')).toBeVisible();
+  await expect(root.locator('[data-workbench-panel="details"]')).toBeVisible();
+  await expect(root.locator('[data-document-heading]').getByText(
+    'Preview invoice.pdf',
+    { exact: true }
+  )).toBeVisible();
+  await expect(root.getByRole('tab', { name: 'Original' })).toBeEnabled();
+  await expect(root.getByRole('tab', { name: 'Extraction' })).toBeDisabled();
+  await expect(root.getByRole('tab', { name: 'Working copy' })).toBeDisabled();
+  await expect(root.getByRole('tab', { name: 'Difference' })).toBeDisabled();
+  await expect(root.getByText('Live gate closed', { exact: true })).toBeVisible();
+
+  const text = (await root.innerText()).toLowerCase();
+  for (const forbidden of [
+    'c:\\', '/users/', 'copy to nextcloud', 'move file', 'delete original'
+  ]) {
+    expect(text).not.toContain(forbidden);
+  }
+  await expect(root.getByText(
+    'No copy, move, delete, overwrite, provider, or memory write is available here.'
+  )).toBeVisible();
+  const enabledMutations = root.locator('button:not(:disabled)').filter({
+    hasText: /export|open working copy|copy|move|delete|memory/i
+  });
+  await expect(enabledMutations).toHaveCount(0);
+  await expect(root.getByRole('button', { name: 'Suggest route · dry run' })).toBeEnabled();
+  await root.getByRole('button', { name: 'Suggest route · dry run' }).click();
+  await expect(root.locator('[data-route-status]')).toContainText('Synthetic fixture evidence only');
+  await expect(root.getByRole('button', { name: 'Apply route live' })).toBeDisabled();
+  await expect(page.locator('.inbox-analysis-window')).toBeHidden();
+  await expect(page.locator('.inbox-files-window')).toBeHidden();
+});
+
+test('route dry run posts bounded advisory input and renders server policy without a live apply', async ({ page }) => {
+  let posted;
+  const root = await openLiveInbox(page, async route => {
+    posted = route.request().postDataJSON();
+    await route.fulfill({ headers: safeRouteHeaders, json: {
+      schema: 'odysseus.universal_inbox.route_dry_run.v1', status: 'review', policy_status: 'review',
+      input_authority: 'advisory', confidence: 0, reason_codes: ['unknown_domain', 'unknown_document_type', 'low_confidence'], review_reasons: ['unknown_domain', 'unknown_document_type', 'low_confidence'], no_go_reasons: [],
+      path_redacted: true, content_redacted: true, dry_run: true,
+      copy_performed: false, move_performed: false, delete_performed: false,
+      overwrite_performed: false, memory_writes_performed: false, live_writes_performed: false,
+      writes_performed: false, live_apply: { enabled: false, gate: 'UIX-NEXTCLOUD-LIVE-WRITE' }
+    }});
+  });
+
+  const trigger = root.getByRole('button', { name: 'Suggest route · dry run' });
+  await trigger.click();
+  await expect(root.locator('[data-route-status]')).toContainText('Route needs review');
+  expect(posted).toEqual({
+    domain: 'unknown', document_type: 'unknown', confidence: 0, risk_signals: {}
+  });
+  await expect(root.locator('[data-route-status]')).toContainText('Policy: review');
+  await expect(root.getByRole('button', { name: 'Apply route live' })).toBeDisabled();
+  await expect(root.getByText('UIX-NEXTCLOUD-LIVE-WRITE', { exact: false })).toBeVisible();
+});
+
+test('live composition mounts an inert bounded preview and exposes only explicit local document actions', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 960 });
+  const first = liveInboxItem(`upload:${'b'.repeat(32)}.md`);
+  const second = liveInboxItem(`upload:${'c'.repeat(32)}.md`);
+  const documentId = 'd'.repeat(32);
+  const requests = [];
+  let releaseFirst;
+  const firstContent = new Promise(resolve => { releaseFirst = resolve; });
+  const workbenchCapability = {
+    ...second.capability, has_working_copy: true, browser_download_allowed: true,
+    actions: second.capability.actions.map(action => ({
+      ...action,
+      state: ['edit_working_copy', 'download_original', 'export_working_copy'].includes(action.action) ? 'allowed' : action.state
+    }))
+  };
+  const contentHeaders = body => ({
+    'content-type': 'text/plain; charset=utf-8', 'content-length': String(Buffer.byteLength(body)),
+    'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff',
+    'x-odysseus-content-schema': 'odysseus.universal_inbox.source_content.v1',
+    'x-odysseus-content-state': 'complete', 'x-odysseus-content-truncated': 'false'
+  });
+  await page.route('**/api/universal-inbox/items/*/content**', async route => {
+    const requestUrl = route.request().url(); requests.push(requestUrl);
+    if (requestUrl.includes(encodeURIComponent(first.source_ref))) {
+      await firstContent;
+      await route.fulfill({ headers: contentHeaders('first synthetic preview') , body: 'first synthetic preview' });
+      return;
+    }
+    if (requestUrl.includes('download=true')) {
+      await route.fulfill({ headers: { ...contentHeaders('local'), 'content-disposition': 'attachment; filename="document.md"' }, body: 'local' });
+      return;
+    }
+    await route.fulfill({ headers: contentHeaders('second synthetic preview'), body: 'second synthetic preview' });
+  });
+  await page.route('**/working-copy', async route => {
+    requests.push(route.request().url());
+    await route.fulfill({ headers: safeRouteHeaders, json: {
+      id: documentId, title: 'Synthetic document', language: 'markdown', current_content: 'working bytes', version_count: 1,
+      updated_at: '2026-07-23T10:00:00Z',
+      working_copy: { schema: 'odysseus.universal_inbox.working_copy.v1', created: true, revision_created: false, working_copy_id: documentId, version: 1 },
+      workbench_capability: workbenchCapability
+    }});
+  });
+  await page.route(`**/api/document/${documentId}/export`, async route => {
+    requests.push(route.request().url());
+    await route.fulfill({ headers: { 'content-type': 'text/markdown; charset=utf-8', 'content-length': '5', 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff', 'content-disposition': 'attachment; filename="Synthetic_document-v1.md"' }, body: 'local' });
+  });
+  const root = await openLiveInbox(page, async route => route.fulfill({ headers: safeRouteHeaders, json: {
+    schema: 'odysseus.universal_inbox.route_dry_run.v1', status: 'review', policy_status: 'review', input_authority: 'advisory', confidence: 0,
+    reason_codes: ['low_confidence'], review_reasons: ['low_confidence'], no_go_reasons: [], path_redacted: true, content_redacted: true,
+    dry_run: true, copy_performed: false, move_performed: false, delete_performed: false, overwrite_performed: false,
+    memory_writes_performed: false, live_writes_performed: false, writes_performed: false, live_apply: { enabled: false, gate: 'UIX-NEXTCLOUD-LIVE-WRITE' }
+  }}), [first, second]);
+
+  const syntheticSearch = 'C:\\synthetic\\private-path';
+  await root.locator('[data-inbox-search]').fill(syntheticSearch);
+  const searchProjection = await page.evaluate(() => window.HarborInboxWorkbench.getView());
+  expect(searchProjection.hasSearch).toBe(true);
+  expect(JSON.stringify(searchProjection)).not.toContain(syntheticSearch);
+  await root.locator('[data-inbox-search]').fill('');
+  await root.locator(`[data-inbox-item="${second.source_ref}"]`).click();
+  releaseFirst();
+  await expect(root.locator('[data-preview-inert-text]')).toHaveText('second synthetic preview');
+  await expect(root.locator('[data-preview-inert-text]')).not.toContainText('first synthetic preview');
+  await root.getByRole('button', { name: 'Open working copy' }).click();
+  await expect(root.getByRole('link', { name: 'Open existing Document UI' })).toHaveAttribute('href', `/#document-${documentId}`);
+  await expect(root.getByRole('button', { name: 'Download original' })).toBeVisible();
+  await expect(root.getByRole('button', { name: 'Export working copy' })).toBeVisible();
+  await expect(root.getByRole('link', { name: 'Open document history' })).toHaveAttribute('href', `/#document-${documentId}`);
+  await root.getByRole('tab', { name: 'Original' }).press('ArrowRight');
+  await expect(root.getByRole('tab', { name: 'Working copy' })).toBeFocused();
+  await expect(root.locator('[data-preview-inert-text]')).toHaveCount(0);
+  await root.getByRole('tab', { name: 'Working copy' }).press('ArrowRight');
+  await expect(root.getByRole('tab', { name: 'Difference' })).toBeFocused();
+  await expect(root.locator('[data-preview-inert-text]')).toHaveCount(0);
+  await root.getByRole('button', { name: 'Download original' }).click();
+  await root.getByRole('button', { name: 'Export working copy' }).click();
+  await expect.poll(() => requests.filter(url => url.includes('/working-copy') || url.includes('/export') || url.includes('download=true')).length).toBeGreaterThanOrEqual(3);
+  await page.screenshot({
+    path: path.join(screenshotRoot, 'uix24-desktop-composed.png'),
+    fullPage: true
+  });
+  const projection = await page.evaluate(() => window.HarborInboxWorkbench.getView());
+  expect(JSON.stringify(projection)).not.toContain('working bytes');
+  expect(JSON.stringify(projection)).not.toContain('upload:');
+  expect(requests.some(url => /nextcloud|provider|\/(copy|move|delete|memory)(?:\/|$)/i.test(url))).toBeFalsy();
+  await expect(root.getByRole('button', { name: 'Apply route live' })).toBeDisabled();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await root.getByRole('tab', { name: 'Details' }).click();
+  await expect(root.locator('[data-workbench-panel="details"]')).toBeVisible();
+  const undersizedDetails = await root.evaluate(element => Array.from(
+    element.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled)')
+  ).flatMap(control => {
+    const style = getComputedStyle(control);
+    if (style.display === 'none' || style.visibility === 'hidden' || control.getClientRects().length === 0) return [];
+    const rect = control.getBoundingClientRect();
+    return rect.width < 44 || rect.height < 44
+      ? [{ label: control.getAttribute('aria-label') || control.textContent.trim(), width: rect.width, height: rect.height }]
+      : [];
+  }));
+  expect(undersizedDetails).toEqual([]);
+  const mobileBounds = await root.evaluate(element => ({ clientWidth: element.clientWidth, scrollWidth: element.scrollWidth }));
+  expect(mobileBounds.scrollWidth).toBeLessThanOrEqual(mobileBounds.clientWidth + 2);
+  await page.screenshot({
+    path: path.join(screenshotRoot, 'uix24-mobile-details.png'),
+    fullPage: true
+  });
+  await page.setViewportSize({ width: 1600, height: 960 });
+  await root.locator(`[data-inbox-item="${first.source_ref}"]`).click();
+  await expect(root.getByRole('tab', { name: 'Original' })).toHaveAttribute('aria-selected', 'true');
+  await expect(root.getByRole('link', { name: 'Open existing Document UI' })).toHaveCount(0);
+  await expect(root.getByRole('tab', { name: 'Working copy' })).toBeDisabled();
+});
+
+test('pre-create capability inconsistencies do not expose a working-copy POST action', async ({ page }) => {
+  const item = liveInboxItem(`upload:${'d'.repeat(32)}.md`);
+  item.capability.original_immutable = false;
+  let posts = 0;
+  await page.route('**/working-copy', route => { posts += 1; return route.abort(); });
+  const root = await openLiveInbox(page, route => route.abort(), [item]);
+  await expect(root.getByRole('button', { name: 'Open working copy' })).toHaveCount(0);
+  expect(posts).toBe(0);
+});
+
+test('route dry run exposes loading, review/no-go and content-free errors without stale results', async ({ page }) => {
+  let calls = 0;
+  let releaseFirst;
+  const firstResponse = new Promise(resolve => { releaseFirst = resolve; });
+  const root = await openLiveInbox(page, async route => {
+    calls += 1;
+    if (calls === 1) {
+      await firstResponse;
+      await route.fulfill({ headers: safeRouteHeaders, json: {
+        schema: 'odysseus.universal_inbox.route_dry_run.v1', status: 'review', policy_status: 'review',
+        input_authority: 'advisory', confidence: 0.5, reason_codes: ['low_confidence'], review_reasons: ['low_confidence'], no_go_reasons: [],
+        path_redacted: true, content_redacted: true, dry_run: true, copy_performed: false, move_performed: false,
+        delete_performed: false, overwrite_performed: false, memory_writes_performed: false,
+        live_writes_performed: false, writes_performed: false,
+        live_apply: { enabled: false, gate: 'UIX-NEXTCLOUD-LIVE-WRITE' }
+      }});
+      return;
+    }
+    if (calls === 2) {
+      await route.fulfill({ headers: safeRouteHeaders, json: {
+        schema: 'odysseus.universal_inbox.route_dry_run.v1', status: 'no_go', policy_status: 'no_go',
+        input_authority: 'advisory', confidence: 0.82, reason_codes: ['route_capability_blocked'], review_reasons: [], no_go_reasons: ['route_capability_blocked'],
+        path_redacted: true, content_redacted: true, dry_run: true, copy_performed: false, move_performed: false,
+        delete_performed: false, overwrite_performed: false, memory_writes_performed: false,
+        live_writes_performed: false, writes_performed: false,
+        live_apply: { enabled: false, gate: 'UIX-NEXTCLOUD-LIVE-WRITE' }
+      }});
+      return;
+    }
+    if (calls === 3) {
+      await route.fulfill({ headers: safeRouteHeaders, json: {
+        schema: 'odysseus.universal_inbox.route_dry_run.v1', status: 'review', policy_status: 'review',
+        input_authority: 'advisory', confidence: 0, reason_codes: ['low_confidence'], review_reasons: ['low_confidence'], no_go_reasons: [],
+        path_redacted: true, content_redacted: true, target_path: 'unsafe', dry_run: true,
+        copy_performed: false, move_performed: false, delete_performed: false, overwrite_performed: false,
+        memory_writes_performed: false, live_writes_performed: false, writes_performed: false,
+        live_apply: { enabled: false, gate: 'UIX-NEXTCLOUD-LIVE-WRITE' }
+      }});
+      return;
+    }
+    await route.fulfill({ status: 503, json: { error: 'unavailable' } });
+  });
+
+  const trigger = root.getByRole('button', { name: 'Suggest route · dry run' });
+  await trigger.click();
+  await expect(root.locator('[data-route-status]')).toContainText('Checking server policy');
+  await root.locator('[data-inbox-refresh]').click();
+  releaseFirst();
+  await expect(root.locator('[data-route-status]')).not.toContainText('low_confidence');
+  await root.getByRole('button', { name: 'Suggest route · dry run' }).click();
+  await expect(root.locator('[data-route-status]')).toContainText('Route suggestion blocked');
+  await root.getByRole('button', { name: 'Suggest route · dry run' }).click();
+  await expect(root.locator('[data-route-status]')).toContainText('Route unavailable');
+  await expect(root.locator('[data-route-status]')).not.toContainText('unsafe');
+  await root.getByRole('button', { name: 'Suggest route · dry run' }).click();
+  await expect(root.locator('[data-route-status]')).toContainText('Route unavailable');
+  await expect(root.locator('[data-route-status]')).toContainText('No action ran');
+});
+
+test('review, working-copy and export visual fixtures stay explicit and non-live', async ({ page }) => {
+  const cases = [
+    ['review', 'Review required', 'Content and write actions remain closed.'],
+    ['dirty', 'Dirty', 'unsaved changes'],
+    ['saving', 'Saving…', 'Saving working-copy preview fixture.'],
+    ['export-success', 'Export ready', 'Browser export preview fixture is ready.']
+  ];
+
+  for (const [scenario, visible, announcement] of cases) {
+    const root = await openInbox(page, `inboxWorkbenchState=${scenario}`);
+    await expect(root.getByText(visible, { exact: true }).first()).toBeVisible();
+    await expect(root.locator('[data-inbox-live-region]')).toContainText(announcement);
+    await expect(root.getByText('Preview fixture', { exact: true })).toBeVisible();
+  }
+
+  const unavailable = await openInbox(page, 'inboxScenario=unavailable');
+  await expect(unavailable.getByRole('heading', {
+    name: 'Universal Inbox is unavailable'
+  })).toBeVisible();
+  await expect(unavailable.getByText('Preview invoice.pdf', { exact: true })).toHaveCount(0);
+});
+
+test('workspace, mobile panel and escape navigation return focus predictably', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(
+    `${baseUrl}/static/frontpage-v3/index.html?workspace=agent&inboxSource=fixture`
+  );
+  const root = page.locator('[data-inbox-workbench-root]');
+  await expect(root).toHaveAttribute('data-inbox-mode', 'fixture');
+
+  await page.locator('[data-workspace-target="inbox"]').click();
+  await expect(root.locator('[data-document-heading]')).toBeFocused();
+
+  const inboxTab = root.getByRole('tab', { name: 'Inbox' });
+  await inboxTab.click();
+  await expect(root.locator('[data-workbench-panel="source"]')).toBeVisible();
+  await expect(root.locator('[data-workbench-panel="document"]')).toBeHidden();
+  await inboxTab.press('ArrowRight');
+  await expect(root.getByRole('tab', { name: 'Document' })).toBeFocused();
+  await expect(root.locator('[data-workbench-panel="document"]')).toBeVisible();
+
+  await root.getByRole('tab', { name: 'Details' }).click();
+  await expect(root.locator('[data-workbench-panel="details"]')).toBeVisible();
+  await root.locator(
+    '[data-workbench-panel="details"] [data-return-document]'
+  ).press('Escape');
+  await expect(root.getByRole('tab', { name: 'Document' })).toBeFocused();
+  await expect(root.locator('[data-workbench-panel="document"]')).toBeVisible();
+
+});
+
+test('mobile touch, contrast, overflow and reduced motion meet local acceptance', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const root = await openInbox(page);
+
+  const undersized = await root.evaluate(element => Array.from(
+    element.querySelectorAll('button:not(:disabled), input:not(:disabled)')
+  ).flatMap(control => {
+    const style = getComputedStyle(control);
+    if (
+      style.display === 'none'
+      || style.visibility === 'hidden'
+      || control.getClientRects().length === 0
+    ) return [];
+    const rect = control.getBoundingClientRect();
+    return rect.width < 44 || rect.height < 44
+      ? [{ label: control.getAttribute('aria-label') || control.textContent.trim(), width: rect.width, height: rect.height }]
+      : [];
+  }));
+  expect(undersized).toEqual([]);
+
+  const layoutBounds = await root.evaluate(element => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth
+  }));
+  expect(layoutBounds.scrollWidth).toBeLessThanOrEqual(layoutBounds.clientWidth + 2);
+
+  const activeAnimations = await root.evaluate(element => Array.from(
+    element.querySelectorAll('*')
+  ).flatMap(node => {
+    const style = getComputedStyle(node);
+    const durations = style.animationDuration.split(',').map(value => parseFloat(value) || 0);
+    return Math.max(...durations) > 0.011
+      ? [{ tag: node.tagName.toLowerCase(), animation: style.animationName, duration: style.animationDuration }]
+      : [];
+  }));
+  expect(activeAnimations).toEqual([]);
+
+  const lowContrast = await root.evaluate(element => {
+    function rgba(value) {
+      const match = String(value || '').match(/rgba?\(([^)]+)\)/);
+      if (!match) return null;
+      const parts = match[1].split(/[ ,/]+/).filter(Boolean).map(Number);
+      return {
+        r: parts[0], g: parts[1], b: parts[2],
+        a: Number.isFinite(parts[3]) ? parts[3] : 1
+      };
+    }
+    function blend(front, back) {
+      const alpha = front.a + back.a * (1 - front.a);
+      return {
+        r: (front.r * front.a + back.r * back.a * (1 - front.a)) / alpha,
+        g: (front.g * front.a + back.g * back.a * (1 - front.a)) / alpha,
+        b: (front.b * front.a + back.b * back.a * (1 - front.a)) / alpha,
+        a: alpha
+      };
+    }
+    function background(node) {
+      const layers = [];
+      for (let current = node; current; current = current.parentElement) {
+        const color = rgba(getComputedStyle(current).backgroundColor);
+        if (color && color.a > 0) layers.push(color);
+      }
+      let result = { r: 2, g: 6, b: 13, a: 1 };
+      layers.reverse().forEach(layer => { result = blend(layer, result); });
+      return result;
+    }
+    function luminance(color) {
+      const channel = value => {
+        const normalized = value / 255;
+        return normalized <= 0.03928
+          ? normalized / 12.92
+          : Math.pow((normalized + 0.055) / 1.055, 2.4);
+      };
+      return channel(color.r) * 0.2126
+        + channel(color.g) * 0.7152
+        + channel(color.b) * 0.0722;
+    }
+    function ratio(first, second) {
+      const a = luminance(first);
+      const b = luminance(second);
+      return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    }
+    return Array.from(element.querySelectorAll('*')).flatMap(node => {
+      const ownText = Array.from(node.childNodes).some(
+        child => child.nodeType === Node.TEXT_NODE && child.textContent.trim()
+      );
+      const style = getComputedStyle(node);
+      if (
+        !ownText || style.display === 'none' || style.visibility === 'hidden'
+        || Number(style.opacity) < 0.5
+      ) return [];
+      const foreground = rgba(style.color);
+      if (!foreground) return [];
+      const back = background(node);
+      const measured = ratio(blend(foreground, back), back);
+      const fontSize = parseFloat(style.fontSize);
+      const fontWeight = Number(style.fontWeight) || 400;
+      const minimum = fontSize >= 24 || (fontSize >= 18.66 && fontWeight >= 700)
+        ? 3 : 4.5;
+      return measured + 0.01 < minimum
+        ? [{ text: node.textContent.trim().slice(0, 60), measured: Number(measured.toFixed(2)), minimum }]
+        : [];
+    });
+  });
+  expect(lowContrast, JSON.stringify(lowContrast, null, 2)).toEqual([]);
+});

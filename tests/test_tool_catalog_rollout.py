@@ -68,7 +68,7 @@ def test_synthetic_off_on_off_rollout_is_exact_and_non_mutating():
     assert off_before == off_after
     assert off_before["selected"] == "legacy"
     assert on["selected"] == "catalog_v2"
-    assert len(on["rows"]) == len(CATALOG_TOOL_IDS) == 84
+    assert len(on["rows"]) == len(CATALOG_TOOL_IDS) == 85
 
 
 def test_machine_acceptance_proves_settings_alias_and_reservation_retention():
@@ -81,7 +81,7 @@ def test_machine_acceptance_proves_settings_alias_and_reservation_retention():
     assert report["checks"]["analytics_aliases_preserved"] is True
     assert report["checks"]["analytics_reservations_preserved"] is True
     assert report["counts"]["settings_aliases"] == 1
-    assert report["counts"]["analytics_reservations"] == 84
+    assert report["counts"]["analytics_reservations"] == 85
 
 
 def test_only_documented_runtime_permission_strengthening_differs():

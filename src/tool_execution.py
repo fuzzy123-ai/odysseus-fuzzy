@@ -426,12 +426,43 @@ def _tool_result_failed(result: Any) -> bool:
     return bool(result.get("error")) or result.get("exit_code") not in (None, 0, "0")
 
 
+def _secret_safe_diagnostic_source_refusal(
+    tool: object,
+    content: object,
+) -> Optional[Dict[str, Any]]:
+    """Reject raw secret-bearing diagnostic sources without echoing input."""
+
+    if tool not in ("bash", "python"):
+        return None
+    from src.secret_safe_diagnostics import (
+        DiagnosticContract,
+        diagnostic_source_is_forbidden,
+        project_diagnostic,
+    )
+
+    if not diagnostic_source_is_forbidden(content):
+        return None
+    projection = project_diagnostic(
+        DiagnosticContract(source_id="tool_diagnostic_source"),
+        {},
+        command_source=content,
+    )
+    return {
+        "error": (
+            "Raw secret-bearing diagnostics are forbidden. "
+            "Use a registered narrow evidence contract."
+        ),
+        "exit_code": 1,
+        "diagnostic": projection.to_dict(),
+    }
+
+
 def _build_tool_usage_metadata(block: Any) -> Any:
     try:
         from src.tool_usage_instrumentation import build_tool_usage_call_metadata
 
         return build_tool_usage_call_metadata(block)
-    except Exception:
+    except (Exception, asyncio.CancelledError):
         return None
 
 
@@ -446,7 +477,7 @@ def _begin_tool_usage(
         return None
     try:
         return instrumentation.begin(metadata, owner=owner, session_id=session_id)
-    except Exception:
+    except (Exception, asyncio.CancelledError):
         return None
 
 
@@ -471,7 +502,7 @@ def _finish_tool_usage(
             else classify_tool_usage_outcome(outcome[0], outcome[1])
         )
         span.finish(terminal, result=result)
-    except Exception:
+    except (Exception, asyncio.CancelledError):
         pass
 
 
@@ -563,11 +594,14 @@ async def _execute_tool_block_impl(
     (bash, python) so the agent loop can emit `tool_progress` SSE
     events while the command is in flight. Ignored by other tools.
     """
+    tool = block.tool_type
+    content = block.content
+
     from src.tool_implementations import (
         do_search_chats, do_manage_tasks,
         do_manage_skills, do_recent_changes, do_api_call, do_manage_endpoints,
         do_manage_mcp, do_manage_webhooks, do_manage_tokens,
-        do_manage_presets, do_manage_personal_docs, do_manage_embeddings, do_manage_assistant, do_manage_plugins, do_manage_repos, do_manage_settings, do_manage_notes,
+        do_manage_presets, do_manage_personal_docs, do_manage_embeddings, do_manage_assistant, do_manage_plugins, do_manage_repos, do_manage_settings, do_manage_notes, do_manage_todos,
         do_manage_github_issues,
         do_manage_nextcloud_transfer,
         do_manage_calendar,
@@ -582,8 +616,6 @@ async def _execute_tool_block_impl(
         do_app_api,
     )
 
-    tool = block.tool_type
-    content = block.content
     interactive_runtime_decision = None
 
     # Misformatted tool call detection: model put JSON inside ```python``` (or
@@ -622,7 +654,7 @@ async def _execute_tool_block_impl(
     if tool_policy and tool_policy.blocks(tool):
         desc = f"{tool}: BLOCKED"
         result = {
-            "error": f"Execution of tool '{tool}' is forbade by the active guide-only policy.",
+            "error": tool_policy.reason_for(tool),
             "exit_code": 1,
         }
         logger.warning("Tool policy blocked tool=%s", tool)
@@ -645,6 +677,10 @@ async def _execute_tool_block_impl(
         }
         logger.warning("Public tool policy blocked owner=%r tool=%s", owner, tool)
         return desc, result
+
+    diagnostic_refusal = _secret_safe_diagnostic_source_refusal(tool, content)
+    if diagnostic_refusal is not None:
+        return f"{tool}: BLOCKED by diagnostic safety policy", diagnostic_refusal
 
     if tool == "invalid_tool_call":
         try:
@@ -731,10 +767,13 @@ async def _execute_tool_block_impl(
                         "interactive_runtime": interactive_runtime_decision.audit_summary(),
                     },
                 )
-        except (ValueError, TypeError) as exc:
+        except (ValueError, TypeError):
             return (
                 f"{tool}: BLOCKED by interactive runtime policy",
-                {"error": f"Interactive runtime policy could not safely classify the command: {exc}", "exit_code": 1},
+                {
+                    "error": "Interactive runtime policy could not safely classify the command.",
+                    "exit_code": 1,
+                },
             )
 
     # update_plan: the agent writes back to the active plan — tick an item done
@@ -787,7 +826,7 @@ async def _execute_tool_block_impl(
         desc = f"{tool}: {first_line}"
         result = await _direct_fallback(tool, content, progress_cb=progress_cb, owner=owner) \
             or {"error": f"{tool}: execution failed", "exit_code": 1}
-    elif tool in ("publish_artifact", "verify_pygame_headless"):
+    elif tool in ("publish_artifact", "verify_pygame_headless", "commit_project"):
         # Generated-deliverable tools live in the direct agent registry.  Keep
         # them on the same owner/workspace-bound execution path as file tools;
         # schema registration alone does not make a tool dispatchable here.
@@ -915,6 +954,9 @@ async def _execute_tool_block_impl(
     elif tool == "manage_notes":
         desc = "manage_notes"
         result = await do_manage_notes(content, owner=owner)
+    elif tool == "manage_todos":
+        desc = "manage_todos"
+        result = await do_manage_todos(content, owner=owner)
     elif tool == "manage_calendar":
         desc = "manage_calendar"
         result = await do_manage_calendar(content, owner=owner)

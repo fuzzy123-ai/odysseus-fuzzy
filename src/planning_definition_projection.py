@@ -6,7 +6,7 @@ from copy import deepcopy
 from datetime import datetime
 import json
 import re
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 from src.planning_definition_contract import (
     FORBIDDEN_EXECUTION_STATES,
@@ -19,8 +19,32 @@ from src.planning_definition_contract import (
 
 
 READ_MODEL_SCHEMA_ID = "odysseus.planning.definition_read_model.v2"
+MAINTENANCE_HANDOFF_SCHEMA_ID = "odysseus.agent_maintenance_handoff.v1"
+MAINTENANCE_HANDOFF_MAX_RECORDS = 128
 LEGACY_KINDS = frozenset({"odysseus.planning.roadmap", "harbor.planning.roadmap"})
 ORIGIN_STATES = frozenset({"loading", "live", "stale", "unavailable", "error"})
+_MAINTENANCE_RESOLVED_STATES = frozenset(
+    {"accepted", "closed", "completed", "deferred", "done", "resolved", "satisfied"}
+)
+_MAINTENANCE_SENSITIVE_PARTS = frozenset(
+    {
+        "body",
+        "chat",
+        "content",
+        "credential",
+        "email",
+        "message",
+        "password",
+        "path",
+        "private",
+        "prompt",
+        "raw",
+        "secret",
+        "token",
+        "transcript",
+        "value",
+    }
+)
 
 
 class PlanningDefinitionProjectionError(ValueError):
@@ -270,6 +294,486 @@ def origin_metadata(
     }
 
 
+def build_agent_maintenance_handoff(
+    *,
+    roadmap: Mapping[str, Any],
+    run_state: Mapping[str, Any],
+    gate_queue: Iterable[Mapping[str, Any]] = (),
+    clarifications: Iterable[Mapping[str, Any]] = (),
+    receipt: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Project one bounded, read-only maintenance resume packet.
+
+    Only identifiers, fixed states, booleans, counts and content-free receipt
+    references are emitted. Question text, blocker reasons, raw evidence and
+    source paths are deliberately excluded.
+    """
+
+    conflicts: set[str] = set()
+    roadmap_value = roadmap if type(roadmap) is dict else {}
+    state_value = run_state if type(run_state) is dict else {}
+    if type(roadmap) is not dict:
+        conflicts.add("invalid_roadmap_authority")
+    if type(run_state) is not dict:
+        conflicts.add("invalid_run_state_authority")
+
+    route = state_value.get("route")
+    route_value = route if type(route) is dict else {}
+    if route is not None and type(route) is not dict:
+        conflicts.add("invalid_route_authority")
+    route_slice = _maintenance_id(
+        route_value.get("slice_id"),
+        fallback="unknown_slice",
+    )
+    if route_slice == "unknown_slice":
+        conflicts.add("missing_route_slice")
+    claims = _maintenance_records(
+        state_value.get("active_claims"),
+        conflicts=conflicts,
+    )
+    projected_claims = [
+        {
+            "claim_id": _maintenance_id(
+                _maintenance_first_string(
+                    claim.get("claim_id"),
+                    claim.get("slice_id"),
+                ),
+                fallback=f"claim_{index + 1}",
+            ),
+            "slice_id": _maintenance_id(
+                claim.get("slice_id"),
+                fallback="unknown_slice",
+            ),
+            "owner_role": _maintenance_id(
+                claim.get("owner"),
+                fallback="unknown_owner",
+            ),
+            "state": _maintenance_id(
+                _maintenance_first_string(claim.get("state"), "active"),
+                fallback="active",
+            ),
+        }
+        for index, claim in enumerate(claims)
+    ]
+    projected_claims.sort(key=lambda item: (item["slice_id"], item["claim_id"]))
+    if len(projected_claims) > 1:
+        conflicts.add("multiple_active_claims")
+    if projected_claims and route_slice != projected_claims[0]["slice_id"]:
+        conflicts.add("route_claim_mismatch")
+
+    gate_records = _maintenance_records(gate_queue, conflicts=conflicts)
+    blockers = _maintenance_blockers(
+        (
+            (
+                "run_state",
+                _maintenance_records(
+                    state_value.get("known_blockers"),
+                    conflicts=conflicts,
+                ),
+            ),
+            ("gate_queue", gate_records),
+        ),
+        conflicts=conflicts,
+    )
+    owner_questions = _maintenance_owner_questions(
+        [
+            *_maintenance_records(clarifications, conflicts=conflicts),
+            *_maintenance_gate_questions(gate_records),
+        ],
+        conflicts=conflicts,
+    )
+
+    state_status = _maintenance_id(
+        _maintenance_first_string(state_value.get("state"), "unknown"),
+        fallback="unknown",
+    )
+    if state_status == "unknown":
+        conflicts.add("unknown_run_state")
+    if state_status == "stale" or state_value.get("stale") is True:
+        conflicts.add("stale_authority")
+
+    roadmap_id = _maintenance_id(
+        roadmap_value.get("roadmap_id"),
+        fallback="unknown_roadmap",
+    )
+    if roadmap_id == "unknown_roadmap":
+        conflicts.add("missing_roadmap_id")
+
+    receipt_reference, receipt_limits, receipt_conflict = _maintenance_receipt(
+        receipt,
+        expected_revision=state_value.get("revision_ref"),
+    )
+    if receipt_conflict:
+        conflicts.add(receipt_conflict)
+
+    if conflicts:
+        status = "blocked_conflict"
+        next_action = "reconcile_authority"
+    elif owner_questions:
+        status = "waiting_on_user"
+        next_action = "waiting_on_user"
+    elif blockers:
+        status = "blocked"
+        next_action = "resolve_blocker"
+    elif projected_claims:
+        status = "active"
+        next_action = "continue_claim"
+    else:
+        status = "ready"
+        candidates = _maintenance_id_list(state_value.get("next_runnable_slices"))
+        next_action = candidates[0] if candidates else "no_safe_frontier"
+
+    not_verified = set(receipt_limits)
+    if receipt_reference["status"] == "missing":
+        not_verified.add("machine_receipt")
+    not_verified_values = sorted(not_verified)
+    if len(not_verified_values) > MAINTENANCE_HANDOFF_MAX_RECORDS:
+        not_verified_values = [
+            "verification_limit_exceeded",
+            *not_verified_values[: MAINTENANCE_HANDOFF_MAX_RECORDS - 1],
+        ]
+
+    return {
+        "schema": MAINTENANCE_HANDOFF_SCHEMA_ID,
+        "status": status,
+        "goal": {
+            "roadmap_id": roadmap_id,
+            "goal_id": _maintenance_id(
+                _maintenance_first_string(
+                    roadmap_value.get("goal_id"),
+                    roadmap_value.get("roadmap_id"),
+                ),
+                fallback="unknown_goal",
+            ),
+            "state": _maintenance_id(
+                roadmap_value.get("status"),
+                fallback="unknown",
+            ),
+        },
+        "slice": {
+            "slice_id": route_slice,
+            "state": _maintenance_id(
+                _maintenance_first_string(route_value.get("state"), state_status),
+                fallback="unknown",
+            ),
+        },
+        "claim": (
+            projected_claims[0]
+            if projected_claims
+            else {
+                "claim_id": "none",
+                "slice_id": route_slice,
+                "owner_role": "none",
+                "state": "unclaimed",
+            }
+        ),
+        "active_claim_count": len(projected_claims),
+        "next_action": next_action,
+        "blockers": blockers,
+        "owner_questions": owner_questions,
+        "receipt_reference": receipt_reference,
+        "not_verified": not_verified_values,
+        "conflicts": sorted(conflicts),
+        "read_only": True,
+        "write_action_enabled": False,
+        "raw_evidence_visible": False,
+        "private_content_visible": False,
+    }
+
+
+def _maintenance_blockers(
+    sources: Iterable[tuple[str, list[Mapping[str, Any]]]],
+    *,
+    conflicts: set[str],
+) -> list[dict[str, str]]:
+    grouped: dict[str, dict[str, set[str]]] = {}
+    for source, records in sources:
+        for index, record in enumerate(records):
+            state = _maintenance_id(
+                _maintenance_first_string(
+                    record.get("state"),
+                    record.get("status"),
+                    "pending",
+                ),
+                fallback="pending",
+            )
+            if _maintenance_state_is_resolved(state):
+                continue
+            blocker_id = _maintenance_id(
+                _maintenance_first_string(record.get("id"), record.get("gate_id")),
+                fallback=f"{source}_blocker_{index + 1}",
+            )
+            item = grouped.setdefault(
+                blocker_id,
+                {"states": set(), "sources": set()},
+            )
+            item["states"].add(state)
+            item["sources"].add(source)
+
+    result: list[dict[str, str]] = []
+    for blocker_id, values in grouped.items():
+        states = values["states"]
+        if len(states) > 1:
+            conflicts.add("conflicting_blocker_state")
+            state = "conflict"
+        else:
+            state = next(iter(states))
+        result.append(
+            {
+                "blocker_id": blocker_id,
+                "state": state,
+                "source": "+".join(sorted(values["sources"])),
+            }
+        )
+    result.sort(key=lambda item: item["blocker_id"])
+    if len(result) > MAINTENANCE_HANDOFF_MAX_RECORDS:
+        conflicts.add("projected_blocker_limit_exceeded")
+    return result[:MAINTENANCE_HANDOFF_MAX_RECORDS]
+
+
+def _maintenance_owner_questions(
+    records: list[Mapping[str, Any]],
+    *,
+    conflicts: set[str],
+) -> list[dict[str, str]]:
+    grouped: dict[str, dict[str, set[str]]] = {}
+    for index, record in enumerate(records):
+        state = _maintenance_id(
+            _maintenance_first_string(
+                record.get("state"),
+                record.get("status"),
+                "waiting_on_user",
+            ),
+            fallback="waiting_on_user",
+        )
+        if _maintenance_state_is_resolved(state):
+            continue
+        question_id = _maintenance_id(
+            _maintenance_first_string(
+                record.get("question_id"),
+                record.get("id"),
+            ),
+            fallback=f"owner_question_{index + 1}",
+        )
+        item = grouped.setdefault(
+            question_id,
+            {"states": set(), "types": set()},
+        )
+        item["states"].add(state)
+        item["types"].add(
+            _maintenance_id(
+                _maintenance_first_string(
+                    record.get("question_type"),
+                    record.get("type"),
+                    "owner_decision",
+                ),
+                fallback="owner_decision",
+            )
+        )
+
+    result: list[dict[str, str]] = []
+    for question_id, values in grouped.items():
+        if len(values["states"]) > 1 or len(values["types"]) > 1:
+            conflicts.add("conflicting_owner_question")
+            state = "conflict"
+            question_type = "owner_decision"
+        else:
+            state = next(iter(values["states"]))
+            question_type = next(iter(values["types"]))
+        result.append(
+            {
+                "question_id": question_id,
+                "question_type": question_type,
+                "state": state,
+            }
+        )
+    result.sort(key=lambda item: item["question_id"])
+    if len(result) > MAINTENANCE_HANDOFF_MAX_RECORDS:
+        conflicts.add("projected_owner_question_limit_exceeded")
+    return result[:MAINTENANCE_HANDOFF_MAX_RECORDS]
+
+
+def _maintenance_gate_questions(
+    records: list[Mapping[str, Any]],
+) -> list[Mapping[str, Any]]:
+    questions: list[Mapping[str, Any]] = []
+    for index, record in enumerate(records):
+        if not any(
+            record.get(key) is True
+            for key in ("decision_needed", "decision_required", "waiting_on_user")
+        ):
+            continue
+        state = _maintenance_id(
+            _maintenance_first_string(
+                record.get("state"),
+                record.get("status"),
+                "waiting_on_user",
+            ),
+            fallback="waiting_on_user",
+        )
+        if _maintenance_state_is_resolved(state):
+            continue
+        questions.append(
+            {
+                "question_id": _maintenance_first_string(
+                    record.get("question_id"),
+                    record.get("gate_id"),
+                    record.get("id"),
+                    f"gate_question_{index + 1}",
+                ),
+                "question_type": _maintenance_first_string(
+                    record.get("question_type"),
+                    "owner_decision",
+                ),
+                "state": state,
+            }
+        )
+    return questions
+
+
+def _maintenance_receipt(
+    receipt: Mapping[str, Any] | None,
+    *,
+    expected_revision: Any,
+) -> tuple[dict[str, str], tuple[str, ...], str]:
+    if type(receipt) is not dict:
+        return (
+            {
+                "receipt_id": "none",
+                "revision": "none",
+                "diff_digest": "none",
+                "status": "missing",
+            },
+            ("machine_receipt",),
+            "",
+        )
+
+    revision = _maintenance_revision(receipt.get("revision"))
+    expected = _maintenance_revision(expected_revision)
+    conflict = (
+        "receipt_revision_mismatch"
+        if expected != "none" and revision != expected
+        else ""
+    )
+    receipt_id = _maintenance_id(
+        receipt.get("receipt_id"),
+        fallback="unknown_receipt",
+    )
+    diff_digest = _maintenance_digest(receipt.get("diff_digest"))
+    status = _maintenance_id(receipt.get("status"), fallback="unknown")
+    limits = tuple(_maintenance_id_list(receipt.get("not_verified")))
+    if type(receipt.get("not_verified")) not in {list, type(None)}:
+        limits = tuple(sorted(set(limits) | {"receipt_not_verified_shape"}))
+    elif (
+        type(receipt.get("not_verified")) is list
+        and len(receipt["not_verified"]) > MAINTENANCE_HANDOFF_MAX_RECORDS
+    ):
+        limits = tuple(sorted(set(limits) | {"receipt_not_verified_truncated"}))
+    if expected == "none":
+        limits = tuple(sorted(set(limits) | {"expected_revision"}))
+    if revision == "none":
+        limits = tuple(sorted(set(limits) | {"receipt_revision"}))
+    if diff_digest == "none":
+        limits = tuple(sorted(set(limits) | {"receipt_diff_digest"}))
+    if receipt_id == "unknown_receipt":
+        limits = tuple(sorted(set(limits) | {"receipt_identity"}))
+    if not (
+        status in {"accepted", "passed"}
+        or status.startswith("accepted_")
+        or status.startswith("passed_")
+    ):
+        limits = tuple(sorted(set(limits) | {"required_verification"}))
+    return (
+        {
+            "receipt_id": receipt_id,
+            "revision": revision,
+            "diff_digest": diff_digest,
+            "status": status,
+        },
+        limits,
+        conflict,
+    )
+
+
+def _maintenance_records(
+    value: Any,
+    *,
+    conflicts: set[str] | None = None,
+) -> list[Mapping[str, Any]]:
+    if value is None:
+        return []
+    if type(value) not in {list, tuple}:
+        if conflicts is not None:
+            conflicts.add("invalid_authority_record_shape")
+        return []
+    if len(value) > MAINTENANCE_HANDOFF_MAX_RECORDS and conflicts is not None:
+        conflicts.add("authority_record_limit_exceeded")
+    records: list[Mapping[str, Any]] = []
+    for item in value[:MAINTENANCE_HANDOFF_MAX_RECORDS]:
+        if type(item) is dict:
+            records.append(item)
+        elif conflicts is not None:
+            conflicts.add("invalid_authority_record_shape")
+    return records
+
+
+def _maintenance_state_is_resolved(state: str) -> bool:
+    return (
+        state in _MAINTENANCE_RESOLVED_STATES
+        or any(
+            state.startswith(prefix)
+            for prefix in ("accepted_", "closed_", "completed_", "resolved_", "satisfied_")
+        )
+    )
+
+
+def _maintenance_id_list(value: Any) -> list[str]:
+    if type(value) is not list:
+        return []
+    result: list[str] = []
+    for index, item in enumerate(value[:MAINTENANCE_HANDOFF_MAX_RECORDS]):
+        token = _maintenance_id(item, fallback=f"item_{index + 1}")
+        if token not in result:
+            result.append(token)
+    return result
+
+
+def _maintenance_id(value: Any, *, fallback: str) -> str:
+    if type(value) is not str:
+        return fallback
+    token = re.sub(r"[^a-z0-9._:-]+", "_", value.strip().lower())
+    token = token.strip("_.:-")[:96]
+    parts = frozenset(re.split(r"[._:-]+", token))
+    if not token or not token[0].isalnum() or parts & _MAINTENANCE_SENSITIVE_PARTS:
+        return fallback
+    return token
+
+
+def _maintenance_first_string(*values: Any) -> str | None:
+    for value in values:
+        if type(value) is str and value.strip():
+            return value
+    return None
+
+
+def _maintenance_revision(value: Any) -> str:
+    if type(value) is not str:
+        return "none"
+    token = value.strip().lower()
+    if re.fullmatch(r"[0-9a-f]{7,64}", token):
+        return token
+    return "none"
+
+
+def _maintenance_digest(value: Any) -> str:
+    if type(value) is not str:
+        return "none"
+    token = value.strip().lower()
+    if re.fullmatch(r"sha256:[0-9a-f]{64}", token):
+        return token
+    return "none"
+
+
 def _origin_state(value: Any) -> str:
     state = str(value or "").strip().lower()
     if state not in ORIGIN_STATES:
@@ -397,9 +901,12 @@ def _timestamp(value: Any, *, fallback: str) -> str:
 
 __all__ = [
     "LEGACY_KINDS",
+    "MAINTENANCE_HANDOFF_SCHEMA_ID",
+    "MAINTENANCE_HANDOFF_MAX_RECORDS",
     "ORIGIN_STATES",
     "READ_MODEL_SCHEMA_ID",
     "PlanningDefinitionProjectionError",
     "PlanningDefinitionProjector",
+    "build_agent_maintenance_handoff",
     "origin_metadata",
 ]

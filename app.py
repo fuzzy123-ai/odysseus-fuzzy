@@ -928,7 +928,51 @@ def _telegram_refresh_session_headers(session_id: str) -> dict | None:
 
 
 def _telegram_session_bridge(**kwargs):
-    from src.ai_interaction import do_create_session
+    from src.agent_tools.session_tools import create_session as do_create_session
+
+    rollover_session_id = str(kwargs.get("rollover_session_id") or "").strip()
+    previous_session_id = str(kwargs.get("previous_session_id") or "").strip()
+    if rollover_session_id:
+        if not (
+            rollover_session_id.startswith("tg-")
+            and len(rollover_session_id) == 17
+            and all(ch in "0123456789abcdef" for ch in rollover_session_id[3:])
+        ):
+            return {"error": "telegram_rollover_session_id_invalid"}
+        try:
+            existing = session_manager.get_session(rollover_session_id)
+        except KeyError:
+            existing = None
+        if existing is not None:
+            return {"session_id": rollover_session_id, "recovered": True}
+        try:
+            previous = session_manager.get_session(previous_session_id)
+        except KeyError:
+            previous = None
+        if previous is None:
+            return {"error": "telegram_rollover_previous_session_missing"}
+        try:
+            created = session_manager.create_session(
+                session_id=rollover_session_id,
+                name=(
+                    f"{str(kwargs.get('recommended_session_name') or 'Telegram Bot')} "
+                    f"{str(kwargs.get('rollover_day') or '').strip()}"
+                ).strip(),
+                endpoint_url=str(getattr(previous, "endpoint_url", "") or ""),
+                model=str(getattr(previous, "model", "") or ""),
+                rag=bool(getattr(previous, "rag", False)),
+                owner=getattr(previous, "owner", None),
+            )
+            created.headers = dict(getattr(previous, "headers", None) or {})
+            return {"session_id": created.id, "recovered": False}
+        except Exception:
+            try:
+                recovered = session_manager.get_session(rollover_session_id)
+            except KeyError:
+                recovered = None
+            if recovered is not None:
+                return {"session_id": rollover_session_id, "recovered": True}
+            return {"error": "telegram_rollover_session_create_failed"}
 
     model_spec = _telegram_model_spec()
     if not model_spec:
@@ -939,6 +983,17 @@ def _telegram_session_bridge(**kwargs):
         logger.warning("Telegram session bridge could not create a session: %s", result.get("error"))
         return {"error": result.get("error")}
     return {"session_id": result.get("session_id") or ""}
+
+
+def _telegram_session_archiver(session_id: str) -> Dict:
+    try:
+        session = session_manager.get_session(str(session_id or "").strip())
+    except KeyError:
+        session = None
+    if session is None:
+        return {"archived": False, "reason": "session_not_found"}
+    session_manager.archive_session(session.id)
+    return {"archived": bool(getattr(session, "archived", False))}
 
 
 def _telegram_rebind_local_session(bridge: Dict) -> Dict:
@@ -993,6 +1048,14 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
     from core.models import ChatMessage
     from src.agent_loop import stream_agent_loop
     from src.workflow_skills import WorkflowSkillError, resolve_workflow_skills
+    from src.telegram_todo_truth import (
+        build_telegram_todo_truth_envelope,
+        telegram_todo_truth_envelope_has_evidence,
+    )
+    from src.telegram_context_policy import (
+        build_telegram_continuity_message,
+        build_telegram_turn_context,
+    )
 
     session_id = str(bridge.get("session_id") or "").strip()
     prompt = str(bridge.get("prompt") or "").strip()
@@ -1085,7 +1148,7 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
             }
         headers = _telegram_refresh_session_headers(session_id) or getattr(session, "headers", None)
         context = session.get_context_messages()
-        messages = list(context)
+        supplemental_messages = []
         try:
             rag_preface, _rag_sources, _web_sources = chat_processor.build_context_preface(
                 message=prompt,
@@ -1099,7 +1162,7 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                 use_skills=False,
                 use_context_providers=False,
             )
-            messages.extend(rag_preface)
+            supplemental_messages.extend(rag_preface)
         except Exception as rag_exc:
             logger.warning("Telegram RAG context preload failed: %s", rag_exc)
         try:
@@ -1109,7 +1172,7 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
 
                 type_counts = inventory.get("type_counts") if isinstance(inventory.get("type_counts"), dict) else {}
                 type_summary = ", ".join(f"{key}: {value}" for key, value in sorted(type_counts.items()))
-                messages.append(untrusted_context_message(
+                supplemental_messages.append(untrusted_context_message(
                     "telegram rag import status",
                     (
                         "Telegram/Nextcloud import status for this user:\n"
@@ -1126,7 +1189,35 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                 ))
         except Exception as inventory_exc:
             logger.warning("Telegram RAG inventory preload failed: %s", inventory_exc)
-        messages.append({"role": "user", "content": prompt})
+        continuity_used = False
+        continuity = bridge.get("telegram_rollover_continuity")
+        if isinstance(continuity, dict) and continuity.get("trusted") is False:
+            previous_session_id = str(continuity.get("previous_session_id") or "").strip()
+            try:
+                previous_session = session_manager.get_session(previous_session_id)
+            except (KeyError, ValueError):
+                previous_session = None
+            if previous_session is not None:
+                continuity_message = build_telegram_continuity_message(
+                    previous_session.get_context_messages(),
+                    prompt,
+                )
+                if continuity_message is not None:
+                    supplemental_messages.append(continuity_message)
+                    continuity_used = True
+        context_window = build_telegram_turn_context(
+            context,
+            prompt,
+            supplemental_messages=supplemental_messages,
+        )
+        messages = list(context_window.messages)
+        logger.info(
+            "Telegram bounded context: input=%s retained=%s omitted=%s supplemental=%s",
+            context_window.evidence["input_message_count"],
+            context_window.evidence["retained_history_message_count"],
+            context_window.evidence["omitted_history_message_count"],
+            context_window.evidence["supplemental_message_count"],
+        )
         workflow_skill_resolution = None
         workflow_context = bridge.get("workflow_context") if isinstance(bridge.get("workflow_context"), dict) else None
         if workflow_context:
@@ -1153,8 +1244,9 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                     ),
                 }
 
-        async def _run_agent_turn() -> str:
+        async def _run_agent_turn() -> tuple[str, dict | None]:
             reply_parts: list[str] = []
+            todo_truth_envelope = None
             async for chunk in stream_agent_loop(
                 session.endpoint_url,
                 session.model,
@@ -1172,22 +1264,34 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                     continue
                 if "delta" in event and not event.get("thinking"):
                     reply_parts.append(str(event.get("delta") or ""))
-            return "".join(reply_parts).strip()
+                if event.get("type") == "metrics" and isinstance(event.get("data"), dict):
+                    metric_events = event["data"].get("tool_events")
+                    if isinstance(metric_events, list):
+                        candidate = build_telegram_todo_truth_envelope(metric_events)
+                        if telegram_todo_truth_envelope_has_evidence(candidate):
+                            todo_truth_envelope = candidate
+            return "".join(reply_parts).strip(), todo_truth_envelope
 
-        response = _run_async_bridge(_run_agent_turn())
+        response, todo_truth_envelope = _run_async_bridge(_run_agent_turn())
         if not response:
             response = "Ich habe deine Nachricht verarbeitet, aber keine Textantwort erhalten."
         if local_rebind_notice:
             response = f"{local_rebind_notice}{response}"
         session.add_message(ChatMessage("user", persisted_prompt, {"source": "telegram"}))
         session.add_message(ChatMessage("assistant", str(response or ""), {"source": "telegram"}))
-        return {"status": "accepted", "reply_text": str(response or "")}
+        result = {"status": "accepted", "reply_text": str(response or "")}
+        if continuity_used:
+            result["telegram_rollover_continuity_used"] = True
+        if todo_truth_envelope is not None:
+            result["todo_truth_envelope"] = todo_truth_envelope
+        return result
     except Exception as exc:
         logger.warning("Telegram agent turn failed: %s", exc)
         return {"status": "failed", "error": str(exc), "reply_text": ""}
 
 
 app.state.telegram_session_bridge = _telegram_session_bridge
+app.state.telegram_session_archiver = _telegram_session_archiver
 app.state.telegram_agent_turn_handler = _telegram_agent_turn_handler
 app.state.telegram_owner = _telegram_owner()
 logger.info("Telegram AI bridge initialized")

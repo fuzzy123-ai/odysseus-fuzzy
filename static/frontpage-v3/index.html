@@ -6,6 +6,8 @@
   <title>Harbor One Frontend V3</title>
   <link rel="stylesheet" href="../frontpage-v2/styles.css?v=harbor-brand-1">
   <link rel="stylesheet" href="./v3-fixed.css?v=harbor-v3-fixed-1">
+  <link rel="stylesheet" href="./inbox-workbench.css?v=harbor-uix19-1">
+  <link rel="stylesheet" href="./inbox-preview.css?v=harbor-uix20-1">
   <link rel="stylesheet" href="./planning.css?v=harbor-pde-1">
   <link rel="stylesheet" href="./agent-operations.css?v=harbor-tlr07-1">
 </head>
@@ -399,42 +401,18 @@
         </article>
       </div>
       <div class="workspace-screen" data-workspace-screen="inbox" aria-label="Inbox workspace">
-        <article class="floating-window workspace-default-window inbox-home-window" data-window data-window-id="inbox-home">
+        <article class="floating-window inbox-workbench-window active" data-window data-window-id="inbox-workbench" aria-label="Universal Inbox document workbench">
           <header class="window-head" data-drag-handle>
             <div class="window-subtitle">inbox</div>
-            <div class="window-title">Universal Inbox</div>
+            <div class="window-title">Document Workbench</div>
+            <div class="inbox-window-state" data-inbox-window-state aria-live="polite">connecting</div>
             <div class="window-actions" aria-label="Window controls">
               <button class="window-control" data-window-min title="Minimize" aria-label="Minimize">-</button>
               <button class="window-control" data-window-max title="Maximize" aria-label="Maximize">&#9633;</button>
               <button class="window-control" data-window-close title="Close" aria-label="Close">x</button>
             </div>
           </header>
-          <div class="window-body workspace-default-body">
-            <section class="workspace-default-command inbox-global-search" aria-label="Inbox search">
-              <span aria-hidden="true"></span>
-              <strong>Search files, folders, memory chunks, skills, imports...</strong>
-              <div class="inbox-search-scopes" aria-hidden="true">
-                <span>all</span>
-                <span>memory</span>
-                <span>files</span>
-              </div>
-            </section>
-            <div class="workspace-default-drop">
-              <strong>Drop files, links, screenshots, or text here</strong>
-              <span>ABC imports, analyzes, routes, and suggests context without interrupting you.</span>
-            </div>
-            <section class="inbox-recent-imports" aria-label="Recent imports">
-              <div class="inbox-section-line">Recent imports <span>last 5</span></div>
-              <div class="inbox-import-list">
-                <button class="inbox-import-row cloud" type="button"><span class="inbox-type-icon">NC</span><span><strong>Nextcloud: research-notes.md</strong><small>summarized, source suggested</small></span><em>new</em></button>
-                <button class="inbox-import-row pdf" type="button"><span class="inbox-type-icon">PDF</span><span><strong>release-notes.pdf</strong><small>document context ready</small></span><em>ready</em></button>
-                <button class="inbox-import-row note" type="button"><span class="inbox-type-icon">TXT</span><span><strong>meeting paste</strong><small>2 todos and 1 decision found</small></span><em>analysis</em></button>
-                <button class="inbox-import-row image" type="button"><span class="inbox-type-icon">IMG</span><span><strong>screenshot-batch.png</strong><small>needs destination rule</small></span><em>rule</em></button>
-                <button class="inbox-import-row problem" type="button"><span class="inbox-type-icon">!</span><span><strong>cloud export.zip</strong><small>contains unknown executable</small></span><em>review</em></button>
-              </div>
-              <button class="inbox-more-button" type="button">More...</button>
-            </section>
-          </div>
+          <div class="window-body" data-inbox-workbench-root></div>
         </article>
 
         <article class="floating-window inbox-analysis-window" data-window data-window-id="inbox-analysis">
@@ -672,6 +650,12 @@
 
   <script src="./data.js?v=harbor-v3-fixed-1"></script>
   <script src="./app.js?v=harbor-v3-fixed-1"></script>
+  <script src="./inbox-fixtures.js?v=harbor-uix18-1"></script>
+  <script src="./inbox-api.js?v=harbor-uix18-1"></script>
+  <script src="./inbox-state.js?v=harbor-uix18-1"></script>
+  <script src="./inbox-preview.js?v=harbor-uix20-1"></script>
+  <script src="./inbox-document-bridge.js?v=harbor-uix24-1"></script>
+  <script src="./inbox-workbench.js?v=harbor-uix24-1"></script>
   <script src="./planning-fixtures.js?v=harbor-pde-1"></script>
   <script src="./api.js?v=harbor-pde-1"></script>
   <script src="./planning.js?v=harbor-pde-1"></script>

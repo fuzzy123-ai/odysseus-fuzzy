@@ -306,6 +306,86 @@ def build_telegram_todo_digest_live_gate(
         db.close()
 
 
+def build_todo_digest_schedule_postcondition(
+    *,
+    owner: str,
+    session_factory=None,
+) -> dict[str, Any]:
+    """Prove one canonical active Telegram Todo digest schedule, read-only."""
+    from core.database import ScheduledTask, SessionLocal
+
+    if not isinstance(owner, str) or not owner.strip():
+        return {
+            "schema": CALENDAR_CAPABILITY_SCHEMA,
+            "kind": "todo_digest_schedule_postcondition",
+            "claim_type": "todo_digest_schedule_active",
+            "status": "blocked",
+            "reason": "owner_scope_required",
+            "verified": False,
+            "candidate_count": 0,
+            "raw_content_visible": False,
+        }
+    db = (session_factory or SessionLocal)()
+    try:
+        candidates = (
+            db.query(ScheduledTask)
+            .filter(
+                ScheduledTask.owner == owner,
+                ScheduledTask.task_type == "action",
+                ScheduledTask.action == "todo_digest",
+                ScheduledTask.trigger_type == "schedule",
+                ScheduledTask.output_target.in_(("telegram", "notification:telegram")),
+                ScheduledTask.status.in_(("active", "paused")),
+            )
+            .order_by(ScheduledTask.created_at.asc(), ScheduledTask.id.asc())
+            .all()
+        )
+        active = [
+            task
+            for task in candidates
+            if str(getattr(task, "status", "") or "") == "active"
+            and getattr(task, "next_run", None) is not None
+        ]
+        canonical = active[0] if len(candidates) == 1 and len(active) == 1 else None
+        if canonical is not None:
+            task_hash = _stable_short_hash(getattr(canonical, "id", "") or "")
+            schedule_ref = f"todo-digest-schedule:v1:{task_hash}"
+            status = "active"
+            reason = "single_active_owner_scoped_todo_digest_schedule"
+            evidence_refs = [f"scheduled-task-readback:v1:{task_hash}"]
+            next_run = _iso(getattr(canonical, "next_run", None))
+        else:
+            schedule_ref = ""
+            next_run = ""
+            evidence_refs = []
+            if len(candidates) > 1:
+                status = "ambiguous"
+                reason = "multiple_matching_todo_digest_schedules"
+            elif candidates:
+                status = "inactive"
+                reason = "matching_todo_digest_schedule_not_active_or_not_runnable"
+            else:
+                status = "missing"
+                reason = "matching_todo_digest_schedule_missing"
+        return {
+            "schema": CALENDAR_CAPABILITY_SCHEMA,
+            "kind": "todo_digest_schedule_postcondition",
+            "claim_type": "todo_digest_schedule_active",
+            "status": status,
+            "reason": reason,
+            "schedule_ref": schedule_ref,
+            "next_run": next_run,
+            "candidate_count": len(candidates),
+            "verified": canonical is not None,
+            "evidence_refs": evidence_refs,
+            "owner_scoped": True,
+            "live_actions_performed": False,
+            "raw_content_visible": False,
+        }
+    finally:
+        db.close()
+
+
 def write_reminder_note(
     *,
     owner: str | None = None,

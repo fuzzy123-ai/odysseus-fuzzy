@@ -2,10 +2,18 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from src.claim_evidence_gate import (
+    AgentMaintenanceCompletionEvidence,
+    evaluate_agent_maintenance_completion,
+)
+from src.live_quality_gate_command_runner import quality_gate_command_text_is_allowed
 
 _ALLOWED_REMOTES = ("fuzzy",)
 _DECISIONS = ("blocked", "plan_ready", "ready_for_operator_go", "hold")
@@ -17,20 +25,6 @@ _SECRET_RE = re.compile(
     r"(?i)\b(token|secret|password|passwd|api[_-]?key|chat[_-]?id|bearer)\b\s*[:=]?\s*\S*"
 )
 _PATH_RE = re.compile(r"(?:[A-Za-z]:\\[^\s`]+|(?<![A-Za-z0-9._-])/(?:[^\s/`]+/)*[^\s`]+)")
-_BLOCKED_COMMAND_TEXT = (
-    "git reset --hard",
-    "git clean -fd",
-    "force-push",
-    "push origin",
-    "rm -rf",
-    "remove-item -recurse",
-    "curl ",
-    "wget ",
-    "invoke-webrequest",
-    "systemctl ",
-    "podman ",
-    "docker ",
-)
 _SLUG_RE = re.compile(r"[^a-z0-9._-]+")
 
 
@@ -64,11 +58,6 @@ def _redact(value: Any) -> str:
     text = _SECRET_RE.sub("[redacted-secret]", text)
     text = _PATH_RE.sub("[redacted-path]", text)
     return text
-
-
-def _contains_blocked_command(value: str) -> bool:
-    lowered = value.lower()
-    return any(fragment in lowered for fragment in _BLOCKED_COMMAND_TEXT)
 
 
 def _slugify(value: Any) -> str:
@@ -129,8 +118,14 @@ class ServerProjectRunnerPlan:
     next_human_decision: str
 
     @property
-    def live_execution_allowed(self) -> bool:
+    def operator_live_go_ready(self) -> bool:
         return self.decision == "ready_for_operator_go" and self.live_go and self.operator_decision == "go"
+
+    @property
+    def live_execution_allowed(self) -> bool:
+        """Legacy compatibility property; plans never grant execution authority."""
+
+        return False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -147,7 +142,8 @@ class ServerProjectRunnerPlan:
             "rollback_plan": self.rollback_plan,
             "operator_decision": self.operator_decision,
             "live_go": self.live_go,
-            "live_execution_allowed": self.live_execution_allowed,
+            "operator_live_go_ready": self.operator_live_go_ready,
+            "live_execution_allowed": False,
             "decision": self.decision,
             "blockers": list(self.blockers),
             "planned_steps": [dict(step) for step in self.planned_steps],
@@ -166,7 +162,8 @@ class ServerProjectRunnerPlan:
             f"- Chat scope: `{self.project_spec.chat_scope}`",
             f"- Decision: `{self.decision}`",
             f"- Remote: `{self.push_remote}`",
-            f"- Live execution allowed: `{str(self.live_execution_allowed).lower()}`",
+            f"- Operator live Go ready: `{str(self.operator_live_go_ready).lower()}`",
+            "- Live execution allowed: `false` (requires separate execution decision)",
         ]
         if self.blockers:
             lines.extend(["", "## Blockers"])
@@ -176,6 +173,152 @@ class ServerProjectRunnerPlan:
             lines.append(f"- `{step['step_id']}`: {step['summary']}")
         lines.extend(["", "## Recommended Next Human Decision", self.next_human_decision])
         return "\n".join(lines).rstrip()
+
+
+@dataclass(frozen=True, slots=True)
+class ServerProjectExecutionAuthority:
+    action: str
+    plan_digest: str
+    granted: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ServerProjectExecutionDecision:
+    allowed: bool
+    completion_verified: bool
+    action_authorized: bool
+    blockers: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema": "odysseus.server_project_execution_gate.v1",
+            "allowed": self.allowed,
+            "completion_verified": self.completion_verified,
+            "action_authorized": self.action_authorized,
+            "blockers": list(self.blockers),
+        }
+
+
+def build_server_project_execution_authority(
+    plan: ServerProjectRunnerPlan,
+    *,
+    granted: bool,
+) -> ServerProjectExecutionAuthority:
+    if type(granted) is not bool:
+        raise ValueError("granted must be a boolean")
+    if not _server_project_plan_is_valid(plan):
+        raise ValueError("server project plan is not a canonical builder-valid plan")
+    return ServerProjectExecutionAuthority(
+        action="server_project_execution",
+        plan_digest=_server_project_plan_digest(plan),
+        granted=granted,
+    )
+
+
+def evaluate_server_project_execution(
+    plan: ServerProjectRunnerPlan,
+    *,
+    repo_root: str | Path,
+    completion_evidence: AgentMaintenanceCompletionEvidence | None,
+    authority: ServerProjectExecutionAuthority | None,
+) -> ServerProjectExecutionDecision:
+    if not isinstance(plan, ServerProjectRunnerPlan):
+        raise ValueError("plan must be a ServerProjectRunnerPlan")
+    plan_valid = _server_project_plan_is_valid(plan)
+    completion_verified = evaluate_agent_maintenance_completion(
+        completion_evidence,
+        repo_root=Path(repo_root).resolve(),
+    ).completed
+    action_authorized = (
+        isinstance(authority, ServerProjectExecutionAuthority)
+        and authority.action == "server_project_execution"
+        and plan_valid
+        and authority.plan_digest == _server_project_plan_digest(plan)
+        and authority.granted is True
+    )
+    blockers: list[str] = []
+    if not plan_valid:
+        blockers.append("server project plan is not canonical or builder-valid")
+    if not plan.operator_live_go_ready:
+        blockers.append("server project plan lacks explicit operator live Go")
+    if not completion_verified:
+        blockers.append("current claims and machine verification receipt are required")
+    if not action_authorized:
+        blockers.append("typed server project execution authority is required")
+    unique = tuple(dict.fromkeys(blockers))
+    return ServerProjectExecutionDecision(
+        allowed=not unique,
+        completion_verified=completion_verified,
+        action_authorized=action_authorized,
+        blockers=unique,
+    )
+
+
+def _server_project_plan_material(plan: ServerProjectRunnerPlan) -> dict[str, Any]:
+    return {
+        "project_spec": plan.project_spec.to_dict(),
+        "project_id": plan.project_id,
+        "mode": plan.mode,
+        "deploy_target": plan.deploy_target,
+        "push_remote": plan.push_remote,
+        "base_branch": plan.base_branch,
+        "worker_branch": plan.worker_branch,
+        "quality_gate_commands": list(plan.quality_gate_commands),
+        "backup_evidence_green": plan.backup_evidence_green,
+        "smoke_target": plan.smoke_target,
+        "rollback_plan": plan.rollback_plan,
+        "operator_decision": plan.operator_decision,
+        "live_go": plan.live_go,
+        "decision": plan.decision,
+        "blockers": list(plan.blockers),
+        "planned_steps": [dict(step) for step in plan.planned_steps],
+        "operator_gate": dict(plan.operator_gate),
+        "evidence_summary": dict(plan.evidence_summary),
+        "next_human_decision": plan.next_human_decision,
+    }
+
+
+def _server_project_plan_digest(plan: ServerProjectRunnerPlan) -> str:
+    encoded = json.dumps(
+        _server_project_plan_material(plan),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def _server_project_plan_is_valid(plan: Any) -> bool:
+    if not isinstance(plan, ServerProjectRunnerPlan):
+        return False
+    try:
+        ui_scope_requested = any(
+            "UI scope is excluded" in blocker for blocker in plan.blockers
+        )
+        rebuilt = build_server_project_runner_plan(
+            project_title=plan.project_spec.project_title,
+            project_type=plan.project_spec.project_type,
+            repo_name=plan.project_spec.repo_name,
+            workspace_root=plan.project_spec.workspace_root,
+            chat_scope=plan.project_spec.chat_scope,
+            cloudflare_tunnel_requested=plan.project_spec.cloudflare_tunnel_requested,
+            project_id=plan.project_id,
+            mode=plan.mode,
+            deploy_target=plan.deploy_target,
+            push_remote=plan.push_remote,
+            base_branch=plan.base_branch,
+            worker_branch=plan.worker_branch,
+            quality_gate_commands=plan.quality_gate_commands,
+            backup_evidence_green=plan.backup_evidence_green,
+            smoke_target=plan.smoke_target,
+            rollback_plan=plan.rollback_plan,
+            operator_decision=plan.operator_decision,
+            live_go=plan.live_go,
+            ui_scope_requested=ui_scope_requested,
+        )
+        return _server_project_plan_material(rebuilt) == _server_project_plan_material(plan)
+    except (AttributeError, TypeError, ValueError):
+        return False
 
 
 def _build_steps(
@@ -282,6 +425,12 @@ def build_server_project_runner_plan(
     live_go: bool = False,
     ui_scope_requested: bool = False,
 ) -> ServerProjectRunnerPlan:
+    cloudflare_requested_value = (
+        cloudflare_tunnel_requested if type(cloudflare_tunnel_requested) is bool else False
+    )
+    backup_green_value = backup_evidence_green if type(backup_evidence_green) is bool else False
+    live_go_value = live_go if type(live_go) is bool else False
+    ui_scope_value = ui_scope_requested if type(ui_scope_requested) is bool else False
     slug = _slugify(project_title)
     normalized_project_type = _normalize_choice(project_type, field_name="project_type", choices=_PROJECT_TYPES)
     normalized_repo_name = _redact(repo_name if repo_name is not None else slug)
@@ -289,7 +438,7 @@ def build_server_project_runner_plan(
     normalized_chat_scope = _redact(chat_scope if chat_scope is not None else f"project:{slug}")
     cloudflare_gate = (
         "Cloudflare Tunnel requested; require separate domain, route, token, healthcheck, and operator Go before exposure"
-        if cloudflare_tunnel_requested
+        if cloudflare_requested_value
         else "Cloudflare Tunnel not requested; keep deployment internal until exposure gate is opened"
     )
     project_spec = UniversalProjectSpec(
@@ -300,7 +449,7 @@ def build_server_project_runner_plan(
         workspace_root=normalized_workspace_root,
         chat_scope=normalized_chat_scope,
         default_branch=_redact(base_branch),
-        cloudflare_tunnel_requested=bool(cloudflare_tunnel_requested),
+        cloudflare_tunnel_requested=cloudflare_requested_value,
         cloudflare_tunnel_gate=cloudflare_gate,
     )
     normalized_project = _redact(project_id)
@@ -320,6 +469,14 @@ def build_server_project_runner_plan(
     )
 
     blockers: list[str] = []
+    for field_name, value in (
+        ("cloudflare_tunnel_requested", cloudflare_tunnel_requested),
+        ("backup_evidence_green", backup_evidence_green),
+        ("live_go", live_go),
+        ("ui_scope_requested", ui_scope_requested),
+    ):
+        if type(value) is not bool:
+            blockers.append(f"{field_name} must be a boolean")
     if normalized_remote not in _ALLOWED_REMOTES:
         blockers.append("push remote must be fuzzy; origin is not an allowed deployment remote")
     if not normalized_worker.startswith(("codex/", "project/", "odysseus/")):
@@ -330,23 +487,25 @@ def build_server_project_runner_plan(
         blockers.append("chat scope must be project:<project-slug>")
     if project_spec.repo_name in {"odysseus", "odysseus-fuzzy"}:
         blockers.append("universal project runner must not default to the Odysseus repository")
-    if ui_scope_requested or normalized_mode != "backend_logic":
+    if ui_scope_value or normalized_mode != "backend_logic":
         blockers.append("UI scope is excluded until the separate UI redesign gate is opened")
-    if any(_contains_blocked_command(command) for command in raw_commands):
-        blockers.append("quality gate commands include blocked host, network, destructive, or deploy text")
-    if not backup_evidence_green:
+    if any(not quality_gate_command_text_is_allowed(command) for command in raw_commands):
+        blockers.append("quality gate commands include blocked, unsupported, or unsafe argv")
+    if not backup_green_value:
         blockers.append("backup evidence is not green")
     if not normalized_smoke:
         blockers.append("smoke target is missing")
     if not normalized_rollback:
         blockers.append("rollback or hold plan is missing")
-    if live_go and normalized_operator != "go":
+    if live_go_value and normalized_operator != "go":
         blockers.append("live_go requires operator_decision=go")
 
-    blocked_command_requested = any(_contains_blocked_command(command) for command in raw_commands)
+    blocked_command_requested = any(
+        not quality_gate_command_text_is_allowed(command) for command in raw_commands
+    )
     if blockers:
         decision = "blocked" if normalized_remote not in _ALLOWED_REMOTES or blocked_command_requested else "hold"
-    elif live_go and normalized_operator == "go":
+    elif live_go_value and normalized_operator == "go":
         decision = "ready_for_operator_go"
     else:
         decision = "plan_ready"
@@ -378,26 +537,27 @@ def build_server_project_runner_plan(
         base_branch=normalized_base,
         worker_branch=normalized_worker,
         quality_gate_commands=normalized_commands,
-        backup_evidence_green=bool(backup_evidence_green),
+        backup_evidence_green=backup_green_value,
         smoke_target=normalized_smoke,
         rollback_plan=normalized_rollback,
         operator_decision=normalized_operator,
-        live_go=bool(live_go),
+        live_go=live_go_value,
         decision=_normalize_choice(decision, field_name="decision", choices=_DECISIONS),
         blockers=tuple(blockers),
         planned_steps=planned_steps,
         operator_gate={
-            "live_go": bool(live_go),
+            "live_go": live_go_value,
             "operator_decision": normalized_operator,
             "push_remote": normalized_remote,
             "deploy_target": normalized_target,
             "commit_push_deploy_requires_gate": True,
-            "cloudflare_tunnel_requested": bool(cloudflare_tunnel_requested),
-            "mutation_allowed": decision == "ready_for_operator_go",
+            "cloudflare_tunnel_requested": cloudflare_requested_value,
+            "operator_live_go_ready": decision == "ready_for_operator_go",
+            "mutation_allowed": False,
             "raw_content_visible": False,
         },
         evidence_summary={
-            "backup_evidence_green": bool(backup_evidence_green),
+            "backup_evidence_green": backup_green_value,
             "smoke_target_present": bool(normalized_smoke),
             "rollback_plan_present": bool(normalized_rollback),
             "quality_gate_count": len(normalized_commands),

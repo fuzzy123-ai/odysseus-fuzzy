@@ -714,6 +714,34 @@ def _migrate_add_doc_source_email_cols():
     except Exception as e:
         logging.getLogger(__name__).warning(f"doc source-email migration: {e}")
 
+def _migrate_add_universal_inbox_working_copy_cols():
+    """Add hashed Universal Inbox provenance and its idempotency index."""
+    cols_to_add = {
+        "source_kind": "VARCHAR",
+        "source_ref_hash": "VARCHAR",
+    }
+    try:
+        with engine.connect() as conn:
+            existing = {r[1] for r in conn.execute(text("PRAGMA table_info(documents)"))}
+            if not existing:
+                return
+            for col, spec in cols_to_add.items():
+                if col not in existing:
+                    conn.execute(text(f"ALTER TABLE documents ADD COLUMN {col} {spec}"))
+            conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS "
+                "ux_documents_universal_inbox_source "
+                "ON documents (owner, source_kind, source_ref_hash)"
+            ))
+            conn.commit()
+            logging.getLogger(__name__).info(
+                "Migrated: added Universal Inbox working-copy provenance"
+            )
+    except Exception as e:
+        logging.getLogger(__name__).warning(
+            f"Universal Inbox working-copy migration failed: {e}"
+        )
+
 def _migrate_add_task_automation_columns():
     """Add automation columns to scheduled_tasks table if missing."""
     new_cols = {
@@ -1365,6 +1393,7 @@ def run_database_migrations() -> None:
     _migrate_assign_legacy_owner()
     _migrate_add_tidy_verdict()
     _migrate_add_doc_source_email_cols()
+    _migrate_add_universal_inbox_working_copy_cols()
     _migrate_add_oauth_config()
     _migrate_add_email_oauth_columns()
     _migrate_add_task_automation_columns()

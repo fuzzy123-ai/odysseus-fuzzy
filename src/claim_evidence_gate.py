@@ -5,9 +5,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 import re
+import subprocess
 from typing import Any, Iterable, Mapping
 
+from src.agent_verification_receipt import ReceiptError, validate_verification_receipt
 from src.tool_transaction_ledger import transaction_evidence_for_claim, transactions_from_tool_events
+from src.todo_digest_receipts import (
+    todo_digest_evidence_for_claim,
+    todo_digest_receipts_from_tool_events,
+)
+from src.todo_receipts import (
+    todo_receipt_evidence_for_claim,
+    todo_receipts_from_tool_events,
+)
 
 
 _FIRST_PERSON_ACTION_RE = re.compile(
@@ -66,6 +76,59 @@ _INTERACTIVE_PREVIEW_RE = re.compile(
     r"laeuft\s+interaktiv|läuft\s+interaktiv)\b",
     re.IGNORECASE,
 )
+_TODO_CLAIM_PATTERNS = (
+    (
+        "todo_item_created",
+        re.compile(
+            r"\b(?:(?:todo|to-do)s?|aufgaben?)\b.{0,48}\b(?:gespeichert|hinzugef(?:ue|\u00fc)gt|angelegt|saved|created|added)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "todo_item_completed",
+        re.compile(
+            r"\b(?:(?:todo|to-do)s?|aufgaben?)\b.{0,48}\b(?:erledigt|abgehakt|completed|done)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "todo_item_reopened",
+        re.compile(
+            r"\b(?:(?:todo|to-do)s?|aufgaben?)\b.{0,48}\b(?:wieder\s+ge(?:oe|\u00f6)ffnet|reopened)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "todo_item_removed",
+        re.compile(
+            r"\b(?:(?:todo|to-do)s?|aufgaben?)\b.{0,48}\b(?:entfernt|gel(?:oe|\u00f6)scht|removed|deleted)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "todo_list_read",
+        re.compile(
+            r"\b(?:todo|to-do)[-\s]?(?:liste|list)\b.{0,48}\b(?:gelesen|geladen|read|loaded)\b",
+            re.IGNORECASE,
+        ),
+    ),
+)
+_TODO_DIGEST_CONTAINS_RE = re.compile(
+    r"\b(?:todo|to-do|aufgabe)\b.{0,80}(?:(?:erscheint|auftaucht|appears).{0,56}\b(?:digest|zusammenfassung)\b|\b(?:digest|zusammenfassung)\b.{0,40}\b(?:enthalten|included)\b)",
+    re.IGNORECASE,
+)
+_TODO_DIGEST_EXCLUDES_RE = re.compile(
+    r"\b(?:todo|to-do|aufgabe)\b.{0,80}(?:(?:nicht\s+mehr|no\s+longer|excluded).{0,56}\b(?:digest|zusammenfassung)\b|\b(?:digest|zusammenfassung)\b.{0,40}\b(?:nicht\s+(?:mehr\s+)?enthalten|excluded)\b)",
+    re.IGNORECASE,
+)
+_TODO_DIGEST_UNVERIFIED_RE = re.compile(
+    r"\b(?:nicht\s+verifiziert|unverified|nicht\s+sicher|cannot\s+verify|can't\s+verify)\b",
+    re.IGNORECASE,
+)
+_TODO_DIGEST_TIMING_RE = re.compile(
+    r"\b(?:morgen|tomorrow|naechst(?:e|en|er|es)?|n(?:ae|ä)chste(?:n|r|s)?|next|um\s+[0-2]?\d(?::[0-5]\d)?|at\s+[0-2]?\d(?::[0-5]\d)?)\b",
+    re.IGNORECASE,
+)
 _NEGATED_CLAIM_PREFIX_RE = re.compile(
     r"\b(?:not|never|no|cannot|can't|couldn't|didn't|nicht|nie|konnte\s+nicht|kein(?:e|en|em|er|es)?|unverified|unavailable|nicht\s+verifiziert)\b.{0,36}$",
     re.IGNORECASE,
@@ -74,6 +137,35 @@ _NEGATED_CLAIM_WITHIN_RE = re.compile(
     r"\b(?:not|never|no|cannot|can't|couldn't|didn't|nicht|nie|konnte\s+nicht|kein(?:e|en|em|er|es)?|unverified|unavailable)\b",
     re.IGNORECASE,
 )
+_TODO_QUANTITY_PREFIX_RE = re.compile(
+    r"\b(?:(?P<count>[1-9]\d{0,2})|(?P<count_word>beide|both|zwei|two))\s*$",
+    re.IGNORECASE,
+)
+_TODO_PLURAL_CLAIM_RE = re.compile(r"^(?:todos|to-dos|aufgaben)\b", re.IGNORECASE)
+_VERIFICATION_EVIDENCE_RANK = {
+    "none": 0,
+    "static": 1,
+    "fast": 2,
+    "ui_contract": 3,
+    "visual": 4,
+    "full": 5,
+    "ui_contract_plus_visual_artifact": 6,
+}
+_LANE_STRONGEST_EVIDENCE = {
+    "guards-only": "static",
+    "fast": "fast",
+    "full": "full",
+    "ui": "ui_contract_plus_visual_artifact",
+}
+_LANE_COMPATIBLE_MINIMUMS = {
+    "guards-only": frozenset({"static"}),
+    "fast": frozenset({"static", "fast"}),
+    "full": frozenset({"static", "fast", "full"}),
+    "ui": frozenset(
+        {"static", "ui_contract", "visual", "ui_contract_plus_visual_artifact"}
+    ),
+}
+_MAX_OWNERSHIP_PATHS = 128
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,6 +209,238 @@ class ClaimEvidenceReport:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class AgentMaintenanceClaimOwnership:
+    expected_claim_id: str
+    expected_owner: str
+    allowed_paths: tuple[str, ...]
+    current_claim_id: str
+    current_owner: str
+    current_changed_paths: tuple[str, ...]
+    current_staged_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class AgentMaintenanceCompletionEvidence:
+    """Typed current claims plus receipt; this is never action authority."""
+
+    receipt: Mapping[str, Any]
+    claim_report: ClaimEvidenceReport
+    expected_lane: str
+    required_evidence_level: str
+    claim_ownership: AgentMaintenanceClaimOwnership
+
+
+@dataclass(frozen=True, slots=True)
+class AgentMaintenanceCompletionReport:
+    completed: bool
+    receipt_current: bool
+    claims_current: bool
+    ownership_current: bool
+    expected_lane: str
+    required_evidence_level: str
+    actual_evidence_level: str
+    blockers: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema": "odysseus.agent_maintenance_completion_gate.v1",
+            "completed": self.completed,
+            "receipt_current": self.receipt_current,
+            "claims_current": self.claims_current,
+            "ownership_current": self.ownership_current,
+            "expected_lane": self.expected_lane,
+            "required_evidence_level": self.required_evidence_level,
+            "actual_evidence_level": self.actual_evidence_level,
+            "blockers": list(self.blockers),
+            "origin_authenticated": False,
+            "commit_authorized": False,
+            "push_authorized": False,
+            "live_authorized": False,
+        }
+
+
+def evaluate_agent_maintenance_completion(
+    evidence: AgentMaintenanceCompletionEvidence | None,
+    *,
+    repo_root: str | Path,
+) -> AgentMaintenanceCompletionReport:
+    """Revalidate the receipt against the exact current repo and claim report."""
+
+    if not isinstance(evidence, AgentMaintenanceCompletionEvidence):
+        return AgentMaintenanceCompletionReport(
+            completed=False,
+            receipt_current=False,
+            claims_current=False,
+            ownership_current=False,
+            expected_lane="missing",
+            required_evidence_level="none",
+            actual_evidence_level="none",
+            blockers=("typed completion evidence is required",),
+        )
+
+    blockers: list[str] = []
+    expected_lane = str(evidence.expected_lane or "").strip()
+    required_level = str(evidence.required_evidence_level or "").strip()
+    if expected_lane not in _LANE_STRONGEST_EVIDENCE:
+        blockers.append("expected verification lane is unknown")
+    compatible_minimums = _LANE_COMPATIBLE_MINIMUMS.get(expected_lane, frozenset())
+    if required_level not in compatible_minimums:
+        blockers.append("required verification evidence level is invalid")
+
+    claims_current = (
+        isinstance(evidence.claim_report, ClaimEvidenceReport)
+        and evidence.claim_report.ok
+    )
+    if not claims_current:
+        blockers.append("current response claims are unsupported")
+
+    ownership_current = _claim_ownership_is_current(
+        evidence.claim_ownership,
+        repo_root=Path(repo_root).resolve(),
+    )
+    if not ownership_current:
+        blockers.append("claim ownership or current changed paths do not match")
+
+    receipt_current = False
+    actual_level = "none"
+    receipt = evidence.receipt
+    if not isinstance(receipt, dict) or not receipt:
+        blockers.append("current machine verification receipt is missing")
+    elif expected_lane in _LANE_STRONGEST_EVIDENCE:
+        try:
+            validate_verification_receipt(
+                receipt,
+                root=Path(repo_root).resolve(),
+                expected_lane=expected_lane,
+            )
+        except (OSError, ReceiptError, ValueError):
+            blockers.append("machine verification receipt is invalid, stale, or mismatched")
+        else:
+            receipt_current = True
+            actual_level = str(receipt.get("strongest_evidence_level") or "none")
+            if receipt.get("result") != "passed":
+                blockers.append("machine verification receipt did not pass")
+            if actual_level not in _VERIFICATION_EVIDENCE_RANK:
+                blockers.append("machine verification receipt evidence level is unknown")
+            else:
+                if actual_level != _LANE_STRONGEST_EVIDENCE[expected_lane]:
+                    blockers.append("machine verification receipt evidence does not match its lane")
+                if (
+                    required_level in compatible_minimums
+                    and _VERIFICATION_EVIDENCE_RANK[actual_level]
+                    < _VERIFICATION_EVIDENCE_RANK[required_level]
+                ):
+                    blockers.append("machine verification receipt is weaker than required")
+
+    unique_blockers = tuple(dict.fromkeys(blockers))
+    return AgentMaintenanceCompletionReport(
+        completed=not unique_blockers,
+        receipt_current=receipt_current,
+        claims_current=claims_current,
+        ownership_current=ownership_current,
+        expected_lane=expected_lane or "missing",
+        required_evidence_level=(
+            required_level if required_level in _VERIFICATION_EVIDENCE_RANK else "none"
+        ),
+        actual_evidence_level=(
+            actual_level if actual_level in _VERIFICATION_EVIDENCE_RANK else "none"
+        ),
+        blockers=unique_blockers,
+    )
+
+
+def _claim_ownership_is_current(
+    ownership: AgentMaintenanceClaimOwnership,
+    *,
+    repo_root: Path,
+) -> bool:
+    if not isinstance(ownership, AgentMaintenanceClaimOwnership):
+        return False
+    expected_claim = str(ownership.expected_claim_id or "").strip()
+    expected_owner = str(ownership.expected_owner or "").strip()
+    if (
+        not expected_claim
+        or not expected_owner
+        or expected_claim != str(ownership.current_claim_id or "").strip()
+        or expected_owner != str(ownership.current_owner or "").strip()
+    ):
+        return False
+    try:
+        allowed = _normalize_ownership_paths(ownership.allowed_paths)
+        declared_changed = _normalize_ownership_paths(ownership.current_changed_paths)
+        declared_staged = _normalize_ownership_paths(ownership.current_staged_paths)
+        actual_changed, actual_staged = _current_repo_paths(repo_root)
+    except (OSError, TypeError, ValueError, subprocess.SubprocessError):
+        return False
+    allowed_set = set(allowed)
+    return (
+        set(declared_changed) == set(actual_changed)
+        and set(declared_staged) == set(actual_staged)
+        and set(declared_staged).issubset(set(declared_changed))
+        and set(declared_changed).issubset(allowed_set)
+    )
+
+
+def _normalize_ownership_paths(values: Iterable[Any]) -> tuple[str, ...]:
+    paths: list[str] = []
+    for value in values:
+        raw = str(value or "").strip().replace("\\", "/")
+        parts = PurePosixPath(raw).parts
+        if (
+            not raw
+            or raw.startswith("/")
+            or re.match(r"^[A-Za-z]:", raw)
+            or not parts
+            or any(part in {"", ".", ".."} for part in parts)
+        ):
+            raise ValueError("claim ownership path is invalid")
+        normalized = "/".join(parts)
+        if normalized not in paths:
+            paths.append(normalized)
+    if len(paths) > _MAX_OWNERSHIP_PATHS:
+        raise ValueError("claim ownership paths exceed the safe limit")
+    return tuple(paths)
+
+
+def _current_repo_paths(repo_root: Path) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    completed = subprocess.run(
+        ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"],
+        cwd=repo_root,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        timeout=30,
+        check=False,
+    )
+    if completed.returncode != 0 or len(completed.stdout) > 1024 * 1024:
+        raise ValueError("current repository status is unavailable")
+    fields = completed.stdout.decode("utf-8", errors="strict").split("\0")
+    changed: list[str] = []
+    staged: list[str] = []
+    index = 0
+    while index < len(fields):
+        entry = fields[index]
+        index += 1
+        if not entry:
+            continue
+        if len(entry) < 4:
+            raise ValueError("current repository status is invalid")
+        code = entry[:2]
+        paths = [entry[3:]]
+        if "R" in code or "C" in code:
+            if index >= len(fields) or not fields[index]:
+                raise ValueError("current repository status is invalid")
+            paths.append(fields[index])
+            index += 1
+        for path in _normalize_ownership_paths(paths):
+            if path not in changed:
+                changed.append(path)
+            if code != "??" and code[0] != " " and path not in staged:
+                staged.append(path)
+    return tuple(changed), tuple(staged)
+
+
 def evaluate_response_claims(
     response: Any,
     tool_events: Iterable[Mapping[str, Any]] = (),
@@ -137,6 +461,8 @@ def evaluate_response_claims(
     if not transactions and events:
         transactions = tuple(item.to_dict() for item in transactions_from_tool_events(events, surface="claim_evidence"))
     root = Path(repo_root or Path.cwd()).resolve()
+    todo_receipts = todo_receipts_from_tool_events(events)
+    todo_digest_receipts = todo_digest_receipts_from_tool_events(events)
     findings: list[ClaimEvidenceFinding] = []
 
     if not text.strip():
@@ -202,6 +528,94 @@ def evaluate_response_claims(
                     evidence or paths,
                 )
             )
+
+    for claim_type, pattern in _TODO_CLAIM_PATTERNS:
+        matches = _positive_claim_matches(pattern, text)
+        if not matches:
+            continue
+        required_count = max(_todo_claim_count(text, match) for match in matches)
+        matching_receipt_count = len({
+            receipt.receipt_ref
+            for receipt in todo_receipts
+            if receipt.claim_type == claim_type and receipt.verified
+        })
+        evidence = todo_receipt_evidence_for_claim(todo_receipts, claim_type)
+        if matching_receipt_count < required_count:
+            evidence = ()
+        findings.append(
+            ClaimEvidenceFinding(
+                claim_type,
+                "supported" if evidence else "unsupported",
+                (
+                    "Todo claim has enough unique verified semantic receipts"
+                    if evidence
+                    else "Todo claim has fewer unique verified semantic receipts than claimed"
+                ),
+                evidence,
+            )
+        )
+
+    digest_claim_found = False
+    excludes_match = _TODO_DIGEST_EXCLUDES_RE.search(text)
+    if excludes_match:
+        prefix = text[max(0, excludes_match.start() - 48) : excludes_match.start()]
+        if (
+            not _NEGATED_CLAIM_PREFIX_RE.search(prefix)
+            and not _TODO_DIGEST_UNVERIFIED_RE.search(excludes_match.group(0))
+        ):
+            digest_claim_found = True
+            evidence = todo_digest_evidence_for_claim(
+                todo_digest_receipts,
+                "todo_digest_excludes",
+            )
+            findings.append(
+                ClaimEvidenceFinding(
+                    "todo_digest_excludes",
+                    "supported" if evidence else "unsupported",
+                    (
+                        "Todo digest exclusion has a matching read-only projection receipt"
+                        if evidence
+                        else "Todo digest exclusion has no matching read-only projection receipt"
+                    ),
+                    evidence,
+                )
+            )
+    elif _has_positive_claim(_TODO_DIGEST_CONTAINS_RE, text):
+        digest_claim_found = True
+        evidence = todo_digest_evidence_for_claim(
+            todo_digest_receipts,
+            "todo_digest_contains",
+        )
+        findings.append(
+            ClaimEvidenceFinding(
+                "todo_digest_contains",
+                "supported" if evidence else "unsupported",
+                (
+                    "Todo digest membership has a matching read-only projection receipt"
+                    if evidence
+                    else "Todo digest membership has no matching read-only projection receipt"
+                ),
+                evidence,
+            )
+        )
+
+    if digest_claim_found and _TODO_DIGEST_TIMING_RE.search(text):
+        evidence = todo_digest_evidence_for_claim(
+            todo_digest_receipts,
+            "todo_digest_schedule_active",
+        )
+        findings.append(
+            ClaimEvidenceFinding(
+                "todo_digest_schedule_active",
+                "supported" if evidence else "unsupported",
+                (
+                    "Timed Todo digest claim has one active owner-scoped schedule receipt"
+                    if evidence
+                    else "Timed Todo digest claim has no canonical active schedule receipt"
+                ),
+                evidence,
+            )
+        )
 
     for claim_type, pattern, supported_reason, unsupported_reason in (
         (
@@ -339,14 +753,31 @@ def _successful_telegram_events(events: Iterable[Mapping[str, Any]]) -> tuple[st
 
 
 def _has_positive_claim(pattern: re.Pattern[str], text: str) -> bool:
+    return bool(_positive_claim_matches(pattern, text))
+
+
+def _positive_claim_matches(
+    pattern: re.Pattern[str], text: str
+) -> tuple[re.Match[str], ...]:
+    matches: list[re.Match[str]] = []
     for match in pattern.finditer(text):
         prefix = text[max(0, match.start() - 48) : match.start()]
         if (
             not _NEGATED_CLAIM_PREFIX_RE.search(prefix)
             and not _NEGATED_CLAIM_WITHIN_RE.search(match.group(0))
         ):
-            return True
-    return False
+            matches.append(match)
+    return tuple(matches)
+
+
+def _todo_claim_count(text: str, match: re.Match[str]) -> int:
+    prefix = text[max(0, match.start() - 24) : match.start()]
+    quantity = _TODO_QUANTITY_PREFIX_RE.search(prefix)
+    if quantity is None:
+        return 2 if _TODO_PLURAL_CLAIM_RE.match(match.group(0)) else 1
+    if quantity.group("count_word"):
+        return 2
+    return max(1, min(int(quantity.group("count") or 1), 999))
 
 
 def _structured_claim_evidence(

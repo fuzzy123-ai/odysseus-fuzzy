@@ -59,3 +59,8 @@ def test_text_history_redacts_chat_and_sender_identifiers(tmp_path, monkeypatch)
     assert "sender-text-1" not in persisted
     assert "text-chat-1" not in encoded
     assert "sender-text-1" not in encoded
+    assert stored["store_class"] == "raw_conversation"
+    assert stored["raw_content_visible"] is True
+    raw_store = json.loads(persisted)
+    assert raw_store["store_class"] == "raw_conversation"
+    assert raw_store["raw_content_visible"] is True

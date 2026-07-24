@@ -56,6 +56,9 @@
       else button.removeAttribute('aria-current');
     });
     persist();
+    window.dispatchEvent(new CustomEvent('harbor:workspace-changed', {
+      detail: { workspace: id }
+    }));
   }
 
   function closeMenus(except = null) {

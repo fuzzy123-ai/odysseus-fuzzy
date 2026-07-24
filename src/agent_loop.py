@@ -20,6 +20,7 @@ from src.model_context import estimate_tokens
 from src.settings import get_setting
 from src.claim_evidence_gate import build_claim_evidence_correction, evaluate_response_claims
 from src.tool_transaction_ledger import transactions_from_tool_events
+from src.todo_receipts import render_todo_receipt_response, todo_receipts_from_tool_events
 from src.tool_security import (
     PUBLIC_MCP_SERVER_ALLOWLIST,
     blocked_tools_for_owner,
@@ -428,6 +429,12 @@ async def stream_agent_loop(
                 })
             if _target in ("browser_preview", "dual"):
                 _relevant_tools.add("create_document")
+
+        # A clear Todo turn has one domain facade. Memory is ambient by default,
+        # so remove it deterministically instead of asking the model to choose
+        # between two persistent stores.
+        from src.todo_intent import route_todo_toolset
+        _relevant_tools = route_todo_toolset(_relevant_tools, _last_user)
 
     # If a document is open the model needs the editing tools available
     # regardless of which selection path (RAG, keyword, caller-provided) ran
@@ -1624,6 +1631,7 @@ async def stream_agent_loop(
             for k in (
                 "attachment", "artifact_evidence", "interactive_runtime",
                 "headless_evidence", "pygame_headless_plan", "screenshot_ref",
+                "todo_receipts", "todo_digest_receipts",
             ):
                 if k in result:
                     tool_output_data[k] = result[k]
@@ -1700,6 +1708,7 @@ async def stream_agent_loop(
             for key in (
                 "attachment", "artifact_evidence", "interactive_runtime",
                 "headless_evidence", "pygame_headless_plan", "screenshot_ref",
+                "todo_receipts", "todo_digest_receipts",
             ):
                 if result.get(key):
                     tool_event[key] = result[key]
@@ -1768,6 +1777,14 @@ async def stream_agent_loop(
     )
     if _fallback_chunk:
         yield _fallback_chunk
+
+    _todo_receipt_response = render_todo_receipt_response(
+        todo_receipts_from_tool_events(tool_events)
+    )
+    if _todo_receipt_response and _todo_receipt_response not in full_response:
+        _todo_delta = ("\n\n" if full_response.strip() else "") + _todo_receipt_response
+        full_response += _todo_delta
+        yield f'data: {json.dumps({"delta": _todo_delta})}\n\n'
 
     claim_evidence_gate = {}
     tool_transactions = tuple(item.to_dict() for item in transactions_from_tool_events(tool_events, surface="agent"))

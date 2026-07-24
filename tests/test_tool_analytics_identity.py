@@ -181,12 +181,12 @@ def test_builtin_catalog_has_one_public_identity_and_reservation_per_tool():
     contract = build_builtin_analytics_identity_contract(descriptions)
 
     assert contract.schema_version == "odysseus.tool_analytics_identity.v1"
-    assert len(contract.identities) == len(CATALOG_TOOL_IDS) == 84
-    assert len(contract.analytics_id_reservations) == 84
+    assert len(contract.identities) == len(CATALOG_TOOL_IDS) == 85
+    assert len(contract.analytics_id_reservations) == 85
     assert {identity.source for identity in contract.identities} == {
         ToolSource.BUILTIN
     }
-    assert contract.to_public_dict()["identity_count"] == 84
+    assert contract.to_public_dict()["identity_count"] == 85
 
 
 @pytest.mark.parametrize(

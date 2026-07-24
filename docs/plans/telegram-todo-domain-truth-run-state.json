@@ -1,0 +1,942 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.abc_long_run_state",
+  "run_id": "abc-owm22-20260722T065621+0200",
+  "revision": 74,
+  "heartbeat_automation_id": "abc-owm-22-ttd-long-run",
+  "heartbeat_status": "paused_update_handler_unavailable_current_surface",
+  "queue_scope": "open_work",
+  "queue_lane": "OWM-23",
+  "queue_path": "docs/plans/agent-maintenance-safety-harness-roadmap.json",
+  "started_at": "2026-07-22T06:56:21+02:00",
+  "deadline_at": "2026-07-22T18:56:21+02:00",
+  "state": "running",
+  "supervision": "interactive",
+  "interactive_continuation": {
+    "resumed_at": "2026-07-22T19:29:30+02:00",
+    "trigger": "go in response to GO AMH07-HANDOFF",
+    "original_unattended_deadline_at": "2026-07-22T18:56:21+02:00",
+    "unattended_window_state": "elapsed_before_resume",
+    "deadline_extension_claimed": false
+  },
+  "max_parallel_workers": 1,
+  "worktree": "C:/tmp/odysseus-abc-ttd-20260722",
+  "branch": "codex/abc-ttd-20260722",
+  "baseline_commit": "61442e80dc9b1fd19b59b8fdd0335184a528938c",
+  "baseline_hashes": {
+    "docs/plans/open-work-completion-master-roadmap.json": "sha256:4EC8C1C598E3C0998FA2DFC9B0680764202BC2FC95B50802E3A135B0C125D63D",
+    "source_roadmap_from_preserved_primary_checkout": "sha256:42C8290460BF707341D30ABFC623549622E3ABD0F4CB07946E82411BA9635821"
+  },
+  "route": {
+    "entrypoint": "/abc",
+    "slice_id": "AMH-08-adversarial-and-ci-acceptance",
+    "mutation": "repo_only",
+    "recommended": {
+      "skills": [
+        {"id": "abc", "purpose": "adversarial orchestration, claims, gates and acceptance"}
+      ],
+      "model": {"tier": "high", "preferred": "gpt-5.6-sol", "reason": "adversarial completion, receipt and CI acceptance spans security-critical fail-closed paths"}
+    },
+    "selected": {
+      "skills": [
+        {"id": "abc", "purpose": "adversarial orchestration, claims, gates and acceptance"}
+      ],
+      "model": {"value": "surface_default", "reason": "root integration surface"}
+    },
+    "actual": {
+      "skills": [
+        {"id": "abc", "status": "loaded_used"}
+      ],
+      "model": {"value": "surface_default", "evidence": "root surface"}
+    },
+    "fallback": "native_tools"
+  },
+  "evidence_contract": {
+    "target_environment": "local",
+    "authority": "repo",
+    "mutation_class": "repo_only",
+    "required": ["static", "focused_test", "integration"],
+    "temporal_window": "none",
+    "positive_path_required": true
+  },
+  "active_claims": [],
+  "agent_leases": [
+    {
+      "agent": "/root/amh02_bob",
+      "slice_id": "AMH-06-enforced-completion-and-git-rails",
+      "mode": "worker",
+      "state": "released_after_local_acceptance",
+      "allowed_paths": [
+        "src/claim_evidence_gate.py",
+        "src/repo_remote_policy.py",
+        "src/repo_commit_runner.py",
+        "src/repo_push_runner.py",
+        "src/project_forge_github.py",
+        "src/live_quality_gate_command_runner.py",
+        "src/server_project_runner.py",
+        "src/effectful_tool_matrix.py",
+        "tests/test_agent_maintenance_completion_gate.py",
+        "tests/test_repo_commit_runner.py",
+        "tests/test_repo_push_runner.py",
+        "tests/test_live_quality_gate_command_runner.py",
+        "tests/test_server_project_runner.py",
+        "tests/test_project_forge_github.py"
+      ],
+      "acquired_at": "2026-07-22T15:13:00+02:00",
+      "lease_expires_at": "2026-07-22T17:15:00+02:00",
+      "released_at": "2026-07-22T17:27:30+02:00",
+      "completion_commit": "9bbcf849cf246290e79839131bc16d49a653e04d"
+    },
+    {
+      "agent": "/root/amh07_bob",
+      "slice_id": "AMH-07-read-only-session-bootstrap",
+      "mode": "worker",
+      "state": "released_after_local_acceptance",
+      "allowed_paths": [
+        ".codex/hooks.json",
+        "src/agent_loop_prompts.py",
+        "src/agent_loop_system_prompt.py",
+        "src/runtime_tool_status.py",
+        "docs/agent-maintenance-runbook.md",
+        "tests/test_agent_maintenance_bootstrap.py"
+      ],
+      "acquired_at": "2026-07-22T19:30:29+02:00",
+      "lease_expires_at": "2026-07-22T21:30:29+02:00",
+      "released_at": "2026-07-22T20:33:45+02:00",
+      "completion_commit": "e24495734e8afc122cf36621cde5d8c1e94d7669"
+    },
+    {
+      "agent": "/root/amh07_charlie_review",
+      "slice_id": "AMH-08-adversarial-and-ci-acceptance",
+      "mode": "worker",
+      "state": "released_after_partial_commit",
+      "allowed_paths": [
+        "tests/test_agent_maintenance_adversarial.py",
+        "tests/test_agent_maintenance_completion_gate.py",
+        "tests/test_agent_maintenance_bootstrap.py",
+        "tests/test_secret_safe_diagnostics.py",
+        ".github/workflows/quality-gate.yml",
+        "scripts/verify.py"
+      ],
+      "acquired_at": "2026-07-22T20:39:39+02:00",
+      "lease_expires_at": "2026-07-22T22:39:39+02:00",
+      "released_at": "2026-07-22T22:18:30+02:00",
+      "partial_commit": "8d806627"
+    }
+  ],
+  "completed_slices": [
+    {
+      "slice_id": "TTD-00",
+      "completed_at": "2026-07-22T07:03:00+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "6 passed",
+      "integration_tests": "57 passed",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "b50245ea",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "TTD-01",
+      "completed_at": "2026-07-22T07:14:05+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "8 passed",
+      "compatibility_tests": "19 passed",
+      "integration_tests": "65 passed",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "5bcb9e1b",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "TTD-02",
+      "completed_at": "2026-07-22T07:57:41+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "20 passed",
+      "integration_tests": "360 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "global_suite": "non_gate_on_windows_sandbox_baseline",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "86c61a1d",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "TTD-03",
+      "completed_at": "2026-07-22T08:14:11+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "20 passed",
+      "integration_tests": "145 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "d5b709a6",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "TTD-04",
+      "completed_at": "2026-07-22T08:27:14+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "6 passed",
+      "integration_tests": "292 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "3a12a80d",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "TTD-05",
+      "completed_at": "2026-07-22T08:50:26+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "45 passed",
+      "integration_tests": "297 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "AST 7 files, JSON, registry 79/84/85 and diff checks passed",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "b28fc08a",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "TTD-06",
+      "completed_at": "2026-07-22T09:00:51+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "6 passed",
+      "integration_tests": "93 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "AST 2 files, JSON, registry 79/84/85 and diff checks passed",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "89bb5555",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "TTD-07",
+      "completed_at": "2026-07-22T09:10:42+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "9 passed",
+      "integration_tests": "171 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "AST 3 files, JSON, registry 79/84/85, queue audit and diff checks passed",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "014b52eb",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "TTD-07A",
+      "completed_at": "2026-07-22T09:28:14+02:00",
+      "status": "accepted_local_repo_evidence_default_off",
+      "focused_tests": "25 passed",
+      "integration_tests": "237 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "AST 9 files, JSON, registry 79/84/85, queue audit and diff checks passed",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "2cb685d8",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "synthetic_controlled_clock",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "TTD-08",
+      "completed_at": "2026-07-22T09:55:00+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "15 passed",
+      "compatibility_tests": "104 passed in the foreign-hotfile Telegram plugin suite; 1 superseded mixed-store assertion intentionally deselected",
+      "integration_tests": "214 passed, 1 deselected, 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "AST 6 files, JSON, registry 79/84/85, queue audit and diff checks passed",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "5ca9fc8e",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "TTD-09",
+      "completed_at": "2026-07-22T10:08:00+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "37 passed",
+      "manifest_tests": "14 cases, 23 unique nodeids, 23 passed, network and production data forbidden, live actions false",
+      "integration_tests": "278 passed, 1 deselected, 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "AST 4 files, JSON 3 files, registry 79/84/85, queue audit and diff checks passed",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "95add2a6",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "synthetic_controlled_clock",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "TTD-10",
+      "completed_at": "2026-07-22T10:21:00+02:00",
+      "status": "accepted_local_repo_evidence_live_default_off",
+      "focused_tests": "14 passed",
+      "integration_tests": "324 passed, 1 deselected, 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "AST 3 files, JSON, registry 79/84/85, queue audit and diff checks passed",
+      "dry_run_evidence": "candidate packet rendered on stdout; deploy readiness only, all four authorization and execution states blocked",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "9d2ce23e",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "roadmap-registry-source-reconciliation",
+      "completed_at": "2026-07-22T10:34:00+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "15 of 15 primary roadmap source SHA256 hashes matched; potential credential assignment count zero; diff checks passed",
+      "integration_tests": "130 discovered and 130 registered roadmaps; guidance inventory valid",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "9f0f4b13",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-00",
+      "completed_at": "2026-07-22T10:41:00+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "JSON, queue audit, guidance resolution, DAG uniqueness and diff checks passed",
+      "integration_tests": "130 roadmap guidance entries resolved including one AMH entry; OWM-23 registered exactly once without executable queue preemption",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "2f6c0221",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-01",
+      "completed_at": "2026-07-22T10:47:00+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "5 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "integration_tests": "8 existing secret-safe homeserver diagnostic tests passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "Path-scoped diff check passed; primary collision check clean",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "c9b5bae9",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-02-contract-foundation",
+      "completed_at": "2026-07-22T10:58:00+02:00",
+      "status": "partial_accepted_foreign_integration_blocked",
+      "focused_tests": "33 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "integration_tests": "66 passed across diagnostic contract, tool security, plan mode, public-tool and vault regressions; 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "Python compile, no real environment or subprocess calls, and path-scoped diff check passed",
+      "remaining_blocker": "AMH-02 runtime integration hotfiles require a durable foreign-work handoff",
+      "completion": {
+        "implemented": "partial",
+        "tested": "partial_foundation",
+        "committed": "eea23a24",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-03-verifier-foundation",
+      "completed_at": "2026-07-22T11:11:00+02:00",
+      "status": "partial_accepted_foreign_workflow_integration_blocked",
+      "focused_tests": "10 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "integration_tests": "15 verifier and policy tests passed; real guards-only lane passed 3 of 3 checks; full lane dry-run planned 5 checks",
+      "static_evidence": "Python compile, JSON parse and git diff checks passed through the new entrypoint",
+      "verification_limit": "Existing test_run_focus Windows dry-run quoting expectations fail 3 of 88 integration tests; source is unchanged and outside this claim",
+      "remaining_blocker": "AMH-03 workflow integration requires a durable foreign-work handoff",
+      "completion": {
+        "implemented": "partial",
+        "tested": "partial_foundation",
+        "committed": "16748201",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "availability_contract_only",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-05-projection-foundation",
+      "completed_at": "2026-07-22T11:20:00+02:00",
+      "status": "partial_accepted_foreign_integration_blocked",
+      "focused_tests": "10 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "integration_tests": "26 passed across maintenance handoff and existing Planning definition projections; 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "Real guards-only lane passed all 3 checks; primary collision check remained clean on claimed paths",
+      "remaining_blocker": "AMH-05 Planning service, runner and clarification integration requires a durable foreign-work handoff",
+      "completion": {
+        "implemented": "partial",
+        "tested": "partial_foundation",
+        "committed": "19f9118b",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "foreign-handoff-provenance-audit",
+      "completed_at": "2026-07-22T11:38:00+02:00",
+      "status": "accepted_read_only_evidence_no_amh_handoff_found",
+      "focused_tests": "50 passed across preserved validator, clarification, runner, Planning projection and CI workflow contracts",
+      "integration_tests": "Two Codex turn-diff checkpoints preserve the exact foreign blobs; normal refs, commits, reflogs and runstates contain no released AMH handoff",
+      "static_evidence": "Primary checkout remained unchanged; accepted GMI-11 hash manifest matches the validator source exactly",
+      "remaining_blocker": "A checkpoint and green tests preserve content but do not release overlapping AMH paths",
+      "completion": {
+        "implemented": "audit_only",
+        "tested": "yes",
+        "committed": "e51c4594",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-02-adversarial-contract-hardening",
+      "completed_at": "2026-07-22T11:45:00+02:00",
+      "status": "partial_hardened_accepted_foreign_integration_blocked",
+      "focused_tests": "57 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "integration_tests": "74 passed across diagnostic contract, tool security, Plan Mode, public blocked-tool and Vault security boundaries; 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "Real guards-only lane passed all 3 checks; path-scoped diff check passed",
+      "remaining_blocker": "AMH-02 tool-execution, tool-security and diagnostics-route integration hotfiles still require a durable AMH handoff",
+      "completion": {
+        "implemented": "partial_hardened",
+        "tested": "yes",
+        "committed": "e51c4594",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-05-adversarial-projection-hardening",
+      "completed_at": "2026-07-22T11:55:00+02:00",
+      "status": "partial_hardened_accepted_foreign_integration_blocked",
+      "focused_tests": "15 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "integration_tests": "31 passed across hardened maintenance handoff and existing Planning definition projections; 1 pre-existing SQLAlchemy deprecation warning",
+      "static_evidence": "Real guards-only lane passed all 3 checks; path-scoped diff check passed",
+      "remaining_blocker": "AMH-05 Planning service, runner and clarification integration still requires a durable foreign-work handoff",
+      "completion": {
+        "implemented": "partial_hardened",
+        "tested": "yes",
+        "committed": "b2e0a140",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "branch-final-verification",
+      "completed_at": "2026-07-22T12:00:00+02:00",
+      "status": "accepted_revision_scoped_evidence_with_baseline_fast_lane_limits",
+      "focused_tests": "352 passed across every changed Python test plus Planning projection, Plan Mode, public blocked-tool and Vault security integrations",
+      "integration_tests": "Guards-only lane passed 3 of 3; queue audit reports safe_open_count 0 and queue_exhausted true; guidance has 130 entries",
+      "static_evidence": "All four coordination JSON files parse; OWM-23 remains registered exactly once; git diff check passed",
+      "verification_limit": "The broad fast lane remains red only in pre-existing or platform-specific areas outside this run's claims, including Windows symlink/Bash/ESM-path cases and foreign Session, chat-helper and code-navigation baseline failures",
+      "completion": {
+        "implemented": "verification_only",
+        "tested": "yes",
+        "committed": "b2e0a140",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-03-shared-verification-entrypoint",
+      "completed_at": "2026-07-22T13:12:00+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "11 passed, 1 pre-existing SQLAlchemy deprecation warning",
+      "integration_tests": "Real guards-only lane passed all 3 checks; reusable workflow preserves blocking compileall, JavaScript syntax and full verifier jobs",
+      "static_evidence": "YAML workflow contract and path-scoped diff check passed",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "5c19a88f",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "availability_contract_only",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-05-canonical-handoff-and-owner-projection",
+      "completed_at": "2026-07-22T13:28:00+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "138 passed, 1 skipped, 1 pre-existing SQLAlchemy deprecation warning",
+      "integration_tests": "Clarification contract, fail-closed runner transitions, Planning service and hardened read-only maintenance projections passed together",
+      "static_evidence": "Changed sources imported in the focused suite and path-scoped diff check passed",
+      "verification_limit": "Clarification store integration remains outside the released four-path AMH-05 handoff and was not stubbed or skipped into acceptance",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "04c69fc6",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-02-secret-safe-diagnostics-core",
+      "completed_at": "2026-07-22T13:24:00+02:00",
+      "status": "partial_accepted_validator_dependency_blocked",
+      "focused_tests": "80 passed across secret-safe diagnostics, tool security and log-route projection; 1 pre-existing SQLAlchemy deprecation warning",
+      "integration_tests": "133 related tool, policy and diagnostics tests passed; combined AMH-02/03/05 acceptance passed 229 with 1 skipped",
+      "static_evidence": "Real guards-only lane passed all 3 checks; path-scoped diff check and raw-channel scan passed",
+      "remaining_blocker": "The declared maintenance output validator test requires the separately released GMI runtime dependency package, which is absent from this isolated branch and outside GO AMH-HANDOFF.",
+      "completion": {
+        "implemented": "partial_core",
+        "tested": "partial_core",
+        "committed": "a1992061",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-02-secret-safe-diagnostics",
+      "completed_at": "2026-07-22T14:40:00+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "164 passed across the complete declared AMH-02 diagnostic and GMI suite; 1 pre-existing SQLAlchemy deprecation warning",
+      "integration_tests": "90 passed across the four GMI package suites and existing Gemma4 router compatibility",
+      "static_evidence": "All four source hashes match the accepted GMI manifest; AST/compile 8 of 8 and path-scoped diff check passed; settings.py remained unchanged",
+      "verification_limit": "A deliberately broader non-contract run passed 107 and failed 4 legacy gemma4:e4b assertions in cookbook-control and universal-inbox tests; those paths were outside GO GMI-DEPS and remain separately claimable migration debt.",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "34d463ad",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-04-machine-verification-receipts",
+      "completed_at": "2026-07-22T15:03:00+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "34 passed, 1 host-dependent real-symlink test skipped, deterministic symlink admission regression passed; 1 pre-existing SQLAlchemy deprecation warning",
+      "integration_tests": "Real guards-only lane passed all 3 checks; clean-HEAD --receipt positive path returned result passed and bound to e7cb292612a7943fe55ff836d1bf64729d6087c2",
+      "static_evidence": "JSON schema parse, changed-file compile/AST, path-scoped and cached diff checks, adversarial security review and post-fix re-review passed",
+      "verification_limit": "Receipt structure and digest do not authenticate machine origin; AMH-06 must rerun current-state validation and treat producer metadata as non-authoritative.",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "e7cb2926",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-06-enforced-completion-and-git-rails",
+      "completed_at": "2026-07-22T17:27:30+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "110 passed across the declared AMH-06 completion, commit, push, live/server and GitHub Forge surfaces",
+      "integration_tests": "242 passed, 1 host-dependent skip and 1 pre-existing SQLAlchemy deprecation warning across 14 AMH-06 and adjacent-consumer modules",
+      "static_evidence": "Guards-only passed 3 of 3; exact path and cached-diff checks passed; clean-HEAD receipt bound to 9bbcf849cf246290e79839131bc16d49a653e04d with digest 2ed30171d1e2c856e78087e63433fd7ce4a584f02bf680f22ff1dd308bf31cb1; two independent post-fix reviews reported no actionable findings",
+      "verification_limit": "Integration, UI, live and temporal behavior were not verified. Three broader legacy ProjectCommitService positive-path tests require a separately claimed trusted-adapter migration to mint the new typed authorities.",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "9bbcf849",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      }
+    },
+    {
+      "slice_id": "AMH-07-read-only-session-bootstrap",
+      "completed_at": "2026-07-22T20:33:45+02:00",
+      "status": "accepted_local_repo_evidence",
+      "focused_tests": "37 passed, 1 host-dependent real-symlink test skipped; exact Windows hook command passed with hostile inherited GIT_DIR",
+      "integration_tests": "253 passed, 1 host-dependent skip and 14 pre-existing deprecation warnings across 21 AMH-07 and adjacent-consumer modules",
+      "static_evidence": "Guards-only passed 3 of 3; JSON and changed-Python AST passed; exact six-path cached diff and four primary handoff hashes passed; two final reviewers reported no actionable findings; clean-HEAD receipt 9677f44f86a6a22acfc55557d4fb0b9480d5187f205402c6ca8c9328f91b2e79 bound to 501d7b969b2c112abec937da1cb35d2ed2760231",
+      "verification_limit": "Actual Codex hook trust and installed-client SessionStart, exact POSIX hook execution, UI, live, visual and temporal behavior were not verified. These remain AMH-08/operational evidence, not inferred completion.",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "e2449573",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "no",
+        "temporal_validated": "no",
+        "product_complete": "no"
+      }
+    }
+  ],
+  "failed_attempts": {
+    "TTD-00": 1,
+    "TTD-01": 1,
+    "TTD-02": 18,
+    "TTD-04": 2,
+    "TTD-05": 3,
+    "TTD-08": 5,
+    "TTD-10": 1,
+    "AMH-01": 1,
+    "AMH-02-contract-foundation": 3,
+    "AMH-03-verifier-foundation": 1,
+    "AMH-05-projection-foundation": 1
+  },
+  "failed_attempt_classes": {
+    "TTD-02": [
+      "focused_expectation_mismatch_fixed",
+      "registry_parity_updates_fixed",
+      "sandbox_temp_directory_denied_then_escalated_gate_passed",
+      "global_suite_windows_sandbox_baseline_non_gate"
+    ],
+    "TTD-04": [
+      "tampered_exit_code_consistency_gap_fixed",
+      "sandbox_temp_directory_denied_then_escalated_gate_passed"
+    ],
+    "TTD-05": [
+      "projection_schema_overrode_receipt_schema_fixed",
+      "sandbox_pyc_cache_write_denied_switched_to_write_free_ast_check",
+      "write_free_ast_check_adjusted_for_existing_utf8_bom"
+    ],
+    "TTD-08": [
+      "focused_privacy_expectations_fixed",
+      "superseded_mixed_store_assertion_preserved_in_foreign_hotfile",
+      "clean_webhook_service_contract_updated_to_separate_audit_store",
+      "webhook_audit_payload_key_expectation_fixed",
+      "static_audit_cli_invocation_corrected_to_check_and_format_modes"
+    ],
+    "TTD-10": [
+      "direct_script_repo_import_bootstrap_fixed_and_subprocess_tested"
+    ],
+    "AMH-01": [
+      "policy_test_normalization_adjusted_for_markdown_wrapping"
+    ],
+    "AMH-02-contract-foundation": [
+      "forbidden_source_regex_quote_corrected_before_test_acceptance",
+      "powershell_environment_alias_and_control_character_normalization_fixed"
+    ],
+    "AMH-03-verifier-foundation": [
+      "pre_existing_windows_run_focus_dry_run_quote_expectations_recorded_not_modified"
+    ],
+    "AMH-05-projection-foundation": [
+      "safe_claim_identifier_fallback_expectation_corrected"
+    ],
+    "AMH-07": [
+      "sandbox_temp_repository_permission_denied_then_escalated",
+      "official_hook_specific_context_contract_corrected_after_review",
+      "git_environment_redirection_and_trace_sanitization_completed",
+      "forbidden_curl_substring_assertion_made_token_aware"
+    ]
+  },
+  "last_durable_progress_at": "2026-07-22T22:18:30+02:00",
+  "last_heartbeat_at": "2026-07-22T19:30:29+02:00",
+  "last_reported_revision": 74,
+  "resume_cursor": "AMH-08-adversarial-and-ci-acceptance",
+  "pending_user_requests": [],
+  "live_go_ledger": [],
+  "gate_queue": [
+    "TTD-LIVE-DEPLOY",
+    "TTD-LIVE-DATA-REPAIR",
+    "TTD-LIVE-TELEGRAM-SMOKE",
+    "TTD-LIVE-ROLLOVER-SMOKE",
+    "TTD-LIVE-HISTORY-RETENTION"
+  ],
+  "next_runnable_slices": [
+    "AMH-08-adversarial-and-ci-acceptance"
+  ],
+  "known_blockers": [
+    {
+      "id": "AMH-02-FOREIGN-HOTFILE-HANDOFF",
+      "state": "resolved_local_commits_a1992061_34d463ad",
+      "reason": "The released tool and route hotfiles plus the hash-pinned GMI dependency package were integrated, declared-suite tested and committed locally.",
+      "paths": [
+        "src/tool_security.py",
+        "src/tool_execution.py",
+        "routes/diagnostics_routes.py"
+      ]
+    },
+    {
+      "id": "AMH-03-FOREIGN-WORKFLOW-HANDOFF",
+      "state": "resolved_local_commit_5c19a88f",
+      "reason": "The released workflow work was semantically integrated, repaired to use the shared full verifier, focused-tested and committed locally.",
+      "paths": [
+        ".github/workflows/quality-gate.yml",
+        ".github/workflows/ci.yml"
+      ]
+    },
+    {
+      "id": "AMH-05-FOREIGN-PLANNING-HANDOFF",
+      "state": "resolved_local_commit_04c69fc6",
+      "reason": "The released Planning, clarification and runner work was semantically integrated, fail-closed hardened, focused-tested and committed locally.",
+      "paths": [
+        "src/planning_mcp_service.py",
+        "src/clarification_contract.py",
+        "src/coding_agent_runner_state.py",
+        "tests/test_clarification_contract.py"
+      ]
+    }
+    ,
+    {
+      "id": "AMH-02-VALIDATOR-DEPENDENCY-SCOPE",
+      "state": "resolved_local_commit_34d463ad",
+      "reason": "GO GMI-DEPS was reconciled into the isolated branch; all accepted source hashes and the complete declared AMH-02 test contract passed.",
+      "paths": [
+        "src/maintenance_output_validator.py",
+        "tests/test_maintenance_output_validator.py"
+      ]
+    },
+    {
+      "id": "GMI-LEGACY-CONSUMER-EXPECTATIONS",
+      "state": "deferred",
+      "disposition": "open_out_of_scope_migration_debt_nonblocking_amh04",
+      "reason": "Four broader tests still assert gemma4:e4b while the accepted GMI policy canonicalizes maintenance work to gemma3:4b. Cookbook-control and universal-inbox files were outside GO GMI-DEPS and require a separate path claim before modification.",
+      "paths": [
+        "tests/test_gemma4_cookbook_control.py",
+        "tests/test_universal_inbox_worker.py"
+      ]
+    },
+    {
+      "id": "AMH-04-PUBLIC-RECEIPT-ORIGIN-LIMIT",
+      "state": "resolved_local_commit_9bbcf849",
+      "reason": "AMH-06 reruns current-state validation against exact root, lane, claim and changed/staged path sets and does not treat public receipt producer metadata as authority.",
+      "paths": [
+        "src/agent_verification_receipt.py",
+        "src/claim_evidence_gate.py"
+      ]
+    },
+    {
+      "id": "AMH-06-FOREIGN-WORK-HANDOFF",
+      "state": "resolved_local_commit_9bbcf849_claim_released",
+      "reason": "The granted primary paths were read-only absorbed, semantically reconciled, independently reviewed, tested and committed in the isolated branch; the writer claim is released.",
+      "paths": [
+        "src/claim_evidence_gate.py",
+        "src/effectful_tool_matrix.py",
+        "src/repo_commit_runner.py",
+        "src/repo_push_runner.py",
+        "tests/test_repo_commit_runner.py",
+        "tests/test_repo_push_runner.py"
+      ],
+      "required_grant": "GO AMH06-HANDOFF",
+      "grant_received": "go",
+      "granted_at": "2026-07-22T15:12:00+02:00"
+    },
+    {
+      "id": "AMH-06-PROJECT-COMMIT-SERVICE-AUTHORITY-MIGRATION",
+      "state": "deferred",
+      "disposition": "open_out_of_scope_migration_debt_nonblocking_amh07",
+      "reason": "Three legacy ProjectCommitService positive-path tests still call the public service without a trusted adapter capable of minting the new internal completion and commit authorities. AMH-06 fails those calls closed; migrate that adapter under a separate path claim.",
+      "paths": [
+        "src/project_commit_service.py",
+        "tests/test_project_commit_service.py"
+      ]
+    },
+    {
+      "id": "AMH-07-FOREIGN-HOTFILE-HANDOFF",
+      "state": "resolved_local_commit_e2449573_claim_released",
+      "disposition": "accepted_local_repo_evidence",
+      "reason": "The granted primary paths were read-only absorbed, semantically reconciled, independently reviewed, tested and committed locally in the isolated branch; the writer claim is released.",
+      "paths": [
+        ".codex/hooks.json",
+        "src/agent_loop_prompts.py",
+        "src/agent_loop_system_prompt.py",
+        "src/runtime_tool_status.py"
+      ],
+      "required_grant": "GO AMH07-HANDOFF",
+      "grant_received": "go",
+      "granted_at": "2026-07-22T19:29:30+02:00"
+    },
+    {
+      "id": "AMH-08-FAST-LANE-TIMEOUT",
+      "state": "open_owner_stopped_further_long_tests",
+      "disposition": "partial_implementation_committed_not_accepted",
+      "reason": "Commit 8d806627 contains the green adversarial corpus and blocking guards-only CI job, but the canonical fast lane exceeded its fixed 1,200 second timeout. A diagnostic 3,600 second run used an unavailable TEMP/TMP target and is not acceptance evidence. The owner requested no further token-intensive tests, so AMH-08 remains open and AMH-09 remains dependency-blocked.",
+      "paths": [
+        ".github/workflows/quality-gate.yml",
+        "tests/test_agent_maintenance_adversarial.py",
+        "scripts/verify.py"
+      ],
+      "partial_commit": "8d806627"
+    }
+  ],
+  "foreign_handoff_audit": {
+    "observed_at": "2026-07-22T11:38:00+02:00",
+    "primary_checkout_mutated": false,
+    "codex_checkpoint_times": [
+      "2026-07-18T21:26:10+02:00",
+      "2026-07-21T22:06:08+02:00"
+    ],
+    "normal_commit_or_reflog_handoff_found": false,
+    "active_foreign_writer_found": false,
+    "focused_foreign_contract_tests": "50 passed, 1 pre-existing SQLAlchemy deprecation warning",
+    "conclusion": "Content is preserved and locally green; the owner explicitly released the named AMH-02, AMH-03 and AMH-05 paths for read-only absorption into the isolated branch.",
+    "owner_authorization": {
+      "grant": "GO AMH-HANDOFF",
+      "granted_at": "2026-07-22T12:55:00+02:00",
+      "scope": "Read the named files from the primary checkout; integrate, repair, test and commit locally in the isolated branch only.",
+      "excluded": ["push", "deploy", "live_access", "primary_checkout_mutation"]
+    },
+    "gmi_dependency_authorization": {
+      "grant": "GO GMI-DEPS",
+      "granted_at": "2026-07-22T14:24:00+02:00",
+      "scope": "Read the hash-pinned maintenance model policy, local scheduler, maintenance runtime, output validator and associated tests from the primary checkout; integrate, test and commit locally in the isolated branch only.",
+      "excluded": ["push", "deploy", "live_access", "runtime_activation", "primary_checkout_mutation"]
+    },
+    "amh06_handoff_authorization": {
+      "grant": "go in response to GO AMH06-HANDOFF",
+      "granted_at": "2026-07-22T15:12:00+02:00",
+      "scope": "Read the six named dirty AMH-06 primary paths, semantically reconcile them with all eleven roadmap paths, test and commit locally in the isolated branch only.",
+      "excluded": ["push", "deploy", "live_access", "primary_checkout_mutation", "destructive_git"]
+    },
+    "amh07_handoff_authorization": {
+      "grant": "go in response to GO AMH07-HANDOFF",
+      "granted_at": "2026-07-22T19:29:30+02:00",
+      "scope": "Read the four hash-pinned dirty or ignored AMH-07 primary paths, preserve and semantically reconcile them with the six roadmap paths, test and commit locally in the isolated branch only.",
+      "primary_source_hashes": {
+        ".codex/hooks.json": "sha256:6ebf56abe50762b3da36c3adb092e7dd2356e6b06a691b5b4029c81a8ea24228",
+        "src/agent_loop_prompts.py": "sha256:b87f71b74aab8e7840d8a69ec6e6c079b337cea8c259f12cdf6daddd6e658fe9",
+        "src/agent_loop_system_prompt.py": "sha256:aebf53b1c5319aeac39a5948cbd82a1985a9b75ccb74c98221c40258016471cb",
+        "src/runtime_tool_status.py": "sha256:54bc965628e6431c2155a8f1f800c03e9a8f6f4a2dc1d0a08b0b0b254fb9f786"
+      },
+      "excluded": ["push", "deploy", "live_access", "primary_checkout_mutation", "destructive_git"]
+    }
+  },
+  "final_queue_audit": {
+    "observed_at": "2026-07-22T22:18:30+02:00",
+    "safe_open_count": 0,
+    "unclaimable_open_count": 1,
+    "unclaimable_slice": "UIX-ABC13",
+    "unclaimable_reason": "UIX-WORKBENCH-PRODUCT-SEMANTICS-CONFIRMATION",
+    "unique_live_gate_count": 40,
+    "unique_design_gate_count": 28,
+    "other_open_count": 34,
+    "queue_exhausted": false,
+    "stop_reason": "AMH-08 partial implementation is committed and its writer claim is released, but the required fast lane is not green and the owner stopped further long tests. AMH-09 remains dependency-blocked; publication, live and UI design gates remain closed."
+  },
+  "stop_rules": [
+    "stop_on_secret_or_private_content",
+    "stop_on_overlapping_writer_or_foreign_staged_file",
+    "stop_before_live_mutation_without_action_specific_go",
+    "stop_on_data_loss_or_destructive_git",
+    "stop_at_deadline_during_unattended_mode_or_when_no_safe_frontier_remains"
+  ]
+}

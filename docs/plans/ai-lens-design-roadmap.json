@@ -1,0 +1,508 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.ai_lens_design_roadmap",
+  "title": "AI Lens Design Roadmap",
+  "class": "needs_design",
+  "created_at": "2026-07-09",
+  "updated_at": "2026-07-10",
+  "status": "planned",
+  "abc_mode": "Standard ABC, product-design-first",
+  "goal": "Design AI Lens as a beautiful sci-fi Odysseus control-room interface that remains dense, readable, truthful and useful while visualizing live semantic and runtime state.",
+  "design_context": {
+    "product_register": "product",
+    "source_design_system": "DESIGN.md",
+    "north_star": "A calm research-vessel control room looking into a neural circuit field with astrophotography depth, not a neon nightclub or generic SaaS analytics page.",
+    "existing_tokens": [
+      "--bg",
+      "--fg",
+      "--panel",
+      "--border",
+      "--red",
+      "--color-accent",
+      "--color-success",
+      "--color-warning",
+      "--color-muted"
+    ],
+    "visual_guardrails": [
+      "Use dark graphite, cyan, muted cyan borders and sparse red accents.",
+      "Keep panels compact and readable; cards only for real repeated items or drawers.",
+      "No purple-blue gradient monoculture, decorative blobs, fake glassmorphism or oversized hero UI.",
+      "Animation must convey state: retrieval activation, stream progress, tool call, safety gate, replay or selection.",
+      "Truth labels must be visible when a visual crosses from runtime trace into semantic projection or local internals."
+    ]
+  },
+  "target_surface": {
+    "primary_layout": [
+      "Top status rail: AI LENS, model, truth level, latency, tokens, privacy state, record/replay state.",
+      "Left Context Stack: System, User, Memory, RAG, Tools, Sources and excluded/clipped items.",
+      "Center J-Space: semantic starfield with query pulse, clusters, real edges and selected context nodes.",
+      "Right Neural Flow: Input, Embedding, Retrieval, Context, Model, Tool, Response.",
+      "Bottom Event Timeline: oscilloscope-like event stream with latency ticks and tool/result markers."
+    ],
+    "mode_tabs": [
+      "Orbit",
+      "Trace",
+      "Graph",
+      "Diagnostics",
+      "Replay"
+    ],
+    "responsive_behavior": [
+      "Desktop: five-zone cockpit layout.",
+      "Narrow desktop/tablet: J-Space top, Context/Flow/Timeline in tabs.",
+      "Mobile: read-only snapshot first; animation density reduced and panels collapse into segmented controls."
+    ]
+  },
+  "information_hierarchy": {
+    "always_visible": [
+      "current phase",
+      "truth level",
+      "context used versus budget",
+      "active source count",
+      "risk or needs-review state",
+      "tool waiting/error state"
+    ],
+    "visible_on_hover_or_selection": [
+      "why selected",
+      "similarity score",
+      "freshness",
+      "source type",
+      "supporting event IDs",
+      "redacted preview"
+    ],
+    "diagnostics_only": [
+      "payload IDs",
+      "score spread",
+      "phase duration table",
+      "source diversity breakdown",
+      "unsupported answer segment count",
+      "projection coordinates"
+    ],
+    "replay_only": [
+      "answer segment provenance",
+      "event timing scrubber",
+      "context changes between turns",
+      "what changed since prior replay"
+    ]
+  },
+  "question_to_surface_map": [
+    {
+      "question": "What is being used?",
+      "primary_surface": "Context Stack",
+      "supporting_surfaces": ["Top rail", "Diagnostics"],
+      "visual_answer": "Layer rows, token bars and included/excluded counts."
+    },
+    {
+      "question": "Why these sources?",
+      "primary_surface": "J-Space",
+      "supporting_surfaces": ["Context detail drawer"],
+      "visual_answer": "Selected nodes glow, ranked edges connect to the query and detail drawers show reasons."
+    },
+    {
+      "question": "Is evidence broad or narrow?",
+      "primary_surface": "J-Space",
+      "supporting_surfaces": ["Diagnostics"],
+      "visual_answer": "Cluster distribution, source-type colors and source coverage summary."
+    },
+    {
+      "question": "What is slow, waiting or broken?",
+      "primary_surface": "Event Timeline",
+      "supporting_surfaces": ["Neural Flow"],
+      "visual_answer": "Latency bands, amber tool channels, red failed states and phase duration markers."
+    },
+    {
+      "question": "Where should I be careful?",
+      "primary_surface": "Top rail",
+      "supporting_surfaces": ["Context Stack", "Event Timeline"],
+      "visual_answer": "Needs review badge, red safety gates, stale-context marks and redaction count."
+    },
+    {
+      "question": "Which answer part came from where?",
+      "primary_surface": "Replay",
+      "supporting_surfaces": ["Detail drawer", "Diagnostics"],
+      "visual_answer": "Answer segments link back to context nodes and tool result refs."
+    }
+  ],
+  "visual_language": {
+    "astro_photography_atmosphere": [
+      "The field should feel like deep-sky astrophotography, but there is no separate decorative star layer: the data nodes themselves are the stars.",
+      "The visual mass is one huge clustered semantic field with dense node constellations, local bright cores and quieter outer regions.",
+      "Near-black depth, subtle sensor grain and faint nebula-like semantic clouds may support the field, but they must not create fake stars behind the data.",
+      "Nebula effects are atmospheric only; every star-like point, active synaptic path and firing pulse remains tied to real Runtime Trace or Semantic Projection data.",
+      "Use depth, parallax and soft bloom sparingly so the interface feels vast without becoming foggy or decorative.",
+      "Avoid colorful space-poster gradients; the palette stays Odysseus graphite, cyan, blue, amber, green and sparse red.",
+      "Diagnostics mode must strip the atmosphere back to plain operational geometry and tables."
+    ],
+    "neural_field_effect": [
+      "The central experience is an event-driven neural-circuit visual metaphor: nodes activate, pulses travel along graph paths and nearby clusters respond with subtle resonance.",
+      "For API models, node activation is driven by Runtime Trace and Semantic Projection events, not a claim of true model internals.",
+      "Activation intensity maps to real event strength: selected context, retrieval score, active tool phase, source conflict, stream progress or replay focus.",
+      "Active paths are real graph or similarity edges; decorative background paths may exist only at very low intensity and must never be mistaken for evidence.",
+      "The user can toggle between Neural Field and Diagnostics so the same data can be seen as an immersive event-driven field or plain operational tables."
+    ],
+    "semantic_starfield": [
+      "Nodes are the stars: there is no separate background starfield above or below the data layer.",
+      "The default view is a huge clustered field, not sparse points; density and clustering communicate semantic neighborhoods.",
+      "Memory nodes use cyan, RAG nodes blue, tools amber, verified state green and warnings red.",
+      "Active query is a brighter pulse with a short trail.",
+      "Edges are thin and state-colored; selected edges may animate as data flow.",
+      "Cluster contours can appear as subtle magnetic field lines only when they clarify grouping."
+    ],
+    "context_stack": [
+      "Layered horizontal rows with stable token bars.",
+      "Plain labels first; advanced scores behind hover or details.",
+      "Sensitive rows are dimmed or shielded with redaction badges.",
+      "Excluded and clipped context is visible on demand, not noisy by default."
+    ],
+    "neural_flow": [
+      "A vertical or radial flow rail, not a fake human brain.",
+      "Each phase glows only while real events are active.",
+      "API models show Runtime Trace and Semantic Projection only.",
+      "Local internals mode may add layer/head strips when data exists."
+    ],
+    "event_timeline": [
+      "Compact waveform timeline with event ticks and latency bands.",
+      "Tool calls appear amber, safety gates red, completed states green.",
+      "Replay uses a scrubber and preserves original event timings where possible."
+    ]
+  },
+  "interaction_contracts": [
+    {
+      "id": "hover-node",
+      "surface": "J-Space",
+      "behavior": "Hover reveals label, kind, score, freshness and source type without raw private content.",
+      "truth_label": "Semantic Projection"
+    },
+    {
+      "id": "click-node",
+      "surface": "J-Space",
+      "behavior": "Click pins a detail drawer with Why this, source ref, redacted preview and actions if allowed.",
+      "truth_label": "Runtime Trace or Semantic Projection"
+    },
+    {
+      "id": "trace-phase",
+      "surface": "Neural Flow",
+      "behavior": "Click a phase filters the timeline and highlights related J-Space nodes.",
+      "truth_label": "Runtime Trace"
+    },
+    {
+      "id": "diagnostics-toggle",
+      "surface": "Top rail",
+      "behavior": "Shows advanced payload IDs, scores and budgets for technical operators.",
+      "truth_label": "Advanced"
+    },
+    {
+      "id": "info-summary-strip",
+      "surface": "Top rail",
+      "behavior": "Shows compact answer pack, source coverage, risk and waiting-state summaries without opening Diagnostics.",
+      "truth_label": "Runtime Trace"
+    },
+    {
+      "id": "coverage-filter",
+      "surface": "J-Space",
+      "behavior": "Filters nodes by Memory, RAG, Tools, Sources, stale, sensitive or selected-for-answer.",
+      "truth_label": "Semantic Projection"
+    },
+    {
+      "id": "replay-scrub",
+      "surface": "Event Timeline",
+      "behavior": "Scrubbing rewinds visible graph and flow state without rerunning the model.",
+      "truth_label": "Replay Snapshot"
+    }
+  ],
+  "copy_language": {
+    "default_terms": [
+      "Using now",
+      "Why this",
+      "Memory",
+      "Sources",
+      "Tools",
+      "Trace",
+      "Replay",
+      "Needs review"
+    ],
+    "advanced_terms": [
+      "Embedding",
+      "Similarity",
+      "Projection",
+      "Logits",
+      "Attention",
+      "Hidden state",
+      "KV cache"
+    ],
+    "forbidden_default_copy": [
+      "I can see the API model brain",
+      "True neural state",
+      "Thoughts",
+      "Mind reading",
+      "Raw chain of thought"
+    ],
+    "truth_badge_copy": {
+      "runtime_trace": "Runtime Trace",
+      "semantic_projection": "Semantic Projection",
+      "local_model_internals": "Local Model Internals",
+      "visual_effect": "Visual Effect"
+    },
+    "truth_badge_detail": {
+      "runtime_trace": "Observed Odysseus runtime event",
+      "semantic_projection": "Derived meaning map, not a literal neural layer",
+      "local_model_internals": "Gated sample from a supported local model only",
+      "visual_effect": "Rendering polish, never evidence"
+    },
+    "advanced_term_scope": "Embedding and similarity belong to Semantic Projection details. Attention, logits, hidden state and KV cache appear only for supported Local Model Internals. They never describe API-model access.",
+    "influence_copy_rule": "Why this and Memory used describe observable retrieval, selection, exclusion or answer support, never hidden reasoning or latent causality.",
+    "fixture_copy_rule": "Fixture-driven states carry a visible Synthetic Fixture label and are never styled or worded as live runtime evidence."
+  },
+  "truth_contract_alignment": {
+    "status": "aligned",
+    "canonical_truth_levels": [
+      "runtime_trace",
+      "semantic_projection",
+      "local_model_internals",
+      "visual_effect"
+    ],
+    "canonical_context_labels": ["Using now", "Why this", "Answer pack", "Memory used", "Learned", "Needs review"],
+    "privacy_rule": "Classification and redaction remain equal or become stricter from ACT payload to Lens surface; blocked and fully redacted items never expose previews or revealing labels.",
+    "api_model_rule": "API models show Runtime Trace and Semantic Projection only. Neural-circuit styling is Visual Effect, not attention, thought, hidden-state or brain access.",
+    "local_model_rule": "Attention, logits, hidden state and KV cache are labeled Local Model Internals and appear only when a supported local runtime and privacy/performance gates allow them."
+  },
+  "motion_language": {
+    "principles": [
+      "150-250ms for ordinary UI transitions.",
+      "Continuous motion is low-amplitude and state-driven.",
+      "No page-load choreography; the Lens opens into a useful snapshot.",
+      "Reduced motion disables trails, pulsing and animated edges while preserving state colors.",
+      "Canvas/WebGL animation must pause when hidden and degrade gracefully to SVG/DOM summary if needed."
+    ],
+    "animation_events": [
+      {
+        "event": "query_received",
+        "visual": "A query pulse appears at the current-turn origin and primes nearby semantic nodes."
+      },
+      {
+        "event": "memory_hit",
+        "visual": "Memory node activates, brightens and sends a data pulse along the edge to the query."
+      },
+      {
+        "event": "rag_hit",
+        "visual": "RAG node activates with a blue graph edge and short source tick."
+      },
+      {
+        "event": "tool_call_started",
+        "visual": "Tool channel opens in amber on Neural Flow and sends a lateral pulse through the Event Timeline."
+      },
+      {
+        "event": "model_stream_delta",
+        "visual": "A small activity wave travels from Model to Response, synchronized with streaming output."
+      },
+      {
+        "event": "safety_gate_triggered",
+        "visual": "Red blocking-gate mark appears; unrelated Visual Effect motion dims."
+      }
+    ]
+  },
+  "slice_queue": [
+    {
+      "id": "AIL-DESIGN-0-roadmap",
+      "class": "safe_offline",
+      "owner": "Alice",
+      "status": "done_in_this_artifact",
+      "objective": "Create this design roadmap as a JSON planning source.",
+      "allowed_paths": ["docs/plans/ai-lens-design-roadmap.json"],
+      "tests": ["python -m json.tool docs/plans/ai-lens-design-roadmap.json"],
+      "done_when": "Roadmap exists as valid JSON and defines layout, visual language, interaction, motion and design gates."
+    },
+    {
+      "id": "AIL-DESIGN-1-visual-system",
+      "class": "needs_design",
+      "owner": "Alice",
+      "status": "planned",
+      "objective": "Define the concrete AI Lens visual system on top of Odysseus tokens.",
+      "allowed_paths": [
+        "docs/plans/ai-lens-design-roadmap.json",
+        "static/frontpage-v3/*",
+        "static/mockups/*"
+      ],
+      "tests": ["design review against DESIGN.md", "contrast check for text states"],
+      "done_when": "A static or mockup surface demonstrates the palette, spacing, panels, node states and truth badges."
+    },
+    {
+      "id": "AIL-DESIGN-2-static-cockpit-prototype",
+      "class": "needs_design",
+      "owner": "Alice",
+      "status": "planned",
+      "objective": "Build a static AI Lens cockpit prototype with all five layout zones.",
+      "allowed_paths": [
+        "static/frontpage-v3/index.html",
+        "static/frontpage-v3/styles.css",
+        "static/frontpage-v3/app.js"
+      ],
+      "tests": ["node --check static/frontpage-v3/app.js", "browser screenshot desktop and mobile"],
+      "done_when": "AI Lens renders top rail, Context Stack, J-Space, Neural Flow and Event Timeline with fixture data."
+    },
+    {
+      "id": "AIL-DESIGN-3-jspace-animation",
+      "class": "needs_design",
+      "owner": "Bob",
+      "status": "planned",
+      "objective": "Implement the animated Semantic Starfield as a neural-field effect with fixture-driven nodes, synaptic edges, firing pulses and reduced-motion fallback.",
+      "allowed_paths": [
+        "static/frontpage-v3/app.js",
+        "static/frontpage-v3/styles.css"
+      ],
+      "tests": [
+        "node --check static/frontpage-v3/app.js",
+        "Playwright canvas nonblank check",
+        "Playwright reduced-motion check"
+      ],
+      "done_when": "J-Space animates from clearly labeled synthetic fixture events with event-driven neural-field activation waves, stays nonblank, and remains readable with motion disabled."
+    },
+    {
+      "id": "AIL-DESIGN-4-flow-and-timeline",
+      "class": "needs_design",
+      "owner": "Bob",
+      "status": "planned",
+      "objective": "Animate Neural Flow and Event Timeline from the same event fixture model.",
+      "allowed_paths": [
+        "static/frontpage-v3/app.js",
+        "static/frontpage-v3/styles.css"
+      ],
+      "tests": ["node --check static/frontpage-v3/app.js", "browser smoke: flow phase filter and replay scrubber"],
+      "done_when": "Flow phases and timeline ticks respond to fixture events and can filter/highlight the J-Space view."
+    },
+    {
+      "id": "AIL-DESIGN-5-detail-drawers",
+      "class": "needs_design",
+      "owner": "Alice",
+      "status": "planned",
+      "objective": "Add node, context item and phase detail drawers with plain-language truth and privacy labels.",
+      "allowed_paths": [
+        "static/frontpage-v3/index.html",
+        "static/frontpage-v3/styles.css",
+        "static/frontpage-v3/app.js"
+      ],
+      "tests": ["node --check static/frontpage-v3/app.js", "keyboard navigation smoke"],
+      "done_when": "Details can be opened, closed and navigated by keyboard without exposing forbidden raw fields."
+    },
+    {
+      "id": "AIL-DESIGN-5A-information-panels",
+      "class": "needs_design",
+      "owner": "Alice",
+      "status": "planned",
+      "objective": "Design the information summaries that make AI Lens useful: answer pack, retrieval quality, source coverage, tool latency, confidence/risk and provenance.",
+      "allowed_paths": [
+        "static/frontpage-v3/index.html",
+        "static/frontpage-v3/styles.css",
+        "static/frontpage-v3/app.js",
+        "docs/plans/ai-lens-design-roadmap.json"
+      ],
+      "tests": [
+        "node --check static/frontpage-v3/app.js",
+        "browser smoke: each information product is visible or reachable from the appropriate surface"
+      ],
+      "done_when": "Each information product answers a specific user question and has an always-visible, on-demand or diagnostics-only placement."
+    },
+    {
+      "id": "AIL-DESIGN-6-responsive-and-accessibility",
+      "class": "needs_design",
+      "owner": "Charlie",
+      "status": "planned",
+      "objective": "Harden AI Lens responsive behavior, contrast, keyboard access and reduced-motion mode.",
+      "allowed_paths": [
+        "static/frontpage-v3/*",
+        "docs/plans/ai-lens-design-roadmap.json"
+      ],
+      "tests": [
+        "node --check static/frontpage-v3/app.js",
+        "Playwright screenshots at desktop/tablet/mobile",
+        "manual contrast review for labels and muted text"
+      ],
+      "done_when": "No text overlaps, controls remain reachable, and animation degrades cleanly across viewport sizes."
+    },
+    {
+      "id": "AIL-DESIGN-7-live-data-wiring-polish",
+      "class": "needs_design",
+      "owner": "Charlie",
+      "status": "planned",
+      "objective": "Replace fixtures with AI Lens snapshot/stream payloads after backend contracts exist.",
+      "dependency_gate": "AIL-DESIGN-GATE-live-data-wiring",
+      "dependencies": [
+        "AIL-DESIGN-1-visual-system",
+        "AIL-DESIGN-2-static-cockpit-prototype",
+        "AIL-DESIGN-3-jspace-animation",
+        "AIL-DESIGN-4-flow-and-timeline",
+        "AIL-DESIGN-5-detail-drawers",
+        "AIL-DESIGN-5A-information-panels",
+        "AIL-DESIGN-6-responsive-and-accessibility",
+        "AIL-TECH-3-routes-stream",
+        "AIL-DESIGN-GATE-placement"
+      ],
+      "backend_preparation": "AIL-TECH-3 route completion remains separate backend evidence and does not complete fixture replacement, visual-state preservation or browser QA.",
+      "allowed_paths": [
+        "static/frontpage-v3/*",
+        "routes/ai_lens_routes.py",
+        "tests/test_ai_lens_routes.py"
+      ],
+      "tests": [
+        "python -m pytest tests/test_ai_lens_routes.py",
+        "node --check static/frontpage-v3/app.js",
+        "Playwright live-fixture smoke"
+      ],
+      "done_when": "The UI consumes real route payloads while preserving the same visual states and truth labels."
+    }
+  ],
+  "gate_queue": [
+    {
+      "id": "AIL-DESIGN-GATE-placement",
+      "class": "needs_design",
+      "blocks": ["production navigation and docking behavior"],
+      "decision_needed": "Choose initial placement: Agent side panel, full workspace tab, Knowledge lens, or prototype-only.",
+      "safe_preparation_done": "Roadmap assumes full workspace prototype first.",
+      "risk_if_bypassed": "The Lens may disrupt chat workflow or duplicate existing context surfaces.",
+      "next_safe_slice": "AIL-DESIGN-2-static-cockpit-prototype"
+    },
+    {
+      "id": "AIL-DESIGN-GATE-visual-intensity",
+      "class": "needs_design",
+      "blocks": ["final glow intensity, density and animation defaults"],
+      "decision_needed": "Operator picks the default intensity: calm, cinematic or diagnostics-first.",
+      "safe_preparation_done": "Prototype can expose an intensity toggle using fixture data.",
+      "risk_if_bypassed": "The UI could become beautiful but tiring in long operator sessions.",
+      "next_safe_slice": "AIL-DESIGN-3-jspace-animation"
+    },
+    {
+      "id": "AIL-DESIGN-GATE-live-data-wiring",
+      "class": "needs_design",
+      "blocks": ["AIL-DESIGN-7-live-data-wiring-polish"],
+      "decision_needed": "Approve the production Lens placement and complete the Design 1-6 visual, interaction, responsive and accessibility sequence before replacing fixtures with route data.",
+      "safe_preparation_done": "AIL-TECH-3 owns fixture-backed snapshot/stream routes independently; backend route evidence can finish without touching the UI.",
+      "risk_if_bypassed": "Live-shaped route data could be wired into an unfinished surface before truth badges, redaction states, reduced motion and responsive behavior are stable.",
+      "next_safe_slice": "none_until_design_go"
+    }
+  ],
+  "verification": {
+    "docs_only_current_slice": [
+      "python -m json.tool docs/plans/ai-lens-design-roadmap.json"
+    ],
+    "future_frontend_checks": [
+      "node --check static/frontpage-v3/app.js",
+      "Playwright screenshot desktop/tablet/mobile",
+      "Playwright canvas nonblank check",
+      "Playwright reduced-motion check",
+      "Keyboard navigation smoke for detail drawers and mode tabs"
+    ],
+    "visual_acceptance": [
+      "Looks native to Odysseus rather than a generic cyberpunk dashboard.",
+      "J-Space is visually dominant but does not hide context or trace details.",
+      "Truth badges prevent confusion between runtime trace, semantic projection, local-model internals and visual effects.",
+      "Text does not overlap or overflow at supported viewport sizes."
+    ]
+  },
+  "go_language": {
+    "go": "The AI Lens surface is visually striking, readable, accessible, motion-safe and connected to truthful backend payloads.",
+    "partial": "Static or fixture-backed UI is excellent, but live route wiring or replay polish remains deferred.",
+    "deferred": "Production placement, local-model internals visuals or high-intensity animation defaults wait for explicit design Go.",
+    "no_go": "The design implies fake brain access, hides operational state behind ambiance, leaks private content or uses generic neon/purple SaaS styling.",
+    "blocked": "No agreed production placement or no backend truth contract to drive animations."
+  },
+  "recommended_next_step": "Build AIL-DESIGN-1 and AIL-DESIGN-2 using fixture events while the technical roadmap builds the event contract."
+}

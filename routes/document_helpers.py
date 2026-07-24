@@ -35,11 +35,14 @@ class DocumentPatch(BaseModel):
     language: Optional[str] = None
     session_id: Optional[str] = None  # link/unlink document to a session
 
+class WorkingCopyCreate(BaseModel):
+    new_revision: bool = False
+
 
 # ---- Helpers ----
 
 def _doc_to_dict(doc: Document) -> Dict[str, Any]:
-    return {
+    payload = {
         "id": doc.id,
         "session_id": doc.session_id,
         "title": doc.title,
@@ -57,6 +60,18 @@ def _doc_to_dict(doc: Document) -> Dict[str, Any]:
         "source_email_account_id": getattr(doc, "source_email_account_id", None),
         "source_email_message_id": getattr(doc, "source_email_message_id", None),
     }
+    source_ref_hash = getattr(doc, "source_ref_hash", None)
+    if source_ref_hash:
+        payload["working_copy_provenance"] = {
+            "source_kind": getattr(doc, "source_kind", None),
+            "source_ref_hash": source_ref_hash,
+            "working_copy_id": doc.id,
+            "created_at": (
+                doc.created_at.isoformat() + "Z" if doc.created_at else None
+            ),
+            "owner_scoped": bool(getattr(doc, "owner", None)),
+        }
+    return payload
 
 def _version_to_dict(v: DocumentVersion) -> Dict[str, Any]:
     return {

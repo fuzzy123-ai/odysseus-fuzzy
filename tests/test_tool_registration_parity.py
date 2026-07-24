@@ -52,8 +52,8 @@ def test_all_six_baseline_gaps_have_one_explicit_catalog_disposition():
 def test_catalog_admission_extends_legacy_runtime_tags_only_for_confirmed_routes():
     catalog_names = catalog_fenced_tool_names()
 
-    assert len(TOOL_TAGS) == 78
-    assert len(catalog_names) == 81
+    assert len(TOOL_TAGS) == 79
+    assert len(catalog_names) == 82
     assert catalog_names - set(TOOL_TAGS) == CONFIRMED_ROUTE_REGISTRATION_GAPS
     assert all(catalog_call_allowed(tool_id) for tool_id in TOOL_TAGS)
     assert not any(catalog_call_allowed(tool_id) for tool_id in DEFERRED_REGISTRATION_GAPS)
