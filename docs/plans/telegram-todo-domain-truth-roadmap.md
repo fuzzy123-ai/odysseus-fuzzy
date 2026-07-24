@@ -16,9 +16,10 @@ Zweier-Check auf exakt zehn Pfaden akzeptiert. `TTD-06` ist nach frischem
 Recon, vier tiefen Sol-Korrekturrunden und einem finalen fokussierten
 Sechser-Check auf exakt drei neuen Pfaden akzeptiert; Audit und
 Repair-Preview bleiben strikt read-only und nicht anwendbar.
-Der read-only `TTD-07`-Recon ist abgeschlossen. Der kleinste funktionale
-Slice fuer einen nur turn-lokalen, begrenzten Telegram-Kontext ist nach
-explizitem seriellem `app.py`-Handoff auf drei Pfaden geclaimt.
+Der read-only `TTD-07`-Recon und der daraus geclaimte kleinste funktionale
+Slice fuer einen nur turn-lokalen, begrenzten Telegram-Kontext sind nach zwei
+tiefen Sol-Grenzrunden und einem finalen fokussierten Vierer-Check auf drei
+Pfaden akzeptiert.
 Der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -1041,19 +1042,22 @@ Akzeptanz:
 
 Naechster Frontier:
 
-- `TTD-07` ist durch das akzeptierte `TTD-04` dependency-ready fuer einen
-  read-only Kontext-/Session-Boundary- und Exaktpfad-Recon. Noch kein
-  Implementierungsclaim.
-- `TTD-07A` wartet weiter auf `TTD-07`; `TTD-09` und `TTD-10` bleiben
-  dependency-blocked. Alle vier Live-Gates bleiben dormant.
+- `TTD-07` ist am Implementierungscommit `5aeb3354` repo-only akzeptiert.
+- `TTD-07A` hat damit seine Abhaengigkeiten erfuellt und ist nur fuer
+  read-only Rollover-, Bridge-, Scheduler-, Session- und Exaktpfad-Recon
+  dependency-ready. Noch kein Implementierungsclaim.
+- `TTD-09` und `TTD-10` bleiben dependency-blocked. Alle vier Live-Gates
+  bleiben dormant.
 
 ### TTD-07 - Bounded Telegram-Kontext
 
 Owner: Bob
 
 Status: `TTD-07-bounded-telegram-turn-context` ist nach read-only
-Ownership-, Collision- und Exaktpfad-Recon am `2026-07-24T12:32:55+02:00`
-seriell auf drei Pfaden geclaimt.
+Ownership-, Collision- und Exaktpfad-Recon, zwei tiefen Sol-Grenzrunden und
+einem finalen fokussierten Vierer-Check am `2026-07-24T12:45:27+02:00`
+repo-only akzeptiert. Implementierungscommit:
+`5aeb3354a78830359bfd001c29a5a9b6cb55dbfd`.
 
 Serialisierter Claim:
 
@@ -1084,6 +1088,35 @@ Serialisierter Claim:
   ausgeschlossen.
 - Der divergente historische Commit `014b52eb` ist nur Designreferenz und
   darf weder gecherry-pickt noch als aktuelle Evidence behandelt werden.
+
+Akzeptierte Evidence:
+
+- Terra implementierte nur die drei Claim-Pfade; Root/Sol behielt Roadmap,
+  Claim, Review und Acceptance.
+- Der aktuelle Nutzerturn bleibt absichtlich unmarkiert als letzter User-Turn:
+  das globale Soft-Trim schuetzt ihn bereits, waehrend `_protected` ihn vor
+  aeltere Historie verschoben haette.
+- Persistierte System-Summaries und Task-State-Prosa werden entfernt. Die
+  intern erzeugten Prompt-Security- und Self-Control-Systemregeln bleiben ueber
+  einen expliziten trusted Runtime-Kanal erhalten; alle normalen Supplemente,
+  auch hostile `role=system`-Inputs, werden als untrusted User-Daten
+  neu gekapselt.
+- Die Hard Limits sind tatsaechlich maximal 24 Historiennachrichten und 12.000
+  Historienzeichen; hoehere oder typfalsche Werte scheitern geschlossen.
+  Ein zu grosser neuerer Turn beendet die Rueckwaertsselektion, statt
+  irrefuehrend aeltere Historie nachzuruecken.
+- Der Fingerprint hasht nur Rollen, Zeichenlaengen und Retention-Booleans,
+  niemals Rohtext. Der Handler loggt nur Counts und Limits, weder Fingerprint
+  noch Prompt, Context, IDs oder die gesamte Evidence.
+- Worker-Verifikation: ein finaler Vierer-Check vor Sol-Korrekturen, danach
+  exakt zwei und exakt drei betroffene Nodes; alle finalen Korrekturbatches
+  bestanden. Root-Verifikation: BOM-aware AST 3/3 und exakt vier kritische
+  Nodes 4/4, nur die bekannte SQLAlchemy-Deprecation-Warnung.
+- Der Handler ruft weder `maybe_compact` noch `replace_messages` auf und
+  behaelt genau die zwei bestehenden finalen `session.add_message`-Writes.
+  Es gab keine produktive Session-, Provider-, Send-, Debian- oder Live-Aktion.
+- `git diff --cached --check` war sauber; gestagter und committed Scope exakt
+  drei Pfade.
 
 Ziel:
 
