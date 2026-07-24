@@ -74,6 +74,57 @@ _NEGATED_CLAIM_WITHIN_RE = re.compile(
     r"\b(?:not|never|no|cannot|can't|couldn't|didn't|nicht|nie|konnte\s+nicht|kein(?:e|en|em|er|es)?|unverified|unavailable)\b",
     re.IGNORECASE,
 )
+_TODO_CONTEXT_RE = re.compile(
+    r"\b(?:todo(?:[-\s]?(?:item|task|list|liste|eintrag|aufgabe))?|to[-\s]?do|"
+    r"task|checklist|list(?:\s+item)?|item|aufgabe|eintrag|liste)\b",
+    re.IGNORECASE,
+)
+_TODO_EN_ACTOR_RE = re.compile(r"\bi(?:\s+(?:have|did)|['’]ve)?\b", re.IGNORECASE)
+_TODO_DE_ACTOR_RE = re.compile(r"\bich\s+(?:habe|hab)\b", re.IGNORECASE)
+_TODO_NONPOSITIVE_RE = re.compile(
+    r"\b(?:not|never|no|without|cannot|can't|couldn't|didn't|"
+    r"nicht|nie|kein(?:e|en|em|er|es)?|ohne|"
+    r"if|would|could|should|might|maybe|when|falls|wenn|w[üu]rde|k[öo]nnte|sollte|vielleicht|"
+    r"will|going\s+to|want(?:\s+you)?\s+to|need(?:\s+you)?\s+to|intend\s+to|"
+    r"plan(?:s)?\s+to|hope\s+to|later|tomorrow|"
+    r"werde|will|m[öo]chte|plane|vorhabe|sp[äa]ter|morgen|"
+    r"said|says|reported|reports|according\s+to|quoted|asked|ask|whether|"
+    r"sagte|sagt|berichtete|berichtet|laut|zitiert|fragte|frage|ob)\b",
+    re.IGNORECASE,
+)
+_TODO_QUOTED_TEXT_RE = re.compile(
+    r'"[^"\n]*"|“[^”\n]*”|„[^“\n]*“|(?<!\w)\'[^\'\n]*\'(?!\w)|`[^`\n]*`'
+)
+_TODO_ACTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "todo_item_created",
+        re.compile(r"\b(?:added|created|saved|hinzugef[üu]gt|erstellt|angelegt|gespeichert)\b", re.IGNORECASE),
+    ),
+    (
+        "todo_item_completed",
+        re.compile(
+            r"\b(?:completed|checked\s+off|marked\b.{0,48}?\b(?:as\s+)?done|done|finished|"
+            r"erledigt|abgeschlossen|abgehakt)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "todo_item_reopened",
+        re.compile(
+            r"\b(?:reopened|uncompleted|undid(?:\s+(?:the\s+)?completion)?|"
+            r"wieder\s+(?:ge[öo]ffnet)|wiederer[öo]ffnet|r[üu]ckg[äa]ngig\s+gemacht)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "todo_item_removed",
+        re.compile(r"\b(?:removed|deleted|gel[öo]scht|entfernt)\b", re.IGNORECASE),
+    ),
+    (
+        "todo_list_read",
+        re.compile(r"\b(?:listed|read|showed|shown|displayed|aufgelistet|gelesen|angezeigt|gezeigt)\b", re.IGNORECASE),
+    ),
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -203,6 +254,8 @@ def evaluate_response_claims(
                 )
             )
 
+    findings.extend(_todo_claim_findings(text, transactions))
+
     for claim_type, pattern, supported_reason, unsupported_reason in (
         (
             "syntax_verified",
@@ -258,6 +311,88 @@ def build_claim_evidence_correction(report: ClaimEvidenceReport) -> str:
         "\n\nHinweis: Einige Erfolgsclaims sind noch nicht maschinenlesbar belegt "
         f"({claim_types}). Behandle diese Punkte als nicht verifiziert, bis passende Evidence vorliegt."
     )
+
+
+def _todo_claim_findings(
+    text: str,
+    transactions: Iterable[Mapping[str, Any]],
+) -> tuple[ClaimEvidenceFinding, ...]:
+    """Return only explicit, positive Todo claims bound to matching transactions."""
+    findings: list[ClaimEvidenceFinding] = []
+    seen_claim_types: set[str] = set()
+    unquoted = _TODO_QUOTED_TEXT_RE.sub(" ", text)
+    for sentence in re.split(r"(?<=[.!?;\n])", unquoted):
+        action_matches = sorted(
+            (match.start(), match.end(), claim_type)
+            for claim_type, action_pattern in _TODO_ACTION_PATTERNS
+            for match in action_pattern.finditer(sentence)
+        )
+        todo_context_matches = tuple(_TODO_CONTEXT_RE.finditer(sentence))
+        for action_start, action_end, claim_type in action_matches:
+            if claim_type in seen_claim_types:
+                continue
+            prefix = sentence[:action_start]
+            if _TODO_NONPOSITIVE_RE.search(prefix):
+                continue
+            has_actor = bool(_TODO_EN_ACTOR_RE.search(prefix) or _TODO_DE_ACTOR_RE.search(prefix))
+            has_bound_context = _todo_context_binds_to_action(
+                action_start, action_end, action_matches, todo_context_matches
+            )
+            has_preceding_context = _todo_context_binds_to_action(
+                action_start,
+                action_end,
+                action_matches,
+                todo_context_matches,
+                preceding_only=True,
+            )
+            is_bare_done = sentence[action_start:action_end].strip().lower() == "done"
+            if is_bare_done and not has_preceding_context:
+                continue
+            if not has_bound_context:
+                continue
+            if not has_actor and (not has_preceding_context or "?" in sentence):
+                continue
+            evidence = transaction_evidence_for_claim(transactions, claim_type)
+            findings.append(
+                ClaimEvidenceFinding(
+                    claim_type,
+                    "supported" if evidence else "unsupported",
+                    (
+                        "Todo success claim has a matching verified semantic receipt"
+                        if evidence
+                        else "Todo success claim has no matching verified semantic receipt"
+                    ),
+                    evidence,
+                )
+            )
+            seen_claim_types.add(claim_type)
+    return tuple(findings)
+
+
+def _todo_context_binds_to_action(
+    action_start: int,
+    action_end: int,
+    action_matches: Iterable[tuple[int, int, str]],
+    todo_context_matches: Iterable[re.Match[str]],
+    *,
+    preceding_only: bool = False,
+) -> bool:
+    """Accept only a nearby Todo token whose nearest action is this action."""
+    for context in todo_context_matches:
+        if preceding_only and context.end() > action_start:
+            continue
+        distance = min(abs(context.start() - action_end), abs(context.end() - action_start))
+        if distance > 72:
+            continue
+        nearest = min(
+            action_matches,
+            key=lambda candidate: min(
+                abs(context.start() - candidate[1]), abs(context.end() - candidate[0])
+            ),
+        )
+        if nearest[:2] == (action_start, action_end):
+            return True
+    return False
 
 
 def _extract_repo_paths(text: str) -> tuple[str, ...]:
