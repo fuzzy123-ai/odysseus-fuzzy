@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_ttd03a_ttd03b_ttd04_ttd08a_ttd08b_accepted_ttd05_read_only_recon_next",
-      "ai_hint": "This is the current gate authority. TTD-04 is accepted at 58b70cba after three Sol boundary rounds: only validated content-free Todo transactions cross polling/webhook and public response/history remain carrier-free. Run TTD-05 read-only Digest-postcondition ownership and exact-path recon next; preserve Scheduler Calendar Agent Ledger and live paths, and keep TTD-LIVE-DEPLOY dormant through TTD-10."
+      "state": "owm22_ttd03a_ttd03b_ttd04_ttd08a_ttd08b_accepted_ttd05a_digest_membership_claimed",
+      "ai_hint": "This is the current gate authority. TTD-05 recon is complete and TTD-05A is the sole active claim on ten exact paths: implement only content-free digest membership snapshot receipts after canonical Todo mutations and their final claim gate. Preserve Calendar Scheduler execution delivery Telegram app/plugin accepted TTD-04 paths data and every live path. TTD-05B schedule-status evidence stays unselected; TTD-LIVE-DEPLOY remains dormant through TTD-10."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",

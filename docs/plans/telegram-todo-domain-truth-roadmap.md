@@ -8,8 +8,9 @@ Status: `TTD-00` bis `TTD-02` sind am 2026-07-23 akzeptiert. Der read-only
 Reparaturhandoff und zwei tiefen Sol-Runden auf exakt neun Pfaden akzeptiert.
 `TTD-03B` ist nach drei tiefen Sol-Runden auf exakt zwei Pfaden akzeptiert.
 `TTD-04` ist nach drei tiefen Sol-Grenzrunden auf exakt acht Pfaden
-akzeptiert. `TTD-05` ist dependency-ready; als naechstes laeuft nur sein
-read-only Digest-Postcondition-/Exaktpfad-Recon.
+akzeptiert. Der read-only `TTD-05`-Recon ist abgeschlossen und hat die Arbeit
+seriell getrennt: `TTD-05A` ist fuer content-free Digest-Mitgliedschaft auf
+exakt zehn Pfaden geclaimt; `TTD-05B` Schedule-Status bleibt unselected.
 der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -655,15 +656,17 @@ Serialisierung:
 
 Naechste Frontier:
 
-- `TTD-04` ist akzeptiert; aktive Claims: 0.
-- Phase: read-only `TTD-05` Digest-Postcondition-/Exaktpfad-Recon.
-- Naechste Aktion: nachweisen, wo `todo_digest_contains` und
-  `todo_digest_excludes` deterministisch aus Domain-Readback und
-  Scheduler-/Delivery-Zustand belegt werden koennen, welche heutigen Digest-
-  Dateien wirklich notwendig sind und welche Calendar-/Scheduler-Hotfiles
-  serialisiert bleiben muessen.
-- Noch kein TTD-05-Implementierungsclaim und keine Digest-, Schedule-,
-  Provider-, Produktionsdaten-, Send- oder Live-Mutation.
+- `TTD-04` ist akzeptiert; aktiver Claim:
+  `TTD-05A-digest-membership-postcondition`.
+- Der read-only Recon hat Snapshot-/Receipt-/Gate-Eigentum von
+  Schedule-/Execution-/Delivery-Eigentum getrennt.
+- Naechste Aktion: exakt den content-free Mitgliedschafts-Snapshot nach einer
+  kanonischen Todo-Mutation, dessen geschlossenes Receipt und die
+  `todo_digest_contains`-/`todo_digest_excludes`-Final-Gate-Auswertung
+  implementieren und fokussiert pruefen.
+- `TTD-05B` Schedule-Status bleibt unselected. Calendar, Task Scheduler,
+  Delivery, Notification, Telegram, Provider, Produktionsdaten und saemtliche
+  Live-Mutationen bleiben ausgeschlossen.
 - Kein Push, Deploy, Providerzugriff, produktiver Datenzugriff oder Live-Smoke
 
 Live-Readback 2026-07-24:
@@ -800,6 +803,35 @@ Akzeptanz:
 ### TTD-05 - Digest-Postconditions
 
 Owner: Bob
+
+Status: `TTD-05A-digest-membership-postcondition` ist am
+`2026-07-24T10:38:50+02:00` auf exakt zehn Pfaden geclaimt.
+`TTD-05B` Schedule-Status bleibt unselected.
+
+Serialisierter TTD-05A-Claim:
+
+- Run: `abc-ttd05a-20260724T103850+0200`
+- Lease: bis `2026-07-24T14:38:50+02:00`
+- Erlaubte Pfade:
+  - `src/builtin_actions.py`
+  - `src/todo_digest_receipts.py` (neu)
+  - `src/tool_domains/todos.py`
+  - `src/todo_transaction_receipts.py`
+  - `src/claim_evidence_gate.py`
+  - `tests/test_todo_digest.py`
+  - `tests/test_todo_digest_receipts.py` (neu)
+  - `tests/test_manage_todos_tool.py`
+  - `tests/test_todo_transaction_receipts.py`
+  - `tests/test_claim_evidence_gate.py`
+- Die Projektion muss dieselbe Auswahl wie der Digest-Renderer verwenden und
+  Owner, Ziel, Filter, Limit, Reihenfolge, Builder-Datum und Source-Snapshot
+  nur content-free binden.
+- Das geschlossene `manage_todos`-Event darf nur ein streng validiertes,
+  begrenztes Digest-Receipt zusaetzlich zum akzeptierten semantischen Receipt
+  behalten; `src/agent_loop.py` bleibt unveraendert.
+- Calendar, Scheduler, Execution, Delivery, Notification, Telegram,
+  Produktionsdaten, Provider und Live-Systeme sind ausdruecklich ausgeschlossen.
+- Historischer Commit `b28fc08a` wird nicht wholesale uebernommen.
 
 Ziel:
 
