@@ -432,16 +432,16 @@ def test_failure_canaries_are_redacted_and_bounded(
     assert len(serialized_diagnostic) <= 512
 
 
-def test_ci_runs_shared_guards_and_full_lane_collects_the_adversarial_corpus() -> None:
-    verify = _load_verify()
+def test_ci_runs_exact_commit_full_pytest_and_collects_the_adversarial_corpus() -> None:
     workflow = QUALITY_GATE.read_text(encoding="utf-8")
-    registry = verify.build_check_registry()
 
-    assert workflow.count("python scripts/verify.py --lane guards-only") == 1
-    assert workflow.count("python scripts/verify.py --lane full") == 1
+    assert workflow.count("python -m pytest -q --maxfail=1") == 1
+    assert "scripts/verify.py" not in workflow
     assert "continue-on-error" not in workflow
-    assert registry["pytest_full"].command == ("{python}", "-m", "pytest", "-q")
-    assert "pytest_full" in verify.LANES["full"]
+    assert "permissions:\n  contents: read" in workflow
+    assert "contents: write" not in workflow
+    assert workflow.count("ref: ${{ github.sha }}") == 3
+    assert workflow.count("persist-credentials: false") == 3
 
     collected = subprocess.run(
         [

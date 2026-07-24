@@ -355,7 +355,7 @@ def test_cli_lists_registry_and_dry_run_is_content_free() -> None:
     assert str(ROOT) not in planned.stdout
 
 
-def test_ci_uses_the_shared_full_verifier_without_weakening_existing_checks() -> None:
+def test_ci_uses_the_reusable_direct_full_pytest_gate_without_weakening_checks() -> None:
     ci_source = (WORKFLOW_DIR / "ci.yml").read_text(encoding="utf-8")
     quality_gate_source = (WORKFLOW_DIR / "quality-gate.yml").read_text(
         encoding="utf-8"
@@ -369,6 +369,13 @@ def test_ci_uses_the_shared_full_verifier_without_weakening_existing_checks() ->
     assert "continue-on-error" not in quality_gate_source
     assert "python -m compileall -q app.py core routes src services scripts tests" in quality_gate_source
     assert "node --check" in quality_gate_source
-    assert "python scripts/verify.py --lane full" in quality_gate_source
-    assert "persist-credentials: false" in quality_gate_source
-    assert "ref: ${{ github.sha }}" in quality_gate_source
+    assert quality_gate_source.count("python -m pytest -q --maxfail=1") == 1
+    assert "scripts/verify.py" not in quality_gate_source
+    assert "permissions:\n  contents: read" in quality_gate_source
+    assert "contents: write" not in quality_gate_source
+    assert quality_gate_source.count("persist-credentials: false") == 3
+    assert quality_gate_source.count("ref: ${{ github.sha }}") == 3
+    assert not any(
+        forbidden in quality_gate_source
+        for forbidden in ("--ignore", "--deselect", "--lf", "--failed-first", "|| true")
+    )

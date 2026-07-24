@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T21:21:28+02:00",
+  "updated_at": "2026-07-24T21:29:35+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -7192,7 +7192,7 @@
       "id": "TAX-REPAIR-dual-read-contract",
       "class": "repo_only",
       "owner": "Bob implementation; Sol deep acceptance",
-      "status": "sol_accepted_exact_ci_amh_commit_runner_followup_remote_pending_2026-07-24",
+      "status": "sol_accepted_exact_ci_shared_verifier_followup_remote_pending_2026-07-24",
       "claim": {
         "run_id": "tax-repair-20260724T195045+0200",
         "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
@@ -7344,6 +7344,27 @@
         ],
         "diagnosis": "Exact GitHub CI run 30119933483 confirms both disabled-gate test modules collect and advances to 281 passing tests, then reaches a second retired AMH-08 callsite in the same adversarial test: run_repo_local_commit no longer accepts completion_evidence or commit_authority. The current runner contract uses confirmed=false as the explicit non-authorization boundary. Migrate this one test call and assertions to prove unsupported agent prose and a persuasive commit body cannot replace explicit confirmation; do not change the runner, reintroduce removed parameters, or execute a commit."
       },
+      "shared_verifier_ci_followup_claim": {
+        "run_id": "tax-repair-shared-verifier-ci-followup-20260724T212519+0200",
+        "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
+        "slice_id": "TAX-REPAIR-stale-required-workflow-verifier-expectations",
+        "owner": "Bob",
+        "allowed_paths": [
+          "tests/test_agent_maintenance_adversarial.py",
+          "tests/test_verify_entrypoint.py"
+        ],
+        "hotfiles": [],
+        "state": "released",
+        "acquired_at": "2026-07-24T21:25:19+02:00",
+        "lease_expires_at": "2026-07-24T22:25:19+02:00",
+        "handoff_required": true,
+        "released_at": "2026-07-24T21:29:35+02:00",
+        "handoff_result": "deep Sol PASS with no actionable findings; current reusable exact-commit full-suite contract and standalone verifier coverage preserved",
+        "root_owned_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json"
+        ],
+        "diagnosis": "Exact GitHub CI run 30120483865 confirms the current commit-runner test path and advances to 284 passing tests, then exposes stale AMH-03/08 workflow wiring expectations. The reusable quality gate has intentionally run one exact-commit, read-only `python -m pytest -q --maxfail=1` suite since checkpoint 63dd70a7, and tests/test_ci_release_workflow_contract.py already enforces that current contract. Two older tests still require removed duplicate scripts/verify.py guards-only/full workflow commands. Migrate both stale assertions and names to the current reusable exact-commit full-suite contract while preserving the standalone scripts/verify.py entrypoint tests and adversarial-corpus collection; do not edit the workflow or add duplicate test execution."
+      },
       "route": {
         "entrypoint": "/abc",
         "selected_skills": [
@@ -7377,7 +7398,7 @@
       },
       "evidence": {
         "target_environment": "local_and_github_ci",
-        "observed_at": "2026-07-24T21:21:28+02:00",
+        "observed_at": "2026-07-24T21:29:35+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -7419,10 +7440,14 @@
           "the final stale AMH adversarial commit-runner call now uses only the current API and confirmed=false, proving unsupported agent prose and persuasive commit-body text cannot replace explicit confirmation",
           "the current exact confirmation blocker, blocked and non-executed status, unchanged HEAD and unchanged complete repository status are asserted before any staging boundary",
           "AST signature comparison and a scan of all eight run_repo_local_commit callsites found no remaining completion_evidence or commit_authority keyword use; git diff and roadmap JSON checks passed",
-          "final deep Sol review found no actionable issue and confirmed the runner returns before git add, with no production, workflow, feature, deployment or live change"
+          "final deep Sol review found no actionable issue and confirmed the runner returns before git add, with no production, workflow, feature, deployment or live change",
+          "the final two stale AMH-03/08 CI-wiring assertions now match the unchanged 63dd70a7 reusable gate: one exact-commit read-only `python -m pytest -q --maxfail=1` suite with compileall and node checks",
+          "all three gate jobs retain github.sha checkout and persist-credentials=false, no write permission or weakening flags exist, and the adversarial collect-only corpus proof remains intact",
+          "all standalone scripts/verify.py registry, lane, receipt, mutation, exit-code, UI, suppression, timeout and CLI tests remain; repo-wide scan finds no positive requirement to invoke it from quality-gate.yml",
+          "final deep Sol review found no actionable issue; AST, static workflow parsing, 63dd70a7 workflow identity, roadmap JSON and git diff checks passed without workflow, source, script, feature, deployment or live changes"
         ],
         "local_pytest_exit": "twenty focused tests reached successful test dots but the Windows process did not exit cleanly; exact GitHub CI remains the required test authority",
-        "remote_ci": "run 30119933483 on exact commit 1b8d7d2d passes compileall and JS syntax, collects both migrated disabled-gate modules and reaches 281 passing tests. It then exposes a second stale call in the same AMH adversarial test: run_repo_local_commit is invoked with removed completion_evidence and commit_authority keywords. The current runner instead requires confirmed=true; a one-test migration will prove prose cannot substitute for explicit confirmation without production changes or a commit execution.",
+        "remote_ci": "run 30120483865 on exact commit ca0ac065 passes compileall and JS syntax, validates the current commit-runner path and reaches 284 passing tests. It then exposes stale workflow assertions requiring duplicate scripts/verify.py guards-only/full invocations even though the reusable gate intentionally runs one exact-commit, read-only full Pytest suite. Both remaining stale workflow tests are claimed for test-only migration; the workflow and standalone verifier remain unchanged.",
         "known_pre_existing_out_of_scope": [
           "tool-surface audit expects removed TOOL_META",
           "raw schema audit reports duplicate manage_todos",
@@ -7433,8 +7458,8 @@
         "implemented": "yes",
         "tested": "yes",
         "sol_reviewed": "deep",
-        "committed": "86c77394_tua_rollout_followup; 1b8d7d2d_amh_disabled_followup; amh_commit_runner_followup_pending",
-        "pushed": "86c77394_and_1b8d7d2d_to_fuzzy_dev; amh_commit_runner_followup_pending",
+        "committed": "86c77394_tua_rollout_followup; 1b8d7d2d_amh_disabled_followup; ca0ac065_amh_commit_runner_followup; shared_verifier_followup_pending",
+        "pushed": "86c77394_1b8d7d2d_ca0ac065_to_fuzzy_dev; shared_verifier_followup_pending",
         "deployed": "no",
         "live_validated": "no",
         "visual_validated": "na",
