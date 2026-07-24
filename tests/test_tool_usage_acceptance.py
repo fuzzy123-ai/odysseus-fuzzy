@@ -6,16 +6,19 @@ import json
 import math
 from pathlib import Path
 from time import perf_counter
-from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from scripts.update_database import migrate_tool_usage_schema
-import src.tool_execution as tool_execution
-from src.tool_catalog import ToolFamily, ToolSource
+from src.builtin_tool_catalog import (
+    build_builtin_descriptor_catalog,
+    build_tool_analytics_identity_contract,
+)
+from src.tool_catalog import (
+    ToolDescriptorV2,
+    ToolSource,
+)
 from src.tool_usage_analytics import ToolUsageAnalyticsService
+from src.tool_usage_context import TrustedToolUsageContext
 from src.tool_usage_events import (
     ToolUsageAgentMode,
     ToolUsageBlockedReason,
@@ -24,14 +27,14 @@ from src.tool_usage_events import (
     ToolUsageEventError,
     ToolUsageEventKind,
     ToolUsageModelScope,
-    ToolUsageReferenceKind,
     ToolUsageResultShape,
-    ToolUsageSizeBucket,
     ToolUsageStatus,
     ToolUsageSurface,
-    pseudonymize_reference,
 )
-from src.tool_usage_instrumentation import ToolUsageInstrumentation
+from src.tool_usage_instrumentation import (
+    ToolUsageInstrumentation,
+    normalize_tool_usage_outcome,
+)
 from src.tool_usage_store import ToolUsageStore
 
 
@@ -55,77 +58,77 @@ STATUSES = (
     ToolUsageStatus.REJECTED,
 )
 LANES = (
-    ("read-file", ToolFamily.CODE_FILESYSTEM, ToolSource.BUILTIN, ToolUsageSurface.AGENT),
-    ("usage-plugin", ToolFamily.PLUGINS_MCP, ToolSource.PLUGIN, ToolUsageSurface.AGENT),
-    ("dynamic-mcp", ToolFamily.PLUGINS_MCP, ToolSource.MCP, ToolUsageSurface.MCP),
-    ("read-file", ToolFamily.CODE_FILESYSTEM, ToolSource.BUILTIN, ToolUsageSurface.SCHEDULER),
-    ("app-api", ToolFamily.ADMIN_SYSTEM, ToolSource.BUILTIN, ToolUsageSurface.API),
+    ("read_file", ToolSource.BUILTIN, ToolUsageSurface.AGENT),
+    ("usage_plugin", ToolSource.PLUGIN, ToolUsageSurface.AGENT),
+    ("mcp_lookup", ToolSource.MCP, ToolUsageSurface.MCP),
+    ("read_file", ToolSource.BUILTIN, ToolUsageSurface.SCHEDULER),
+    ("app_api", ToolSource.BUILTIN, ToolUsageSurface.API),
 )
 
+_IDENTITY_CONTRACT = build_tool_analytics_identity_contract()
+_BUILTIN_DESCRIPTORS = {
+    descriptor.tool_id: descriptor
+    for descriptor in build_builtin_descriptor_catalog().descriptors
+}
 
-def _session_factory(engine):
-    return sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+
+def _descriptor(
+    runtime_name: str,
+    source: ToolSource,
+) -> ToolDescriptorV2:
+    """Use the production identity resolver for built-in and dynamic fixtures."""
+
+    if source == ToolSource.BUILTIN:
+        return _BUILTIN_DESCRIPTORS[runtime_name]
+    identity = _IDENTITY_CONTRACT.resolve(runtime_name, source=source)
+    return ToolDescriptorV2.conservative_dynamic(
+        tool_id=identity.analytics_id,
+        source=identity.source,
+        source_id="acceptance-source",
+    )
 
 
 def _event_pair(index: int):
-    analytics_id, family, source, surface = LANES[index % len(LANES)]
+    runtime_name, source, surface = LANES[index % len(LANES)]
     status = STATUSES[(index // len(LANES)) % len(STATUSES)]
-    invocation_id = f"accept_inv_{index:016d}"
-    owner_ref = pseudonymize_reference(
-        f"synthetic-owner-{index}",
-        hmac_key=HMAC_KEY,
-        kind=ToolUsageReferenceKind.OWNER,
-    )
-    session_ref = pseudonymize_reference(
-        f"synthetic-session-{index}",
-        hmac_key=HMAC_KEY,
-        kind=ToolUsageReferenceKind.SESSION,
-    )
-    retry_ordinal = 1 if index % 10 == 0 else 0
+    builder = ToolUsageEventBuilder(app_version="0.25.0", hmac_key=HMAC_KEY)
     occurred_at = NOW + timedelta(milliseconds=index)
-    shared = {
-        "invocation_id": invocation_id,
-        "tool_analytics_id": analytics_id,
-        "tool_family": family,
-        "tool_source": source,
+    common = {
+        "descriptor": _descriptor(runtime_name, source),
         "surface": surface,
-        "argument_size_bucket": ToolUsageSizeBucket.XS,
-        "model_scope": ToolUsageModelScope.LOCAL,
         "agent_mode": (
-            ToolUsageAgentMode.BACKGROUND
+            ToolUsageAgentMode.BACKGROUND_SYSTEM
             if surface == ToolUsageSurface.SCHEDULER
             else ToolUsageAgentMode.AGENT
         ),
-        "app_version": "0.25.0",
-        "retry_ordinal": retry_ordinal,
-        "owner_ref": owner_ref,
-        "session_ref": session_ref,
+        "model_scope": ToolUsageModelScope.LOCAL,
+        "retry_ordinal": 1 if index % 10 == 0 else 0,
+        "owner_identity": f"synthetic-owner-{index}",
+        "session_identity": f"synthetic-session-{index}",
+        "invocation_id": "tui_" + f"{index:032x}",
     }
-    started = ToolUsageEventBuilder.build(
-        event_id=f"accept_evt_s_{index:016d}",
+    started = builder.build(
+        **common,
         event_kind=ToolUsageEventKind.STARTED,
+        event_id="tue_" + f"{index * 2:032x}",
         occurred_at=occurred_at,
-        result_size_bucket=ToolUsageSizeBucket.NONE,
-        result_shape_bucket=ToolUsageResultShape.NONE,
-        **shared,
-    ).event
+    )
     terminal_metadata = {}
     if status == ToolUsageStatus.FAILED:
-        terminal_metadata["error_class"] = ToolUsageErrorClass.EXECUTION_ERROR
+        terminal_metadata["error_class"] = ToolUsageErrorClass.EXECUTION
     elif status in {ToolUsageStatus.BLOCKED, ToolUsageStatus.REJECTED}:
         terminal_metadata["blocked_reason_code"] = ToolUsageBlockedReason.POLICY
-    terminal = ToolUsageEventBuilder.build(
-        event_id=f"accept_evt_t_{index:016d}",
-        event_kind=ToolUsageEventKind.TERMINAL,
-        occurred_at=occurred_at + timedelta(milliseconds=(index % 100) + 1),
-        duration_ms=(index % 100) + 1,
-        status=status,
-        result_size_bucket=ToolUsageSizeBucket.S,
-        result_shape_bucket=ToolUsageResultShape.SCALAR,
+    terminal = builder.build(
+        **common,
         **terminal_metadata,
-        **shared,
-    ).event
-    assert started is not None and terminal is not None
+        event_kind=ToolUsageEventKind.TERMINAL,
+        event_id="tue_" + f"{index * 2 + 1:032x}",
+        occurred_at=occurred_at + timedelta(milliseconds=(index % 100) + 1),
+        status=status,
+        duration_ms=(index % 100) + 1,
+        result_size_bytes=24,
+        result_shape=ToolUsageResultShape.SCALAR,
+    )
     return started, terminal
 
 
@@ -135,167 +138,182 @@ def _percentile(values: list[float], percentile: float) -> float:
 
 
 def test_10000_invocations_are_deterministic_private_complete_and_within_budget():
-    engine = create_engine("sqlite:///:memory:")
-    migrate_tool_usage_schema(engine)
-    store = ToolUsageStore(_session_factory(engine))
+    store = ToolUsageStore(":memory:")
+    store.migrate()
     writer_ms_per_invocation = []
+    try:
+        for batch_start in range(0, INVOCATION_COUNT, BATCH_INVOCATIONS):
+            events = []
+            for index in range(batch_start, batch_start + BATCH_INVOCATIONS):
+                events.extend(_event_pair(index))
+            started_at = perf_counter()
+            result = store.append_events(events)
+            elapsed_ms = (perf_counter() - started_at) * 1_000
+            assert result.accepted_count == BATCH_INVOCATIONS * 2
+            assert result.duplicate_count == 0
+            assert result.persistence_rejected_count == 0
+            assert result.failure_count == 0
+            writer_ms_per_invocation.append(elapsed_ms / BATCH_INVOCATIONS)
 
-    for batch_start in range(0, INVOCATION_COUNT, BATCH_INVOCATIONS):
-        events = []
-        for index in range(batch_start, batch_start + BATCH_INVOCATIONS):
-            events.extend(_event_pair(index))
-        started_at = perf_counter()
-        result = store.write_events(events)
-        elapsed_ms = (perf_counter() - started_at) * 1_000
-        assert result.inserted == BATCH_INVOCATIONS * 2
-        assert result.duplicates == 0
-        assert result.failures == 0
-        writer_ms_per_invocation.append(elapsed_ms / BATCH_INVOCATIONS)
+        writer_p95_ms = _percentile(writer_ms_per_invocation, 0.95)
+        assert writer_p95_ms < WRITER_P95_BUDGET_MS
 
-    writer_p95_ms = _percentile(writer_ms_per_invocation, 0.95)
-    assert writer_p95_ms < WRITER_P95_BUDGET_MS
+        service = ToolUsageAnalyticsService(store)
+        day = NOW.date().isoformat()
+        first = service.aggregate_day(day)
+        second = service.aggregate_day(day)
+        summary = service.summarize(day, day)
+        assert first == second
 
-    service = ToolUsageAnalyticsService(store, clock=lambda: NOW + timedelta(hours=1))
-    first = service.aggregate_day(NOW.date())
-    second = service.aggregate_day(NOW.date())
-    assert first.to_safe_dict() == second.to_safe_dict()
+        assert first["invocation_count"] == INVOCATION_COUNT
+        assert first["terminal_count"] == INVOCATION_COUNT
+        assert first["complete_count"] == INVOCATION_COUNT
+        assert first["incomplete_count"] == 0
+        assert first["distinct_owner_count"] == INVOCATION_COUNT
+        assert first["distinct_session_count"] == INVOCATION_COUNT
+        assert first["coverage"] == 1.0
+        assert first["duplicates_rejected"] == 0
+        assert first["writer_failures"] == 0
 
-    assert first.invocations_total == INVOCATION_COUNT
-    assert first.terminal_invocations == INVOCATION_COUNT
-    assert first.retry_invocations == 1_000
-    assert first.distinct_owner_count == INVOCATION_COUNT
-    assert first.distinct_session_count == INVOCATION_COUNT
-    assert first.duration_p50_ms == 50
-    assert first.duration_p95_ms == 100
-    assert first.quality.coverage_rate == 1.0
-    assert first.quality.incomplete == 0
-    assert first.quality.duplicates_rejected == 0
-    assert first.quality.writer_failures == 0
-    assert first.quality.unknown_identity == 0
-    assert first.quality.aggregation_complete is True
-    assert first.quality.instrumentation_error is False
+        assert summary["calls"] == INVOCATION_COUNT
+        assert summary["retry_count"] == 1_000
+        assert summary["duration_p50_ms"] == 50
+        assert summary["duration_p95_ms"] == 100
+        assert summary["quality"]["aggregation_complete_day_count"] == 1
+        assert summary["quality"]["warning_codes"] == ()
+        assert summary["status_counts"] == {
+            **{status.value: 2_000 for status in STATUSES},
+        }
+        coverage = Counter()
+        for row in summary["rows"]:
+            coverage[(row["tool_source"], row["surface"])] += row["invocation_count"]
+        assert coverage == {
+            ("builtin", "agent"): 2_000,
+            ("plugin", "agent"): 2_000,
+            ("mcp", "mcp"): 2_000,
+            ("builtin", "scheduler"): 2_000,
+            ("builtin", "api"): 2_000,
+        }
+        analytics_ids = {row["tool_analytics_id"] for row in summary["rows"]}
+        assert {"dynamic.plugin.unclassified", "dynamic.mcp.unclassified"} <= analytics_ids
+        assert "usage_plugin" not in analytics_ids
+        assert "mcp_lookup" not in analytics_ids
 
-    safe = first.to_safe_dict()
-    assert safe["summary"]["status_counts"] == {
-        **{status.value: 2_000 for status in STATUSES},
-        "incomplete": 0,
-    }
-    coverage = Counter()
-    for row in first.rows:
-        coverage[(row.tool_source.value, row.surface.value)] += row.invocation_count
-    assert coverage == {
-        ("builtin", "agent"): 2_000,
-        ("plugin", "agent"): 2_000,
-        ("mcp", "mcp"): 2_000,
-        ("builtin", "scheduler"): 2_000,
-        ("builtin", "api"): 2_000,
-    }
-
-    encoded = json.dumps(safe, sort_keys=True)
-    assert "synthetic-owner" not in encoded
-    assert "synthetic-session" not in encoded
-    assert "h1_owner_" not in encoded
-    assert "h1_session_" not in encoded
-    assert "accept_inv_" not in encoded
-    assert "accept_evt_" not in encoded
-    assert safe["raw_content_visible"] is False
-    assert safe["direct_identifiers_visible"] is False
-    print(f"TUA11 writer_p95_ms={writer_p95_ms:.3f}")
+        encoded = json.dumps(summary, sort_keys=True)
+        for private_marker in (
+            "synthetic-owner",
+            "synthetic-session",
+            "h1_",
+            "tue_",
+            "tui_",
+        ):
+            assert private_marker not in encoded
+        assert summary["raw_content_visible"] is False
+    finally:
+        store.close()
 
 
-@pytest.mark.asyncio
-async def test_writer_database_exporter_and_incognito_failures_never_change_result(
-    monkeypatch,
-):
-    expected = ("read_file: ok", {"stdout": "unchanged", "exit_code": 0})
+class _RaisingAppendSink:
+    def append_best_effort(self, _events):
+        raise RuntimeError("synthetic private sink detail")
 
-    async def execute(*_args, **_kwargs):
-        return expected
 
-    monkeypatch.setattr(tool_execution, "_execute_tool_block_impl", execute)
+class _WriterSpy:
+    def __init__(self):
+        self.calls = 0
 
-    class RaisingWriter:
-        def write_events(self, _events):
-            raise RuntimeError("synthetic writer detail")
+    def append_best_effort(self, _events):
+        self.calls += 1
+        raise AssertionError("incognito must not write")
 
-    class BrokenDatabaseFactory:
-        def __call__(self):
-            raise RuntimeError("synthetic database detail")
 
-    class RaisingExporter:
-        def __call__(self, _event):
-            raise RuntimeError("synthetic exporter detail")
+def _instrumentation(*, sink, context: TrustedToolUsageContext | None = None):
+    return ToolUsageInstrumentation(
+        builder=ToolUsageEventBuilder(app_version="0.25.0", hmac_key=HMAC_KEY),
+        sink=sink,
+        context=context
+        or TrustedToolUsageContext.create(
+            surface=ToolUsageSurface.AGENT,
+            agent_mode=ToolUsageAgentMode.AGENT,
+            model_scope=ToolUsageModelScope.LOCAL,
+            owner_identity="private-owner",
+            session_identity="private-session",
+        ),
+        clock=lambda: NOW,
+    )
+
+
+def _emit_pair(instrumentation: ToolUsageInstrumentation) -> None:
+    invocation = instrumentation.begin("read_file", "private argument marker")
+    instrumentation.finish(
+        invocation,
+        outcome=normalize_tool_usage_outcome(result={"output": "private result"}),
+        duration_ms=1,
+    )
+
+
+def test_instrumentation_sinks_fail_open_with_redacted_current_diagnostics():
+    closed_store = ToolUsageStore(":memory:")
+    closed_store.migrate()
+    closed_store.close()
 
     sinks = (
-        RaisingWriter(),
-        ToolUsageStore(BrokenDatabaseFactory()),
-        RaisingExporter(),
+        _RaisingAppendSink(),
+        closed_store,
+        lambda _event: (_ for _ in ()).throw(RuntimeError("private callable detail")),
     )
     for sink in sinks:
-        instrumentation = ToolUsageInstrumentation(
-            sink=sink,
-            hmac_key=HMAC_KEY,
-            app_version="0.25.0",
-            monotonic=lambda: 1.0,
-            wall_clock=lambda: NOW,
-        )
-        actual = await tool_execution.execute_tool_block(
-            SimpleNamespace(tool_type="read_file", content="forbidden-content-marker"),
-            tool_usage_instrumentation=instrumentation,
-        )
-        assert actual is expected
-        assert instrumentation.diagnostics()["counts"] == {"sink_failures": 2}
-        encoded = json.dumps(instrumentation.diagnostics(), sort_keys=True)
-        assert "synthetic writer detail" not in encoded
-        assert "synthetic database detail" not in encoded
-        assert "synthetic exporter detail" not in encoded
+        instrumentation = _instrumentation(sink=sink)
+        _emit_pair(instrumentation)
+        diagnostics = instrumentation.diagnostics()
+        expected_failure = "sink_rejected" if sink is closed_store else "sink_failure"
+        assert diagnostics["failures"] == {expected_failure: 2}
+        assert diagnostics["suppressed"] == {}
+        assert diagnostics["raw_content_visible"] is False
+        encoded = json.dumps(diagnostics, sort_keys=True)
+        for marker in ("private argument", "private result", "private sink detail", "private callable detail"):
+            assert marker not in encoded
 
-    class MustNotWrite:
-        def write_events(self, _events):
-            raise AssertionError("incognito reached writer")
-
-    incognito = ToolUsageInstrumentation(
-        sink=MustNotWrite(),
-        hmac_key=HMAC_KEY,
-        app_version="0.25.0",
-        incognito=True,
-        monotonic=lambda: 1.0,
-        wall_clock=lambda: NOW,
+    writer = _WriterSpy()
+    incognito = _instrumentation(
+        sink=writer,
+        context=TrustedToolUsageContext.create(
+            surface="chat",
+            agent_mode="background_system",
+            model_scope="remote",
+            owner_identity="private-owner",
+            session_identity="private-session",
+            incognito=True,
+        ),
     )
-    actual = await tool_execution.execute_tool_block(
-        SimpleNamespace(tool_type="read_file", content="forbidden-content-marker"),
-        tool_usage_instrumentation=incognito,
-    )
-    assert actual is expected
-    assert incognito.diagnostics()["counts"] == {"suppressed_invocations": 1}
+    assert incognito.begin("read_file", "private argument marker") is None
+    assert writer.calls == 0
+    assert incognito.diagnostics()["suppressed"] == {"incognito": 1}
 
 
 @pytest.mark.parametrize("field", ["payload", "path", "email", "command"])
 def test_forbidden_content_fields_and_direct_references_fail_closed(field):
-    values = {
-        "event_id": "accept_evt_forbidden_0001",
-        "invocation_id": "accept_inv_forbidden_0001",
+    builder = ToolUsageEventBuilder(app_version="0.25.0", hmac_key=HMAC_KEY)
+    descriptor = _descriptor("read_file", ToolSource.BUILTIN)
+    common = {
+        "descriptor": descriptor,
         "event_kind": ToolUsageEventKind.STARTED,
-        "occurred_at": NOW,
-        "tool_analytics_id": "read-file",
-        "tool_family": ToolFamily.CODE_FILESYSTEM,
-        "tool_source": ToolSource.BUILTIN,
         "surface": ToolUsageSurface.AGENT,
-        "argument_size_bucket": ToolUsageSizeBucket.NONE,
-        "result_size_bucket": ToolUsageSizeBucket.NONE,
-        "result_shape_bucket": ToolUsageResultShape.NONE,
-        "model_scope": ToolUsageModelScope.LOCAL,
         "agent_mode": ToolUsageAgentMode.AGENT,
-        "app_version": "0.25.0",
-        field: "forbidden-content-marker",
+        "owner_identity": "allowed-input-before-hmac",
+        "event_id": "tue_" + "a" * 32,
+        "invocation_id": "tui_" + "b" * 32,
+        "occurred_at": NOW,
     }
-    with pytest.raises(TypeError):
-        ToolUsageEventBuilder.build(**values)
+    valid = builder.build(**common)
+    assert valid.owner_ref is not None and valid.owner_ref.startswith("h1_")
 
-    values.pop(field)
-    values["owner_ref"] = "direct-owner-marker"
+    with pytest.raises(TypeError):
+        builder.build(**common, **{field: "forbidden-content-marker"})
+    with pytest.raises(TypeError):
+        builder.build(**common, owner_ref="h1_" + "c" * 32)
     with pytest.raises(ToolUsageEventError):
-        ToolUsageEventBuilder.build(**values)
+        builder.build(**{**common, "owner_identity": lambda: "direct-owner"})
 
 
 def test_acceptance_report_contains_aggregate_and_technical_status_only():
@@ -309,10 +327,9 @@ def test_acceptance_report_contains_aggregate_and_technical_status_only():
     assert "Scheduler" in report
     assert "API" in report
     for forbidden in (
-        "h1_owner_",
-        "h1_session_",
-        "accept_inv_",
-        "accept_evt_",
+        "h1_",
+        "tue_",
+        "tui_",
         "forbidden-content-marker",
         "C:\\",
     ):

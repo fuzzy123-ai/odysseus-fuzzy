@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T20:32:52+02:00",
+  "updated_at": "2026-07-24T20:50:33+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -7192,7 +7192,7 @@
       "id": "TAX-REPAIR-dual-read-contract",
       "class": "repo_only",
       "owner": "Bob implementation; Sol deep acceptance",
-      "status": "sol_accepted_exact_ci_followup_remote_pending_2026-07-24",
+      "status": "sol_accepted_exact_ci_tua_acceptance_followup_remote_pending_2026-07-24",
       "claim": {
         "run_id": "tax-repair-20260724T195045+0200",
         "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
@@ -7262,6 +7262,26 @@
         ],
         "diagnosis": "Exact GitHub CI run 30116715674 exposed the sole stale AMH test import of runtime_tool_security_profile after TAX Descriptor V2 intentionally retired that parallel security profiler. Migrate the test to the canonical conservative dynamic descriptor contract; do not restore retired runtime policy code."
       },
+      "tua_ci_followup_claim": {
+        "run_id": "tax-repair-tua-ci-followup-20260724T203925+0200",
+        "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
+        "slice_id": "TAX-REPAIR-stale-tool-usage-acceptance-contract",
+        "owner": "Bob",
+        "allowed_paths": [
+          "tests/test_tool_usage_acceptance.py"
+        ],
+        "hotfiles": [],
+        "state": "released",
+        "acquired_at": "2026-07-24T20:39:25+02:00",
+        "lease_expires_at": "2026-07-24T22:39:25+02:00",
+        "handoff_required": true,
+        "released_at": "2026-07-24T20:50:33+02:00",
+        "handoff_result": "deep Sol PASS after canonical identity and weighted aggregation findings were repaired",
+        "root_owned_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json"
+        ],
+        "diagnosis": "Exact GitHub CI run 30117448693 passed the repaired tool_security collection boundary and exposed tests/test_tool_usage_acceptance.py as an unmigrated pre-checkpoint TUA11 consumer. Its removed ToolUsageReferenceKind import is only the first mismatch: the file also uses retired SQLAlchemy store, static builder, analytics dataclass and instrumentation constructor contracts. Migrate this one acceptance file end-to-end to the current Descriptor V2, sqlite ToolUsageStore, mapping analytics and trusted-context instrumentation APIs; do not add compatibility aliases or edit production code."
+      },
       "route": {
         "entrypoint": "/abc",
         "selected_skills": [
@@ -7295,7 +7315,7 @@
       },
       "evidence": {
         "target_environment": "local_and_github_ci",
-        "observed_at": "2026-07-24T20:32:52+02:00",
+        "observed_at": "2026-07-24T20:50:33+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -7321,10 +7341,14 @@
           "deep Sol review passed after repairing v1 compatibility, activation-packet drift and legacy MCP isolation",
           "the exact-CI collection follow-up migrated the sole stale AMH runtime_tool_security_profile test to the canonical conservative Plugin Descriptor V2 contract without production code or a compatibility shim",
           "direct Descriptor V2 assertion, test-module import, migrated test invocation, AST, roadmap JSON and git diff checks passed",
-          "deep Sol security review found no weakening: admin/control/confirmation remain fail-closed, risk strengthens from elevated to dangerous and default_enabled remains false; existing runtime registry coverage still proves block-before-handler behavior"
+          "deep Sol security review found no weakening: admin/control/confirmation remain fail-closed, risk strengthens from elevated to dangerous and default_enabled remains false; existing runtime registry coverage still proves block-before-handler behavior",
+          "the stale TUA11 acceptance test is migrated end-to-end from retired SQLAlchemy store, static builder, analytics dataclass and instrumentation constructor contracts to the current Descriptor V2, sqlite store, mapping analytics and trusted-context instrumentation APIs",
+          "canonical built-in descriptors are resolved from the built-in catalog and unknown Plugin/MCP names are accepted only through privacy-safe dynamic.plugin.unclassified and dynamic.mcp.unclassified identities; raw runtime names are explicitly excluded",
+          "direct 25-invocation append, aggregate, bucket, privacy, sink, closed-store, callable, incognito, forbidden-field, direct-reference and report checks passed without executing the local 10,000-invocation or full Pytest suite",
+          "final deep Sol review passed after repairing false-positive descriptor facts and replacing invocation-count row expansion with weighted coverage accumulation"
         ],
         "local_pytest_exit": "twenty focused tests reached successful test dots but the Windows process did not exit cleanly; exact GitHub CI remains the required test authority",
-        "remote_ci": "run 30116715674 failed during collection because tests/test_tool_security.py retained the sole stale import of the intentionally retired runtime_tool_security_profile API; the bounded canonical Descriptor V2 test migration is Sol-accepted and awaits an exact follow-up commit run",
+        "remote_ci": "run 30117448693 confirms the stale tool_security collection import is repaired, then fails at the next independent partial-merge boundary in tests/test_tool_usage_acceptance.py. The bounded end-to-end current-contract migration is now Sol-accepted and awaits an exact follow-up commit run.",
         "known_pre_existing_out_of_scope": [
           "tool-surface audit expects removed TOOL_META",
           "raw schema audit reports duplicate manage_todos",
@@ -7335,8 +7359,8 @@
         "implemented": "yes",
         "tested": "yes",
         "sol_reviewed": "deep",
-        "committed": "followup_pending",
-        "pushed": "followup_pending",
+        "committed": "tua_followup_pending",
+        "pushed": "tua_followup_pending",
         "deployed": "no",
         "live_validated": "no",
         "visual_validated": "na",
