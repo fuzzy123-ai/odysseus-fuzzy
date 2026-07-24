@@ -11,8 +11,9 @@ Reparaturhandoff und zwei tiefen Sol-Runden auf exakt neun Pfaden akzeptiert.
 akzeptiert. Der read-only `TTD-05`-Recon ist abgeschlossen und hat die Arbeit
 seriell getrennt: `TTD-05A` ist fuer content-free Digest-Mitgliedschaft auf
 exakt zehn Pfaden nach drei Sol-Grenzrunden akzeptiert. Der read-only
-`TTD-05B`-Recon ist abgeschlossen; der disjunkte Vertrag fuer genau einen
-aktiven kuenftigen Digest-Schedule ist auf exakt zehn Pfaden geclaimt.
+`TTD-05B` ist nach zwei tiefen Sol-Runden und einem unabhaengigen finalen
+Zweier-Check auf exakt zehn Pfaden akzeptiert. `TTD-06` ist damit nur fuer
+read-only Ownership-, Dependency- und Exaktpfad-Recon dependency-ready.
 der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -807,8 +808,8 @@ Owner: Bob
 
 Status: `TTD-05A-digest-membership-postcondition` ist am
 `2026-07-24T11:12:42+02:00` auf exakt zehn Pfaden akzeptiert.
-`TTD-05B-active-future-schedule-receipt` ist nach read-only Recon am
-`2026-07-24T11:17:10+02:00` auf exakt zehn Pfaden geclaimt.
+`TTD-05B-active-future-schedule-receipt` ist am
+`2026-07-24T11:44:11+02:00` auf exakt zehn Pfaden akzeptiert.
 
 Serialisierter TTD-05A-Claim:
 
@@ -890,6 +891,45 @@ Serialisierter TTD-05B-Claim:
   wiederverwendet und nicht veraendert.
 - Keine Schedule-Mutation, kein Task-Run, keine Delivery, kein Telegram,
   Provider, produktiver Datenzugriff, Deploy oder Live-Smoke.
+
+Implementation und Acceptance:
+
+- Implementierungscommit:
+  `74d5d4b652420bb2bb34b92bc69fdd12523ca09d`
+- Ein frischer owner-exakter Read projiziert nur die zehn benoetigten
+  Schedule-Statusfelder und liest hoechstens zwei Kandidaten. Damit bleiben
+  Task-Name, Prompt, Output-Target und Run-History bereits ausserhalb des
+  Read-Snapshots.
+- Exakt ein aktiver `action/todo_digest/schedule/cron`-Kandidat mit gueltigem
+  einfachen Weekday-Cron, dazu passender `scheduled_time` und strikt
+  zukuenftigem naiven UTC-`next_run` ergibt einen separaten content-free
+  Receipt. Missing, duplicate, paused, completed, stale, aware, invalid oder
+  inkonsistent faellt fail-closed aus.
+- Der geschlossene Receipt enthaelt nur strikte Status-/Clock-Felder,
+  redigierte Owner-/Task-/Schedule-Refs und einen neuberechenbaren
+  Receipt-Ref. Raw IDs, Name, Prompt, Cron, Uhrzeit, Zeitstempel,
+  Output-Target, Run-/Notification- und Providerdaten bleiben draussen.
+- Ein generischer Next-Digest-Claim braucht Membership und Schedule aus
+  demselben geschlossenen Event mit derselben Owner-Ref. Getrennte Events und
+  Cross-Owner-Kombinationen bleiben unsupported.
+- Exakte Timing-, Weekday-, Execution-, Provider-, Delivery-, Telegram-,
+  Slack-, E-Mail- und ntfy-Sprache bleibt in beiden Satzreihenfolgen
+  unsupported. Schedule-Readfehler schwaechen weder die kanonische Mutation
+  noch den akzeptierten TTD-05A-Receipt.
+- Terra- und Sol-Evidence: initial `6+2+2+1`, Runde eins `4+2+1+1`, Runde
+  zwei fokussiert auf Claim-Gate, Calendar und Receipt; der unabhaengige
+  finale Sol-Check bestand exakt zwei kritische Nodes. Nur die bestehende
+  SQLAlchemy-Deprecation-Warnung. AST fuer alle zehn Pfade, Exakt-Scope und
+  `git diff --check` sind gruen.
+- Kein Push, Deploy, Schedule-Write, Task-Run, Delivery, Telegram-Zugriff,
+  Providerzugriff, produktiver Datenzugriff oder Live-Smoke.
+
+Naechster Frontier:
+
+- `TTD-06` darf als read-only Drift-Audit-/Data-Repair-Preview-Recon
+  vorbereitet werden. Vor jeder Implementierung braucht es einen neuen
+  langlebigen disjunkten Claim.
+- `TTD-LIVE-DEPLOY` bleibt durch `TTD-10` dormant.
 
 Ziel:
 
