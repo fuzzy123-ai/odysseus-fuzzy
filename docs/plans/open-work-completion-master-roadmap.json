@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T11:44:11+02:00",
-  "status": "ttd03a_ttd03b_ttd04_ttd05a_ttd05b_ttd08a_ttd08b_accepted_ttd06_read_only_recon_next_live_default_off",
+  "updated_at": "2026-07-24T11:51:56+02:00",
+  "status": "ttd03a_ttd03b_ttd04_ttd05a_ttd05b_ttd08a_ttd08b_accepted_ttd06_read_only_drift_audit_claimed_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd03a_ttd03b_ttd04_ttd05a_ttd05b_accepted_ttd06_read_only_recon_next_attachment_deferred",
+    "queue_status": "ttd03a_ttd03b_ttd04_ttd05a_ttd05b_accepted_ttd06_read_only_drift_audit_claimed_attachment_deferred",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd05b_ttd08a_ttd08b_accepted_ttd06_read_only_recon_next_live_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd05b_ttd08a_ttd08b_accepted_ttd06_read_only_drift_audit_claimed_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,16 +85,18 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-05B is accepted with a content-free owner-bound active-future schedule receipt and a fail-closed generic next-Digest gate. TTD-06 is now dependency-ready for read-only drift-audit and repair-preview ownership recon only; no repair, data, provider or live mutation is claimed.",
-        "slice": "TTD-06-drift-audit-data-repair-preview-recon",
+        "reason": "TTD-06 read-only recon proved a disjoint three-path implementation. The sole active claim may build only a deterministic owner-exact audit over explicit offline SQLite and Memory snapshots plus a non-applying repair preview; all canonical stores, writers and live paths remain excluded.",
+        "slice": "TTD-06-read-only-drift-audit-and-repair-preview",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "perform_read_only_ttd06_ownership_dependency_and_exact_path_recon_only; no_repair_write_data_provider_schedule_execution_delivery_telegram_or_live_mutation"
+        "safe_default": "implement_only_the_claimed_read_only_explicit_snapshot_audit_and_preview; no_default_live_paths_apply_repair_write_data_provider_schedule_execution_delivery_telegram_or_live_mutation"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-24"
     },
-    "active_claimed_slices": []
+    "active_claimed_slices": [
+      "TTD-06-read-only-drift-audit-and-repair-preview"
+    ]
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -3545,6 +3547,193 @@
       "acceptance": "offline_go_content_free_owner_bound_active_future_digest_schedule_receipt_with_same_event_membership_correlation_and_stronger_claim_fail_closed",
       "next_frontier": "TTD-06 drift-audit and data-repair-preview is dependency-ready for read-only ownership and exact-path recon only. TTD-LIVE-DEPLOY remains dormant through TTD-10.",
       "done_when": "A canonical Todo mutation may additionally carry a strictly validated content-free receipt proving exactly one owner-scoped active valid cron Todo Digest task with a future naive-UTC next_run, and the final gate requires both membership and schedule evidence for a generic next-Digest claim while rejecting every stronger timing or delivery implication."
+    },
+    {
+      "id": "TTD-06-read-only-drift-audit-and-repair-preview",
+      "class": "safe_offline",
+      "owner": "/root",
+      "status": "claimed_2026-07-24",
+      "claimable": false,
+      "depends_on": [
+        "TTD-01 accepted at f130e653",
+        "TTD-02A accepted at 3095162f and TTD-02B accepted at c9c2867c",
+        "TTD-05A accepted at bed67823 and TTD-05B accepted at 617739d4",
+        "TTD-06 read-only ownership dependency history and exact-path recon complete",
+        "all three worker paths absent and no active overlapping claim"
+      ],
+      "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "claim": {
+        "run_id": "abc-ttd06-20260724T115156+0200",
+        "thread_id": "/root",
+        "slice_id": "TTD-06-read-only-drift-audit-and-repair-preview",
+        "owner": "Bob",
+        "allowed_paths": [
+          "src/todo_state_drift_audit.py",
+          "scripts/audit_todo_state_drift.py",
+          "tests/test_todo_state_drift_audit.py"
+        ],
+        "root_owned_paths": [
+          "docs/plans/todo-state-drift-audit-runbook.md",
+          "docs/plans/telegram-todo-domain-truth-roadmap.md",
+          "docs/plans/open-work-completion-master-roadmap.json",
+          "docs/plans/multi-agent-execution-guidance.json"
+        ],
+        "excluded_paths": [
+          "src/todo_domain_service.py src/tool_domains/todos.py src/todo_transaction_receipts.py and all canonical Todo writers or receipts",
+          "src/builtin_actions.py src/todo_digest_receipts.py src/calendar_capability_service.py src/todo_digest_schedule_receipts.py and all accepted TTD-05 boundaries",
+          "src/memory.py src/memory_category_policy.py src/ai_interaction.py routes/memory_routes.py core/database.py and every Memory Notes database model migration or writer",
+          "src/agent_loop.py src/claim_evidence_gate.py src/telegram_truth_gate.py app.py plugins/telegram and all Scheduler TaskRun Delivery Notification Telegram or Agent paths",
+          "data environment default application paths provider network Debian deploy live reads productive sources repair apply backup restore deletion archival mutation and every external action",
+          "the divergent historical commit 89bb5555 as a wholesale cherry-pick",
+          "docs except root-owned claim review runbook and acceptance state"
+        ],
+        "hotfiles": [],
+        "preserved_hotfiles": [
+          "src/todo_domain_service.py",
+          "src/builtin_actions.py",
+          "src/todo_digest_receipts.py",
+          "src/memory_category_policy.py",
+          "src/calendar_capability_service.py",
+          "src/todo_digest_schedule_receipts.py",
+          "src/agent_loop.py",
+          "src/claim_evidence_gate.py",
+          "core/database.py"
+        ],
+        "state": "claimed",
+        "acquired_at": "2026-07-24T11:51:56+02:00",
+        "lease_expires_at": "2026-07-24T15:51:56+02:00",
+        "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
+        "new_paths": true,
+        "dependency_sha256": {
+          "src/todo_domain_service.py": "f36a5a2a2d8449bbc8b22c1fedc76f1dcbbd77e9ea44422a0a60b3f886ca483f",
+          "src/memory_category_policy.py": "967f7422a0af3bf43436d660361bc01205d3106a0965e606356e72ac00ab03a3",
+          "src/builtin_actions.py": "c39eb8e4f7308920ffedf4e2a1ce57c262a8bd3503ed27d5df578d851f1754e5",
+          "src/todo_digest_receipts.py": "296948ce828b8a81e1d8d8d110108ac3c5e7b9224bdb3a6fb5dad11e16f8d2cd"
+        }
+      },
+      "recon": {
+        "completed_at": "2026-07-24T11:51:56+02:00",
+        "worker": "Charlie",
+        "mutation_performed": false,
+        "verdict": "claim_fresh_three_path_read_only_audit_not_historical_cherry_pick",
+        "runtime_evidence": [
+          "TTD-01 supplies the owner-exact atomic Notes Todo service while TTD-02 preserves legacy reads but forbids all new Todo-category Memory writes",
+          "TTD-05A supplies the current shared default Digest selector and TTD-05B remains a separate schedule-status fact outside this audit",
+          "the productive Memory store is JSON and its existing MemoryManager may create a missing file so the audit must read an explicit snapshot directly without constructing MemoryManager",
+          "historical 89bb5555 is divergent and stale because it imports removed src.todo_intent and make_list_ref APIs and calls an obsolete Digest signature",
+          "a fresh module script and test trio is absent at current HEAD and disjoint from every accepted canonical hotfile"
+        ]
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "recommended": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "Open-Work claim evidence routing and deep privacy review"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "reason": "shared roadmap integration privacy and future data-repair gate"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high",
+            "reason": "bounded deterministic backend audit and focused synthetic tests"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "sole orchestrator; ordinary repository tools are sufficient for the slice"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "depth": "deep",
+            "reviewer": "root"
+          }
+        },
+        "actual": {
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "evidence": "root orchestration surface"
+          },
+          "worker": {
+            "model": "pending",
+            "evidence": "pending explicit Terra spawn"
+          },
+          "review": {
+            "model": "gpt-5.6-sol",
+            "depth": "deep",
+            "result": "pending"
+          }
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "synthetic owner-scoped Note and Memory records plus explicit temporary SQLite and JSON snapshot files only",
+        "authority": "repo",
+        "mutation_class": "safe_offline",
+        "required": [
+          "exact_nonblank_owner_and_explicit_database_and_memory_snapshot_inputs",
+          "sqlite_mode_ro_query_is_owner_exact_and_loads_only_required_unarchived_note_fields",
+          "memory_json_is_read_directly_without_MemoryManager_creation_or_source_write",
+          "current_shared_default_digest_selector_is_reused_without_modification_and_limit_exclusions_are_not_repairs",
+          "prohibited_memory_duplicate_completion_missing_note malformed legacy and ambiguous_states_are_classified_without_promoting_memory_to_truth",
+          "default_report_contains_only_bounded_counts_statuses_domain_separated_hashes_redacted_refs_and_recomputable_snapshot_preview_refs",
+          "normal_output_never_contains_raw_owner_note_memory_text_identifiers_paths_or_exception_values",
+          "exact_review_requires_two_explicit_flags_is_marked_ephemeral_and_has_no_output_file_path",
+          "every_preview_action_is_review_required_preview_only_apply_supported_false_and_names_TTD_LIVE_DATA_REPAIR",
+          "missing_unreadable_or_malformed_sources_fail_closed_without_creation_or_consistent_claim",
+          "source_bytes_remain_identical_and_cli_has_no_apply_repair_archive_delete_or_write_option",
+          "no_productive_data_default_path_provider_network_runtime_Debian_Telegram_or_live_action"
+        ],
+        "temporal_window": "single deterministic read-only snapshot; no repair or runtime claim",
+        "positive_path_required": true
+      },
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider <only named TTD-06 nodes in tests/test_todo_state_drift_audit.py>",
+        "git diff --check -- src/todo_state_drift_audit.py scripts/audit_todo_state_drift.py tests/test_todo_state_drift_audit.py"
+      ],
+      "review": {
+        "reviewer": "root/Sol",
+        "depth": "deep",
+        "verdict": "pending",
+        "privacy_focus": "No raw owner Note Memory Todo path exception or source content may enter default output persisted evidence logs handoffs or roadmap state; a future repair must remain impossible without a separately reviewed preview backup and TTD-LIVE-DATA-REPAIR."
+      },
+      "delivery": {
+        "implementation_commit": null,
+        "committed": "claim_only_pending_implementation",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "product_complete": "no"
+      },
+      "acceptance": "pending",
+      "next_frontier": "Implement and deep-review TTD-06 only. TTD-LIVE-DATA-REPAIR and TTD-LIVE-DEPLOY remain dormant.",
+      "done_when": "An exact-owner audit over explicit read-only Notes and Memory snapshots deterministically compares canonical Todo records with the accepted default Digest projection and emits only a bounded content-free non-applying repair preview; malformed or incomplete sources fail closed and every repair remains technically absent behind TTD-LIVE-DATA-REPAIR."
     },
     {
       "id": "TTD-08A-telegram-history-truthful-classification-and-audit-projection",

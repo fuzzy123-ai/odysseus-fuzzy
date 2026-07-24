@@ -12,8 +12,9 @@ akzeptiert. Der read-only `TTD-05`-Recon ist abgeschlossen und hat die Arbeit
 seriell getrennt: `TTD-05A` ist fuer content-free Digest-Mitgliedschaft auf
 exakt zehn Pfaden nach drei Sol-Grenzrunden akzeptiert. Der read-only
 `TTD-05B` ist nach zwei tiefen Sol-Runden und einem unabhaengigen finalen
-Zweier-Check auf exakt zehn Pfaden akzeptiert. `TTD-06` ist damit nur fuer
-read-only Ownership-, Dependency- und Exaktpfad-Recon dependency-ready.
+Zweier-Check auf exakt zehn Pfaden akzeptiert. Der read-only `TTD-06`-Recon
+ist abgeschlossen; ein frischer disjunkter Drei-Pfad-Slice fuer Audit und
+nicht anwendbaren Repair-Preview ist geclaimt.
 der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -962,6 +963,35 @@ Akzeptanz:
 ### TTD-06 - Drift-Audit und Data-Repair-Preview
 
 Owner: Alice fuer Operator-Sprache, Bob fuer read-only Audit
+
+Status: `TTD-06-read-only-drift-audit-and-repair-preview` ist nach frischem
+Recon am `2026-07-24T11:51:56+02:00` auf drei neuen Pfaden geclaimt.
+
+Serialisierter Claim:
+
+- Run: `abc-ttd06-20260724T115156+0200`
+- Lease: bis `2026-07-24T15:51:56+02:00`
+- Worker-Pfade:
+  - neuer `src/todo_state_drift_audit.py`
+  - neuer `scripts/audit_todo_state_drift.py`
+  - neuer `tests/test_todo_state_drift_audit.py`
+- Root-owned Operator-Sprache und Acceptance:
+  - neuer `docs/plans/todo-state-drift-audit-runbook.md`
+  - diese Roadmap, Open-Work-Master und Multi-Agent-Guidance
+- Der CLI-Standardpfad verlangt exakten Owner sowie explizite Offline-Snapshot-
+  Pfade. SQLite wird nur `mode=ro`, Memory-JSON direkt und ohne
+  `MemoryManager` gelesen. Es existiert kein Default auf produktive Daten.
+- Der Standardreport darf nur begrenzte Counts, Status, domain-separierte
+  Hashes, redigierte Refs sowie Snapshot-/Preview-Refs enthalten.
+- Exact Review braucht zwei explizite Flags, bleibt als fluechtig und nicht
+  persistierbar markiert und besitzt keinen Datei-Output.
+- Alle Aktionen bleiben `preview_only`, `apply_supported=false`,
+  `review_required=true` und binden `TTD-LIVE-DATA-REPAIR`.
+- Bestehende Todo-, Memory-, Digest-, Schedule-, Agent-, Telegram-, Datenbank-
+  und Claim-Hotfiles sowie produktive Daten, Provider, Debian und Live-Systeme
+  sind ausgeschlossen.
+- Der divergente historische Commit `89bb5555` ist nur Prior Art: entfernte
+  Imports und obsolete Digest-Signatur verhindern eine Wholesale-Uebernahme.
 
 Ziel:
 

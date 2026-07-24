@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_ttd03a_ttd03b_ttd04_ttd05a_ttd05b_ttd08a_ttd08b_accepted_ttd06_read_only_recon_next",
-      "ai_hint": "This is the current gate authority. TTD-05B is accepted at 74d5d4b652420bb2bb34b92bc69fdd12523ca09d with one content-free owner-bound active-future schedule receipt and same-event membership correlation for generic next-Digest truth. No claim is active. TTD-06 may proceed only through read-only ownership, dependency and exact-path recon before any durable claim. Exact timing, execution, delivery, Telegram, TaskRun, notification and every live path remain unsupported/excluded. TTD-LIVE-DEPLOY stays dormant through TTD-10."
+      "state": "owm22_ttd03a_ttd03b_ttd04_ttd05a_ttd05b_ttd08a_ttd08b_accepted_ttd06_read_only_drift_audit_claimed",
+      "ai_hint": "This is the current gate authority. TTD-06 is the sole active claim on three new paths for an exact-owner audit over explicit offline SQLite and Memory snapshots plus a content-free non-applying repair preview. Existing Todo, Memory, Digest, Schedule, Agent, Telegram and database hotfiles are excluded. Do not cherry-pick divergent historical commit 89bb5555 wholesale. TTD-LIVE-DATA-REPAIR and TTD-LIVE-DEPLOY remain dormant."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
