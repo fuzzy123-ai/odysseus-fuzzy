@@ -6,8 +6,10 @@ Status: `TTD-00` bis `TTD-02` sind am 2026-07-23 akzeptiert. Der read-only
 `TTD-03`-Boundary-Recon ist abgeschlossen.
 `TTD-03A-todo-semantic-receipt-ledger` ist nach einem frischen Charlie/Terra-
 Reparaturhandoff und zwei tiefen Sol-Runden auf exakt neun Pfaden akzeptiert.
-Der read-only `TTD-03B`-Consumer-/Pfad-Recon ist abgeschlossen; ein exakter
-Zwei-Pfade-Claim fuer Final-Claim-Evidence ist aktiv.
+`TTD-03B` ist nach drei tiefen Sol-Runden auf exakt zwei Pfaden akzeptiert.
+`TTD-04` und `TTD-05` sind dependency-ready; als naechstes laeuft nur ein
+read-only TTD-04 Telegram-Todo-Event-Propagation-/Exaktpfad-Recon, TTD-05
+bleibt unselected.
 der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -512,7 +514,7 @@ Akzeptanz:
 
 Owner: Bob
 
-Status: `ttd03a_accepted_ttd03b_two_path_claim_active`
+Status: `ttd03a_ttd03b_accepted_ttd04_read_only_recon_next_ttd05_ready_unselected`
 
 Read-only Boundary-Recon 2026-07-23:
 
@@ -606,10 +608,13 @@ Serialisierung:
        Live-Smoke.
 2. `TTD-03B-todo-final-claim-evidence`
    - Abhaengigkeit: akzeptiertes `TTD-03A` ist erfuellt.
-   - Status: `active_claim_2026-07-24`
+   - Status: `accepted_2026-07-24`
    - Run: `abc-ttd03b-20260724T094234+0200`
    - Owner: Charlie
-   - Lease: 2026-07-24T09:42:34+02:00 bis 2026-07-24T13:42:34+02:00
+   - Lease: 2026-07-24T09:42:34+02:00 bis zur Freigabe
+     2026-07-24T09:58:09+02:00
+   - Implementierungscommit:
+     `f65e5ff8500ec3ec2808b188088eea243b0acdc5`
    - Exakt erlaubte Pfade:
      - `src/claim_evidence_gate.py`
      - `tests/test_claim_evidence_gate.py`
@@ -632,18 +637,30 @@ Serialisierung:
        Transaction-Evidence, niemals Todo-Text oder rohe Identifier
    - Ausgeschlossen: `agent_loop.py`, `tool_result_truth.py`, Receipt/Ledger,
      Telegram, Digest, Notes, Memory, produktive Daten und alle Live-Pfade.
+   - Acceptance:
+     - Terra-Handoff und drei fokussierte Sol-Repair-Runden: 25, 29, 20 und
+       18 gruene Nodes.
+     - Finale unabhaengige Sol-Grenzmenge: 27 gruen, nur die bestehende
+       SQLAlchemy-Deprecation-Warnung.
+     - Exakt zwei erlaubte Pfade; Scope- und Diff-Checks gruen.
+     - Action-lokale Zukunft/Negation, naechste Action-Bindung, Zitate,
+       actorless Resultativformen, Imperative/Fragen, bare `done` und
+       Reported-Speech-Inflektionen sind fail-closed abgedeckt.
+     - Kein Push, Deploy, Providerzugriff, produktiver Datenzugriff oder
+       Live-Smoke.
    - Die Finalantwort-Grenze erkennt Todo-Erfolgsprosa action-spezifisch und
      setzt `verified=true` nur mit dem passenden semantischen Ledger-Receipt.
      `tool_result_truth.py` wird nur geclaimt, wenn ein nachgewiesener
      Runtime-Consumer diesen Vertrag benoetigt.
 
-TTD-03B-Handoff:
+Naechste Frontier:
 
-- Phase: `repo_only`; zwei erlaubte Pfade
-- Worker: Charlie/Terra; Review: root/Sol tief
-- Claim: aktiv; aktive Claims: 1
-- Naechste Aktion: exakte Action-/Claim-Matrix implementieren, nur neue
-  fokussierte Nodes ausfuehren und danach Sol-Handoff abgeben
+- Phase: `analysis_only`; keine TTD-04-Implementierungsdatei aendern
+- Scout: Charlie/Terra read-only; Reduktion und Scope-Korrektur: root/Sol
+- Claim: keiner; aktive Claims: 0
+- Naechste Aktion: nachweisen, wo Todo-Receipt-/Transaction-Evidence den
+  Telegram-Reply-Pfad erreicht, welche Plugin-/Truth-Gate-/Webhook-Pfade
+  tatsaechlich notwendig sind und welche TTD-05-Digest-Hotfiles kollidieren
 - Kein Push, Deploy, Providerzugriff, produktiver Datenzugriff oder Live-Smoke
 
 Live-Readback 2026-07-24:
