@@ -7,9 +7,9 @@ Status: `TTD-00` bis `TTD-02` sind am 2026-07-23 akzeptiert. Der read-only
 `TTD-03A-todo-semantic-receipt-ledger` ist nach einem frischen Charlie/Terra-
 Reparaturhandoff und zwei tiefen Sol-Runden auf exakt neun Pfaden akzeptiert.
 `TTD-03B` ist nach drei tiefen Sol-Runden auf exakt zwei Pfaden akzeptiert.
-Der read-only `TTD-04` Telegram-Todo-Event-Propagation-/Exaktpfad-Recon ist
-abgeschlossen; ein exakt acht Pfade umfassender content-free Bridge-Slice ist
-geclaimt. `TTD-05` bleibt dependency-ready und unselected.
+`TTD-04` ist nach drei tiefen Sol-Grenzrunden auf exakt acht Pfaden
+akzeptiert. `TTD-05` ist dependency-ready; als naechstes laeuft nur sein
+read-only Digest-Postcondition-/Exaktpfad-Recon.
 der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -514,7 +514,7 @@ Akzeptanz:
 
 Owner: Bob
 
-Status: `ttd03a_ttd03b_accepted_ttd04_bridge_claimed_ttd05_ready_unselected`
+Status: `ttd03a_ttd03b_ttd04_accepted_ttd05_read_only_recon_next`
 
 Read-only Boundary-Recon 2026-07-23:
 
@@ -655,29 +655,15 @@ Serialisierung:
 
 Naechste Frontier:
 
-- Phase: `repo_only_implementation`; TTD-05 bleibt unselected
-- Recon: Charlie/Terra read-only abgeschlossen; Reduktion und Claim:
-  root/Sol
-- Claim: `TTD-04-telegram-todo-transaction-bridge`,
-  Run `abc-ttd04-20260724T100754+0200`, Owner Charlie, aktiv bis
-  `2026-07-24T14:07:54+02:00`
-- Exakt acht Pfade: `app.py`, `plugins/telegram/plugin.py`,
-  `plugins/telegram/polling.py`, `plugins/telegram/webhook_service.py`,
-  `src/telegram_truth_gate.py` sowie die drei bestehenden fokussierten Tests
-  `tests/test_telegram_truth_gate.py`,
-  `tests/test_telegram_webhook_service.py` und
-  `tests/test_telegram_plugin.py`
-- Befund: `stream_agent_loop` emittiert bereits content-free
-  `metrics.data.tool_transactions`; `app.py` verwirft das Metrics-Event,
-  Polling/Webhook reduzieren anschliessend auf Text und das Pre-Send-Gate
-  erhaelt keine Transaction-Evidence
-- Geschlossener Scope: nur verifizierte Todo-Transactions erfassen,
-  fail-closed durch beide Agent-Bridges tragen und optional an das bestehende
-  Pre-Send-Gate geben; kein Raw-Tool-Event, Command, Output, Todo-Text, Chat-ID
-  oder unredigierter Identifier darf in den Carrier oder Audit-History gelangen
-- Ausgeschlossen: Agent-Loop, Claim-Gate, Ledger, Receipt, Digest, Scheduler,
-  Calendar, Attachment/Export/Document/Control, Session/FTS, produktive Daten,
-  Provider, Network, Send, Deploy und jede Live-Mutation
+- `TTD-04` ist akzeptiert; aktive Claims: 0.
+- Phase: read-only `TTD-05` Digest-Postcondition-/Exaktpfad-Recon.
+- Naechste Aktion: nachweisen, wo `todo_digest_contains` und
+  `todo_digest_excludes` deterministisch aus Domain-Readback und
+  Scheduler-/Delivery-Zustand belegt werden koennen, welche heutigen Digest-
+  Dateien wirklich notwendig sind und welche Calendar-/Scheduler-Hotfiles
+  serialisiert bleiben muessen.
+- Noch kein TTD-05-Implementierungsclaim und keine Digest-, Schedule-,
+  Provider-, Produktionsdaten-, Send- oder Live-Mutation.
 - Kein Push, Deploy, Providerzugriff, produktiver Datenzugriff oder Live-Smoke
 
 Live-Readback 2026-07-24:
@@ -728,14 +714,14 @@ Akzeptanz:
 
 Owner: Charlie fuer Integration, Bob fuer isolierte Backend-Bausteine
 
-Status: `claimed_2026-07-24`
+Status: `accepted_2026-07-24`
 
 Serialized claim:
 
 - Run: `abc-ttd04-20260724T100754+0200`
 - Owner: Charlie
-- Lease: `2026-07-24T10:07:54+02:00` bis
-  `2026-07-24T14:07:54+02:00`
+- Lease: `2026-07-24T10:07:54+02:00` bis zur Freigabe
+  `2026-07-24T10:31:21+02:00`
 - Exakt erlaubte Pfade:
   - `app.py`
   - `plugins/telegram/plugin.py`
@@ -750,6 +736,41 @@ Serialized claim:
   Todo-Transactions aus dem terminalen Agent-Metrics-Event.
 - Generische, Control-, Attachment-, Export- und Document-Replies behalten
   ueber optionale Defaults ihr bisheriges Verhalten.
+
+Implementation und Acceptance:
+
+- Implementierungscommit:
+  `58b70cba48a9a9075998db0f415386375e6d8b78`
+- `app.py` liest aus dem Agent-Stream neben Text nur das terminale
+  `metrics.data.tool_transactions`-Feld und projiziert daraus ausschliesslich
+  verifizierte Todo-Transactions; Raw-Tool-Events und Metrics werden nicht
+  weitergereicht.
+- Polling und Webhook normalisieren denselben geschlossenen Carrier und reichen
+  ihn nur an Callback-Signaturen mit dem optionalen Keyword oder `**kwargs`
+  weiter. Legacy-Handler werden exakt einmal ohne Carrier aufgerufen; es gibt
+  keinen Retry nach einem Callback-`TypeError`.
+- Das Pre-Send-Gate akzeptiert nur den exakten generierten Ledger-Vertrag:
+  Schema, Agent-Surface, `manage_todos`, fuenf Claim-/Operation-Paare,
+  `verified`, exakter Exit-Code 0, leere Artefakte, Empty-Command-Hash,
+  action-gebundene Transaction-ID und geordnete redigierte Evidence-Refs.
+- Der Carrier ist auf 64 Eintraege begrenzt, wird frisch projiziert und faellt
+  bei hostile Iterables, Mapping-Fehlern, Extra-/Raw-Feldern, falschen Claims,
+  failed/ambiguous Status, unhashbaren Refs und falschen Hashes fail-closed.
+- Ein realer `complete`-Receipt mit `current_state=true` erzeugt ueber
+  `transactions_from_tool_events` verifizierbare Telegram-Evidence; ein
+  unmoeglicher Completion-State erzeugt keine Transaction und bleibt unknown.
+- Deep-Sol-Review:
+  - initialer und unabhaengiger Grenzsatz: 21 benannte Tests gruen
+  - nach Exception-/Provenance-Reparatur: 24 benannte Tests gruen
+  - Response-/History-Privacy-Node: 1 gruen
+  - finale bestehende Legacy-Smokes: 7 gruen
+  - nur die bestehende SQLAlchemy-Deprecation-Warnung
+  - AST-Parse fuer alle acht Pfade, Exakt-Scope und `git diff --check` gruen
+- Oeffentliche Webhook-Responses, Audit-Events und persistierte Telegram-
+  History enthalten weder Carrier noch Transaction-ID, Command-Hash oder
+  redigierte Evidence-Refs.
+- Kein Push, Deploy, Providerzugriff, produktiver Datenzugriff, Telegram-Send
+  oder Live-Smoke.
 
 Ziel:
 
@@ -772,8 +793,9 @@ Akzeptanz:
 - "gespeichert" ohne `todo_item_created` wird vor Telegram-Versand zu
   "nicht verifiziert" abgeschwaecht.
 - "erledigt" braucht einen Receipt mit `current_state.done=true`.
-- Das Gate erhaelt maschinenlesbare Tool-Events; Tests beweisen, dass sie nicht
-  im Agent-Bridge verworfen werden.
+- Das Gate erhaelt maschinenlesbare content-free Todo-Transactions; Tests
+  beweisen, dass sie weder in Polling noch Webhook verworfen und niemals in
+  oeffentliche Responses oder History projiziert werden.
 
 ### TTD-05 - Digest-Postconditions
 

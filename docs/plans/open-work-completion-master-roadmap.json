@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T10:07:54+02:00",
-  "status": "ttd03a_ttd03b_ttd08a_ttd08b_accepted_ttd04_bridge_claimed_ttd05_ready_unselected_live_default_off",
+  "updated_at": "2026-07-24T10:31:21+02:00",
+  "status": "ttd03a_ttd03b_ttd04_ttd08a_ttd08b_accepted_ttd05_read_only_recon_next_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd03a_ttd03b_accepted_ttd04_event_propagation_bridge_claimed_ttd05_ready_unselected_attachment_deferred",
+    "queue_status": "ttd03a_ttd03b_ttd04_accepted_ttd05_digest_postcondition_read_only_recon_next_attachment_deferred",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd03b_ttd08a_ttd08b_accepted_ttd04_bridge_claimed_ttd05_ready_unselected_live_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd04_ttd08a_ttd08b_accepted_ttd05_read_only_recon_next_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,18 +85,16 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-04 read-only recon proved that app.py drops the existing content-free Todo transactions from the agent metrics event and the polling/webhook bridges then forward text only. One exact eight-path bridge slice is claimed; TTD-05 remains dependency-ready and unselected.",
-        "slice": "TTD-04-telegram-todo-transaction-bridge",
+        "reason": "TTD-04 is accepted at implementation commit 58b70cba48a9a9075998db0f415386375e6d8b78 after three Sol boundary rounds. TTD-05 is dependency-ready; run only a read-only Digest-postcondition ownership and exact-path recon before any implementation claim.",
+        "slice": "TTD-05-digest-postcondition-read-only-recon",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "implement_only_the_claimed_content_free_todo_transaction_carrier_with_focused_synthetic_tests; keep_ttd05_unselected_and_no_send_provider_data_or_live_mutation"
+        "safe_default": "reconcile_digest_contains_excludes_postcondition_ownership_and_exact_paths_read_only_before_any_ttd05_claim; no_schedule_send_provider_data_or_live_mutation"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-24"
     },
-    "active_claimed_slices": [
-      "TTD-04-telegram-todo-transaction-bridge"
-    ]
+    "active_claimed_slices": []
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -3059,7 +3057,7 @@
       "id": "TTD-04-telegram-todo-transaction-bridge",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_2026-07-24",
+      "status": "accepted_2026-07-24",
       "claimable": false,
       "depends_on": [
         "TTD-02 accepted",
@@ -3104,9 +3102,10 @@
           "src/tool_transaction_ledger.py",
           "src/todo_transaction_receipts.py"
         ],
-        "state": "claimed",
+        "state": "accepted_released",
         "acquired_at": "2026-07-24T10:07:54+02:00",
         "lease_expires_at": "2026-07-24T14:07:54+02:00",
+        "released_at": "2026-07-24T10:31:21+02:00",
         "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
         "new_paths": false,
         "dependency_sha256": {
@@ -3178,8 +3177,39 @@
         "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider <only named TTD-04 nodes in tests/test_telegram_truth_gate.py tests/test_telegram_webhook_service.py tests/test_telegram_plugin.py>",
         "git diff --check -- app.py plugins/telegram/plugin.py plugins/telegram/polling.py plugins/telegram/webhook_service.py src/telegram_truth_gate.py tests/test_telegram_truth_gate.py tests/test_telegram_webhook_service.py tests/test_telegram_plugin.py"
       ],
-      "acceptance": "pending_deep_sol_review",
-      "next_frontier": "Implement and review this exact bridge slice; keep TTD-05 unselected and TTD-LIVE-DEPLOY dormant.",
+      "review": {
+        "reviewed_at": "2026-07-24T10:31:21+02:00",
+        "reviewer": "root/Sol",
+        "depth": "deep_three_rounds",
+        "verdict": "accepted",
+        "implementation_commit": "58b70cba48a9a9075998db0f415386375e6d8b78",
+        "focused_evidence": [
+          "initial Terra handoff and independent Sol boundary set: 21 named TTD-04 tests passed",
+          "Sol round one closed hostile iterable and hostile callback signature exceptions and added the real current_state receipt-to-ledger chain; 24 named tests passed",
+          "Sol round two proved public webhook responses and persisted Telegram history omit carrier ledger IDs hashes and redacted refs; the named plugin node passed",
+          "Sol round three legacy boundary set: 7 existing truth-gate polling and webhook tests passed",
+          "all runs emitted only the existing SQLAlchemy declarative_base deprecation warning",
+          "AST parse passed for all eight paths, scope was exactly eight paths, and git diff --check passed"
+        ],
+        "review_fixes": [
+          "Todo transaction projection is closed bounded and exception-safe with exact generated schema tool surface claim operation transaction-id hash exit and privacy invariants",
+          "polling and webhook signature introspection failures fall back to one legacy delivery without retrying after TypeError",
+          "real complete receipts require current_state true before the ledger can support a Telegram completion claim",
+          "public webhook responses audit events and persisted history never expose the internal carrier"
+        ],
+        "privacy_verdict": "Only bounded ledger metadata and redacted owner list item operation refs cross the internal bridge; public response and history projections omit the carrier entirely.",
+        "live_deploy_allowed": false
+      },
+      "delivery": {
+        "implementation_commit": "58b70cba48a9a9075998db0f415386375e6d8b78",
+        "committed": "yes_local",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "product_complete": "no"
+      },
+      "acceptance": "offline_go_content_free_todo_transactions_reach_telegram_pre_send_gate_through_polling_and_webhook_with_exact_action_evidence_privacy_and_legacy_compatibility",
+      "next_frontier": "TTD-05 is dependency-ready. Run a read-only Digest-postcondition ownership and exact-path recon before any claim. TTD-LIVE-DEPLOY remains dormant through TTD-10.",
       "done_when": "Only validated content-free Todo transactions survive the Telegram agent bridge and the final pre-send gate verifies each explicit Todo claim against its exact action transaction without leaking raw content or breaking legacy reply paths."
     },
     {

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-07-24T10:07:54+02:00",
+  "updated_at": "2026-07-24T10:31:21+02:00",
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_ttd03a_ttd03b_ttd08a_ttd08b_accepted_ttd04_bridge_claimed_ttd05_ready_unselected",
-      "ai_hint": "This is the current gate authority. TTD-04 read-only recon proved the existing content-free Todo transactions are dropped between the agent metrics event and Telegram pre-send gate. One exact eight-path bridge slice is claimed by Charlie; keep TTD-05 dependency-ready but unselected, preserve Agent Ledger Digest and live paths, run only named focused tests, and keep TTD-LIVE-DEPLOY dormant through TTD-10."
+      "state": "owm22_ttd03a_ttd03b_ttd04_ttd08a_ttd08b_accepted_ttd05_read_only_recon_next",
+      "ai_hint": "This is the current gate authority. TTD-04 is accepted at 58b70cba after three Sol boundary rounds: only validated content-free Todo transactions cross polling/webhook and public response/history remain carrier-free. Run TTD-05 read-only Digest-postcondition ownership and exact-path recon next; preserve Scheduler Calendar Agent Ledger and live paths, and keep TTD-LIVE-DEPLOY dormant through TTD-10."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
