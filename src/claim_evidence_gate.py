@@ -195,6 +195,90 @@ class ClaimEvidenceReport:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class AgentMaintenanceClaimOwnership:
+    """Compatibility shape for disabled maintenance execution gates."""
+
+    expected_claim_id: str
+    expected_owner: str
+    allowed_paths: tuple[str, ...]
+    current_claim_id: str
+    current_owner: str
+    current_changed_paths: tuple[str, ...]
+    current_staged_paths: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class AgentMaintenanceCompletionEvidence:
+    """Typed evidence accepted by legacy callers without granting authority."""
+
+    receipt: Mapping[str, Any]
+    claim_report: ClaimEvidenceReport
+    expected_lane: str
+    required_evidence_level: str
+    claim_ownership: AgentMaintenanceClaimOwnership
+
+
+@dataclass(frozen=True, slots=True)
+class AgentMaintenanceCompletionReport:
+    completed: bool
+    receipt_current: bool
+    claims_current: bool
+    ownership_current: bool
+    expected_lane: str
+    required_evidence_level: str
+    actual_evidence_level: str
+    blockers: tuple[str, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema": "odysseus.agent_maintenance_completion_gate.v1",
+            "completed": self.completed,
+            "receipt_current": self.receipt_current,
+            "claims_current": self.claims_current,
+            "ownership_current": self.ownership_current,
+            "expected_lane": self.expected_lane,
+            "required_evidence_level": self.required_evidence_level,
+            "actual_evidence_level": self.actual_evidence_level,
+            "blockers": list(self.blockers),
+            "origin_authenticated": False,
+            "commit_authorized": False,
+            "push_authorized": False,
+            "live_authorized": False,
+        }
+
+
+def evaluate_agent_maintenance_completion(
+    evidence: AgentMaintenanceCompletionEvidence | None,
+    *,
+    repo_root: str | Path,
+) -> AgentMaintenanceCompletionReport:
+    """Fail closed while the maintenance completion verifier is gated."""
+
+    del repo_root
+    typed = isinstance(evidence, AgentMaintenanceCompletionEvidence)
+    return AgentMaintenanceCompletionReport(
+        completed=False,
+        receipt_current=False,
+        claims_current=bool(
+            typed
+            and isinstance(evidence.claim_report, ClaimEvidenceReport)
+            and evidence.claim_report.ok
+        ),
+        ownership_current=False,
+        expected_lane=(
+            str(evidence.expected_lane or "missing") if typed else "missing"
+        ),
+        required_evidence_level=(
+            str(evidence.required_evidence_level or "none") if typed else "none"
+        ),
+        actual_evidence_level="none",
+        blockers=(
+            "maintenance completion verification is disabled pending architecture review",
+        ),
+    )
+
+
 def evaluate_response_claims(
     response: Any,
     tool_events: Iterable[Mapping[str, Any]] = (),
