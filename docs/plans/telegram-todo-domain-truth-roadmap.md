@@ -29,9 +29,13 @@ mehreren Terra-Korrekturen und tiefem Sol-PASS am Implementierungscommit
 `090ede31` akzeptiert. `TTD-07A3` ist nach mehreren Root-/Terra-Korrekturrunden
 und finalem tiefen Sol-PASS am Implementierungscommit `53109195` akzeptiert.
 `TTD-07A4` ist nach drei tiefen Sol-Reviews und finalem PASS am
-Implementierungscommit `c48f47c8` akzeptiert. `TTD-07A5` ist der einzige aktive
-Elfpfad-Claim fuer Poll-/Webhook-Koordination, Turn-Lease, Empty-Poll-Sweep und
-verlustfreien Retry; produktive Aktivierung und Live bleiben ungeclaimt.
+Implementierungscommit `c48f47c8` akzeptiert. Der `TTD-07A5`-Elfpfad-Claim ist
+nach zwei abgelehnten unvollstaendigen Versuchen freigegeben und
+architektur-gegated. Vor einem neuen Implementierungsclaim muessen stabile
+Transport-Intake-Identitaet, per-Operation-DB-Lifetime, atomare
+Lease-/Intake-Fences, Poll-Offset-Hold und expliziter Owner-Cutover in einem
+read-only Handoff eingefroren werden; produktive Aktivierung und Live bleiben
+fuer diesen Slice ungeclaimt.
 Der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -1330,7 +1334,7 @@ Akzeptierte Child-Slices:
   vollstaendigem Rollback
 - keine produktive Call-Site-, Polling-, Webhook- oder Live-Aktivierung
 
-Aktiver Child-Claim:
+Gegateter Child-Handoff:
 
 - `TTD-07A5-poll-webhook-sweep-and-turn-lease`
 - exakt `plugins/telegram/polling.py`, `plugins/telegram/plugin.py`,
@@ -1339,9 +1343,13 @@ Aktiver Child-Claim:
   `src/telegram_session_rollover.py`, `tests/test_telegram_plugin.py`,
   `tests/test_telegram_webhook_service.py` und
   `tests/test_telegram_session_rollover.py`
-- Bob/Terra high; tiefe Sol-Abnahme; exakt fuenf benannte fokussierte Nodes
+- zwei unvollstaendige Bob/Terra-Versuche abgelehnt; keine Sol-Abnahme und kein
+  Implementierungscommit
 - nur synthetische Owner/Update-/Lease-Fixtures und temporaere SQLite-Instanzen
 - default-off; keine Continuity-, Provider-, Send-, Debian- oder Live-Aktion
+- kein dritter Routineversuch: zuerst stabilen Transport-Intake, caller-owned
+  DB-Lifetime, Lease-/Intake-Fencing, Poll-Offset-Hold und Owner-Cutover als
+  read-only Architektur-Handoff festlegen; danach frisch claimen
 
 Akzeptanz:
 

@@ -4,8 +4,8 @@ Stand: 2026-07-24
 
 Status: `TTD-07A0` accepted at `4fb9ba62`; `TTD-07A1` accepted at
 `daca1dc4`; `TTD-07A2` accepted at `090ede31`; `TTD-07A3` accepted at
-`53109195`; `TTD-07A4` accepted at `c48f47c8`; `TTD-07A5` is the active
-poll/webhook sweep and durable turn-lease child claim
+`53109195`; `TTD-07A4` accepted at `c48f47c8`; the `TTD-07A5` implementation
+claim is released and architecture-gated after two rejected incomplete attempts
 
 Authority:
 
@@ -664,6 +664,17 @@ Acceptance:
 
 Depends on: accepted `TTD-07A4`
 
+Current gate:
+
+- Two bounded implementation attempts were rejected on 2026-07-24.
+- The rejected partial coordinator diff is not an implementation commit and
+  must not be deployed or resumed as a third routine attempt.
+- Re-entry requires a fresh read-only architecture handoff that freezes the
+  stable owner/chat/transport-update identity, caller-owned per-operation
+  database/session lifetime, atomic intake-plus-binding-lease fencing, polling
+  offset hold, webhook unacknowledged retry, and explicit owner cutover.
+- A fresh durable implementation claim is required after that handoff.
+
 Allowed paths:
 
 - `plugins/telegram/polling.py`
@@ -709,6 +720,7 @@ Acceptance:
 - a false historical success claim cannot satisfy a current mutation claim.
 
 Concurrent workers may work only on paths proven disjoint from the active child.
+There is currently no active `TTD-07A5` implementation child.
 The files listed in multiple children are serial hotfiles, not parallel claims.
 
 ## 15. Focused acceptance suite
