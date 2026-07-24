@@ -665,26 +665,6 @@ FUNCTION_TOOL_SCHEMAS = [
     {
         "type": "function",
         "function": {
-            "name": "manage_todos",
-            "description": "Canonical owner-scoped Todo operations backed by Notes: list, add, complete, reopen, or remove. Use stable list_ref/item_ref values returned by list whenever possible. Text matching is convenience-only and fails closed when ambiguous. Every mutation requires a caller-stable idempotency_key. Do not use manage_memory or manage_notes for Todo item mutations.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "action": {"type": "string", "enum": ["list", "add", "complete", "reopen", "remove"],
-                               "description": "The canonical Todo operation"},
-                    "list_ref": {"type": "string", "description": "Stable owner-scoped list reference returned by manage_todos list"},
-                    "list_title": {"type": "string", "description": "Convenience lookup only; ambiguous titles fail without mutation"},
-                    "item_ref": {"type": "string", "description": "Stable item reference returned by manage_todos list/add"},
-                    "text": {"type": "string", "description": "Item text for add, or convenience exact-match text for complete/reopen/remove"},
-                    "idempotency_key": {"type": "string", "description": "Required stable request key for every mutation; reuse it when retrying the same operation"}
-                },
-                "required": ["action"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "manage_notes",
             "description": "Manage freeform notes and reminder notes (Google Keep-style): list, add, update, delete, toggle_item. Delete requires confirmed=true after explicit user confirmation. Use manage_todos for Todo item list/add/complete/reopen/remove. For freeform notes, use note_type='note' and put the body in content. due_date accepts natural language like 'tomorrow at 9am' and fires a notification; do not also create a calendar event for the same reminder.",
             "parameters": {

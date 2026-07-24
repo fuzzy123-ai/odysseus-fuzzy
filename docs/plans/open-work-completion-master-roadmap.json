@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T23:11:09+02:00",
+  "updated_at": "2026-07-24T23:35:30+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -7192,7 +7192,7 @@
       "id": "TAX-REPAIR-dual-read-contract",
       "class": "repo_only",
       "owner": "Bob implementation; Sol deep acceptance",
-      "status": "sol_accepted_exact_ci_ttd_two_era_drift_contract_followup_remote_pending_2026-07-24",
+      "status": "sol_accepted_exact_ci_schema_dedupe_and_dynamic_admin_inventory_remote_pending_2026-07-24",
       "claim": {
         "run_id": "tax-repair-20260724T195045+0200",
         "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
@@ -7452,6 +7452,38 @@
         ],
         "diagnosis": "Exact GitHub CI run 30123082012 validates the complete AI Lens and Tool Usage contract migration and advances to 978 passing tests, then exposes a TTD-00 auditor that conflates two immutable historical v1 captures with current accepted TTD-01 through TTD-08 repository truth. The first exact-byte Telegram marker rejects the stronger multiline evidence-carrying pre-send gate; subsequent checks would reject accepted Memory fail-closed policy, Todo claims, receipts, Digest postconditions, propagation and legitimate source-hash drift. Preserve both v1 artifacts byte-for-byte, introduce one normalized source-backed current v2 semantic contract, and harden the no-import auditor with fail-closed AST invariants. Do not edit production, Telegram, dependency, workflow, deploy, data or live paths."
       },
+      "duplicate_manage_todos_schema_ci_followup_claim": {
+        "run_id": "tax-repair-duplicate-manage-todos-schema-ci-followup-20260724T231747+0200",
+        "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
+        "slice_id": "TAX-CI-duplicate-manage-todos-schema-and-inventory-refresh",
+        "owner": "Bob",
+        "allowed_paths": [
+          "src/tool_schema_definitions.py",
+          "docs/plans/tool-taxonomy-inventory.json",
+          "scripts/audit_tool_registry_drift.py",
+          "tests/test_audit_tool_registry_drift.py"
+        ],
+        "read_only_evidence_paths": [
+          "static/js/admin.js",
+          "tests/test_admin_tool_catalog_ui.py",
+          "tests/test_manage_todos_wiring.py"
+        ],
+        "hotfiles": [
+          "src/tool_schema_definitions.py"
+        ],
+        "state": "released",
+        "acquired_at": "2026-07-24T23:17:47+02:00",
+        "lease_expires_at": "2026-07-25T00:17:47+02:00",
+        "handoff_required": true,
+        "amended_at": "2026-07-24T23:22:07+02:00",
+        "amendment_reason": "After the exact obsolete schema was removed, the permitted inventory generator exposed a second independent stale TAX0 assumption: TAX7 intentionally deleted static TOOL_META and made Admin consume Descriptor V2 from GET /api/tools, while the old audit still parses 31 manual metadata rows and counts 50 fallbacks. The audit and its focused contract test are therefore added so the inventory can represent the current dynamic Admin consumer honestly. static/js/admin.js remains read-only and its existing no-TOOL_META UI contract must not change.",
+        "released_at": "2026-07-24T23:35:30+02:00",
+        "handoff_result": "deep Sol PASS after removing only the obsolete manage_todos schema, preserving the exact strict 1dc160ad contract, replacing retired TOOL_META parity with an honest dynamic Descriptor-V2 Admin consumer projection and adding real fail-closed marker fixtures; no feature activation, deploy or live change",
+        "root_owned_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json"
+        ],
+        "diagnosis": "Exact GitHub CI run 30126940781 validates the two-era TTD drift contract and advances to 1003 passing tests, then TAX0 fails closed because FUNCTION_TOOL_SCHEMAS contains two literal manage_todos entries. History shows the older incomplete schema was introduced by 86c61a1 and TTD-02B added the current strict facade schema at 1dc160ad without removing the predecessor. The old first-match projection lacks confirmed and requires only action, while the accepted current schema requires action plus full list_ref and exposes the exact facade fields. Remove only the obsolete older duplicate, retain the current strict schema, and regenerate the deterministic content-free TAX0 inventory. Do not weaken duplicate rejection or counts, add a compatibility shim, activate features, deploy or touch live state."
+      },
       "route": {
         "entrypoint": "/abc",
         "selected_skills": [
@@ -7549,13 +7581,16 @@
           "v2 explicitly does not claim behavioral proof or repo_contracts=true; existing behavioral Pytest remains runtime authority while the no-import audit fingerprints 22 small accepted implementation nodes and reports only that those named surfaces remain unchanged from related accepted slices",
           "the AST fingerprint serializer uses canonical JSON over node types, sorted semantic fields, ordered children, literals, names, contexts and operators while excluding locations and the Python-version-only type_params field; exact Python 3.11 and 3.14 print output is byte-identical and both checks exit zero",
           "all 20 adversarial mutations from deep Sol review produce committed-contract drift, while formatting-only changes remain invariant; frozen provenance, generator exactness, Python AST, roadmap JSON and git diff checks pass without executing Pytest",
-          "final deep Sol review passed with no findings after the semantic-proof overclaim, self-confirming mutation checks, cross-Python ast.dump defect and broad status wording were removed; no production, Telegram, dependency, workflow, deploy, data or live path changed"
+          "final deep Sol review passed with no findings after the semantic-proof overclaim, self-confirming mutation checks, cross-Python ast.dump defect and broad status wording were removed; no production, Telegram, dependency, workflow, deploy, data or live path changed",
+          "history proves the duplicate manage_todos schemas came from the 86c61a1 predecessor plus the accepted strict 1dc160ad facade schema; exactly the obsolete 20-line predecessor was removed, leaving 85 literal schemas with 85 unique names",
+          "the remaining manage_todos schema is byte- and literal-equal to 1dc160ad with exact action/list_ref/item_ref/text/idempotency_key/confirmed properties and required action plus full list_ref; duplicate rejection and the 80/85/6/1 TAX0 gates remain unchanged",
+          "TAX0 now represents the TAX7 Admin UI honestly as a dynamic GET /api/tools Descriptor-V2 consumer, retains the content-free static/js/admin.js source hash and no longer parses retired TOOL_META rows or reports obsolete 31/50 fallback counts",
+          "the narrowed Admin projection proves only the current endpoint, descriptor fallback, MCP exclusion, display/description fallbacks and legacy TOOL_META absence; no alternative-static-map absence or behavioral claim is fabricated",
+          "five independent temp-fixture marker mutations plus an injected TOOL_META all fail closed; regenerated inventory is byte-exact, clean at dynamic=2 intentional=16 missing=41 stale=0, repo-relative and content-free, and final deep Sol review passed without Pytest"
         ],
-        "local_pytest_exit": "no further Pytest was executed for the TTD follow-up; direct Python 3.11/3.14 audit, generator, adversarial drift, AST, JSON and diff checks are green, and exact GitHub CI remains the required behavioral test authority",
-        "remote_ci": "run 30123082012 on exact commit e25f23b7 passes compileall and JS syntax, validates the complete AI Lens/Tool Usage migration and reaches 978 passing tests before exposing the obsolete single-era TTD-00 source audit. The Sol-accepted two-era drift-contract repair is ready for one exact commit and fuzzy/dev push; exact-commit CI is pending and no production, Telegram, deploy, data or live change is authorized.",
+        "local_pytest_exit": "no further Pytest was executed for the TTD or schema-dedupe follow-ups; direct Python 3.11/3.14 TTD audit, TAX0 inventory, adversarial fixtures, AST, JSON and diff checks are green, and exact GitHub CI remains the required behavioral test authority",
+        "remote_ci": "run 30126940781 on exact commit 1785f16e passes compileall and JS syntax, validates the two-era TTD drift contract and reaches 1003 passing tests before exposing the duplicate manage_todos Function schema and retired TOOL_META TAX0 assumption. The Sol-accepted schema dedupe and dynamic Admin-consumer inventory migration are ready for one exact commit and fuzzy/dev push; exact-commit CI is pending and no feature activation, deploy, data or live change is authorized.",
         "known_pre_existing_out_of_scope": [
-          "tool-surface audit expects removed TOOL_META",
-          "raw schema audit reports duplicate manage_todos",
           "focused local pytest process teardown does not exit cleanly"
         ]
       },
@@ -7563,8 +7598,8 @@
         "implemented": "yes",
         "tested": "yes",
         "sol_reviewed": "deep",
-        "committed": "86c77394_tua_rollout_followup; 1b8d7d2d_amh_disabled_followup; ca0ac065_amh_commit_runner_followup; 863d9346_shared_verifier_followup; e7766ac8_effect_matrix_followup; a5d3c98f_fastapi_route_introspection_followup; e25f23b7_ai_lens_tool_usage_followup; ttd_two_era_drift_contract_followup_ready_for_exact_commit",
-        "pushed": "86c77394_1b8d7d2d_ca0ac065_863d9346_e7766ac8_a5d3c98f_e25f23b7_to_fuzzy_dev; ttd_two_era_semantic_contract_followup_pending",
+        "committed": "86c77394_tua_rollout_followup; 1b8d7d2d_amh_disabled_followup; ca0ac065_amh_commit_runner_followup; 863d9346_shared_verifier_followup; e7766ac8_effect_matrix_followup; a5d3c98f_fastapi_route_introspection_followup; e25f23b7_ai_lens_tool_usage_followup; 1785f16e_ttd_two_era_drift_contract_followup; schema_dedupe_and_dynamic_admin_inventory_followup_ready_for_exact_commit",
+        "pushed": "86c77394_1b8d7d2d_ca0ac065_863d9346_e7766ac8_a5d3c98f_e25f23b7_1785f16e_to_fuzzy_dev; duplicate_manage_todos_schema_followup_pending",
         "deployed": "no",
         "live_validated": "no",
         "visual_validated": "na",

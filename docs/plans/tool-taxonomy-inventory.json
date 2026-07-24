@@ -1,356 +1,15 @@
 {
-  "baseline_date": "2026-07-13",
+  "admin_catalog_consumer": {
+    "description_fallback": true,
+    "descriptor_array_fallback": true,
+    "display_name_fallback": true,
+    "endpoint": "/api/tools",
+    "legacy_tool_meta_present": false,
+    "mcp_excluded": true,
+    "mode": "dynamic_api_descriptor_v2"
+  },
+  "baseline_date": "2026-07-23",
   "differences": [
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "adopt_served_model"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "app_api"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "archive_email"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "ask_user"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "bulk_email"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "cancel_download"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "commit_project"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "delegate"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "delete_email"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "download_model"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "edit_file"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "edit_image"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "get_workspace"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "glob"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "grep"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "list_cached_models"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "list_cookbook_servers"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "list_downloads"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "list_email_accounts"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "list_emails"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "list_serve_presets"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "list_served_models"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "ls"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "manage_bg_jobs"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "manage_calendar"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "manage_contact"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "manage_github_issues"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "manage_nextcloud_transfer"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "manage_notes"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "manage_repos"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "manage_research"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "manage_subagents"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "mark_email_read"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "publish_artifact"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "query_knowledge"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "read_email"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "recent_changes"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "reply_to_email"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "resolve_contact"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "search_hf_models"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "send_email"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "serve_model"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "serve_preset"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "spawn_subagent"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "stop_served_model"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "trigger_research"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "update_plan"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "verify_pygame_headless"
-    },
-    {
-      "classification": "missing",
-      "explanation": "runtime tool is absent from the admin_metadata projection",
-      "relation": "runtime_not_surface",
-      "surface": "admin_metadata",
-      "tool_id": "web_fetch"
-    },
-    {
-      "classification": "stale",
-      "explanation": "Admin metadata is present for a non-runtime legacy identity",
-      "relation": "surface_not_runtime",
-      "surface": "admin_metadata",
-      "tool_id": "manage_rag"
-    },
     {
       "classification": "dynamic",
       "explanation": "runtime-qualified identity is supplied by an MCP or plugin source",
@@ -836,19 +495,19 @@
     {
       "kind": "plugin_registration_source",
       "path": "plugins/telegram/plugin.py",
-      "sha256": "7b5e17acd50fff107f69659dbda5aff8a010a31928c5a5ac14c5667a9babc9f6",
+      "sha256": "ebb277398f5330609d857174232e6681ad9c818476016095ba8aa61eaeaaf126",
       "surface": "dynamic"
     },
     {
       "kind": "static_surface",
       "path": "src/agent_loop_prompts.py",
-      "sha256": "011e7ddd070cf68247407d49dc0b7b2caa63e3a29b47c715f7f4bc062f1e0111",
+      "sha256": "bfc0422c73e703d1a07e3e8267899e04ab628ae5a1d94fc3ae71cabf27605540",
       "surface": "prompt_sections"
     },
     {
       "kind": "static_surface",
       "path": "src/agent_tools/__init__.py",
-      "sha256": "6481ce076e348a0f63ceada642c357f92a06b11e912baeabc2166a088af0379f",
+      "sha256": "70d5a4c6b670565601832c070324734ab392f2b4aaf007901712ef608ff46dcb",
       "surface": "builtin_tags"
     },
     {
@@ -872,13 +531,13 @@
     {
       "kind": "static_surface",
       "path": "src/tool_execution.py",
-      "sha256": "1d1d24a28c14f979c892befb09f24f2910c74174c051d513a6927176f2bf62c4",
+      "sha256": "0240f8e5740d1a8f6dfe9749dd22532104ed89a14dde2e0d20729dfb2f4dafad",
       "surface": "dispatcher"
     },
     {
       "kind": "static_surface",
       "path": "src/tool_index.py",
-      "sha256": "35675976e197d6f5ddf9ad4dbbc21b59cac1673d9b80ccf320b9e9d8f4017471",
+      "sha256": "2db0e1b0914a2eaa57382989ddf6a52b451f13b5bb15ae259559fa16234ec36a",
       "surface": "tool_index"
     },
     {
@@ -890,7 +549,7 @@
     {
       "kind": "static_surface",
       "path": "src/tool_schema_definitions.py",
-      "sha256": "1815e6351e7416113678e87170f986c01078d86edf0a4016aecde5217cb418c0",
+      "sha256": "4fb4eb1fa303c0cf6931051378db8ba46a7da72539123a926e0df72be03caed2",
       "surface": "function_schemas"
     },
     {
@@ -902,73 +561,36 @@
     {
       "kind": "static_surface",
       "path": "static/js/admin.js",
-      "sha256": "140a548be350f29386d1f060e4e52da0921a9fe3aef973fa8a5a125ff41a1374",
-      "surface": "admin_metadata"
+      "sha256": "ffa43c2f3e27b17d62521b8d0bb91779c4634a1cd97b5ce7068c28e76539b674",
+      "surface": "admin_catalog_consumer"
     }
   ],
   "summary": {
-    "admin_fallback_count": 49,
-    "admin_metadata_count": 31,
-    "builtin_tag_count": 79,
+    "admin_catalog_consumer_mode": "dynamic_api_descriptor_v2",
+    "builtin_tag_count": 80,
     "clean": true,
     "content_fields_recorded": false,
     "difference_classification_counts": {
       "dynamic": 2,
       "intentional": 16,
-      "missing": 90,
-      "stale": 1
+      "missing": 41,
+      "stale": 0
     },
-    "difference_count": 109,
+    "difference_count": 59,
     "dynamic_source_count": 9,
-    "function_schema_count": 84,
+    "function_schema_count": 85,
+    "legacy_tool_meta_present": false,
     "private_paths_recorded": false,
     "runtime_modules_imported": false,
     "runtime_without_schema_count": 1,
     "schema_without_runtime_count": 6,
     "source_count": 15,
-    "source_fingerprint": "d57aa787c9a5f8de2ad5a9a47fddf40e4fb67deca2730eb8b5afd14d4b6b8869",
+    "source_fingerprint": "85cb18509e3bbdd4257e2d964904f626ef4a42027c899b1dff9a5057215ed870",
     "violation_count": 0
   },
   "surfaces": [
     {
-      "count": 31,
-      "name": "admin_metadata",
-      "tool_ids": [
-        "api_call",
-        "ask_teacher",
-        "bash",
-        "chat_with_model",
-        "create_document",
-        "create_session",
-        "edit_document",
-        "generate_image",
-        "list_models",
-        "list_sessions",
-        "manage_documents",
-        "manage_endpoints",
-        "manage_mcp",
-        "manage_memory",
-        "manage_rag",
-        "manage_session",
-        "manage_settings",
-        "manage_skills",
-        "manage_tasks",
-        "manage_tokens",
-        "manage_webhooks",
-        "pipeline",
-        "python",
-        "read_file",
-        "search_chats",
-        "send_to_session",
-        "suggest_document",
-        "ui_control",
-        "update_document",
-        "web_search",
-        "write_file"
-      ]
-    },
-    {
-      "count": 79,
+      "count": 80,
       "name": "builtin_tags",
       "tool_ids": [
         "adopt_served_model",
@@ -1021,6 +643,7 @@
         "manage_skills",
         "manage_subagents",
         "manage_tasks",
+        "manage_todos",
         "manage_tokens",
         "manage_webhooks",
         "mark_email_read",
@@ -1053,7 +676,7 @@
       ]
     },
     {
-      "count": 82,
+      "count": 83,
       "name": "dispatcher",
       "tool_ids": [
         "adopt_served_model",
@@ -1108,6 +731,7 @@
         "manage_skills",
         "manage_subagents",
         "manage_tasks",
+        "manage_todos",
         "manage_tokens",
         "manage_webhooks",
         "pipeline",
@@ -1141,7 +765,7 @@
       ]
     },
     {
-      "count": 84,
+      "count": 85,
       "name": "function_schemas",
       "tool_ids": [
         "adopt_served_model",
@@ -1198,6 +822,7 @@
         "manage_skills",
         "manage_subagents",
         "manage_tasks",
+        "manage_todos",
         "manage_tokens",
         "manage_webhooks",
         "mark_email_read",
@@ -1231,7 +856,7 @@
       ]
     },
     {
-      "count": 68,
+      "count": 69,
       "name": "prompt_sections",
       "tool_ids": [
         "app_api",
@@ -1276,6 +901,7 @@
         "manage_settings",
         "manage_skills",
         "manage_tasks",
+        "manage_todos",
         "manage_tokens",
         "manage_webhooks",
         "mark_email_read",
@@ -1305,7 +931,7 @@
       ]
     },
     {
-      "count": 85,
+      "count": 86,
       "name": "tool_index",
       "tool_ids": [
         "adopt_served_model",
@@ -1363,6 +989,7 @@
         "manage_skills",
         "manage_subagents",
         "manage_tasks",
+        "manage_todos",
         "manage_tokens",
         "manage_webhooks",
         "mark_email_read",

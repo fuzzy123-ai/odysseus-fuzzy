@@ -12,7 +12,6 @@ import argparse
 import ast
 import hashlib
 import json
-import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -46,7 +45,7 @@ SURFACE_SPECS: tuple[SourceSpec, ...] = (
         "BUILTIN_TOOL_DESCRIPTIONS",
     ),
     SourceSpec("dispatcher", "src/tool_execution.py", "_execute_tool_block_impl"),
-    SourceSpec("admin_metadata", "static/js/admin.js", "TOOL_META"),
+    SourceSpec("admin_catalog_consumer", "static/js/admin.js"),
 )
 
 CORE_DYNAMIC_SOURCES: tuple[str, ...] = (
@@ -65,8 +64,6 @@ EXPECTED_COUNTS = {
     "function_schema_count": 85,
     "schema_without_runtime_count": 6,
     "runtime_without_schema_count": 1,
-    "admin_metadata_count": 31,
-    "admin_fallback_count": 50,
 }
 EXPECTED_SCHEMA_WITHOUT_RUNTIME = frozenset(
     {
@@ -79,7 +76,6 @@ EXPECTED_SCHEMA_WITHOUT_RUNTIME = frozenset(
     }
 )
 EXPECTED_RUNTIME_WITHOUT_SCHEMA = frozenset({"generate_image"})
-EXPECTED_STALE_ADMIN_METADATA = frozenset({"manage_rag"})
 EMAIL_SCHEMA_ADAPTER_TOOLS = frozenset(
     {
         "archive_email",
@@ -195,30 +191,31 @@ def _extract_mapping_keys(root: Path, spec: SourceSpec) -> set[str]:
     return names
 
 
-_ADMIN_KEY_RE = re.compile(
-    r"^\s{2}(?:(?:\"([^\"]+)\")|(?:'([^']+)')|([A-Za-z_$][\w$]*))\s*:",
-    re.MULTILINE,
+_ADMIN_CATALOG_MARKERS = (
+    "fetch('/api/tools', { credentials: 'same-origin' })",
+    "data.descriptors || data.tools || []",
+    "tool && tool.id && tool.source !== 'mcp'",
+    "t.display_name || t.name || t.id",
+    "t.description || t.desc || ''",
 )
 
 
-def _extract_admin_metadata_text(text: str) -> set[str]:
-    marker = "const TOOL_META = {"
-    start = text.find(marker)
-    if start < 0:
-        raise ValueError("TOOL_META declaration not found")
-    body_start = start + len(marker)
-    end = text.find("\n};", body_start)
-    if end < 0:
-        raise ValueError("TOOL_META terminator not found")
-    body = text[body_start:end]
+def _extract_admin_catalog_consumer(root: Path, spec: SourceSpec) -> dict[str, object]:
+    text = _source_text(root, spec.path)
+    if "TOOL_META" in text:
+        raise ValueError("legacy TOOL_META declaration is forbidden")
+    missing = [marker for marker in _ADMIN_CATALOG_MARKERS if marker not in text]
+    if missing:
+        raise ValueError("admin descriptor consumer marker missing")
     return {
-        next(group for group in match.groups() if group is not None)
-        for match in _ADMIN_KEY_RE.finditer(body)
+        "mode": "dynamic_api_descriptor_v2",
+        "endpoint": "/api/tools",
+        "descriptor_array_fallback": True,
+        "mcp_excluded": True,
+        "display_name_fallback": True,
+        "description_fallback": True,
+        "legacy_tool_meta_present": False,
     }
-
-
-def _extract_admin_metadata(root: Path, spec: SourceSpec) -> set[str]:
-    return _extract_admin_metadata_text(_source_text(root, spec.path))
 
 
 def _strings_from_literal(node: ast.AST) -> set[str]:
@@ -295,7 +292,7 @@ def _extract_surfaces(
         "prompt_sections",
         "tool_index",
         "dispatcher",
-        "admin_metadata",
+        "admin_catalog_consumer",
     }
     missing = required - set(by_name)
     if missing:
@@ -310,7 +307,6 @@ def _extract_surfaces(
         "prompt_sections": _extract_mapping_keys(root, by_name["prompt_sections"]),
         "tool_index": _extract_mapping_keys(root, by_name["tool_index"]),
         "dispatcher": dispatcher,
-        "admin_metadata": _extract_admin_metadata(root, by_name["admin_metadata"]),
     }
     return surfaces, patterns
 
@@ -415,7 +411,6 @@ def _classify_differences(
         "prompt_sections",
         "tool_index",
         "dispatcher",
-        "admin_metadata",
     ):
         values = surfaces[surface]
         for tool_id in sorted(runtime - values):
@@ -438,10 +433,7 @@ def _classify_differences(
                 )
             )
         for tool_id in sorted(values - runtime):
-            if surface == "admin_metadata":
-                classification = "stale"
-                explanation = "Admin metadata is present for a non-runtime legacy identity"
-            elif tool_id in EXPECTED_SCHEMA_WITHOUT_RUNTIME:
+            if tool_id in EXPECTED_SCHEMA_WITHOUT_RUNTIME:
                 classification = "missing"
                 explanation = "projection exists but the built-in runtime registration is missing"
             elif surface == "dispatcher" and tool_id in INTERNAL_DISPATCH_CONTROLS:
@@ -483,14 +475,11 @@ def _classify_differences(
 def _count_summary(surfaces: Mapping[str, set[str]]) -> dict[str, int]:
     runtime = surfaces["builtin_tags"]
     schemas = surfaces["function_schemas"]
-    admin = surfaces["admin_metadata"]
     return {
         "builtin_tag_count": len(runtime),
         "function_schema_count": len(schemas),
         "schema_without_runtime_count": len(schemas - runtime),
         "runtime_without_schema_count": len(runtime - schemas),
-        "admin_metadata_count": len(admin),
-        "admin_fallback_count": len(runtime - admin),
     }
 
 
@@ -510,7 +499,6 @@ def _baseline_violations(surfaces: Mapping[str, set[str]]) -> list[dict[str, str
 
     runtime = surfaces["builtin_tags"]
     schemas = surfaces["function_schemas"]
-    admin = surfaces["admin_metadata"]
     exact_checks = (
         (
             "schema_without_runtime",
@@ -521,11 +509,6 @@ def _baseline_violations(surfaces: Mapping[str, set[str]]) -> list[dict[str, str
             "runtime_without_schema",
             runtime - schemas,
             EXPECTED_RUNTIME_WITHOUT_SCHEMA,
-        ),
-        (
-            "stale_admin_metadata",
-            admin - runtime,
-            EXPECTED_STALE_ADMIN_METADATA,
         ),
     )
     for entity, actual, expected in exact_checks:
@@ -554,6 +537,9 @@ def audit_inventory(
     violations: list[dict[str, str]] = []
     try:
         surfaces, dispatcher_patterns = _extract_surfaces(root, specs)
+        admin_catalog_consumer = _extract_admin_catalog_consumer(
+            root, _surface_specs_by_name(specs)["admin_catalog_consumer"]
+        )
         discovered_dynamic_sources = (
             sorted(set(dynamic_sources))
             if dynamic_sources is not None
@@ -573,6 +559,7 @@ def audit_inventory(
                 "violation_count": 1,
             },
             "surfaces": [],
+            "admin_catalog_consumer": {},
             "differences": [],
             "dynamic_sources": [],
             "sources": [],
@@ -613,6 +600,8 @@ def audit_inventory(
         "baseline_date": BASELINE_DATE,
         "summary": {
             **counts,
+            "admin_catalog_consumer_mode": admin_catalog_consumer["mode"],
+            "legacy_tool_meta_present": admin_catalog_consumer["legacy_tool_meta_present"],
             "source_count": len(records),
             "dynamic_source_count": len(dynamic_rows),
             "difference_count": len(differences),
@@ -625,6 +614,7 @@ def audit_inventory(
             "clean": not ordered_violations,
         },
         "surfaces": surface_rows,
+        "admin_catalog_consumer": admin_catalog_consumer,
         "differences": differences,
         "dynamic_sources": dynamic_rows,
         "sources": records,
@@ -704,8 +694,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "Tool taxonomy inventory clean: "
         f"{summary['builtin_tag_count']} tags, "
         f"{summary['function_schema_count']} schemas, "
-        f"{summary['admin_metadata_count']} Admin metadata entries, "
-        f"{summary['admin_fallback_count']} Admin fallbacks"
+        f"dynamic Admin Descriptor-V2 consumer, "
+        f"legacy TOOL_META present={summary['legacy_tool_meta_present']}"
     )
     return 0
 

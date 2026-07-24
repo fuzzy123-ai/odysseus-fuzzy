@@ -3,14 +3,17 @@ import json
 import re
 from pathlib import Path, PurePosixPath
 
+import pytest
+
 from scripts.audit_tool_registry_drift import (
+    _ADMIN_CATALOG_MARKERS,
     CLASSIFICATIONS,
     EMAIL_SCHEMA_ADAPTER_TOOLS,
     EXPECTED_RUNTIME_WITHOUT_SCHEMA,
     EXPECTED_SCHEMA_WITHOUT_RUNTIME,
-    EXPECTED_STALE_ADMIN_METADATA,
+    SourceSpec,
     _baseline_violations,
-    _extract_admin_metadata_text,
+    _extract_admin_catalog_consumer,
     audit_inventory,
     main,
     render_inventory,
@@ -47,21 +50,29 @@ def test_repository_inventory_reproduces_tax0_baseline():
     assert report["summary"]["function_schema_count"] == 85
     assert report["summary"]["schema_without_runtime_count"] == 6
     assert report["summary"]["runtime_without_schema_count"] == 1
-    assert report["summary"]["admin_metadata_count"] == 31
-    assert report["summary"]["admin_fallback_count"] == 50
+    assert report["summary"]["admin_catalog_consumer_mode"] == "dynamic_api_descriptor_v2"
+    assert report["summary"]["legacy_tool_meta_present"] is False
+    assert report["admin_catalog_consumer"] == {
+        "mode": "dynamic_api_descriptor_v2",
+        "endpoint": "/api/tools",
+        "descriptor_array_fallback": True,
+        "mcp_excluded": True,
+        "display_name_fallback": True,
+        "description_fallback": True,
+        "legacy_tool_meta_present": False,
+    }
     assert report["violations"] == []
 
 
-def test_known_runtime_schema_and_admin_differences_are_exact():
+def test_known_runtime_schema_differences_are_exact_and_admin_is_dynamic():
     surfaces = _surface_map(audit_inventory(ROOT))
     runtime = surfaces["builtin_tags"]
     schemas = surfaces["function_schemas"]
-    admin = surfaces["admin_metadata"]
 
     assert schemas - runtime == EXPECTED_SCHEMA_WITHOUT_RUNTIME
     assert runtime - schemas == EXPECTED_RUNTIME_WITHOUT_SCHEMA
-    assert admin - runtime == EXPECTED_STALE_ADMIN_METADATA
-    assert len(runtime - admin) == 50
+    assert "admin_metadata" not in surfaces
+    assert "admin_catalog_consumer" not in surfaces
 
 
 def test_every_difference_has_a_controlled_classification_and_explanation():
@@ -72,7 +83,8 @@ def test_every_difference_has_a_controlled_classification_and_explanation():
     assert all(item["explanation"] for item in report["differences"])
     assert any(item["classification"] == "intentional" for item in report["differences"])
     assert any(item["classification"] == "missing" for item in report["differences"])
-    assert any(item["classification"] == "stale" for item in report["differences"])
+    assert report["summary"]["difference_classification_counts"]["stale"] == 0
+    assert all(item["classification"] != "stale" for item in report["differences"])
     assert any(item["classification"] == "dynamic" for item in report["differences"])
     dispatcher_adapter_rows = {
         item["tool_id"]: item["classification"]
@@ -114,15 +126,38 @@ def test_rendering_is_byte_stable_and_sorted():
     )
 
 
-def test_admin_metadata_parser_ignores_nested_fields():
-    text = """
-const TOOL_META = {
-  alpha: { name: 'Alpha', desc: 'not a tool id' },
-  'beta-tool': { name: 'Beta' },
-};
-"""
+def _admin_consumer_fixture(tmp_path: Path) -> tuple[Path, SourceSpec]:
+    target = tmp_path / "static" / "js" / "admin.js"
+    target.parent.mkdir(parents=True)
+    target.write_text((ROOT / "static" / "js" / "admin.js").read_text(encoding="utf-8"), encoding="utf-8")
+    return tmp_path, SourceSpec("admin_catalog_consumer", "static/js/admin.js")
 
-    assert _extract_admin_metadata_text(text) == {"alpha", "beta-tool"}
+
+def test_current_admin_catalog_consumer_fixture_is_accepted_and_source_is_hashed(tmp_path):
+    fixture, spec = _admin_consumer_fixture(tmp_path)
+    report = audit_inventory(ROOT)
+
+    assert _extract_admin_catalog_consumer(fixture, spec)["legacy_tool_meta_present"] is False
+    assert any(item["path"] == "static/js/admin.js" and item["surface"] == "admin_catalog_consumer" for item in report["sources"])
+
+
+@pytest.mark.parametrize("marker", _ADMIN_CATALOG_MARKERS)
+def test_admin_catalog_consumer_required_marker_drift_fails_closed(tmp_path, marker):
+    fixture, spec = _admin_consumer_fixture(tmp_path)
+    target = fixture / spec.path
+    target.write_text(target.read_text(encoding="utf-8").replace(marker, "missing-marker", 1), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="marker missing"):
+        _extract_admin_catalog_consumer(fixture, spec)
+
+
+def test_admin_catalog_consumer_legacy_tool_meta_injection_fails_closed(tmp_path):
+    fixture, spec = _admin_consumer_fixture(tmp_path)
+    target = fixture / spec.path
+    target.write_text("const TOOL_META = {};\n" + target.read_text(encoding="utf-8"), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="forbidden"):
+        _extract_admin_catalog_consumer(fixture, spec)
 
 
 def test_unknown_baseline_drift_is_a_violation():
