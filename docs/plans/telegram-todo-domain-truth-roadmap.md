@@ -10,6 +10,8 @@ wurde in der tiefen Sol-Pruefung abgelehnt und wartet auf einen neuen
 Terra-Reparaturhandoff. `TTD-03B` wartet weiter auf akzeptiertes TTD-03A;
 der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
+Der read-only Recon fuer `TTD-08B` ist abgeschlossen; der exakte disjunkte
+Dreipfad-Claim fuer einen separaten begrenzten Audit-Store ist aktiv.
 Spaetere unmet Slices und saemtliche Live-Aktionen bleiben gesperrt.
 
 ## Durable Amendment Claim 2026-07-21
@@ -896,10 +898,74 @@ Serialisierung:
      - Kein Push, Deploy, Legacy-Rewrite, produktiver Datenzugriff oder
        Live-Smoke.
 2. `TTD-08B-audit-retention-size-and-rotation`
-   - Status: `dependency_ready_not_selected`
-   - Erst nach akzeptiertem TTD-08A reconcilen und claimen.
-   - Eigentlicher separater Audit-Store, fail-safe Retention, Record-/Byte-
-     Limit, atomare Rotation und Legacy-No-Touch-Vertrag.
+   - Status: `claimed_2026-07-24`
+   - Run: `abc-ttd08b-20260724T082807+0200`
+   - Owner: Charlie
+   - Exakte Pfade:
+     - neuer `plugins/telegram/audit_store.py`
+     - `plugins/telegram/stores.py`
+     - neuer `tests/test_telegram_audit_store.py`
+   - Recon-Befund:
+     - `TelegramInboxStore` schreibt weiterhin gemischte Raw-Records nach
+       `telegram_history.json`; TTD-08A projiziert diese fuer Audit-Reads
+       bisher erst beim Lesen.
+     - Admin-History delegiert bereits an `audit_history()` und die
+       Webhook-Response ist bereits content-free. Daher ist keine Route-,
+       Webhook- oder `history_privacy.py`-Aenderung erforderlich.
+     - Der neue Audit-Store darf nur zukuenftige erfolgreiche Writes und
+       Statusupdates aufnehmen. Es gibt keinen Backfill und keinen Fallback
+       auf Legacy-History.
+   - Persistenzvertrag:
+     - Neue Runtime-Datei `telegram_audit_receipts.json` im konfigurierten
+       Telegram-Data-Directory; ein atomar ersetztes Envelope enthaelt genau
+       `current` und `previous`.
+     - Jeder Eintrag enthaelt intern nur einen bestehenden gehashten
+       `chat_<12 lowercase hex>`-Scope und eine frisch durch
+       `project_telegram_audit_record` erzeugte exakte
+       `odysseus.telegram.audit_receipt.v1`-Projektion.
+     - `audit_history()` liest ausschliesslich diesen Store, filtert intern
+       nach Scope, liefert newest-first nur das Receipt und gibt den Scope nie
+       aus. Ein Legacy-Fallback oder -Backfill ist verboten.
+     - `append_event`, `append_inbound`, `append_outbound` und
+       `update_inbound_status` haengen erst nach erfolgreichem Legacy-Write
+       best-effort das Receipt an. Audit-Fehler aendern den Erfolg des
+       Legacy-Writes nicht.
+   - Konfiguration und Grenzen:
+     - `TELEGRAM_AUDIT_RETENTION_DAYS`: Default `30`, gueltig `1..90`.
+     - `TELEGRAM_AUDIT_MAX_RECORDS`: Default `100` pro Generation, gueltig
+       `1..1000`.
+     - `TELEGRAM_AUDIT_MAX_BYTES`: Default `131072` serialisierte UTF-8-Bytes
+       pro Generation, gueltig `4096..1048576`.
+     - Unset/leer nutzt Defaults. Explizit nicht-ganzzahlig, nicht-positiv oder
+       ausserhalb des Bereichs macht den Audit-Store fuer diesen Aufruf
+       unavailable: Reads liefern leer, Writes lassen Dateien unveraendert.
+     - Reads verbergen abgelaufene Receipts ohne Mutation. Ein gueltiger Append
+       entfernt abgelaufene Receipts nur aus dem Audit-Envelope, bevor Record-
+       und Byte-Limits angewendet werden. Ungueltige, nullte oder unplausible
+       Zukunfts-Zeitstempel werden ohne Dateiaenderung abgelehnt.
+     - Jede Generation erfuellt beide Limits. Bei Ueberschreitung wird das alte
+       `current` zu `previous` und ein neues `current` mit dem Receipt begonnen;
+       ein aelteres `previous` faellt weg. Passt ein einzelner Eintrag nicht,
+       bleibt der Store unveraendert.
+   - Fehler- und Concurrency-Vertrag:
+     - Unique sibling temp file, Flush plus `fsync`, `os.replace` und
+       Temp-Cleanup auf Fehlern.
+     - Ein modulweiter, pfadgebundener gemeinsamer `RLock` verhindert verlorene
+       Updates zwischen Store-Instanzen im selben Prozess. Es wird keine
+       Cross-Process-Serialisierung versprochen.
+     - Fehlendes Audit-File darf bei einem gueltigen Append entstehen.
+       Korruptes JSON, falsches Schema, ungueltige Eintraege, Read-I/O- oder
+       Replace-Fehler bleiben fail-closed: leer lesen, no-op schreiben und
+       niemals reparieren, ueberschreiben, kuerzen oder loeschen.
+   - Fokussierte Evidence nur in `tests/test_telegram_audit_store.py`:
+     geschlossene Receipt-Persistenz, kein Legacy-Read, Invalid-Env,
+     Retention, Record-/Byte-Rotation, Oversize-No-op, Corrupt-No-overwrite,
+     Replace-Fehler, zwei Store-Instanzen/Threads ohne Lost Update und
+     byte-identische Legacy-Datei bei Audit-Reads/Prune/Rotation.
+   - Ausgeschlossen: alle TTD-03A-Pfade, TTD-08A-Routen/Projektion/Webhook,
+     `app.py`, Plugin/Polling, Attachments/Export, Session-DB/FTS,
+     Legacy-Migration/-Loeschung/-Retention/-Rotation, produktive Daten,
+     Netzwerk, Deploy, Telegram-Send und jede Live-Aktion.
 3. `TTD-08C-session-attachment-and-export-privacy-boundaries`
    - Erst nach TTD-08A/08B und explizitem Hotfile-Recon claimen.
    - Globale Session-/FTS-Klassifikation sowie Attachment-/Export-Retention
