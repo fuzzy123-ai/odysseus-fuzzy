@@ -13,8 +13,10 @@ Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
 Audit-Store ist nach drei tiefen Sol-Review-Runden ebenfalls akzeptiert.
 Der read-only `TTD-08C`-Umbrella-Recon ist abgeschlossen und trennt Session/
-FTS, Attachment-Spool und Export-Output ohne Implementierungsclaim; als
-naechstes folgt nur der schmale `TTD-08C-B` Consumer-/Race-Recon.
+FTS, Attachment-Spool und Export-Output ohne Implementierungsclaim. Auch der
+schmale `TTD-08C-B` Consumer-/Race-Recon ist abgeschlossen, lehnt einen Claim
+wegen unbegrenzt moeglicher Raw-Crash-Temps aber ab; naechster Schritt ist nur
+der read-only `TTD-08C-B1` Recovery-Vertragsrecon.
 Spaetere unmet Slices und saemtliche Live-Aktionen bleiben gesperrt.
 
 ## Durable Amendment Claim 2026-07-21
@@ -1051,9 +1053,35 @@ Serialisierung:
      - Alle neun TTD-03A-Pfade bleiben fremd/reserviert. Kein
        TTD-08C-relevantes Dirty File wurde gefunden.
    - Naechster sicherer Schritt:
-     - nur read-only `TTD-08C-B` Consumer-/Race-Recon fuer neue Spool-Writes;
-       genaue Writer/Reader, Race-Verhalten, Path-Confinement und kleinste
-       new-write-only Policy ermitteln.
+     - `TTD-08C-B` Consumer-/Race-Recon ist read-only abgeschlossen. Einziger
+       Byte-Writer ist `live_pipeline.py`; Polling und Webhook rufen ihn auf.
+       Heute schreibt er direkt ins Finalfile, ueberschreibt gleiche Ziele und
+       kann bei anderem Suffix mehrere Finals fuer einen Key erzeugen.
+     - Universal Inbox ignoriert bekannte Hidden-/Tempfiles, aber Kontext,
+       Nextcloud und Export enumerieren direkt regulare Dateien innerhalb des
+       Key-Ordners. Staging dort koennte Teilbytes in Consumer geben; nur ein
+       Hidden Root-Sibling ausserhalb des Key-Ordners ist final-only-kompatibel.
+     - Eine kleine content-free Per-Key-Reservation im Root kann mit
+       create-only Hardlink atomar `key + suffix + size + SHA-256` binden:
+       gleiche Identity idempotent, anderes Payload oder Suffix Konflikt,
+       Reservation-ohne-Final durch gleiche Identity recoverbar. Legacy-Finals,
+       Mismatches, Symlinks und Extra-Children bleiben fail-closed und
+       unveraendert.
+     - Kein Claim: Ein harter Prozessabbruch kann das Raw-Payload-Temp vor
+       Publish oder vor Unlink unbegrenzt als versteckten Root-Sibling
+       hinterlassen. `finally`/best-effort Cleanup reicht ohne spaeteren Retry
+       nicht und wuerde eine neue retained Raw-Klasse erzeugen.
+     - Hypothetische Pfade bleiben neuer
+       `plugins/telegram/attachment_spool.py`,
+       `plugins/telegram/live_pipeline.py` und neuer
+       `tests/test_telegram_attachment_spool.py`; sie sind noch nicht
+       geclaimt.
+     - Naechstens nur read-only
+       `TTD-08C-B1-attachment-spool-crash-temp-recovery-contract`: streng
+       modul-eigene Namen, Byte-/Content-Bounds, sicheres Alter, aktive
+       Writer/Locks, Symlink-/Race-Verhalten und exakte Recovery-Authority
+       definieren. In diesem Recon keine Datei loeschen und keinen Claim
+       erstellen.
      - Kein Implementierungsclaim, keine Bestandsmigration/-loeschung/
        -rotation, kein Session-/FTS- oder Export-Edit und keine Live-Aktion.
 
