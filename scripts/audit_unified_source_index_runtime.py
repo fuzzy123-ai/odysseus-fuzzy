@@ -13,7 +13,7 @@ import subprocess
 from typing import Any
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 INVENTORY_KIND = "odysseus.unified_source_index.runtime_caller_inventory"
 TARGETS = ("app.py", "src", "routes")
 CATEGORIES = frozenset({
@@ -93,6 +93,11 @@ EXCLUSIONS = (
         "reason": "scheduler wiring is recorded as an explicit non-runtime exclusion",
     },
 )
+
+
+def _canonical_source_bytes(source: bytes) -> bytes:
+    """Normalize physical source newlines before hashing and static AST scanning."""
+    return source.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
 
 
 def _relative(root: Path, path: Path) -> str:
@@ -256,7 +261,7 @@ def build_inventory(root: Path) -> dict[str, Any]:
     ast_files_parsed = 0
     for path in target_files:
         relative = _relative(root, path)
-        source = path.read_bytes()
+        source = _canonical_source_bytes(path.read_bytes())
         file_hashes[relative] = hashlib.sha256(source).hexdigest()
         if not any(marker in source for marker in AST_MARKERS):
             continue
@@ -288,6 +293,7 @@ def build_inventory(root: Path) -> dict[str, Any]:
             "imports_executed": False,
             "network_accessed": False,
             "private_sources_read": False,
+            "source_bytes_normalization": "lf",
             "targets": list(TARGETS),
             "exclusions": list(EXCLUSIONS),
         },

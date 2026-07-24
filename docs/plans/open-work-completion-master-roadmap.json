@@ -1644,7 +1644,19 @@
             "docs/plans/unified-source-index-runtime-caller-inventory.json"
           ],
           "diagnosis": "The exact CI maxfail-first check found only stale deterministic inventory metadata. Static comparison confirmed zero semantic caller additions/removals: 55 candidates, category counts and zero unclassified candidates are unchanged. Ten caller rows changed line coordinates only; relevant-file hashes changed only for app.py, routes/memory_routes.py and src/ai_interaction.py; tracked/AST scan metadata advanced from 805/191 to 828/199.",
-          "verification": "canonical generator regenerated the content-free inventory; Python 3.11 and 3.14 produced identical bytes; both --check runs passed; no runtime module, network, private source, deploy or live action occurred."
+          "verification": "canonical generator regenerated the content-free inventory; Python 3.11 and 3.14 produced identical bytes; both --check runs passed; no runtime module, network, private source, deploy or live action occurred.",
+          "cross_platform_hash_followup": {
+            "run_id": "30129136644",
+            "commit_sha": "8b265c93",
+            "state": "completed_repo_only",
+            "allowed_paths": [
+              "scripts/audit_unified_source_index_runtime.py",
+              "tests/test_audit_unified_source_index_runtime.py",
+              "docs/plans/unified-source-index-runtime-caller-inventory.json"
+            ],
+            "diagnosis": "The refreshed inventory still hashed raw checkout bytes, so Windows CRLF and Linux LF produced different source hashes despite identical static AST semantics. The canonical source-byte contract now converts CRLF and lone CR to LF before SHA-256, marker checks and ast.parse; schema_version is 2 because the persisted hash representation changed. Repository search found only the focused inventory test consumes this schema.",
+            "verification": "Focused synthetic LF/CRLF probes prove identical canonical bytes, SHA-256, AST and marker visibility. Python 3.11 and 3.14 produce identical normalized inventory bytes and both --check runs pass; no runtime module, network, private source, deploy or live action occurred."
+          }
         },
         "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
         "new_paths": true,

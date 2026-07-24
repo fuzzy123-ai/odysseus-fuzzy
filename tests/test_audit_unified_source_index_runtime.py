@@ -1,3 +1,5 @@
+import ast
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -28,6 +30,28 @@ def test_committed_runtime_inventory_matches_deterministic_static_ast_scan():
     assert actual["summary"]["unclassified_count"] == 0
     assert actual["scan"]["imports_executed"] is False
     assert actual["scan"]["private_sources_read"] is False
+    assert actual["scan"]["source_bytes_normalization"] == "lf"
+
+
+def test_canonical_source_bytes_ignore_newline_encoding_for_hash_marker_and_ast():
+    audit = _audit_module()
+    lf = b"def rag_probe():\n    return rag_manager.search('safe')\n"
+    crlf = lf.replace(b"\n", b"\r\n")
+    lone_cr = lf.replace(b"\n", b"\r")
+
+    canonical_lf = audit._canonical_source_bytes(lf)
+    canonical_crlf = audit._canonical_source_bytes(crlf)
+    canonical_lone_cr = audit._canonical_source_bytes(lone_cr)
+    assert canonical_lf == canonical_crlf == canonical_lone_cr == lf
+    assert (
+        hashlib.sha256(canonical_lf).hexdigest()
+        == hashlib.sha256(canonical_crlf).hexdigest()
+        == hashlib.sha256(canonical_lone_cr).hexdigest()
+    )
+    assert any(marker in canonical_lf for marker in audit.AST_MARKERS)
+    assert ast.dump(ast.parse(canonical_lf), include_attributes=False) == ast.dump(
+        ast.parse(canonical_crlf), include_attributes=False
+    ) == ast.dump(ast.parse(canonical_lone_cr), include_attributes=False)
 
 
 def test_inventory_covers_required_runtime_categories_and_dynamic_boundaries():
