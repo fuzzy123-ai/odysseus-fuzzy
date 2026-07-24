@@ -9,19 +9,31 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import re
+import tempfile
 import time
+from errno import EACCES, EINVAL, ENOTSUP, EOPNOTSUPP, EPERM
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
 from plugins.telegram.audit_store import TelegramAuditStore
 from plugins.telegram.history_privacy import record_has_raw_content
 from src.runtime_event_envelope import RuntimeEventEnvelopeError, build_runtime_event, stable_payload_hash
+from src.telegram_session_rollover import (
+    LedgerError,
+    TelegramRolloverLedger,
+    chat_handle_ref,
+    owner_ref,
+)
 
 _HISTORY_FILE = "telegram_history.json"
 _POLLING_FILE = "telegram_polling_state.json"
 _SESSION_FILE = "telegram_session_bridge.json"
 _PINNED_PRIVACY_FILE = "telegram_privacy_pin_state.json"
 _SAFE_EVENT_VALUE_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.:@/-")
+_LEGACY_STABLE_CHAT_HANDLE_RE = re.compile(r"^chat_[0-9a-f]{12}$")
+_LEGACY_RAW_CHAT_KEY_RE = re.compile(r"^-?[1-9][0-9]{0,19}$")
 
 
 def _stable_handle(prefix: str, value: Any) -> str:
@@ -577,6 +589,353 @@ class TelegramInboxStore:
             if status in {"review", "blocked"}:
                 return dict(message)
         return None
+
+
+class TelegramRolloverBridgeError(ValueError):
+    """Deterministic, content-free DB-aware bridge refusal."""
+
+
+class DbAuthoritativeTelegramSessionBridge:
+    """Explicit owner-injected adapter for the A3 DB-authoritative bridge.
+
+    It is intentionally not wired into ``TelegramSessionBridgeStore`` or any
+    productive call site.  Callers own the SQLAlchemy transaction and supply a
+    stable chat handle for DB lookups/projection; HMAC references are never
+    reversed into handles.
+    """
+
+    def __init__(
+        self,
+        *,
+        database: Any,
+        owner: str,
+        reference_key: bytes,
+        legacy_path: str | Path,
+        rollover_local_day: str,
+    ):
+        try:
+            self._ledger = TelegramRolloverLedger(database, reference_key)
+            # Verify/initialize the key fingerprint before deriving *any* HMAC
+            # reference from the supplied key.  A mismatched key must fail
+            # without turning caller identity into a derived reference.
+            self._ledger.verify_reference_key()
+            self._owner_ref = owner_ref(reference_key, owner)
+        except (LedgerError, ValueError) as error:
+            raise TelegramRolloverBridgeError("invalid_bridge_identity") from error
+        if not _is_iso_local_day(rollover_local_day):
+            raise TelegramRolloverBridgeError("invalid_rollover_local_day")
+        self._reference_key = reference_key
+        self._legacy_path = Path(legacy_path)
+        self._rollover_local_day = rollover_local_day
+
+    def resolve(self, *, stable_chat_handle: str, scope: str) -> dict[str, Any] | None:
+        """Read one DB binding; JSON is never consulted on this path."""
+
+        _require_stable_chat_handle(stable_chat_handle)
+        _require_scope(scope)
+        try:
+            binding = self._ledger.get_binding_for_identity(
+                owner_reference=self._owner_ref,
+                chat_reference=chat_handle_ref(self._reference_key, stable_chat_handle),
+                scope=scope,
+            )
+        except LedgerError as error:
+            raise TelegramRolloverBridgeError("db_binding_unavailable") from error
+        if binding is None:
+            return None
+        return {
+            "binding_id": binding.id,
+            "scope": binding.scope,
+            "active_session_id": binding.active_session_id,
+            "generation": binding.generation,
+            "source": "database",
+            "raw_identity_visible": False,
+        }
+
+    def import_legacy_once(self) -> tuple[dict[str, Any], ...]:
+        """Import each missing owner/chat/scope legacy slot exactly once.
+
+        The entire source is parsed and Session ownership is prevalidated before
+        a binding write, so malformed source cannot result in a partial import.
+        """
+
+        try:
+            legacy = _read_legacy_bridge_strict(self._legacy_path)
+        except TelegramRolloverBridgeError:
+            # A durable binding is authoritative even if an old compatibility
+            # file is no longer parseable.  There are no trustworthy legacy
+            # candidates to fill, so leave the source untouched.
+            try:
+                if self._ledger.list_bindings_for_owner(owner_reference=self._owner_ref):
+                    return ()
+            except LedgerError as error:
+                raise TelegramRolloverBridgeError("db_binding_unavailable") from error
+            raise
+        candidates = _legacy_slot_candidates(legacy)
+        missing: list[tuple[str, str, str]] = []
+        try:
+            for stable_handle, scope, session_id in candidates:
+                if self._ledger.get_binding_for_identity(
+                    owner_reference=self._owner_ref,
+                    chat_reference=chat_handle_ref(self._reference_key, stable_handle),
+                    scope=scope,
+                ) is None:
+                    missing.append((stable_handle, scope, session_id))
+        except LedgerError as error:
+            raise TelegramRolloverBridgeError("db_binding_unavailable") from error
+        _validate_legacy_sessions(
+            self._ledger, self._owner_ref, tuple(missing)
+        )
+        imported: list[dict[str, Any]] = []
+        try:
+            # The ledger helper anchors a physical SQLite BEGIN before the
+            # SAVEPOINT.  This keeps every newly-created slot rollbackable by
+            # the caller if any later candidate is rejected.
+            with self._ledger.begin_nested_transaction():
+                for stable_handle, scope, session_id in missing:
+                    chat_reference = chat_handle_ref(self._reference_key, stable_handle)
+                    existing = self._ledger.get_binding_for_identity(
+                        owner_reference=self._owner_ref,
+                        chat_reference=chat_reference,
+                        scope=scope,
+                    )
+                    if existing is not None:
+                        continue
+                    binding = self._ledger.get_or_create_binding(
+                        owner_reference=self._owner_ref,
+                        chat_reference=chat_reference,
+                        scope=scope,
+                        active_session_id=session_id,
+                        active_rollover_local_day=self._rollover_local_day,
+                    )
+                    # Imported bindings have no durable compatibility
+                    # projection until the atomic file projection succeeds.
+                    binding = self._ledger.set_projection_status(
+                        binding_id=binding.id,
+                        expected_generation=binding.generation,
+                        status="stale",
+                    )
+                    imported.append({
+                        "binding_id": binding.id,
+                        "stable_chat_handle": stable_handle,
+                        "scope": scope,
+                        "generation": binding.generation,
+                        "raw_identity_visible": False,
+                    })
+        except LedgerError as error:
+            raise TelegramRolloverBridgeError("legacy_import_blocked") from error
+        return tuple(imported)
+
+    def project_compatibility(self, *, stable_handle_by_binding: Mapping[str, str]) -> dict[str, Any]:
+        """Atomically project explicit stable handles, never opaque HMAC refs."""
+
+        if not isinstance(stable_handle_by_binding, Mapping):
+            raise TelegramRolloverBridgeError("invalid_projection_mapping")
+        try:
+            self._ledger.begin_projection_transaction()
+            bindings = self._ledger.list_bindings_for_owner(owner_reference=self._owner_ref)
+        except LedgerError as error:
+            raise TelegramRolloverBridgeError("projection_transaction_unavailable") from error
+        handles: dict[str, str] = {}
+        for binding in bindings:
+            handle = stable_handle_by_binding.get(binding.id)
+            if not isinstance(handle, str) or not _is_stable_chat_handle(handle):
+                raise TelegramRolloverBridgeError("stable_handle_mapping_required")
+            if chat_handle_ref(self._reference_key, handle) != binding.chat_handle_ref:
+                raise TelegramRolloverBridgeError("stable_handle_mapping_mismatch")
+            handles[binding.id] = handle
+        if set(stable_handle_by_binding) != set(handles):
+            raise TelegramRolloverBridgeError("stable_handle_mapping_required")
+        conflicting_chat_references: set[str] = set()
+        for binding in bindings:
+            try:
+                conflicts = self._ledger.list_bindings_for_chat_reference(
+                    chat_reference=binding.chat_handle_ref
+                )
+            except LedgerError as error:
+                raise TelegramRolloverBridgeError("db_binding_unavailable") from error
+            if any(item.owner_ref != self._owner_ref for item in conflicts):
+                conflicting_chat_references.add(binding.chat_handle_ref)
+        if conflicting_chat_references:
+            try:
+                with self._ledger.begin_nested_transaction():
+                    for owned in bindings:
+                        if owned.chat_handle_ref not in conflicting_chat_references:
+                            continue
+                        self._ledger.set_projection_status(
+                            binding_id=owned.id,
+                            expected_generation=owned.generation,
+                            status="blocked_multi_owner",
+                        )
+            except LedgerError as error:
+                raise TelegramRolloverBridgeError("projection_blocked") from error
+            return {"status": "blocked_multi_owner", "written": False, "raw_identity_visible": False}
+        sessions: dict[str, dict[str, Any]] = {}
+        for binding in bindings:
+            handle = handles[binding.id]
+            mapping = sessions.setdefault(handle, {
+                "chat_handle": handle,
+                "normal_session_id": "",
+                "secure_session_id": "",
+            })
+            mapping[f"{binding.scope}_session_id"] = binding.active_session_id
+        for mapping in sessions.values():
+            selected = "normal" if mapping["normal_session_id"] else "secure"
+            mapping["last_selected_scope"] = selected
+            mapping["active_session_id"] = mapping[f"{selected}_session_id"]
+            mapping["session_id"] = mapping["active_session_id"]
+            mapping["session_slots"] = {
+                "normal": bool(mapping["normal_session_id"]),
+                "secure": bool(mapping["secure_session_id"]),
+            }
+        _atomic_write_json(self._legacy_path, {"sessions": sessions})
+        try:
+            with self._ledger.begin_nested_transaction():
+                for binding in bindings:
+                    self._ledger.set_projection_status(
+                        binding_id=binding.id,
+                        expected_generation=binding.generation,
+                        status="current",
+                    )
+        except LedgerError as error:
+            raise TelegramRolloverBridgeError("projection_status_unavailable") from error
+        return {"status": "current", "written": True, "binding_count": len(bindings), "raw_identity_visible": False}
+
+
+def _is_stable_chat_handle(value: Any) -> bool:
+    return isinstance(value, str) and _LEGACY_STABLE_CHAT_HANDLE_RE.fullmatch(value) is not None
+
+
+def _require_stable_chat_handle(value: Any) -> None:
+    if not _is_stable_chat_handle(value):
+        raise TelegramRolloverBridgeError("invalid_stable_chat_handle")
+
+
+def _require_scope(value: Any) -> None:
+    if value not in {"normal", "secure"}:
+        raise TelegramRolloverBridgeError("invalid_scope")
+
+
+def _is_iso_local_day(value: Any) -> bool:
+    try:
+        from datetime import date
+        return isinstance(value, str) and date.fromisoformat(value).isoformat() == value
+    except (TypeError, ValueError):
+        return False
+
+
+def _read_legacy_bridge_strict(path: Path) -> Mapping[str, Any]:
+    if not path.exists():
+        return {"sessions": {}}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as error:
+        raise TelegramRolloverBridgeError("legacy_json_invalid") from error
+    if not isinstance(data, dict) or not isinstance(data.get("sessions"), dict):
+        raise TelegramRolloverBridgeError("legacy_json_invalid")
+    return data
+
+
+def _legacy_slot_candidates(legacy: Mapping[str, Any]) -> tuple[tuple[str, str, str], ...]:
+    candidates: dict[tuple[str, str], str] = {}
+    for raw_key, mapping in legacy["sessions"].items():
+        if not isinstance(raw_key, str) or not isinstance(mapping, dict):
+            raise TelegramRolloverBridgeError("legacy_mapping_invalid")
+        supplied_handle = mapping.get("chat_handle")
+        if supplied_handle is not None:
+            if not _is_stable_chat_handle(supplied_handle):
+                raise TelegramRolloverBridgeError("legacy_mapping_invalid")
+            handle = supplied_handle
+        elif _is_stable_chat_handle(raw_key):
+            handle = raw_key
+        elif _LEGACY_RAW_CHAT_KEY_RE.fullmatch(raw_key):
+            handle = _chat_handle(raw_key)
+        else:
+            raise TelegramRolloverBridgeError("legacy_mapping_invalid")
+        normal = mapping.get("normal_session_id")
+        secure = mapping.get("secure_session_id")
+        # Match TelegramSessionBridgeStore normalization: an old single
+        # ``session_id`` remains the normal slot whenever both scoped fields
+        # are absent *or normalize to empty strings*.
+        if not str(normal or "").strip() and not str(secure or "").strip():
+            normal = mapping.get("session_id")
+        for scope, session_id in (("normal", normal), ("secure", secure)):
+            if session_id is None or (isinstance(session_id, str) and not session_id.strip()):
+                continue
+            if not isinstance(session_id, str) or not session_id.strip() or len(session_id) > 512:
+                raise TelegramRolloverBridgeError("legacy_mapping_invalid")
+            identity = (handle, scope)
+            normalized_session_id = session_id.strip()
+            previous = candidates.get(identity)
+            if previous is not None and previous != normalized_session_id:
+                raise TelegramRolloverBridgeError("legacy_mapping_invalid")
+            candidates[identity] = normalized_session_id
+    return tuple((handle, scope, session_id) for (handle, scope), session_id in candidates.items())
+
+
+def _validate_legacy_sessions(
+    ledger: TelegramRolloverLedger,
+    owner_reference: str,
+    candidates: tuple[tuple[str, str, str], ...],
+) -> None:
+    for _handle, _scope, session_id in candidates:
+        try:
+            if not ledger.session_belongs_to_owner(
+                session_id=session_id, owner_reference=owner_reference
+            ):
+                raise TelegramRolloverBridgeError("legacy_session_invalid")
+        except LedgerError as error:
+            raise TelegramRolloverBridgeError("legacy_session_invalid") from error
+
+
+def _atomic_write_json(path: Path, value: Mapping[str, Any]) -> None:
+    descriptor: int | None = None
+    temporary: str | None = None
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            descriptor = None
+            json.dump(value, handle, ensure_ascii=False, indent=2, sort_keys=True)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+        temporary = None
+        _fsync_parent_directory(path.parent)
+    except Exception as error:
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+        try:
+            if temporary is not None:
+                os.unlink(temporary)
+        except OSError:
+            pass
+        raise TelegramRolloverBridgeError("compatibility_projection_failed") from error
+
+
+def _fsync_parent_directory(path: Path) -> None:
+    descriptor: int | None = None
+    try:
+        descriptor = os.open(path, os.O_RDONLY)
+        os.fsync(descriptor)
+    except OSError as error:
+        if _directory_fsync_unsupported(error):
+            return
+        raise
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def _directory_fsync_unsupported(error: OSError) -> bool:
+    """Recognize only documented platform-level directory-fsync gaps."""
+
+    if error.errno in {EINVAL, ENOTSUP, EOPNOTSUPP}:
+        return True
+    return os.name == "nt" and error.errno in {EACCES, EPERM}
 
 
 class TelegramPollingStateStore:

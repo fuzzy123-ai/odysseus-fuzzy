@@ -114,6 +114,21 @@ def test_manifest_passes_plugin_capability_boundary():
     assert report.warning_codes == ()
 
 
+def test_rollover_bridge_keeps_existing_runtime_call_sites_on_legacy_adapter(tmp_path):
+    """A3 exposes an explicit adapter only; legacy runtime store stays unchanged."""
+
+    store = TelegramSessionBridgeStore(tmp_path)
+    result = store.bind_chat(
+        chat_id="runtime-chat-id",
+        session_alias="telegram:runtime-chat-id",
+        recommended_session_name="Telegram runtime",
+        creator=lambda **_kwargs: {"session_id": "legacy-runtime-session"},
+    )
+    assert result["session_id"] == "legacy-runtime-session"
+    assert result["mapping"]["chat_handle"].startswith("chat_")
+    assert (tmp_path / "telegram_session_bridge.json").exists()
+
+
 def test_core_telegram_bridge_uses_agent_loop_for_tool_access():
     source = (ROOT / "app.py").read_text(encoding="utf-8")
     start = source.index("def _telegram_agent_turn_handler")

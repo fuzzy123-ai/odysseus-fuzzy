@@ -508,6 +508,58 @@ class TelegramRolloverLedger:
         self._database = database
         self._reference_key = _ledger_reference_key(reference_key)
 
+    def verify_reference_key(self) -> None:
+        """Initialize or verify the singleton before callers derive any refs."""
+
+        self._verified_tables()
+
+    def begin_nested_transaction(self):
+        """Return a caller-owned nested transaction anchored for SQLite safety."""
+
+        _ensure_sqlite_outer_transaction(self._database)
+        return self._database.begin_nested()
+
+    def begin_projection_transaction(self) -> None:
+        """Start a caller-owned projection transaction from a clean boundary.
+
+        SQLite projections take ``BEGIN IMMEDIATE`` before any binding/conflict
+        read so the subsequent compatibility file and status snapshot cannot
+        race a concurrent owner write.  The caller remains responsible for the
+        final commit or rollback.
+        """
+
+        try:
+            if self._database.in_transaction():
+                raise LedgerError("projection_requires_clean_transaction")
+            bind = self._database if hasattr(self._database, "dialect") else self._database.get_bind()
+            if getattr(getattr(bind, "dialect", None), "name", None) == "sqlite":
+                connection = self._database if hasattr(self._database, "dialect") else self._database.connection()
+                fairy = getattr(connection, "connection", None)
+                raw = getattr(fairy, "driver_connection", None) or getattr(fairy, "connection", None)
+                if raw is not None and getattr(raw, "in_transaction", False):
+                    raise LedgerError("projection_requires_clean_transaction")
+                connection.exec_driver_sql("BEGIN IMMEDIATE")
+            else:
+                self._database.begin()
+        except LedgerError:
+            raise
+        except Exception as error:
+            raise LedgerError("projection_transaction_unavailable") from error
+
+    def session_belongs_to_owner(self, *, session_id: str, owner_reference: str) -> bool:
+        """Verify one Session relationship without exposing the database handle."""
+
+        tables = self._verified_tables()
+        _validate_internal_id(session_id, "session_id")
+        _validate_ledger_ref(owner_reference, "owner_ref")
+        return _session_belongs_to_owner(
+            self._database,
+            tables["session"],
+            self._reference_key,
+            session_id,
+            owner_reference,
+        )
+
     def get_or_create_binding(
         self,
         *,
@@ -576,6 +628,76 @@ class TelegramRolloverLedger:
         _validate_binding_id(binding_id)
         row = _select_one(self._database, tables["binding"], tables["binding"].c.id == binding_id)
         return None if row is None else self._binding_view(tables, row)
+
+    def get_binding_for_identity(
+        self, *, owner_reference: str, chat_reference: str, scope: str
+    ) -> LedgerBinding | None:
+        """Load one immutable natural-key binding through the verified ledger."""
+
+        tables = self._verified_tables()
+        _validate_ledger_ref(owner_reference, "owner_ref")
+        _validate_ledger_ref(chat_reference, "chat_handle_ref")
+        _validate_scope(scope)
+        table = tables["binding"]
+        row = _select_one(
+            self._database,
+            table,
+            table.c.owner_ref == owner_reference,
+            table.c.chat_handle_ref == chat_reference,
+            table.c.scope == scope,
+        )
+        return None if row is None else self._binding_view(tables, row)
+
+    def list_bindings_for_owner(self, *, owner_reference: str) -> tuple[LedgerBinding, ...]:
+        """Return verified bindings for an explicit owner reference only."""
+
+        tables = self._verified_tables()
+        _validate_ledger_ref(owner_reference, "owner_ref")
+        rows = self._database.execute(
+            select(tables["binding"]).where(tables["binding"].c.owner_ref == owner_reference)
+        ).mappings().all()
+        return tuple(self._binding_view(tables, dict(row)) for row in rows)
+
+    def list_bindings_for_chat_reference(self, *, chat_reference: str) -> tuple[LedgerBinding, ...]:
+        """Return verified bindings for one opaque chat reference across owners."""
+
+        tables = self._verified_tables()
+        _validate_ledger_ref(chat_reference, "chat_handle_ref")
+        rows = self._database.execute(
+            select(tables["binding"]).where(tables["binding"].c.chat_handle_ref == chat_reference)
+        ).mappings().all()
+        return tuple(self._binding_view(tables, dict(row)) for row in rows)
+
+    def set_projection_status(
+        self, *, binding_id: str, expected_generation: int, status: str
+    ) -> LedgerBinding:
+        """Persist only content-free projection status for an existing binding."""
+
+        tables = self._verified_tables()
+        _validate_binding_id(binding_id)
+        if status not in {"current", "stale", "blocked_multi_owner"}:
+            raise LedgerError("invalid_projection_status")
+        binding = self._binding_for_generation(tables, binding_id, expected_generation)
+        table = tables["binding"]
+        result = self._database.execute(
+            update(table)
+            .where(
+                table.c.id == binding_id,
+                table.c.generation == expected_generation,
+                table.c.projection_status == _binding_projection_status(self._database, table, binding_id),
+            )
+            .values(
+                projection_status=status,
+                projection_generation=expected_generation,
+                updated_at=_ledger_now(),
+            )
+        )
+        if result.rowcount != 1:
+            raise LedgerError("stale_generation_fence")
+        row = _select_one(self._database, table, table.c.id == binding_id)
+        if row is None:
+            raise LedgerError("binding_not_found")
+        return self._binding_view(tables, row)
 
     def get_turn_intake(
         self, *, owner_reference: str, chat_reference: str, transport_update_reference: str
@@ -1133,6 +1255,11 @@ def _row_value_conditions(table: Any, row: Mapping[str, Any], names: Sequence[st
         table.c[name].is_(None) if row[name] is None else table.c[name] == row[name]
         for name in names
     ]
+
+
+def _binding_projection_status(database: Any, table: Any, binding_id: str) -> str | None:
+    row = _select_one(database, table, table.c.id == binding_id)
+    return None if row is None else row.get("projection_status")
 
 
 def _rollover_matches_values(outcome: LedgerRollover, values: Mapping[str, Any]) -> bool:

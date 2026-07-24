@@ -1,6 +1,7 @@
 from datetime import datetime, time, timedelta, timezone
 import hashlib
 import hmac
+import json
 
 import pytest
 from sqlalchemy import create_engine, delete, inspect, update
@@ -9,6 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from core import database as database_module
 from core import database_migrations
 from core.database import Base, Session
+from plugins.telegram.stores import DbAuthoritativeTelegramSessionBridge, TelegramRolloverBridgeError
 
 from src.telegram_session_rollover import (
     ReasonCode,
@@ -103,6 +105,24 @@ def _ledger_database():
 
 def _ledger_identity():
     return owner_ref(KEY, "alice"), chat_handle_ref(KEY, "chat_a1b2c3d4")
+
+
+def _a3_database(*session_owners: tuple[str, str]):
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(bind=engine)
+    database = sessionmaker(bind=engine, autoflush=False)()
+    for session_id, owner in session_owners:
+        database.add(
+            Session(
+                id=session_id,
+                name="Synthetic",
+                endpoint_url="http://synthetic.invalid",
+                model="synthetic",
+                owner=owner,
+            )
+        )
+    database.commit()
+    return database
 
 
 def _assert_ledger_schema(schema):
@@ -844,6 +864,325 @@ def test_turn_intake_repository_persists_retry_and_terminal_states_content_free(
         ledger.advance_turn_intake(
             intake_id=intake.id, expected_generation=0, event=TurnIntakeEvent.LEASE_ACQUIRED
         )
+
+
+def test_db_authoritative_bridge_prefers_existing_binding_without_legacy_import(tmp_path):
+    database = _a3_database(("session-alice", "alice"))
+    handle = "chat_012345abcdef"
+    ledger = TelegramRolloverLedger(database, KEY)
+    binding = ledger.get_or_create_binding(
+        owner_reference=owner_ref(KEY, "alice"),
+        chat_reference=chat_handle_ref(KEY, handle),
+        scope="normal",
+        active_session_id="session-alice",
+        active_rollover_local_day="2026-07-24",
+    )
+    database.commit()
+    legacy = tmp_path / "telegram_session_bridge.json"
+    legacy.write_text("{not-json", encoding="utf-8")
+    bridge = DbAuthoritativeTelegramSessionBridge(
+        database=database,
+        owner="alice",
+        reference_key=KEY,
+        legacy_path=legacy,
+        rollover_local_day="2026-07-24",
+    )
+    assert bridge.resolve(stable_chat_handle=handle, scope="normal") == {
+        "binding_id": binding.id,
+        "scope": "normal",
+        "active_session_id": "session-alice",
+        "generation": 0,
+        "source": "database",
+        "raw_identity_visible": False,
+    }
+    assert bridge.import_legacy_once() == ()
+    assert legacy.read_text(encoding="utf-8") == "{not-json"
+    # A structurally valid but unusable legacy Session for the same natural
+    # key is also ignored: DB precedence is applied before Session validation.
+    legacy.write_text(json.dumps({"sessions": {
+        handle: {"session_id": "missing-or-cross-owner"}
+    }}), encoding="utf-8")
+    assert bridge.import_legacy_once() == ()
+    assert legacy.read_text(encoding="utf-8") == json.dumps({"sessions": {
+        handle: {"session_id": "missing-or-cross-owner"}
+    }})
+    # Fingerprint verification happens before bridge HMAC-reference derivation;
+    # the mismatched key cannot create a second owner-scoped binding.
+    with pytest.raises(TelegramRolloverBridgeError):
+        DbAuthoritativeTelegramSessionBridge(
+            database=database,
+            owner="alice",
+            reference_key=b"Q" * 32,
+            legacy_path=legacy,
+            rollover_local_day="2026-07-24",
+        )
+    assert len(database.execute(
+        database_module.TelegramSessionBinding.__table__.select()
+    ).mappings().all()) == 1
+
+
+def test_legacy_bridge_imports_valid_normal_and_secure_slots_once(tmp_path):
+    database = _a3_database(
+        ("session-normal", "alice"),
+        ("session-secure", "alice"),
+        ("session-next", "alice"),
+        ("session-fallback", "alice"),
+    )
+    handle = "chat_012345abcdef"
+    next_handle = "chat_fedcba987654"
+    fallback_handle = "chat_abcdeffedcba"
+    raw_legacy_key = "123456789"
+    legacy = tmp_path / "telegram_session_bridge.json"
+    legacy.write_text(json.dumps({"sessions": {
+        raw_legacy_key: {
+            "chat_handle": handle,
+            "normal_session_id": "session-normal",
+            "secure_session_id": "session-secure",
+        }
+    }}), encoding="utf-8")
+    bridge = DbAuthoritativeTelegramSessionBridge(
+        database=database,
+        owner="alice",
+        reference_key=KEY,
+        legacy_path=legacy,
+        rollover_local_day="2026-07-24",
+    )
+    imported = bridge.import_legacy_once()
+    assert {(item["stable_chat_handle"], item["scope"], item["generation"]) for item in imported} == {
+        (handle, "normal", 0), (handle, "secure", 0)
+    }
+    database.commit()
+    statuses = database.execute(
+        database_module.TelegramSessionBinding.__table__.select()
+    ).mappings().all()
+    assert {row["projection_status"] for row in statuses} == {"stale"}
+    # An existing natural key skips only that slot.  The same owner may still
+    # import another missing chat/scope identity from a later legacy snapshot.
+    legacy.write_text(json.dumps({"sessions": {
+        handle: {"normal_session_id": "session-normal"},
+        next_handle: {"normal_session_id": "session-next"},
+    }}), encoding="utf-8")
+    assert {(item["stable_chat_handle"], item["scope"]) for item in bridge.import_legacy_once()} == {
+        (next_handle, "normal")
+    }
+    database.commit()
+    assert bridge.import_legacy_once() == ()
+    assert bridge.resolve(stable_chat_handle=handle, scope="normal")["active_session_id"] == "session-normal"
+    assert bridge.resolve(stable_chat_handle=handle, scope="secure")["active_session_id"] == "session-secure"
+    # Legacy-store compatibility: a non-empty ``session_id`` still supplies
+    # normal when both scoped slots are explicitly present but empty.
+    legacy.write_text(json.dumps({"sessions": {
+        fallback_handle: {
+            "session_id": "session-fallback",
+            "normal_session_id": "",
+            "secure_session_id": "",
+        }
+    }}), encoding="utf-8")
+    assert {(item["stable_chat_handle"], item["scope"]) for item in bridge.import_legacy_once()} == {
+        (fallback_handle, "normal")
+    }
+    assert bridge.resolve(stable_chat_handle=fallback_handle, scope="normal")["active_session_id"] == "session-fallback"
+    database.commit()
+    persisted = database.execute(database_module.TelegramSessionBinding.__table__.select()).mappings().all()
+    assert raw_legacy_key not in repr(persisted)
+    bindings = bridge._ledger.list_bindings_for_owner(owner_reference=owner_ref(KEY, "alice"))
+    handle_by_reference = {
+        chat_handle_ref(KEY, handle): handle,
+        chat_handle_ref(KEY, next_handle): next_handle,
+        chat_handle_ref(KEY, fallback_handle): fallback_handle,
+    }
+    database.commit()
+    projected = bridge.project_compatibility(
+        stable_handle_by_binding={
+            binding.id: handle_by_reference[binding.chat_handle_ref]
+            for binding in bindings
+        }
+    )
+    assert projected["written"] is True
+    database.commit()
+    assert {
+        row["projection_status"]
+        for row in database.execute(
+            database_module.TelegramSessionBinding.__table__.select()
+        ).mappings().all()
+    } == {"current"}
+
+
+def test_legacy_bridge_rejects_malformed_missing_or_cross_owner_sessions_without_writes(tmp_path):
+    handle = "chat_012345abcdef"
+    cases = (
+        ("{broken", (("session-alice", "alice"),)),
+        (json.dumps({"sessions": {handle: {"session_id": "missing"}}}), (("session-alice", "alice"),)),
+        (json.dumps({"sessions": {handle: {"session_id": "session-bob"}}}), (("session-bob", "bob"),)),
+        (json.dumps({"sessions": {"bad-key": {"session_id": "session-alice"}}}), (("session-alice", "alice"),)),
+        (
+            json.dumps({"sessions": {
+                "1": {"chat_handle": handle, "session_id": "session-alice"},
+                "2": {"chat_handle": handle, "session_id": "session-alice-two"},
+            }}),
+            (("session-alice", "alice"), ("session-alice-two", "alice")),
+        ),
+    )
+    for index, (source, owners) in enumerate(cases):
+        database = _a3_database(*owners)
+        legacy = tmp_path / f"legacy-{index}.json"
+        legacy.write_text(source, encoding="utf-8")
+        bridge = DbAuthoritativeTelegramSessionBridge(
+            database=database,
+            owner="alice",
+            reference_key=KEY,
+            legacy_path=legacy,
+            rollover_local_day="2026-07-24",
+        )
+        with pytest.raises(TelegramRolloverBridgeError):
+            bridge.import_legacy_once()
+        assert legacy.read_text(encoding="utf-8") == source
+        assert database.execute(
+            database_module.TelegramSessionBinding.__table__.select()
+        ).mappings().all() == []
+
+
+def test_legacy_bridge_projects_stable_handles_atomically_and_blocks_multi_owner_conflict(tmp_path, monkeypatch):
+    database = _a3_database(
+        ("session-alice", "alice"),
+        ("session-secure", "alice"),
+        ("session-bob", "bob"),
+    )
+    handle = "chat_012345abcdef"
+    second_handle = "chat_111111111111"
+    alice_ref = owner_ref(KEY, "alice")
+    chat_ref = chat_handle_ref(KEY, handle)
+    second_chat_ref = chat_handle_ref(KEY, second_handle)
+    legacy = tmp_path / "telegram_session_bridge.json"
+    legacy.write_text(json.dumps({"sessions": {
+        handle: {
+            "normal_session_id": "session-alice",
+            "secure_session_id": "session-secure",
+        }
+    }}), encoding="utf-8")
+    bridge = DbAuthoritativeTelegramSessionBridge(
+        database=database,
+        owner="alice",
+        reference_key=KEY,
+        legacy_path=legacy,
+        rollover_local_day="2026-07-24",
+    )
+    imported = bridge.import_legacy_once()
+    assert {(item["scope"], item["generation"]) for item in imported} == {
+        ("normal", 0), ("secure", 0)
+    }
+    bindings_by_scope = {
+        binding.scope: binding
+        for binding in bridge._ledger.list_bindings_for_owner(owner_reference=alice_ref)
+    }
+    normal = bindings_by_scope["normal"]
+    secure = bindings_by_scope["secure"]
+    mapping = {normal.id: handle, secure.id: handle}
+    database.commit()
+    before_replace_failure = legacy.read_text(encoding="utf-8")
+
+    # Projection cannot inherit a dirty caller transaction; the caller keeps
+    # commit/rollback ownership even on a refusal.
+    database.execute(database_module.TelegramSessionBinding.__table__.select())
+    with pytest.raises(TelegramRolloverBridgeError):
+        bridge.project_compatibility(stable_handle_by_binding=mapping)
+    database.rollback()
+
+    def assert_committed_stale():
+        assert {
+            row["projection_status"]
+            for row in database.execute(
+                database_module.TelegramSessionBinding.__table__.select()
+            ).mappings().all()
+        } == {"stale"}
+        database.commit()
+
+    def fail_setup(*_args, **_kwargs):
+        raise OSError("simulated setup failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr("plugins.telegram.stores.tempfile.mkstemp", fail_setup)
+        with pytest.raises(TelegramRolloverBridgeError):
+            bridge.project_compatibility(stable_handle_by_binding=mapping)
+    database.rollback()
+    assert legacy.read_text(encoding="utf-8") == before_replace_failure
+    assert_committed_stale()
+
+    def fail_replace(_source, _target):
+        raise OSError("simulated replace failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr("plugins.telegram.stores.os.replace", fail_replace)
+        with pytest.raises(TelegramRolloverBridgeError):
+            bridge.project_compatibility(stable_handle_by_binding=mapping)
+    database.rollback()
+    assert legacy.read_text(encoding="utf-8") == before_replace_failure
+    assert_committed_stale()
+
+    original_list_bindings = bridge._ledger.list_bindings_for_owner
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            bridge._ledger,
+            "list_bindings_for_owner",
+            lambda **kwargs: tuple(reversed(original_list_bindings(**kwargs))),
+        )
+        result = bridge.project_compatibility(stable_handle_by_binding=mapping)
+    assert result["written"] is True
+    database.commit()
+    projected = json.loads(legacy.read_text(encoding="utf-8"))
+    assert set(projected["sessions"]) == {handle}
+    assert projected["sessions"][handle]["active_session_id"] == "session-alice"
+    assert projected["sessions"][handle]["last_selected_scope"] == "normal"
+    assert "h1_" not in legacy.read_text(encoding="utf-8")
+    before_conflict = legacy.read_text(encoding="utf-8")
+    assert {
+        row["projection_status"]
+        for row in database.execute(
+            database_module.TelegramSessionBinding.__table__.select()
+        ).mappings().all()
+    } == {"current"}
+    database.commit()
+    bridge._ledger.get_or_create_binding(
+        owner_reference=owner_ref(KEY, "bob"),
+        chat_reference=chat_ref,
+        scope="normal",
+        active_session_id="session-bob",
+        active_rollover_local_day="2026-07-24",
+    )
+    alice_second = bridge._ledger.get_or_create_binding(
+        owner_reference=alice_ref,
+        chat_reference=second_chat_ref,
+        scope="normal",
+        active_session_id="session-alice",
+        active_rollover_local_day="2026-07-24",
+    )
+    bridge._ledger.get_or_create_binding(
+        owner_reference=owner_ref(KEY, "bob"),
+        chat_reference=second_chat_ref,
+        scope="normal",
+        active_session_id="session-bob",
+        active_rollover_local_day="2026-07-24",
+    )
+    database.commit()
+    blocked = bridge.project_compatibility(
+        stable_handle_by_binding={
+            normal.id: handle,
+            secure.id: handle,
+            alice_second.id: second_handle,
+        }
+    )
+    database.commit()
+    assert blocked == {"status": "blocked_multi_owner", "written": False, "raw_identity_visible": False}
+    assert legacy.read_text(encoding="utf-8") == before_conflict
+    statuses = database.execute(
+        database_module.TelegramSessionBinding.__table__.select()
+    ).mappings().all()
+    blocked_alice = [
+        row for row in statuses
+        if row["owner_ref"] == alice_ref and row["chat_handle_ref"] in {chat_ref, second_chat_ref}
+    ]
+    assert len(blocked_alice) == 3
+    assert {row["projection_status"] for row in blocked_alice} == {"blocked_multi_owner"}
 
 
 def test_rollover_config_is_default_off_and_invalid_values_fail_closed():
