@@ -16,6 +16,9 @@ Zweier-Check auf exakt zehn Pfaden akzeptiert. `TTD-06` ist nach frischem
 Recon, vier tiefen Sol-Korrekturrunden und einem finalen fokussierten
 Sechser-Check auf exakt drei neuen Pfaden akzeptiert; Audit und
 Repair-Preview bleiben strikt read-only und nicht anwendbar.
+Der read-only `TTD-07`-Recon ist abgeschlossen. Der kleinste funktionale
+Slice fuer einen nur turn-lokalen, begrenzten Telegram-Kontext ist nach
+explizitem seriellem `app.py`-Handoff auf drei Pfaden geclaimt.
 Der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -1047,6 +1050,40 @@ Naechster Frontier:
 ### TTD-07 - Bounded Telegram-Kontext
 
 Owner: Bob
+
+Status: `TTD-07-bounded-telegram-turn-context` ist nach read-only
+Ownership-, Collision- und Exaktpfad-Recon am `2026-07-24T12:32:55+02:00`
+seriell auf drei Pfaden geclaimt.
+
+Serialisierter Claim:
+
+- Run: `abc-ttd07-20260724T123255+0200`
+- Lease: bis `2026-07-24T16:32:55+02:00`
+- Worker-Pfade:
+  - neuer `src/telegram_context_policy.py`
+  - nur `_telegram_agent_turn_handler` in `app.py` nach explizitem
+    Root-Hotfile-Handoff
+  - neuer `tests/test_telegram_context_policy.py`
+- Root-owned Claim-, Review- und Acceptance-Evidence:
+  - diese Roadmap, Open-Work-Master und Multi-Agent-Guidance
+- Der Builder erzeugt nur eine kopierte, deterministisch auf hoechstens
+  24 Historiennachrichten und 12.000 Historienzeichen begrenzte Turn-Sicht.
+  Er darf keine Session anhaengen, ersetzen, kompaktieren oder archivieren.
+- Persistierte System-Summaries und Task-State-Prosa werden im Telegram-Turn
+  nicht als Kontextautoritaet uebernommen. Eine geschuetzte Domain-Policy
+  fordert fuer aktuellen Todo-State `manage_todos` und fuer Mutationsclaims
+  passende validierte Receipts/Postconditions.
+- Der aktuelle Nutzerturn und die Domain-Policy muessen den nachgelagerten
+  globalen Soft-Trim ueberleben; RAG bleibt explizit untrusted.
+- Evidence bleibt content-free: nur begrenzte Counts, Limits, Booleans und
+  ein domain-separierter Fingerprint; keine Rohtexte, IDs, Tokens oder
+  Providerdaten.
+- `src/context_compactor.py`, `src/model_context.py`, `src/agent_loop.py`,
+  `core/**`, `plugins/telegram/**`, Todo-/Memory-/Digest-Pfade und alle
+  produktiven Session-, Provider-, Send-, Debian- und Live-Aktionen sind
+  ausgeschlossen.
+- Der divergente historische Commit `014b52eb` ist nur Designreferenz und
+  darf weder gecherry-pickt noch als aktuelle Evidence behandelt werden.
 
 Ziel:
 

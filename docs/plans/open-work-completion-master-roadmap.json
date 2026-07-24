@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T12:22:13+02:00",
-  "status": "ttd00_through_ttd06_ttd08a_ttd08b_accepted_ttd07_read_only_recon_next_live_default_off",
+  "updated_at": "2026-07-24T12:32:55+02:00",
+  "status": "ttd00_through_ttd06_ttd08a_ttd08b_accepted_ttd07_bounded_telegram_turn_context_claimed_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd00_through_ttd06_ttd08a_ttd08b_accepted_ttd07_read_only_recon_next_attachment_deferred",
+    "queue_status": "ttd00_through_ttd06_ttd08a_ttd08b_accepted_ttd07_bounded_telegram_turn_context_claimed_attachment_deferred",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd06_ttd08a_ttd08b_accepted_ttd07_read_only_recon_next_live_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd06_ttd08a_ttd08b_accepted_ttd07_bounded_telegram_turn_context_claimed_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,16 +85,18 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-06 is accepted at implementation commit d4255827. TTD-07 now depends only on accepted TTD-04 and is ready for read-only bounded-context, session ownership, collision and exact-path recon; no implementation claim is active.",
-        "slice": "TTD-07",
+        "reason": "TTD-07 recon proved one smallest functional serial slice: a pure non-persisting bounded turn-context builder, only the Telegram handler integration in app.py, and one focused test file. This is the sole active claim.",
+        "slice": "TTD-07-bounded-telegram-turn-context",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "perform_read_only_ttd07_context_session_boundary_and_exact_path_recon_only_then_create_a_fresh_durable_disjoint_claim_before_implementation; no_productive_session_context_rewrite_rollover_provider_send_deploy_or_live_mutation"
+        "safe_default": "implement_only_the_claimed_non_persisting_bounded_telegram_turn_context_and_deep_review_it; no_session_rewrite_rollover_global_context_change_provider_send_deploy_or_live_mutation"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-24"
     },
-    "active_claimed_slices": []
+    "active_claimed_slices": [
+      "TTD-07-bounded-telegram-turn-context"
+    ]
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -3755,6 +3757,204 @@
       "acceptance": "offline_go_exact_owner_read_only_notes_memory_digest_drift_audit_with_bounded_content_free_snapshot_bound_non_applying_repair_preview",
       "next_frontier": "TTD-07 is dependency-ready for read-only bounded Telegram-context and exact session-path recon only. No implementation claim is active. TTD-07A waits for TTD-07, TTD-09 and TTD-10 remain dependency-blocked, and TTD-LIVE-DATA-REPAIR plus all other live gates remain dormant.",
       "done_when": "An exact-owner audit over explicit read-only Notes and Memory snapshots deterministically compares canonical Todo records with the accepted default Digest projection and emits only a bounded content-free non-applying repair preview; malformed or incomplete sources fail closed and every repair remains technically absent behind TTD-LIVE-DATA-REPAIR."
+    },
+    {
+      "id": "TTD-07-bounded-telegram-turn-context",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "claimed_2026-07-24",
+      "claimable": false,
+      "depends_on": [
+        "TTD-04 accepted at 516e9977",
+        "TTD-06 accepted at implementation commit d4255827 and acceptance commit 7625a3f1",
+        "TTD-07 read-only context session ownership collision history and exact-path recon complete",
+        "explicit serial root handoff for only _telegram_agent_turn_handler in app.py",
+        "new policy and focused-test paths absent with no overlapping active claim"
+      ],
+      "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "claim": {
+        "run_id": "abc-ttd07-20260724T123255+0200",
+        "thread_id": "/root",
+        "slice_id": "TTD-07-bounded-telegram-turn-context",
+        "owner": "Bob",
+        "allowed_paths": [
+          "src/telegram_context_policy.py",
+          "app.py only _telegram_agent_turn_handler imports context assembly and content-free bounded-context logging",
+          "tests/test_telegram_context_policy.py"
+        ],
+        "root_owned_paths": [
+          "docs/plans/telegram-todo-domain-truth-roadmap.md",
+          "docs/plans/open-work-completion-master-roadmap.json",
+          "docs/plans/multi-agent-execution-guidance.json"
+        ],
+        "excluded_paths": [
+          "every app.py section outside _telegram_agent_turn_handler and its function-local imports",
+          "plugins/telegram/plugin.py plugins/telegram/polling.py plugins/telegram/webhook_service.py plugins/telegram/stores.py and all other plugins/telegram paths",
+          "src/model_context.py src/context_compactor.py src/agent_loop.py src/agent_loop_system_prompt.py and all global context or Agent orchestration",
+          "core/models.py core/session_manager.py core/session_serialization.py core/database.py migrations src/session_search.py and all Session FTS persistence archive delete or rollover paths",
+          "src/todo_domain_service.py src/tool_domains/todos.py src/todo_transaction_receipts.py src/telegram_truth_gate.py and all Todo Memory Notes Digest Schedule writers or receipts",
+          "data environment provider network Debian deployment Telegram send productive session reads or writes live smoke and every external action",
+          "TTD-07A daily rollover bridge rebinding scheduling archive continuity and migration work",
+          "the divergent historical commits 014b52eb and 2cb685d8 as cherry-picks or accepted evidence",
+          "docs except root-owned claim review and acceptance state"
+        ],
+        "hotfiles": [
+          "app.py only _telegram_agent_turn_handler"
+        ],
+        "preserved_hotfiles": [
+          "src/context_compactor.py",
+          "src/model_context.py",
+          "src/agent_loop.py",
+          "src/agent_loop_system_prompt.py",
+          "core/session_manager.py",
+          "plugins/telegram/stores.py",
+          "plugins/telegram/polling.py",
+          "src/telegram_truth_gate.py",
+          "src/todo_domain_service.py"
+        ],
+        "state": "claimed",
+        "acquired_at": "2026-07-24T12:32:55+02:00",
+        "lease_expires_at": "2026-07-24T16:32:55+02:00",
+        "handoff_required": true,
+        "handoff_owner": "/root",
+        "handoff_scope": "app.py only _telegram_agent_turn_handler imports context assembly and content-free bounded-context logging",
+        "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
+        "new_paths": false,
+        "dependency_sha256": {
+          "app.py": "0eb7b3eff4df55a3f4488c4765a5ec8352831ff90bc9b627ac627eb4759fd15a",
+          "src/telegram_truth_gate.py": "58e4a646423b7441e40511c750e428fb9f12d33eec974f0be545f678d3b8ce78",
+          "src/context_compactor.py": "c28a8dd7b530f2b20bb1c8877bc987c9fe4d6709a384ab1639d7c2bc97f145f3"
+        }
+      },
+      "recon": {
+        "completed_at": "2026-07-24T12:32:55+02:00",
+        "worker": "Charlie",
+        "mutation_performed": false,
+        "verdict": "claim_smallest_functional_three_path_serial_turn_context_slice",
+        "runtime_evidence": [
+          "Telegram currently forwards session.get_context_messages into stream_agent_loop and appends only the resulting user and assistant turns after the response",
+          "stream_agent_loop already performs model-aware turn-local soft trimming while the Telegram handler does not invoke persistent maybe_compact",
+          "generic compaction summaries and persistent task-state system blocks may contain stale narrative and must not become Telegram Todo authority",
+          "Notes through manage_todos remains canonical Todo truth while Memory chat prose RAG summaries and assistant claims remain non-authoritative",
+          "the only functional integration point is the accepted TTD-04 app.py handler so its exact section receives an explicit serial root handoff",
+          "historical 014b52eb and TTD-07A commit 2cb685d8 are divergent non-ancestors useful only as design references"
+        ]
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "recommended": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "serial hotfile claim context privacy evidence routing and deep review"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "reason": "shared app.py integration Todo truth and context privacy boundary"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high",
+            "reason": "small deterministic pure builder focused handler integration and tests"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "sole orchestrator; ordinary repository tools suffice"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "depth": "deep",
+            "reviewer": "root"
+          }
+        },
+        "actual": {
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "evidence": "root orchestration surface"
+          },
+          "recon_worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high",
+            "evidence": "explicit collaboration spawn configuration for /root/charlie_ttd07_recon"
+          },
+          "implementation_worker": {
+            "model": "pending",
+            "evidence": "pending explicit Terra spawn after durable claim commit"
+          },
+          "review": {
+            "model": "gpt-5.6-sol",
+            "depth": "deep",
+            "result": "pending"
+          }
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "synthetic Telegram history dictionaries and one source-inspected handler only",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "copy_only_deterministic_turn_context_without_session_append_replace_compaction_archive_or_delete",
+          "history_is_bounded_to_at_most_24_messages_and_12000_characters_before_downstream_model_aware_trim",
+          "persisted_system_summary_and_task_state_artifacts_are_omitted_from_telegram_turn_authority",
+          "protected_telegram_domain_policy_and_current_user_turn_survive_downstream_soft_trim",
+          "every_current_todo_read_requires_manage_todos_and_every_mutation_claim_requires_matching_validated_receipt_and_postcondition",
+          "chat_prose_assistant_claims_summary_memory_and_rag_never_prove_current_todo_state",
+          "supplemental_retrieval_context_remains_explicitly_untrusted_and_precedes_the_current_user_turn",
+          "evidence_contains_only_bounded_counts_limits_booleans_schema_enums_and_domain_separated_fingerprint",
+          "no_raw_conversation_owner_session_chat_todo_provider_token_or_path_data_enters_evidence_or_logs",
+          "invalid_limits_and_empty_current_turn_fail_closed",
+          "no_global_context_session_plugin_todo_memory_digest_rollover_provider_send_Debian_deploy_or_live_change"
+        ],
+        "temporal_window": "one non-persisting Telegram model-turn copy only",
+        "positive_path_required": true
+      },
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider <only two to four named TTD-07 nodes in tests/test_telegram_context_policy.py per invocation>",
+        "BOM-aware AST parse for src/telegram_context_policy.py app.py and tests/test_telegram_context_policy.py",
+        "git diff --check -- src/telegram_context_policy.py app.py tests/test_telegram_context_policy.py"
+      ],
+      "review": {
+        "reviewer": "root/Sol",
+        "depth": "deep",
+        "verdict": "pending",
+        "privacy_focus": "No raw conversation owner session chat Todo RAG token provider or path data may enter persisted evidence or logs. Generic summaries Memory assistant prose and retrieval remain continuity-only, and the slice must not mutate any Session."
+      },
+      "delivery": {
+        "implementation_commit": null,
+        "committed": "claim_only_pending_implementation",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "product_complete": "no"
+      },
+      "acceptance": "pending",
+      "next_frontier": "Implement and deep-review only TTD-07-bounded-telegram-turn-context. TTD-07A waits; all live gates remain dormant.",
+      "done_when": "A long Telegram turn receives a bounded copied history with the latest user turn and protected Todo truth policy, persisted summaries and task-state prose cannot become domain authority, current Todo truth must come from manage_todos, and no existing Session is rewritten."
     },
     {
       "id": "TTD-08A-telegram-history-truthful-classification-and-audit-projection",

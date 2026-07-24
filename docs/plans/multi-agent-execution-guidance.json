@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_ttd00_through_ttd06_ttd08a_ttd08b_accepted_ttd07_read_only_recon_next_live_default_off",
-      "ai_hint": "This is the current gate authority. TTD-06 is accepted at implementation commit d4255827 with an exact-owner read-only audit over explicit self-contained offline SQLite and Memory snapshots plus a bounded content-free non-applying repair preview. No claim is active. TTD-07 is dependency-ready for read-only bounded-context and session-path recon only; create a fresh durable disjoint claim before implementation. TTD-07A waits for TTD-07, TTD-09 and TTD-10 remain dependency-blocked, and TTD-LIVE-DATA-REPAIR plus all other live gates remain dormant."
+      "state": "owm22_ttd00_through_ttd06_ttd08a_ttd08b_accepted_ttd07_bounded_telegram_turn_context_claimed_live_default_off",
+      "ai_hint": "This is the current gate authority. TTD-07-bounded-telegram-turn-context is the sole active claim on a new pure policy module, one serially handed-off app.py handler section and one new focused test. It may build only a non-persisting bounded Telegram turn copy with a protected Todo truth policy and content-free evidence. Global context, Session, Telegram plugin, Todo, Memory, Digest and every live path are excluded. TTD-07A waits, and all live gates remain dormant."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
@@ -744,8 +744,8 @@
     {
       "path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "profile": "active_serial",
-      "state": "ttd00_through_ttd06_ttd08a_ttd08b_accepted_ttd07_read_only_recon_next_live_default_off",
-      "ai_hint": "TTD-04 is accepted at 516e9977, TTD-05A at bed67823, TTD-05B at 617739d4 and TTD-06 at implementation commit d4255827; TTD-08A and TTD-08B also remain accepted. No claim is active. Continue with read-only TTD-07 bounded Telegram-context and session-path recon, then claim only a dependency-ready disjoint repo-only slice. Preserve Agent, Telegram, session, model-context, productive data and live paths until exact ownership is proven. TTD-07A waits for TTD-07 and TTD-LIVE-DEPLOY remains dormant through TTD-10."
+      "state": "ttd00_through_ttd06_ttd08a_ttd08b_accepted_ttd07_bounded_telegram_turn_context_claimed_live_default_off",
+      "ai_hint": "TTD-04 through TTD-06 plus TTD-08A and TTD-08B remain accepted. TTD-07-bounded-telegram-turn-context is now serially claimed on src/telegram_context_policy.py, only the Telegram handler section in app.py, and tests/test_telegram_context_policy.py. Preserve every other Agent, Telegram, Session, model-context, Todo, Memory, Digest, productive-data and live path. TTD-07A waits for TTD-07 and TTD-LIVE-DEPLOY remains dormant through TTD-10."
     },
     {
       "path": "docs/plans/telegram-dual-session-router-hotfix-roadmap.md",
