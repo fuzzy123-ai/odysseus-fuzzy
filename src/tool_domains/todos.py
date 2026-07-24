@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from src.tool_domains.common import _parse_tool_args
+from src.todo_transaction_receipts import attach_todo_semantic_receipt
 from src.todo_domain_service import (
     TodoAmbiguousMatchError,
     TodoConflictError,
@@ -78,7 +79,12 @@ async def do_manage_todos(content: str, owner: Optional[str] = None) -> dict[str
                 text=args.get("text"),
             )
         payload = result.to_dict()
-        return {"status": "ok", "action": action, "exit_code": 0, **payload}
+        return attach_todo_semantic_receipt(
+            {"status": "ok", "action": action, "exit_code": 0, **payload},
+            action,
+            owner=owner,
+            list_ref=list_ref,
+        )
     except Exception as exc:
         return _public_error_for(exc)
 

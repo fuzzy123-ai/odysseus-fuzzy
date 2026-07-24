@@ -245,3 +245,72 @@ def test_ambiguous_item_error_exposes_only_candidate_refs(monkeypatch):
         "candidate_refs": ["item-1", "item-2"],
     }
     assert "private selector" not in repr(result)
+
+
+def test_facade_attaches_a_semantic_receipt_only_after_a_valid_success(monkeypatch):
+    class SemanticService:
+        def complete(self, **_kwargs):
+            return SimpleNamespace(
+                to_dict=lambda: {
+                    "list_ref": "private-list-id",
+                    "item_ref": "private-item-id",
+                    "operation": "complete",
+                    "previous_state": False,
+                    "current_state": True,
+                    "open_count": 0,
+                    "transaction_status": "committed",
+                    "verified": True,
+                    "evidence_refs_redacted": (
+                        "owner:0123456789abcdef",
+                        "list:fedcba9876543210",
+                        "item:0011223344556677",
+                        "operation:complete",
+                    ),
+                }
+            )
+
+    monkeypatch.setattr(todos, "_service_factory", SemanticService)
+
+    result = _run({"action": "complete", "list_ref": "x", "item_ref": "y"})
+
+    receipt = result["todo_semantic_receipt"]
+    assert receipt["claim_type"] == "todo_item_completed"
+    assert "private" not in repr(receipt)
+
+
+def test_facade_attaches_read_verified_list_receipt_with_facade_redacted_refs(monkeypatch):
+    service = RecordingService()
+    monkeypatch.setattr(todos, "_service_factory", lambda: service)
+
+    result = _run({"action": "list", "list_ref": "private-list-id"}, owner="alice")
+
+    receipt = result["todo_semantic_receipt"]
+    assert receipt["claim_type"] == "todo_list_read"
+    assert receipt["transaction_status"] == "read_verified"
+    assert receipt["evidence_refs"] == (
+        "owner:2bd806c97f0e00af",
+        "list:bb400c2a12242213",
+        "operation:list",
+    )
+    assert "private-list-id" not in repr(receipt)
+
+
+def test_facade_does_not_attach_a_receipt_to_an_invalid_success(monkeypatch):
+    class InvalidReceiptService:
+        def complete(self, **_kwargs):
+            return SimpleNamespace(
+                to_dict=lambda: {
+                    "operation": "complete",
+                    "current_state": True,
+                    "open_count": 0,
+                    "transaction_status": "failed",
+                    "verified": True,
+                    "evidence_refs_redacted": ("operation:complete",),
+                }
+            )
+
+    monkeypatch.setattr(todos, "_service_factory", InvalidReceiptService)
+
+    result = _run({"action": "complete", "list_ref": "x", "item_ref": "y"})
+
+    assert "todo_semantic_receipt" not in result

@@ -47,6 +47,7 @@ EFFECTFUL_TOOL_MATRIX: dict[str, str] = {
     "stop_served_model": "model_runtime",
     "cancel_download": "model_runtime",
     "adopt_served_model": "model_runtime",
+    "manage_todos": "todo_state",
 }
 
 
@@ -87,6 +88,10 @@ EFFECTFUL_TOOL_ACTION_MATRIX: dict[str, dict[str, str]] = {
         "changes": "",
         "change_history": "",
         "*": "repo_registry_write",
+    },
+    "manage_todos": {
+        "list": "",
+        "*": "todo_state",
     },
 }
 

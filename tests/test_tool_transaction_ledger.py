@@ -5,6 +5,7 @@ from src.tool_transaction_ledger import (
     ToolTransactionError,
     ToolTransactionStatus,
     transaction_evidence_for_claim,
+    transaction_from_tool_event,
     transactions_from_tool_events,
 )
 
@@ -94,3 +95,91 @@ def test_transaction_rejects_unsafe_artifact_refs(artifact_ref):
             artifact_refs=[artifact_ref],
             exit_code=0,
         )
+
+
+def test_valid_todo_semantic_event_creates_exact_verified_claim_transaction():
+    event = {
+        "tool": "manage_todos",
+        "action": "complete",
+        "todo_semantic_receipt": {
+            "schema": "odysseus.todo_semantic_receipt.v1",
+            "action": "complete",
+            "operation": "complete",
+            "claim_type": "todo_item_completed",
+            "verified": True,
+            "transaction_status": "committed",
+            "open_count": 0,
+            "previous_state": False,
+            "current_state": True,
+            "evidence_refs": (
+                "owner:0123456789abcdef",
+                "list:fedcba9876543210",
+                "item:0011223344556677",
+                "operation:complete",
+            ),
+        },
+    }
+
+    transactions = transactions_from_tool_events([event])
+
+    assert len(transactions) == 1
+    assert transactions[0].claim_type == "todo_item_completed"
+    assert transactions[0].status == ToolTransactionStatus.VERIFIED
+    assert transactions[0].verified_done is True
+
+
+def test_read_verified_todo_list_receipt_creates_a_verified_read_claim():
+    event = {
+        "tool": "manage_todos",
+        "action": "list",
+        "todo_semantic_receipt": {
+            "schema": "odysseus.todo_semantic_receipt.v1",
+            "action": "list",
+            "operation": "list",
+            "claim_type": "todo_list_read",
+            "verified": True,
+            "transaction_status": "read_verified",
+            "open_count": 0,
+            "previous_state": None,
+            "current_state": None,
+            "evidence_refs": (
+                "owner:0123456789abcdef",
+                "list:fedcba9876543210",
+                "operation:list",
+            ),
+        },
+    }
+
+    transaction = transactions_from_tool_events([event])[0]
+
+    assert transaction.claim_type == "todo_list_read"
+    assert transaction.status == ToolTransactionStatus.VERIFIED
+    assert transaction.evidence_refs[-1] == "operation:list"
+
+
+def test_generic_or_malformed_todo_events_never_verify_a_todo_claim():
+    transactions = transactions_from_tool_events(
+        [
+            {"tool": "manage_todos", "action": "complete", "exit_code": 0},
+            {
+                "tool": "manage_todos",
+                "action": "complete",
+                "todo_semantic_receipt": {"claim_type": "todo_item_completed"},
+            },
+        ]
+    )
+
+    assert all(not tx.claim_type.startswith("todo_") for tx in transactions)
+    assert all(tx.status is not ToolTransactionStatus.VERIFIED for tx in transactions)
+
+
+def test_invalid_todo_event_cannot_create_any_todo_claim_even_when_supplied_directly():
+    event = {
+        "tool": "manage_todos",
+        "action": "complete",
+        "semantic_status": "rejected",
+    }
+
+    assert transactions_from_tool_events([event]) == ()
+    with pytest.raises(ToolTransactionError, match="valid semantic receipt"):
+        transaction_from_tool_event(event, claim_type="todo_item_completed")

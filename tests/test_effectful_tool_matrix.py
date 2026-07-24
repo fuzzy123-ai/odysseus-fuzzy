@@ -1,3 +1,4 @@
+from src.agent_loop import _tool_execution_is_effectful
 from src.agent_loop_orchestration import _VERIFIER_EFFECTFUL_TOOLS, _build_actions_snapshot
 from src.effectful_tool_matrix import build_effectful_action_snapshot, effectful_tool_names, tool_effect_category
 
@@ -21,6 +22,21 @@ def test_mixed_admin_tools_classify_read_and_mutation_actions_separately():
     assert tool_effect_category("manage_repos", "status") == ""
     assert tool_effect_category("manage_repos", "update_policy") == "repo_registry_write"
     assert tool_effect_category("manage_repos", "unknown_future_action") == "repo_registry_write"
+    assert tool_effect_category("manage_todos", "list") == ""
+    assert tool_effect_category("manage_todos", "add") == "todo_state"
+    assert tool_effect_category("manage_todos", "complete") == "todo_state"
+    assert tool_effect_category("manage_todos", "reopen") == "todo_state"
+    assert tool_effect_category("manage_todos", "remove") == "todo_state"
+    assert tool_effect_category("manage_todos", "unknown_future_action") == "todo_state"
+    assert tool_effect_category("manage_todos") == "todo_state"
+
+
+def test_verifier_effect_tracking_normalizes_todo_action_and_fails_closed():
+    assert _tool_execution_is_effectful("manage_todos", {"action": " LIST "}) is False
+    assert _tool_execution_is_effectful("manage_todos", {"action": "add"}) is True
+    assert _tool_execution_is_effectful("manage_todos", {"action": "future_action"}) is True
+    assert _tool_execution_is_effectful("manage_todos", {}) is True
+    assert _tool_execution_is_effectful("manage_todos", None) is True
 
 
 def test_snapshot_uses_content_free_action_for_mixed_tool_effects():

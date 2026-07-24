@@ -25,6 +25,8 @@ from src.model_context import estimate_tokens
 from src.settings import get_setting
 from src.claim_evidence_gate import build_claim_evidence_correction, evaluate_response_claims
 from src.tool_transaction_ledger import transactions_from_tool_events
+from src.todo_transaction_receipts import todo_safe_history_event
+from src.effectful_tool_matrix import tool_effect_category
 from src.tool_security import (
     PUBLIC_MCP_SERVER_ALLOWLIST,
     blocked_tools_for_owner,
@@ -52,7 +54,6 @@ from src.agent_loop_tool_mechanics import (
 from src.agent_loop_orchestration import (
     ORCHESTRATOR_MODE_DIRECTIVE,
     PLAN_MODE_DIRECTIVE,
-    _VERIFIER_EFFECTFUL_TOOLS,
     _VERIFIER_MAX_ROUNDS,
     _build_actions_snapshot,
     _detect_runaway_call,
@@ -67,6 +68,18 @@ from src.agent_loop_orchestration import (
 from src.tool_schemas import get_function_tool_schemas
 
 logger = logging.getLogger(__name__)
+
+
+def _todo_tool_event_forward(result: object) -> dict:
+    """Forward only a closed, content-free Todo event into history."""
+    return todo_safe_history_event(result)
+
+
+def _tool_execution_is_effectful(tool: object, result: object) -> bool:
+    """Use normalized action semantics; absent or unknown actions fail closed."""
+    action = result.get("action") if isinstance(result, dict) else None
+    action = action.strip().lower() if isinstance(action, str) else None
+    return bool(tool_effect_category(tool, action))
 
 
 def _load_mcp_disabled_map() -> Dict[str, set]:
@@ -1732,34 +1745,42 @@ async def stream_agent_loop(
                 yield 'data: ' + json.dumps({"delta": _anchor}) + '\n\n'
 
             # Save for history persistence
-            tool_event = {
-                "round": round_num,
-                "tool": block.tool_type,
-                "command": cmd_display,
-                "output": output_text,
-                "exit_code": result.get("exit_code"),
-            }
-            if result.get("image_url"):
-                for ik in ("image_url", "image_prompt", "image_model", "image_size", "image_quality"):
-                    if result.get(ik):
-                        tool_event[ik] = result[ik]
-            if result.get("doc_id"):
-                tool_event["doc_id"] = result["doc_id"]
-                tool_event["doc_title"] = result.get("title", "")
-            # Persist the file-write/edit diff so it re-renders on reload — without
-            # this the diff shows live but vanishes from saved history.
-            if result.get("diff"):
-                tool_event["diff"] = result["diff"]
-            for key in (
-                "attachment", "artifact_evidence", "interactive_runtime",
-                "headless_evidence", "pygame_headless_plan", "screenshot_ref",
-            ):
-                if result.get(key):
-                    tool_event[key] = result[key]
-            if _pending_ask_user_event:
-                tool_event["ask_user"] = _pending_ask_user_event
+            _todo_event = (
+                _todo_tool_event_forward(result)
+                if block.tool_type == "manage_todos"
+                else None
+            )
+            if block.tool_type == "manage_todos":
+                tool_event = {"round": round_num, **_todo_event}
+            else:
+                tool_event = {
+                    "round": round_num,
+                    "tool": block.tool_type,
+                    "command": cmd_display,
+                    "output": output_text,
+                    "exit_code": result.get("exit_code"),
+                }
+                if result.get("image_url"):
+                    for ik in ("image_url", "image_prompt", "image_model", "image_size", "image_quality"):
+                        if result.get(ik):
+                            tool_event[ik] = result[ik]
+                if result.get("doc_id"):
+                    tool_event["doc_id"] = result["doc_id"]
+                    tool_event["doc_title"] = result.get("title", "")
+                # Persist the file-write/edit diff so it re-renders on reload — without
+                # this the diff shows live but vanishes from saved history.
+                if result.get("diff"):
+                    tool_event["diff"] = result["diff"]
+                for key in (
+                    "attachment", "artifact_evidence", "interactive_runtime",
+                    "headless_evidence", "pygame_headless_plan", "screenshot_ref",
+                ):
+                    if result.get(key):
+                        tool_event[key] = result[key]
+                if _pending_ask_user_event:
+                    tool_event["ask_user"] = _pending_ask_user_event
             tool_events.append(tool_event)
-            if block.tool_type in _VERIFIER_EFFECTFUL_TOOLS:
+            if _tool_execution_is_effectful(block.tool_type, result):
                 _effectful_used = True
 
             formatted = format_tool_result(desc, result)
