@@ -35,11 +35,3 @@ from core.database import (  # explicit re-exports for IDE/type-checker visibili
     get_session_by_id,
     archive_session,
 )
-
-# TUA2 analytics-only models share the canonical metadata but intentionally have
-# no foreign keys to chats, sessions, tools, documents, or other private domains.
-from src.tool_usage_store import (  # noqa: F401,E402
-    ToolUsageDailyAggregateRecord,
-    ToolUsageEventRecord,
-    ToolUsageSchemaVersion,
-)
