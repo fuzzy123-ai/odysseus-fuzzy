@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T09:15:49+02:00",
-  "status": "ttd02_ttd08a_ttd08b_accepted_ttd08c_attachment_lifecycle_owner_required_no_safe_claim_ttd03a_handoff_rejected_live_default_off",
+  "updated_at": "2026-07-24T09:22:13+02:00",
+  "status": "ttd02_ttd08a_ttd08b_accepted_ttd03a_fresh_terra_repair_active_ttd08c_attachment_deferred_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd03a_reserved_handoff_rejected_ttd08cb1_recon_complete_no_safe_claim_lifecycle_owner_decision_required",
+    "queue_status": "ttd03a_fresh_terra_repair_active_ttd08cb1_recon_complete_attachment_lifecycle_owner_deferred",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd02_ttd08a_ttd08b_accepted_ttd08c_attachment_lifecycle_owner_required_no_safe_claim_ttd03a_handoff_rejected_live_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd02_ttd08a_ttd08b_accepted_ttd03a_fresh_terra_repair_active_ttd08c_attachment_deferred_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,11 +85,11 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-08C-B1 recovery-contract recon is complete with a no-claim verdict. There is no existing Telegram startup or periodic lifecycle owner, next-write cleanup is unbounded, and a path-based cross-platform writer cannot atomically prove ownership across the raw-stage-before-binding crash window. A bounded cleaner requires a separately selected lifecycle owner and explicit narrow delete authority; no other safe OWM-22 implementation claim is currently available while TTD-03A remains reserved after rejected review.",
-        "slice": "TTD-08C-B-LIFECYCLE-OWNER-DECISION",
-        "user_decision_required": true,
+        "reason": "The operator resumed roadmap execution and allowed focused work. TTD-08C attachment implementation remains deferred because no bounded lifecycle owner exists, while the already reserved dependency-ready TTD-03A nine-path diff has a closed five-gap repair contract and a fresh Terra owner.",
+        "slice": "TTD-03A-todo-semantic-receipt-ledger-repair",
+        "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "no_attachment_writer_cleaner_trigger_or_delete_claim; preserve_recon_and_resume_later_with_explicit_lifecycle_owner_direction_or_fresh_ttd03a_repair"
+        "safe_default": "repair_only_the_nine_reserved_ttd03a_paths_with_focused_tests_and_deep_sol_review; no_attachment_writer_cleaner_trigger_delete_or_live_action"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-24"
@@ -2689,7 +2689,7 @@
       "id": "TTD-03A-todo-semantic-receipt-ledger",
       "class": "repo_only",
       "owner": "/root",
-      "status": "handoff_rejected_2026-07-24_waiting_on_terra",
+      "status": "active_repair_handoff_2026-07-24",
       "claimable": false,
       "depends_on": [
         "TTD-00 accepted",
@@ -2700,10 +2700,11 @@
       ],
       "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "claim": {
-        "run_id": "abc-ttd03a-20260723T230923+0200",
+        "run_id": "abc-ttd03a-repair-20260724T092213+0200",
+        "previous_run_id": "abc-ttd03a-20260723T230923+0200",
         "thread_id": "/root",
         "slice_id": "TTD-03A-todo-semantic-receipt-ledger",
-        "owner": "Bob",
+        "owner": "Charlie",
         "allowed_paths": [
           "src/todo_transaction_receipts.py",
           "src/tool_domains/todos.py",
@@ -2738,12 +2739,30 @@
           "src/telegram_truth_gate.py",
           "plugins/telegram/plugin.py"
         ],
-        "state": "reserved_handoff_rejected_waiting_on_terra",
-        "acquired_at": "2026-07-23T23:09:23+02:00",
-        "lease_expires_at": "2026-07-24T03:09:23+02:00",
+        "state": "active_repair",
+        "acquired_at": "2026-07-24T09:22:13+02:00",
+        "lease_expires_at": "2026-07-24T13:22:13+02:00",
         "handoff_required": true,
         "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
-        "new_paths": true,
+        "new_paths": false,
+        "repair_contract": [
+          "manage_todos history persistence never falls back to raw command output or exception content",
+          "mutation receipts require the exact bounded redacted owner list item and matching operation evidence set",
+          "list receipts require the exact bounded redacted owner list and operation:list evidence set and use read_verified rather than committed",
+          "Agent completion-verifier effect tracking uses normalized action semantics so list is read-only and unknown or mutation actions remain conservative",
+          "focused tests cover privacy fallback exact evidence sets owner/list binding action-aware effect tracking and invalid-receipt non-verification"
+        ],
+        "repair_baseline_sha256": {
+          "src/agent_loop.py": "13346bd03fb1592c832819e45a642ccb70c52bdfa06edc704327d91edb2a17d4",
+          "src/effectful_tool_matrix.py": "2e9d60027adf7bec30779df193edccbfdc133fbb4ffc6efcf6b7d17c006a17b3",
+          "src/tool_domains/todos.py": "74b474176e00264a3b34f42d121ca566263f58ab9c03c92aa89d16d7eac4c679",
+          "src/tool_transaction_ledger.py": "8e65bb045551569932c5d33935deeda90e7564265cfc132c1d0253b562cf2766",
+          "tests/test_effectful_tool_matrix.py": "9dc0385b7c65275d89505dd78eda580abf8071f252fe213e58161bc086dd0df5",
+          "tests/test_manage_todos_tool.py": "e902af81203374f6e7d624f096dea5f3e5fe3311ae41d00fdf982709f910e15c",
+          "tests/test_tool_transaction_ledger.py": "aa3c50f9ae0208bc0064629a3d73d1ef85c91d0981e5c8e9f2dc14e6a9329439",
+          "src/todo_transaction_receipts.py": "df999cf2d2edaa9feff2a74457d8a1450cf0b38cd437a5e0ffe4d3dd1943e2f7",
+          "tests/test_todo_transaction_receipts.py": "31d568de98c95ba84d091791c79ad0d0046911c09b82e5ad691da53b583fe1a8"
+        },
         "dependency_sha256": {
           "docs/plans/telegram-todo-domain-truth-roadmap.md": "28A1318E7CAE3AF42788A23D3CC203EFB26E4E185AF877D0A3405DC4A5B99D30",
           "src/todo_domain_service.py": "F36A5A2A2D8449BBC8B22C1FEDC76F1DCBBD77E9EA44422A0A60B3F886CA483F",
@@ -2760,7 +2779,7 @@
         "reviewed_at": "2026-07-24T07:52:05+02:00",
         "reviewer": "root/Sol",
         "depth": "deep",
-        "verdict": "rejected_waiting_on_terra",
+        "verdict": "rejected_findings_superseded_by_active_fresh_terra_repair",
         "worker_channel_failures": 2,
         "focused_tests": "59 passed, 1 existing SQLAlchemy deprecation warning",
         "diff_check": "green",
@@ -2774,6 +2793,14 @@
         "implementation_commit_allowed": false,
         "acceptance_commit_allowed": false,
         "live_deploy_allowed": false,
+        "repair_handoff": {
+          "run_id": "abc-ttd03a-repair-20260724T092213+0200",
+          "worker": "Charlie",
+          "started_at": "2026-07-24T09:22:13+02:00",
+          "scope": "repair only the five recorded gaps within the same nine reserved paths",
+          "broad_tests_allowed": false,
+          "status": "active"
+        },
         "live_readback": {
           "observed_at": "2026-07-24T07:49:00+02:00",
           "target": "odysseus-homeserver",

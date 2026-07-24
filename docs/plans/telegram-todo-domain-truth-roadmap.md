@@ -4,10 +4,10 @@ Stand: 2026-07-24
 
 Status: `TTD-00` bis `TTD-02` sind am 2026-07-23 akzeptiert. Der read-only
 `TTD-03`-Boundary-Recon ist abgeschlossen.
-`TTD-03A-todo-semantic-receipt-ledger` bleibt als einziger exakter repo-only
-Receipt-Slice auf neun Pfaden reserviert. Der unterbrochene Terra-Handoff
-wurde in der tiefen Sol-Pruefung abgelehnt und wartet auf einen neuen
-Terra-Reparaturhandoff. `TTD-03B` wartet weiter auf akzeptiertes TTD-03A;
+`TTD-03A-todo-semantic-receipt-ledger` ist als einziger exakter repo-only
+Receipt-Slice auf neun Pfaden reserviert. Nach der abgelehnten tiefen
+Sol-Pruefung ist ein frischer Charlie/Terra-Reparaturhandoff fuer genau die
+fuenf dokumentierten Luecken aktiv. `TTD-03B` wartet weiter auf akzeptiertes TTD-03A;
 der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -532,9 +532,11 @@ Read-only Boundary-Recon 2026-07-23:
 Serialisierung:
 
 1. `TTD-03A-todo-semantic-receipt-ledger`
-   - Status: `handoff_rejected_2026-07-24_waiting_on_terra`
-   - Run: `abc-ttd03a-20260723T230923+0200`
-   - Owner: Bob
+   - Status: `active_repair_handoff_2026-07-24`
+   - Run: `abc-ttd03a-repair-20260724T092213+0200`
+   - Vorheriger Run: `abc-ttd03a-20260723T230923+0200`
+   - Owner: Charlie
+   - Lease: 2026-07-24T09:22:13+02:00 bis 2026-07-24T13:22:13+02:00
    - Exakte Kandidatenpfade:
      - neuer `src/todo_transaction_receipts.py`
      - `src/tool_domains/todos.py`
@@ -582,9 +584,13 @@ Serialisierung:
        werden faelschlich wie eine committed Mutation bezeichnet.
      - Die Agent-Verifier-Wirkung bleibt toolnamenbasiert; `manage_todos list`
        gilt dort trotz read-only Effect-Matrix noch als effectful.
-     - Nach zwei Worker-Kanalabbruechen wird keine dritte Ersatzdelegation fuer
-       denselben Handoff gestartet. Die neun Pfade bleiben uncommitted und fuer
-       einen spaeteren Terra-Reparaturhandoff reserviert.
+     - Die zwei Worker-Kanalabbrueche gehoeren zum alten Run. Der neue, explizit
+       gestartete Repair-Run darf nur die fuenf genannten Luecken innerhalb der
+       unveraenderten neun Pfade schliessen und keine breite Suite ausfuehren.
+     - Repair-Akzeptanz verlangt zusaetzlich: kein Rohdaten-Fallback fuer
+       `manage_todos`, exakte Owner/List/Item/Operation-Evidence fuer Mutationen,
+       Owner/List/Operation-Bindung mit `read_verified` fuer List-Reads,
+       action-aware Verifier-Wirkung und fokussierte negative Tests.
 2. `TTD-03B-todo-final-claim-evidence`
    - Abhaengigkeit: akzeptiertes `TTD-03A`
    - Erst nach TTD-03A exakt reconcilen und claimen.
