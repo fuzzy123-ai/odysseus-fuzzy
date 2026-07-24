@@ -1,8 +1,8 @@
-"""Pure, default-off policy for the Telegram session-rollover contract.
+"""Default-off policy and caller-injected durable ledger primitives.
 
-This module deliberately contains no environment access, persistence, network, or
-runtime integration.  Callers supply their configuration mapping and clock, then
-persist the decisions through the later transactional coordinator slice.
+The ledger API deliberately creates no engine, reads no environment, and has no
+runtime integration.  A later coordinator supplies a caller-owned SQLAlchemy
+session or connection and owns its surrounding transaction.
 """
 
 from __future__ import annotations
@@ -16,6 +16,9 @@ import re
 from types import MappingProxyType
 from typing import Any, Mapping, Sequence
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from sqlalchemy import exists, func, insert, literal, select, update
+from sqlalchemy.exc import IntegrityError
 
 
 DEFAULT_TIMEZONE = "Europe/Berlin"
@@ -36,6 +39,10 @@ class ConfigurationError(ValueError):
 
 class ReferenceError(ValueError):
     """A value cannot safely be used to derive a pseudonymous reference."""
+
+
+class LedgerError(ValueError):
+    """A deterministic, content-free durable-ledger refusal."""
 
 
 class RolloverState(str, Enum):
@@ -436,6 +443,1037 @@ def reconcile_running_turn(
         ReasonCode.INDETERMINATE_TURN_PAIR,
         False,
     )
+
+
+@dataclass(frozen=True)
+class LedgerBinding:
+    """Content-free view of one immutable Telegram binding identity."""
+
+    id: str
+    owner_ref: str
+    chat_handle_ref: str
+    scope: str
+    active_session_id: str
+    active_rollover_local_day: str
+    generation: int
+
+
+@dataclass(frozen=True)
+class LedgerRollover:
+    """Content-free view of the one reservation for a binding and local day."""
+
+    id: str
+    binding_id: str
+    rollover_local_day: str
+    status: RolloverState
+    old_session_id: str
+    new_session_id: str | None
+    attempt_count: int
+    retry_after: datetime | None
+    reason_code: ReasonCode | None
+
+
+@dataclass(frozen=True)
+class LedgerTurnIntake:
+    """Content-free view of a replay-safe Telegram turn intake."""
+
+    id: str
+    owner_ref: str
+    chat_handle_ref: str
+    transport_update_ref: str
+    scope: str
+    binding_id: str
+    expected_session_id: str
+    status: TurnIntakeState
+    retry_count: int
+    next_retry_at: datetime | None
+    reason_code: ReasonCode | None
+
+
+class TelegramRolloverLedger:
+    """A transaction-neutral repository over caller-owned SQLAlchemy state.
+
+    The supplied ``database`` must be a SQLAlchemy ``Session`` or ``Connection``.
+    The repository never commits, rolls back an outer transaction, creates an
+    engine, or reads process configuration.  Duplicate insert handling uses a
+    nested transaction so a uniqueness loser reloads the one winner while the
+    caller's wider unit of work remains intact.
+    """
+
+    def __init__(self, database: Any, reference_key: bytes):
+        if not callable(getattr(database, "execute", None)) or not callable(
+            getattr(database, "begin_nested", None)
+        ):
+            raise LedgerError("invalid_database_handle")
+        self._database = database
+        self._reference_key = _ledger_reference_key(reference_key)
+
+    def get_or_create_binding(
+        self,
+        *,
+        owner_reference: str,
+        chat_reference: str,
+        scope: str,
+        active_session_id: str,
+        active_rollover_local_day: str,
+    ) -> LedgerBinding:
+        tables = self._verified_tables()
+        _validate_ledger_ref(owner_reference, "owner_ref")
+        _validate_ledger_ref(chat_reference, "chat_handle_ref")
+        _validate_scope(scope)
+        _validate_internal_id(active_session_id, "active_session_id")
+        _validate_local_day(active_rollover_local_day)
+        _validate_session_owner(
+            self._database, tables["session"], self._reference_key, active_session_id, owner_reference
+        )
+        binding_table = tables["binding"]
+        where = (
+            binding_table.c.owner_ref == owner_reference,
+            binding_table.c.chat_handle_ref == chat_reference,
+            binding_table.c.scope == scope,
+        )
+        existing = _select_one(self._database, binding_table, *where)
+        if existing is not None:
+            binding = self._binding_view(tables, existing)
+            if (
+                binding.active_session_id != active_session_id
+                or binding.active_rollover_local_day != active_rollover_local_day
+            ):
+                raise LedgerError("conflicting_binding_replay")
+            return binding
+        binding_id = _ledger_opaque_id(
+            self._reference_key,
+            "ttd07a-binding",
+            (owner_reference, chat_reference, scope),
+            "b1",
+        )
+        row = _insert_or_reload(
+            self._database,
+            binding_table,
+            {
+                "id": binding_id,
+                "owner_ref": owner_reference,
+                "chat_handle_ref": chat_reference,
+                "scope": scope,
+                "active_session_id": active_session_id,
+                "active_rollover_local_day": active_rollover_local_day,
+                "generation": 0,
+                "projection_status": "current",
+                "projection_generation": 0,
+            },
+            where,
+        )
+        binding = self._binding_view(tables, row)
+        if (
+            binding.active_session_id != active_session_id
+            or binding.active_rollover_local_day != active_rollover_local_day
+        ):
+            raise LedgerError("conflicting_binding_replay")
+        return binding
+
+    def get_binding(self, binding_id: str) -> LedgerBinding | None:
+        tables = self._verified_tables()
+        _validate_binding_id(binding_id)
+        row = _select_one(self._database, tables["binding"], tables["binding"].c.id == binding_id)
+        return None if row is None else self._binding_view(tables, row)
+
+    def get_turn_intake(
+        self, *, owner_reference: str, chat_reference: str, transport_update_reference: str
+    ) -> LedgerTurnIntake | None:
+        """Load the durable natural-key duplicate without creation authority."""
+
+        tables = self._verified_tables()
+        _validate_ledger_ref(owner_reference, "owner_ref")
+        _validate_ledger_ref(chat_reference, "chat_handle_ref")
+        _validate_ledger_ref(transport_update_reference, "transport_update_ref")
+        table = tables["intake"]
+        row = _select_one(
+            self._database,
+            table,
+            table.c.owner_ref == owner_reference,
+            table.c.chat_handle_ref == chat_reference,
+            table.c.transport_update_ref == transport_update_reference,
+        )
+        return None if row is None else self._intake_view(tables, row)
+
+    def reserve_or_get_rollover(
+        self,
+        *,
+        binding_id: str,
+        rollover_local_day: str,
+        expected_generation: int,
+        state: RolloverState,
+        attempt_count: int,
+        retry_after: datetime | None,
+        reason_code: ReasonCode | None,
+        max_attempts: int,
+    ) -> LedgerRollover:
+        tables = self._verified_tables()
+        _validate_binding_id(binding_id)
+        _validate_local_day(rollover_local_day)
+        rollover_table = tables["rollover"]
+        where = (
+            rollover_table.c.binding_id == binding_id,
+            rollover_table.c.rollover_local_day == rollover_local_day,
+        )
+        existing = _select_one(self._database, rollover_table, *where)
+        if existing is not None:
+            return self._rollover_view(tables, existing)
+        reservation = _validated_rollover_values(
+            state=state,
+            attempt_count=attempt_count,
+            retry_after=retry_after,
+            reason_code=reason_code,
+            new_session_id=None,
+            committed_at=None,
+            max_attempts=max_attempts,
+        )
+        binding = self._binding_for_generation(tables, binding_id, expected_generation)
+        rollover_id = _ledger_opaque_id(
+            self._reference_key,
+            "ttd07a-rollover",
+            (binding_id, rollover_local_day),
+            "r1",
+        )
+        row = _insert_or_reload(
+            self._database,
+            rollover_table,
+            {
+                "id": rollover_id,
+                "binding_id": binding.id,
+                "rollover_local_day": rollover_local_day,
+                "status": reservation["status"],
+                "old_session_id": binding.active_session_id,
+                "attempt_count": reservation["attempt_count"],
+                "retry_after": reservation["retry_after"],
+                "reason_code": reservation["reason_code"],
+            },
+            where,
+            generation_condition=(
+                tables["binding"].c.id == binding_id,
+                tables["binding"].c.generation == expected_generation,
+            ),
+        )
+        return self._rollover_view(tables, row)
+
+    def persist_rollover_deferral(
+        self,
+        *,
+        binding_id: str,
+        rollover_local_day: str,
+        expected_generation: int,
+        state: RolloverState,
+        attempt_count: int,
+        retry_after: datetime,
+        max_attempts: int,
+    ) -> LedgerRollover:
+        """Persist the bounded active-turn retry portion of the policy only."""
+
+        tables = self._verified_tables()
+        _validate_binding_id(binding_id)
+        _validate_local_day(rollover_local_day)
+        self._binding_for_generation(tables, binding_id, expected_generation)
+        values = _validated_rollover_values(
+            state=state,
+            attempt_count=attempt_count,
+            retry_after=retry_after,
+            reason_code=(
+                ReasonCode.ACTIVE_TURN
+                if state is RolloverState.DEFERRED_ACTIVE_TURN
+                else ReasonCode.RETRY_EXHAUSTED
+                if state is RolloverState.DEFERRED_EXHAUSTED
+                else None
+            ),
+            new_session_id=None,
+            committed_at=None,
+            max_attempts=max_attempts,
+        )
+        table = tables["rollover"]
+        row = _select_one(
+            self._database,
+            table,
+            table.c.binding_id == binding_id,
+            table.c.rollover_local_day == rollover_local_day,
+        )
+        if row is None:
+            raise LedgerError("rollover_not_found")
+        current = self._rollover_view(tables, row)
+        if current.status in {
+            RolloverState.COMMITTED,
+            RolloverState.BLOCKED_INVALID_BINDING,
+            RolloverState.BLOCKED_SECURITY_POLICY,
+        }:
+            raise LedgerError("immutable_rollover")
+        if (
+            current.status is RolloverState.DEFERRED_EXHAUSTED
+            and state is not RolloverState.DEFERRED_EXHAUSTED
+        ):
+            raise LedgerError("invalid_rollover_transition")
+        result = self._database.execute(
+            update(table)
+            .where(
+                table.c.id == current.id,
+                exists(
+                    select(literal(1)).where(
+                        tables["binding"].c.id == binding_id,
+                        tables["binding"].c.generation == expected_generation,
+                    )
+                ),
+                *_row_value_conditions(
+                    table, row, ("status", "attempt_count", "retry_after", "reason_code")
+                ),
+            )
+            .values(
+                status=values["status"],
+                attempt_count=values["attempt_count"],
+                retry_after=values["retry_after"],
+                reason_code=values["reason_code"],
+                updated_at=_ledger_now(),
+            )
+        )
+        if result.rowcount != 1:
+            reloaded = _select_one(self._database, table, table.c.id == current.id)
+            if reloaded is not None:
+                self._binding_for_generation(tables, binding_id, expected_generation)
+                outcome = self._rollover_view(tables, reloaded)
+                if _rollover_matches_values(outcome, values):
+                    return outcome
+            raise LedgerError("stale_row_state")
+        return self._rollover_view(
+            tables, _select_one(self._database, table, table.c.id == current.id)
+        )
+
+    def get_or_create_turn_intake(
+        self,
+        *,
+        owner_reference: str,
+        chat_reference: str,
+        transport_update_reference: str,
+        scope: str,
+        binding_id: str,
+        expected_session_id: str,
+        expected_generation: int,
+    ) -> LedgerTurnIntake:
+        tables = self._verified_tables()
+        _validate_ledger_ref(owner_reference, "owner_ref")
+        _validate_ledger_ref(chat_reference, "chat_handle_ref")
+        _validate_ledger_ref(transport_update_reference, "transport_update_ref")
+        _validate_scope(scope)
+        _validate_binding_id(binding_id)
+        _validate_internal_id(expected_session_id, "expected_session_id")
+        intake_table = tables["intake"]
+        where = (
+            intake_table.c.owner_ref == owner_reference,
+            intake_table.c.chat_handle_ref == chat_reference,
+            intake_table.c.transport_update_ref == transport_update_reference,
+        )
+        existing = _select_one(self._database, intake_table, *where)
+        if existing is not None:
+            intake = self._intake_view(tables, existing)
+            if not _intake_identity_matches(
+                intake, scope, binding_id, expected_session_id
+            ):
+                raise LedgerError("conflicting_intake_replay")
+            return intake
+        binding = self._binding_for_generation(tables, binding_id, expected_generation)
+        if (
+            binding.owner_ref != owner_reference
+            or binding.chat_handle_ref != chat_reference
+            or binding.scope != scope
+            or binding.active_session_id != expected_session_id
+        ):
+            raise LedgerError("invalid_binding_fence")
+        intake_id = _ledger_opaque_id(
+            self._reference_key,
+            "ttd07a-turn-intake",
+            (owner_reference, chat_reference, transport_update_reference),
+            "t1",
+        )
+        row = _insert_or_reload(
+            self._database,
+            intake_table,
+            {
+                "id": intake_id,
+                "owner_ref": owner_reference,
+                "chat_handle_ref": chat_reference,
+                "transport_update_ref": transport_update_reference,
+                "scope": scope,
+                "binding_id": binding_id,
+                "expected_session_id": expected_session_id,
+                "status": TurnIntakeState.PENDING.value,
+                "retry_count": 0,
+            },
+            where,
+            generation_condition=(
+                tables["binding"].c.id == binding_id,
+                tables["binding"].c.generation == expected_generation,
+            ),
+        )
+        intake = self._intake_view(tables, row)
+        if not _intake_identity_matches(intake, scope, binding_id, expected_session_id):
+            raise LedgerError("conflicting_intake_replay")
+        return intake
+
+    def advance_turn_intake(
+        self,
+        *,
+        intake_id: str,
+        expected_generation: int,
+        event: TurnIntakeEvent,
+        retry_after: datetime | None = None,
+    ) -> LedgerTurnIntake:
+        """Apply one allowlisted turn lifecycle event without committing."""
+
+        tables = self._verified_tables()
+        _validate_turn_id(intake_id)
+        if not isinstance(event, TurnIntakeEvent):
+            raise LedgerError("invalid_turn_intake_transition")
+        table = tables["intake"]
+        row = _select_one(self._database, table, table.c.id == intake_id)
+        if row is None:
+            raise LedgerError("turn_intake_not_found")
+        current = self._intake_view(tables, row)
+        try:
+            next_state = advance_turn_intake_state(current.status, event)
+        except ValueError as error:
+            raise LedgerError("invalid_turn_intake_transition") from error
+        if current.status in {
+            TurnIntakeState.COMPLETED,
+            TurnIntakeState.INDETERMINATE_TURN,
+            TurnIntakeState.BLOCKED_INVALID_BINDING,
+            TurnIntakeState.BLOCKED_SECURITY_POLICY,
+        }:
+            # The pure policy permits the matching terminal event to be
+            # idempotent.  Preserve the row byte-for-byte rather than even
+            # bumping ``updated_at`` on a completed or indeterminate intake.
+            return current
+        self._binding_for_generation(tables, current.binding_id, expected_generation)
+        retry_count = current.retry_count
+        next_retry = None
+        if event is TurnIntakeEvent.LEASE_BUSY:
+            if retry_after is None:
+                raise LedgerError("retry_after_required")
+            retry_count += 1
+            if retry_count > 24:
+                raise LedgerError("retry_limit_exceeded")
+            next_retry = _ledger_timestamp(retry_after)
+        elif retry_after is not None:
+            raise LedgerError("unexpected_retry_after")
+        reason = _turn_reason_for_event(event)
+        result = self._database.execute(
+            update(table)
+            .where(
+                table.c.id == intake_id,
+                exists(
+                    select(literal(1)).where(
+                        tables["binding"].c.id == current.binding_id,
+                        tables["binding"].c.generation == expected_generation,
+                    )
+                ),
+                *_row_value_conditions(
+                    table, row, ("status", "retry_count", "next_retry_at", "reason_code")
+                ),
+            )
+            .values(
+                status=next_state.value,
+                retry_count=retry_count,
+                next_retry_at=next_retry,
+                reason_code=None if reason is None else reason.value,
+                updated_at=_ledger_now(),
+            )
+        )
+        if result.rowcount != 1:
+            reloaded = _select_one(self._database, table, table.c.id == intake_id)
+            if reloaded is not None:
+                self._binding_for_generation(tables, current.binding_id, expected_generation)
+                outcome = self._intake_view(tables, reloaded)
+                if _intake_matches_values(outcome, next_state, retry_count, next_retry, reason):
+                    return outcome
+            raise LedgerError("stale_row_state")
+        return self._intake_view(tables, _select_one(self._database, table, table.c.id == intake_id))
+
+    def _verified_tables(self) -> Mapping[str, Any]:
+        tables = _ledger_tables()
+        _verify_reference_key(self._database, tables, self._reference_key)
+        return tables
+
+    def _binding_view(self, tables: Mapping[str, Any], row: Mapping[str, Any]) -> LedgerBinding:
+        binding = _binding_from_row(row)
+        expected_id = _ledger_opaque_id(
+            self._reference_key,
+            "ttd07a-binding",
+            (binding.owner_ref, binding.chat_handle_ref, binding.scope),
+            "b1",
+        )
+        if not hmac.compare_digest(binding.id, expected_id) or not _session_belongs_to_owner(
+            self._database,
+            tables["session"],
+            self._reference_key,
+            binding.active_session_id,
+            binding.owner_ref,
+        ):
+            raise LedgerError("invalid_binding_relationship")
+        return binding
+
+    def _rollover_view(self, tables: Mapping[str, Any], row: Mapping[str, Any]) -> LedgerRollover:
+        rollover = _rollover_from_row(row)
+        binding_row = _select_one(
+            self._database, tables["binding"], tables["binding"].c.id == rollover.binding_id
+        )
+        if binding_row is None:
+            raise LedgerError("invalid_rollover_relationship")
+        binding = self._binding_view(tables, binding_row)
+        expected_id = _ledger_opaque_id(
+            self._reference_key,
+            "ttd07a-rollover",
+            (rollover.binding_id, rollover.rollover_local_day),
+            "r1",
+        )
+        sessions = (rollover.old_session_id, rollover.new_session_id)
+        if (
+            not hmac.compare_digest(rollover.id, expected_id)
+            or any(
+                session_id is not None
+                and not _session_belongs_to_owner(
+                    self._database, tables["session"], self._reference_key, session_id, binding.owner_ref
+                )
+                for session_id in sessions
+            )
+        ):
+            raise LedgerError("invalid_rollover_relationship")
+        return rollover
+
+    def _intake_view(self, tables: Mapping[str, Any], row: Mapping[str, Any]) -> LedgerTurnIntake:
+        intake = _intake_from_row(row)
+        binding_row = _select_one(
+            self._database, tables["binding"], tables["binding"].c.id == intake.binding_id
+        )
+        if binding_row is None:
+            raise LedgerError("invalid_turn_intake_relationship")
+        binding = self._binding_view(tables, binding_row)
+        expected_id = _ledger_opaque_id(
+            self._reference_key,
+            "ttd07a-turn-intake",
+            (intake.owner_ref, intake.chat_handle_ref, intake.transport_update_ref),
+            "t1",
+        )
+        if (
+            intake.owner_ref != binding.owner_ref
+            or intake.chat_handle_ref != binding.chat_handle_ref
+            or intake.scope != binding.scope
+            or not hmac.compare_digest(intake.id, expected_id)
+            or not _session_belongs_to_owner(
+                self._database,
+                tables["session"],
+                self._reference_key,
+                intake.expected_session_id,
+                binding.owner_ref,
+            )
+        ):
+            raise LedgerError("invalid_turn_intake_relationship")
+        return intake
+
+    def _binding_for_generation(
+        self, tables: Mapping[str, Any], binding_id: str, expected_generation: int
+    ) -> LedgerBinding:
+        if isinstance(expected_generation, bool) or not isinstance(expected_generation, int) or expected_generation < 0:
+            raise LedgerError("invalid_generation_fence")
+        table = tables["binding"]
+        row = _select_one(self._database, table, table.c.id == binding_id)
+        if row is None:
+            raise LedgerError("binding_not_found")
+        binding = self._binding_view(tables, row)
+        if binding.generation != expected_generation:
+            raise LedgerError("stale_generation_fence")
+        return binding
+
+
+def create_or_get_binding(database: Any, reference_key: bytes, **kwargs: Any) -> LedgerBinding:
+    """Caller-injected convenience wrapper for immutable binding creation."""
+
+    return TelegramRolloverLedger(database, reference_key).get_or_create_binding(**kwargs)
+
+
+def reserve_or_get_rollover(database: Any, reference_key: bytes, **kwargs: Any) -> LedgerRollover:
+    """Caller-injected convenience wrapper for the daily idempotency winner."""
+
+    return TelegramRolloverLedger(database, reference_key).reserve_or_get_rollover(**kwargs)
+
+
+def create_or_get_turn_intake(
+    database: Any, reference_key: bytes, **kwargs: Any
+) -> LedgerTurnIntake:
+    """Caller-injected convenience wrapper for content-free update intake."""
+
+    return TelegramRolloverLedger(database, reference_key).get_or_create_turn_intake(**kwargs)
+
+
+def get_turn_intake(database: Any, reference_key: bytes, **kwargs: Any) -> LedgerTurnIntake | None:
+    """Caller-injected duplicate lookup with no binding creation authority."""
+
+    return TelegramRolloverLedger(database, reference_key).get_turn_intake(**kwargs)
+
+
+def _ledger_tables() -> Mapping[str, Any]:
+    # Importing model metadata is not an engine lookup; every SQL operation is
+    # still issued through the caller-provided Session or Connection.
+    from core.database import (
+        TelegramRolloverMetadata,
+        TelegramSessionBinding,
+        TelegramSessionRollover,
+        TelegramTurnIntake,
+        Session,
+    )
+
+    return {
+        "binding": TelegramSessionBinding.__table__,
+        "rollover": TelegramSessionRollover.__table__,
+        "intake": TelegramTurnIntake.__table__,
+        "metadata": TelegramRolloverMetadata.__table__,
+        "session": Session.__table__,
+    }
+
+
+def _verify_reference_key(database: Any, tables: Mapping[str, Any], reference_key: bytes) -> None:
+    metadata_table = tables["metadata"]
+    metadata = _select_one(database, metadata_table, metadata_table.c.id == "reference_key_v1")
+    fingerprint = hashlib.sha256(b"ttd07a-key-fingerprint\0" + reference_key).hexdigest()
+    if metadata is not None:
+        stored = metadata["reference_key_fingerprint"]
+        if (
+            metadata["schema_version"] != 1
+            or not isinstance(stored, str)
+            or not hmac.compare_digest(stored, fingerprint)
+        ):
+            raise LedgerError("reference_key_mismatch")
+        return
+    for table_name in ("binding", "rollover", "intake"):
+        if database.execute(select(func.count()).select_from(tables[table_name])).scalar_one() != 0:
+            raise LedgerError("reference_key_mismatch")
+    row = _insert_or_reload(
+        database,
+        metadata_table,
+        {
+            "id": "reference_key_v1",
+            "schema_version": 1,
+            "reference_key_fingerprint": fingerprint,
+        },
+        (metadata_table.c.id == "reference_key_v1",),
+    )
+    stored = row["reference_key_fingerprint"]
+    if not isinstance(stored, str) or not hmac.compare_digest(stored, fingerprint):
+        raise LedgerError("reference_key_mismatch")
+
+
+def _insert_or_reload(
+    database: Any,
+    table: Any,
+    values: Mapping[str, Any],
+    where: Sequence[Any],
+    generation_condition: Sequence[Any] | None = None,
+) -> Mapping[str, Any]:
+    statement = insert(table).values(**values)
+    if generation_condition is not None:
+        values = {**values, "created_at": _ledger_now(), "updated_at": _ledger_now()}
+        columns = list(values)
+        statement = insert(table).from_select(
+            columns,
+            select(*(literal(values[column]) for column in columns)).where(
+                exists(select(literal(1)).where(*generation_condition))
+            ),
+        )
+    try:
+        _ensure_sqlite_outer_transaction(database)
+        with database.begin_nested():
+            result = database.execute(statement)
+    except IntegrityError as error:
+        row = _select_one(database, table, *where)
+        if row is None:
+            raise LedgerError("ledger_write_failed") from error
+        return row
+    if generation_condition is not None and result.rowcount != 1:
+        row = _select_one(database, table, *where)
+        if row is not None:
+            return row
+        raise LedgerError("stale_generation_fence")
+    row = _select_one(database, table, *where)
+    if row is None:
+        raise LedgerError("ledger_write_failed")
+    return row
+
+
+def _ensure_sqlite_outer_transaction(database: Any) -> None:
+    """Anchor a caller-owned SQLite transaction before a nested savepoint.
+
+    Python's legacy sqlite transaction control can release a SAVEPOINT as an
+    independent commit when no physical ``BEGIN`` precedes it.  The repository
+    emits one explicit BEGIN only for a caller-supplied SQLite Session or
+    Connection whose driver reports no active physical transaction; it never
+    commits or rolls back caller state and leaves non-SQLite paths untouched.
+    """
+
+    connection = database if hasattr(database, "dialect") else database.connection()
+    if getattr(getattr(connection, "dialect", None), "name", None) != "sqlite":
+        return
+    fairy = getattr(connection, "connection", None)
+    raw = getattr(fairy, "driver_connection", None) or getattr(fairy, "connection", None)
+    if raw is not None and getattr(raw, "in_transaction", True) is False:
+        connection.exec_driver_sql("BEGIN")
+
+
+def _select_one(database: Any, table: Any, *where: Any) -> Mapping[str, Any] | None:
+    result = database.execute(select(table).where(*where)).mappings().one_or_none()
+    return None if result is None else dict(result)
+
+
+def _row_value_conditions(table: Any, row: Mapping[str, Any], names: Sequence[str]) -> list[Any]:
+    """Build NULL-safe optimistic-CAS predicates from an observed ledger row."""
+
+    return [
+        table.c[name].is_(None) if row[name] is None else table.c[name] == row[name]
+        for name in names
+    ]
+
+
+def _rollover_matches_values(outcome: LedgerRollover, values: Mapping[str, Any]) -> bool:
+    return (
+        outcome.status.value == values["status"]
+        and outcome.attempt_count == values["attempt_count"]
+        and outcome.retry_after == values["retry_after"]
+        and (None if outcome.reason_code is None else outcome.reason_code.value) == values["reason_code"]
+    )
+
+
+def _intake_matches_values(
+    outcome: LedgerTurnIntake,
+    state: TurnIntakeState,
+    retry_count: int,
+    next_retry: datetime | None,
+    reason: ReasonCode | None,
+) -> bool:
+    return (
+        outcome.status is state
+        and outcome.retry_count == retry_count
+        and outcome.next_retry_at == next_retry
+        and outcome.reason_code is reason
+    )
+
+
+def _intake_identity_matches(
+    intake: LedgerTurnIntake, scope: str, binding_id: str, expected_session_id: str
+) -> bool:
+    return (
+        intake.scope == scope
+        and intake.binding_id == binding_id
+        and intake.expected_session_id == expected_session_id
+    )
+
+
+def _binding_from_row(row: Mapping[str, Any]) -> LedgerBinding:
+    _validate_binding_row_shape(row)
+    return LedgerBinding(
+        row["id"], row["owner_ref"], row["chat_handle_ref"], row["scope"],
+        row["active_session_id"], row["active_rollover_local_day"], row["generation"],
+    )
+
+
+def _validate_binding_row_shape(row: Mapping[str, Any]) -> None:
+    generation = row.get("generation")
+    projection_generation = row.get("projection_generation")
+    valid = (
+        isinstance(row.get("id"), str)
+        and _BINDING_REF_RE.fullmatch(row["id"]) is not None
+        and _valid_ledger_ref(row.get("owner_ref"))
+        and _valid_ledger_ref(row.get("chat_handle_ref"))
+        and row.get("scope") in {"normal", "secure"}
+        and _valid_internal_row_id(row.get("active_session_id"))
+        and _valid_iso_day(row.get("active_rollover_local_day"))
+        and isinstance(generation, int)
+        and not isinstance(generation, bool)
+        and generation >= 0
+        and isinstance(projection_generation, int)
+        and not isinstance(projection_generation, bool)
+        and projection_generation >= 0
+        and row.get("projection_status") in {"current", "stale", "blocked_multi_owner"}
+    )
+    lease_values = (
+        row.get("turn_lease_ref"),
+        row.get("active_turn_ref"),
+        row.get("turn_lease_expires_at"),
+        row.get("turn_started_at"),
+    )
+    if all(value is None for value in lease_values):
+        lease_valid = True
+    else:
+        lease_valid = (
+            isinstance(lease_values[0], str)
+            and _OPAQUE_TURN_REF_RE.fullmatch(lease_values[0]) is not None
+            and isinstance(lease_values[1], str)
+            and _OPAQUE_TURN_REF_RE.fullmatch(lease_values[1]) is not None
+            and _is_db_timestamp(lease_values[2])
+            and _is_db_timestamp(lease_values[3])
+        )
+    if not valid or not lease_valid:
+        raise LedgerError("invalid_binding_row")
+
+
+def _rollover_from_row(row: Mapping[str, Any]) -> LedgerRollover:
+    try:
+        state = RolloverState(row["status"])
+        reason = None if row["reason_code"] is None else ReasonCode(row["reason_code"])
+    except ValueError as error:
+        raise LedgerError("invalid_rollover_row") from error
+    _validate_rollover_row_shape(row, state, reason)
+    return LedgerRollover(
+        row["id"], row["binding_id"], row["rollover_local_day"], state,
+        row["old_session_id"], row["new_session_id"], row["attempt_count"],
+        row["retry_after"], reason,
+    )
+
+
+def _intake_from_row(row: Mapping[str, Any]) -> LedgerTurnIntake:
+    try:
+        state = TurnIntakeState(row["status"])
+        reason = None if row["reason_code"] is None else ReasonCode(row["reason_code"])
+    except ValueError as error:
+        raise LedgerError("invalid_turn_intake_row") from error
+    _validate_intake_row_shape(row, state, reason)
+    return LedgerTurnIntake(
+        row["id"], row["owner_ref"], row["chat_handle_ref"], row["transport_update_ref"],
+        row["scope"], row["binding_id"], row["expected_session_id"], state,
+        row["retry_count"], row["next_retry_at"], reason,
+    )
+
+
+def _validated_rollover_values(
+    *,
+    state: RolloverState,
+    attempt_count: int,
+    retry_after: datetime | None,
+    reason_code: ReasonCode | None,
+    new_session_id: str | None,
+    committed_at: datetime | None,
+    max_attempts: int | None,
+) -> Mapping[str, Any]:
+    if not isinstance(state, RolloverState) or state is RolloverState.ABSENT:
+        raise LedgerError("invalid_rollover_retry")
+    if reason_code is not None and not isinstance(reason_code, ReasonCode):
+        raise LedgerError("invalid_rollover_retry")
+    if (
+        isinstance(max_attempts, bool)
+        or not isinstance(max_attempts, int)
+        or not 1 <= max_attempts <= 24
+    ):
+        raise LedgerError("invalid_rollover_retry")
+    retry_at = None if retry_after is None else _ledger_timestamp(retry_after)
+    if new_session_id is not None:
+        _validate_internal_id(new_session_id, "new_session_id")
+    committed = None if committed_at is None else _ledger_timestamp(committed_at)
+    row = {
+        "id": "r1_" + "0" * 32,
+        "binding_id": "b1_" + "0" * 32,
+        "rollover_local_day": "2000-01-01",
+        "old_session_id": "synthetic",
+        "new_session_id": new_session_id,
+        "status": state.value,
+        "attempt_count": attempt_count,
+        "retry_after": retry_at,
+        "reason_code": None if reason_code is None else reason_code.value,
+        "committed_at": committed,
+    }
+    try:
+        _validate_rollover_row_shape(row, state, reason_code, max_attempts=max_attempts)
+    except LedgerError as error:
+        raise LedgerError("invalid_rollover_retry") from error
+    return {
+        "status": state.value,
+        "attempt_count": attempt_count,
+        "retry_after": retry_at,
+        "reason_code": None if reason_code is None else reason_code.value,
+        "committed_at": committed,
+    }
+
+
+def _validate_rollover_row_shape(
+    row: Mapping[str, Any], state: RolloverState, reason: ReasonCode | None, *, max_attempts: int | None = None
+) -> None:
+    attempts = row.get("attempt_count")
+    retry_after = row.get("retry_after")
+    new_session_id = row.get("new_session_id")
+    committed_at = row.get("committed_at")
+    valid_attempts = isinstance(attempts, int) and not isinstance(attempts, bool) and 0 <= attempts <= 24
+    valid = (
+        valid_attempts
+        and isinstance(row.get("id"), str)
+        and re.fullmatch(r"r1_[0-9a-f]{32}", row["id"]) is not None
+        and isinstance(row.get("binding_id"), str)
+        and _BINDING_REF_RE.fullmatch(row["binding_id"]) is not None
+        and _valid_internal_row_id(row.get("old_session_id"))
+        and _valid_iso_day(row.get("rollover_local_day"))
+    )
+    if state is RolloverState.DEFERRED_ACTIVE_TURN:
+        upper = 24 if max_attempts is None else max_attempts
+        valid = valid and 1 <= attempts < upper and _is_db_timestamp(retry_after) and reason is ReasonCode.ACTIVE_TURN
+        valid = valid and new_session_id is None and committed_at is None
+    elif state is RolloverState.DEFERRED_EXHAUSTED:
+        valid = valid and 1 <= attempts <= 24 and _is_db_timestamp(retry_after) and reason is ReasonCode.RETRY_EXHAUSTED
+        if max_attempts is not None:
+            valid = valid and attempts == max_attempts
+        valid = valid and new_session_id is None and committed_at is None
+    elif state is RolloverState.BLOCKED_INVALID_BINDING:
+        valid = valid and attempts == 0 and retry_after is None and reason is ReasonCode.INVALID_BINDING
+        valid = valid and new_session_id is None and committed_at is None
+    elif state is RolloverState.BLOCKED_SECURITY_POLICY:
+        valid = valid and attempts == 0 and retry_after is None and reason is ReasonCode.SECURITY_POLICY
+        valid = valid and new_session_id is None and committed_at is None
+    elif state is RolloverState.COMMITTED:
+        valid = valid and retry_after is None and _valid_internal_row_id(new_session_id) and _is_db_timestamp(committed_at)
+        valid = valid and (reason is None or (reason is ReasonCode.EXPIRED_TURN_LEASE_RECOVERED and attempts >= 1))
+    else:
+        valid = False
+    if not valid:
+        raise LedgerError("invalid_rollover_row")
+
+
+def _validate_intake_row_shape(
+    row: Mapping[str, Any], state: TurnIntakeState, reason: ReasonCode | None
+) -> None:
+    retries = row.get("retry_count")
+    next_retry = row.get("next_retry_at")
+    valid = (
+        isinstance(retries, int)
+        and not isinstance(retries, bool)
+        and 0 <= retries <= 24
+        and isinstance(row.get("id"), str)
+        and re.fullmatch(r"t1_[0-9a-f]{32}", row["id"]) is not None
+        and _valid_ledger_ref(row.get("owner_ref"))
+        and _valid_ledger_ref(row.get("chat_handle_ref"))
+        and _valid_ledger_ref(row.get("transport_update_ref"))
+        and row.get("scope") in {"normal", "secure"}
+        and isinstance(row.get("binding_id"), str)
+        and _BINDING_REF_RE.fullmatch(row["binding_id"]) is not None
+        and _valid_internal_row_id(row.get("expected_session_id"))
+    )
+    if state is TurnIntakeState.PENDING:
+        valid = valid and retries == 0 and next_retry is None and reason is None
+    elif state is TurnIntakeState.LEASE_RETRY:
+        valid = valid and 1 <= retries <= 24 and _is_db_timestamp(next_retry) and reason is None
+    elif state in {TurnIntakeState.RUNNING, TurnIntakeState.REPLY_PENDING, TurnIntakeState.COMPLETED}:
+        valid = valid and next_retry is None and reason is None
+    elif state is TurnIntakeState.INDETERMINATE_TURN:
+        valid = valid and next_retry is None and reason is ReasonCode.INDETERMINATE_TURN_PAIR
+    elif state is TurnIntakeState.BLOCKED_INVALID_BINDING:
+        valid = valid and next_retry is None and reason is ReasonCode.INVALID_BINDING
+    elif state is TurnIntakeState.BLOCKED_SECURITY_POLICY:
+        valid = valid and next_retry is None and reason is ReasonCode.SECURITY_POLICY
+    else:
+        valid = False
+    if not valid:
+        raise LedgerError("invalid_turn_intake_row")
+
+
+def _valid_ledger_ref(value: Any) -> bool:
+    return isinstance(value, str) and _REF_RE.fullmatch(value) is not None
+
+
+def _valid_internal_row_id(value: Any) -> bool:
+    return isinstance(value, str) and bool(value) and len(value) <= _MAX_REFERENCE_INPUT and "\0" not in value
+
+
+def _is_db_timestamp(value: Any) -> bool:
+    return isinstance(value, datetime)
+
+
+def _ledger_reference_key(value: Any) -> bytes:
+    if not isinstance(value, bytes) or len(value) < 32:
+        raise LedgerError("reference_key_mismatch")
+    return value
+
+
+def _ledger_opaque_id(reference_key: bytes, domain: str, values: Sequence[str], prefix: str) -> str:
+    payload = "\0".join(values).encode("utf-8")
+    return f"{prefix}_" + hmac.new(reference_key, domain.encode("ascii") + b"\0" + payload, hashlib.sha256).hexdigest()[:32]
+
+
+def _validate_ledger_ref(value: Any, label: str) -> None:
+    if not isinstance(value, str) or not _REF_RE.fullmatch(value):
+        raise LedgerError(f"invalid_{label}")
+
+
+def _validate_binding_id(value: Any) -> None:
+    if not isinstance(value, str) or not _BINDING_REF_RE.fullmatch(value):
+        raise LedgerError("invalid_binding_id")
+
+
+def _validate_turn_id(value: Any) -> None:
+    if not isinstance(value, str) or not re.fullmatch(r"t1_[0-9a-f]{32}", value):
+        raise LedgerError("invalid_turn_intake_id")
+
+
+def _validate_scope(value: Any) -> None:
+    if value not in {"normal", "secure"}:
+        raise LedgerError("invalid_scope")
+
+
+def _validate_local_day(value: Any) -> None:
+    try:
+        parsed = date.fromisoformat(value)
+    except (TypeError, ValueError) as error:
+        raise LedgerError("invalid_rollover_local_day") from error
+    if parsed.isoformat() != value:
+        raise LedgerError("invalid_rollover_local_day")
+
+
+def _valid_iso_day(value: Any) -> bool:
+    try:
+        return isinstance(value, str) and date.fromisoformat(value).isoformat() == value
+    except (TypeError, ValueError):
+        return False
+
+
+def _validate_internal_id(value: Any, label: str) -> None:
+    if not isinstance(value, str) or not value or len(value) > _MAX_REFERENCE_INPUT or "\0" in value:
+        raise LedgerError(f"invalid_{label}")
+
+
+def _validate_session_owner(
+    database: Any, session_table: Any, reference_key: bytes, session_id: str, owner_reference: str
+) -> None:
+    if not _session_belongs_to_owner(
+        database, session_table, reference_key, session_id, owner_reference
+    ):
+        raise LedgerError("invalid_active_session_owner")
+
+
+def _session_belongs_to_owner(
+    database: Any, session_table: Any, reference_key: bytes, session_id: str, owner_reference: str
+) -> bool:
+    row = _select_one(database, session_table, session_table.c.id == session_id)
+    if row is None or not isinstance(row.get("owner"), str):
+        return False
+    try:
+        return hmac.compare_digest(owner_ref(reference_key, row["owner"]), owner_reference)
+    except ReferenceError:
+        return False
+
+
+def _ledger_timestamp(value: datetime) -> datetime:
+    _require_aware(value)
+    return value.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+
+
+def _ledger_now() -> datetime:
+    return datetime.now(ZoneInfo("UTC")).replace(tzinfo=None)
+
+
+def _turn_reason_for_event(event: TurnIntakeEvent) -> ReasonCode | None:
+    if event is TurnIntakeEvent.INDETERMINATE:
+        return ReasonCode.INDETERMINATE_TURN_PAIR
+    if event is TurnIntakeEvent.INVALID_BINDING:
+        return ReasonCode.INVALID_BINDING
+    if event is TurnIntakeEvent.SECURITY_POLICY_BLOCKED:
+        return ReasonCode.SECURITY_POLICY
+    return None
 
 
 _EVIDENCE_FIELDS = frozenset(

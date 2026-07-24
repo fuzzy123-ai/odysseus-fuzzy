@@ -3,9 +3,16 @@ import hashlib
 import hmac
 
 import pytest
+from sqlalchemy import create_engine, delete, inspect, update
+from sqlalchemy.orm import sessionmaker
+
+from core import database as database_module
+from core import database_migrations
+from core.database import Base, Session
 
 from src.telegram_session_rollover import (
     ReasonCode,
+    LedgerError,
     RolloverConfig,
     RolloverEvent,
     RolloverRecord,
@@ -13,6 +20,7 @@ from src.telegram_session_rollover import (
     TurnIntakeEvent,
     TurnIntakeState,
     TurnMessageMarker,
+    TelegramRolloverLedger,
     advance_rollover_state,
     advance_turn_intake_state,
     build_rollover_evidence,
@@ -27,6 +35,815 @@ from src.telegram_session_rollover import (
 
 
 KEY = b"k" * 32
+
+
+class _InterleavingDatabase:
+    """Deterministically changes one row just before a repository CAS write."""
+
+    def __init__(self, database, target_table, interleave):
+        self._database = database
+        self._target_table = target_table
+        self._interleave = interleave
+        self._fired = False
+
+    def begin_nested(self):
+        return self._database.begin_nested()
+
+    def connection(self):
+        return self._database.connection()
+
+    def execute(self, statement, *args, **kwargs):
+        if (
+            not self._fired
+            and getattr(statement, "is_update", False)
+            and getattr(statement, "table", None) is self._target_table
+        ):
+            self._fired = True
+            self._interleave(self._database)
+        return self._database.execute(statement, *args, **kwargs)
+
+
+class _PreSavepointInsertDatabase:
+    """Insert a known uniqueness winner immediately before a nested transaction."""
+
+    def __init__(self, database, preinsert):
+        self._database = database
+        self._preinsert = preinsert
+        self._fired = False
+
+    def begin_nested(self):
+        if not self._fired:
+            self._fired = True
+            self._preinsert(self._database)
+        return self._database.begin_nested()
+
+    def connection(self):
+        return self._database.connection()
+
+    def execute(self, statement, *args, **kwargs):
+        return self._database.execute(statement, *args, **kwargs)
+
+
+def _ledger_database():
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(bind=engine)
+    database = sessionmaker(bind=engine, autoflush=False)()
+    database.add(
+        Session(
+            id="session-private-id",
+            name="Synthetic",
+            endpoint_url="http://synthetic.invalid",
+            model="synthetic",
+            owner="alice",
+        )
+    )
+    database.commit()
+    return engine, database
+
+
+def _ledger_identity():
+    return owner_ref(KEY, "alice"), chat_handle_ref(KEY, "chat_a1b2c3d4")
+
+
+def _assert_ledger_schema(schema):
+    expected = {
+        "telegram_session_bindings",
+        "telegram_session_rollovers",
+        "telegram_turn_intakes",
+        "telegram_rollover_metadata",
+    }
+    assert expected <= set(schema.get_table_names())
+    checks = {
+        name: {item["name"] for item in schema.get_check_constraints(name)}
+        for name in expected
+    }
+    assert {"ck_tsb_scope", "ck_tsb_turn_lease_shape", "ck_tsb_generation_nonnegative", "ck_tsb_active_rollover_day_format"} <= checks["telegram_session_bindings"]
+    assert {"ck_tsr_status", "ck_tsr_committed_new_session", "ck_tsr_attempt_count", "ck_tsr_rollover_day_format"} <= checks["telegram_session_rollovers"]
+    assert {"ck_tti_status", "ck_tti_retry_count", "ck_tti_scope"} <= checks["telegram_turn_intakes"]
+    assert {"ck_trm_singleton_id", "ck_trm_schema_version", "ck_trm_fingerprint_length"} <= checks["telegram_rollover_metadata"]
+    expected_foreign_keys = {
+        "telegram_session_bindings": {"sessions"},
+        "telegram_session_rollovers": {"telegram_session_bindings", "sessions"},
+        "telegram_turn_intakes": {"telegram_session_bindings", "sessions"},
+    }
+    for table, targets in expected_foreign_keys.items():
+        foreign_keys = schema.get_foreign_keys(table)
+        assert {item["referred_table"] for item in foreign_keys} == targets
+        assert all(item.get("options", {}).get("ondelete") == "RESTRICT" for item in foreign_keys)
+    expected_unique_columns = {
+        "telegram_session_bindings": ["owner_ref", "chat_handle_ref", "scope"],
+        "telegram_session_rollovers": ["binding_id", "rollover_local_day"],
+        "telegram_turn_intakes": ["owner_ref", "chat_handle_ref", "transport_update_ref"],
+    }
+    for table, columns in expected_unique_columns.items():
+        assert any(index["unique"] and index["column_names"] == columns for index in schema.get_indexes(table))
+    forbidden = {"prompt", "message", "reply", "provider", "owner", "chat_id", "update_id", "message_id"}
+    for table in expected:
+        assert not (forbidden & {column["name"] for column in schema.get_columns(table)})
+
+
+def test_rollover_schema_fresh_install_has_four_tables_and_constraints():
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(bind=engine)
+    schema = inspect(engine)
+    _assert_ledger_schema(schema)
+
+
+def test_rollover_schema_upgrade_is_idempotent_and_preserves_existing_sessions(monkeypatch):
+    engine = create_engine("sqlite://")
+    Session.__table__.create(bind=engine)
+    with engine.begin() as connection:
+        connection.execute(
+            Session.__table__.insert().values(
+                id="legacy-session", name="Legacy", endpoint_url="http://synthetic.invalid", model="synthetic"
+            )
+        )
+    monkeypatch.setattr(database_module, "engine", engine)
+    monkeypatch.setattr(database_module, "DATABASE_URL", "sqlite:///:memory:")
+    database_migrations._migrate_telegram_session_rollover_tables()
+    database_migrations._migrate_telegram_session_rollover_tables()
+    schema = inspect(engine)
+    _assert_ledger_schema(schema)
+    with engine.connect() as connection:
+        assert connection.execute(Session.__table__.select()).mappings().one()["id"] == "legacy-session"
+
+
+def test_rollover_repository_reserves_one_binding_day_and_reloads_winner(tmp_path):
+    engine, database = _ledger_database()
+    owner, chat = _ledger_identity()
+    ledger = TelegramRolloverLedger(database, KEY)
+    binding = ledger.get_or_create_binding(
+        owner_reference=owner,
+        chat_reference=chat,
+        scope="normal",
+        active_session_id="session-private-id",
+        active_rollover_local_day="2026-07-24",
+    )
+    database.execute(
+        update(database_module.TelegramSessionBinding.__table__)
+        .where(database_module.TelegramSessionBinding.id == binding.id)
+        .values(
+            turn_lease_ref="bad",
+            active_turn_ref="bad",
+            turn_lease_expires_at=datetime(2026, 7, 25),
+            turn_started_at=datetime(2026, 7, 24),
+        )
+    )
+    with pytest.raises(LedgerError, match="invalid_binding_row"):
+        ledger.get_binding(binding.id)
+    database.execute(
+        update(database_module.TelegramSessionBinding.__table__)
+        .where(database_module.TelegramSessionBinding.id == binding.id)
+        .values(
+            turn_lease_ref=None,
+            active_turn_ref=None,
+            turn_lease_expires_at=None,
+            turn_started_at=None,
+        )
+    )
+    bad_binding_id = "b1_" + "0" * 32
+    database.execute(
+        update(database_module.TelegramSessionBinding.__table__)
+        .where(database_module.TelegramSessionBinding.id == binding.id)
+        .values(id=bad_binding_id)
+    )
+    with pytest.raises(LedgerError, match="invalid_binding_relationship"):
+        ledger.get_binding(bad_binding_id)
+    database.execute(
+        update(database_module.TelegramSessionBinding.__table__)
+        .where(database_module.TelegramSessionBinding.id == bad_binding_id)
+        .values(id=binding.id)
+    )
+    database.execute(
+        update(database_module.TelegramSessionBinding.__table__)
+        .where(database_module.TelegramSessionBinding.id == binding.id)
+        .values(active_rollover_local_day="2026-02-30")
+    )
+    with pytest.raises(LedgerError, match="invalid_binding_row"):
+        ledger.get_binding(binding.id)
+    database.execute(
+        update(database_module.TelegramSessionBinding.__table__)
+        .where(database_module.TelegramSessionBinding.id == binding.id)
+        .values(active_rollover_local_day="2026-07-24")
+    )
+    database.execute(
+        update(Session.__table__).where(Session.id == "session-private-id").values(owner="bob")
+    )
+    with pytest.raises(LedgerError, match="invalid_binding_relationship"):
+        ledger.get_binding(binding.id)
+    database.execute(
+        update(Session.__table__).where(Session.id == "session-private-id").values(owner="alice")
+    )
+    first = ledger.reserve_or_get_rollover(
+        binding_id=binding.id,
+        rollover_local_day="2026-07-25",
+        expected_generation=0,
+        state=RolloverState.DEFERRED_ACTIVE_TURN,
+        attempt_count=1,
+        retry_after=datetime(2026, 7, 25, tzinfo=timezone.utc),
+        reason_code=ReasonCode.ACTIVE_TURN,
+        max_attempts=8,
+    )
+    database.commit()
+    other = sessionmaker(bind=engine, autoflush=False)()
+    other.execute(
+        update(database_module.TelegramSessionBinding.__table__)
+        .where(database_module.TelegramSessionBinding.id == binding.id)
+        .values(generation=1)
+    )
+    reloaded = TelegramRolloverLedger(other, KEY).reserve_or_get_rollover(
+        binding_id=binding.id,
+        rollover_local_day="2026-07-25",
+        expected_generation=0,
+        state=RolloverState.DEFERRED_ACTIVE_TURN,
+        attempt_count=1,
+        retry_after=datetime(2026, 7, 25, tzinfo=timezone.utc),
+        reason_code=ReasonCode.ACTIVE_TURN,
+        max_attempts=8,
+    )
+    assert reloaded.id == first.id
+    assert reloaded.binding_id == binding.id
+    assert reloaded.old_session_id == "session-private-id"
+    assert reloaded.status is RolloverState.DEFERRED_ACTIVE_TURN
+    assert reloaded.attempt_count == 1
+    assert reloaded.retry_after is not None
+    assert reloaded.reason_code is ReasonCode.ACTIVE_TURN
+    bad_rollover_id = "r1_" + "0" * 32
+    other.execute(
+        update(database_module.TelegramSessionRollover.__table__)
+        .where(database_module.TelegramSessionRollover.id == first.id)
+        .values(id=bad_rollover_id)
+    )
+    with pytest.raises(LedgerError, match="invalid_rollover_relationship"):
+        TelegramRolloverLedger(other, KEY).reserve_or_get_rollover(
+            binding_id=binding.id,
+            rollover_local_day="2026-07-25",
+            expected_generation=0,
+            state=RolloverState.DEFERRED_ACTIVE_TURN,
+            attempt_count=1,
+            retry_after=datetime(2026, 7, 25, tzinfo=timezone.utc),
+            reason_code=ReasonCode.ACTIVE_TURN,
+            max_attempts=8,
+        )
+    other.execute(
+        update(database_module.TelegramSessionRollover.__table__)
+        .where(database_module.TelegramSessionRollover.id == bad_rollover_id)
+        .values(id=first.id)
+    )
+    other.execute(
+        Session.__table__.insert().values(
+            id="session-bob",
+            name="Synthetic Bob",
+            endpoint_url="http://synthetic.invalid",
+            model="synthetic",
+            owner="bob",
+        )
+    )
+    other.execute(
+        update(database_module.TelegramSessionRollover.__table__)
+        .where(database_module.TelegramSessionRollover.id == first.id)
+        .values(old_session_id="session-bob")
+    )
+    with pytest.raises(LedgerError, match="invalid_rollover_relationship"):
+        TelegramRolloverLedger(other, KEY).reserve_or_get_rollover(
+            binding_id=binding.id,
+            rollover_local_day="2026-07-25",
+            expected_generation=0,
+            state=RolloverState.DEFERRED_ACTIVE_TURN,
+            attempt_count=1,
+            retry_after=datetime(2026, 7, 25, tzinfo=timezone.utc),
+            reason_code=ReasonCode.ACTIVE_TURN,
+            max_attempts=8,
+        )
+    other.execute(
+        update(database_module.TelegramSessionRollover.__table__)
+        .where(database_module.TelegramSessionRollover.id == first.id)
+        .values(old_session_id="session-private-id")
+    )
+    with pytest.raises(LedgerError, match="stale_generation_fence"):
+        TelegramRolloverLedger(other, KEY).reserve_or_get_rollover(
+            binding_id=binding.id,
+            rollover_local_day="2026-07-26",
+            expected_generation=0,
+            state=RolloverState.DEFERRED_ACTIVE_TURN,
+            attempt_count=1,
+            retry_after=datetime(2026, 7, 26, tzinfo=timezone.utc),
+            reason_code=ReasonCode.ACTIVE_TURN,
+            max_attempts=8,
+        )
+    exhausted = TelegramRolloverLedger(other, KEY).reserve_or_get_rollover(
+        binding_id=binding.id,
+        rollover_local_day="2026-07-26",
+        expected_generation=1,
+        state=RolloverState.DEFERRED_EXHAUSTED,
+        attempt_count=2,
+        retry_after=datetime(2026, 7, 26, tzinfo=timezone.utc),
+        reason_code=ReasonCode.RETRY_EXHAUSTED,
+        max_attempts=2,
+    )
+    assert exhausted.status is RolloverState.DEFERRED_EXHAUSTED
+    assert exhausted.attempt_count == 2
+    assert len(
+        other.execute(database_module.TelegramSessionRollover.__table__.select()).mappings().all()
+    ) == 2
+
+    rollback_engine, rollback_database = _ledger_database()
+    rollback_owner, rollback_chat = _ledger_identity()
+    TelegramRolloverLedger(rollback_database, KEY).get_or_create_binding(
+        owner_reference=rollback_owner,
+        chat_reference=rollback_chat,
+        scope="normal",
+        active_session_id="session-private-id",
+        active_rollover_local_day="2026-07-24",
+    )
+    rollback_database.rollback()
+    with rollback_engine.connect() as fresh:
+        assert fresh.execute(
+            database_module.TelegramRolloverMetadata.__table__.select()
+        ).mappings().all() == []
+        assert fresh.execute(
+            database_module.TelegramSessionBinding.__table__.select()
+        ).mappings().all() == []
+
+    connection_engine = create_engine("sqlite://")
+    Base.metadata.create_all(bind=connection_engine)
+    with connection_engine.begin() as seed:
+        seed.execute(
+            Session.__table__.insert().values(
+                id="session-private-id",
+                name="Synthetic",
+                endpoint_url="http://synthetic.invalid",
+                model="synthetic",
+                owner="alice",
+            )
+        )
+    connection = connection_engine.connect()
+    try:
+        TelegramRolloverLedger(connection, KEY).get_or_create_binding(
+            owner_reference=rollback_owner,
+            chat_reference=rollback_chat,
+            scope="normal",
+            active_session_id="session-private-id",
+            active_rollover_local_day="2026-07-24",
+        )
+        connection.rollback()
+    finally:
+        connection.close()
+    with connection_engine.connect() as fresh:
+        assert fresh.execute(
+            database_module.TelegramRolloverMetadata.__table__.select()
+        ).mappings().all() == []
+        assert fresh.execute(
+            database_module.TelegramSessionBinding.__table__.select()
+        ).mappings().all() == []
+
+    file_engine = create_engine(f"sqlite:///{tmp_path / 'ledger-rollback.db'}")
+    Base.metadata.create_all(bind=file_engine)
+    with file_engine.begin() as seed:
+        seed.execute(
+            Session.__table__.insert().values(
+                id="session-private-id",
+                name="Synthetic",
+                endpoint_url="http://synthetic.invalid",
+                model="synthetic",
+                owner="alice",
+            )
+        )
+    outer = sessionmaker(bind=file_engine, autoflush=False)()
+    outer.execute(
+        Session.__table__.insert().values(
+            id="outer-unrelated",
+            name="Outer",
+            endpoint_url="http://synthetic.invalid",
+            model="synthetic",
+            owner="alice",
+        )
+    )
+    bootstrap = TelegramRolloverLedger(outer, KEY)
+    assert bootstrap.get_binding("b1_" + "f" * 32) is None
+    loser_id = "b1_" + hmac.new(
+        KEY, f"ttd07a-binding\0{rollback_owner}\0{rollback_chat}\0normal".encode(), hashlib.sha256
+    ).hexdigest()[:32]
+    binding_table = database_module.TelegramSessionBinding.__table__
+    loser = _PreSavepointInsertDatabase(
+        outer,
+        lambda db: db.execute(
+            binding_table.insert().values(
+                id=loser_id,
+                owner_ref=rollback_owner,
+                chat_handle_ref=rollback_chat,
+                scope="normal",
+                active_session_id="session-private-id",
+                active_rollover_local_day="2026-07-24",
+                generation=0,
+                projection_status="current",
+                projection_generation=0,
+            )
+        ),
+    )
+    winner = TelegramRolloverLedger(loser, KEY).get_or_create_binding(
+        owner_reference=rollback_owner,
+        chat_reference=rollback_chat,
+        scope="normal",
+        active_session_id="session-private-id",
+        active_rollover_local_day="2026-07-24",
+    )
+    assert winner.id == loser_id
+    assert outer.execute(Session.__table__.select().where(Session.id == "outer-unrelated")).mappings().one()
+    assert outer.execute(binding_table.select()).mappings().one()["id"] == loser_id
+    outer.rollback()
+    with file_engine.connect() as fresh:
+        assert fresh.execute(
+            Session.__table__.select().where(Session.id == "outer-unrelated")
+        ).mappings().all() == []
+        assert fresh.execute(binding_table.select()).mappings().all() == []
+
+
+def test_rollover_repository_rejects_invalid_identity_state_and_key_mismatch():
+    _, database = _ledger_database()
+    owner, chat = _ledger_identity()
+    ledger = TelegramRolloverLedger(database, KEY)
+    binding = ledger.get_or_create_binding(
+        owner_reference=owner,
+        chat_reference=chat,
+        scope="normal",
+        active_session_id="session-private-id",
+        active_rollover_local_day="2026-07-24",
+    )
+    with pytest.raises(LedgerError, match="invalid_scope"):
+        ledger.get_or_create_binding(
+            owner_reference=owner,
+            chat_reference=chat,
+            scope="other",
+            active_session_id="session-private-id",
+            active_rollover_local_day="2026-07-24",
+        )
+    with pytest.raises(LedgerError, match="conflicting_binding_replay"):
+        ledger.get_or_create_binding(
+            owner_reference=owner,
+            chat_reference=chat,
+            scope="normal",
+            active_session_id="session-private-id",
+            active_rollover_local_day="2026-07-25",
+        )
+    with pytest.raises(LedgerError, match="stale_generation_fence"):
+        ledger.reserve_or_get_rollover(
+            binding_id=binding.id,
+            rollover_local_day="2026-07-25",
+            expected_generation=1,
+            state=RolloverState.DEFERRED_ACTIVE_TURN,
+            attempt_count=1,
+            retry_after=datetime(2026, 7, 25, tzinfo=timezone.utc),
+            reason_code=ReasonCode.ACTIVE_TURN,
+            max_attempts=8,
+        )
+    with pytest.raises(LedgerError, match="invalid_rollover_retry"):
+        ledger.persist_rollover_deferral(
+            binding_id=binding.id,
+            rollover_local_day="2026-07-25",
+            expected_generation=0,
+            state=RolloverState.DEFERRED_ACTIVE_TURN,
+            attempt_count=0,
+            retry_after=datetime(2026, 7, 25, tzinfo=timezone.utc),
+            max_attempts=8,
+        )
+    with pytest.raises(LedgerError, match="invalid_rollover_retry"):
+        ledger.reserve_or_get_rollover(
+            binding_id=binding.id,
+            rollover_local_day="2026-07-25",
+            expected_generation=0,
+            state=RolloverState.DEFERRED_ACTIVE_TURN,
+            attempt_count=1,
+            retry_after=datetime(2026, 7, 25, tzinfo=timezone.utc),
+            reason_code="active_turn",
+            max_attempts=8,
+        )
+    rollover = ledger.reserve_or_get_rollover(
+        binding_id=binding.id,
+        rollover_local_day="2026-07-25",
+        expected_generation=0,
+        state=RolloverState.DEFERRED_ACTIVE_TURN,
+        attempt_count=1,
+        retry_after=datetime(2026, 7, 25, tzinfo=timezone.utc),
+        reason_code=ReasonCode.ACTIVE_TURN,
+        max_attempts=8,
+    )
+    rollover_table = database_module.TelegramSessionRollover.__table__
+    interleaved = _InterleavingDatabase(
+        database,
+        rollover_table,
+        lambda db: db.execute(
+            update(rollover_table)
+            .where(rollover_table.c.id == rollover.id)
+            .values(
+                status=RolloverState.DEFERRED_EXHAUSTED.value,
+                attempt_count=2,
+                retry_after=datetime(2026, 7, 25),
+                reason_code=ReasonCode.RETRY_EXHAUSTED.value,
+            )
+        ),
+    )
+    with pytest.raises(LedgerError, match="stale_row_state"):
+        TelegramRolloverLedger(interleaved, KEY).persist_rollover_deferral(
+            binding_id=binding.id,
+            rollover_local_day="2026-07-25",
+            expected_generation=0,
+            state=RolloverState.DEFERRED_ACTIVE_TURN,
+            attempt_count=1,
+            retry_after=datetime(2026, 7, 25, tzinfo=timezone.utc),
+            max_attempts=8,
+        )
+    database.execute(
+        update(database_module.TelegramSessionRollover.__table__)
+        .where(database_module.TelegramSessionRollover.id == rollover.id)
+        .values(status=RolloverState.DEFERRED_ACTIVE_TURN.value, attempt_count=0, retry_after=None, reason_code=None)
+    )
+    with pytest.raises(LedgerError, match="invalid_rollover_row"):
+        ledger.reserve_or_get_rollover(
+            binding_id=binding.id,
+            rollover_local_day="2026-07-25",
+            expected_generation=0,
+            state=RolloverState.DEFERRED_ACTIVE_TURN,
+            attempt_count=1,
+            retry_after=datetime(2026, 7, 25, tzinfo=timezone.utc),
+            reason_code=ReasonCode.ACTIVE_TURN,
+            max_attempts=8,
+        )
+    database.execute(
+        update(database_module.TelegramSessionRollover.__table__)
+        .where(database_module.TelegramSessionRollover.id == rollover.id)
+        .values(
+            attempt_count=1,
+            retry_after=datetime(2026, 7, 25),
+            reason_code=ReasonCode.ACTIVE_TURN.value,
+        )
+    )
+    matching_generation = _InterleavingDatabase(
+        database,
+        rollover_table,
+        lambda db: (
+            db.execute(
+                update(database_module.TelegramSessionBinding.__table__)
+                .where(database_module.TelegramSessionBinding.id == binding.id)
+                .values(generation=1)
+            ),
+            db.execute(
+                update(rollover_table)
+                .where(rollover_table.c.id == rollover.id)
+                .values(
+                    status=RolloverState.DEFERRED_ACTIVE_TURN.value,
+                    attempt_count=1,
+                    retry_after=datetime(2026, 7, 25),
+                    reason_code=ReasonCode.ACTIVE_TURN.value,
+                )
+            ),
+        ),
+    )
+    with pytest.raises(LedgerError, match="stale_generation_fence"):
+        TelegramRolloverLedger(matching_generation, KEY).persist_rollover_deferral(
+            binding_id=binding.id,
+            rollover_local_day="2026-07-25",
+            expected_generation=0,
+            state=RolloverState.DEFERRED_ACTIVE_TURN,
+            attempt_count=1,
+            retry_after=datetime(2026, 7, 25, tzinfo=timezone.utc),
+            max_attempts=8,
+        )
+    database.execute(
+        update(database_module.TelegramSessionBinding.__table__)
+        .where(database_module.TelegramSessionBinding.id == binding.id)
+        .values(generation=0)
+    )
+    database.execute(
+        update(database_module.TelegramSessionBinding.__table__)
+        .where(database_module.TelegramSessionBinding.id == binding.id)
+        .values(generation=1)
+    )
+    with pytest.raises(LedgerError, match="stale_generation_fence"):
+        ledger.persist_rollover_deferral(
+            binding_id=binding.id,
+            rollover_local_day="2026-07-25",
+            expected_generation=0,
+            state=RolloverState.DEFERRED_ACTIVE_TURN,
+            attempt_count=1,
+            retry_after=datetime(2026, 7, 25, tzinfo=timezone.utc),
+            max_attempts=8,
+        )
+    database.execute(
+        update(database_module.TelegramSessionBinding.__table__)
+        .where(database_module.TelegramSessionBinding.id == binding.id)
+        .values(generation=0)
+    )
+    with pytest.raises(LedgerError, match="reference_key_mismatch"):
+        TelegramRolloverLedger(database, b"q" * 32).get_binding(binding.id)
+    with pytest.raises(LedgerError, match="reference_key_mismatch"):
+        TelegramRolloverLedger(database, b"short")
+    database.execute(delete(database_module.TelegramRolloverMetadata.__table__))
+    with pytest.raises(LedgerError, match="reference_key_mismatch"):
+        ledger.get_binding(binding.id)
+    assert database.execute(
+        database_module.TelegramRolloverMetadata.__table__.select()
+    ).mappings().all() == []
+
+
+def test_turn_intake_repository_persists_retry_and_terminal_states_content_free():
+    _, database = _ledger_database()
+    owner, chat = _ledger_identity()
+    ledger = TelegramRolloverLedger(database, KEY)
+    binding = ledger.get_or_create_binding(
+        owner_reference=owner,
+        chat_reference=chat,
+        scope="normal",
+        active_session_id="session-private-id",
+        active_rollover_local_day="2026-07-24",
+    )
+    intake = ledger.get_or_create_turn_intake(
+        owner_reference=owner,
+        chat_reference=chat,
+        transport_update_reference=transport_update_ref(KEY, 123, 456),
+        scope="normal",
+        binding_id=binding.id,
+        expected_session_id="session-private-id",
+        expected_generation=0,
+    )
+    intake_table = database_module.TelegramTurnIntake.__table__
+    bad_intake_id = "t1_" + "0" * 32
+    database.execute(
+        update(intake_table).where(intake_table.c.id == intake.id).values(id=bad_intake_id)
+    )
+    with pytest.raises(LedgerError, match="invalid_turn_intake_relationship"):
+        ledger.get_turn_intake(
+            owner_reference=owner,
+            chat_reference=chat,
+            transport_update_reference=transport_update_ref(KEY, 123, 456),
+        )
+    database.execute(
+        update(intake_table).where(intake_table.c.id == bad_intake_id).values(id=intake.id)
+    )
+    database.execute(
+        Session.__table__.insert().values(
+            id="session-bob",
+            name="Synthetic Bob",
+            endpoint_url="http://synthetic.invalid",
+            model="synthetic",
+            owner="bob",
+        )
+    )
+    database.execute(
+        update(intake_table)
+        .where(intake_table.c.id == intake.id)
+        .values(expected_session_id="session-bob")
+    )
+    with pytest.raises(LedgerError, match="invalid_turn_intake_relationship"):
+        ledger.get_turn_intake(
+            owner_reference=owner,
+            chat_reference=chat,
+            transport_update_reference=transport_update_ref(KEY, 123, 456),
+        )
+    database.execute(
+        update(intake_table)
+        .where(intake_table.c.id == intake.id)
+        .values(expected_session_id="session-private-id", scope="secure")
+    )
+    with pytest.raises(LedgerError, match="invalid_turn_intake_relationship"):
+        ledger.get_turn_intake(
+            owner_reference=owner,
+            chat_reference=chat,
+            transport_update_reference=transport_update_ref(KEY, 123, 456),
+        )
+    database.execute(
+        update(intake_table)
+        .where(intake_table.c.id == intake.id)
+        .values(scope="normal")
+    )
+    database.execute(
+        update(database_module.TelegramTurnIntake.__table__)
+        .where(database_module.TelegramTurnIntake.id == intake.id)
+        .values(status=TurnIntakeState.LEASE_RETRY.value, retry_count=0, next_retry_at=None)
+    )
+    with pytest.raises(LedgerError, match="invalid_turn_intake_row"):
+        ledger.get_or_create_turn_intake(
+            owner_reference=owner,
+            chat_reference=chat,
+            transport_update_reference=transport_update_ref(KEY, 123, 456),
+            scope="normal",
+            binding_id=binding.id,
+            expected_session_id="session-private-id",
+            expected_generation=0,
+        )
+    database.execute(
+        update(database_module.TelegramTurnIntake.__table__)
+        .where(database_module.TelegramTurnIntake.id == intake.id)
+        .values(status=TurnIntakeState.PENDING.value, retry_count=0, next_retry_at=None, reason_code=None)
+    )
+    interleaved = _InterleavingDatabase(
+        database,
+        intake_table,
+        lambda db: db.execute(
+            update(intake_table)
+            .where(intake_table.c.id == intake.id)
+            .values(status=TurnIntakeState.RUNNING.value, retry_count=0, next_retry_at=None, reason_code=None)
+        ),
+    )
+    with pytest.raises(LedgerError, match="stale_row_state"):
+        TelegramRolloverLedger(interleaved, KEY).advance_turn_intake(
+            intake_id=intake.id,
+            expected_generation=0,
+            event=TurnIntakeEvent.LEASE_BUSY,
+            retry_after=datetime(2026, 7, 25, tzinfo=timezone.utc),
+        )
+    database.execute(
+        update(intake_table)
+        .where(intake_table.c.id == intake.id)
+        .values(status=TurnIntakeState.PENDING.value, retry_count=0, next_retry_at=None, reason_code=None)
+    )
+    database.execute(
+        update(database_module.TelegramSessionBinding.__table__)
+        .where(database_module.TelegramSessionBinding.id == binding.id)
+        .values(generation=1)
+    )
+    with pytest.raises(LedgerError, match="stale_generation_fence"):
+        ledger.advance_turn_intake(
+            intake_id=intake.id,
+            expected_generation=0,
+            event=TurnIntakeEvent.LEASE_BUSY,
+            retry_after=datetime(2026, 7, 25, tzinfo=timezone.utc),
+        )
+    database.execute(
+        update(database_module.TelegramSessionBinding.__table__)
+        .where(database_module.TelegramSessionBinding.id == binding.id)
+        .values(generation=0)
+    )
+    retry = ledger.advance_turn_intake(
+        intake_id=intake.id,
+        expected_generation=0,
+        event=TurnIntakeEvent.LEASE_BUSY,
+        retry_after=datetime(2026, 7, 25, tzinfo=timezone.utc),
+    )
+    running = ledger.advance_turn_intake(
+        intake_id=intake.id, expected_generation=0, event=TurnIntakeEvent.LEASE_ACQUIRED
+    )
+    reply_pending = ledger.advance_turn_intake(
+        intake_id=intake.id, expected_generation=0, event=TurnIntakeEvent.REPLY_PERSISTED
+    )
+    completed = ledger.advance_turn_intake(
+        intake_id=intake.id, expected_generation=0, event=TurnIntakeEvent.REPLY_SENT
+    )
+    assert retry.status is TurnIntakeState.LEASE_RETRY and retry.retry_count == 1
+    assert running.status is TurnIntakeState.RUNNING
+    assert reply_pending.status is TurnIntakeState.REPLY_PENDING
+    assert completed.status is TurnIntakeState.COMPLETED
+    database.execute(
+        update(database_module.TelegramSessionBinding.__table__)
+        .where(database_module.TelegramSessionBinding.id == binding.id)
+        .values(generation=1)
+    )
+    assert ledger.get_turn_intake(
+        owner_reference=owner,
+        chat_reference=chat,
+        transport_update_reference=transport_update_ref(KEY, 123, 456),
+    ) == completed
+    assert ledger.get_or_create_turn_intake(
+        owner_reference=owner,
+        chat_reference=chat,
+        transport_update_reference=transport_update_ref(KEY, 123, 456),
+        scope="normal",
+        binding_id=binding.id,
+        expected_session_id="session-private-id",
+        expected_generation=1,
+    ) == completed
+    for scope, binding_id, session_id in (
+        ("secure", binding.id, "session-private-id"),
+        ("normal", "b1_" + "0" * 32, "session-private-id"),
+        ("normal", binding.id, "other-session"),
+    ):
+        with pytest.raises(LedgerError, match="conflicting_intake_replay"):
+            ledger.get_or_create_turn_intake(
+                owner_reference=owner,
+                chat_reference=chat,
+                transport_update_reference=transport_update_ref(KEY, 123, 456),
+                scope=scope,
+                binding_id=binding_id,
+                expected_session_id=session_id,
+                expected_generation=1,
+            )
+    assert ledger.advance_turn_intake(
+        intake_id=intake.id, expected_generation=0, event=TurnIntakeEvent.REPLY_SENT
+    ) == completed
+    with pytest.raises(LedgerError, match="stale_generation_fence"):
+        ledger.get_or_create_turn_intake(
+            owner_reference=owner,
+            chat_reference=chat,
+            transport_update_reference=transport_update_ref(KEY, 124, 456),
+            scope="normal",
+            binding_id=binding.id,
+            expected_session_id="session-private-id",
+            expected_generation=0,
+        )
+    with pytest.raises(LedgerError, match="invalid_turn_intake_transition"):
+        ledger.advance_turn_intake(
+            intake_id=intake.id, expected_generation=0, event=TurnIntakeEvent.LEASE_ACQUIRED
+        )
 
 
 def test_rollover_config_is_default_off_and_invalid_values_fail_closed():
