@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T08:41:23+02:00",
-  "status": "ttd02_and_ttd08a_accepted_ttd03a_handoff_rejected_ttd08b_bounded_audit_store_claimed_live_default_off",
+  "updated_at": "2026-07-24T08:48:09+02:00",
+  "status": "ttd02_ttd08a_and_ttd08b_accepted_ttd03a_handoff_rejected_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd03a_reserved_handoff_rejected_ttd08b_exact_four_path_claim_active",
+    "queue_status": "ttd03a_reserved_handoff_rejected_ttd08b_accepted_ttd08c_read_only_recon_next",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd02_and_ttd08a_accepted_ttd03a_handoff_rejected_ttd08b_claimed_live_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd02_ttd08a_and_ttd08b_accepted_ttd03a_handoff_rejected_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,18 +85,17 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-08B read-only recon is complete and its exact four-path claim is active. Deep Sol compatibility review added only the stale TTD-08A legacy-fallback assertion to the original implementation paths: it must now prove that legacy-only history yields no audit receipts. The slice adds a separate content-free audit store with 30-day retention, bounded two-generation rotation, fail-closed configuration and corrupt-file handling, and a process-local shared path lock. TTD-03A remains reserved after a rejected handoff; legacy history, migration, deletion and all live paths remain excluded.",
-        "slice": "TTD-08B-audit-retention-size-and-rotation",
+        "reason": "TTD-08B is accepted at 02eb7c02 after three deep Sol review rounds: a separate content-free audit store now enforces 30-day retention, bounded two-generation atomic rotation, fail-closed configuration and corruption handling, process-local serialization, no legacy fallback or backfill, and update-time truth. TTD-03A remains reserved after a rejected handoff. TTD-08C is now dependency-ready for read-only recon of session, attachment and export boundaries only; no implementation claim or live action is active.",
+        "slice": "TTD-08C-session-attachment-and-export-privacy-boundaries-read-only-recon",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "implement_only_plugins_telegram_audit_store_py_plugins_telegram_stores_py_tests_test_telegram_audit_store_py_and_the_single_stale_legacy_fallback_assertion_in_tests_test_telegram_history_privacy_py_with_synthetic_data_no_legacy_rewrite_or_live_mutation"
+        "safe_default": "recon_only_no_ttd08c_claim_until_session_database_fts_attachment_spool_export_retention_and_exact_hotfile_boundaries_are_recorded"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-24"
     },
     "active_claimed_slices": [
-      "TTD-03A-todo-semantic-receipt-ledger",
-      "TTD-08B-audit-retention-size-and-rotation"
+      "TTD-03A-todo-semantic-receipt-ledger"
     ]
   },
   "non_ui_execution_ledger": {
@@ -956,8 +955,8 @@
       "id": "OWM-22",
       "name": "Telegram Todo Domain Truth And Digest Consistency",
       "priority": 4,
-      "status": "ttd00_through_ttd02_and_ttd08a_accepted_ttd03a_handoff_rejected_ttd08b_claimed_live_default_off",
-      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-02 and the disjoint TTD-08A history-privacy projection are accepted. TTD-03A remains reserved after its interrupted Terra handoff failed deep Sol review. TTD-08B is now claimed on three disjoint paths; TTD-08C, TTD-03B and all later dependency successors remain open and live activation remains dormant.",
+      "status": "ttd00_through_ttd02_ttd08a_and_ttd08b_accepted_ttd03a_handoff_rejected_live_default_off",
+      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-02 plus the disjoint TTD-08A history-privacy projection and TTD-08B bounded audit store are accepted. TTD-03A remains reserved after its interrupted Terra handoff failed deep Sol review. TTD-08C, TTD-03B and all later dependency successors remain open and live activation remains dormant.",
       "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "source_gate_family": "telegram_todo_truth",
       "dependencies": [
@@ -970,14 +969,14 @@
       "safe_default": "build_and_test_against_synthetic_notes_memory_and_telegram_fixtures_no_production_data_write_deploy_or_send",
       "user_gate_policy": "No user gate in TTD-00 through TTD-10, including TTD-07A. Repository work uses synthetic owner-scoped data and keeps all live actions disabled. Deployment, production data repair, Telegram smoke and productive session rollover are four separate dormant action-specific gates and each requires its own later operator Go.",
       "execution_protocol": {
-        "queue_registration": "TTD-00 through TTD-02 and TTD-08A are accepted. TTD-03A remains reserved on nine paths after rejected deep Sol review and awaits a later Terra repair; TTD-03B waits for accepted TTD-03A. TTD-08B read-only recon is complete and its exact four-path bounded audit-store implementation claim is active after Deep Sol added only the stale legacy-fallback assertion; TTD-08C remains blocked by TTD-08B, while TTD-04 through TTD-07A and TTD-09 through TTD-10 remain blocked_by_dependency.",
+        "queue_registration": "TTD-00 through TTD-02 plus TTD-08A and TTD-08B are accepted. TTD-03A remains reserved on nine paths after rejected deep Sol review and awaits a later Terra repair; TTD-03B waits for accepted TTD-03A. No new implementation claim is active. TTD-08C is dependency-ready for read-only boundary recon only, while TTD-04 through TTD-07A and TTD-09 through TTD-10 remain blocked_by_dependency.",
         "dependency_rule": "Notes remains Todo truth; manage_todos is a domain facade over Notes, Memory rejects Todo storage, Telegram preserves semantic receipts, and every Digest claim requires a read-only include/exclude/schedule postcondition. Daily session rollover limits context but never substitutes old chat prose for domain readback.",
         "scheduling_decision": {
           "operator_priority_effective_at": "2026-07-21",
-          "position": "active_p0_corrective_track_ttd03a_reserved_ttd08a_accepted_ttd08b_claim_active",
+          "position": "active_p0_corrective_track_ttd03a_reserved_ttd08a_ttd08b_accepted_ttd08c_recon_next",
           "implementation_authority": "current_goal_repo_only_plus_read_only_debian_preflight_no_live_mutation_authority_before_ttd10"
         },
-        "future_goal_command": "/goal Setze OWM-22 repo-only fort: implementiere den aktiven exakten TTD-08B-Vierpfad-Claim per Terra-Handoff und Deep-Sol-Review; repariere TTD-03A spaeter separat; keine Legacy-Migration, Loeschung, App-/Plugin-Hotfiles, Produktionsdaten, Deployments, Sends oder produktiven Rollover."
+        "future_goal_command": "/goal Setze OWM-22 repo-only fort: fuehre nur read-only TTD-08C-Recon fuer Session-DB/FTS, Attachment-Spool, Export und Retention durch und zeichne vor jeder Implementierung einen exakten disjunkten Hotfile-Claim auf; repariere TTD-03A spaeter separat; keine Bestandsmigration, Loeschung, Produktionsdaten, Deployments, Sends oder produktiven Rollover."
       },
       "activation_contract": {
         "id": "TTD-LIVE-DEPLOY",
@@ -2983,14 +2982,14 @@
         "product_complete": "no"
       },
       "acceptance": "offline_go_truthful_mixed_raw_store_classification_and_closed_content_free_admin_history_webhook_receipts_without_legacy_mutation",
-      "next_frontier": "TTD-08B read-only recon is complete and its exact four-path bounded audit-store claim is active after one compatibility-test-only amendment. TTD-03A remains reserved after rejected handoff. TTD-LIVE-DEPLOY remains dormant until TTD-10 and current Git ancestry divergence is reconciled.",
+      "next_frontier": "TTD-08B is accepted at 02eb7c02 after three deep Sol review rounds. TTD-08C is dependency-ready for read-only boundary recon only. TTD-03A remains reserved after rejected handoff. TTD-LIVE-DEPLOY remains dormant until TTD-10 and current Git ancestry divergence is reconciled.",
       "done_when": "The mixed raw Telegram history store is explicitly and conservatively classified as raw-bearing; one closed fail-closed audit projection removes every raw or free-form field; admin history and webhook responses expose only bounded content-free receipts; internal raw history consumers and legacy files are preserved without migration or deletion; and narrow synthetic tests prove the two external boundaries do not leak raw text or identifiers."
     },
     {
       "id": "TTD-08B-audit-retention-size-and-rotation",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_2026-07-24",
+      "status": "accepted_2026-07-24",
       "claimable": false,
       "depends_on": [
         "TTD-08A accepted at implementation commit 55381d1b13326845e9dcedbddc0dc6e7774f8c19",
@@ -3027,12 +3026,13 @@
           "plugins/telegram/polling.py",
           "src/agent_loop.py"
         ],
-        "state": "active",
+        "state": "released",
         "acquired_at": "2026-07-24T08:28:07+02:00",
         "lease_expires_at": "2026-07-24T12:41:23+02:00",
         "amended_at": "2026-07-24T08:41:23+02:00",
         "amendment_reason": "Deep Sol compatibility review found one accepted TTD-08A test that explicitly required the legacy read-time fallback now forbidden by the TTD-08B contract. Add only that test file so its legacy-only case can assert an empty audit result; no production path or behavior is added.",
-        "handoff_required": true,
+        "handoff_required": false,
+        "released_at": "2026-07-24T08:48:09+02:00",
         "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
         "new_paths": true,
         "dependency_sha256": {
@@ -3076,7 +3076,7 @@
           "TELEGRAM_AUDIT_MAX_BYTES": "default 131072 serialized UTF-8 bytes per generation; integer range 4096..1048576",
           "invalid_rule": "unset or empty uses the default; a non-integer, non-positive or out-of-range explicit value makes the audit store unavailable for that call, so reads return empty and writes leave every file unchanged"
         },
-        "retention": "Reads suppress receipts older than the configured day window without mutation. Successful appends prune expired receipts from the audit envelope only before enforcing bounds and rotation. A zero, future-invalid or otherwise invalid recorded_at receipt is rejected without changing audit or legacy files.",
+        "retention": "Reads suppress receipts older than the configured day window without mutation. Successful appends prune expired receipts from the audit envelope only before enforcing bounds and rotation, and reject an already expired new receipt before mutation. A zero, future-invalid or otherwise invalid recorded_at receipt is rejected without changing audit or legacy files. Status updates use their newly written updated_at as audit recorded_at rather than the original message stored_at.",
         "bounds_and_rotation": "Each generation is bounded independently by both record count and its compact serialized UTF-8 byte size. The envelope contains at most two generations and fixed schema overhead. When adding a valid receipt would exceed either current-generation bound, atomically replace previous with the old current and start current with the new receipt. If the single new entry cannot fit, leave the existing audit file unchanged.",
         "atomicity": "Serialize to a unique sibling temporary file, flush and fsync it, replace with os.replace, and remove temporary residue on every failure. A module-level path-keyed shared reentrant lock prevents lost updates across TelegramInboxStore instances in this process; no cross-process serialization guarantee is claimed.",
         "fail_closed": "Missing audit file may be initialized by a valid append. Corrupt JSON, schema-invalid envelopes, invalid entries, read I/O errors and write/replace errors make the audit store unavailable: read empty, write no-op, and never repair, truncate, delete or overwrite the suspect file.",
@@ -3108,14 +3108,43 @@
         "git diff --check -- plugins/telegram/audit_store.py plugins/telegram/stores.py tests/test_telegram_audit_store.py tests/test_telegram_history_privacy.py"
       ],
       "completion": {
-        "implemented": "pending",
-        "tested": "pending",
-        "committed": "claim_pending",
+        "implemented": "yes",
+        "tested": "yes",
+        "committed": "yes",
         "pushed": "no",
         "deployed": "no",
-        "live_validated": "no",
+        "live_validated": "no_repo_only",
         "product_complete": "no"
       },
+      "review": {
+        "reviewed_at": "2026-07-24T08:48:09+02:00",
+        "reviewer": "root/Sol",
+        "depth": "deep",
+        "rounds": 3,
+        "verdict": "accepted",
+        "implementation_commit": "02eb7c02de1d87ab000153b9cfd9b2eec2d5968d",
+        "claim_commit": "fc1e3f57",
+        "claim_amendment_commit": "029333a8",
+        "focused_evidence": [
+          "Initial Terra handoff: 6 focused tests passed with one existing SQLAlchemy deprecation warning",
+          "Deep Sol round one closed unhashable schema validation, case-normalized path locking and oversized-envelope fail-closed gaps; 6 focused tests passed",
+          "Deep Sol round two added the exact no-legacy-fallback compatibility assertion and propagating concurrency futures; 7 focused tests passed",
+          "Deep Sol round three rejected already expired new receipts and made old-record status updates use updated_at audit time; 7 focused tests passed",
+          "git diff --check passed on all four claim paths",
+          "scope collision check found exactly the four allowed paths and zero TTD-03A or excluded path changes"
+        ],
+        "review_fixes": [
+          "closed field type validation prevents unhashable schema-invalid JSON from escaping audit_history",
+          "total envelope size is rejected before JSON decode and suspect files remain unchanged",
+          "Windows path aliases share one process-local lock and resolution failures fail closed",
+          "legacy-only records produce no audit fallback or backfill while remaining internally readable",
+          "concurrent worker assertions propagate and prove no lost process-local updates",
+          "already expired new receipts are rejected before mutation",
+          "status updates for old messages carry update-time audit truth rather than stale stored_at"
+        ]
+      },
+      "acceptance": "offline_go_separate_bounded_content_free_audit_store_with_no_legacy_fallback_fail_closed_retention_atomic_rotation_and_update_time_truth",
+      "next_frontier": "TTD-08C is dependency-ready for read-only recon of global session and FTS classification plus attachment spool and export retention boundaries. No implementation claim is active. TTD-03A remains reserved after rejected handoff. TTD-LIVE-DEPLOY remains dormant through TTD-10.",
       "done_when": "A separate fail-closed content-free audit store receives only newly written Telegram receipts, never reads or mutates legacy history, enforces 30-day default retention plus per-generation record and byte limits, keeps at most current and previous generations through one atomic envelope, preserves suspect or prior files on every error, prevents process-local lost updates, and focused synthetic tests prove privacy, retention, bounds, rotation, atomicity and all no-touch constraints."
     },
     {

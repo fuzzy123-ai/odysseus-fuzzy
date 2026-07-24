@@ -10,9 +10,9 @@ wurde in der tiefen Sol-Pruefung abgelehnt und wartet auf einen neuen
 Terra-Reparaturhandoff. `TTD-03B` wartet weiter auf akzeptiertes TTD-03A;
 der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
-Der read-only Recon fuer `TTD-08B` ist abgeschlossen; der exakte disjunkte
-Vierpfad-Claim fuer einen separaten begrenzten Audit-Store ist nach einer
-reinen Kompatibilitaetstest-Ergaenzung aktiv.
+Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
+Audit-Store ist nach drei tiefen Sol-Review-Runden ebenfalls akzeptiert.
+`TTD-08C` ist als naechster read-only Boundary-Recon dependency-ready.
 Spaetere unmet Slices und saemtliche Live-Aktionen bleiben gesperrt.
 
 ## Durable Amendment Claim 2026-07-21
@@ -899,7 +899,7 @@ Serialisierung:
      - Kein Push, Deploy, Legacy-Rewrite, produktiver Datenzugriff oder
        Live-Smoke.
 2. `TTD-08B-audit-retention-size-and-rotation`
-   - Status: `claimed_2026-07-24`
+   - Status: `accepted_2026-07-24`
    - Run: `abc-ttd08b-20260724T082807+0200`
    - Owner: Charlie
    - Exakte Pfade:
@@ -951,8 +951,12 @@ Serialisierung:
        unavailable: Reads liefern leer, Writes lassen Dateien unveraendert.
      - Reads verbergen abgelaufene Receipts ohne Mutation. Ein gueltiger Append
        entfernt abgelaufene Receipts nur aus dem Audit-Envelope, bevor Record-
-       und Byte-Limits angewendet werden. Ungueltige, nullte oder unplausible
-       Zukunfts-Zeitstempel werden ohne Dateiaenderung abgelehnt.
+       und Byte-Limits angewendet werden. Ein bereits abgelaufenes neues
+       Receipt sowie ungueltige, nullte oder unplausible Zukunfts-Zeitstempel
+       werden ohne Dateiaenderung abgelehnt.
+     - Ein heutiges Statusupdate eines alten Records verwendet `updated_at`
+       als Audit-Zeit und nicht dessen abgelaufenes urspruengliches
+       `stored_at`.
      - Jede Generation erfuellt beide Limits. Bei Ueberschreitung wird das alte
        `current` zu `previous` und ein neues `current` mit dem Receipt begonnen;
        ein aelteres `previous` faellt weg. Passt ein einzelner Eintrag nicht,
@@ -978,8 +982,27 @@ Serialisierung:
      `app.py`, Plugin/Polling, Attachments/Export, Session-DB/FTS,
      Legacy-Migration/-Loeschung/-Retention/-Rotation, produktive Daten,
      Netzwerk, Deploy, Telegram-Send und jede Live-Aktion.
+   - Handoff und Acceptance:
+     - Claim-Commit: `fc1e3f57`; Test-only Claim-Amendment: `029333a8`.
+     - Implementierungscommit:
+       `02eb7c02de1d87ab000153b9cfd9b2eec2d5968d`.
+     - Initialer Terra-Handoff und Review-Runde 1: jeweils 6 fokussierte Tests
+       bestanden.
+     - Review-Runden 2 und 3: jeweils 7 fokussierte Tests bestanden.
+     - Jeweils nur die bestehende SQLAlchemy-Deprecation-Warnung;
+       `git diff --check` auf allen vier Pfaden gruen.
+     - Deep Sol schloss unhashbare Schemawerte, zu grosse Envelopes,
+       Windows-Pfadalias-Locks, nicht propagierte Thread-Fehler, den stale
+       Legacy-Fallback-Test sowie abgelaufene neue Receipts und die
+       `updated_at`-Zeitwahrheit.
+     - Claim released: `2026-07-24T08:48:09+02:00`.
+     - Kein Push, Deploy, Legacy-Rewrite, produktiver Datenzugriff oder
+       Live-Smoke.
 3. `TTD-08C-session-attachment-and-export-privacy-boundaries`
-   - Erst nach TTD-08A/08B und explizitem Hotfile-Recon claimen.
+   - Status: `dependency_ready_read_only_recon_next`.
+   - Nach TTD-08A/08B jetzt zunaechst nur Session-/FTS-, Attachment-Spool-,
+     Export- und Retention-Hotfiles read-only reconcilen; erst danach einen
+     exakten disjunkten Implementierungsclaim aufzeichnen.
    - Globale Session-/FTS-Klassifikation sowie Attachment-/Export-Retention
      bleiben getrennt; keine Bestandsmigration oder -loeschung repo-only.
 
