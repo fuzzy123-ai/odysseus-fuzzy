@@ -239,10 +239,14 @@ def _command_body():
 
 def test_all_six_agent_endpoints_are_registered_and_fail_closed(api):
     client, _, _, _ = api
+    http_methods = frozenset(
+        {"delete", "get", "head", "options", "patch", "post", "put", "trace"}
+    )
     operations = {
-        (method, route.path)
-        for route in client.app.routes
-        for method in getattr(route, "methods", set())
+        (method.upper(), path)
+        for path, path_item in client.app.openapi()["paths"].items()
+        for method in path_item
+        if method in http_methods
     }
     expected = {
         ("POST", "/api/agent/runs"),
@@ -252,7 +256,7 @@ def test_all_six_agent_endpoints_are_registered_and_fail_closed(api):
         ("GET", "/api/agent/runs/{agent_run_id}/stream"),
         ("POST", "/api/agent/runs/{agent_run_id}/commands"),
     }
-    assert expected <= operations
+    assert operations == expected
     assert client.get("/api/agent/runs").status_code == 401
 
 
