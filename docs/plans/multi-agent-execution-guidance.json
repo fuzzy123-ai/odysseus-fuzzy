@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_ttd03a_ttd03b_ttd04_ttd05a_ttd08a_ttd08b_accepted_ttd05b_read_only_recon_next",
-      "ai_hint": "This is the current gate authority. TTD-05A is accepted at 275a6354: canonical Todo mutations may carry only strict content-free default-Digest membership receipts and timing remains fail-closed. Run TTD-05B owner-scoped schedule-status ownership and exact-path recon read-only next. Do not write schedules, execute tasks, deliver notifications, touch Telegram or live data, or deploy; TTD-LIVE-DEPLOY remains dormant through TTD-10."
+      "state": "owm22_ttd03a_ttd03b_ttd04_ttd05a_ttd08a_ttd08b_accepted_ttd05b_active_future_schedule_claimed",
+      "ai_hint": "This is the current gate authority. TTD-05B is the sole active claim on ten exact paths: add only a separate content-free receipt for exactly one owner-scoped active valid cron Todo Digest task with future naive-UTC next_run and use it only for generic next-Digest schedule truth. Preserve the accepted TTD-05A membership schema. Exact tomorrow/morning/HH:MM, execution, delivery, Telegram, TaskRun, notification and every live path remain unsupported/excluded. TTD-LIVE-DEPLOY stays dormant through TTD-10."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",

@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T11:12:42+02:00",
-  "status": "ttd03a_ttd03b_ttd04_ttd05a_ttd08a_ttd08b_accepted_ttd05b_read_only_recon_next_live_default_off",
+  "updated_at": "2026-07-24T11:17:10+02:00",
+  "status": "ttd03a_ttd03b_ttd04_ttd05a_ttd08a_ttd08b_accepted_ttd05b_active_future_schedule_claimed_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd03a_ttd03b_ttd04_ttd05a_accepted_ttd05b_schedule_status_read_only_recon_next_attachment_deferred",
+    "queue_status": "ttd03a_ttd03b_ttd04_ttd05a_accepted_ttd05b_active_future_schedule_claimed_attachment_deferred",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd05a_ttd08a_ttd08b_accepted_ttd05b_read_only_recon_next_live_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd05a_ttd08a_ttd08b_accepted_ttd05b_active_future_schedule_claimed_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,16 +85,18 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-05A is accepted at implementation commit 275a6354455644bab38f86058f6093686fa9edfb after three deep Sol boundary rounds. Run only a read-only TTD-05B schedule-status ownership and exact-path recon next; execution, delivery, Telegram and all live paths remain excluded.",
-        "slice": "TTD-05B-schedule-status-read-only-recon",
+        "reason": "TTD-05B read-only recon proved a narrow generic schedule-status lane. The sole active claim may prove only one owner-scoped active valid cron Todo Digest task with a future naive-UTC next_run; exact time, execution, delivery, Telegram and all live paths remain excluded.",
+        "slice": "TTD-05B-active-future-schedule-receipt",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "reconcile_only_owner_scoped_digest_schedule_status_and_exact_paths_read_only_before_any_ttd05b_claim; no_schedule_write_execution_delivery_telegram_provider_data_or_live_mutation"
+        "safe_default": "implement_only_the_claimed_content_free_active_future_schedule_receipt_and_generic_next_digest_gate; no_schedule_write_exact_time_execution_delivery_telegram_provider_data_or_live_mutation"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-24"
     },
-    "active_claimed_slices": []
+    "active_claimed_slices": [
+      "TTD-05B-active-future-schedule-receipt"
+    ]
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -3378,6 +3380,153 @@
       "acceptance": "offline_go_content_free_default_digest_membership_and_exclusion_receipts_with_exact_semantic_state_snapshot_integrity_final_gate_and_schedule_fail_closed",
       "next_frontier": "TTD-05B schedule-status evidence is dependency-ready for read-only ownership and exact-path recon only. TTD-LIVE-DEPLOY remains dormant through TTD-10.",
       "done_when": "A canonical Todo mutation yields a strictly validated content-free snapshot receipt proving only present membership or completed/absent exclusion in the current default Digest projection, and the final claim gate rejects every unsupported or timing/delivery implication."
+    },
+    {
+      "id": "TTD-05B-active-future-schedule-receipt",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "claimed_2026-07-24",
+      "claimable": false,
+      "depends_on": [
+        "TTD-01 accepted",
+        "TTD-05A accepted at 275a6354455644bab38f86058f6093686fa9edfb",
+        "TTD-05B read-only schedule-status ownership and exact-path recon complete",
+        "all ten paths clean and no active overlapping claim"
+      ],
+      "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "claim": {
+        "run_id": "abc-ttd05b-20260724T111710+0200",
+        "thread_id": "/root",
+        "slice_id": "TTD-05B-active-future-schedule-receipt",
+        "owner": "Bob",
+        "allowed_paths": [
+          "src/calendar_capability_service.py",
+          "src/todo_digest_schedule_receipts.py",
+          "src/tool_domains/todos.py",
+          "src/todo_transaction_receipts.py",
+          "src/claim_evidence_gate.py",
+          "tests/test_calendar_capability_service.py",
+          "tests/test_todo_digest_schedule_receipts.py",
+          "tests/test_manage_todos_tool.py",
+          "tests/test_todo_transaction_receipts.py",
+          "tests/test_claim_evidence_gate.py"
+        ],
+        "excluded_paths": [
+          "src/todo_digest_receipts.py src/builtin_actions.py tests/test_todo_digest.py tests/test_todo_digest_receipts.py and the accepted TTD-05A membership schema and selector",
+          "src/task_scheduler.py src/task_scheduler_helpers.py src/task_scheduler_delivery.py src/user_notification_delivery.py TaskRun notification queues and all execution or delivery paths",
+          "app.py plugins/telegram src/telegram_truth_gate.py and every accepted TTD-04 path",
+          "schedule create update pause resume run write APIs data environment provider network deploy and every live path",
+          "exact tomorrow morning weekday HH:MM output-target Telegram sent delivered or provider claim proof",
+          "docs except root-owned claim and acceptance state"
+        ],
+        "hotfiles": [
+          "src/calendar_capability_service.py",
+          "src/tool_domains/todos.py",
+          "src/todo_transaction_receipts.py",
+          "src/claim_evidence_gate.py"
+        ],
+        "preserved_hotfiles": [
+          "src/todo_digest_receipts.py",
+          "src/builtin_actions.py",
+          "src/agent_loop.py",
+          "src/task_scheduler.py",
+          "src/task_scheduler_delivery.py",
+          "src/user_notification_delivery.py",
+          "app.py",
+          "plugins/telegram/plugin.py"
+        ],
+        "state": "claimed",
+        "acquired_at": "2026-07-24T11:17:10+02:00",
+        "lease_expires_at": "2026-07-24T15:17:10+02:00",
+        "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
+        "new_paths": true,
+        "dependency_sha256": {
+          "src/calendar_capability_service.py": "f90f76964b83793f4acd7a273ed68d74973d4b4315d33517c37404aab0e63aa0",
+          "src/tool_domains/todos.py": "18d863bda622ec5f65e643af43a08ab41339990264f10a158bb96a08e90681f0",
+          "src/todo_transaction_receipts.py": "6343a6fd1e3e0fba3fcbd57474db77f0390302da0fc80790041dcb42a535ae03",
+          "src/claim_evidence_gate.py": "3a6bc6fdcdea02642cc3dfc260fa505efa46c1a96fb6903bc12b0235f0f7e4c3",
+          "tests/test_calendar_capability_service.py": "01339de95059792188a99848937cd6f7f32718f6e2057ab39855f64b8f045f0d",
+          "tests/test_manage_todos_tool.py": "10658f0d4d202aa6ab401eebf703ef22573cee0cef76bd16dbdcee453707d918",
+          "tests/test_todo_transaction_receipts.py": "9418fda2ece7fa96006da9ee1b3b102297a6eb3bb90589e33ef552563d63604f",
+          "tests/test_claim_evidence_gate.py": "4f5a5f175e9297c4434d7f73308d1d830f527ee4c4019e86e89c6db602f2e431"
+        }
+      },
+      "recon": {
+        "completed_at": "2026-07-24T11:17:10+02:00",
+        "worker": "Charlie",
+        "mutation_performed": false,
+        "verdict": "claim_separate_generic_active_future_schedule_receipt",
+        "runtime_evidence": [
+          "ScheduledTask stores owner task_type action trigger_type schedule cron_expression scheduled_time next_run status and output_target",
+          "build_telegram_todo_digest_live_gate is owner-scoped and read-only but Telegram-specific and does not require trigger_type schedule cron or a future next_run",
+          "a fresh schedule-status query can prove configured planning only and cannot prove TaskRun execution notification enqueue Telegram configuration or delivery",
+          "compute_next_run stores timezone-resolved values as naive UTC, so future-ness must compare against a fresh naive-UTC clock",
+          "the accepted closed Todo event can transport one separate optional validated schedule receipt without changing agent_loop or the TTD-05A membership schema"
+        ]
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "active future schedule status receipt, focused verification and deep Sol review"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "synthetic owner-scoped ScheduledTask rows and closed content-free manage_todos events only",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "fresh_owner_scoped_read_after_a_valid_canonical_todo_mutation",
+          "exactly_one_candidate_action_todo_digest_schedule_cron_row_across_relevant_statuses",
+          "candidate_is_active_with_valid_simple_cron_and_future_naive_utc_next_run",
+          "separate_strict_content_free_schedule_receipt_with_owner_task_schedule_refs_and_recomputable_receipt_ref",
+          "missing_duplicate_paused_completed_invalid_mismatch_null_aware_or_stale_next_run_fails_closed",
+          "generic_next_digest_claim_requires_both_matching_membership_and_schedule_receipts",
+          "exact_time_morning_execution_delivery_telegram_and_provider_claims_remain_unsupported",
+          "schedule_readback_failure_never_weakens_the_canonical_todo_mutation_or_ttd05a_membership_receipt",
+          "no_schedule_write_task_run_delivery_telegram_provider_data_runtime_or_live_action"
+        ],
+        "temporal_window": "one fresh owner-scoped schedule readback with naive-UTC future comparison; no execution or delivery claim",
+        "positive_path_required": true
+      },
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider <only named TTD-05B nodes in tests/test_todo_digest_schedule_receipts.py tests/test_calendar_capability_service.py tests/test_manage_todos_tool.py tests/test_todo_transaction_receipts.py tests/test_claim_evidence_gate.py>",
+        "git diff --check -- src/calendar_capability_service.py src/todo_digest_schedule_receipts.py src/tool_domains/todos.py src/todo_transaction_receipts.py src/claim_evidence_gate.py tests/test_calendar_capability_service.py tests/test_todo_digest_schedule_receipts.py tests/test_manage_todos_tool.py tests/test_todo_transaction_receipts.py tests/test_claim_evidence_gate.py"
+      ],
+      "review": {
+        "reviewer": "root/Sol",
+        "depth": "deep",
+        "verdict": "pending",
+        "privacy_focus": "No raw owner task ID task name prompt cron next-run timestamp output target run history notification body Telegram detail or provider state may enter the schedule receipt event finding audit or persisted history."
+      },
+      "delivery": {
+        "implementation_commit": null,
+        "committed": "claim_only_pending_implementation",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "product_complete": "no"
+      },
+      "acceptance": "pending",
+      "next_frontier": "Implement and deep-review TTD-05B only. Exact timing execution delivery and TTD-LIVE-DEPLOY remain blocked.",
+      "done_when": "A canonical Todo mutation may additionally carry a strictly validated content-free receipt proving exactly one owner-scoped active valid cron Todo Digest task with a future naive-UTC next_run, and the final gate requires both membership and schedule evidence for a generic next-Digest claim while rejecting every stronger timing or delivery implication."
     },
     {
       "id": "TTD-08A-telegram-history-truthful-classification-and-audit-projection",

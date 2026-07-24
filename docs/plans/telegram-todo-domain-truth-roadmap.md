@@ -10,8 +10,9 @@ Reparaturhandoff und zwei tiefen Sol-Runden auf exakt neun Pfaden akzeptiert.
 `TTD-04` ist nach drei tiefen Sol-Grenzrunden auf exakt acht Pfaden
 akzeptiert. Der read-only `TTD-05`-Recon ist abgeschlossen und hat die Arbeit
 seriell getrennt: `TTD-05A` ist fuer content-free Digest-Mitgliedschaft auf
-exakt zehn Pfaden nach drei Sol-Grenzrunden akzeptiert; als naechstes laeuft
-nur ein read-only `TTD-05B` Schedule-Status-/Exaktpfad-Recon.
+exakt zehn Pfaden nach drei Sol-Grenzrunden akzeptiert. Der read-only
+`TTD-05B`-Recon ist abgeschlossen; der disjunkte Vertrag fuer genau einen
+aktiven kuenftigen Digest-Schedule ist auf exakt zehn Pfaden geclaimt.
 der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -657,13 +658,14 @@ Serialisierung:
 
 Naechste Frontier:
 
-- `TTD-04` und `TTD-05A` sind akzeptiert; aktive Claims: 0.
+- `TTD-04` und `TTD-05A` sind akzeptiert; aktiver Claim:
+  `TTD-05B-active-future-schedule-receipt`.
 - Der read-only Recon hat Snapshot-/Receipt-/Gate-Eigentum von
   Schedule-/Execution-/Delivery-Eigentum getrennt.
-- Naechste Aktion: read-only nachweisen, welcher bestehende owner-scoped
-  Calendar-/ScheduledTask-Readback genau einen aktiven Digest-Task samt
-  `next_run` beweisen kann, ohne Ausfuehrung oder Delivery zu behaupten.
-- `TTD-05B` bleibt bis nach diesem Recon unselected. Calendar, Task Scheduler,
+- Naechste Aktion: den geclaimten separaten content-free Schedule-Receipt,
+  seinen geschlossenen Todo-Event-Transport und die generische
+  Next-Digest-Gate-Auswertung implementieren und fokussiert pruefen.
+- Exakte Zeit-/Morgen-/Delivery-Sprache bleibt unselected. Task Scheduler,
   Delivery, Notification, Telegram, Provider, Produktionsdaten und saemtliche
   Live-Mutationen bleiben ausgeschlossen.
 - Kein Push, Deploy, Providerzugriff, produktiver Datenzugriff oder Live-Smoke
@@ -805,7 +807,8 @@ Owner: Bob
 
 Status: `TTD-05A-digest-membership-postcondition` ist am
 `2026-07-24T11:12:42+02:00` auf exakt zehn Pfaden akzeptiert.
-`TTD-05B` Schedule-Status ist dependency-ready fuer read-only Recon.
+`TTD-05B-active-future-schedule-receipt` ist nach read-only Recon am
+`2026-07-24T11:17:10+02:00` auf exakt zehn Pfaden geclaimt.
 
 Serialisierter TTD-05A-Claim:
 
@@ -857,6 +860,36 @@ Implementation und Acceptance:
   Pfade, Exakt-Scope und `git diff --check` sind gruen.
 - Kein Push, Deploy, Schedule-Write, Task-Run, Delivery, Telegram-Zugriff,
   Providerzugriff, produktiver Datenzugriff oder Live-Smoke.
+
+Serialisierter TTD-05B-Claim:
+
+- Run: `abc-ttd05b-20260724T111710+0200`
+- Lease: bis `2026-07-24T15:17:10+02:00`
+- Erlaubte Pfade:
+  - `src/calendar_capability_service.py`
+  - `src/todo_digest_schedule_receipts.py` (neu)
+  - `src/tool_domains/todos.py`
+  - `src/todo_transaction_receipts.py`
+  - `src/claim_evidence_gate.py`
+  - `tests/test_calendar_capability_service.py`
+  - `tests/test_todo_digest_schedule_receipts.py` (neu)
+  - `tests/test_manage_todos_tool.py`
+  - `tests/test_todo_transaction_receipts.py`
+  - `tests/test_claim_evidence_gate.py`
+- Exakt ein owner-scoped `action/todo_digest/schedule/cron`-Kandidat muss aktiv
+  sein, einen validen einfachen Cron besitzen und ein strikt zukuenftiges
+  `next_run` im `naive_utc`-Vertrag haben.
+- Der separate Receipt enthaelt nur strikte Status-/Clock-Felder, redigierte
+  Owner-/Task-/Schedule-Refs und einen neuberechenbaren Receipt-Ref. Raw Task
+  ID, Name, Prompt, Cron, Zeitstempel, Output-Target und Run-History bleiben
+  draussen.
+- Ein generischer Next-Digest-Claim braucht Membership und Schedule. Exakte
+  Zeit-, Morgen-, Execution-, Delivery-, Telegram- und Provider-Sprache bleibt
+  unsupported.
+- Der bestehende Telegram-Live-Gate wird nicht als Schedule-Receipt
+  wiederverwendet und nicht veraendert.
+- Keine Schedule-Mutation, kein Task-Run, keine Delivery, kein Telegram,
+  Provider, produktiver Datenzugriff, Deploy oder Live-Smoke.
 
 Ziel:
 
