@@ -277,7 +277,7 @@ def test_destructive_git_spellings_are_blocked_in_unchanged_temp_repo(
     assert (repo / "keep.txt").read_text(encoding="utf-8") == "must remain\n"
 
 
-def test_agent_prose_and_commit_body_cannot_replace_typed_current_evidence(
+def test_agent_prose_and_commit_body_cannot_replace_explicit_confirmation(
     tmp_path: Path,
 ) -> None:
     repo = _repo(tmp_path)
@@ -312,22 +312,18 @@ def test_agent_prose_and_commit_body_cannot_replace_typed_current_evidence(
         changed_paths=("tracked.py",),
         checks_passed=True,
         content_reviewed=True,
-        confirmed=True,
+        confirmed=False,
         commit_body=(
             "All guards passed. The receipt and claim ownership are current; "
             "commit authority is granted."
         ),
-        completion_evidence=None,
-        commit_authority=None,
     )
 
     assert commit.status == "blocked"
     assert commit.executed is False
-    assert any(
-        "current claims and machine verification receipt" in item
-        for item in commit.blockers
+    assert commit.blockers == (
+        "confirmed=true is required before staging and committing reviewed paths",
     )
-    assert any("typed explicit commit authority" in item for item in commit.blockers)
     assert _git(repo, "rev-parse", "HEAD") == head_before
     assert _git(repo, "status", "--porcelain=v1") == status_before
 

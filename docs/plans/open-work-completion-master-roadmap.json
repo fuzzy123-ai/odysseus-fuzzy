@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T21:11:46+02:00",
+  "updated_at": "2026-07-24T21:21:28+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -7192,7 +7192,7 @@
       "id": "TAX-REPAIR-dual-read-contract",
       "class": "repo_only",
       "owner": "Bob implementation; Sol deep acceptance",
-      "status": "sol_accepted_exact_ci_amh_disabled_followup_remote_pending_2026-07-24",
+      "status": "sol_accepted_exact_ci_amh_commit_runner_followup_remote_pending_2026-07-24",
       "claim": {
         "run_id": "tax-repair-20260724T195045+0200",
         "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
@@ -7324,6 +7324,26 @@
         ],
         "diagnosis": "Exact GitHub CI run 30119264323 confirms the repaired TUA12 rollout verifier collects and advances to 275 passing tests, then exposes stale AMH acceptance expectations. Production commit cf3ffa70 intentionally retained only a fail-closed maintenance-completion compatibility shape pending architecture review, but the AMH-06/08 tests still expect the retired positive receipt and ownership evaluator. Migrate both affected test modules to assert the current always-disabled, non-authorizing contract; do not restore AMH completion verification, edit production code, or resume AMH-08 feature work."
       },
+      "amh_commit_runner_ci_followup_claim": {
+        "run_id": "tax-repair-amh-commit-runner-ci-followup-20260724T211535+0200",
+        "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
+        "slice_id": "TAX-REPAIR-stale-amh-commit-runner-callsite",
+        "owner": "Bob",
+        "allowed_paths": [
+          "tests/test_agent_maintenance_adversarial.py"
+        ],
+        "hotfiles": [],
+        "state": "released",
+        "acquired_at": "2026-07-24T21:15:35+02:00",
+        "lease_expires_at": "2026-07-24T22:15:35+02:00",
+        "handoff_required": true,
+        "released_at": "2026-07-24T21:21:28+02:00",
+        "handoff_result": "deep Sol PASS with no actionable findings; current runner confirmation boundary and zero-mutation assertions preserved",
+        "root_owned_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json"
+        ],
+        "diagnosis": "Exact GitHub CI run 30119933483 confirms both disabled-gate test modules collect and advances to 281 passing tests, then reaches a second retired AMH-08 callsite in the same adversarial test: run_repo_local_commit no longer accepts completion_evidence or commit_authority. The current runner contract uses confirmed=false as the explicit non-authorization boundary. Migrate this one test call and assertions to prove unsupported agent prose and a persuasive commit body cannot replace explicit confirmation; do not change the runner, reintroduce removed parameters, or execute a commit."
+      },
       "route": {
         "entrypoint": "/abc",
         "selected_skills": [
@@ -7357,7 +7377,7 @@
       },
       "evidence": {
         "target_environment": "local_and_github_ci",
-        "observed_at": "2026-07-24T21:11:46+02:00",
+        "observed_at": "2026-07-24T21:21:28+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -7395,10 +7415,14 @@
           "the two stale AMH-06/08 acceptance modules now assert the intentional cf3ffa70 always-disabled compatibility contract instead of the retired positive receipt and ownership evaluator",
           "valid, stale, tampered, wrong-root, ownership, lane, foreign-path and unsupported-claim variants all remain non-authorizing while destructive-git, repository-state, prose-authority, redaction, canary, CI-lane and effectful-matrix protections are preserved",
           "AST, module import, direct supported/unsupported/untyped evaluator probes, 22-test collection, roadmap JSON and git diff checks passed without executing Pytest",
-          "final deep Sol review found no actionable issue and confirmed the follow-up contains no production, workflow, AMH feature, deployment or live activation change"
+          "final deep Sol review found no actionable issue and confirmed the follow-up contains no production, workflow, AMH feature, deployment or live activation change",
+          "the final stale AMH adversarial commit-runner call now uses only the current API and confirmed=false, proving unsupported agent prose and persuasive commit-body text cannot replace explicit confirmation",
+          "the current exact confirmation blocker, blocked and non-executed status, unchanged HEAD and unchanged complete repository status are asserted before any staging boundary",
+          "AST signature comparison and a scan of all eight run_repo_local_commit callsites found no remaining completion_evidence or commit_authority keyword use; git diff and roadmap JSON checks passed",
+          "final deep Sol review found no actionable issue and confirmed the runner returns before git add, with no production, workflow, feature, deployment or live change"
         ],
         "local_pytest_exit": "twenty focused tests reached successful test dots but the Windows process did not exit cleanly; exact GitHub CI remains the required test authority",
-        "remote_ci": "run 30119264323 on exact commit 86c77394 passes compileall and JS syntax, collects the repaired TUA12 verifier and reaches 275 passing tests. It then stops at tests/test_agent_maintenance_adversarial.py because stale AMH-06/08 tests expect positive completion while the intentional cf3ffa70 compatibility contract always fails closed pending architecture review. A test-only migration of both affected AMH modules is claimed; no AMH feature reactivation or production change is authorized.",
+        "remote_ci": "run 30119933483 on exact commit 1b8d7d2d passes compileall and JS syntax, collects both migrated disabled-gate modules and reaches 281 passing tests. It then exposes a second stale call in the same AMH adversarial test: run_repo_local_commit is invoked with removed completion_evidence and commit_authority keywords. The current runner instead requires confirmed=true; a one-test migration will prove prose cannot substitute for explicit confirmation without production changes or a commit execution.",
         "known_pre_existing_out_of_scope": [
           "tool-surface audit expects removed TOOL_META",
           "raw schema audit reports duplicate manage_todos",
@@ -7409,8 +7433,8 @@
         "implemented": "yes",
         "tested": "yes",
         "sol_reviewed": "deep",
-        "committed": "86c77394_tua_rollout_followup; amh_disabled_followup_pending",
-        "pushed": "86c77394_to_fuzzy_dev; amh_disabled_followup_pending",
+        "committed": "86c77394_tua_rollout_followup; 1b8d7d2d_amh_disabled_followup; amh_commit_runner_followup_pending",
+        "pushed": "86c77394_and_1b8d7d2d_to_fuzzy_dev; amh_commit_runner_followup_pending",
         "deployed": "no",
         "live_validated": "no",
         "visual_validated": "na",
