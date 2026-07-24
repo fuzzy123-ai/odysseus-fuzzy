@@ -6,6 +6,7 @@ import asyncio
 from typing import Any, Callable
 
 from plugins.telegram.formatting import format_agent_turn_reply
+from plugins.telegram.history_privacy import project_telegram_audit_record
 
 
 class TelegramWebhookIntakeError(ValueError):
@@ -94,24 +95,13 @@ def build_webhook_response_payload(
 ) -> dict[str, Any]:
     """Build the public webhook response shape shared by webhook branches."""
 
-    payload: dict[str, Any] = {
+    return {
         "stored": stored["stored"],
-        "message": stored["message"],
-        "agent_bridge": agent_bridge,
-        "voice_pipeline": voice_pipeline,
-        "image_action": image_action,
-        "universal_inbox_attachment": universal_inbox_attachment,
+        "receipt": project_telegram_audit_record(stored.get("message")),
+        "raw_content_visible": False,
+        "raw_identifiers_visible": False,
+        "token_value_visible": False,
     }
-    if extra:
-        payload.update(extra)
-    payload.update(
-        {
-            "agent_turn": agent_turn,
-            "reply": reply,
-            "token_value_visible": False,
-        }
-    )
-    return payload
 
 
 def build_webhook_attachment_event_payload(

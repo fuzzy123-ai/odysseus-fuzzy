@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
+from plugins.telegram.history_privacy import project_telegram_audit_record, record_has_raw_content
 from src.runtime_event_envelope import RuntimeEventEnvelopeError, build_runtime_event, stable_payload_hash
 
 _HISTORY_FILE = "telegram_history.json"
@@ -272,7 +273,8 @@ class TelegramInboxStore:
             component="store",
             extra={key: value for key, value in event.items() if key not in {"runtime_event"}},
         )
-        event["raw_content_visible"] = False
+        event["raw_content_visible"] = record_has_raw_content(event)
+        event["raw_content_persisted"] = event["raw_content_visible"]
         event["raw_identifiers_visible"] = False
         data["messages"].append(event)
         self._write(data)
@@ -326,7 +328,8 @@ class TelegramInboxStore:
                 "universal_inbox_status": stored.get("universal_inbox_status"),
             },
         )
-        stored["raw_content_visible"] = False
+        stored["raw_content_visible"] = record_has_raw_content(stored)
+        stored["raw_content_persisted"] = stored["raw_content_visible"]
         stored["raw_identifiers_visible"] = False
         messages.append(stored)
         self._write(data)
@@ -431,13 +434,16 @@ class TelegramInboxStore:
                 "truth_gate_changed": bool((truth_gate or {}).get("changed") or False),
             },
         )
-        message["raw_content_visible"] = False
+        message["raw_content_visible"] = record_has_raw_content(message)
+        message["raw_content_persisted"] = message["raw_content_visible"]
         message["raw_identifiers_visible"] = False
         data["messages"].append(message)
         self._write(data)
         return message
 
     def history(self, *, chat_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+        """Return internal mixed records for Telegram runtime consumers only."""
+
         limit = max(1, min(int(limit or 50), 200))
         messages = self._read()["messages"]
         if chat_id:
@@ -447,6 +453,11 @@ class TelegramInboxStore:
                 if str(m.get("chat_handle") or "") == chat_handle or str(m.get("chat_id") or "") == str(chat_id)
             ]
         return list(reversed(messages[-limit:]))
+
+    def audit_history(self, *, chat_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
+        """Return closed content-free receipts for admin/diagnostic consumers."""
+
+        return [project_telegram_audit_record(message) for message in self.history(chat_id=chat_id, limit=limit)]
 
     def counts(self) -> dict[str, int]:
         messages = self._read()["messages"]

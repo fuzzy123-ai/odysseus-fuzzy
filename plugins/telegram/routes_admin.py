@@ -30,7 +30,7 @@ def register_telegram_admin_routes(
     @router.get("/history")
     async def history(request: Request, chat_id: str | None = None, limit: int = 50):
         require_admin(request)
-        return {"messages": inbox_store.history(chat_id=chat_id, limit=limit)}
+        return {"messages": inbox_store.audit_history(chat_id=chat_id, limit=limit)}
 
     @router.get("/app")
     async def app_page(request: Request):

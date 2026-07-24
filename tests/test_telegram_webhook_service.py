@@ -117,28 +117,33 @@ def test_run_webhook_media_pipelines_builds_live_voice_provider_when_no_injected
     assert built == [{"chat_id": "chat-1"}]
 
 
-def test_build_webhook_response_payload_preserves_public_shape():
+def test_build_webhook_response_payload_is_a_content_free_receipt():
     payload = build_webhook_response_payload(
-        stored={"stored": True, "message": {"kind": "text", "chat_handle": "chat_safe"}},
-        agent_bridge={"ready_for_agent": True},
-        voice_pipeline={"status": "skipped"},
+        stored={"stored": True, "message": {"kind": "text", "text": "private input", "chat_handle": "chat_safe"}},
+        agent_bridge={"ready_for_agent": True, "prompt": "private prompt"},
+        voice_pipeline={"status": "skipped", "transcript": "private transcript"},
         image_action={"status": "disabled"},
         universal_inbox_attachment=None,
-        agent_turn={"status": "accepted"},
-        reply={"ok": True},
-        extra={"control_command": {"status": "handled"}},
+        agent_turn={"status": "accepted", "reply_text": "private reply"},
+        reply={"ok": True, "error": "private failure"},
+        extra={"control_command": {"status": "handled", "secret": "private"}},
     )
 
     assert payload == {
         "stored": True,
-        "message": {"kind": "text", "chat_handle": "chat_safe"},
-        "agent_bridge": {"ready_for_agent": True},
-        "voice_pipeline": {"status": "skipped"},
-        "image_action": {"status": "disabled"},
-        "universal_inbox_attachment": None,
-        "control_command": {"status": "handled"},
-        "agent_turn": {"status": "accepted"},
-        "reply": {"ok": True},
+        "receipt": {
+            "schema": "odysseus.telegram.audit_receipt.v1",
+            "record_class": "raw_bearing",
+            "direction": "unknown",
+            "kind": "text",
+            "status": "unknown",
+            "recorded_at": 0,
+            "raw_content_visible": False,
+            "raw_identifiers_visible": False,
+            "token_value_visible": False,
+        },
+        "raw_content_visible": False,
+        "raw_identifiers_visible": False,
         "token_value_visible": False,
     }
 
