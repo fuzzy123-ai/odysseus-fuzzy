@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T13:03:38+02:00",
-  "status": "ttd00_through_ttd07_ttd08a_ttd08b_accepted_ttd07a0_contract_amendment_claimed_live_default_off",
+  "updated_at": "2026-07-24T13:33:51+02:00",
+  "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_accepted_ttd07a1_claimed_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd00_through_ttd07_ttd08a_ttd08b_accepted_ttd07a0_contract_amendment_claimed_attachment_deferred",
+    "queue_status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_accepted_ttd07a1_claimed_attachment_deferred",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd07_ttd08a_ttd08b_accepted_ttd07a0_contract_amendment_claimed_live_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_accepted_ttd07a1_claimed_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,17 +85,17 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-07A0 is the active root-owned roadmap-authoring claim. It must define the first-empty-poll sweep, durable owner-scoped reservation, shared active-turn retry, atomic bridge visibility and crash recovery before any production-code claim can be opened.",
-        "slice": "TTD-07A0-durable-rollover-contract-amendment",
+        "reason": "TTD-07A0 is accepted at contract commit 4fb9ba62 after three adversarial deep-review rounds. TTD-07A1 is now the smallest dependency-ready repo-only slice and owns only pure configuration local-day state-transition reference and evidence policy plus its focused tests.",
+        "slice": "TTD-07A1-pure-rollover-policy-and-state-machine",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "author_root_owned_ttd07a_durable_ledger_transaction_and_serial_handoff_contract_before_any_implementation_claim; no_cherry_pick_lazy_semantic_substitution_productive_session_archive_rebind_provider_send_deploy_or_live_mutation"
+        "safe_default": "implement_only_the_two_claimed_ttd07a1_paths_with_synthetic_time_and_reference_keys; no_database_session_plugin_network_provider_send_deploy_or_live_mutation"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-24"
     },
     "active_claimed_slices": [
-      "TTD-07A0-durable-rollover-contract-amendment"
+      "TTD-07A1-pure-rollover-policy-and-state-machine"
     ]
   },
   "non_ui_execution_ledger": {
@@ -955,8 +955,8 @@
       "id": "OWM-22",
       "name": "Telegram Todo Domain Truth And Digest Consistency",
       "priority": 4,
-      "status": "ttd00_through_ttd07_ttd08a_ttd08b_accepted_ttd07a0_contract_amendment_claimed_live_default_off",
-      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-07 plus the disjoint TTD-08A history-privacy projection and TTD-08B bounded audit store are accepted. TTD-07 now supplies a non-persisting hard-bounded Telegram turn context with canonical Todo truth policy and preserved trusted runtime controls. TTD-07A read-only recon is accepted and the root-owned roadmap-only TTD-07A0 claim 92cf62ef is active on exactly four plan/router paths. It must resolve the durable binding ledger, first-empty-poll sweep, renewable turn lease, lossless update retry, atomic Session transaction and serial handoffs before any production-code claim. TTD-08C attachment work remains deferred without a lifecycle owner and narrow delete authority, and TTD-09 through TTD-10 remain dependency-blocked. Live activation and production repair remain dormant.",
+      "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_accepted_ttd07a1_claimed_live_default_off",
+      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-07 plus the disjoint TTD-08A history-privacy projection and TTD-08B bounded audit store are accepted. TTD-07 now supplies a non-persisting hard-bounded Telegram turn context with canonical Todo truth policy and preserved trusted runtime controls. TTD-07A0 is accepted at contract commit 4fb9ba62 after three adversarial deep-review rounds and fixes the durable ledger, transaction, lease, retry, privacy and serial handoff contract. TTD-07A1 is the sole active two-path pure-policy claim; no DB, bridge, Session, route, provider or live path is open. TTD-08C attachment work remains deferred without a lifecycle owner and narrow delete authority, and TTD-09 through TTD-10 remain dependency-blocked. Live activation and production repair remain dormant.",
       "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "source_gate_family": "telegram_todo_truth",
       "dependencies": [
@@ -969,14 +969,14 @@
       "safe_default": "build_and_test_against_synthetic_notes_memory_and_telegram_fixtures_no_production_data_write_deploy_or_send",
       "user_gate_policy": "No user gate in TTD-00 through TTD-10, including TTD-07A. Repository work uses synthetic owner-scoped data and keeps all live actions disabled. Deployment, production data repair, Telegram smoke and productive session rollover are four separate dormant action-specific gates and each requires its own later operator Go.",
       "execution_protocol": {
-        "queue_registration": "TTD-00 through TTD-07 plus TTD-08A and TTD-08B are accepted. TTD-07A0 is the sole active root-owned roadmap-authoring claim at 92cf62ef. No application or test path is claimed until its four-path transaction contract passes deep review and is committed. TTD-08C attachment work remains deferred pending a lifecycle owner and narrow delete authority, and TTD-09 through TTD-10 remain blocked_by_dependency.",
+        "queue_registration": "TTD-00 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 are accepted. TTD-07A1 is the sole active repo-only claim on src/telegram_session_rollover.py and tests/test_telegram_session_rollover.py. TTD-07A2 through TTD-07A6 remain dependency-blocked. TTD-08C attachment work remains deferred pending a lifecycle owner and narrow delete authority, and TTD-09 through TTD-10 remain blocked_by_dependency.",
         "dependency_rule": "Notes remains Todo truth; manage_todos is a domain facade over Notes, Memory rejects Todo storage, Telegram preserves semantic receipts, and every Digest claim requires a read-only include/exclude/schedule postcondition. Daily session rollover limits context but never substitutes old chat prose for domain readback.",
         "scheduling_decision": {
           "operator_priority_effective_at": "2026-07-21",
-          "position": "active_p0_corrective_track_ttd00_through_ttd07_ttd08a_ttd08b_accepted_ttd07a0_contract_amendment_claimed",
+          "position": "active_p0_corrective_track_ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_accepted_ttd07a1_claimed",
           "implementation_authority": "current_goal_repo_only_plus_read_only_debian_preflight_no_live_mutation_authority_before_ttd10"
         },
-        "future_goal_command": "/goal Pruefe und committe den bereits geclaimten TTD-07A0 SQLite-/Turn-Lease-/Lossless-Retry-Vertrag; oeffne TTD-07A1 erst nach tiefer Abnahme. Kein Send, Provider, Produktionsdatenzugriff, Deployment, Repair oder produktiver Rollover."
+        "future_goal_command": "/goal Implementiere den committed TTD-07A1-Zweipfad-Claim als reine default-off Zeit-/Config-/State-Machine-/HMAC-/Evidence-Policy mit exakt fokussierten Tests und tiefer Sol-Abnahme. Kein DB-, Session-, Plugin-, Send-, Provider-, Deployment- oder Live-Zugriff."
       },
       "activation_contract": {
         "id": "TTD-LIVE-DEPLOY",
@@ -4113,7 +4113,7 @@
       "id": "TTD-07A0-durable-rollover-contract-amendment",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_2026-07-24",
+      "status": "accepted_2026-07-24",
       "claimable": false,
       "depends_on": [
         "TTD-07A-read-only-rollover-transaction-recon accepted at ab669d91"
@@ -4135,9 +4135,10 @@
           "docs/plans/multi-agent-execution-guidance.json",
           "docs/plans/open-work-completion-master-roadmap.json"
         ],
-        "state": "claimed",
+        "state": "released",
         "acquired_at": "2026-07-24T13:03:38+02:00",
         "lease_expires_at": null,
+        "released_at": "2026-07-24T13:33:51+02:00",
         "handoff_required": false,
         "forbidden": [
           "all application source and test paths",
@@ -4345,8 +4346,155 @@
         ]
       },
       "acceptance": "One authoritative contract fixes the DB authority state machine transaction ordering active-turn lease recovery privacy and serial implementation DAG without opening any implementation or live gate.",
-      "next_frontier": "No implementation claim until this amendment is locally committed and deep-reviewed.",
+      "delivery": {
+        "claim_commit": "92cf62ef",
+        "contract_commit": "4fb9ba62",
+        "committed": "yes_local",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "product_complete": "no"
+      },
+      "next_frontier": "TTD-07A1 is dependency-ready and may claim only src/telegram_session_rollover.py plus tests/test_telegram_session_rollover.py.",
       "done_when": "The contract removes every TTD-07A recon ambiguity and exposes only dependency-ordered repo-only child slices with exact disjoint path ownership."
+    },
+    {
+      "id": "TTD-07A1-pure-rollover-policy-and-state-machine",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "claimed_2026-07-24",
+      "claimable": false,
+      "depends_on": [
+        "TTD-07A0 accepted at contract commit 4fb9ba62"
+      ],
+      "source_roadmap": "docs/plans/telegram-session-rollover-transaction-contract.md",
+      "claim": {
+        "run_id": "abc-ttd07a1-20260724T133351+0200",
+        "thread_id": "/root",
+        "slice_id": "TTD-07A1-pure-rollover-policy-and-state-machine",
+        "owner": "Bob",
+        "allowed_paths": [
+          "src/telegram_session_rollover.py",
+          "tests/test_telegram_session_rollover.py"
+        ],
+        "hotfiles": [
+          "src/telegram_session_rollover.py",
+          "tests/test_telegram_session_rollover.py"
+        ],
+        "state": "claimed",
+        "acquired_at": "2026-07-24T13:33:51+02:00",
+        "lease_expires_at": null,
+        "handoff_required": true,
+        "forbidden": [
+          "all core database Session app plugin bridge polling webhook control and existing test paths",
+          "environment file app key productive identity conversation Todo provider or Telegram data",
+          "network process provider Telegram send push deploy Debian and every live mutation",
+          "divergent commit 2cb685d8 as a cherry-pick or accepted evidence",
+          "broad test suites"
+        ]
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "recommended": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "claim dependency model route review and durable evidence authority"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "reason": "privacy time-boundary and state-transition integration"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high",
+            "reason": "bounded policy implementation with DST HMAC and fail-closed transition edge cases"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "sole orchestrator; no secondary implementation skill is needed"
+            }
+          ],
+          "master": {
+            "model": "surface_default",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "depth": "deep",
+            "reviewer": "/root plus explicit read-only Sol reviewer"
+          }
+        },
+        "actual": {
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            }
+          ],
+          "master": {
+            "model": "unknown",
+            "evidence": "current root surface does not echo its exact model identifier"
+          },
+          "worker": {
+            "model": "pending",
+            "evidence": "implementation delegation starts only after this claim commit"
+          },
+          "review": {
+            "model": "pending",
+            "depth": "deep",
+            "result": "pending"
+          }
+        },
+        "fallback": "none"
+      },
+      "acceptance_contract": [
+        "module remains pure local and imports no core app plugin database network provider or productive data boundary",
+        "configuration is default-off and invalid booleans timezone boundary limits retry values lease values or short reference keys fail closed",
+        "effective local day uses an aware injected clock ZoneInfo and civil boundary comparison across DST and missed days",
+        "owner chat update and Session evidence refs are distinct keyed HMAC domains with bounded normalized inputs and no raw value in evidence",
+        "allowlisted rollover and turn-intake states enforce retry_after eligibility deferred-to-committed recovery terminal block immutability and indeterminate fail-closed behavior",
+        "evidence exposes only allowlisted opaque refs scope local day states reasons generations attempts counts and privacy booleans",
+        "no database Session bridge plugin route provider send deploy Debian or live behavior is activated"
+      ],
+      "evidence": {
+        "target_environment": "local synthetic only",
+        "observed_at": "2026-07-24T13:33:51+02:00",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "BOM-aware AST parse for exactly both claimed paths",
+          "exact focused pytest nodes only",
+          "exact two-path diff and cached diff check",
+          "deep Sol privacy time and state-transition review"
+        ],
+        "focused_test_nodes": [
+          "tests/test_telegram_session_rollover.py::test_rollover_config_is_default_off_and_invalid_values_fail_closed",
+          "tests/test_telegram_session_rollover.py::test_rollover_local_day_handles_boundary_dst_and_missed_days",
+          "tests/test_telegram_session_rollover.py::test_rollover_state_machine_retries_without_permanent_suppression",
+          "tests/test_telegram_session_rollover.py::test_rollover_refs_and_evidence_are_keyed_bounded_and_content_free",
+          "tests/test_telegram_session_rollover.py::test_turn_intake_states_fail_closed_on_indeterminate"
+        ],
+        "temporal_window": "controlled injected instants only",
+        "positive_path_required": true,
+        "broad_tests_forbidden": true
+      },
+      "acceptance": "Pure default-off policy proves configuration local-day HMAC state transition and content-free evidence contracts without touching any runtime integration.",
+      "next_frontier": "TTD-07A2 remains blocked until implementation commit focused evidence and deep Sol acceptance are recorded.",
+      "done_when": "Exactly the two claimed paths implement and prove the contract-only policy with no runtime integration or live side effect."
     },
     {
       "id": "TTD-08A-telegram-history-truthful-classification-and-audit-projection",
@@ -10158,7 +10306,7 @@
     }
   ],
   "recommended_execution_order": [
-    "OWM-22 Telegram Todo Domain Truth And Digest Consistency: TTD-00 through TTD-07 plus TTD-08A and TTD-08B are accepted; TTD-07A0 is the sole active root-owned four-path roadmap claim at 92cf62ef and must pass deep review before TTD-07A1 can be claimed; never cherry-pick divergent 2cb685d8 or silently substitute lazy first-message semantics, keep TTD-08C attachment work deferred without a lifecycle owner, keep TTD-09 and TTD-10 dependency-blocked, keep Notes canonical and all production data unchanged, and leave repair deploy send and productive rollover disabled behind four separate live packets.",
+    "OWM-22 Telegram Todo Domain Truth And Digest Consistency: TTD-00 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 are accepted; TTD-07A1 is the sole active two-path pure-policy claim and TTD-07A2 through TTD-07A6 remain serially blocked; never cherry-pick divergent 2cb685d8 or silently substitute lazy first-message semantics, keep TTD-08C attachment work deferred without a lifecycle owner, keep TTD-09 and TTD-10 dependency-blocked, keep Notes canonical and all production data unchanged, and leave repair deploy send and productive rollover disabled behind four separate live packets.",
     "OWM-23 Agent Maintenance Safety Harness: after an explicit goal or Open Work reprioritization, open AMH-01 through AMH-03 only on disjoint handed-off paths; preserve Planning JSON and existing gate/claim authorities, keep AMH-04 onward dependency-blocked, and perform no automatic commit, push, deploy or live action.",
     "OWM-11 Tool Taxonomy, Registration And Lifecycle: execute TAX0 then TAX1 and continue the detailed repo-only queue without user gates; keep the feature disabled until the single final activation decision.",
     "OWM-12 Privacy-Safe Tool Usage Analytics: after TAX1, start the disjoint privacy/store baseline; wait for TAX5/TAX7/TAX10 at shared integration points and keep capture/backfill disabled until the single final activation decision.",

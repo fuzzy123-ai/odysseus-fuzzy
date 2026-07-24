@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_ttd00_through_ttd07_ttd08a_ttd08b_accepted_ttd07a0_contract_amendment_claimed_live_default_off",
-      "ai_hint": "This is the current gate authority. Root owns the committed TTD-07A0 roadmap-authoring claim 92cf62ef on exactly four plan/router paths. The amendment makes SQLite the sole binding authority, requires one Session/binding/archive/rollover transaction, a renewable fenced turn lease, SQLite-backed lossless busy-turn intake, a pre-fetch empty-poll sweep, keyed HMAC refs, strict default-off configuration and serial TTD-07A1 through TTD-07A6 handoffs. No production-code claim or live gate is open."
+      "state": "owm22_ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_accepted_ttd07a1_claimed_live_default_off",
+      "ai_hint": "This is the current gate authority. TTD-07A0 is accepted at 4fb9ba62. TTD-07A1 is the sole active repo-only claim on src/telegram_session_rollover.py and tests/test_telegram_session_rollover.py for pure default-off config, local-day, HMAC, state-transition and content-free evidence policy. TTD-07A2 through TTD-07A6 plus every DB, Session, bridge, plugin and live path remain blocked."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
@@ -744,14 +744,14 @@
     {
       "path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "profile": "active_serial",
-      "state": "ttd00_through_ttd07_ttd08a_ttd08b_accepted_ttd07a0_contract_amendment_claimed_live_default_off",
-      "ai_hint": "TTD-04 through TTD-07 plus TTD-08A and TTD-08B are accepted. TTD-07A0 is the only active claim and is roadmap-authoring only. Review and commit its durable SQLite transaction/turn-lease contract before opening TTD-07A1. Preserve productive Sessions, Telegram sends, provider, Debian and every live path."
+      "state": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_accepted_ttd07a1_claimed_live_default_off",
+      "ai_hint": "TTD-04 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 are accepted. TTD-07A1 is the only active two-path implementation claim and must remain pure local policy with five focused nodes and deep Sol review. Preserve every DB, Session, bridge, plugin, productive Telegram, provider, Debian and live path."
     },
     {
       "path": "docs/plans/telegram-session-rollover-transaction-contract.md",
       "profile": "active_serial_contract",
-      "state": "ttd07a0_root_owned_contract_amendment_claimed",
-      "ai_hint": "This is the authoritative TTD-07A implementation contract under root claim 92cf62ef. Follow its single SQLite authority, atomic Session/binding/archive/rollover transaction, renewable fenced turn lease, SQLite turn-intake retry, poll-start sweep, keyed privacy refs and strictly serial TTD-07A1 through TTD-07A6 DAG. It grants no production-code or live authority until accepted and reflected in Open Work."
+      "state": "ttd07a0_accepted_ttd07a1_pure_policy_claimed",
+      "ai_hint": "This is the accepted TTD-07A implementation contract at 4fb9ba62. Execute only the currently committed TTD-07A1 two-path pure-policy claim; its successors remain serially blocked. The later single SQLite authority, atomic transaction, renewable lease, intake retry and poll-start sweep contracts grant no current DB, plugin, route or live authority."
     },
     {
       "path": "docs/plans/telegram-dual-session-router-hotfix-roadmap.md",

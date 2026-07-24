@@ -20,10 +20,11 @@ Der read-only `TTD-07`-Recon und der daraus geclaimte kleinste funktionale
 Slice fuer einen nur turn-lokalen, begrenzten Telegram-Kontext sind nach zwei
 tiefen Sol-Grenzrunden und einem finalen fokussierten Vierer-Check auf drei
 Pfaden akzeptiert.
-Der anschliessende read-only `TTD-07A`-Recon ist abgeschlossen. Der
-root-owned `TTD-07A0`-Claim `92cf62ef` authorisiert jetzt ausschliesslich den
-explizit serialisierten Ledger-/Transaktionsvertrag; Produktionscode bleibt
-bis zu dessen Abnahme ungeclaimt.
+Der anschliessende read-only `TTD-07A`-Recon ist abgeschlossen.
+`TTD-07A0` ist nach drei adversarialen Tiefenrunden am Vertragscommit
+`4fb9ba62` akzeptiert. `TTD-07A1` ist der einzige aktive Implementierungsclaim
+auf zwei neuen reinen Policy-/Testpfaden; DB, Session, Bridge, Plugin und Live
+bleiben ungeclaimt.
 Der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -1188,6 +1189,7 @@ Recon-Status `2026-07-24T12:56:01+02:00`:
 Contract-Amendment `TTD-07A0`:
 
 - Durable Claim: `92cf62ef`; Owner und einziger Writer: `/root`.
+- Contract-Commit und Acceptance: `4fb9ba62`.
 - Autoritative Spezifikation:
   `docs/plans/telegram-session-rollover-transaction-contract.md`.
 - SQLite wird nach einer fail-closed Legacy-Importgrenze die einzige Binding-
@@ -1278,6 +1280,15 @@ Serielle Umsetzung nach Abnahme von `TTD-07A0`:
 
 Alle in mehreren Schritten genannten Pfade sind serielle Hotfiles. Kein
 paralleler Worker darf sie ohne committed Handoff uebernehmen.
+
+Aktiver Child-Claim:
+
+- `TTD-07A1-pure-rollover-policy-and-state-machine`
+- exakt `src/telegram_session_rollover.py` und
+  `tests/test_telegram_session_rollover.py`
+- Bob/Terra high; tiefe Sol-Abnahme; exakt fuenf benannte fokussierte Nodes
+- keine bestehenden Quell-/Testpfade, keine DB, keine App-/Plugin-Integration,
+  kein Prozess, kein Provider, kein Send, kein Debian und kein Live
 
 Akzeptanz:
 

@@ -2,7 +2,7 @@
 
 Stand: 2026-07-24
 
-Status: `TTD-07A0` deep-reviewed and ready for local contract commit
+Status: `TTD-07A0` accepted at `4fb9ba62`; `TTD-07A1` is the active pure-policy child claim
 
 Authority:
 
