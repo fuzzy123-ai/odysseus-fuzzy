@@ -12,13 +12,8 @@ from src.agent_loop_prompts import (
 )
 from src.agent_tools import set_active_document, set_active_model
 from src.prompt_security import untrusted_context_message
-from src.runtime_tool_status import agent_maintenance_context_message
 from src.runtime_snapshot import runtime_snapshot_context_message
 from src.settings import get_setting
-from src.tool_policy import (
-    expand_runtime_disabled_tool_names,
-    operator_priority_disabled_tools,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +40,7 @@ def _build_system_prompt(
     if suppress_local_context:
         active_document = None
 
-    disabled_tools = set(expand_runtime_disabled_tool_names(disabled_tools or ()))
-    disabled_tools.update(operator_priority_disabled_tools())
+    disabled_tools = set(disabled_tools or ())
 
     # With RAG tools, cache key includes the selected tools
     _rt_key = frozenset(relevant_tools) if relevant_tools else None
@@ -122,17 +116,6 @@ def _build_system_prompt(
             _runtime_snapshot_message = runtime_snapshot_context_message()
         except Exception as e:
             logger.warning("Failed to build runtime snapshot context message", exc_info=e)
-
-    # The maintenance packet is deliberately dynamic and is never part of the
-    # cached base prompt.  Its repository collector is bounded and read-only;
-    # failure yields no action authority and must not block ordinary product
-    # requests.
-    _maintenance_message = None
-    if not suppress_local_context:
-        try:
-            _maintenance_message = agent_maintenance_context_message()
-        except Exception:
-            logger.warning("Maintenance bootstrap context unavailable")
 
     # Document context is kept as a SEPARATE message (not merged into the tool
     # prompt) so the context trimmer doesn't destroy it when truncating the
@@ -559,9 +542,6 @@ def _build_system_prompt(
         last_user_idx += 1
     if _skills_message:
         merged.insert(last_user_idx, _skills_message)
-        last_user_idx += 1
-    if _maintenance_message:
-        merged.insert(last_user_idx, _maintenance_message)
         last_user_idx += 1
     if _runtime_snapshot_message:
         merged.insert(last_user_idx, _runtime_snapshot_message)
