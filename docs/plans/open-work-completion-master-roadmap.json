@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T22:08:36+02:00",
+  "updated_at": "2026-07-24T23:11:09+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -7192,7 +7192,7 @@
       "id": "TAX-REPAIR-dual-read-contract",
       "class": "repo_only",
       "owner": "Bob implementation; Sol deep acceptance",
-      "status": "sol_accepted_exact_ci_ai_lens_tool_usage_contract_followup_remote_pending_2026-07-24",
+      "status": "sol_accepted_exact_ci_ttd_two_era_drift_contract_followup_remote_pending_2026-07-24",
       "claim": {
         "run_id": "tax-repair-20260724T195045+0200",
         "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
@@ -7425,6 +7425,33 @@
         ],
         "diagnosis": "Exact GitHub CI run 30121911621 validates the public OpenAPI route fix and advances to 597 passing tests, then exposes one pre-63dd70a7 AI Lens integration test that still constructs ToolUsageInstrumentation with retired hmac_key/app_version/wall_clock keywords, calls removed event.to_safe_dict(), and expects the retired shared taxonomy payload that 63dd70a7 intentionally decoupled. Migrate the test in one pass to ToolUsageEventBuilder, TrustedToolUsageContext, clock and event.to_dict(), then assert the current independent privacy-safe AI Lens and Tool Usage contracts plus their shared normalized rejected outcome. Do not restore the old constructor, raw metadata projection or cross-surface coupling in production."
       },
+      "ttd_two_era_semantic_contract_ci_followup_claim": {
+        "run_id": "tax-repair-ttd-two-era-semantic-contract-ci-followup-20260724T222300+0200",
+        "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
+        "slice_id": "TTD-CI-frozen-v1-current-v2-semantic-audit",
+        "owner": "Bob",
+        "allowed_paths": [
+          "scripts/audit_telegram_todo_domain_truth.py",
+          "specs/todo-domain-truth.v2.json",
+          "tests/test_audit_telegram_todo_domain_truth.py",
+          "tests/test_todo_domain_truth_contract.py"
+        ],
+        "immutable_paths": [
+          "docs/plans/telegram-todo-domain-truth-contract.json",
+          "specs/todo-domain-truth.v1.json"
+        ],
+        "hotfiles": [],
+        "state": "released",
+        "acquired_at": "2026-07-24T22:23:00+02:00",
+        "lease_expires_at": "2026-07-25T00:23:00+02:00",
+        "handoff_required": true,
+        "released_at": "2026-07-24T23:11:09+02:00",
+        "handoff_result": "deep Sol PASS after replacing brittle semantic-presence heuristics with an honest reviewed named-surface drift contract; Python 3.11 and 3.14 produce byte-identical v2 and all 20 adversarial mutations drift; no production, Telegram, deploy, data or live change",
+        "root_owned_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json"
+        ],
+        "diagnosis": "Exact GitHub CI run 30123082012 validates the complete AI Lens and Tool Usage contract migration and advances to 978 passing tests, then exposes a TTD-00 auditor that conflates two immutable historical v1 captures with current accepted TTD-01 through TTD-08 repository truth. The first exact-byte Telegram marker rejects the stronger multiline evidence-carrying pre-send gate; subsequent checks would reject accepted Memory fail-closed policy, Todo claims, receipts, Digest postconditions, propagation and legitimate source-hash drift. Preserve both v1 artifacts byte-for-byte, introduce one normalized source-backed current v2 semantic contract, and harden the no-import auditor with fail-closed AST invariants. Do not edit production, Telegram, dependency, workflow, deploy, data or live paths."
+      },
       "route": {
         "entrypoint": "/abc",
         "selected_skills": [
@@ -7448,7 +7475,7 @@
         "actual": {
           "master": "gpt-5.6-sol",
           "worker": "gpt-5.6-terra high",
-          "review": "deep Sol PASS after two bounded finding rounds",
+          "review": "deep Sol PASS after rejecting two brittle semantic-proof designs and one cross-Python portability defect, then accepting the narrowed named-surface drift contract",
           "skills": [
             "abc",
             "github:gh-fix-ci"
@@ -7458,7 +7485,7 @@
       },
       "evidence": {
         "target_environment": "local_and_github_ci",
-        "observed_at": "2026-07-24T21:43:20+02:00",
+        "observed_at": "2026-07-24T23:11:09+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -7517,10 +7544,15 @@
           "the central wrapper's unknown-name provenance remains honestly legacy.unclassified rather than fabricating a trusted provider source; started and terminal Usage events retain exact unclassified identity, one invocation and rejected/unknown_tool outcome",
           "both AI Lens start and result payloads remain opaque and bounded, exclude all retired TAX identity fields and never include arguments; the complete snapshot plus both Usage events exclude the raw tool, raw content, secret key/value and path marker",
           "focused Builder/identity and AI projection probes, AST, roadmap JSON and git diff checks passed without Pytest; final deep Sol review passed after hardening both event phases and the standalone secret marker",
-          "the follow-up changes only the AI Lens integration test and roadmap evidence; production instrumentation, application wiring, requirements, workflows, features, deployment and live state remain untouched"
+          "the follow-up changes only the AI Lens integration test and roadmap evidence; production instrumentation, application wiring, requirements, workflows, features, deployment and live state remain untouched",
+          "the obsolete single-era TTD audit is split into immutable historical v1 provenance plus a current v2 reviewed named-surface drift contract; both historical artifacts remain byte-identical to their introducing commits",
+          "v2 explicitly does not claim behavioral proof or repo_contracts=true; existing behavioral Pytest remains runtime authority while the no-import audit fingerprints 22 small accepted implementation nodes and reports only that those named surfaces remain unchanged from related accepted slices",
+          "the AST fingerprint serializer uses canonical JSON over node types, sorted semantic fields, ordered children, literals, names, contexts and operators while excluding locations and the Python-version-only type_params field; exact Python 3.11 and 3.14 print output is byte-identical and both checks exit zero",
+          "all 20 adversarial mutations from deep Sol review produce committed-contract drift, while formatting-only changes remain invariant; frozen provenance, generator exactness, Python AST, roadmap JSON and git diff checks pass without executing Pytest",
+          "final deep Sol review passed with no findings after the semantic-proof overclaim, self-confirming mutation checks, cross-Python ast.dump defect and broad status wording were removed; no production, Telegram, dependency, workflow, deploy, data or live path changed"
         ],
-        "local_pytest_exit": "twenty focused tests reached successful test dots but the Windows process did not exit cleanly; exact GitHub CI remains the required test authority",
-        "remote_ci": "run 30121911621 on exact commit a5d3c98f passes compileall and JS syntax, validates the exact public OpenAPI route contract and reaches 597 passing tests. It then exposes one stale pre-63dd70a7 AI Lens/Tool Usage integration test that still uses the retired instrumentation constructor and coupled metadata-event API. The complete one-test migration to the current independent privacy-safe contracts is Sol-accepted and awaits exact-commit GitHub CI; no production API rollback or metadata re-coupling is authorized.",
+        "local_pytest_exit": "no further Pytest was executed for the TTD follow-up; direct Python 3.11/3.14 audit, generator, adversarial drift, AST, JSON and diff checks are green, and exact GitHub CI remains the required behavioral test authority",
+        "remote_ci": "run 30123082012 on exact commit e25f23b7 passes compileall and JS syntax, validates the complete AI Lens/Tool Usage migration and reaches 978 passing tests before exposing the obsolete single-era TTD-00 source audit. The Sol-accepted two-era drift-contract repair is ready for one exact commit and fuzzy/dev push; exact-commit CI is pending and no production, Telegram, deploy, data or live change is authorized.",
         "known_pre_existing_out_of_scope": [
           "tool-surface audit expects removed TOOL_META",
           "raw schema audit reports duplicate manage_todos",
@@ -7531,8 +7563,8 @@
         "implemented": "yes",
         "tested": "yes",
         "sol_reviewed": "deep",
-        "committed": "86c77394_tua_rollout_followup; 1b8d7d2d_amh_disabled_followup; ca0ac065_amh_commit_runner_followup; 863d9346_shared_verifier_followup; e7766ac8_effect_matrix_followup; a5d3c98f_fastapi_route_introspection_followup; ai_lens_tool_usage_followup_ready",
-        "pushed": "86c77394_1b8d7d2d_ca0ac065_863d9346_e7766ac8_a5d3c98f_to_fuzzy_dev; ai_lens_tool_usage_followup_remote_pending",
+        "committed": "86c77394_tua_rollout_followup; 1b8d7d2d_amh_disabled_followup; ca0ac065_amh_commit_runner_followup; 863d9346_shared_verifier_followup; e7766ac8_effect_matrix_followup; a5d3c98f_fastapi_route_introspection_followup; e25f23b7_ai_lens_tool_usage_followup; ttd_two_era_drift_contract_followup_ready_for_exact_commit",
+        "pushed": "86c77394_1b8d7d2d_ca0ac065_863d9346_e7766ac8_a5d3c98f_e25f23b7_to_fuzzy_dev; ttd_two_era_semantic_contract_followup_pending",
         "deployed": "no",
         "live_validated": "no",
         "visual_validated": "na",
