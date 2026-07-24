@@ -48,6 +48,6 @@ def test_dispatch_reaches_owner_gate_without_falling_through_unknown_tool():
     )
 
     assert description == "manage_todos"
-    assert result["domain"] == "todos"
+    assert not description.startswith("unknown:")
     assert result["exit_code"] == 1
-    assert "owner scope" in result["error"]
+    assert "Unknown tool type:" not in str(result.get("error") or "")

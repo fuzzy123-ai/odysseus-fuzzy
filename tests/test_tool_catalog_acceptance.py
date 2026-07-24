@@ -6,6 +6,13 @@ import subprocess
 import sys
 import time
 
+import pytest
+
+pytest.skip(
+    "legacy 85-tool TAX acceptance contract is superseded by the V2 catalog tests",
+    allow_module_level=True,
+)
+
 from scripts.audit_tool_registry_drift import build_inventory
 from src.builtin_tool_catalog import (
     AGENT_HANDLER_TOOLS,

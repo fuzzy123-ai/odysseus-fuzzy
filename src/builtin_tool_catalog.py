@@ -653,6 +653,14 @@ def definitions_by_id() -> Mapping[str, BuiltinToolDefinition]:
     return {definition.tool_id: definition for definition in BUILTIN_TOOL_DEFINITIONS}
 
 
+def builtin_spec(tool_id: str) -> BuiltinToolDefinition | None:
+    """Return the current V2 built-in definition for legacy registration probes."""
+    normalized = str(tool_id or "").strip()
+    if not normalized:
+        return None
+    return definitions_by_id().get(normalized)
+
+
 def resolve_operator_priority_disabled(
     configured_tool_ids: Iterable[str] = (),
     *,
