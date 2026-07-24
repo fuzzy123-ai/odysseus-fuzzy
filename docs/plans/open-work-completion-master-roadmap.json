@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T21:00:46+02:00",
+  "updated_at": "2026-07-24T21:11:46+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -7192,7 +7192,7 @@
       "id": "TAX-REPAIR-dual-read-contract",
       "class": "repo_only",
       "owner": "Bob implementation; Sol deep acceptance",
-      "status": "sol_accepted_exact_ci_tua_rollout_followup_remote_pending_2026-07-24",
+      "status": "sol_accepted_exact_ci_amh_disabled_followup_remote_pending_2026-07-24",
       "claim": {
         "run_id": "tax-repair-20260724T195045+0200",
         "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
@@ -7303,6 +7303,27 @@
         ],
         "diagnosis": "Exact GitHub CI run 30118592899 confirms the migrated TUA acceptance module collects and then exposes scripts/verify_tool_usage_rollout.py as the final known consumer of removed TUA instrumentation contracts. The script still imports retired call-metadata and outcome classifiers and uses the retired constructor, span, sink and diagnostics APIs. Migrate the complete synthetic off/on/incognito/off verifier to the current builder, TrustedToolUsageContext, begin/finish, normalized outcome, sink and diagnostics contracts; preserve schema v1 and all default-off, rollback, redaction, identity-preservation and dormant live-gate assertions without production activation or compatibility shims."
       },
+      "amh_completion_ci_followup_claim": {
+        "run_id": "tax-repair-amh-disabled-ci-followup-20260724T210450+0200",
+        "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
+        "slice_id": "TAX-REPAIR-stale-disabled-maintenance-completion-tests",
+        "owner": "Bob",
+        "allowed_paths": [
+          "tests/test_agent_maintenance_adversarial.py",
+          "tests/test_agent_maintenance_completion_gate.py"
+        ],
+        "hotfiles": [],
+        "state": "released",
+        "acquired_at": "2026-07-24T21:04:50+02:00",
+        "lease_expires_at": "2026-07-24T23:04:50+02:00",
+        "handoff_required": true,
+        "released_at": "2026-07-24T21:11:46+02:00",
+        "handoff_result": "deep Sol PASS with no actionable findings; disabled compatibility contract and independent adversarial protections preserved",
+        "root_owned_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json"
+        ],
+        "diagnosis": "Exact GitHub CI run 30119264323 confirms the repaired TUA12 rollout verifier collects and advances to 275 passing tests, then exposes stale AMH acceptance expectations. Production commit cf3ffa70 intentionally retained only a fail-closed maintenance-completion compatibility shape pending architecture review, but the AMH-06/08 tests still expect the retired positive receipt and ownership evaluator. Migrate both affected test modules to assert the current always-disabled, non-authorizing contract; do not restore AMH completion verification, edit production code, or resume AMH-08 feature work."
+      },
       "route": {
         "entrypoint": "/abc",
         "selected_skills": [
@@ -7336,7 +7357,7 @@
       },
       "evidence": {
         "target_environment": "local_and_github_ci",
-        "observed_at": "2026-07-24T21:00:46+02:00",
+        "observed_at": "2026-07-24T21:11:46+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -7370,10 +7391,14 @@
           "the stale TUA12 rollout verifier now uses ToolUsageEventBuilder, TrustedToolUsageContext, current begin/finish normalization and current sink diagnostics without a compatibility shim",
           "the synthetic off-on-incognito-off verifier passed with an exact started/terminal pair, zero incognito and rollback writes, preserved result identity, two fail-open sink failures and two sink rejections",
           "required CLI, incomplete/live-shaped CLI rejection, positional and keyword-only default-off AST, retired-symbol scan, roadmap JSON and git diff checks passed without full Pytest",
-          "final deep Sol review found no actionable issue and confirmed schema v1, 90/400-day dry-run retention, no-backfill and dormant live/deploy/export gates remain intact"
+          "final deep Sol review found no actionable issue and confirmed schema v1, 90/400-day dry-run retention, no-backfill and dormant live/deploy/export gates remain intact",
+          "the two stale AMH-06/08 acceptance modules now assert the intentional cf3ffa70 always-disabled compatibility contract instead of the retired positive receipt and ownership evaluator",
+          "valid, stale, tampered, wrong-root, ownership, lane, foreign-path and unsupported-claim variants all remain non-authorizing while destructive-git, repository-state, prose-authority, redaction, canary, CI-lane and effectful-matrix protections are preserved",
+          "AST, module import, direct supported/unsupported/untyped evaluator probes, 22-test collection, roadmap JSON and git diff checks passed without executing Pytest",
+          "final deep Sol review found no actionable issue and confirmed the follow-up contains no production, workflow, AMH feature, deployment or live activation change"
         ],
         "local_pytest_exit": "twenty focused tests reached successful test dots but the Windows process did not exit cleanly; exact GitHub CI remains the required test authority",
-        "remote_ci": "run 30118592899 confirms the TUA acceptance module migration collects, then fails at the next independent partial-merge boundary: scripts/verify_tool_usage_rollout.py imports removed call-metadata instrumentation helpers and retains the retired constructor, span, sink and diagnostics APIs. The complete current-contract verifier migration is locally accepted by deep Sol review and awaits its exact follow-up commit run.",
+        "remote_ci": "run 30119264323 on exact commit 86c77394 passes compileall and JS syntax, collects the repaired TUA12 verifier and reaches 275 passing tests. It then stops at tests/test_agent_maintenance_adversarial.py because stale AMH-06/08 tests expect positive completion while the intentional cf3ffa70 compatibility contract always fails closed pending architecture review. A test-only migration of both affected AMH modules is claimed; no AMH feature reactivation or production change is authorized.",
         "known_pre_existing_out_of_scope": [
           "tool-surface audit expects removed TOOL_META",
           "raw schema audit reports duplicate manage_todos",
@@ -7384,8 +7409,8 @@
         "implemented": "yes",
         "tested": "yes",
         "sol_reviewed": "deep",
-        "committed": "tua_rollout_followup_pending",
-        "pushed": "tua_rollout_followup_pending",
+        "committed": "86c77394_tua_rollout_followup; amh_disabled_followup_pending",
+        "pushed": "86c77394_to_fuzzy_dev; amh_disabled_followup_pending",
         "deployed": "no",
         "live_validated": "no",
         "visual_validated": "na",

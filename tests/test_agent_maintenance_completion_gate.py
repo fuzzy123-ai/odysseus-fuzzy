@@ -13,6 +13,7 @@ from src.agent_verification_receipt import (
 from src.claim_evidence_gate import (
     AgentMaintenanceClaimOwnership,
     AgentMaintenanceCompletionEvidence,
+    AgentMaintenanceCompletionReport,
     ClaimEvidenceFinding,
     ClaimEvidenceReport,
     evaluate_agent_maintenance_completion,
@@ -99,7 +100,29 @@ def _evidence(
     )
 
 
-def test_current_receipt_and_supported_claims_complete_without_action_authority(
+def _assert_disabled_completion_contract(
+    report: AgentMaintenanceCompletionReport,
+    *,
+    claims_current: bool,
+) -> None:
+    """The legacy compatibility gate is deliberately non-validating and fail-closed."""
+    payload = report.to_dict()
+
+    assert report.completed is False
+    assert report.receipt_current is False
+    assert report.ownership_current is False
+    assert report.claims_current is claims_current
+    assert report.actual_evidence_level == "none"
+    assert report.blockers == (
+        "maintenance completion verification is disabled pending architecture review",
+    )
+    assert payload["origin_authenticated"] is False
+    assert payload["commit_authorized"] is False
+    assert payload["push_authorized"] is False
+    assert payload["live_authorized"] is False
+
+
+def test_current_compatible_evidence_cannot_complete_while_gate_is_disabled(
     tmp_path: Path,
 ) -> None:
     root = _repo(tmp_path)
@@ -107,30 +130,24 @@ def test_current_receipt_and_supported_claims_complete_without_action_authority(
     report = evaluate_agent_maintenance_completion(_evidence(root), repo_root=root)
     payload = report.to_dict()
 
-    assert report.completed is True
-    assert report.receipt_current is True
-    assert payload["commit_authorized"] is False
-    assert payload["push_authorized"] is False
-    assert payload["live_authorized"] is False
-    assert payload["origin_authenticated"] is False
+    _assert_disabled_completion_contract(report, claims_current=True)
     assert "receipt_digest" not in payload
     assert "producer" not in payload
 
 
 @pytest.mark.parametrize(
-    "variant,expected",
+    "variant",
     (
-        ("missing", "missing"),
-        ("mismatched_lane", "mismatched"),
-        ("weaker", "weaker"),
-        ("unsupported_claim", "unsupported"),
-        ("metadata_only", "invalid"),
+        "missing",
+        "mismatched_lane",
+        "weaker",
+        "unsupported_claim",
+        "metadata_only",
     ),
 )
-def test_missing_weaker_mismatched_or_metadata_only_evidence_blocks(
+def test_legacy_evidence_variants_remain_non_authorizing_while_gate_is_disabled(
     tmp_path: Path,
     variant: str,
-    expected: str,
 ) -> None:
     root = _repo(tmp_path)
     if variant == "missing":
@@ -168,11 +185,13 @@ def test_missing_weaker_mismatched_or_metadata_only_evidence_blocks(
 
     report = evaluate_agent_maintenance_completion(evidence, repo_root=root)
 
-    assert report.completed is False
-    assert any(expected in blocker for blocker in report.blockers)
+    _assert_disabled_completion_contract(
+        report,
+        claims_current=variant != "unsupported_claim",
+    )
 
 
-def test_stale_and_tampered_receipts_are_revalidated_against_current_root(
+def test_stale_and_tampered_receipts_remain_non_authorizing_while_gate_is_disabled(
     tmp_path: Path,
 ) -> None:
     root = _repo(tmp_path)
@@ -184,20 +203,17 @@ def test_stale_and_tampered_receipts_are_revalidated_against_current_root(
         _evidence(root, receipt=tampered),
         repo_root=root,
     )
-    assert tampered_report.completed is False
-    assert tampered_report.receipt_current is False
+    _assert_disabled_completion_contract(tampered_report, claims_current=True)
 
     (root / "tracked.py").write_text("answer = 2\n", encoding="utf-8")
     stale_report = evaluate_agent_maintenance_completion(
         _evidence(root, receipt=current),
         repo_root=root,
     )
-    assert stale_report.completed is False
-    assert stale_report.receipt_current is False
-    assert any("stale" in blocker for blocker in stale_report.blockers)
+    _assert_disabled_completion_contract(stale_report, claims_current=True)
 
 
-def test_exact_root_is_part_of_current_validation(tmp_path: Path) -> None:
+def test_wrong_root_cannot_authorize_while_gate_is_disabled(tmp_path: Path) -> None:
     first = _repo(tmp_path / "first")
     second = _repo(tmp_path / "second")
     (second / "tracked.py").write_text("answer = 9\n", encoding="utf-8")
@@ -209,11 +225,12 @@ def test_exact_root_is_part_of_current_validation(tmp_path: Path) -> None:
         repo_root=second,
     )
 
-    assert report.completed is False
-    assert report.receipt_current is False
+    _assert_disabled_completion_contract(report, claims_current=True)
 
 
-def test_missing_or_mismatched_claim_ownership_blocks(tmp_path: Path) -> None:
+def test_missing_or_mismatched_claim_ownership_cannot_authorize_while_gate_is_disabled(
+    tmp_path: Path,
+) -> None:
     root = _repo(tmp_path)
     current = _evidence(root)
     missing = AgentMaintenanceCompletionEvidence(
@@ -236,13 +253,17 @@ def test_missing_or_mismatched_claim_ownership_blocks(tmp_path: Path) -> None:
         ),
     )
 
-    assert evaluate_agent_maintenance_completion(missing, repo_root=root).completed is False
+    _assert_disabled_completion_contract(
+        evaluate_agent_maintenance_completion(missing, repo_root=root),
+        claims_current=True,
+    )
     mismatch_report = evaluate_agent_maintenance_completion(mismatch, repo_root=root)
-    assert mismatch_report.completed is False
-    assert mismatch_report.ownership_current is False
+    _assert_disabled_completion_contract(mismatch_report, claims_current=True)
 
 
-def test_unknown_lane_and_lane_incompatible_minimum_block(tmp_path: Path) -> None:
+def test_unknown_or_incompatible_lane_cannot_authorize_while_gate_is_disabled(
+    tmp_path: Path,
+) -> None:
     root = _repo(tmp_path)
     current = _evidence(root)
     unknown = AgentMaintenanceCompletionEvidence(
@@ -260,22 +281,21 @@ def test_unknown_lane_and_lane_incompatible_minimum_block(tmp_path: Path) -> Non
         claim_ownership=current.claim_ownership,
     )
 
-    assert evaluate_agent_maintenance_completion(unknown, repo_root=root).completed is False
+    _assert_disabled_completion_contract(
+        evaluate_agent_maintenance_completion(unknown, repo_root=root),
+        claims_current=True,
+    )
     report = evaluate_agent_maintenance_completion(incompatible, repo_root=root)
-    assert report.completed is False
-    assert any("invalid" in blocker for blocker in report.blockers)
+    _assert_disabled_completion_contract(report, claims_current=True)
 
 
-def test_foreign_current_path_outside_claim_scope_blocks(tmp_path: Path) -> None:
+def test_foreign_path_cannot_authorize_while_gate_is_disabled(tmp_path: Path) -> None:
     root = _repo(tmp_path)
     (root / "foreign.txt").write_text("ordinary foreign change\n", encoding="utf-8")
 
     report = evaluate_agent_maintenance_completion(_evidence(root), repo_root=root)
 
-    assert report.completed is False
-    assert report.receipt_current is True
-    assert report.ownership_current is False
-    assert any("ownership" in blocker for blocker in report.blockers)
+    _assert_disabled_completion_contract(report, claims_current=True)
 
 
 def test_read_only_tool_exemption_fails_closed_on_conflicting_or_unknown_metadata() -> None:

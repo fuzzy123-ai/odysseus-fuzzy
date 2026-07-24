@@ -11,6 +11,7 @@ import pytest
 from src.claim_evidence_gate import (
     AgentMaintenanceClaimOwnership,
     AgentMaintenanceCompletionEvidence,
+    AgentMaintenanceCompletionReport,
     ClaimEvidenceReport,
     evaluate_agent_maintenance_completion,
     evaluate_response_claims,
@@ -124,6 +125,28 @@ def _completion_evidence(
     )
 
 
+def _assert_disabled_completion_contract(
+    report: AgentMaintenanceCompletionReport,
+    *,
+    claims_current: bool,
+) -> None:
+    """The compatibility evaluator must never validate or authorize completion."""
+    payload = report.to_dict()
+
+    assert report.completed is False
+    assert report.receipt_current is False
+    assert report.ownership_current is False
+    assert report.claims_current is claims_current
+    assert report.actual_evidence_level == "none"
+    assert report.blockers == (
+        "maintenance completion verification is disabled pending architecture review",
+    )
+    assert payload["origin_authenticated"] is False
+    assert payload["commit_authorized"] is False
+    assert payload["push_authorized"] is False
+    assert payload["live_authorized"] is False
+
+
 def _registry() -> RepoRegistry:
     registry = RepoRegistry()
     registry.add(
@@ -169,7 +192,7 @@ def _run_state() -> dict:
     }
 
 
-def test_real_guards_only_receipt_passes_then_post_verification_edit_is_stale(
+def test_valid_guards_receipt_cannot_complete_while_compatibility_gate_is_disabled(
     tmp_path: Path,
 ) -> None:
     verify = _load_verify()
@@ -185,8 +208,7 @@ def test_real_guards_only_receipt_passes_then_post_verification_edit_is_stale(
     assert exit_code == verify.VerifyExitCode.PASSED
     assert run_report["status"] == "passed"
     assert receipt["result"] == "passed"
-    assert current.completed is True
-    assert current.receipt_current is True
+    _assert_disabled_completion_contract(current, claims_current=True)
 
     (repo / "tracked.py").write_text("answer = 2\n", encoding="utf-8")
     stale = evaluate_agent_maintenance_completion(
@@ -194,15 +216,10 @@ def test_real_guards_only_receipt_passes_then_post_verification_edit_is_stale(
         repo_root=repo,
     )
 
-    assert stale.completed is False
-    assert stale.receipt_current is False
-    assert stale.ownership_current is True
-    assert stale.blockers == (
-        "machine verification receipt is invalid, stale, or mismatched",
-    )
+    _assert_disabled_completion_contract(stale, claims_current=True)
 
 
-def test_foreign_staged_work_blocks_claim_without_changing_repository_state(
+def test_foreign_staged_work_cannot_authorize_claim_without_changing_repository_state(
     tmp_path: Path,
 ) -> None:
     verify = _load_verify()
@@ -219,12 +236,7 @@ def test_foreign_staged_work_blocks_claim_without_changing_repository_state(
         repo_root=repo,
     )
 
-    assert report.completed is False
-    assert report.receipt_current is True
-    assert report.ownership_current is False
-    assert report.blockers == (
-        "claim ownership or current changed paths do not match",
-    )
+    _assert_disabled_completion_contract(report, claims_current=True)
     assert _git(repo, "rev-parse", "HEAD") == head_before
     assert _git(repo, "status", "--porcelain=v1") == status_before
 
@@ -287,12 +299,7 @@ def test_agent_prose_and_commit_body_cannot_replace_typed_current_evidence(
 
     assert claims.ok is False
     assert {finding.claim_type for finding in claims.unsupported} == {"command_passed"}
-    assert completion.completed is False
-    assert set(completion.blockers) == {
-        "current response claims are unsupported",
-        "claim ownership or current changed paths do not match",
-        "current machine verification receipt is missing",
-    }
+    _assert_disabled_completion_contract(completion, claims_current=False)
 
     (repo / "tracked.py").write_text("answer = 2\n", encoding="utf-8")
     head_before = _git(repo, "rev-parse", "HEAD")
@@ -461,7 +468,7 @@ def test_ci_runs_shared_guards_and_full_lane_collects_the_adversarial_corpus() -
 
     assert collected.returncode == 0
     assert (
-        "test_real_guards_only_receipt_passes_then_post_verification_edit_is_stale"
+        "test_valid_guards_receipt_cannot_complete_while_compatibility_gate_is_disabled"
         in collected.stdout
     )
     assert "test_failure_canaries_are_redacted_and_bounded" in collected.stdout
