@@ -49,7 +49,6 @@ from routes.chat_helpers import (
 )
 from src.action_intents import classify_tool_intent as _classify_tool_intent
 from src.tool_policy import build_effective_tool_policy
-from src.tool_usage_instrumentation import ToolUsageInstrumentation
 
 logger = logging.getLogger(__name__)
 
@@ -402,10 +401,6 @@ def setup_chat_routes(
             webhook_manager=webhook_manager,
             allow_tool_preprocessing=allow_tool_preprocessing,
         )
-        tool_usage_instrumentation = _tool_usage_instrumentation_from_runtime(
-            request,
-            ctx.tool_usage_context,
-        )
 
         deterministic_reply = build_deterministic_capability_self_report(message)
         if deterministic_reply:
@@ -698,10 +693,6 @@ def setup_chat_routes(
             # index would be useless / unwanted noise.
             agent_mode=(chat_mode == "agent"),
             allow_tool_preprocessing=allow_tool_preprocessing,
-        )
-        tool_usage_instrumentation = _tool_usage_instrumentation_from_runtime(
-            request,
-            ctx.tool_usage_context,
         )
 
         deterministic_reply = build_deterministic_capability_self_report(message)
