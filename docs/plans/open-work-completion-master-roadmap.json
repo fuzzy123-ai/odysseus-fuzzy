@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T08:28:07+02:00",
+  "updated_at": "2026-07-24T08:41:23+02:00",
   "status": "ttd02_and_ttd08a_accepted_ttd03a_handoff_rejected_ttd08b_bounded_audit_store_claimed_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -23,7 +23,7 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd03a_reserved_handoff_rejected_ttd08b_exact_three_path_claim_active",
+    "queue_status": "ttd03a_reserved_handoff_rejected_ttd08b_exact_four_path_claim_active",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -85,11 +85,11 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-08B read-only recon is complete and its exact three-path claim is active. The slice adds a separate content-free audit store with 30-day retention, bounded two-generation rotation, fail-closed configuration and corrupt-file handling, and a process-local shared path lock. TTD-03A remains reserved after a rejected handoff; legacy history, migration, deletion and all live paths remain excluded.",
+        "reason": "TTD-08B read-only recon is complete and its exact four-path claim is active. Deep Sol compatibility review added only the stale TTD-08A legacy-fallback assertion to the original implementation paths: it must now prove that legacy-only history yields no audit receipts. The slice adds a separate content-free audit store with 30-day retention, bounded two-generation rotation, fail-closed configuration and corrupt-file handling, and a process-local shared path lock. TTD-03A remains reserved after a rejected handoff; legacy history, migration, deletion and all live paths remain excluded.",
         "slice": "TTD-08B-audit-retention-size-and-rotation",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "implement_only_plugins_telegram_audit_store_py_plugins_telegram_stores_py_tests_test_telegram_audit_store_py_with_synthetic_data_no_legacy_rewrite_or_live_mutation"
+        "safe_default": "implement_only_plugins_telegram_audit_store_py_plugins_telegram_stores_py_tests_test_telegram_audit_store_py_and_the_single_stale_legacy_fallback_assertion_in_tests_test_telegram_history_privacy_py_with_synthetic_data_no_legacy_rewrite_or_live_mutation"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-24"
@@ -970,14 +970,14 @@
       "safe_default": "build_and_test_against_synthetic_notes_memory_and_telegram_fixtures_no_production_data_write_deploy_or_send",
       "user_gate_policy": "No user gate in TTD-00 through TTD-10, including TTD-07A. Repository work uses synthetic owner-scoped data and keeps all live actions disabled. Deployment, production data repair, Telegram smoke and productive session rollover are four separate dormant action-specific gates and each requires its own later operator Go.",
       "execution_protocol": {
-        "queue_registration": "TTD-00 through TTD-02 and TTD-08A are accepted. TTD-03A remains reserved on nine paths after rejected deep Sol review and awaits a later Terra repair; TTD-03B waits for accepted TTD-03A. TTD-08B read-only recon is complete and its exact three-path bounded audit-store implementation claim is active; TTD-08C remains blocked by TTD-08B, while TTD-04 through TTD-07A and TTD-09 through TTD-10 remain blocked_by_dependency.",
+        "queue_registration": "TTD-00 through TTD-02 and TTD-08A are accepted. TTD-03A remains reserved on nine paths after rejected deep Sol review and awaits a later Terra repair; TTD-03B waits for accepted TTD-03A. TTD-08B read-only recon is complete and its exact four-path bounded audit-store implementation claim is active after Deep Sol added only the stale legacy-fallback assertion; TTD-08C remains blocked by TTD-08B, while TTD-04 through TTD-07A and TTD-09 through TTD-10 remain blocked_by_dependency.",
         "dependency_rule": "Notes remains Todo truth; manage_todos is a domain facade over Notes, Memory rejects Todo storage, Telegram preserves semantic receipts, and every Digest claim requires a read-only include/exclude/schedule postcondition. Daily session rollover limits context but never substitutes old chat prose for domain readback.",
         "scheduling_decision": {
           "operator_priority_effective_at": "2026-07-21",
           "position": "active_p0_corrective_track_ttd03a_reserved_ttd08a_accepted_ttd08b_claim_active",
           "implementation_authority": "current_goal_repo_only_plus_read_only_debian_preflight_no_live_mutation_authority_before_ttd10"
         },
-        "future_goal_command": "/goal Setze OWM-22 repo-only fort: implementiere den aktiven exakten TTD-08B-Dreipfad-Claim per Terra-Handoff und Deep-Sol-Review; repariere TTD-03A spaeter separat; keine Legacy-Migration, Loeschung, App-/Plugin-Hotfiles, Produktionsdaten, Deployments, Sends oder produktiven Rollover."
+        "future_goal_command": "/goal Setze OWM-22 repo-only fort: implementiere den aktiven exakten TTD-08B-Vierpfad-Claim per Terra-Handoff und Deep-Sol-Review; repariere TTD-03A spaeter separat; keine Legacy-Migration, Loeschung, App-/Plugin-Hotfiles, Produktionsdaten, Deployments, Sends oder produktiven Rollover."
       },
       "activation_contract": {
         "id": "TTD-LIVE-DEPLOY",
@@ -2983,7 +2983,7 @@
         "product_complete": "no"
       },
       "acceptance": "offline_go_truthful_mixed_raw_store_classification_and_closed_content_free_admin_history_webhook_receipts_without_legacy_mutation",
-      "next_frontier": "TTD-08B read-only recon is complete and its exact three-path bounded audit-store claim is active. TTD-03A remains reserved after rejected handoff. TTD-LIVE-DEPLOY remains dormant until TTD-10 and current Git ancestry divergence is reconciled.",
+      "next_frontier": "TTD-08B read-only recon is complete and its exact four-path bounded audit-store claim is active after one compatibility-test-only amendment. TTD-03A remains reserved after rejected handoff. TTD-LIVE-DEPLOY remains dormant until TTD-10 and current Git ancestry divergence is reconciled.",
       "done_when": "The mixed raw Telegram history store is explicitly and conservatively classified as raw-bearing; one closed fail-closed audit projection removes every raw or free-form field; admin history and webhook responses expose only bounded content-free receipts; internal raw history consumers and legacy files are preserved without migration or deletion; and narrow synthetic tests prove the two external boundaries do not leak raw text or identifiers."
     },
     {
@@ -2995,7 +2995,7 @@
       "depends_on": [
         "TTD-08A accepted at implementation commit 55381d1b13326845e9dcedbddc0dc6e7774f8c19",
         "read-only recon confirmed one separate audit store can replace legacy read-time projection without route changes",
-        "all three paths are clean and disjoint from the reserved TTD-03A claim"
+        "the original three implementation paths and the one stale compatibility-test path are clean and disjoint from the reserved TTD-03A claim"
       ],
       "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "claim": {
@@ -3006,11 +3006,12 @@
         "allowed_paths": [
           "plugins/telegram/audit_store.py",
           "plugins/telegram/stores.py",
-          "tests/test_telegram_audit_store.py"
+          "tests/test_telegram_audit_store.py",
+          "tests/test_telegram_history_privacy.py"
         ],
         "excluded_paths": [
           "all nine reserved TTD-03A implementation and test paths",
-          "plugins/telegram/history_privacy.py plugins/telegram/routes_admin.py plugins/telegram/webhook_service.py and every accepted TTD-08A path except stores.py",
+          "plugins/telegram/history_privacy.py plugins/telegram/routes_admin.py plugins/telegram/webhook_service.py and every accepted TTD-08A path except stores.py plus the single stale assertion in tests/test_telegram_history_privacy.py",
           "app.py plugins/telegram/plugin.py plugins/telegram/polling.py and every TTD-04 or shared Agent hotfile",
           "plugins/telegram/live_pipeline.py plugins/telegram/attachments.py plugins/telegram/export.py and all attachment spool or export persistence",
           "legacy telegram_history.json migration deletion retention rotation rewrite or backfill",
@@ -3028,12 +3029,15 @@
         ],
         "state": "active",
         "acquired_at": "2026-07-24T08:28:07+02:00",
-        "lease_expires_at": "2026-07-24T12:28:07+02:00",
+        "lease_expires_at": "2026-07-24T12:41:23+02:00",
+        "amended_at": "2026-07-24T08:41:23+02:00",
+        "amendment_reason": "Deep Sol compatibility review found one accepted TTD-08A test that explicitly required the legacy read-time fallback now forbidden by the TTD-08B contract. Add only that test file so its legacy-only case can assert an empty audit result; no production path or behavior is added.",
         "handoff_required": true,
         "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
         "new_paths": true,
         "dependency_sha256": {
-          "plugins/telegram/stores.py": "E32A985265B4606745CF3224F01254446B938ED22F0AD4D5630FA94E967B915D"
+          "plugins/telegram/stores.py": "E32A985265B4606745CF3224F01254446B938ED22F0AD4D5630FA94E967B915D",
+          "tests/test_telegram_history_privacy.py": "815D5071D903534290A2AA39753C7FC17A274498E57238540CFC462E80C5E43D"
         }
       },
       "route": {
@@ -3094,14 +3098,14 @@
           "two store instances and concurrent process-local appends do not lose accepted receipts",
           "legacy history bytes are unchanged by audit reads, pruning and rotation",
           "no route history-privacy webhook app plugin polling attachment export session database FTS TTD03A productive data runtime or live changes",
-          "focused new-file tests and exact-path drift check"
+          "focused new-file tests, the single legacy-only no-fallback compatibility test and exact-path drift check"
         ],
         "temporal_window": "configured rolling retention window evaluated against injected or patched synthetic time",
         "positive_path_required": true
       },
       "tests": [
-        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_telegram_audit_store.py",
-        "git diff --check -- plugins/telegram/audit_store.py plugins/telegram/stores.py tests/test_telegram_audit_store.py"
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_telegram_audit_store.py tests\\test_telegram_history_privacy.py::test_mixed_legacy_raw_record_is_truthfully_classified_but_not_exported",
+        "git diff --check -- plugins/telegram/audit_store.py plugins/telegram/stores.py tests/test_telegram_audit_store.py tests/test_telegram_history_privacy.py"
       ],
       "completion": {
         "implemented": "pending",

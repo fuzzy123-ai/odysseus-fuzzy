@@ -11,7 +11,8 @@ Terra-Reparaturhandoff. `TTD-03B` wartet weiter auf akzeptiertes TTD-03A;
 der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der read-only Recon fuer `TTD-08B` ist abgeschlossen; der exakte disjunkte
-Dreipfad-Claim fuer einen separaten begrenzten Audit-Store ist aktiv.
+Vierpfad-Claim fuer einen separaten begrenzten Audit-Store ist nach einer
+reinen Kompatibilitaetstest-Ergaenzung aktiv.
 Spaetere unmet Slices und saemtliche Live-Aktionen bleiben gesperrt.
 
 ## Durable Amendment Claim 2026-07-21
@@ -905,6 +906,15 @@ Serialisierung:
      - neuer `plugins/telegram/audit_store.py`
      - `plugins/telegram/stores.py`
      - neuer `tests/test_telegram_audit_store.py`
+     - nur die stale Legacy-Fallback-Assertion in
+       `tests/test_telegram_history_privacy.py`
+   - Claim-Amendment `2026-07-24T08:41:23+02:00`:
+     - Deep Sol fand einen akzeptierten TTD-08A-Test, der fuer einen direkt
+       vorbefuellten Legacy-Store noch den nun verbotenen Read-time-Fallback
+       verlangte.
+     - Nur dieser Legacy-only-Fall wird auf ein leeres Audit-Ergebnis
+       umgestellt. Kein weiterer Test, Produktionspfad oder Runtime-Vertrag
+       wird dadurch erweitert.
    - Recon-Befund:
      - `TelegramInboxStore` schreibt weiterhin gemischte Raw-Records nach
        `telegram_history.json`; TTD-08A projiziert diese fuer Audit-Reads
@@ -957,11 +967,13 @@ Serialisierung:
        Korruptes JSON, falsches Schema, ungueltige Eintraege, Read-I/O- oder
        Replace-Fehler bleiben fail-closed: leer lesen, no-op schreiben und
        niemals reparieren, ueberschreiben, kuerzen oder loeschen.
-   - Fokussierte Evidence nur in `tests/test_telegram_audit_store.py`:
+   - Fokussierte Evidence in `tests/test_telegram_audit_store.py` plus genau
+     dem Legacy-only-Kompatibilitaetstest:
      geschlossene Receipt-Persistenz, kein Legacy-Read, Invalid-Env,
      Retention, Record-/Byte-Rotation, Oversize-No-op, Corrupt-No-overwrite,
      Replace-Fehler, zwei Store-Instanzen/Threads ohne Lost Update und
-     byte-identische Legacy-Datei bei Audit-Reads/Prune/Rotation.
+     byte-identische Legacy-Datei bei Audit-Reads/Prune/Rotation; der direkt
+     vorbefuellte Legacy-Store liefert ohne neues Audit-File keine Receipts.
    - Ausgeschlossen: alle TTD-03A-Pfade, TTD-08A-Routen/Projektion/Webhook,
      `app.py`, Plugin/Polling, Attachments/Export, Session-DB/FTS,
      Legacy-Migration/-Loeschung/-Retention/-Rotation, produktive Daten,

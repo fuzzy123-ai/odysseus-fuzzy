@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-07-24T08:28:07+02:00",
+  "updated_at": "2026-07-24T08:41:23+02:00",
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_ttd03a_handoff_rejected_ttd08a_accepted_ttd08b_exact_claim_active",
-      "ai_hint": "This is the current gate authority. TTD-08A is accepted at 55381d1b. TTD-03A remains reserved after rejected deep Sol review. TTD-08B read-only recon is complete and its exact three-path bounded audit-store claim is active: only plugins/telegram/audit_store.py, plugins/telegram/stores.py and tests/test_telegram_audit_store.py may change. It requires 30-day default retention, bounded two-generation atomic rotation, fail-closed configuration and corrupt-file handling, process-local shared locking and strict legacy no-touch. Do not edit routes, history_privacy, webhook, app.py, plugin.py, polling, TTD-03A, session DB/FTS, attachment/export persistence or any live path. TTD-LIVE-DEPLOY remains dormant through TTD-10."
+      "state": "owm22_ttd03a_handoff_rejected_ttd08a_accepted_ttd08b_exact_four_path_claim_active",
+      "ai_hint": "This is the current gate authority. TTD-08A is accepted at 55381d1b. TTD-03A remains reserved after rejected deep Sol review. TTD-08B read-only recon is complete and its exact four-path bounded audit-store claim is active: plugins/telegram/audit_store.py, plugins/telegram/stores.py, tests/test_telegram_audit_store.py, plus only the stale legacy-fallback assertion in tests/test_telegram_history_privacy.py may change. It requires 30-day default retention, bounded two-generation atomic rotation, fail-closed configuration and corrupt-file handling, process-local shared locking, strict legacy no-touch and explicit legacy-only no-fallback evidence. Do not edit routes, history_privacy, webhook, app.py, plugin.py, polling, any other assertion in the compatibility file, TTD-03A, session DB/FTS, attachment/export persistence or any live path. TTD-LIVE-DEPLOY remains dormant through TTD-10."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
@@ -744,8 +744,8 @@
     {
       "path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "profile": "active_serial",
-      "state": "ttd03a_handoff_rejected_ttd08a_accepted_ttd08b_exact_three_path_claim_active_live_default_off",
-      "ai_hint": "TTD-08A is accepted at 55381d1b after three deep Sol review rounds. TTD-03A remains reserved after rejected handoff. TTD-08B is active only on plugins/telegram/audit_store.py, plugins/telegram/stores.py and tests/test_telegram_audit_store.py under the exact Open-Work contract. Preserve internal raw consumers and every legacy file; no route, history_privacy, webhook, app/plugin/polling, attachment/export, session DB/FTS, TTD-03A or live changes are authorized. TTD-LIVE-DEPLOY remains dormant through TTD-10."
+      "state": "ttd03a_handoff_rejected_ttd08a_accepted_ttd08b_exact_four_path_claim_active_live_default_off",
+      "ai_hint": "TTD-08A is accepted at 55381d1b after three deep Sol review rounds. TTD-03A remains reserved after rejected handoff. TTD-08B is active only on plugins/telegram/audit_store.py, plugins/telegram/stores.py, tests/test_telegram_audit_store.py and the single stale legacy-fallback assertion in tests/test_telegram_history_privacy.py under the exact Open-Work contract. Preserve internal raw consumers and every legacy file; no route, history_privacy, webhook, app/plugin/polling, other compatibility-test assertion, attachment/export, session DB/FTS, TTD-03A or live changes are authorized. TTD-LIVE-DEPLOY remains dormant through TTD-10."
     },
     {
       "path": "docs/plans/telegram-dual-session-router-hotfix-roadmap.md",
