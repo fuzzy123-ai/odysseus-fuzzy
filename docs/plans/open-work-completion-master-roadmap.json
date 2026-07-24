@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T08:48:09+02:00",
-  "status": "ttd02_ttd08a_and_ttd08b_accepted_ttd03a_handoff_rejected_live_default_off",
+  "updated_at": "2026-07-24T08:55:05+02:00",
+  "status": "ttd02_ttd08a_ttd08b_accepted_ttd08c_boundary_recon_complete_ttd03a_handoff_rejected_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd03a_reserved_handoff_rejected_ttd08b_accepted_ttd08c_read_only_recon_next",
+    "queue_status": "ttd03a_reserved_handoff_rejected_ttd08c_boundary_recon_complete_ttd08cb_consumer_race_recon_next",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd02_ttd08a_and_ttd08b_accepted_ttd03a_handoff_rejected_live_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd02_ttd08a_ttd08b_accepted_ttd08c_boundary_recon_complete_ttd03a_handoff_rejected_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,11 +85,11 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-08B is accepted at 02eb7c02 after three deep Sol review rounds: a separate content-free audit store now enforces 30-day retention, bounded two-generation atomic rotation, fail-closed configuration and corruption handling, process-local serialization, no legacy fallback or backfill, and update-time truth. TTD-03A remains reserved after a rejected handoff. TTD-08C is now dependency-ready for read-only recon of session, attachment and export boundaries only; no implementation claim or live action is active.",
-        "slice": "TTD-08C-session-attachment-and-export-privacy-boundaries-read-only-recon",
+        "reason": "TTD-08C umbrella boundary recon is complete and proves that no immediate implementation claim is safe: Session/FTS is a global raw transcript boundary, attachment context TTL does not delete spool files, and export output retention is coupled to execution and Telegram delivery. TTD-03A remains reserved after a rejected handoff. The next safe action is a narrower read-only TTD-08C-B consumer/race recon for new attachment-spool writes only; no implementation claim, cleanup, migration, deletion or live action is active.",
+        "slice": "TTD-08C-B-attachment-spool-consumer-and-race-read-only-recon",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "recon_only_no_ttd08c_claim_until_session_database_fts_attachment_spool_export_retention_and_exact_hotfile_boundaries_are_recorded"
+        "safe_default": "read_only_map_attachment_spool_writers_readers_races_path_confinement_and_new_write_policy_without_deleting_or_migrating_any_existing_spool"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-24"
@@ -955,8 +955,8 @@
       "id": "OWM-22",
       "name": "Telegram Todo Domain Truth And Digest Consistency",
       "priority": 4,
-      "status": "ttd00_through_ttd02_ttd08a_and_ttd08b_accepted_ttd03a_handoff_rejected_live_default_off",
-      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-02 plus the disjoint TTD-08A history-privacy projection and TTD-08B bounded audit store are accepted. TTD-03A remains reserved after its interrupted Terra handoff failed deep Sol review. TTD-08C, TTD-03B and all later dependency successors remain open and live activation remains dormant.",
+      "status": "ttd00_through_ttd02_ttd08a_ttd08b_accepted_ttd08c_boundary_recon_complete_ttd03a_handoff_rejected_live_default_off",
+      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-02 plus the disjoint TTD-08A history-privacy projection and TTD-08B bounded audit store are accepted. TTD-03A remains reserved after its interrupted Terra handoff failed deep Sol review. TTD-08C umbrella recon is complete but its Session/FTS, attachment-spool and export-output boundaries need separately serialized successor work; TTD-03B and all later dependency successors remain open and live activation remains dormant.",
       "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "source_gate_family": "telegram_todo_truth",
       "dependencies": [
@@ -969,14 +969,14 @@
       "safe_default": "build_and_test_against_synthetic_notes_memory_and_telegram_fixtures_no_production_data_write_deploy_or_send",
       "user_gate_policy": "No user gate in TTD-00 through TTD-10, including TTD-07A. Repository work uses synthetic owner-scoped data and keeps all live actions disabled. Deployment, production data repair, Telegram smoke and productive session rollover are four separate dormant action-specific gates and each requires its own later operator Go.",
       "execution_protocol": {
-        "queue_registration": "TTD-00 through TTD-02 plus TTD-08A and TTD-08B are accepted. TTD-03A remains reserved on nine paths after rejected deep Sol review and awaits a later Terra repair; TTD-03B waits for accepted TTD-03A. No new implementation claim is active. TTD-08C is dependency-ready for read-only boundary recon only, while TTD-04 through TTD-07A and TTD-09 through TTD-10 remain blocked_by_dependency.",
+        "queue_registration": "TTD-00 through TTD-02 plus TTD-08A and TTD-08B are accepted. TTD-03A remains reserved on nine paths after rejected deep Sol review and awaits a later Terra repair; TTD-03B waits for accepted TTD-03A. TTD-08C umbrella boundary recon is complete and split into non-claim-ready A Session/FTS, B attachment spool and C export-output successors. No implementation claim is active. Next run only the narrow read-only TTD-08C-B consumer/race recon; TTD-04 through TTD-07A and TTD-09 through TTD-10 remain blocked_by_dependency.",
         "dependency_rule": "Notes remains Todo truth; manage_todos is a domain facade over Notes, Memory rejects Todo storage, Telegram preserves semantic receipts, and every Digest claim requires a read-only include/exclude/schedule postcondition. Daily session rollover limits context but never substitutes old chat prose for domain readback.",
         "scheduling_decision": {
           "operator_priority_effective_at": "2026-07-21",
-          "position": "active_p0_corrective_track_ttd03a_reserved_ttd08a_ttd08b_accepted_ttd08c_recon_next",
+          "position": "active_p0_corrective_track_ttd03a_reserved_ttd08a_ttd08b_accepted_ttd08c_boundary_recon_complete_ttd08cb_recon_next",
           "implementation_authority": "current_goal_repo_only_plus_read_only_debian_preflight_no_live_mutation_authority_before_ttd10"
         },
-        "future_goal_command": "/goal Setze OWM-22 repo-only fort: fuehre nur read-only TTD-08C-Recon fuer Session-DB/FTS, Attachment-Spool, Export und Retention durch und zeichne vor jeder Implementierung einen exakten disjunkten Hotfile-Claim auf; repariere TTD-03A spaeter separat; keine Bestandsmigration, Loeschung, Produktionsdaten, Deployments, Sends oder produktiven Rollover."
+        "future_goal_command": "/goal Setze OWM-22 repo-only fort: fuehre nur den schmalen read-only TTD-08C-B Consumer-/Race-Recon fuer neue Attachment-Spool-Writes durch und zeichne erst danach einen exakten disjunkten Claim auf; Session/FTS und Export bleiben separat, TTD-03A wird spaeter repariert; keine Bestandsmigration, Loeschung, Produktionsdaten, Deployments, Sends oder produktiven Rollover."
       },
       "activation_contract": {
         "id": "TTD-LIVE-DEPLOY",
@@ -3144,8 +3144,180 @@
         ]
       },
       "acceptance": "offline_go_separate_bounded_content_free_audit_store_with_no_legacy_fallback_fail_closed_retention_atomic_rotation_and_update_time_truth",
-      "next_frontier": "TTD-08C is dependency-ready for read-only recon of global session and FTS classification plus attachment spool and export retention boundaries. No implementation claim is active. TTD-03A remains reserved after rejected handoff. TTD-LIVE-DEPLOY remains dormant through TTD-10.",
+      "next_frontier": "TTD-08C umbrella boundary recon is complete and records three separate non-claim-ready successors. Next run only the narrower read-only TTD-08C-B attachment-spool consumer/race recon. No implementation claim is active. TTD-03A remains reserved after rejected handoff and TTD-LIVE-DEPLOY remains dormant through TTD-10.",
       "done_when": "A separate fail-closed content-free audit store receives only newly written Telegram receipts, never reads or mutates legacy history, enforces 30-day default retention plus per-generation record and byte limits, keeps at most current and previous generations through one atomic envelope, preserves suspect or prior files on every error, prevents process-local lost updates, and focused synthetic tests prove privacy, retention, bounds, rotation, atomicity and all no-touch constraints."
+    },
+    {
+      "id": "TTD-08C-session-attachment-and-export-privacy-boundaries-recon",
+      "class": "analysis_only",
+      "owner": "/root",
+      "status": "boundary_recon_complete_2026-07-24",
+      "claimable": false,
+      "depends_on": [
+        "TTD-08A accepted at 55381d1b",
+        "TTD-08B accepted at 02eb7c02",
+        "read-only code, test and Git metadata inspection only"
+      ],
+      "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "recon": {
+        "run_id": "abc-ttd08c-recon-20260724T085505+0200",
+        "worker": "Charlie",
+        "completed_at": "2026-07-24T08:55:05+02:00",
+        "mutation_performed": false,
+        "tests_run": [],
+        "runtime_or_private_data_read": false,
+        "session_and_fts": {
+          "classification": "global_raw_transcript_boundary_not_telegram_local",
+          "findings": [
+            "TelegramSessionBridgeStore persists hashed chat handles plus active normal and secure session identifiers in telegram_session_bridge.json",
+            "app.py persists Telegram user prompts and assistant responses as source=telegram ChatMessages in the normal global SessionManager",
+            "SessionManager persists full content and metadata in chat_messages",
+            "chat_messages_fts backfills and trigger-indexes global message content",
+            "session search returns FTS snippets and full rows under owner semantics that include a legacy null-owner branch",
+            "there is no Telegram-specific session or FTS retention policy"
+          ],
+          "evidence_refs": [
+            "plugins/telegram/stores.py:687-847",
+            "tests/test_telegram_plugin.py:1139-1256",
+            "app.py:880-894",
+            "app.py:1001-1010",
+            "app.py:1090-1188",
+            "core/session_manager.py:148-258",
+            "core/session_manager.py:485-496",
+            "core/database_migrations.py:1026-1089",
+            "src/session_search.py:245-352"
+          ],
+          "decision": "not_claim_ready_requires_separate_cross_hotfile_owner_raw_content_fts_read_delete_matrix_no_db_or_data_mutation"
+        },
+        "attachment_spool": {
+          "classification": "persistent_raw_attachment_bytes_with_reader_ttl_only",
+          "findings": [
+            "new document and image bytes are written below universal_inbox_telegram/<16-hex spool key>/telegram-attachment<suffix>",
+            "the spool key derives from hashed chat handle and message id and public reports hide paths filenames identifiers and raw content",
+            "TELEGRAM_ATTACHMENT_CONTEXT_TTL_SECONDS limits recent-reader selection only and performs no file deletion",
+            "no Telegram spool deletion rotation or time-based cleanup exists in the inspected modules",
+            "document and image consumers include Universal Inbox context Memory Nextcloud review and export flows through plugin.py",
+            "voice bytes are loaded for STT but not written into the Telegram attachment spool; their transcripts can enter the global session"
+          ],
+          "configuration": {
+            "TELEGRAM_ATTACHMENT_MAX_BYTES": "default 25000000 clamp 1..100000000",
+            "TELEGRAM_ATTACHMENT_CONTEXT_TTL_SECONDS": "default 21600 clamp 60..86400 reader-only",
+            "TELEGRAM_ATTACHMENT_CONTEXT_MAX_CHARS": "default 12000 clamp 512..50000",
+            "TELEGRAM_ATTACHMENT_CONTEXT_MAX_EXTRACT_BYTES": "default 4194304 clamp 65536..67108864",
+            "TELEGRAM_VOICE_MAX_BYTES": "default 10000000 clamp 1..100000000"
+          },
+          "evidence_refs": [
+            "plugins/telegram/attachments.py:25-108",
+            "plugins/telegram/live_pipeline.py:28-35",
+            "plugins/telegram/live_pipeline.py:94-168",
+            "plugins/telegram/live_pipeline.py:236-291",
+            "plugins/telegram/plugin.py:280-295",
+            "plugins/telegram/plugin.py:621-636",
+            "plugins/telegram/plugin.py:804-849",
+            "tests/test_telegram_attachment_ocr.py:26-118",
+            "tests/test_telegram_voice_pipeline.py:23-64",
+            "tests/test_telegram_plugin.py:2471-2514"
+          ],
+          "decision": "not_claim_ready_until_writer_reader_race_confinement_and_new_write_only_policy_recon_is_complete"
+        },
+        "export_output": {
+          "classification": "local_raw_derived_output_coupled_to_execution_and_live_telegram_delivery",
+          "findings": [
+            "export planning reads only a context-TTL-eligible spool and ignores symlinked files",
+            "export execution writes below universal_inbox_exports/<spool key>",
+            "internal success results contain output_path and output_filename while public webhook projections suppress them",
+            "the output path is passed to the Telegram document reply handler and actual delivery is a separate live send boundary",
+            "no Telegram-specific export output cleanup or retention policy exists"
+          ],
+          "evidence_refs": [
+            "plugins/telegram/export.py:18-65",
+            "plugins/telegram/export.py:74-151",
+            "plugins/telegram/webhook_service.py:411-469",
+            "tests/test_telegram_webhook_service.py:191-247"
+          ],
+          "decision": "not_claim_ready_until_plan_execution_delivery_and_output_lifecycle_are_reconciled_without_send_or_delete"
+        },
+        "collision_matrix": {
+          "reserved_no_touch": [
+            "all nine TTD-03A paths"
+          ],
+          "session_hotfiles": [
+            "app.py",
+            "plugins/telegram/plugin.py",
+            "core/session_manager.py",
+            "core/session_serialization.py",
+            "core/database.py",
+            "core/database_migrations.py",
+            "src/session_search.py"
+          ],
+          "attachment_and_export_hotfiles": [
+            "plugins/telegram/plugin.py",
+            "plugins/telegram/live_pipeline.py",
+            "plugins/telegram/export.py",
+            "plugins/telegram/webhook_service.py",
+            "plugins/telegram/polling.py"
+          ],
+          "relevant_dirty_files_found": []
+        }
+      },
+      "serialization": [
+        {
+          "id": "TTD-08C-A-session-fts-classification",
+          "status": "not_claim_ready",
+          "next_requirement": "separate read-only cross-hotfile owner raw-content FTS read and delete matrix",
+          "forbidden": "database migration FTS backfill reindex session deletion retention implementation productive data and live actions"
+        },
+        {
+          "id": "TTD-08C-B-attachment-spool-boundary",
+          "status": "consumer_race_recon_next",
+          "next_requirement": "map every writer reader race path-confinement assumption and smallest new-write-only policy surface before any claim",
+          "candidate_after_recon": "new pure spool policy module plus live_pipeline.py and one focused test file if plugin export webhook polling and existing spools remain untouched",
+          "forbidden": "delete migrate rotate or rewrite existing spools plugin polling webhook Nextcloud Memory export runtime download and live actions"
+        },
+        {
+          "id": "TTD-08C-C-export-output-boundary",
+          "status": "not_claim_ready",
+          "next_requirement": "separate read-only plan execution delivery and output lifecycle recon",
+          "forbidden": "Telegram send output deletion retention migration provider or live actions"
+        }
+      ],
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "read-only privacy-boundary decomposition before any hotfile claim"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "required": true,
+            "depth": "boundary",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "fallback": "none"
+      },
+      "completion": {
+        "recon_complete": "yes",
+        "implementation_claim_created": "no",
+        "tested": "not_applicable_read_only",
+        "committed": "yes_local_this_evidence_commit",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no"
+      },
+      "acceptance": "read_only_go_three_separate_privacy_boundaries_no_immediate_implementation_claim",
+      "next_frontier": "Run only the narrower read-only TTD-08C-B attachment-spool consumer and race recon. Do not claim Session/FTS or export output, and do not delete migrate rotate or touch existing runtime files.",
+      "done_when": "The global Session/FTS, persistent attachment spool and export-output/delivery privacy boundaries are separated with exact evidence, current configuration, hotfile collisions and no-touch constraints; no implementation is claimed until the selected successor has its own complete consumer and race contract."
     },
     {
       "id": "TAX0-deterministic-inventory",

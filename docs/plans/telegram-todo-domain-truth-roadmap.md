@@ -12,7 +12,9 @@ der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
 Audit-Store ist nach drei tiefen Sol-Review-Runden ebenfalls akzeptiert.
-`TTD-08C` ist als naechster read-only Boundary-Recon dependency-ready.
+Der read-only `TTD-08C`-Umbrella-Recon ist abgeschlossen und trennt Session/
+FTS, Attachment-Spool und Export-Output ohne Implementierungsclaim; als
+naechstes folgt nur der schmale `TTD-08C-B` Consumer-/Race-Recon.
 Spaetere unmet Slices und saemtliche Live-Aktionen bleiben gesperrt.
 
 ## Durable Amendment Claim 2026-07-21
@@ -999,12 +1001,61 @@ Serialisierung:
      - Kein Push, Deploy, Legacy-Rewrite, produktiver Datenzugriff oder
        Live-Smoke.
 3. `TTD-08C-session-attachment-and-export-privacy-boundaries`
-   - Status: `dependency_ready_read_only_recon_next`.
-   - Nach TTD-08A/08B jetzt zunaechst nur Session-/FTS-, Attachment-Spool-,
-     Export- und Retention-Hotfiles read-only reconcilen; erst danach einen
-     exakten disjunkten Implementierungsclaim aufzeichnen.
-   - Globale Session-/FTS-Klassifikation sowie Attachment-/Export-Retention
-     bleiben getrennt; keine Bestandsmigration oder -loeschung repo-only.
+   - Status: `boundary_recon_complete_2026-07-24_no_implementation_claim`.
+   - Run: `abc-ttd08c-recon-20260724T085505+0200`; read-only durch Charlie,
+     ohne Tests, Datei-/Git-Mutation, Runtime-Daten oder Netzwerk.
+   - Session-/FTS-Befund:
+     - `telegram_session_bridge.json` speichert gehashte Chat-Handles, aber
+       aktive normale/secure Session-IDs und Zeitstempel.
+     - `app.py` persistiert Telegram-Prompt und Antwort als globale
+       `ChatMessage` mit `source=telegram`; `SessionManager` schreibt den
+       Volltext nach `chat_messages`.
+     - `chat_messages_fts` backfilled und indexiert globale Inhalte per
+       Trigger; Search und Delete gehoeren zur globalen Owner-/Session-Domaene.
+     - Keine Telegram-spezifische Session-/FTS-Retention. Deshalb ist
+       `TTD-08C-A-session-fts-classification` ohne eigenen Cross-Hotfile-
+       Owner-/Raw-/Read-/Delete-Recon nicht claim-ready. DB-Migration,
+       Backfill, Reindex, Loeschung und produktive Daten bleiben verboten.
+   - Attachment-Spool-Befund:
+     - Dokument-/Bildbytes landen persistent unter
+       `universal_inbox_telegram/<16-hex-key>/telegram-attachment<suffix>`.
+       Reports verbergen Pfad, Dateiname, Identifier und Raw-Content.
+     - `TELEGRAM_ATTACHMENT_CONTEXT_TTL_SECONDS` (Default 21600, Clamp
+       60..86400) begrenzt nur Context-/Export-Reads und loescht keine Datei.
+       Es existiert keine Telegram-Spool-Rotation oder zeitbasierte
+       Bereinigung.
+     - `TELEGRAM_ATTACHMENT_MAX_BYTES` ist 25 MB per Default, Clamp
+       1..100 MB; Voice nutzt 10 MB per Default und wird fuer STT geladen,
+       aber nicht in diesem Spool gespeichert. Transkripte koennen danach in
+       die globale Session gelangen.
+     - Consumer laufen ueber Universal Inbox, Kontext, Memory-/Nextcloud-
+       Review und Export. Deshalb ist `TTD-08C-B-attachment-spool-boundary`
+       erst nach einem schmalen Writer-/Reader-/Race-/Confinement-Recon
+       claim-ready.
+   - Export-Befund:
+     - Planning liest nur Context-TTL-eligible, nicht-symlinked Spool-Files;
+       Execution schreibt nach `universal_inbox_exports/<spool-key>`.
+     - Interne Ergebnisse tragen `output_path` und `output_filename`; die
+       oeffentliche Webhook-Projektion unterdrueckt beide, waehrend der
+       Dokument-Reply-Handler den Pfad fuer einen spaeteren Telegram-Send
+       benoetigt.
+     - Keine Telegram-spezifische Output-Retention. Deshalb bleibt
+       `TTD-08C-C-export-output-boundary` bis zu einem separaten
+       Plan-/Execution-/Delivery-/Lifecycle-Recon nicht claim-ready; Send und
+       Cleanup sind nicht repo-only autorisiert.
+   - Kollisionsgrenzen:
+     - Session: `app.py`, `plugins/telegram/plugin.py`, globale Session-,
+       Serialization-, DB-, Migration- und Search-Module.
+     - Attachment/Export: `plugin.py`, `live_pipeline.py`, `export.py`,
+       `webhook_service.py`, `polling.py`; nicht parallelisieren.
+     - Alle neun TTD-03A-Pfade bleiben fremd/reserviert. Kein
+       TTD-08C-relevantes Dirty File wurde gefunden.
+   - Naechster sicherer Schritt:
+     - nur read-only `TTD-08C-B` Consumer-/Race-Recon fuer neue Spool-Writes;
+       genaue Writer/Reader, Race-Verhalten, Path-Confinement und kleinste
+       new-write-only Policy ermitteln.
+     - Kein Implementierungsclaim, keine Bestandsmigration/-loeschung/
+       -rotation, kein Session-/FTS- oder Export-Edit und keine Live-Aktion.
 
 ### TTD-09 - Incident-Regressionssuite
 
