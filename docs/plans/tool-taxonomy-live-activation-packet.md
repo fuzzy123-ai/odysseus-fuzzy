@@ -31,14 +31,12 @@ exact rollback to the first projection, and fingerprints synthetic settings
 before and after. The same run checks the settings alias ledger and the
 analytics alias and reservation ledgers for loss.
 
-The dual-read has one documented intentional difference: the established
-runtime security projection strengthens `owner` to `admin` for
-`cancel_download`, `download_model`, `manage_embeddings`,
-`manage_github_issues`, `manage_personal_docs`, `manage_presets`,
-`manage_repos`, `recent_changes`, `serve_model`, `serve_preset`, and
-`stop_served_model`. Effect, confirmation, lifecycle, availability, enabled
-state, and runtime availability remain identical. No security field is
-weakened; any other drift fails acceptance.
+The current canonical built-in catalog already contains the established
+permission hardening. The synthetic legacy-security and Catalog-v2 security
+projections therefore must match exactly for permission, effect,
+confirmation, lifecycle, availability, enabled state, and runtime
+availability. The rollout report records `intentional_drift.kind=none`;
+any security-field drift fails acceptance.
 
 Machine-readable evidence is emitted by:
 

@@ -1,92 +1,41 @@
-import ast
-from collections import Counter
 import json
-from pathlib import Path
 import subprocess
 import sys
 import time
+from pathlib import Path
 
-import pytest
-
-pytest.skip(
-    "legacy 85-tool TAX acceptance contract is superseded by the V2 catalog tests",
-    allow_module_level=True,
-)
-
-from scripts.audit_tool_registry_drift import build_inventory
 from src.builtin_tool_catalog import (
-    AGENT_HANDLER_TOOLS,
-    BUILTIN_TOOL_SPECS,
-    CATALOG_TOOL_IDS,
-    CONFIRMED_ROUTE_REGISTRATION_GAPS,
-    DEFAULT_DEFERRED_TOOLS,
-    DEFERRED_REGISTRATION_GAPS,
-    RAG_ONLY_PROMPT_TOOLS,
-    REGISTRATION_GAPS,
-    SECURITY_BLOCKED_REGISTRATION_GAPS,
-    build_builtin_analytics_identity_contract,
-    validate_builtin_projections,
+    BUILTIN_TOOL_DEFINITIONS,
+    EMAIL_ADAPTER_TOOL_IDS,
+    INDEX_INJECTED_PROMPT_IDS,
+    NON_NATIVE_SCHEMA_IDS,
+    OPERATOR_PRIORITY_DEFERRED_IDS,
+    RUNTIME_REGISTRATION_GAPS,
+    build_builtin_descriptor_catalog,
+    build_tool_analytics_identity_contract,
+    expected_projection_sets,
 )
 from src.runtime_tool_status import build_tool_catalog_projection
-from src.tool_catalog import ToolEffectClass, ToolFamily, ToolPermission, ToolSource
-from src.tool_policy import DEFAULT_DEFERRED_RUNTIME_TOOLS
 
 
 ROOT = Path(__file__).resolve().parents[1]
-REPORT = ROOT / "docs" / "plans" / "tool-taxonomy-acceptance-report.md"
 
 
-def _assignment_value(relative_path: str, name: str):
-    tree = ast.parse((ROOT / relative_path).read_text(encoding="utf-8"))
-    for node in tree.body:
-        if isinstance(node, ast.Assign) and any(
-            isinstance(target, ast.Name) and target.id == name
-            for target in node.targets
-        ):
-            return node.value
-        if (
-            isinstance(node, ast.AnnAssign)
-            and isinstance(node.target, ast.Name)
-            and node.target.id == name
-        ):
-            return node.value
-    raise AssertionError(f"{name} assignment not found")
+def test_current_builtin_catalog_is_complete_and_has_the_expected_projection_baseline():
+    definitions = BUILTIN_TOOL_DEFINITIONS
+    ids = {definition.tool_id for definition in definitions}
 
-
-def _builtin_descriptions() -> dict[str, str]:
-    node = _assignment_value("src/tool_index.py", "BUILTIN_TOOL_DESCRIPTIONS")
-    assert isinstance(node, ast.Dict)
-    return {
-        ast.literal_eval(key): ast.literal_eval(value)
-        for key, value in zip(node.keys, node.values)
+    assert len(definitions) == len(ids) == 86
+    assert "query_knowledge" in ids
+    expected = expected_projection_sets()
+    assert {name: len(tool_ids) for name, tool_ids in expected.items()} == {
+        "runtime_tags": 80,
+        "function_schemas": 85,
+        "tool_index": 86,
+        "prompt_sections": 69,
+        "dispatcher": 77,
     }
-
-
-def test_all_static_builtin_projections_validate_against_one_catalog():
-    inventory = build_inventory(ROOT)
-    projections = inventory["projections"]
-
-    validate_builtin_projections(
-        runtime_tags=projections["runtime_tags"],
-        function_schemas=projections["function_schemas"],
-        tool_index_entries=projections["tool_index_entries"],
-        prompt_sections=projections["prompt_sections"],
-        agent_handlers=projections["agent_handlers"],
-        dispatcher_condition_ids=projections["dispatcher_condition_ids"],
-    )
-    catalog = set(CATALOG_TOOL_IDS)
-    assert len(catalog) == 85
-    assert set(projections["runtime_tags"]) | REGISTRATION_GAPS == catalog
-    assert set(projections["function_schemas"]) == catalog - {"generate_image"}
-    assert set(projections["tool_index_entries"]) == catalog
-    assert set(projections["prompt_sections"]) == catalog - RAG_ONLY_PROMPT_TOOLS
-    assert set(projections["agent_handlers"]) == set(AGENT_HANDLER_TOOLS)
-
-
-def test_six_gaps_and_previous_admin_fallbacks_have_exact_dispositions():
-    inventory = build_inventory(ROOT)
-
-    assert REGISTRATION_GAPS == {
+    assert RUNTIME_REGISTRATION_GAPS == {
         "manage_assistant",
         "manage_embeddings",
         "manage_personal_docs",
@@ -94,107 +43,57 @@ def test_six_gaps_and_previous_admin_fallbacks_have_exact_dispositions():
         "manage_presets",
         "tail_serve_output",
     }
-    assert CONFIRMED_ROUTE_REGISTRATION_GAPS == {
-        "manage_embeddings",
-        "manage_personal_docs",
-        "manage_plugins",
-    }
-    assert DEFERRED_REGISTRATION_GAPS == {"manage_assistant", "manage_presets"}
-    assert SECURITY_BLOCKED_REGISTRATION_GAPS == {"tail_serve_output"}
-    assert inventory["counts"]["admin_metadata"] == 85
-    assert inventory["counts"]["runtime_without_admin_metadata"] == 0
-    assert inventory["counts"]["stale_admin_metadata"] == 0
-    assert "manage_rag" not in inventory["projections"]["admin_metadata"]
+    assert ids - set(expected["runtime_tags"]) == set(RUNTIME_REGISTRATION_GAPS)
+    assert NON_NATIVE_SCHEMA_IDS == {"generate_image"}
+    assert ids - set(expected["function_schemas"]) == set(NON_NATIVE_SCHEMA_IDS)
+    assert len(INDEX_INJECTED_PROMPT_IDS) == 17
+    assert ids - set(expected["prompt_sections"]) == set(INDEX_INJECTED_PROMPT_IDS)
+    assert len(EMAIL_ADAPTER_TOOL_IDS) == 9
+    assert ids - set(expected["dispatcher"]) == set(EMAIL_ADAPTER_TOOL_IDS)
 
 
-def test_api_ui_and_analytics_are_deterministic_catalog_projections():
-    descriptions = _builtin_descriptions()
-    api_projection = build_tool_catalog_projection(
-        disabled_tools=DEFAULT_DEFERRED_RUNTIME_TOOLS,
-        builtin_descriptions=descriptions,
-    )
-    analytics = build_builtin_analytics_identity_contract(descriptions)
-    admin_source = (ROOT / "static" / "js" / "admin.js").read_text(
-        encoding="utf-8"
-    )
-
-    assert api_projection["tool_count"] == 85
-    assert {item["id"] for item in api_projection["descriptors"]} == set(
-        CATALOG_TOOL_IDS
-    )
-    assert api_projection["sources"] == (ToolSource.BUILTIN.value,)
-    assert {item["family"] for item in api_projection["descriptors"]} <= {
-        family.value for family in ToolFamily
-    }
-    assert analytics.schema_version == "odysseus.tool_analytics_identity.v1"
-    assert len(analytics.identities) == len(analytics.analytics_id_reservations) == 85
-    assert len({item.analytics_id for item in analytics.identities}) == 85
-    assert "const TOOL_META" not in admin_source
-    assert "fetch('/api/tools'" in admin_source
-    assert "TOOL_FAMILY_PRESENTATION" in admin_source
-
-
-def test_deferred_families_stay_default_off_in_policy_api_and_ui_state():
+def test_descriptor_projection_and_analytics_use_the_same_current_catalog():
+    descriptors = build_builtin_descriptor_catalog()
+    analytics = build_tool_analytics_identity_contract()
     projection = build_tool_catalog_projection(
-        disabled_tools=DEFAULT_DEFERRED_RUNTIME_TOOLS,
-        builtin_descriptions=_builtin_descriptions(),
-    )
-    rows = {item["id"]: item for item in projection["descriptors"]}
-
-    assert len(DEFAULT_DEFERRED_TOOLS) == 14
-    for tool_id in DEFAULT_DEFERRED_TOOLS:
-        assert rows[tool_id]["enabled"] is False
-        assert rows[tool_id]["lifecycle"] == "deferred"
-    assert {"send_email", "manage_calendar", "manage_contact"} <= set(
-        DEFAULT_DEFERRED_RUNTIME_TOOLS
+        disabled_tools=OPERATOR_PRIORITY_DEFERRED_IDS
     )
 
-
-def test_role_effect_and_confirmation_matrix_fails_closed():
-    effect_counts = Counter(spec.effect_class for spec in BUILTIN_TOOL_SPECS)
-    permission_counts = Counter(spec.permission for spec in BUILTIN_TOOL_SPECS)
-    descriptions = _builtin_descriptions()
-    descriptors = build_builtin_analytics_identity_contract(descriptions)
-    descriptor_index = {
-        spec.tool_id: spec.build_descriptor(descriptions[spec.tool_id])
-        for spec in BUILTIN_TOOL_SPECS
+    assert len(descriptors.descriptors) == 86
+    assert len(analytics.catalog.descriptors) == 86
+    assert tuple(descriptor.tool_id for descriptor in descriptors.descriptors) == tuple(
+        descriptor.tool_id for descriptor in analytics.catalog.descriptors
+    )
+    assert projection["tool_count"] == 86
+    assert {row["id"] for row in projection["tools"]} == {
+        definition.tool_id for definition in BUILTIN_TOOL_DEFINITIONS
     }
-
-    assert effect_counts == {
-        ToolEffectClass.READ: 23,
-        ToolEffectClass.LOCAL_WRITE: 10,
-        ToolEffectClass.EXTERNAL_WRITE: 9,
-        ToolEffectClass.DESTRUCTIVE: 1,
-        ToolEffectClass.CONTROL: 42,
-    }
-    assert permission_counts == {ToolPermission.OWNER: 75, ToolPermission.ADMIN: 10}
-    assert len(descriptors.identities) == 85
-    for descriptor in descriptor_index.values():
-        if descriptor.effect_class != ToolEffectClass.READ:
-            assert descriptor.requires_confirmation is True
-        if descriptor.effect_class in {
-            ToolEffectClass.EXTERNAL_WRITE,
-            ToolEffectClass.DESTRUCTIVE,
-        }:
-            assert descriptor.default_enabled is False
-    tail = descriptor_index["tail_serve_output"]
-    assert tail.permission == ToolPermission.ADMIN
-    assert tail.default_enabled is False
-    assert tail.availability.value == "blocked"
+    assert all(row["id"] == row["runtime_tool_id"] for row in projection["tools"])
+    assert {
+        row["feature_flag"]
+        for row in projection["tools"]
+        if row["source"] == "builtin"
+    } == {"tool-catalog-v2"}
 
 
-def test_parser_alias_targets_are_static_catalog_consumers():
-    parser_source = (ROOT / "src" / "tool_parsing.py").read_text(encoding="utf-8")
-    alias_node = _assignment_value("src/tool_parsing.py", "_TOOL_NAME_MAP")
-    aliases = ast.literal_eval(alias_node)
+def test_operator_priority_deferred_tools_remain_disabled_and_unavailable_never_enable():
+    projection = build_tool_catalog_projection(
+        disabled_tools=OPERATOR_PRIORITY_DEFERRED_IDS
+    )
+    rows = {row["id"]: row for row in projection["tools"]}
 
-    assert set(aliases.values()) <= set(CATALOG_TOOL_IDS)
-    assert "manage_rag" not in aliases
-    assert "from src.builtin_tool_catalog import catalog_fenced_tool_names" in parser_source
-    assert "names.update(catalog_fenced_tool_names())" in parser_source
+    assert len(OPERATOR_PRIORITY_DEFERRED_IDS) == 14
+    assert all(rows[tool_id]["enabled"] is False for tool_id in OPERATOR_PRIORITY_DEFERRED_IDS)
+    assert all(
+        row["enabled"] is False
+        for row in rows.values()
+        if row["availability"] != "available"
+    )
+    assert rows["tail_serve_output"]["settings_toggle_allowed"] is False
+    assert rows["tail_serve_output"]["settings_mutable"] is False
 
 
-def test_import_startup_and_projection_budget_are_bounded():
+def test_catalog_import_and_projection_are_bounded_and_redacted():
     code = (
         "import sys; import src.tool_catalog; import src.builtin_tool_catalog; "
         "import src.runtime_tool_status; "
@@ -212,29 +111,13 @@ def test_import_startup_and_projection_budget_are_bounded():
     )
     assert result.returncode == 0, result.stderr
 
-    descriptions = _builtin_descriptions()
     started = time.perf_counter()
-    projections = [
-        build_tool_catalog_projection(
-            disabled_tools=DEFAULT_DEFERRED_RUNTIME_TOOLS,
-            builtin_descriptions=descriptions,
-        )
-        for _ in range(25)
-    ]
+    projections = [build_tool_catalog_projection() for _ in range(5)]
     elapsed = time.perf_counter() - started
+    rendered = json.dumps(projections[0], sort_keys=True).casefold()
+
     assert elapsed < 2.5
     assert all(projection == projections[0] for projection in projections[1:])
     assert len(json.dumps(projections[0], sort_keys=True).encode("utf-8")) < 256_000
-
-
-def test_acceptance_report_is_aggregate_and_redacted():
-    report = REPORT.read_text(encoding="utf-8")
-    lowered = report.casefold()
-
-    assert "status: passed" in lowered
-    assert "c:\\" not in report
-    assert "bearer " not in lowered
-    assert "sk-" not in lowered
-    assert "token=" not in lowered
-    assert "private_paths_visible: true" not in lowered
-    assert "raw_content_visible: true" not in lowered
+    for marker in ("c:\\", "/home/", "bearer ", "token=", "password=", "sk-"):
+        assert marker not in rendered

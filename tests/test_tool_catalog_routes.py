@@ -62,6 +62,7 @@ def test_get_tools_returns_complete_deterministic_redacted_descriptor_projection
         )
     )
     try:
+        monkeypatch.setenv("ODYSSEUS_TOOL_CATALOG_V2_ENABLED", "true")
         client = _client(monkeypatch, settings={})
         response = client.get("/api/tools")
     finally:
@@ -72,6 +73,12 @@ def test_get_tools_returns_complete_deterministic_redacted_descriptor_projection
     assert response.status_code == 200
     payload = response.json()
     assert payload["schema"] == "odysseus.tool_catalog_projection.v2"
+    assert payload["feature_flag"] == {
+        "name": "tool-catalog-v2",
+        "environment": "ODYSSEUS_TOOL_CATALOG_V2_ENABLED",
+        "enabled": True,
+        "selected_projection": "catalog_v2",
+    }
     assert payload["operator_priority_defaults_applied"] is True
     assert payload["sources"] == ["builtin", "mcp", "plugin"]
     assert payload["tool_count"] >= 86
@@ -80,6 +87,7 @@ def test_get_tools_returns_complete_deterministic_redacted_descriptor_projection
     assert payload["raw_content_visible"] is False
 
     tools = payload["tools"]
+    assert all(item["id"] == item["runtime_tool_id"] for item in tools)
     assert [(item["runtime_tool_id"], item["source"]) for item in tools] == sorted(
         (item["runtime_tool_id"], item["source"]) for item in tools
     )
@@ -93,7 +101,9 @@ def test_get_tools_returns_complete_deterministic_redacted_descriptor_projection
 
     tail = by_runtime[("tail_serve_output", "builtin")]
     assert tail["availability"] == "disabled"
+    assert tail["enabled"] is False
     assert tail["settings_toggle_allowed"] is False
+    assert tail["settings_mutable"] is False
     assert tail["policy_status"] == "catalog_unavailable"
 
     plugin = by_runtime[("tax6_public_plugin", "plugin")]
@@ -101,6 +111,8 @@ def test_get_tools_returns_complete_deterministic_redacted_descriptor_projection
     assert plugin["runtime_permission"] == "public"
     assert plugin["risk_level"] == "dangerous"
     assert plugin["requires_confirmation"] is True
+    assert plugin["enabled"] is True
+    assert plugin["settings_mutable"] is True
     assert plugin["projection_drift"] == [
         "runtime_permission_narrower_than_conservative_descriptor"
     ]
@@ -109,6 +121,8 @@ def test_get_tools_returns_complete_deterministic_redacted_descriptor_projection
     assert mcp["source_id"] == "demo_mcp"
     assert mcp["permission"] == "admin"
     assert mcp["handler_ref"] == "mcp:demo_mcp"
+    assert mcp["enabled"] is True
+    assert mcp["settings_mutable"] is True
 
     encoded = response.text
     assert "private-plugin-token" not in encoded
@@ -116,6 +130,57 @@ def test_get_tools_returns_complete_deterministic_redacted_descriptor_projection
     assert "private_argument" not in encoded
     assert "private_query" not in encoded
     assert '"parameters"' not in encoded
+
+
+def test_get_tools_defaults_to_legacy_and_rolls_back_exactly_after_v2_read(monkeypatch):
+    client = _client(monkeypatch, settings={})
+
+    monkeypatch.delenv("ODYSSEUS_TOOL_CATALOG_V2_ENABLED", raising=False)
+    off_before = client.get("/api/tools")
+    monkeypatch.setenv("ODYSSEUS_TOOL_CATALOG_V2_ENABLED", "true")
+    on = client.get("/api/tools")
+    monkeypatch.setenv("ODYSSEUS_TOOL_CATALOG_V2_ENABLED", "false")
+    off_after = client.get("/api/tools")
+
+    assert off_before.status_code == on.status_code == off_after.status_code == 200
+    assert off_before.json() == off_after.json()
+    legacy = off_before.json()
+    assert legacy["schema"] == "odysseus.tool_catalog_projection.legacy.v1"
+    assert legacy["feature_flag"]["enabled"] is False
+    assert legacy["feature_flag"]["selected_projection"] == "legacy"
+    assert all(set(row) <= {"id", "enabled", "settings_mutable"} for row in legacy["tools"])
+
+    v2 = on.json()
+    assert v2["schema"] == "odysseus.tool_catalog_projection.v2"
+    assert v2["feature_flag"]["enabled"] is True
+    assert v2["feature_flag"]["selected_projection"] == "catalog_v2"
+    assert sum(row["source"] == "builtin" for row in v2["tools"]) == 86
+    assert any(row["source"] == "mcp" for row in v2["tools"])
+    assert all(row["id"] == row["runtime_tool_id"] for row in v2["tools"])
+
+
+def test_legacy_get_does_not_enumerate_mcp_but_v2_still_does(monkeypatch):
+    calls = []
+
+    class _RecordingMcpManager:
+        def get_all_tools(self):
+            calls.append("get_all_tools")
+            return _FakeMcpManager().get_all_tools()
+
+    client = _client(monkeypatch, settings={})
+    tool_utils = importlib.import_module("src.tool_utils")
+    monkeypatch.setattr(tool_utils, "_mcp_manager", _RecordingMcpManager())
+
+    monkeypatch.delenv("ODYSSEUS_TOOL_CATALOG_V2_ENABLED", raising=False)
+    legacy = client.get("/api/tools")
+    assert legacy.status_code == 200
+    assert calls == []
+
+    monkeypatch.setenv("ODYSSEUS_TOOL_CATALOG_V2_ENABLED", "true")
+    catalog_v2 = client.get("/api/tools")
+    assert catalog_v2.status_code == 200
+    assert calls == ["get_all_tools"]
+    assert any(row["source"] == "mcp" for row in catalog_v2.json()["tools"])
 
 
 def test_get_tools_is_admin_scoped(monkeypatch):

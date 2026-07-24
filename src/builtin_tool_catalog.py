@@ -741,6 +741,7 @@ def validate_builtin_projections(
 def build_builtin_descriptor_catalog():
     """Build Descriptor V2 objects without adding an agent-startup import."""
     from src.tool_catalog import (  # Deliberately lazy; see module docstring.
+        CATALOG_V2_FEATURE_FLAG,
         ToolDescriptorCatalogV2,
         ToolDescriptorV2,
     )
@@ -787,7 +788,7 @@ def build_builtin_descriptor_catalog():
                     else f"index:{definition.tool_id}"
                 ),
                 aliases=definition.aliases,
-                feature_flag="builtin-tool-catalog-v2",
+                feature_flag=CATALOG_V2_FEATURE_FLAG,
                 introduced_in=CATALOG_VERSION,
                 native_schema=native_schema,
                 projection_exception_reason=(

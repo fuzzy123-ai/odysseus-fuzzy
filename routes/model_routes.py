@@ -1532,11 +1532,14 @@ def setup_model_routes(model_discovery):
 
     # ── Tool management ──
 
-    def _runtime_dynamic_tool_sources():
+    def _runtime_dynamic_tool_sources(*, include_mcp: bool = True):
         from src.tool_registry import list_tools as list_plugin_tools
-        from src.tool_utils import get_mcp_manager
 
         plugin_tools = list_plugin_tools()
+        if not include_mcp:
+            return plugin_tools, []
+        from src.tool_utils import get_mcp_manager
+
         manager = get_mcp_manager()
         try:
             mcp_tools = manager.get_all_tools() if manager is not None else []
@@ -1546,23 +1549,44 @@ def setup_model_routes(model_discovery):
 
     @router.get("/tools")
     def list_tools(request: Request):
-        """Return the complete redacted Descriptor-v2 Admin projection."""
+        """Return the selected, redacted legacy or Descriptor-v2 Admin read path."""
         require_admin(request)
         from src.builtin_tool_catalog import resolve_operator_priority_disabled
-        from src.runtime_tool_status import build_tool_catalog_projection
+        from src.runtime_tool_status import (
+            build_legacy_tool_catalog_projection,
+            build_tool_catalog_projection,
+        )
+        from src.tool_catalog import (
+            CATALOG_V2_ENV,
+            CATALOG_V2_FEATURE_FLAG,
+            catalog_v2_enabled,
+        )
 
         settings = _load_settings()
         disabled, priority_defaults_applied = resolve_operator_priority_disabled(
             settings.get("disabled_tools", []),
             setting_present="disabled_tools" in settings,
         )
-        plugin_tools, mcp_tools = _runtime_dynamic_tool_sources()
-        payload = build_tool_catalog_projection(
-            disabled_tools=disabled,
-            plugin_tools=plugin_tools,
-            mcp_tools=mcp_tools,
-        )
+        use_v2 = catalog_v2_enabled()
+        plugin_tools, mcp_tools = _runtime_dynamic_tool_sources(include_mcp=use_v2)
+        if use_v2:
+            payload = build_tool_catalog_projection(
+                disabled_tools=disabled,
+                plugin_tools=plugin_tools,
+                mcp_tools=mcp_tools,
+            )
+        else:
+            payload = build_legacy_tool_catalog_projection(
+                disabled_tools=disabled,
+                plugin_tools=plugin_tools,
+            )
         payload["operator_priority_defaults_applied"] = priority_defaults_applied
+        payload["feature_flag"] = {
+            "name": CATALOG_V2_FEATURE_FLAG,
+            "environment": CATALOG_V2_ENV,
+            "enabled": use_v2,
+            "selected_projection": "catalog_v2" if use_v2 else "legacy",
+        }
         return payload
 
     @router.get("/system/runtime-tools")

@@ -6,6 +6,7 @@ from copy import deepcopy
 from dataclasses import dataclass, replace
 from enum import StrEnum
 import json
+import os
 import re
 from typing import Any, ClassVar, Iterable, Mapping
 
@@ -30,6 +31,24 @@ TOOL_SETTINGS_SCHEMA_VERSION = 1
 TOOL_SETTINGS_SCHEMA_KEY = "tool_settings_schema_version"
 TOOL_SETTINGS_MIGRATION_KEY = "tool_settings_migration"
 TOOL_SETTINGS_QUARANTINE_KEY = "disabled_tools_quarantine"
+
+# Catalog V2 remains a dormant, explicit read-path rollout.  Keep this parser
+# close to the catalog contract so every consumer gets identical fail-closed
+# behaviour; notably, a non-empty string such as "false" must never enable it.
+CATALOG_V2_FEATURE_FLAG = "tool-catalog-v2"
+CATALOG_V2_ENV = "ODYSSEUS_TOOL_CATALOG_V2_ENABLED"
+CATALOG_V2_DEFAULT_ENABLED = False
+_CATALOG_V2_TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
+
+
+def catalog_v2_enabled(environ: Mapping[str, str] | None = None) -> bool:
+    """Return the explicit Catalog-v2 GET selection, defaulting safely off."""
+
+    source = os.environ if environ is None else environ
+    raw = source.get(CATALOG_V2_ENV)
+    if raw is None:
+        return CATALOG_V2_DEFAULT_ENABLED
+    return str(raw).strip().casefold() in _CATALOG_V2_TRUE_VALUES
 
 
 class ToolCatalogError(ValueError):
@@ -74,6 +93,15 @@ class ToolSource(StrEnum):
     LEGACY = "legacy"
 
 
+class ToolIdentifierDisposition(StrEnum):
+    """Outcome of resolving a persisted tool identifier during migration."""
+
+    CANONICAL = "canonical"
+    ALIAS = "alias"
+    LEGACY_NON_RUNTIME = "legacy_non_runtime"
+    UNKNOWN = "unknown"
+
+
 class ToolAnalyticsResolution(StrEnum):
     CANONICAL = "canonical"
     HISTORICAL_ALIAS = "historical_alias"
@@ -112,6 +140,21 @@ class ToolPermission(StrEnum):
     OWNER = "owner"
     ADMIN = "admin"
     SYSTEM = "system"
+
+
+LEGACY_NON_RUNTIME_TOOL_IDS: Mapping[str, str] = {
+    "manage_rag": "legacy_ui_identifier_without_runtime_tool",
+}
+
+
+@dataclass(frozen=True, slots=True)
+class ToolIdentifierResolution:
+    """Safe canonicalization result for one persisted tool identifier."""
+
+    supplied_id: str
+    canonical_id: str | None
+    disposition: ToolIdentifierDisposition
+    reason_code: str
 
 
 _LIFECYCLE_TRANSITIONS: Mapping[ToolLifecycle, frozenset[ToolLifecycle]] = {
@@ -182,6 +225,48 @@ def _normalize_tool_id(value: Any, *, field_name: str = "tool_id") -> str:
     if not _TOOL_ID_RE.fullmatch(text):
         raise ToolCatalogError(f"{field_name} contains unsafe characters")
     return text[:_MAX_SCHEMA_REF_LENGTH]
+
+
+def resolve_tool_identifier_for_migration(
+    value: Any,
+    *,
+    known_tool_ids: Iterable[Any],
+    alias_targets: Mapping[Any, Any] | None = None,
+) -> ToolIdentifierResolution:
+    """Resolve persisted IDs without granting a missing runtime capability."""
+
+    supplied_id = _normalize_tool_id(value, field_name="stored_tool_id")
+    known = {
+        _normalize_tool_id(item, field_name="known_tool_id")
+        for item in known_tool_ids
+    }
+    aliases: dict[str, str] = {}
+    for source, target in (alias_targets or {}).items():
+        normalized_source = _normalize_tool_id(source, field_name="alias_source")
+        normalized_target = _normalize_tool_id(target, field_name="alias_target")
+        if normalized_source in known:
+            raise ToolCatalogError("alias source collides with a canonical tool ID")
+        if normalized_target not in known:
+            raise ToolCatalogError("alias target must be a known canonical tool ID")
+        aliases[normalized_source] = normalized_target
+    if supplied_id in known:
+        return ToolIdentifierResolution(
+            supplied_id, supplied_id, ToolIdentifierDisposition.CANONICAL, "canonical_tool_id"
+        )
+    if supplied_id in aliases:
+        return ToolIdentifierResolution(
+            supplied_id, aliases[supplied_id], ToolIdentifierDisposition.ALIAS, "legacy_alias_resolved"
+        )
+    if supplied_id in LEGACY_NON_RUNTIME_TOOL_IDS:
+        return ToolIdentifierResolution(
+            supplied_id,
+            None,
+            ToolIdentifierDisposition.LEGACY_NON_RUNTIME,
+            LEGACY_NON_RUNTIME_TOOL_IDS[supplied_id],
+        )
+    return ToolIdentifierResolution(
+        supplied_id, None, ToolIdentifierDisposition.UNKNOWN, "unknown_tool_id"
+    )
 
 
 def _normalize_slug_list(values: Iterable[Any], *, field_name: str, allow_empty: bool) -> tuple[str, ...]:

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T16:29:10+02:00",
+  "updated_at": "2026-07-24T20:21:24+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -7187,6 +7187,160 @@
       ],
       "gate": "none_before_live_activation",
       "done_when": "A versioned public TAX identity resolver maps canonical and historical alias names to one analytics identity, buckets unreviewed dynamic sources without personal data and reserves historical or retired IDs against functional reuse."
+    },
+    {
+      "id": "TAX-REPAIR-dual-read-contract",
+      "class": "repo_only",
+      "owner": "Bob implementation; Sol deep acceptance",
+      "status": "sol_accepted_remote_ci_pending_2026-07-24",
+      "claim": {
+        "run_id": "tax-repair-20260724T195045+0200",
+        "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
+        "slice_id": "TAX-REPAIR-dual-read-contract",
+        "owner": "Bob",
+        "allowed_paths": [
+          "src/tool_catalog.py",
+          "src/builtin_tool_catalog.py",
+          "src/runtime_tool_status.py",
+          "src/settings.py",
+          "routes/model_routes.py",
+          "scripts/verify_tool_catalog_rollout.py",
+          "tests/test_tool_catalog_live_activation.py",
+          "tests/test_tool_catalog_rollout.py",
+          "tests/test_tool_catalog_routes.py",
+          "tests/test_tool_catalog_acceptance.py"
+        ],
+        "hotfiles": [
+          "src/tool_catalog.py",
+          "src/builtin_tool_catalog.py",
+          "src/runtime_tool_status.py",
+          "src/settings.py",
+          "routes/model_routes.py"
+        ],
+        "state": "released",
+        "acquired_at": "2026-07-24T19:50:45+02:00",
+        "lease_expires_at": "2026-07-24T23:50:45+02:00",
+        "handoff_required": true,
+        "released_at": "2026-07-24T20:21:24+02:00"
+      },
+      "root_integration_claim": {
+        "run_id": "tax-repair-20260724T195045+0200",
+        "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
+        "slice_id": "TAX-REPAIR-dual-read-contract-doc-integration",
+        "owner": "root",
+        "allowed_paths": [
+          "docs/plans/tool-taxonomy-live-activation-packet.md",
+          "docs/plans/open-work-completion-master-roadmap.json"
+        ],
+        "hotfiles": [
+          "docs/plans/tool-taxonomy-live-activation-packet.md",
+          "docs/plans/open-work-completion-master-roadmap.json"
+        ],
+        "state": "released",
+        "acquired_at": "2026-07-24T20:16:42+02:00",
+        "lease_expires_at": "2026-07-24T23:50:45+02:00",
+        "handoff_required": false,
+        "released_at": "2026-07-24T20:21:24+02:00"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected_skills": [
+          "abc",
+          "github:gh-fix-ci"
+        ],
+        "master": {
+          "model": "surface_default",
+          "role": "Sol orchestrator and deep reviewer"
+        },
+        "worker": {
+          "model": "gpt-5.6-terra",
+          "effort": "high"
+        },
+        "review": {
+          "required": true,
+          "depth": "deep",
+          "model": "gpt-5.6-sol",
+          "result": "pass"
+        },
+        "actual": {
+          "master": "gpt-5.6-sol",
+          "worker": "gpt-5.6-terra high",
+          "review": "deep Sol PASS after two bounded finding rounds",
+          "skills": [
+            "abc",
+            "github:gh-fix-ci"
+          ]
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "local_and_github_ci",
+        "observed_at": "2026-07-24T20:21:24+02:00",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "focused_test",
+          "integration",
+          "remote_ci_readback"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true,
+        "acceptance": [
+          "feature parsing is strict and defaults Catalog v2 off",
+          "GET /api/tools selects legacy-compatible or Catalog-v2 read projection without weakening admin authorization or redaction",
+          "off-on-off rollback is exact and does not mutate settings",
+          "all 86 canonical built-ins remain represented and the 14 operator-deferred tools remain disabled",
+          "rollout verification and focused TAX tests use current V2 APIs rather than retired compatibility symbols"
+        ],
+        "results": [
+          "synthetic rollout verifier passed 25 deterministic projections in 222.167 ms at 100273 bytes with zero errors",
+          "all verifier checks passed for strict default-off, feature-flag consistency, exact off-on-off rollback, zero security drift, redaction, alias and analytics reservation retention",
+          "86 current built-ins include query_knowledge and all 14 operator-priority deferred tools remain disabled",
+          "AST syntax passed for nine changed Python modules and git diff --check passed",
+          "deep Sol review passed after repairing v1 compatibility, activation-packet drift and legacy MCP isolation"
+        ],
+        "local_pytest_exit": "twenty focused tests reached successful test dots but the Windows process did not exit cleanly; exact GitHub CI remains the required test authority",
+        "remote_ci": "pending first pushed implementation commit",
+        "known_pre_existing_out_of_scope": [
+          "tool-surface audit expects removed TOOL_META",
+          "raw schema audit reports duplicate manage_todos",
+          "focused local pytest process teardown does not exit cleanly"
+        ]
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "deep",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "updater_or_resume_clean": "yes",
+        "product_complete": "no"
+      },
+      "depends_on": [
+        "TAX0-deterministic-inventory",
+        "TAX1-descriptor-v2-contract",
+        "TAX2-canonical-builtin-catalog",
+        "TAX4-operator-priority-defaults",
+        "TAX5-security-effect-class-closure",
+        "TAX6-admin-runtime-api-projection",
+        "TAX8-dynamic-plugin-mcp-normalization",
+        "TAX9-settings-alias-migration",
+        "TAX10-analytics-identity-contract"
+      ],
+      "source_roadmap": "docs/plans/tool-taxonomy-registration-roadmap.md",
+      "tests": [
+        "focused pytest modules for Catalog activation, rollout, routes and acceptance",
+        "scripts/verify_tool_catalog_rollout.py --mode synthetic --assert-default-off --assert-rollback",
+        "Python compile for changed modules",
+        "GitHub Required exact-commit quality gate"
+      ],
+      "gate": "TAX-LIVE-ACTIVATION remains dormant",
+      "done_when": "The default-off Catalog-v2 switch, true GET dual-read, current 86-tool rollout verifier and focused acceptance suite are consistent, Sol-reviewed, committed and green in the exact pushed GitHub commit."
     },
     {
       "id": "TUA3-central-execution-instrumentation",

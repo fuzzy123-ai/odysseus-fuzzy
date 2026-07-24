@@ -12,6 +12,7 @@ from src.effectful_tool_matrix import tool_effect_category
 
 RUNTIME_TOOL_STATUS_SCHEMA = "odysseus.runtime_tool_status.v1"
 TOOL_CATALOG_PROJECTION_SCHEMA = "odysseus.tool_catalog_projection.v2"
+LEGACY_TOOL_CATALOG_PROJECTION_SCHEMA = "odysseus.tool_catalog_projection.legacy.v1"
 
 _LIVE_NETWORK_TOOLS = {
     "web_search",
@@ -128,17 +129,23 @@ def build_tool_catalog_projection(
     disabled = {str(item) for item in disabled_tools if str(item)}
     rows: list[dict[str, Any]] = []
     for descriptor in build_builtin_descriptor_catalog().descriptors:
+        catalog_available = descriptor.availability.value == "available"
+        settings_toggle_allowed = descriptor.tool_id in PARSER_REGISTERED_TOOL_IDS
         row = descriptor.audit_dict()
         row.update(
+            # ``id`` is the stable UI and POST identity.  ``tool_id`` remains
+            # the descriptor's canonical V2 field for API consumers.
+            id=descriptor.tool_id,
             runtime_tool_id=descriptor.tool_id,
-            enabled=descriptor.tool_id not in disabled,
-            settings_toggle_allowed=descriptor.tool_id in PARSER_REGISTERED_TOOL_IDS,
+            enabled=catalog_available and descriptor.tool_id not in disabled,
+            settings_toggle_allowed=settings_toggle_allowed,
+            settings_mutable=settings_toggle_allowed and catalog_available,
             runtime_permission=descriptor.permission.value,
             policy_status=(
                 "disabled_by_settings"
                 if descriptor.tool_id in disabled
                 else "catalog_unavailable"
-                if descriptor.availability.value != "available"
+                if not catalog_available
                 else "enabled"
             ),
             projection_drift=(),
@@ -157,12 +164,16 @@ def build_tool_catalog_projection(
         )
         runtime_permission = str(getattr(tool, "permission", "") or "admin")
         row.update(
+            id=runtime_id,
             runtime_tool_id=runtime_id,
             enabled=runtime_id not in disabled,
             settings_toggle_allowed=True,
+            settings_mutable=True,
             runtime_permission=runtime_permission,
             policy_status=(
-                "disabled_by_settings" if runtime_id in disabled else "dynamic_review_required"
+                "disabled_by_settings"
+                if runtime_id in disabled
+                else "dynamic_review_required"
             ),
             projection_drift=(
                 ("runtime_permission_narrower_than_conservative_descriptor",)
@@ -183,9 +194,11 @@ def build_tool_catalog_projection(
             description=str(tool.get("description") or ""),
         )
         row.update(
+            id=runtime_id,
             runtime_tool_id=runtime_id,
             enabled=runtime_id not in disabled and not bool(tool.get("is_disabled")),
             settings_toggle_allowed=True,
+            settings_mutable=not bool(tool.get("is_disabled")),
             runtime_permission="admin",
             policy_status=(
                 "disabled_by_settings"
@@ -207,6 +220,66 @@ def build_tool_catalog_projection(
         "disabled_count": sum(1 for item in rows if not item["enabled"]),
         "sources": tuple(sorted({item["source"] for item in rows})),
         "tools": tuple(rows),
+        "raw_schema_visible": False,
+        "secret_values_visible": False,
+        "raw_content_visible": False,
+    }
+
+
+def build_legacy_tool_catalog_projection(
+    *,
+    disabled_tools: Iterable[str] = (),
+    plugin_tools: Iterable[Any] = (),
+) -> dict[str, Any]:
+    """Return the historical ``/api/tools`` read shape from current facts.
+
+    This is deliberately a projection, not a second catalog.  It preserves
+    the old ``tools`` list (registered built-ins plus plugins) while deriving
+    eligibility and redacted plugin descriptions from Descriptor V2.
+    """
+
+    from src.builtin_tool_catalog import definitions_by_id
+
+    descriptor_projection = build_tool_catalog_projection(
+        disabled_tools=disabled_tools,
+        plugin_tools=plugin_tools,
+    )
+    definitions = definitions_by_id()
+    legacy_rows: list[dict[str, Any]] = []
+    for row in descriptor_projection["tools"]:
+        source = str(row.get("source") or "")
+        runtime_id = str(row.get("runtime_tool_id") or "")
+        if source == "builtin":
+            definition = definitions.get(runtime_id)
+            if definition is None or not definition.runtime_registered:
+                continue
+            legacy_rows.append(
+                {
+                    "id": runtime_id,
+                    "enabled": bool(row["enabled"]),
+                    "settings_mutable": bool(row["settings_mutable"]),
+                }
+            )
+        elif source == "plugin":
+            legacy_rows.append(
+                {
+                    "id": runtime_id,
+                    "name": runtime_id,
+                    "desc": row["description"],
+                    "cat": "Plugins",
+                    "ctx": "~plugin",
+                    "permission": row["runtime_permission"],
+                    "enabled": bool(row["enabled"]),
+                    "settings_mutable": bool(row["settings_mutable"]),
+                }
+            )
+    legacy_rows.sort(key=lambda item: item["id"])
+    return {
+        "schema": LEGACY_TOOL_CATALOG_PROJECTION_SCHEMA,
+        "tool_count": len(legacy_rows),
+        "enabled_count": sum(1 for item in legacy_rows if item["enabled"]),
+        "disabled_count": sum(1 for item in legacy_rows if not item["enabled"]),
+        "tools": tuple(legacy_rows),
         "raw_schema_visible": False,
         "secret_values_visible": False,
         "raw_content_visible": False,

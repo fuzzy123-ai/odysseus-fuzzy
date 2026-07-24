@@ -249,10 +249,9 @@ class ToolSettingsMigrationError(ValueError):
 
 
 def _tool_settings_known_ids() -> frozenset[str]:
-    from src.builtin_tool_catalog import CATALOG_TOOL_IDS
-    from src.tool_policy import DEFAULT_DEFERRED_RUNTIME_TOOLS
+    from src.builtin_tool_catalog import BUILTIN_TOOL_DEFINITIONS
 
-    return frozenset(CATALOG_TOOL_IDS) | DEFAULT_DEFERRED_RUNTIME_TOOLS
+    return frozenset(definition.tool_id for definition in BUILTIN_TOOL_DEFINITIONS)
 
 
 def _tool_settings_report(
@@ -335,13 +334,13 @@ def migrate_tool_settings(
     seen_aliases: set[tuple[str, str]] = set()
 
     if not had_disabled_tools:
-        from src.tool_policy import DEFAULT_DEFERRED_RUNTIME_TOOLS
+        from src.builtin_tool_catalog import OPERATOR_PRIORITY_DEFERRED_IDS
 
-        canonical_disabled = set(DEFAULT_DEFERRED_RUNTIME_TOOLS)
+        canonical_disabled = set(OPERATOR_PRIORITY_DEFERRED_IDS)
     elif not isinstance(original_disabled_tools, (list, tuple, set, frozenset)):
-        from src.tool_policy import DEFAULT_DEFERRED_RUNTIME_TOOLS
+        from src.builtin_tool_catalog import OPERATOR_PRIORITY_DEFERRED_IDS
 
-        canonical_disabled = set(DEFAULT_DEFERRED_RUNTIME_TOOLS)
+        canonical_disabled = set(OPERATOR_PRIORITY_DEFERRED_IDS)
         quarantine.append(
             {
                 "value": deepcopy(original_disabled_tools),
