@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_ttd00_through_ttd07_ttd08a_ttd08b_accepted_ttd07a_read_only_recon_next_live_default_off",
-      "ai_hint": "This is the current gate authority. TTD-07 is accepted at implementation commit 5aeb3354 with a non-persisting hard-bounded Telegram turn copy, protected Todo truth policy, preserved trusted runtime controls and content-free structural evidence. No claim is active. TTD-07A is dependency-ready only for read-only rollover, bridge, scheduler, Session and exact-path recon before any fresh claim. TTD-09 and TTD-10 plus all live gates remain blocked or dormant."
+      "state": "owm22_ttd00_through_ttd07_ttd08a_ttd08b_accepted_ttd07a_recon_complete_no_safe_claim_live_default_off",
+      "ai_hint": "This is the current gate authority. TTD-07 is accepted at 5aeb3354. TTD-07A read-only recon is complete and proves no safe current implementation claim: the plain fail-open bridge JSON store, separate Session commits, missing poll-start sweep, missing durable owner-scoped reservation and incomplete active-turn retry violate the roadmap contract. Create a root-owned durable ledger/transaction amendment and exact serial hotfile handoffs before any claim; never cherry-pick divergent 2cb685d8. All live gates remain dormant."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
@@ -744,8 +744,8 @@
     {
       "path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "profile": "active_serial",
-      "state": "ttd00_through_ttd07_ttd08a_ttd08b_accepted_ttd07a_read_only_recon_next_live_default_off",
-      "ai_hint": "TTD-04 through TTD-07 plus TTD-08A and TTD-08B are accepted; TTD-07 implementation is 5aeb3354. No claim is active. Continue only with read-only TTD-07A rollover, bridge, scheduler, Session ownership, collision and exact-path recon, then claim the smallest proven serial repo-only slice. Preserve productive Sessions, Telegram sends, provider, Debian and every live path; TTD-LIVE-DEPLOY remains dormant through TTD-10."
+      "state": "ttd00_through_ttd07_ttd08a_ttd08b_accepted_ttd07a_recon_complete_no_safe_claim_live_default_off",
+      "ai_hint": "TTD-04 through TTD-07 plus TTD-08A and TTD-08B are accepted; TTD-07A recon is complete with no implementation claim. Before code, Root must specify a durable owner-scoped reservation and recovery ledger, first-empty-poll sweep, shared active-turn boundary, atomic bridge publication/archive ordering and exact serial ownership across App, Telegram, Session/DB and tests. Preserve productive Sessions, Telegram sends, provider, Debian and every live path."
     },
     {
       "path": "docs/plans/telegram-dual-session-router-hotfix-roadmap.md",

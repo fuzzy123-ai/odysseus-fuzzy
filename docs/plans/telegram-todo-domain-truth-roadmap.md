@@ -20,6 +20,10 @@ Der read-only `TTD-07`-Recon und der daraus geclaimte kleinste funktionale
 Slice fuer einen nur turn-lokalen, begrenzten Telegram-Kontext sind nach zwei
 tiefen Sol-Grenzrunden und einem finalen fokussierten Vierer-Check auf drei
 Pfaden akzeptiert.
+Der anschliessende read-only `TTD-07A`-Recon ist abgeschlossen. Er lehnt einen
+Implementierungsclaim ab, bis Poll-Start-Sweep, Owner-Scope, durable
+Idempotenz, Turn-Reservation und Crash-Recovery in einem explizit
+serialisierten Ledger-/Transaktionsvertrag aufgeloest sind.
 Der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -1043,9 +1047,10 @@ Akzeptanz:
 Naechster Frontier:
 
 - `TTD-07` ist am Implementierungscommit `5aeb3354` repo-only akzeptiert.
-- `TTD-07A` hat damit seine Abhaengigkeiten erfuellt und ist nur fuer
-  read-only Rollover-, Bridge-, Scheduler-, Session- und Exaktpfad-Recon
-  dependency-ready. Noch kein Implementierungsclaim.
+- `TTD-07A` hat seine Abhaengigkeiten erfuellt und der read-only Recon ist
+  abgeschlossen. Noch kein Implementierungsclaim: zuerst braucht es einen
+  root-owned durable Ledger-/Transaktions-Amendment mit exakten seriellen
+  Hotfile-Handoffs.
 - `TTD-09` und `TTD-10` bleiben dependency-blocked. Alle vier Live-Gates
   bleiben dormant.
 
@@ -1143,6 +1148,42 @@ Akzeptanz:
 
 Owner: Bob fuer den isolierten Rollover-Service, Charlie fuer Bridge- und
 Scheduler-Integration
+
+Recon-Status `2026-07-24T12:56:01+02:00`:
+
+- Canonical HEAD `12105ecb`; keine Aenderung, kein Test, kein Prozess, kein
+  Provider-, Produktivdaten-, Debian- oder Live-Zugriff im Recon.
+- Das Repo liefert einen minuetlichen `systemd`-`Type=oneshot`-Timer auf
+  `POST /api/plugins/telegram/poll`; Docker startet Uvicorn mit genau einem
+  Worker. In diesem unterstuetzten Prozessmodell kann ein geteilter
+  process-local Mutex Route-, Poll- und Webhook-Concurrency serialisieren,
+  existiert aktuell aber nicht.
+- `TelegramSessionBridgeStore` ist heute ein ungeschuetzter
+  Read-Modify-`write_text`-JSON-Store. Malformed JSON faellt auf leere
+  Mappings zurueck und kann beim naechsten Write bestehende Bindings
+  ueberschreiben. Es gibt weder Atomic Replace/Fsync noch Journal/CAS.
+- Session-Erzeugung, Bridge-Write und Archivierung sind getrennte Commits.
+  Die bestehende Session-Tabelle besitzt keinen Telegram-/Rollover-Key; der
+  Manager besitzt keine gemeinsame Bridge-Transaktion, und `archive_session`
+  arbeitet nur auf bereits geladenen Sessions.
+- Der divergente Commit `2cb685d8` ist nur Prior Art. Er triggert erst im
+  `ready_for_agent`-Update statt beim ersten auch leeren Poll nach der Grenze.
+  Sein `deferred_active_turn` laesst den Update-Pfad weiterlaufen und beweist
+  keinen begrenzten Retry; sein In-Process-Lock allein beweist keine durable
+  Owner-/Restart-Idempotenz.
+- Ein Vierpfad-Claim aus Service, Store, Polling und Test waere deshalb nicht
+  funktional akzeptierbar. Vor Implementierung braucht Root einen verbreiterten
+  seriellen Vertrag fuer durable owner-ref-/chat-handle-/scope-/local-day-
+  Reservation, Poll-Start-Sweep, aktive Turns, Clone/Publish/Archive-Recovery
+  und content-free Evidence.
+- Erwartete Hotfiles sind mindestens `app.py`, `plugins/telegram/plugin.py`,
+  `plugins/telegram/polling.py`, `plugins/telegram/routes_polling.py`,
+  `plugins/telegram/stores.py`, ein neuer isolierter Rollover-Service sowie
+  eine eng owned Session-/DB-Transaktionsgrenze und fokussierte Tests.
+- Alternative Produktsemantik wie „lazy beim ersten geeigneten Nutzerturn“
+  waere eine Roadmap-Aenderung und darf nicht stillschweigend als Erfuellung
+  des aktuellen First-Poll-Vertrags implementiert werden.
+- Safe Default: kein Cherry-pick, kein Claim, kein produktiver Rollover.
 
 Entscheidung:
 
