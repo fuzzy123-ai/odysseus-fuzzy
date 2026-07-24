@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_ttd03a_handoff_rejected_ttd08a_history_privacy_claimed",
-      "ai_hint": "This is the current gate authority. TTD-03A remains reserved after rejected deep Sol review. The disjoint TTD-08A eight-path claim is active only for truthful mixed-raw-store classification and closed content-free admin-history/webhook projections. Do not edit app.py, plugin.py, polling, TTD-03A, retention, migration, session DB/FTS, attachment/export persistence or any live path. TTD-08B/08C remain successors and TTD-LIVE-DEPLOY remains dormant through TTD-10."
+      "state": "owm22_ttd03a_handoff_rejected_ttd08a_accepted_ttd08b_recon_next",
+      "ai_hint": "This is the current gate authority. TTD-08A is accepted at 55381d1b with truthful mixed-raw-store classification and closed content-free admin-history/webhook receipts. TTD-03A remains reserved after rejected deep Sol review. No implementation claim is active. Next perform read-only TTD-08B recon for a separate bounded audit store; do not edit legacy files, app.py, plugin.py, polling, TTD-03A, retention/migration targets, session DB/FTS, attachment/export persistence or any live path until an exact successor claim is recorded. TTD-LIVE-DEPLOY remains dormant through TTD-10."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
@@ -744,8 +744,8 @@
     {
       "path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "profile": "active_serial",
-      "state": "ttd03a_handoff_rejected_ttd08a_truthful_classification_and_audit_projection_claimed_live_default_off",
-      "ai_hint": "TTD-03A remains reserved after rejected deep Sol review. TTD-08A is active on eight disjoint paths for truthful raw-bearing store classification plus fail-closed content-free admin-history and webhook projections. Preserve internal raw consumers and all legacy files; do not add retention, migration, deletion, app/plugin/polling, attachment/export, session DB/FTS, TTD-03A or live changes. TTD-08B/08C and TTD-LIVE-DEPLOY remain blocked."
+      "state": "ttd03a_handoff_rejected_ttd08a_accepted_ttd08b_recon_next_live_default_off",
+      "ai_hint": "TTD-08A is accepted at 55381d1b after three deep Sol review rounds. TTD-03A remains reserved after rejected handoff. TTD-08B is dependency-ready for read-only recon only; preserve internal raw consumers and all legacy files, and do not add retention, migration, deletion, app/plugin/polling, attachment/export, session DB/FTS, TTD-03A or live changes before an exact successor claim. TTD-LIVE-DEPLOY remains dormant through TTD-10."
     },
     {
       "path": "docs/plans/telegram-dual-session-router-hotfix-roadmap.md",

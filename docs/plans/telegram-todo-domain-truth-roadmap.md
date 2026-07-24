@@ -9,7 +9,7 @@ Receipt-Slice auf neun Pfaden reserviert. Der unterbrochene Terra-Handoff
 wurde in der tiefen Sol-Pruefung abgelehnt und wartet auf einen neuen
 Terra-Reparaturhandoff. `TTD-03B` wartet weiter auf akzeptiertes TTD-03A;
 der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
-Raw-Klassifikation und content-free Audit-Projektionen ist aktiv geclaimt.
+Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Spaetere unmet Slices und saemtliche Live-Aktionen bleiben gesperrt.
 
 ## Durable Amendment Claim 2026-07-21
@@ -817,7 +817,7 @@ Akzeptanz:
 
 Owner: Charlie
 
-Status: `ttd08a_truthful_classification_and_audit_projection_claimed`
+Status: `ttd08a_truthful_classification_and_audit_projection_accepted`
 
 Ziel:
 
@@ -855,7 +855,7 @@ Read-only Boundary-Recon 2026-07-24:
 Serialisierung:
 
 1. `TTD-08A-telegram-history-truthful-classification-and-audit-projection`
-   - Status: `claimed_2026-07-24`
+   - Status: `accepted_2026-07-24`
    - Run: `abc-ttd08a-20260724T080106+0200`
    - Owner: Charlie
    - Exakte Pfade:
@@ -879,7 +879,24 @@ Serialisierung:
    - Ausgeschlossen: alle TTD-03A-Pfade, `app.py`,
      `plugins/telegram/plugin.py`, `plugins/telegram/polling.py`, Attachment-
      und Export-Persistenz, Session-DB/FTS, produktive Daten und Live-Aktionen.
+   - Handoff und Acceptance:
+     - Implementierungscommit:
+       `55381d1b13326845e9dcedbddc0dc6e7774f8c19`
+     - Exakt acht erlaubte Pfade; keine Kollision mit TTD-03A.
+     - Erste fokussierte Telegram-Suite: 135 bestanden.
+     - Review-Runde 2: 8 gezielte Privacy-/Boundary-Tests bestanden.
+     - Review-Runde 3: 6 Privacy-Tests bestanden.
+     - Jeweils nur die bestehende SQLAlchemy-Deprecation-Warnung;
+       `git diff --check` gruen.
+     - Deep-Sol-Review nach drei Runden akzeptiert: geschlossene Kind-/Status-
+       Allowlist, unbekannte Outer-Werte und unvalidierte Nested-Events
+       fail-closed `raw_bearing`, Persistenzflags auf allen Append-Pfaden
+       konsistent.
+     - Claim released: `2026-07-24T08:17:03+02:00`.
+     - Kein Push, Deploy, Legacy-Rewrite, produktiver Datenzugriff oder
+       Live-Smoke.
 2. `TTD-08B-audit-retention-size-and-rotation`
+   - Status: `dependency_ready_not_selected`
    - Erst nach akzeptiertem TTD-08A reconcilen und claimen.
    - Eigentlicher separater Audit-Store, fail-safe Retention, Record-/Byte-
      Limit, atomare Rotation und Legacy-No-Touch-Vertrag.
