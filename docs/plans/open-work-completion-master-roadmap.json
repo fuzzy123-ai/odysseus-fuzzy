@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T09:36:14+02:00",
-  "status": "ttd03a_ttd08a_ttd08b_accepted_ttd03b_read_only_recon_next_ttd08c_attachment_deferred_live_default_off",
+  "updated_at": "2026-07-24T09:42:34+02:00",
+  "status": "ttd03a_ttd08a_ttd08b_accepted_ttd03b_two_path_claim_active_ttd08c_attachment_deferred_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd03a_accepted_ttd03b_read_only_boundary_recon_next_ttd08cb1_recon_complete_attachment_deferred",
+    "queue_status": "ttd03a_accepted_ttd03b_two_path_final_claim_evidence_active_ttd08cb1_recon_complete_attachment_deferred",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd03a_ttd08a_ttd08b_accepted_ttd03b_read_only_recon_next_ttd08c_attachment_deferred_live_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd03a_ttd08a_ttd08b_accepted_ttd03b_two_path_claim_active_ttd08c_attachment_deferred_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,16 +85,18 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-03A is accepted at implementation commit 4620cac700eeed5eea483a9c364d8f33c970a99c after a fresh Terra repair and two deep Sol review rounds. TTD-03B is now dependency-ready for read-only runtime-consumer and exact-path recon only; TTD-08C attachment implementation remains deferred because no bounded lifecycle owner exists.",
-        "slice": "TTD-03B-todo-final-claim-evidence-read-only-recon",
+        "reason": "The TTD-03B read-only recon proved that agent_loop already passes full-turn events and transactions, tool_result_truth has no runtime consumer, and Telegram propagation belongs to TTD-04. The smallest dependency-ready implementation is therefore exactly claim_evidence_gate.py plus its focused test.",
+        "slice": "TTD-03B-todo-final-claim-evidence",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "reconcile_ttd03b_consumers_and_exact_paths_read_only_before_any_claim; no_claim_evidence_gate_tool_result_truth_telegram_digest_attachment_or_live_mutation_by_inference"
+        "safe_default": "implement_only_the_two_claimed_ttd03b_paths_with_action_exact_redacted_transaction_evidence; no_agent_loop_tool_result_truth_telegram_digest_attachment_or_live_mutation"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-24"
     },
-    "active_claimed_slices": []
+    "active_claimed_slices": [
+      "TTD-03B-todo-final-claim-evidence"
+    ]
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -953,8 +955,8 @@
       "id": "OWM-22",
       "name": "Telegram Todo Domain Truth And Digest Consistency",
       "priority": 4,
-      "status": "ttd00_through_ttd03a_ttd08a_ttd08b_accepted_ttd03b_read_only_recon_next_ttd08c_attachment_deferred_live_default_off",
-      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-03A plus the disjoint TTD-08A history-privacy projection and TTD-08B bounded audit store are accepted. TTD-03B is dependency-ready for read-only final-claim consumer and exact-path recon. TTD-08C umbrella, attachment consumer/race and crash-temp recovery recon are complete, but no bounded cross-platform cleanup is possible without a separately selected lifecycle owner and narrow delete authority. Session/FTS and export-output boundaries remain separate; later dependency successors stay open and live activation remains dormant.",
+      "status": "ttd00_through_ttd03a_ttd08a_ttd08b_accepted_ttd03b_two_path_claim_active_ttd08c_attachment_deferred_live_default_off",
+      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-03A plus the disjoint TTD-08A history-privacy projection and TTD-08B bounded audit store are accepted. The TTD-03B read-only recon is complete and its exact two-path final-claim evidence slice is active. TTD-08C umbrella, attachment consumer/race and crash-temp recovery recon are complete, but no bounded cross-platform cleanup is possible without a separately selected lifecycle owner and narrow delete authority. Session/FTS and export-output boundaries remain separate; later dependency successors stay open and live activation remains dormant.",
       "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "source_gate_family": "telegram_todo_truth",
       "dependencies": [
@@ -971,7 +973,7 @@
         "dependency_rule": "Notes remains Todo truth; manage_todos is a domain facade over Notes, Memory rejects Todo storage, Telegram preserves semantic receipts, and every Digest claim requires a read-only include/exclude/schedule postcondition. Daily session rollover limits context but never substitutes old chat prose for domain readback.",
         "scheduling_decision": {
           "operator_priority_effective_at": "2026-07-21",
-          "position": "active_p0_corrective_track_ttd03a_ttd08a_ttd08b_accepted_ttd03b_read_only_recon_next_ttd08c_attachment_deferred",
+          "position": "active_p0_corrective_track_ttd03a_ttd08a_ttd08b_accepted_ttd03b_two_path_claim_active_ttd08c_attachment_deferred",
           "implementation_authority": "current_goal_repo_only_plus_read_only_debian_preflight_no_live_mutation_authority_before_ttd10"
         },
         "future_goal_command": "/goal Setze OWM-22 mit einem read-only TTD-03B Runtime-Consumer- und Pfad-Recon fort; claim danach nur den kleinsten nachgewiesenen repo-only Slice. Kein Attachment-Writer, Cleaner, Hook, Delete, Session/FTS, Export, Produktionsdatenzugriff, Deployment, Send oder produktiver Rollover."
@@ -2895,8 +2897,127 @@
         "product_complete": "no"
       },
       "acceptance": "offline_go_content_free_owner_bound_todo_semantic_receipt_ledger_with_exact_claims_read_only_list_classification_and_fail_closed_history",
-      "next_frontier": "Run TTD-03B as read-only consumer and exact-path recon first. Do not claim claim_evidence_gate.py, tool_result_truth.py, Telegram, Digest or any shared final-answer hotfile by inference. TTD-LIVE-DEPLOY remains dormant through TTD-10 and current Git ancestry divergence still requires reconciliation.",
+      "next_frontier": "TTD-03B read-only recon is complete and the exact claim_evidence_gate.py plus focused test slice is active. tool_result_truth.py, Agent plumbing, Telegram, Digest and shared final-answer hotfiles remain excluded. TTD-LIVE-DEPLOY remains dormant through TTD-10 and current Git ancestry divergence still requires reconciliation.",
       "done_when": "One closed content-free semantic receipt envelope carries only accepted Todo snapshot or mutation receipt truth from manage_todos across one narrow Agent event boundary; the transaction ledger derives the exact Todo claim type and verified status only from a valid matching receipt; the Effect Matrix treats list as read-only and mutations as todo_state; generic success, failed, blocked, rejected, conflict and ambiguous outcomes cannot verify Todo claims; and focused synthetic tests prove redaction, bounds, state/action matching and zero out-of-scope runtime or live mutation."
+    },
+    {
+      "id": "TTD-03B-todo-final-claim-evidence",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "active_claim_2026-07-24",
+      "claimable": false,
+      "depends_on": [
+        "TTD-03A accepted at implementation commit 4620cac700eeed5eea483a9c364d8f33c970a99c",
+        "read-only runtime-consumer and exact-path recon complete",
+        "single writer for src/claim_evidence_gate.py"
+      ],
+      "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "claim": {
+        "run_id": "abc-ttd03b-20260724T094234+0200",
+        "thread_id": "/root",
+        "slice_id": "TTD-03B-todo-final-claim-evidence",
+        "owner": "Charlie",
+        "allowed_paths": [
+          "src/claim_evidence_gate.py",
+          "tests/test_claim_evidence_gate.py"
+        ],
+        "excluded_paths": [
+          "src/agent_loop.py because it already passes full-turn response events and transactions to the gate",
+          "src/tool_result_truth.py and tests/test_tool_result_truth.py because no runtime consumer exists",
+          "src/todo_transaction_receipts.py src/tool_transaction_ledger.py src/effectful_tool_matrix.py and every accepted TTD-03A path",
+          "src/telegram_truth_gate.py plugins/telegram app.py polling webhook routes and every TTD-04 path",
+          "Digest scheduler Notes Memory production data environment provider network deploy send rollover attachment export session database FTS and every live path",
+          "docs except root-owned claim and acceptance state"
+        ],
+        "hotfiles": [
+          "src/claim_evidence_gate.py"
+        ],
+        "preserved_hotfiles": [
+          "src/agent_loop.py",
+          "src/tool_result_truth.py",
+          "src/todo_transaction_receipts.py",
+          "src/tool_transaction_ledger.py",
+          "src/telegram_truth_gate.py",
+          "plugins/telegram/plugin.py"
+        ],
+        "state": "active",
+        "acquired_at": "2026-07-24T09:42:34+02:00",
+        "lease_expires_at": "2026-07-24T13:42:34+02:00",
+        "handoff_required": true,
+        "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
+        "new_paths": false,
+        "dependency_sha256": {
+          "src/claim_evidence_gate.py": "6a218fcf256639efdb8dd3e8637d3a583e75b0b6b25b009d18472e24e406bf3b",
+          "tests/test_claim_evidence_gate.py": "748243d5dbcdf18a3e301487e237c0d35cae8674abc4dd83547987ded89f9711",
+          "src/agent_loop.py": "9d5ae1f20a104dc96fbd3be8d7fd155a53dc1b872f660f2e2946c36ed3ccabf8",
+          "src/todo_transaction_receipts.py": "3fa93df86cb4b4905c6f19910872f9744c85a785a0d3e4a1d75599dddadd4a78",
+          "src/tool_transaction_ledger.py": "feeecc201a3c40f1d00cdadf2842fea0f0ce1e5b11cd6fdc4fda6fa12527fc55",
+          "src/telegram_truth_gate.py": "cb06fc4729fa81fb348cf4b9221e28b1c6224bc450d3aad9f56cd8524fbb40ef",
+          "plugins/telegram/plugin.py": "7b5e17acd50fff107f69659dbda5aff8a010a31928c5a5ac14c5667a9babc9f6"
+        }
+      },
+      "recon": {
+        "completed_at": "2026-07-24T09:42:34+02:00",
+        "worker": "Charlie",
+        "mutation_performed": false,
+        "verdict": "claim_two_path_agent_only_slice",
+        "runtime_evidence": [
+          "agent_loop.py derives transactions from the full current-turn tool_events and calls evaluate_response_claims with response events and transactions",
+          "claim_evidence_gate.py is the only agent final-answer semantic claim evaluation seam",
+          "tool_result_truth.py has no runtime import or consumer",
+          "Telegram pre-send calls the same gate without tool events and therefore remains fail-closed until separate TTD-04 evidence propagation"
+        ]
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "exact two-path Terra implementation, focused verification and deep Sol review"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "synthetic English and German final response text plus content-free Todo transaction mappings only",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "explicit_todo_context_and_action_language_required",
+          "add_create_maps_only_to_todo_item_created",
+          "complete_done_maps_only_to_todo_item_completed",
+          "reopen_maps_only_to_todo_item_reopened",
+          "remove_delete_maps_only_to_todo_item_removed",
+          "list_read_maps_only_to_todo_list_read",
+          "wrong_action_generic_failed_rejected_ambiguous_and_missing_evidence_are_unsupported",
+          "negated_hypothetical_requested_future_and_quoted_todo_language_do_not_create_positive_claims",
+          "findings_and_correction_expose_only_claim_labels_and_redacted_transaction_evidence",
+          "agent_loop_tool_result_truth_receipt_ledger_telegram_digest_and_live_paths_unchanged",
+          "focused_tests_and_drift_check"
+        ],
+        "temporal_window": "none",
+        "positive_path_required": true
+      },
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider <only newly added TTD-03B test nodes in tests/test_claim_evidence_gate.py>",
+        "git diff --check -- src/claim_evidence_gate.py tests/test_claim_evidence_gate.py"
+      ],
+      "done_when": "The final response gate recognizes only explicit German or English Todo-context success claims, maps each action to exactly one matching verified semantic Todo transaction, keeps list reads separate from mutations, marks missing wrong-action generic failed rejected ambiguous or malformed evidence unsupported, ignores negated hypothetical requested future and quoted language, emits only content-free claim labels and redacted evidence, and changes no Agent plumbing Telegram Digest or live path."
     },
     {
       "id": "TTD-08A-telegram-history-truthful-classification-and-audit-projection",
@@ -3036,7 +3157,7 @@
         "product_complete": "no"
       },
       "acceptance": "offline_go_truthful_mixed_raw_store_classification_and_closed_content_free_admin_history_webhook_receipts_without_legacy_mutation",
-      "next_frontier": "Historical TTD-08A successor evidence is complete. TTD-03A is now accepted at 4620cac7 and the current frontier is TTD-03B read-only consumer and exact-path recon. TTD-LIVE-DEPLOY remains dormant until TTD-10 and current Git ancestry divergence is reconciled.",
+      "next_frontier": "Historical TTD-08A successor evidence is complete. TTD-03A is accepted at 4620cac7 and the exact two-path TTD-03B claim is active. TTD-LIVE-DEPLOY remains dormant until TTD-10 and current Git ancestry divergence is reconciled.",
       "done_when": "The mixed raw Telegram history store is explicitly and conservatively classified as raw-bearing; one closed fail-closed audit projection removes every raw or free-form field; admin history and webhook responses expose only bounded content-free receipts; internal raw history consumers and legacy files are preserved without migration or deletion; and narrow synthetic tests prove the two external boundaries do not leak raw text or identifiers."
     },
     {
@@ -3198,7 +3319,7 @@
         ]
       },
       "acceptance": "offline_go_separate_bounded_content_free_audit_store_with_no_legacy_fallback_fail_closed_retention_atomic_rotation_and_update_time_truth",
-      "next_frontier": "TTD-08C umbrella plus B/B1 recon are complete and attachment implementation remains deferred. TTD-03A is now accepted at 4620cac7 and the current frontier is TTD-03B read-only consumer and exact-path recon. TTD-LIVE-DEPLOY remains dormant through TTD-10.",
+      "next_frontier": "TTD-08C umbrella plus B/B1 recon are complete and attachment implementation remains deferred. TTD-03A is accepted at 4620cac7 and the exact two-path TTD-03B claim is active. TTD-LIVE-DEPLOY remains dormant through TTD-10.",
       "done_when": "A separate fail-closed content-free audit store receives only newly written Telegram receipts, never reads or mutates legacy history, enforces 30-day default retention plus per-generation record and byte limits, keeps at most current and previous generations through one atomic envelope, preserves suspect or prior files on every error, prevents process-local lost updates, and focused synthetic tests prove privacy, retention, bounds, rotation, atomicity and all no-touch constraints."
     },
     {
@@ -8708,7 +8829,7 @@
     }
   ],
   "recommended_execution_order": [
-    "OWM-22 Telegram Todo Domain Truth And Digest Consistency: TTD-00 through TTD-03A plus TTD-08A and TTD-08B are accepted; run TTD-03B read-only final-answer consumer and exact-path recon next, claim only the smallest proven repo-only boundary afterward, keep TTD-08C attachment work deferred without a lifecycle owner, keep later unmet successors blocked, keep Notes canonical and all production data unchanged, and leave deploy/send/productive rollover disabled until TTD-10 has prepared four separate live packets.",
+    "OWM-22 Telegram Todo Domain Truth And Digest Consistency: TTD-00 through TTD-03A plus TTD-08A and TTD-08B are accepted; execute only the active two-path TTD-03B claim-evidence slice, keep Agent plumbing, tool_result_truth, Telegram and Digest excluded, keep TTD-08C attachment work deferred without a lifecycle owner, keep later unmet successors blocked, keep Notes canonical and all production data unchanged, and leave deploy/send/productive rollover disabled until TTD-10 has prepared four separate live packets.",
     "OWM-23 Agent Maintenance Safety Harness: after an explicit goal or Open Work reprioritization, open AMH-01 through AMH-03 only on disjoint handed-off paths; preserve Planning JSON and existing gate/claim authorities, keep AMH-04 onward dependency-blocked, and perform no automatic commit, push, deploy or live action.",
     "OWM-11 Tool Taxonomy, Registration And Lifecycle: execute TAX0 then TAX1 and continue the detailed repo-only queue without user gates; keep the feature disabled until the single final activation decision.",
     "OWM-12 Privacy-Safe Tool Usage Analytics: after TAX1, start the disjoint privacy/store baseline; wait for TAX5/TAX7/TAX10 at shared integration points and keep capture/backfill disabled until the single final activation decision.",

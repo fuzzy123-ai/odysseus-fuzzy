@@ -6,8 +6,8 @@ Status: `TTD-00` bis `TTD-02` sind am 2026-07-23 akzeptiert. Der read-only
 `TTD-03`-Boundary-Recon ist abgeschlossen.
 `TTD-03A-todo-semantic-receipt-ledger` ist nach einem frischen Charlie/Terra-
 Reparaturhandoff und zwei tiefen Sol-Runden auf exakt neun Pfaden akzeptiert.
-`TTD-03B` ist damit fuer einen read-only Final-Claim-Consumer- und Pfad-Recon
-dependency-ready; ein Implementierungsclaim besteht noch nicht.
+Der read-only `TTD-03B`-Consumer-/Pfad-Recon ist abgeschlossen; ein exakter
+Zwei-Pfade-Claim fuer Final-Claim-Evidence ist aktiv.
 der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -512,7 +512,7 @@ Akzeptanz:
 
 Owner: Bob
 
-Status: `ttd03a_accepted_ttd03b_read_only_recon_next`
+Status: `ttd03a_accepted_ttd03b_two_path_claim_active`
 
 Read-only Boundary-Recon 2026-07-23:
 
@@ -606,21 +606,44 @@ Serialisierung:
        Live-Smoke.
 2. `TTD-03B-todo-final-claim-evidence`
    - Abhaengigkeit: akzeptiertes `TTD-03A` ist erfuellt.
-   - Naechster Schritt: ausschliesslich read-only Runtime-Consumer- und
-     Exaktpfad-Recon; erst danach den kleinsten nachgewiesenen Slice claimen.
+   - Status: `active_claim_2026-07-24`
+   - Run: `abc-ttd03b-20260724T094234+0200`
+   - Owner: Charlie
+   - Lease: 2026-07-24T09:42:34+02:00 bis 2026-07-24T13:42:34+02:00
+   - Exakt erlaubte Pfade:
+     - `src/claim_evidence_gate.py`
+     - `tests/test_claim_evidence_gate.py`
+   - Recon-Ergebnis:
+     - `agent_loop.py` liefert bereits Full-Turn-Text, Tool-Events und
+       Transactions an das Gate; kein Edit erforderlich.
+     - `tool_result_truth.py` hat keinen Runtime-Consumer und bleibt unberuehrt.
+     - Telegram ruft das Gate ohne Todo-Event-Evidence auf und bleibt bis zur
+       separaten TTD-04-Propagation fail-closed.
+   - Geschlossener Vertrag:
+     - nur expliziter Todo-/Aufgaben-Kontext plus positive deutsche oder
+       englische Action-Sprache wird bewertet
+     - Add/Create, Complete/Done, Reopen, Remove/Delete und List/Read mappen
+       jeweils nur auf ihren exakten verifizierten Todo-Transaction-Claim
+     - Wrong-Action, generisch, failed, rejected, ambiguous, missing und
+       malformed bleiben unsupported
+     - Negation, Hypothese, Request, Zukunft und Zitat erzeugen keinen
+       positiven Erfolgsclaim
+     - Findings und Korrektur enthalten nur Claim-Labels und bereits redigierte
+       Transaction-Evidence, niemals Todo-Text oder rohe Identifier
+   - Ausgeschlossen: `agent_loop.py`, `tool_result_truth.py`, Receipt/Ledger,
+     Telegram, Digest, Notes, Memory, produktive Daten und alle Live-Pfade.
    - Die Finalantwort-Grenze erkennt Todo-Erfolgsprosa action-spezifisch und
      setzt `verified=true` nur mit dem passenden semantischen Ledger-Receipt.
      `tool_result_truth.py` wird nur geclaimt, wenn ein nachgewiesener
      Runtime-Consumer diesen Vertrag benoetigt.
 
-Naechste Frontier:
+TTD-03B-Handoff:
 
-- Phase: `analysis_only`; fuer TTD-03B keine Implementierungsdatei aendern
-- Scout: Charlie/Terra read-only; Reduktion und Scope-Korrektur: root/Sol
-- Claim: keiner; aktive Claims: 0
-- Naechste Aktion: nachweisen, welcher Runtime-Consumer die finalen Todo-Claims
-  tatsaechlich rendert und ob `claim_evidence_gate.py` oder
-  `tool_result_truth.py` ueberhaupt im kleinsten Slice benoetigt wird
+- Phase: `repo_only`; zwei erlaubte Pfade
+- Worker: Charlie/Terra; Review: root/Sol tief
+- Claim: aktiv; aktive Claims: 1
+- Naechste Aktion: exakte Action-/Claim-Matrix implementieren, nur neue
+  fokussierte Nodes ausfuehren und danach Sol-Handoff abgeben
 - Kein Push, Deploy, Providerzugriff, produktiver Datenzugriff oder Live-Smoke
 
 Live-Readback 2026-07-24:

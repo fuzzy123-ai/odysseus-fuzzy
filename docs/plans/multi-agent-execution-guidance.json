@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_ttd03a_ttd08a_ttd08b_accepted_ttd03b_read_only_recon_next_ttd08c_attachment_deferred",
-      "ai_hint": "This is the current gate authority. TTD-03A is accepted at 4620cac7 after a fresh Charlie/Terra repair and two deep Sol review rounds; TTD-08A is accepted at 55381d1b and TTD-08B at 02eb7c02. Run TTD-03B read-only final-answer consumer and exact-path recon next before creating any claim. TTD-08C attachment work remains deferred: do not implement a writer, cleaner, trigger or delete without a separate lifecycle owner and narrow delete authority. TTD-LIVE-DEPLOY remains dormant through TTD-10."
+      "state": "owm22_ttd03a_ttd08a_ttd08b_accepted_ttd03b_two_path_claim_active_ttd08c_attachment_deferred",
+      "ai_hint": "This is the current gate authority. TTD-03A is accepted at 4620cac7; TTD-08A at 55381d1b and TTD-08B at 02eb7c02. TTD-03B is active under Charlie/Terra on exactly src/claim_evidence_gate.py and tests/test_claim_evidence_gate.py; agent_loop already supplies events and transactions, tool_result_truth has no runtime consumer, and Telegram evidence propagation remains TTD-04. TTD-08C attachment work stays deferred. TTD-LIVE-DEPLOY remains dormant through TTD-10."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
@@ -744,8 +744,8 @@
     {
       "path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "profile": "active_serial",
-      "state": "ttd03a_ttd08a_ttd08b_accepted_ttd03b_read_only_recon_next_ttd08c_attachment_deferred_live_default_off",
-      "ai_hint": "TTD-03A is accepted at 4620cac7; TTD-08A at 55381d1b and TTD-08B at 02eb7c02. TTD-03B is next for read-only final-answer consumer and exact-path recon only; do not infer edits to claim_evidence_gate.py, tool_result_truth.py, Telegram, Digest or shared hotfiles. Preserve every spool, internal raw consumer, accepted store and legacy file. Do not infer attachment cleanup/deletion, app/plugin/polling/webhook, export, session DB/FTS or live mutation authority. TTD-LIVE-DEPLOY remains dormant through TTD-10."
+      "state": "ttd03a_ttd08a_ttd08b_accepted_ttd03b_two_path_claim_active_ttd08c_attachment_deferred_live_default_off",
+      "ai_hint": "TTD-03A is accepted at 4620cac7; TTD-08A at 55381d1b and TTD-08B at 02eb7c02. TTD-03B may edit only src/claim_evidence_gate.py and tests/test_claim_evidence_gate.py for exact German/English action-to-Todo-transaction matching. Preserve agent_loop, tool_result_truth, receipt/ledger, Telegram, Digest, all spools and live paths. TTD-LIVE-DEPLOY remains dormant through TTD-10."
     },
     {
       "path": "docs/plans/telegram-dual-session-router-hotfix-roadmap.md",
