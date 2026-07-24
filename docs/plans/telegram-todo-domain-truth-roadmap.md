@@ -22,9 +22,11 @@ tiefen Sol-Grenzrunden und einem finalen fokussierten Vierer-Check auf drei
 Pfaden akzeptiert.
 Der anschliessende read-only `TTD-07A`-Recon ist abgeschlossen.
 `TTD-07A0` ist nach drei adversarialen Tiefenrunden am Vertragscommit
-`4fb9ba62` akzeptiert. `TTD-07A1` ist der einzige aktive Implementierungsclaim
-auf zwei neuen reinen Policy-/Testpfaden; DB, Session, Bridge, Plugin und Live
-bleiben ungeclaimt.
+`4fb9ba62` akzeptiert. `TTD-07A1` ist nach zwei Terra-Korrekturrunden, zwei
+tiefen Sol-Reviews und einem finalen fokussierten Fuenfer-Check am
+Implementierungscommit `daca1dc4` akzeptiert. `TTD-07A2` ist der einzige aktive
+Vierpfad-Claim fuer die durable SQLite-Ledger-Schicht; Session-Lifecycle,
+Bridge, Plugin und Live bleiben ungeclaimt.
 Der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -1281,14 +1283,26 @@ Serielle Umsetzung nach Abnahme von `TTD-07A0`:
 Alle in mehreren Schritten genannten Pfade sind serielle Hotfiles. Kein
 paralleler Worker darf sie ohne committed Handoff uebernehmen.
 
-Aktiver Child-Claim:
+Akzeptierter Child-Slice:
 
 - `TTD-07A1-pure-rollover-policy-and-state-machine`
-- exakt `src/telegram_session_rollover.py` und
+- Claim `7af00221`; Implementierung `daca1dc4`
+- exakt fuenf benannte fokussierte Nodes: `5 passed` in `1.19s`
+- BOM-aware AST auf beiden Pfaden, exakter Zweipfad-Diff und tiefe
+  read-only Sol-Abnahme: `PASS`
+- reine default-off Config-/Zeit-/HMAC-/Rollover-/Turn-Intake-/Evidence-Policy;
+  keine Runtime-Integration und keine Live-Aktion
+
+Aktiver Child-Claim:
+
+- `TTD-07A2-durable-rollover-ledger-schema-and-repository`
+- exakt `core/database.py`, `core/database_migrations.py`,
+  `src/telegram_session_rollover.py` und
   `tests/test_telegram_session_rollover.py`
 - Bob/Terra high; tiefe Sol-Abnahme; exakt fuenf benannte fokussierte Nodes
-- keine bestehenden Quell-/Testpfade, keine DB, keine App-/Plugin-Integration,
-  kein Prozess, kein Provider, kein Send, kein Debian und kein Live
+- nur synthetische temporaere/in-memory SQLite-Instanzen; keine produktive DB,
+  keine Session-Lifecycle-, App-/Plugin-/Route-Integration, kein Prozess,
+  Provider, Send, Debian oder Live
 
 Akzeptanz:
 

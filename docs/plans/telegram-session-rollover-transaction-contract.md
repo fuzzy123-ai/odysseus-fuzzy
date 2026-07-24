@@ -2,7 +2,8 @@
 
 Stand: 2026-07-24
 
-Status: `TTD-07A0` accepted at `4fb9ba62`; `TTD-07A1` is the active pure-policy child claim
+Status: `TTD-07A0` accepted at `4fb9ba62`; `TTD-07A1` accepted at
+`daca1dc4`; `TTD-07A2` is the active durable-ledger child claim
 
 Authority:
 
