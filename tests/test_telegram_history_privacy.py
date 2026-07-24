@@ -18,12 +18,13 @@ def test_mixed_legacy_raw_record_is_truthfully_classified_but_not_exported(tmp_p
     }), encoding="utf-8")
 
     internal = store.history(limit=1)[0]
-    audit = store.audit_history(limit=1)[0]
+    audit = store.audit_history(limit=1)
+    projected = project_telegram_audit_record(internal)
 
     assert internal["text"] == "legacy private conversation"
-    assert audit["record_class"] == "raw_bearing"
-    assert audit["raw_content_visible"] is False
-    assert "legacy private conversation" not in json.dumps(audit)
+    assert audit == []
+    assert projected["record_class"] == "raw_bearing"
+    assert "legacy private conversation" not in json.dumps(projected)
 
 
 def test_audit_projection_rejects_unknown_extra_as_raw_bearing():

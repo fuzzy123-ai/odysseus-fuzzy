@@ -13,7 +13,8 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
-from plugins.telegram.history_privacy import project_telegram_audit_record, record_has_raw_content
+from plugins.telegram.audit_store import TelegramAuditStore
+from plugins.telegram.history_privacy import record_has_raw_content
 from src.runtime_event_envelope import RuntimeEventEnvelopeError, build_runtime_event, stable_payload_hash
 
 _HISTORY_FILE = "telegram_history.json"
@@ -226,6 +227,7 @@ class TelegramInboxStore:
     def __init__(self, data_dir: str | Path):
         self.data_dir = Path(data_dir)
         self.path = self.data_dir / _HISTORY_FILE
+        self.audit_store = TelegramAuditStore(self.data_dir)
 
     def _read(self) -> dict[str, Any]:
         if not self.path.exists():
@@ -244,6 +246,14 @@ class TelegramInboxStore:
     def _write(self, data: dict[str, Any]) -> None:
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def _append_audit(self, record: Mapping[str, Any]) -> None:
+        """Audit persistence is best-effort and never changes legacy-write success."""
+
+        try:
+            self.audit_store.append(record, scope_ref=str(record.get("chat_handle") or ""))
+        except Exception:
+            pass
 
     def append_event(self, *, kind: str, status: str, chat_id: str = "", **extra: Any) -> dict[str, Any]:
         data = self._read()
@@ -278,6 +288,7 @@ class TelegramInboxStore:
         event["raw_identifiers_visible"] = False
         data["messages"].append(event)
         self._write(data)
+        self._append_audit(event)
         return event
 
     def append_inbound(self, message: dict[str, Any]) -> dict[str, Any]:
@@ -333,6 +344,7 @@ class TelegramInboxStore:
         stored["raw_identifiers_visible"] = False
         messages.append(stored)
         self._write(data)
+        self._append_audit(stored)
         if stored.get("intake_status") == "blocked_chat":
             self.append_event(
                 kind="blocked",
@@ -380,6 +392,9 @@ class TelegramInboxStore:
                 existing["universal_inbox_status"] = universal_inbox_status
             existing["updated_at"] = int(time.time())
             self._write(data)
+            audit_record = dict(existing)
+            audit_record["stored_at"] = existing["updated_at"]
+            self._append_audit(audit_record)
             return dict(existing)
         return None
 
@@ -439,6 +454,7 @@ class TelegramInboxStore:
         message["raw_identifiers_visible"] = False
         data["messages"].append(message)
         self._write(data)
+        self._append_audit(message)
         return message
 
     def history(self, *, chat_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
@@ -457,7 +473,8 @@ class TelegramInboxStore:
     def audit_history(self, *, chat_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
         """Return closed content-free receipts for admin/diagnostic consumers."""
 
-        return [project_telegram_audit_record(message) for message in self.history(chat_id=chat_id, limit=limit)]
+        scope_ref = _chat_handle(chat_id) if chat_id else None
+        return self.audit_store.history(scope_ref=scope_ref, limit=limit)
 
     def counts(self) -> dict[str, int]:
         messages = self._read()["messages"]
