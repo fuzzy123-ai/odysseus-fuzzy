@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_ttd07a1_accepted_ttd07a2_claimed_live_default_off",
-      "ai_hint": "This is the current gate authority. TTD-07A1 is accepted at daca1dc4 after a focused five-node check and deep Sol PASS. TTD-07A2 is the sole active repo-only claim on core/database.py, core/database_migrations.py, src/telegram_session_rollover.py and tests/test_telegram_session_rollover.py for the four-table durable ledger schema, idempotent migration and synthetic repository behavior. TTD-07A3 through TTD-07A6 plus every Session lifecycle, bridge, plugin and live path remain blocked."
+      "state": "owm22_ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_ttd07a1_ttd07a2_accepted_ttd07a3_claimed_live_default_off",
+      "ai_hint": "This is the current gate authority. TTD-07A2 is accepted at 090ede31 after an exact five-node check and deep Sol PASS. TTD-07A3 is the sole active repo-only claim on plugins/telegram/stores.py, src/telegram_session_rollover.py, tests/test_telegram_plugin.py and tests/test_telegram_session_rollover.py for the DB-authoritative bridge, fail-closed legacy import and atomic compatibility projection. TTD-07A4 through TTD-07A6 plus every Session lifecycle, polling, webhook and live path remain blocked."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
@@ -744,14 +744,14 @@
     {
       "path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "profile": "active_serial",
-      "state": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_ttd07a1_accepted_ttd07a2_claimed_live_default_off",
-      "ai_hint": "TTD-04 through TTD-07 plus TTD-08A, TTD-08B, TTD-07A0 and TTD-07A1 are accepted. TTD-07A2 is the only active four-path implementation claim and may use only synthetic temporary or in-memory SQLite for schema, migration, uniqueness, fingerprint and repository evidence. Preserve every Session lifecycle, bridge, plugin, productive Telegram, provider, Debian and live path."
+      "state": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_ttd07a1_ttd07a2_accepted_ttd07a3_claimed_live_default_off",
+      "ai_hint": "TTD-04 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A2 are accepted. TTD-07A3 is the only active four-path implementation claim and may use only synthetic owner-scoped Sessions, temporary files and injected SQLAlchemy handles for bridge/import/projection evidence. Preserve all production call sites on the legacy adapter and every Session lifecycle, polling, webhook, provider, Debian and live path."
     },
     {
       "path": "docs/plans/telegram-session-rollover-transaction-contract.md",
       "profile": "active_serial_contract",
-      "state": "ttd07a0_ttd07a1_accepted_ttd07a2_durable_ledger_claimed",
-      "ai_hint": "This is the accepted TTD-07A implementation contract at 4fb9ba62. TTD-07A1 is accepted at daca1dc4. Execute only the committed TTD-07A2 four-path schema/migration/repository claim; its successors remain serially blocked. The later Session transaction, bridge cutover, renewable lease, intake transport retry and poll-start sweep contracts grant no current app, plugin, route or live authority."
+      "state": "ttd07a0_through_ttd07a2_accepted_ttd07a3_bridge_claimed",
+      "ai_hint": "This is the accepted TTD-07A implementation contract at 4fb9ba62. TTD-07A1 is accepted at daca1dc4 and TTD-07A2 at 090ede31. Execute only the committed TTD-07A3 four-path bridge/import/projection claim; its successors remain serially blocked. Existing production call sites remain on the legacy adapter, and the later Session transaction, renewable lease, intake transport retry and poll-start sweep contracts grant no current app, polling, webhook, route or live authority."
     },
     {
       "path": "docs/plans/telegram-dual-session-router-hotfix-roadmap.md",

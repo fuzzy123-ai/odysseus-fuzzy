@@ -24,9 +24,12 @@ Der anschliessende read-only `TTD-07A`-Recon ist abgeschlossen.
 `TTD-07A0` ist nach drei adversarialen Tiefenrunden am Vertragscommit
 `4fb9ba62` akzeptiert. `TTD-07A1` ist nach zwei Terra-Korrekturrunden, zwei
 tiefen Sol-Reviews und einem finalen fokussierten Fuenfer-Check am
-Implementierungscommit `daca1dc4` akzeptiert. `TTD-07A2` ist der einzige aktive
-Vierpfad-Claim fuer die durable SQLite-Ledger-Schicht; Session-Lifecycle,
-Bridge, Plugin und Live bleiben ungeclaimt.
+Implementierungscommit `daca1dc4` akzeptiert. `TTD-07A2` ist nach Root-Check,
+mehreren Terra-Korrekturen und tiefem Sol-PASS am Implementierungscommit
+`090ede31` akzeptiert. `TTD-07A3` ist der einzige aktive Vierpfad-Claim fuer
+DB-autoritative Bridge, fail-closed Legacy-Import und atomare
+Kompatibilitaetsprojektion; Session-Lifecycle, Polling, Webhook und Live bleiben
+ungeclaimt.
 Der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -1283,7 +1286,7 @@ Serielle Umsetzung nach Abnahme von `TTD-07A0`:
 Alle in mehreren Schritten genannten Pfade sind serielle Hotfiles. Kein
 paralleler Worker darf sie ohne committed Handoff uebernehmen.
 
-Akzeptierter Child-Slice:
+Akzeptierte Child-Slices:
 
 - `TTD-07A1-pure-rollover-policy-and-state-machine`
 - Claim `7af00221`; Implementierung `daca1dc4`
@@ -1293,16 +1296,29 @@ Akzeptierter Child-Slice:
 - reine default-off Config-/Zeit-/HMAC-/Rollover-/Turn-Intake-/Evidence-Policy;
   keine Runtime-Integration und keine Live-Aktion
 
-Aktiver Child-Claim:
-
 - `TTD-07A2-durable-rollover-ledger-schema-and-repository`
+- Claim `429b4af2`; Implementierung `090ede31`
 - exakt `core/database.py`, `core/database_migrations.py`,
   `src/telegram_session_rollover.py` und
   `tests/test_telegram_session_rollover.py`
+- exakt fuenf benannte fokussierte Nodes: `5 passed` in `1.59s`
+- AST auf allen vier Pfaden, exakter Vierpfad-Diff und tiefe read-only
+  Sol-Abnahme: `PASS`
+- vier content-free Ledger-Tabellen, idempotente Migration, Key-Fingerprint,
+  Transaction-neutral Repository, Winner-Reload und fail-closed Beziehungen
+- nur synthetische temporaere/in-memory SQLite-Instanzen; keine produktive DB
+
+Aktiver Child-Claim:
+
+- `TTD-07A3-db-authoritative-bridge-and-legacy-import`
+- exakt `plugins/telegram/stores.py`, `src/telegram_session_rollover.py`,
+  `tests/test_telegram_plugin.py` und
+  `tests/test_telegram_session_rollover.py`
 - Bob/Terra high; tiefe Sol-Abnahme; exakt fuenf benannte fokussierte Nodes
-- nur synthetische temporaere/in-memory SQLite-Instanzen; keine produktive DB,
-  keine Session-Lifecycle-, App-/Plugin-/Route-Integration, kein Prozess,
-  Provider, Send, Debian oder Live
+- nur synthetische Owner/Session-/JSON-Fixtures und temporaere Dateien;
+  bestehende produktive Call-Sites bleiben auf dem Legacy-Adapter
+- keine Session-Lifecycle-, Polling-, Webhook-, Route-, Provider-, Send-,
+  Debian- oder Live-Aktion
 
 Akzeptanz:
 

@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T14:02:30+02:00",
-  "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_ttd07a1_accepted_ttd07a2_claimed_live_default_off",
+  "updated_at": "2026-07-24T14:58:18+02:00",
+  "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_ttd07a1_ttd07a2_accepted_ttd07a3_claimed_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_ttd07a1_accepted_ttd07a2_claimed_attachment_deferred",
+    "queue_status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_ttd07a1_ttd07a2_accepted_ttd07a3_claimed_attachment_deferred",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_ttd07a1_accepted_ttd07a2_claimed_live_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_ttd07a1_ttd07a2_accepted_ttd07a3_claimed_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,17 +85,17 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-07A1 is accepted at implementation commit daca1dc4 after focused root verification and deep Sol PASS. TTD-07A2 is now the smallest dependency-ready repo-only slice and owns only the four-table durable SQLite ledger schema, idempotent migration and synthetic repository behavior.",
-        "slice": "TTD-07A2-durable-rollover-ledger-schema-and-repository",
+        "reason": "TTD-07A2 is accepted at implementation commit 090ede31 after exact focused root verification and deep Sol PASS. TTD-07A3 is now the smallest dependency-ready repo-only slice and owns only the DB-authoritative bridge, one-time fail-closed legacy import and atomic compatibility projection while productive call sites remain on the legacy adapter.",
+        "slice": "TTD-07A3-db-authoritative-bridge-and-legacy-import",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "implement_only_the_four_claimed_ttd07a2_paths_with_temporary_or_in_memory_sqlite; no_productive_database_session_lifecycle_app_plugin_network_provider_send_deploy_or_live_mutation"
+        "safe_default": "implement_only_the_four_claimed_ttd07a3_paths_with_synthetic_owner_session_json_and_temporary_files; keep_existing_productive_call_sites_on_legacy_adapter; no_session_lifecycle_polling_webhook_route_network_provider_send_deploy_or_live_mutation"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-24"
     },
     "active_claimed_slices": [
-      "TTD-07A2-durable-rollover-ledger-schema-and-repository"
+      "TTD-07A3-db-authoritative-bridge-and-legacy-import"
     ]
   },
   "non_ui_execution_ledger": {
@@ -955,8 +955,8 @@
       "id": "OWM-22",
       "name": "Telegram Todo Domain Truth And Digest Consistency",
       "priority": 4,
-      "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_ttd07a1_accepted_ttd07a2_claimed_live_default_off",
-      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-07 plus the disjoint TTD-08A history-privacy projection and TTD-08B bounded audit store are accepted. TTD-07 now supplies a non-persisting hard-bounded Telegram turn context with canonical Todo truth policy and preserved trusted runtime controls. TTD-07A0 fixes the durable ledger, transaction, lease, retry, privacy and serial handoff contract. TTD-07A1 is accepted at daca1dc4 with default-off time, HMAC, rollover, intake and evidence policy. TTD-07A2 is the sole active four-path schema/migration/repository claim; no Session lifecycle, bridge, app, plugin, route, provider or live path is open. TTD-08C attachment work remains deferred without a lifecycle owner and narrow delete authority, and TTD-09 through TTD-10 remain dependency-blocked. Live activation and production repair remain dormant.",
+      "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_ttd07a1_ttd07a2_accepted_ttd07a3_claimed_live_default_off",
+      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-07 plus the disjoint TTD-08A history-privacy projection and TTD-08B bounded audit store are accepted. TTD-07 now supplies a non-persisting hard-bounded Telegram turn context with canonical Todo truth policy and preserved trusted runtime controls. TTD-07A0 fixes the durable ledger, transaction, lease, retry, privacy and serial handoff contract. TTD-07A1 is accepted at daca1dc4 with default-off time, HMAC, rollover, intake and evidence policy. TTD-07A2 is accepted at 090ede31 with the four-table durable ledger, idempotent migration and transaction-neutral repository. TTD-07A3 is the sole active four-path DB-authoritative bridge, fail-closed legacy import and atomic compatibility-projection claim; existing productive call sites remain on the legacy adapter and no Session lifecycle, polling, webhook, route, provider or live path is open. TTD-08C attachment work remains deferred without a lifecycle owner and narrow delete authority, and TTD-09 through TTD-10 remain dependency-blocked. Live activation and production repair remain dormant.",
       "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "source_gate_family": "telegram_todo_truth",
       "dependencies": [
@@ -969,14 +969,14 @@
       "safe_default": "build_and_test_against_synthetic_notes_memory_and_telegram_fixtures_no_production_data_write_deploy_or_send",
       "user_gate_policy": "No user gate in TTD-00 through TTD-10, including TTD-07A. Repository work uses synthetic owner-scoped data and keeps all live actions disabled. Deployment, production data repair, Telegram smoke and productive session rollover are four separate dormant action-specific gates and each requires its own later operator Go.",
       "execution_protocol": {
-        "queue_registration": "TTD-00 through TTD-07 plus TTD-08A, TTD-08B, TTD-07A0 and TTD-07A1 are accepted. TTD-07A2 is the sole active repo-only claim on core/database.py, core/database_migrations.py, src/telegram_session_rollover.py and tests/test_telegram_session_rollover.py. TTD-07A3 through TTD-07A6 remain dependency-blocked. TTD-08C attachment work remains deferred pending a lifecycle owner and narrow delete authority, and TTD-09 through TTD-10 remain blocked_by_dependency.",
+        "queue_registration": "TTD-00 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A2 are accepted. TTD-07A3 is the sole active repo-only claim on plugins/telegram/stores.py, src/telegram_session_rollover.py, tests/test_telegram_plugin.py and tests/test_telegram_session_rollover.py. TTD-07A4 through TTD-07A6 remain dependency-blocked. TTD-08C attachment work remains deferred pending a lifecycle owner and narrow delete authority, and TTD-09 through TTD-10 remain blocked_by_dependency.",
         "dependency_rule": "Notes remains Todo truth; manage_todos is a domain facade over Notes, Memory rejects Todo storage, Telegram preserves semantic receipts, and every Digest claim requires a read-only include/exclude/schedule postcondition. Daily session rollover limits context but never substitutes old chat prose for domain readback.",
         "scheduling_decision": {
           "operator_priority_effective_at": "2026-07-21",
-          "position": "active_p0_corrective_track_ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_ttd07a1_accepted_ttd07a2_claimed",
+          "position": "active_p0_corrective_track_ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_ttd07a1_ttd07a2_accepted_ttd07a3_claimed",
           "implementation_authority": "current_goal_repo_only_plus_read_only_debian_preflight_no_live_mutation_authority_before_ttd10"
         },
-        "future_goal_command": "/goal Implementiere den committed TTD-07A2-Vierpfad-Claim als durable vierteilige SQLite-Ledger-Schicht mit idempotenter Migration, HMAC-Key-Fingerprint und synthetischen Repository-Tests. Keine produktive DB, kein Session-Lifecycle, App-/Plugin-/Send-/Provider-/Deployment- oder Live-Zugriff."
+        "future_goal_command": "/goal Implementiere den committed TTD-07A3-Vierpfad-Claim als DB-autoritative Bridge mit einmaligem fail-closed Legacy-Import und atomarer nicht-autoritativer JSON-Projektion. Bestehende produktive Call-Sites bleiben auf dem Legacy-Adapter; kein Session-Lifecycle, Polling, Webhook, Route, Send, Provider, Deployment oder Live-Zugriff."
       },
       "activation_contract": {
         "id": "TTD-LIVE-DEPLOY",
@@ -4526,7 +4526,7 @@
       "id": "TTD-07A2-durable-rollover-ledger-schema-and-repository",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_2026-07-24",
+      "status": "accepted_2026-07-24",
       "claimable": false,
       "depends_on": [
         "TTD-07A0 accepted at contract commit 4fb9ba62",
@@ -4550,8 +4550,9 @@
           "src/telegram_session_rollover.py",
           "tests/test_telegram_session_rollover.py"
         ],
-        "state": "claimed",
+        "state": "released",
         "acquired_at": "2026-07-24T14:02:30+02:00",
+        "released_at": "2026-07-24T14:58:18+02:00",
         "lease_expires_at": null,
         "handoff_required": true,
         "forbidden": [
@@ -4620,13 +4621,17 @@
             "evidence": "current root surface does not echo its exact model identifier"
           },
           "worker": {
-            "model": "pending",
-            "evidence": "implementation delegation starts only after this claim commit"
+            "model": "surface_selected_gpt-5.6-terra_runtime_identifier_not_echoed",
+            "effort": "high",
+            "agent": "/root/bob_ttd07a2_ledger",
+            "evidence": "bounded implementation and correction handoffs on exactly the four claimed paths; no commit push network provider productive database or live action"
           },
           "review": {
-            "model": "pending",
+            "model": "surface_selected_gpt-5.6-sol_runtime_identifier_not_echoed",
             "depth": "deep",
-            "result": "pending"
+            "reviewer": "/root/sol_ttd07a2_deep_review",
+            "rounds": 2,
+            "result": "pass_after_all_material_findings_closed"
           }
         },
         "fallback": "none"
@@ -4642,7 +4647,7 @@
       ],
       "evidence": {
         "target_environment": "temporary or in-memory synthetic SQLite only",
-        "observed_at": "2026-07-24T14:02:30+02:00",
+        "observed_at": "2026-07-24T14:58:18+02:00",
         "authority": "repo",
         "mutation_class": "repo_only",
         "required": [
@@ -4660,11 +4665,179 @@
         ],
         "temporal_window": "synthetic transaction instants only",
         "positive_path_required": true,
-        "broad_tests_forbidden": true
+        "broad_tests_forbidden": true,
+        "results": [
+          "root exact five-node pytest invocation: 5 passed in 1.59s with one pre-existing SQLAlchemy declarative_base deprecation warning",
+          "AST parse passed for exactly all four claimed paths",
+          "cached diff check and exact four-path scope check passed",
+          "fresh and upgraded schema parity four content-free tables restrict foreign keys natural uniqueness and singleton key fingerprint accepted",
+          "Session and Connection outer rollback plus file-backed uniqueness-loser behavior accepted",
+          "generation fences HMAC IDs local-day validation owner Session relationships terminal immutability and content-free failures accepted",
+          "independent deep Sol re-review passed with no material findings after all transaction concurrency identity and relationship corrections",
+          "no broad suite productive database Session lifecycle bridge plugin route network provider Telegram Debian deployment or live action ran"
+        ],
+        "residual_implementation_risks": [
+          "A3 through A5 must establish bridge import projection atomic Session lifecycle BEGIN IMMEDIATE coordination renewable lease and real transport contention",
+          "productive and live validation remains behind separate dormant deploy data-repair Telegram-smoke and rollover-enable gates"
+        ]
       },
       "acceptance": "Four content-free SQLite ledger tables and a fail-closed repository establish durable owner-scoped uniqueness fingerprint and intake authority without opening Session lifecycle or runtime integration.",
-      "next_frontier": "TTD-07A3 remains blocked until implementation commit focused evidence and deep Sol acceptance are recorded.",
+      "delivery": {
+        "claim_commit": "429b4af2",
+        "implementation_commit": "090ede31",
+        "committed": "yes_local",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "product_complete": "no"
+      },
+      "next_frontier": "TTD-07A3 is dependency-ready and may claim only plugins/telegram/stores.py, src/telegram_session_rollover.py, tests/test_telegram_plugin.py and tests/test_telegram_session_rollover.py.",
       "done_when": "Exactly the four claimed paths prove fresh and upgraded schema idempotency one-winner repository semantics fingerprint mismatch safety and content-free state validation on synthetic SQLite only."
+    },
+    {
+      "id": "TTD-07A3-db-authoritative-bridge-and-legacy-import",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "claimed_2026-07-24",
+      "claimable": false,
+      "depends_on": [
+        "TTD-07A0 accepted at contract commit 4fb9ba62",
+        "TTD-07A1 accepted at implementation commit daca1dc4",
+        "TTD-07A2 accepted at implementation commit 090ede31"
+      ],
+      "source_roadmap": "docs/plans/telegram-session-rollover-transaction-contract.md",
+      "claim": {
+        "run_id": "abc-ttd07a3-20260724T145818+0200",
+        "thread_id": "/root",
+        "slice_id": "TTD-07A3-db-authoritative-bridge-and-legacy-import",
+        "owner": "Bob",
+        "allowed_paths": [
+          "plugins/telegram/stores.py",
+          "src/telegram_session_rollover.py",
+          "tests/test_telegram_plugin.py",
+          "tests/test_telegram_session_rollover.py"
+        ],
+        "hotfiles": [
+          "plugins/telegram/stores.py",
+          "src/telegram_session_rollover.py",
+          "tests/test_telegram_plugin.py",
+          "tests/test_telegram_session_rollover.py"
+        ],
+        "state": "claimed",
+        "acquired_at": "2026-07-24T14:58:18+02:00",
+        "lease_expires_at": null,
+        "handoff_required": true,
+        "forbidden": [
+          "all app Session-manager polling webhook control route and nonclaimed test paths",
+          "productive database files productive Telegram mapping files environment files raw identity conversation Todo provider or Session content",
+          "network process provider Telegram send push deploy Debian and every live mutation",
+          "changing existing productive call sites from the legacy adapter or inferring an implicit owner",
+          "Session create archive replacement binding cutover renewable lease transport retry sweep or runtime activation reserved for TTD-07A4 through TTD-07A5",
+          "broad test suites"
+        ]
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "recommended": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "claim dependency model route review and durable evidence authority"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "reason": "legacy identity privacy owner scoping authority precedence atomic projection and serial cutover boundaries"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high",
+            "reason": "bounded four-path bridge importer projection implementation with synthetic owner Session and temporary JSON fixtures"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "sole orchestrator; no secondary implementation skill is needed"
+            }
+          ],
+          "master": {
+            "model": "surface_default",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "depth": "deep",
+            "reviewer": "/root plus explicit read-only Sol reviewer"
+          }
+        },
+        "actual": {
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            }
+          ],
+          "master": {
+            "model": "unknown",
+            "evidence": "current root surface does not echo its exact model identifier"
+          },
+          "worker": {
+            "model": "pending",
+            "evidence": "implementation delegation starts only after this claim commit"
+          },
+          "review": {
+            "model": "pending",
+            "depth": "deep",
+            "result": "pending"
+          }
+        },
+        "fallback": "none"
+      },
+      "acceptance_contract": [
+        "DB-aware bridge mode requires an explicitly injected owner reference key and caller-owned SQLAlchemy Session or Connection",
+        "an existing durable binding is authoritative and suppresses every legacy JSON import attempt in DB-aware mode",
+        "valid owner-matching legacy normal and secure slots import separately exactly once with current effective local day and generation zero",
+        "malformed JSON missing Session owner mismatch malformed stable handle and invalid legacy raw-key input fail closed without binding creation or source-file overwrite",
+        "raw legacy chat keys are converted only in memory through the existing stable-handle derivation and are never logged emitted or persisted in SQLite",
+        "compatibility projection is owner-scoped stable-handle-only atomic and non-authoritative; multi-owner conflict marks blocked_multi_owner and preserves the existing file",
+        "existing productive call sites remain on the legacy adapter and no Session lifecycle polling webhook route provider send deploy Debian productive database or live behavior is activated"
+      ],
+      "evidence": {
+        "target_environment": "synthetic owner-scoped Sessions temporary SQLite and temporary JSON files only",
+        "observed_at": "2026-07-24T14:58:18+02:00",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "AST parse for exactly all four claimed paths",
+          "exact focused pytest nodes only",
+          "exact four-path diff and cached diff check",
+          "deep Sol authority precedence identity privacy projection atomicity and fail-closed review"
+        ],
+        "focused_test_nodes": [
+          "tests/test_telegram_session_rollover.py::test_db_authoritative_bridge_prefers_existing_binding_without_legacy_import",
+          "tests/test_telegram_session_rollover.py::test_legacy_bridge_imports_valid_normal_and_secure_slots_once",
+          "tests/test_telegram_session_rollover.py::test_legacy_bridge_rejects_malformed_missing_or_cross_owner_sessions_without_writes",
+          "tests/test_telegram_session_rollover.py::test_legacy_bridge_projects_stable_handles_atomically_and_blocks_multi_owner_conflict",
+          "tests/test_telegram_plugin.py::test_rollover_bridge_keeps_existing_runtime_call_sites_on_legacy_adapter"
+        ],
+        "temporal_window": "synthetic import and projection transaction instants only",
+        "positive_path_required": true,
+        "broad_tests_forbidden": true
+      },
+      "acceptance": "An explicitly injected DB-aware bridge makes the durable ledger authoritative, imports valid owner-scoped legacy slots once and projects compatibility JSON atomically without changing productive runtime call sites.",
+      "next_frontier": "TTD-07A4 remains blocked until implementation commit focused evidence and deep Sol acceptance are recorded.",
+      "done_when": "Exactly the four claimed paths prove DB authority over JSON, once-only owner-safe import, malformed-input preservation, stable-handle-only atomic projection and untouched productive legacy call sites."
     },
     {
       "id": "TTD-08A-telegram-history-truthful-classification-and-audit-projection",
@@ -10476,7 +10649,7 @@
     }
   ],
   "recommended_execution_order": [
-    "OWM-22 Telegram Todo Domain Truth And Digest Consistency: TTD-00 through TTD-07 plus TTD-08A, TTD-08B, TTD-07A0 and TTD-07A1 are accepted; TTD-07A2 is the sole active four-path durable-ledger claim and TTD-07A3 through TTD-07A6 remain serially blocked; use temporary or in-memory SQLite only, never cherry-pick divergent 2cb685d8 or silently substitute lazy first-message semantics, keep TTD-08C attachment work deferred without a lifecycle owner, keep TTD-09 and TTD-10 dependency-blocked, keep Notes canonical and all production data unchanged, and leave repair deploy send and productive rollover disabled behind four separate live packets.",
+    "OWM-22 Telegram Todo Domain Truth And Digest Consistency: TTD-00 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A2 are accepted; TTD-07A3 is the sole active four-path DB-authoritative bridge/import/projection claim and TTD-07A4 through TTD-07A6 remain serially blocked; keep productive call sites on the legacy adapter, use only synthetic owner Sessions temporary SQLite and temporary JSON, never cherry-pick divergent 2cb685d8 or silently substitute lazy first-message semantics, keep TTD-08C attachment work deferred without a lifecycle owner, keep TTD-09 and TTD-10 dependency-blocked, keep Notes canonical and all production data unchanged, and leave repair deploy send and productive rollover disabled behind four separate live packets.",
     "OWM-23 Agent Maintenance Safety Harness: after an explicit goal or Open Work reprioritization, open AMH-01 through AMH-03 only on disjoint handed-off paths; preserve Planning JSON and existing gate/claim authorities, keep AMH-04 onward dependency-blocked, and perform no automatic commit, push, deploy or live action.",
     "OWM-11 Tool Taxonomy, Registration And Lifecycle: execute TAX0 then TAX1 and continue the detailed repo-only queue without user gates; keep the feature disabled until the single final activation decision.",
     "OWM-12 Privacy-Safe Tool Usage Analytics: after TAX1, start the disjoint privacy/store baseline; wait for TAX5/TAX7/TAX10 at shared integration points and keep capture/backfill disabled until the single final activation decision.",
