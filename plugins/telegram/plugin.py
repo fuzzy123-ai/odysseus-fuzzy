@@ -1324,6 +1324,7 @@ def setup(ctx):
         security_mode: Any = "",
         secure_transport: bool = False,
         can_start_secure_flow: bool = False,
+        todo_transactions: Any = (),
     ) -> dict[str, Any]:
         if not _bool_env("TELEGRAM_AGENT_REPLY_ENABLED"):
             outbound = store.append_outbound(
@@ -1378,7 +1379,11 @@ def setup(ctx):
                     formatting_mode="html",
                 )
                 return {"error": policy.block_reason, "exit_code": 1, "message": outbound}
-        truth_gate = gate_telegram_reply_text(text, repo_root=Path.cwd())
+        truth_gate = gate_telegram_reply_text(
+            text,
+            repo_root=Path.cwd(),
+            tool_transactions=todo_transactions,
+        )
         text = truth_gate.text
         try:
             if _bool_env("TELEGRAM_RICH_MESSAGES_ENABLED"):
@@ -1737,10 +1742,11 @@ def setup(ctx):
         image_bytes_provider=image_bytes_provider,
         attachment_bytes_provider=attachment_bytes_provider,
         image_worker_client=image_worker_client,
-        reply_handler=lambda chat_id, text, source_message_id=None: _reply_with_gate(
+        reply_handler=lambda chat_id, text, source_message_id=None, todo_transactions=(): _reply_with_gate(
             chat_id,
             text,
             source_message_id=source_message_id,
+            todo_transactions=todo_transactions,
         ),
         document_reply_handler=lambda chat_id, file_path, filename, caption, source_message_id=None: _document_reply_with_gate(
             chat_id,

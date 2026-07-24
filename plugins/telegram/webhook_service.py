@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 from typing import Any, Callable
 
 from plugins.telegram.formatting import format_agent_turn_reply
 from plugins.telegram.history_privacy import project_telegram_audit_record
+from src.telegram_truth_gate import project_telegram_todo_transactions
 
 
 class TelegramWebhookIntakeError(ValueError):
@@ -35,6 +37,39 @@ DeterministicAgentTurn = Callable[[dict[str, Any]], dict[str, Any] | None]
 RunAgentTurnAsync = Callable[..., Any]
 TypingPulse = Callable[..., Any]
 AgentFailureReply = Callable[[dict[str, Any]], str]
+
+
+def _reply_handler_supports_todo_transactions(handler: Callable[..., Any]) -> bool:
+    try:
+        parameters = inspect.signature(handler).parameters.values()
+    except Exception:
+        return False
+    return any(
+        parameter.name == "todo_transactions"
+        and parameter.kind in {inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY}
+        or parameter.kind is inspect.Parameter.VAR_KEYWORD
+        for parameter in parameters
+    )
+
+
+def _deliver_agent_reply(
+    reply_with_gate: ReplyWithGate,
+    chat_id: str,
+    text: str,
+    source_message_id: Any,
+    todo_transactions: Any = (),
+) -> dict[str, Any] | None:
+    """Deliver once, forwarding only an already closed Todo carrier."""
+
+    projected = project_telegram_todo_transactions(todo_transactions)
+    if projected and _reply_handler_supports_todo_transactions(reply_with_gate):
+        return reply_with_gate(
+            chat_id,
+            text,
+            source_message_id=source_message_id,
+            todo_transactions=projected,
+        )
+    return reply_with_gate(chat_id, text, source_message_id=source_message_id)
 
 
 def parse_and_store_webhook_update(
@@ -355,10 +390,12 @@ async def run_webhook_agent_turn_branch(
             )
             reply_text = format_agent_turn_reply(agent_turn, failure_reply=agent_failure_reply)
             if reply_text:
-                reply_result = reply_with_gate(
+                reply_result = _deliver_agent_reply(
+                    reply_with_gate,
                     final_bridge["chat_id"],
                     reply_text,
-                    source_message_id=final_bridge.get("source_message_id"),
+                    final_bridge.get("source_message_id"),
+                    agent_turn.get("todo_transactions"),
                 )
     finally:
         if typing_stop is not None:

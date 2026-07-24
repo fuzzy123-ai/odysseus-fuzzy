@@ -8,6 +8,7 @@ import re
 from typing import Any, Iterable, Mapping
 
 from src.claim_evidence_gate import ClaimEvidenceFinding, evaluate_response_claims
+from src.tool_transaction_ledger import TOOL_TRANSACTION_LEDGER_SCHEMA
 
 
 _ALREADY_UNVERIFIED_RE = re.compile(r"\bnicht\s+verifiziert\b|\bunverified\b", re.IGNORECASE)
@@ -44,6 +45,30 @@ _EMOJI_RE = re.compile(
     "\U00002600-\U000027bf"
     "]"
 )
+_TODO_TRANSACTION_CLAIM_ACTIONS = {
+    "todo_item_created": "add",
+    "todo_item_completed": "complete",
+    "todo_item_reopened": "reopen",
+    "todo_item_removed": "remove",
+    "todo_list_read": "list",
+}
+_TODO_TRANSACTION_KEYS = frozenset({
+    "schema",
+    "transaction_id",
+    "surface",
+    "tool",
+    "claim_type",
+    "status",
+    "evidence_refs",
+    "exit_code",
+    "artifact_refs",
+    "command_hash",
+    "verified_done",
+    "raw_content_visible",
+})
+_SAFE_REDACTED_TODO_REF_RE = re.compile(r"^(?:owner|list|item):[a-f0-9]{16}$")
+_EMPTY_COMMAND_HASH = "sha256:e3b0c44298fc1c149afbf4c8996fb924"
+_MAX_TELEGRAM_TODO_TRANSACTIONS = 64
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +95,7 @@ def gate_telegram_reply_text(
     tool_events: Iterable[Mapping[str, Any]] = (),
     *,
     repo_root: Path | str | None = None,
+    tool_transactions: Iterable[Mapping[str, Any]] = (),
 ) -> TelegramTruthGateResult:
     """Return Telegram text with unsupported success claims made explicit.
 
@@ -81,7 +107,13 @@ def gate_telegram_reply_text(
 
     original = str(text or "")
     events = tuple(event for event in tool_events if isinstance(event, Mapping))
-    report = evaluate_response_claims(original, events, repo_root=repo_root)
+    transactions = project_telegram_todo_transactions(tool_transactions)
+    report = evaluate_response_claims(
+        original,
+        events,
+        repo_root=repo_root,
+        tool_transactions=transactions,
+    )
     findings = list(report.unsupported)
     findings.extend(_synthetic_unsupported_findings(original, events))
 
@@ -100,6 +132,118 @@ def gate_telegram_reply_text(
         status="unknown",
         findings=tuple(findings),
     )
+
+
+def project_telegram_todo_transactions(
+    transactions: Iterable[Mapping[str, Any]] | Any = (),
+) -> tuple[dict[str, Any], ...]:
+    """Return only closed, content-free Todo ledger transactions for Telegram.
+
+    This is deliberately a projection rather than a filter: no caller-owned
+    mapping, raw tool result, command, output, or unknown field can cross the
+    Telegram bridge.  The proof is accepted only when its claim and redacted
+    operation refs match exactly.
+    """
+
+    if isinstance(transactions, (str, bytes, Mapping)):
+        return ()
+    try:
+        iterator = iter(transactions)
+    except Exception:
+        return ()
+    candidates: list[Any] = []
+    try:
+        for _ in range(_MAX_TELEGRAM_TODO_TRANSACTIONS + 1):
+            candidates.append(next(iterator))
+    except StopIteration:
+        pass
+    except Exception:
+        return ()
+    if len(candidates) > _MAX_TELEGRAM_TODO_TRANSACTIONS:
+        return ()
+
+    projected: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for item in candidates:
+        try:
+            transaction = _project_telegram_todo_transaction(item)
+        except Exception:
+            transaction = None
+        if transaction is None or transaction["transaction_id"] in seen_ids:
+            continue
+        seen_ids.add(transaction["transaction_id"])
+        projected.append(transaction)
+    return tuple(projected)
+
+
+def _project_telegram_todo_transaction(item: Any) -> dict[str, Any] | None:
+    if not isinstance(item, Mapping) or set(item) != _TODO_TRANSACTION_KEYS:
+        return None
+    claim_type = item.get("claim_type")
+    action = _TODO_TRANSACTION_CLAIM_ACTIONS.get(claim_type)
+    if action is None:
+        return None
+    transaction_id = item.get("transaction_id")
+    command_hash = item.get("command_hash")
+    if (
+        item.get("schema") != TOOL_TRANSACTION_LEDGER_SCHEMA
+        or item.get("surface") != "agent"
+        or item.get("tool") != "manage_todos"
+        or item.get("status") != "verified"
+        or item.get("verified_done") is not True
+        or type(item.get("exit_code")) is not int
+        or item.get("exit_code") != 0
+        or item.get("raw_content_visible") is not False
+        or not isinstance(transaction_id, str)
+        or transaction_id != f"agent:{_transaction_index(transaction_id)}:manage_todos:{claim_type}"
+        or not isinstance(command_hash, str)
+        or command_hash != _EMPTY_COMMAND_HASH
+    ):
+        return None
+    artifacts = item.get("artifact_refs")
+    if not isinstance(artifacts, (list, tuple)) or artifacts:
+        return None
+    refs = _project_todo_evidence_refs(item.get("evidence_refs"), action)
+    if refs is None:
+        return None
+    return {
+        "schema": TOOL_TRANSACTION_LEDGER_SCHEMA,
+        "transaction_id": transaction_id,
+        "surface": "agent",
+        "tool": "manage_todos",
+        "claim_type": claim_type,
+        "status": "verified",
+        "evidence_refs": refs,
+        "exit_code": 0,
+        "artifact_refs": (),
+        "command_hash": command_hash,
+        "verified_done": True,
+        "raw_content_visible": False,
+    }
+
+
+def _project_todo_evidence_refs(value: Any, action: str) -> tuple[str, ...] | None:
+    if not isinstance(value, (list, tuple)):
+        return None
+    refs = tuple(value)
+    expected_kinds = ("owner", "list") if action == "list" else ("owner", "list", "item")
+    if len(refs) != len(expected_kinds) + 1 or refs[-1] != f"operation:{action}":
+        return None
+    if any(not isinstance(ref, str) for ref in refs):
+        return None
+    if len(set(refs)) != len(refs):
+        return None
+    for ref, kind in zip(refs, expected_kinds):
+        if not _SAFE_REDACTED_TODO_REF_RE.fullmatch(ref):
+            return None
+        if not ref.startswith(f"{kind}:"):
+            return None
+    return tuple(str(ref) for ref in refs)
+
+
+def _transaction_index(transaction_id: str) -> str | None:
+    match = re.fullmatch(r"agent:(0|[1-9][0-9]{0,7}):manage_todos:[A-Za-z0-9_.:-]+", transaction_id)
+    return match.group(1) if match is not None else None
 
 
 def _synthetic_unsupported_findings(text: str, events: tuple[Mapping[str, Any], ...]) -> tuple[ClaimEvidenceFinding, ...]:

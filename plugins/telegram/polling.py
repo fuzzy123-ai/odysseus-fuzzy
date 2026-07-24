@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import asyncio
+import inspect
 import json
 import os
 import threading
@@ -22,6 +23,7 @@ from plugins.telegram.stores import (
     TelegramPrivacyPinStore,
     TelegramSessionBridgeStore,
 )
+from src.telegram_truth_gate import project_telegram_todo_transactions
 
 
 def _run_agent_turn(
@@ -39,17 +41,7 @@ def _run_agent_turn(
             "reply_text_present": False,
             "error": str(exc)[:240],
         }
-    if isinstance(result, dict):
-        reply_text = str(result.get("reply_text") or result.get("text") or "")
-        status = str(result.get("status") or "accepted")
-    else:
-        reply_text = str(result or "")
-        status = "accepted"
-    return {
-        "status": status,
-        "reply_text": reply_text,
-        "reply_text_present": bool(reply_text.strip()),
-    }
+    return _normalize_agent_turn_result(result)
 
 
 def deterministic_telegram_agent_turn(bridge: dict[str, Any]) -> dict[str, Any] | None:
@@ -135,25 +127,67 @@ async def _run_agent_turn_async(
             "reply_text_present": False,
             "error": str(exc)[:240],
         }
+    return _normalize_agent_turn_result(result)
+
+
+def _normalize_agent_turn_result(result: Any) -> dict[str, Any]:
     if isinstance(result, dict):
         reply_text = str(result.get("reply_text") or result.get("text") or "")
         status = str(result.get("status") or "accepted")
+        todo_transactions = project_telegram_todo_transactions(result.get("todo_transactions"))
     else:
         reply_text = str(result or "")
         status = "accepted"
-    return {
+        todo_transactions = ()
+    normalized = {
         "status": status,
         "reply_text": reply_text,
         "reply_text_present": bool(reply_text.strip()),
     }
+    if todo_transactions:
+        normalized["todo_transactions"] = todo_transactions
+    return normalized
 
 
 def _public_agent_turn_result(result: dict[str, Any] | None) -> dict[str, Any] | None:
     if result is None:
         return None
-    public = {key: value for key, value in result.items() if key != "reply_text"}
+    public = {key: value for key, value in result.items() if key not in {"reply_text", "todo_transactions"}}
     public["reply_text_value_visible"] = False
     return public
+
+
+def _reply_handler_supports_todo_transactions(handler: Callable[..., Any]) -> bool:
+    try:
+        parameters = inspect.signature(handler).parameters.values()
+    except Exception:
+        return False
+    return any(
+        parameter.name == "todo_transactions"
+        and parameter.kind in {inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY}
+        or parameter.kind is inspect.Parameter.VAR_KEYWORD
+        for parameter in parameters
+    )
+
+
+def _deliver_agent_reply(
+    reply_handler: Callable[..., Any],
+    chat_id: str,
+    text: str,
+    source_message_id: Any,
+    todo_transactions: tuple[dict[str, Any], ...] = (),
+) -> Any:
+    """Deliver once, adding the closed carrier only to compatible handlers."""
+
+    projected = project_telegram_todo_transactions(todo_transactions)
+    if projected and _reply_handler_supports_todo_transactions(reply_handler):
+        return reply_handler(
+            chat_id,
+            text,
+            source_message_id,
+            todo_transactions=projected,
+        )
+    return reply_handler(chat_id, text, source_message_id)
 
 
 def _public_reply_result(result: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -569,10 +603,12 @@ def run_telegram_polling_cycle_impl(
                         )
                         reply_text = format_agent_turn_reply(agent_turn, failure_reply=_agent_failure_reply)
                         if reply_text and reply_handler is not None:
-                            reply_handler(
+                            _deliver_agent_reply(
+                                reply_handler,
                                 bridge["chat_id"],
                                 reply_text,
                                 bridge.get("source_message_id"),
+                                agent_turn.get("todo_transactions"),
                             )
                             replies += 1
                 finally:

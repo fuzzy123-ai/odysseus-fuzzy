@@ -33,6 +33,7 @@ from src.image_tools_worker import ImageToolsWorkerResult
 from src import agent_task_ledger
 from src.plugin_capability_boundary import validate_plugin_capability_boundary
 from src.server_project_registry import ServerProjectRegistry
+from src.tool_transaction_ledger import TOOL_TRANSACTION_LEDGER_SCHEMA
 from src.telegram_voice_pipeline import VoiceAgentTurn
 
 
@@ -45,6 +46,34 @@ def _json_contains_exact_value(value: Any, needle: str) -> bool:
     if isinstance(value, list):
         return any(_json_contains_exact_value(item, needle) for item in value)
     return value == needle
+
+
+def _todo_transaction(claim_type: str = "todo_item_created") -> dict[str, Any]:
+    action = {
+        "todo_item_created": "add",
+        "todo_item_completed": "complete",
+        "todo_item_reopened": "reopen",
+        "todo_item_removed": "remove",
+        "todo_list_read": "list",
+    }[claim_type]
+    refs = ["owner:0123456789abcdef", "list:fedcba9876543210"]
+    if action != "list":
+        refs.append("item:0011223344556677")
+    refs.append(f"operation:{action}")
+    return {
+        "schema": TOOL_TRANSACTION_LEDGER_SCHEMA,
+        "transaction_id": f"agent:0:manage_todos:{claim_type}",
+        "surface": "agent",
+        "tool": "manage_todos",
+        "claim_type": claim_type,
+        "status": "verified",
+        "evidence_refs": refs,
+        "exit_code": 0,
+        "artifact_refs": [],
+        "command_hash": "sha256:e3b0c44298fc1c149afbf4c8996fb924",
+        "verified_done": True,
+        "raw_content_visible": False,
+    }
 
 
 @dataclass
@@ -92,6 +121,10 @@ def test_core_telegram_bridge_uses_agent_loop_for_tool_access():
     body = source[start:end]
 
     assert "stream_agent_loop" in body
+    assert 'event.get("type") == "metrics"' in body
+    assert 'event["data"].get("tool_transactions")' in body
+    assert 'result["todo_transactions"]' in body
+    assert "tool_events" not in body
     assert "llm_call(" not in body
     assert "enforce_session_provider_runtime_gate" in body
     assert "_telegram_rebind_local_session" in body
@@ -112,6 +145,58 @@ def test_core_telegram_bridge_uses_agent_loop_for_tool_access():
     assert "only proves that redacted sources are currently present" in body
     assert "Do not claim that the automatic Nextcloud/background import workflow is active" in body
     assert "Do not mention unrelated builds, model downloads, or pending operations" in body
+
+
+def test_polling_agent_reply_forwards_capable_todo_carrier_and_keeps_legacy_handler(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    capable_replies = []
+    legacy_replies = []
+    source_transaction = _todo_transaction()
+
+    def _agent_turn(_bridge):
+        return {
+            "status": "accepted",
+            "reply_text": "I created the todo item.",
+            "todo_transactions": [source_transaction],
+        }
+
+    def _capable(chat_id, text, source_message_id=None, *, todo_transactions=()):
+        capable_replies.append((chat_id, text, source_message_id, todo_transactions))
+        return {"ok": True}
+
+    first = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 1,
+            "message": {"message_id": 11, "chat": {"id": 123}, "text": "add"},
+        }],
+        session_creator=lambda **_kwargs: {"session_id": "poll-capable"},
+        agent_turn_handler=_agent_turn,
+        reply_handler=_capable,
+    )
+
+    def _legacy(chat_id, text, source_message_id=None):
+        legacy_replies.append((chat_id, text, source_message_id))
+        return {"ok": True}
+
+    second = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 2,
+            "message": {"message_id": 12, "chat": {"id": 123}, "text": "add again"},
+        }],
+        session_creator=lambda **_kwargs: {"session_id": "poll-legacy"},
+        agent_turn_handler=_agent_turn,
+        reply_handler=_legacy,
+    )
+
+    assert first["replies"] == 1
+    assert capable_replies[0][:3] == ("123", "I created the todo item.", 11)
+    assert capable_replies[0][3][0]["claim_type"] == "todo_item_created"
+    assert capable_replies[0][3][0] is not source_transaction
+    assert second["replies"] == 1
+    assert legacy_replies == [("123", "I created the todo item.", 12)]
 
 
 def test_voice_transcript_forces_local_only_in_dsgvo(monkeypatch):
@@ -793,6 +878,79 @@ def test_webhook_invokes_agent_turn_handler_and_gated_reply(tmp_path, monkeypatc
     history = TelegramInboxStore(tmp_path).history(chat_id="123", limit=20)
     assert any(item.get("kind") == "agent_turn" for item in history)
     assert any(item.get("direction") == "outbound" and item.get("delivery_status") == "sent" for item in history)
+
+
+def test_webhook_todo_claims_use_matching_transaction_carrier_before_mocked_send(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "redacted-token")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    monkeypatch.setenv("TELEGRAM_AGENT_CHAT_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    sent = []
+
+    def _session_bridge(**_kwargs):
+        return {"session_id": "sess-todo"}
+
+    def _agent_turn(bridge):
+        prompt = bridge["prompt"]
+        carrier = {
+            "matching": [_todo_transaction()],
+            "missing": [],
+            "wrong": [_todo_transaction("todo_item_completed")],
+        }[prompt]
+        return {
+            "status": "accepted",
+            "reply_text": "I created the todo item.",
+            "todo_transactions": carrier,
+        }
+
+    monkeypatch.setattr(
+        "plugins.telegram.plugin.send_telegram_text",
+        lambda chat_id, text: sent.append((chat_id, text)) or {
+            "ok": True,
+            "telegram_message_id": 91,
+            "token_value_visible": False,
+        },
+    )
+    app = FastAPI()
+    ctx = _PluginContext(app=app, data_dir=tmp_path, telegram_agent_turn_handler=_agent_turn)
+    ctx.telegram_session_bridge = _session_bridge
+    setup(ctx)
+    client = TestClient(app)
+    responses = []
+
+    for update_id, prompt in enumerate(("matching", "missing", "wrong"), start=1):
+        response = client.post("/api/plugins/telegram/webhook", json={
+            "update_id": update_id,
+            "message": {
+                "message_id": update_id + 10,
+                "chat": {"id": 123},
+                "from": {"id": 1, "first_name": "User"},
+                "text": prompt,
+            },
+        })
+        assert response.status_code == 200
+        responses.append(response)
+
+    assert sent[0] == ("123", "I created the todo item.")
+    assert all("nicht verifiziert" in text for _, text in sent[1:])
+    for response in responses:
+        assert "todo_transactions" not in response.text
+        assert "transaction_id" not in response.text
+        assert "command_hash" not in response.text
+        assert "owner:0123456789abcdef" not in response.text
+        assert "list:fedcba9876543210" not in response.text
+        assert "item:0011223344556677" not in response.text
+        assert "operation:add" not in response.text
+    history = TelegramInboxStore(tmp_path).history(chat_id="123", limit=20)
+    assert all("todo_transactions" not in item for item in history)
+    persisted = json.dumps(history)
+    assert "odysseus.tool_transaction_ledger.v1" not in persisted
+    assert "agent:0:manage_todos:todo_item_created" not in persisted
+    assert "sha256:e3b0c44298fc1c149afbf4c8996fb924" not in persisted
+    assert "owner:0123456789abcdef" not in persisted
+    assert "list:fedcba9876543210" not in persisted
+    assert "item:0011223344556677" not in persisted
+    assert "operation:add" not in persisted
 
 
 def test_webhook_keeps_typing_indicator_until_agent_reply(tmp_path, monkeypatch):

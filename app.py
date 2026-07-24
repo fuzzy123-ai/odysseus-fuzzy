@@ -996,6 +996,7 @@ def _telegram_local_only_model_block_reply(block_reason: str) -> str:
 def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
     from core.models import ChatMessage
     from src.agent_loop import stream_agent_loop
+    from src.telegram_truth_gate import project_telegram_todo_transactions
     from src.workflow_skills import WorkflowSkillError, resolve_workflow_skills
 
     session_id = str(bridge.get("session_id") or "").strip()
@@ -1157,8 +1158,9 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                     ),
                 }
 
-        async def _run_agent_turn() -> str:
+        async def _run_agent_turn() -> tuple[str, tuple[dict, ...]]:
             reply_parts: list[str] = []
+            todo_transactions: tuple[dict, ...] = ()
             async for chunk in stream_agent_loop(
                 session.endpoint_url,
                 session.model,
@@ -1176,16 +1178,23 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                     continue
                 if "delta" in event and not event.get("thinking"):
                     reply_parts.append(str(event.get("delta") or ""))
-            return "".join(reply_parts).strip()
+                if event.get("type") == "metrics" and isinstance(event.get("data"), dict):
+                    todo_transactions = project_telegram_todo_transactions(
+                        event["data"].get("tool_transactions")
+                    )
+            return "".join(reply_parts).strip(), todo_transactions
 
-        response = _run_async_bridge(_run_agent_turn())
+        response, todo_transactions = _run_async_bridge(_run_agent_turn())
         if not response:
             response = "Ich habe deine Nachricht verarbeitet, aber keine Textantwort erhalten."
         if local_rebind_notice:
             response = f"{local_rebind_notice}{response}"
         session.add_message(ChatMessage("user", persisted_prompt, {"source": "telegram"}))
         session.add_message(ChatMessage("assistant", str(response or ""), {"source": "telegram"}))
-        return {"status": "accepted", "reply_text": str(response or "")}
+        result = {"status": "accepted", "reply_text": str(response or "")}
+        if todo_transactions:
+            result["todo_transactions"] = todo_transactions
+        return result
     except Exception as exc:
         logger.warning("Telegram agent turn failed: %s", exc)
         return {"status": "failed", "error": str(exc), "reply_text": ""}
