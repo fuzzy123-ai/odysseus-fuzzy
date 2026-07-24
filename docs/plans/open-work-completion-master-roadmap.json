@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T10:38:50+02:00",
-  "status": "ttd03a_ttd03b_ttd04_ttd08a_ttd08b_accepted_ttd05a_digest_membership_claimed_live_default_off",
+  "updated_at": "2026-07-24T11:12:42+02:00",
+  "status": "ttd03a_ttd03b_ttd04_ttd05a_ttd08a_ttd08b_accepted_ttd05b_read_only_recon_next_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd03a_ttd03b_ttd04_accepted_ttd05a_digest_membership_claimed_attachment_deferred",
+    "queue_status": "ttd03a_ttd03b_ttd04_ttd05a_accepted_ttd05b_schedule_status_read_only_recon_next_attachment_deferred",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd04_ttd08a_ttd08b_accepted_ttd05a_digest_membership_claimed_live_default_off",
+      "telegram_todo_truth": "ttd00_through_ttd05a_ttd08a_ttd08b_accepted_ttd05b_read_only_recon_next_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,18 +85,16 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-05 read-only recon split the work serially. TTD-05A now owns only deterministic content-free digest membership evidence after a canonical Todo mutation; schedule status, execution, delivery, Telegram and all live paths remain excluded for TTD-05B or later.",
-        "slice": "TTD-05A-digest-membership-postcondition",
+        "reason": "TTD-05A is accepted at implementation commit 275a6354455644bab38f86058f6093686fa9edfb after three deep Sol boundary rounds. Run only a read-only TTD-05B schedule-status ownership and exact-path recon next; execution, delivery, Telegram and all live paths remain excluded.",
+        "slice": "TTD-05B-schedule-status-read-only-recon",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "implement_only_the_claimed_content_free_digest_membership_snapshot_receipt_and_final_gate_bridge; no_schedule_execution_delivery_telegram_provider_data_or_live_mutation"
+        "safe_default": "reconcile_only_owner_scoped_digest_schedule_status_and_exact_paths_read_only_before_any_ttd05b_claim; no_schedule_write_execution_delivery_telegram_provider_data_or_live_mutation"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-24"
     },
-    "active_claimed_slices": [
-      "TTD-05A-digest-membership-postcondition"
-    ]
+    "active_claimed_slices": []
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",
@@ -3218,7 +3216,7 @@
       "id": "TTD-05A-digest-membership-postcondition",
       "class": "repo_only",
       "owner": "/root",
-      "status": "claimed_2026-07-24",
+      "status": "accepted_2026-07-24",
       "claimable": false,
       "depends_on": [
         "TTD-01 accepted",
@@ -3268,9 +3266,10 @@
           "app.py",
           "plugins/telegram/plugin.py"
         ],
-        "state": "claimed",
+        "state": "accepted_released",
         "acquired_at": "2026-07-24T10:38:50+02:00",
         "lease_expires_at": "2026-07-24T14:38:50+02:00",
+        "released_at": "2026-07-24T11:12:42+02:00",
         "worktree": "C:\\tmp\\odysseus-abc-usi09-20260723",
         "new_paths": true,
         "dependency_sha256": {
@@ -3345,21 +3344,39 @@
         "git diff --check -- src/builtin_actions.py src/todo_digest_receipts.py src/tool_domains/todos.py src/todo_transaction_receipts.py src/claim_evidence_gate.py tests/test_todo_digest.py tests/test_todo_digest_receipts.py tests/test_manage_todos_tool.py tests/test_todo_transaction_receipts.py tests/test_claim_evidence_gate.py"
       ],
       "review": {
+        "reviewed_at": "2026-07-24T11:12:42+02:00",
         "reviewer": "root/Sol",
-        "depth": "deep",
-        "verdict": "pending",
-        "privacy_focus": "No raw owner list item text title identifier note ID selector command output or content-derived hash may enter the receipt, event, finding, audit or persisted history."
+        "depth": "deep_three_rounds_plus_independent_final",
+        "verdict": "accepted",
+        "implementation_commit": "275a6354455644bab38f86058f6093686fa9edfb",
+        "focused_evidence": [
+          "initial named membership receipt event facade claim and legacy-render nodes passed; one unintended whole focused-file invocation also passed 141 tests and was not repeated",
+          "Sol round one repaired semantic-state target integrity complete selected-entry manifests target-specific proof references filter closure real date validation and legacy limit parity",
+          "Sol round two repaired hidden-versus-outer manifest metadata ref roles bounded event scans canonical target lists and next/no-longer/negation claim boundaries; 4 exact nodes passed",
+          "Sol round three made receipt and event validation hostile-input fail-closed and separated concrete timed assertions from requests; 4 exact nodes passed",
+          "independent final Sol set: 4 exact critical nodes passed with only the existing SQLAlchemy declarative_base deprecation warning",
+          "BOM-aware AST parse passed for all ten paths, exact scope was ten paths, and git diff --check passed"
+        ],
+        "review_fixes": [
+          "one shared selector now drives unchanged legacy rendering and the fresh default-Digest membership projection",
+          "the projection binds exact semantic action and state owner list item refs full selected ordering counts filters builder date and target-specific snapshot and receipt hashes",
+          "pinned non-checklist and legacy no-ID entries receive content-free surrogate refs so they consume positions without leaking content",
+          "malformed duplicate over-limit wrong-target stale-state filtered hostile or tampered evidence fails closed without weakening the canonical Todo mutation receipt",
+          "timing schedule execution and delivery language remains unsupported until the separate TTD-05B proof lane"
+        ],
+        "privacy_verdict": "Receipts and persisted closed Todo events contain only strict schemas booleans bounded counts local builder date redacted 16-hex owner/list/item refs and hashes over already content-free proof material; raw title text identifiers selectors command output and snapshot manifests are absent.",
+        "live_deploy_allowed": false
       },
       "delivery": {
-        "implementation_commit": null,
-        "committed": "claim_only_pending_implementation",
+        "implementation_commit": "275a6354455644bab38f86058f6093686fa9edfb",
+        "committed": "yes_local",
         "pushed": "no",
         "deployed": "no",
         "live_validated": "no",
         "product_complete": "no"
       },
-      "acceptance": "pending",
-      "next_frontier": "Implement and deep-review TTD-05A only. TTD-05B schedule status remains unselected and TTD-LIVE-DEPLOY remains dormant through TTD-10.",
+      "acceptance": "offline_go_content_free_default_digest_membership_and_exclusion_receipts_with_exact_semantic_state_snapshot_integrity_final_gate_and_schedule_fail_closed",
+      "next_frontier": "TTD-05B schedule-status evidence is dependency-ready for read-only ownership and exact-path recon only. TTD-LIVE-DEPLOY remains dormant through TTD-10.",
       "done_when": "A canonical Todo mutation yields a strictly validated content-free snapshot receipt proving only present membership or completed/absent exclusion in the current default Digest projection, and the final claim gate rejects every unsupported or timing/delivery implication."
     },
     {

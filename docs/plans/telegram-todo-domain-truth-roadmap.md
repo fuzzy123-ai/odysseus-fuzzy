@@ -10,7 +10,8 @@ Reparaturhandoff und zwei tiefen Sol-Runden auf exakt neun Pfaden akzeptiert.
 `TTD-04` ist nach drei tiefen Sol-Grenzrunden auf exakt acht Pfaden
 akzeptiert. Der read-only `TTD-05`-Recon ist abgeschlossen und hat die Arbeit
 seriell getrennt: `TTD-05A` ist fuer content-free Digest-Mitgliedschaft auf
-exakt zehn Pfaden geclaimt; `TTD-05B` Schedule-Status bleibt unselected.
+exakt zehn Pfaden nach drei Sol-Grenzrunden akzeptiert; als naechstes laeuft
+nur ein read-only `TTD-05B` Schedule-Status-/Exaktpfad-Recon.
 der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -656,15 +657,13 @@ Serialisierung:
 
 Naechste Frontier:
 
-- `TTD-04` ist akzeptiert; aktiver Claim:
-  `TTD-05A-digest-membership-postcondition`.
+- `TTD-04` und `TTD-05A` sind akzeptiert; aktive Claims: 0.
 - Der read-only Recon hat Snapshot-/Receipt-/Gate-Eigentum von
   Schedule-/Execution-/Delivery-Eigentum getrennt.
-- Naechste Aktion: exakt den content-free Mitgliedschafts-Snapshot nach einer
-  kanonischen Todo-Mutation, dessen geschlossenes Receipt und die
-  `todo_digest_contains`-/`todo_digest_excludes`-Final-Gate-Auswertung
-  implementieren und fokussiert pruefen.
-- `TTD-05B` Schedule-Status bleibt unselected. Calendar, Task Scheduler,
+- Naechste Aktion: read-only nachweisen, welcher bestehende owner-scoped
+  Calendar-/ScheduledTask-Readback genau einen aktiven Digest-Task samt
+  `next_run` beweisen kann, ohne Ausfuehrung oder Delivery zu behaupten.
+- `TTD-05B` bleibt bis nach diesem Recon unselected. Calendar, Task Scheduler,
   Delivery, Notification, Telegram, Provider, Produktionsdaten und saemtliche
   Live-Mutationen bleiben ausgeschlossen.
 - Kein Push, Deploy, Providerzugriff, produktiver Datenzugriff oder Live-Smoke
@@ -805,8 +804,8 @@ Akzeptanz:
 Owner: Bob
 
 Status: `TTD-05A-digest-membership-postcondition` ist am
-`2026-07-24T10:38:50+02:00` auf exakt zehn Pfaden geclaimt.
-`TTD-05B` Schedule-Status bleibt unselected.
+`2026-07-24T11:12:42+02:00` auf exakt zehn Pfaden akzeptiert.
+`TTD-05B` Schedule-Status ist dependency-ready fuer read-only Recon.
 
 Serialisierter TTD-05A-Claim:
 
@@ -832,6 +831,32 @@ Serialisierter TTD-05A-Claim:
 - Calendar, Scheduler, Execution, Delivery, Notification, Telegram,
   Produktionsdaten, Provider und Live-Systeme sind ausdruecklich ausgeschlossen.
 - Historischer Commit `b28fc08a` wird nicht wholesale uebernommen.
+
+Implementation und Acceptance:
+
+- Implementierungscommit:
+  `275a6354455644bab38f86058f6093686fa9edfb`
+- Ein gemeinsamer Selector treibt den unveraenderten Legacy-Renderer und den
+  frischen owner-scoped Default-Digest-Readback.
+- Add/Reopen ergibt nur bei exakt offenem, nichtleerem und innerhalb Limit 20
+  selektiertem Ziel ein `todo_digest_contains`-Receipt. Complete/Remove ergibt
+  nur bei exakt erledigtem beziehungsweise abwesendem Ziel ein
+  `todo_digest_excludes`-Receipt.
+- Das geschlossene Receipt bindet semantische Action und State, redigierte
+  Owner-/List-/Item-Refs, vollstaendige content-free Auswahlreihenfolge,
+  Counts, Filter, Builder-Datum, target-spezifischen Snapshot-Hash und
+  neuberechenbaren Receipt-Ref. Pinned- und Legacy-Eintraege verbrauchen ihre
+  Position ueber content-free Surrogate-Refs.
+- Malformed, duplicate, over-limit, wrong-target, state-stale, filtered,
+  hostile oder manipulierte Evidence faellt fail-closed aus, ohne den
+  kanonischen Todo-Mutation-Receipt zu entfernen.
+- Timing-, Schedule-, Execution- und Delivery-Sprache bleibt bis TTD-05B
+  `unsupported`.
+- Drei tiefe Sol-Reparaturrunden und ein unabhaengiger finaler Vierer-Satz sind
+  gruen; nur die bestehende SQLAlchemy-Deprecation-Warnung. AST fuer zehn
+  Pfade, Exakt-Scope und `git diff --check` sind gruen.
+- Kein Push, Deploy, Schedule-Write, Task-Run, Delivery, Telegram-Zugriff,
+  Providerzugriff, produktiver Datenzugriff oder Live-Smoke.
 
 Ziel:
 
