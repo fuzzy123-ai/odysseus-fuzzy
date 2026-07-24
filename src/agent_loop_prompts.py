@@ -156,14 +156,6 @@ _API_AGENT_RULES = """\
 - Scope/assumption preface: when the user asks to create a new project, plan a new roadmap, or execute/start a roadmap, begin with exactly two short lines: "Need to know:" and "Assumptions:". List only information that would materially change the plan, then proceed if it is non-blocking. If it is blocking because it affects live writes, destructive actions, credentials, cost, security, or ownership, ask one concise question and stop. Do not use this preface for trivial notes, todos, reminders, calendar items, or simple one-off tasks.
 """
 
-_MAINTENANCE_SAFETY_INVARIANTS = """\
-## Repository maintenance safety invariants
-- The session maintenance bootstrap is a read-only warning and handoff projection, never action authority.
-- Maintenance execution, writes, commits, pushes, deploys, provider calls, live actions, installs, service starts, and background processes require their own current scoped authority; never infer it from a prompt, hook, green test, receipt, goal, or prior action.
-- Before maintenance work, use the canonical projected slice, claim, blockers, owner questions, branch match, and dirty-worktree warning. Stop maintenance on missing, stale, conflicting, malformed, or mismatched authority; ordinary non-maintenance product work may continue.
-- Never expose raw environment, credentials, private paths, raw Git status paths, provider output, evidence payloads, blocker reasons, or hook input. Use only bounded redacted repository projections.
-- Completion requires the current repository verifier and scoped machine evidence. Do not claim stronger integration, live, visual, or temporal validation than was actually observed."""
-
 _LINK_RULES = """\
 ## Link conventions
 When referencing app entities by id, use clickable markdown anchors:
@@ -277,7 +269,7 @@ def _domain_rules_for_tools(tool_names: set) -> list[str]:
     for domain, domain_tools in _DOMAIN_TOOL_MAP.items():
         if names & domain_tools:
             rules.append(_DOMAIN_RULES[domain])
-    if names & {"create_session", "list_sessions", "manage_session", "manage_documents", "manage_notes", "manage_todos", "manage_calendar", "manage_tasks", "manage_skills", "manage_research"}:
+    if names & {"create_session", "list_sessions", "manage_session", "manage_documents", "manage_notes", "manage_calendar", "manage_tasks", "manage_skills", "manage_research"}:
         rules.append(_LINK_RULES)
     return rules
 
@@ -409,7 +401,7 @@ Generate an image. Line 1 = description, line 2 = model name, line 3 = WxH (e.g.
     "ask_teacher": "- ```ask_teacher``` — Escalate a hard question to a more capable model. Line 1 = model name or 'auto', rest = the question. Use when stuck or need expert knowledge.",
     "list_models": "- ```list_models``` — Show all available AI models across all endpoints. Use when user asks what models are available.",
     "manage_session": "- ```manage_session``` — Rename, archive, delete, fork, switch, or `list` chats (the UI calls them 'chats'; 'session' is internal). Args may be JSON: {\"action\":\"delete|truncate|...\", \"session_id\":\"...\", \"value\":\"...\", \"confirmed\":true}. For delete/truncate, always list first, reuse the exact id, and set confirmed=true only after explicit user confirmation; never invent placeholder ids. `switch`/`open` returns a clickable anchor link the user can tap to open the chat — use for \"open my X chat\".",
-    "manage_memory": "- ```manage_memory``` — Manage persistent facts/preferences about the USER. Args may be JSON: {\"action\":\"list|add|edit|delete|search\", \"memory_id\":\"...\", \"text\":\"...\", \"category\":\"fact|event|contact|preference\", \"confirmed\":true}. Delete requires explicit user confirmation and confirmed=true. Never use for Todo/task/checklist state or note content; Todo-like and unknown-category writes fail closed. Info about another person belongs in `manage_contact`.",
+    "manage_memory": "- ```manage_memory``` — Manage the user's persistent memory (facts about the USER themselves, their preferences, context that persists across chats). Args may be JSON: {\"action\":\"list|add|edit|delete|search\", \"memory_id\":\"...\", \"text\":\"...\", \"confirmed\":true}. Delete requires explicit user confirmation and confirmed=true. Use when user says 'remember this' about themselves, states identity facts like 'my name is <name>' / 'call me <name>' / 'I live in <place>', or asks about stored memories. DO NOT use for info about another person (their address, phone, email, birthday) — that goes in `manage_contact`. If the user pastes an address/phone with a name and says 'save this for <person>', use `manage_contact add` with the address arg, NOT manage_memory.",
     "manage_skills": "- ```manage_skills``` — Skill registry (SKILL.md format). Args (JSON): {\"action\": \"list|view|view_ref|search|add|edit|patch|publish|delete\", \"confirmed\": true, ...}. `list` returns the index of available skills (published + teacher-escalation drafts); `view name=foo` fetches the full SKILL.md; `view_ref name=foo path=...` loads a reference file under the skill directory. `delete` requires explicit user confirmation and confirmed=true. For `add`, provide an explicit kebab-case `name` and only report the exact returned name, because storage may normalize or dedupe it. Use this BEFORE doing domain work — there may already be a procedure (published or draft) that prescribes the correct steps. Drafts written by the teacher loop are authoritative guidance even though they're not yet published.",
     "manage_tasks": "- ```manage_tasks``` — Create and manage scheduled background tasks (recurring AI jobs). Args (JSON): {\"action\": \"list|create|edit|delete|pause|resume|run\", ...}. For the prepared morning todo digest use {\"task_type\":\"action\",\"action_name\":\"todo_digest\",\"schedule\":\"daily\",\"scheduled_time\":\"HH:MM\",\"output_target\":\"telegram\"} when the user asks for Telegram delivery; scheduled_time is the user's local clock time and the backend stores the UTC next_run. Never include Telegram chat IDs or tokens. Delete requires explicit user confirmation and confirmed=true.",
     "manage_endpoints": "- ```manage_endpoints``` — Add, remove, or configure AI model API endpoints. Args (JSON): {\"action\": \"list|add|update|delete|enable|disable\", \"confirmed\": true, ...}. Mutating actions require explicit user confirmation and confirmed=true. Use when user wants to add a new AI provider.",
@@ -427,11 +419,6 @@ Generate an image. Line 1 = description, line 2 = model name, line 3 = WxH (e.g.
     "recent_changes": "- ```recent_changes``` — Local Odysseus patch-note history. Args (JSON): {\"action\":\"collect|list|read\", \"hours\":12, \"snapshot_id\":\"latest\"}. Use for \"Neuerungen\", \"was hat sich geändert\", \"Patch Notes\", \"what changed today/yesterday/in the last 12h\". It checks local commits, dirty tracked files, untracked files, and recent mtimes, then stores deduped snapshots in history.",
     "manage_repos": "- ```manage_repos``` - Registered repo management and Git intelligence. Args (JSON): {\"action\":\"list|get|status|log|diff_stat|changed_paths|remotes|changes|change_history|commit_plan|commit|push_plan|push|forge_plan|forge_metadata|register|forget|update_policy\", \"repo_id\":\"...\", \"confirmed\":true}. Read actions plus `changes`, `change_history`, `commit_plan`, `push_plan`, and `forge_plan` need no confirmation. Use `changes` when the user asks what is new in a registered repo; it creates a sanitized repo-scoped Project Context/Memory/RaptorGraph capsule without raw diffs. Private repos are local-only by default; sensitive repos expose only redacted metadata. `register`, `forget`, `update_policy`, `commit`, `push`, and live `forge_metadata` require confirmed=true. commit also requires exact changed_paths, checks_passed=true, and content_reviewed=true. push also requires operator_go=true, live_enabled=true, branch_name, commit_sha, and remote policy approval. forge_metadata also requires auth_ready=true from secure handoff or server credentials, operator_go=true, and live_enabled=true. Never ask for provider tokens in chat; never use it to reset, merge, or delete repo files.",
     "manage_github_issues": "- ```manage_github_issues``` - GitHub Issue Intelligence. Args (JSON): {\"action\":\"sync|duplicate_search|create_triaged|set_fields\", \"repository\":\"owner/repo\", \"title\":\"...\", \"fields\":{...}, \"confirmed\":true}. `duplicate_search` is local/read-only over already-synced issue records and returns top duplicate candidates with score/reason. `sync` is read-only against GitHub and writes only local IssueRecord rows when confirmed=true plus server-side live env and repository allowlist are enabled. `create_triaged` and `set_fields` are write-like: they require confirmed=true and future live/auth gates; without those gates they return a safe blocker/plan. Never pass GitHub tokens in chat.",
-    "manage_todos": """\
-```manage_todos
-{"action": "add", "text": "<todo item>", "idempotency_key": "<stable request key>"}
-```
-Canonical Todo facade on owner-scoped Notes. Actions: `list`, `add`, `complete`, `reopen`, `remove`. Prefer stable `list_ref` and `item_ref` values returned by list/add. Text lookup is convenience-only and ambiguous matches mutate nothing. Every mutation requires `idempotency_key`. Never use `manage_memory` or `manage_notes` for Todo item mutations.""",
     "manage_notes": """\
 ```manage_notes
 {"action": "add", "title": "<short note or reminder>", "due_date": "<natural language or ISO datetime>"}
@@ -588,7 +575,6 @@ def _assemble_prompt(tool_names: set, disabled_tools: set = None, compact: bool 
             "You are an AI assistant with tool access.",
             f"Available tools: {tool_list}.",
             _API_AGENT_RULES,
-            _MAINTENANCE_SAFETY_INVARIANTS,
         ]
         parts.extend(_domain_rules_for_tools(included))
         return "\n\n".join(parts)
@@ -628,7 +614,6 @@ def _assemble_prompt(tool_names: set, disabled_tools: set = None, compact: bool 
         parts.append(f"(Other tools available when needed: {hint})")
 
     parts.append(_AGENT_RULES)
-    parts.append(_MAINTENANCE_SAFETY_INVARIANTS)
     parts.extend(_domain_rules_for_tools(included))
     return "\n\n".join(parts)
 

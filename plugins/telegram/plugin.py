@@ -353,12 +353,6 @@ def build_agent_bridge_request(
     )
     task_intent = build_telegram_task_intent(message, workflow_context=workflow_context).to_dict()
     task_status_message = build_telegram_task_status_message(task_intent)
-    rollover_continuity = (
-        session_binding.get("telegram_rollover_continuity")
-        if isinstance(session_binding, dict)
-        and isinstance(session_binding.get("telegram_rollover_continuity"), dict)
-        else None
-    )
     return {
         "channel": "telegram",
         "session_alias": f"telegram:{chat_handle}",
@@ -384,7 +378,6 @@ def build_agent_bridge_request(
         "workflow_context": workflow_context,
         "task_intent": task_intent,
         "task_status_message": task_status_message,
-        "telegram_rollover_continuity": dict(rollover_continuity or {}),
         "long_running_task": task_intent.get("task_type") in {
             "coding_agent_task",
             "website_research",
@@ -1185,7 +1178,6 @@ def run_telegram_polling_cycle(
     data_dir: str | Path,
     fetch_updates: Callable[[int], list[dict[str, Any]]] | None = None,
     session_creator: Callable[..., Any] | None = None,
-    session_archiver: Callable[[str], Any] | None = None,
     agent_turn_handler: Callable[[dict[str, Any]], Any] | None = None,
     voice_stt_provider: Callable[[str], str] | None = None,
     voice_bytes_provider: Callable[..., bytes] | None = None,
@@ -1198,13 +1190,11 @@ def run_telegram_polling_cycle(
     memory_vector: Any | None = None,
     memory_owner: str | None = None,
     project_registry_path: str | Path | None = None,
-    rollover_now: Any | None = None,
 ) -> dict[str, Any]:
     return run_telegram_polling_cycle_impl(
         data_dir=data_dir,
         fetch_updates=fetch_updates,
         session_creator=session_creator,
-        session_archiver=session_archiver,
         agent_turn_handler=agent_turn_handler,
         voice_stt_provider=voice_stt_provider,
         voice_bytes_provider=voice_bytes_provider,
@@ -1217,7 +1207,6 @@ def run_telegram_polling_cycle(
         memory_vector=memory_vector,
         memory_owner=memory_owner,
         project_registry_path=project_registry_path,
-        rollover_now=rollover_now,
         polling_enabled=_bool_env,
         parse_update=lambda update: parse_telegram_update(update, chat_allowed=_chat_allowed),
         control_command=_telegram_control_command,
@@ -1312,7 +1301,6 @@ def setup(ctx):
         return getattr(app_state, name, default)
 
     session_creator = _ctx_attr("telegram_session_bridge")
-    session_archiver = _ctx_attr("telegram_session_archiver")
     agent_turn_handler = _ctx_attr("telegram_agent_turn_handler")
     voice_stt_provider = _ctx_attr("telegram_voice_stt_provider")
     voice_bytes_provider = _ctx_attr("telegram_voice_bytes_provider")
@@ -1748,7 +1736,6 @@ def setup(ctx):
         run_polling_cycle=run_telegram_polling_cycle,
         fetch_updates=_ctx_attr("telegram_fetch_updates"),
         session_creator=session_creator,
-        session_archiver=session_archiver,
         agent_turn_handler=agent_turn_handler,
         voice_stt_provider=voice_stt_provider,
         voice_bytes_provider=voice_bytes_provider,

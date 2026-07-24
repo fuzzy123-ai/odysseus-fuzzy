@@ -61,24 +61,7 @@ METRIC_DEFINITIONS: dict[str, dict[str, Any]] = {
     "gemma_maintenance_cancellation_total": {"type": "counter", "help": "Gemma maintenance cancellation outcomes."},
 }
 
-TOOL_USAGE_ALLOWED_LABELS = frozenset({"family", "source", "surface", "status"})
-TOOL_USAGE_METRIC_NAMES = frozenset(
-    {
-        "tool_usage_invocations_total",
-        "tool_usage_failures_total",
-        "tool_usage_blocked_total",
-        "tool_usage_duration_milliseconds",
-    }
-)
-TOOL_USAGE_AGGREGATE_SCHEMA = "odysseus.tool_usage_analytics.v1"
-MAX_TOOL_USAGE_AGGREGATE_ROWS = 200
-_TOOL_USAGE_STATUS_VALUES = frozenset(
-    {"succeeded", "failed", "blocked", "cancelled", "rejected", "incomplete"}
-)
-
 ALLOWED_LABELS = {
-    "family",
-    "source",
     "surface",
     "component",
     "status",
@@ -847,37 +830,6 @@ def render_prometheus_text(
         labels = _render_labels(sample.labels)
         value = _render_value(sample.value)
         lines.append(f"{sample.name}{labels} {value}")
-    histograms = payload.get("histograms", ())
-    if not isinstance(histograms, (tuple, list)):
-        raise ObservabilityMetricsError("histograms must be a sequence")
-    for histogram in histograms:
-        if not isinstance(histogram, Mapping):
-            raise ObservabilityMetricsError("histogram must be a mapping")
-        name = _safe_metric_name(histogram.get("name"))
-        definition = METRIC_DEFINITIONS.get(name)
-        if not definition or definition.get("type") != "histogram":
-            raise ObservabilityMetricsError("unsupported histogram metric")
-        labels = _safe_labels(histogram.get("labels") or {})
-        if name in TOOL_USAGE_METRIC_NAMES:
-            _validate_tool_usage_labels(labels)
-        bounds, counts = _normalize_histogram(
-            histogram.get("bounds"),
-            histogram.get("counts"),
-        )
-        if name not in emitted:
-            lines.append(f"# HELP {name} {_escape_help(definition['help'])}")
-            lines.append(f"# TYPE {name} histogram")
-            emitted.add(name)
-        cumulative = 0
-        for bound, count in zip(bounds, counts):
-            cumulative += count
-            lines.append(
-                f"{name}_bucket{_render_histogram_labels(labels, str(bound))} {cumulative}"
-            )
-        lines.append(
-            f"{name}_bucket{_render_histogram_labels(labels, '+Inf')} {cumulative}"
-        )
-        lines.append(f"{name}_count{_render_labels(labels)} {cumulative}")
     return "\n".join(lines) + "\n"
 
 
@@ -1145,119 +1097,10 @@ def _safe_labels(
     return result
 
 
-def _validate_tool_usage_labels(labels: Mapping[str, str]) -> None:
-    unknown = set(labels) - TOOL_USAGE_ALLOWED_LABELS
-    if unknown:
-        raise ObservabilityMetricsError("unsupported tool usage metric label")
-    for key, value in labels.items():
-        if value not in _TOOL_USAGE_LABEL_VALUES[key]:
-            raise ObservabilityMetricsError("unsupported tool usage metric label value")
-
-
-def _tool_usage_row_labels(row: Mapping[str, Any]) -> dict[str, str]:
-    if set(row) - _TOOL_USAGE_ROW_KEYS:
-        raise ObservabilityMetricsError("unsupported tool usage aggregate row field")
-    raw_labels = {
-        "family": row.get("family", row.get("tool_family")),
-        "source": row.get("source", row.get("tool_source")),
-        "surface": row.get("surface"),
-        "status": row.get("status"),
-    }
-    if any(value is None for value in raw_labels.values()):
-        raise ObservabilityMetricsError("tool usage aggregate row is missing a dimension")
-    labels = _safe_labels(raw_labels)
-    _validate_tool_usage_labels(labels)
-    return labels
-
-
-def _tool_usage_filter_labels(value: Any) -> dict[str, str]:
-    if value is None:
-        return {}
-    if not isinstance(value, Mapping):
-        raise ObservabilityMetricsError("tool usage aggregate filters must be a mapping")
-    if set(value) - (TOOL_USAGE_ALLOWED_LABELS | {"tool"}):
-        raise ObservabilityMetricsError("unsupported tool usage aggregate filter")
-    if value.get("tool") not in {None, ""}:
-        raise ObservabilityMetricsError("tool-filtered aggregates cannot be projected")
-    labels = _safe_labels(
-        {
-            key: item
-            for key, item in value.items()
-            if key in TOOL_USAGE_ALLOWED_LABELS and item is not None
-        }
-    )
-    _validate_tool_usage_labels(labels)
-    return labels
-
-
-def _tool_usage_histogram(aggregate: Mapping[str, Any]) -> tuple[tuple[int, ...], tuple[int, ...]]:
-    histogram = aggregate.get("duration_histogram")
-    if not isinstance(histogram, Mapping):
-        raise ObservabilityMetricsError("tool usage duration histogram is required")
-    bounds, counts = _normalize_histogram(
-        histogram.get("bounds_ms"),
-        histogram.get("counts"),
-    )
-    summary = aggregate.get("summary")
-    if isinstance(summary, Mapping) and summary.get("duration_samples") is not None:
-        expected = _bounded_count(
-            summary.get("duration_samples"),
-            field="tool usage duration sample count",
-        )
-        if expected != sum(counts):
-            raise ObservabilityMetricsError("tool usage duration sample count mismatch")
-    return bounds, counts
-
-
-def _normalize_histogram(bounds_value: Any, counts_value: Any) -> tuple[tuple[int, ...], tuple[int, ...]]:
-    if not isinstance(bounds_value, (tuple, list)) or not isinstance(counts_value, (tuple, list)):
-        raise ObservabilityMetricsError("histogram bounds and counts must be sequences")
-    if not bounds_value or len(bounds_value) != len(counts_value) or len(bounds_value) > 64:
-        raise ObservabilityMetricsError("histogram bounds and counts must be bounded and aligned")
-    bounds: list[int] = []
-    counts: list[int] = []
-    previous = -1
-    for bound_value, count_value in zip(bounds_value, counts_value):
-        if isinstance(bound_value, bool) or not isinstance(bound_value, int):
-            raise ObservabilityMetricsError("histogram bound must be an integer")
-        if bound_value <= previous or bound_value > 1_000_000_000:
-            raise ObservabilityMetricsError("histogram bounds must be strictly increasing and bounded")
-        bounds.append(bound_value)
-        counts.append(_bounded_count(count_value, field="histogram bucket count"))
-        previous = bound_value
-    if sum(counts) > 1_000_000_000:
-        raise ObservabilityMetricsError("histogram total is too large")
-    return tuple(bounds), tuple(counts)
-
-
-def _bounded_count(value: Any, *, field: str) -> int:
-    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 1_000_000_000:
-        raise ObservabilityMetricsError(f"{field} must be a bounded non-negative integer")
-    return value
-
-
-def _reject_raw_event_shape(value: Any) -> None:
-    if isinstance(value, Mapping):
-        for key, nested in value.items():
-            if str(key).strip().lower() in _FORBIDDEN_AGGREGATE_KEYS:
-                raise ObservabilityMetricsError("raw event or pseudonymous reference fields are not accepted")
-            _reject_raw_event_shape(nested)
-        return
-    if isinstance(value, (tuple, list)):
-        for item in value:
-            _reject_raw_event_shape(item)
-
-
 def _render_labels(labels: Mapping[str, str]) -> str:
     if not labels:
         return ""
     parts = [f'{key}="{_escape_label(value)}"' for key, value in sorted(labels.items())]
-    return "{" + ",".join(parts) + "}"
-
-
-def _render_histogram_labels(labels: Mapping[str, str], upper_bound: str) -> str:
-    parts = [f'{key}="{_escape_label(value)}"' for key, value in sorted(labels.items())]
-    parts.append(f'le="{_escape_label(upper_bound)}"')
     return "{" + ",".join(parts) + "}"
 
 

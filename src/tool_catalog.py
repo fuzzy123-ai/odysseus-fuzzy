@@ -184,63 +184,6 @@ def _normalize_tool_id(value: Any, *, field_name: str = "tool_id") -> str:
     return text[:_MAX_SCHEMA_REF_LENGTH]
 
 
-def resolve_tool_identifier_for_migration(
-    value: Any,
-    *,
-    known_tool_ids: Iterable[Any],
-    alias_targets: Mapping[Any, Any] | None = None,
-) -> ToolIdentifierResolution:
-    """Resolve a stored tool ID without inventing runtime capabilities.
-
-    Alias targets must name a known canonical tool. ``manage_rag`` deliberately
-    has no default target: it was a stale UI identifier, not a second handler.
-    A future evidence-backed alias may still be supplied explicitly.
-    """
-
-    supplied_id = _normalize_tool_id(value, field_name="stored_tool_id")
-    known = {
-        _normalize_tool_id(item, field_name="known_tool_id")
-        for item in known_tool_ids
-    }
-    aliases: dict[str, str] = {}
-    for source, target in (alias_targets or {}).items():
-        normalized_source = _normalize_tool_id(source, field_name="alias_source")
-        normalized_target = _normalize_tool_id(target, field_name="alias_target")
-        if normalized_source in known:
-            raise ToolCatalogError("alias source collides with a canonical tool ID")
-        if normalized_target not in known:
-            raise ToolCatalogError("alias target must be a known canonical tool ID")
-        aliases[normalized_source] = normalized_target
-
-    if supplied_id in known:
-        return ToolIdentifierResolution(
-            supplied_id=supplied_id,
-            canonical_id=supplied_id,
-            disposition=ToolIdentifierDisposition.CANONICAL,
-            reason_code="canonical_tool_id",
-        )
-    if supplied_id in aliases:
-        return ToolIdentifierResolution(
-            supplied_id=supplied_id,
-            canonical_id=aliases[supplied_id],
-            disposition=ToolIdentifierDisposition.ALIAS,
-            reason_code="legacy_alias_resolved",
-        )
-    if supplied_id in LEGACY_NON_RUNTIME_TOOL_IDS:
-        return ToolIdentifierResolution(
-            supplied_id=supplied_id,
-            canonical_id=None,
-            disposition=ToolIdentifierDisposition.LEGACY_NON_RUNTIME,
-            reason_code=LEGACY_NON_RUNTIME_TOOL_IDS[supplied_id],
-        )
-    return ToolIdentifierResolution(
-        supplied_id=supplied_id,
-        canonical_id=None,
-        disposition=ToolIdentifierDisposition.UNKNOWN,
-        reason_code="unknown_tool_id",
-    )
-
-
 def _normalize_slug_list(values: Iterable[Any], *, field_name: str, allow_empty: bool) -> tuple[str, ...]:
     normalized: list[str] = []
     seen: set[str] = set()

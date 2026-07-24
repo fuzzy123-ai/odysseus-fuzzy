@@ -4,14 +4,6 @@ import time
 import pytest
 
 from src import tool_implementations as tools
-from src.tool_domains import cookbook_models
-
-
-@pytest.fixture(autouse=True)
-def _clear_tail_bindings():
-    cookbook_models._TAIL_SERVE_SESSION_BINDINGS.clear()
-    yield
-    cookbook_models._TAIL_SERVE_SESSION_BINDINGS.clear()
 
 
 class FakeResponse:
@@ -186,9 +178,7 @@ async def test_tail_serve_output_rejects_invalid_remote_host_before_shell(monkey
     posts = _install_httpx_client(monkeypatch)
 
     result = await tools.do_tail_serve_output(
-        json.dumps({"session_id": "serve-abc123", "remote_host": "-bad"}),
-        owner="admin-a",
-        caller_session_id="chat-a",
+        json.dumps({"session_id": "serve-abc123", "remote_host": "-bad"})
     )
 
     assert result["exit_code"] == 1
@@ -211,15 +201,8 @@ async def test_tail_serve_output_rejects_invalid_state_host_before_shell(monkeyp
         },
     )
 
-    assert cookbook_models.bind_serve_session_for_tail(
-        "serve-abc123",
-        owner="admin-a",
-        caller_session_id="chat-a",
-    )
     result = await tools.do_tail_serve_output(
-        json.dumps({"session_id": "serve-abc123"}),
-        owner="admin-a",
-        caller_session_id="chat-a",
+        json.dumps({"session_id": "serve-abc123"})
     )
 
     assert result["exit_code"] == 1

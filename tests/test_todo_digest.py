@@ -11,7 +11,6 @@ from src.todo_digest_formatting import collapse_repeated_open_item_list_prefixes
 
 def _note(**kwargs):
     base = {
-        "id": "list-alpha",
         "title": "List",
         "note_type": "checklist",
         "items": json.dumps([{"text": "Open item", "done": False}]),

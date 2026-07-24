@@ -128,19 +128,6 @@ def transactions_from_tool_events(
     transactions: list[ToolTransaction] = []
     seen: set[str] = set()
     for index, event in enumerate(item for item in tool_events if isinstance(item, Mapping)):
-        todo_receipts = todo_receipts_from_tool_events((event,))
-        if todo_receipts:
-            for receipt in todo_receipts:
-                tx = _transaction_from_todo_receipt(
-                    receipt,
-                    event=event,
-                    surface=surface,
-                    index=index,
-                )
-                if tx.transaction_id not in seen:
-                    seen.add(tx.transaction_id)
-                    transactions.append(tx)
-            continue
         for claim_type in _claim_types_for_event(event):
             try:
                 tx = transaction_from_tool_event(event, surface=surface, claim_type=claim_type, index=index)
@@ -150,31 +137,6 @@ def transactions_from_tool_events(
                 seen.add(tx.transaction_id)
                 transactions.append(tx)
     return tuple(transactions)
-
-
-def _transaction_from_todo_receipt(
-    receipt: TodoReceipt,
-    *,
-    event: Mapping[str, Any],
-    surface: str,
-    index: int,
-) -> ToolTransaction:
-    if receipt.verified:
-        status = ToolTransactionStatus.VERIFIED
-    elif receipt.transaction_status in {"ambiguous", "not_found", "rejected", "blocked"}:
-        status = ToolTransactionStatus.BLOCKED
-    else:
-        status = ToolTransactionStatus.FAILED
-    return ToolTransaction.create(
-        surface=surface,
-        tool=event.get("tool") or "manage_todos",
-        claim_type=receipt.claim_type,
-        status=status,
-        evidence_refs=receipt.ledger_evidence,
-        exit_code=event.get("exit_code"),
-        command=event.get("command") or receipt.operation,
-        transaction_id=f"{surface}:{index}:manage_todos:{receipt.receipt_ref.split(':')[-1]}",
-    )
 
 
 def transaction_from_tool_event(

@@ -846,7 +846,6 @@ class TaskScheduler:
                                endpoint_url: str, model: str,
                                run_id: str | None = None) -> str:
         from src.task_scheduler_checkin import execute_checkin
-        from src.tool_usage_instrumentation import bind_bypass_tool_usage_instrumentation
 
         return await execute_checkin(
             self,
@@ -863,10 +862,6 @@ class TaskScheduler:
                 endpoint_urls=(endpoint_url,),
             ),
         )
-        with bind_bypass_tool_usage_instrumentation(instrumentation):
-            return await execute_checkin(
-                self, task, crew, db, session_id, endpoint_url, model, run_id=run_id
-            )
     async def _execute_llm_task(self, task, db, run_id: str | None = None) -> str:
         """Execute an LLM task with full tool access via the agent loop."""
         from core.database import Session as DbSession, ChatMessage, CrewMember
@@ -1315,8 +1310,11 @@ class TaskScheduler:
             ledger_started = True
         except Exception:
             logger.debug("Task agent-run ledger start failed", exc_info=True)
-        tool_usage_instrumentation = self._tool_usage_instrumentation_for_execution(
-            task,
+        async for event_str in stream_agent_loop(
+            endpoint_url=endpoint_url,
+            model=model,
+            messages=messages,
+            max_rounds=_task_max_rounds,
             session_id=session_id,
             owner=task.owner,
             headers=headers,
@@ -1581,7 +1579,6 @@ class TaskScheduler:
         tool_usage_instrumentation=None,
     ):
         from src.task_scheduler_delivery import deliver_via_mcp
-        from src.tool_usage_instrumentation import bind_bypass_tool_usage_instrumentation
 
         return await deliver_via_mcp(
             tool_name,

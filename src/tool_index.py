@@ -50,7 +50,7 @@ ALWAYS_AVAILABLE = frozenset({
 ASSISTANT_ALWAYS_AVAILABLE = frozenset({
     "list_email_accounts", "list_emails", "read_email", "send_email", "reply_to_email",
     "bulk_email", "archive_email", "delete_email", "mark_email_read",
-    "manage_calendar", "manage_notes", "manage_todos", "manage_tasks",
+    "manage_calendar", "manage_notes", "manage_tasks",
     "manage_memory", "web_search", "read_file",
     "create_document", "update_document",
     "resolve_contact", "search_chats",
@@ -96,8 +96,7 @@ BUILTIN_TOOL_DESCRIPTIONS: Dict[str, str] = {
     "pipeline": "Run a multi-step AI pipeline with multiple models. Chain tasks together in sequence.",
     "list_models": "List all available AI models and their endpoints.",
     "manage_session": "Chat management: rename, archive, delete, or fork chats (the UI calls these 'chats'; internally 'sessions'). Use for 'rename my chats', 'rename this chat', 'archive/delete a chat'.",
-    "manage_memory": "Memory management: list, add, edit, delete, or search persistent facts and preferences about the USER. Never stores Todo items, tasks, checklists, or note content; use manage_todos or manage_notes for those domains.",
-    "manage_todos": "Canonical Todo item management on owner-scoped Notes: list, add, complete, reopen, and remove using stable list/item references and idempotency keys. Use for todos, tasks, checklist items, erledigen, abhaken, wieder oeffnen, and Aufgabenlisten. Never store Todo state in manage_memory.",
+    "manage_memory": "Memory management: list, add, edit, delete, or search persistent memories. For facts about the USER (their name, preferences, where they live). NOT for info about ANOTHER person — addresses, phones, emails belonging to a contact go in manage_contact, not memory.",
     "manage_skills": "Skill management: add, update, publish, or search reusable skills/presets.",
     "manage_tasks": "Scheduled task management: list, create, edit, delete, pause, resume, or run cron tasks. For the prepared morning todo digest use task_type=action, action_name=todo_digest, schedule=daily, and output_target=telegram when the user asks for Telegram delivery; never include Telegram chat IDs or tokens.",
     "manage_endpoints": "Endpoint management: list, add, update, delete, enable, or disable model API endpoints. Mutations require confirmed=true; API keys use secure handoff, not chat text.",

@@ -1,45 +1,20 @@
 from __future__ import annotations
 
 import json
-import inspect
 import subprocess
 from pathlib import Path
 
 import pytest
 
-from src.agent_verification_receipt import build_verification_receipt, repository_binding
-from src.claim_evidence_gate import (
-    AgentMaintenanceClaimOwnership,
-    AgentMaintenanceCompletionEvidence,
-    ClaimEvidenceReport,
-)
-from src.agent_tools.project_commit_tools import CommitProjectToolHandler
-from src.project_commit_service import ProjectCommitService
-from src.project_forge_outbox import ProjectForgeOutbox
 from src.repo_commit_runner import (
     RepoCommitCommandResult,
     RepoCommitRunnerError,
-    build_repo_commit_authority,
     build_repo_commit_plan,
     repo_commit_command_is_allowed,
     run_git_commit_subprocess_command,
     run_repo_local_commit,
 )
 from src.repo_registry import RepoRecord, RepoRegistry
-
-
-class _NeverCalledCommitService:
-    def __init__(self) -> None:
-        self.called = False
-
-    def commit_project(self, **_kwargs):
-        self.called = True
-        raise AssertionError("public payload reached commit service")
-
-
-class _NeverCalledPolicySource:
-    def load_policy(self, **_kwargs):
-        raise AssertionError("public payload reached policy source")
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -80,56 +55,6 @@ def _registry(*, allowed_actions=None) -> RepoRegistry:
     return registry
 
 
-def _commit_gates(repo: Path, *, reviewed_paths=("README.md",)) -> dict:
-    binding = repository_binding(repo)
-    receipt = build_verification_receipt(
-        {
-            "lane": "guards-only",
-            "strongest_evidence_level": "static",
-            "checks": [
-                {
-                    "check_id": "current_check",
-                    "required": True,
-                    "status": "passed",
-                    "evidence_level": "static",
-                }
-            ],
-            "verification_limits": ["live_not_verified"],
-        },
-        binding_before=binding,
-        binding_after=binding,
-    )
-    lines = _git(repo, "status", "--porcelain").splitlines()
-    changed = tuple(line[3:].strip() for line in lines if len(line) >= 4)
-    staged = tuple(
-        line[3:].strip()
-        for line in lines
-        if len(line) >= 4 and line[:2] != "??" and line[0] != " "
-    )
-    completion = AgentMaintenanceCompletionEvidence(
-        receipt=receipt,
-        claim_report=ClaimEvidenceReport(()),
-        expected_lane="guards-only",
-        required_evidence_level="static",
-        claim_ownership=AgentMaintenanceClaimOwnership(
-            expected_claim_id="AMH-06",
-            expected_owner="bob",
-            allowed_paths=changed,
-            current_claim_id="AMH-06",
-            current_owner="bob",
-            current_changed_paths=changed,
-            current_staged_paths=staged,
-        ),
-    )
-    authority = build_repo_commit_authority(
-        repo_id="demo",
-        repo_path=repo,
-        reviewed_paths=reviewed_paths,
-        granted=True,
-    )
-    return {"completion_evidence": completion, "commit_authority": authority}
-
-
 def test_commit_plan_blocks_without_gates(tmp_path: Path):
     repo = _make_repo(tmp_path)
     status = _git(repo, "status", "--short", "--branch")
@@ -166,7 +91,6 @@ def test_commit_runner_commits_only_exact_reviewed_path(tmp_path: Path):
         checks_passed=True,
         content_reviewed=True,
         confirmed=True,
-        **_commit_gates(repo),
     )
 
     assert report.status == "committed"

@@ -12,7 +12,6 @@ import re
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from src.runtime_paths import get_app_root
-from src.tool_catalog import ToolAvailability, ToolFamily, ToolLifecycle
 
 logger = logging.getLogger(__name__)
 
@@ -122,94 +121,6 @@ _OBSIDIAN_READONLY_MCP_TOOLS = {
     "obsidian_spark_plan",
 }
 
-_MCP_CATALOG_COMPONENT_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,80}$")
-
-
-def parse_qualified_mcp_tool_name(value: object) -> tuple[str, str] | None:
-    """Parse a bounded qualified MCP name without retaining malformed input."""
-
-    if not isinstance(value, str):
-        return None
-    parts = value.split("__", 2)
-    if len(parts) != 3 or parts[0] != "mcp":
-        return None
-    server_id, tool_name = parts[1], parts[2]
-    if not _MCP_CATALOG_COMPONENT_RE.fullmatch(
-        server_id
-    ) or not _MCP_CATALOG_COMPONENT_RE.fullmatch(tool_name):
-        return None
-    return server_id, tool_name
-
-
-def _mcp_source_id(server_id: object) -> str:
-    component = re.sub(r"[^A-Za-z0-9_.:-]+", "-", str(server_id or "")).strip("-")[:80]
-    return f"mcp:{component or 'unknown'}"
-
-
-def _mcp_catalog_metadata(
-    server_id: str,
-    tool: Dict,
-    *,
-    disabled: bool,
-    collision: bool = False,
-) -> Dict[str, Any]:
-    raw_family = tool.get("family")
-    try:
-        family = ToolFamily(str(raw_family or ToolFamily.PLUGINS_MCP.value).lower())
-    except ValueError:
-        family = ToolFamily.UNCLASSIFIED_DYNAMIC
-    try:
-        lifecycle = ToolLifecycle(
-            str(tool.get("lifecycle") or ToolLifecycle.CONTEXTUAL.value).lower()
-        )
-    except ValueError:
-        lifecycle = ToolLifecycle.BLOCKED
-    try:
-        availability = ToolAvailability(
-            str(tool.get("availability") or ToolAvailability.AVAILABLE.value).lower()
-        )
-    except ValueError:
-        availability = ToolAvailability.BLOCKED
-
-    tool_name = str(tool.get("name") or "")
-    safe_identity = bool(
-        _MCP_CATALOG_COMPONENT_RE.fullmatch(str(server_id or ""))
-        and _MCP_CATALOG_COMPONENT_RE.fullmatch(tool_name)
-    )
-    blocked = (
-        collision
-        or not safe_identity
-        or family == ToolFamily.UNCLASSIFIED_DYNAMIC
-        or lifecycle == ToolLifecycle.BLOCKED
-        or availability in {
-            ToolAvailability.BLOCKED,
-            ToolAvailability.UNAVAILABLE,
-            ToolAvailability.UNKNOWN,
-        }
-    )
-    if blocked:
-        family = ToolFamily.UNCLASSIFIED_DYNAMIC
-        lifecycle = ToolLifecycle.BLOCKED
-        availability = ToolAvailability.BLOCKED
-    elif disabled:
-        availability = ToolAvailability.DISABLED
-    catalog_enabled = bool(
-        not blocked
-        and lifecycle in {ToolLifecycle.ACTIVE, ToolLifecycle.CONTEXTUAL}
-        and availability == ToolAvailability.AVAILABLE
-    )
-    return {
-        "family": family.value,
-        "source": "mcp",
-        "source_id": _mcp_source_id(server_id),
-        "permission": "admin",
-        "availability": availability.value,
-        "lifecycle": lifecycle.value,
-        "catalog_blocked": blocked,
-        "catalog_enabled": catalog_enabled,
-        "policy_authority": "mcp_runtime_policy",
-    }
-
 
 def mcp_tool_is_readonly(tool: Dict) -> bool:
     """Classify an MCP tool as safe (non-mutating) for plan mode.
@@ -261,10 +172,6 @@ class McpManager:
         self._descriptor_cache_key = None
         self._descriptor_cache: Tuple[Dict[str, Any], ...] = ()
 
-    def generation(self) -> int:
-        """Return the generation used to invalidate MCP catalog consumers."""
-        return self._generation
-
     async def connect_server(
         self,
         server_id: str,
@@ -276,7 +183,6 @@ class McpManager:
         url: Optional[str] = None,
     ) -> bool:
         """Connect to an MCP server via stdio, SSE, or Streamable HTTP transport."""
-        before_generation = self._generation
         try:
             if transport == "stdio":
                 res = await self._connect_stdio(server_id, name, command, args or [], env or {})
@@ -287,7 +193,7 @@ class McpManager:
             else:
                 logger.error(f"Unknown MCP transport: {transport}")
                 res = False
-            if res and self._generation == before_generation:
+            if res:
                 self._generation += 1
             return res
         except Exception as e:
@@ -498,16 +404,6 @@ class McpManager:
 
     async def disconnect_server(self, server_id: str):
         """Disconnect from an MCP server."""
-        existed = any(
-            server_id in collection
-            for collection in (
-                self._connections,
-                self._tools,
-                self._sessions,
-                self._stacks,
-                self._connect_tasks,
-            )
-        )
         # Cancel any in-flight HTTP/OAuth background connect so it stops
         # publishing status for a server that may be getting deleted.
         task = self._connect_tasks.pop(server_id, None)
@@ -529,8 +425,7 @@ class McpManager:
         self._sessions.pop(server_id, None)
         self._tools.pop(server_id, None)
         self._connections.pop(server_id, None)
-        if existed:
-            self._generation += 1
+        self._generation += 1
         logger.info(f"MCP server disconnected: {server_id}")
 
     async def disconnect_all(self):
@@ -566,86 +461,12 @@ class McpManager:
 
         Returns a result dict compatible with agent_tools format.
         """
-        instrumentation = None
-        span = None
-        try:
-            from src.tool_usage_instrumentation import (
-                build_tool_usage_call_metadata_for_name,
-                current_bypass_tool_usage_instrumentation,
-            )
+        parts = qualified_name.split("__", 2)
+        if len(parts) != 3 or parts[0] != "mcp":
+            return {"error": f"Invalid MCP tool name: {qualified_name}", "exit_code": 1}
 
-            instrumentation = current_bypass_tool_usage_instrumentation()
-            if instrumentation is not None:
-                argument_bytes = len(
-                    json.dumps(
-                        arguments if isinstance(arguments, dict) else {},
-                        sort_keys=True,
-                        separators=(",", ":"),
-                        default=lambda _value: None,
-                    ).encode("utf-8", errors="replace")
-                )
-                metadata = build_tool_usage_call_metadata_for_name(
-                    qualified_name,
-                    argument_bytes=argument_bytes,
-                )
-                span = instrumentation.begin(metadata)
-        except Exception:
-            span = None
-        try:
-            result = await self._call_tool_impl(qualified_name, arguments)
-        except BaseException as exc:
-            if span is not None:
-                try:
-                    from src.tool_usage_instrumentation import exception_outcome
-
-                    span.finish(exception_outcome(exc))
-                except Exception:
-                    pass
-            raise
-        if span is not None:
-            try:
-                from src.tool_usage_instrumentation import classify_tool_usage_outcome
-
-                error_text = str(result.get("error") or "").casefold()
-                description = "mcp: direct"
-                if error_text.startswith("invalid mcp tool") or error_text.startswith(
-                    "unknown mcp tool"
-                ):
-                    description = "unknown: mcp"
-                elif "blocked" in error_text:
-                    description = "mcp: BLOCKED"
-                span.finish(
-                    classify_tool_usage_outcome(description, result),
-                    result=result,
-                )
-            except Exception:
-                pass
-        return result
-
-    async def _call_tool_impl(self, qualified_name: str, arguments: Dict) -> Dict:
-        parsed_name = parse_qualified_mcp_tool_name(qualified_name)
-        if parsed_name is None:
-            return {"error": "Invalid MCP tool name", "exit_code": 1}
-
-        server_id, tool_name = parsed_name
-
-        registered_tools = [
-            tool for tool in self._tools.get(server_id, []) if tool.get("name") == tool_name
-        ]
-        if not registered_tools:
-            return {"error": f"Unknown MCP tool: {qualified_name}", "exit_code": 1}
-        registered_tool = registered_tools[0]
-        metadata = _mcp_catalog_metadata(
-            server_id,
-            registered_tool,
-            disabled=False,
-            collision=len(registered_tools) != 1,
-        )
-        if not metadata["catalog_enabled"]:
-            return {
-                "error": f"MCP tool blocked by catalog normalization: {qualified_name}",
-                "exit_code": 1,
-            }
+        server_id = parts[1]
+        tool_name = parts[2]
 
         session = self._sessions.get(server_id)
         if not session:
@@ -759,14 +580,6 @@ class McpManager:
             for tool in sorted(tools, key=lambda item: str(item.get("name") or "")):
                 if tool["name"] in disabled:
                     continue
-                metadata = _mcp_catalog_metadata(
-                    server_id,
-                    tool,
-                    disabled=False,
-                    collision=name_counts.get(str(tool.get("name") or ""), 0) != 1,
-                )
-                if not metadata["catalog_enabled"]:
-                    continue
                 qualified = f"mcp__{server_id}__{tool['name']}"
                 if qualified in seen:
                     continue
@@ -802,18 +615,8 @@ class McpManager:
                     "qualified_name": qualified,
                     "description": tool.get("description", ""),
                     "input_schema": tool.get("input_schema") or {},
-                    "is_disabled": is_disabled,
-                    "catalog_generation": self._generation,
-                }
-                row.update(
-                    _mcp_catalog_metadata(
-                        server_id,
-                        tool,
-                        disabled=is_disabled,
-                        collision=name_counts.get(str(tool.get("name") or ""), 0) != 1,
-                    )
-                )
-                result.append(row)
+                    "is_disabled": tool["name"] in disabled,
+                })
         return result
 
     def get_descriptor_projections(
@@ -877,18 +680,8 @@ class McpManager:
         disabled_map: Dict[str, Set[str]] = {}
         qualified: Set[str] = set()
         for server_id, tools in self._tools.items():
-            name_counts: Dict[str, int] = {}
             for tool in tools:
-                name = str(tool.get("name") or "")
-                name_counts[name] = name_counts.get(name, 0) + 1
-            for tool in tools:
-                metadata = _mcp_catalog_metadata(
-                    server_id,
-                    tool,
-                    disabled=False,
-                    collision=name_counts.get(str(tool.get("name") or ""), 0) != 1,
-                )
-                if not metadata["catalog_enabled"] or not mcp_tool_is_readonly(tool):
+                if not mcp_tool_is_readonly(tool):
                     disabled_map.setdefault(server_id, set()).add(tool["name"])
                     qualified.add(f"mcp__{server_id}__{tool['name']}")
         return disabled_map, qualified
@@ -934,7 +727,7 @@ class McpManager:
             # their qualified MCP prompt surface visible.
             if self.is_builtin(t["server_id"]) and t["server_id"] not in PROMPT_VISIBLE_BUILTIN_SERVERS:
                 continue
-            if t.get("is_disabled") or not t.get("catalog_enabled"):
+            if t.get("is_disabled"):
                 continue
             sn = t["server_name"]
             if sn not in by_server:

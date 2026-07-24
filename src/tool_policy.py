@@ -263,40 +263,6 @@ def known_tool_names() -> Set[str]:
     return names
 
 
-def _settings_snapshot(
-    settings: Optional[Mapping[str, object]],
-) -> Mapping[str, object]:
-    if settings is not None:
-        return settings
-    try:
-        from src.settings import load_settings
-
-        loaded = load_settings()
-        return loaded if isinstance(loaded, Mapping) else {}
-    except Exception:
-        return {}
-
-
-def operator_priority_disabled_tools(
-    settings: Optional[Mapping[str, object]] = None,
-) -> frozenset[str]:
-    """Return explicit Admin disables, or safe defaults when the setting is absent.
-
-    Presence of ``disabled_tools`` is treated as an existing operator choice,
-    including an explicit empty list. TAX9 owns any later migration of that
-    choice; this defaulting path never writes settings.
-    """
-
-    snapshot = _settings_snapshot(settings)
-    if "disabled_tools" not in snapshot:
-        return DEFAULT_DEFERRED_RUNTIME_TOOLS
-
-    configured = snapshot.get("disabled_tools")
-    if not isinstance(configured, (list, tuple, set, frozenset)):
-        return DEFAULT_DEFERRED_RUNTIME_TOOLS
-    return expand_runtime_disabled_tool_names(configured)
-
-
 def build_effective_tool_policy(
     *,
     disabled_tools: Optional[Iterable[str]] = None,
@@ -313,21 +279,9 @@ def build_effective_tool_policy(
     delegated to prompt compliance.
     """
 
-    effective_settings = _settings_snapshot(settings)
-    disabled = set(expand_runtime_disabled_tool_names(disabled_tools or ()))
+    disabled = {str(t) for t in (disabled_tools or []) if t}
     hidden: Set[str] = set()
     reasons = {tool: "Tool is disabled for this request." for tool in disabled}
-    default_or_configured_disabled = operator_priority_disabled_tools(effective_settings)
-    explicit_admin_configuration = "disabled_tools" in effective_settings
-    disabled.update(default_or_configured_disabled)
-    hidden.update(default_or_configured_disabled)
-    for tool in default_or_configured_disabled:
-        reasons.setdefault(
-            tool,
-            "Tool is disabled by explicit Admin configuration."
-            if explicit_admin_configuration
-            else "Tool is deferred by operator priority until explicit Admin activation.",
-        )
 
     setting_present = bool(settings is not None and "disabled_tools" in settings)
     disabled_with_defaults, defaults_applied = resolve_operator_priority_disabled(
@@ -403,7 +357,7 @@ def build_effective_tool_policy(
         from src.privacy_runtime import create_runtime_security_state
         from src.secure_policy_gate import decide_tool_gate
 
-        state = create_runtime_security_state(settings=effective_settings)
+        state = create_runtime_security_state(settings=settings)
         decisions = {}
         for tool, safety_class in _DSGVO_TOOL_SAFETY_CLASSES.items():
             if safety_class not in decisions:

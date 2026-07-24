@@ -1123,8 +1123,6 @@ def _todo_digest_selection_from_notes(notes, *, label: str | None = None, list_f
     import json as _json
     from datetime import datetime as _dt
 
-    from src.todo_domain_service import make_list_ref
-
     label = (label or "").strip().lower()
     list_filter = (list_filter or "").strip().lower()
     # Keep the renderer's historical Python slice semantics exactly.  The
@@ -1166,8 +1164,6 @@ def _todo_digest_selection_from_notes(notes, *, label: str | None = None, list_f
         elif bucket == "today":
             due_today.append(title)
         if getattr(note, "note_type", "") == "checklist" and getattr(note, "items", None):
-            note_id = str(getattr(note, "id", "") or "")
-            note_list_ref = make_list_ref(owner, note_id) if owner and note_id else None
             try:
                 items = _json.loads(note.items or "[]")
             except Exception:
@@ -1236,36 +1232,9 @@ def _todo_digest_from_notes(notes, *, label: str | None = None, list_filter: str
     lines.append("")
     lines.append("Open items:")
     if open_items:
-        lines.extend(f"- {item[0]}" for item in open_items[:limit])
+        lines.extend(f"- {item}" for item in open_items[:limit])
     else:
         lines.append("- none")
-    if projection is not None:
-        included_item_refs = [
-            item_ref for _text, item_ref in open_items[:limit] if item_ref
-        ]
-        redacted_manifest = {
-            "included_item_refs": included_item_refs,
-            "item_states": item_states,
-            "label_filter_active": bool(label),
-            "list_filter_active": bool(list_filter),
-            "limit": limit,
-        }
-        digest = _hashlib.sha256(
-            _json.dumps(
-                redacted_manifest,
-                sort_keys=True,
-                separators=(",", ":"),
-            ).encode("utf-8")
-        ).hexdigest()[:32]
-        projection.update(
-            schema="odysseus.todo_digest_projection.v1",
-            included_item_refs=included_item_refs,
-            item_states=item_states,
-            projection_ref=f"todo-digest-projection:v1:{digest}",
-            evidence_refs=[f"notes-digest-readback:v1:{digest}"],
-            owner_scoped=bool(owner),
-            raw_content_visible=False,
-        )
     return collapse_repeated_open_item_list_prefixes("\n".join(lines))
 
 
@@ -1368,7 +1337,6 @@ async def action_todo_digest(owner: str, **kwargs) -> Tuple[str, bool]:
             label=kwargs.get("label"),
             list_filter=kwargs.get("list") or kwargs.get("list_filter"),
             limit=int(kwargs.get("limit") or 20),
-            owner=owner,
         )
         return digest, True
     except Exception as e:

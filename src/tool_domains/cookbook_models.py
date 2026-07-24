@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import re
-import time
 from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException
@@ -214,11 +213,7 @@ async def do_download_model(content: str, owner: Optional[str] = None) -> Dict:
         return {"error": str(e), "exit_code": 1}
 
 
-async def do_serve_model(
-    content: str,
-    owner: Optional[str] = None,
-    caller_session_id: Optional[str] = None,
-) -> Dict:
+async def do_serve_model(content: str, owner: Optional[str] = None) -> Dict:
     """Start serving a model via the cookbook API."""
     import httpx
     try:
@@ -292,12 +287,6 @@ async def do_serve_model(
                 session_id=sid, model=repo_id,
                 host=host, cmd=cmd, task_type="serve",
                 endpoint_added=endpoint_added, endpoint_id=endpoint_id or "",
-            )
-            bind_serve_session_for_tail(
-                sid,
-                owner=owner,
-                caller_session_id=caller_session_id,
-                host=host,
             )
             note = "" if registered else " (state-write failed — task may not show in UI)"
             return {
@@ -539,11 +528,7 @@ async def do_stop_served_model(content: str, owner: Optional[str] = None) -> Dic
     )
 
 
-async def do_tail_serve_output(
-    content: str,
-    owner: Optional[str] = None,
-    caller_session_id: Optional[str] = None,
-) -> Dict:
+async def do_tail_serve_output(content: str, owner: Optional[str] = None) -> Dict:
     """Capture the last N lines of a cookbook task's tmux pane — remote-aware.
 
     Used by the agent to debug a failed/stuck serve: list_served_models tells
@@ -807,11 +792,7 @@ async def do_search_hf_models(content: str, owner: Optional[str] = None) -> Dict
         return {"error": str(e), "exit_code": 1}
 
 
-async def do_adopt_served_model(
-    content: str,
-    owner: Optional[str] = None,
-    caller_session_id: Optional[str] = None,
-) -> Dict:
+async def do_adopt_served_model(content: str, owner: Optional[str] = None) -> Dict:
     """Register an externally-launched model server (bash + tmux + ssh, or
     anything else) into the Cookbook so it appears in list_served_models,
     can be stopped via stop_served_model, and is added to the user's
@@ -951,12 +932,6 @@ async def do_adopt_served_model(
             except Exception as e:
                 endpoint_msg = f" Endpoint registration failed: {e}"
 
-    bind_serve_session_for_tail(
-        sess,
-        owner=owner,
-        caller_session_id=caller_session_id,
-        host=host,
-    )
     return {
         "output": (
             f"Adopted session {sess!r} ({model}) on {host or 'local'}:{port}. "
@@ -1036,11 +1011,7 @@ async def do_list_serve_presets(content: str, owner: Optional[str] = None) -> Di
     return {"output": "\n".join(lines), "presets": presets, "exit_code": 0}
 
 
-async def do_serve_preset(
-    content: str,
-    owner: Optional[str] = None,
-    caller_session_id: Optional[str] = None,
-) -> Dict:
+async def do_serve_preset(content: str, owner: Optional[str] = None) -> Dict:
     """Launch a saved serve preset by name. Resolves the preset's
     cmd + host + model from cookbook_state.json, then calls the
     standard model/serve endpoint. Saves the agent from having to
@@ -1117,12 +1088,6 @@ async def do_serve_preset(
                 session_id=sid, model=repo_id, host=host,
                 cmd=cmd, task_type="serve",
                 endpoint_added=endpoint_added, endpoint_id=endpoint_id or "",
-            )
-            bind_serve_session_for_tail(
-                sid,
-                owner=owner,
-                caller_session_id=caller_session_id,
-                host=host,
             )
             note = "" if registered else " (state-write failed — task may not show in UI)"
             return {"output": f"Launched preset {chosen.get('name')!r}: {repo_id} on {host or 'local'} (session: {sid}){note}", "session_id": sid, "host": host, "endpoint_id": endpoint_id, "exit_code": 0}

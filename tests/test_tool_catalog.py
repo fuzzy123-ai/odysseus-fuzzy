@@ -1,5 +1,3 @@
-from dataclasses import FrozenInstanceError
-
 import pytest
 
 from src.agent_identity import AgentIdentity
@@ -7,7 +5,6 @@ from src.context_capsule import ContextCapsule
 from src.tool_catalog import (
     ToolAvailability,
     ToolCatalogError,
-    ToolAvailability,
     ToolDescriptor,
     ToolDescriptorCatalogV2,
     ToolDescriptorV2,
@@ -23,7 +20,6 @@ from src.tool_catalog import (
     ToolVisibility,
     build_tool_manifests_from_function_schemas,
     select_deferred_tool_schemas,
-    validate_tool_lifecycle_transition,
 )
 
 

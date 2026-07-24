@@ -19,20 +19,6 @@ EFFECTFUL_TOOL_MATRIX: dict[str, str] = {
     "create_document": "document_write",
     "update_document": "document_write",
     "edit_document": "document_write",
-    "manage_personal_docs": "document_source_control",
-    "manage_todos": "todo_domain_transaction",
-    "manage_embeddings": "embedding_runtime_control",
-    "manage_plugins": "plugin_supply_chain_control",
-    "manage_settings": "settings_control",
-    "manage_tokens": "credential_control",
-    "manage_repos": "repository_state_control",
-    "manage_endpoints": "model_endpoint_control",
-    "download_model": "model_runtime_control",
-    "serve_model": "model_runtime_control",
-    "serve_preset": "model_runtime_control",
-    "stop_served_model": "model_runtime_control",
-    "cancel_download": "model_runtime_control",
-    "adopt_served_model": "model_runtime_control",
     "sandbox_submit": "sandbox_worker",
     "sandbox_status": "sandbox_worker",
     "dispatch_sandbox_checks": "sandbox_worker",
@@ -107,57 +93,6 @@ EFFECTFUL_TOOL_ACTION_MATRIX: dict[str, dict[str, str]] = {
         "list": "",
         "*": "todo_state",
     },
-}
-
-
-EFFECTFUL_TOOL_ACTION_MATRIX: dict[str, dict[str, str]] = {
-    "manage_plugins": {
-        "list": "",
-        "get": "",
-        "status": "",
-        "*": "plugin_supply_chain_control",
-    },
-    "manage_settings": {
-        "list": "",
-        "get": "",
-        "status": "",
-        "*": "settings_control",
-    },
-    "manage_tokens": {
-        "list": "",
-        "get": "",
-        "status": "",
-        "*": "credential_control",
-    },
-    "manage_repos": {
-        "list": "",
-        "get": "",
-        "status": "",
-        "log": "",
-        "diff_stat": "",
-        "changed_paths": "",
-        "remotes": "",
-        "commit_plan": "",
-        "push_plan": "",
-        "forge_plan": "",
-        "changes": "",
-        "change_history": "",
-        "*": "repository_state_control",
-    },
-}
-
-_MUTATION_SIGNAL_KEYS = {
-    "transaction_id",
-    "transaction_status",
-    "mutation",
-    "mutated",
-    "write",
-    "writes",
-    "changed",
-    "side_effect",
-    "effectful",
-    "committed",
-    "pushed",
 }
 
 

@@ -1843,14 +1843,6 @@ async def stream_agent_loop(
     if _fallback_chunk:
         yield _fallback_chunk
 
-    _todo_receipt_response = render_todo_receipt_response(
-        todo_receipts_from_tool_events(tool_events)
-    )
-    if _todo_receipt_response and _todo_receipt_response not in full_response:
-        _todo_delta = ("\n\n" if full_response.strip() else "") + _todo_receipt_response
-        full_response += _todo_delta
-        yield f'data: {json.dumps({"delta": _todo_delta})}\n\n'
-
     claim_evidence_gate = {}
     tool_transactions = tuple(item.to_dict() for item in transactions_from_tool_events(tool_events, surface="agent"))
     try:

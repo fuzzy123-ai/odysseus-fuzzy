@@ -17,11 +17,7 @@ import sys
 import time
 from typing import Any, Awaitable, Callable, Dict, Optional, Tuple
 
-from src.tool_security import (
-    RUNTIME_ADMIN_TOOLS,
-    is_public_blocked_tool,
-    owner_is_admin_or_single_user,
-)
+from src.tool_security import is_public_blocked_tool, owner_is_admin_or_single_user
 from src.tool_policy import ToolPolicy
 from src.constants import MAX_OUTPUT_CHARS, MAX_READ_CHARS, MAX_DIFF_LINES
 from src.tool_utils import _truncate
@@ -415,7 +411,6 @@ async def execute_tool_block(
             result=outcome[1],
             latency_ms=duration_ms,
         )
-        _finish_tool_usage(usage_span, outcome=outcome, result=outcome[1])
         return outcome
     except asyncio.CancelledError:
         duration_ms = max(1, int((time.perf_counter() - started_at) * 1000))
@@ -458,18 +453,6 @@ async def execute_tool_block(
             status="failed",
             latency_ms=duration_ms,
         )
-        _finish_tool_usage(usage_span, exception=exc)
-        raise
-    except Exception as exc:
-        _emit_ai_lens_tool_event(
-            ai_lens_emitter,
-            block,
-            event_type="tool_call_result",
-            status="failed",
-            latency_ms=max(1, int((time.perf_counter() - started_at) * 1000)),
-            usage_metadata=usage_metadata,
-        )
-        _finish_tool_usage(usage_span, exception=exc)
         raise
     finally:
         _active_workspace.reset(token)
@@ -528,7 +511,6 @@ def _emit_ai_lens_tool_event(
     status: str,
     result: Any = None,
     latency_ms: int = 0,
-    usage_metadata: Any = None,
 ) -> None:
     if emitter is None:
         return
@@ -536,11 +518,7 @@ def _emit_ai_lens_tool_event(
         from src.ai_lens_events import AiLensRedactionLevel, AiLensSourceKind, AiLensSourceRef
         from src.ai_lens_service import opaque_ai_lens_ref
 
-        tool_name = (
-            usage_metadata.tool_analytics_id
-            if usage_metadata is not None
-            else str(getattr(block, "tool_type", "") or "unknown")
-        )
+        tool_name = str(getattr(block, "tool_type", "") or "unknown")
         content = str(getattr(block, "content", "") or "")
         source_ref = AiLensSourceRef.create(
             source_id=opaque_ai_lens_ref("tool", tool_name),
@@ -549,25 +527,10 @@ def _emit_ai_lens_tool_event(
         )
         payload: Dict[str, Any] = {
             "tool_ref": source_ref.source_id,
-            "argument_present": (
-                usage_metadata.argument_present
-                if usage_metadata is not None
-                else bool(content)
-            ),
-            "argument_bytes": (
-                usage_metadata.argument_bytes
-                if usage_metadata is not None
-                else min(len(content.encode("utf-8", errors="replace")), 10_000_000)
-            ),
+            "argument_present": bool(content),
+            "argument_bytes": min(len(content.encode("utf-8", errors="replace")), 10_000_000),
             "arguments_included": False,
         }
-        if usage_metadata is not None:
-            payload.update(
-                tool_analytics_id=usage_metadata.tool_analytics_id,
-                tool_family=usage_metadata.tool_family.value,
-                tool_source=usage_metadata.tool_source.value,
-                argument_size_bucket=usage_metadata.argument_size_bucket.value,
-            )
         if event_type == "tool_call_result":
             payload.update({
                 "success": status == "succeeded",
@@ -608,9 +571,6 @@ async def _execute_tool_block_impl(
     (bash, python) so the agent loop can emit `tool_progress` SSE
     events while the command is in flight. Ignored by other tools.
     """
-    tool = block.tool_type
-    content = block.content
-
     from src.tool_implementations import (
         do_search_chats, do_manage_tasks,
         do_manage_skills, do_recent_changes, do_api_call, do_manage_endpoints,
@@ -693,10 +653,6 @@ async def _execute_tool_block_impl(
         }
         logger.warning("Public tool policy blocked owner=%r tool=%s", owner, tool)
         return desc, result
-
-    diagnostic_refusal = _secret_safe_diagnostic_source_refusal(tool, content)
-    if diagnostic_refusal is not None:
-        return f"{tool}: BLOCKED by diagnostic safety policy", diagnostic_refusal
 
     if tool == "invalid_tool_call":
         try:
@@ -981,9 +937,7 @@ async def _execute_tool_block_impl(
         result = await do_download_model(content, owner=owner)
     elif tool == "serve_model":
         desc = "serve_model"
-        result = await do_serve_model(
-            content, owner=owner, caller_session_id=session_id
-        )
+        result = await do_serve_model(content, owner=owner)
     elif tool == "list_served_models":
         desc = "list_served_models"
         result = await do_list_served_models(content, owner=owner)
@@ -992,9 +946,7 @@ async def _execute_tool_block_impl(
         result = await do_stop_served_model(content, owner=owner)
     elif tool == "tail_serve_output":
         desc = "tail_serve_output"
-        result = await do_tail_serve_output(
-            content, owner=owner, caller_session_id=session_id
-        )
+        result = await do_tail_serve_output(content, owner=owner)
     elif tool == "list_downloads":
         desc = "list_downloads"
         result = await do_list_downloads(content, owner=owner)
@@ -1015,14 +967,10 @@ async def _execute_tool_block_impl(
         result = await do_list_serve_presets(content, owner=owner)
     elif tool == "serve_preset":
         desc = "serve_preset"
-        result = await do_serve_preset(
-            content, owner=owner, caller_session_id=session_id
-        )
+        result = await do_serve_preset(content, owner=owner)
     elif tool == "adopt_served_model":
         desc = "adopt_served_model"
-        result = await do_adopt_served_model(
-            content, owner=owner, caller_session_id=session_id
-        )
+        result = await do_adopt_served_model(content, owner=owner)
     elif tool == "list_cookbook_servers":
         desc = "list_cookbook_servers"
         result = await do_list_cookbook_servers(content, owner=owner)

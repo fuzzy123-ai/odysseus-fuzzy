@@ -282,17 +282,13 @@ def build_webhook_agent_turn_event_payload(
 ) -> dict[str, Any]:
     """Build the redacted event payload for webhook agent turn execution."""
 
-    envelope = agent_turn.get("todo_truth_envelope")
-    payload = {
+    return {
         "kind": "agent_turn",
         "status": str(agent_turn.get("status") or "accepted"),
         "chat_id": str(bridge.get("chat_id") or ""),
         "session_id": str(bridge.get("session_id") or ""),
         "reply_text_present": bool(agent_turn.get("reply_text_present")),
     }
-    if isinstance(envelope, dict):
-        payload["todo_truth_envelope"] = telegram_todo_truth_envelope_public_summary(envelope)
-    return payload
 
 
 def run_webhook_control_command_branch(

@@ -6,21 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from src.agent_verification_receipt import build_verification_receipt, repository_binding
-from src.claim_evidence_gate import (
-    AgentMaintenanceClaimOwnership,
-    AgentMaintenanceCompletionEvidence,
-    ClaimEvidenceReport,
-)
 from src.repo_push_runner import (
-    RepoPushCommandResult,
     RepoPushRunnerError,
     build_repo_forge_ancestry_command,
     build_repo_forge_git_transport_commands,
     build_repo_push_plan,
     parse_repo_remote_head_sha,
     repo_push_command_is_allowed,
-    run_git_push_subprocess_command,
     run_repo_push,
 )
 from src.repo_registry import RepoRecord, RepoRegistry, RepoRemote
@@ -54,21 +46,16 @@ def _make_push_repo(base: Path) -> tuple[Path, Path, str, str]:
     bare = base / "remotes" / "demo.git"
     bare.parent.mkdir(parents=True)
     subprocess.run(["git", "init", "--bare", str(bare)], capture_output=True, text=True, check=True)
-    _git(repo, "remote", "add", "fuzzy", bare.as_uri())
+    _git(repo, "remote", "add", "fuzzy", str(bare))
     return repo, bare, _git(repo, "branch", "--show-current"), _git(repo, "rev-parse", "HEAD")
 
 
-def _registry(
-    *,
-    remote_name: str = "fuzzy",
-    push_policy: str = "push_allowed",
-    remote_url: str | None = None,
-) -> RepoRegistry:
+def _registry(*, remote_name: str = "fuzzy", push_policy: str = "push_allowed") -> RepoRegistry:
     registry = RepoRegistry()
     remotes = [
         RepoRemote.create(
             name=remote_name,
-            url=remote_url or f"https://github.com/fuzzy123-ai/demo-{remote_name}.git",
+            url=f"https://github.com/fuzzy123-ai/demo-{remote_name}.git",
             purpose="fork" if remote_name == "fuzzy" else "origin",
             push_policy=push_policy,
         )
@@ -100,50 +87,6 @@ def _registry(
     return registry
 
 
-def _push_gates(repo: Path, *, remote: str, branch: str, sha: str) -> dict:
-    binding = repository_binding(repo)
-    receipt = build_verification_receipt(
-        {
-            "lane": "guards-only",
-            "strongest_evidence_level": "static",
-            "checks": [
-                {
-                    "check_id": "current_check",
-                    "required": True,
-                    "status": "passed",
-                    "evidence_level": "static",
-                }
-            ],
-            "verification_limits": ["live_not_verified"],
-        },
-        binding_before=binding,
-        binding_after=binding,
-    )
-    completion = AgentMaintenanceCompletionEvidence(
-        receipt=receipt,
-        claim_report=ClaimEvidenceReport(()),
-        expected_lane="guards-only",
-        required_evidence_level="static",
-        claim_ownership=AgentMaintenanceClaimOwnership(
-            expected_claim_id="AMH-06",
-            expected_owner="bob",
-            allowed_paths=("README.md",),
-            current_claim_id="AMH-06",
-            current_owner="bob",
-            current_changed_paths=(),
-            current_staged_paths=(),
-        ),
-    )
-    authority = build_repo_push_authority(
-        repo_id="demo",
-        remote_name=remote,
-        branch_name=branch,
-        commit_sha=sha,
-        granted=True,
-    )
-    return {"completion_evidence": completion, "push_authority": authority}
-
-
 def test_push_plan_blocks_without_live_gates(tmp_path: Path):
     _repo, _bare, branch, head = _make_push_repo(tmp_path)
 
@@ -168,10 +111,10 @@ def test_push_plan_blocks_without_live_gates(tmp_path: Path):
 
 
 def test_push_runner_pushes_current_branch_to_policy_allowed_remote(tmp_path: Path):
-    repo, bare, branch, head = _make_push_repo(tmp_path)
+    _repo, bare, branch, head = _make_push_repo(tmp_path)
 
     report = run_repo_push(
-        registry=_registry(remote_url=bare.as_uri()),
+        registry=_registry(),
         repo_id="demo",
         workspace_base=tmp_path,
         remote_name="fuzzy",
@@ -180,13 +123,11 @@ def test_push_runner_pushes_current_branch_to_policy_allowed_remote(tmp_path: Pa
         confirmed=True,
         operator_go=True,
         live_enabled=True,
-        **_push_gates(repo, remote="fuzzy", branch=branch, sha=head),
     )
 
     assert report.status == "pushed"
     assert report.executed is True
     assert report.pushed_ref == f"fuzzy/{branch}@{head.lower()}"
-    assert f"{head}:refs/heads/{branch}" in report.plan.planned_steps[-1]["summary"]
     assert _git_dir(bare, "rev-parse", f"refs/heads/{branch}") == head
     assert str(tmp_path) not in json.dumps(report.to_dict())
 
@@ -244,7 +185,7 @@ def test_push_runner_blocks_branch_or_sha_mismatch(tmp_path: Path):
         workspace_base=tmp_path,
         remote_name="fuzzy",
         branch_name=branch,
-        commit_sha="d" * 40,
+        commit_sha="deadbee",
         confirmed=True,
         operator_go=True,
         live_enabled=True,
@@ -273,7 +214,7 @@ def test_push_runner_rejects_bad_inputs_and_commands(tmp_path: Path):
             live_enabled=True,
         )
 
-    with pytest.raises(RepoPushRunnerError, match="full Git object id"):
+    with pytest.raises(RepoPushRunnerError, match="Git hash"):
         build_repo_push_plan(
             record=_registry().get("demo"),
             remote_name="fuzzy",
@@ -290,7 +231,7 @@ def test_push_runner_rejects_bad_inputs_and_commands(tmp_path: Path):
     assert repo_push_command_is_allowed(("git", "status", "--short", "--branch")) is True
     assert repo_push_command_is_allowed(("git", "branch", "--show-current")) is True
     assert repo_push_command_is_allowed(("git", "rev-parse", "HEAD")) is True
-    assert repo_push_command_is_allowed(("git", "push", "fuzzy", "codex/demo/work")) is False
+    assert repo_push_command_is_allowed(("git", "push", "fuzzy", "codex/demo/work")) is True
     assert repo_push_command_is_allowed(("git", "push", "--force", "fuzzy", "codex/demo/work")) is False
     assert repo_push_command_is_allowed(("git", "reset", "--hard")) is False
 
@@ -299,7 +240,7 @@ def test_source_uses_shell_false_and_no_provider_runtime():
     source = Path("src/repo_push_runner.py").read_text(encoding="utf-8")
 
     assert "shell=False" in source
-    forbidden = ("requests", "httpx", "paramiko", "cloudflared")
+    forbidden = ("requests", "httpx", "paramiko", "cloudflared", "--force")
     for fragment in forbidden:
         assert fragment not in source
 

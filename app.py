@@ -932,51 +932,7 @@ def _telegram_refresh_session_headers(session_id: str) -> dict | None:
 
 
 def _telegram_session_bridge(**kwargs):
-    from src.agent_tools.session_tools import create_session as do_create_session
-
-    rollover_session_id = str(kwargs.get("rollover_session_id") or "").strip()
-    previous_session_id = str(kwargs.get("previous_session_id") or "").strip()
-    if rollover_session_id:
-        if not (
-            rollover_session_id.startswith("tg-")
-            and len(rollover_session_id) == 17
-            and all(ch in "0123456789abcdef" for ch in rollover_session_id[3:])
-        ):
-            return {"error": "telegram_rollover_session_id_invalid"}
-        try:
-            existing = session_manager.get_session(rollover_session_id)
-        except KeyError:
-            existing = None
-        if existing is not None:
-            return {"session_id": rollover_session_id, "recovered": True}
-        try:
-            previous = session_manager.get_session(previous_session_id)
-        except KeyError:
-            previous = None
-        if previous is None:
-            return {"error": "telegram_rollover_previous_session_missing"}
-        try:
-            created = session_manager.create_session(
-                session_id=rollover_session_id,
-                name=(
-                    f"{str(kwargs.get('recommended_session_name') or 'Telegram Bot')} "
-                    f"{str(kwargs.get('rollover_day') or '').strip()}"
-                ).strip(),
-                endpoint_url=str(getattr(previous, "endpoint_url", "") or ""),
-                model=str(getattr(previous, "model", "") or ""),
-                rag=bool(getattr(previous, "rag", False)),
-                owner=getattr(previous, "owner", None),
-            )
-            created.headers = dict(getattr(previous, "headers", None) or {})
-            return {"session_id": created.id, "recovered": False}
-        except Exception:
-            try:
-                recovered = session_manager.get_session(rollover_session_id)
-            except KeyError:
-                recovered = None
-            if recovered is not None:
-                return {"session_id": rollover_session_id, "recovered": True}
-            return {"error": "telegram_rollover_session_create_failed"}
+    from src.ai_interaction import do_create_session
 
     model_spec = _telegram_model_spec()
     if not model_spec:
@@ -987,17 +943,6 @@ def _telegram_session_bridge(**kwargs):
         logger.warning("Telegram session bridge could not create a session: %s", result.get("error"))
         return {"error": result.get("error")}
     return {"session_id": result.get("session_id") or ""}
-
-
-def _telegram_session_archiver(session_id: str) -> Dict:
-    try:
-        session = session_manager.get_session(str(session_id or "").strip())
-    except KeyError:
-        session = None
-    if session is None:
-        return {"archived": False, "reason": "session_not_found"}
-    session_manager.archive_session(session.id)
-    return {"archived": bool(getattr(session, "archived", False))}
 
 
 def _telegram_rebind_local_session(bridge: Dict) -> Dict:
@@ -1054,14 +999,6 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
     from src.telegram_context_policy import build_telegram_turn_context
     from src.telegram_truth_gate import project_telegram_todo_transactions
     from src.workflow_skills import WorkflowSkillError, resolve_workflow_skills
-    from src.telegram_todo_truth import (
-        build_telegram_todo_truth_envelope,
-        telegram_todo_truth_envelope_has_evidence,
-    )
-    from src.telegram_context_policy import (
-        build_telegram_continuity_message,
-        build_telegram_turn_context,
-    )
 
     session_id = str(bridge.get("session_id") or "").strip()
     prompt = str(bridge.get("prompt") or "").strip()
@@ -1290,7 +1227,6 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
 
 
 app.state.telegram_session_bridge = _telegram_session_bridge
-app.state.telegram_session_archiver = _telegram_session_archiver
 app.state.telegram_agent_turn_handler = _telegram_agent_turn_handler
 app.state.telegram_owner = _telegram_owner()
 logger.info("Telegram AI bridge initialized")

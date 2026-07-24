@@ -11,28 +11,12 @@ import json
 import logging
 import re
 import threading
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, Iterable, Optional
-
-from src.tool_catalog import (
-    ToolAvailability,
-    ToolDescriptorV2,
-    ToolEffectClass,
-    ToolFamily,
-    ToolLifecycle,
-    ToolPermission,
-    ToolRiskLevel,
-    ToolSource,
-    ToolVisibility,
-)
 
 logger = logging.getLogger(__name__)
 
 _NAME_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}$")
-_SOURCE_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,119}$")
-_SECRET_RE = re.compile(
-    r"(?i)(authorization|cookie|api[_-]?key|password|passwd|secret|token|bearer\s+[A-Za-z0-9._-]{8,})"
-)
 _TYPEERROR_FALLBACK_HINTS = (
     "unexpected keyword argument",
     "positional argument",
@@ -143,7 +127,6 @@ def register_tool(spec: ToolSpec | Dict[str, Any]) -> ToolSpec:
         description=tool.description,
     )
     with _LOCK:
-        _validate_registry_collisions(tool)
         _TOOLS[tool.name] = tool
         _DESCRIPTORS[tool.name] = descriptor
         _bump_generation()
@@ -164,20 +147,6 @@ def unregister_tool(name: str) -> None:
 def get_tool(name: str) -> Optional[ToolSpec]:
     with _LOCK:
         return _TOOLS.get(str(name))
-
-
-def usage_identity_for_tool(name: str) -> tuple[str, ToolFamily] | None:
-    """Return content-free analytics identity for a registered Plugin tool."""
-
-    with _LOCK:
-        tool = _TOOLS.get(str(name))
-    if tool is None:
-        return None
-    try:
-        family = ToolFamily(tool.family)
-    except ValueError:
-        family = ToolFamily.UNCLASSIFIED_DYNAMIC
-    return _analytics_id(tool.name), family
 
 
 def list_tools() -> list[ToolSpec]:
@@ -202,82 +171,6 @@ def tool_names() -> set[str]:
 
 def get_function_schemas() -> list[Dict[str, Any]]:
     return [_schema_for(tool) for tool in list_tools()]
-
-
-def descriptor_for_tool(tool: ToolSpec) -> ToolDescriptorV2:
-    """Build the fail-closed Descriptor V2 projection for a Plugin tool."""
-
-    normalized = _coerce_spec(tool)
-    lifecycle = ToolLifecycle(normalized.lifecycle)
-    availability = ToolAvailability(normalized.availability)
-    family = ToolFamily(normalized.family)
-    catalog_blocked = (
-        family == ToolFamily.UNCLASSIFIED_DYNAMIC
-        or lifecycle == ToolLifecycle.BLOCKED
-        or availability in {
-            ToolAvailability.BLOCKED,
-            ToolAvailability.UNAVAILABLE,
-            ToolAvailability.UNKNOWN,
-        }
-    )
-    operational = (
-        not catalog_blocked
-        and lifecycle in {ToolLifecycle.ACTIVE, ToolLifecycle.CONTEXTUAL}
-        and availability == ToolAvailability.AVAILABLE
-    )
-    return ToolDescriptorV2.create(
-        tool_id=normalized.name,
-        analytics_id=_analytics_id(normalized.name),
-        display_name=" ".join(part for part in normalized.name.split("_") if part).title(),
-        description=_safe_catalog_description(normalized.description),
-        family=family,
-        source=ToolSource.PLUGIN,
-        lifecycle=lifecycle,
-        availability=availability,
-        default_enabled=False,
-        default_visibility=(
-            ToolVisibility.BLOCKED
-            if catalog_blocked
-            else ToolVisibility.REQUIRES_APPROVAL
-            if operational
-            else ToolVisibility.HIDDEN
-        ),
-        risk_level=ToolRiskLevel.ELEVATED,
-        permission=(
-            ToolPermission.OWNER
-            if normalized.permission == "owner"
-            else ToolPermission.ADMIN
-        ),
-        effect_class=ToolEffectClass.CONTROL,
-        requires_confirmation=True,
-        schema_ref=f"function:{normalized.name}",
-        handler_ref=f"plugin:{normalized.name}",
-        aliases=normalized.aliases,
-        introduced_in="dynamic-plugin",
-    )
-
-
-def get_catalog_projection() -> dict[str, Any]:
-    """Return a generation-bound, content-free Plugin descriptor snapshot."""
-
-    with _LOCK:
-        current_generation = _GENERATION
-        tools = tuple(tool for _, tool in sorted(_TOOLS.items()))
-    rows = []
-    for tool in tools:
-        row = descriptor_for_tool(tool).audit_summary()
-        row["source_id"] = tool.source_id
-        rows.append(row)
-    return {
-        "schema": "odysseus.dynamic_tool_catalog.v1",
-        "descriptor_schema": ToolDescriptorV2.SCHEMA_VERSION,
-        "generation": current_generation,
-        "tool_count": len(rows),
-        "descriptors": tuple(rows),
-        "raw_schema_visible": False,
-        "raw_content_visible": False,
-        "secret_values_visible": False,
-    }
 
 
 def get_tool_sections() -> Dict[str, str]:

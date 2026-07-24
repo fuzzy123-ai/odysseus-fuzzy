@@ -2,22 +2,14 @@
 
 from __future__ import annotations
 
-import hashlib
 import os
 import re
-import stat
 import subprocess
-import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping, Protocol
 
-from src.agent_verification_receipt import ReceiptError, repository_binding
-from src.claim_evidence_gate import (
-    AgentMaintenanceCompletionEvidence,
-    evaluate_agent_maintenance_completion,
-)
 from src.constants import MAX_OUTPUT_CHARS
 from src.project_forge_contract import ProjectForgeContractError, validate_persisted_text
 from src.repo_registry import RepoRecord, RepoRegistry, RepoRegistryError
@@ -26,7 +18,6 @@ from src.repo_registry import RepoRecord, RepoRegistry, RepoRegistryError
 _DECISIONS = ("blocked", "hold", "plan_ready")
 _MAX_TIMEOUT_SECONDS = 300
 _MAX_CHANGED_PATHS = 80
-_MAX_REVIEWED_CONTENT_BYTES = 32 * 1024 * 1024
 _SECRET_RE = re.compile(r"(?i)\b(token|secret|password|passwd|api[_-]?key|bearer)\b\s*[:=]\s*\S+")
 _WINDOWS_PATH_RE = re.compile(r"[A-Za-z]:[\\/][^\s\t]+")
 _ABSOLUTE_PATH_RE = re.compile(r"(?<![A-Za-z0-9._-])/(?:[^\s/]+/)*[^\s]+")
@@ -85,25 +76,6 @@ class RepoCommitStatusEntry:
 
 
 @dataclass(frozen=True, slots=True)
-class RepoCommitIndexEntry:
-    mode: str
-    blob_id: str
-    stage: int
-    path: str
-
-
-@dataclass(frozen=True, slots=True)
-class RepoCommitAuthority:
-    action: str
-    repo_id: str
-    reviewed_paths: tuple[str, ...]
-    head_revision: str
-    reviewed_content_digest: str
-    reviewed_index: tuple[RepoCommitIndexEntry, ...]
-    granted: bool
-
-
-@dataclass(frozen=True, slots=True)
 class RepoCommitPlan:
     repo_id: str
     repo_path_ref: str
@@ -114,8 +86,6 @@ class RepoCommitPlan:
     checks_passed: bool
     content_reviewed: bool
     confirmed: bool
-    completion_verified: bool
-    action_authorized: bool
     decision: str
     blockers: tuple[str, ...]
     status_entries: tuple[RepoCommitStatusEntry, ...]
@@ -139,8 +109,6 @@ class RepoCommitPlan:
             "checks_passed": self.checks_passed,
             "content_reviewed": self.content_reviewed,
             "confirmed": self.confirmed,
-            "completion_verified": self.completion_verified,
-            "action_authorized": self.action_authorized,
             "can_commit": self.can_commit,
             "decision": self.decision,
             "blockers": list(self.blockers),
@@ -172,40 +140,6 @@ class RepoCommitReport:
         }
 
 
-def build_repo_commit_authority(
-    *,
-    repo_id: Any,
-    repo_path: str | Path,
-    reviewed_paths: Iterable[Any],
-    granted: bool,
-) -> RepoCommitAuthority:
-    """Bind explicit commit authority to AMH-04's admitted current dirty state."""
-
-    if type(granted) is not bool:
-        raise RepoCommitRunnerError("granted must be a boolean")
-    normalized_repo_id = _normalize_text(repo_id, field_name="repo_id", max_len=120)
-    paths = _dedupe_paths(reviewed_paths)
-    root = Path(repo_path).resolve()
-    if not root.is_dir() or not (root / ".git").exists():
-        raise RepoCommitRunnerError("repo_path is not a local Git repository")
-    try:
-        head_revision, content_digest, reviewed_index = _reviewed_content_binding(
-            root,
-            paths,
-        )
-    except (OSError, ReceiptError) as exc:
-        raise RepoCommitRunnerError("safe repository binding is unavailable") from exc
-    return RepoCommitAuthority(
-        action="commit",
-        repo_id=normalized_repo_id,
-        reviewed_paths=paths,
-        head_revision=head_revision,
-        reviewed_content_digest=content_digest,
-        reviewed_index=reviewed_index,
-        granted=granted,
-    )
-
-
 def plan_repo_local_commit(
     *,
     registry: RepoRegistry,
@@ -220,22 +154,12 @@ def plan_repo_local_commit(
     commit_body: Any | None = None,
     repo_roots: Mapping[str, str | os.PathLike[str]] | None = None,
     command_runner: RepoCommitCommandRunner | None = None,
-    completion_evidence: AgentMaintenanceCompletionEvidence | None = None,
-    commit_authority: RepoCommitAuthority | None = None,
 ) -> RepoCommitReport:
     record, repo_path = _resolve_repo(
         registry=registry,
         repo_id=repo_id,
         workspace_base=workspace_base,
         repo_roots=repo_roots,
-    )
-    paths = _dedupe_paths(changed_paths)
-    completion_verified, action_authorized = _current_commit_gates(
-        repo_path=repo_path,
-        repo_id=record.repo_id,
-        changed_paths=paths,
-        completion_evidence=completion_evidence,
-        commit_authority=commit_authority,
     )
     status_result = (command_runner or run_git_commit_subprocess_command)(
         ("git", "status", "--short", "--branch"),
@@ -247,7 +171,7 @@ def plan_repo_local_commit(
         plan = _blocked_plan(
             record=record,
             objective=objective,
-            changed_paths=paths,
+            changed_paths=changed_paths,
             checks_passed=checks_passed,
             content_reviewed=content_reviewed,
             confirmed=confirmed,
@@ -255,8 +179,6 @@ def plan_repo_local_commit(
             commit_body=commit_body,
             reason="status command failed before commit planning",
             status_output=status_result.stdout,
-            completion_verified=completion_verified,
-            action_authorized=action_authorized,
         )
         return RepoCommitReport(
             status="blocked",
@@ -271,15 +193,13 @@ def plan_repo_local_commit(
         record=record,
         repo_path=repo_path,
         objective=objective,
-        changed_paths=paths,
+        changed_paths=changed_paths,
         checks_passed=checks_passed,
         content_reviewed=content_reviewed,
         confirmed=confirmed,
         commit_message=commit_message,
         commit_body=commit_body,
         status_output=status_result.stdout,
-        completion_verified=completion_verified,
-        action_authorized=action_authorized,
     )
     return RepoCommitReport(
         status=plan.decision,
@@ -305,8 +225,6 @@ def run_repo_local_commit(
     commit_body: Any | None = None,
     repo_roots: Mapping[str, str | os.PathLike[str]] | None = None,
     command_runner: RepoCommitCommandRunner | None = None,
-    completion_evidence: AgentMaintenanceCompletionEvidence | None = None,
-    commit_authority: RepoCommitAuthority | None = None,
 ) -> RepoCommitReport:
     record, repo_path = _resolve_repo(
         registry=registry,
@@ -315,14 +233,6 @@ def run_repo_local_commit(
         repo_roots=repo_roots,
     )
     runner = command_runner or run_git_commit_subprocess_command
-    paths = _dedupe_paths(changed_paths)
-    completion_verified, action_authorized = _current_commit_gates(
-        repo_path=repo_path,
-        repo_id=record.repo_id,
-        changed_paths=paths,
-        completion_evidence=completion_evidence,
-        commit_authority=commit_authority,
-    )
     status_result = runner(
         ("git", "status", "--short", "--branch"),
         cwd=repo_path,
@@ -333,7 +243,7 @@ def run_repo_local_commit(
         plan = _blocked_plan(
             record=record,
             objective=objective,
-            changed_paths=paths,
+            changed_paths=changed_paths,
             checks_passed=checks_passed,
             content_reviewed=content_reviewed,
             confirmed=confirmed,
@@ -341,8 +251,6 @@ def run_repo_local_commit(
             commit_body=commit_body,
             reason="status command failed before commit",
             status_output=status_result.stdout,
-            completion_verified=completion_verified,
-            action_authorized=action_authorized,
         )
         return RepoCommitReport(
             status="blocked",
@@ -357,15 +265,13 @@ def run_repo_local_commit(
         record=record,
         repo_path=repo_path,
         objective=objective,
-        changed_paths=paths,
+        changed_paths=changed_paths,
         checks_passed=checks_passed,
         content_reviewed=content_reviewed,
         confirmed=confirmed,
         commit_message=commit_message,
         commit_body=commit_body,
         status_output=status_result.stdout,
-        completion_verified=completion_verified,
-        action_authorized=action_authorized,
     )
     results: list[RepoCommitCommandResult] = [status_result]
     if not plan.can_commit:
@@ -496,10 +402,6 @@ def build_repo_commit_plan(
         blockers.append("content_reviewed must be a boolean")
     elif not content_reviewed:
         blockers.append("content_reviewed=true is required to confirm no secret or private-content risk")
-    if completion_verified is not True:
-        blockers.append("current claims and machine verification receipt are required before commit")
-    if action_authorized is not True:
-        blockers.append("typed explicit commit authority is required")
     if not paths:
         blockers.append("changed_paths are required before commit")
     if staged_paths:
@@ -539,8 +441,6 @@ def parse_repo_commit_status(output: str) -> tuple[str, tuple[RepoCommitStatusEn
     lines = [line for line in str(output or "").splitlines() if line.strip()]
     branch_line = lines[0] if lines and lines[0].startswith("##") else ""
     entry_lines = lines[1:] if branch_line else lines
-    if len(entry_lines) > _MAX_CHANGED_PATHS:
-        raise RepoCommitRunnerError("repository status exceeds the safe changed path limit")
     entries: list[RepoCommitStatusEntry] = []
     for raw_line in entry_lines[:_MAX_CHANGED_PATHS]:
         if len(raw_line) < 4:
@@ -632,8 +532,6 @@ def _blocked_plan(
     commit_body: Any | None,
     reason: str,
     status_output: str,
-    completion_verified: bool = False,
-    action_authorized: bool = False,
 ) -> RepoCommitPlan:
     objective_text = _normalize_text(objective, field_name="objective", max_len=500)
     paths = _dedupe_paths(changed_paths)
@@ -698,169 +596,6 @@ def _assert_exact_commit_path(repo_path: Path, path: str, entries: tuple[RepoCom
     raise RepoCommitRunnerError(f"changed_path `{path}` does not exist and is not a tracked deletion")
 
 
-def _current_commit_gates(
-    *,
-    repo_path: Path,
-    repo_id: str,
-    changed_paths: tuple[str, ...],
-    completion_evidence: AgentMaintenanceCompletionEvidence | None,
-    commit_authority: RepoCommitAuthority | None,
-) -> tuple[bool, bool]:
-    completion = evaluate_agent_maintenance_completion(
-        completion_evidence,
-        repo_root=repo_path,
-    )
-    return (
-        completion.completed,
-        _commit_authority_matches_current(
-            commit_authority,
-            repo_path=repo_path,
-            repo_id=repo_id,
-            changed_paths=changed_paths,
-        ),
-    )
-
-
-def _read_staged_review_binding(
-    runner: RepoCommitCommandRunner,
-    *,
-    repo_path: Path,
-    paths: tuple[str, ...],
-    authority: RepoCommitAuthority | None,
-) -> tuple[tuple[RepoCommitCommandResult, ...], bool]:
-    if not isinstance(authority, RepoCommitAuthority):
-        return (), False
-    index_result = runner(
-        ("git", "ls-files", "--stage", "-z", "--", *paths),
-        cwd=repo_path,
-        timeout_seconds=_MAX_TIMEOUT_SECONDS,
-        env={},
-    )
-    hash_results = tuple(
-        runner(
-            ("git", "hash-object", "--path", path, "--", path),
-            cwd=repo_path,
-            timeout_seconds=_MAX_TIMEOUT_SECONDS,
-            env={},
-        )
-        for path in paths
-    )
-    results = (index_result, *hash_results)
-    if not index_result.ok or any(not result.ok for result in hash_results):
-        return results, False
-    try:
-        staged_entries = _parse_index_entries(index_result.stdout)
-        worktree_blobs = tuple(
-            _parse_hash_object_output(result.stdout, paths=(path,))[0]
-            for path, result in zip(paths, hash_results, strict=True)
-        )
-    except RepoCommitRunnerError:
-        return results, False
-    expected_by_path = {entry.path: entry for entry in authority.reviewed_index}
-    staged_by_path = {entry.path: entry for entry in staged_entries}
-    worktree_by_path = dict(zip(paths, worktree_blobs, strict=True))
-    exact = set(expected_by_path) == set(paths) == set(staged_by_path)
-    if exact:
-        for path in paths:
-            expected = expected_by_path[path]
-            staged = staged_by_path[path]
-            if (
-                staged.mode != expected.mode
-                or staged.stage != 0
-                or staged.blob_id != expected.blob_id
-                or worktree_by_path[path] != expected.blob_id
-            ):
-                exact = False
-                break
-    return results, exact
-
-
-def _commit_authority_matches_current(
-    authority: RepoCommitAuthority | None,
-    *,
-    repo_path: Path,
-    repo_id: str,
-    changed_paths: tuple[str, ...],
-) -> bool:
-    if (
-        not isinstance(authority, RepoCommitAuthority)
-        or authority.action != "commit"
-        or authority.granted is not True
-        or authority.repo_id != repo_id
-        or authority.reviewed_paths != changed_paths
-    ):
-        return False
-    try:
-        head_revision, content_digest, reviewed_index = _reviewed_content_binding(
-            repo_path,
-            changed_paths,
-        )
-    except (OSError, ReceiptError, RepoCommitRunnerError):
-        return False
-    return (
-        head_revision == authority.head_revision
-        and content_digest == authority.reviewed_content_digest
-        and reviewed_index == authority.reviewed_index
-    )
-
-
-def _reviewed_content_binding(
-    repo_path: Path,
-    reviewed_paths: tuple[str, ...],
-) -> tuple[str, str, tuple[RepoCommitIndexEntry, ...]]:
-    admission_before = repository_binding(repo_path)
-    if admission_before.workspace_state != "dirty_diff":
-        raise RepoCommitRunnerError("commit authority requires a safely admitted dirty diff")
-    digest = hashlib.sha256()
-    digest.update(b"odysseus.repo_commit_review.v1\0")
-    digest.update(admission_before.head_revision.encode("ascii"))
-    existing_index = _read_index_entries_direct(repo_path, reviewed_paths)
-    existing_by_path = {
-        entry.path: entry
-        for entry in existing_index
-        if entry.stage == 0
-    }
-    total = 0
-    reviewed_index: list[RepoCommitIndexEntry] = []
-    for path in reviewed_paths:
-        lexical = repo_path / path
-        if lexical.is_symlink():
-            raise RepoCommitRunnerError("reviewed path must be a regular repository file")
-        candidate = lexical.resolve(strict=True)
-        _assert_child_path(repo_path, candidate)
-        if not candidate.is_file():
-            raise RepoCommitRunnerError("reviewed path must be a regular repository file")
-        data = candidate.read_bytes()
-        total += len(data)
-        if total > _MAX_REVIEWED_CONTENT_BYTES:
-            raise RepoCommitRunnerError("reviewed content exceeds the safe size limit")
-        encoded_path = path.encode("utf-8")
-        digest.update(len(encoded_path).to_bytes(4, "big"))
-        digest.update(encoded_path)
-        digest.update(len(data).to_bytes(8, "big"))
-        digest.update(data)
-        existing = existing_by_path.get(path)
-        mode = (
-            existing.mode
-            if existing is not None
-            else "100755"
-            if candidate.stat().st_mode & stat.S_IXUSR
-            else "100644"
-        )
-        reviewed_index.append(
-            RepoCommitIndexEntry(
-                mode=mode,
-                blob_id=_read_filtered_blob_id(repo_path, path),
-                stage=0,
-                path=path,
-            )
-        )
-    admission_after = repository_binding(repo_path)
-    if admission_after != admission_before:
-        raise RepoCommitRunnerError("repository changed while reviewed content was bound")
-    return admission_after.head_revision, digest.hexdigest(), tuple(reviewed_index)
-
-
 def _assert_child_path(parent: Path, child: Path) -> None:
     parent_resolved = parent.resolve()
     child_resolved = child.resolve()
@@ -868,31 +603,6 @@ def _assert_child_path(parent: Path, child: Path) -> None:
         child_resolved.relative_to(parent_resolved)
     except ValueError as exc:
         raise RepoCommitRunnerError("commit path escapes registered repository") from exc
-
-
-def _git_metadata_directory(repo_path: Path) -> Path:
-    marker = repo_path / ".git"
-    if marker.is_dir():
-        return marker.resolve()
-    if not marker.is_file() or marker.stat().st_size > 4096:
-        raise RepoCommitRunnerError("Git metadata directory is unavailable")
-    try:
-        text = marker.read_text(encoding="utf-8", errors="strict").strip()
-    except (OSError, UnicodeError) as exc:
-        raise RepoCommitRunnerError("Git metadata directory is unavailable") from exc
-    prefix = "gitdir:"
-    if not text.lower().startswith(prefix) or "\n" in text or "\r" in text:
-        raise RepoCommitRunnerError("Git metadata directory is unavailable")
-    raw_path = text[len(prefix) :].strip()
-    if not raw_path:
-        raise RepoCommitRunnerError("Git metadata directory is unavailable")
-    candidate = Path(raw_path)
-    if not candidate.is_absolute():
-        candidate = marker.parent / candidate
-    resolved = candidate.resolve()
-    if not resolved.is_dir():
-        raise RepoCommitRunnerError("Git metadata directory is unavailable")
-    return resolved
 
 
 def _dedupe_paths(values: Iterable[Any]) -> tuple[str, ...]:

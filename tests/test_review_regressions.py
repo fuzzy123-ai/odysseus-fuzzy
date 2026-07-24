@@ -838,7 +838,6 @@ async def test_webhook_tool_reuses_private_url_validation(monkeypatch):
     )
 
     assert result["exit_code"] == 1
-    assert result["status_code"] == 422
     assert "private/internal" in result["error"]
     assert calls[0][0].endswith("/api/webhooks")
     assert calls[0][1]["data"]["url"] == "http://127.0.0.1:8000/hook"

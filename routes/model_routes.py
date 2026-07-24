@@ -1573,7 +1573,6 @@ def setup_model_routes(model_discovery):
         from src.builtin_tool_catalog import resolve_operator_priority_disabled
         from src.tool_index import BUILTIN_TOOL_DESCRIPTIONS
         from src.tool_schema_definitions import FUNCTION_TOOL_SCHEMAS
-        from src.tool_policy import operator_priority_disabled_tools
 
         settings = _load_settings()
         disabled, _priority_defaults_applied = resolve_operator_priority_disabled(

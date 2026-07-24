@@ -123,8 +123,6 @@ def test_registered_tool_appears_in_agent_prompt():
 
 
 def test_tool_index_indexes_and_prunes_plugin_tools():
-    existing_names = tool_names()
-
     class _Collection:
         def __init__(self):
             self.ids = ["plugin_stale"]
