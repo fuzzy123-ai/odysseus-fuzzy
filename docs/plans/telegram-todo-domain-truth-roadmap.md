@@ -7,9 +7,9 @@ Status: `TTD-00` bis `TTD-02` sind am 2026-07-23 akzeptiert. Der read-only
 `TTD-03A-todo-semantic-receipt-ledger` ist nach einem frischen Charlie/Terra-
 Reparaturhandoff und zwei tiefen Sol-Runden auf exakt neun Pfaden akzeptiert.
 `TTD-03B` ist nach drei tiefen Sol-Runden auf exakt zwei Pfaden akzeptiert.
-`TTD-04` und `TTD-05` sind dependency-ready; als naechstes laeuft nur ein
-read-only TTD-04 Telegram-Todo-Event-Propagation-/Exaktpfad-Recon, TTD-05
-bleibt unselected.
+Der read-only `TTD-04` Telegram-Todo-Event-Propagation-/Exaktpfad-Recon ist
+abgeschlossen; ein exakt acht Pfade umfassender content-free Bridge-Slice ist
+geclaimt. `TTD-05` bleibt dependency-ready und unselected.
 der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -514,7 +514,7 @@ Akzeptanz:
 
 Owner: Bob
 
-Status: `ttd03a_ttd03b_accepted_ttd04_read_only_recon_next_ttd05_ready_unselected`
+Status: `ttd03a_ttd03b_accepted_ttd04_bridge_claimed_ttd05_ready_unselected`
 
 Read-only Boundary-Recon 2026-07-23:
 
@@ -655,12 +655,29 @@ Serialisierung:
 
 Naechste Frontier:
 
-- Phase: `analysis_only`; keine TTD-04-Implementierungsdatei aendern
-- Scout: Charlie/Terra read-only; Reduktion und Scope-Korrektur: root/Sol
-- Claim: keiner; aktive Claims: 0
-- Naechste Aktion: nachweisen, wo Todo-Receipt-/Transaction-Evidence den
-  Telegram-Reply-Pfad erreicht, welche Plugin-/Truth-Gate-/Webhook-Pfade
-  tatsaechlich notwendig sind und welche TTD-05-Digest-Hotfiles kollidieren
+- Phase: `repo_only_implementation`; TTD-05 bleibt unselected
+- Recon: Charlie/Terra read-only abgeschlossen; Reduktion und Claim:
+  root/Sol
+- Claim: `TTD-04-telegram-todo-transaction-bridge`,
+  Run `abc-ttd04-20260724T100754+0200`, Owner Charlie, aktiv bis
+  `2026-07-24T14:07:54+02:00`
+- Exakt acht Pfade: `app.py`, `plugins/telegram/plugin.py`,
+  `plugins/telegram/polling.py`, `plugins/telegram/webhook_service.py`,
+  `src/telegram_truth_gate.py` sowie die drei bestehenden fokussierten Tests
+  `tests/test_telegram_truth_gate.py`,
+  `tests/test_telegram_webhook_service.py` und
+  `tests/test_telegram_plugin.py`
+- Befund: `stream_agent_loop` emittiert bereits content-free
+  `metrics.data.tool_transactions`; `app.py` verwirft das Metrics-Event,
+  Polling/Webhook reduzieren anschliessend auf Text und das Pre-Send-Gate
+  erhaelt keine Transaction-Evidence
+- Geschlossener Scope: nur verifizierte Todo-Transactions erfassen,
+  fail-closed durch beide Agent-Bridges tragen und optional an das bestehende
+  Pre-Send-Gate geben; kein Raw-Tool-Event, Command, Output, Todo-Text, Chat-ID
+  oder unredigierter Identifier darf in den Carrier oder Audit-History gelangen
+- Ausgeschlossen: Agent-Loop, Claim-Gate, Ledger, Receipt, Digest, Scheduler,
+  Calendar, Attachment/Export/Document/Control, Session/FTS, produktive Daten,
+  Provider, Network, Send, Deploy und jede Live-Mutation
 - Kein Push, Deploy, Providerzugriff, produktiver Datenzugriff oder Live-Smoke
 
 Live-Readback 2026-07-24:
@@ -711,19 +728,44 @@ Akzeptanz:
 
 Owner: Charlie fuer Integration, Bob fuer isolierte Backend-Bausteine
 
+Status: `claimed_2026-07-24`
+
+Serialized claim:
+
+- Run: `abc-ttd04-20260724T100754+0200`
+- Owner: Charlie
+- Lease: `2026-07-24T10:07:54+02:00` bis
+  `2026-07-24T14:07:54+02:00`
+- Exakt erlaubte Pfade:
+  - `app.py`
+  - `plugins/telegram/plugin.py`
+  - `plugins/telegram/polling.py`
+  - `plugins/telegram/webhook_service.py`
+  - `src/telegram_truth_gate.py`
+  - `tests/test_telegram_truth_gate.py`
+  - `tests/test_telegram_webhook_service.py`
+  - `tests/test_telegram_plugin.py`
+- TTD-05-Digest-Pfade sind disjunkt und bleiben unselected.
+- Der Carrier enthaelt ausschliesslich streng validierte, content-free
+  Todo-Transactions aus dem terminalen Agent-Metrics-Event.
+- Generische, Control-, Attachment-, Export- und Document-Replies behalten
+  ueber optionale Defaults ihr bisheriges Verhalten.
+
 Ziel:
 
 - Tool-Start, Tool-Output, Transaktion und Postcondition bis zum Telegram
   Pre-Send-Gate erhalten.
 - Todo-Erfolgsclaims gegen kanonische Receipts pruefen.
 
-Voraussichtliche Pfade:
+Nicht geclaimte Altprognosen:
 
 - `app.py` nur als serialisierter Integrations-Hotfile
 - `plugins/telegram/plugin.py` nur mit explizitem Single-Writer-Handoff
 - `src/telegram_truth_gate.py`
-- `src/claim_evidence_gate.py`
-- neue `tests/test_telegram_todo_truth.py`
+- `src/claim_evidence_gate.py` ist durch TTD-03B bereits ausreichend und
+  deshalb ausgeschlossen.
+- Ein neues `tests/test_telegram_todo_truth.py` oder ein altes
+  `telegram_todo_truth.py`-Envelope wird nicht eingefuehrt.
 
 Akzeptanz:
 
