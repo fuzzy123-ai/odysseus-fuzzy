@@ -28,9 +28,10 @@ Implementierungscommit `daca1dc4` akzeptiert. `TTD-07A2` ist nach Root-Check,
 mehreren Terra-Korrekturen und tiefem Sol-PASS am Implementierungscommit
 `090ede31` akzeptiert. `TTD-07A3` ist nach mehreren Root-/Terra-Korrekturrunden
 und finalem tiefen Sol-PASS am Implementierungscommit `53109195` akzeptiert.
-`TTD-07A4` ist der einzige aktive Fuenfpfad-Claim fuer die atomare
-Replacement-Session-, Archiv-, Binding-Generation- und terminale
-Rollover-Transaktion; Polling, Webhook und Live bleiben ungeclaimt.
+`TTD-07A4` ist nach drei tiefen Sol-Reviews und finalem PASS am
+Implementierungscommit `c48f47c8` akzeptiert. `TTD-07A5` ist der einzige aktive
+Elfpfad-Claim fuer Poll-/Webhook-Koordination, Turn-Lease, Empty-Poll-Sweep und
+verlustfreien Retry; produktive Aktivierung und Live bleiben ungeclaimt.
 Der dazu disjunkte Achtpfad-Slice `TTD-08A` fuer wahrheitsgemaesse
 Raw-Klassifikation und content-free Audit-Projektionen ist akzeptiert.
 Der dazu disjunkte Vierpfad-Slice `TTD-08B` fuer einen separaten begrenzten
@@ -1319,17 +1320,28 @@ Akzeptierte Child-Slices:
   all-or-none Projektionsstatus
 - bestehende produktive Call-Sites bleiben auf dem Legacy-Adapter
 
+- `TTD-07A4-atomic-session-lifecycle`
+- Claim `24b7a63a`; Implementierung `c48f47c8`
+- exakt fuenf benannte fokussierte Nodes: `5 passed` in `7.15s`
+- AST auf allen fuenf Claim-Pfaden, exakter Dreipfad-Diff und tiefe read-only
+  Sol-Abnahme nach drei Reviews: `PASS`
+- default-off atomarer Service mit `BEGIN IMMEDIATE`, terminal-first Daily
+  Winner, kanonischem Secure-Gate, exakter Clone-Allowlist, Winner-Reload und
+  vollstaendigem Rollback
+- keine produktive Call-Site-, Polling-, Webhook- oder Live-Aktivierung
+
 Aktiver Child-Claim:
 
-- `TTD-07A4-atomic-session-lifecycle`
-- exakt `app.py`, `core/session_manager.py`,
-  `src/telegram_session_rollover.py`,
-  `tests/test_telegram_session_rollover.py` und
-  `tests/test_telegram_context_policy.py`
+- `TTD-07A5-poll-webhook-sweep-and-turn-lease`
+- exakt `plugins/telegram/polling.py`, `plugins/telegram/plugin.py`,
+  `plugins/telegram/routes_polling.py`, `plugins/telegram/webhook_service.py`,
+  `plugins/telegram/control_service.py`, `plugins/telegram/stores.py`, `app.py`,
+  `src/telegram_session_rollover.py`, `tests/test_telegram_plugin.py`,
+  `tests/test_telegram_webhook_service.py` und
+  `tests/test_telegram_session_rollover.py`
 - Bob/Terra high; tiefe Sol-Abnahme; exakt fuenf benannte fokussierte Nodes
-- nur synthetische Owner/Session-Fixtures und temporaere SQLite-Instanzen
-- keine Continuity-, Polling-, Webhook-, Route-, Provider-, Send-, Debian- oder
-  Live-Aktion
+- nur synthetische Owner/Update-/Lease-Fixtures und temporaere SQLite-Instanzen
+- default-off; keine Continuity-, Provider-, Send-, Debian- oder Live-Aktion
 
 Akzeptanz:
 

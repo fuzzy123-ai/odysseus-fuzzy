@@ -576,8 +576,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "owm22_ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a3_accepted_ttd07a4_claimed_live_default_off",
-      "ai_hint": "This is the current gate authority. TTD-07A3 is accepted at 53109195 after an exact five-node check and deep Sol PASS. TTD-07A4 is the sole active repo-only claim on app.py, core/session_manager.py, src/telegram_session_rollover.py, tests/test_telegram_session_rollover.py and tests/test_telegram_context_policy.py for the atomic replacement Session, archive, binding-generation and terminal rollover transaction. TTD-07A5 through TTD-07A6 plus every polling, webhook, route and live path remain blocked."
+      "state": "owm22_ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_claimed_live_default_off",
+      "ai_hint": "This is the current gate authority. TTD-07A4 is accepted at c48f47c8 after an exact five-node check and deep Sol PASS. TTD-07A5 is the sole active repo-only claim on its eleven polling, webhook, control, store, app, rollover and focused-test paths for the shared coordinator, durable turn lease, empty-poll sweep and lossless retry contract. TTD-07A6 plus productive enablement and every live path remain blocked."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
@@ -744,14 +744,14 @@
     {
       "path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "profile": "active_serial",
-      "state": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a3_accepted_ttd07a4_claimed_live_default_off",
-      "ai_hint": "TTD-04 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A3 are accepted. TTD-07A4 is the only active five-path implementation claim and may use only synthetic owner-scoped Sessions and temporary SQLite for one atomic replacement/archive/binding/rollover transaction. Preserve all production call sites, continuity, polling, webhook, provider, Debian and live paths."
+      "state": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_claimed_live_default_off",
+      "ai_hint": "TTD-04 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A4 are accepted. TTD-07A5 is the only active eleven-path implementation claim and may use only synthetic owners, updates, leases and temporary SQLite for the default-off poll/webhook coordinator. Preserve continuity, provider, Debian, productive enablement and every live path."
     },
     {
       "path": "docs/plans/telegram-session-rollover-transaction-contract.md",
       "profile": "active_serial_contract",
-      "state": "ttd07a0_through_ttd07a3_accepted_ttd07a4_atomic_lifecycle_claimed",
-      "ai_hint": "This is the accepted TTD-07A implementation contract at 4fb9ba62. TTD-07A1 is accepted at daca1dc4, TTD-07A2 at 090ede31 and TTD-07A3 at 53109195. Execute only the committed TTD-07A4 five-path atomic Session-lifecycle claim; its successors remain serially blocked. Existing production call sites remain on the legacy adapter, and the later renewable lease, intake transport retry and poll-start sweep contracts grant no current polling, webhook, route or live authority."
+      "state": "ttd07a0_through_ttd07a4_accepted_ttd07a5_poll_webhook_lease_claimed",
+      "ai_hint": "This is the accepted TTD-07A implementation contract at 4fb9ba62. TTD-07A1 is accepted at daca1dc4, TTD-07A2 at 090ede31, TTD-07A3 at 53109195 and TTD-07A4 at c48f47c8. Execute only the committed TTD-07A5 eleven-path poll/webhook sweep and durable turn-lease claim; TTD-07A6 remains serially blocked. The feature stays default off and no provider, send, deploy, Debian or live authority exists."
     },
     {
       "path": "docs/plans/telegram-dual-session-router-hotfix-roadmap.md",

@@ -4,7 +4,8 @@ Stand: 2026-07-24
 
 Status: `TTD-07A0` accepted at `4fb9ba62`; `TTD-07A1` accepted at
 `daca1dc4`; `TTD-07A2` accepted at `090ede31`; `TTD-07A3` accepted at
-`53109195`; `TTD-07A4` is the active atomic Session-lifecycle child claim
+`53109195`; `TTD-07A4` accepted at `c48f47c8`; `TTD-07A5` is the active
+poll/webhook sweep and durable turn-lease child claim
 
 Authority:
 
