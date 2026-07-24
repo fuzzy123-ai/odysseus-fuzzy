@@ -404,20 +404,29 @@ async def test_tool_capture_callback_failure_never_breaks_tool_result():
 
 
 @pytest.mark.asyncio
-async def test_tool_usage_and_ai_lens_share_only_safe_metadata_and_fail_independently():
+async def test_tool_usage_and_ai_lens_keep_unknown_tool_projections_content_safe():
     from types import SimpleNamespace
+    from src.tool_usage_context import TrustedToolUsageContext
+    from src.tool_usage_events import ToolUsageEventBuilder
     from src.tool_usage_instrumentation import ToolUsageInstrumentation
 
     service = _service()
     emitter = _emitter(service)
     usage_events = []
     instrumentation = ToolUsageInstrumentation(
+        builder=ToolUsageEventBuilder(
+            app_version="0.25.0",
+            hmac_key=b"ai-lens-test-hmac-key-material-0001",
+        ),
         sink=usage_events.append,
-        hmac_key=b"synthetic-local-key-material",
-        app_version="0.25.0",
-        wall_clock=lambda: FIXED_TIME,
+        context=TrustedToolUsageContext.create(
+            surface="agent",
+            agent_mode="agent",
+            model_scope="unknown",
+        ),
+        clock=lambda: FIXED_TIME,
     )
-    raw_tool = "unknown_private_provider_tool"
+    raw_tool = "unknown_private_legacy_tool"
     raw_content = '{"password":"synthetic-marker","path":"synthetic-location"}'
     block = SimpleNamespace(tool_type=raw_tool, content=raw_content)
 
@@ -427,16 +436,43 @@ async def test_tool_usage_and_ai_lens_share_only_safe_metadata_and_fail_independ
         tool_usage_instrumentation=instrumentation,
     )
     snapshot = service.snapshot(emitter.session_id)
-    ai_payload = snapshot["events"][0]["payload"]
-    usage_payload = usage_events[0].to_safe_dict()
-    encoded = json.dumps({"ai": snapshot, "usage": usage_payload}, sort_keys=True)
+    ai_payloads = tuple(event["payload"] for event in snapshot["events"])
+    assert len(ai_payloads) == 2
+    assert len(usage_events) == 2
+    usage_started, usage_terminal = (event.to_dict() for event in usage_events)
+    encoded = json.dumps(
+        {"ai": snapshot, "usage": (usage_started, usage_terminal)},
+        sort_keys=True,
+    )
 
     assert desc == f"unknown: {raw_tool}"
     assert result["exit_code"] == 1
-    for key in ("tool_analytics_id", "tool_family", "tool_source", "argument_size_bucket"):
-        assert ai_payload[key] == usage_payload[key]
-    assert ai_payload["tool_analytics_id"] == "dynamic-unclassified"
-    assert usage_events[-1].status.value == "rejected"
+    assert [event["event_kind"] for event in (usage_started, usage_terminal)] == [
+        "started",
+        "terminal",
+    ]
+    for usage_payload in (usage_started, usage_terminal):
+        assert usage_payload["tool_analytics_id"] == "legacy.unclassified"
+        assert usage_payload["tool_family"] == "unclassified_dynamic"
+        assert usage_payload["tool_source"] == "legacy"
+    assert usage_started["invocation_id"] == usage_terminal["invocation_id"]
+    assert usage_terminal["status"] == "rejected"
+    assert usage_terminal["blocked_reason_code"] == "unknown_tool"
+
+    for ai_payload in ai_payloads:
+        assert ai_payload["tool_ref"].startswith("tool:sha256:")
+        assert ai_payload["argument_present"] is True
+        assert ai_payload["argument_bytes"] == len(raw_content.encode("utf-8"))
+        assert ai_payload["arguments_included"] is False
+        assert not {
+            "tool_analytics_id",
+            "tool_family",
+            "tool_source",
+            "argument_size_bucket",
+        }.intersection(ai_payload)
+
     assert raw_tool not in encoded
     assert raw_content not in encoded
-    assert "private" not in usage_payload
+    assert "password" not in encoded
+    assert "synthetic-marker" not in encoded
+    assert "synthetic-location" not in encoded

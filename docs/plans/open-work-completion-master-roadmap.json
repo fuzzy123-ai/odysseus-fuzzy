@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T21:52:08+02:00",
+  "updated_at": "2026-07-24T22:08:36+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -7192,7 +7192,7 @@
       "id": "TAX-REPAIR-dual-read-contract",
       "class": "repo_only",
       "owner": "Bob implementation; Sol deep acceptance",
-      "status": "sol_accepted_exact_ci_fastapi_route_introspection_followup_remote_pending_2026-07-24",
+      "status": "sol_accepted_exact_ci_ai_lens_tool_usage_contract_followup_remote_pending_2026-07-24",
       "claim": {
         "run_id": "tax-repair-20260724T195045+0200",
         "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
@@ -7405,6 +7405,26 @@
         ],
         "diagnosis": "Exact GitHub CI run 30121251801 confirms the AMH compatibility chain is cleared and advances to 353 passing tests, then exposes a FastAPI 0.139 route-introspection compatibility break. FastAPI now retains included APIRouters as nested route groups, so flat `client.app.routes` no longer lists child operations even though the public OpenAPI projection and HTTP endpoints remain registered. Migrate the one registration assertion to derive method/path pairs from `app.openapi()['paths']`, while retaining the unauthenticated 401 fail-closed request and all functional route tests; do not pin dependencies or edit route/application production wiring."
       },
+      "ai_lens_tool_usage_ci_followup_claim": {
+        "run_id": "tax-repair-ai-lens-tool-usage-ci-followup-20260724T215943+0200",
+        "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
+        "slice_id": "TAX-REPAIR-ai-lens-current-usage-contract",
+        "owner": "Bob",
+        "allowed_paths": [
+          "tests/test_ai_lens_instrumentation.py"
+        ],
+        "hotfiles": [],
+        "state": "released",
+        "acquired_at": "2026-07-24T21:59:43+02:00",
+        "lease_expires_at": "2026-07-24T22:59:43+02:00",
+        "handoff_required": true,
+        "released_at": "2026-07-24T22:08:36+02:00",
+        "handoff_result": "deep Sol PASS after hardening both Usage and AI Lens start/terminal projections plus standalone privacy markers; no production, workflow, dependency, deploy or live change",
+        "root_owned_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json"
+        ],
+        "diagnosis": "Exact GitHub CI run 30121911621 validates the public OpenAPI route fix and advances to 597 passing tests, then exposes one pre-63dd70a7 AI Lens integration test that still constructs ToolUsageInstrumentation with retired hmac_key/app_version/wall_clock keywords, calls removed event.to_safe_dict(), and expects the retired shared taxonomy payload that 63dd70a7 intentionally decoupled. Migrate the test in one pass to ToolUsageEventBuilder, TrustedToolUsageContext, clock and event.to_dict(), then assert the current independent privacy-safe AI Lens and Tool Usage contracts plus their shared normalized rejected outcome. Do not restore the old constructor, raw metadata projection or cross-surface coupling in production."
+      },
       "route": {
         "entrypoint": "/abc",
         "selected_skills": [
@@ -7492,10 +7512,15 @@
           "FastAPI 0.139's nested included-router representation is handled through the public OpenAPI paths contract instead of private router recursion or a dependency pin",
           "the registration assertion requires exactly the six agent-run method/path pairs, filters only standard HTTP OpenAPI operation keys, normalizes methods to uppercase and retains the real unauthenticated 401 fail-closed request",
           "a direct local FastAPI 0.136 probe passed for all six OpenAPI operations and the 401 response; final deep Sol review passed after tightening the assertion from subset to exact equality",
-          "the follow-up changes only the route-contract test and roadmap evidence; route definitions, application wiring, requirements, workflows, features, deployment and live state remain untouched"
+          "the follow-up changes only the route-contract test and roadmap evidence; route definitions, application wiring, requirements, workflows, features, deployment and live state remain untouched",
+          "the stale pre-63dd70a7 AI Lens integration test is migrated in one pass from retired constructor keywords, to_safe_dict and shared taxonomy payload assumptions to the current Builder, Trusted Context, clock and independent projection contracts",
+          "the central wrapper's unknown-name provenance remains honestly legacy.unclassified rather than fabricating a trusted provider source; started and terminal Usage events retain exact unclassified identity, one invocation and rejected/unknown_tool outcome",
+          "both AI Lens start and result payloads remain opaque and bounded, exclude all retired TAX identity fields and never include arguments; the complete snapshot plus both Usage events exclude the raw tool, raw content, secret key/value and path marker",
+          "focused Builder/identity and AI projection probes, AST, roadmap JSON and git diff checks passed without Pytest; final deep Sol review passed after hardening both event phases and the standalone secret marker",
+          "the follow-up changes only the AI Lens integration test and roadmap evidence; production instrumentation, application wiring, requirements, workflows, features, deployment and live state remain untouched"
         ],
         "local_pytest_exit": "twenty focused tests reached successful test dots but the Windows process did not exit cleanly; exact GitHub CI remains the required test authority",
-        "remote_ci": "run 30121251801 on exact commit e7766ac8 passes compileall and JS syntax, clears the AMH compatibility chain and reaches 353 passing tests. It then exposes FastAPI 0.139's intentional nested included-router representation: flat client.app.routes introspection misses six child operations although the router definitions, main-app include and functional endpoints remain intact. The one-test migration to the exact public OpenAPI path contract is Sol-accepted and awaits exact-commit GitHub CI; no dependency pin or production route change is authorized.",
+        "remote_ci": "run 30121911621 on exact commit a5d3c98f passes compileall and JS syntax, validates the exact public OpenAPI route contract and reaches 597 passing tests. It then exposes one stale pre-63dd70a7 AI Lens/Tool Usage integration test that still uses the retired instrumentation constructor and coupled metadata-event API. The complete one-test migration to the current independent privacy-safe contracts is Sol-accepted and awaits exact-commit GitHub CI; no production API rollback or metadata re-coupling is authorized.",
         "known_pre_existing_out_of_scope": [
           "tool-surface audit expects removed TOOL_META",
           "raw schema audit reports duplicate manage_todos",
@@ -7506,8 +7531,8 @@
         "implemented": "yes",
         "tested": "yes",
         "sol_reviewed": "deep",
-        "committed": "86c77394_tua_rollout_followup; 1b8d7d2d_amh_disabled_followup; ca0ac065_amh_commit_runner_followup; 863d9346_shared_verifier_followup; e7766ac8_effect_matrix_followup; fastapi_route_introspection_followup_ready",
-        "pushed": "86c77394_1b8d7d2d_ca0ac065_863d9346_e7766ac8_to_fuzzy_dev; fastapi_route_introspection_followup_remote_pending",
+        "committed": "86c77394_tua_rollout_followup; 1b8d7d2d_amh_disabled_followup; ca0ac065_amh_commit_runner_followup; 863d9346_shared_verifier_followup; e7766ac8_effect_matrix_followup; a5d3c98f_fastapi_route_introspection_followup; ai_lens_tool_usage_followup_ready",
+        "pushed": "86c77394_1b8d7d2d_ca0ac065_863d9346_e7766ac8_a5d3c98f_to_fuzzy_dev; ai_lens_tool_usage_followup_remote_pending",
         "deployed": "no",
         "live_validated": "no",
         "visual_validated": "na",
