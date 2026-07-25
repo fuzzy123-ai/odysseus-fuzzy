@@ -8,7 +8,10 @@ from typing import Any, Iterable, Mapping
 from src.odysseus_updater_backup_gate import BackupGateReport, build_odysseus_updater_backup_gate
 from src.odysseus_updater_live_boundary import UpdaterLiveBoundary, build_odysseus_updater_live_boundary
 from src.server_project_git_review import ProjectGitReviewPlan
-from src.server_project_quality_gate import ProjectQualityGateBundle
+from src.server_project_quality_gate import (
+    ProjectQualityGateBundle,
+    project_quality_gate_bundle_is_canonical,
+)
 from src.server_project_registry import ServerProjectRecord
 
 
@@ -71,6 +74,13 @@ def build_project_deploy_handoff(
         raise ServerProjectDeployHandoffError("record must be a ServerProjectRecord")
     if not isinstance(quality_bundle, ProjectQualityGateBundle):
         raise ServerProjectDeployHandoffError("quality_bundle must be a ProjectQualityGateBundle")
+    if not project_quality_gate_bundle_is_canonical(
+        record=record,
+        bundle=quality_bundle,
+    ):
+        raise ServerProjectDeployHandoffError(
+            "quality_bundle must be canonical and builder-valid"
+        )
     if not isinstance(git_review_plan, ProjectGitReviewPlan):
         raise ServerProjectDeployHandoffError("git_review_plan must be a ProjectGitReviewPlan")
     normalized_operator = _normalize_text(operator_decision, field_name="operator_decision").lower().replace("-", "_")
@@ -83,7 +93,7 @@ def build_project_deploy_handoff(
         pre_update_snapshot_green=_evidence_green(backup_gate, "pre_update_snapshot"),
         repository_check_green=_evidence_green(backup_gate, "repository_check"),
         restore_smoke_green=_evidence_green(backup_gate, "restore_smoke"),
-        focused_tests_green=quality_bundle.deploy_gate_ready,
+        focused_tests_green=quality_bundle.focused_tests_green,
         command_plan_reviewed=command_plan_reviewed and git_review_plan.push_allowed,
         operator_decision=normalized_operator,
         secret_or_private_output_risk=secret_or_private_output_risk,

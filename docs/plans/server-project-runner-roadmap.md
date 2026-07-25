@@ -148,13 +148,27 @@ Current result:
 
 - `src/server_project_quality_gate.py` wraps the existing
   `live_quality_gate_command_runner` for project-specific gates.
-- Default project gates include focused test, build evidence and smoke test
-  plans.
+- Default project gates include focused test and smoke command plans plus a
+  separate build-evidence requirement.
+- Build and evidence gates use a separate `evidence_requirement`, never a
+  command-shaped field, and require a matching structured green/pass receipt.
+- Test and smoke command plans prove only that a command is bounded and
+  reviewable. They become green only with separate `test_result` or
+  `smoke_result` receipts; a plan alone never counts as executed evidence.
+- Every green receipt is gate-ID/type matched and carries an immutable
+  `sha256:` evidence digest plus a canonical subject digest over the exact gate
+  specification. Changed commands or requirements make older receipts stale;
+  missing or mismatched evidence keeps the bundle on hold.
 - Required gates must be `plan_ready` before the project deploy gate can be
   treated as ready.
 - Network, host, destructive, unbounded and secret/path-bearing gate text is
   blocked.
-- All gates remain dry-run/operator-review plans and do not execute commands.
+- Command-backed gates use the canonical redacted-log policy and the central
+  strict 300-second bound. All gates remain dry-run/operator-review data and
+  do not execute commands.
+- The deploy handoff rebuilds and exactly compares the quality bundle before
+  trusting it, so directly constructed or stale bundles cannot bypass the
+  evidence gate.
 
 ### P4 Git And Review Flow
 

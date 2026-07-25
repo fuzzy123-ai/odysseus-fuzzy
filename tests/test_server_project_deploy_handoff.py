@@ -1,8 +1,18 @@
+from dataclasses import replace
 from pathlib import Path
 
-from src.server_project_deploy_handoff import build_project_deploy_handoff
+import pytest
+
+from src.server_project_deploy_handoff import (
+    ServerProjectDeployHandoffError,
+    build_project_deploy_handoff,
+)
 from src.server_project_git_review import build_project_git_review_plan
-from src.server_project_quality_gate import ProjectQualityGateSpec, build_project_quality_gate_bundle
+from src.server_project_quality_gate import (
+    ProjectQualityGateSpec,
+    build_project_quality_gate_bundle,
+    build_project_quality_gate_evidence,
+)
 from src.server_project_registry import ServerProjectRegistry
 
 
@@ -42,12 +52,38 @@ def _green_backup_evidence():
 
 
 def _ready_quality(record):
+    specs = (
+        ProjectQualityGateSpec.create(
+            gate_id="unit",
+            gate_type="test",
+            command_text="python -m pytest tests/test_server_project_deploy_handoff.py -q",
+        ),
+        ProjectQualityGateSpec.create(
+            gate_id="build",
+            gate_type="build",
+            evidence_requirement="verified build artifact receipt required",
+        ),
+        ProjectQualityGateSpec.create(
+            gate_id="smoke",
+            gate_type="smoke",
+            command_text="python -m pytest tests/test_server_project_deploy_handoff.py -q",
+        ),
+    )
     return build_project_quality_gate_bundle(
         record=record,
-        gate_specs=(
-            {"gate_id": "unit", "gate_type": "test", "command_text": "python -m pytest tests/test_server_project_deploy_handoff.py -q"},
-            {"gate_id": "build", "gate_type": "build", "command_text": "evidence: build artifact recorded"},
-            {"gate_id": "smoke", "gate_type": "smoke", "command_text": "python -m pytest tests/test_server_project_deploy_handoff.py -q"},
+        gate_specs=specs,
+        evidence_inputs=tuple(
+            build_project_quality_gate_evidence(
+                spec=spec,
+                state="green",
+                result_label="pass",
+                checked_at=f"2026-06-27T10:0{index + 3}:00Z",
+                summary=f"verified {spec.gate_type} receipt is green",
+                evidence_digest="sha256:" + (digest_pair * 32),
+            )
+            for index, (spec, digest_pair) in enumerate(
+                zip(specs, ("a1", "b2", "c3"), strict=True)
+            )
         ),
     )
 
@@ -95,6 +131,49 @@ def test_missing_backup_evidence_holds_deploy_handoff():
     assert handoff.decision == "hold"
     assert any("backup gate deployment decision" in blocker for blocker in handoff.blockers)
     assert "restore smoke evidence is missing or not green" in handoff.blockers
+
+
+def test_missing_build_evidence_holds_deploy_handoff():
+    record = _record()
+    handoff = build_project_deploy_handoff(
+        record=record,
+        quality_bundle=build_project_quality_gate_bundle(record=record),
+        git_review_plan=_ready_git(record),
+        backup_evidence_inputs=_green_backup_evidence(),
+        evaluated_at="2026-06-27T10:05:00Z",
+        operator_decision="go",
+        command_plan_reviewed=True,
+    )
+
+    assert handoff.decision == "hold"
+    assert handoff.live_execution_allowed is False
+    assert "quality gates are hold" in handoff.blockers
+
+
+def test_forged_quality_bundle_is_rejected_at_deploy_boundary():
+    record = _record()
+    forged = replace(
+        _ready_quality(record),
+        results=(),
+        required_gate_count=0,
+        ready_gate_count=0,
+        blockers=(),
+        decision="plan_ready",
+    )
+
+    with pytest.raises(
+        ServerProjectDeployHandoffError,
+        match="canonical and builder-valid",
+    ):
+        build_project_deploy_handoff(
+            record=record,
+            quality_bundle=forged,
+            git_review_plan=_ready_git(record),
+            backup_evidence_inputs=_green_backup_evidence(),
+            evaluated_at="2026-06-27T10:05:00Z",
+            operator_decision="go",
+            command_plan_reviewed=True,
+        )
 
 
 def test_quality_or_git_not_ready_holds_handoff():

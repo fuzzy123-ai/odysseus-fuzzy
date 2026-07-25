@@ -4,7 +4,10 @@ import pytest
 
 from src.server_project_deploy_handoff import build_project_deploy_handoff
 from src.server_project_git_review import build_project_git_review_plan
-from src.server_project_quality_gate import build_project_quality_gate_bundle
+from src.server_project_quality_gate import (
+    build_project_quality_gate_bundle,
+    build_project_quality_gate_evidence,
+)
 from src.server_project_registry import ServerProjectRegistry
 from src.server_project_service_wiring import (
     ServerProjectServiceWiringError,
@@ -30,10 +33,33 @@ def _green_backup_evidence():
     )
 
 
+def _green_quality_evidence(record):
+    specs = tuple(
+        result.spec
+        for result in build_project_quality_gate_bundle(record=record).results
+    )
+    return tuple(
+        build_project_quality_gate_evidence(
+            spec=spec,
+            state="green",
+            result_label="pass",
+            checked_at=f"2026-06-27T10:0{index + 3}:00Z",
+            summary=f"verified {spec.gate_type} receipt is green",
+            evidence_digest="sha256:" + (digest_pair * 32),
+        )
+        for index, (spec, digest_pair) in enumerate(
+            zip(specs, ("c3", "d4", "e5"), strict=True)
+        )
+    )
+
+
 def _ready_handoff(record):
     return build_project_deploy_handoff(
         record=record,
-        quality_bundle=build_project_quality_gate_bundle(record=record),
+        quality_bundle=build_project_quality_gate_bundle(
+            record=record,
+            evidence_inputs=_green_quality_evidence(record),
+        ),
         git_review_plan=build_project_git_review_plan(record=record, changed_paths=("src/app.py",), operator_decision="go"),
         backup_evidence_inputs=_green_backup_evidence(),
         evaluated_at="2026-06-27T10:05:00Z",
