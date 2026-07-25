@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T15:49:45+02:00",
+  "updated_at": "2026-07-25T16:01:16+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,35 +96,33 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-telegram-guidance-index-20260725T154700+0200",
-      "slice_id": "CI-telegram-contract-guidance-index-normalization",
-      "prior_slice": "CI-plugin-system-effective-route-tree-contract",
-      "prior_slice_result": "committed_as_32a4184791b153aca93f21e0a100e43970cbeed4_then_required_ci_advanced_to_7280_passed",
+      "run_id": "abc-ci-sandbox-rw-guard-20260725T155800+0200",
+      "slice_id": "CI-sandbox-artifact-rw-guard-contract",
+      "prior_slice": "CI-telegram-contract-guidance-index-normalization",
+      "prior_slice_result": "committed_as_118e58c018e5eedf24eeea6be37241eeb8b42608_then_required_ci_advanced_to_7448_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
-      "previous_ci_repair_handoff_commit": "32a4184791b153aca93f21e0a100e43970cbeed4",
+      "previous_ci_repair_handoff_commit": "118e58c018e5eedf24eeea6be37241eeb8b42608",
       "changed_files": [
-        "docs/plans/multi-agent-execution-guidance.json",
+        "tests/test_sandbox_resource_guard.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "tests": {
-        "focused_roadmap_guidance_tests_passed": 5,
+        "focused_sandbox_guard_template_and_worker_tests_passed": 14,
+        "exact_sandbox_resource_guard_tests_passed": 3,
+        "terra_independent_sandbox_worker_route_tests_passed": 6,
         "blocking_failures": 0,
         "production_files_changed": 0,
-        "guidance_audit_valid": true,
-        "discovered_roadmaps": 130,
-        "listed_roadmaps": 130,
-        "docs_plans_roadmaps": 123,
-        "structured_spec_roadmaps": 7,
-        "missing_guidance_paths": 0,
-        "unknown_guidance_paths": 0,
-        "telegram_contract_file_retained": true,
-        "telegram_feature_roadmap_guidance_retained": true,
-        "telegram_contract_misclassified_as_roadmap": false,
-        "guidance_profile_counts_changed": false,
-        "active_serial_contract_profile_added": false,
-        "roadmap_discovery_broadened": false,
-        "live_or_feature_gate_changed": false,
+        "default_screenshot_artifact_rw_mount_allowed": true,
+        "non_artifact_src_rw_mount_allowed": false,
+        "non_artifact_src_rw_mount_reason": "rw_mount_not_allowed",
+        "browser_template_network_mode": "none",
+        "browser_template_secrets_attached": false,
+        "raw_content_visible": false,
+        "broad_rw_approval_added": false,
+        "sandbox_resource_guard_changed": false,
+        "sandbox_template_changed": false,
+        "live_execution_performed": false,
         "unconfirmed_write_performed": false,
         "gmi_live_activation_performed": false,
         "amh08_feature_work_performed": false
@@ -148,7 +146,7 @@
         "updater_or_resume_clean": "na",
         "product_complete": "no"
       },
-      "next_gate": "commit_exact_guidance_normalization_and_roadmap_handoff_push_only_fuzzy_dev_then_required_ci"
+      "next_gate": "commit_exact_sandbox_guard_test_and_roadmap_handoff_push_only_fuzzy_dev_then_required_ci"
     }
   },
   "non_ui_execution_ledger": {
