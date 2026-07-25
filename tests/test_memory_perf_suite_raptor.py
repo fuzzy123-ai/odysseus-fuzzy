@@ -111,3 +111,15 @@ def test_raptor_graph_scale_simulation_rejects_unbounded_status_ratios(tmp_path)
             dirty_ratio=0.2,
             missing_ratio=0.1,
         )
+
+
+@pytest.mark.parametrize("ratio", (float("nan"), float("inf"), float("-inf")))
+def test_raptor_graph_scale_simulation_rejects_non_finite_status_ratios_before_creating_run_dir(
+    tmp_path, ratio
+):
+    run_dir = tmp_path / "must-not-exist"
+
+    with pytest.raises(RaptorGraphSimulationError):
+        run_raptor_graph_scale_simulation(run_dir=run_dir, deprecated_ratio=ratio)
+
+    assert not run_dir.exists()

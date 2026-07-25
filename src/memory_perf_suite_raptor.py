@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from pathlib import Path
 from typing import Any, Callable
 
@@ -99,7 +100,7 @@ def run_raptor_graph_scale_simulation(
         "dirty": _ratio(dirty_ratio, "dirty_ratio"),
         "missing": _ratio(missing_ratio, "missing_ratio"),
     }
-    if sum(ratios.values()) >= 1:
+    if math.fsum(ratios.values()) >= 1:
         raise RaptorGraphSimulationError("status ratios must leave active capacity")
 
     checkpoint = maintenance_yield_func or maintenance_cpu_checkpoint
@@ -198,7 +199,7 @@ def _ratio(value: float, field_name: str) -> float:
         ratio = float(value)
     except (TypeError, ValueError):
         raise RaptorGraphSimulationError(f"{field_name} must be numeric") from None
-    if ratio < 0 or ratio >= 1:
+    if not math.isfinite(ratio) or ratio < 0 or ratio >= 1:
         raise RaptorGraphSimulationError(f"{field_name} must be between 0 and 1")
     return ratio
 

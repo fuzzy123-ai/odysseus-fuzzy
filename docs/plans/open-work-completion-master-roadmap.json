@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T13:58:36+02:00",
+  "updated_at": "2026-07-25T14:10:33+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,32 +96,30 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-memory-series-cap-20260725T135216+0200",
-      "slice_id": "CI-memory-metrics-exact-series-cap-contract",
-      "prior_slice": "CI-mcp-current-descriptor-policy-boundary",
-      "prior_slice_result": "committed_as_e6ad359cfe2cedb0874a9fffaa134939b8f56efd_then_required_ci_advanced_to_4737_passed",
+      "run_id": "abc-ci-raptor-status-ratio-20260725T140543+0200",
+      "slice_id": "CI-raptor-scale-status-ratio-contract",
+      "prior_slice": "CI-memory-metrics-exact-series-cap-contract",
+      "prior_slice_result": "committed_as_430ef69cb84bb71c6e1605b47bc9afce1321d42b_then_required_ci_advanced_to_4764_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
-      "previous_ci_repair_handoff_commit": "e6ad359cfe2cedb0874a9fffaa134939b8f56efd",
+      "previous_ci_repair_handoff_commit": "430ef69cb84bb71c6e1605b47bc9afce1321d42b",
       "changed_files": [
-        "tests/test_memory_observability_privacy_failure_isolation.py",
+        "src/memory_perf_suite_raptor.py",
+        "tests/test_memory_perf_suite_raptor.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "tests": {
-        "focused_memory_registry_and_exact_cap_tests_passed": 23,
+        "focused_raptor_and_complex_chunk_tests_passed": 11,
         "blocking_failures": 0,
-        "production_files_changed": 0,
-        "memory_operations_total_valid_labelset_count": 324,
-        "scalar_labelsets_reserved_before_histograms": 208,
-        "prometheus_series_cap_preserved": 256,
-        "drop_counter_series_cost": 1,
-        "selected_histogram_series_costs": [
-          20,
-          14,
-          13
-        ],
-        "overflow_valid_labelset_rejected": true,
-        "production_cardinality_policy_weakened": false,
+        "production_files_changed": 1,
+        "python_311_boundary_sum_closed_with_math_fsum": true,
+        "active_capacity_threshold_preserved": 1,
+        "nan_rejected": true,
+        "positive_infinity_rejected": true,
+        "negative_infinity_rejected": true,
+        "invalid_ratio_rejected_before_run_directory_creation": true,
+        "raptor_scale_simulation_api_changed": false,
+        "safety_threshold_weakened": false,
         "guidance_audit_preexisting_unrelated_error": "telegram-session-rollover-transaction-contract.md profile/discovery mismatch",
         "unconfirmed_write_performed": false,
         "gmi_live_activation_performed": false,
@@ -146,7 +144,7 @@
         "updater_or_resume_clean": "na",
         "product_complete": "no"
       },
-      "next_gate": "commit_exact_roadmap_and_memory_cap_test_push_only_fuzzy_dev_then_required_ci"
+      "next_gate": "commit_exact_roadmap_raptor_source_and_test_push_only_fuzzy_dev_then_required_ci"
     }
   },
   "non_ui_execution_ledger": {
