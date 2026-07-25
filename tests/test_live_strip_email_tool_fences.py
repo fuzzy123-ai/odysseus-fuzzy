@@ -9,9 +9,18 @@ def test_chat_renderer_fetches_tool_tags_for_exec_fence_regex():
     assert "EXEC_TOOL_TAGS" not in source
 
 
-def test_api_tools_endpoint_uses_backend_tool_tags():
-    source = Path("routes/model_routes.py").read_text(encoding="utf-8")
-    assert re.search(r"for\s+tag\s+in\s+sorted\(\s*TOOL_TAGS\s*\)", source)
+def test_api_tools_legacy_projection_supplies_backend_tool_tags():
+    from src.agent_tools import TOOL_TAGS
+    from src.runtime_tool_status import (
+        build_legacy_tool_catalog_projection,
+        build_tool_catalog_projection,
+    )
+
+    legacy_ids = {row["id"] for row in build_legacy_tool_catalog_projection()["tools"]}
+    v2_ids = {row["id"] for row in build_tool_catalog_projection()["tools"]}
+
+    assert set(TOOL_TAGS) <= legacy_ids
+    assert legacy_ids <= v2_ids
 
 
 def test_python_equivalent_strips_email_tool_fence():

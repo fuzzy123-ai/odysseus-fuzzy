@@ -1,4 +1,5 @@
 import importlib
+import json
 
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
@@ -133,14 +134,36 @@ def test_get_tools_returns_complete_deterministic_redacted_descriptor_projection
 
 
 def test_get_tools_defaults_to_legacy_and_rolls_back_exactly_after_v2_read(monkeypatch):
-    client = _client(monkeypatch, settings={})
+    async def _execute(_content, **_kwargs):
+        return {"output": "ok", "exit_code": 0}
 
-    monkeypatch.delenv("ODYSSEUS_TOOL_CATALOG_V2_ENABLED", raising=False)
-    off_before = client.get("/api/tools")
-    monkeypatch.setenv("ODYSSEUS_TOOL_CATALOG_V2_ENABLED", "true")
-    on = client.get("/api/tools")
-    monkeypatch.setenv("ODYSSEUS_TOOL_CATALOG_V2_ENABLED", "false")
-    off_after = client.get("/api/tools")
+    plugin_name = "ci_legacy_rollback_plugin"
+    previous = get_tool(plugin_name)
+    register_tool(
+        ToolSpec(
+            name=plugin_name,
+            description="Authorization: Bearer ci-legacy-secret-token",
+            parameters={
+                "type": "object",
+                "properties": {"private_argument": {"type": "string"}},
+            },
+            execute=_execute,
+            permission="public",
+        )
+    )
+    try:
+        client = _client(monkeypatch, settings={})
+
+        monkeypatch.delenv("ODYSSEUS_TOOL_CATALOG_V2_ENABLED", raising=False)
+        off_before = client.get("/api/tools")
+        monkeypatch.setenv("ODYSSEUS_TOOL_CATALOG_V2_ENABLED", "true")
+        on = client.get("/api/tools")
+        monkeypatch.setenv("ODYSSEUS_TOOL_CATALOG_V2_ENABLED", "false")
+        off_after = client.get("/api/tools")
+    finally:
+        unregister_tool(plugin_name)
+        if previous is not None:
+            register_tool(previous)
 
     assert off_before.status_code == on.status_code == off_after.status_code == 200
     assert off_before.json() == off_after.json()
@@ -148,7 +171,35 @@ def test_get_tools_defaults_to_legacy_and_rolls_back_exactly_after_v2_read(monke
     assert legacy["schema"] == "odysseus.tool_catalog_projection.legacy.v1"
     assert legacy["feature_flag"]["enabled"] is False
     assert legacy["feature_flag"]["selected_projection"] == "legacy"
-    assert all(set(row) <= {"id", "enabled", "settings_mutable"} for row in legacy["tools"])
+    builtin_shape = {"id", "enabled", "settings_mutable"}
+    plugin_shape = {
+        "id",
+        "name",
+        "desc",
+        "cat",
+        "ctx",
+        "permission",
+        "enabled",
+        "settings_mutable",
+    }
+    assert all(
+        frozenset(row) in {frozenset(builtin_shape), frozenset(plugin_shape)}
+        for row in legacy["tools"]
+    )
+    plugin = next(row for row in legacy["tools"] if row["id"] == plugin_name)
+    assert plugin == {
+        "id": plugin_name,
+        "name": plugin_name,
+        "desc": "[redacted]",
+        "cat": "Plugins",
+        "ctx": "~plugin",
+        "permission": "public",
+        "enabled": True,
+        "settings_mutable": True,
+    }
+    encoded_legacy = json.dumps(legacy, sort_keys=True)
+    assert "ci-legacy-secret-token" not in encoded_legacy
+    assert "private_argument" not in encoded_legacy
 
     v2 = on.json()
     assert v2["schema"] == "odysseus.tool_catalog_projection.v2"
@@ -157,6 +208,10 @@ def test_get_tools_defaults_to_legacy_and_rolls_back_exactly_after_v2_read(monke
     assert sum(row["source"] == "builtin" for row in v2["tools"]) == 86
     assert any(row["source"] == "mcp" for row in v2["tools"])
     assert all(row["id"] == row["runtime_tool_id"] for row in v2["tools"])
+    assert any(
+        row["id"] == plugin_name and row["source"] == "plugin"
+        for row in v2["tools"]
+    )
 
 
 def test_legacy_get_does_not_enumerate_mcp_but_v2_still_does(monkeypatch):

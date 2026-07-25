@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T12:13:13+02:00",
+  "updated_at": "2026-07-25T12:30:39+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,21 +96,29 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-live-gate-fail-closed-20260725T121020+0200",
-      "slice_id": "CI-live-quality-gate-disabled-contract-alignment",
+      "run_id": "abc-ci-legacy-plugin-shape-20260725T122759+0200",
+      "slice_id": "CI-legacy-plugin-shape-contract-alignment",
+      "prior_slice": "CI-exec-fence-catalog-contract-alignment",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
-      "previous_ci_repair_handoff_commit": "3163482f304a6b291223369bb13acb6032372d10",
+      "previous_ci_repair_handoff_commit": "9af8b29a9cbdf5722f521b7e7f768885434509fb",
       "changed_files": [
-        "tests/test_live_quality_gate_command_runner.py",
+        "tests/test_live_strip_email_tool_fences.py",
+        "tests/test_tool_catalog_routes.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "tests": {
-        "focused_disabled_completion_contract_tests_passed": 46,
+        "focused_exec_fence_contract_tests_passed": 7,
+        "focused_legacy_plugin_shape_tests_passed": 14,
         "blocking_failures": 0,
         "production_files_changed": 0,
-        "typed_authority_recognized_without_bypassing_completion": true,
-        "completion_always_disabled": true,
+        "legacy_projection_matches_tool_tags": true,
+        "stale_source_loop_assertion_identified": true,
+        "catalog_v2_contains_all_legacy_tool_ids": true,
+        "adjacent_stale_plugin_shape_contract_identified": true,
+        "legacy_plugin_rows_intentionally_redacted_and_rich": true,
+        "plugin_registry_state_restored": true,
+        "legacy_plugin_secrets_and_schema_absent": true,
         "amh08_feature_work_performed": false
       },
       "route": {
