@@ -123,7 +123,7 @@ def test_contract_audit_is_aggregate_and_contains_only_bounded_source_buckets():
     audit = build_tool_analytics_identity_contract().audit_dict()
 
     assert audit["contract"] == "odysseus.tool_analytics_identity.v1"
-    assert audit["descriptor_count"] == 84
+    assert audit["descriptor_count"] == 86
     assert audit["historical_alias_count"] == 1
     assert audit["retired_analytics_id_count"] == 0
     assert dict(audit["dynamic_source_buckets"]) == {
