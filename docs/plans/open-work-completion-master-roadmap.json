@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T19:26:08+02:00",
+  "updated_at": "2026-07-25T19:39:31+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,56 +96,51 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-telegram-route-contract-boundary-20260725T192333+0200",
-      "slice_id": "CI-telegram-route-contract-boundary",
-      "prior_slice": "CI-telegram-route-surface-isolation-diagnostic",
-      "prior_slice_result": "committed_as_0bdaec757445ba6b247759fae745c5dfcd2de60f_then_required_ci_proved_the_plugin_router_complete_and_only_the_duplicate_fastapi_app_seam_empty",
+      "run_id": "abc-ci-telegram-webhook-audit-contract-20260725T193631+0200",
+      "slice_id": "CI-telegram-webhook-audit-receipt-contract",
+      "prior_slice": "CI-telegram-route-contract-boundary",
+      "prior_slice_result": "committed_as_e4a77c0b9f1471decd04827495650c26e600414b_then_required_ci_advanced_past_the_route_contract_to_9008_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
       "owner": "root_sol_orchestrator",
-      "class": "required_ci_hermetic_contract_boundary_repair",
+      "class": "required_ci_stale_audit_contract_repair",
       "dependencies": [
-        "0bdaec757445ba6b247759fae745c5dfcd2de60f",
-        "Required CI run 30167243860 job 89702253683",
-        "existing real FastAPI Telegram endpoint and PluginManager mounting coverage"
+        "e4a77c0b9f1471decd04827495650c26e600414b",
+        "Required CI run 30167662315 job 89703335999",
+        "accepted closed TelegramAuditStore receipt contract"
       ],
-      "lease_started_at": "2026-07-25T19:23:33+02:00",
-      "lease_expires_at": "2026-07-25T21:23:33+02:00",
-      "released_at": "2026-07-25T19:26:08+02:00",
+      "lease_started_at": "2026-07-25T19:36:31+02:00",
+      "lease_expires_at": "2026-07-25T21:36:31+02:00",
+      "released_at": "2026-07-25T19:39:31+02:00",
       "allowed_paths": [
-        "tests/test_telegram_route_contract.py",
+        "tests/test_telegram_webhook_service.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "changed_paths": [
-        "tests/test_telegram_route_contract.py",
+        "tests/test_telegram_webhook_service.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "diagnosis": {
-        "required_ci_run": 30167243860,
-        "required_ci_job": 89702253683,
-        "required_ci_head_sha": "0bdaec757445ba6b247759fae745c5dfcd2de60f",
-        "required_ci_passed_before_failure": 8893,
-        "failing_node": "tests/test_telegram_route_contract.py::test_telegram_setup_keeps_route_surface_stable",
-        "root_cause": "the route contract mixed two responsibilities: the Telegram plugin router-production contract and a duplicate FastAPI mounting integration seam; CI diagnostic evidence proves the supplied plugin router contains all nine expected routes while only the fresh test app surface is empty after prior process state",
-        "coverage_preserved_by": [
-          "tests/test_telegram_plugin.py::test_plugin_routes_call_admin_gate exercises all nine real FastAPI paths and methods",
-          "tests/test_telegram_plugin.py status and app route tests exercise successful real FastAPI mounting",
-          "tests/test_plugin_system.py::test_load_mounts_route_and_starts_service exercises PluginContext add_router to FastAPI.include_router"
-        ],
-        "repair": "make the route contract a pure plugin-context boundary that captures exactly one emitted router and asserts its complete nine-route surface without constructing or mounting a duplicate FastAPI app",
+        "required_ci_run": 30167662315,
+        "required_ci_job": 89703335999,
+        "required_ci_head_sha": "e4a77c0b9f1471decd04827495650c26e600414b",
+        "required_ci_passed_before_failure": 9008,
+        "failing_node": "tests/test_telegram_webhook_service.py::test_parse_and_store_webhook_update_records_invalid_update_without_raw_payload",
+        "root_cause": "the test still expects the retired telegram_audit.json messages shape and invalid_update values in the audit projection; the accepted audit store writes telegram_audit_receipts.json with current and previous generations and projects non-allowlisted invalid_update/error source events to a closed raw_bearing unclassified/unknown receipt",
+        "legacy_contract": "telegram_history.json intentionally retains the bounded invalid_update system event and parser error while excluding the raw webhook payload and raw chat identifier",
+        "repair": "read the canonical store.audit_store.path envelope, assert its exact closed receipt schema and visibility flags, and preserve cross-file raw payload and chat identifier non-persistence checks",
         "production_change_required": false,
-        "product_workaround_allowed": false,
-        "route_expectation_weakened": false,
-        "framework_integration_coverage_removed": false
+        "privacy_leak_observed": false,
+        "audit_expectation_weakened": false
       },
       "tests": {
-        "focused_route_contract": "5 passed",
-        "focused_existing_fastapi_coverage": "4 passed",
-        "focused_total": "9 passed in 1.79s",
+        "focused_webhook_audit_contract": "1 passed in 0.95s after final schema assertion",
+        "focused_audit_store_contract": "2 passed in prior focused regression run",
+        "focused_total": "3 tests passed across focused runs",
         "python_ast": "pass",
         "roadmap_json_parse": "pass",
         "git_diff_check": "pass",
-        "terra_independent_review": "architecture_boundary_and_exact_code_diff_pass",
+        "terra_independent_review": "diagnosis_and_exact_code_diff_pass",
         "sol_deep_review": "pass_after_truthful_evidence_receipt_update",
         "production_files_changed": 0,
         "blocking_failures": 0,
@@ -155,14 +150,13 @@
         "amh08_feature_work_performed": false
       },
       "evidence_refs": [
-        "GitHub Actions Required CI run 30167243860 job 89702253683",
-        "CI assertion ordering proves registered plugin router surface passed before duplicate app surface failed",
-        "existing real FastAPI Telegram nine-route admin-gate test",
-        "existing real FastAPI Telegram status and app route tests",
-        "existing PluginManager route mounting integration test",
-        "Terra read-only contract-boundary architecture review PASS"
+        "GitHub Actions Required CI run 30167662315 job 89703335999",
+        "TelegramAuditStore canonical filename and generation envelope",
+        "closed audit receipt projector allowlists",
+        "TelegramInboxStore legacy append_event plus audit projection path",
+        "Terra read-only stale-contract diagnosis PASS"
       ],
-      "collision_check": "pass_only_the_claimed_route_contract_test_and_canonical_roadmap_changed",
+      "collision_check": "pass_only_the_claimed_webhook_service_test_and_canonical_roadmap_changed",
       "route": {
         "entrypoint": "/abc",
         "master": "gpt-5.6-sol",
@@ -182,7 +176,7 @@
         "updater_or_resume_clean": "na",
         "product_complete": "no"
       },
-      "remaining_gate_or_blocker": "commit_and_push_the_exact_two_path_hermetic_contract_fix_then_wait_for_exact_required_ci_green_before_debian_deploy",
+      "remaining_gate_or_blocker": "commit_and_push_the_exact_two_path_audit_contract_fix_then_wait_for_exact_required_ci_green_before_debian_deploy",
       "recommended_next_action": "commit_exact_two_path_fix_push_only_fuzzy_dev_then_required_ci",
       "next_gate": "commit_exact_two_path_fix_push_only_fuzzy_dev_then_required_ci"
     }
