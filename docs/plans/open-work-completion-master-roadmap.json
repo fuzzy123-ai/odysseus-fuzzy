@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T22:11:00+02:00",
+  "updated_at": "2026-07-25T22:28:00+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,53 +96,49 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-tool-usage-unknown-identity-20260725T220330+0200",
-      "slice_id": "CI-tool-usage-unknown-identity-acceptance",
-      "prior_slice": "CI-parser-registration-snapshot",
-      "prior_slice_result": "committed_and_pushed_as_96f5935a1ffd409b07f11a59896fd2db99b4f111_then_required_ci_confirmed_the_83_parser_registration_snapshot_and_advanced_to_9656_passed",
+      "run_id": "abc-ci-tool-usage-route-contract-20260725T222330+0200",
+      "slice_id": "CI-tool-usage-route-public-contract",
+      "prior_slice": "CI-tool-usage-unknown-identity-acceptance",
+      "prior_slice_result": "committed_and_pushed_as_44c7ac7f755292cc0b745a30f079791a7f27d812_then_required_ci_confirmed_the_4000_unknown_identity_acceptance_contract_and_advanced_to_9697_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
       "owner": "root_sol_orchestrator",
-      "class": "required_ci_tool_usage_acceptance_contract_repair",
+      "class": "required_ci_tool_usage_route_contract_repair",
       "dependencies": [
-        "96f5935a1ffd409b07f11a59896fd2db99b4f111",
-        "Required CI run 30172515829 job 89715880527",
-        "TAX identity contract source-buckets unreviewed dynamic Plugin and MCP identities"
+        "44c7ac7f755292cc0b745a30f079791a7f27d812",
+        "Required CI run 30172953632 job 89716988488",
+        "public FastAPI OpenAPI and request behavior contract"
       ],
-      "lease_started_at": "2026-07-25T22:03:30+02:00",
-      "lease_expires_at": "2026-07-26T00:03:30+02:00",
-      "released_at": "2026-07-25T22:11:00+02:00",
+      "lease_started_at": "2026-07-25T22:23:30+02:00",
+      "lease_expires_at": "2026-07-26T00:23:30+02:00",
+      "released_at": "2026-07-25T22:28:00+02:00",
       "allowed_paths": [
-        "tests/test_tool_usage_acceptance.py",
-        "docs/plans/tool-usage-acceptance-report.md",
+        "tests/test_tool_usage_diagnostics_routes.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "changed_paths": [
-        "tests/test_tool_usage_acceptance.py",
-        "docs/plans/tool-usage-acceptance-report.md",
+        "tests/test_tool_usage_diagnostics_routes.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "diagnosis": {
-        "required_ci_run": 30172515829,
-        "required_ci_job": 89715880527,
-        "required_ci_head_sha": "96f5935a1ffd409b07f11a59896fd2db99b4f111",
-        "required_ci_passed_before_failure": 9656,
-        "failing_node": "tests/test_tool_usage_acceptance.py::test_10000_invocations_are_deterministic_private_complete_and_within_budget",
-        "root_cause": "749b0958 migrated two of five synthetic lanes to the privacy-safe production Plugin and MCP unclassified source buckets but retained the pre-migration zero-unknown expectation and report",
-        "identity_contract": "unreviewed dynamic Plugin and MCP runtime names intentionally collapse into bounded .unclassified source buckets and production analytics must count them as unknown_identity quality evidence",
-        "deterministic_count": "2000 Plugin plus 2000 MCP invocations equals exactly 4000 unknown identities while all 10000 invocations remain complete and writer failures remain zero",
-        "repair": "assert exact 4000 unknown_identity_count and warning code, update the versioned acceptance report to the same truthful count and pin that report row",
-        "production_classification_suppression_allowed": false,
+        "required_ci_run": 30172953632,
+        "required_ci_job": 89716988488,
+        "required_ci_head_sha": "44c7ac7f755292cc0b745a30f079791a7f27d812",
+        "required_ci_passed_before_failure": 9697,
+        "failing_node": "tests/test_tool_usage_diagnostics_routes.py::test_tool_usage_surface_has_no_raw_or_mutating_route",
+        "root_cause": "the final security assertion depended on the internal FastAPI app.routes representation even though all public request checks in the same module passed and the dependency is not version-pinned",
+        "route_contract": "exactly one public OpenAPI path exists at /api/diagnostics/tool-usage with GET only; POST must return 405 and the raw descendant must return 404",
+        "security_contract": "the GET handler authenticates admin before store resolution and returns only the aggregate allowlist projection with raw_content_visible false",
+        "repair": "replace internal route-object inspection with exact public OpenAPI operation mapping plus runtime negative method and raw-path requests",
         "production_change_required": false
       },
       "tests": {
-        "focused_analytics_sources_identity_and_report_contracts": "28 passed in 2.81s during final Sol review",
-        "local_10000_invocation_acceptance_node": "not_run_by_operator_request_to_avoid_heavy_local_tests_required_ci_remains_authority",
+        "focused_tool_usage_diagnostics_and_admin_ui_contracts": "22 passed in 6.44s during final Sol review",
         "python_ast": "pass",
         "roadmap_json_parse": "pass",
         "git_diff_check": "pass",
-        "terra_independent_review": "five_lane_bounded_probe_exact_2_of_5_unknown_source_buckets_and_4000_scale_projection_pass",
-        "sol_deep_review": "pass_production_unknown_quality_semantics_preserved_fixture_and_durable_report_made_truthful",
+        "terra_independent_review": "static_route_mount_admin_first_projection_and_public_contract_diagnosis_pass",
+        "sol_deep_review": "pass_exact_openapi_route_map_and_runtime_405_404_negatives_avoid_private_framework_representation",
         "production_files_changed": 0,
         "production_runtime_logic_changed": false,
         "blocking_failures": 0,
@@ -152,14 +148,13 @@
         "amh08_feature_work_performed": false
       },
       "evidence_refs": [
-        "GitHub Actions Required CI run 30172515829 job 89715880527",
-        "749b0958 tool usage acceptance migration to TAX source buckets",
-        "63dd70a7 established unknown_identity aggregation semantics",
-        "tool analytics identity contract v1 unreviewed dynamic source bucket specification",
-        "versioned TUA11 acceptance report",
-        "Terra read-only TUA five-lane diagnosis PASS"
+        "GitHub Actions Required CI run 30172953632 job 89716988488",
+        "392d1f0d original admin aggregate diagnostics API",
+        "63dd70a7 current V2 route and security tests",
+        "app.py diagnostics router mount",
+        "Terra read-only public route contract diagnosis PASS"
       ],
-      "collision_check": "pass_exactly_the_worker_test_and_acceptance_report_paths_plus_root_owned_canonical_roadmap_changed",
+      "collision_check": "pass_exactly_the_worker_route_test_path_and_root_owned_canonical_roadmap_changed",
       "route": {
         "entrypoint": "/abc",
         "master": "gpt-5.6-sol",

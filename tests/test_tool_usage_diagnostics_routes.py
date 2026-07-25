@@ -208,16 +208,35 @@ def test_unauthenticated_and_non_admin_requests_fail_before_store_access(
 
 def test_tool_usage_surface_has_no_raw_or_mutating_route(tmp_path):
     service, store = _service(tmp_path)
-    routes = [
-        route
-        for route in _app(service).routes
-        if getattr(route, "path", "").startswith("/api/diagnostics/tool-usage")
-    ]
+    app = _app(service)
+    route_prefix = "/api/diagnostics/tool-usage"
+    http_operations = {
+        "delete",
+        "get",
+        "head",
+        "options",
+        "patch",
+        "post",
+        "put",
+        "trace",
+    }
+    try:
+        public_routes = {
+            path: {
+                operation.upper()
+                for operation in operations
+                if operation in http_operations
+            }
+            for path, operations in app.openapi()["paths"].items()
+            if path == route_prefix or path.startswith(route_prefix + "/")
+        }
 
-    assert len(routes) == 1
-    assert routes[0].path == "/api/diagnostics/tool-usage"
-    assert routes[0].methods == {"GET"}
-    store.close()
+        assert public_routes == {route_prefix: {"GET"}}
+        client = TestClient(app)
+        assert client.post(route_prefix).status_code == 405
+        assert client.get(route_prefix + "/raw").status_code == 404
+    finally:
+        store.close()
 
 
 def test_default_router_path_reads_existing_sqlite_aggregate_store(tmp_path, monkeypatch):
