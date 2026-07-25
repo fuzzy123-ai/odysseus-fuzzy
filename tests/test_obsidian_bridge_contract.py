@@ -134,7 +134,13 @@ async def test_chat_vault_mcp_bridge_writes_only_to_trusted_request_owner(monkey
     monkeypatch.setenv("OBSIDIAN_VAULT_DIR", str(tmp_path / "{owner}"))
     # Public Vault writes are blocked; exercise only the privileged path that
     # must bind the write to the trusted request owner, not payload.owner.
-    monkeypatch.setattr("src.tool_execution._owner_is_admin", lambda owner: True)
+    # Patch the exact imported function's globals so collection-time module
+    # reloads in parser tests cannot redirect this privilege stub elsewhere.
+    monkeypatch.setitem(
+        execute_tool_block.__globals__,
+        "_owner_is_admin",
+        lambda owner: True,
+    )
     fuzzy = tmp_path / "fuzzy"
     mallory = tmp_path / "mallory"
     fuzzy.mkdir()

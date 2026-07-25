@@ -96,22 +96,26 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-obsidian-owner-policy-20260725T142922+0200",
-      "slice_id": "CI-obsidian-bridge-public-policy-owner-contract",
-      "prior_slice": "CI-memory-todo-domain-mismatch-envelope-contract",
-      "prior_slice_result": "committed_as_6bb7267ec027a62491c1f71a7d1c22e66ed84ca2_then_required_ci_advanced_to_5460_passed",
+      "run_id": "abc-ci-obsidian-import-identity-20260725T145821+0200",
+      "slice_id": "CI-obsidian-bridge-import-identity-contract",
+      "prior_slice": "CI-obsidian-bridge-public-policy-owner-contract",
+      "prior_slice_result": "committed_as_de9a337bd0b0a53c130d302513652d2d8588bbf8_then_required_ci_attempt_2_advanced_to_5460_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
-      "previous_ci_repair_handoff_commit": "6bb7267ec027a62491c1f71a7d1c22e66ed84ca2",
+      "previous_ci_repair_handoff_commit": "de9a337bd0b0a53c130d302513652d2d8588bbf8",
       "changed_files": [
         "tests/test_obsidian_bridge_contract.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "tests": {
+        "import_order_reproduction_failed_before_fix": 1,
+        "import_order_reproduction_passed_after_fix": 2,
         "focused_obsidian_bridge_and_security_tests_passed": 16,
         "blocking_failures": 0,
         "production_files_changed": 0,
         "privileged_test_context_explicit": true,
+        "exact_imported_function_globals_patched": true,
+        "obsidian_privilege_stub_resilient_to_collection_time_module_identity_drift": true,
         "trusted_request_owner": "fuzzy",
         "untrusted_payload_owner": "mallory",
         "trusted_owner_write_succeeded": true,
@@ -142,7 +146,7 @@
         "updater_or_resume_clean": "na",
         "product_complete": "no"
       },
-      "next_gate": "commit_exact_roadmap_and_obsidian_bridge_test_push_only_fuzzy_dev_then_required_ci"
+      "next_gate": "commit_exact_roadmap_and_obsidian_import_identity_test_push_only_fuzzy_dev_then_required_ci"
     }
   },
   "non_ui_execution_ledger": {
