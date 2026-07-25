@@ -13,6 +13,16 @@ from src.tool_registry import get_tool
 from src.tool_security import ORCHESTRATOR_MODE_ALLOWED_TOOLS, orchestrator_mode_disabled_tools
 
 
+def _grant_admin_execution(monkeypatch):
+    # Patch the exact imported function's policy seam so collection-time module
+    # reloads cannot redirect the privileged test context to another module.
+    monkeypatch.setitem(
+        execute_tool_block.__globals__,
+        "_owner_is_admin",
+        lambda owner: True,
+    )
+
+
 def test_sensitive_local_worker_builds_redacted_external_safe_result():
     result = build_sensitive_local_worker_result({
         "source_ref": "inbox:abc123",
@@ -64,7 +74,7 @@ def test_sensitive_local_worker_rejects_host_paths_and_chat_ids():
 
 @pytest.mark.asyncio
 async def test_sensitive_local_worker_tool_is_registered_and_executable(monkeypatch):
-    monkeypatch.setattr("src.tool_execution.owner_is_admin_or_single_user", lambda owner: True)
+    _grant_admin_execution(monkeypatch)
     assert get_tool(SENSITIVE_LOCAL_ANALYSIS_TOOL) is not None
 
     _desc, result = await execute_tool_block(
@@ -109,7 +119,7 @@ def test_sensitive_local_worker_can_request_local_memory_job_without_raw_content
 
 @pytest.mark.asyncio
 async def test_sensitive_local_worker_tool_blocks_raw_transcript(monkeypatch):
-    monkeypatch.setattr("src.tool_execution.owner_is_admin_or_single_user", lambda owner: True)
+    _grant_admin_execution(monkeypatch)
     _desc, result = await execute_tool_block(
         type("Block", (), {
             "tool_type": SENSITIVE_LOCAL_ANALYSIS_TOOL,

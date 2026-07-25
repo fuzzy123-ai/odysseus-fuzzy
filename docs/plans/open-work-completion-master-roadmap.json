@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T16:01:16+02:00",
+  "updated_at": "2026-07-25T16:12:18+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,33 +96,33 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-sandbox-rw-guard-20260725T155800+0200",
-      "slice_id": "CI-sandbox-artifact-rw-guard-contract",
-      "prior_slice": "CI-telegram-contract-guidance-index-normalization",
-      "prior_slice_result": "committed_as_118e58c018e5eedf24eeea6be37241eeb8b42608_then_required_ci_advanced_to_7448_passed",
+      "run_id": "abc-ci-sensitive-worker-import-identity-20260725T160900+0200",
+      "slice_id": "CI-sensitive-worker-import-identity-contract",
+      "prior_slice": "CI-sandbox-artifact-rw-guard-contract",
+      "prior_slice_result": "committed_as_58a4b403cc7c19bf68b9103ff4dfcfa468fa20be_then_required_ci_advanced_to_7854_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
-      "previous_ci_repair_handoff_commit": "118e58c018e5eedf24eeea6be37241eeb8b42608",
+      "previous_ci_repair_handoff_commit": "58a4b403cc7c19bf68b9103ff4dfcfa468fa20be",
       "changed_files": [
-        "tests/test_sandbox_resource_guard.py",
+        "tests/test_sensitive_local_worker.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "tests": {
-        "focused_sandbox_guard_template_and_worker_tests_passed": 14,
-        "exact_sandbox_resource_guard_tests_passed": 3,
-        "terra_independent_sandbox_worker_route_tests_passed": 6,
+        "focused_sensitive_worker_and_module_reload_tests_passed": 11,
+        "terra_independent_sensitive_worker_tests_passed": 7,
+        "terra_targeted_module_drift_admin_tests_passed": 2,
+        "terra_targeted_module_drift_tests_deselected": 13,
         "blocking_failures": 0,
         "production_files_changed": 0,
-        "default_screenshot_artifact_rw_mount_allowed": true,
-        "non_artifact_src_rw_mount_allowed": false,
-        "non_artifact_src_rw_mount_reason": "rw_mount_not_allowed",
-        "browser_template_network_mode": "none",
-        "browser_template_secrets_attached": false,
+        "exact_imported_function_globals_patched": true,
+        "patched_policy_seam": "_owner_is_admin",
+        "collection_time_module_reloads_covered": true,
+        "sensitive_worker_admin_only_policy_changed": false,
+        "privileged_test_context_explicit": true,
+        "raw_transcript_allowed": false,
         "raw_content_visible": false,
-        "broad_rw_approval_added": false,
-        "sandbox_resource_guard_changed": false,
-        "sandbox_template_changed": false,
-        "live_execution_performed": false,
+        "production_tool_execution_changed": false,
+        "production_tool_security_changed": false,
         "unconfirmed_write_performed": false,
         "gmi_live_activation_performed": false,
         "amh08_feature_work_performed": false
@@ -146,7 +146,7 @@
         "updater_or_resume_clean": "na",
         "product_complete": "no"
       },
-      "next_gate": "commit_exact_sandbox_guard_test_and_roadmap_handoff_push_only_fuzzy_dev_then_required_ci"
+      "next_gate": "commit_exact_sensitive_worker_import_identity_test_and_roadmap_handoff_push_only_fuzzy_dev_then_required_ci"
     }
   },
   "non_ui_execution_ledger": {
