@@ -143,26 +143,31 @@ def test_reminder_channel_accepts_telegram_and_keeps_dry_run_configurable(isolat
 
 
 def test_confirm_protected_patch_blocks_until_confirmed(isolated_settings_files):
+    absolute_root = str(
+        (isolated_settings_files["settings"].parent / "tool-path-extra-root").resolve()
+    )
     blocked = _run_manage({
         "action": "patch",
         "key": "tool_path_extra_roots",
         "op": "append",
-        "value": "C:\\tmp",
+        "value": absolute_root,
         "scope": "global",
     })
+    assert blocked["exit_code"] == 0
+    assert blocked["status"] == "confirmation_required"
+    assert not isolated_settings_files["settings"].exists()
+
     updated = _run_manage({
         "action": "patch",
         "key": "tool_path_extra_roots",
         "op": "append",
-        "value": "C:\\tmp",
+        "value": absolute_root,
         "scope": "global",
         "confirmed": True,
     })
 
-    assert blocked["exit_code"] == 0
-    assert blocked["status"] == "confirmation_required"
     assert updated["exit_code"] == 0
-    assert updated["value"] == ["C:\\tmp"]
+    assert updated["value"] == [absolute_root]
 
 
 def test_feature_write_blocks_until_confirmed(isolated_settings_files):

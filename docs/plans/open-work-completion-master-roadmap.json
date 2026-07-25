@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T12:43:46+02:00",
+  "updated_at": "2026-07-25T12:54:49+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,33 +96,27 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-gmi-canary-hash-20260725T124135+0200",
-      "slice_id": "CI-gmi-canary-acceptance-hash-refresh",
-      "prior_slice": "CI-gmi-canary-deterministic-heartbeat-test",
-      "prior_slice_result": "accepted_after_12_focused_tests_and_deep_sol_review",
+      "run_id": "abc-ci-settings-path-portability-20260725T125139+0200",
+      "slice_id": "CI-settings-protected-path-portability",
+      "prior_slice": "CI-gmi-canary-acceptance-hash-refresh",
+      "prior_slice_result": "accepted_after_17_focused_tests_and_deep_sol_review",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
-      "previous_ci_repair_handoff_commit": "6f6e8d397f08ed3cfc34a1627987eb443599ac30",
+      "previous_ci_repair_handoff_commit": "ddf1a28c54b191970a026003167eed4b872b4442",
       "changed_files": [
-        "tests/test_gemma3_activation_packet.py",
-        "docs/plans/gemma3-memory-ops-offline-acceptance.json",
+        "tests/test_manage_settings_service_v2.py",
+        "tests/test_settings_service.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "tests": {
-        "focused_gmi_canary_tests_passed": 12,
-        "focused_gmi_acceptance_tests_passed": 17,
+        "focused_settings_tests_passed": 29,
         "blocking_failures": 0,
         "production_files_changed": 0,
-        "fake_transport_calls_succeeded": 21,
-        "github_scheduler_gap_made_offline_test_flaky": true,
-        "production_canary_real_heartbeat_must_remain_unchanged": true,
-        "canonical_test_hash_observed": "9EE317A36D2ED06AA26684569A38AB8FBBCF9A7D5976834C19AC3F1EC68FB5AE",
-        "acceptance_hash_matches": true,
-        "offline_blockers": 0,
-        "live_blockers": [
-          "gmi_live_go_not_recorded",
-          "gro_live_validation_not_recorded"
-        ],
+        "hardcoded_windows_absolute_path_identified": true,
+        "identical_direct_service_fixture_identified": true,
+        "production_absolute_path_validation_must_remain_strict": true,
+        "fixture_paths_are_absolute_on_windows_and_linux": true,
+        "unconfirmed_write_performed": false,
         "gmi_live_activation_performed": false,
         "amh08_feature_work_performed": false
       },

@@ -146,9 +146,12 @@ def test_context_budget_overrides_validate_nested_positive_integer_maps(isolated
 
 
 def test_confirm_setting_blocks_until_confirmed(isolated_settings_files):
+    absolute_root = str(
+        (isolated_settings_files["settings"].parent / "tool-path-extra-root").resolve()
+    )
     blocked = patch_setting(
         "tool_path_extra_roots",
-        {"op": "append", "value": "C:\\tmp"},
+        {"op": "append", "value": absolute_root},
         scope="global",
     )
 
@@ -158,12 +161,12 @@ def test_confirm_setting_blocks_until_confirmed(isolated_settings_files):
 
     updated = patch_setting(
         "tool_path_extra_roots",
-        {"op": "append", "value": "C:\\tmp"},
+        {"op": "append", "value": absolute_root},
         scope="global",
         confirmed=True,
     )
     assert updated["ok"] is True
-    assert updated["value"] == ["C:\\tmp"]
+    assert updated["value"] == [absolute_root]
 
 
 def test_reset_user_setting_removes_override_and_falls_back_to_global(isolated_settings_files):
