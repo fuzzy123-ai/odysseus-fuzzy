@@ -104,6 +104,21 @@ recreates the Podman deployment, and verifies the app plus ChromaDB. If a
 fast-forward update is available, it requires a clean worktree and runs the
 same backup-before-deploy flow after updating the checkout.
 
+The root-owned `odysseus-security-reporter` distinguishes the expected
+`odysseus_app_env` audit event only while systemd verifies that
+`odysseus-auto-update.service` is actively running the canonical
+`/home/homebase/.local/bin/odysseus-auto-update.sh`. In that narrow case it
+sends a `Debian-Wartungsmeldung` instead of presenting the environment refresh
+as an unexplained security change. Any additional audit finding remains a
+`Debian-Sicherheitsmeldung`. The deployed reporter can be updated
+deterministically with:
+
+```bash
+sudo python3 ops/homeserver/patch-security-reporter-auto-update-context.py \
+  --backup /usr/local/sbin/odysseus-security-reporter.bak-YYYYMMDD \
+  --target /usr/local/sbin/odysseus-security-reporter
+```
+
 ## Local Model Maintenance Priority
 
 The Debian homeserver is CPU-only for local Gemma3. Foreground document checks,
