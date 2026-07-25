@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T17:34:06+02:00",
+  "updated_at": "2026-07-25T17:45:49+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,63 +96,64 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-regression-queue-append-only-contract-20260725T173145+0200",
-      "slice_id": "CI-regression-queue-append-only-contract",
-      "prior_slice": "CI-session-status-route-isolation",
-      "prior_slice_result": "committed_as_95f52a6f10d66885340c2b651ed920cf0300258f_then_required_ci_advanced_to_8485_passed",
+      "run_id": "abc-ci-scheduler-database-monkeypatch-isolation-20260725T174308+0200",
+      "slice_id": "CI-scheduler-database-monkeypatch-isolation",
+      "prior_slice": "CI-regression-queue-append-only-contract",
+      "prior_slice_result": "committed_as_f45c57ab16b305917b370f9cb1025a7e60749166_then_required_ci_advanced_to_8668_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
       "owner": "root_sol_orchestrator",
-      "class": "required_ci_append_only_queue_contract_repair",
+      "class": "required_ci_test_global_state_isolation_repair",
       "dependencies": [
-        "95f52a6f10d66885340c2b651ed920cf0300258f",
-        "Required CI run 30163544194 failure evidence",
-        "docs/plans/regression-queue.json append-only ownership boundary"
+        "f45c57ab16b305917b370f9cb1025a7e60749166",
+        "Required CI run 30163929674 failure evidence"
       ],
-      "lease_started_at": "2026-07-25T17:31:45+02:00",
-      "lease_expires_at": "2026-07-25T19:31:45+02:00",
-      "released_at": "2026-07-25T17:34:06+02:00",
+      "lease_started_at": "2026-07-25T17:43:08+02:00",
+      "lease_expires_at": "2026-07-25T19:43:08+02:00",
+      "released_at": "2026-07-25T17:45:49+02:00",
       "allowed_paths": [
-        "tests/test_system_assurance_runtime_hardening_roadmap.py",
+        "tests/test_scheduler_restart_doublefire.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "changed_paths": [
-        "tests/test_system_assurance_runtime_hardening_roadmap.py",
+        "tests/test_scheduler_restart_doublefire.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "diagnosis": {
-        "required_ci_run": 30163544194,
-        "required_ci_job": 89692633148,
-        "required_ci_head_sha": "95f52a6f10d66885340c2b651ed920cf0300258f",
-        "required_ci_passed_before_failure": 8485,
-        "failing_node": "tests/test_system_assurance_runtime_hardening_roadmap.py::test_full_suite_policy_routes_independent_failures_to_regression_queue",
-        "root_cause": "historical SAR test treated the intentionally append-only cross-roadmap regression queue as a closed 13-item list and also classified every later item as Planning closeout evidence",
+        "required_ci_run": 30163929674,
+        "required_ci_job": 89693648827,
+        "required_ci_head_sha": "f45c57ab16b305917b370f9cb1025a7e60749166",
+        "required_ci_passed_before_failure": 8668,
+        "failing_node": "tests/test_task_summary_routes.py::test_reminder_live_gate_route_is_owner_scoped_and_redacted",
+        "ordered_reproducer": "tests/test_scheduler_restart_doublefire.py then failing task-summary node reproduces with 4 passed and 1 failed",
+        "root_cause": "scheduler restart tests directly overwrite core.database engine, SessionLocal, ScheduledTask and TaskRun; pytest cannot restore those assignments, so later lazy imports see a reduced fake ScheduledTask without action",
         "production_change_required": false
       },
       "tests": {
-        "focused_system_assurance_and_planning_boundary_tests_passed": 21,
+        "ordered_reproducer_before_fix": "4 passed, 1 failed",
+        "focused_scheduler_and_task_summary_tests_after_fix_passed": 8,
+        "unawaited_coroutine_warnings_after_fix": 0,
         "python_ast": "pass",
-        "roadmap_and_regression_queue_json_parse": "pass",
+        "roadmap_json_parse": "pass",
         "git_diff_check": "pass",
         "terra_independent_review": "pass",
         "sol_deep_review": "pass",
-        "historical_source_projection_exact_ids": "REG-20260714-001_through_REG-20260715-013",
-        "unrelated_append_only_items_preserved": [
-          "REG-20260716-014",
-          "REG-20260716-015",
-          "REG-20260716-016"
+        "core_database_globals_restored": [
+          "engine",
+          "SessionLocal",
+          "ScheduledTask",
+          "TaskRun"
         ],
-        "blocking_failures": 0,
         "production_files_changed": 0,
-        "regression_queue_mutated": false,
+        "blocking_failures": 0,
         "unconfirmed_write_performed": false,
         "gmi_live_activation_performed": false,
         "amh08_feature_work_performed": false
       },
       "evidence_refs": [
-        "GitHub Actions Required CI run 30163544194 job 89692633148",
-        "git blame and queue history proving 014 through 016 were later independent append-only records",
-        "local 21-test system-assurance and Planning-boundary suite",
+        "GitHub Actions Required CI run 30163929674 job 89693648827",
+        "local ordered scheduler-restart then task-summary reproducer",
+        "local 8-test scheduler-restart and task-summary suite",
         "Terra read-only diagnosis and exact-diff review PASS",
         "Sol exact-diff deep review PASS"
       ],
