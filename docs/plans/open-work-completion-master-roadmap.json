@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T14:21:29+02:00",
+  "updated_at": "2026-07-25T14:32:28+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,28 +96,28 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-memory-todo-domain-envelope-20260725T141813+0200",
-      "slice_id": "CI-memory-todo-domain-mismatch-envelope-contract",
-      "prior_slice": "CI-raptor-scale-status-ratio-contract",
-      "prior_slice_result": "committed_as_763e8e496539d119661ca92b1974b1a09b88daf9_then_required_ci_advanced_to_4847_passed",
+      "run_id": "abc-ci-obsidian-owner-policy-20260725T142922+0200",
+      "slice_id": "CI-obsidian-bridge-public-policy-owner-contract",
+      "prior_slice": "CI-memory-todo-domain-mismatch-envelope-contract",
+      "prior_slice_result": "committed_as_6bb7267ec027a62491c1f71a7d1c22e66ed84ca2_then_required_ci_advanced_to_5460_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
-      "previous_ci_repair_handoff_commit": "763e8e496539d119661ca92b1974b1a09b88daf9",
+      "previous_ci_repair_handoff_commit": "6bb7267ec027a62491c1f71a7d1c22e66ed84ca2",
       "changed_files": [
-        "tests/test_memory_todo_validation.py",
+        "tests/test_obsidian_bridge_contract.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "tests": {
-        "focused_memory_todo_domain_tests_passed": 17,
+        "focused_obsidian_bridge_and_security_tests_passed": 16,
         "blocking_failures": 0,
         "production_files_changed": 0,
-        "current_status": "domain_mismatch",
-        "current_redirect_tool": "manage_todos",
-        "current_exit_code": 1,
-        "obsolete_rejected_error_code_envelope_restored": false,
-        "memory_write_side_effects_performed": false,
-        "private_payload_exposed": false,
-        "todo_domain_routing_weakened": false,
+        "privileged_test_context_explicit": true,
+        "trusted_request_owner": "fuzzy",
+        "untrusted_payload_owner": "mallory",
+        "trusted_owner_write_succeeded": true,
+        "untrusted_payload_owner_write_performed": false,
+        "public_vault_write_default_block_preserved": true,
+        "production_public_policy_weakened": false,
         "guidance_audit_preexisting_unrelated_error": "telegram-session-rollover-transaction-contract.md profile/discovery mismatch",
         "unconfirmed_write_performed": false,
         "gmi_live_activation_performed": false,
@@ -142,7 +142,7 @@
         "updater_or_resume_clean": "na",
         "product_complete": "no"
       },
-      "next_gate": "commit_exact_roadmap_and_memory_todo_test_push_only_fuzzy_dev_then_required_ci"
+      "next_gate": "commit_exact_roadmap_and_obsidian_bridge_test_push_only_fuzzy_dev_then_required_ci"
     }
   },
   "non_ui_execution_ledger": {

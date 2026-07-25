@@ -132,6 +132,9 @@ def test_plan_mode_hides_and_blocks_mutating_vault_mcp_but_keeps_readonly_visibl
 @pytest.mark.asyncio
 async def test_chat_vault_mcp_bridge_writes_only_to_trusted_request_owner(monkeypatch, tmp_path):
     monkeypatch.setenv("OBSIDIAN_VAULT_DIR", str(tmp_path / "{owner}"))
+    # Public Vault writes are blocked; exercise only the privileged path that
+    # must bind the write to the trusted request owner, not payload.owner.
+    monkeypatch.setattr("src.tool_execution._owner_is_admin", lambda owner: True)
     fuzzy = tmp_path / "fuzzy"
     mallory = tmp_path / "mallory"
     fuzzy.mkdir()
