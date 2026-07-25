@@ -56,6 +56,12 @@ def _safe_state_closed(payload: dict[str, Any]) -> bool:
     )
 
 
+def _canonical_text_sha256(content: bytes) -> str:
+    """Hash versioned text identically on LF and Windows CRLF worktrees."""
+    normalized = content.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return hashlib.sha256(normalized).hexdigest().upper()
+
+
 def _hash_manifest_matches(payload: dict[str, Any], errors: list[str]) -> bool:
     manifest = payload.get("hash_manifest")
     if not isinstance(manifest, dict) or not manifest:
@@ -68,7 +74,7 @@ def _hash_manifest_matches(payload: dict[str, Any], errors: list[str]) -> bool:
             continue
         path = REPO_ROOT / relative_path
         try:
-            observed = hashlib.sha256(path.read_bytes()).hexdigest().upper()
+            observed = _canonical_text_sha256(path.read_bytes())
         except OSError:
             observed = ""
         if observed != expected.upper():

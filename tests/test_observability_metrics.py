@@ -125,7 +125,7 @@ def test_readiness_lists_only_safe_metric_contract():
     assert readiness["status"] == "ready"
     assert "telegram_poll_success_total" in readiness["metrics"]
     assert "tool_usage_invocations_total" in readiness["metrics"]
-    assert "tool_usage_duration_milliseconds" in readiness["metrics"]
+    assert "tool_usage_duration_seconds" in readiness["metrics"]
     assert "chat_id" not in str(readiness).lower()
     assert readiness["raw_content_visible"] is False
     assert readiness["high_cardinality_labels_allowed"] is False

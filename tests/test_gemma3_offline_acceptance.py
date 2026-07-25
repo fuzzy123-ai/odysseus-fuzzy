@@ -14,6 +14,11 @@ def _payload() -> dict:
     return json.loads(ACCEPTANCE_PATH.read_text(encoding="utf-8"))
 
 
+def _canonical_text_sha256(content: bytes) -> str:
+    normalized = content.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return hashlib.sha256(normalized).hexdigest().upper()
+
+
 def test_offline_acceptance_schema_verdict_and_safe_state() -> None:
     payload = _payload()
 
@@ -87,7 +92,7 @@ def test_hash_manifest_matches_current_runtime_and_load_suite() -> None:
 
     for relative_path, expected_hash in payload["hash_manifest"].items():
         path = ROOT / relative_path
-        observed_hash = hashlib.sha256(path.read_bytes()).hexdigest().upper()
+        observed_hash = _canonical_text_sha256(path.read_bytes())
         assert observed_hash == expected_hash
 
     packet_hash_paths = {
@@ -100,7 +105,7 @@ def test_hash_manifest_matches_current_runtime_and_load_suite() -> None:
         "tests": "tests/test_gemma3_activation_packet.py",
     }
     for key, relative_path in packet_hash_paths.items():
-        observed_hash = hashlib.sha256((ROOT / relative_path).read_bytes()).hexdigest().upper()
+        observed_hash = _canonical_text_sha256((ROOT / relative_path).read_bytes())
         assert observed_hash == payload["activation_packet"]["artifact_hashes"][key]
 
 

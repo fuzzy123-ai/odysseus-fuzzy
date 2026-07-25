@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-24T23:35:30+02:00",
+  "updated_at": "2026-07-25T11:01:48+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -94,7 +94,52 @@
       "queue_exhausted": false,
       "verified_at": "2026-07-24"
     },
-    "active_claimed_slices": []
+    "active_claimed_slices": [],
+    "latest_ci_repair_handoff": {
+      "run_id": "abc-ci-gmi-canonical-hashes-20260725T105610+0200",
+      "slice_id": "GMI-CI-cross-platform-acceptance-hashes",
+      "status": "accepted_repo_only_awaiting_commit_and_required_ci",
+      "claim": "released",
+      "changed_files": [
+        "docs/plans/gemma3-memory-ops-offline-acceptance.json",
+        "ops/homeserver/gemma3-maintenance-activation/preflight.py",
+        "tests/test_gemma3_activation_packet.py",
+        "tests/test_gemma3_offline_acceptance.py",
+        "tests/test_observability_metrics.py",
+        "docs/plans/open-work-completion-master-roadmap.json"
+      ],
+      "tests": {
+        "focused_gmi_metrics_packet_tests_passed": 147,
+        "blocking_failures": 0,
+        "preflight_packet_ready": true,
+        "preflight_live_execution_eligible": false,
+        "offline_blockers": [],
+        "live_blockers": [
+          "gmi_live_go_not_recorded",
+          "gro_live_validation_not_recorded"
+        ]
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "master": "gpt-5.6-sol",
+        "worker": "gpt-5.6-terra",
+        "review": "deep_sol_pass"
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "deep",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "updater_or_resume_clean": "na",
+        "product_complete": "no"
+      },
+      "next_gate": "commit_exact_paths_push_only_fuzzy_dev_then_required_ci"
+    }
   },
   "non_ui_execution_ledger": {
     "operator_go_received_at": "2026-07-10",

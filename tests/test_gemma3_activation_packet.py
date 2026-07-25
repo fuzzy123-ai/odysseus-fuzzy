@@ -22,6 +22,16 @@ def _json(relative_path: str) -> dict:
     return json.loads((PACKET_ROOT / relative_path).read_text(encoding="utf-8"))
 
 
+def test_preflight_canonical_text_hash_is_line_ending_invariant() -> None:
+    preflight = _load_module("gmi15_preflight_hash_test", PACKET_ROOT / "preflight.py")
+
+    lf = b"one\ntwo\nthree\n"
+    expected = preflight._canonical_text_sha256(lf)
+
+    assert preflight._canonical_text_sha256(lf.replace(b"\n", b"\r\n")) == expected
+    assert preflight._canonical_text_sha256(lf.replace(b"\n", b"\r")) == expected
+
+
 def test_preflight_marks_packet_ready_without_authorizing_live_execution() -> None:
     preflight = _load_module("gmi15_preflight_test", PACKET_ROOT / "preflight.py")
     report = preflight.evaluate_preflight()
