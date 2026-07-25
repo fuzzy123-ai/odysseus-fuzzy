@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T20:03:24+02:00",
+  "updated_at": "2026-07-25T20:33:00+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,59 +96,57 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-temporal-cli-provisioning-20260725T195706+0200",
-      "slice_id": "CI-temporal-cli-provisioning-contract",
-      "prior_slice": "CI-telegram-webhook-audit-receipt-contract",
-      "prior_slice_result": "committed_as_419f83c67d3deb0e2b9e2b1a1a709644489a1283_then_required_ci_advanced_past_the_webhook_audit_contract_to_9040_passed",
+      "run_id": "abc-ci-llm-tls-scope-contract-20260725T201522+0200",
+      "slice_id": "CI-llm-tls-scope-contract",
+      "prior_slice": "CI-temporal-cli-provisioning-contract",
+      "prior_slice_result": "committed_as_64158e5355298d6056c4151b0ad9f44b92637442_then_required_ci_confirmed_checksum_verified_temporal_provisioning_and_advanced_to_9267_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
       "owner": "root_sol_orchestrator",
-      "class": "required_ci_temporal_cli_provisioning_repair",
+      "class": "required_ci_security_scope_contract_repair",
       "dependencies": [
-        "419f83c67d3deb0e2b9e2b1a1a709644489a1283",
-        "Required CI run 30168177212 job 89704624365",
-        "accepted Temporal CLI 1.8.0 and temporalio 1.30.0 runtime pins"
+        "64158e5355298d6056c4151b0ad9f44b92637442",
+        "Required CI run 30168930808 job 89706560515",
+        "existing opt-in extra-CA LLM-only trust boundary"
       ],
-      "lease_started_at": "2026-07-25T19:57:06+02:00",
-      "lease_expires_at": "2026-07-25T21:57:06+02:00",
-      "released_at": "2026-07-25T20:03:24+02:00",
+      "lease_started_at": "2026-07-25T20:15:22+02:00",
+      "lease_expires_at": "2026-07-25T22:15:22+02:00",
+      "released_at": "2026-07-25T20:33:00+02:00",
       "allowed_paths": [
-        ".github/workflows/quality-gate.yml",
-        "tests/test_ci_release_workflow_contract.py",
+        "src/tls_overrides.py",
+        "tests/test_tls_overrides_scope.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "changed_paths": [
-        ".github/workflows/quality-gate.yml",
-        "tests/test_ci_release_workflow_contract.py",
+        "src/tls_overrides.py",
+        "tests/test_tls_overrides_scope.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "diagnosis": {
-        "required_ci_run": 30168177212,
-        "required_ci_job": 89704624365,
-        "required_ci_head_sha": "419f83c67d3deb0e2b9e2b1a1a709644489a1283",
-        "required_ci_passed_before_failure": 9040,
-        "failing_node": "tests/test_temporal_activities.py::test_local_temporal_retry_gets_new_fence_and_completes",
-        "root_cause": "the reusable Linux quality gate installs the pinned temporalio 1.30.0 Python SDK but not the independently pinned Temporal CLI 1.8.0; load_temporal_light_config therefore supplies a nonexistent executable to WorkflowEnvironment.start_local before workflow assertions run",
-        "affected_contract": "four real local-server integration tests across activities, determinism and workflow messages require the same explicit CLI path; time-skipping tests use a separate correctly optional test-server contract",
-        "repair": "provision the official Linux amd64 Temporal CLI 1.8.0 archive in the reusable Python test job, verify its exact source-controlled SHA-256 before extraction, export only ODYSSEUS_TEMPORAL_CLI_PATH, fail fast through the repository runtime capability check and retain the unmodified full pytest command",
+        "required_ci_run": 30168930808,
+        "required_ci_job": 89706560515,
+        "required_ci_head_sha": "64158e5355298d6056c4151b0ad9f44b92637442",
+        "required_ci_passed_before_failure": 9267,
+        "failing_node": "tests/test_tls_overrides_scope.py::test_llm_verify_only_used_in_allowlisted_files",
+        "root_cause": "the security test still treats direct llm_verify calls and injected references as one physical-file allowlist from before the llm_core refactors; current legitimate boundaries are three importers but only two direct invokers",
+        "importer_contract": "routes/model_routes.py injects llm_verify only into LLM provider probes; src/llm_runtime_state.py owns the relocated shared LLM AsyncClient used only by llm_core; src/llm_kimi_code.py uses it only after exact kimi.com-or-subdomain and coding-path validation",
+        "direct_invoker_contract": "src/llm_runtime_state.py and src/llm_kimi_code.py are the only direct llm_verify invokers",
+        "repair": "split the stale security assertion into exact importer and exact direct-invoker sets, preserve explicit justifications, pin the shared-client consumer to llm_core, prove the Kimi host/path gate before its models probe and update the TLS boundary documentation",
         "production_change_required": false,
-        "test_skip_or_fallback_allowed": false,
-        "official_release": {
-          "repository": "temporalio/cli",
-          "tag": "v1.8.0",
-          "asset": "temporal_cli_1.8.0_linux_amd64.tar.gz",
-          "sha256": "896c6132d6d969f84c3f2382a31abd9a67a06ed3008c1a37c3573fe81d730e4a"
-        }
+        "tls_trust_weakened": false,
+        "arbitrary_url_scope_expansion_observed": false,
+        "allowlist_only_without_boundary_tests_allowed": false
       },
       "tests": {
-        "focused_ci_and_temporal_contracts": "26 passed in 2.50s during final Sol review",
-        "worker_focused_ci_and_temporal_contracts": "26 passed in 2.96s",
-        "workflow_yaml_parse": "pass",
+        "focused_tls_scope_and_kimi_contracts": "16 passed in 34.12s during final Sol review",
+        "worker_focused_tls_scope_and_kimi_contracts": "15 passed in 8.62s before AST hardening",
+        "python_ast": "pass",
         "roadmap_json_parse": "pass",
         "git_diff_check": "pass",
-        "terra_independent_review": "diagnosis_and_bounded_implementation_handoff_pass",
-        "sol_deep_review": "pass_checksum_precedes_extraction_no_path_mutation_no_skip_exact_full_pytest_preserved",
+        "terra_independent_review": "security_boundary_diagnosis_and_bounded_implementation_handoff_pass",
+        "sol_deep_review": "pass_AST_based_import_and_direct_call_enumeration_exact_model_probe_injection_shared_client_consumer_and_Kimi_host_path_gate",
         "production_files_changed": 0,
+        "production_runtime_logic_changed": false,
         "blocking_failures": 0,
         "live_telegram_activation_performed": false,
         "unconfirmed_write_performed": false,
@@ -156,11 +154,11 @@
         "amh08_feature_work_performed": false
       },
       "evidence_refs": [
-        "GitHub Actions Required CI run 30168177212 job 89704624365",
-        "Temporal runtime config exact SDK and CLI pins",
-        "four real WorkflowEnvironment.start_local integration tests",
-        "official temporalio/cli v1.8.0 GitHub release metadata digest",
-        "Terra read-only CI provisioning diagnosis PASS"
+        "GitHub Actions Required CI run 30168930808 job 89706560515",
+        "original f59edee6 extra-CA LLM trust boundary",
+        "01dd5be0 shared LLM runtime-state extraction",
+        "96876ba6 Kimi helper extraction",
+        "Terra read-only TLS scope diagnosis PASS"
       ],
       "collision_check": "pass_exactly_the_two_worker_paths_and_root_owned_canonical_roadmap_changed",
       "route": {
@@ -183,7 +181,7 @@
         "updater_or_resume_clean": "na",
         "product_complete": "no"
       },
-      "remaining_gate_or_blocker": "commit_and_push_the_exact_three_path_ci_provisioning_fix_then_wait_for_exact_required_ci_green_before_debian_deploy",
+      "remaining_gate_or_blocker": "commit_and_push_the_exact_three_path_security_contract_fix_then_wait_for_exact_required_ci_green_before_debian_deploy",
       "recommended_next_action": "commit_exact_three_path_fix_push_only_fuzzy_dev_then_required_ci",
       "next_gate": "commit_exact_three_path_fix_push_only_fuzzy_dev_then_required_ci"
     }

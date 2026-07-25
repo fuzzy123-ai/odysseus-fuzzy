@@ -26,14 +26,24 @@ Example (GigaChat):
     LLM_CA_BUNDLE=/etc/odysseus/ca/russian-trusted-root.pem
 
 Scope:
-    `llm_verify()` is intentionally consumed by only two call sites — the
-    shared async client in `src/llm_core.py` and the endpoint probes in
-    `routes/model_routes.py`. Both reach LLM provider URLs. The override
-    is NOT threaded into web_fetch, search providers, gallery downloads,
-    embeddings, webhook delivery, or anything else that hits arbitrary
-    URLs, and it does NOT affect the app's own browser-facing TLS. That
-    boundary is pinned by `tests/test_tls_overrides_scope.py` — extending
-    it requires updating the allowlist there with a written justification.
+    `llm_verify()` has three approved integration modules, each confined to
+    an LLM-provider path:
+
+    - `src/llm_runtime_state.py` directly applies it to the shared async
+      client used only by `src/llm_core.py`'s LLM request and stream flows;
+    - `routes/model_routes.py` imports it only to inject into the configured
+      model-endpoint probe helpers; and
+    - `src/llm_kimi_code.py` directly applies it to the host- and path-gated
+      Kimi Code `/models` User-Agent probe.
+
+    `src/llm_core.py` remains the semantic consumer of the shared client but
+    deliberately neither imports nor invokes this helper after the runtime
+    state refactor. The override is NOT threaded into web_fetch, search
+    providers, gallery downloads, embeddings, webhook delivery, or anything
+    else that hits arbitrary URLs, and it does NOT affect the app's own
+    browser-facing TLS. That boundary is pinned by
+    `tests/test_tls_overrides_scope.py`; extending it requires an explicit
+    allowlist entry and written justification in code review.
 """
 
 import logging
@@ -77,9 +87,10 @@ def _build_ssl_context() -> Optional[ssl.SSLContext]:
     return ctx
 
 
-# Resolved once at import time. The httpx clients in src/llm_core.py are
-# long-lived (process-wide), so editing LLM_CA_BUNDLE requires a restart —
-# matching the existing semantics of LLM_HOST, SEARXNG_INSTANCE, etc.
+# Resolved once at import time. The shared httpx client in
+# src/llm_runtime_state.py is long-lived (process-wide) and consumed by
+# src/llm_core.py, so editing LLM_CA_BUNDLE requires a restart — matching the
+# existing semantics of LLM_HOST, SEARXNG_INSTANCE, etc.
 _SHARED_SSL_CONTEXT: Optional[ssl.SSLContext] = _build_ssl_context()
 
 
