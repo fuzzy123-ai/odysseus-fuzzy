@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.memory_perf_suite_real_raptor import (  # noqa: E402
+from plugins.obsidian.backend.memory_perf_suite_real_raptor import (  # noqa: E402
     REAL_RAPTOR_PROFILES,
     render_real_raptor_markdown,
     report_to_json,

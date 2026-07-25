@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 
-from src.memory_perf_suite_real_raptor import (
+from plugins.obsidian.backend.memory_perf_suite_real_raptor import (
     REAL_RAPTOR_BENCHMARK_SCHEMA,
     REAL_RAPTOR_PROFILES,
     RealRaptorBenchmarkError,

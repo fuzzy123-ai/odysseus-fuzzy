@@ -13,21 +13,21 @@ import tempfile
 import time
 from typing import Any, Callable, Iterator
 
-from plugins.obsidian.backend.derived_index import (
+from .derived_index import (
     build_derived_index,
     derived_index_status,
     retrieve_derived_chunks,
 )
-from plugins.obsidian.backend.hybrid_retrieval import raptor_status
-from plugins.obsidian.backend.memory_ledger import sync_memory_ledger
-from plugins.obsidian.backend.memory_status import memory_status
-from plugins.obsidian.backend.memory_worker import run_memory_work
-from plugins.obsidian.backend.query_layer import answer_query
-from plugins.obsidian.backend.raptor_cache import (
+from .hybrid_retrieval import raptor_status
+from .memory_ledger import sync_memory_ledger
+from .memory_status import memory_status
+from .memory_worker import run_memory_work
+from .query_layer import answer_query
+from .raptor_cache import (
     clear_raptor_cache,
     notify_raptor_vault_changed,
 )
-from plugins.obsidian.backend.raptor_rebuild import rebuild_raptor_artifacts
+from .raptor_rebuild import rebuild_raptor_artifacts
 
 
 REAL_RAPTOR_BENCHMARK_SCHEMA = "odysseus.memory_perf_suite.real_raptor.v1"
