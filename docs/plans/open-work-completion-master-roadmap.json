@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T17:45:49+02:00",
+  "updated_at": "2026-07-25T17:57:09+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,64 +96,60 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-scheduler-database-monkeypatch-isolation-20260725T174308+0200",
-      "slice_id": "CI-scheduler-database-monkeypatch-isolation",
-      "prior_slice": "CI-regression-queue-append-only-contract",
-      "prior_slice_result": "committed_as_f45c57ab16b305917b370f9cb1025a7e60749166_then_required_ci_advanced_to_8668_passed",
+      "run_id": "abc-ci-telegram-tool-event-derived-envelope-contract-20260725T175439+0200",
+      "slice_id": "CI-telegram-tool-event-derived-envelope-contract",
+      "prior_slice": "CI-scheduler-database-monkeypatch-isolation",
+      "prior_slice_result": "committed_as_df082a7d3ec6821011c35eb934737d916d3e7e6a_then_required_ci_advanced_to_8786_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
       "owner": "root_sol_orchestrator",
-      "class": "required_ci_test_global_state_isolation_repair",
+      "class": "required_ci_telegram_source_contract_repair",
       "dependencies": [
-        "f45c57ab16b305917b370f9cb1025a7e60749166",
-        "Required CI run 30163929674 failure evidence"
+        "df082a7d3ec6821011c35eb934737d916d3e7e6a",
+        "Required CI run 30164322755 failure evidence",
+        "accepted default-off TTD todo-truth envelope bridge"
       ],
-      "lease_started_at": "2026-07-25T17:43:08+02:00",
-      "lease_expires_at": "2026-07-25T19:43:08+02:00",
-      "released_at": "2026-07-25T17:45:49+02:00",
+      "lease_started_at": "2026-07-25T17:54:39+02:00",
+      "lease_expires_at": "2026-07-25T19:54:39+02:00",
+      "released_at": "2026-07-25T17:57:09+02:00",
       "allowed_paths": [
-        "tests/test_scheduler_restart_doublefire.py",
+        "tests/test_telegram_plugin.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "changed_paths": [
-        "tests/test_scheduler_restart_doublefire.py",
+        "tests/test_telegram_plugin.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "diagnosis": {
-        "required_ci_run": 30163929674,
-        "required_ci_job": 89693648827,
-        "required_ci_head_sha": "f45c57ab16b305917b370f9cb1025a7e60749166",
-        "required_ci_passed_before_failure": 8668,
-        "failing_node": "tests/test_task_summary_routes.py::test_reminder_live_gate_route_is_owner_scoped_and_redacted",
-        "ordered_reproducer": "tests/test_scheduler_restart_doublefire.py then failing task-summary node reproduces with 4 passed and 1 failed",
-        "root_cause": "scheduler restart tests directly overwrite core.database engine, SessionLocal, ScheduledTask and TaskRun; pytest cannot restore those assignments, so later lazy imports see a reduced fake ScheduledTask without action",
+        "required_ci_run": 30164322755,
+        "required_ci_job": 89694647335,
+        "required_ci_head_sha": "df082a7d3ec6821011c35eb934737d916d3e7e6a",
+        "required_ci_passed_before_failure": 8786,
+        "failing_node": "tests/test_telegram_plugin.py::test_core_telegram_bridge_uses_agent_loop_for_tool_access",
+        "root_cause": "older bridge test forbids any internal tool_events reference while the accepted TTD truth bridge intentionally reads terminal metric tool events only to build a bounded derived todo_truth_envelope; dedicated tests already require this path",
         "production_change_required": false
       },
       "tests": {
-        "ordered_reproducer_before_fix": "4 passed, 1 failed",
-        "focused_scheduler_and_task_summary_tests_after_fix_passed": 8,
-        "unawaited_coroutine_warnings_after_fix": 0,
+        "focused_telegram_bridge_envelope_and_privacy_tests_passed": 9,
+        "metric_tool_events_used_only_as_envelope_input": true,
+        "raw_tool_events_projected_to_agent_turn_result": false,
+        "webhook_response_or_history_contains_transactions_or_raw_refs": false,
         "python_ast": "pass",
         "roadmap_json_parse": "pass",
         "git_diff_check": "pass",
         "terra_independent_review": "pass",
         "sol_deep_review": "pass",
-        "core_database_globals_restored": [
-          "engine",
-          "SessionLocal",
-          "ScheduledTask",
-          "TaskRun"
-        ],
         "production_files_changed": 0,
         "blocking_failures": 0,
+        "live_telegram_activation_performed": false,
         "unconfirmed_write_performed": false,
         "gmi_live_activation_performed": false,
         "amh08_feature_work_performed": false
       },
       "evidence_refs": [
-        "GitHub Actions Required CI run 30163929674 job 89693648827",
-        "local ordered scheduler-restart then task-summary reproducer",
-        "local 8-test scheduler-restart and task-summary suite",
+        "GitHub Actions Required CI run 30164322755 job 89694647335",
+        "git blame and TTD-05 compatibility commit 52ce58b8",
+        "local 9-test bridge, truth-envelope and webhook privacy suite",
         "Terra read-only diagnosis and exact-diff review PASS",
         "Sol exact-diff deep review PASS"
       ],

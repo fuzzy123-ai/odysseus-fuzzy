@@ -139,7 +139,10 @@ def test_core_telegram_bridge_uses_agent_loop_for_tool_access():
     assert 'event.get("type") == "metrics"' in body
     assert 'event["data"].get("tool_transactions")' in body
     assert 'result["todo_transactions"]' in body
-    assert "tool_events" not in body
+    assert 'event["data"].get("tool_events")' in body
+    assert "build_telegram_todo_truth_envelope(metric_events)" in body
+    assert 'result["todo_truth_envelope"] = todo_truth_envelope' in body
+    assert 'result["tool_events"]' not in body
     assert "llm_call(" not in body
     assert "enforce_session_provider_runtime_gate" in body
     assert "_telegram_rebind_local_session" in body
