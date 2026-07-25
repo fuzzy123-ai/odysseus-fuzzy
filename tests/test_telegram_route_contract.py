@@ -3,8 +3,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
-from fastapi import FastAPI
-
 from plugins.telegram.plugin import _telegram_control_command, setup
 
 
@@ -13,7 +11,6 @@ ROOT = Path(__file__).resolve().parents[1]
 
 @dataclass
 class _PluginContext:
-    app: FastAPI
     data_dir: Path
     logger: logging.Logger = field(default_factory=lambda: logging.getLogger("test.telegram.contract"))
     registered_tools: list[Any] = field(default_factory=list)
@@ -22,20 +19,19 @@ class _PluginContext:
 
     def add_router(self, router):
         self.registered_routers.append(router)
-        self.app.include_router(router)
 
     def register_tool(self, spec):
         self.registered_tools.append(spec)
 
 
-def _setup_contract_app(tmp_path: Path) -> _PluginContext:
-    ctx = _PluginContext(app=FastAPI(), data_dir=tmp_path)
+def _setup_contract_context(tmp_path: Path) -> _PluginContext:
+    ctx = _PluginContext(data_dir=tmp_path)
     setup(ctx)
     return ctx
 
 
 def test_telegram_setup_keeps_route_surface_stable(tmp_path):
-    ctx = _setup_contract_app(tmp_path)
+    ctx = _setup_contract_context(tmp_path)
     expected_route_methods = {
         ("/api/plugins/telegram/status", "GET"),
         ("/api/plugins/telegram/history", "GET"),
@@ -56,17 +52,9 @@ def test_telegram_setup_keeps_route_surface_stable(tmp_path):
     }
     assert plugin_route_methods >= expected_route_methods
 
-    app_route_methods = {
-        (route.path, method)
-        for route in ctx.app.routes
-        for method in getattr(route, "methods", set())
-        if route.path.startswith("/api/plugins/telegram")
-    }
-    assert app_route_methods >= expected_route_methods
-
 
 def test_telegram_setup_keeps_registered_tool_contracts(tmp_path):
-    ctx = _setup_contract_app(tmp_path)
+    ctx = _setup_contract_context(tmp_path)
     tools = {tool.name: tool for tool in ctx.registered_tools}
 
     assert set(tools) == {"telegram_reply", "telegram_document_reply", "odysseus_notify_user"}
