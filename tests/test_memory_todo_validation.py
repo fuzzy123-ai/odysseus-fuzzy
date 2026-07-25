@@ -69,27 +69,18 @@ def test_agent_writer_rejects_before_side_effects(monkeypatch):
     monkeypatch.setattr(ai, "_memory_vector", Vector())
     monkeypatch.setitem(sys.modules, "src.event_bus", event_bus)
 
-    rejected_payloads = (
-        ("add\nprivate\ntodo", "todo_storage_forbidden", "manage_todos"),
-        ("add\nprivate\naufgabe", "todo_storage_forbidden", "manage_todos"),
-        ("add\nprivate\n", "memory_category_invalid", None),
-        (
-            '{"action":"add","text":"private","category":null}',
-            "memory_category_invalid",
-            None,
-        ),
-        (
-            '{"action":"add","text":"private","category":"unknown"}',
-            "memory_category_invalid",
-            None,
-        ),
+    domain_mismatch_payloads = (
+        "add\nprivate\ntodo",
+        "add\nprivate\naufgabe",
+        "add\nprivate\n",
+        '{"action":"add","text":"private","category":null}',
+        '{"action":"add","text":"private","category":"unknown"}',
     )
-    for payload, error_code, use_tool in rejected_payloads:
+    for payload in domain_mismatch_payloads:
         result = asyncio.run(ai.do_manage_memory(payload))
-        assert result["status"] == "rejected"
-        assert result["error_code"] == error_code
+        assert result["status"] == "domain_mismatch"
+        assert result["redirect_tool"] == "manage_todos"
         assert result["exit_code"] == 1
-        assert result.get("use_tool") == use_tool
         assert "private" not in str(result)
 
 

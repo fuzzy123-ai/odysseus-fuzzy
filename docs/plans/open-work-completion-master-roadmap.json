@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T14:10:33+02:00",
+  "updated_at": "2026-07-25T14:21:29+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,30 +96,28 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-raptor-status-ratio-20260725T140543+0200",
-      "slice_id": "CI-raptor-scale-status-ratio-contract",
-      "prior_slice": "CI-memory-metrics-exact-series-cap-contract",
-      "prior_slice_result": "committed_as_430ef69cb84bb71c6e1605b47bc9afce1321d42b_then_required_ci_advanced_to_4764_passed",
+      "run_id": "abc-ci-memory-todo-domain-envelope-20260725T141813+0200",
+      "slice_id": "CI-memory-todo-domain-mismatch-envelope-contract",
+      "prior_slice": "CI-raptor-scale-status-ratio-contract",
+      "prior_slice_result": "committed_as_763e8e496539d119661ca92b1974b1a09b88daf9_then_required_ci_advanced_to_4847_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
-      "previous_ci_repair_handoff_commit": "430ef69cb84bb71c6e1605b47bc9afce1321d42b",
+      "previous_ci_repair_handoff_commit": "763e8e496539d119661ca92b1974b1a09b88daf9",
       "changed_files": [
-        "src/memory_perf_suite_raptor.py",
-        "tests/test_memory_perf_suite_raptor.py",
+        "tests/test_memory_todo_validation.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "tests": {
-        "focused_raptor_and_complex_chunk_tests_passed": 11,
+        "focused_memory_todo_domain_tests_passed": 17,
         "blocking_failures": 0,
-        "production_files_changed": 1,
-        "python_311_boundary_sum_closed_with_math_fsum": true,
-        "active_capacity_threshold_preserved": 1,
-        "nan_rejected": true,
-        "positive_infinity_rejected": true,
-        "negative_infinity_rejected": true,
-        "invalid_ratio_rejected_before_run_directory_creation": true,
-        "raptor_scale_simulation_api_changed": false,
-        "safety_threshold_weakened": false,
+        "production_files_changed": 0,
+        "current_status": "domain_mismatch",
+        "current_redirect_tool": "manage_todos",
+        "current_exit_code": 1,
+        "obsolete_rejected_error_code_envelope_restored": false,
+        "memory_write_side_effects_performed": false,
+        "private_payload_exposed": false,
+        "todo_domain_routing_weakened": false,
         "guidance_audit_preexisting_unrelated_error": "telegram-session-rollover-transaction-contract.md profile/discovery mismatch",
         "unconfirmed_write_performed": false,
         "gmi_live_activation_performed": false,
@@ -144,7 +142,7 @@
         "updater_or_resume_clean": "na",
         "product_complete": "no"
       },
-      "next_gate": "commit_exact_roadmap_raptor_source_and_test_push_only_fuzzy_dev_then_required_ci"
+      "next_gate": "commit_exact_roadmap_and_memory_todo_test_push_only_fuzzy_dev_then_required_ci"
     }
   },
   "non_ui_execution_ledger": {
