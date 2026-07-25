@@ -7,7 +7,7 @@ import pytest
 from src.mcp_manager import McpManager
 from src.task_scheduler import TaskScheduler
 from src.task_scheduler_delivery import deliver_via_mcp
-from src.tool_execution import execute_tool_block
+import src.tool_execution as tool_execution
 from src.tool_registry import ToolSpec, register_tool, unregister_tool
 from src.tool_usage_context import TrustedToolUsageContext
 from src.tool_usage_events import ToolUsageEventBuilder, pseudonymize_reference
@@ -110,7 +110,7 @@ async def test_plugin_crossing_central_wrapper_is_counted_once(monkeypatch):
     )
     try:
         sink = _Sink()
-        result = await execute_tool_block(
+        result = await tool_execution.execute_tool_block(
             SimpleNamespace(tool_type="usage_source_plugin", content='{"private":true}'),
             tool_usage_instrumentation=_instrumentation(sink),
         )
@@ -148,11 +148,11 @@ async def test_mcp_transport_reconnect_remains_one_logical_wrapper_invocation(mo
 
     monkeypatch.setattr(manager, "_do_call", _do_call)
     monkeypatch.setattr(manager, "_reconnect_builtin", _reconnect)
-    monkeypatch.setattr("src.tool_execution.get_mcp_manager", lambda: manager)
-    monkeypatch.setattr("src.tool_execution._owner_is_admin", lambda _owner: True)
+    monkeypatch.setattr(tool_execution, "get_mcp_manager", lambda: manager)
+    monkeypatch.setattr(tool_execution, "_owner_is_admin", lambda _owner: True)
     sink = _Sink()
 
-    result = await execute_tool_block(
+    result = await tool_execution.execute_tool_block(
         SimpleNamespace(
             tool_type="mcp__builtin_usage_test__private_runtime_name",
             content='{"private":"argument"}',
@@ -174,12 +174,12 @@ async def test_mcp_transport_reconnect_remains_one_logical_wrapper_invocation(mo
 
 @pytest.mark.asyncio
 async def test_malformed_mcp_call_is_content_free_rejected_unknown(monkeypatch):
-    monkeypatch.setattr("src.tool_execution.get_mcp_manager", lambda: McpManager())
-    monkeypatch.setattr("src.tool_execution._owner_is_admin", lambda _owner: True)
+    monkeypatch.setattr(tool_execution, "get_mcp_manager", lambda: McpManager())
+    monkeypatch.setattr(tool_execution, "_owner_is_admin", lambda _owner: True)
     private_name = "mcp__private-owner-malformed"
     sink = _Sink()
 
-    await execute_tool_block(
+    await tool_execution.execute_tool_block(
         SimpleNamespace(tool_type=private_name, content="private argument"),
         owner="admin",
         tool_usage_instrumentation=_instrumentation(sink),

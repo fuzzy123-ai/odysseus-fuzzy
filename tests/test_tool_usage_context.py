@@ -5,7 +5,7 @@ import pytest
 
 from routes.chat_helpers import build_trusted_chat_tool_usage_context
 from src.agent_loop import _bind_tool_usage_instrumentation
-from src.tool_execution import execute_tool_block
+import src.tool_execution as tool_execution
 from src.tool_usage_context import TrustedToolUsageContext, trusted_model_scope
 from src.tool_usage_events import ToolUsageEventBuilder, pseudonymize_reference
 from src.tool_usage_instrumentation import ToolUsageInstrumentation
@@ -113,8 +113,8 @@ async def test_tool_arguments_cannot_spoof_identity_surface_mode_or_model_scope(
     async def _impl(*_args, **_kwargs):
         return "read_file", {"output": "ok", "exit_code": 0}
 
-    monkeypatch.setattr("src.tool_execution._execute_tool_block_impl", _impl)
-    await execute_tool_block(
+    monkeypatch.setattr(tool_execution, "_execute_tool_block_impl", _impl)
+    await tool_execution.execute_tool_block(
         SimpleNamespace(tool_type="read_file", content=spoofed_arguments),
         tool_usage_instrumentation=instrumentation,
     )

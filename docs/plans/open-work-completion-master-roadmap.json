@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T22:28:00+02:00",
+  "updated_at": "2026-07-25T22:39:18+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,49 +96,57 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-tool-usage-route-contract-20260725T222330+0200",
-      "slice_id": "CI-tool-usage-route-public-contract",
-      "prior_slice": "CI-tool-usage-unknown-identity-acceptance",
-      "prior_slice_result": "committed_and_pushed_as_44c7ac7f755292cc0b745a30f079791a7f27d812_then_required_ci_confirmed_the_4000_unknown_identity_acceptance_contract_and_advanced_to_9697_passed",
+      "run_id": "abc-ci-tool-usage-incognito-module-identity-20260725T223200+0200",
+      "slice_id": "CI-tool-usage-module-identity-isolation",
+      "prior_slice": "CI-tool-usage-route-public-contract",
+      "prior_slice_result": "committed_and_pushed_as_e69e90b1ccdb329bf34cb3e2cb3d9a7987eec295_then_required_ci_confirmed_the_public_route_contract_and_advanced_to_9710_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
       "owner": "root_sol_orchestrator",
-      "class": "required_ci_tool_usage_route_contract_repair",
+      "class": "required_ci_tool_usage_test_module_identity_isolation_repair",
       "dependencies": [
-        "44c7ac7f755292cc0b745a30f079791a7f27d812",
-        "Required CI run 30172953632 job 89716988488",
-        "public FastAPI OpenAPI and request behavior contract"
+        "e69e90b1ccdb329bf34cb3e2cb3d9a7987eec295",
+        "Required CI run 30173377846 job 89718081443",
+        "stable wrapper and monkeypatch module identity"
       ],
-      "lease_started_at": "2026-07-25T22:23:30+02:00",
-      "lease_expires_at": "2026-07-26T00:23:30+02:00",
-      "released_at": "2026-07-25T22:28:00+02:00",
+      "lease_started_at": "2026-07-25T22:32:00+02:00",
+      "lease_expires_at": "2026-07-26T00:32:00+02:00",
+      "released_at": "2026-07-25T22:39:18+02:00",
       "allowed_paths": [
-        "tests/test_tool_usage_diagnostics_routes.py",
+        "tests/test_tool_usage_context.py",
+        "tests/test_tool_usage_incognito.py",
+        "tests/test_tool_usage_instrumentation.py",
+        "tests/test_tool_usage_sources.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "changed_paths": [
-        "tests/test_tool_usage_diagnostics_routes.py",
+        "tests/test_tool_usage_context.py",
+        "tests/test_tool_usage_incognito.py",
+        "tests/test_tool_usage_instrumentation.py",
+        "tests/test_tool_usage_sources.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "diagnosis": {
-        "required_ci_run": 30172953632,
-        "required_ci_job": 89716988488,
-        "required_ci_head_sha": "44c7ac7f755292cc0b745a30f079791a7f27d812",
-        "required_ci_passed_before_failure": 9697,
-        "failing_node": "tests/test_tool_usage_diagnostics_routes.py::test_tool_usage_surface_has_no_raw_or_mutating_route",
-        "root_cause": "the final security assertion depended on the internal FastAPI app.routes representation even though all public request checks in the same module passed and the dependency is not version-pinned",
-        "route_contract": "exactly one public OpenAPI path exists at /api/diagnostics/tool-usage with GET only; POST must return 405 and the raw descendant must return 404",
-        "security_contract": "the GET handler authenticates admin before store resolution and returns only the aggregate allowlist projection with raw_content_visible false",
-        "repair": "replace internal route-object inspection with exact public OpenAPI operation mapping plus runtime negative method and raw-path requests",
+        "required_ci_run": 30173377846,
+        "required_ci_job": 89718081443,
+        "required_ci_head_sha": "e69e90b1ccdb329bf34cb3e2cb3d9a7987eec295",
+        "required_ci_passed_before_failure": 9710,
+        "failing_node": "tests/test_tool_usage_incognito.py::test_incognito_writes_zero_records_for_success_block_or_exception[outcome0-None]",
+        "root_cause": "full-suite collection can remove and re-import src.tool_execution; direct-imported wrapper functions then retain one module globals mapping while string monkeypatch resolution can target a different module object",
+        "security_contract": "incognito suppresses analytics writes but never grants tool authorization; read_file remains public-blocked and admin-gated",
+        "repair": "bind every affected tool-usage test call and monkeypatch to the same imported module object; use the public ask_user path with exact downstream call counts for incognito success blocked exception and cancellation coverage",
         "production_change_required": false
       },
       "tests": {
-        "focused_tool_usage_diagnostics_and_admin_ui_contracts": "22 passed in 6.44s during final Sol review",
+        "focused_incognito": "6 passed in 1.44s",
+        "module_identity_reproduction": "10 passed in 3.18s with test_web_search_time_filter collected after incognito",
+        "public_policy_and_ask_user_contracts": "22 passed in 3.20s",
+        "integrated_tool_usage_module_identity_lane": "39 passed in 6.49s across context incognito instrumentation sources and a later cache-evicting collector",
         "python_ast": "pass",
         "roadmap_json_parse": "pass",
         "git_diff_check": "pass",
-        "terra_independent_review": "static_route_mount_admin_first_projection_and_public_contract_diagnosis_pass",
-        "sol_deep_review": "pass_exact_openapi_route_map_and_runtime_405_404_negatives_avoid_private_framework_representation",
+        "terra_independent_review": "pass_object_bound_patches_and_incognito_public_path_preserve_all_existing_semantics",
+        "sol_deep_review": "pass_known_sys_modules_rebind_hazard_removed_across_the_complete_affected_tool_usage_test_boundary",
         "production_files_changed": 0,
         "production_runtime_logic_changed": false,
         "blocking_failures": 0,
@@ -148,13 +156,13 @@
         "amh08_feature_work_performed": false
       },
       "evidence_refs": [
-        "GitHub Actions Required CI run 30172953632 job 89716988488",
-        "392d1f0d original admin aggregate diagnostics API",
-        "63dd70a7 current V2 route and security tests",
-        "app.py diagnostics router mount",
-        "Terra read-only public route contract diagnosis PASS"
+        "GitHub Actions Required CI run 30173377846 job 89718081443",
+        "tests/test_agent_loop.py collection cleanup removes src.tool_execution",
+        "tests/test_edit_file.py existing stale-reference regression rationale",
+        "tests/test_unknown_tool_calls.py existing parent-package module identity warning",
+        "Terra independent object-bound patch review PASS"
       ],
-      "collision_check": "pass_exactly_the_worker_route_test_path_and_root_owned_canonical_roadmap_changed",
+      "collision_check": "pass_exactly_four_related_tool_usage_test_paths_and_the_root_owned_canonical_roadmap_changed",
       "route": {
         "entrypoint": "/abc",
         "master": "gpt-5.6-sol",
@@ -174,8 +182,8 @@
         "updater_or_resume_clean": "na",
         "product_complete": "no"
       },
-      "remaining_gate_or_blocker": "commit_and_push_the_exact_two_path_snapshot_fix_then_wait_for_exact_required_ci_green_before_debian_deploy",
-      "recommended_next_action": "commit_exact_two_path_fix_push_only_fuzzy_dev_then_required_ci",
+      "remaining_gate_or_blocker": "commit_and_push_the_exact_five_path_test_isolation_fix_then_wait_for_exact_required_ci_green_before_debian_deploy",
+      "recommended_next_action": "commit_exact_five_path_fix_push_only_fuzzy_dev_then_required_ci",
       "next_gate": "commit_push_only_fuzzy_dev_then_required_ci"
     }
   },

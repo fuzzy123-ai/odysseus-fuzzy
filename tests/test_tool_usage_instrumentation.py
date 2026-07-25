@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.tool_execution import execute_tool_block
+import src.tool_execution as tool_execution
 from src.tool_usage_events import ToolUsageEventBuilder
 from src.tool_usage_instrumentation import (
     ToolUsageInstrumentation,
@@ -59,7 +59,7 @@ def _patch_impl(monkeypatch, *, outcome=None, error=None):
             raise error
         return outcome
 
-    monkeypatch.setattr("src.tool_execution._execute_tool_block_impl", _impl)
+    monkeypatch.setattr(tool_execution, "_execute_tool_block_impl", _impl)
 
 
 @pytest.mark.asyncio
@@ -68,10 +68,10 @@ async def test_success_emits_one_start_and_terminal_without_changing_return_tupl
     returned = ("read_file: private path", result)
     _patch_impl(monkeypatch, outcome=returned)
     ticks = iter((10.0, 10.125))
-    monkeypatch.setattr("src.tool_execution.time.perf_counter", lambda: next(ticks))
+    monkeypatch.setattr(tool_execution.time, "perf_counter", lambda: next(ticks))
     sink = _Sink()
 
-    actual = await execute_tool_block(
+    actual = await tool_execution.execute_tool_block(
         _block(),
         tool_usage_instrumentation=_instrumentation(sink),
     )
@@ -98,7 +98,7 @@ async def test_blocked_result_uses_bounded_reason_and_shared_lens_status(monkeyp
     sink = _Sink()
     emitter = _Emitter()
 
-    actual = await execute_tool_block(
+    actual = await tool_execution.execute_tool_block(
         _block("bash"),
         tool_usage_instrumentation=_instrumentation(sink),
         ai_lens_emitter=emitter,
@@ -119,7 +119,7 @@ async def test_exception_emits_failed_terminal_and_propagates_same_exception(mon
     sink = _Sink()
 
     with pytest.raises(RuntimeError) as exc_info:
-        await execute_tool_block(
+        await tool_execution.execute_tool_block(
             _block(),
             tool_usage_instrumentation=_instrumentation(sink),
         )
@@ -137,7 +137,7 @@ async def test_cancellation_is_terminal_cancelled_and_never_success(monkeypatch)
     sink = _Sink()
 
     with pytest.raises(asyncio.CancelledError):
-        await execute_tool_block(
+        await tool_execution.execute_tool_block(
             _block(),
             tool_usage_instrumentation=_instrumentation(sink),
         )
@@ -169,7 +169,7 @@ async def test_usage_sink_failure_and_lens_failure_are_independent_and_fail_open
     instrumentation = _instrumentation(broken_sink)
     working_lens = _Emitter()
 
-    actual = await execute_tool_block(
+    actual = await tool_execution.execute_tool_block(
         _block(),
         tool_usage_instrumentation=instrumentation,
         ai_lens_emitter=working_lens,
@@ -181,7 +181,7 @@ async def test_usage_sink_failure_and_lens_failure_are_independent_and_fail_open
     assert instrumentation.diagnostics()["failures"] == {"sink_failure": 2}
 
     working_sink = _Sink()
-    actual_again = await execute_tool_block(
+    actual_again = await tool_execution.execute_tool_block(
         _block(),
         tool_usage_instrumentation=_instrumentation(working_sink),
         ai_lens_emitter=_Emitter(fail=True),
@@ -196,7 +196,7 @@ async def test_private_dynamic_runtime_name_maps_only_to_mcp_source_bucket(monke
     _patch_impl(monkeypatch, outcome=("mcp", {"output": "ok", "exit_code": 0}))
     sink = _Sink()
 
-    await execute_tool_block(
+    await tool_execution.execute_tool_block(
         _block(private_name),
         tool_usage_instrumentation=_instrumentation(sink),
     )
@@ -213,8 +213,9 @@ async def test_instrumentation_is_default_off_when_not_injected(monkeypatch):
     returned = ("read_file", {"output": "ok", "exit_code": 0})
     _patch_impl(monkeypatch, outcome=returned)
     monkeypatch.setattr(
-        "src.tool_execution._normalized_tool_usage_outcome",
+        tool_execution,
+        "_normalized_tool_usage_outcome",
         lambda **_kwargs: (_ for _ in ()).throw(AssertionError("default-off path imported usage")),
     )
 
-    assert await execute_tool_block(_block()) is returned
+    assert await tool_execution.execute_tool_block(_block()) is returned
