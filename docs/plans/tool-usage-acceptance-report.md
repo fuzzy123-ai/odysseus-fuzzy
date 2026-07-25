@@ -26,7 +26,7 @@ write was used.
 | Retry invocations | 1,000 |
 | Incomplete invocations | 0 |
 | Duplicate events rejected | 0 |
-| Unknown identities | 0 |
+| Unknown identities | 4,000 |
 | Writer failures in scale run | 0 |
 | Coverage | 100% |
 | Distinct-owner aggregate count | 10,000 |
@@ -51,6 +51,11 @@ invocation across 100 batches of 100 invocations.
 
 Every lane contains all five terminal statuses. Retry is represented by the
 bounded retry ordinal and remains part of the same aggregate contract.
+The Plugin and MCP lanes intentionally exercise unreviewed dynamic identities.
+Their 4,000 calls collapse into the bounded
+`dynamic.plugin.unclassified` and `dynamic.mcp.unclassified` source buckets,
+so the exact `unknown_identity` quality warning is expected without exposing
+runtime names or weakening invocation completeness.
 
 ## Privacy and isolation
 

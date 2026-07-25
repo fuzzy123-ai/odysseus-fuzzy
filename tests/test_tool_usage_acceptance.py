@@ -180,7 +180,8 @@ def test_10000_invocations_are_deterministic_private_complete_and_within_budget(
         assert summary["duration_p50_ms"] == 50
         assert summary["duration_p95_ms"] == 100
         assert summary["quality"]["aggregation_complete_day_count"] == 1
-        assert summary["quality"]["warning_codes"] == ()
+        assert summary["quality"]["unknown_identity_count"] == 4_000
+        assert summary["quality"]["warning_codes"] == ("unknown_identity",)
         assert summary["status_counts"] == {
             **{status.value: 2_000 for status in STATUSES},
         }
@@ -326,6 +327,7 @@ def test_acceptance_report_contains_aggregate_and_technical_status_only():
     assert "MCP" in report
     assert "Scheduler" in report
     assert "API" in report
+    assert "| Unknown identities | 4,000 |" in report
     for forbidden in (
         "h1_",
         "tue_",
