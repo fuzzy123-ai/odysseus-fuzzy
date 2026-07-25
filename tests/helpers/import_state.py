@@ -8,6 +8,11 @@ had before the block — present, absent, or carrying a parent-package attribute
 Use ``clear_module`` to drop a single module from both ``sys.modules`` and its
 parent-package attribute (e.g. before forcing a fresh import inside the block).
 
+Use ``preserve_module_tree`` when importing a package can eagerly create an
+open-ended set of child modules. It restores every pre-existing entry and
+parent attribute below the named root and removes descendants created inside
+the block.
+
 Use ``clear_fake_database_modules`` to evict a *stubbed* ``core.database`` (and
 its companion ``src.database``) that another test left in import state, without
 touching a real ``core.database`` loaded from disk.
@@ -167,3 +172,66 @@ def preserve_import_state(*module_names):
         # Phase 2: restore all parent-package attributes.
         for name, (_, saved_attr) in saved.items():
             _restore_parent_attr(name, saved_attr)
+
+
+@contextmanager
+def preserve_module_tree(*module_roots):
+    """Restore complete ``sys.modules`` trees and their parent attributes.
+
+    Unlike :func:`preserve_import_state`, callers do not need to enumerate
+    children that an eager package import may create. Existing descendants are
+    restored by identity, new descendants are removed, and child attributes on
+    restored parent modules return to their entry state.
+    """
+    roots = tuple(dict.fromkeys(module_roots))
+    if not roots or any(not isinstance(root, str) or not root for root in roots):
+        raise ValueError("at least one non-empty module root is required")
+
+    def belongs_to_tree(name):
+        return any(name == root or name.startswith(root + ".") for root in roots)
+
+    initial_names = {name for name in sys.modules if belongs_to_tree(name)}
+    tracked_names = initial_names | set(roots)
+    saved = {name: _save_one(name) for name in tracked_names}
+
+    parent_snapshots = {}
+    for name in tracked_names:
+        parent_name, _, _ = name.rpartition(".")
+        parent = sys.modules.get(parent_name)
+        if parent is not None and parent_name not in parent_snapshots:
+            parent_snapshots[parent_name] = dict(vars(parent))
+    for name in initial_names:
+        module = sys.modules.get(name)
+        if module is not None:
+            parent_snapshots[name] = dict(vars(module))
+
+    try:
+        yield
+    finally:
+        current_names = {name for name in sys.modules if belongs_to_tree(name)}
+        created_names = current_names - initial_names
+
+        # Phase 1: remove newly-created descendants and restore every module
+        # object that existed on entry.
+        for name in created_names:
+            sys.modules.pop(name, None)
+        for name in initial_names:
+            sys.modules[name] = saved[name][0]
+
+        # Phase 2: restore the normal parent links for roots and descendants
+        # that existed on entry.
+        for name in tracked_names:
+            _restore_parent_attr(name, saved[name][1])
+
+        # Phase 3: remove or restore attributes created for descendants that
+        # were absent on entry but whose parent module was already present.
+        for name in created_names:
+            parent_name, _, attr = name.rpartition(".")
+            parent = sys.modules.get(parent_name)
+            snapshot = parent_snapshots.get(parent_name)
+            if parent is None or snapshot is None:
+                continue
+            if attr in snapshot:
+                setattr(parent, attr, snapshot[attr])
+            elif hasattr(parent, attr):
+                delattr(parent, attr)

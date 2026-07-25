@@ -9,6 +9,7 @@ from tests.helpers.import_state import (
     clear_fake_endpoint_resolver_modules,
     clear_module,
     preserve_import_state,
+    preserve_module_tree,
 )
 
 _SENTINEL = "tests._import_state_test_sentinel"
@@ -158,6 +159,125 @@ def test_parent_attr_restored_correctly_when_parent_also_preserved():
     finally:
         sys.modules.pop("_fake_istate_parent", None)
         sys.modules.pop("_fake_istate_parent.child", None)
+
+
+def test_module_tree_removes_new_descendants_and_parent_attrs():
+    parent_name = "_fake_istate_tree_parent"
+    root_name = f"{parent_name}.tree"
+    child_name = f"{root_name}.child"
+    parent = types.ModuleType(parent_name)
+    sys.modules[parent_name] = parent
+    try:
+        with preserve_module_tree(root_name):
+            root = types.ModuleType(root_name)
+            child = types.ModuleType(child_name)
+            parent.tree = root
+            root.child = child
+            sys.modules[root_name] = root
+            sys.modules[child_name] = child
+
+        assert root_name not in sys.modules
+        assert child_name not in sys.modules
+        assert not hasattr(parent, "tree")
+    finally:
+        sys.modules.pop(parent_name, None)
+        sys.modules.pop(root_name, None)
+        sys.modules.pop(child_name, None)
+
+
+def test_module_tree_restores_existing_modules_and_child_links():
+    parent_name = "_fake_istate_tree_parent"
+    root_name = f"{parent_name}.tree"
+    child_name = f"{root_name}.child"
+    new_child_name = f"{root_name}.new_child"
+    parent = types.ModuleType(parent_name)
+    original_root = types.ModuleType(root_name)
+    original_child = types.ModuleType(child_name)
+    parent.tree = original_root
+    original_root.child = original_child
+    sys.modules[parent_name] = parent
+    sys.modules[root_name] = original_root
+    sys.modules[child_name] = original_child
+    try:
+        with preserve_module_tree(root_name):
+            replacement_root = types.ModuleType(root_name)
+            replacement_child = types.ModuleType(child_name)
+            new_child = types.ModuleType(new_child_name)
+            parent.tree = replacement_root
+            replacement_root.child = replacement_child
+            replacement_root.new_child = new_child
+            sys.modules[root_name] = replacement_root
+            sys.modules[child_name] = replacement_child
+            sys.modules[new_child_name] = new_child
+
+        assert sys.modules[root_name] is original_root
+        assert sys.modules[child_name] is original_child
+        assert new_child_name not in sys.modules
+        assert parent.tree is original_root
+        assert original_root.child is original_child
+        assert not hasattr(original_root, "new_child")
+    finally:
+        sys.modules.pop(parent_name, None)
+        sys.modules.pop(root_name, None)
+        sys.modules.pop(child_name, None)
+        sys.modules.pop(new_child_name, None)
+
+
+def test_module_tree_restores_preexisting_attr_without_cached_child():
+    parent_name = "_fake_istate_tree_parent"
+    root_name = f"{parent_name}.tree"
+    child_name = f"{root_name}.child"
+    parent = types.ModuleType(parent_name)
+    root = types.ModuleType(root_name)
+    sentinel = object()
+    parent.tree = root
+    root.child = sentinel
+    sys.modules[parent_name] = parent
+    sys.modules[root_name] = root
+    try:
+        with preserve_module_tree(root_name):
+            child = types.ModuleType(child_name)
+            root.child = child
+            sys.modules[child_name] = child
+
+        assert child_name not in sys.modules
+        assert root.child is sentinel
+    finally:
+        sys.modules.pop(parent_name, None)
+        sys.modules.pop(root_name, None)
+        sys.modules.pop(child_name, None)
+
+
+def test_module_tree_restores_on_exception():
+    parent_name = "_fake_istate_tree_parent"
+    root_name = f"{parent_name}.tree"
+    child_name = f"{root_name}.child"
+    parent = types.ModuleType(parent_name)
+    sys.modules[parent_name] = parent
+    try:
+        with pytest.raises(RuntimeError, match="expected"):
+            with preserve_module_tree(root_name):
+                root = types.ModuleType(root_name)
+                child = types.ModuleType(child_name)
+                parent.tree = root
+                root.child = child
+                sys.modules[root_name] = root
+                sys.modules[child_name] = child
+                raise RuntimeError("expected")
+
+        assert root_name not in sys.modules
+        assert child_name not in sys.modules
+        assert not hasattr(parent, "tree")
+    finally:
+        sys.modules.pop(parent_name, None)
+        sys.modules.pop(root_name, None)
+        sys.modules.pop(child_name, None)
+
+
+def test_module_tree_rejects_empty_roots():
+    with pytest.raises(ValueError, match="non-empty module root"):
+        with preserve_module_tree():
+            pass
 
 
 def test_clear_fake_database_removes_stub_core_database():

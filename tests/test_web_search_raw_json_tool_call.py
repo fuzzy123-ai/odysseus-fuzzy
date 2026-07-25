@@ -12,18 +12,35 @@ import json
 import sys
 from unittest.mock import MagicMock
 
-for mod in ['src.agent_tools', 'src.tool_parsing', 'src.tool_schemas', 'src.tool_execution']:
-    sys.modules.pop(mod, None)
-for mod in [
+from tests.helpers.import_state import (
+    clear_module,
+    preserve_import_state,
+    preserve_module_tree,
+)
+
+_AGENT_MODULES = [
+    "src.tool_parsing",
+    "src.tool_schemas",
+    "src.tool_execution",
+]
+_STUBBED = [
     'sqlalchemy', 'sqlalchemy.orm', 'sqlalchemy.ext', 'sqlalchemy.ext.declarative',
     'sqlalchemy.ext.hybrid', 'sqlalchemy.sql', 'sqlalchemy.sql.expression',
     'src.database', 'core.models', 'core.database', 'core.auth'
-]:
-    if mod not in sys.modules:
-        sys.modules[mod] = MagicMock()
+]
 
-import src.agent_tools  # noqa: E402, F401
-from src.tool_parsing import parse_tool_blocks, strip_tool_blocks  # noqa: E402
+with preserve_module_tree("src.agent_tools"), preserve_import_state(
+    *_AGENT_MODULES, *_STUBBED
+):
+    clear_module("src.agent_tools")
+    for _mod in _AGENT_MODULES:
+        clear_module(_mod)
+    for _mod in _STUBBED:
+        if _mod not in sys.modules:
+            sys.modules[_mod] = MagicMock()
+
+    import src.agent_tools  # noqa: E402, F401
+    from src.tool_parsing import parse_tool_blocks, strip_tool_blocks  # noqa: E402
 
 
 def test_raw_json_after_web_search_phrase_runs_as_web_search():

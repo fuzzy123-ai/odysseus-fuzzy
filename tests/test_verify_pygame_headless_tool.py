@@ -1,3 +1,4 @@
+import importlib
 import json
 from pathlib import Path
 import shutil
@@ -7,7 +8,8 @@ import sys
 from PIL import Image
 import pytest
 
-from src.agent_tools.pygame_tools import VerifyPygameHeadlessTool
+pygame_tools = importlib.import_module("src.agent_tools.pygame_tools")
+VerifyPygameHeadlessTool = pygame_tools.VerifyPygameHeadlessTool
 
 
 class _SuccessfulTool(VerifyPygameHeadlessTool):
@@ -27,13 +29,14 @@ class _TimedOutTool(VerifyPygameHeadlessTool):
 
 
 def _patch_paths(monkeypatch, workspace: Path, source: Path):
-    monkeypatch.setattr("src.tool_execution.agent_cwd", lambda: str(workspace))
+    tool_execution = importlib.import_module("src.tool_execution")
+    monkeypatch.setattr(tool_execution, "agent_cwd", lambda: str(workspace))
 
     def resolve(raw, **kwargs):
         candidate = Path(raw)
         return str(candidate if candidate.is_absolute() else workspace / candidate)
 
-    monkeypatch.setattr("src.tool_execution._resolve_tool_path", resolve)
+    monkeypatch.setattr(tool_execution, "_resolve_tool_path", resolve)
 
 
 @pytest.mark.asyncio
@@ -129,7 +132,7 @@ async def test_real_pygame_dummy_sdl_smoke_when_dependency_is_available(tmp_path
             break
     if not pygame_python:
         pytest.skip("no local Python interpreter with pygame is available")
-    monkeypatch.setattr("src.agent_tools.pygame_tools.sys.executable", pygame_python)
+    monkeypatch.setattr(pygame_tools.sys, "executable", pygame_python)
     source = tmp_path / "smoke_game.py"
     source.write_text(
         """import pygame
