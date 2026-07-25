@@ -20,14 +20,14 @@
     {
       "id": "two_todos_one_message",
       "nodeids": [
-        "tests/test_todo_intent_routing.py::test_clear_english_and_german_todo_intents_are_detected",
+        "tests/test_todo_intent_routing.py::test_clear_todo_turn_has_one_persistent_domain_facade",
         "tests/test_todo_claim_evidence.py::test_plural_todo_claim_requires_matching_unique_receipt_count"
       ]
     },
     {
       "id": "complete_reopen_remove",
       "nodeids": [
-        "tests/test_manage_todos.py::test_complete_reopen_remove_round_trip_uses_stable_refs"
+        "tests/test_todo_domain_service.py::test_complete_reopen_remove_by_full_item_ref"
       ]
     },
     {
@@ -60,7 +60,8 @@
       "id": "digest_include_exclude",
       "nodeids": [
         "tests/test_manage_todos.py::test_complete_reopen_remove_round_trip_uses_stable_refs",
-        "tests/test_todo_digest_receipts.py::test_contains_and_excludes_receipts_bind_to_semantic_projection_state"
+        "tests/test_todo_digest_receipts.py::test_contains_receipt_is_deterministic_content_free_and_strict",
+        "tests/test_todo_digest_receipts.py::test_complete_and_remove_only_issue_exclusion_shapes"
       ]
     },
     {
@@ -73,37 +74,37 @@
     {
       "id": "long_bounded_context",
       "nodeids": [
-        "tests/test_telegram_context_policy.py::test_long_chat_keeps_latest_user_turn_and_domain_policy",
-        "tests/test_telegram_context_policy.py::test_persisted_summaries_are_omitted_and_never_domain_authority"
+        "tests/test_telegram_context_policy.py::test_context_bounds_recency_and_final_current_user_after_trim",
+        "tests/test_telegram_context_policy.py::test_system_summaries_are_omitted_and_supplemental_stays_untrusted"
       ]
     },
     {
       "id": "rollover_restart_dst_parallel",
       "nodeids": [
-        "tests/test_telegram_session_rollover.py::test_parallel_polls_create_exactly_one_new_session",
-        "tests/test_telegram_session_rollover.py::test_rollover_day_handles_berlin_dst_transition",
-        "tests/test_telegram_session_rollover.py::test_restart_after_multiple_missed_days_rolls_only_once",
-        "tests/test_telegram_session_rollover.py::test_crash_after_creation_recovers_deterministically_without_empty_binding"
+        "tests/test_telegram_session_rollover.py::test_atomic_rollover_uniqueness_loser_reloads_winner_without_second_session",
+        "tests/test_telegram_session_rollover.py::test_rollover_local_day_handles_boundary_dst_and_missed_days",
+        "tests/test_telegram_session_rollover.py::test_rollover_state_machine_retries_without_permanent_suppression",
+        "tests/test_telegram_session_rollover.py::test_atomic_rollover_rolls_back_session_binding_archive_and_terminal_row_together"
       ]
     },
     {
       "id": "single_boundary_followup_continuity",
       "nodeids": [
-        "tests/test_telegram_session_rollover.py::test_continuity_is_single_use_and_contains_no_raw_chat_id",
-        "tests/test_telegram_context_policy.py::test_short_followup_can_use_bounded_untrusted_rollover_continuity"
+        "tests/test_telegram_context_policy.py::test_atomic_rollover_service_remains_default_off_without_continuity_or_route_activation",
+        "tests/test_telegram_context_policy.py::test_explicit_trusted_runtime_system_is_preserved_but_system_supplemental_is_untrusted"
       ]
     },
     {
       "id": "parallel_mutation_no_lost_update",
       "nodeids": [
-        "tests/test_todo_domain_service.py::test_parallel_add_and_complete_do_not_lose_items"
+        "tests/test_todo_domain_service.py::test_add_retry_preserves_concurrent_completion"
       ]
     },
     {
       "id": "history_metadata_truthful",
       "nodeids": [
-        "tests/test_telegram_history_privacy.py::test_raw_conversation_and_redacted_audit_are_separate",
-        "tests/test_telegram_history_privacy.py::test_default_diagnostic_export_contains_no_raw_text"
+        "tests/test_telegram_history_privacy.py::test_mixed_legacy_raw_record_is_truthfully_classified_but_not_exported",
+        "tests/test_telegram_history_privacy.py::test_metadata_only_event_has_a_content_free_audit_receipt"
       ]
     }
   ]
