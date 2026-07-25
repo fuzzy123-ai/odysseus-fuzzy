@@ -464,6 +464,37 @@ def _tool_result_failed(result: Any) -> bool:
     return bool(result.get("error")) or result.get("exit_code") not in (None, 0, "0")
 
 
+def _secret_safe_diagnostic_source_refusal(
+    tool: object,
+    content: object,
+) -> Optional[Dict[str, Any]]:
+    """Reject raw secret-bearing diagnostic sources without echoing input."""
+
+    if tool not in ("bash", "python"):
+        return None
+    from src.secret_safe_diagnostics import (
+        DiagnosticContract,
+        diagnostic_source_is_forbidden,
+        project_diagnostic,
+    )
+
+    if not diagnostic_source_is_forbidden(content):
+        return None
+    projection = project_diagnostic(
+        DiagnosticContract(source_id="tool_diagnostic_source"),
+        {},
+        command_source=content,
+    )
+    return {
+        "error": (
+            "Raw secret-bearing diagnostics are forbidden. "
+            "Use a registered narrow evidence contract."
+        ),
+        "exit_code": 1,
+        "diagnostic": projection.to_dict(),
+    }
+
+
 def _begin_tool_usage(instrumentation: Any, block: Any) -> Any:
     if instrumentation is None:
         return None
@@ -653,6 +684,10 @@ async def _execute_tool_block_impl(
         }
         logger.warning("Public tool policy blocked owner=%r tool=%s", owner, tool)
         return desc, result
+
+    diagnostic_refusal = _secret_safe_diagnostic_source_refusal(tool, content)
+    if diagnostic_refusal is not None:
+        return f"{tool}: BLOCKED by diagnostic safety policy", diagnostic_refusal
 
     if tool == "invalid_tool_call":
         try:

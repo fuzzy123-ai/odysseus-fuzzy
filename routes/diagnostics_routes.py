@@ -11,8 +11,75 @@ from services.youtube.youtube_handler import extract_youtube_id, extract_transcr
 from core.constants import DEFAULT_HOST, DATA_DIR
 from core.middleware import require_admin
 from src.auth_helpers import require_api_token_exact_scope
+from src.secret_safe_diagnostics import DiagnosticContract, project_diagnostic
 
 logger = logging.getLogger(__name__)
+
+_LOG_SUMMARY_CONTRACT = DiagnosticContract(
+    source_id="diagnostic_log_summary",
+    presence_fields=("log_file_present",),
+    count_fields=("sampled_line_count",),
+    state_values={"status": ("available", "missing", "failed")},
+    max_count=1000,
+)
+_YOUTUBE_PROBE_CONTRACT = DiagnosticContract(
+    source_id="youtube_probe",
+    presence_fields=("transcript_present",),
+    count_fields=("transcript_char_count",),
+    state_values={"status": ("available", "invalid", "failed")},
+)
+_RESEARCH_PROBE_CONTRACT = DiagnosticContract(
+    source_id="research_probe",
+    presence_fields=("response_present",),
+    count_fields=("response_char_count",),
+    state_values={"status": ("available", "failed")},
+)
+
+
+def _project_log_summary(
+    *,
+    status: str,
+    log_file_present: bool | None = None,
+    sampled_line_count: int | None = None,
+) -> Dict[str, Any]:
+    payload: Dict[str, Any] = {"status": status}
+    if log_file_present is not None:
+        payload["log_file_present"] = log_file_present
+    if sampled_line_count is not None:
+        payload["sampled_line_count"] = sampled_line_count
+    return project_diagnostic(_LOG_SUMMARY_CONTRACT, payload).to_dict()
+
+
+def _project_youtube_probe(
+    *,
+    status: str,
+    transcript_present: bool = False,
+    transcript_char_count: int = 0,
+) -> Dict[str, Any]:
+    return project_diagnostic(
+        _YOUTUBE_PROBE_CONTRACT,
+        {
+            "status": status,
+            "transcript_present": transcript_present,
+            "transcript_char_count": min(max(transcript_char_count, 0), 1_000_000),
+        },
+    ).to_dict()
+
+
+def _project_research_probe(
+    *,
+    status: str,
+    response_present: bool = False,
+    response_char_count: int = 0,
+) -> Dict[str, Any]:
+    return project_diagnostic(
+        _RESEARCH_PROBE_CONTRACT,
+        {
+            "status": status,
+            "response_present": response_present,
+            "response_char_count": min(max(response_char_count, 0), 1_000_000),
+        },
+    ).to_dict()
 
 
 def setup_diagnostics_routes(
@@ -34,27 +101,32 @@ def setup_diagnostics_routes(
 
     @router.get("/api/diagnostics/logs")
     async def get_diagnostics_logs(request: Request, limit: int = 200) -> Dict[str, Any]:
+        """Return bounded log availability evidence without raw log text."""
+
         require_admin(request)
         limit = max(1, min(limit, 1000))
         try:
             log_file = os.path.join(DATA_DIR, "logs", "app.log")
             if not os.path.exists(log_file):
-                return {"status": "success", "logs": []}
+                return _project_log_summary(
+                    status="missing",
+                    log_file_present=False,
+                    sampled_line_count=0,
+                )
 
-            # Safe tail read of the log file (max 5MB via rotation)
+            sampled_line_count = 0
             with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
-                lines = f.readlines()
-
-            tail_lines = lines[-limit:] if len(lines) > limit else lines
-            tail_lines = [line.rstrip('\r\n') for line in tail_lines]
-
-            return {
-                "status": "success",
-                "logs": tail_lines
-            }
-        except Exception as e:
-            logger.error(f"Diagnostics logs retrieval error: {e}")
-            raise HTTPException(500, f"Failed to retrieve logs: {str(e)}")
+                for sampled_line_count, _line in enumerate(f, start=1):
+                    if sampled_line_count >= limit:
+                        break
+            return _project_log_summary(
+                status="available",
+                log_file_present=True,
+                sampled_line_count=sampled_line_count,
+            )
+        except Exception:
+            logger.error("Diagnostics log summary retrieval failed")
+            raise HTTPException(500, "Failed to retrieve diagnostics log summary")
 
     @router.get("/api/diagnostics/ai-activity")
     async def get_ai_activity(
@@ -299,40 +371,47 @@ def setup_diagnostics_routes(
 
     @router.get("/api/test/youtube")
     async def test_youtube(request: Request, url: str) -> Dict[str, Any]:
+        """Return fixed-key transcript availability evidence only."""
+
         require_admin(request)
         try:
             video_id = extract_youtube_id(url)
             if not video_id:
-                return {"error": "Invalid YouTube URL"}
+                return _project_youtube_probe(status="invalid")
 
             data = await extract_transcript_async(url, video_id)
-            return {
-                "video_id": video_id,
-                "transcript_success": data.get("success", False),
-                "transcript_length": len(data.get("transcript", "")) if data.get("success") else 0,
-                "transcript_preview": (data.get("transcript", "")[:500] + "...")
-                    if data.get("success") and len(data.get("transcript", "")) > 500
-                    else data.get("transcript", ""),
-                "error": data.get("error") if not data.get("success") else None,
-            }
-        except Exception as e:
-            return {"error": str(e)}
+            transcript = data.get("transcript", "") if isinstance(data, dict) else ""
+            success = bool(data.get("success")) if isinstance(data, dict) else False
+            if not success or type(transcript) is not str:
+                return _project_youtube_probe(status="failed")
+            return _project_youtube_probe(
+                status="available",
+                transcript_present=bool(transcript),
+                transcript_char_count=len(transcript),
+            )
+        except Exception:
+            logger.error("YouTube diagnostic probe failed")
+            return _project_youtube_probe(status="failed")
 
     @router.post("/api/test-research")
     async def test_research(request: Request, query: str = Form("What is machine learning?")) -> Dict[str, Any]:
+        """Return fixed-key research availability evidence only."""
+
         require_admin(request)
         try:
             endpoint = f"http://{DEFAULT_HOST}:8000/v1/chat/completions"
             model = "gpt-oss-120b"
             result = await research_handler.call_research_service(query, endpoint, model)
-            return {
-                "status": "success",
-                "query": query,
-                "result_preview": result[:200] + "..." if len(result) > 200 else result,
-                "result_length": len(result),
-            }
-        except Exception as e:
-            return {"status": "error", "error": str(e), "query": query}
+            if type(result) is not str:
+                return _project_research_probe(status="failed")
+            return _project_research_probe(
+                status="available",
+                response_present=bool(result),
+                response_char_count=len(result),
+            )
+        except Exception:
+            logger.error("Research diagnostic probe failed")
+            return _project_research_probe(status="failed")
 
     return router
 
