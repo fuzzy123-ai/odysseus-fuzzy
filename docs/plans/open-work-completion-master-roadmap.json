@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T21:26:39+02:00",
+  "updated_at": "2026-07-25T21:44:00+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,52 +96,50 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-tool-analytics-descriptor-snapshot-20260725T212347+0200",
-      "slice_id": "CI-tool-analytics-descriptor-snapshot",
-      "prior_slice": "CI-todo-ledger-dual-read-contract",
-      "prior_slice_result": "committed_as_21026429692d7f5fb1ce7bb48a9888b995b42789_with_prior_e1f2a2eb_then_required_ci_confirmed_both_Todo_contracts_and_advanced_to_9425_passed",
+      "run_id": "abc-ci-tool-index-schema-parity-20260725T213830+0200",
+      "slice_id": "CI-tool-index-schema-parity-snapshot",
+      "prior_slice": "CI-tool-analytics-descriptor-snapshot",
+      "prior_slice_result": "committed_and_pushed_as_63c9d579bcfdfd48a50897ce57379ba54d5c5ad7_then_required_ci_confirmed_the_86_descriptor_snapshot_and_advanced_to_9497_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
       "owner": "root_sol_orchestrator",
-      "class": "required_ci_analytics_contract_snapshot_repair",
+      "class": "required_ci_tool_index_schema_parity_snapshot_repair",
       "dependencies": [
-        "21026429692d7f5fb1ce7bb48a9888b995b42789",
-        "Required CI run 30171204431 job 89712548050",
-        "independent built-in catalog descriptor and projection baseline of 86"
+        "63c9d579bcfdfd48a50897ce57379ba54d5c5ad7",
+        "Required CI run 30171696112 job 89713828419",
+        "independent built-in catalog projection baseline function_schemas=85 tool_index=86"
       ],
-      "lease_started_at": "2026-07-25T21:23:47+02:00",
-      "lease_expires_at": "2026-07-25T23:23:47+02:00",
-      "released_at": "2026-07-25T21:26:39+02:00",
+      "lease_started_at": "2026-07-25T21:38:30+02:00",
+      "lease_expires_at": "2026-07-25T23:38:30+02:00",
+      "released_at": "2026-07-25T21:44:00+02:00",
       "allowed_paths": [
-        "tests/test_tool_analytics_identity.py",
+        "tests/test_tool_index_schema_parity.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "changed_paths": [
-        "tests/test_tool_analytics_identity.py",
+        "tests/test_tool_index_schema_parity.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "diagnosis": {
-        "required_ci_run": 30171204431,
-        "required_ci_job": 89712548050,
-        "required_ci_head_sha": "21026429692d7f5fb1ce7bb48a9888b995b42789",
-        "required_ci_passed_before_failure": 9425,
-        "failing_node": "tests/test_tool_analytics_identity.py::test_contract_audit_is_aggregate_and_contains_only_bounded_source_buckets",
-        "root_cause": "the independent analytics audit snapshot remained at 84 after two separately accepted built-in registrations raised the authoritative catalog descriptor baseline to 86",
-        "descriptor_provenance": "query_knowledge in 46f77c2a raised 84 to 85 and manage_todos in 1dc160ad raised 85 to 86",
-        "privacy_contract": "dynamic source buckets remain exactly legacy mcp plugin and provider and every owner session source and raw-content visibility flag remains false",
-        "repair": "update only the independent fixed audit descriptor snapshot from 84 to 86 while retaining drift detection",
+        "required_ci_run": 30171696112,
+        "required_ci_job": 89713828419,
+        "required_ci_head_sha": "63c9d579bcfdfd48a50897ce57379ba54d5c5ad7",
+        "required_ci_passed_before_failure": 9497,
+        "failing_node": "tests/test_tool_index_schema_parity.py::test_only_explicit_text_only_tool_has_index_without_native_schema",
+        "root_cause": "the independent AST-only legacy projection snapshot remained at function_schemas=84 and tool_index=85 after the accepted canonical manage_todos registration converged the sources to 85 and 86",
+        "projection_provenance": "86c61a1d last froze 84 and 85; 46f77c2a added query_knowledge; 1dc160ad added the canonical manage_todos schema and index entry; 16a1c940 removed the temporary duplicate and left one canonical manage_todos",
+        "exception_contract": "schema_without_index is empty and generate_image remains the sole exact index_without_schema exception",
+        "repair": "update both independent fixed snapshots to function_schemas=85 and tool_index=86 while retaining the exact set-difference assertion",
         "derive_from_runtime_length_allowed": false,
         "production_change_required": false
       },
       "tests": {
-        "focused_analytics_identity_and_builtin_catalog_contracts": "20 passed in 4.50s during final Sol review",
-        "worker_direct_focused_assertions": "pass",
-        "worker_pytest_lane": "not_verified_worker_interpreter_lacked_sqlalchemy_before_collection",
+        "focused_schema_parity_catalog_and_todo_registration_contracts": "15 passed in 3.67s during final Sol review",
         "python_ast": "pass",
         "roadmap_json_parse": "pass",
         "git_diff_check": "pass",
-        "terra_independent_review": "descriptor_provenance_privacy_contract_and_exact_one_line_implementation_handoff_pass",
-        "sol_deep_review": "pass_fixed_independent_snapshot_retained_with_exact_46f77c2a_and_1dc160ad_provenance",
+        "terra_independent_review": "stale_fixed_snapshot_diagnosis_exact_source_sets_and_manage_todos_convergence_provenance_pass",
+        "sol_deep_review": "pass_two_fixed_snapshots_retain_independent_drift_detection_and_generate_image_exact_exception",
         "production_files_changed": 0,
         "production_runtime_logic_changed": false,
         "blocking_failures": 0,
@@ -151,19 +149,19 @@
         "amh08_feature_work_performed": false
       },
       "evidence_refs": [
-        "GitHub Actions Required CI run 30171204431 job 89712548050",
-        "63dd70a7 original 84-descriptor analytics audit snapshot",
-        "46f77c2a query_knowledge registration and 84-to-85 provenance",
-        "1dc160ad manage_todos registration and 85-to-86 provenance",
-        "independent built-in catalog 86-descriptor and projection-count contract",
-        "Terra read-only analytics descriptor provenance diagnosis PASS"
+        "GitHub Actions Required CI run 30171696112 job 89713828419",
+        "86c61a1d prior 84 and 85 AST-only projection snapshot",
+        "46f77c2a query_knowledge registration",
+        "1dc160ad canonical manage_todos native-schema and index registration",
+        "16a1c940 duplicate Todo schema convergence",
+        "independent built-in catalog function_schemas=85 tool_index=86 contract",
+        "Terra read-only schema parity diagnosis PASS"
       ],
       "collision_check": "pass_exactly_the_one_worker_test_path_and_root_owned_canonical_roadmap_changed",
       "route": {
         "entrypoint": "/abc",
         "master": "gpt-5.6-sol",
-        "worker_requested": "gpt-5.6-terra",
-        "worker_actual": "not_exposed_by_spawn_surface",
+        "worker": "gpt-5.6-terra",
         "review": "deep_sol_pass"
       },
       "completion": {
