@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from core.middleware import INTERNAL_TOOL_HEADER, INTERNAL_TOOL_TOKEN
 import src.plugin_system as plugin_system
 from src.tool_registry import get_tool
 from src.plugin_system import get_context_providers
@@ -11,7 +12,7 @@ from routes.model_routes import setup_model_routes
 from routes.plugin_routes import setup_plugin_routes
 
 
-def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
+def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch, request):
     repo_root = Path(__file__).resolve().parents[1]
     source = repo_root / "plugins" / "obsidian"
     plugins_dir = tmp_path / "plugins"
@@ -30,9 +31,14 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     manager = plugin_system.PluginManager(app=app, directory=str(plugins_dir))
     monkeypatch.setattr(plugin_system, "MANAGER", manager)
     manager.load_enabled(app)
+    request.addfinalizer(manager.shutdown_all)
 
     record = manager.records["obsidian"]
-    paths = {getattr(route, "path", "") for route in app.router.routes}
+    paths = {
+        path
+        for route in app.router.routes
+        for path in plugin_system._route_paths(route)
+    }
 
     assert record.status == "loaded", record.error
     assert record.public()["version"] == "0.10.0-rc.1"
@@ -131,7 +137,10 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert "obsidian-panel" in asset_response.text
     assert "openPanel" in asset_response.text
 
-    tools_response = client.get("/api/tools")
+    tools_response = client.get(
+        "/api/tools",
+        headers={INTERNAL_TOOL_HEADER: INTERNAL_TOOL_TOKEN},
+    )
     assert tools_response.status_code == 200
     visible_tools = {tool["id"]: tool for tool in tools_response.json()["tools"]}
     assert "obsidian_list_notes" in visible_tools
@@ -193,7 +202,7 @@ def test_obsidian_plugin_loads_through_plugin_manager(tmp_path, monkeypatch):
     assert all(provider.id != "orca.vault_context" for provider in get_context_providers())
 
 
-def test_obsidian_plugin_routes_require_authentication_middleware(tmp_path, monkeypatch):
+def test_obsidian_plugin_routes_require_authentication_middleware(tmp_path, monkeypatch, request):
     import shutil
     from starlette.middleware.base import BaseHTTPMiddleware
     from fastapi.responses import JSONResponse
@@ -215,6 +224,7 @@ def test_obsidian_plugin_routes_require_authentication_middleware(tmp_path, monk
     manager = plugin_system.PluginManager(app=app, directory=str(plugins_dir))
     monkeypatch.setattr(plugin_system, "MANAGER", manager)
     manager.load_enabled(app)
+    request.addfinalizer(manager.shutdown_all)
 
     # Add a mock AuthMiddleware simulating app.py behavior
     class MockAuthMiddleware(BaseHTTPMiddleware):
