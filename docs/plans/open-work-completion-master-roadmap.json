@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T11:14:17+02:00",
+  "updated_at": "2026-07-25T12:13:13+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,22 +96,22 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-gpu-compose-parity-20260725T111200+0200",
-      "slice_id": "CI-GPU-standalone-catalog-flag-parity",
+      "run_id": "abc-ci-live-gate-fail-closed-20260725T121020+0200",
+      "slice_id": "CI-live-quality-gate-disabled-contract-alignment",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
-      "previous_ci_repair_handoff_commit": "00234fb04af2aca5c1826123db984dffdcd4903a",
+      "previous_ci_repair_handoff_commit": "3163482f304a6b291223369bb13acb6032372d10",
       "changed_files": [
-        "docker-compose.gpu-nvidia.yml",
-        "docker-compose.gpu-amd.yml",
+        "tests/test_live_quality_gate_command_runner.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "tests": {
-        "gpu_compose_standalone_tests_passed": 8,
+        "focused_disabled_completion_contract_tests_passed": 46,
         "blocking_failures": 0,
-        "yaml_files_parsed": 3,
-        "catalog_v2_default_off_flag_present_once_per_gpu_standalone": true,
-        "non_odysseus_services_and_volumes_equal_base": true
+        "production_files_changed": 0,
+        "typed_authority_recognized_without_bypassing_completion": true,
+        "completion_always_disabled": true,
+        "amh08_feature_work_performed": false
       },
       "route": {
         "entrypoint": "/abc",

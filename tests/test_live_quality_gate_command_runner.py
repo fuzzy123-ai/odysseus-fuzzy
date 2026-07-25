@@ -215,8 +215,13 @@ def test_live_execution_requires_completion_plus_separate_exact_authority(tmp_pa
     )
 
     assert no_authority.allowed is False
-    assert no_authority.completion_verified is True
-    assert allowed.allowed is True
+    assert no_authority.completion_verified is False
+    assert no_authority.action_authorized is False
+    assert "current claims and machine verification receipt are required" in no_authority.blockers
+    assert allowed.allowed is False
+    assert allowed.completion_verified is False
+    assert allowed.action_authorized is True
+    assert "current claims and machine verification receipt are required" in allowed.blockers
 
 
 def test_live_execution_revalidates_stale_receipt_and_exact_boolean_gates(tmp_path: Path):
@@ -349,7 +354,13 @@ def test_server_execution_requires_completion_and_project_specific_authority(tmp
     assert plan.to_dict()["live_execution_allowed"] is False
     assert plan.to_dict()["operator_gate"]["mutation_allowed"] is False
     assert no_authority.allowed is False
-    assert allowed.allowed is True
+    assert no_authority.completion_verified is False
+    assert no_authority.action_authorized is False
+    assert "current claims and machine verification receipt are required" in no_authority.blockers
+    assert allowed.allowed is False
+    assert allowed.completion_verified is False
+    assert allowed.action_authorized is True
+    assert "current claims and machine verification receipt are required" in allowed.blockers
 
 
 def test_server_authority_digest_blocks_reuse_after_material_plan_change(tmp_path: Path):
