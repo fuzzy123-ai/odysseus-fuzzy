@@ -735,12 +735,13 @@ def test_parse_voice_update_marks_pending_stt():
 
 def test_inbox_store_deduplicates_and_returns_history(tmp_path):
     store = TelegramInboxStore(tmp_path)
+    raw_chat_id = "private-chat-sentinel-g-do-not-persist"
     message = {
         "direction": "inbound",
         "kind": "text",
         "update_id": 1,
         "message_id": 2,
-        "chat_id": "abc",
+        "chat_id": raw_chat_id,
         "text": "hi",
     }
 
@@ -751,12 +752,14 @@ def test_inbox_store_deduplicates_and_returns_history(tmp_path):
     assert second["stored"] is False
     assert store.counts()["inbound"] == 1
     assert store.counts()["duplicates"] == 1
-    assert any(item.get("text") == "hi" for item in store.history(chat_id="abc"))
-    assert store.history(chat_id="abc")[0]["raw_content_visible"] is True
+    assert any(item.get("text") == "hi" for item in store.history(chat_id=raw_chat_id))
+    assert store.history(chat_id=raw_chat_id)[0]["raw_content_visible"] is True
     persisted = json.loads((tmp_path / "telegram_history.json").read_text(encoding="utf-8"))
     persisted_text = json.dumps(persisted, ensure_ascii=False)
+    assert all("chat_id" not in item for item in persisted["messages"])
+    assert all(str(item.get("chat_handle") or "").startswith("chat_") for item in persisted["messages"])
     assert '"chat_id"' not in persisted_text
-    assert "abc" not in persisted_text
+    assert raw_chat_id not in persisted_text
 
 
 def test_webhook_route_stores_inbound_and_returns_agent_bridge(tmp_path, monkeypatch):
