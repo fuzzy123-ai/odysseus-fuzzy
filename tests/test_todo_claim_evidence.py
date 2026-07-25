@@ -123,18 +123,79 @@ def test_plural_todo_claim_requires_matching_unique_receipt_count():
         "Beide Aufgaben gespeichert.",
         [_event(first), _event(second)],
     )
+    duplicate_replay = evaluate_response_claims(
+        "2 Todos gespeichert.",
+        [_event(first), _event(first)],
+    )
+    separate_singular_claims = evaluate_response_claims(
+        "Ein Todo gespeichert. Ein Todo gespeichert.",
+        [_event(first)],
+    )
+    separate_singular_claims_with_two_receipts = evaluate_response_claims(
+        "Ein Todo gespeichert. Ein Todo gespeichert.",
+        [_event(first), _event(second)],
+    )
+    out_of_range = evaluate_response_claims(
+        "1000001 Todos gespeichert.",
+        [_event(first), _event(second)],
+    )
     implicit_plural = evaluate_response_claims("Todos gespeichert.", [_event(first)])
     no_evidence = evaluate_response_claims("Two todos added.", [])
     generic_tasks = evaluate_response_claims("Two scheduler tasks added.", [])
+    generic_task = evaluate_response_claims("One scheduler task added.", [])
 
     assert under_evidenced.ok is False
     assert under_evidenced.unsupported[0].claim_type == "todo_item_created"
     assert "fewer unique" in under_evidenced.unsupported[0].reason
     assert fully_evidenced.ok is True
     assert fully_evidenced.findings[0].claim_type == "todo_item_created"
+    assert duplicate_replay.ok is False
+    assert "fewer unique" in duplicate_replay.unsupported[0].reason
+    assert separate_singular_claims.ok is False
+    assert "fewer unique" in separate_singular_claims.unsupported[0].reason
+    assert separate_singular_claims_with_two_receipts.ok is True
+    assert out_of_range.ok is False
+    assert "out-of-range" in out_of_range.unsupported[0].reason
     assert implicit_plural.ok is False
     assert no_evidence.ok is False
     assert generic_tasks.findings == ()
+    assert generic_task.findings == ()
+
+
+def test_todo_claim_count_words_are_exact_and_fail_closed():
+    first = todo_receipts_from_tool_result(_mutation_result("add"))[0]
+    second = todo_receipts_from_tool_result(
+        _mutation_result("add", item_ref="todo-item:v1:itm_fedcba9876543210")
+    )[0]
+
+    one = evaluate_response_claims("One todo saved.", [_event(first)])
+    under_evidenced = tuple(
+        evaluate_response_claims(text, [_event(first)])
+        for text in (
+            "Two todos saved.",
+            "Zwei Todos gespeichert.",
+            "Both todos saved.",
+            "Beide Todos gespeichert.",
+            "0 Todos gespeichert.",
+        )
+    )
+    fully_evidenced = evaluate_response_claims("Two todos saved.", [_event(first), _event(second)])
+    todo_item_plural = evaluate_response_claims("Two todo items saved.", [_event(first)])
+    todo_task_plural = evaluate_response_claims("Two Todo tasks saved.", [_event(first)])
+    huge_numeric_claim = evaluate_response_claims(
+        f"{'9' * 128} Todos gespeichert.",
+        [_event(first), _event(second)],
+    )
+
+    assert one.ok is True
+    assert all(report.ok is False for report in under_evidenced)
+    assert all(report.unsupported[0].claim_type == "todo_item_created" for report in under_evidenced)
+    assert "out-of-range" in under_evidenced[-1].unsupported[0].reason
+    assert fully_evidenced.ok is True
+    assert todo_item_plural.ok is False
+    assert todo_task_plural.ok is False
+    assert huge_numeric_claim.ok is False
+    assert "out-of-range" in huge_numeric_claim.unsupported[0].reason
 
 
 def test_mismatched_receipt_does_not_support_a_different_todo_claim():

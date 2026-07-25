@@ -83,8 +83,9 @@ _NEGATED_CLAIM_WITHIN_RE = re.compile(
     re.IGNORECASE,
 )
 _TODO_CONTEXT_RE = re.compile(
-    r"\b(?:todo(?:[-\s]?(?:item|task|list|liste|eintrag|aufgabe))?|to[-\s]?do|"
-    r"task|checklist|list(?:\s+item)?|item|aufgabe|eintrag|liste)\b",
+    r"\b(?:todo[-\s]?(?:items?|tasks?)|to[-\s]?do[-\s]?(?:items?|tasks?)|"
+    r"todo(?:[-\s]?(?:item|task|list|liste|eintrag|aufgabe))?|to[-\s]?do|"
+    r"todos|to-dos|aufgaben|task|checklist|list(?:\s+item)?|item|aufgabe|eintrag|liste)\b",
     re.IGNORECASE,
 )
 _TODO_EN_ACTOR_RE = re.compile(r"\bi(?:\s+(?:have|did)|['’]ve)?\b", re.IGNORECASE)
@@ -133,6 +134,31 @@ _TODO_ACTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
         re.compile(r"\b(?:listed|read|showed|shown|displayed|aufgelistet|gelesen|angezeigt|gezeigt)\b", re.IGNORECASE),
     ),
 )
+_TODO_ITEM_MUTATION_CLAIMS = frozenset(
+    {
+        "todo_item_created",
+        "todo_item_completed",
+        "todo_item_reopened",
+        "todo_item_removed",
+    }
+)
+_TODO_QUANTITY_PREFIX_RE = re.compile(
+    r"\b(?:(?P<count>\d+)|(?P<one>one|eins|eine|einen|einem|einer)|"
+    r"(?P<two>two|zwei|both|beide|beiden))\s*$",
+    re.IGNORECASE,
+)
+_TODO_NUMERIC_LIKE_PREFIX_RE = re.compile(r"\d[\d.,_]*\s*$")
+_TODO_PLURAL_CONTEXT_RE = re.compile(
+    r"^(?:(?:todo|to-do)[-\s](?:items|tasks)|todos|to-dos|aufgaben)$",
+    re.IGNORECASE,
+)
+_TODO_NON_TODO_TASK_PREFIX_RE = re.compile(
+    r"\b(?:automation|cron|scheduled|scheduler)\s*$",
+    re.IGNORECASE,
+)
+# Match the bounded count accepted by the Todo receipt and transaction schemas.
+_MAX_TODO_CLAIM_COUNT = 1_000_000
+_MAX_TODO_CLAIM_COUNT_DIGITS = len(str(_MAX_TODO_CLAIM_COUNT))
 _TODO_DIGEST_CONTEXT_RE = re.compile(r"\b(?:todo\s+)?digest\b|\bzusammenfassung\b", re.IGNORECASE)
 _TODO_DIGEST_CONTAINS_RE = re.compile(
     r"\b(?:appears?|is\s+included|is\s+contained|included\s+in|erscheint|ist\s+enthalten)\b",
@@ -448,8 +474,7 @@ def _todo_claim_findings(
     events: Iterable[Mapping[str, Any]] = (),
 ) -> tuple[ClaimEvidenceFinding, ...]:
     """Return only explicit, positive Todo claims bound to matching transactions."""
-    findings: list[ClaimEvidenceFinding] = []
-    seen_claim_types: set[str] = set()
+    requirements: dict[str, tuple[int, bool]] = {}
     unquoted = _TODO_QUOTED_TEXT_RE.sub(" ", text)
     for sentence in re.split(r"(?<=[.!?;\n])", unquoted):
         action_matches = sorted(
@@ -458,22 +483,23 @@ def _todo_claim_findings(
             for match in action_pattern.finditer(sentence)
         )
         todo_context_matches = tuple(_TODO_CONTEXT_RE.finditer(sentence))
+        sentence_requirements: dict[str, tuple[int, bool]] = {}
         for action_start, action_end, claim_type in action_matches:
-            if claim_type in seen_claim_types:
-                continue
             prefix = sentence[:action_start]
             if _TODO_NONPOSITIVE_RE.search(prefix):
                 continue
             has_actor = bool(_TODO_EN_ACTOR_RE.search(prefix) or _TODO_DE_ACTOR_RE.search(prefix))
-            has_bound_context = _todo_context_binds_to_action(
-                action_start, action_end, action_matches, todo_context_matches
+            bound_contexts = tuple(
+                context
+                for context in todo_context_matches
+                if _todo_context_binds_to_action(
+                    action_start, action_end, action_matches, (context,)
+                )
+                and not _todo_context_is_generic_task(sentence, context)
             )
-            has_preceding_context = _todo_context_binds_to_action(
-                action_start,
-                action_end,
-                action_matches,
-                todo_context_matches,
-                preceding_only=True,
+            has_bound_context = bool(bound_contexts)
+            has_preceding_context = any(
+                context.end() <= action_start for context in bound_contexts
             )
             is_bare_done = sentence[action_start:action_end].strip().lower() == "done"
             if is_bare_done and not has_preceding_context:
@@ -482,25 +508,119 @@ def _todo_claim_findings(
                 continue
             if not has_actor and (not has_preceding_context or "?" in sentence):
                 continue
+            if claim_type in _TODO_ITEM_MUTATION_CLAIMS:
+                count, out_of_range = _todo_claim_count(sentence, bound_contexts)
+            else:
+                # One validated list-read receipt covers the complete snapshot,
+                # regardless of how many items the response says were listed.
+                count, out_of_range = 1, False
+            previous = sentence_requirements.get(claim_type)
+            if previous is None:
+                sentence_requirements[claim_type] = (count, out_of_range)
+            else:
+                # Multiple success verbs in one sentence can describe the same
+                # operation (for example, "added and saved two Todos"). Count
+                # that sentence once, but keep a malformed numeric claim fatal.
+                sentence_requirements[claim_type] = (
+                    max(previous[0], count),
+                    previous[1] or out_of_range,
+                )
+
+        for claim_type, (count, out_of_range) in sentence_requirements.items():
+            previous_count, previous_out_of_range = requirements.get(claim_type, (0, False))
+            requirements[claim_type] = (
+                (
+                    previous_count + count
+                    if claim_type in _TODO_ITEM_MUTATION_CLAIMS
+                    else max(previous_count, count)
+                ),
+                previous_out_of_range or out_of_range,
+            )
+
+    receipts = todo_receipts_from_tool_events(events)
+    findings: list[ClaimEvidenceFinding] = []
+    for claim_type, (required_count, out_of_range) in requirements.items():
+        matching_receipts = tuple(
+            receipt
+            for receipt in receipts
+            if receipt.claim_type == claim_type and receipt.verified
+        )
+        receipt_evidence = todo_receipt_evidence_for_claim(matching_receipts, claim_type)
+        if out_of_range:
+            evidence = ()
+            reason = "Todo success claim has an out-of-range claimed item count"
+        elif required_count > 1:
+            evidence = receipt_evidence if len(matching_receipts) >= required_count else ()
+            reason = (
+                "Todo claim has enough unique verified semantic receipts"
+                if evidence
+                else "Todo claim has fewer unique verified semantic receipts than claimed"
+            )
+        else:
             evidence = transaction_evidence_for_claim(transactions, claim_type)
             if not evidence:
-                evidence = todo_receipt_evidence_for_claim(
-                    todo_receipts_from_tool_events(events), claim_type
-                )
-            findings.append(
-                ClaimEvidenceFinding(
-                    claim_type,
-                    "supported" if evidence else "unsupported",
-                    (
-                        "Todo success claim has a matching verified semantic receipt"
-                        if evidence
-                        else "Todo success claim has no matching verified semantic receipt"
-                    ),
-                    evidence,
-                )
+                evidence = receipt_evidence
+            reason = (
+                "Todo success claim has a matching verified semantic receipt"
+                if evidence
+                else "Todo success claim has no matching verified semantic receipt"
             )
-            seen_claim_types.add(claim_type)
+        findings.append(
+            ClaimEvidenceFinding(
+                claim_type,
+                "supported" if evidence else "unsupported",
+                reason,
+                evidence,
+            )
+        )
     return tuple(findings)
+
+
+def _todo_claim_count(
+    sentence: str, contexts: Iterable[re.Match[str]]
+) -> tuple[int, bool]:
+    """Return the minimum receipt count for one Todo claim sentence.
+
+    Numbers are read only directly before the Todo context.  A numeric value
+    outside the bounded protocol range is deliberately not coerced downward:
+    that would let a larger free-prose claim pass on weaker evidence.
+    """
+
+    required_count = 1
+    for context in contexts:
+        prefix = sentence[max(0, context.start() - 32) : context.start()]
+        quantity = _TODO_QUANTITY_PREFIX_RE.search(prefix)
+        if quantity is not None:
+            if quantity.group("one"):
+                required_count = max(required_count, 1)
+                continue
+            if quantity.group("two"):
+                required_count = max(required_count, 2)
+                continue
+            raw_count = quantity.group("count") or "0"
+            if len(raw_count) > _MAX_TODO_CLAIM_COUNT_DIGITS:
+                return required_count, True
+            value = int(raw_count)
+            if not 1 <= value <= _MAX_TODO_CLAIM_COUNT:
+                return required_count, True
+            required_count = max(required_count, value)
+            continue
+        if _TODO_NUMERIC_LIKE_PREFIX_RE.search(prefix):
+            return required_count, True
+        if _TODO_PLURAL_CONTEXT_RE.fullmatch(context.group(0)):
+            required_count = max(required_count, 2)
+    return required_count, False
+
+
+def _todo_context_is_generic_task(
+    sentence: str, context: re.Match[str]
+) -> bool:
+    """Keep explicitly non-Todo scheduler/automation tasks outside this gate."""
+
+    if context.group(0).lower() not in {"task", "tasks"}:
+        return False
+    prefix = sentence[max(0, context.start() - 24) : context.start()]
+    return bool(_TODO_NON_TODO_TASK_PREFIX_RE.search(prefix))
 
 
 def _todo_digest_claim_findings(text: str, events: Iterable[Mapping[str, Any]]) -> tuple[ClaimEvidenceFinding, ...]:
