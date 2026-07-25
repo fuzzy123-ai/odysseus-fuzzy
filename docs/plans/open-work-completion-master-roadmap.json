@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T17:57:09+02:00",
+  "updated_at": "2026-07-25T18:16:36+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,50 +96,49 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-telegram-tool-event-derived-envelope-contract-20260725T175439+0200",
-      "slice_id": "CI-telegram-tool-event-derived-envelope-contract",
-      "prior_slice": "CI-scheduler-database-monkeypatch-isolation",
-      "prior_slice_result": "committed_as_df082a7d3ec6821011c35eb934737d916d3e7e6a_then_required_ci_advanced_to_8786_passed",
+      "run_id": "abc-ci-telegram-poll-route-contract-20260725T181030+0200",
+      "slice_id": "CI-telegram-poll-route-contract",
+      "prior_slice": "CI-telegram-tool-event-derived-envelope-contract",
+      "prior_slice_result": "committed_as_98f821affa41b68148a7a59cd5ff4aeca6ad67a7_then_required_ci_advanced_to_8845_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
       "owner": "root_sol_orchestrator",
-      "class": "required_ci_telegram_source_contract_repair",
+      "class": "required_ci_telegram_route_contract_repair",
       "dependencies": [
-        "df082a7d3ec6821011c35eb934737d916d3e7e6a",
-        "Required CI run 30164322755 failure evidence",
-        "accepted default-off TTD todo-truth envelope bridge"
+        "98f821affa41b68148a7a59cd5ff4aeca6ad67a7",
+        "Required CI run 30164691738 failure evidence",
+        "canonical TTD-07A5 architecture gate after two rejected implementation attempts"
       ],
-      "lease_started_at": "2026-07-25T17:54:39+02:00",
-      "lease_expires_at": "2026-07-25T19:54:39+02:00",
-      "released_at": "2026-07-25T17:57:09+02:00",
+      "lease_started_at": "2026-07-25T18:10:30+02:00",
+      "lease_expires_at": "2026-07-25T20:10:30+02:00",
+      "released_at": "2026-07-25T18:16:36+02:00",
       "allowed_paths": [
-        "tests/test_telegram_plugin.py",
+        "plugins/telegram/routes_polling.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "changed_paths": [
-        "tests/test_telegram_plugin.py",
+        "plugins/telegram/routes_polling.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "diagnosis": {
-        "required_ci_run": 30164322755,
-        "required_ci_job": 89694647335,
-        "required_ci_head_sha": "df082a7d3ec6821011c35eb934737d916d3e7e6a",
-        "required_ci_passed_before_failure": 8786,
-        "failing_node": "tests/test_telegram_plugin.py::test_core_telegram_bridge_uses_agent_loop_for_tool_access",
-        "root_cause": "older bridge test forbids any internal tool_events reference while the accepted TTD truth bridge intentionally reads terminal metric tool events only to build a bounded derived todo_truth_envelope; dedicated tests already require this path",
-        "production_change_required": false
+        "required_ci_run": 30164691738,
+        "required_ci_job": 89695594767,
+        "required_ci_head_sha": "98f821affa41b68148a7a59cd5ff4aeca6ad67a7",
+        "required_ci_passed_before_failure": 8845,
+        "failing_node": "tests/test_telegram_plugin.py::test_poll_route_uses_app_state_hooks_without_event_loop_collision",
+        "root_cause": "the accepted release reconciliation removed the rejected TTD-07A5 session_archiver runtime from the polling facade, implementation and setup but left the optional parameter and unconditional keyword forwarding in routes_polling.py",
+        "production_change_required": true,
+        "test_order_or_import_leak": false,
+        "ttd07a5_runtime_reactivation_allowed": false
       },
       "tests": {
-        "focused_telegram_bridge_envelope_and_privacy_tests_passed": 9,
-        "metric_tool_events_used_only_as_envelope_input": true,
-        "raw_tool_events_projected_to_agent_turn_result": false,
-        "webhook_response_or_history_contains_transactions_or_raw_refs": false,
+        "focused_poll_route_test": "1 passed in 1.21s",
         "python_ast": "pass",
         "roadmap_json_parse": "pass",
         "git_diff_check": "pass",
-        "terra_independent_review": "pass",
+        "terra_independent_review": "diagnosis_and_exact_diff_pass",
         "sol_deep_review": "pass",
-        "production_files_changed": 0,
+        "production_files_changed": 1,
         "blocking_failures": 0,
         "live_telegram_activation_performed": false,
         "unconfirmed_write_performed": false,
@@ -147,13 +146,15 @@
         "amh08_feature_work_performed": false
       },
       "evidence_refs": [
-        "GitHub Actions Required CI run 30164322755 job 89694647335",
-        "git blame and TTD-05 compatibility commit 52ce58b8",
-        "local 9-test bridge, truth-envelope and webhook privacy suite",
-        "Terra read-only diagnosis and exact-diff review PASS",
+        "GitHub Actions Required CI run 30164691738 job 89695594767",
+        "local exact-node reproduction with isolated basetemp",
+        "commit 2cb685d8 followed by accepted reconciliation commit a7f089aa",
+        "canonical TTD-07A5 released_gated authority",
+        "Terra read-only diagnosis revised after Sol authority review",
+        "Terra exact-diff review PASS",
         "Sol exact-diff deep review PASS"
       ],
-      "collision_check": "pass_only_the_claimed_test_and_canonical_roadmap_changed",
+      "collision_check": "pass_only_the_claimed_route_and_canonical_roadmap_changed",
       "route": {
         "entrypoint": "/abc",
         "master": "gpt-5.6-sol",
