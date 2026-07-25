@@ -169,10 +169,14 @@ def test_catalog_metadata_does_not_override_mcp_server_exposure_policy():
         }
     ]
 
-    catalog_row = manager.get_all_tools()[0]
+    descriptor_row = manager.get_descriptor_projections()[0]
     server_decision = classify_mcp_tool("create_document")
 
-    assert catalog_row["policy_authority"] == "mcp_runtime_policy"
-    assert catalog_row["catalog_blocked"] is False
+    assert manager._connections["review"]["status"] == "connected"
+    assert descriptor_row["source"] == "mcp"
+    assert descriptor_row["enabled"] is True
+    assert descriptor_row["availability"] == "unavailable"
+    assert descriptor_row["default_enabled"] is False
+    assert descriptor_row["policy_status"] == "dynamic_review_required"
     assert server_decision.exposed is False
     assert server_decision.reason == "owner_scoped_write_hidden_by_default"
