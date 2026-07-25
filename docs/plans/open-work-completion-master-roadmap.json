@@ -96,32 +96,28 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-obsidian-import-identity-20260725T145821+0200",
-      "slice_id": "CI-obsidian-bridge-import-identity-contract",
-      "prior_slice": "CI-obsidian-bridge-public-policy-owner-contract",
-      "prior_slice_result": "committed_as_de9a337bd0b0a53c130d302513652d2d8588bbf8_then_required_ci_attempt_2_advanced_to_5460_passed",
+      "run_id": "abc-ci-uix-accepted-queue-20260725T150949+0200",
+      "slice_id": "CI-uix-accepted-queue-nonreopen-contract",
+      "prior_slice": "CI-obsidian-bridge-import-identity-contract",
+      "prior_slice_result": "committed_as_cf735d944ca0880fcb830d3c2aac54c763960315_then_required_ci_advanced_to_5609_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
-      "previous_ci_repair_handoff_commit": "de9a337bd0b0a53c130d302513652d2d8588bbf8",
+      "previous_ci_repair_handoff_commit": "cf735d944ca0880fcb830d3c2aac54c763960315",
       "changed_files": [
-        "tests/test_obsidian_bridge_contract.py",
+        "tests/test_open_roadmap_priority_contract.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "tests": {
-        "import_order_reproduction_failed_before_fix": 1,
-        "import_order_reproduction_passed_after_fix": 2,
-        "focused_obsidian_bridge_and_security_tests_passed": 16,
+        "focused_open_roadmap_priority_contract_tests_passed": 1,
         "blocking_failures": 0,
         "production_files_changed": 0,
-        "privileged_test_context_explicit": true,
-        "exact_imported_function_globals_patched": true,
-        "obsidian_privilege_stub_resilient_to_collection_time_module_identity_drift": true,
-        "trusted_request_owner": "fuzzy",
-        "untrusted_payload_owner": "mallory",
-        "trusted_owner_write_succeeded": true,
-        "untrusted_payload_owner_write_performed": false,
-        "public_vault_write_default_block_preserved": true,
-        "production_public_policy_weakened": false,
+        "uix_abc13_acceptance_commit_verified": "ee528cc14140e858ff713e7a63e6885bb8e62a6f",
+        "uix_release_reconciliation_commit_verified": "a7f089aaf2b2c35f03946a403850baedbdbffb23",
+        "accepted_uix_abc13_through_24_absent_from_active_queue": true,
+        "accepted_uix_abc13_through_24_absent_from_active_claims": true,
+        "historical_uix_dependency_graph_restored": false,
+        "uix_abc13_reopened": false,
+        "current_master_dag_changed": false,
         "guidance_audit_preexisting_unrelated_error": "telegram-session-rollover-transaction-contract.md profile/discovery mismatch",
         "unconfirmed_write_performed": false,
         "gmi_live_activation_performed": false,
@@ -146,7 +142,7 @@
         "updater_or_resume_clean": "na",
         "product_complete": "no"
       },
-      "next_gate": "commit_exact_roadmap_and_obsidian_import_identity_test_push_only_fuzzy_dev_then_required_ci"
+      "next_gate": "commit_exact_roadmap_and_uix_nonreopen_test_push_only_fuzzy_dev_then_required_ci"
     }
   },
   "non_ui_execution_ledger": {
