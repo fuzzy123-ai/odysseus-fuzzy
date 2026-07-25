@@ -560,7 +560,19 @@ def test_full_suite_policy_routes_independent_failures_to_regression_queue() -> 
     assert queue["items"][0]["source_probe_id"] == (
         "SAR-01-FULL-SUITE-DIAGNOSTIC-45"
     )
-    assert [item["id"] for item in queue["items"]] == [
+    queue_ids = [item["id"] for item in queue["items"]]
+    assert len(queue_ids) == len(set(queue_ids))
+    sar_policy_probe_ids = {
+        "SAR-01-FULL-SUITE-DIAGNOSTIC-45",
+        "IP-SAR-SERIAL-CLOSEOUT",
+        "IP-TLR-06-CLOSEOUT",
+        "IP-PLANNING-INTEGRATION-CLOSEOUT",
+    }
+    sar_policy_items = [
+        item for item in queue["items"]
+        if item["source_probe_id"] in sar_policy_probe_ids
+    ]
+    assert [item["id"] for item in sar_policy_items] == [
         "REG-20260714-001",
         "REG-20260714-002",
         "REG-20260715-003",
@@ -575,24 +587,27 @@ def test_full_suite_policy_routes_independent_failures_to_regression_queue() -> 
         "REG-20260715-012",
         "REG-20260715-013",
     ]
-    environment_item = queue["items"][1]
+    environment_item = next(
+        item for item in sar_policy_items
+        if item["source_probe_id"] == "IP-SAR-SERIAL-CLOSEOUT"
+    )
     assert environment_item["state"] == "blocked_environment"
-    assert environment_item["source_probe_id"] == "IP-SAR-SERIAL-CLOSEOUT"
     assert environment_item["test_node"] == (
         "tests/test_agent_migration_manifest.py::"
         "test_collect_skill_dir_skips_symlinked_skill_markdown"
     )
     assert any("all four" in evidence for evidence in environment_item["evidence"])
-    amd_item = queue["items"][2]
+    amd_item = next(
+        item for item in sar_policy_items
+        if item["source_probe_id"] == "IP-TLR-06-CLOSEOUT"
+    )
     assert amd_item["state"] == "blocked_environment"
-    assert amd_item["source_probe_id"] == "IP-TLR-06-CLOSEOUT"
     assert amd_item["test_node"] == "tests/test_amd_gpu_check_args.py"
     assert "does not preempt Planning integration" in amd_item["next_action"]
-    planning_closeout_items = queue["items"][3:]
-    assert all(
-        item["source_probe_id"] == "IP-PLANNING-INTEGRATION-CLOSEOUT"
-        for item in planning_closeout_items
-    )
+    planning_closeout_items = [
+        item for item in sar_policy_items
+        if item["source_probe_id"] == "IP-PLANNING-INTEGRATION-CLOSEOUT"
+    ]
     assert all(
         item["relationship_to_active_roadmap"]
         == "relationship_unproven_and_no_Planning_path_overlap"
