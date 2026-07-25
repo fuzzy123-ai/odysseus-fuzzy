@@ -84,46 +84,33 @@ def test_hostile_content_is_rejected_without_entering_registry_or_exporter(hosti
 
 def test_registry_reaches_exact_256_prometheus_series_then_fails_closed():
     registry = MemoryRuntimeMetricsRegistry.for_tests(max_series=256)
-    scalar_labelsets = 0
-
-    for component in MEMORY_RUNTIME_LABEL_ENUMS["component"]:
-        for operation in MEMORY_RUNTIME_LABEL_ENUMS["operation"]:
-            for outcome in MEMORY_RUNTIME_LABEL_ENUMS["outcome"]:
-                for runtime in MEMORY_RUNTIME_LABEL_ENUMS["runtime"]:
-                    assert registry.increment_counter(
-                        "odysseus_memory_operations_total",
-                        {
-                            "component": component,
-                            "operation": operation,
-                            "outcome": outcome,
-                            "runtime": runtime,
-                        },
-                    )
-                    scalar_labelsets += 1
+    scalar_updates: list[tuple[str, str, dict[str, str]]] = []
 
     for cache_result in MEMORY_RUNTIME_LABEL_ENUMS["cache_result"]:
         for runtime in MEMORY_RUNTIME_LABEL_ENUMS["runtime"]:
-            assert registry.increment_counter(
-                "odysseus_raptor_cache_requests_total",
-                {"cache_result": cache_result, "runtime": runtime},
+            scalar_updates.append(
+                (
+                    "counter",
+                    "odysseus_raptor_cache_requests_total",
+                    {"cache_result": cache_result, "runtime": runtime},
+                )
             )
-            scalar_labelsets += 1
 
     for component in MEMORY_RUNTIME_LABEL_ENUMS["component"]:
         for operation in MEMORY_RUNTIME_LABEL_ENUMS["operation"]:
             for runtime in MEMORY_RUNTIME_LABEL_ENUMS["runtime"]:
-                assert registry.set_gauge(
-                    "odysseus_memory_worker_queue_depth",
-                    {
-                        "component": component,
-                        "operation": operation,
-                        "runtime": runtime,
-                    },
-                    0,
+                scalar_updates.append(
+                    (
+                        "gauge",
+                        "odysseus_memory_worker_queue_depth",
+                        {
+                            "component": component,
+                            "operation": operation,
+                            "runtime": runtime,
+                        },
+                    )
                 )
-                scalar_labelsets += 1
 
-    remaining_gauges: list[tuple[str, dict[str, str]]] = []
     for name in (
         "odysseus_raptor_cache_entries",
         "odysseus_query_cache_entries",
@@ -134,11 +121,35 @@ def test_registry_reaches_exact_256_prometheus_series_then_fails_closed():
         "odysseus_raptor_artifact_age_seconds",
     ):
         for runtime in MEMORY_RUNTIME_LABEL_ENUMS["runtime"]:
-            remaining_gauges.append((name, {"runtime": runtime}))
-    while scalar_labelsets < 208:
-        name, labels = remaining_gauges.pop(0)
-        assert registry.set_gauge(name, labels, 0)
-        scalar_labelsets += 1
+            scalar_updates.append(("gauge", name, {"runtime": runtime}))
+
+    for component in MEMORY_RUNTIME_LABEL_ENUMS["component"]:
+        for operation in MEMORY_RUNTIME_LABEL_ENUMS["operation"]:
+            for outcome in MEMORY_RUNTIME_LABEL_ENUMS["outcome"]:
+                for runtime in MEMORY_RUNTIME_LABEL_ENUMS["runtime"]:
+                    scalar_updates.append(
+                        (
+                            "counter",
+                            "odysseus_memory_operations_total",
+                            {
+                                "component": component,
+                                "operation": operation,
+                                "outcome": outcome,
+                                "runtime": runtime,
+                            },
+                        )
+                    )
+
+    # The closed contract intentionally permits more labelsets than the
+    # fail-closed registry cap. Sample a bounded set of valid scalar labelsets
+    # across representative counter/gauge families, reserving the 209th
+    # distinct labelset for the overflow assertion.
+    assert len(scalar_updates) > 208
+    for kind, name, labels in scalar_updates[:208]:
+        if kind == "counter":
+            assert registry.increment_counter(name, labels)
+        else:
+            assert registry.set_gauge(name, labels, 0)
 
     assert registry.observe_histogram(
         "odysseus_memory_operation_duration_seconds",
@@ -167,8 +178,11 @@ def test_registry_reaches_exact_256_prometheus_series_then_fails_closed():
     assert at_limit.labelset_count == 212  # drop + 208 scalar + 3 histogram labelsets
     assert at_limit.dropped_samples_total == 0
 
-    overflow_name, overflow_labels = remaining_gauges[0]
-    assert registry.set_gauge(overflow_name, overflow_labels, 1) is False
+    overflow_kind, overflow_name, overflow_labels = scalar_updates[208]
+    if overflow_kind == "counter":
+        assert registry.increment_counter(overflow_name, overflow_labels) is False
+    else:
+        assert registry.set_gauge(overflow_name, overflow_labels, 1) is False
     overflow = registry.snapshot()
     assert overflow.prometheus_series_count == 256
     assert overflow.labelset_count == 212

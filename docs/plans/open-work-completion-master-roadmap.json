@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T13:44:06+02:00",
+  "updated_at": "2026-07-25T13:58:36+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,30 +96,32 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-mcp-descriptor-policy-boundary-20260725T134226+0200",
-      "slice_id": "CI-mcp-current-descriptor-policy-boundary",
-      "prior_slice": "CI-mcp-high-risk-current-registry-contract",
-      "prior_slice_result": "committed_as_d2b4471dbcc379413e595ca4a11d62cb11c29e2d_then_required_ci_advanced_to_4678_passed",
+      "run_id": "abc-ci-memory-series-cap-20260725T135216+0200",
+      "slice_id": "CI-memory-metrics-exact-series-cap-contract",
+      "prior_slice": "CI-mcp-current-descriptor-policy-boundary",
+      "prior_slice_result": "committed_as_e6ad359cfe2cedb0874a9fffaa134939b8f56efd_then_required_ci_advanced_to_4737_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
-      "previous_ci_repair_handoff_commit": "d2b4471dbcc379413e595ca4a11d62cb11c29e2d",
+      "previous_ci_repair_handoff_commit": "e6ad359cfe2cedb0874a9fffaa134939b8f56efd",
       "changed_files": [
-        "tests/test_mcp_server_tool_policy.py",
+        "tests/test_memory_observability_privacy_failure_isolation.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "tests": {
-        "focused_mcp_descriptor_and_policy_tests_passed": 13,
+        "focused_memory_registry_and_exact_cap_tests_passed": 23,
         "blocking_failures": 0,
         "production_files_changed": 0,
-        "retired_raw_get_all_tools_metadata_restored": false,
-        "canonical_descriptor_projection_used": true,
-        "descriptor_source_mcp": true,
-        "runtime_connected_and_enabled_observed": true,
-        "descriptor_availability_unavailable": true,
-        "descriptor_default_enabled_false": true,
-        "descriptor_policy_status": "dynamic_review_required",
-        "owner_scoped_write_exposure_default_hidden": true,
-        "execution_policy_authority_preserved": true,
+        "memory_operations_total_valid_labelset_count": 324,
+        "scalar_labelsets_reserved_before_histograms": 208,
+        "prometheus_series_cap_preserved": 256,
+        "drop_counter_series_cost": 1,
+        "selected_histogram_series_costs": [
+          20,
+          14,
+          13
+        ],
+        "overflow_valid_labelset_rejected": true,
+        "production_cardinality_policy_weakened": false,
         "guidance_audit_preexisting_unrelated_error": "telegram-session-rollover-transaction-contract.md profile/discovery mismatch",
         "unconfirmed_write_performed": false,
         "gmi_live_activation_performed": false,
@@ -144,7 +146,7 @@
         "updater_or_resume_clean": "na",
         "product_complete": "no"
       },
-      "next_gate": "commit_exact_two_paths_push_only_fuzzy_dev_then_required_ci"
+      "next_gate": "commit_exact_roadmap_and_memory_cap_test_push_only_fuzzy_dev_then_required_ci"
     }
   },
   "non_ui_execution_ledger": {
