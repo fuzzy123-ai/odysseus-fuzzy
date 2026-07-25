@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from plugins.mcp_server.plugin import McpServerState, setup
-from src.tool_registry import ToolSpec, unregister_tool, register_tool
+from src.tool_registry import ToolSpec, get_tool, unregister_tool, register_tool
 from src.user_notification_contract import build_user_notification_decision
 from src.mcp_server_tool_policy import PLANNING_READONLY_TOOLS
 
@@ -176,22 +176,23 @@ def test_mcp_tools_list_is_policy_filtered_and_includes_notification(tmp_path, m
 
 def test_mcp_tools_list_excludes_runbook_high_risk_tools_when_registered(tmp_path, monkeypatch):
     monkeypatch.delenv("ODYSSEUS_MCP_SERVER_ENABLED", raising=False)
-    for name in RUNBOOK_HIGH_RISK_TOOLS:
-        unregister_tool(name)
-        register_tool(ToolSpec(
-            name=name,
-            description=f"High-risk placeholder for {name}.",
-            parameters={"type": "object", "properties": {}},
-            execute=lambda content, **_kwargs: {"output": content, "exit_code": 0},
-        ))
+    previous = get_tool("odysseus_call")
+    unregister_tool("odysseus_call")
+    register_tool(ToolSpec(
+        name="odysseus_call",
+        description="High-risk generic API placeholder.",
+        parameters={"type": "object", "properties": {}},
+        execute=lambda content, **_kwargs: {"output": content, "exit_code": 0},
+    ))
     client = _client(tmp_path)
     client.post("/api/plugins/mcp/config", json={"enabled": True})
 
     try:
         response = client.post("/api/plugins/mcp", json=_rpc("tools/list"))
     finally:
-        for name in RUNBOOK_HIGH_RISK_TOOLS:
-            unregister_tool(name)
+        unregister_tool("odysseus_call")
+        if previous is not None:
+            register_tool(previous)
 
     assert response.status_code == 200
     names = {tool["name"] for tool in response.json()["result"]["tools"]}

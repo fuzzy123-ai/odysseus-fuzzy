@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T13:21:48+02:00",
+  "updated_at": "2026-07-25T13:33:33+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,34 +96,28 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-todo-incident-manifest-complete-refresh-20260725T131650+0200",
-      "slice_id": "CI-todo-incident-manifest-all-current-nodeids",
-      "prior_slice": "CI-todo-incident-manifest-current-digest-nodeids",
-      "prior_slice_result": "accepted_after_2_focused_digest_tests_and_deep_sol_review",
+      "run_id": "abc-ci-mcp-high-risk-registry-contract-20260725T133137+0200",
+      "slice_id": "CI-mcp-high-risk-current-registry-contract",
+      "prior_slice": "CI-todo-incident-manifest-all-current-nodeids",
+      "prior_slice_result": "committed_as_610064fa3cf9b87a10c0370aa8af5856206d8f77_then_required_ci_advanced_to_4653_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
-      "previous_ci_repair_handoff_commit": "68186175124b562d896edc3ad0464f8b99226b3e",
+      "previous_ci_repair_handoff_commit": "610064fa3cf9b87a10c0370aa8af5856206d8f77",
       "changed_files": [
-        "docs/plans/telegram-todo-incident-regression-manifest.json",
+        "tests/test_mcp_server_plugin.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "tests": {
-        "focused_current_manifest_nodes_passed": 15,
-        "static_manifest_and_uniqueness_replacements_passed": 6,
-        "manifest_nodeids_current_and_unique": 26,
+        "focused_mcp_and_collision_tests_passed": 6,
         "blocking_failures": 0,
         "production_files_changed": 0,
-        "retired_digest_node_removed": true,
-        "current_contains_and_excludes_nodes_mapped": true,
-        "remaining_retired_nodeids_refreshed": 11,
-        "preexisting_duplicate_nodeids_replaced": 2,
-        "long_context_current_contract_mapped": true,
-        "rollover_a1_through_a4_current_contracts_mapped": true,
-        "rejected_ttd07a5_continuity_claimed_live": false,
-        "continuity_and_route_activation_default_off_preserved": true,
-        "todo_cas_no_lost_update_contract_mapped": true,
-        "telegram_history_content_free_audit_contract_mapped": true,
-        "manifest_runner_executed": false,
+        "runbook_names_in_real_builtin_catalog": 10,
+        "non_builtin_generic_api_probe_registered": "odysseus_call",
+        "entire_runbook_high_risk_set_hidden": 11,
+        "prior_dynamic_registration_restored": true,
+        "builtin_collision_guard_preserved": true,
+        "mcp_generic_api_default_hidden_preserved": true,
+        "guidance_audit_preexisting_unrelated_error": "telegram-session-rollover-transaction-contract.md profile/discovery mismatch",
         "unconfirmed_write_performed": false,
         "gmi_live_activation_performed": false,
         "amh08_feature_work_performed": false
@@ -147,7 +141,7 @@
         "updater_or_resume_clean": "na",
         "product_complete": "no"
       },
-      "next_gate": "commit_exact_three_paths_push_only_fuzzy_dev_then_required_ci"
+      "next_gate": "commit_exact_two_paths_push_only_fuzzy_dev_then_required_ci"
     }
   },
   "non_ui_execution_ledger": {
