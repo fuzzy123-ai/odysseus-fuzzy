@@ -19,6 +19,7 @@ from plugins.telegram.formatting import (
     format_universal_inbox_review_status,
     telegram_attachment_ocr_note,
 )
+from plugins.telegram.parsing import _safe_workflow_suffix
 from plugins.telegram.stores import _chat_handle
 
 
@@ -53,6 +54,9 @@ def _telegram_attachment_suffix(message: dict[str, Any]) -> str:
     suffix = Path(filename).suffix.lower()
     if suffix:
         return suffix[:16]
+    persisted_suffix = _safe_workflow_suffix(media.get("file_suffix") or "")
+    if persisted_suffix:
+        return persisted_suffix
     mime_type = str(media.get("mime_type") or "").strip().lower()
     guessed = mimetypes.guess_extension(mime_type) if mime_type else ""
     if guessed:

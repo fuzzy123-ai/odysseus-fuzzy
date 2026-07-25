@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T18:16:36+02:00",
+  "updated_at": "2026-07-25T18:32:20+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,44 +96,52 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-telegram-poll-route-contract-20260725T181030+0200",
-      "slice_id": "CI-telegram-poll-route-contract",
-      "prior_slice": "CI-telegram-tool-event-derived-envelope-contract",
-      "prior_slice_result": "committed_as_98f821affa41b68148a7a59cd5ff4aeca6ad67a7_then_required_ci_advanced_to_8845_passed",
+      "run_id": "abc-ci-mimetype-global-state-isolation-20260725T182750+0200",
+      "slice_id": "CI-mimetype-global-state-isolation",
+      "prior_slice": "CI-telegram-poll-route-contract",
+      "prior_slice_result": "committed_as_43d01484f582b62320facf2375da5d12e3de8383_then_required_ci_advanced_to_8863_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
       "owner": "root_sol_orchestrator",
-      "class": "required_ci_telegram_route_contract_repair",
+      "class": "required_ci_test_global_state_isolation_repair",
       "dependencies": [
-        "98f821affa41b68148a7a59cd5ff4aeca6ad67a7",
-        "Required CI run 30164691738 failure evidence",
-        "canonical TTD-07A5 architecture gate after two rejected implementation attempts"
+        "43d01484f582b62320facf2375da5d12e3de8383",
+        "Required CI run 30165349026 failure evidence",
+        "stable app static MIME registration contract",
+        "trusted redacted Telegram file_suffix metadata contract"
       ],
-      "lease_started_at": "2026-07-25T18:10:30+02:00",
-      "lease_expires_at": "2026-07-25T20:10:30+02:00",
-      "released_at": "2026-07-25T18:16:36+02:00",
+      "lease_started_at": "2026-07-25T18:27:50+02:00",
+      "lease_expires_at": "2026-07-25T20:27:50+02:00",
+      "released_at": "2026-07-25T18:32:20+02:00",
       "allowed_paths": [
-        "plugins/telegram/routes_polling.py",
+        "tests/test_app_static_mime.py",
+        "plugins/telegram/attachments.py",
+        "tests/test_telegram_plugin.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "changed_paths": [
-        "plugins/telegram/routes_polling.py",
+        "tests/test_app_static_mime.py",
+        "plugins/telegram/attachments.py",
+        "tests/test_telegram_plugin.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "diagnosis": {
-        "required_ci_run": 30164691738,
-        "required_ci_job": 89695594767,
-        "required_ci_head_sha": "98f821affa41b68148a7a59cd5ff4aeca6ad67a7",
-        "required_ci_passed_before_failure": 8845,
-        "failing_node": "tests/test_telegram_plugin.py::test_poll_route_uses_app_state_hooks_without_event_loop_collision",
-        "root_cause": "the accepted release reconciliation removed the rejected TTD-07A5 session_archiver runtime from the polling facade, implementation and setup but left the optional parameter and unconditional keyword forwarding in routes_polling.py",
+        "required_ci_run": 30165349026,
+        "required_ci_job": 89697289603,
+        "required_ci_head_sha": "43d01484f582b62320facf2375da5d12e3de8383",
+        "required_ci_passed_before_failure": 8863,
+        "failing_node": "tests/test_telegram_plugin.py::test_polling_cycle_next_text_turn_receives_recent_attachment_context_ephemerally",
+        "root_cause": "test_app_static_mime mutates the process-global mimetypes registry and leaves text/plain mapped back to .js in Python's private inverse map; the Telegram attachment suffix helper compounds that leak by ignoring the already sanitized filename-derived media.file_suffix and consulting the process-global MIME resolver",
         "production_change_required": true,
-        "test_order_or_import_leak": false,
-        "ttd07a5_runtime_reactivation_allowed": false
+        "deterministic_ordered_reproducer": true,
+        "trusted_persisted_suffix_ignored": true
       },
       "tests": {
-        "focused_poll_route_test": "1 passed in 1.21s",
-        "python_ast": "pass",
+        "target_test_alone": "1 passed in 1.31s",
+        "pre_fix_ordered_pair": "1 failed and 1 passed with text/plain resolving to .js",
+        "post_fix_ordered_pair": "2 passed in 2.01s",
+        "persisted_suffix_adversarial_mime_test": "pass_via_full_polling_path_with_guess_extension_forced_to_js",
+        "python_ast": "pass_3_files",
         "roadmap_json_parse": "pass",
         "git_diff_check": "pass",
         "terra_independent_review": "diagnosis_and_exact_diff_pass",
@@ -146,15 +154,16 @@
         "amh08_feature_work_performed": false
       },
       "evidence_refs": [
-        "GitHub Actions Required CI run 30164691738 job 89695594767",
-        "local exact-node reproduction with isolated basetemp",
-        "commit 2cb685d8 followed by accepted reconciliation commit a7f089aa",
-        "canonical TTD-07A5 released_gated authority",
-        "Terra read-only diagnosis revised after Sol authority review",
+        "GitHub Actions Required CI run 30165349026 job 89697289603",
+        "local exact target test pass with isolated basetemp",
+        "local deterministic ordered two-test failure with isolated basetemp",
+        "Python mimetypes module global forward and inverse registry behavior",
+        "Terra read-only diagnosis of sanitized media.file_suffix precedence",
+        "local post-fix ordered pair with hostile MIME fallback: 2 passed",
         "Terra exact-diff review PASS",
         "Sol exact-diff deep review PASS"
       ],
-      "collision_check": "pass_only_the_claimed_route_and_canonical_roadmap_changed",
+      "collision_check": "pass_only_the_claimed_mime_test_attachment_helper_telegram_regression_and_canonical_roadmap_changed",
       "route": {
         "entrypoint": "/abc",
         "master": "gpt-5.6-sol",
@@ -174,9 +183,9 @@
         "updater_or_resume_clean": "na",
         "product_complete": "no"
       },
-      "remaining_gate_or_blocker": "commit_and_push_exact_two_path_fix_then_wait_for_exact_required_ci_green_before_debian_deploy",
-      "recommended_next_action": "commit_exact_two_path_fix_push_only_fuzzy_dev_then_required_ci",
-      "next_gate": "commit_exact_two_path_fix_push_only_fuzzy_dev_then_required_ci"
+      "remaining_gate_or_blocker": "commit_and_push_exact_four_path_fix_then_wait_for_exact_required_ci_green_before_debian_deploy",
+      "recommended_next_action": "commit_exact_four_path_fix_push_only_fuzzy_dev_then_required_ci",
+      "next_gate": "commit_exact_four_path_fix_push_only_fuzzy_dev_then_required_ci"
     }
   },
   "non_ui_execution_ledger": {

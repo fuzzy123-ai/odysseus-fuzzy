@@ -2831,6 +2831,7 @@ def test_polling_cycle_document_attachment_processes_without_prompt_or_agent_tur
 def test_polling_cycle_next_text_turn_receives_recent_attachment_context_ephemerally(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "document-chat-999")
     monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setattr("plugins.telegram.attachments.mimetypes.guess_extension", lambda _mime_type: ".js")
     turns = []
 
     result = run_telegram_polling_cycle(
