@@ -127,7 +127,12 @@ def env(tmp_path, monkeypatch):
 
 
 def _routes(app):
-    return [r.path for r in app.router.routes if getattr(r, "path", "").startswith("/api/plugins/demo")]
+    return [
+        path
+        for route in app.router.routes
+        for path in _route_paths(route)
+        if path.startswith("/api/plugins/demo")
+    ]
 
 
 def test_route_path_supports_starlette_path_format_only():
@@ -300,7 +305,11 @@ def test_add_router_rejects_off_namespace_routes(env):
     mgr = PluginManager(app=app, directory=pdir)
     assert mgr.load_enabled(app) == 0                       # plugin fails to load
     assert mgr.list()[0]["status"] == "error"
-    assert not any(getattr(r, "path", "") == "/static/evil" for r in app.router.routes)
+    assert not any(
+        path == "/static/evil"
+        for route in app.router.routes
+        for path in _route_paths(route)
+    )
 
 
 def test_ui_field_sanitized():
