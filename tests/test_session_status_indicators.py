@@ -254,8 +254,9 @@ def test_list_sessions_status_calculation(monkeypatch):
     
     sm = MagicMock()
     sm.get_sessions_for_user.return_value = session_dict
+    route_count_before_setup = len(sr.router.routes)
     router = sr.setup_session_routes(sm, {})
-    endpoint = next(r.endpoint for r in router.routes
+    endpoint = next(r.endpoint for r in router.routes[route_count_before_setup:]
                     if getattr(r, "path", "") == "/api/sessions"
                     and "GET" in getattr(r, "methods", set()))
 
