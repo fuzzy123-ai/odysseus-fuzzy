@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T20:58:54+02:00",
+  "updated_at": "2026-07-25T21:12:24+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,72 +96,76 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-todo-claim-cardinality-20260725T204611+0200",
-      "slice_id": "CI-todo-claim-cardinality-contract",
-      "prior_slice": "CI-llm-tls-scope-contract",
-      "prior_slice_result": "committed_as_151a59066c403bb1e24ea10476da37d6abc80be5_then_required_ci_confirmed_the_TLS_scope_contract_and_advanced_to_9279_passed",
-      "status": "accepted_repo_only_awaiting_local_commit_and_followon_ledger_claim",
+      "run_id": "abc-ci-todo-ledger-dual-read-20260725T210325+0200",
+      "slice_id": "CI-todo-ledger-dual-read-contract",
+      "prior_slice": "CI-todo-claim-cardinality-contract",
+      "prior_slice_result": "committed_locally_as_e1f2a2ebaa1a251eb7ab92d99b1947cc14bf79c7_without_push_after_97_focused_tests_passed_and_two_hidden_ledger_compatibility_failures_were_isolated",
+      "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
       "owner": "root_sol_orchestrator",
-      "class": "required_ci_claim_evidence_cardinality_repair",
+      "class": "required_ci_todo_ledger_compatibility_repair",
       "dependencies": [
-        "151a59066c403bb1e24ea10476da37d6abc80be5",
-        "Required CI run 30169904149 job 89709176263",
-        "existing validated semantic Todo receipt boundary"
+        "e1f2a2ebaa1a251eb7ab92d99b1947cc14bf79c7",
+        "two hidden legacy TodoReceipt ledger compatibility failures isolated by the prior focused lane",
+        "existing canonical todo_semantic_receipt validation boundary"
       ],
-      "lease_started_at": "2026-07-25T20:46:11+02:00",
-      "lease_expires_at": "2026-07-25T22:46:11+02:00",
-      "released_at": "2026-07-25T20:58:54+02:00",
+      "lease_started_at": "2026-07-25T21:03:25+02:00",
+      "lease_expires_at": "2026-07-25T23:03:25+02:00",
+      "released_at": "2026-07-25T21:12:24+02:00",
       "allowed_paths": [
-        "src/claim_evidence_gate.py",
+        "src/todo_receipts.py",
+        "src/tool_transaction_ledger.py",
+        "tests/test_tool_transaction_ledger.py",
         "tests/test_todo_claim_evidence.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "changed_paths": [
-        "src/claim_evidence_gate.py",
+        "src/todo_receipts.py",
+        "src/tool_transaction_ledger.py",
+        "tests/test_tool_transaction_ledger.py",
         "tests/test_todo_claim_evidence.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "diagnosis": {
-        "required_ci_run": 30169904149,
-        "required_ci_job": 89709176263,
-        "required_ci_head_sha": "151a59066c403bb1e24ea10476da37d6abc80be5",
-        "required_ci_passed_before_failure": 9279,
-        "failing_node": "tests/test_todo_claim_evidence.py::test_plural_todo_claim_requires_matching_unique_receipt_count",
-        "root_cause": "the later sentence-aware Todo claim parser retained claim-type matching but lost the earlier cardinality contract, so one matching receipt supports any numeric or plural success claim",
-        "receipt_identity_contract": "count only distinct validated TodoReceipt.receipt_ref values of the same claim type; duplicate or replayed events cannot increase evidence cardinality",
-        "language_contract": "explicit numeric and two-both-beide-zwei quantities require that exact minimum, implicit Todo plurals require at least two, separate positive claims of the same type aggregate, and generic scheduler tasks remain outside the Todo gate",
-        "compatibility_contract": "the typed transaction-ledger fallback remains valid for singular claims only and cannot satisfy plural cardinality without semantic receipts",
-        "repair": "restore quantity and unique-receipt cardinality inside the current sentence-aware and negation-safe parser without reverting later claim-language hardening",
-        "test_weakening_allowed": false,
-        "generic_ledger_reference_counting_allowed": false,
+        "hidden_failing_nodes": [
+          "tests/test_todo_claim_evidence.py::test_failed_or_ambiguous_receipt_never_becomes_verified_transaction",
+          "tests/test_todo_claim_evidence.py::test_verified_receipt_becomes_typed_ledger_transaction_without_raw_text"
+        ],
+        "root_cause": "release commit a7f089aa removed the previously accepted TodoReceipt-to-ledger branch while retaining strict support only for the newer canonical todo_semantic_receipt envelope",
+        "canonical_priority_contract": "a valid canonical envelope always wins and an invalid present canonical field forbids downgrade to legacy",
+        "legacy_validation_contract": "only exact manage_todos events with no canonical field and wholly valid todo_receipt or todo_receipts payloads may enter the legacy path; optional action must match every receipt operation",
+        "status_contract": "verified legacy receipts require a successful integer exit code; ambiguous not_found rejected and blocked remain typed BLOCKED while all other unverified legacy receipts remain FAILED",
+        "privacy_and_replay_contract": "ledger evidence comes only from receipt.ledger_evidence, command text is never copied, transaction identity derives from receipt_ref and identical replays deduplicate",
+        "repair": "restore a narrow canonical-first dual read through a strict legacy event validator and typed private receipt-to-transaction projection",
+        "partial_or_mixed_legacy_acceptance_allowed": false,
+        "canonical_downgrade_allowed": false,
         "production_change_required": true
       },
       "tests": {
-        "focused_todo_claim_and_claim_evidence_contracts": "97 passed 2 known_followon_ledger_tests_deselected in 2.35s during final Sol review",
-        "initial_full_two_module_review": "96 passed 3 failed; one list_snapshot_cardinality_regression_in_candidate_fixed and two preexisting hidden ledger_compatibility_failures isolated for followon claim",
+        "focused_ledger_todo_claim_and_claim_evidence_contracts": "112 passed in 3.71s during final Sol review",
+        "worker_direct_focused_assertions": "pass",
+        "worker_pytest_lane": "not_verified_worker_interpreter_lacked_sqlalchemy_before_collection",
         "python_ast": "pass",
         "roadmap_json_parse": "pass",
         "git_diff_check": "pass",
-        "terra_independent_review": "cardinality_regression_diagnosis_and_bounded_implementation_handoff_pass_with_test_environment_limits_disclosed",
-        "sol_deep_review": "pass_distinct_receipt_identity_sentence_aggregation_list_snapshot_semantics_explicit_scheduler_exclusion_and_bounded_numeric_fail_closed",
-        "production_files_changed": 1,
+        "terra_independent_review": "canonical_first_dual_read_diagnosis_and_bounded_implementation_handoff_pass",
+        "sol_deep_review": "pass_closed_reserialization_canonical_no_downgrade_status_fail_closed_private_evidence_and_cross_event_replay_dedupe",
+        "production_files_changed": 2,
         "production_runtime_logic_changed": true,
         "blocking_failures": 0,
-        "known_followon_blockers": 2,
         "live_telegram_activation_performed": false,
         "unconfirmed_write_performed": false,
         "gmi_live_activation_performed": false,
         "amh08_feature_work_performed": false
       },
       "evidence_refs": [
-        "GitHub Actions Required CI run 30169904149 job 89709176263",
-        "f26e7402 prior unique semantic receipt cardinality contract",
-        "f65e5ff8 sentence-aware Todo claim parser hardening",
-        "52ce58b8 semantic Todo receipt compatibility fallback",
-        "Terra read-only Todo cardinality regression diagnosis PASS"
+        "e1f2a2eb focused lane with 97 passed and two exact hidden ledger failures",
+        "d5b709a6 original typed legacy TodoReceipt ledger projection",
+        "a7f089aa release regression that removed the legacy branch",
+        "current strict todo_semantic_receipt envelope validator",
+        "Terra read-only canonical-first dual-read diagnosis PASS"
       ],
-      "collision_check": "pass_exactly_the_two_worker_paths_and_root_owned_canonical_roadmap_changed",
+      "collision_check": "pass_exactly_the_four_worker_paths_and_root_owned_canonical_roadmap_changed",
       "route": {
         "entrypoint": "/abc",
         "master": "gpt-5.6-sol",
@@ -171,7 +175,7 @@
       },
       "completion": {
         "implemented": "yes",
-        "tested": "yes_focused_with_two_explicit_followon_deselections",
+        "tested": "yes_focused",
         "sol_reviewed": "deep",
         "committed": "no",
         "pushed": "no",
@@ -182,9 +186,9 @@
         "updater_or_resume_clean": "na",
         "product_complete": "no"
       },
-      "remaining_gate_or_blocker": "commit_this_exact_three_path_cardinality_fix_locally_then_claim_the_two_hidden_semantic_receipt_to_ledger_compatibility_failures_before_any_push",
-      "recommended_next_action": "local_commit_exact_three_path_cardinality_fix_no_push_then_register_followon_ledger_claim",
-      "next_gate": "local_commit_then_followon_ledger_compatibility_claim"
+      "remaining_gate_or_blocker": "commit_the_exact_five_path_dual_read_fix_then_push_both_local_commits_together_to_fuzzy_dev_and_wait_for_exact_required_ci_green_before_debian_deploy",
+      "recommended_next_action": "commit_exact_five_path_fix_then_push_e1f2a2eb_plus_the_new_ledger_commit_only_to_fuzzy_dev",
+      "next_gate": "commit_push_only_fuzzy_dev_then_required_ci"
     }
   },
   "non_ui_execution_ledger": {

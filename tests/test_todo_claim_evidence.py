@@ -242,6 +242,53 @@ def test_verified_receipt_becomes_typed_ledger_transaction_without_raw_text():
     assert transactions[0].claim_type == "todo_item_removed"
     assert transactions[0].verified_done is True
     assert "private task text" not in repr(transactions[0].to_dict())
+    assert LIST_REF not in repr(transactions[0].to_dict())
+    assert ITEM_REF not in repr(transactions[0].to_dict())
+
+
+def test_legacy_todo_receipt_ledger_dual_read_is_closed_and_replay_safe():
+    first = todo_receipts_from_tool_result(_mutation_result("add"))[0]
+    second = todo_receipts_from_tool_result(
+        _mutation_result("add", item_ref="todo-item:v1:itm_fedcba9876543210")
+    )[0]
+
+    canonical_invalid = _event(first)
+    canonical_invalid["todo_semantic_receipt"] = {}
+    mixed_payloads = _event(first)
+    mixed_payloads["todo_receipts"] = [first.to_dict(), {"operation": "add"}]
+    privacy_bearing_extra = _event(first)
+    privacy_bearing_extra["todo_receipts"][0]["text"] = "private task text"
+    action_mismatch = _event(first)
+    action_mismatch["action"] = "remove"
+    wrong_tool = _event(first)
+    wrong_tool["tool"] = "manage_memory"
+    string_exit = _event(first, exit_code="0")
+    missing_exit = _event(first, exit_code=None)
+    failed_event = _event(first, exit_code=1)
+    duplicate_within_event = _event(first)
+    duplicate_within_event["todo_receipts"].append(first.to_dict())
+    duplicate_replay = transactions_from_tool_events([_event(first), _event(first)])
+    distinct_receipts = transactions_from_tool_events([_event(first), _event(second)])
+
+    assert transactions_from_tool_events([canonical_invalid]) == ()
+    assert transactions_from_tool_events([mixed_payloads]) == ()
+    assert transactions_from_tool_events([privacy_bearing_extra]) == ()
+    assert transactions_from_tool_events([action_mismatch]) == ()
+    assert all(
+        not transaction.claim_type.startswith("todo_")
+        for transaction in transactions_from_tool_events([wrong_tool])
+    )
+    assert transactions_from_tool_events([string_exit]) == ()
+    assert transactions_from_tool_events([missing_exit]) == ()
+    assert transactions_from_tool_events([duplicate_within_event])[0].verified_done is True
+    assert len(transactions_from_tool_events([duplicate_within_event])) == 1
+    assert len(duplicate_replay) == 1
+    assert len(distinct_receipts) == 2
+    failed_event_transaction = transactions_from_tool_events([failed_event])
+    assert failed_event_transaction
+    assert failed_event_transaction[0].claim_type == "todo_item_created"
+    assert failed_event_transaction[0].status.value == "failed"
+    assert failed_event_transaction[0].verified_done is False
 
 
 def test_list_read_receipt_uses_snapshot_version_and_omits_item_text():

@@ -8,6 +8,8 @@ import json
 import re
 from typing import Any, Iterable, Mapping
 
+from src.todo_transaction_receipts import TODO_RECEIPT_FIELD, TODO_TOOL_NAME
+
 
 TODO_RECEIPT_SCHEMA = "odysseus.todo_receipt.v1"
 
@@ -244,6 +246,73 @@ def todo_receipts_from_tool_events(
     return tuple(receipts)
 
 
+def validated_legacy_todo_receipts_from_event(
+    event: Mapping[str, Any] | Any,
+) -> tuple[TodoReceipt, ...]:
+    """Return a closed set of validated legacy Todo receipts from one event.
+
+    The legacy ``todo_receipt`` / ``todo_receipts`` fields are accepted only
+    when a canonical semantic receipt is absent.  This is intentionally
+    stricter than :func:`todo_receipts_from_tool_events`: a mixed or malformed
+    payload set invalidates the whole event instead of accepting a subset.
+    """
+    if not isinstance(event, Mapping) or event.get("tool") != TODO_TOOL_NAME:
+        return ()
+    if TODO_RECEIPT_FIELD in event:
+        return ()
+
+    exit_code = event.get("exit_code")
+    if isinstance(exit_code, bool) or not isinstance(exit_code, int) or not 0 <= exit_code <= 255:
+        return ()
+
+    payloads: list[Any] = []
+    if "todo_receipt" in event:
+        payloads.append(event["todo_receipt"])
+    if "todo_receipts" in event:
+        collection = event["todo_receipts"]
+        if not isinstance(collection, (list, tuple)) or not collection:
+            return ()
+        payloads.extend(collection)
+    if not payloads:
+        return ()
+
+    action = event.get("action")
+    action_text = str(action).strip().lower() if action is not None else None
+    if action is not None and not action_text:
+        return ()
+
+    receipts: dict[str, TodoReceipt] = {}
+    for payload in payloads:
+        if not isinstance(payload, Mapping):
+            return ()
+        try:
+            receipt = TodoReceipt.from_mapping(payload)
+        except TodoReceiptError:
+            return ()
+        # Legacy is a compatibility input, not an alternate loose schema.
+        # Require the exact closed, redacted representation that this module
+        # itself serializes so ignored aliases or privacy-bearing extras cannot
+        # become ledger evidence.
+        if payload != receipt.to_dict():
+            return ()
+        if action_text is not None and action_text != receipt.operation:
+            return ()
+        if exit_code != 0 and receipt.verified:
+            receipt = TodoReceipt.create(
+                operation=receipt.operation,
+                list_ref=receipt.list_ref,
+                item_ref=receipt.item_ref,
+                previous_state=receipt.previous_state,
+                current_state=receipt.current_state,
+                open_count=receipt.open_count,
+                transaction_status=receipt.transaction_status,
+                verified=False,
+                evidence_refs=receipt.evidence_refs,
+            )
+        receipts[receipt.receipt_ref] = receipt
+    return tuple(receipts.values())
+
+
 def todo_receipt_evidence_for_claim(
     receipts: Iterable[TodoReceipt], claim_type: str
 ) -> tuple[str, ...]:
@@ -361,4 +430,5 @@ __all__ = [
     "todo_receipt_evidence_for_claim",
     "todo_receipts_from_tool_events",
     "todo_receipts_from_tool_result",
+    "validated_legacy_todo_receipts_from_event",
 ]

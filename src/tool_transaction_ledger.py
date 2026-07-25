@@ -9,6 +9,7 @@ from pathlib import PurePosixPath
 import re
 from typing import Any, Iterable, Mapping
 
+from src.todo_receipts import TodoReceipt, validated_legacy_todo_receipts_from_event
 from src.todo_transaction_receipts import TODO_TOOL_NAME, validated_todo_semantic_receipt_from_event
 
 
@@ -128,6 +129,33 @@ def transactions_from_tool_events(
     transactions: list[ToolTransaction] = []
     seen: set[str] = set()
     for index, event in enumerate(item for item in tool_events if isinstance(item, Mapping)):
+        todo_semantic_receipt = validated_todo_semantic_receipt_from_event(event)
+        if todo_semantic_receipt is not None:
+            try:
+                tx = transaction_from_tool_event(
+                    event,
+                    surface=surface,
+                    claim_type=todo_semantic_receipt["claim_type"],
+                    index=index,
+                )
+            except ToolTransactionError:
+                continue
+            if tx.transaction_id not in seen:
+                seen.add(tx.transaction_id)
+                transactions.append(tx)
+            continue
+        if event.get("tool") == TODO_TOOL_NAME:
+            for receipt in validated_legacy_todo_receipts_from_event(event):
+                tx = _transaction_from_legacy_todo_receipt(
+                    receipt,
+                    event=event,
+                    surface=surface,
+                )
+                if tx.transaction_id not in seen:
+                    seen.add(tx.transaction_id)
+                    transactions.append(tx)
+            # Todo events never receive a generic tool-execution fallback.
+            continue
         for claim_type in _claim_types_for_event(event):
             try:
                 tx = transaction_from_tool_event(event, surface=surface, claim_type=claim_type, index=index)
@@ -147,8 +175,6 @@ def transaction_from_tool_event(
     index: int = 0,
 ) -> ToolTransaction:
     todo_receipt = validated_todo_semantic_receipt_from_event(event)
-    if event.get("tool") == TODO_TOOL_NAME and todo_receipt is None:
-        raise ToolTransactionError("Todo event requires a valid semantic receipt")
     if todo_receipt is not None:
         requested_claim = claim_type or todo_receipt["claim_type"]
         if requested_claim != todo_receipt["claim_type"]:
@@ -162,6 +188,19 @@ def transaction_from_tool_event(
             exit_code=0,
             command="",
             transaction_id=f"{surface}:{index}:{TODO_TOOL_NAME}:{todo_receipt['claim_type']}",
+        )
+    if event.get("tool") == TODO_TOOL_NAME:
+        legacy_receipts = validated_legacy_todo_receipts_from_event(event)
+        if len(legacy_receipts) != 1:
+            raise ToolTransactionError("Todo event requires a valid semantic receipt (or strict legacy receipt)")
+        receipt = legacy_receipts[0]
+        requested_claim = claim_type or receipt.claim_type
+        if requested_claim != receipt.claim_type:
+            raise ToolTransactionError("Todo claim does not match its legacy receipt")
+        return _transaction_from_legacy_todo_receipt(
+            receipt,
+            event=event,
+            surface=surface,
         )
     tool = str(event.get("tool") or "tool").strip() or "tool"
     command = str(event.get("command") or "")
@@ -180,6 +219,31 @@ def transaction_from_tool_event(
         artifact_refs=artifact_refs,
         command=command,
         transaction_id=f"{surface}:{index}:{tool}:{inferred_claim}:{_hash_text(command)[:20]}",
+    )
+
+
+def _transaction_from_legacy_todo_receipt(
+    receipt: TodoReceipt,
+    *,
+    event: Mapping[str, Any],
+    surface: str,
+) -> ToolTransaction:
+    """Project an already-validated legacy receipt without retaining raw event data."""
+    if receipt.verified:
+        status = ToolTransactionStatus.VERIFIED
+    elif receipt.transaction_status in {"ambiguous", "not_found", "rejected", "blocked"}:
+        status = ToolTransactionStatus.BLOCKED
+    else:
+        status = ToolTransactionStatus.FAILED
+    return ToolTransaction.create(
+        surface=surface,
+        tool=TODO_TOOL_NAME,
+        claim_type=receipt.claim_type,
+        status=status,
+        evidence_refs=receipt.ledger_evidence,
+        exit_code=event["exit_code"],
+        command=receipt.operation,
+        transaction_id=f"{surface}:legacy:{TODO_TOOL_NAME}:{receipt.receipt_ref.split(':')[-1]}",
     )
 
 
