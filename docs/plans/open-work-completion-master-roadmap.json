@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T12:30:39+02:00",
+  "updated_at": "2026-07-25T12:43:46+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,29 +96,34 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-legacy-plugin-shape-20260725T122759+0200",
-      "slice_id": "CI-legacy-plugin-shape-contract-alignment",
-      "prior_slice": "CI-exec-fence-catalog-contract-alignment",
+      "run_id": "abc-ci-gmi-canary-hash-20260725T124135+0200",
+      "slice_id": "CI-gmi-canary-acceptance-hash-refresh",
+      "prior_slice": "CI-gmi-canary-deterministic-heartbeat-test",
+      "prior_slice_result": "accepted_after_12_focused_tests_and_deep_sol_review",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
-      "previous_ci_repair_handoff_commit": "9af8b29a9cbdf5722f521b7e7f768885434509fb",
+      "previous_ci_repair_handoff_commit": "6f6e8d397f08ed3cfc34a1627987eb443599ac30",
       "changed_files": [
-        "tests/test_live_strip_email_tool_fences.py",
-        "tests/test_tool_catalog_routes.py",
+        "tests/test_gemma3_activation_packet.py",
+        "docs/plans/gemma3-memory-ops-offline-acceptance.json",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "tests": {
-        "focused_exec_fence_contract_tests_passed": 7,
-        "focused_legacy_plugin_shape_tests_passed": 14,
+        "focused_gmi_canary_tests_passed": 12,
+        "focused_gmi_acceptance_tests_passed": 17,
         "blocking_failures": 0,
         "production_files_changed": 0,
-        "legacy_projection_matches_tool_tags": true,
-        "stale_source_loop_assertion_identified": true,
-        "catalog_v2_contains_all_legacy_tool_ids": true,
-        "adjacent_stale_plugin_shape_contract_identified": true,
-        "legacy_plugin_rows_intentionally_redacted_and_rich": true,
-        "plugin_registry_state_restored": true,
-        "legacy_plugin_secrets_and_schema_absent": true,
+        "fake_transport_calls_succeeded": 21,
+        "github_scheduler_gap_made_offline_test_flaky": true,
+        "production_canary_real_heartbeat_must_remain_unchanged": true,
+        "canonical_test_hash_observed": "9EE317A36D2ED06AA26684569A38AB8FBBCF9A7D5976834C19AC3F1EC68FB5AE",
+        "acceptance_hash_matches": true,
+        "offline_blockers": 0,
+        "live_blockers": [
+          "gmi_live_go_not_recorded",
+          "gro_live_validation_not_recorded"
+        ],
+        "gmi_live_activation_performed": false,
         "amh08_feature_work_performed": false
       },
       "route": {

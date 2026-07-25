@@ -221,6 +221,11 @@ def test_canary_fake_transport_proves_exact_positive_path_without_network(monkey
             payload={"message": {"content": "READY"}},
         )
 
+    async def healthy_heartbeat(stop, gaps):
+        gaps.append(0.001)
+        await stop.wait()
+
+    monkeypatch.setattr(canary, "_heartbeat", healthy_heartbeat)
     monkeypatch.setenv("ODYSSEUS_LOCAL_MODEL_QUEUE", "1")
     report = asyncio.run(
         canary.execute_canary(
