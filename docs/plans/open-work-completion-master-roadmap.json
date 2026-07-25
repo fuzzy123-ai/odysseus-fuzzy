@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T18:45:16+02:00",
+  "updated_at": "2026-07-25T19:13:37+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,47 +96,54 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-telegram-privacy-sentinel-oracle-20260725T184240+0200",
-      "slice_id": "CI-telegram-privacy-sentinel-oracle",
-      "prior_slice": "CI-mimetype-global-state-isolation",
-      "prior_slice_result": "committed_as_e08b333a0d644a66c72b4fb259a2674f0dd92d00_then_required_ci_advanced_past_the_mime_failure",
-      "status": "accepted_repo_only_awaiting_commit_and_required_ci",
+      "run_id": "abc-ci-telegram-route-surface-isolation-20260725T191110+0200",
+      "slice_id": "CI-telegram-route-surface-isolation-diagnostic",
+      "prior_slice": "CI-telegram-privacy-sentinel-oracle",
+      "prior_slice_result": "committed_as_1b2fb67f6dd832341b54395e7ae295cb84afae1e_then_required_ci_advanced_to_a_deterministic_route_contract_failure",
+      "status": "accepted_diagnostic_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
       "owner": "root_sol_orchestrator",
-      "class": "required_ci_flaky_privacy_test_oracle_repair",
+      "class": "required_ci_deterministic_test_state_diagnosis",
       "dependencies": [
-        "e08b333a0d644a66c72b4fb259a2674f0dd92d00",
-        "Required CI run 30165884094 failure evidence",
-        "accepted Telegram chat identifier redaction contract"
+        "1b2fb67f6dd832341b54395e7ae295cb84afae1e",
+        "Required CI run 30166304567 attempts 1 and 2",
+        "accepted Telegram route registration contract"
       ],
-      "lease_started_at": "2026-07-25T18:42:40+02:00",
-      "lease_expires_at": "2026-07-25T20:42:40+02:00",
-      "released_at": "2026-07-25T18:45:16+02:00",
+      "lease_started_at": "2026-07-25T19:11:10+02:00",
+      "lease_expires_at": "2026-07-25T21:11:10+02:00",
+      "released_at": "2026-07-25T19:13:37+02:00",
       "allowed_paths": [
-        "tests/test_telegram_plugin.py",
+        "tests/test_telegram_route_contract.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "changed_paths": [
-        "tests/test_telegram_plugin.py",
+        "tests/test_telegram_route_contract.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "diagnosis": {
-        "required_ci_run": 30165884094,
-        "required_ci_job": 89698704527,
-        "required_ci_head_sha": "e08b333a0d644a66c72b4fb259a2674f0dd92d00",
-        "required_ci_passed_before_failure": 8810,
-        "failing_node": "tests/test_telegram_plugin.py::test_inbox_store_deduplicates_and_returns_history",
-        "root_cause": "the privacy assertion uses the three-character hexadecimal raw chat fixture abc as a forbidden substring of the entire JSON document; a content-free random runtime event UUID legitimately contained abc even though every raw chat_id field was redacted",
+        "required_ci_run": 30166304567,
+        "required_ci_jobs": [
+          89699816671,
+          89701315257
+        ],
+        "required_ci_head_sha": "1b2fb67f6dd832341b54395e7ae295cb84afae1e",
+        "required_ci_attempts_reproduced": 2,
+        "required_ci_passed_before_failure": 8893,
+        "failing_node": "tests/test_telegram_route_contract.py::test_telegram_setup_keeps_route_surface_stable",
+        "known_evidence": "setup logs ready but the fresh FastAPI app exposes no Telegram routes after 8893 prior tests; the exact node alone, after the complete Telegram plugin file, and after full-suite collection without prior test execution is green locally",
+        "diagnostic_question": "do the routes disappear before ctx.add_router on the fresh plugin APIRouter or only while FastAPI includes that router",
         "production_change_required": false,
-        "privacy_leak_observed": false,
-        "flaky_random_collision": true
+        "product_workaround_allowed": false,
+        "route_expectation_weakened": false
       },
       "tests": {
-        "focused_store_privacy_test": "1 passed in 1.49s",
+        "focused_route_contract": "5 passed in 0.92s",
+        "ordered_telegram_predecessor_slice": "106 passed before diagnostic patch",
+        "full_collection_single_target": "1 passed with 10667 deselected before diagnostic patch",
         "python_ast": "pass",
         "roadmap_json_parse": "pass",
         "git_diff_check": "pass",
-        "terra_independent_review": "diagnosis_and_exact_diff_pass",
+        "terra_independent_review": "exact_diff_pass",
         "sol_deep_review": "pass",
         "production_files_changed": 0,
         "blocking_failures": 0,
@@ -146,15 +153,14 @@
         "amh08_feature_work_performed": false
       },
       "evidence_refs": [
-        "GitHub Actions Required CI run 30165884094 job 89698704527",
-        "CI failure excerpt showing abc only inside opaque evt UUID",
-        "TelegramInboxStore structural chat_id redaction path",
-        "Terra read-only diagnosis of the short-hex substring oracle",
-        "local exact-node privacy regression pass",
-        "Terra exact-diff review PASS",
-        "Sol exact-diff deep review PASS"
+        "GitHub Actions Required CI run 30166304567 attempt 1 job 89699816671",
+        "GitHub Actions Required CI run 30166304567 attempt 2 job 89701315257",
+        "local exact-node route contract pass",
+        "local ordered Telegram predecessor slice pass",
+        "local full-suite collection with only route target executed pass",
+        "Terra read-only route setup diagnosis"
       ],
-      "collision_check": "pass_only_the_claimed_telegram_test_and_canonical_roadmap_changed",
+      "collision_check": "pass_only_the_claimed_route_contract_test_and_canonical_roadmap_changed",
       "route": {
         "entrypoint": "/abc",
         "master": "gpt-5.6-sol",
@@ -162,7 +168,7 @@
         "review": "deep_sol_pass"
       },
       "completion": {
-        "implemented": "yes",
+        "implemented": "diagnostic_only",
         "tested": "yes",
         "sol_reviewed": "deep",
         "committed": "no",
@@ -174,9 +180,9 @@
         "updater_or_resume_clean": "na",
         "product_complete": "no"
       },
-      "remaining_gate_or_blocker": "commit_and_push_exact_two_path_fix_then_wait_for_exact_required_ci_green_before_debian_deploy",
-      "recommended_next_action": "commit_exact_two_path_fix_push_only_fuzzy_dev_then_required_ci",
-      "next_gate": "commit_exact_two_path_fix_push_only_fuzzy_dev_then_required_ci"
+      "remaining_gate_or_blocker": "commit_and_push_the_exact_two_path_diagnostic_then_use_required_ci_failure_location_to_fix_the_actual_linux_test_state_leak",
+      "recommended_next_action": "commit_exact_two_path_diagnostic_push_only_fuzzy_dev_then_inspect_required_ci",
+      "next_gate": "commit_exact_two_path_diagnostic_push_only_fuzzy_dev_then_inspect_required_ci"
     }
   },
   "non_ui_execution_ledger": {

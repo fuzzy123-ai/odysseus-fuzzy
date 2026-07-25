@@ -17,9 +17,11 @@ class _PluginContext:
     data_dir: Path
     logger: logging.Logger = field(default_factory=lambda: logging.getLogger("test.telegram.contract"))
     registered_tools: list[Any] = field(default_factory=list)
+    registered_routers: list[Any] = field(default_factory=list)
     require_admin: Callable[[Any], None] = lambda _request: None
 
     def add_router(self, router):
+        self.registered_routers.append(router)
         self.app.include_router(router)
 
     def register_tool(self, spec):
@@ -34,14 +36,7 @@ def _setup_contract_app(tmp_path: Path) -> _PluginContext:
 
 def test_telegram_setup_keeps_route_surface_stable(tmp_path):
     ctx = _setup_contract_app(tmp_path)
-    route_methods = {
-        (route.path, method)
-        for route in ctx.app.routes
-        for method in getattr(route, "methods", set())
-        if route.path.startswith("/api/plugins/telegram")
-    }
-
-    assert route_methods >= {
+    expected_route_methods = {
         ("/api/plugins/telegram/status", "GET"),
         ("/api/plugins/telegram/history", "GET"),
         ("/api/plugins/telegram/poll", "POST"),
@@ -52,6 +47,22 @@ def test_telegram_setup_keeps_route_surface_stable(tmp_path):
         ("/api/plugins/telegram/document-reply/live-gate", "POST"),
         ("/api/plugins/telegram/app", "GET"),
     }
+    assert len(ctx.registered_routers) == 1
+
+    plugin_route_methods = {
+        (route.path, method)
+        for route in ctx.registered_routers[0].routes
+        for method in getattr(route, "methods", set())
+    }
+    assert plugin_route_methods >= expected_route_methods
+
+    app_route_methods = {
+        (route.path, method)
+        for route in ctx.app.routes
+        for method in getattr(route, "methods", set())
+        if route.path.startswith("/api/plugins/telegram")
+    }
+    assert app_route_methods >= expected_route_methods
 
 
 def test_telegram_setup_keeps_registered_tool_contracts(tmp_path):
