@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T21:44:00+02:00",
+  "updated_at": "2026-07-25T21:55:00+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,50 +96,50 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-tool-index-schema-parity-20260725T213830+0200",
-      "slice_id": "CI-tool-index-schema-parity-snapshot",
-      "prior_slice": "CI-tool-analytics-descriptor-snapshot",
-      "prior_slice_result": "committed_and_pushed_as_63c9d579bcfdfd48a50897ce57379ba54d5c5ad7_then_required_ci_confirmed_the_86_descriptor_snapshot_and_advanced_to_9497_passed",
+      "run_id": "abc-ci-parser-registration-snapshot-20260725T215100+0200",
+      "slice_id": "CI-parser-registration-snapshot",
+      "prior_slice": "CI-tool-index-schema-parity-snapshot",
+      "prior_slice_result": "committed_and_pushed_as_e0834179ae0a44875c3ddfb7e71cdd2db3bdf804_then_required_ci_confirmed_the_85_and_86_schema_parity_snapshot_and_advanced_to_9568_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
       "owner": "root_sol_orchestrator",
-      "class": "required_ci_tool_index_schema_parity_snapshot_repair",
+      "class": "required_ci_parser_registration_snapshot_repair",
       "dependencies": [
-        "63c9d579bcfdfd48a50897ce57379ba54d5c5ad7",
-        "Required CI run 30171696112 job 89713828419",
-        "independent built-in catalog projection baseline function_schemas=85 tool_index=86"
+        "e0834179ae0a44875c3ddfb7e71cdd2db3bdf804",
+        "Required CI run 30172134312 job 89714929507",
+        "catalog-owned parser registration baseline of 83"
       ],
-      "lease_started_at": "2026-07-25T21:38:30+02:00",
-      "lease_expires_at": "2026-07-25T23:38:30+02:00",
-      "released_at": "2026-07-25T21:44:00+02:00",
+      "lease_started_at": "2026-07-25T21:51:00+02:00",
+      "lease_expires_at": "2026-07-25T23:51:00+02:00",
+      "released_at": "2026-07-25T21:55:00+02:00",
       "allowed_paths": [
-        "tests/test_tool_index_schema_parity.py",
+        "tests/test_tool_registration_parity.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "changed_paths": [
-        "tests/test_tool_index_schema_parity.py",
+        "tests/test_tool_registration_parity.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "diagnosis": {
-        "required_ci_run": 30171696112,
-        "required_ci_job": 89713828419,
-        "required_ci_head_sha": "63c9d579bcfdfd48a50897ce57379ba54d5c5ad7",
-        "required_ci_passed_before_failure": 9497,
-        "failing_node": "tests/test_tool_index_schema_parity.py::test_only_explicit_text_only_tool_has_index_without_native_schema",
-        "root_cause": "the independent AST-only legacy projection snapshot remained at function_schemas=84 and tool_index=85 after the accepted canonical manage_todos registration converged the sources to 85 and 86",
-        "projection_provenance": "86c61a1d last froze 84 and 85; 46f77c2a added query_knowledge; 1dc160ad added the canonical manage_todos schema and index entry; 16a1c940 removed the temporary duplicate and left one canonical manage_todos",
-        "exception_contract": "schema_without_index is empty and generate_image remains the sole exact index_without_schema exception",
-        "repair": "update both independent fixed snapshots to function_schemas=85 and tool_index=86 while retaining the exact set-difference assertion",
+        "required_ci_run": 30172134312,
+        "required_ci_job": 89714929507,
+        "required_ci_head_sha": "e0834179ae0a44875c3ddfb7e71cdd2db3bdf804",
+        "required_ci_passed_before_failure": 9568,
+        "failing_node": "tests/test_tool_registration_parity.py::test_parser_registration_adds_only_the_three_active_gated_tools",
+        "root_cause": "the independent parser registration snapshot remained at 82 after the accepted canonical manage_todos runtime registration raised TOOL_TAGS to 80 and the exact parser union to 83",
+        "registration_provenance": "46f77c2a last raised the parity snapshot from 81 to 82 for query_knowledge; 1dc160ad added manage_todos to TOOL_TAGS and raised the catalog-owned parser baseline from 82 to 83 without updating this companion snapshot",
+        "registration_contract": "PARSER_REGISTERED_TOOL_IDS equals TOOL_TAGS union exactly the three active-gated tools; all deferred and blocked registrations remain excluded",
+        "repair": "update only the independent fixed parser registration snapshot from 82 to 83 while retaining exact union and disjointness assertions",
         "derive_from_runtime_length_allowed": false,
         "production_change_required": false
       },
       "tests": {
-        "focused_schema_parity_catalog_and_todo_registration_contracts": "15 passed in 3.67s during final Sol review",
+        "focused_registration_catalog_query_and_todo_contracts": "29 passed in 5.95s during final Sol review",
         "python_ast": "pass",
         "roadmap_json_parse": "pass",
         "git_diff_check": "pass",
-        "terra_independent_review": "stale_fixed_snapshot_diagnosis_exact_source_sets_and_manage_todos_convergence_provenance_pass",
-        "sol_deep_review": "pass_two_fixed_snapshots_retain_independent_drift_detection_and_generate_image_exact_exception",
+        "terra_independent_review": "stale_fixed_snapshot_diagnosis_exact_80_plus_3_union_disjointness_and_manage_todos_provenance_pass",
+        "sol_deep_review": "pass_fixed_83_snapshot_retains_independent_drift_detection_without_promoting_deferred_or_blocked_tools",
         "production_files_changed": 0,
         "production_runtime_logic_changed": false,
         "blocking_failures": 0,
@@ -149,13 +149,11 @@
         "amh08_feature_work_performed": false
       },
       "evidence_refs": [
-        "GitHub Actions Required CI run 30171696112 job 89713828419",
-        "86c61a1d prior 84 and 85 AST-only projection snapshot",
-        "46f77c2a query_knowledge registration",
-        "1dc160ad canonical manage_todos native-schema and index registration",
-        "16a1c940 duplicate Todo schema convergence",
-        "independent built-in catalog function_schemas=85 tool_index=86 contract",
-        "Terra read-only schema parity diagnosis PASS"
+        "GitHub Actions Required CI run 30172134312 job 89714929507",
+        "46f77c2a prior 82 parser registration snapshot",
+        "1dc160ad canonical manage_todos TOOL_TAGS registration and catalog 83 baseline",
+        "catalog validation exact 83 parser registration contract",
+        "Terra read-only parser registration diagnosis PASS"
       ],
       "collision_check": "pass_exactly_the_one_worker_test_path_and_root_owned_canonical_roadmap_changed",
       "route": {
