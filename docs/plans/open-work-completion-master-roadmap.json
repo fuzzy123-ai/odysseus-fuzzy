@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T19:39:31+02:00",
+  "updated_at": "2026-07-25T20:03:24+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,52 +96,58 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-telegram-webhook-audit-contract-20260725T193631+0200",
-      "slice_id": "CI-telegram-webhook-audit-receipt-contract",
-      "prior_slice": "CI-telegram-route-contract-boundary",
-      "prior_slice_result": "committed_as_e4a77c0b9f1471decd04827495650c26e600414b_then_required_ci_advanced_past_the_route_contract_to_9008_passed",
+      "run_id": "abc-ci-temporal-cli-provisioning-20260725T195706+0200",
+      "slice_id": "CI-temporal-cli-provisioning-contract",
+      "prior_slice": "CI-telegram-webhook-audit-receipt-contract",
+      "prior_slice_result": "committed_as_419f83c67d3deb0e2b9e2b1a1a709644489a1283_then_required_ci_advanced_past_the_webhook_audit_contract_to_9040_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
       "owner": "root_sol_orchestrator",
-      "class": "required_ci_stale_audit_contract_repair",
+      "class": "required_ci_temporal_cli_provisioning_repair",
       "dependencies": [
-        "e4a77c0b9f1471decd04827495650c26e600414b",
-        "Required CI run 30167662315 job 89703335999",
-        "accepted closed TelegramAuditStore receipt contract"
+        "419f83c67d3deb0e2b9e2b1a1a709644489a1283",
+        "Required CI run 30168177212 job 89704624365",
+        "accepted Temporal CLI 1.8.0 and temporalio 1.30.0 runtime pins"
       ],
-      "lease_started_at": "2026-07-25T19:36:31+02:00",
-      "lease_expires_at": "2026-07-25T21:36:31+02:00",
-      "released_at": "2026-07-25T19:39:31+02:00",
+      "lease_started_at": "2026-07-25T19:57:06+02:00",
+      "lease_expires_at": "2026-07-25T21:57:06+02:00",
+      "released_at": "2026-07-25T20:03:24+02:00",
       "allowed_paths": [
-        "tests/test_telegram_webhook_service.py",
+        ".github/workflows/quality-gate.yml",
+        "tests/test_ci_release_workflow_contract.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "changed_paths": [
-        "tests/test_telegram_webhook_service.py",
+        ".github/workflows/quality-gate.yml",
+        "tests/test_ci_release_workflow_contract.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "diagnosis": {
-        "required_ci_run": 30167662315,
-        "required_ci_job": 89703335999,
-        "required_ci_head_sha": "e4a77c0b9f1471decd04827495650c26e600414b",
-        "required_ci_passed_before_failure": 9008,
-        "failing_node": "tests/test_telegram_webhook_service.py::test_parse_and_store_webhook_update_records_invalid_update_without_raw_payload",
-        "root_cause": "the test still expects the retired telegram_audit.json messages shape and invalid_update values in the audit projection; the accepted audit store writes telegram_audit_receipts.json with current and previous generations and projects non-allowlisted invalid_update/error source events to a closed raw_bearing unclassified/unknown receipt",
-        "legacy_contract": "telegram_history.json intentionally retains the bounded invalid_update system event and parser error while excluding the raw webhook payload and raw chat identifier",
-        "repair": "read the canonical store.audit_store.path envelope, assert its exact closed receipt schema and visibility flags, and preserve cross-file raw payload and chat identifier non-persistence checks",
+        "required_ci_run": 30168177212,
+        "required_ci_job": 89704624365,
+        "required_ci_head_sha": "419f83c67d3deb0e2b9e2b1a1a709644489a1283",
+        "required_ci_passed_before_failure": 9040,
+        "failing_node": "tests/test_temporal_activities.py::test_local_temporal_retry_gets_new_fence_and_completes",
+        "root_cause": "the reusable Linux quality gate installs the pinned temporalio 1.30.0 Python SDK but not the independently pinned Temporal CLI 1.8.0; load_temporal_light_config therefore supplies a nonexistent executable to WorkflowEnvironment.start_local before workflow assertions run",
+        "affected_contract": "four real local-server integration tests across activities, determinism and workflow messages require the same explicit CLI path; time-skipping tests use a separate correctly optional test-server contract",
+        "repair": "provision the official Linux amd64 Temporal CLI 1.8.0 archive in the reusable Python test job, verify its exact source-controlled SHA-256 before extraction, export only ODYSSEUS_TEMPORAL_CLI_PATH, fail fast through the repository runtime capability check and retain the unmodified full pytest command",
         "production_change_required": false,
-        "privacy_leak_observed": false,
-        "audit_expectation_weakened": false
+        "test_skip_or_fallback_allowed": false,
+        "official_release": {
+          "repository": "temporalio/cli",
+          "tag": "v1.8.0",
+          "asset": "temporal_cli_1.8.0_linux_amd64.tar.gz",
+          "sha256": "896c6132d6d969f84c3f2382a31abd9a67a06ed3008c1a37c3573fe81d730e4a"
+        }
       },
       "tests": {
-        "focused_webhook_audit_contract": "1 passed in 0.95s after final schema assertion",
-        "focused_audit_store_contract": "2 passed in prior focused regression run",
-        "focused_total": "3 tests passed across focused runs",
-        "python_ast": "pass",
+        "focused_ci_and_temporal_contracts": "26 passed in 2.50s during final Sol review",
+        "worker_focused_ci_and_temporal_contracts": "26 passed in 2.96s",
+        "workflow_yaml_parse": "pass",
         "roadmap_json_parse": "pass",
         "git_diff_check": "pass",
-        "terra_independent_review": "diagnosis_and_exact_code_diff_pass",
-        "sol_deep_review": "pass_after_truthful_evidence_receipt_update",
+        "terra_independent_review": "diagnosis_and_bounded_implementation_handoff_pass",
+        "sol_deep_review": "pass_checksum_precedes_extraction_no_path_mutation_no_skip_exact_full_pytest_preserved",
         "production_files_changed": 0,
         "blocking_failures": 0,
         "live_telegram_activation_performed": false,
@@ -150,22 +156,23 @@
         "amh08_feature_work_performed": false
       },
       "evidence_refs": [
-        "GitHub Actions Required CI run 30167662315 job 89703335999",
-        "TelegramAuditStore canonical filename and generation envelope",
-        "closed audit receipt projector allowlists",
-        "TelegramInboxStore legacy append_event plus audit projection path",
-        "Terra read-only stale-contract diagnosis PASS"
+        "GitHub Actions Required CI run 30168177212 job 89704624365",
+        "Temporal runtime config exact SDK and CLI pins",
+        "four real WorkflowEnvironment.start_local integration tests",
+        "official temporalio/cli v1.8.0 GitHub release metadata digest",
+        "Terra read-only CI provisioning diagnosis PASS"
       ],
-      "collision_check": "pass_only_the_claimed_webhook_service_test_and_canonical_roadmap_changed",
+      "collision_check": "pass_exactly_the_two_worker_paths_and_root_owned_canonical_roadmap_changed",
       "route": {
         "entrypoint": "/abc",
         "master": "gpt-5.6-sol",
-        "worker": "gpt-5.6-terra",
+        "worker_requested": "gpt-5.6-terra",
+        "worker_actual": "not_exposed_by_spawn_surface",
         "review": "deep_sol_pass"
       },
       "completion": {
         "implemented": "yes",
-        "tested": "yes",
+        "tested": "yes_focused",
         "sol_reviewed": "deep",
         "committed": "no",
         "pushed": "no",
@@ -176,9 +183,9 @@
         "updater_or_resume_clean": "na",
         "product_complete": "no"
       },
-      "remaining_gate_or_blocker": "commit_and_push_the_exact_two_path_audit_contract_fix_then_wait_for_exact_required_ci_green_before_debian_deploy",
-      "recommended_next_action": "commit_exact_two_path_fix_push_only_fuzzy_dev_then_required_ci",
-      "next_gate": "commit_exact_two_path_fix_push_only_fuzzy_dev_then_required_ci"
+      "remaining_gate_or_blocker": "commit_and_push_the_exact_three_path_ci_provisioning_fix_then_wait_for_exact_required_ci_green_before_debian_deploy",
+      "recommended_next_action": "commit_exact_three_path_fix_push_only_fuzzy_dev_then_required_ci",
+      "next_gate": "commit_exact_three_path_fix_push_only_fuzzy_dev_then_required_ci"
     }
   },
   "non_ui_execution_ledger": {

@@ -63,6 +63,23 @@ jobs:
           cache: pip
       - name: Install test dependencies
         run: pip install -r requirements.txt
+      - name: Provision the pinned Temporal CLI
+        shell: bash
+        run: |
+          TEMPORAL_CLI_VERSION="1.8.0"
+          TEMPORAL_CLI_SHA256="896c6132d6d969f84c3f2382a31abd9a67a06ed3008c1a37c3573fe81d730e4a"
+          TEMPORAL_CLI_ARCHIVE="${RUNNER_TEMP}/temporal_cli_${TEMPORAL_CLI_VERSION}_linux_amd64.tar.gz"
+          TEMPORAL_CLI_DIR="${RUNNER_TEMP}/odysseus-temporal-cli-${TEMPORAL_CLI_VERSION}"
+          curl --fail --location --show-error --silent \
+            --output "$TEMPORAL_CLI_ARCHIVE" \
+            "https://github.com/temporalio/cli/releases/download/v${TEMPORAL_CLI_VERSION}/temporal_cli_${TEMPORAL_CLI_VERSION}_linux_amd64.tar.gz"
+          printf '%s  %s\n' "$TEMPORAL_CLI_SHA256" "$TEMPORAL_CLI_ARCHIVE" | sha256sum --check --
+          mkdir -p "$TEMPORAL_CLI_DIR"
+          tar -xzf "$TEMPORAL_CLI_ARCHIVE" -C "$TEMPORAL_CLI_DIR"
+          chmod +x "$TEMPORAL_CLI_DIR/temporal"
+          printf 'ODYSSEUS_TEMPORAL_CLI_PATH=%s\n' "$TEMPORAL_CLI_DIR/temporal" >> "$GITHUB_ENV"
+      - name: Verify pinned Temporal CLI capabilities
+        run: python -m src.temporal_runtime.config check
       - name: Prepare local test state
         run: mkdir -p data
       - name: Run the complete required regression suite

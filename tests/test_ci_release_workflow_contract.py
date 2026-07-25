@@ -25,6 +25,12 @@ QUARANTINE_FIELDS = {
     "created_at",
     "expires_at",
 }
+TEMPORAL_CLI_VERSION = "1.8.0"
+TEMPORAL_CLI_SHA256 = "896c6132d6d969f84c3f2382a31abd9a67a06ed3008c1a37c3573fe81d730e4a"
+TEMPORAL_CLI_RELEASE_URL = (
+    "https://github.com/temporalio/cli/releases/download/"
+    "v${TEMPORAL_CLI_VERSION}/temporal_cli_${TEMPORAL_CLI_VERSION}_linux_amd64.tar.gz"
+)
 
 
 def _load_workflow(path: Path) -> dict[str, Any]:
@@ -100,6 +106,43 @@ def test_reusable_gate_has_blocking_syntax_and_full_regression_jobs() -> None:
         for command in commands
         for forbidden in ("--ignore", "--deselect", "--lf", "--failed-first", "|| true")
     )
+
+
+def test_python_test_job_provisions_and_checks_the_pinned_temporal_cli() -> None:
+    workflow = _load_workflow(QUALITY_GATE_PATH)
+    steps = workflow["jobs"]["python-tests"]["steps"]
+    names = [step["name"] for step in steps]
+
+    install_index = names.index("Install test dependencies")
+    provision_index = names.index("Provision the pinned Temporal CLI")
+    check_index = names.index("Verify pinned Temporal CLI capabilities")
+    pytest_index = names.index("Run the complete required regression suite")
+    assert install_index < provision_index < check_index < pytest_index
+
+    provision = steps[provision_index]
+    assert provision["shell"] == "bash"
+    command = provision["run"]
+    assert f'TEMPORAL_CLI_VERSION="{TEMPORAL_CLI_VERSION}"' in command
+    assert f'TEMPORAL_CLI_SHA256="{TEMPORAL_CLI_SHA256}"' in command
+    assert TEMPORAL_CLI_RELEASE_URL in command
+    assert "${RUNNER_TEMP}" in command
+    assert "curl --fail --location --show-error --silent" in command
+
+    checksum_index = command.index("sha256sum --check --")
+    extract_index = command.index('tar -xzf "$TEMPORAL_CLI_ARCHIVE"')
+    assert checksum_index < extract_index
+    assert 'chmod +x "$TEMPORAL_CLI_DIR/temporal"' in command
+    assert (
+        "printf 'ODYSSEUS_TEMPORAL_CLI_PATH=%s\\n' \"$TEMPORAL_CLI_DIR/temporal\" >> \"$GITHUB_ENV\""
+        in command
+    )
+    assert command.count("$GITHUB_ENV") == 1
+    assert "$GITHUB_PATH" not in command
+    assert "export PATH=" not in command
+    assert "\nPATH=" not in command
+
+    assert steps[check_index]["run"] == "python -m src.temporal_runtime.config check"
+    assert steps[pytest_index]["run"] == "python -m pytest -q --maxfail=1"
 
 
 def test_docker_publication_has_a_same_run_exact_commit_gate() -> None:
