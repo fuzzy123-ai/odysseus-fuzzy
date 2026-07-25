@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T16:59:28+02:00",
+  "updated_at": "2026-07-25T17:09:46+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,45 +96,29 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-project-quality-gate-hardened-contract-20260725T162100+0200",
-      "slice_id": "CI-project-quality-gate-hardened-contract",
-      "prior_slice": "CI-sensitive-worker-import-identity-contract",
-      "prior_slice_result": "committed_as_4d27aad3f0b44673811224ee709322b461084c4a_then_required_ci_advanced_to_7900_passed",
+      "run_id": "abc-ci-session-owner-chat-scope-test-contract-20260725T170700+0200",
+      "slice_id": "CI-session-owner-chat-scope-test-contract",
+      "prior_slice": "CI-project-quality-gate-hardened-contract",
+      "prior_slice_result": "committed_as_861652ed0b52bee4f9d1e6cf545f3da5019c11b1_then_required_ci_advanced_to_8160_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
-      "previous_ci_repair_handoff_commit": "4d27aad3f0b44673811224ee709322b461084c4a",
+      "previous_ci_repair_handoff_commit": "861652ed0b52bee4f9d1e6cf545f3da5019c11b1",
       "changed_files": [
-        "src/server_project_quality_gate.py",
-        "src/server_project_deploy_handoff.py",
-        "tests/test_server_project_quality_gate.py",
-        "tests/test_server_project_deploy_handoff.py",
-        "tests/test_server_project_executor.py",
-        "tests/test_server_project_service_wiring.py",
-        "docs/plans/server-project-runner-roadmap.md",
+        "tests/test_session_owner_attribution.py",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "tests": {
-        "focused_project_quality_deploy_executor_service_tests_passed": 41,
-        "central_raw_output_policy_rejection_passed": true,
-        "changed_python_ast_files_passed": 6,
-        "terra_first_review": "rejected_three_readiness_boundary_bypasses",
-        "terra_second_deep_review": "pass",
+        "focused_session_owner_and_api_scope_tests_passed": 22,
+        "terra_independent_review": "pass",
         "sol_deep_review": "pass",
         "blocking_failures": 0,
-        "production_files_changed": 2,
-        "canonical_redacted_log_policy": "command-only-no-secrets",
-        "central_command_allowlist_changed": false,
-        "test_and_smoke_plan_alone_counts_as_green": false,
-        "test_and_smoke_receipts_required": true,
-        "build_and_evidence_command_text_allowed": false,
-        "build_and_evidence_requirement_separate": true,
-        "receipt_gate_id_and_kind_bound": true,
-        "receipt_exact_spec_subject_digest_bound": true,
-        "forged_or_stale_bundle_deploy_allowed": false,
-        "default_missing_evidence_decision": "hold",
-        "timeout_max_seconds": 300,
-        "required_boolean_exact": true,
-        "live_command_execution_performed": false,
+        "production_files_changed": 0,
+        "cross_owner_scoped_bearer_status": 404,
+        "same_owner_scoped_bearer_allowed": true,
+        "wrong_scope_status": 403,
+        "wrong_scope_session_lookup_performed": false,
+        "chat_scope_policy_changed": false,
+        "authentication_policy_changed": false,
         "unconfirmed_write_performed": false,
         "gmi_live_activation_performed": false,
         "amh08_feature_work_performed": false
@@ -158,7 +142,7 @@
         "updater_or_resume_clean": "na",
         "product_complete": "no"
       },
-      "next_gate": "commit_exact_hardened_project_quality_gate_contract_push_only_fuzzy_dev_then_required_ci"
+      "next_gate": "commit_exact_session_owner_chat_scope_test_contract_push_only_fuzzy_dev_then_required_ci"
     }
   },
   "non_ui_execution_ledger": {

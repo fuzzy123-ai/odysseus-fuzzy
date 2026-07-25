@@ -104,15 +104,44 @@ _MISSING = object()
 
 def test_bearer_owner_A_cannot_verify_owner_B_session(monkeypatch):
     monkeypatch.setattr(SR, "SessionLocal", _session_local_returning("bob"))
-    req = _req(api_token=True, api_token_owner="alice", current_user="api")
+    req = _req(
+        api_token=True,
+        api_token_owner="alice",
+        api_token_scopes=["chat"],
+        current_user="api",
+    )
     with pytest.raises(HTTPException) as exc:
         SR._verify_session_owner(req, "sid-owned-by-bob")
     assert exc.value.status_code == 404
 
 
+def test_bearer_without_chat_scope_is_rejected_before_session_lookup(monkeypatch):
+    def _unexpected_session_lookup():
+        raise AssertionError("unscoped bearer token must not query session ownership")
+
+    monkeypatch.setattr(SR, "SessionLocal", _unexpected_session_lookup)
+    req = _req(
+        api_token=True,
+        api_token_owner="alice",
+        api_token_scopes=["documents:read"],
+        current_user="api",
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        SR._verify_session_owner(req, "sid-owned-by-bob")
+
+    assert exc.value.status_code == 403
+    assert "chat" in exc.value.detail
+
+
 def test_owner_can_verify_their_own_session(monkeypatch):
     monkeypatch.setattr(SR, "SessionLocal", _session_local_returning("alice"))
-    req = _req(api_token=True, api_token_owner="alice", current_user="api")
+    req = _req(
+        api_token=True,
+        api_token_owner="alice",
+        api_token_scopes=["chat"],
+        current_user="api",
+    )
     # Should not raise.
     SR._verify_session_owner(req, "sid-owned-by-alice")
 
