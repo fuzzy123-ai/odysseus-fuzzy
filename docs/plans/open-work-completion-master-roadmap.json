@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T15:38:16+02:00",
+  "updated_at": "2026-07-25T15:49:45+02:00",
   "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -96,33 +96,35 @@
     },
     "active_claimed_slices": [],
     "latest_ci_repair_handoff": {
-      "run_id": "abc-ci-plugin-system-route-tree-20260725T153600+0200",
-      "slice_id": "CI-plugin-system-effective-route-tree-contract",
-      "prior_slice": "CI-obsidian-plugin-effective-route-tree-contract",
-      "prior_slice_result": "committed_as_a43a1037107d5c4d9c24eccabb42b0d93db7555e_then_required_ci_advanced_to_6212_passed",
+      "run_id": "abc-ci-telegram-guidance-index-20260725T154700+0200",
+      "slice_id": "CI-telegram-contract-guidance-index-normalization",
+      "prior_slice": "CI-plugin-system-effective-route-tree-contract",
+      "prior_slice_result": "committed_as_32a4184791b153aca93f21e0a100e43970cbeed4_then_required_ci_advanced_to_7280_passed",
       "status": "accepted_repo_only_awaiting_commit_and_required_ci",
       "claim": "released",
-      "previous_ci_repair_handoff_commit": "a43a1037107d5c4d9c24eccabb42b0d93db7555e",
+      "previous_ci_repair_handoff_commit": "32a4184791b153aca93f21e0a100e43970cbeed4",
       "changed_files": [
-        "tests/test_plugin_system.py",
+        "docs/plans/multi-agent-execution-guidance.json",
         "docs/plans/open-work-completion-master-roadmap.json"
       ],
       "tests": {
-        "focused_obsidian_load_and_plugin_system_tests_passed": 16,
-        "terra_independent_plugin_system_tests_passed": 14,
+        "focused_roadmap_guidance_tests_passed": 5,
         "blocking_failures": 0,
         "production_files_changed": 0,
-        "required_ci_fastapi_version": "0.140.0",
-        "required_ci_starlette_version": "1.3.1",
-        "local_fastapi_version": "0.136.3",
-        "local_starlette_version": "1.2.1",
-        "existing_route_compatibility_helper_reused": true,
-        "all_plugin_system_effective_route_reads_flattened": true,
-        "direct_production_route_path_assumptions_remaining": false,
-        "off_namespace_negative_assertion_checks_nested_routes": true,
-        "production_namespace_guard_changed": false,
-        "dependency_pin_added": false,
-        "guidance_audit_preexisting_unrelated_error": "telegram-session-rollover-transaction-contract.md profile/discovery mismatch",
+        "guidance_audit_valid": true,
+        "discovered_roadmaps": 130,
+        "listed_roadmaps": 130,
+        "docs_plans_roadmaps": 123,
+        "structured_spec_roadmaps": 7,
+        "missing_guidance_paths": 0,
+        "unknown_guidance_paths": 0,
+        "telegram_contract_file_retained": true,
+        "telegram_feature_roadmap_guidance_retained": true,
+        "telegram_contract_misclassified_as_roadmap": false,
+        "guidance_profile_counts_changed": false,
+        "active_serial_contract_profile_added": false,
+        "roadmap_discovery_broadened": false,
+        "live_or_feature_gate_changed": false,
         "unconfirmed_write_performed": false,
         "gmi_live_activation_performed": false,
         "amh08_feature_work_performed": false
@@ -146,7 +148,7 @@
         "updater_or_resume_clean": "na",
         "product_complete": "no"
       },
-      "next_gate": "commit_exact_roadmap_and_plugin_system_route_tree_test_push_only_fuzzy_dev_then_required_ci"
+      "next_gate": "commit_exact_guidance_normalization_and_roadmap_handoff_push_only_fuzzy_dev_then_required_ci"
     }
   },
   "non_ui_execution_ledger": {

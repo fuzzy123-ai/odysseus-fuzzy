@@ -748,12 +748,6 @@
       "ai_hint": "TTD-04 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A4 are accepted. TTD-07A5 is gated after two rejected incomplete attempts; no active implementation claim remains. A fresh read-only architecture handoff and later durable reclaim must precede more writes. Preserve TTD-07A6, continuity, provider, productive enablement and live paths."
     },
     {
-      "path": "docs/plans/telegram-session-rollover-transaction-contract.md",
-      "profile": "active_serial_contract",
-      "state": "ttd07a0_through_ttd07a4_accepted_ttd07a5_architecture_reentry_gated",
-      "ai_hint": "This is the accepted TTD-07A implementation contract at 4fb9ba62. TTD-07A1 is accepted at daca1dc4, TTD-07A2 at 090ede31, TTD-07A3 at 53109195 and TTD-07A4 at c48f47c8. TTD-07A5 has no active implementation claim after two rejected attempts. Freeze the stable transport-intake, per-operation DB, lease-fencing, poll-offset and explicit-owner design in a fresh read-only handoff before reclaiming. TTD-07A6 stays blocked."
-    },
-    {
       "path": "docs/plans/telegram-dual-session-router-hotfix-roadmap.md",
       "profile": "gate_only",
       "state": "repo_implemented_live_smoke_gated",
