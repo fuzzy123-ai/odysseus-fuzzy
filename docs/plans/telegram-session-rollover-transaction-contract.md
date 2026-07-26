@@ -7,7 +7,8 @@ Status: `TTD-07A0` accepted at `4fb9ba62`; `TTD-07A1` accepted at
 `53109195`; `TTD-07A4` accepted at `c48f47c8`; the fresh architecture handoff,
 `TTD-07A5A` at `70466cf1`, `TTD-07A5B` at `94a09428`, `TTD-07A5C1`
 at `b7e3466d`, and `TTD-07A5C2` at `00e3029f` are accepted;
-`TTD-07A5C3` is active
+`TTD-07A5C3` and therefore `TTD-07A5` are accepted at `fd2340a6`.
+`TTD-07A6` is dependency-ready but remains unselected and default-off.
 
 Authority:
 
@@ -775,6 +776,13 @@ The rejected eleven-path implementation is replaced by three serial claims:
   released its lease without the same exact outbound-evidence completion used
   by the webhook. The correction must share that content-free crash-window
   contract and may not change offsets, provider behavior, or feature defaults.
+  Accepted at `fd2340a6` after eleven focused final and legacy regression
+  nodes, nine-path AST and diff checks, and deep Sol review. The accepted
+  implementation shares one renewable durable turn lease across polling and
+  webhook, holds the exact busy offset, returns bounded webhook retry,
+  requires the injected owner for bind and rebind, and recovers running or
+  reply-pending turns only from exact persisted evidence without replaying
+  model or tool work.
 
 Each child requires a fresh durable claim and deep Sol review. No child may
 resume the rejected stash or divergent prior art, and no child may enable live
