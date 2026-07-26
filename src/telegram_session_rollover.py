@@ -13,6 +13,7 @@ from enum import Enum
 import hashlib
 import hmac
 import re
+import threading
 import uuid
 from types import MappingProxyType
 from typing import Any, Mapping, Sequence
@@ -501,6 +502,38 @@ class AtomicRolloverResult:
     old_session_id: str | None = None
     new_session_id: str | None = None
     generation: int | None = None
+
+
+@dataclass(frozen=True)
+class TelegramTurnLease:
+    """In-memory capability for one fenced Telegram turn lease.
+
+    ``token`` is deliberately never persisted or included in evidence.  The
+    database stores only the derived opaque ``lease_ref``.
+    """
+
+    binding_id: str
+    generation: int
+    intake_id: str
+    lease_ref: str
+    expires_at: datetime
+    token: str = field(repr=False)
+
+
+@dataclass(frozen=True)
+class TelegramTurnCoordinatorResult:
+    """Content-free result of one default-off coordinator operation."""
+
+    status: str
+    intake: LedgerTurnIntake | None = None
+    lease: TelegramTurnLease | None = None
+
+
+# A single process-wide lock is intentionally shared by every coordinator
+# instance.  Future poll and webhook adapters must inject the same coordinator
+# rather than create route-local locks.
+_TELEGRAM_TURN_COORDINATOR_LOCK = threading.Lock()
+_ACTIVE_TELEGRAM_TURN_IDS: set[str] = set()
 
 
 class TelegramRolloverLedger:
@@ -1138,6 +1171,481 @@ class TelegramRolloverLedger:
         if binding.generation != expected_generation:
             raise LedgerError("stale_generation_fence")
         return binding
+
+
+class TelegramTurnCoordinator:
+    """Default-off, per-operation owner of Telegram intake and turn leases.
+
+    This coordinator has no route, provider, polling, webhook, or JSON-store
+    wiring.  It is deliberately small: every operation creates one supplied
+    SQLAlchemy session, commits or rolls it back itself, and closes it before
+    returning.  The process-wide mutex is held only around the short durable
+    transitions; callers must run model and network work outside this class.
+    """
+
+    def __init__(
+        self,
+        *,
+        session_factory: Any,
+        config: RolloverConfig,
+        now: Any = None,
+        lock: Any = _TELEGRAM_TURN_COORDINATOR_LOCK,
+    ) -> None:
+        if not callable(session_factory):
+            raise LedgerError("invalid_session_factory")
+        if not isinstance(config, RolloverConfig):
+            raise LedgerError("invalid_rollover_config")
+        if now is not None and not callable(now):
+            raise LedgerError("invalid_clock")
+        if not callable(getattr(lock, "__enter__", None)):
+            raise LedgerError("invalid_turn_coordinator_lock")
+        self._session_factory = session_factory
+        self._config = config
+        self._now = now or (lambda: datetime.now(ZoneInfo("UTC")))
+        self._lock = lock
+
+    def acquire_turn(
+        self,
+        *,
+        owner: str,
+        stable_chat_handle: str,
+        update_id: int | None,
+        message_id: int | None,
+        scope: str,
+    ) -> TelegramTurnCoordinatorResult:
+        """Fence/create intake and acquire its binding lease atomically.
+
+        A busy lease is represented durably as ``lease_retry``.  The caller can
+        use that result to hold a polling offset or return a webhook retry; this
+        layer performs neither transport action.
+        """
+
+        if not self._enabled():
+            return TelegramTurnCoordinatorResult("disabled")
+        _validate_scope(scope)
+        owner_reference, chat_reference, update_reference = self._turn_identity(
+            owner, stable_chat_handle, update_id, message_id
+        )
+        now = self._observed_now()
+
+        def operation(database: Any) -> TelegramTurnCoordinatorResult:
+            ledger = TelegramRolloverLedger(database, self._config.reference_key)
+            ledger.begin_atomic_rollover_transaction()
+            ledger.verify_reference_key()
+            binding = ledger.get_binding_for_identity(
+                owner_reference=owner_reference,
+                chat_reference=chat_reference,
+                scope=scope,
+            )
+            if binding is None:
+                # The intake schema has a required binding FK, so inventing a
+                # durable "blocked" intake here would violate the accepted
+                # model.  A later adapter must map this deterministic refusal.
+                raise LedgerError("binding_not_found")
+            intake = ledger.get_or_create_turn_intake(
+                owner_reference=owner_reference,
+                chat_reference=chat_reference,
+                transport_update_reference=update_reference,
+                scope=scope,
+                binding_id=binding.id,
+                expected_session_id=binding.active_session_id,
+                expected_generation=binding.generation,
+            )
+            if intake.status is TurnIntakeState.COMPLETED:
+                return TelegramTurnCoordinatorResult("duplicate_completed", intake=intake)
+            if intake.status in {
+                TurnIntakeState.INDETERMINATE_TURN,
+                TurnIntakeState.BLOCKED_INVALID_BINDING,
+                TurnIntakeState.BLOCKED_SECURITY_POLICY,
+            }:
+                return TelegramTurnCoordinatorResult("terminal", intake=intake)
+            if intake.status is TurnIntakeState.RUNNING:
+                return TelegramTurnCoordinatorResult("running_reconciliation_required", intake=intake)
+            if intake.status is TurnIntakeState.REPLY_PENDING:
+                return TelegramTurnCoordinatorResult("reply_pending_reconciliation_required", intake=intake)
+            if intake.next_retry_at is not None and intake.next_retry_at > _ledger_timestamp(now):
+                return TelegramTurnCoordinatorResult("retry_not_due", intake=intake)
+
+            tables = ledger._verified_tables()
+            row = _select_one(database, tables["binding"], tables["binding"].c.id == binding.id)
+            if row is None:
+                raise LedgerError("binding_not_found")
+            expires_at = row.get("turn_lease_expires_at")
+            active_turn_ref = row.get("active_turn_ref")
+            if active_turn_ref in _ACTIVE_TELEGRAM_TURN_IDS:
+                # A local worker may have missed a renewal tick.  Wall-clock
+                # expiry alone is not permission to split that still-running
+                # turn; only a later crash-reconciliation path may recover it.
+                retry = ledger.advance_turn_intake(
+                    intake_id=intake.id,
+                    expected_generation=binding.generation,
+                    event=TurnIntakeEvent.LEASE_BUSY,
+                    retry_after=now,
+                )
+                return TelegramTurnCoordinatorResult("lease_busy_local_active", intake=retry)
+            if expires_at is not None and expires_at > _ledger_timestamp(now):
+                retry = ledger.advance_turn_intake(
+                    intake_id=intake.id,
+                    expected_generation=binding.generation,
+                    event=TurnIntakeEvent.LEASE_BUSY,
+                    retry_after=expires_at.replace(tzinfo=ZoneInfo("UTC")),
+                )
+                return TelegramTurnCoordinatorResult("lease_busy", intake=retry)
+            if active_turn_ref is not None:
+                # An expired lease belonging to another intake is not proof
+                # that its model/tool work did not happen.  Preserve that
+                # tuple until the old running intake is reconciled to a
+                # terminal or reply-pending state; a new update must retry.
+                retry = ledger.advance_turn_intake(
+                    intake_id=intake.id,
+                    expected_generation=binding.generation,
+                    event=TurnIntakeEvent.LEASE_BUSY,
+                    retry_after=now,
+                )
+                return TelegramTurnCoordinatorResult(
+                    "expired_turn_reconciliation_required", intake=retry
+                )
+
+            token = uuid.uuid4().hex
+            lease_ref = _keyed_ref(self._config.reference_key, "ttd07a-turn-lease", token)
+            expiry = now + timedelta(seconds=self._config.turn_lease_seconds)
+            result = database.execute(
+                update(tables["binding"])
+                .where(
+                    tables["binding"].c.id == binding.id,
+                    tables["binding"].c.generation == binding.generation,
+                    tables["binding"].c.active_session_id == binding.active_session_id,
+                    tables["binding"].c.turn_lease_expires_at.is_(None)
+                    if expires_at is None
+                    else tables["binding"].c.turn_lease_expires_at == expires_at,
+                    tables["binding"].c.active_turn_ref.is_(None)
+                    if row.get("active_turn_ref") is None
+                    else tables["binding"].c.active_turn_ref == row.get("active_turn_ref"),
+                    tables["binding"].c.turn_lease_ref.is_(None)
+                    if row.get("turn_lease_ref") is None
+                    else tables["binding"].c.turn_lease_ref == row.get("turn_lease_ref"),
+                    tables["binding"].c.turn_started_at.is_(None)
+                    if row.get("turn_started_at") is None
+                    else tables["binding"].c.turn_started_at == row.get("turn_started_at"),
+                )
+                .values(
+                    turn_lease_ref=lease_ref,
+                    active_turn_ref=intake.id,
+                    turn_lease_expires_at=_ledger_timestamp(expiry),
+                    turn_started_at=_ledger_timestamp(now),
+                    updated_at=_ledger_now(),
+                )
+            )
+            if result.rowcount != 1:
+                raise LedgerError("stale_turn_lease_fence")
+            running = ledger.advance_turn_intake(
+                intake_id=intake.id,
+                expected_generation=binding.generation,
+                event=TurnIntakeEvent.LEASE_ACQUIRED,
+            )
+            return TelegramTurnCoordinatorResult(
+                "acquired",
+                intake=running,
+                lease=TelegramTurnLease(
+                    binding_id=binding.id,
+                    generation=binding.generation,
+                    intake_id=intake.id,
+                    lease_ref=lease_ref,
+                    expires_at=_ledger_timestamp(expiry),
+                    token=token,
+                ),
+            )
+
+        result = self._operate(operation)
+        if result.lease is not None:
+            _ACTIVE_TELEGRAM_TURN_IDS.add(result.lease.intake_id)
+        return result
+
+    def renew_turn(self, lease: TelegramTurnLease) -> TelegramTurnLease | None:
+        """Renew only an unexpired exact lease; stale fences affect zero rows."""
+
+        if not self._enabled():
+            return None
+        try:
+            self._validate_lease(lease)
+        except LedgerError:
+            return None
+        now = self._observed_now()
+
+        def operation(database: Any) -> TelegramTurnLease | None:
+            ledger = TelegramRolloverLedger(database, self._config.reference_key)
+            ledger.begin_atomic_rollover_transaction()
+            ledger.verify_reference_key()
+            tables = ledger._verified_tables()
+            expiry = now + timedelta(seconds=self._config.turn_lease_seconds)
+            result = database.execute(
+                update(tables["binding"])
+                .where(
+                    tables["binding"].c.id == lease.binding_id,
+                    tables["binding"].c.generation == lease.generation,
+                    tables["binding"].c.active_turn_ref == lease.intake_id,
+                    tables["binding"].c.turn_lease_ref == lease.lease_ref,
+                    tables["binding"].c.turn_lease_expires_at > _ledger_timestamp(now),
+                )
+                .values(turn_lease_expires_at=_ledger_timestamp(expiry), updated_at=_ledger_now())
+            )
+            if result.rowcount != 1:
+                return None
+            return TelegramTurnLease(
+                binding_id=lease.binding_id,
+                generation=lease.generation,
+                intake_id=lease.intake_id,
+                lease_ref=lease.lease_ref,
+                expires_at=_ledger_timestamp(expiry),
+                token=lease.token,
+            )
+
+        return self._operate(operation)
+
+    def mark_reply_persisted(self, lease: TelegramTurnLease) -> LedgerTurnIntake:
+        """Advance an exact running intake after both Session messages persist."""
+
+        return self._advance_with_lease(lease, TurnIntakeEvent.REPLY_PERSISTED, release=False)
+
+    def complete_and_release(self, lease: TelegramTurnLease) -> LedgerTurnIntake:
+        """Mark durable outbound success complete and clear the exact lease."""
+
+        return self._advance_with_lease(lease, TurnIntakeEvent.REPLY_SENT, release=True)
+
+    def release_turn(self, lease: TelegramTurnLease) -> bool:
+        """Clear only the exact matching lease in a short transaction."""
+
+        if not self._enabled():
+            return False
+        try:
+            self._validate_lease(lease)
+        except LedgerError:
+            return False
+
+        def operation(database: Any) -> bool:
+            ledger = TelegramRolloverLedger(database, self._config.reference_key)
+            ledger.begin_atomic_rollover_transaction()
+            ledger.verify_reference_key()
+            return self._clear_exact_lease(database, ledger, lease)
+
+        released = self._operate(operation)
+        if released:
+            _ACTIVE_TELEGRAM_TURN_IDS.discard(lease.intake_id)
+        return released
+
+    def reconcile_crashed_turn(
+        self,
+        *,
+        owner: str,
+        stable_chat_handle: str,
+        update_id: int | None,
+        message_id: int | None,
+        markers: Sequence[TurnMessageMarker],
+    ) -> TelegramTurnCoordinatorResult:
+        """Resolve an expired, non-local running intake without model replay."""
+
+        if not self._enabled():
+            return TelegramTurnCoordinatorResult("disabled")
+        owner_reference, chat_reference, update_reference = self._turn_identity(
+            owner, stable_chat_handle, update_id, message_id
+        )
+        now = self._observed_now()
+
+        def operation(database: Any) -> TelegramTurnCoordinatorResult:
+            ledger = TelegramRolloverLedger(database, self._config.reference_key)
+            ledger.begin_atomic_rollover_transaction()
+            ledger.verify_reference_key()
+            intake = ledger.get_turn_intake(
+                owner_reference=owner_reference,
+                chat_reference=chat_reference,
+                transport_update_reference=update_reference,
+            )
+            if intake is None:
+                return TelegramTurnCoordinatorResult("intake_not_found")
+            if intake.status is not TurnIntakeState.RUNNING:
+                return TelegramTurnCoordinatorResult("not_running", intake=intake)
+            if intake.id in _ACTIVE_TELEGRAM_TURN_IDS:
+                return TelegramTurnCoordinatorResult("in_process_turn_active", intake=intake)
+            tables = ledger._verified_tables()
+            row = _select_one(database, tables["binding"], tables["binding"].c.id == intake.binding_id)
+            if row is None:
+                raise LedgerError("binding_not_found")
+            if (
+                int(row.get("generation", -1)) < 0
+                or row.get("active_session_id") != intake.expected_session_id
+            ):
+                # An old intake cannot be reconciled against a replacement
+                # binding.  It may refer to a different Session's tool effects.
+                return TelegramTurnCoordinatorResult("stale_binding_fence", intake=intake)
+            if row.get("active_turn_ref") == intake.id:
+                expiry = row.get("turn_lease_expires_at")
+                if expiry is None or expiry > _ledger_timestamp(now):
+                    return TelegramTurnCoordinatorResult("lease_not_expired", intake=intake)
+                cleared = database.execute(
+                    update(tables["binding"])
+                    .where(
+                        tables["binding"].c.id == intake.binding_id,
+                        tables["binding"].c.generation == row.get("generation"),
+                        tables["binding"].c.active_turn_ref == intake.id,
+                        tables["binding"].c.turn_lease_expires_at == expiry,
+                    )
+                    .values(
+                        turn_lease_ref=None,
+                        active_turn_ref=None,
+                        turn_lease_expires_at=None,
+                        turn_started_at=None,
+                        updated_at=_ledger_now(),
+                    )
+                )
+                if cleared.rowcount != 1:
+                    raise LedgerError("stale_turn_lease_fence")
+            elif (
+                row.get("turn_lease_expires_at") is not None
+                and row["turn_lease_expires_at"] > _ledger_timestamp(now)
+            ):
+                # A different live lease owns this binding.  Reconciliation of
+                # an older intake must not transition it underneath that turn.
+                return TelegramTurnCoordinatorResult("binding_lease_active", intake=intake)
+            reconciliation = reconcile_running_turn(intake.id, markers)
+            event = (
+                TurnIntakeEvent.REPLY_PERSISTED
+                if reconciliation.state is TurnIntakeState.REPLY_PENDING
+                else TurnIntakeEvent.INDETERMINATE
+            )
+            reconciled = ledger.advance_turn_intake(
+                intake_id=intake.id,
+                expected_generation=int(row["generation"]),
+                event=event,
+            )
+            return TelegramTurnCoordinatorResult(
+                "reconciled_reply_pending"
+                if reconciled.status is TurnIntakeState.REPLY_PENDING
+                else "reconciled_indeterminate",
+                intake=reconciled,
+            )
+
+        return self._operate(operation)
+
+    def _advance_with_lease(
+        self, lease: TelegramTurnLease, event: TurnIntakeEvent, *, release: bool
+    ) -> LedgerTurnIntake:
+        if not self._enabled():
+            raise LedgerError("turn_coordinator_disabled")
+        self._validate_lease(lease)
+
+        def operation(database: Any) -> LedgerTurnIntake:
+            ledger = TelegramRolloverLedger(database, self._config.reference_key)
+            ledger.begin_atomic_rollover_transaction()
+            ledger.verify_reference_key()
+            self._require_exact_lease(database, ledger, lease, require_unexpired=True)
+            intake = ledger.advance_turn_intake(
+                intake_id=lease.intake_id,
+                expected_generation=lease.generation,
+                event=event,
+            )
+            if release and not self._clear_exact_lease(database, ledger, lease):
+                raise LedgerError("stale_turn_lease_fence")
+            return intake
+
+        intake = self._operate(operation)
+        if release:
+            _ACTIVE_TELEGRAM_TURN_IDS.discard(lease.intake_id)
+        return intake
+
+    def _operate(self, operation: Any) -> Any:
+        with self._lock:
+            database = self._session_factory()
+            if database is None:
+                raise LedgerError("invalid_session_factory")
+            try:
+                result = operation(database)
+                database.commit()
+                return result
+            except Exception:
+                database.rollback()
+                raise
+            finally:
+                database.close()
+
+    def _enabled(self) -> bool:
+        return bool(self._config.enabled and self._config.reference_key is not None)
+
+    def _observed_now(self) -> datetime:
+        value = self._now()
+        _require_aware(value)
+        return value.astimezone(ZoneInfo("UTC"))
+
+    def _turn_identity(
+        self, owner: str, stable_chat_handle: str, update_id: int | None, message_id: int | None
+    ) -> tuple[str, str, str]:
+        if not isinstance(stable_chat_handle, str) or not stable_chat_handle.strip():
+            raise LedgerError("invalid_stable_chat_handle")
+        try:
+            return (
+                owner_ref(self._config.reference_key, owner),
+                chat_handle_ref(self._config.reference_key, stable_chat_handle),
+                transport_update_ref(self._config.reference_key, update_id, message_id),
+            )
+        except (ReferenceError, ValueError) as error:
+            raise LedgerError("invalid_turn_identity") from error
+
+    def _validate_lease(self, lease: TelegramTurnLease) -> None:
+        if not isinstance(lease, TelegramTurnLease):
+            raise LedgerError("invalid_turn_lease")
+        _validate_binding_id(lease.binding_id)
+        _validate_turn_id(lease.intake_id)
+        if isinstance(lease.generation, bool) or not isinstance(lease.generation, int) or lease.generation < 0:
+            raise LedgerError("invalid_generation_fence")
+        if not isinstance(lease.token, str) or not re.fullmatch(r"[0-9a-f]{32}", lease.token):
+            raise LedgerError("invalid_turn_lease")
+        expected = _keyed_ref(self._config.reference_key, "ttd07a-turn-lease", lease.token)
+        if not hmac.compare_digest(lease.lease_ref, expected):
+            raise LedgerError("invalid_turn_lease")
+
+    def _require_exact_lease(
+        self,
+        database: Any,
+        ledger: TelegramRolloverLedger,
+        lease: TelegramTurnLease,
+        *,
+        require_unexpired: bool = False,
+    ) -> None:
+        tables = ledger._verified_tables()
+        row = _select_one(database, tables["binding"], tables["binding"].c.id == lease.binding_id)
+        if (
+            row is None
+            or int(row.get("generation", -1)) != lease.generation
+            or row.get("active_turn_ref") != lease.intake_id
+            or row.get("turn_lease_ref") != lease.lease_ref
+            or (
+                require_unexpired
+                and (
+                    row.get("turn_lease_expires_at") is None
+                    or row["turn_lease_expires_at"] <= _ledger_timestamp(self._observed_now())
+                )
+            )
+        ):
+            raise LedgerError("stale_turn_lease_fence")
+
+    def _clear_exact_lease(self, database: Any, ledger: TelegramRolloverLedger, lease: TelegramTurnLease) -> bool:
+        tables = ledger._verified_tables()
+        result = database.execute(
+            update(tables["binding"])
+            .where(
+                tables["binding"].c.id == lease.binding_id,
+                tables["binding"].c.generation == lease.generation,
+                tables["binding"].c.active_turn_ref == lease.intake_id,
+                tables["binding"].c.turn_lease_ref == lease.lease_ref,
+            )
+            .values(
+                turn_lease_ref=None,
+                active_turn_ref=None,
+                turn_lease_expires_at=None,
+                turn_started_at=None,
+                updated_at=_ledger_now(),
+            )
+        )
+        return result.rowcount == 1
 
 
 class AtomicTelegramSessionRolloverService:

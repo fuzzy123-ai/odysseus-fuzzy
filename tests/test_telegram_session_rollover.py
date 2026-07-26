@@ -2,10 +2,11 @@ from datetime import datetime, time, timedelta, timezone
 import hashlib
 import hmac
 import json
+import threading
 
 import pytest
 from sqlalchemy import create_engine, delete, insert, inspect, update
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session as OrmSession, sessionmaker
 
 from core import database as database_module
 from core import database_migrations
@@ -24,6 +25,8 @@ from src.telegram_session_rollover import (
     TurnIntakeState,
     TurnMessageMarker,
     TelegramRolloverLedger,
+    TelegramTurnCoordinator,
+    TelegramTurnLease,
     advance_rollover_state,
     advance_turn_intake_state,
     build_rollover_evidence,
@@ -106,6 +109,39 @@ def _ledger_database():
 
 def _ledger_identity():
     return owner_ref(KEY, "alice"), chat_handle_ref(KEY, "chat_a1b2c3d4")
+
+
+def _turn_coordinator_fixture():
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(bind=engine)
+    factory = sessionmaker(bind=engine, autoflush=False)
+    database = factory()
+    database.add(
+        Session(
+            id="session-private-id",
+            name="Synthetic",
+            endpoint_url="http://synthetic.invalid",
+            model="synthetic",
+            owner="alice",
+        )
+    )
+    ledger = TelegramRolloverLedger(database, KEY)
+    binding = ledger.get_or_create_binding(
+        owner_reference=owner_ref(KEY, "alice"),
+        chat_reference=chat_handle_ref(KEY, "chat_a1b2c3d4"),
+        scope="normal",
+        active_session_id="session-private-id",
+        active_rollover_local_day="2026-07-24",
+    )
+    database.commit()
+    database.close()
+    now = datetime(2026, 7, 25, 12, 0, tzinfo=timezone.utc)
+    coordinator = TelegramTurnCoordinator(
+        session_factory=factory,
+        config=RolloverConfig(enabled=True, reference_key=KEY, turn_lease_seconds=60),
+        now=lambda: now,
+    )
+    return factory, binding, coordinator, now
 
 
 def _a3_database(*session_owners: tuple[str, str]):
@@ -1576,3 +1612,429 @@ def test_turn_intake_states_fail_closed_on_indeterminate():
     for markers in (None, [object(), object()], [TurnMessageMarker([], turn_ref), TurnMessageMarker("assistant", turn_ref)]):
         result = reconcile_running_turn(turn_ref, markers)
         assert result.state is TurnIntakeState.INDETERMINATE_TURN
+
+
+def test_turn_coordinator_uses_one_operation_session_and_fences_lifecycle():
+    factory, binding, coordinator, _now = _turn_coordinator_fixture()
+
+    acquired = coordinator.acquire_turn(
+        owner="alice", stable_chat_handle="chat_a1b2c3d4", update_id=41, message_id=9, scope="normal"
+    )
+    assert acquired.status == "acquired"
+    assert acquired.intake is not None and acquired.intake.status is TurnIntakeState.RUNNING
+    assert isinstance(acquired.lease, TelegramTurnLease)
+    assert acquired.lease is not None
+    assert acquired.lease.lease_ref.startswith("h1_")
+    assert acquired.lease.token not in repr(acquired.lease)
+
+    busy = coordinator.acquire_turn(
+        owner="alice", stable_chat_handle="chat_a1b2c3d4", update_id=42, message_id=10, scope="normal"
+    )
+    assert busy.status == "lease_busy_local_active"
+    assert busy.intake is not None and busy.intake.status is TurnIntakeState.LEASE_RETRY
+
+    renewed = coordinator.renew_turn(acquired.lease)
+    assert renewed is not None and renewed.expires_at >= acquired.lease.expires_at
+    reply_pending = coordinator.mark_reply_persisted(renewed)
+    assert reply_pending.status is TurnIntakeState.REPLY_PENDING
+    completed = coordinator.complete_and_release(renewed)
+    assert completed.status is TurnIntakeState.COMPLETED
+
+    database = factory()
+    try:
+        row = database.execute(
+            database_module.TelegramSessionBinding.__table__.select().where(
+                database_module.TelegramSessionBinding.id == binding.id
+            )
+        ).mappings().one()
+        assert row["turn_lease_ref"] is None
+        assert row["active_turn_ref"] is None
+        assert row["turn_lease_expires_at"] is None
+        assert row["turn_started_at"] is None
+    finally:
+        database.close()
+
+    duplicate = coordinator.acquire_turn(
+        owner="alice", stable_chat_handle="chat_a1b2c3d4", update_id=41, message_id=9, scope="normal"
+    )
+    assert duplicate.status == "duplicate_completed"
+    assert coordinator.renew_turn(renewed) is None
+    assert coordinator.release_turn(renewed) is False
+    forged = TelegramTurnLease(
+        binding_id=renewed.binding_id,
+        generation=renewed.generation,
+        intake_id=renewed.intake_id,
+        lease_ref="h1_" + "0" * 32,
+        expires_at=renewed.expires_at,
+        token=renewed.token,
+    )
+    assert coordinator.renew_turn(forged) is None
+    assert coordinator.release_turn(forged) is False
+
+
+def test_turn_coordinator_rolls_back_and_closes_failed_operation():
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(bind=engine)
+    events = []
+
+    class TrackingOrmSession(OrmSession):
+        def commit(self):
+            events.append("commit")
+            return super().commit()
+
+        def rollback(self):
+            events.append("rollback")
+            return super().rollback()
+
+        def close(self):
+            events.append("close")
+            return super().close()
+
+    factory = sessionmaker(bind=engine, class_=TrackingOrmSession, autoflush=False)
+    coordinator = TelegramTurnCoordinator(
+        session_factory=factory,
+        config=RolloverConfig(enabled=True, reference_key=KEY, turn_lease_seconds=60),
+        now=lambda: datetime(2026, 7, 25, tzinfo=timezone.utc),
+    )
+    with pytest.raises(LedgerError, match="binding_not_found"):
+        coordinator.acquire_turn(
+            owner="alice", stable_chat_handle="chat_a1b2c3d4", update_id=1, message_id=1, scope="normal"
+        )
+    assert events == ["rollback", "close"]
+
+
+def test_disabled_turn_coordinator_never_opens_a_database_session():
+    opened = []
+
+    def factory():
+        opened.append(True)
+        raise AssertionError("disabled coordinator must not open a session")
+
+    coordinator = TelegramTurnCoordinator(
+        session_factory=factory,
+        config=RolloverConfig(enabled=False, reference_key=KEY),
+        now=lambda: datetime(2026, 7, 25, tzinfo=timezone.utc),
+    )
+    result = coordinator.acquire_turn(
+        owner="alice", stable_chat_handle="chat_a1b2c3d4", update_id=1, message_id=1, scope="normal"
+    )
+    assert result.status == "disabled"
+    assert opened == []
+
+
+def test_turn_coordinator_commits_and_closes_successful_operation():
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(bind=engine)
+    events = []
+
+    class TrackingOrmSession(OrmSession):
+        def commit(self):
+            events.append("commit")
+            return super().commit()
+
+        def rollback(self):
+            events.append("rollback")
+            return super().rollback()
+
+        def close(self):
+            events.append("close")
+            return super().close()
+
+    factory = sessionmaker(bind=engine, class_=TrackingOrmSession, autoflush=False)
+    database = factory()
+    database.add(Session(id="session-private-id", name="Synthetic", endpoint_url="http://synthetic.invalid", model="synthetic", owner="alice"))
+    ledger = TelegramRolloverLedger(database, KEY)
+    ledger.get_or_create_binding(
+        owner_reference=owner_ref(KEY, "alice"),
+        chat_reference=chat_handle_ref(KEY, "chat_a1b2c3d4"),
+        scope="normal",
+        active_session_id="session-private-id",
+        active_rollover_local_day="2026-07-24",
+    )
+    database.commit()
+    database.close()
+    events.clear()
+    coordinator = TelegramTurnCoordinator(
+        session_factory=factory,
+        config=RolloverConfig(enabled=True, reference_key=KEY, turn_lease_seconds=60),
+        now=lambda: datetime(2026, 7, 25, tzinfo=timezone.utc),
+    )
+    assert coordinator.acquire_turn(
+        owner="alice", stable_chat_handle="chat_a1b2c3d4", update_id=1, message_id=1, scope="normal"
+    ).status == "acquired"
+    assert events == ["commit", "close"]
+
+
+def test_turn_coordinator_reconciles_only_an_expired_nonlocal_running_turn(monkeypatch):
+    factory, binding, coordinator, now = _turn_coordinator_fixture()
+    acquired = coordinator.acquire_turn(
+        owner="alice", stable_chat_handle="chat_a1b2c3d4", update_id=51, message_id=11, scope="normal"
+    )
+    assert acquired.lease is not None and acquired.intake is not None
+    database = factory()
+    try:
+        database.execute(
+            update(database_module.TelegramSessionBinding.__table__)
+            .where(database_module.TelegramSessionBinding.id == binding.id)
+            .values(turn_lease_expires_at=(now - timedelta(seconds=1)).replace(tzinfo=None))
+        )
+        database.commit()
+    finally:
+        database.close()
+
+    import src.telegram_session_rollover as rollover_module
+
+    rollover_module._ACTIVE_TELEGRAM_TURN_IDS.discard(acquired.intake.id)
+    reconciled = coordinator.reconcile_crashed_turn(
+        owner="alice",
+        stable_chat_handle="chat_a1b2c3d4",
+        update_id=51,
+        message_id=11,
+        markers=[
+            TurnMessageMarker("user", acquired.intake.id),
+            TurnMessageMarker("assistant", acquired.intake.id),
+        ],
+    )
+    assert reconciled.status == "reconciled_reply_pending"
+    assert reconciled.intake is not None and reconciled.intake.status is TurnIntakeState.REPLY_PENDING
+
+
+def test_turn_coordinator_never_steals_an_expired_locally_active_turn():
+    factory, binding, coordinator, now = _turn_coordinator_fixture()
+    winner = coordinator.acquire_turn(
+        owner="alice", stable_chat_handle="chat_a1b2c3d4", update_id=61, message_id=12, scope="normal"
+    )
+    assert winner.lease is not None
+    database = factory()
+    try:
+        database.execute(
+            update(database_module.TelegramSessionBinding.__table__)
+            .where(database_module.TelegramSessionBinding.id == binding.id)
+            .values(turn_lease_expires_at=(now - timedelta(seconds=1)).replace(tzinfo=None))
+        )
+        database.commit()
+    finally:
+        database.close()
+    blocked = coordinator.acquire_turn(
+        owner="alice", stable_chat_handle="chat_a1b2c3d4", update_id=62, message_id=13, scope="normal"
+    )
+    assert blocked.status == "lease_busy_local_active"
+    assert blocked.intake is not None and blocked.intake.status is TurnIntakeState.LEASE_RETRY
+    database = factory()
+    try:
+        row = database.execute(
+            database_module.TelegramSessionBinding.__table__.select().where(
+                database_module.TelegramSessionBinding.id == binding.id
+            )
+        ).mappings().one()
+        assert row["active_turn_ref"] == winner.lease.intake_id
+        assert row["turn_lease_ref"] == winner.lease.lease_ref
+    finally:
+        database.close()
+    import src.telegram_session_rollover as rollover_module
+
+    rollover_module._ACTIVE_TELEGRAM_TURN_IDS.discard(winner.lease.intake_id)
+
+
+def test_turn_coordinator_fences_expired_nonlocal_running_turn_until_reconciliation():
+    factory, binding, coordinator, now = _turn_coordinator_fixture()
+    old = coordinator.acquire_turn(
+        owner="alice", stable_chat_handle="chat_a1b2c3d4", update_id=63, message_id=16, scope="normal"
+    )
+    assert old.lease is not None and old.intake is not None
+    database = factory()
+    try:
+        database.execute(
+            update(database_module.TelegramSessionBinding.__table__)
+            .where(database_module.TelegramSessionBinding.id == binding.id)
+            .values(turn_lease_expires_at=(now - timedelta(seconds=1)).replace(tzinfo=None))
+        )
+        database.commit()
+    finally:
+        database.close()
+    import src.telegram_session_rollover as rollover_module
+
+    rollover_module._ACTIVE_TELEGRAM_TURN_IDS.discard(old.intake.id)
+    contender = coordinator.acquire_turn(
+        owner="alice", stable_chat_handle="chat_a1b2c3d4", update_id=64, message_id=17, scope="normal"
+    )
+    assert contender.status == "expired_turn_reconciliation_required"
+    assert contender.intake is not None and contender.intake.status is TurnIntakeState.LEASE_RETRY
+    database = factory()
+    try:
+        old_row = database.execute(
+            database_module.TelegramTurnIntake.__table__.select().where(
+                database_module.TelegramTurnIntake.id == old.intake.id
+            )
+        ).mappings().one()
+        binding_row = database.execute(
+            database_module.TelegramSessionBinding.__table__.select().where(
+                database_module.TelegramSessionBinding.id == binding.id
+            )
+        ).mappings().one()
+        assert old_row["status"] == TurnIntakeState.RUNNING.value
+        assert binding_row["active_turn_ref"] == old.intake.id
+        assert binding_row["turn_lease_ref"] == old.lease.lease_ref
+    finally:
+        database.close()
+    recovered = coordinator.reconcile_crashed_turn(
+        owner="alice",
+        stable_chat_handle="chat_a1b2c3d4",
+        update_id=63,
+        message_id=16,
+        markers=[TurnMessageMarker("user", old.intake.id), TurnMessageMarker("assistant", old.intake.id)],
+    )
+    assert recovered.status == "reconciled_reply_pending"
+    resumed = coordinator.acquire_turn(
+        owner="alice", stable_chat_handle="chat_a1b2c3d4", update_id=64, message_id=17, scope="normal"
+    )
+    assert resumed.status == "acquired"
+
+
+def test_turn_coordinator_nonlocal_unexpired_lease_uses_its_real_retry_deadline():
+    factory, binding, coordinator, _now = _turn_coordinator_fixture()
+    old = coordinator.acquire_turn(
+        owner="alice", stable_chat_handle="chat_a1b2c3d4", update_id=65, message_id=18, scope="normal"
+    )
+    assert old.lease is not None and old.intake is not None
+    import src.telegram_session_rollover as rollover_module
+
+    rollover_module._ACTIVE_TELEGRAM_TURN_IDS.discard(old.intake.id)
+    contender = coordinator.acquire_turn(
+        owner="alice", stable_chat_handle="chat_a1b2c3d4", update_id=66, message_id=19, scope="normal"
+    )
+    assert contender.status == "lease_busy"
+    assert contender.intake is not None
+    assert contender.intake.status is TurnIntakeState.LEASE_RETRY
+    assert contender.intake.next_retry_at == old.lease.expires_at
+    database = factory()
+    try:
+        binding_row = database.execute(
+            database_module.TelegramSessionBinding.__table__.select().where(
+                database_module.TelegramSessionBinding.id == binding.id
+            )
+        ).mappings().one()
+        assert binding_row["active_turn_ref"] == old.intake.id
+        assert binding_row["turn_lease_ref"] == old.lease.lease_ref
+        assert binding_row["turn_lease_expires_at"] == old.lease.expires_at
+    finally:
+        database.close()
+
+
+def test_turn_coordinator_reconciles_non_exact_pair_to_terminal_indeterminate():
+    factory, binding, coordinator, now = _turn_coordinator_fixture()
+    acquired = coordinator.acquire_turn(
+        owner="alice", stable_chat_handle="chat_a1b2c3d4", update_id=71, message_id=14, scope="normal"
+    )
+    assert acquired.intake is not None
+    database = factory()
+    try:
+        database.execute(
+            update(database_module.TelegramSessionBinding.__table__)
+            .where(database_module.TelegramSessionBinding.id == binding.id)
+            .values(turn_lease_expires_at=(now - timedelta(seconds=1)).replace(tzinfo=None))
+        )
+        database.commit()
+    finally:
+        database.close()
+    import src.telegram_session_rollover as rollover_module
+
+    rollover_module._ACTIVE_TELEGRAM_TURN_IDS.discard(acquired.intake.id)
+    reconciled = coordinator.reconcile_crashed_turn(
+        owner="alice",
+        stable_chat_handle="chat_a1b2c3d4",
+        update_id=71,
+        message_id=14,
+        markers=[TurnMessageMarker("user", acquired.intake.id)],
+    )
+    assert reconciled.status == "reconciled_indeterminate"
+    assert reconciled.intake is not None
+    assert reconciled.intake.status is TurnIntakeState.INDETERMINATE_TURN
+
+
+def test_turn_coordinator_refuses_to_reconcile_an_old_intake_after_binding_cutover():
+    factory, binding, coordinator, now = _turn_coordinator_fixture()
+    acquired = coordinator.acquire_turn(
+        owner="alice", stable_chat_handle="chat_a1b2c3d4", update_id=81, message_id=15, scope="normal"
+    )
+    assert acquired.intake is not None
+    database = factory()
+    try:
+        database.add(Session(id="replacement-session", name="Synthetic", endpoint_url="http://synthetic.invalid", model="synthetic", owner="alice"))
+        database.flush()
+        database.execute(
+            update(database_module.TelegramSessionBinding.__table__)
+            .where(database_module.TelegramSessionBinding.id == binding.id)
+            .values(
+                active_session_id="replacement-session",
+                generation=1,
+                turn_lease_expires_at=(now - timedelta(seconds=1)).replace(tzinfo=None),
+            )
+        )
+        database.commit()
+    finally:
+        database.close()
+    import src.telegram_session_rollover as rollover_module
+
+    rollover_module._ACTIVE_TELEGRAM_TURN_IDS.discard(acquired.intake.id)
+    refused = coordinator.reconcile_crashed_turn(
+        owner="alice",
+        stable_chat_handle="chat_a1b2c3d4",
+        update_id=81,
+        message_id=15,
+        markers=[
+            TurnMessageMarker("user", acquired.intake.id),
+            TurnMessageMarker("assistant", acquired.intake.id),
+        ],
+    )
+    assert refused.status == "stale_binding_fence"
+    assert refused.intake is not None and refused.intake.status is TurnIntakeState.RUNNING
+
+
+def test_turn_coordinator_concurrent_updates_choose_one_winner_and_one_busy(tmp_path):
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'turn-coordinator.sqlite'}",
+        connect_args={"check_same_thread": False},
+    )
+    try:
+        Base.metadata.create_all(bind=engine)
+        factory = sessionmaker(bind=engine, autoflush=False)
+        database = factory()
+        try:
+            database.add(Session(id="session-private-id", name="Synthetic", endpoint_url="http://synthetic.invalid", model="synthetic", owner="alice"))
+            ledger = TelegramRolloverLedger(database, KEY)
+            ledger.get_or_create_binding(
+                owner_reference=owner_ref(KEY, "alice"),
+                chat_reference=chat_handle_ref(KEY, "chat_a1b2c3d4"),
+                scope="normal",
+                active_session_id="session-private-id",
+                active_rollover_local_day="2026-07-24",
+            )
+            database.commit()
+        finally:
+            database.close()
+        coordinator = TelegramTurnCoordinator(
+            session_factory=factory,
+            config=RolloverConfig(enabled=True, reference_key=KEY, turn_lease_seconds=60),
+            now=lambda: datetime(2026, 7, 25, tzinfo=timezone.utc),
+        )
+        barrier = threading.Barrier(2)
+        results = []
+
+        def acquire(update_id):
+            barrier.wait()
+            results.append(coordinator.acquire_turn(
+                owner="alice", stable_chat_handle="chat_a1b2c3d4", update_id=update_id, message_id=update_id, scope="normal"
+            ).status)
+
+        workers = [threading.Thread(target=acquire, args=(91,)), threading.Thread(target=acquire, args=(92,))]
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join(timeout=10)
+            assert not worker.is_alive()
+        assert results.count("acquired") == 1
+        assert len(results) == 2
+        assert next(status for status in results if status != "acquired").startswith("lease_busy")
+    finally:
+        engine.dispose()
