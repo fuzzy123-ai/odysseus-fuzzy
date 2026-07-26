@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-26T15:35:46+02:00",
-  "status": "recent_changes_docker_publish_executable_docs_filter_repair_accepted_publish_pending",
+  "updated_at": "2026-07-26T16:03:09+02:00",
+  "status": "recent_changes_debian_local_build_manifest_repair_accepted_publish_pending",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -95,6 +95,73 @@
       "verified_at": "2026-07-24"
     },
     "active_claimed_slices": [],
+    "latest_recent_changes_debian_local_build_manifest_handoff": {
+      "run_id": "abc-debian-local-build-release-manifest-20260726T155851+0200",
+      "slice_id": "RCH-Debian-local-build-release-manifest",
+      "owner": "/root",
+      "state": "released_accepted_repo_only",
+      "released_at": "2026-07-26T16:03:09+02:00",
+      "observed_live_gap": {
+        "deployed_revision": "ca33436421c467037254c887b406d15004e4677e",
+        "version_matches_expected": true,
+        "health_http": 200,
+        "health_status": "healthy",
+        "chroma_http": 200,
+        "manifest_file_exists": false,
+        "image_revision_present": false,
+        "recent_changes_evidence_source": "filesystem_mtime",
+        "recent_changes_evidence_state": "degraded"
+      },
+      "root_cause": "the Debian auto-updater builds the production container locally from the checkout, while release-manifest generation and ODYSSEUS_RELEASE_REVISION were previously wired only into the GitHub multi-arch build; the already-current fast path also checked only API commit identity",
+      "repair": [
+        "generate the canonical manifest after the updater fast-forward and before its local Compose build",
+        "export the exact post-pull HEAD and pass it through Compose as the Docker build argument",
+        "allow the already-current fast path only when the in-container manifest is present valid and bound to the image revision"
+      ],
+      "changed_paths": [
+        "docker-compose.yml",
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "ops/homeserver/install-auto-update-timer.sh",
+        "tests/test_homeserver_auto_update_timer.py"
+      ],
+      "tests": {
+        "updater_and_release_workflow_contracts": "7 passed with one existing SQLAlchemy deprecation warning",
+        "release_manifest_contracts": "5 passed with one existing SQLAlchemy deprecation warning after rerun outside the Windows temp-directory sandbox",
+        "initial_release_manifest_test_attempts": "not_product_failures_due_to_Windows_temp_directory_permission_denial",
+        "bash_syntax": "pass",
+        "compose_yaml": "pass",
+        "roadmap_json_parse": "pass",
+        "git_diff_check": "pass",
+        "broad_local_pytest": "not_run_by_operator_request"
+      },
+      "review": {
+        "depth": "deep",
+        "reviewer": "/root",
+        "result": "pass",
+        "positive_path": "post-pull manifest generation and exact revision build argument precede local compose build",
+        "negative_paths": [
+          "missing container",
+          "missing image revision",
+          "missing invalid or revision-mismatched manifest",
+          "already-current checkout with stale runtime evidence"
+        ]
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "actual_master": "surface_default",
+        "worker": "not_used_root_owned_deployment_integration_repair",
+        "skills": [
+          "abc"
+        ]
+      },
+      "not_verified": [
+        "exact repair commit GitHub Required CI",
+        "exact repair commit Docker image publication",
+        "updated Debian updater installation",
+        "second Debian deployment and live release-manifest readback"
+      ],
+      "next_action": "commit_and_push_the_exact_four_path_repair_require_both_exact_github_workflows_green_then_install_the_reviewed_updater_and_run_one_deployment_only_with_action_specific_live_authority"
+    },
     "latest_recent_changes_docker_publish_filter_repair_handoff": {
       "run_id": "abc-ci-docker-publish-json-contract-trigger-20260726T153431+0200",
       "slice_id": "CI-docker-publish-executable-docs-filter-repair",

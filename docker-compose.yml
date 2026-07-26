@@ -7,6 +7,7 @@ services:
         INSTALL_OFFICE: ${INSTALL_OFFICE:-false}
         INSTALL_STT: ${INSTALL_STT:-false}
         INSTALL_OCR: ${INSTALL_OCR:-false}
+        ODYSSEUS_RELEASE_REVISION: ${ODYSSEUS_RELEASE_REVISION:-}
     ports:
       - "${APP_BIND:-127.0.0.1}:${APP_PORT:-7000}:7000"
     volumes:

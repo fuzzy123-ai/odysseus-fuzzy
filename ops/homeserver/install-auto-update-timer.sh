@@ -100,6 +100,41 @@ compose_up() {
   fi
 }
 
+prepare_release_manifest() {
+  local revision="$1"
+  local ref="$2"
+  python3 scripts/generate_release_manifest.py \
+    --repo . \
+    --output runtime/release-manifest.json \
+    --revision "$revision" \
+    --ref "$ref" \
+    --max-commits 100
+  export ODYSSEUS_RELEASE_REVISION="$revision"
+}
+
+runtime_release_manifest_ready() {
+  podman container exists odysseus_odysseus_1 >/dev/null 2>&1 || return 1
+  podman exec odysseus_odysseus_1 python -c '
+import os
+from src.constants import RELEASE_MANIFEST_FILE
+from src.release_manifest import read_release_manifest
+
+expected = os.getenv("ODYSSEUS_RELEASE_REVISION") or ""
+document, state = read_release_manifest(
+    RELEASE_MANIFEST_FILE,
+    expected_revision=expected or None,
+)
+raise SystemExit(
+    0
+    if expected
+    and state == "ready"
+    and document
+    and document.get("revision") == expected
+    else 1
+)
+' >/dev/null 2>&1
+}
+
 refresh_tool_capability_knowledge() {
   local commit="$1"
   if podman container exists odysseus_odysseus_1 >/dev/null 2>&1; then
@@ -145,8 +180,11 @@ if [[ "$local_commit" == "$remote_commit" ]]; then
   version_json="$(curl -fsS "$APP_URL/api/version" 2>/dev/null || true)"
   case "$version_json" in
     *"\"commit\":\"$short_commit\""*)
-      log "already current at $short_commit"
-      exit 0
+      if runtime_release_manifest_ready; then
+        log "already current at $short_commit with a valid release manifest"
+        exit 0
+      fi
+      log "checkout and runtime are current at $short_commit but release manifest is stale or unavailable; rebuilding deployment"
       ;;
     *)
       log "checkout is current at $short_commit but runtime is stale or unavailable; rebuilding deployment"
@@ -176,6 +214,10 @@ git pull --ff-only
 
 log "refreshing git metadata env"
 ops/homeserver/update-odysseus-version-env.sh
+
+release_revision="$(git rev-parse HEAD)"
+log "generating revision-bound release manifest"
+prepare_release_manifest "$release_revision" "$current_branch"
 
 log "rebuilding podman deployment"
 compose_up
