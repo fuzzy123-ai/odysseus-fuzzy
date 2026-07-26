@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-26T16:03:09+02:00",
-  "status": "recent_changes_debian_local_build_manifest_repair_accepted_publish_pending",
+  "updated_at": "2026-07-26T16:10:50+02:00",
+  "status": "recent_changes_gpu_compose_release_revision_parity_repair_accepted_publish_pending",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -95,6 +95,53 @@
       "verified_at": "2026-07-24"
     },
     "active_claimed_slices": [],
+    "latest_recent_changes_gpu_compose_parity_handoff": {
+      "run_id": "abc-ci-gpu-compose-release-revision-parity-20260726T161002+0200",
+      "slice_id": "CI-GPU-compose-release-revision-parity",
+      "owner": "/root",
+      "state": "released_accepted_repo_only",
+      "released_at": "2026-07-26T16:10:50+02:00",
+      "failed_head_sha": "bd1cd058d0de344ae9215b55103d9d0b76034c43",
+      "failed_required_ci_run": 30205340915,
+      "failed_docker_publish_run": 30205340898,
+      "failing_node": "tests/test_gpu_compose_standalone.py::test_nvidia_standalone_equals_base_plus_overlay",
+      "root_cause": "the base Compose file gained the release revision build argument while the standalone NVIDIA and AMD files intentionally mirror base plus their overlays and had not been included in the prior path claim",
+      "repair": "add the identical bounded release revision build argument to both standalone GPU Compose variants; no runtime Python or updater control flow changed",
+      "changed_paths": [
+        "docker-compose.gpu-amd.yml",
+        "docker-compose.gpu-nvidia.yml",
+        "docs/plans/open-work-completion-master-roadmap.json"
+      ],
+      "tests": {
+        "complete_gpu_compose_parity_file": "8 passed with one existing SQLAlchemy deprecation warning",
+        "gpu_compose_yaml": "pass",
+        "roadmap_json_parse": "pass",
+        "git_diff_check": "pass",
+        "broad_local_pytest": "not_run_by_operator_request"
+      },
+      "review": {
+        "depth": "deep",
+        "reviewer": "/root",
+        "result": "pass",
+        "scope": "exact base-to-standalone build-argument parity"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "actual_master": "surface_default",
+        "worker": "not_used_root_owned_shared_compose_parity_repair",
+        "skills": [
+          "abc",
+          "github:gh-fix-ci"
+        ]
+      },
+      "not_verified": [
+        "exact repair commit GitHub Required CI",
+        "exact repair commit Docker image publication",
+        "updated Debian updater installation",
+        "final Debian deployment and live release-manifest readback"
+      ],
+      "next_action": "commit_and_push_the_exact_three_path_parity_repair_require_both_exact_github_workflows_green_then_continue_the_gated_Debian_updater_install_and_deploy_sequence"
+    },
     "latest_recent_changes_debian_local_build_manifest_handoff": {
       "run_id": "abc-debian-local-build-release-manifest-20260726T155851+0200",
       "slice_id": "RCH-Debian-local-build-release-manifest",
