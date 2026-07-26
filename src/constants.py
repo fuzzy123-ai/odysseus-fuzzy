@@ -62,6 +62,12 @@ RELEASE_MANIFEST_FILE = os.getenv(
 )
 TOOL_CAPABILITY_KNOWLEDGE_DIR = os.path.join(DATA_DIR, "tool_capability_knowledge")
 TOOL_CAPABILITY_RAPTORGRAPH_DIR = os.path.join(DATA_DIR, "tool_capability_raptorgraph")
+# Unified Source Index storage remains isolated from legacy app databases.  The
+# runtime configuration module validates any configurable path against DATA_DIR
+# before it can be used; these constants are only the default location.
+UNIFIED_SOURCE_INDEX_RELATIVE_DB_PATH = os.path.join("unified_source_index", "runtime.sqlite3")
+UNIFIED_SOURCE_INDEX_DIR = os.path.join(DATA_DIR, os.path.dirname(UNIFIED_SOURCE_INDEX_RELATIVE_DB_PATH))
+UNIFIED_SOURCE_INDEX_DB_FILE = os.path.join(DATA_DIR, UNIFIED_SOURCE_INDEX_RELATIVE_DB_PATH)
 
 # Paths with an intentional dedicated env override, defaulting under DATA_DIR.
 MAIL_ATTACHMENTS_DIR = os.getenv("ODYSSEUS_MAIL_ATTACHMENTS_DIR", os.path.join(DATA_DIR, "mail-attachments"))

@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Mapping, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, field_validator
 
@@ -205,6 +205,24 @@ def validate_config():
     
     # Create directories
     create_directories()
+
+
+def get_unified_source_index_runtime_config(
+    environ: Mapping[str, str] | None = None,
+    *,
+    data_root: str | Path | None = None,
+):
+    """Build the default-off Unified Source Index configuration on demand.
+
+    This intentionally does not initialize a store, provider, worker, or
+    query route.  Callers must perform their own future composition and live
+    authorization checks.
+    """
+    from src.unified_source_index_runtime_config import (
+        UnifiedSourceIndexRuntimeConfig,
+    )
+
+    return UnifiedSourceIndexRuntimeConfig.from_environment(environ, data_root=data_root)
 
 # Initialize configuration
 validate_config()
