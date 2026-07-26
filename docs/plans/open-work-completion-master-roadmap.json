@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-26T10:10:22+02:00",
+  "updated_at": "2026-07-26T10:43:14+02:00",
   "status": "ttd07a5c2_accepted_00e3029f_a5c3_final_integration_active_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -85,11 +85,11 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-07A5C2 is accepted at 00e3029f with focused pre-fetch sweep, durable lease renewal, exact busy-offset hold, duplicate retry and fail-closed reply evidence. Execute only A5C3 webhook/control and the original five final integration nodes.",
+        "reason": "TTD-07A5C2 is accepted at 00e3029f with focused pre-fetch sweep, durable lease renewal, exact busy-offset hold, duplicate retry and fail-closed reply evidence. Execute A5C3 webhook/control and the original five final integration nodes, including the one-path polling crash-window correction found by deep final Sol review.",
         "slice": "TTD-07A5C3-webhook-control-and-final-integration",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "implement_only_the_eight_path_a5c3_final_integration_claim_without_feature_activation_provider_send_or_live_mutation"
+        "safe_default": "implement_only_the_nine_path_a5c3_final_integration_and_polling_crash_window_correction_without_feature_activation_provider_send_or_live_mutation"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-24"
@@ -102,6 +102,7 @@
         "lease_expires_at": "2026-07-26T14:10:22+02:00",
         "allowed_paths": [
           "app.py",
+          "plugins/telegram/polling.py",
           "plugins/telegram/plugin.py",
           "plugins/telegram/webhook_service.py",
           "plugins/telegram/control_service.py",
@@ -1084,7 +1085,7 @@
       "safe_default": "build_and_test_against_synthetic_notes_memory_and_telegram_fixtures_no_production_data_write_deploy_or_send",
       "user_gate_policy": "No user gate in TTD-00 through TTD-10, including TTD-07A. Repository work uses synthetic owner-scoped data and keeps all live actions disabled. Deployment, production data repair, Telegram smoke and productive session rollover are four separate dormant action-specific gates and each requires its own later operator Go.",
       "execution_protocol": {
-        "queue_registration": "TTD-00 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A5C2 are accepted. The disjoint eight-path TTD-07A5C3 final-integration claim is active; TTD-07A6 remains dependency-blocked. TTD-08C attachment work remains deferred pending a lifecycle owner and narrow delete authority, and TTD-09 through TTD-10 remain blocked_by_dependency.",
+        "queue_registration": "TTD-00 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A5C2 are accepted. The nine-path TTD-07A5C3 final-integration claim includes the exact polling crash-window correction found by final Sol review; TTD-07A6 remains dependency-blocked. TTD-08C attachment work remains deferred pending a lifecycle owner and narrow delete authority, and TTD-09 through TTD-10 remain blocked_by_dependency.",
         "dependency_rule": "Notes remains Todo truth; manage_todos is a domain facade over Notes, Memory rejects Todo storage, Telegram preserves semantic receipts, and every Digest claim requires a read-only include/exclude/schedule postcondition. Daily session rollover limits context but never substitutes old chat prose for domain readback.",
         "scheduling_decision": {
           "operator_priority_effective_at": "2026-07-21",
@@ -5497,6 +5498,7 @@
           "owner": "Bob",
           "allowed_paths": [
             "app.py",
+            "plugins/telegram/polling.py",
             "plugins/telegram/plugin.py",
             "plugins/telegram/webhook_service.py",
             "plugins/telegram/control_service.py",
@@ -5509,7 +5511,7 @@
           "acquired_at": "2026-07-26T10:10:22+02:00",
           "lease_expires_at": "2026-07-26T14:10:22+02:00",
           "forbidden": [
-            "plugins/telegram/polling.py routes_polling.py stores.py and all nonclaimed paths",
+            "plugins/telegram/routes_polling.py stores.py and all nonclaimed paths",
             "the rejected stash divergent prior art and broad tests",
             "feature activation continuity network provider Telegram send push deploy Debian and every live mutation"
           ]

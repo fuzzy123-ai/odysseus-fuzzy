@@ -770,6 +770,11 @@ The rejected eleven-path implementation is replaced by three serial claims:
 - `TTD-07A5C3-webhook-control-and-final-integration`: only after C2
   acceptance; wire webhook 503 retry, duplicate recovery, guarded control
   mutations, and the original five A5 acceptance nodes as the final gate.
+  Deep final Sol review expanded this claim by exactly
+  `plugins/telegram/polling.py`: after `reply_pending`, the accepted C2 adapter
+  released its lease without the same exact outbound-evidence completion used
+  by the webhook. The correction must share that content-free crash-window
+  contract and may not change offsets, provider behavior, or feature defaults.
 
 Each child requires a fresh durable claim and deep Sol review. No child may
 resume the rejected stash or divergent prior art, and no child may enable live
