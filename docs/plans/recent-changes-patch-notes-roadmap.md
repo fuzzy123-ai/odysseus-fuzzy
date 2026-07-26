@@ -29,10 +29,13 @@ Odysseus bekommt eine persistente, agent-lesbare Aenderungshistorie. Der Agent k
 - `src/system_update_status.py` verknuepft Recent Changes mit Update-Status und Update-Check.
 - `static/js/admin.js` zeigt im Update-Bereich eine erste Patch-Notes-Historie aus dem Update-Status.
 - `tests/test_recent_changes.py` und `tests/test_system_update_status.py` decken Collector, Dedupe und Update-Status-Integration ab.
-- `src/release_manifest.py` und der Docker-Publish erzeugen ein gehashtes,
-  redigiertes Manifest fuer den exakten Image-SHA. Container ohne `.git`
-  verwenden es als autoritative Patchnotes-Quelle; Revision-Mismatch oder
-  fehlende Evidenz werden sichtbar als `degraded` ausgewiesen.
+- `src/release_manifest.py` und der optionale OCI-Publish-Workflow erzeugen
+  ein gehashtes, redigiertes Manifest fuer den exakten Image-SHA. Der
+  produktive Debian-Host baut und startet Odysseus lokal mit Podman und ist
+  nicht von diesem optionalen Registry-Artefakt abhaengig. Container ohne
+  `.git` verwenden das Manifest als autoritative Patchnotes-Quelle;
+  Revision-Mismatch oder fehlende Evidenz werden sichtbar als `degraded`
+  ausgewiesen.
 
 ## Non-Goals
 
@@ -53,7 +56,7 @@ Odysseus bekommt eine persistente, agent-lesbare Aenderungshistorie. Der Agent k
 | `RCH5-retention-and-automation` | `done` | Bob/Charlie | Snapshot-Policy festlegen: startup, update-check, pre-update, post-update, Retention und Dedupe. | `src/`, `routes/`, `tests/`, `docs/plans/` | done: `22 passed, 1 warning` | no live update action |
 | `RCH6-agent-behavior-gates` | `done` | Bob | Sicherstellen, dass Fragen nach "letzte 12h", "Neuerungen", "Patch Notes" und "Updates" das Tool nutzen. | `src/agent_loop_intent.py`, `tests/test_recent_changes_agent_routing.py` | done: `21 passed, 1 warning` | none |
 | `RCH7-security-privacy-closeout` | `done` | Charlie/Bob | Admin-only, Redaction, Secret-/Log-/Data-Excludes und Export-Sprache pruefen. | `src/recent_changes.py`, `routes/recent_changes_routes.py`, `src/tool_domains/repo_skills.py`, `src/system_update_status.py`, `tests/` | done: `31 passed, 1 warning` | none |
-| `RCH8-revision-bound-release-manifest` | `done` | `/root` | CI erzeugt pro Image-SHA ein redigiertes First-Parent-Manifest; Runtime nutzt es ohne `.git` und faellt bei fehlender oder fremder Evidence sichtbar aus. | `src/release_manifest.py`, `src/recent_changes.py`, `scripts/generate_release_manifest.py`, `Dockerfile`, Docker-Publish, fokussierte Tests | done: `49 passed, 2 existing warnings`; real-repo/no-git smoke ready | publish/live not part of repo-only slice |
+| `RCH8-revision-bound-release-manifest` | `done` | `/root` | CI erzeugt pro Image-SHA ein redigiertes First-Parent-Manifest; Runtime nutzt es ohne `.git` und faellt bei fehlender oder fremder Evidence sichtbar aus. | `src/release_manifest.py`, `src/recent_changes.py`, `scripts/generate_release_manifest.py`, `Dockerfile`, optionaler OCI-Publish, fokussierte Tests | done: `49 passed, 2 existing warnings`; real-repo/no-git smoke und produktives Modell-E2E bestaetigt | publish/live completed separately |
 
 ## Progress Evidence
 
@@ -63,8 +66,8 @@ Status: done repo-only 2026-07-26.
 
 Implemented:
 
-- Der Docker-Publish erzeugt vor jedem Architektur-Build dasselbe
-  `runtime/release-manifest.json` fuer den exakten `github.sha`.
+- Der manuell gestartete OCI-Publish erzeugt vor jedem Architektur-Build
+  dasselbe `runtime/release-manifest.json` fuer den exakten `github.sha`.
 - Das Manifest enthaelt hoechstens 100 First-Parent-Commits, redigierte
   Conventional-Commit-Kategorien, begrenzte repo-relative Pfade, Areas,
   Coverage-Metadaten und einen kanonischen SHA-256-Inhaltsdigest.
@@ -93,6 +96,16 @@ Real-repo smoke:
 - `100` bounded First-Parent commits, `8` areas, digest validation `ready`
 - No-Git runtime projection: `release_manifest/ready`, `46` commits in 24h,
   `65` changed paths, `0` filesystem-mtime rows
+
+Live operator evidence (2026-07-26):
+
+- Debian lieferte fuer die deployte Revision
+  `897503c705c6e081bc551b957b91c9ca9459b2b8`
+  `release_manifest/ready` mit exakt gebundener Revision.
+- Der Nutzer pruefte anschliessend die produktive Modellfrage nach Neuerungen
+  im echten Odysseus-Chat und bestaetigte die korrekte Antwort.
+- Debian verwendet den lokalen Podman-Buildpfad. GHCR-Multiarch-Publikation
+  bleibt eine optionale, explizit manuell gestartete Distribution.
 
 ### RCH4 Change Quality
 

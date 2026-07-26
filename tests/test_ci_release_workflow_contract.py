@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_DIR = ROOT / ".github" / "workflows"
 CI_PATH = WORKFLOW_DIR / "ci.yml"
 QUALITY_GATE_PATH = WORKFLOW_DIR / "quality-gate.yml"
-DOCKER_PUBLISH_PATH = WORKFLOW_DIR / "docker-publish.yml"
+OCI_PUBLISH_PATH = WORKFLOW_DIR / "docker-publish.yml"  # Legacy filename; OCI artifact.
 DOCKERFILE_PATH = ROOT / "Dockerfile"
 DOCKERIGNORE_PATH = ROOT / ".dockerignore"
 GITIGNORE_PATH = ROOT / ".gitignore"
@@ -148,15 +148,20 @@ def test_python_test_job_provisions_and_checks_the_pinned_temporal_cli() -> None
     assert steps[pytest_index]["run"] == "python -m pytest -q --maxfail=1"
 
 
-def test_docker_publication_has_a_same_run_exact_commit_gate() -> None:
-    workflow = _load_workflow(DOCKER_PUBLISH_PATH)
-    source = DOCKER_PUBLISH_PATH.read_text(encoding="utf-8")
+def test_oci_publication_is_manual_ref_bounded_and_exact_commit_gated() -> None:
+    workflow = _load_workflow(OCI_PUBLISH_PATH)
+    source = OCI_PUBLISH_PATH.read_text(encoding="utf-8")
     jobs = workflow["jobs"]
-    ignored_paths = set(workflow["on"]["push"]["paths-ignore"])
+    triggers = workflow["on"]
+    validation = jobs["validate-ref"]["steps"][0]["run"]
 
-    assert set(workflow["on"]["push"]["branches"]) == {"dev", "main"}
-    assert ignored_paths == {"**.md", ".github/ISSUE_TEMPLATE/**"}
+    assert set(triggers) == {"workflow_dispatch"}
+    assert "push" not in triggers
     assert "workflow_run" not in source
+    assert 'case "$GITHUB_REF" in' in validation
+    assert "refs/heads/dev|refs/heads/main" in validation
+    assert "exit 1" in validation
+    assert _needs(jobs["quality-gate"]) == {"validate-ref"}
     assert jobs["quality-gate"]["uses"] == REUSABLE_GATE
     assert jobs["quality-gate"]["permissions"] == {"contents": "read"}
     assert _needs(jobs["build"]) == {"quality-gate"}
@@ -176,8 +181,8 @@ def test_docker_publication_has_a_same_run_exact_commit_gate() -> None:
         assert "failure()" not in json.dumps(jobs[job_id])
 
 
-def test_docker_build_generates_revision_bound_release_manifest() -> None:
-    workflow = _load_workflow(DOCKER_PUBLISH_PATH)
+def test_oci_build_generates_revision_bound_release_manifest() -> None:
+    workflow = _load_workflow(OCI_PUBLISH_PATH)
     steps = workflow["jobs"]["build"]["steps"]
     names = [step.get("name") for step in steps]
     python_index = names.index("Set up release-manifest Python")
@@ -228,7 +233,7 @@ def test_docker_build_generates_revision_bound_release_manifest() -> None:
 
 
 def test_required_workflows_have_no_advisory_escape_hatch() -> None:
-    for path in (CI_PATH, QUALITY_GATE_PATH, DOCKER_PUBLISH_PATH):
+    for path in (CI_PATH, QUALITY_GATE_PATH, OCI_PUBLISH_PATH):
         workflow = _load_workflow(path)
         serialized = json.dumps(workflow)
         assert "continue-on-error" not in serialized, path.name

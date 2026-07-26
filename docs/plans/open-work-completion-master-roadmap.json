@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-26T16:10:50+02:00",
-  "status": "recent_changes_gpu_compose_release_revision_parity_repair_accepted_publish_pending",
+  "updated_at": "2026-07-26T16:50:47+02:00",
+  "status": "oci_publish_manual_only_accepted_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -95,6 +95,59 @@
       "verified_at": "2026-07-24"
     },
     "active_claimed_slices": [],
+    "latest_oci_publish_manual_only_handoff": {
+      "run_id": "abc-oci-publish-manual-only-20260726T164901+0200",
+      "slice_id": "CI-OCI-publish-manual-only",
+      "roadmap": "docs/plans/open-work-completion-master-roadmap.json",
+      "owner": "/root",
+      "state": "released_accepted_repo_only",
+      "lease_started_at": "2026-07-26T16:49:01+02:00",
+      "lease_expires_at": "2026-07-26T20:49:01+02:00",
+      "released_at": "2026-07-26T16:50:47+02:00",
+      "base_commit": "897503c705c6e081bc551b957b91c9ca9459b2b8",
+      "changed_paths": [
+        ".github/workflows/docker-publish.yml",
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/recent-changes-patch-notes-roadmap.md",
+        "tests/test_ci_release_workflow_contract.py"
+      ],
+      "acceptance": [
+        "Required CI remains automatic and blocking on pull requests, dev and main",
+        "multi-architecture GHCR OCI publication is operator-triggered only and never runs automatically on dev",
+        "manual publication accepts only dev or main and retains the same-run exact-commit quality gate",
+        "the successful live model answer for Recent Changes is recorded as bounded operator evidence"
+      ],
+      "tests": {
+        "complete_ci_release_workflow_contract_file": "7 passed with one existing SQLAlchemy deprecation warning",
+        "workflow_and_roadmap_parse": "pass",
+        "git_diff_check": "pass",
+        "broad_local_pytest": "not_run_by_operator_request"
+      },
+      "review": {
+        "depth": "deep",
+        "reviewer": "/root",
+        "result": "pass",
+        "positive_path": "manual dev or main publication stays bound to its exact reusable quality gate and revision manifest",
+        "negative_path": "automatic dev publication is absent and unsupported refs fail before package-write jobs"
+      },
+      "operator_evidence": {
+        "debian_revision": "897503c705c6e081bc551b957b91c9ca9459b2b8",
+        "release_manifest": "release_manifest/ready with exact revision binding",
+        "productive_model_e2e": "user confirmed the live Odysseus answer to the Recent Changes question",
+        "production_container_engine": "Podman local build; optional GHCR OCI artifact is not consumed"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "actual_master": "surface_default",
+        "worker": "not_used_root_owned_shared_publish_integration_cleanup"
+      },
+      "not_verified": [
+        "exact cleanup commit GitHub Required CI",
+        "manual OCI publication because it is intentionally optional",
+        "Debian deployment of this repo-only workflow and evidence update"
+      ],
+      "next_action": "commit the exact four-path cleanup, then claim UIR-02 as the selected dependency-ready default-off non-UI feature slice"
+    },
     "latest_recent_changes_gpu_compose_parity_handoff": {
       "run_id": "abc-ci-gpu-compose-release-revision-parity-20260726T161002+0200",
       "slice_id": "CI-GPU-compose-release-revision-parity",

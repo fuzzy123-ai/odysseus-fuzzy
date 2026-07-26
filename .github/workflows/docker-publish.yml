@@ -1,22 +1,20 @@
-name: ci / docker publish
+name: optional / OCI image publish
 
-# Build the Odysseus image and publish to GHCR.
-#   push to main -> :latest, :X.Y.Z            (curated release; main is fast-forwarded at releases)
-#   push to dev  -> :dev,    :X.Y.Z-dev.<sha>  (rolling dev + an immutable, traceable pin)
+# Optional distribution workflow for GHCR. Production Debian builds and runs
+# Odysseus locally with Podman and does not consume these registry images.
+# Start this workflow manually on one of the two supported branch refs:
+#   main -> :latest, :X.Y.Z            (curated release)
+#   dev  -> :dev,    :X.Y.Z-dev.<sha>  (explicit development snapshot)
 # Multi-arch (linux/amd64 + linux/arm64): each arch builds on its own native
 # runner and pushes by digest, then a merge job stitches the digests into one
 # manifest list and applies the tags (faster + cleaner than QEMU emulation).
 # Registry: ghcr.io/<owner>/<repo>.
 
 on:
-  push:
-    branches: [dev, main]
-    paths-ignore:
-      - '**.md'
-      - '.github/ISSUE_TEMPLATE/**'
+  workflow_dispatch:
 
 concurrency:
-  group: docker-publish-${{ github.ref }}
+  group: oci-publish-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -27,11 +25,29 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  validate-ref:
+    name: Validate explicit publication ref
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Require dev or main
+        shell: bash
+        run: |
+          case "$GITHUB_REF" in
+            refs/heads/dev|refs/heads/main) ;;
+            *)
+              echo "::error::OCI publication is supported only from dev or main."
+              exit 1
+              ;;
+          esac
+
   # Call the gate from this workflow instead of observing a separate workflow
   # run. A local reusable-workflow call resolves from this commit, and
-  # github.sha inside the called workflow is the same push SHA published below.
+  # github.sha inside the called workflow is the same selected SHA published below.
   quality-gate:
     name: Required exact-commit quality gate
+    needs: validate-ref
     uses: ./.github/workflows/quality-gate.yml
     permissions:
       contents: read
