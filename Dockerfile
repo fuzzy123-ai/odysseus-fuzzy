@@ -53,7 +53,9 @@ RUN ARCH="$(dpkg --print-architecture)" \
 
 WORKDIR /app
 
-ENV HOME=/app \
+ARG ODYSSEUS_RELEASE_REVISION=""
+ENV ODYSSEUS_RELEASE_REVISION=${ODYSSEUS_RELEASE_REVISION} \
+    HOME=/app \
     npm_config_cache=/app/.cache/npm \
     NPM_CONFIG_CACHE=/app/.cache/npm
 

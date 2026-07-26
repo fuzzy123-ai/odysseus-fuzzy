@@ -16,7 +16,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-from src.constants import BASE_DIR, RECENT_CHANGES_DIR
+from src.constants import (
+    BASE_DIR,
+    RECENT_CHANGES_DIR,
+    RELEASE_MANIFEST_FILE,
+)
+from src.release_manifest import read_release_manifest
 
 HISTORY_FILE = "history.jsonl"
 LATEST_FILE = "latest.json"
@@ -179,6 +184,61 @@ def _parse_log(output: str) -> list[dict[str, str]]:
     return commits
 
 
+def _manifest_timestamp(value: Any) -> datetime | None:
+    try:
+        parsed = datetime.fromisoformat(
+            str(value or "").strip().replace("Z", "+00:00")
+        )
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _release_manifest_window(
+    manifest: dict[str, Any],
+    *,
+    since: datetime,
+) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    commits: list[dict[str, Any]] = []
+    tracked_changes: list[dict[str, str]] = []
+    seen_paths: set[str] = set()
+    for item in manifest.get("commits") or []:
+        authored_at = _manifest_timestamp(item.get("authored_at"))
+        if authored_at is None or authored_at < since:
+            continue
+        commits.append(
+            {
+                "commit": str(item.get("short_revision") or "")[:12],
+                "authored_at": str(item.get("authored_at") or ""),
+                "subject": str(item.get("subject") or ""),
+                "title": str(item.get("title") or ""),
+                "category": str(item.get("category") or "Changes"),
+                "scope": item.get("scope"),
+                "areas": list(item.get("areas") or []),
+            }
+        )
+        for path in item.get("paths") or []:
+            if len(tracked_changes) >= MAX_LIST_ITEMS:
+                break
+            normalized = str(path or "").strip().replace("\\", "/")
+            if (
+                not normalized
+                or normalized in seen_paths
+                or _should_skip_rel(normalized)
+            ):
+                continue
+            seen_paths.add(normalized)
+            tracked_changes.append(
+                {
+                    "status": "release",
+                    "path": normalized,
+                }
+            )
+    return commits[:MAX_LIST_ITEMS], tracked_changes
+
+
 def _parse_name_status(output: str) -> list[dict[str, str]]:
     files: list[dict[str, str]] = []
     for line in output.splitlines():
@@ -310,9 +370,25 @@ def _summarize(snapshot: dict[str, Any]) -> list[str]:
     untracked = snapshot.get("untracked_files") or []
     recent = snapshot.get("recent_files") or []
     evidence = snapshot.get("change_evidence") or _change_evidence(snapshot)
-    lines = [
-        f"{len(commits)} commit(s), {len(tracked)} tracked file(s), {len(untracked)} new untracked file(s), {len(recent)} recently modified file(s)."
-    ]
+    source = snapshot.get("evidence_source")
+    state = snapshot.get("evidence_state")
+    lines: list[str] = []
+    if source == "release_manifest" and state == "ready":
+        lines.append(
+            f"{len(commits)} revision-bound release commit(s) in the "
+            f"selected window."
+        )
+    elif state == "degraded":
+        lines.append(
+            "Authoritative Git/release evidence is unavailable; filesystem "
+            "timestamps are a degraded fallback and must not be presented "
+            "as complete patch notes."
+        )
+    lines.append(
+        f"{len(commits)} commit(s), {len(tracked)} tracked file(s), "
+        f"{len(untracked)} new untracked file(s), "
+        f"{len(recent)} recently modified file(s)."
+    )
     if evidence:
         top = evidence[:8]
         lines.append("Main areas: " + ", ".join(f"{item['domain']} ({item['count']})" for item in top) + ".")
@@ -326,6 +402,11 @@ def render_patch_notes(snapshot: dict[str, Any]) -> str:
         f"Patch notes snapshot `{snapshot.get('id')}`",
         f"Window: {snapshot.get('since')} to {snapshot.get('generated_at')} ({snapshot.get('hours')}h)",
         f"Trigger: {snapshot.get('trigger') or 'manual'}",
+        (
+            "Evidence: "
+            f"{snapshot.get('evidence_source') or 'unknown'} "
+            f"({snapshot.get('evidence_state') or 'unknown'})"
+        ),
         "",
     ]
     for summary in snapshot.get("summary") or []:
@@ -341,7 +422,12 @@ def render_patch_notes(snapshot: dict[str, Any]) -> str:
     if commits:
         lines.extend(["", "Commits:"])
         for commit in commits[:MAX_RENDERED_ITEMS]:
-            lines.append(f"- {commit['commit']} {commit['subject']} ({commit['authored_at']})")
+            category = str(commit.get("category") or "").strip()
+            category_prefix = f"[{category}] " if category else ""
+            lines.append(
+                f"- {category_prefix}{commit['commit']} "
+                f"{commit['subject']} ({commit['authored_at']})"
+            )
     tracked = snapshot.get("tracked_changes") or []
     if tracked:
         lines.extend(["", "Tracked changes:"])
@@ -368,6 +454,11 @@ def render_patch_notes(snapshot: dict[str, Any]) -> str:
 
 def _fingerprint(payload: dict[str, Any]) -> str:
     stable = {
+        "evidence_source": payload.get("evidence_source"),
+        "evidence_state": payload.get("evidence_state"),
+        "release_revision": (
+            (payload.get("release_manifest") or {}).get("revision")
+        ),
         "commits": payload.get("commits") or [],
         "tracked_changes": payload.get("tracked_changes") or [],
         "untracked_files": payload.get("untracked_files") or [],
@@ -481,7 +572,73 @@ def collect_recent_changes(
     diff_stat = _run_git(repo, "diff", "--stat")
     untracked = _run_git(repo, "ls-files", "--others", "--exclude-standard")
 
-    tracked_changes = _parse_name_status(name_status.stdout if name_status.ok else "")
+    git_results = (log, name_status, numstat, diff_stat, untracked)
+    git_available = all(result.ok for result in git_results)
+    git_error_count = sum(1 for result in git_results if not result.ok)
+    manifest: dict[str, Any] | None = None
+    manifest_state = "not_needed"
+    if not git_available:
+        manifest, manifest_state = read_release_manifest(
+            RELEASE_MANIFEST_FILE,
+            expected_revision=(
+                os.getenv("ODYSSEUS_RELEASE_REVISION")
+                or os.getenv("ODYSSEUS_GIT_COMMIT")
+                or None
+            ),
+        )
+
+    if manifest is not None:
+        commits, tracked_changes = _release_manifest_window(
+            manifest,
+            since=since,
+        )
+        numstat_payload: dict[str, dict[str, int | None]] = {}
+        diff_stat_payload = ""
+        untracked_files: list[str] = []
+        recent_files: list[dict[str, Any]] = []
+        evidence_source = "release_manifest"
+        evidence_state = "ready"
+        git_errors: list[str] = []
+        release_manifest = {
+            "schema_version": manifest.get("schema_version"),
+            "revision": manifest.get("revision"),
+            "short_revision": manifest.get("short_revision"),
+            "ref": manifest.get("ref"),
+            "generated_at": manifest.get("generated_at"),
+            "areas": list(manifest.get("areas") or []),
+            "coverage": dict(manifest.get("coverage") or {}),
+            "content_sha256": manifest.get("content_sha256"),
+        }
+    else:
+        commits = _parse_log(log.stdout if log.ok else "")
+        tracked_changes = _parse_name_status(
+            name_status.stdout if name_status.ok else ""
+        )
+        numstat_payload = _parse_numstat(
+            numstat.stdout if numstat.ok else ""
+        )
+        diff_stat_payload = (
+            _filter_diff_stat(diff_stat.stdout) if diff_stat.ok else ""
+        )
+        untracked_files = [
+            line.strip()
+            for line in (untracked.stdout if untracked.ok else "").splitlines()
+            if line.strip() and not _should_skip_rel(line.strip())
+        ][:MAX_LIST_ITEMS]
+        recent_files = _recent_files(repo, since)
+        evidence_source = (
+            "working_tree_git" if git_available else "filesystem_mtime"
+        )
+        evidence_state = "ready" if git_available else "degraded"
+        git_errors = [
+            _redact_git_error(result.stderr, repo)
+            for result in git_results
+            if not result.ok and result.stderr
+        ]
+        release_manifest = {
+            "state": manifest_state,
+        }
+
     payload: dict[str, Any] = {
         "schema_version": "recent_changes.v1",
         "generated_at": _iso(now),
@@ -490,22 +647,18 @@ def collect_recent_changes(
         "repo_name": repo.name,
         "repo_fingerprint": _repo_fingerprint(repo),
         "trigger": _normalize_trigger(trigger),
-        "git_available": all(result.ok for result in (log, name_status, numstat, diff_stat, untracked)),
-        "git_errors": [
-            _redact_git_error(result.stderr, repo)
-            for result in (log, name_status, numstat, diff_stat, untracked)
-            if not result.ok and result.stderr
-        ],
-        "commits": _parse_log(log.stdout if log.ok else ""),
+        "evidence_source": evidence_source,
+        "evidence_state": evidence_state,
+        "git_available": git_available,
+        "git_error_count": git_error_count,
+        "git_errors": git_errors,
+        "release_manifest": release_manifest,
+        "commits": commits,
         "tracked_changes": tracked_changes,
-        "numstat": _parse_numstat(numstat.stdout if numstat.ok else ""),
-        "diff_stat": _filter_diff_stat(diff_stat.stdout) if diff_stat.ok else "",
-        "untracked_files": [
-            line.strip()
-            for line in (untracked.stdout if untracked.ok else "").splitlines()
-            if line.strip() and not _should_skip_rel(line.strip())
-        ][:MAX_LIST_ITEMS],
-        "recent_files": _recent_files(repo, since),
+        "numstat": numstat_payload,
+        "diff_stat": diff_stat_payload,
+        "untracked_files": untracked_files,
+        "recent_files": recent_files,
     }
     payload["change_evidence"] = _change_evidence(payload)
     payload["summary"] = _summarize(payload)

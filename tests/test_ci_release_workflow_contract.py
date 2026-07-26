@@ -13,6 +13,9 @@ WORKFLOW_DIR = ROOT / ".github" / "workflows"
 CI_PATH = WORKFLOW_DIR / "ci.yml"
 QUALITY_GATE_PATH = WORKFLOW_DIR / "quality-gate.yml"
 DOCKER_PUBLISH_PATH = WORKFLOW_DIR / "docker-publish.yml"
+DOCKERFILE_PATH = ROOT / "Dockerfile"
+DOCKERIGNORE_PATH = ROOT / ".dockerignore"
+GITIGNORE_PATH = ROOT / ".gitignore"
 QUARANTINE_PATH = ROOT / "tests" / "ci_quarantine.json"
 
 REQUIRED_GATE_JOBS = {"python-syntax", "node-syntax", "python-tests"}
@@ -169,6 +172,57 @@ def test_docker_publication_has_a_same_run_exact_commit_gate() -> None:
         assert "quality-gate" in _job_ancestors(jobs, job_id)
         assert "always()" not in json.dumps(jobs[job_id])
         assert "failure()" not in json.dumps(jobs[job_id])
+
+
+def test_docker_build_generates_revision_bound_release_manifest() -> None:
+    workflow = _load_workflow(DOCKER_PUBLISH_PATH)
+    steps = workflow["jobs"]["build"]["steps"]
+    names = [step.get("name") for step in steps]
+    python_index = names.index("Set up release-manifest Python")
+    generate_index = names.index(
+        "Generate revision-bound release manifest"
+    )
+    build_index = next(
+        index
+        for index, step in enumerate(steps)
+        if str(step.get("uses") or "").startswith(
+            "docker/build-push-action@"
+        )
+    )
+    checkout = next(
+        step
+        for step in steps
+        if str(step.get("uses") or "").startswith("actions/checkout@")
+    )
+    python_setup = steps[python_index]
+    command = steps[generate_index]["run"]
+    build_step = steps[build_index]
+
+    assert checkout["with"]["persist-credentials"] == "false"
+    assert checkout["with"]["fetch-depth"] == "100"
+    assert python_setup["uses"].startswith("actions/setup-python@")
+    assert python_setup["with"]["python-version"] == "3.11"
+    assert python_index < generate_index < build_index
+    assert "scripts/generate_release_manifest.py" in command
+    assert "--revision \"$GITHUB_SHA\"" in command
+    assert "--ref \"$GITHUB_REF_NAME\"" in command
+    assert "--output runtime/release-manifest.json" in command
+    assert (
+        "ODYSSEUS_RELEASE_REVISION=${{ github.sha }}"
+        in build_step["with"]["build-args"]
+    )
+    dockerfile = DOCKERFILE_PATH.read_text(encoding="utf-8")
+    assert 'ARG ODYSSEUS_RELEASE_REVISION=""' in dockerfile
+    assert (
+        "ENV ODYSSEUS_RELEASE_REVISION=${ODYSSEUS_RELEASE_REVISION}"
+        in dockerfile
+    )
+    assert "/runtime/release-manifest.json" in GITIGNORE_PATH.read_text(
+        encoding="utf-8"
+    )
+    dockerignore = DOCKERIGNORE_PATH.read_text(encoding="utf-8")
+    assert "runtime/release-manifest.json" not in dockerignore
+    assert "\nruntime/\n" not in dockerignore
 
 
 def test_required_workflows_have_no_advisory_escape_hatch() -> None:

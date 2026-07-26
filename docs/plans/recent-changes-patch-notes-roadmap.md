@@ -1,6 +1,6 @@
 # Recent Changes / Patch Notes Roadmap
 
-Stand: 2026-06-23
+Stand: 2026-07-26
 
 Status: **backend-safe slices done; RCH3 patch-notes button remains UI-owned**
 
@@ -14,12 +14,12 @@ Master Chat, bitte diese Roadmap in die aktive Master-Roadmap aufnehmen:
 - Roadmap: `docs/plans/recent-changes-patch-notes-roadmap.md`
 - Einordnung: Ergaenzt `docs/plans/unified-odysseus-roadmap.md`, `docs/plans/mvp-master-roadmap.md`, `docs/plans/updater-live-boundary-contract.md` und `docs/plans/updates-backups-ui-operator-contract.md`.
 - Prioritaet: MVP-supporting Capability fuer Update-/Patch-Transparenz. Foundation, Change-Quality, Retention/Automation, Agent-Behavior-Gates und Security/Privacy-Closeout sind umgesetzt und fokussiert getestet; UI bleibt Follow-up im UI-Track.
-- Naechster sicherer Slice: keiner im Backend-Track; `RCH3-patch-notes-button` wartet auf UI/Design-Go.
+- Naechster Slice: `RCH3-patch-notes-button` bleibt der getrennte UI-/Design-Follow-up auf Basis des revision-bound Manifests.
 - Owner-Vorschlag: Charlie koordiniert Roadmap/Status, Bob haertet Backend/Tests, Alice definiert UI- und Patch-Notes-Sprache.
 
 ## Goal
 
-Odysseus bekommt eine persistente, agent-lesbare Aenderungshistorie. Der Agent kann aktuelle Aenderungen aus Git-Diff, Commits, untracked Files und Snapshot-Historie zusammenfassen, ohne zu behaupten, es gebe keine Neuerungen, wenn die Worktree-Evidence das Gegenteil zeigt.
+Odysseus bekommt eine persistente, agent-lesbare Aenderungshistorie. Der Agent kann aktuelle Aenderungen aus Git-Diff, einem imagegebundenen Release-Manifest, Commits, untracked Files und Snapshot-Historie zusammenfassen, ohne zu behaupten, es gebe keine Neuerungen, wenn die Runtime-Evidence das Gegenteil zeigt.
 
 ## Current Evidence
 
@@ -29,6 +29,10 @@ Odysseus bekommt eine persistente, agent-lesbare Aenderungshistorie. Der Agent k
 - `src/system_update_status.py` verknuepft Recent Changes mit Update-Status und Update-Check.
 - `static/js/admin.js` zeigt im Update-Bereich eine erste Patch-Notes-Historie aus dem Update-Status.
 - `tests/test_recent_changes.py` und `tests/test_system_update_status.py` decken Collector, Dedupe und Update-Status-Integration ab.
+- `src/release_manifest.py` und der Docker-Publish erzeugen ein gehashtes,
+  redigiertes Manifest fuer den exakten Image-SHA. Container ohne `.git`
+  verwenden es als autoritative Patchnotes-Quelle; Revision-Mismatch oder
+  fehlende Evidenz werden sichtbar als `degraded` ausgewiesen.
 
 ## Non-Goals
 
@@ -49,8 +53,46 @@ Odysseus bekommt eine persistente, agent-lesbare Aenderungshistorie. Der Agent k
 | `RCH5-retention-and-automation` | `done` | Bob/Charlie | Snapshot-Policy festlegen: startup, update-check, pre-update, post-update, Retention und Dedupe. | `src/`, `routes/`, `tests/`, `docs/plans/` | done: `22 passed, 1 warning` | no live update action |
 | `RCH6-agent-behavior-gates` | `done` | Bob | Sicherstellen, dass Fragen nach "letzte 12h", "Neuerungen", "Patch Notes" und "Updates" das Tool nutzen. | `src/agent_loop_intent.py`, `tests/test_recent_changes_agent_routing.py` | done: `21 passed, 1 warning` | none |
 | `RCH7-security-privacy-closeout` | `done` | Charlie/Bob | Admin-only, Redaction, Secret-/Log-/Data-Excludes und Export-Sprache pruefen. | `src/recent_changes.py`, `routes/recent_changes_routes.py`, `src/tool_domains/repo_skills.py`, `src/system_update_status.py`, `tests/` | done: `31 passed, 1 warning` | none |
+| `RCH8-revision-bound-release-manifest` | `done` | `/root` | CI erzeugt pro Image-SHA ein redigiertes First-Parent-Manifest; Runtime nutzt es ohne `.git` und faellt bei fehlender oder fremder Evidence sichtbar aus. | `src/release_manifest.py`, `src/recent_changes.py`, `scripts/generate_release_manifest.py`, `Dockerfile`, Docker-Publish, fokussierte Tests | done: `49 passed, 2 existing warnings`; real-repo/no-git smoke ready | publish/live not part of repo-only slice |
 
 ## Progress Evidence
+
+### RCH8 Revision-Bound Release Manifest
+
+Status: done repo-only 2026-07-26.
+
+Implemented:
+
+- Der Docker-Publish erzeugt vor jedem Architektur-Build dasselbe
+  `runtime/release-manifest.json` fuer den exakten `github.sha`.
+- Das Manifest enthaelt hoechstens 100 First-Parent-Commits, redigierte
+  Conventional-Commit-Kategorien, begrenzte repo-relative Pfade, Areas,
+  Coverage-Metadaten und einen kanonischen SHA-256-Inhaltsdigest.
+- Das Image traegt `ODYSSEUS_RELEASE_REVISION`; die Runtime akzeptiert nur ein
+  Manifest, das zu diesem Image-SHA passt. Ein abweichender Host-Checkout-SHA
+  kann die Image-Bindung nicht brechen.
+- Container ohne `.git` verwenden das Manifest statt Build-mtime-Rauschen.
+  Fehlendes, defektes oder revisionsfremdes Manifest bleibt sichtbar
+  `degraded` und darf nicht als vollstaendige Patchnotes dargestellt werden.
+- Der bestehende Admin-API-, History- und Agent-Tool-Vertrag bleibt die
+  Datenquelle fuer die spaetere Patchnotes-Seite; es entstand kein zweites
+  UI-Datenmodell.
+
+Evidence:
+
+```powershell
+venv\Scripts\python.exe -m pytest tests\test_release_manifest.py tests\test_recent_changes.py tests\test_recent_changes_agent_routing.py tests\test_ci_release_workflow_contract.py -q
+venv\Scripts\python.exe -m pytest tests\test_recent_changes_routes.py tests\test_system_update_status.py tests\test_repo_recent_memory.py -q
+```
+
+Results: `30 passed, 1 warning`; `19 passed, 1 warning`.
+
+Real-repo smoke:
+
+- Manifest bound to `492f5f098bdf47cfdbd711cdd70f8720e1d51a9d`
+- `100` bounded First-Parent commits, `8` areas, digest validation `ready`
+- No-Git runtime projection: `release_manifest/ready`, `46` commits in 24h,
+  `65` changed paths, `0` filesystem-mtime rows
 
 ### RCH4 Change Quality
 

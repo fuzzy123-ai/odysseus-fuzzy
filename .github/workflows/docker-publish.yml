@@ -58,6 +58,19 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
+          fetch-depth: 100
+      - name: Set up release-manifest Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: "3.11"
+      - name: Generate revision-bound release manifest
+        run: |
+          python scripts/generate_release_manifest.py \
+            --repo . \
+            --output runtime/release-manifest.json \
+            --revision "$GITHUB_SHA" \
+            --ref "$GITHUB_REF_NAME" \
+            --max-commits 100
       - name: Set up Buildx
         uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5  # v4.1.0
       - name: Log in to GHCR
@@ -72,6 +85,8 @@ jobs:
         with:
           context: .
           platforms: ${{ matrix.platform }}
+          build-args: |
+            ODYSSEUS_RELEASE_REVISION=${{ github.sha }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.arch }}

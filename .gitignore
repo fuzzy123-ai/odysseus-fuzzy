@@ -6,6 +6,7 @@ __pycache__/
 dist/
 build/
 !static/js/editor/build/
+/runtime/release-manifest.json
 venv/
 .venv/
 venv.broken-*/

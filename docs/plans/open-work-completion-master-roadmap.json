@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-26T13:59:13+02:00",
-  "status": "ops_security_reporter_auto_update_context_sync_accepted_ci_and_live_v2_pending",
+  "updated_at": "2026-07-26T15:02:09+02:00",
+  "status": "recent_changes_revision_bound_release_manifest_accepted_publish_live_pending",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -95,6 +95,63 @@
       "verified_at": "2026-07-24"
     },
     "active_claimed_slices": [],
+    "latest_recent_changes_release_manifest_handoff": {
+      "run_id": "recent-changes-release-manifest-20260726T144055+0200",
+      "slice_id": "RCH-revision-bound-release-manifest",
+      "owner": "/root",
+      "state": "released_accepted_repo_only",
+      "released_at": "2026-07-26T15:02:09+02:00",
+      "base_commit": "492f5f098bdf47cfdbd711cdd70f8720e1d51a9d",
+      "changed_paths": [
+        ".github/workflows/docker-publish.yml",
+        ".gitignore",
+        "Dockerfile",
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/recent-changes-patch-notes-roadmap.md",
+        "runtime/.gitkeep",
+        "scripts/generate_release_manifest.py",
+        "src/constants.py",
+        "src/recent_changes.py",
+        "src/release_manifest.py",
+        "tests/test_ci_release_workflow_contract.py",
+        "tests/test_recent_changes.py",
+        "tests/test_release_manifest.py"
+      ],
+      "acceptance": [
+        "Docker publish generates one redacted canonical manifest for the exact GitHub image SHA before each architecture build",
+        "the image carries its immutable release revision and runtime validates manifest revision plus content digest before use",
+        "no-Git containers use release-manifest evidence instead of build mtimes while missing corrupt or mismatched evidence degrades visibly",
+        "the existing Recent Changes API history and agent tool remain the single backend contract for the later Patchnotes UI"
+      ],
+      "tests": {
+        "manifest_recent_changes_routing_ci_contracts": "30_passed_with_1_existing_deprecation_warning",
+        "routes_update_status_memory_consumers": "19_passed_with_1_existing_deprecation_warning",
+        "python_ast": "pass",
+        "workflow_yaml": "pass",
+        "roadmap_json": "pass",
+        "git_diff_check": "pass",
+        "broad_local_pytest": "not_run_by_operator_request"
+      },
+      "real_repo_smoke": {
+        "manifest_revision": "492f5f098bdf47cfdbd711cdd70f8720e1d51a9d",
+        "manifest_state": "ready",
+        "bounded_first_parent_commits": 100,
+        "area_count": 8,
+        "no_git_runtime_source": "release_manifest",
+        "no_git_runtime_state": "ready",
+        "commits_in_24h": 46,
+        "changed_paths_in_24h": 65,
+        "filesystem_mtime_rows": 0,
+        "host_checkout_mismatch_tolerated_by_image_revision_binding": true
+      },
+      "not_verified": [
+        "GitHub Actions image build and publication for this dirty diff",
+        "Debian deployment and live in-container manifest readback",
+        "model end-to-end answer through the live chat route",
+        "Patchnotes UI page"
+      ],
+      "next_action": "after_separate_commit_push_deploy_authority_publish_the_reviewed_slice_require_exact_ci_and_multi_arch_image_green_then_deploy_and_verify_a_fixed_schema_live_recent_changes_projection_before_starting_the_ui_slice"
+    },
     "latest_ops_security_reporter_sync_handoff": {
       "run_id": "ops-security-reporter-sync-20260726T121334+0200",
       "slice_id": "OPS-security-reporter-auto-update-context-sync",

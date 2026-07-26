@@ -11,6 +11,10 @@ from src.recent_changes import (
     record_post_update_snapshot,
     record_pre_update_snapshot,
 )
+from src.release_manifest import (
+    build_release_manifest,
+    write_release_manifest,
+)
 
 
 def _git(repo, *args):
@@ -268,3 +272,121 @@ def test_recent_changes_pre_and_post_update_helpers_are_local_snapshots(tmp_path
     assert post["trigger"] == "post_update"
     assert pre["persisted"] is True
     assert post["persisted"] is True
+
+
+def test_recent_changes_uses_revision_bound_manifest_without_git(
+    tmp_path,
+    monkeypatch,
+):
+    release_repo = tmp_path / "release-repo"
+    release_repo.mkdir()
+    _git(release_repo, "init")
+    _git(release_repo, "config", "user.email", "test@example.com")
+    _git(release_repo, "config", "user.name", "Test User")
+    feature = release_repo / "src" / "patchnotes.py"
+    feature.parent.mkdir()
+    feature.write_text("ENABLED = True\n", encoding="utf-8")
+    _git(release_repo, "add", ".")
+    _git(
+        release_repo,
+        "commit",
+        "-m",
+        "feat(changes): expose revision-bound patch notes",
+    )
+    manifest = build_release_manifest(
+        repo_root=release_repo,
+        ref="dev",
+    )
+    manifest_path = tmp_path / "runtime" / "release-manifest.json"
+    write_release_manifest(manifest, manifest_path)
+
+    app_root = tmp_path / "app-without-git"
+    app_root.mkdir()
+    (app_root / "app.py").write_text("# runtime\n", encoding="utf-8")
+    history_dir = tmp_path / "history"
+
+    import src.recent_changes as recent_changes
+
+    monkeypatch.setattr(
+        recent_changes,
+        "RELEASE_MANIFEST_FILE",
+        str(manifest_path),
+    )
+    monkeypatch.setenv(
+        "ODYSSEUS_GIT_COMMIT",
+        "f" * 40,
+    )
+    monkeypatch.setenv(
+        "ODYSSEUS_RELEASE_REVISION",
+        manifest["revision"],
+    )
+
+    snapshot = collect_recent_changes(
+        repo_root=app_root,
+        history_dir=history_dir,
+        hours=24,
+        persist=False,
+    )
+
+    assert snapshot["git_available"] is False
+    assert snapshot["git_error_count"] == 5
+    assert snapshot["git_errors"] == []
+    assert snapshot["evidence_source"] == "release_manifest"
+    assert snapshot["evidence_state"] == "ready"
+    assert snapshot["release_manifest"]["revision"] == manifest["revision"]
+    assert snapshot["commits"][0]["category"] == "Features"
+    assert snapshot["commits"][0]["scope"] == "changes"
+    assert snapshot["tracked_changes"] == [
+        {"status": "release", "path": "src/patchnotes.py"}
+    ]
+    assert snapshot["recent_files"] == []
+    assert "revision-bound release commit(s)" in snapshot["summary"][0]
+    assert "Evidence: release_manifest (ready)" in snapshot["patch_notes"]
+
+
+def test_recent_changes_fails_visibly_on_manifest_revision_mismatch(
+    tmp_path,
+    monkeypatch,
+):
+    release_repo = tmp_path / "release-repo"
+    release_repo.mkdir()
+    _git(release_repo, "init")
+    _git(release_repo, "config", "user.email", "test@example.com")
+    _git(release_repo, "config", "user.name", "Test User")
+    source = release_repo / "app.py"
+    source.write_text("# release\n", encoding="utf-8")
+    _git(release_repo, "add", ".")
+    _git(release_repo, "commit", "-m", "feat: release")
+    manifest = build_release_manifest(repo_root=release_repo, ref="dev")
+    manifest_path = tmp_path / "runtime" / "release-manifest.json"
+    write_release_manifest(manifest, manifest_path)
+
+    app_root = tmp_path / "app-without-git"
+    app_root.mkdir()
+    (app_root / "app.py").write_text("# runtime\n", encoding="utf-8")
+
+    import src.recent_changes as recent_changes
+
+    monkeypatch.setattr(
+        recent_changes,
+        "RELEASE_MANIFEST_FILE",
+        str(manifest_path),
+    )
+    monkeypatch.setenv("ODYSSEUS_GIT_COMMIT", "f" * 40)
+
+    snapshot = collect_recent_changes(
+        repo_root=app_root,
+        history_dir=tmp_path / "history",
+        hours=24,
+        persist=False,
+    )
+
+    assert snapshot["evidence_source"] == "filesystem_mtime"
+    assert snapshot["evidence_state"] == "degraded"
+    assert snapshot["release_manifest"] == {
+        "state": "revision_mismatch"
+    }
+    assert "Authoritative Git/release evidence is unavailable" in (
+        snapshot["summary"][0]
+    )
+    assert "Evidence: filesystem_mtime (degraded)" in snapshot["patch_notes"]

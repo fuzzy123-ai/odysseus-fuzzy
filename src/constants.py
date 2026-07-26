@@ -56,6 +56,10 @@ GALLERY_DIR = os.path.join(DATA_DIR, "gallery")
 GALLERY_UPLOADS_DIR = os.path.join(DATA_DIR, "gallery_uploads")
 MEMORY_VECTORS_DIR = os.path.join(DATA_DIR, "memory_vectors")
 RECENT_CHANGES_DIR = os.path.join(DATA_DIR, "recent_changes")
+RELEASE_MANIFEST_FILE = os.getenv(
+    "ODYSSEUS_RELEASE_MANIFEST_FILE",
+    os.path.join(BASE_DIR, "runtime", "release-manifest.json"),
+)
 TOOL_CAPABILITY_KNOWLEDGE_DIR = os.path.join(DATA_DIR, "tool_capability_knowledge")
 TOOL_CAPABILITY_RAPTORGRAPH_DIR = os.path.join(DATA_DIR, "tool_capability_raptorgraph")
 
