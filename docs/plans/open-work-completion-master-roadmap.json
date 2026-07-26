@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-26T15:02:09+02:00",
-  "status": "recent_changes_revision_bound_release_manifest_accepted_publish_live_pending",
+  "updated_at": "2026-07-26T15:30:55+02:00",
+  "status": "recent_changes_release_manifest_ci_inventory_repair_accepted_publish_pending",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -95,6 +95,64 @@
       "verified_at": "2026-07-24"
     },
     "active_claimed_slices": [],
+    "latest_recent_changes_ci_inventory_repair_handoff": {
+      "run_id": "abc-ci-release-manifest-runtime-inventory-20260726T152851+0200",
+      "slice_id": "CI-release-manifest-static-runtime-inventory-refresh",
+      "owner": "/root",
+      "state": "released_accepted_repo_only",
+      "released_at": "2026-07-26T15:30:55+02:00",
+      "failed_head_sha": "36df43b517ed5f30f99abf59f24e77cd61face2e",
+      "failed_docker_publish_run": 30203849191,
+      "failing_node": "tests/test_audit_unified_source_index_runtime.py::test_committed_runtime_inventory_matches_deterministic_static_ast_scan",
+      "root_cause": "the accepted release-manifest slice added src/release_manifest.py after the content-free runtime caller inventory was last generated, so only tracked_python_files_scanned was stale at 827 instead of 828; all 55 caller rows, relevant file hashes, categories and zero-unclassified invariant were unchanged",
+      "repair": "regenerate the committed deterministic static AST inventory for the exact tracked revision; no production runtime logic changed",
+      "changed_paths": [
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/unified-source-index-runtime-caller-inventory.json"
+      ],
+      "tests": {
+        "canonical_inventory_check": "pass",
+        "exact_previously_failing_node": "1 passed with one existing SQLAlchemy deprecation warning",
+        "roadmap_json_parse": "pass",
+        "git_diff_check": "pass",
+        "broad_local_pytest": "not_run_by_operator_request"
+      },
+      "review": {
+        "depth": "deep",
+        "reviewer": "/root",
+        "result": "pass",
+        "scope": "exact two-path shared integration repair",
+        "inventory_semantic_diff": "only tracked_python_files_scanned changed from 827 to 828"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "actual_master": "surface_default",
+        "worker": "not_used_root_owned_shared_integration_repair",
+        "skills": [
+          "abc",
+          "github:gh-fix-ci",
+          "github:yeet"
+        ]
+      },
+      "live_go": {
+        "id": "GO-COMMIT-PUSH-DEPLOY-RCH8",
+        "action": "deploy",
+        "target": "configured Odysseus Debian homeserver",
+        "artifact_or_inputs": "exact fuzzy/dev commit whose Required CI and Docker publish workflows both pass",
+        "limits": "one auto-update deployment and bounded fixed-schema readback",
+        "rollback": "retain prior published image and stop on updater or health failure",
+        "granted_by": "user Go in current task",
+        "granted_at": "2026-07-26T15:28:51+02:00",
+        "expires_at": "current run end",
+        "status": "go"
+      },
+      "not_verified": [
+        "exact repair commit GitHub Required CI",
+        "exact repair commit Docker image publication",
+        "Debian deployment and live fixed-schema readback"
+      ],
+      "next_action": "commit_and_push_the_exact_two_path_repair_to_fuzzy_dev_require_both_exact_github_workflows_green_then_deploy_and_verify_the_exact_revision_on_debian"
+    },
     "latest_recent_changes_release_manifest_handoff": {
       "run_id": "recent-changes-release-manifest-20260726T144055+0200",
       "slice_id": "RCH-revision-bound-release-manifest",
