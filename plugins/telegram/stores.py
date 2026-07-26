@@ -22,6 +22,8 @@ from plugins.telegram.history_privacy import record_has_raw_content
 from src.runtime_event_envelope import RuntimeEventEnvelopeError, build_runtime_event, stable_payload_hash
 from src.telegram_session_rollover import (
     LedgerError,
+    RolloverConfig,
+    TelegramBindingMutationCoordinator,
     TelegramRolloverLedger,
     chat_handle_ref,
     owner_ref,
@@ -593,6 +595,20 @@ class TelegramInboxStore:
 
 class TelegramRolloverBridgeError(ValueError):
     """Deterministic, content-free DB-aware bridge refusal."""
+
+
+def build_db_authoritative_binding_mutation_coordinator(
+    *, session_factory: Any, config: RolloverConfig
+) -> TelegramBindingMutationCoordinator:
+    """Return the default-off A5 binding seam without touching legacy JSON.
+
+    A5C must inject this explicit factory/coordinator pair.  Keeping this
+    construction separate prevents current poll, webhook, and control callers
+    from accidentally opting into the DB path before their transport contract
+    is ready.
+    """
+
+    return TelegramBindingMutationCoordinator(session_factory=session_factory, config=config)
 
 
 class DbAuthoritativeTelegramSessionBridge:

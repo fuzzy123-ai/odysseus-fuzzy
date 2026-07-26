@@ -29,6 +29,7 @@ from plugins.telegram.plugin import (
     run_telegram_voice_pipeline,
     setup,
 )
+from plugins.telegram.control_service import telegram_control_owner
 from src.image_tools_worker import ImageToolsWorkerResult
 from src import agent_task_ledger
 from src.plugin_capability_boundary import validate_plugin_capability_boundary
@@ -127,6 +128,36 @@ def test_rollover_bridge_keeps_existing_runtime_call_sites_on_legacy_adapter(tmp
     assert result["session_id"] == "legacy-runtime-session"
     assert result["mapping"]["chat_handle"].startswith("chat_")
     assert (tmp_path / "telegram_session_bridge.json").exists()
+
+
+def test_rollover_control_owner_requires_injected_telegram_owner_not_memory_owner():
+    assert telegram_control_owner("memory-owner") == "memory-owner"
+    assert telegram_control_owner(
+        "memory-owner", telegram_owner=None, rollover_enabled=True
+    ) is None
+    assert telegram_control_owner(
+        "memory-owner", telegram_owner="telegram", rollover_enabled=True
+    ) is None
+    for invalid_owner in ("", "   ", 7, object()):
+        assert telegram_control_owner(
+            "memory-owner", telegram_owner=invalid_owner, rollover_enabled=True
+        ) is None
+    assert telegram_control_owner(
+        "memory-owner", telegram_owner=" Alice ", rollover_enabled=True
+    ) == "alice"
+
+
+def test_rollover_owner_seam_has_no_auth_store_or_first_user_fallback():
+    source = (ROOT / "app.py").read_text(encoding="utf-8")
+    start = source.index("def _telegram_rollover_owner")
+    end = source.index("def _telegram_binding_mutation_coordinator", start)
+    body = source[start:end]
+
+    assert "TELEGRAM_OWNER" in body
+    assert "ODYSSEUS_ADMIN_USER" not in body
+    assert "auth_manager" not in body
+    assert "next(iter" not in body
+    assert 'return owner if owner and owner != "telegram" else None' in body
 
 
 def test_core_telegram_bridge_uses_agent_loop_for_tool_access():

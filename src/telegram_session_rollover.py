@@ -1648,6 +1648,401 @@ class TelegramTurnCoordinator:
         return result.rowcount == 1
 
 
+@dataclass(frozen=True)
+class TelegramBindingMutationResult:
+    """Content-free outcome for one default-off binding mutation seam.
+
+    ``status`` is safe for a future transport adapter to map to a retry
+    outcome.  ``binding`` is an internal DB view and must never be copied into
+    public evidence, logs, or the compatibility JSON.
+    """
+
+    status: str
+    binding: LedgerBinding | None = None
+    created: bool = False
+
+
+class _BindingMutationRefusal(Exception):
+    """Private rollback signal carrying only an allowlisted public status."""
+
+    def __init__(self, status: str):
+        super().__init__(status)
+        self.status = status
+
+
+class TelegramBindingMutationCoordinator:
+    """Default-off, owner-injected DB binding and replacement mutation seam.
+
+    This deliberately has no poll, webhook, JSON-store, provider, or Session
+    manager wiring.  The supplied factory creates exactly one SQLAlchemy
+    session per operation; this coordinator owns its commit, rollback, and
+    close.  New Session callbacks run *inside* that transaction so a refused
+    bind/rebind cannot leave an orphan Session behind.
+
+    A live lease is never silently transferred by this seam.  It returns the
+    retryable ``lease_busy`` outcome instead.  A later adapter may add an exact
+    transfer protocol only when it can present the matching lease capability.
+    """
+
+    def __init__(
+        self,
+        *,
+        session_factory: Any,
+        config: RolloverConfig,
+        lock: Any = _TELEGRAM_TURN_COORDINATOR_LOCK,
+    ) -> None:
+        if not callable(session_factory):
+            raise LedgerError("invalid_session_factory")
+        if not isinstance(config, RolloverConfig):
+            raise LedgerError("invalid_rollover_config")
+        if not callable(getattr(lock, "__enter__", None)):
+            raise LedgerError("invalid_turn_coordinator_lock")
+        self._session_factory = session_factory
+        self._config = config
+        self._lock = lock
+
+    def bind_or_create(
+        self,
+        *,
+        telegram_owner: str | None,
+        stable_chat_handle: str,
+        scope: str,
+        rollover_local_day: str,
+        create_session: Any = None,
+        security_validator: Any = None,
+    ) -> TelegramBindingMutationResult:
+        """Resolve an existing binding or atomically create its first Session.
+
+        ``create_session`` receives a coordinator-generated ``session_id`` and
+        must add and return exactly that ID through the supplied ``database``.
+        It is only called after the owner/chat/scope identity is validated and
+        no binding exists.  The same transaction then verifies ownership and
+        publishes the natural-key binding.
+        """
+
+        if not self._enabled():
+            return TelegramBindingMutationResult("disabled")
+        identity = self._binding_identity(telegram_owner, stable_chat_handle, scope)
+        if identity is None:
+            return TelegramBindingMutationResult("owner_invalid")
+        owner, owner_reference, chat_reference = identity
+        try:
+            _validate_local_day(rollover_local_day)
+        except LedgerError:
+            return TelegramBindingMutationResult("invalid_rollover_local_day")
+
+        def operation(database: Any) -> TelegramBindingMutationResult:
+            ledger = TelegramRolloverLedger(database, self._config.reference_key)
+            ledger.begin_atomic_rollover_transaction()
+            ledger.verify_reference_key()
+            existing = ledger.get_binding_for_identity(
+                owner_reference=owner_reference,
+                chat_reference=chat_reference,
+                scope=scope,
+            )
+            if existing is not None:
+                if not self._session_is_active_ready(
+                    database, ledger, existing.active_session_id, owner, owner_reference
+                ):
+                    raise _BindingMutationRefusal("binding_invalid")
+                self._refuse_if_binding_leased(database, ledger, existing)
+                self._validate_secure_session(
+                    security_validator, database, existing.active_session_id, owner, scope
+                )
+                return TelegramBindingMutationResult("bound_existing", binding=existing)
+            if not callable(create_session):
+                raise _BindingMutationRefusal("binding_creation_required")
+            session_id = self._new_session_id(database, ledger)
+            try:
+                returned_session_id = create_session(
+                    database=database, owner=owner, scope=scope, session_id=session_id
+                )
+                if returned_session_id != session_id:
+                    raise _BindingMutationRefusal("session_creation_failed")
+                database.flush()
+            except _BindingMutationRefusal:
+                raise
+            except Exception as error:
+                raise _BindingMutationRefusal("session_creation_failed") from error
+            if not ledger.session_belongs_to_owner(
+                session_id=session_id, owner_reference=owner_reference
+            ):
+                raise _BindingMutationRefusal("session_owner_mismatch")
+            if not self._session_is_active_ready(
+                database, ledger, session_id, owner, owner_reference
+            ):
+                raise _BindingMutationRefusal("session_creation_failed")
+            self._validate_secure_session(
+                security_validator, database, session_id, owner, scope
+            )
+            binding = ledger.get_or_create_binding(
+                owner_reference=owner_reference,
+                chat_reference=chat_reference,
+                scope=scope,
+                active_session_id=session_id,
+                active_rollover_local_day=rollover_local_day,
+            )
+            # A newly published DB binding is authoritative immediately, but
+            # its legacy compatibility projection has not been written by this
+            # default-off seam.  Mark it stale rather than claiming JSON is
+            # current or letting a later projector overwrite DB authority.
+            binding = ledger.set_projection_status(
+                binding_id=binding.id,
+                expected_generation=binding.generation,
+                status="stale",
+            )
+            return TelegramBindingMutationResult("bound_created", binding=binding, created=True)
+
+        return self._operate(operation)
+
+    def rebind(
+        self,
+        *,
+        telegram_owner: str | None,
+        stable_chat_handle: str,
+        scope: str,
+        rollover_local_day: str,
+        create_replacement: Any,
+        security_validator: Any = None,
+        purpose: str = "rebind",
+    ) -> TelegramBindingMutationResult:
+        """Atomically replace and archive one owner-scoped binding Session.
+
+        ``purpose`` is intentionally allowlisted to make secure fallback an
+        explicit call site rather than an ambient side effect.  Both ordinary
+        ``/new`` rebind and secure fallback use the exact same lease fence.
+        """
+
+        if not self._enabled():
+            return TelegramBindingMutationResult("disabled")
+        identity = self._binding_identity(telegram_owner, stable_chat_handle, scope)
+        if identity is None:
+            return TelegramBindingMutationResult("owner_invalid")
+        try:
+            _validate_local_day(rollover_local_day)
+        except LedgerError:
+            return TelegramBindingMutationResult("invalid_rollover_local_day")
+        if (
+            purpose not in {"rebind", "secure_fallback"}
+            or (purpose == "secure_fallback" and scope != "secure")
+            or not callable(create_replacement)
+        ):
+            return TelegramBindingMutationResult("invalid_binding_mutation")
+        owner, owner_reference, chat_reference = identity
+
+        def operation(database: Any) -> TelegramBindingMutationResult:
+            ledger = TelegramRolloverLedger(database, self._config.reference_key)
+            ledger.begin_atomic_rollover_transaction()
+            ledger.verify_reference_key()
+            binding = ledger.get_binding_for_identity(
+                owner_reference=owner_reference,
+                chat_reference=chat_reference,
+                scope=scope,
+            )
+            if binding is None:
+                raise _BindingMutationRefusal("binding_not_found")
+            if rollover_local_day < binding.active_rollover_local_day:
+                raise _BindingMutationRefusal("stale_rollover_day")
+            if not self._session_is_active_ready(
+                database, ledger, binding.active_session_id, owner, owner_reference
+            ):
+                raise _BindingMutationRefusal("binding_invalid")
+            self._refuse_if_binding_leased(database, ledger, binding)
+            replacement_id = self._new_session_id(database, ledger)
+            try:
+                returned_replacement_id = create_replacement(
+                    database=database,
+                    owner=owner,
+                    scope=scope,
+                    old_session_id=binding.active_session_id,
+                    purpose=purpose,
+                    session_id=replacement_id,
+                )
+                if returned_replacement_id != replacement_id:
+                    raise _BindingMutationRefusal("replacement_session_invalid")
+                database.flush()
+            except _BindingMutationRefusal:
+                raise
+            except Exception as error:
+                raise _BindingMutationRefusal("session_creation_failed") from error
+            if not ledger.session_belongs_to_owner(
+                session_id=replacement_id, owner_reference=owner_reference
+            ):
+                raise _BindingMutationRefusal("session_owner_mismatch")
+            if not self._session_is_active_ready(
+                database, ledger, replacement_id, owner, owner_reference
+            ):
+                raise _BindingMutationRefusal("session_creation_failed")
+            self._validate_secure_session(
+                security_validator, database, replacement_id, owner, scope
+            )
+            tables = ledger._verified_tables()
+            changed = database.execute(
+                update(tables["binding"])
+                .where(
+                    tables["binding"].c.id == binding.id,
+                    tables["binding"].c.generation == binding.generation,
+                    tables["binding"].c.active_session_id == binding.active_session_id,
+                    tables["binding"].c.turn_lease_ref.is_(None),
+                    tables["binding"].c.active_turn_ref.is_(None),
+                    tables["binding"].c.turn_lease_expires_at.is_(None),
+                    tables["binding"].c.turn_started_at.is_(None),
+                )
+                .values(
+                    active_session_id=replacement_id,
+                    active_rollover_local_day=rollover_local_day,
+                    generation=binding.generation + 1,
+                    projection_status="stale",
+                    projection_generation=binding.generation + 1,
+                    updated_at=_ledger_now(),
+                )
+            )
+            if changed.rowcount != 1:
+                raise _BindingMutationRefusal("lease_busy")
+            archived = database.execute(
+                update(tables["session"])
+                .where(
+                    tables["session"].c.id == binding.active_session_id,
+                    tables["session"].c.archived.is_(False),
+                )
+                .values(archived=True, updated_at=_ledger_now())
+            )
+            if archived.rowcount != 1:
+                raise LedgerError("archive_write_failed")
+            updated_binding = ledger.get_binding(binding.id)
+            if updated_binding is None or updated_binding.generation != binding.generation + 1:
+                raise LedgerError("stale_generation_fence")
+            return TelegramBindingMutationResult("rebound", binding=updated_binding, created=True)
+
+        return self._operate(operation)
+
+    def _operate(self, operation: Any) -> TelegramBindingMutationResult:
+        with self._lock:
+            database = self._session_factory()
+            if database is None:
+                raise LedgerError("invalid_session_factory")
+            try:
+                result = operation(database)
+                database.commit()
+                return result
+            except _BindingMutationRefusal as refusal:
+                database.rollback()
+                return TelegramBindingMutationResult(refusal.status)
+            except LedgerError as error:
+                database.rollback()
+                # The repository's error text is an internal diagnostic, not
+                # a public control response.  Preserve only a narrow retryable
+                # busy outcome; every other ledger/ownership failure is one
+                # content-free invalid-binding refusal.
+                status = "database_busy" if str(error) == "database_busy" else "binding_invalid"
+                return TelegramBindingMutationResult(status)
+            except Exception:
+                database.rollback()
+                return TelegramBindingMutationResult("binding_invalid")
+            finally:
+                database.close()
+
+    def _enabled(self) -> bool:
+        return bool(self._config.enabled and self._config.reference_key is not None)
+
+    def _new_session_id(self, database: Any, ledger: TelegramRolloverLedger) -> str:
+        """Reserve a coordinator-owned opaque Session ID before callback work."""
+
+        session_id = f"telegram-{uuid.uuid4().hex}"
+        tables = ledger._verified_tables()
+        if _select_one(database, tables["session"], tables["session"].c.id == session_id) is not None:
+            raise _BindingMutationRefusal("session_creation_failed")
+        return session_id
+
+    def _binding_identity(
+        self, telegram_owner: str | None, stable_chat_handle: str, scope: str
+    ) -> tuple[str, str, str] | None:
+        try:
+            _validate_scope(scope)
+            if not isinstance(telegram_owner, str):
+                return None
+            owner = telegram_owner.strip().lower()
+            # ``telegram`` is the historical ambient fallback, not a valid A5
+            # injection.  A configured user of that exact name must choose a
+            # different explicit application-level Telegram owner alias.
+            if not owner or owner == "telegram":
+                return None
+            if not isinstance(stable_chat_handle, str) or not stable_chat_handle.strip():
+                return None
+            return (
+                owner,
+                owner_ref(self._config.reference_key, owner),
+                chat_handle_ref(self._config.reference_key, stable_chat_handle),
+            )
+        except (LedgerError, ReferenceError, ValueError):
+            return None
+
+    def _refuse_if_binding_leased(
+        self, database: Any, ledger: TelegramRolloverLedger, binding: LedgerBinding
+    ) -> None:
+        tables = ledger._verified_tables()
+        row = _select_one(database, tables["binding"], tables["binding"].c.id == binding.id)
+        if row is None:
+            raise _BindingMutationRefusal("binding_not_found")
+        if any(
+            row.get(name) is not None
+            for name in ("turn_lease_ref", "active_turn_ref", "turn_lease_expires_at", "turn_started_at")
+        ):
+            raise _BindingMutationRefusal("lease_busy")
+
+    def _session_is_active_ready(
+        self,
+        database: Any,
+        ledger: TelegramRolloverLedger,
+        session_id: str,
+        owner: str,
+        owner_reference: str,
+    ) -> bool:
+        """Return whether a bound Session is owner-scoped and usable now.
+
+        Bind/rebind must never publish an archived or incomplete Session.  This
+        narrow DB check is deliberately independent of provider routing; the
+        secure-scope policy check remains an additional gate below.
+        """
+
+        if not ledger.session_belongs_to_owner(
+            session_id=session_id, owner_reference=owner_reference
+        ):
+            return False
+        tables = ledger._verified_tables()
+        row = _select_one(database, tables["session"], tables["session"].c.id == session_id)
+        if row is None or row.get("archived") is not False:
+            return False
+        row_owner = row.get("owner")
+        if not isinstance(row_owner, str) or row_owner.strip().lower() != owner:
+            return False
+        return all(
+            isinstance(row.get(name), str) and bool(row[name].strip())
+            for name in ("endpoint_url", "model")
+        )
+
+    def _validate_secure_session(
+        self,
+        security_validator: Any,
+        database: Any,
+        session_id: str,
+        owner: str,
+        scope: str,
+    ) -> None:
+        if scope != "secure":
+            return
+        if not callable(security_validator):
+            raise _BindingMutationRefusal("security_policy_blocked")
+        try:
+            allowed = security_validator(
+                database=database, session_id=session_id, owner=owner, scope=scope
+            )
+        except Exception as error:
+            raise _BindingMutationRefusal("security_policy_blocked") from error
+        if allowed is not True:
+            raise _BindingMutationRefusal("security_policy_blocked")
+
+
 class AtomicTelegramSessionRolloverService:
     """Explicit, default-off atomic replacement Session coordinator.
 

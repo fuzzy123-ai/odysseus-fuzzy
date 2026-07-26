@@ -188,7 +188,25 @@ def handle_dsgvo_control_command(
     }
 
 
-def telegram_control_owner(memory_owner: str | None) -> str | None:
+def telegram_control_owner(
+    memory_owner: str | None,
+    *,
+    telegram_owner: str | None = None,
+    rollover_enabled: bool = False,
+) -> str | None:
+    """Resolve the explicit A5 owner without changing legacy callers.
+
+    Calendar/Todo controls historically received ``memory_owner``.  That
+    remains the disabled-path compatibility input only; an enabled A5 caller
+    must supply a real Telegram owner and may never fall back to the ambient
+    ``telegram`` literal.
+    """
+
+    if rollover_enabled:
+        if not isinstance(telegram_owner, str):
+            return None
+        owner = telegram_owner.strip().lower()
+        return owner if owner and owner != "telegram" else None
     owner = str(memory_owner or "").strip()
     return owner or None
 

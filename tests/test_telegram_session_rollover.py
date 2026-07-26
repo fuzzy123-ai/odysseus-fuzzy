@@ -25,6 +25,7 @@ from src.telegram_session_rollover import (
     TurnIntakeState,
     TurnMessageMarker,
     TelegramRolloverLedger,
+    TelegramBindingMutationCoordinator,
     TelegramTurnCoordinator,
     TelegramTurnLease,
     advance_rollover_state,
@@ -2036,5 +2037,600 @@ def test_turn_coordinator_concurrent_updates_choose_one_winner_and_one_busy(tmp_
         assert results.count("acquired") == 1
         assert len(results) == 2
         assert next(status for status in results if status != "acquired").startswith("lease_busy")
+    finally:
+        engine.dispose()
+
+
+def _binding_mutation_fixture(*, scope="normal"):
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(bind=engine)
+    factory = sessionmaker(bind=engine, autoflush=False)
+    database = factory()
+    try:
+        database.add(
+            Session(
+                id="binding-old-session",
+                name="Synthetic",
+                endpoint_url="http://synthetic.invalid",
+                model="synthetic",
+                owner="alice",
+            )
+        )
+        ledger = TelegramRolloverLedger(database, KEY)
+        binding = ledger.get_or_create_binding(
+            owner_reference=owner_ref(KEY, "alice"),
+            chat_reference=chat_handle_ref(KEY, "chat_a1b2c3d4"),
+            scope=scope,
+            active_session_id="binding-old-session",
+            active_rollover_local_day="2026-07-24",
+        )
+        database.commit()
+    finally:
+        database.close()
+    return engine, factory, binding, TelegramBindingMutationCoordinator(
+        session_factory=factory,
+        config=RolloverConfig(enabled=True, reference_key=KEY),
+    )
+
+
+def test_binding_mutation_requires_explicit_non_placeholder_owner_without_opening_db():
+    opened = []
+
+    def factory():
+        opened.append(True)
+        raise AssertionError("invalid owner must fail before opening a database session")
+
+    coordinator = TelegramBindingMutationCoordinator(
+        session_factory=factory,
+        config=RolloverConfig(enabled=True, reference_key=KEY),
+    )
+    for owner in (None, "", " telegram "):
+        assert coordinator.bind_or_create(
+            telegram_owner=owner,
+            stable_chat_handle="chat_a1b2c3d4",
+            scope="normal",
+            rollover_local_day="2026-07-24",
+        ).status == "owner_invalid"
+    assert opened == []
+
+
+def test_binding_mutation_disabled_never_opens_database_or_calls_creator():
+    opened = []
+
+    def factory():
+        opened.append(True)
+        raise AssertionError("disabled seam must not open a database session")
+
+    coordinator = TelegramBindingMutationCoordinator(
+        session_factory=factory,
+        config=RolloverConfig(enabled=False, reference_key=KEY),
+    )
+    result = coordinator.bind_or_create(
+        telegram_owner="alice",
+        stable_chat_handle="chat_a1b2c3d4",
+        scope="normal",
+        rollover_local_day="2026-07-24",
+        create_session=lambda **_kwargs: (_ for _ in ()).throw(AssertionError("creator called")),
+    )
+    assert result.status == "disabled"
+    assert opened == []
+
+
+def test_binding_mutation_creator_and_flush_failures_rollback_without_raw_errors():
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(bind=engine)
+    factory = sessionmaker(bind=engine, autoflush=False)
+    coordinator = TelegramBindingMutationCoordinator(
+        session_factory=factory,
+        config=RolloverConfig(enabled=True, reference_key=KEY),
+    )
+    try:
+        def creator_raises(**_kwargs):
+            raise RuntimeError("provider detail must not escape")
+
+        assert coordinator.bind_or_create(
+            telegram_owner="alice",
+            stable_chat_handle="chat_a1b2c3d4",
+            scope="normal",
+            rollover_local_day="2026-07-24",
+            create_session=creator_raises,
+        ).status == "session_creation_failed"
+
+        failed_session_ids = []
+
+        def creator_with_flush_failure(*, database, owner, session_id, **_kwargs):
+            failed_session_ids.append(session_id)
+            database.add(
+                Session(
+                    id=session_id,
+                    name="Synthetic",
+                    endpoint_url="http://synthetic.invalid",
+                    model="synthetic",
+                    owner=owner,
+                )
+            )
+
+            def fail_flush():
+                raise RuntimeError("database implementation detail")
+
+            database.flush = fail_flush
+            return session_id
+
+        assert coordinator.bind_or_create(
+            telegram_owner="alice",
+            stable_chat_handle="chat_a1b2c3d4",
+            scope="normal",
+            rollover_local_day="2026-07-24",
+            create_session=creator_with_flush_failure,
+        ).status == "session_creation_failed"
+        database = factory()
+        try:
+            assert database.get(Session, failed_session_ids[0]) is None
+            assert database.execute(database_module.TelegramSessionBinding.__table__.select()).all() == []
+        finally:
+            database.close()
+    finally:
+        engine.dispose()
+
+
+def test_binding_mutation_rejects_cross_owner_new_session_without_orphan():
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(bind=engine)
+    factory = sessionmaker(bind=engine, autoflush=False)
+    coordinator = TelegramBindingMutationCoordinator(
+        session_factory=factory,
+        config=RolloverConfig(enabled=True, reference_key=KEY),
+    )
+    try:
+        wrong_session_ids = []
+
+        def create_wrong_owner(*, database, session_id, **_kwargs):
+            wrong_session_ids.append(session_id)
+            database.add(
+                Session(
+                    id=session_id,
+                    name="Synthetic",
+                    endpoint_url="http://synthetic.invalid",
+                    model="synthetic",
+                    owner="bob",
+                )
+            )
+            return session_id
+
+        result = coordinator.bind_or_create(
+            telegram_owner="alice",
+            stable_chat_handle="chat_a1b2c3d4",
+            scope="normal",
+            rollover_local_day="2026-07-24",
+            create_session=create_wrong_owner,
+        )
+        assert result.status == "session_owner_mismatch"
+        database = factory()
+        try:
+            assert database.get(Session, wrong_session_ids[0]) is None
+            assert database.execute(database_module.TelegramSessionBinding.__table__.select()).mappings().all() == []
+        finally:
+            database.close()
+
+        correct_session_ids = []
+
+        def create_correct_owner(*, database, owner, session_id, **_kwargs):
+            correct_session_ids.append(session_id)
+            database.add(
+                Session(
+                    id=session_id,
+                    name="Synthetic",
+                    endpoint_url="http://synthetic.invalid",
+                    model="synthetic",
+                    owner=owner,
+                )
+            )
+            return session_id
+
+        created = coordinator.bind_or_create(
+            telegram_owner=" Alice ",
+            stable_chat_handle="chat_a1b2c3d4",
+            scope="normal",
+            rollover_local_day="2026-07-24",
+            create_session=create_correct_owner,
+        )
+        assert created.status == "bound_created"
+        assert created.binding is not None and created.binding.generation == 0
+        database = factory()
+        try:
+            row = database.execute(database_module.TelegramSessionBinding.__table__.select()).mappings().one()
+            assert row["active_session_id"] == correct_session_ids[0]
+            assert row["projection_status"] == "stale"
+        finally:
+            database.close()
+    finally:
+        engine.dispose()
+
+
+def test_binding_mutation_rejects_existing_session_return_without_orphan():
+    engine, factory, binding, coordinator = _binding_mutation_fixture()
+    created_session_ids = []
+    try:
+        def return_existing_session(*, database, owner, session_id, **_kwargs):
+            created_session_ids.append(session_id)
+            database.add(
+                Session(
+                    id=session_id,
+                    name="Discarded replacement",
+                    endpoint_url="http://synthetic.invalid",
+                    model="synthetic",
+                    owner=owner,
+                )
+            )
+            return binding.active_session_id
+
+        result = coordinator.rebind(
+            telegram_owner="alice",
+            stable_chat_handle="chat_a1b2c3d4",
+            scope="normal",
+            rollover_local_day="2026-07-25",
+            create_replacement=return_existing_session,
+        )
+        assert result.status == "replacement_session_invalid"
+        database = factory()
+        try:
+            assert database.get(Session, created_session_ids[0]) is None
+            assert database.get(Session, binding.active_session_id).archived is False
+            row = database.execute(
+                database_module.TelegramSessionBinding.__table__.select().where(
+                    database_module.TelegramSessionBinding.id == binding.id
+                )
+            ).mappings().one()
+            assert row["generation"] == binding.generation
+            assert row["active_session_id"] == binding.active_session_id
+        finally:
+            database.close()
+    finally:
+        engine.dispose()
+
+
+def test_binding_mutation_lease_blocks_bind_rebind_and_secure_fallback():
+    engine, factory, binding, coordinator = _binding_mutation_fixture(scope="secure")
+    try:
+        database = factory()
+        try:
+            database.execute(
+                update(database_module.TelegramSessionBinding.__table__)
+                .where(database_module.TelegramSessionBinding.id == binding.id)
+                .values(
+                    turn_lease_ref="h1_" + "a" * 32,
+                    active_turn_ref="t1_" + "b" * 32,
+                    turn_lease_expires_at=datetime(2026, 7, 26),
+                    turn_started_at=datetime(2026, 7, 25),
+                )
+            )
+            database.commit()
+        finally:
+            database.close()
+
+        assert coordinator.bind_or_create(
+            telegram_owner="alice",
+            stable_chat_handle="chat_a1b2c3d4",
+            scope="secure",
+            rollover_local_day="2026-07-25",
+        ).status == "lease_busy"
+        for purpose in ("rebind", "secure_fallback"):
+            assert coordinator.rebind(
+                telegram_owner="alice",
+                stable_chat_handle="chat_a1b2c3d4",
+                scope="secure",
+                rollover_local_day="2026-07-25",
+                purpose=purpose,
+                create_replacement=lambda **_kwargs: "must-not-run",
+            ).status == "lease_busy"
+    finally:
+        engine.dispose()
+
+
+def test_binding_mutation_existing_binding_rejects_changed_session_owner():
+    engine, factory, binding, coordinator = _binding_mutation_fixture()
+    try:
+        database = factory()
+        try:
+            database.execute(
+                update(Session.__table__)
+                .where(Session.id == binding.active_session_id)
+                .values(owner="bob")
+            )
+            database.commit()
+        finally:
+            database.close()
+        refused = coordinator.bind_or_create(
+            telegram_owner="alice",
+            stable_chat_handle="chat_a1b2c3d4",
+            scope="normal",
+            rollover_local_day="2026-07-25",
+        )
+        assert refused.status == "binding_invalid"
+    finally:
+        engine.dispose()
+
+
+def test_binding_mutation_existing_secure_binding_requires_security_policy():
+    engine, factory, binding, coordinator = _binding_mutation_fixture(scope="secure")
+    try:
+        def validator_raises(**_kwargs):
+            raise RuntimeError("policy diagnostic must not escape")
+
+        for validator in (None, lambda **_kwargs: False, validator_raises):
+            result = coordinator.bind_or_create(
+                telegram_owner="alice",
+                stable_chat_handle="chat_a1b2c3d4",
+                scope="secure",
+                rollover_local_day="2026-07-25",
+                security_validator=validator,
+            )
+            assert result.status == "security_policy_blocked"
+        database = factory()
+        try:
+            row = database.execute(
+                database_module.TelegramSessionBinding.__table__.select().where(
+                    database_module.TelegramSessionBinding.id == binding.id
+                )
+            ).mappings().one()
+            assert row["generation"] == binding.generation
+            assert database.get(Session, binding.active_session_id).archived is False
+        finally:
+            database.close()
+    finally:
+        engine.dispose()
+
+
+def test_binding_mutation_rejects_non_ready_existing_and_replacement_sessions():
+    engine, factory, binding, coordinator = _binding_mutation_fixture()
+    try:
+        database = factory()
+        try:
+            database.execute(
+                update(Session.__table__)
+                .where(Session.id == binding.active_session_id)
+                .values(archived=True)
+            )
+            database.commit()
+        finally:
+            database.close()
+        assert coordinator.bind_or_create(
+            telegram_owner="alice",
+            stable_chat_handle="chat_a1b2c3d4",
+            scope="normal",
+            rollover_local_day="2026-07-25",
+        ).status == "binding_invalid"
+
+        database = factory()
+        try:
+            database.execute(
+                update(Session.__table__)
+                .where(Session.id == binding.active_session_id)
+                .values(archived=False)
+            )
+            database.commit()
+        finally:
+            database.close()
+
+        incomplete_session_ids = []
+
+        def incomplete_replacement(*, database, owner, session_id, **_kwargs):
+            incomplete_session_ids.append(session_id)
+            database.add(
+                Session(
+                    id=session_id,
+                    name="Incomplete",
+                    endpoint_url="",
+                    model="",
+                    owner=owner,
+                )
+            )
+            return session_id
+
+        assert coordinator.rebind(
+            telegram_owner="alice",
+            stable_chat_handle="chat_a1b2c3d4",
+            scope="normal",
+            rollover_local_day="2026-07-25",
+            create_replacement=incomplete_replacement,
+        ).status == "session_creation_failed"
+        database = factory()
+        try:
+            assert database.get(Session, incomplete_session_ids[0]) is None
+            assert database.get(Session, binding.active_session_id).archived is False
+        finally:
+            database.close()
+    finally:
+        engine.dispose()
+
+
+def test_binding_mutation_rebind_rejects_invalid_day_before_creator_or_mutation():
+    engine, factory, binding, coordinator = _binding_mutation_fixture()
+    creator_calls = []
+    try:
+        result = coordinator.rebind(
+            telegram_owner="alice",
+            stable_chat_handle="chat_a1b2c3d4",
+            scope="normal",
+            rollover_local_day="not-a-local-day",
+            create_replacement=lambda **_kwargs: creator_calls.append(True),
+        )
+        assert result.status == "invalid_rollover_local_day"
+        assert creator_calls == []
+        stale = coordinator.rebind(
+            telegram_owner="alice",
+            stable_chat_handle="chat_a1b2c3d4",
+            scope="normal",
+            rollover_local_day="2026-07-23",
+            create_replacement=lambda **_kwargs: creator_calls.append(True),
+        )
+        assert stale.status == "stale_rollover_day"
+        assert creator_calls == []
+        database = factory()
+        try:
+            row = database.execute(
+                database_module.TelegramSessionBinding.__table__.select().where(
+                    database_module.TelegramSessionBinding.id == binding.id
+                )
+            ).mappings().one()
+            assert row["generation"] == 0
+            assert row["active_rollover_local_day"] == "2026-07-24"
+        finally:
+            database.close()
+    finally:
+        engine.dispose()
+
+
+def test_binding_mutation_secure_fallback_requires_secure_scope_before_creator():
+    engine, _factory, _binding, coordinator = _binding_mutation_fixture()
+    creator_calls = []
+    try:
+        result = coordinator.rebind(
+            telegram_owner="alice",
+            stable_chat_handle="chat_a1b2c3d4",
+            scope="normal",
+            rollover_local_day="2026-07-25",
+            purpose="secure_fallback",
+            create_replacement=lambda **_kwargs: creator_calls.append(True),
+        )
+        assert result.status == "invalid_binding_mutation"
+        assert creator_calls == []
+    finally:
+        engine.dispose()
+
+
+def test_binding_mutation_rebind_commits_one_generation_and_rolls_back_failed_replacement():
+    engine, factory, binding, coordinator = _binding_mutation_fixture()
+    try:
+        replacement_session_ids = []
+
+        def create_replacement(*, database, owner, session_id, **_kwargs):
+            replacement_session_ids.append(session_id)
+            database.add(
+                Session(
+                    id=session_id,
+                    name="Synthetic replacement",
+                    endpoint_url="http://synthetic.invalid",
+                    model="synthetic",
+                    owner=owner,
+                )
+            )
+            return session_id
+
+        result = coordinator.rebind(
+            telegram_owner="alice",
+            stable_chat_handle="chat_a1b2c3d4",
+            scope="normal",
+            rollover_local_day="2026-07-25",
+            create_replacement=create_replacement,
+        )
+        assert result.status == "rebound"
+        assert result.binding is not None and result.binding.generation == binding.generation + 1
+        database = factory()
+        try:
+            row = database.execute(
+                database_module.TelegramSessionBinding.__table__.select().where(
+                    database_module.TelegramSessionBinding.id == binding.id
+                )
+            ).mappings().one()
+            assert row["active_session_id"] == replacement_session_ids[0]
+            assert row["generation"] == 1
+            assert row["active_rollover_local_day"] == "2026-07-25"
+            assert database.get(Session, "binding-old-session").archived is True
+            assert database.get(Session, replacement_session_ids[0]).archived is False
+        finally:
+            database.close()
+
+        orphan_session_ids = []
+
+        def create_wrong_replacement(*, database, session_id, **_kwargs):
+            orphan_session_ids.append(session_id)
+            database.add(
+                Session(
+                    id=session_id,
+                    name="Synthetic wrong owner",
+                    endpoint_url="http://synthetic.invalid",
+                    model="synthetic",
+                    owner="bob",
+                )
+            )
+            return session_id
+
+        rejected = coordinator.rebind(
+            telegram_owner="alice",
+            stable_chat_handle="chat_a1b2c3d4",
+            scope="normal",
+            rollover_local_day="2026-07-26",
+            create_replacement=create_wrong_replacement,
+        )
+        assert rejected.status == "session_owner_mismatch"
+        database = factory()
+        try:
+            assert database.get(Session, orphan_session_ids[0]) is None
+            row = database.execute(
+                database_module.TelegramSessionBinding.__table__.select().where(
+                    database_module.TelegramSessionBinding.id == binding.id
+                )
+            ).mappings().one()
+            assert row["active_session_id"] == replacement_session_ids[0]
+            assert row["generation"] == 1
+            assert row["active_rollover_local_day"] == "2026-07-25"
+        finally:
+            database.close()
+    finally:
+        engine.dispose()
+
+
+def test_binding_mutation_secure_fallback_requires_policy_and_commits_one_replacement():
+    engine, factory, binding, coordinator = _binding_mutation_fixture(scope="secure")
+    try:
+        secure_session_ids = []
+
+        def create_replacement(*, database, owner, session_id, **_kwargs):
+            secure_session_ids.append(session_id)
+            database.add(
+                Session(
+                    id=session_id,
+                    name="Synthetic secure replacement",
+                    endpoint_url="http://synthetic.invalid",
+                    model="synthetic",
+                    owner=owner,
+                )
+            )
+            return session_id
+
+        blocked = coordinator.rebind(
+            telegram_owner="alice",
+            stable_chat_handle="chat_a1b2c3d4",
+            scope="secure",
+            rollover_local_day="2026-07-25",
+            purpose="secure_fallback",
+            create_replacement=create_replacement,
+        )
+        assert blocked.status == "security_policy_blocked"
+        database = factory()
+        try:
+            assert database.get(Session, secure_session_ids[0]) is None
+            assert database.get(Session, "binding-old-session").archived is False
+        finally:
+            database.close()
+
+        accepted = coordinator.rebind(
+            telegram_owner="alice",
+            stable_chat_handle="chat_a1b2c3d4",
+            scope="secure",
+            rollover_local_day="2026-07-25",
+            purpose="secure_fallback",
+            create_replacement=create_replacement,
+            security_validator=lambda **_kwargs: True,
+        )
+        assert accepted.status == "rebound"
+        assert accepted.binding is not None and accepted.binding.generation == binding.generation + 1
+        database = factory()
+        try:
+            assert database.get(Session, "binding-old-session").archived is True
+            assert database.get(Session, secure_session_ids[-1]).archived is False
+        finally:
+            database.close()
     finally:
         engine.dispose()

@@ -894,6 +894,33 @@ def _telegram_owner() -> str | None:
     return next(iter(users), None) if users else None
 
 
+def _telegram_rollover_owner() -> str | None:
+    """Return only an explicitly configured owner for the default-off A5 seam.
+
+    The legacy runtime resolver below may choose an auth-store fallback for
+    existing behavior.  A5 binding/lease operations cannot: they need one
+    injected, unambiguous owner and must fail closed rather than selecting the
+    first admin/user or the historic ``telegram`` placeholder.
+    """
+
+    configured_owner = os.getenv("TELEGRAM_OWNER")
+    if not isinstance(configured_owner, str):
+        return None
+    owner = configured_owner.strip().lower()
+    return owner if owner and owner != "telegram" else None
+
+
+def _telegram_binding_mutation_coordinator(config):
+    """Compose a caller-owned A5 DB operation seam; no route opts in here."""
+
+    from plugins.telegram.stores import build_db_authoritative_binding_mutation_coordinator
+
+    return build_db_authoritative_binding_mutation_coordinator(
+        session_factory=SessionLocal,
+        config=config,
+    )
+
+
 def _telegram_refresh_session_headers(session_id: str) -> dict | None:
     """Reload endpoint auth headers for Telegram sessions after container restarts."""
 
