@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-26T16:50:47+02:00",
-  "status": "oci_publish_manual_only_accepted_repo_only",
+  "updated_at": "2026-07-26T17:04:26+02:00",
+  "status": "uir02_data_paths_flags_configuration_accepted_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,7 +23,7 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd07a5_accepted_a6_dependency_ready_unselected_attachment_deferred",
+    "queue_status": "uir02_accepted_uir03_dependency_ready_unclaimed_runtime_default_off",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -35,7 +35,7 @@
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
       "memory_observability": "gro00_through_gro15_offline_go_live_gate_eligible_not_authorized",
       "unified_source_index": "usi00_through_usi14_accepted_usi15_blocked_by_child_closure_productive_sources_off",
-      "usi_runtime_consumer_integration": "uir00_uir01_accepted_uir02_dependency_ready_runtime_default_off",
+      "usi_runtime_consumer_integration": "uir00_through_uir02_accepted_uir03_dependency_ready_runtime_default_off",
       "usi_domain_adapters": "planned_child_source_waves_default_off_private_domains_deferred",
       "usi_data_lifecycle_operations": "planned_child_live_actions_default_off",
       "codebase_memory_projection": "cbm00_through_cbm08_accepted_cbm09_dependency_ready_not_selected_engine_disabled",
@@ -84,17 +84,83 @@
       "non_ui_gate_readiness_status": "blocked",
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
-        "family": "telegram_todo_truth",
-        "reason": "TTD-07A5 is accepted at fd2340a6 after the final webhook, control, polling crash-recovery and shared durable-lease integration passed eleven focused nodes plus deep Sol review. TTD-07A6 is dependency-ready but remains unselected and default-off.",
-        "slice": "TTD-07A6-optional-one-turn-continuity",
+        "family": "unified_source_index_runtime",
+        "reason": "UIR-02 is accepted after fifty-five focused tests and deep Sol review. UIR-03 is dependency-ready but requires a fresh app composition hotfile collision and ownership handoff before any edit.",
+        "slice": "UIR-03-composition-root-and-dependency-injection",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "leave_optional_continuity_unselected_and_all_productive_telegram_rollover_behavior_disabled_until_a_fresh_path_scoped_claim"
+        "safe_default": "leave UIR-03 unclaimed until exact composition paths are collision-free; keep all productive USI runtime provider worker shadow and query behavior disabled"
       },
       "queue_exhausted": true,
       "verified_at": "2026-07-24"
     },
     "active_claimed_slices": [],
+    "latest_uir02_config_handoff": {
+      "run_id": "abc-uir02-config-20260726T165219+0200",
+      "slice_id": "UIR-02-data-paths-feature-flags-and-configuration",
+      "roadmap": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
+      "owner": "/root",
+      "worker_owner": "/root/uir02_config",
+      "state": "released_accepted_repo_only",
+      "lease_started_at": "2026-07-26T16:52:19+02:00",
+      "lease_expires_at": "2026-07-26T20:52:19+02:00",
+      "released_at": "2026-07-26T17:04:26+02:00",
+      "base_commit": "2591759aab8004464c537e2bd7d3cc49a1b9cf58",
+      "implementation_commit": "960f21d2b7a2be696672870789a44c7c64ff87af",
+      "changed_paths": [
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/unified-source-index-runtime-integration-roadmap.md",
+        "src/unified_source_index_runtime_config.py",
+        "src/constants.py",
+        "src/config.py",
+        "tests/test_unified_source_index_runtime_config.py"
+      ],
+      "acceptance": [
+        "one canonical USI SQLite path remains confined beneath the selected data root with one explicit disabled test override",
+        "runtime and independent CBM Lineage RAPTOR and Chroma provider flags are strictly parsed and default-off",
+        "disabled and fixture modes reject productive providers; invalid budgets mode combinations paths and scopes fail closed",
+        "owner source and domain allowlists reject empty wildcard duplicate and unbounded values before any enabled mode",
+        "configuration construction creates no path database runtime worker provider query UI network deploy or live behavior"
+      ],
+      "tests": {
+        "focused_runtime_config_contracts": "55 passed with one existing SQLAlchemy deprecation warning",
+        "python_compile_changed_source": "pass",
+        "roadmap_json_parse": "pass",
+        "scoped_git_diff_check": "pass",
+        "broad_local_pytest": "not_run_by_operator_request"
+      },
+      "artifact_hashes": {
+        "src/unified_source_index_runtime_config.py": "2658BD536843D7476C7227DC6D9190EB5F6BC022785ED21A164356BCCC30BC65",
+        "src/constants.py": "7FDCCB19010401679083610E6DF06BABCFA3D6B3DB673D2145BE18AD7BDA953D",
+        "src/config.py": "0DFCACC9B89DDCFCE9B1EEF7C842A06881F12A629772A1BEC6360D300A6C1E8D",
+        "tests/test_unified_source_index_runtime_config.py": "F69F446DBA1F2243A0C299D506668CF4BBEF5119046D27E68C6C2FE2D7323E84"
+      },
+      "review": {
+        "depth": "deep",
+        "reviewer": "/root",
+        "result": "pass_after_two_correction_rounds",
+        "corrections": [
+          "one canonical SQLite relative path instead of duplicated defaults",
+          "fixture and disabled modes reject productive provider flags",
+          "all productive booleans use exact lowercase true or false",
+          "default construction and deterministic config accessor have explicit zero-side-effect coverage"
+        ]
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "actual_master": "surface_default",
+        "worker_model_requested": "gpt-5.6-terra",
+        "worker_model_evidence": "Terra role reported; concrete model identifier unavailable on worker surface",
+        "reviewer": "/root"
+      },
+      "not_verified": [
+        "application composition runtime worker provider or productive query integration because UIR-03 and later slices own them",
+        "full local pytest suite by operator request",
+        "exact UIR-02 commit GitHub Required CI",
+        "Debian deployment and live exact-revision readback"
+      ],
+      "next_action": "commit the exact two-path UIR-02 roadmap handoff, push all three reviewed commits, require exact GitHub Required CI, then stop at the separate Debian deployment gate"
+    },
     "latest_oci_publish_manual_only_handoff": {
       "run_id": "abc-oci-publish-manual-only-20260726T164901+0200",
       "slice_id": "CI-OCI-publish-manual-only",
@@ -1392,8 +1458,8 @@
       "id": "OWM-19",
       "name": "USI Runtime And Consumer Integration",
       "priority": 9,
-      "status": "uir00_uir01_accepted_uir02_dependency_ready_runtime_default_off",
-      "why_open": "The USI core through USI-14 plus UIR-00 and UIR-01 are accepted. UIR-02 is dependency-ready for bounded default-off data-path, feature-flag and configuration contracts; runtime, workers, providers, shadow prompt use and productive cutover remain disabled.",
+      "status": "uir00_through_uir02_accepted_uir03_dependency_ready_runtime_default_off",
+      "why_open": "The USI core through USI-14 plus UIR-00 through UIR-02 are accepted. UIR-03 is dependency-ready after an exact composition-hotfile handoff; runtime, workers, providers, shadow prompt use and productive cutover remain disabled.",
       "source_roadmap": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
       "source_gate_family": "unified_source_index",
       "dependencies": [
@@ -1406,7 +1472,7 @@
       "safe_default": "runtime_disabled_shadow_results_excluded_from_prompts_productive_workers_and_cutover_disabled",
       "user_gate_policy": "No independent UIR product gate. Contracts, dependency injection, fake workers, synthetic shadow comparisons and failure tests remain repo-only. UIR-14 contributes runtime evidence to the existing USI-LIVE-ACTIVATION gate; no productive scan, prompt cutover or provider process starts before that parent decision.",
       "execution_protocol": {
-        "queue_registration": "UIR-00 and UIR-01 are accepted and their claims released. UIR-02 is dependency-ready but unclaimed; keep UIR-03 and all later runtime successors blocked_by_dependency.",
+        "queue_registration": "UIR-00 through UIR-02 are accepted and their claims released. UIR-03 is dependency-ready but unclaimed pending exact composition-hotfile collision and ownership recon; keep UIR-04 and all later runtime successors blocked_by_dependency.",
         "dependency_rule": "Serialize runtime hotfiles. UIR owns composition and consumers, not source extraction, domain writes, lifecycle actions, tool identity, telemetry or metrics exporters.",
         "future_goal_command": "/goal Implementiere OWM-19 als Child von OWM-15; beginne UIR-00, halte Runtime produktiv aus und speise nur das gemeinsame USI activation packet."
       },
@@ -2434,8 +2500,133 @@
         "product_complete": "no"
       },
       "acceptance": "offline_go_immutable_deterministic_seven_mode_runtime_state_contract_fail_closed_and_never_live_authorizing",
-      "next_frontier": "UIR-02 data paths, feature flags and configuration is dependency-ready; runtime, workers, providers and productive query paths remain disabled.",
+      "next_frontier": "UIR-02 data paths, feature flags and configuration is accepted; UIR-03 composition is dependency-ready pending exact hotfile handoff while runtime, workers, providers and productive query paths remain disabled.",
       "done_when": "Immutable deterministic disabled, read-only, shadow, canary, active, degraded and rollback state records normalize generation, selected scopes, provider capabilities, health and fallback policy; reject unsafe mode combinations, duplicates, unbounded or secret/path/query/content-shaped values; expose only content-free diagnostics; read no environment or runtime state; and never imply live authorization."
+    },
+    {
+      "id": "UIR-02-data-paths-feature-flags-and-configuration",
+      "class": "repo_only",
+      "owner": "/root",
+      "status": "accepted_2026-07-26",
+      "claimable": false,
+      "depends_on": [
+        "UIR-01 accepted",
+        "USI-03 accepted",
+        "collision and hotfile recon"
+      ],
+      "source_roadmap": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
+      "claim": {
+        "run_id": "abc-uir02-config-20260726T165219+0200",
+        "thread_id": "/root",
+        "slice_id": "UIR-02-data-paths-feature-flags-and-configuration",
+        "owner": "Bob with Charlie integration",
+        "worker": "/root/uir02_config",
+        "allowed_paths": [
+          "src/unified_source_index_runtime_config.py",
+          "src/constants.py",
+          "src/config.py",
+          "tests/test_unified_source_index_runtime_config.py"
+        ],
+        "excluded_paths": [
+          "all UI static template and browser-test paths",
+          "application composition runtime worker provider and productive query consumers",
+          "environment files deploy network and live host paths"
+        ],
+        "hotfiles": [
+          "src/constants.py",
+          "src/config.py"
+        ],
+        "state": "released",
+        "acquired_at": "2026-07-26T16:52:19+02:00",
+        "lease_expires_at": "2026-07-26T20:52:19+02:00",
+        "released_at": "2026-07-26T17:04:26+02:00",
+        "handoff_required": false,
+        "worktree": "C:\\Users\\nkatz\\odysseus",
+        "new_paths": [
+          "src/unified_source_index_runtime_config.py",
+          "tests/test_unified_source_index_runtime_config.py"
+        ],
+        "implementation_commit": "960f21d2b7a2be696672870789a44c7c64ff87af"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "current_surface"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "actual": {
+          "master": {
+            "model": "surface_default",
+            "evidence": "root surface did not expose a concrete model identifier"
+          },
+          "worker": {
+            "model": "requested_gpt-5.6-terra",
+            "evidence": "Terra role reported; concrete identifier unavailable on worker surface"
+          },
+          "review": {
+            "model": "surface_default",
+            "depth": "deep",
+            "result": "approved_after_two_fail_closed_correction_rounds"
+          }
+        },
+        "fallback": "none"
+      },
+      "evidence": {
+        "target_environment": "immutable configuration values and synthetic temporary paths only",
+        "observed_at": "2026-07-26T17:04:26+02:00",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "temporal_window": "none",
+        "positive_path_required": true,
+        "result": {
+          "focused_tests": 55,
+          "blocking_failures": 0,
+          "nonblocking_warning_count": 1,
+          "warning": "existing SQLAlchemy declarative_base deprecation",
+          "canonical_sqlite_paths": 1,
+          "productive_boolean_flags_strict_default_off": 5,
+          "provider_flags_independent": true,
+          "disabled_and_fixture_provider_activation_rejected": true,
+          "owner_source_domain_scope_widening_rejected": true,
+          "filesystem_database_runtime_provider_worker_query_network_live_actions": 0
+        }
+      },
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q tests\\test_unified_source_index_runtime_config.py --basetemp C:\\tmp\\odysseus-pytest-uir02-sol",
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m py_compile src\\unified_source_index_runtime_config.py src\\constants.py src\\config.py",
+        "git diff --check -- docs/plans/open-work-completion-master-roadmap.json src/unified_source_index_runtime_config.py src/constants.py src/config.py tests/test_unified_source_index_runtime_config.py"
+      ],
+      "artifact_hashes": {
+        "src/unified_source_index_runtime_config.py": "2658BD536843D7476C7227DC6D9190EB5F6BC022785ED21A164356BCCC30BC65",
+        "src/constants.py": "7FDCCB19010401679083610E6DF06BABCFA3D6B3DB673D2145BE18AD7BDA953D",
+        "src/config.py": "0DFCACC9B89DDCFCE9B1EEF7C842A06881F12A629772A1BEC6360D300A6C1E8D",
+        "tests/test_unified_source_index_runtime_config.py": "F69F446DBA1F2243A0C299D506668CF4BBEF5119046D27E68C6C2FE2D7323E84"
+      },
+      "implementation_commit": "960f21d2b7a2be696672870789a44c7c64ff87af",
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes_focused",
+        "reviewed": "yes_deep_sol",
+        "committed": "yes_local",
+        "pushed": "pending",
+        "deployed": "pending_separate_live_go",
+        "live_validated": "pending_separate_live_go",
+        "product_complete": "no"
+      },
+      "acceptance": "offline_go_default_off_single_confined_sqlite_path_strict_independent_provider_flags_bounded_scope_and_budgets_zero_runtime_side_effects",
+      "next_frontier": "UIR-03 composition root and dependency injection is dependency-ready after exact active-file collision and ownership handoff; productive runtime remains disabled.",
+      "done_when": "One canonical USI-owned SQLite path is confined beneath the selected data root; productive runtime and CBM Lineage RAPTOR and Chroma provider flags are strictly parsed default-off values; all budgets and selected scopes are bounded; fixture overrides are explicit disabled values; construction creates no filesystem database provider worker query network or live effect."
     },
     {
       "id": "TTD-00-domain-truth-contract-current-baseline",

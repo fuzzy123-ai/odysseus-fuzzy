@@ -1,8 +1,8 @@
 # Unified Source Index Runtime And Consumer Integration Roadmap
 
-Updated: 2026-07-23
+Updated: 2026-07-26
 
-Status: `UIR-00/01 accepted / UIR-02 dependency-ready`; runtime and productive query path default-off
+Status: `UIR-00/01/02 accepted / UIR-03 dependency-ready pending hotfile handoff`; runtime and productive query path default-off
 
 Parent: `OWM-15` / `0.28.x` Unified Source Index Foundation
 
@@ -270,9 +270,53 @@ shared parent gate.
 
 - Class: `repo_only`
 - Owner: Bob with Charlie integration
-- Status: `dependency_ready_2026-07-23`
-- Dependency audit: `UIR-01 and USI-03 accepted; claim requires read-only
-  collision/hotfile recon before any edit`
+- Status: `accepted_2026-07-26`
+- Dependency audit: `UIR-01 and USI-03 accepted; read-only collision/hotfile
+  recon found no active writer or tracked diff in the four implementation paths`
+- Serialized claim:
+  - run_id: `abc-uir02-config-20260726T165219+0200`
+  - thread_id: `/root`
+  - owner: `Bob with Charlie integration`
+  - worker: `/root/uir02_config`
+  - worker_model:
+    `requested_gpt-5.6-terra; concrete identifier unavailable on worker surface`
+  - state: `released`
+  - acquired_at: `2026-07-26T16:52:19+02:00`
+  - lease_expires_at: `2026-07-26T20:52:19+02:00`
+  - released_at: `2026-07-26T17:04:26+02:00`
+  - worktree: `C:\Users\nkatz\odysseus`
+  - implementation_commit:
+    `960f21d2b7a2be696672870789a44c7c64ff87af`
+  - allowed_paths: `src/unified_source_index_runtime_config.py`,
+    `src/constants.py`, `src/config.py` and
+    `tests/test_unified_source_index_runtime_config.py`
+  - excluded_paths: every UI/static/template/browser path, application
+    composition/runtime/worker/provider/query consumer, environment file,
+    deployment, network and live host path
+  - evidence: `Fifty-five focused tests passed with one existing SQLAlchemy
+    deprecation warning. The immutable configuration is disabled by default,
+    uses one canonical USI SQLite path beneath the selected data root, creates
+    no path or database, strictly parses all productive booleans and bounded
+    budgets, rejects wildcard/empty/duplicate owner-source-domain scopes,
+    keeps CBM, Lineage, RAPTOR and Chroma flags independent, and gives tests
+    one explicit absolute disabled fixture path. Disabled and fixture modes
+    reject productive provider flags. Python compile and scoped diff checks
+    passed.`
+  - artifact_hashes:
+    - runtime_config:
+      `2658BD536843D7476C7227DC6D9190EB5F6BC022785ED21A164356BCCC30BC65`
+    - constants:
+      `7FDCCB19010401679083610E6DF06BABCFA3D6B3DB673D2145BE18AD7BDA953D`
+    - config_accessor:
+      `0DFCACC9B89DDCFCE9B1EEF7C842A06881F12A629772A1BEC6360D300A6C1E8D`
+    - focused_tests:
+      `F69F446DBA1F2243A0C299D506668CF4BBEF5119046D27E68C6C2FE2D7323E84`
+  - sol_review:
+    `approved after canonical SQLite path, fixture-provider isolation,
+    side-effect coverage, all-boolean strict parsing, disabled-provider
+    rejection and deterministic config-accessor corrections; zero blocking
+    findings`
+  - live_actions: `false`
 - Dependencies: `UIR-01`, USI-03
 - Allowed paths:
   - `src/unified_source_index_runtime_config.py`
@@ -288,6 +332,11 @@ shared parent gate.
 - Tests: `python -m pytest -q tests/test_unified_source_index_runtime_config.py`
 - Done when: a default installation starts with USI productive behavior off and
   no configuration can silently widen owner/source scope.
+- Acceptance:
+  `offline_go_default_off_single_confined_sqlite_path_strict_independent_provider_flags_bounded_scope_and_budgets_zero_runtime_side_effects`
+- Next frontier: `UIR-03` is dependency-ready after its required active-file
+  collision/hotfile handoff; runtime, workers, providers and productive query
+  paths remain disabled.
 
 ### UIR-03 - Composition Root And Dependency Injection
 
