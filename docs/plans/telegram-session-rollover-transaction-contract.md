@@ -4,8 +4,9 @@ Stand: 2026-07-24
 
 Status: `TTD-07A0` accepted at `4fb9ba62`; `TTD-07A1` accepted at
 `daca1dc4`; `TTD-07A2` accepted at `090ede31`; `TTD-07A3` accepted at
-`53109195`; `TTD-07A4` accepted at `c48f47c8`; the fresh architecture handoff
-is accepted, `TTD-07A5A` is accepted at `70466cf1`, and `TTD-07A5B` is active
+`53109195`; `TTD-07A4` accepted at `c48f47c8`; the fresh architecture handoff,
+`TTD-07A5A` at `70466cf1`, and `TTD-07A5B` at `94a09428` are accepted;
+`TTD-07A5C1` is active
 
 Authority:
 
@@ -750,11 +751,19 @@ The rejected eleven-path implementation is replaced by three serial claims:
 - `TTD-07A5B-owner-binding-cutover`: only after A5A acceptance; wire the
   mandatory injected owner and guarded binding/rebind/secure-fallback mutation
   seam through `app.py`, `plugins/telegram/stores.py`,
-  `plugins/telegram/control_service.py`, and focused existing tests.
-- `TTD-07A5C-poll-webhook-transport`: only after A5B acceptance; wire the
-  owner-scoped pre-fetch sweep, exact offset hold, webhook 503 retry, duplicate
-  recovery, and final integration through polling, routes, plugin, and webhook
-  service. The original five A5 acceptance nodes remain the final gate.
+  `plugins/telegram/control_service.py`, and focused existing tests. Accepted at
+  `94a09428` after 16 focused tests plus deep Sol owner, Session, generation,
+  lease, rollback, local-day, secure-policy, and callback-identity review.
+- `TTD-07A5C1-runtime-composition-and-sweep`: only after A5B acceptance;
+  compose the strict default-off config, mandatory owner, one shared turn and
+  binding coordinator, owner-scoped legacy import, and bounded due-binding
+  sweep without changing poll acknowledgement or webhook behavior.
+- `TTD-07A5C2-poll-transport`: only after C1 acceptance; invoke the pre-fetch
+  sweep, use the durable intake lifecycle, hold the exact busy offset, and stop
+  later updates in that poll cycle.
+- `TTD-07A5C3-webhook-control-and-final-integration`: only after C2
+  acceptance; wire webhook 503 retry, duplicate recovery, guarded control
+  mutations, and the original five A5 acceptance nodes as the final gate.
 
 Each child requires a fresh durable claim and deep Sol review. No child may
 resume the rejected stash or divergent prior art, and no child may enable live
