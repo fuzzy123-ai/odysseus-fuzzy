@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 import time
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -30,6 +31,7 @@ from plugins.telegram.plugin import (
     setup,
 )
 from plugins.telegram.control_service import telegram_control_owner
+from plugins.telegram.polling import TelegramTurnRenewalPulse
 from src.image_tools_worker import ImageToolsWorkerResult
 from src import agent_task_ledger
 from src.plugin_capability_boundary import validate_plugin_capability_boundary
@@ -93,6 +95,89 @@ class _PluginContext:
 
     def register_tool(self, spec):
         self.registered_tools.append(spec)
+
+
+@dataclass
+class _PollingRolloverIntake:
+    expected_session_id: str = "durable-session"
+
+
+@dataclass
+class _PollingRolloverResult:
+    status: str
+    intake: Any = None
+    lease: Any = None
+
+
+class _PollingTurnCoordinator:
+    def __init__(self, statuses: list[str] | None = None):
+        self.statuses = list(statuses or ["acquired"])
+        self.acquire_calls: list[dict[str, Any]] = []
+        self.marked: list[Any] = []
+        self.completed: list[Any] = []
+        self.released: list[Any] = []
+        self.renewed: list[Any] = []
+
+    def acquire_turn(self, **kwargs):
+        self.acquire_calls.append(kwargs)
+        status = self.statuses.pop(0) if self.statuses else "acquired"
+        if status != "acquired":
+            return _PollingRolloverResult(status=status)
+        lease = object()
+        return _PollingRolloverResult(
+            status="acquired",
+            intake=_PollingRolloverIntake(),
+            lease=lease,
+        )
+
+    def mark_reply_persisted(self, lease):
+        self.marked.append(lease)
+
+    def complete_and_release(self, lease):
+        self.completed.append(lease)
+
+    def renew_turn(self, lease):
+        self.renewed.append(lease)
+        return lease
+
+    def release_turn(self, lease):
+        self.released.append(lease)
+        return True
+
+
+class _PollingRolloverRuntime:
+    def __init__(self, *, sweep_status: str = "sweep_ok", statuses: list[str] | None = None):
+        self.telegram_owner = "runtime-owner"
+        self.sweep_status = sweep_status
+        self.sweep_calls = 0
+        self.turn_coordinator = _PollingTurnCoordinator(statuses)
+
+    def sweep_due_bindings(self):
+        self.sweep_calls += 1
+        return {"status": self.sweep_status}
+
+
+def _polling_text_update(update_id: int, message_id: int, text: str = "Hallo") -> dict[str, Any]:
+    return {
+        "update_id": update_id,
+        "message": {
+            "message_id": message_id,
+            "chat": {"id": "runtime-chat"},
+            "from": {"id": 7, "first_name": "Runtime"},
+            "text": text,
+        },
+    }
+
+
+def test_turn_renewal_pulse_treats_naive_utc_expiry_as_utc():
+    lease = type(
+        "Lease",
+        (),
+        {"expires_at": (datetime.now(timezone.utc) + timedelta(seconds=120)).replace(tzinfo=None)},
+    )()
+    pulse = TelegramTurnRenewalPulse(coordinator=_PollingTurnCoordinator(), lease=lease)
+
+    assert pulse._interval_seconds() == 30.0
 
 
 def test_manifest_keeps_telegram_as_visible_standalone_ui_plugin():
@@ -1474,6 +1559,171 @@ def test_polling_cycle_is_gated_and_stores_offset_without_network(tmp_path, monk
     assert result["ok"] is False
     assert result["status"] == "polling_disabled"
     assert TelegramPollingStateStore(tmp_path).get_offset() == 0
+
+
+def test_polling_rollover_runtime_sweeps_empty_result_before_fetch(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    runtime = _PollingRolloverRuntime(sweep_status="no_due_bindings")
+    fetch_offsets: list[int] = []
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda offset: fetch_offsets.append(offset) or [],
+        telegram_rollover_runtime=runtime,
+    )
+
+    assert result["status"] == "poll_ok"
+    assert runtime.sweep_calls == 1
+    assert fetch_offsets == [0]
+    assert runtime.turn_coordinator.acquire_calls == []
+
+
+def test_polling_rollover_blocking_sweep_holds_offset_without_fetch(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    runtime = _PollingRolloverRuntime(sweep_status="database_busy")
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: pytest.fail("fetch must not run after a blocked sweep"),
+        telegram_rollover_runtime=runtime,
+    )
+
+    assert result == {
+        "ok": True,
+        "status": "poll_retryable",
+        "processed": 0,
+        "offset": 0,
+        "retryable": True,
+        "rollover_status": "database_busy",
+    }
+    assert runtime.sweep_calls == 1
+    assert TelegramPollingStateStore(tmp_path).get_offset() == 0
+
+
+def test_polling_rollover_busy_holds_exact_update_and_stops_later_updates(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "runtime-chat")
+    runtime = _PollingRolloverRuntime(statuses=["acquired", "lease_busy"])
+    turns: list[dict[str, Any]] = []
+    replies: list[tuple[str, str, int | None]] = []
+
+    def _agent_turn(bridge):
+        turns.append(bridge)
+        time.sleep(0.12)
+        return {"status": "accepted", "reply_text": "erledigt"}
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [
+            _polling_text_update(40, 400, "Hallo eins"),
+            _polling_text_update(41, 410, "Hallo zwei"),
+            _polling_text_update(42, 420, "Hallo drei"),
+        ],
+        session_creator=lambda **_kwargs: pytest.fail("runtime must not create a JSON binding"),
+        agent_turn_handler=_agent_turn,
+        reply_handler=lambda chat_id, text, source_message_id=None: replies.append((chat_id, text, source_message_id)) or {
+            "output": json.dumps({"sent": {"ok": True}}, ensure_ascii=False),
+            "exit_code": 0,
+        },
+        telegram_rollover_runtime=runtime,
+    )
+
+    assert result["offset"] == 41
+    assert result["processed"] == 1
+    assert [call["update_id"] for call in runtime.turn_coordinator.acquire_calls] == [40, 41]
+    assert all(call["owner"] == "runtime-owner" for call in runtime.turn_coordinator.acquire_calls)
+    assert turns[0]["session_id"] == "durable-session"
+    assert replies == [("runtime-chat", "erledigt", 400)]
+    assert len(runtime.turn_coordinator.marked) == 1
+    assert len(runtime.turn_coordinator.completed) == 1
+    assert len(runtime.turn_coordinator.renewed) >= 2
+    assert runtime.turn_coordinator.released == []
+
+
+def test_polling_rollover_duplicate_json_update_still_retries_durable_lease(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "runtime-chat")
+    runtime = _PollingRolloverRuntime(statuses=["lease_retry", "lease_retry"])
+    update = _polling_text_update(50, 500)
+    first = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [update],
+        agent_turn_handler=lambda _bridge: pytest.fail("lease retry must happen before agent work"),
+        reply_handler=lambda *_args: pytest.fail("lease retry must happen before reply work"),
+        telegram_rollover_runtime=runtime,
+    )
+    assert TelegramInboxStore(tmp_path).history(limit=10)[0]["intake_status"] == "lease_retry"
+    second = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [update],
+        agent_turn_handler=lambda _bridge: pytest.fail("lease retry must happen before agent work"),
+        reply_handler=lambda *_args: pytest.fail("lease retry must happen before reply work"),
+        telegram_rollover_runtime=runtime,
+    )
+
+    assert first["offset"] == 50
+    assert second["offset"] == 50
+    assert [call["update_id"] for call in runtime.turn_coordinator.acquire_calls] == [50, 50]
+
+
+def test_polling_rollover_rejects_contradictory_reply_ack_and_holds_offset(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "runtime-chat")
+    runtime = _PollingRolloverRuntime(statuses=["acquired"])
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [_polling_text_update(55, 550)],
+        agent_turn_handler=lambda _bridge: {"status": "accepted", "reply_text": "Antwort"},
+        reply_handler=lambda *_args: {"ok": True, "exit_code": 1},
+        telegram_rollover_runtime=runtime,
+    )
+
+    assert result["status"] == "poll_retryable"
+    assert result["offset"] == 55
+    assert runtime.turn_coordinator.completed == []
+    assert len(runtime.turn_coordinator.marked) == 1
+    assert len(runtime.turn_coordinator.released) == 1
+
+
+def test_polling_rollover_missing_durable_session_holds_offset_fail_closed(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "runtime-chat")
+    runtime = _PollingRolloverRuntime()
+    lease = object()
+    runtime.turn_coordinator.acquire_turn = lambda **_kwargs: _PollingRolloverResult(
+        status="acquired",
+        intake=_PollingRolloverIntake(expected_session_id=""),
+        lease=lease,
+    )
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [_polling_text_update(56, 560)],
+        agent_turn_handler=lambda _bridge: pytest.fail("missing durable session must not run the agent"),
+        reply_handler=lambda *_args: pytest.fail("missing durable session must not reply"),
+        telegram_rollover_runtime=runtime,
+    )
+
+    assert result["status"] == "poll_retryable"
+    assert result["offset"] == 56
+    assert runtime.turn_coordinator.released == [lease]
+
+
+def test_polling_route_reads_rollover_runtime_from_app_context(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    runtime = _PollingRolloverRuntime(sweep_status="import_blocked")
+    app = FastAPI()
+    app.state.telegram_rollover_runtime = runtime
+    app.state.telegram_fetch_updates = lambda _offset: pytest.fail("route must pass runtime before fetch")
+    setup(_PluginContext(app=app, data_dir=tmp_path))
+
+    response = TestClient(app).post("/api/plugins/telegram/poll")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "poll_retryable"
+    assert response.json()["rollover_status"] == "import_blocked"
+    assert runtime.sweep_calls == 1
 
 
 def test_polling_cycle_new_command_rebinds_session_without_agent_turn(tmp_path, monkeypatch):

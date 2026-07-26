@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import asyncio
+from datetime import datetime, timezone
 import inspect
 import json
 import os
@@ -253,6 +254,223 @@ def _reply_result_telegram_message_id(result: dict[str, Any] | None) -> int | No
     return value if value > 0 else None
 
 
+def _durable_reply_succeeded(result: Any) -> bool:
+    """Accept only an explicit, content-free delivery acknowledgement."""
+
+    if not isinstance(result, dict):
+        return False
+    if "exit_code" in result and result.get("exit_code") != 0:
+        return False
+    if result.get("ok") is True:
+        return True
+    if result.get("exit_code") != 0:
+        return False
+    public = _public_reply_result(result)
+    sent = public.get("sent") if isinstance(public, dict) else None
+    return bool(isinstance(sent, dict) and sent.get("ok") is True)
+
+
+def _rollover_sweep_status(runtime: Any) -> str:
+    """Project the runtime sweep to its fixed public status vocabulary."""
+
+    try:
+        result = runtime.sweep_due_bindings()
+        status = str(
+            result.get("status") if isinstance(result, dict) else getattr(result, "status", "")
+        )
+    except Exception:
+        return "sweep_blocked"
+    return status if status in {
+        "sweep_ok",
+        "no_due_bindings",
+        "database_busy",
+        "import_blocked",
+        "sweep_blocked",
+    } else "sweep_blocked"
+
+
+class TelegramTurnRenewalPulse:
+    """Renew one exact turn lease while bounded model work is in progress."""
+
+    def __init__(self, *, coordinator: Any, lease: Any) -> None:
+        self._coordinator = coordinator
+        self._lease = lease
+        self._failed = False
+        self._stop = threading.Event()
+        self._lock = threading.Lock()
+        self._thread: threading.Thread | None = None
+
+    @property
+    def failed(self) -> bool:
+        with self._lock:
+            return self._failed
+
+    def start(self) -> bool:
+        if not self._renew_once():
+            return False
+        self._thread = threading.Thread(target=self._run, name="telegram-turn-renewal", daemon=True)
+        self._thread.start()
+        return True
+
+    def stop(self) -> Any:
+        self._stop.set()
+        if self._thread is not None and self._thread.is_alive():
+            self._thread.join(timeout=0.5)
+        with self._lock:
+            return self._lease
+
+    def _interval_seconds(self) -> float:
+        with self._lock:
+            expires_at = getattr(self._lease, "expires_at", None)
+        if expires_at is not None:
+            try:
+                expires_utc = (
+                    expires_at.replace(tzinfo=timezone.utc)
+                    if expires_at.tzinfo is None
+                    else expires_at.astimezone(timezone.utc)
+                )
+                remaining = (expires_utc - datetime.now(timezone.utc)).total_seconds()
+                return max(0.05, min(30.0, remaining / 3.0))
+            except Exception:
+                pass
+        return 0.05
+
+    def _renew_once(self) -> bool:
+        with self._lock:
+            lease = self._lease
+        try:
+            renewed = self._coordinator.renew_turn(lease)
+        except Exception:
+            renewed = None
+        if renewed is None:
+            with self._lock:
+                self._failed = True
+            return False
+        with self._lock:
+            self._lease = renewed
+        return True
+
+    def _run(self) -> None:
+        while not self._stop.wait(self._interval_seconds()):
+            if not self._renew_once():
+                return
+
+
+def _run_durable_polling_turn(
+    *,
+    runtime: Any,
+    bridge: dict[str, Any],
+    message: dict[str, Any],
+    update_id: int | None,
+    agent_turn_handler: Callable[[dict[str, Any]], Any] | None,
+    reply_handler: Callable[[str, str, int | None], dict[str, Any]] | None,
+    send_typing_indicator: Callable[..., Any],
+    store: TelegramInboxStore,
+) -> dict[str, Any]:
+    """Run one durable-ledger-fenced polling turn without legacy JSON binding writes."""
+
+    coordinator = getattr(runtime, "turn_coordinator", None)
+    owner = str(getattr(runtime, "telegram_owner", "") or "").strip()
+    if not owner or coordinator is None:
+        return {"status": "reconciliation_required"}
+    try:
+        acquired = coordinator.acquire_turn(
+            owner=owner,
+            stable_chat_handle=str(bridge.get("chat_handle") or ""),
+            update_id=update_id,
+            message_id=message.get("message_id"),
+            scope=str(bridge.get("desired_session_scope") or bridge.get("session_scope") or "normal"),
+        )
+    except Exception:
+        return {"status": "reconciliation_required"}
+    acquire_status = str(getattr(acquired, "status", ""))
+    if acquire_status == "duplicate_completed":
+        return {"status": "duplicate_completed"}
+    lease = getattr(acquired, "lease", None)
+    intake = getattr(acquired, "intake", None)
+    if acquire_status != "acquired" or lease is None or intake is None:
+        if acquire_status in {
+            "lease_busy",
+            "lease_busy_local_active",
+            "lease_retry",
+            "retry_not_due",
+            "expired_turn_reconciliation_required",
+        }:
+            return {"status": "lease_retry"}
+        return {"status": "reconciliation_required"}
+
+    completed = False
+    typing_pulse: TelegramTypingPulse | None = None
+    renewal_pulse: TelegramTurnRenewalPulse | None = None
+    try:
+        expected_session_id = str(getattr(intake, "expected_session_id", "") or "")
+        if not expected_session_id:
+            return {"status": "reconciliation_required"}
+        durable_bridge = dict(bridge)
+        durable_bridge["session_id"] = expected_session_id
+        durable_bridge["session_scope"] = str(
+            bridge.get("desired_session_scope") or bridge.get("session_scope") or "normal"
+        )
+        store.append_event(
+            kind="session_bridge",
+            status="ledger_bound",
+            chat_id=durable_bridge["chat_id"],
+            session_id=expected_session_id,
+        )
+        agent_turn = deterministic_telegram_agent_turn(durable_bridge)
+        if agent_turn is None and callable(agent_turn_handler):
+            renewal_pulse = TelegramTurnRenewalPulse(coordinator=coordinator, lease=lease)
+            if not renewal_pulse.start():
+                return {"status": "reconciliation_required"}
+            typing_pulse = TelegramTypingPulse(
+                chat_id=durable_bridge["chat_id"],
+                send_typing_indicator=send_typing_indicator,
+                store=store,
+            ).start()
+            agent_turn = _run_agent_turn(agent_turn_handler, durable_bridge)
+            lease = renewal_pulse.stop()
+            if renewal_pulse.failed:
+                return {"status": "reconciliation_required"}
+        if not isinstance(agent_turn, dict) or str(agent_turn.get("status") or "") != "accepted":
+            return {"status": "reconciliation_required"}
+        store.append_event(
+            kind="agent_turn",
+            status="accepted",
+            chat_id=durable_bridge["chat_id"],
+            session_id=expected_session_id,
+            reply_text_present=bool(agent_turn.get("reply_text_present")),
+        )
+        coordinator.mark_reply_persisted(lease)
+        reply_text = format_agent_turn_reply(agent_turn, failure_reply=_agent_failure_reply)
+        if not reply_text or reply_handler is None:
+            return {"status": "reconciliation_required"}
+        delivery = _deliver_agent_reply(
+            reply_handler,
+            durable_bridge["chat_id"],
+            reply_text,
+            durable_bridge.get("source_message_id"),
+            agent_turn.get("todo_transactions"),
+            agent_turn.get("todo_truth_envelope"),
+        )
+        if not _durable_reply_succeeded(delivery):
+            return {"status": "reconciliation_required"}
+        coordinator.complete_and_release(lease)
+        completed = True
+        return {"status": "completed", "agent_turn": True, "reply": True}
+    except Exception:
+        return {"status": "reconciliation_required"}
+    finally:
+        if typing_pulse is not None:
+            typing_pulse.stop()
+        if renewal_pulse is not None:
+            lease = renewal_pulse.stop()
+        if not completed:
+            try:
+                coordinator.release_turn(lease)
+            except Exception:
+                pass
+
+
 def _agent_failure_reply(agent_turn: dict[str, Any] | None) -> str:
     return format_agent_failure_reply(agent_turn)
 
@@ -296,6 +514,7 @@ def run_telegram_polling_cycle_impl(
     memory_vector: Any | None = None,
     memory_owner: str | None = None,
     project_registry_path: str | Path | None = None,
+    telegram_rollover_runtime: Any | None = None,
     polling_enabled: Callable[[str], bool],
     parse_update: Callable[[dict[str, Any]], dict[str, Any]],
     control_command: Callable[[dict[str, Any]], str],
@@ -327,6 +546,18 @@ def run_telegram_polling_cycle_impl(
         return {"ok": False, "status": "polling_disabled", "processed": 0, "offset": polling.get_offset()}
     loader = fetch_updates or fetch_telegram_updates
     offset = polling.get_offset()
+    if telegram_rollover_runtime is not None:
+        sweep_status = _rollover_sweep_status(telegram_rollover_runtime)
+        if sweep_status in {"database_busy", "import_blocked", "sweep_blocked"}:
+            polling.record(status="poll_retryable", offset=offset, rollover_status=sweep_status)
+            return {
+                "ok": True,
+                "status": "poll_retryable",
+                "processed": 0,
+                "offset": offset,
+                "retryable": True,
+                "rollover_status": sweep_status,
+            }
     processed = 0
     invalid = 0
     agent_turns = 0
@@ -334,6 +565,7 @@ def run_telegram_polling_cycle_impl(
     pending_retries = 0
     control_commands = 0
     hold_offset_for_retry = False
+    retry_offset: int | None = None
     last_update_id = offset - 1 if offset else 0
     try:
         updates = loader(offset)
@@ -341,7 +573,11 @@ def run_telegram_polling_cycle_impl(
         polling.record(status="poll_failed", offset=offset, error=str(exc)[:240])
         return {"ok": False, "status": "poll_failed", "processed": 0, "offset": offset, "error": str(exc)}
     for update in updates:
-        last_update_id = max(last_update_id, int(update.get("update_id") or 0))
+        try:
+            current_update_id = int(update.get("update_id") or 0)
+        except (AttributeError, TypeError, ValueError):
+            current_update_id = 0
+        last_update_id = max(last_update_id, current_update_id)
         try:
             message = parse_update(update)
         except ValueError as exc:
@@ -350,6 +586,52 @@ def run_telegram_polling_cycle_impl(
             continue
         stored = store.append_inbound(message)
         should_process = bool(stored["stored"]) or bool(stored.get("retry_pending_voice"))
+        durable_duplicate = bool(
+            telegram_rollover_runtime is not None
+            and not should_process
+            and stored["message"].get("kind") == "text"
+            and stored["message"].get("intake_status")
+            in {"lease_retry", "reconciliation_required"}
+        )
+        if durable_duplicate:
+            retry_bridge_message = dict(stored["message"])
+            retry_bridge_message["intake_status"] = "ready"
+            bridge = build_agent_bridge_request(
+                retry_bridge_message,
+                raw_chat_id=str(message.get("chat_id") or ""),
+                recent_attachment_context=build_recent_attachment_context(
+                    data_dir=data_dir,
+                    store=store,
+                    chat_id=str(message.get("chat_id") or ""),
+                ),
+            )
+            if bridge["ready_for_agent"]:
+                durable_turn = _run_durable_polling_turn(
+                    runtime=telegram_rollover_runtime,
+                    bridge=bridge,
+                    message=stored["message"],
+                    update_id=current_update_id or None,
+                    agent_turn_handler=agent_turn_handler,
+                    reply_handler=reply_handler,
+                    send_typing_indicator=send_typing_indicator,
+                    store=store,
+                )
+                if durable_turn["status"] in {"lease_retry", "reconciliation_required"}:
+                    retry_status = str(durable_turn["status"])
+                    store.update_inbound_status(
+                        stored["message"],
+                        intake_status=retry_status,
+                    )
+                    retry_offset = current_update_id or offset
+                    break
+                if durable_turn["status"] == "completed":
+                    agent_turns += 1
+                    replies += 1
+            else:
+                retry_offset = current_update_id or offset
+                break
+            processed += 1
+            continue
         if should_process:
             control_result = handle_control_command(
                 control_command(stored["message"]),
@@ -593,62 +875,90 @@ def run_telegram_polling_cycle_impl(
                 recent_attachment_context=recent_attachment_context,
             )
             if bridge["ready_for_agent"]:
-                binding = sessions.bind_chat(
-                    chat_id=bridge["chat_id"],
-                    session_alias=bridge["session_alias"],
-                    recommended_session_name=bridge["recommended_session_name"],
-                    scope=str(bridge.get("desired_session_scope") or "normal"),
-                    creator=session_creator,
-                )
-                bridge = build_agent_bridge_request(
-                    stored["message"],
-                    session_binding=binding,
-                    raw_chat_id=str(message.get("chat_id") or ""),
-                    voice_agent_turn=voice_agent_turn,
-                    recent_attachment_context=recent_attachment_context,
-                )
-                store.append_event(
-                    kind="session_bridge",
-                    status="bound" if binding.get("session_id") else "pending_bridge",
-                    chat_id=bridge["chat_id"],
-                    session_id=binding.get("session_id") or "",
-                )
-                agent_turn = deterministic_telegram_agent_turn(bridge)
-                typing_pulse = TelegramTypingPulse(
-                    chat_id=bridge["chat_id"],
-                    send_typing_indicator=send_typing_indicator,
-                    store=store,
-                ).start() if agent_turn is None and callable(agent_turn_handler) else None
-                try:
-                    if agent_turn is None:
-                        agent_turn = _run_agent_turn(agent_turn_handler, bridge)
-                    if agent_turn is not None:
-                        agent_turns += 1
-                        store.append_event(
-                            kind="agent_turn",
-                            status=str(agent_turn.get("status") or "accepted"),
-                            chat_id=bridge["chat_id"],
-                            session_id=bridge.get("session_id") or "",
-                            reply_text_present=bool(agent_turn.get("reply_text_present")),
+                if telegram_rollover_runtime is not None:
+                    durable_turn = _run_durable_polling_turn(
+                        runtime=telegram_rollover_runtime,
+                        bridge=bridge,
+                        message=stored["message"],
+                        update_id=current_update_id or None,
+                        agent_turn_handler=agent_turn_handler,
+                        reply_handler=reply_handler,
+                        send_typing_indicator=send_typing_indicator,
+                        store=store,
+                    )
+                    if durable_turn["status"] in {"lease_retry", "reconciliation_required"}:
+                        retry_status = str(durable_turn["status"])
+                        store.update_inbound_status(
+                            stored["message"],
+                            intake_status=retry_status,
                         )
-                        reply_text = format_agent_turn_reply(agent_turn, failure_reply=_agent_failure_reply)
-                        if reply_text and reply_handler is not None:
-                            _deliver_agent_reply(
-                                reply_handler,
-                                bridge["chat_id"],
-                                reply_text,
-                                bridge.get("source_message_id"),
-                                agent_turn.get("todo_transactions"),
-                                agent_turn.get("todo_truth_envelope"),
+                        retry_offset = current_update_id or offset
+                        break
+                    if durable_turn["status"] == "completed":
+                        agent_turns += 1
+                        replies += 1
+                else:
+                    binding = sessions.bind_chat(
+                        chat_id=bridge["chat_id"],
+                        session_alias=bridge["session_alias"],
+                        recommended_session_name=bridge["recommended_session_name"],
+                        scope=str(bridge.get("desired_session_scope") or "normal"),
+                        creator=session_creator,
+                    )
+                    bridge = build_agent_bridge_request(
+                        stored["message"],
+                        session_binding=binding,
+                        raw_chat_id=str(message.get("chat_id") or ""),
+                        voice_agent_turn=voice_agent_turn,
+                        recent_attachment_context=recent_attachment_context,
+                    )
+                    store.append_event(
+                        kind="session_bridge",
+                        status="bound" if binding.get("session_id") else "pending_bridge",
+                        chat_id=bridge["chat_id"],
+                        session_id=binding.get("session_id") or "",
+                    )
+                    agent_turn = deterministic_telegram_agent_turn(bridge)
+                    typing_pulse = TelegramTypingPulse(
+                        chat_id=bridge["chat_id"],
+                        send_typing_indicator=send_typing_indicator,
+                        store=store,
+                    ).start() if agent_turn is None and callable(agent_turn_handler) else None
+                    try:
+                        if agent_turn is None:
+                            agent_turn = _run_agent_turn(agent_turn_handler, bridge)
+                        if agent_turn is not None:
+                            agent_turns += 1
+                            store.append_event(
+                                kind="agent_turn",
+                                status=str(agent_turn.get("status") or "accepted"),
+                                chat_id=bridge["chat_id"],
+                                session_id=bridge.get("session_id") or "",
+                                reply_text_present=bool(agent_turn.get("reply_text_present")),
                             )
-                            replies += 1
-                finally:
-                    if typing_pulse is not None:
-                        typing_pulse.stop()
+                            reply_text = format_agent_turn_reply(agent_turn, failure_reply=_agent_failure_reply)
+                            if reply_text and reply_handler is not None:
+                                _deliver_agent_reply(
+                                    reply_handler,
+                                    bridge["chat_id"],
+                                    reply_text,
+                                    bridge.get("source_message_id"),
+                                    agent_turn.get("todo_transactions"),
+                                    agent_turn.get("todo_truth_envelope"),
+                                )
+                                replies += 1
+                    finally:
+                        if typing_pulse is not None:
+                            typing_pulse.stop()
             processed += 1
-    next_offset = offset if hold_offset_for_retry else (last_update_id + 1 if last_update_id else offset)
+    next_offset = (
+        retry_offset
+        if retry_offset is not None
+        else offset if hold_offset_for_retry else (last_update_id + 1 if last_update_id else offset)
+    )
+    poll_status = "poll_retryable" if retry_offset is not None else "poll_ok"
     polling.record(
-        status="poll_ok",
+        status=poll_status,
         offset=next_offset,
         processed=processed,
         invalid=invalid,
@@ -658,9 +968,9 @@ def run_telegram_polling_cycle_impl(
         control_commands=control_commands,
         last_update_id=last_update_id,
     )
-    return {
+    result = {
         "ok": True,
-        "status": "poll_ok",
+        "status": poll_status,
         "processed": processed,
         "invalid": invalid,
         "agent_turns": agent_turns,
@@ -669,3 +979,6 @@ def run_telegram_polling_cycle_impl(
         "control_commands": control_commands,
         "offset": next_offset,
     }
+    if telegram_rollover_runtime is not None:
+        result["retryable"] = retry_offset is not None
+    return result

@@ -29,6 +29,7 @@ def register_telegram_polling_routes(
     memory_vector: Any = None,
     memory_owner: str = "telegram",
     project_registry_path: str | Path | None = None,
+    telegram_rollover_runtime: Any = None,
 ) -> None:
     """Register Telegram polling route on an existing router."""
 
@@ -52,6 +53,7 @@ def register_telegram_polling_routes(
             memory_vector=memory_vector,
             memory_owner=memory_owner,
             project_registry_path=project_registry_path,
+            telegram_rollover_runtime=telegram_rollover_runtime,
         )
         if not result["ok"]:
             raise HTTPException(403, result["status"])

@@ -1190,6 +1190,7 @@ def run_telegram_polling_cycle(
     memory_vector: Any | None = None,
     memory_owner: str | None = None,
     project_registry_path: str | Path | None = None,
+    telegram_rollover_runtime: Any | None = None,
 ) -> dict[str, Any]:
     return run_telegram_polling_cycle_impl(
         data_dir=data_dir,
@@ -1207,6 +1208,7 @@ def run_telegram_polling_cycle(
         memory_vector=memory_vector,
         memory_owner=memory_owner,
         project_registry_path=project_registry_path,
+        telegram_rollover_runtime=telegram_rollover_runtime,
         polling_enabled=_bool_env,
         parse_update=lambda update: parse_telegram_update(update, chat_allowed=_chat_allowed),
         control_command=_telegram_control_command,
@@ -1310,6 +1312,7 @@ def setup(ctx):
     memory_manager = _ctx_attr("memory_manager")
     memory_vector = _ctx_attr("memory_vector")
     memory_owner = str(_ctx_attr("telegram_owner") or "telegram").strip() or "telegram"
+    telegram_rollover_runtime = _ctx_attr("telegram_rollover_runtime")
     admin_gate = _ctx_attr("require_admin", require_admin) or require_admin
 
     def _require_admin(request: Request) -> None:
@@ -1762,6 +1765,7 @@ def setup(ctx):
         memory_vector=memory_vector,
         memory_owner=memory_owner,
         project_registry_path=Path(ctx.data_dir) / _PROJECT_REGISTRY_FILE,
+        telegram_rollover_runtime=telegram_rollover_runtime,
     )
 
     async def _handle_telegram_webhook(request: Request):
