@@ -1,5 +1,6 @@
 import asyncio
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -22,10 +23,12 @@ from plugins.telegram.webhook_service import (
     run_webhook_attachment_export_branch,
     run_webhook_agent_turn_branch,
     run_webhook_control_command_branch,
+    run_durable_webhook_agent_turn_branch,
     run_webhook_media_pipelines,
     run_webhook_project_intake_branch,
 )
 from src.tool_transaction_ledger import TOOL_TRANSACTION_LEDGER_SCHEMA
+from src.telegram_session_rollover import RolloverConfig
 
 
 def _todo_transaction() -> dict:
@@ -99,6 +102,309 @@ def test_hostile_signature_reply_handlers_fall_back_to_one_legacy_delivery():
     ) == {"ok": True}
     assert webhook_deliveries == [("chat_safe", "I created the todo item.", 5)]
     assert polling_deliveries == [("chat_safe", "I created the todo item.", 6)]
+
+
+@pytest.mark.asyncio
+async def test_durable_webhook_busy_is_retryable_without_agent_or_reply_work():
+    class Coordinator:
+        def acquire_turn(self, **kwargs):
+            assert kwargs["owner"] == "runtime-owner"
+            assert kwargs["stable_chat_handle"] == "chat_stable"
+            return SimpleNamespace(status="lease_busy", lease=None, intake=None)
+
+    runtime = SimpleNamespace(telegram_owner="runtime-owner", turn_coordinator=Coordinator())
+    status, _bridge, agent_turn, reply = await run_durable_webhook_agent_turn_branch(
+        runtime=runtime,
+        stored_message={"update_id": 77, "message_id": 88, "kind": "text", "intake_status": "ready"},
+        bridge={
+            "chat_handle": "chat_stable",
+            "chat_id": "raw-chat",
+            "desired_session_scope": "normal",
+            "session_scope": "normal",
+            "ready_for_agent": True,
+        },
+        raw_chat_id="raw-chat",
+        store=SimpleNamespace(append_event=lambda **_kwargs: None),
+        voice_agent_turn=None,
+        recent_attachment_context=None,
+        agent_turn_handler=lambda _bridge: pytest.fail("busy must not run agent work"),
+        build_agent_bridge_request=lambda *_args, **_kwargs: pytest.fail("busy must not build a turn"),
+        deterministic_agent_turn=lambda _bridge: pytest.fail("busy must not run deterministic work"),
+        run_agent_turn_async=lambda *_args, **_kwargs: pytest.fail("busy must not run agent work"),
+        typing_pulse=lambda *_args, **_kwargs: pytest.fail("busy must not type"),
+        agent_failure_reply=lambda _turn: "",
+        reply_with_gate=lambda *_args, **_kwargs: pytest.fail("busy must not reply"),
+    )
+
+    assert status == "lease_retry"
+    assert agent_turn is None
+    assert reply is None
+
+
+@pytest.mark.asyncio
+async def test_durable_webhook_acquired_turn_completes_only_after_explicit_reply_success():
+    lease = object()
+
+    class Coordinator:
+        def __init__(self):
+            self.marked = []
+            self.completed = []
+            self.released = []
+
+        def acquire_turn(self, **_kwargs):
+            return SimpleNamespace(
+                status="acquired",
+                lease=lease,
+                intake=SimpleNamespace(expected_session_id="durable-session"),
+            )
+
+        def mark_reply_persisted(self, value):
+            self.marked.append(value)
+
+        def complete_and_release(self, value):
+            self.completed.append(value)
+
+        def release_turn(self, value):
+            self.released.append(value)
+
+    coordinator = Coordinator()
+    runtime = SimpleNamespace(telegram_owner="runtime-owner", turn_coordinator=coordinator)
+    bridge = {
+        "chat_handle": "chat_stable",
+        "chat_id": "raw-chat",
+        "desired_session_scope": "normal",
+        "session_scope": "normal",
+        "ready_for_agent": True,
+        "source_message_id": 88,
+    }
+    status, final_bridge, agent_turn, reply = await run_durable_webhook_agent_turn_branch(
+        runtime=runtime,
+        stored_message={"update_id": 77, "message_id": 88, "kind": "text", "intake_status": "ready"},
+        bridge=bridge,
+        raw_chat_id="raw-chat",
+        store=SimpleNamespace(append_event=lambda **_kwargs: None),
+        voice_agent_turn=None,
+        recent_attachment_context=None,
+        agent_turn_handler=None,
+        build_agent_bridge_request=lambda _message, **kwargs: {**bridge, "session_id": kwargs["session_binding"]["session_id"]},
+        deterministic_agent_turn=lambda _bridge: {"status": "accepted", "reply_text": "done", "reply_text_present": True},
+        run_agent_turn_async=lambda *_args, **_kwargs: pytest.fail("deterministic turn must not call agent"),
+        typing_pulse=lambda *_args, **_kwargs: pytest.fail("deterministic turn must not type"),
+        agent_failure_reply=lambda _turn: "",
+        reply_with_gate=lambda *_args, **_kwargs: {"ok": True},
+    )
+
+    assert status == "completed"
+    assert final_bridge["session_id"] == "durable-session"
+    assert agent_turn["status"] == "accepted"
+    assert reply == {"ok": True}
+    assert coordinator.marked == [lease]
+    assert coordinator.completed == [lease]
+    assert coordinator.released == []
+
+
+@pytest.mark.asyncio
+async def test_durable_webhook_reply_pending_requires_exact_sent_receipt_without_replay():
+    class Coordinator:
+        def __init__(self):
+            self.evidence_calls = []
+
+        def acquire_turn(self, **_kwargs):
+            return SimpleNamespace(status="reply_pending_reconciliation_required", lease=None, intake=None)
+
+        def complete_reply_pending_from_outbound_evidence(self, **kwargs):
+            self.evidence_calls.append(kwargs)
+            return SimpleNamespace(status="completed_from_outbound_evidence")
+
+    coordinator = Coordinator()
+    runtime = SimpleNamespace(telegram_owner="runtime-owner", turn_coordinator=coordinator)
+    store = SimpleNamespace(history=lambda limit: [{
+        "direction": "outbound",
+        "chat_handle": "chat_stable",
+        "source_message_id": 88,
+        "delivery_status": "sent",
+    }])
+    status, _bridge, agent_turn, reply = await run_durable_webhook_agent_turn_branch(
+        runtime=runtime,
+        stored_message={"update_id": 77, "message_id": 88, "kind": "text"},
+        bridge={"chat_handle": "chat_stable", "chat_id": "raw-chat", "desired_session_scope": "normal"},
+        raw_chat_id="raw-chat",
+        store=store,
+        voice_agent_turn=None,
+        recent_attachment_context=None,
+        agent_turn_handler=lambda _bridge: pytest.fail("evidence completion must not replay"),
+        build_agent_bridge_request=lambda *_args, **_kwargs: pytest.fail("evidence completion must not rebuild"),
+        deterministic_agent_turn=lambda _bridge: pytest.fail("evidence completion must not run"),
+        run_agent_turn_async=lambda *_args, **_kwargs: pytest.fail("evidence completion must not run"),
+        typing_pulse=lambda *_args, **_kwargs: pytest.fail("evidence completion must not type"),
+        agent_failure_reply=lambda _turn: "",
+        reply_with_gate=lambda *_args, **_kwargs: pytest.fail("evidence completion must not reply"),
+    )
+
+    assert status == "duplicate_completed"
+    assert agent_turn is None and reply is None
+    assert coordinator.evidence_calls == [{
+        "owner": "runtime-owner",
+        "stable_chat_handle": "chat_stable",
+        "update_id": 77,
+        "message_id": 88,
+        "outbound_sent": True,
+    }]
+
+
+@pytest.mark.asyncio
+async def test_durable_webhook_reply_pending_without_receipt_reuses_exact_persisted_reply():
+    class Coordinator:
+        def __init__(self):
+            self.completed = []
+
+        def acquire_turn(self, **_kwargs):
+            return SimpleNamespace(
+                status="reply_pending_reconciliation_required",
+                intake=SimpleNamespace(id="t1_" + "a" * 32, expected_session_id="durable-session"),
+                lease=None,
+            )
+
+        def complete_reply_pending_from_outbound_evidence(self, **kwargs):
+            self.completed.append(kwargs)
+            return SimpleNamespace(status="completed_from_outbound_evidence")
+
+    coordinator = Coordinator()
+    runtime = SimpleNamespace(
+        telegram_owner="runtime-owner",
+        turn_coordinator=coordinator,
+        turn_recovery_provider=lambda **_kwargs: {
+            "markers": (SimpleNamespace(role="user"), SimpleNamespace(role="assistant")),
+            "assistant_reply": "persisted reply",
+        },
+    )
+    replies = []
+    status, _bridge, turn, reply = await run_durable_webhook_agent_turn_branch(
+        runtime=runtime,
+        stored_message={"update_id": 77, "message_id": 88, "kind": "text"},
+        bridge={"chat_handle": "chat_stable", "chat_id": "raw-chat", "desired_session_scope": "normal", "source_message_id": 88},
+        raw_chat_id="raw-chat",
+        store=SimpleNamespace(history=lambda _limit: []),
+        voice_agent_turn=None,
+        recent_attachment_context=None,
+        agent_turn_handler=lambda _bridge: pytest.fail("recovery must not invoke the model"),
+        build_agent_bridge_request=lambda *_args, **_kwargs: pytest.fail("recovery must not rebuild"),
+        deterministic_agent_turn=lambda _bridge: pytest.fail("recovery must not run a new turn"),
+        run_agent_turn_async=lambda *_args, **_kwargs: pytest.fail("recovery must not invoke the model"),
+        typing_pulse=lambda *_args, **_kwargs: pytest.fail("recovery must not type"),
+        agent_failure_reply=lambda _turn: "",
+        reply_with_gate=lambda *_args, **_kwargs: replies.append(True) or {"ok": True},
+    )
+    assert status == "completed" and turn == {"status": "recovered"} and reply == {"ok": True}
+    assert replies == [True] and len(coordinator.completed) == 1
+
+
+@pytest.mark.asyncio
+async def test_durable_webhook_busy_retry_rebuilds_ready_bridge_and_runs_one_turn():
+    lease = object()
+
+    class Coordinator:
+        def __init__(self):
+            self.calls = 0
+            self.marked = []
+            self.completed = []
+
+        def acquire_turn(self, **_kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                return SimpleNamespace(status="lease_busy", lease=None, intake=None)
+            return SimpleNamespace(
+                status="acquired",
+                lease=lease,
+                intake=SimpleNamespace(expected_session_id="durable-session"),
+            )
+
+        def mark_reply_persisted(self, value):
+            self.marked.append(value)
+
+        def complete_and_release(self, value):
+            self.completed.append(value)
+
+        def release_turn(self, _value):
+            pytest.fail("accepted reply must complete rather than release")
+
+    coordinator = Coordinator()
+    runtime = SimpleNamespace(telegram_owner="runtime-owner", turn_coordinator=coordinator)
+    built_messages = []
+    agent_turns = []
+    replies = []
+    store = SimpleNamespace(append_event=lambda **_kwargs: None)
+    bridge = {
+        "chat_handle": "chat_stable",
+        "chat_id": "raw-chat",
+        "desired_session_scope": "normal",
+        "ready_for_agent": False,
+        "source_message_id": 88,
+    }
+
+    first = await run_durable_webhook_agent_turn_branch(
+        runtime=runtime,
+        stored_message={"update_id": 77, "message_id": 88, "kind": "text", "intake_status": "ready"},
+        bridge=bridge,
+        raw_chat_id="raw-chat",
+        store=store,
+        voice_agent_turn=None,
+        recent_attachment_context=None,
+        agent_turn_handler=lambda _bridge: pytest.fail("busy attempt must not run agent work"),
+        build_agent_bridge_request=lambda *_args, **_kwargs: pytest.fail("busy attempt must not rebuild"),
+        deterministic_agent_turn=lambda _bridge: pytest.fail("busy attempt must not run deterministic work"),
+        run_agent_turn_async=lambda *_args, **_kwargs: pytest.fail("busy attempt must not run agent work"),
+        typing_pulse=lambda *_args, **_kwargs: pytest.fail("busy attempt must not type"),
+        agent_failure_reply=lambda _turn: "",
+        reply_with_gate=lambda *_args, **_kwargs: pytest.fail("busy attempt must not reply"),
+    )
+    assert first[0] == "lease_retry"
+
+    def build_retry_bridge(message, **kwargs):
+        built_messages.append(dict(message))
+        assert kwargs["session_binding"]["session_id"] == "durable-session"
+        return {
+            **bridge,
+            "session_id": "durable-session",
+            "ready_for_agent": True,
+            "reply_required": True,
+        }
+
+    def deterministic_turn(final_bridge):
+        agent_turns.append(final_bridge)
+        return {"status": "accepted", "reply_text": "done", "reply_text_present": True}
+
+    second = await run_durable_webhook_agent_turn_branch(
+        runtime=runtime,
+        stored_message={"update_id": 77, "message_id": 88, "kind": "text", "intake_status": "lease_retry"},
+        bridge=bridge,
+        raw_chat_id="raw-chat",
+        store=store,
+        voice_agent_turn=None,
+        recent_attachment_context=None,
+        agent_turn_handler=None,
+        build_agent_bridge_request=build_retry_bridge,
+        deterministic_agent_turn=deterministic_turn,
+        run_agent_turn_async=lambda *_args, **_kwargs: pytest.fail("deterministic turn must not call agent"),
+        typing_pulse=lambda *_args, **_kwargs: pytest.fail("deterministic turn must not type"),
+        agent_failure_reply=lambda _turn: "",
+        reply_with_gate=lambda *_args, **_kwargs: replies.append(True) or {"ok": True},
+    )
+    assert second[0] == "completed"
+    assert built_messages == [{"update_id": 77, "message_id": 88, "kind": "text", "intake_status": "ready"}]
+    assert len(agent_turns) == 1 and replies == [True]
+    assert coordinator.marked == [lease] and coordinator.completed == [lease]
+
+
+@pytest.mark.asyncio
+async def test_rollover_coordinator_busy_webhook_is_retryable_and_feature_default_off():
+    from plugins.telegram.plugin import _rollover_retry_http_exception
+
+    assert RolloverConfig.from_mapping({}).enabled is False
+    retry = _rollover_retry_http_exception(SimpleNamespace(retry_seconds=999))
+    assert retry.status_code == 503
+    assert retry.headers == {"Retry-After": "300"}
+    await test_durable_webhook_busy_is_retryable_without_agent_or_reply_work()
 
 
 def test_parse_and_store_webhook_update_appends_redacted_inbound(tmp_path):

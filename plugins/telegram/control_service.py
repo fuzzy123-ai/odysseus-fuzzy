@@ -637,6 +637,9 @@ def handle_new_chat_control_command(
     sessions: Any,
     session_creator: Callable[..., dict[str, Any]],
     build_agent_bridge_request: BuildAgentBridgeRequest,
+    telegram_rollover_runtime: Any = None,
+    rollover_session_creator: Any = None,
+    rollover_security_validator: Any = None,
 ) -> dict[str, Any] | None:
     """Handle /new chat rebinding behind injected session helpers."""
 
@@ -644,17 +647,50 @@ def handle_new_chat_control_command(
         return None
 
     bridge = build_agent_bridge_request(message, raw_chat_id=raw_chat_id)
-    binding = sessions.rebind_chat(
-        chat_id=bridge["chat_id"],
-        session_alias=bridge["session_alias"],
-        recommended_session_name=bridge["recommended_session_name"],
-        scope=str(bridge.get("desired_session_scope") or "normal"),
-        creator=session_creator,
-    )
-    created = bool(binding.get("session_id"))
+    if telegram_rollover_runtime is not None:
+        created = False
+        coordinator = getattr(telegram_rollover_runtime, "binding_mutation_coordinator", None)
+        owner = getattr(telegram_rollover_runtime, "telegram_owner", None)
+        local_day = getattr(telegram_rollover_runtime, "rollover_local_day", None)
+        if coordinator is None or not isinstance(owner, str) or not callable(local_day):
+            binding = {}
+            mutation_status = "binding_invalid"
+        else:
+            mutation = {
+                "telegram_owner": owner,
+                "stable_chat_handle": str(bridge.get("chat_handle") or ""),
+                "scope": str(bridge.get("desired_session_scope") or "normal"),
+                "rollover_local_day": local_day(),
+                "security_validator": rollover_security_validator,
+            }
+            outcome = coordinator.bind_or_create(
+                **mutation,
+                create_session=rollover_session_creator,
+            )
+            if str(getattr(outcome, "status", "")) == "bound_existing":
+                outcome = coordinator.rebind(
+                    **mutation,
+                    create_replacement=rollover_session_creator,
+                    purpose="rebind",
+                )
+            binding = {}
+            mutation_status = str(getattr(outcome, "status", "binding_invalid"))
+            created = bool(getattr(outcome, "created", False))
+    else:
+        binding = sessions.rebind_chat(
+            chat_id=bridge["chat_id"],
+            session_alias=bridge["session_alias"],
+            recommended_session_name=bridge["recommended_session_name"],
+            scope=str(bridge.get("desired_session_scope") or "normal"),
+            creator=session_creator,
+        )
+        mutation_status = "new_chat_bound" if binding.get("session_id") else "new_chat_pending_bridge"
+    if telegram_rollover_runtime is None:
+        created = bool(binding.get("session_id"))
     reply_text = format_new_chat_reply(created=created)
     reply_result = None
-    if reply_handler is not None and bridge["chat_id"]:
+    retryable = mutation_status in {"lease_busy", "database_busy"}
+    if not retryable and reply_handler is not None and bridge["chat_id"]:
         reply_result = reply_handler(
             bridge["chat_id"],
             reply_text,
@@ -662,8 +698,11 @@ def handle_new_chat_control_command(
         )
     return {
         "command": command,
-        "status": "new_chat_bound" if created else "new_chat_pending_bridge",
+        "status": mutation_status if telegram_rollover_runtime is not None else (
+            "new_chat_bound" if created else "new_chat_pending_bridge"
+        ),
         "binding": binding,
         "reply_text": reply_text,
         "reply": reply_result,
+        "retryable": retryable,
     }

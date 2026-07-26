@@ -1,7 +1,8 @@
-import importlib.util
 import asyncio
+import importlib.util
 import json
 import logging
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
@@ -30,7 +31,7 @@ from plugins.telegram.plugin import (
     run_telegram_voice_pipeline,
     setup,
 )
-from plugins.telegram.control_service import telegram_control_owner
+from plugins.telegram.control_service import handle_new_chat_control_command, telegram_control_owner
 from plugins.telegram.polling import TelegramTurnRenewalPulse
 from src.image_tools_worker import ImageToolsWorkerResult
 from src import agent_task_ledger
@@ -1598,6 +1599,196 @@ def test_polling_rollover_blocking_sweep_holds_offset_without_fetch(tmp_path, mo
     }
     assert runtime.sweep_calls == 1
     assert TelegramPollingStateStore(tmp_path).get_offset() == 0
+
+
+def test_rollover_coordinator_concurrent_polls_hold_offset_and_create_one_replacement(tmp_path, monkeypatch):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from core import database as database_module
+    from core.database import Base, Session
+    from plugins.telegram.stores import build_db_authoritative_rollover_runtime
+    from src.telegram_session_rollover import RolloverConfig, TelegramRolloverLedger, chat_handle_ref, owner_ref
+
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'concurrent-polls.sqlite'}",
+        connect_args={"check_same_thread": False},
+    )
+    try:
+        Base.metadata.create_all(bind=engine)
+        factory = sessionmaker(bind=engine, autoflush=False)
+        database = factory()
+        try:
+            database.add(Session(
+                id="poll-old-session",
+                name="Synthetic",
+                endpoint_url="http://synthetic.invalid",
+                model="synthetic",
+                owner="alice",
+            ))
+            reference_key = b"p" * 32
+            binding = TelegramRolloverLedger(database, reference_key).get_or_create_binding(
+                owner_reference=owner_ref(reference_key, "alice"),
+                chat_reference=chat_handle_ref(reference_key, "poll-chat-handle"),
+                scope="normal",
+                active_session_id="poll-old-session",
+                active_rollover_local_day="2026-07-24",
+            )
+            database.commit()
+        finally:
+            database.close()
+        legacy_path = tmp_path / "telegram_session_bridge.json"
+        legacy_path.write_text(json.dumps({"sessions": {}}), encoding="utf-8")
+        runtime = build_db_authoritative_rollover_runtime(
+            session_factory=factory,
+            config=RolloverConfig(enabled=True, reference_key=reference_key),
+            telegram_owner="alice",
+            legacy_path=legacy_path,
+            now=lambda: datetime(2026, 7, 25, 12, tzinfo=timezone.utc),
+        )
+        assert runtime is not None
+        barrier = threading.Barrier(2)
+        results: list[dict[str, Any]] = []
+
+        def poll_once() -> None:
+            barrier.wait(timeout=5)
+            results.append(run_telegram_polling_cycle(
+                data_dir=tmp_path / "poll-data",
+                fetch_updates=lambda _offset: [],
+                telegram_rollover_runtime=runtime,
+            ))
+
+        workers = [threading.Thread(target=poll_once) for _ in range(2)]
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join(timeout=10)
+            assert not worker.is_alive()
+        assert len(results) == 2
+        assert all(result["offset"] == 0 and result["processed"] == 0 for result in results)
+        database = factory()
+        try:
+            row = database.execute(
+                database_module.TelegramSessionBinding.__table__.select().where(
+                    database_module.TelegramSessionBinding.id == binding.id
+                )
+            ).mappings().one()
+            owned_sessions = database.query(Session).filter(Session.owner == "alice").all()
+            assert row["generation"] == 1
+            assert row["active_session_id"] != "poll-old-session"
+            assert sum(session.archived is False for session in owned_sessions) == 1
+            assert sum(session.archived is True for session in owned_sessions) == 1
+        finally:
+            database.close()
+    finally:
+        engine.dispose()
+
+
+def test_rollover_coordinator_new_secure_bind_and_rebind_require_injected_owner():
+    from sqlalchemy import create_engine, update
+    from sqlalchemy.orm import sessionmaker
+
+    from core import database as database_module
+    from core.database import Base, Session
+    from src.telegram_session_rollover import (
+        RolloverConfig,
+        TelegramBindingMutationCoordinator,
+        TelegramRolloverLedger,
+        chat_handle_ref,
+        owner_ref,
+    )
+
+    reference_key = b"s" * 32
+    engine = create_engine("sqlite://")
+    try:
+        Base.metadata.create_all(bind=engine)
+        factory = sessionmaker(bind=engine, autoflush=False)
+        coordinator = TelegramBindingMutationCoordinator(
+            session_factory=factory,
+            config=RolloverConfig(enabled=True, reference_key=reference_key),
+        )
+        created: list[str] = []
+        validated: list[str] = []
+
+        def create_session(*, database, owner, session_id, **_kwargs):
+            created.append(session_id)
+            database.add(Session(
+                id=session_id,
+                name="Secure Telegram",
+                endpoint_url="http://synthetic.invalid",
+                model="synthetic",
+                owner=owner,
+            ))
+            return session_id
+
+        def validate_secure(*, session_id, owner, scope, **_kwargs):
+            validated.append(session_id)
+            return owner == "alice" and scope == "secure"
+
+        bridge = lambda *_args, **_kwargs: {
+            "chat_handle": "secure-control-chat",
+            "chat_id": "secure-control-raw",
+            "desired_session_scope": "secure",
+            "source_message_id": 19,
+        }
+        common = {
+            "command": "new_chat",
+            "message": {"chat_allowed": True, "kind": "text", "text": "/new"},
+            "raw_chat_id": "secure-control-raw",
+            "reply_handler": None,
+            "sessions": type("LegacySessions", (), {"rebind_chat": lambda *_args, **_kwargs: pytest.fail("legacy JSON bridge must stay unused")})(),
+            "session_creator": lambda **_kwargs: pytest.fail("legacy creator must stay unused"),
+            "build_agent_bridge_request": bridge,
+            "rollover_session_creator": create_session,
+            "rollover_security_validator": validate_secure,
+        }
+        missing = handle_new_chat_control_command(
+            **common,
+            telegram_rollover_runtime=type("Runtime", (), {
+                "telegram_owner": None,
+                "binding_mutation_coordinator": coordinator,
+                "rollover_local_day": lambda self: "2026-07-25",
+            })(),
+        )
+        assert missing is not None and missing["status"] == "binding_invalid"
+        assert created == [] and validated == []
+
+        runtime = type("Runtime", (), {
+            "telegram_owner": "alice",
+            "binding_mutation_coordinator": coordinator,
+            "rollover_local_day": lambda self: "2026-07-25",
+        })()
+        bound = handle_new_chat_control_command(**common, telegram_rollover_runtime=runtime)
+        assert bound is not None and bound["status"] == "bound_created"
+        assert bound["binding"] == {}
+        assert len(created) == 1 and len(validated) == 1
+        rebound = handle_new_chat_control_command(**common, telegram_rollover_runtime=runtime)
+        assert rebound is not None and rebound["status"] == "rebound"
+        assert rebound["binding"] == {}
+        assert len(created) == 2 and len(validated) == 3
+
+        database = factory()
+        try:
+            database.execute(
+                update(database_module.TelegramSessionBinding.__table__)
+                .where(database_module.TelegramSessionBinding.owner_ref == owner_ref(reference_key, "alice"))
+                .values(
+                    turn_lease_ref="h1_" + "a" * 32,
+                    active_turn_ref="t1_" + "b" * 32,
+                    turn_lease_expires_at=(datetime.now(timezone.utc) + timedelta(minutes=5)).replace(tzinfo=None),
+                    turn_started_at=datetime.now(timezone.utc).replace(tzinfo=None),
+                )
+            )
+            database.commit()
+        finally:
+            database.close()
+        refused = handle_new_chat_control_command(**common, telegram_rollover_runtime=runtime)
+        assert refused is not None and refused["status"] == "lease_busy"
+        assert len(created) == 2 and len(validated) == 3
+        assert telegram_control_owner("memory-owner", telegram_owner=None, rollover_enabled=True) is None
+    finally:
+        engine.dispose()
 
 
 def test_polling_rollover_busy_holds_exact_update_and_stops_later_updates(tmp_path, monkeypatch):

@@ -8,6 +8,7 @@ from typing import Any, Callable
 
 from plugins.telegram.formatting import format_agent_turn_reply
 from plugins.telegram.history_privacy import project_telegram_audit_record
+from plugins.telegram.polling import TelegramTurnRenewalPulse
 from src.telegram_todo_truth import telegram_todo_truth_envelope_public_summary
 from src.telegram_truth_gate import project_telegram_todo_transactions
 
@@ -314,6 +315,238 @@ def build_webhook_agent_turn_event_payload(
     return payload
 
 
+def _durable_reply_succeeded(result: Any) -> bool:
+    """Accept only explicit success from the reply gate's public result shape."""
+
+    if not isinstance(result, dict):
+        return False
+    if "exit_code" in result and result.get("exit_code") != 0:
+        return False
+    if result.get("ok") is True:
+        return True
+    if result.get("exit_code") != 0:
+        return False
+    output = result.get("output")
+    if not isinstance(output, str):
+        return False
+    try:
+        import json
+
+        sent = (json.loads(output) or {}).get("sent")
+    except (TypeError, ValueError):
+        return False
+    return bool(isinstance(sent, dict) and sent.get("ok") is True)
+
+
+def _has_exact_outbound_sent_evidence(store: Any, *, stable_chat_handle: str, message_id: Any) -> bool:
+    """Read only the bounded, content-free delivery fields needed for completion."""
+
+    try:
+        history = store.history(limit=50)
+    except Exception:
+        return False
+    return any(
+        isinstance(item, dict)
+        and item.get("direction") == "outbound"
+        and item.get("chat_handle") == stable_chat_handle
+        and item.get("source_message_id") == message_id
+        and item.get("delivery_status") == "sent"
+        for item in history
+    )
+
+
+async def run_durable_webhook_agent_turn_branch(
+    *,
+    runtime: Any,
+    stored_message: dict[str, Any],
+    bridge: dict[str, Any],
+    raw_chat_id: str,
+    store: Any,
+    voice_agent_turn: Any,
+    recent_attachment_context: dict[str, Any] | None,
+    agent_turn_handler: Any,
+    build_agent_bridge_request: BuildAgentBridgeRequest,
+    deterministic_agent_turn: DeterministicAgentTurn,
+    run_agent_turn_async: RunAgentTurnAsync,
+    typing_pulse: TypingPulse,
+    agent_failure_reply: AgentFailureReply,
+    reply_with_gate: ReplyWithGate,
+) -> tuple[str, dict[str, Any], dict[str, Any] | None, dict[str, Any] | None]:
+    """Run one webhook turn behind the runtime's shared durable lease."""
+
+    coordinator = getattr(runtime, "turn_coordinator", None)
+    owner = str(getattr(runtime, "telegram_owner", "") or "").strip()
+    if coordinator is None or not owner:
+        return "reconciliation_required", bridge, None, None
+    try:
+        acquired = coordinator.acquire_turn(
+            owner=owner,
+            stable_chat_handle=str(bridge.get("chat_handle") or ""),
+            update_id=stored_message.get("update_id"),
+            message_id=stored_message.get("message_id"),
+            scope=str(bridge.get("desired_session_scope") or bridge.get("session_scope") or "normal"),
+        )
+    except Exception:
+        return "reconciliation_required", bridge, None, None
+    status = str(getattr(acquired, "status", ""))
+    if status == "duplicate_completed":
+        return "duplicate_completed", bridge, None, None
+    if status == "terminal":
+        if _has_exact_outbound_sent_evidence(store, stable_chat_handle=str(bridge.get("chat_handle") or ""), message_id=stored_message.get("message_id")):
+            return "completed", bridge, None, None
+        reply = _deliver_agent_reply(reply_with_gate, bridge["chat_id"], "Diese Nachricht konnte nach einer Unterbrechung nicht sicher wiederhergestellt werden.", bridge.get("source_message_id"))
+        return ("completed" if _durable_reply_succeeded(reply) else "reconciliation_required"), bridge, None, reply
+    if status == "reply_pending_reconciliation_required":
+        sent = _has_exact_outbound_sent_evidence(
+            store,
+            stable_chat_handle=str(bridge.get("chat_handle") or ""),
+            message_id=stored_message.get("message_id"),
+        )
+        if sent:
+            try:
+                completed = coordinator.complete_reply_pending_from_outbound_evidence(
+                    owner=owner,
+                    stable_chat_handle=str(bridge.get("chat_handle") or ""),
+                    update_id=stored_message.get("update_id"),
+                    message_id=stored_message.get("message_id"),
+                    outbound_sent=True,
+                )
+            except Exception:
+                completed = None
+            if str(getattr(completed, "status", "")) == "completed_from_outbound_evidence":
+                return "duplicate_completed", bridge, None, None
+        provider = getattr(runtime, "turn_recovery_provider", None)
+        expected_session_id = str(getattr(getattr(acquired, "intake", None), "expected_session_id", "") or "")
+        recovery = provider(session_id=expected_session_id, durable_turn_ref=str(getattr(acquired.intake, "id", "") or "")) if callable(provider) else {}
+        markers = tuple((recovery or {}).get("markers") or ())
+        reply_text = str((recovery or {}).get("assistant_reply") or "")
+        if [getattr(marker, "role", "") for marker in markers] == ["user", "assistant"] and reply_text:
+            reply = _deliver_agent_reply(reply_with_gate, bridge["chat_id"], reply_text, bridge.get("source_message_id"))
+            if _durable_reply_succeeded(reply):
+                completed = coordinator.complete_reply_pending_from_outbound_evidence(
+                    owner=owner, stable_chat_handle=str(bridge.get("chat_handle") or ""),
+                    update_id=stored_message.get("update_id"), message_id=stored_message.get("message_id"), outbound_sent=True,
+                )
+                if str(getattr(completed, "status", "")) == "completed_from_outbound_evidence":
+                    return "completed", bridge, {"status": "recovered"}, reply
+        return "reconciliation_required", bridge, None, None
+    if status == "running_reconciliation_required":
+        provider = getattr(runtime, "turn_recovery_provider", None)
+        expected_session_id = str(getattr(getattr(acquired, "intake", None), "expected_session_id", "") or "")
+        recovery = provider(session_id=expected_session_id, durable_turn_ref=str(getattr(acquired.intake, "id", "") or "")) if callable(provider) else {}
+        try:
+            reconciled = coordinator.reconcile_crashed_turn(
+                owner=owner,
+                stable_chat_handle=str(bridge.get("chat_handle") or ""),
+                update_id=stored_message.get("update_id"),
+                message_id=stored_message.get("message_id"),
+                markers=tuple((recovery or {}).get("markers") or ()),
+            )
+        except Exception:
+            return "reconciliation_required", bridge, None, None
+        if str(getattr(reconciled, "status", "")) == "reconciled_reply_pending":
+            reply_text = str((recovery or {}).get("assistant_reply") or "")
+            if reply_text:
+                reply = _deliver_agent_reply(reply_with_gate, bridge["chat_id"], reply_text, bridge.get("source_message_id"))
+                if _durable_reply_succeeded(reply):
+                    completed = coordinator.complete_reply_pending_from_outbound_evidence(
+                        owner=owner,
+                        stable_chat_handle=str(bridge.get("chat_handle") or ""),
+                        update_id=stored_message.get("update_id"),
+                        message_id=stored_message.get("message_id"),
+                        outbound_sent=True,
+                    )
+                    if str(getattr(completed, "status", "")) == "completed_from_outbound_evidence":
+                        return "completed", bridge, {"status": "recovered"}, reply
+            return "reconciliation_required", bridge, None, None
+        if str(getattr(reconciled, "status", "")) == "reconciled_indeterminate":
+            if _has_exact_outbound_sent_evidence(store, stable_chat_handle=str(bridge.get("chat_handle") or ""), message_id=stored_message.get("message_id")):
+                return "completed", bridge, None, None
+            reply = _deliver_agent_reply(
+                reply_with_gate,
+                bridge["chat_id"],
+                "Diese Nachricht konnte nach einer Unterbrechung nicht sicher wiederhergestellt werden.",
+                bridge.get("source_message_id"),
+            )
+            return ("completed" if _durable_reply_succeeded(reply) else "reconciliation_required"), bridge, None, reply
+        return "reconciliation_required", bridge, None, None
+    if status in {"lease_busy", "lease_busy_local_active", "lease_retry", "retry_not_due"}:
+        return "lease_retry", bridge, None, None
+    if status != "acquired" or getattr(acquired, "lease", None) is None or getattr(acquired, "intake", None) is None:
+        return "reconciliation_required", bridge, None, None
+
+    lease = acquired.lease
+    completed = False
+    reply_persisted = False
+    renewal: TelegramTurnRenewalPulse | None = None
+    typing_stop = None
+    typing_task = None
+    final_bridge = dict(bridge)
+    try:
+        session_id = str(getattr(acquired.intake, "expected_session_id", "") or "")
+        if not session_id:
+            return "reconciliation_required", final_bridge, None, None
+        final_bridge = build_agent_bridge_request(
+            {**stored_message, "intake_status": "ready"},
+            session_binding={"session_id": session_id, "last_selected_scope": bridge.get("desired_session_scope") or "normal"},
+            raw_chat_id=raw_chat_id,
+            voice_agent_turn=voice_agent_turn,
+            recent_attachment_context=recent_attachment_context,
+        )
+        final_bridge["durable_turn_ref"] = str(getattr(acquired.intake, "id", "") or "")
+        agent_turn = deterministic_agent_turn(final_bridge)
+        if agent_turn is None and final_bridge.get("ready_for_agent") and callable(agent_turn_handler):
+            renewal = TelegramTurnRenewalPulse(coordinator=coordinator, lease=lease)
+            if not renewal.start():
+                return "reconciliation_required", final_bridge, None, None
+            typing_stop, typing_task = await typing_pulse(final_bridge["chat_id"], store=store)
+            agent_turn = await run_agent_turn_async(agent_turn_handler, final_bridge)
+            lease = renewal.stop()
+            if renewal.failed:
+                return "reconciliation_required", final_bridge, agent_turn, None
+        if not isinstance(agent_turn, dict) or str(agent_turn.get("status") or "") != "accepted":
+            return "reconciliation_required", final_bridge, agent_turn, None
+        durable_event = build_webhook_agent_turn_event_payload(bridge=final_bridge, agent_turn=agent_turn)
+        durable_event.pop("session_id", None)
+        durable_event["session_id_present"] = bool(session_id)
+        store.append_event(**durable_event)
+        coordinator.mark_reply_persisted(lease)
+        reply_persisted = True
+        reply_text = format_agent_turn_reply(agent_turn, failure_reply=agent_failure_reply)
+        if not reply_text:
+            return "reconciliation_required", final_bridge, agent_turn, None
+        reply = _deliver_agent_reply(
+            reply_with_gate,
+            final_bridge["chat_id"],
+            reply_text,
+            final_bridge.get("source_message_id"),
+            agent_turn.get("todo_transactions"),
+            agent_turn.get("todo_truth_envelope"),
+        )
+        if not _durable_reply_succeeded(reply):
+            return "reconciliation_required", final_bridge, agent_turn, reply
+        coordinator.complete_and_release(lease)
+        completed = True
+        return "completed", final_bridge, agent_turn, reply
+    except Exception:
+        return "reconciliation_required", final_bridge, None, None
+    finally:
+        if typing_stop is not None:
+            typing_stop.set()
+        if typing_task is not None:
+            try:
+                await asyncio.wait_for(typing_task, timeout=0.5)
+            except asyncio.TimeoutError:
+                typing_task.cancel()
+        if renewal is not None:
+            lease = renewal.stop()
+        if not completed and not reply_persisted:
+            try:
+                coordinator.release_turn(lease)
+            except Exception:
+                pass
+
+
 def run_webhook_control_command_branch(
     *,
     message: dict[str, Any],
@@ -330,6 +563,9 @@ def run_webhook_control_command_branch(
     project_registry_path: Any,
     detect_control_command: DetectControlCommand,
     handle_control_command: HandleControlCommand,
+    telegram_rollover_runtime: Any = None,
+    rollover_session_creator: Any = None,
+    rollover_security_validator: Any = None,
 ) -> dict[str, Any] | None:
     """Run the webhook control-command branch and append its redacted event."""
 
@@ -346,6 +582,9 @@ def run_webhook_control_command_branch(
         memory_vector=memory_vector,
         memory_owner=memory_owner,
         project_registry_path=project_registry_path,
+        telegram_rollover_runtime=telegram_rollover_runtime,
+        rollover_session_creator=rollover_session_creator,
+        rollover_security_validator=rollover_security_validator,
     )
     if control_result is None:
         return None

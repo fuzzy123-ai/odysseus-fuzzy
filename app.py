@@ -2,6 +2,7 @@
 import mimetypes
 import json
 import os
+import re
 import sys
 
 
@@ -937,12 +938,143 @@ def _telegram_rollover_runtime():
         "TELEGRAM_SESSION_TURN_LEASE_SECONDS": os.getenv("TELEGRAM_SESSION_TURN_LEASE_SECONDS", "7200"),
         "TELEGRAM_SESSION_CONTINUITY_ENABLED": os.getenv("TELEGRAM_SESSION_CONTINUITY_ENABLED", "false"),
     })
-    return build_db_authoritative_rollover_runtime(
+    runtime = build_db_authoritative_rollover_runtime(
         session_factory=SessionLocal,
         config=config,
         telegram_owner=_telegram_rollover_owner(),
         legacy_path=os.path.join(DATA_DIR, "telegram_session_bridge.json"),
     )
+    if runtime is not None:
+        runtime.rollover_session_creator = _telegram_rollover_session_creator
+        runtime.rollover_security_validator = _telegram_rollover_security_validator
+        runtime.turn_recovery_provider = _telegram_turn_recovery_provider
+    return runtime
+
+
+def _telegram_turn_recovery_provider(*, session_id, durable_turn_ref):
+    """Return an exact persisted Telegram turn pair without projecting content.
+
+    This internal recovery seam is intentionally bounded to one Session and an
+    opaque durable reference.  The transport chooses whether a recovered
+    assistant reply may be delivered; logs and store evidence receive only
+    status booleans, never this content.
+    """
+
+    from core.database import ChatMessage
+    from src.telegram_session_rollover import TurnMessageMarker
+
+    if (
+        not isinstance(session_id, str)
+        or not 1 <= len(session_id.strip()) <= 256
+        or not isinstance(durable_turn_ref, str)
+        or re.fullmatch(r"t1_[0-9a-f]{32}", durable_turn_ref) is None
+    ):
+        return {"markers": (), "assistant_reply": None}
+    database = SessionLocal()
+    try:
+        rows = database.query(ChatMessage.id, ChatMessage.role, ChatMessage.content, ChatMessage.meta_data).filter(
+            ChatMessage.session_id == session_id,
+            ChatMessage.role.in_(("user", "assistant")),
+            ChatMessage.meta_data.like(f"%{durable_turn_ref}%"),
+        ).order_by(ChatMessage.timestamp.asc(), ChatMessage.id.asc()).limit(4).all()
+        matched = []
+        for row in rows:
+            try:
+                metadata = json.loads(row.meta_data or "{}")
+            except (TypeError, ValueError):
+                continue
+            if not isinstance(metadata, dict) or metadata.get("durable_turn_ref") != durable_turn_ref:
+                continue
+            matched.append(row)
+        markers = tuple(TurnMessageMarker(str(row.role), durable_turn_ref) for row in matched)
+        assistant = [row for row in matched if row.role == "assistant"]
+        return {
+            "markers": markers,
+            "assistant_reply": str(assistant[0].content) if len(assistant) == 1 else None,
+        }
+    except Exception:
+        return {"markers": (), "assistant_reply": None}
+    finally:
+        database.close()
+
+
+def _telegram_rollover_session_creator(*, database, owner, scope, session_id, **_kwargs):
+    """Create one coordinator-ID Session with cached DB metadata only.
+
+    This callback deliberately owns neither a transaction nor any provider
+    probe.  The binding coordinator supplies the DB Session, commits only its
+    all-or-nothing mutation, and rejects this callback if no owner-scoped
+    cached model metadata is available.
+    """
+
+    from core.database import ModelEndpoint, Session
+    from src.endpoint_resolver import build_chat_url, build_headers
+
+    if not callable(getattr(database, "add", None)) or not isinstance(owner, str):
+        return ""
+    spec = _telegram_model_spec()
+    model = str(spec.rsplit("@", 1)[0] if "@" in spec else spec).strip()
+    if not model:
+        return ""
+    query = database.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True)  # noqa: E712
+    endpoint_name = str(spec.rsplit("@", 1)[1] if "@" in spec else "").strip()
+    if endpoint_name:
+        query = query.filter(ModelEndpoint.name.ilike(f"%{endpoint_name}%"))
+    endpoint = None
+    for candidate in query.all():
+        if candidate.owner not in {None, owner}:
+            continue
+        try:
+            cached_models = set(json.loads(candidate.cached_models or "[]") or [])
+            hidden_models = set(json.loads(candidate.hidden_models or "[]") or [])
+        except (TypeError, ValueError):
+            continue
+        api_key = candidate.api_key
+        if (
+            model not in cached_models
+            or model in hidden_models
+            or (candidate.provider_auth_id and not api_key)
+        ):
+            continue
+        endpoint = candidate
+        break
+    if endpoint is None:
+        return ""
+    database.add(Session(
+        id=session_id,
+        name="Telegram Bot",
+        endpoint_url=build_chat_url(str(endpoint.base_url or "")),
+        model=model,
+        owner=owner,
+        headers=build_headers(api_key, str(endpoint.base_url or "")),
+        archived=False,
+        mode="agent",
+    ))
+    return session_id
+
+
+def _telegram_rollover_security_validator(*, database, session_id, owner, scope):
+    """Validate the just-created Session from DB metadata without network IO."""
+
+    if scope != "secure":
+        return True
+    from core.database import Session
+    from src.secure_provider_runtime import enforce_session_provider_runtime_gate
+
+    session = database.query(Session).filter(Session.id == session_id, Session.owner == owner).first()
+    if session is None:
+        return False
+    try:
+        gate = enforce_session_provider_runtime_gate(
+            security_mode="secure",
+            session_id=session.id,
+            owner=owner,
+            provider_base_url=session.endpoint_url,
+            model_id=session.model,
+        )
+    except Exception:
+        return False
+    return bool(gate.allowed)
 
 
 def _telegram_refresh_session_headers(session_id: str) -> dict | None:
@@ -1273,8 +1405,12 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
             response = "Ich habe deine Nachricht verarbeitet, aber keine Textantwort erhalten."
         if local_rebind_notice:
             response = f"{local_rebind_notice}{response}"
-        session.add_message(ChatMessage("user", persisted_prompt, {"source": "telegram"}))
-        session.add_message(ChatMessage("assistant", str(response or ""), {"source": "telegram"}))
+        durable_turn_ref = str(bridge.get("durable_turn_ref") or "").strip()
+        telegram_metadata = {"source": "telegram"}
+        if durable_turn_ref:
+            telegram_metadata["durable_turn_ref"] = durable_turn_ref
+        session.add_message(ChatMessage("user", persisted_prompt, dict(telegram_metadata)))
+        session.add_message(ChatMessage("assistant", str(response or ""), dict(telegram_metadata)))
         result = {"status": "accepted", "reply_text": str(response or "")}
         if todo_transactions:
             result["todo_transactions"] = todo_transactions
@@ -1292,6 +1428,8 @@ app.state.telegram_owner = _telegram_owner()
 _telegram_rollover_runtime_instance = _telegram_rollover_runtime()
 if _telegram_rollover_runtime_instance is not None:
     app.state.telegram_rollover_runtime = _telegram_rollover_runtime_instance
+    app.state.telegram_rollover_session_creator = _telegram_rollover_session_creator
+    app.state.telegram_rollover_security_validator = _telegram_rollover_security_validator
 logger.info("Telegram AI bridge initialized")
 
 # Webhooks

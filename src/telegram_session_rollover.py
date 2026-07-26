@@ -1526,6 +1526,90 @@ class TelegramTurnCoordinator:
 
         return self._operate(operation)
 
+    def complete_reply_pending_from_outbound_evidence(
+        self,
+        *,
+        owner: str,
+        stable_chat_handle: str,
+        update_id: int | None,
+        message_id: int | None,
+        outbound_sent: bool,
+    ) -> TelegramTurnCoordinatorResult:
+        """Complete only a reply-pending intake backed by one exact sent receipt."""
+
+        if not self._enabled():
+            return TelegramTurnCoordinatorResult("disabled")
+        if outbound_sent is not True:
+            return TelegramTurnCoordinatorResult("outbound_evidence_missing")
+        try:
+            owner_reference, chat_reference, update_reference = self._turn_identity(
+                owner, stable_chat_handle, update_id, message_id
+            )
+        except LedgerError:
+            return TelegramTurnCoordinatorResult("invalid_turn_identity")
+
+        def operation(database: Any) -> TelegramTurnCoordinatorResult:
+            ledger = TelegramRolloverLedger(database, self._config.reference_key)
+            ledger.begin_atomic_rollover_transaction()
+            ledger.verify_reference_key()
+            intake = ledger.get_turn_intake(
+                owner_reference=owner_reference,
+                chat_reference=chat_reference,
+                transport_update_reference=update_reference,
+            )
+            if intake is None:
+                return TelegramTurnCoordinatorResult("intake_not_found")
+            if intake.status is not TurnIntakeState.REPLY_PENDING:
+                return TelegramTurnCoordinatorResult("not_reply_pending", intake=intake)
+            tables = ledger._verified_tables()
+            binding = _select_one(database, tables["binding"], tables["binding"].c.id == intake.binding_id)
+            if (
+                binding is None
+                or int(binding.get("generation", -1)) < 0
+                or binding.get("active_session_id") != intake.expected_session_id
+            ):
+                return TelegramTurnCoordinatorResult("stale_binding_fence", intake=intake)
+            active_turn = binding.get("active_turn_ref")
+            if active_turn not in {None, intake.id}:
+                return TelegramTurnCoordinatorResult("binding_lease_active", intake=intake)
+            if active_turn is None and any(
+                binding.get(name) is not None
+                for name in ("turn_lease_ref", "turn_lease_expires_at", "turn_started_at")
+            ):
+                return TelegramTurnCoordinatorResult("stale_binding_fence", intake=intake)
+            completed = ledger.advance_turn_intake(
+                intake_id=intake.id,
+                expected_generation=int(binding["generation"]),
+                event=TurnIntakeEvent.REPLY_SENT,
+            )
+            if active_turn == intake.id:
+                cleared = database.execute(
+                    update(tables["binding"])
+                    .where(
+                        tables["binding"].c.id == intake.binding_id,
+                        tables["binding"].c.generation == binding["generation"],
+                        tables["binding"].c.active_session_id == intake.expected_session_id,
+                        tables["binding"].c.active_turn_ref == intake.id,
+                        tables["binding"].c.turn_lease_ref == binding.get("turn_lease_ref"),
+                        tables["binding"].c.turn_lease_expires_at == binding.get("turn_lease_expires_at"),
+                    )
+                    .values(
+                        turn_lease_ref=None,
+                        active_turn_ref=None,
+                        turn_lease_expires_at=None,
+                        turn_started_at=None,
+                        updated_at=_ledger_now(),
+                    )
+                )
+                if cleared.rowcount != 1:
+                    raise LedgerError("stale_turn_lease_fence")
+            return TelegramTurnCoordinatorResult("completed_from_outbound_evidence", intake=completed)
+
+        result = self._operate(operation)
+        if result.status == "completed_from_outbound_evidence" and result.intake is not None:
+            _ACTIVE_TELEGRAM_TURN_IDS.discard(result.intake.id)
+        return result
+
     def _advance_with_lease(
         self, lease: TelegramTurnLease, event: TurnIntakeEvent, *, release: bool
     ) -> LedgerTurnIntake:
@@ -2383,6 +2467,17 @@ class TelegramRolloverRuntime:
     @property
     def telegram_owner(self) -> str:
         return self._owner
+
+    def rollover_local_day(self) -> str:
+        """Return the current configured local day for one guarded mutation."""
+
+        return rollover_local_day(self._observed_now(), self._config)
+
+    @property
+    def retry_seconds(self) -> int:
+        """Return the validated bounded retry delay for transport adapters."""
+
+        return self._config.retry_seconds
 
     def sweep_due_bindings(self) -> TelegramRolloverSweepResult:
         """Import one owner's legacy slots and rotate only its due bindings."""

@@ -289,6 +289,23 @@ def _rollover_sweep_status(runtime: Any) -> str:
     } else "sweep_blocked"
 
 
+def _has_exact_outbound_sent_evidence(store: Any, *, stable_chat_handle: str, message_id: Any) -> bool:
+    """Inspect only bounded redacted delivery fields for one source message."""
+
+    try:
+        history = store.history(limit=50)
+    except Exception:
+        return False
+    return any(
+        isinstance(item, dict)
+        and item.get("direction") == "outbound"
+        and item.get("chat_handle") == stable_chat_handle
+        and item.get("source_message_id") == message_id
+        and item.get("delivery_status") == "sent"
+        for item in history
+    )
+
+
 class TelegramTurnRenewalPulse:
     """Renew one exact turn lease while bounded model work is in progress."""
 
@@ -386,6 +403,80 @@ def _run_durable_polling_turn(
     acquire_status = str(getattr(acquired, "status", ""))
     if acquire_status == "duplicate_completed":
         return {"status": "duplicate_completed"}
+    if acquire_status == "terminal":
+        if _has_exact_outbound_sent_evidence(store, stable_chat_handle=str(bridge.get("chat_handle") or ""), message_id=message.get("message_id")):
+            return {"status": "terminal"}
+        if reply_handler is None:
+            return {"status": "reconciliation_required"}
+        delivery = _deliver_agent_reply(reply_handler, bridge["chat_id"], "Diese Nachricht konnte nach einer Unterbrechung nicht sicher wiederhergestellt werden.", bridge.get("source_message_id"))
+        return {"status": "terminal" if _durable_reply_succeeded(delivery) else "reconciliation_required"}
+    if acquire_status == "reply_pending_reconciliation_required":
+        if _has_exact_outbound_sent_evidence(
+            store,
+            stable_chat_handle=str(bridge.get("chat_handle") or ""),
+            message_id=message.get("message_id"),
+        ):
+            try:
+                completed = coordinator.complete_reply_pending_from_outbound_evidence(
+                    owner=owner,
+                    stable_chat_handle=str(bridge.get("chat_handle") or ""),
+                    update_id=update_id,
+                    message_id=message.get("message_id"),
+                    outbound_sent=True,
+                )
+            except Exception:
+                completed = None
+            if str(getattr(completed, "status", "")) == "completed_from_outbound_evidence":
+                return {"status": "duplicate_completed"}
+        provider = getattr(runtime, "turn_recovery_provider", None)
+        expected_session_id = str(getattr(getattr(acquired, "intake", None), "expected_session_id", "") or "")
+        recovery = provider(session_id=expected_session_id, durable_turn_ref=str(getattr(acquired.intake, "id", "") or "")) if callable(provider) else {}
+        markers = tuple((recovery or {}).get("markers") or ())
+        reply_text = str((recovery or {}).get("assistant_reply") or "")
+        if reply_handler is not None and [getattr(marker, "role", "") for marker in markers] == ["user", "assistant"] and reply_text:
+            delivery = _deliver_agent_reply(reply_handler, bridge["chat_id"], reply_text, bridge.get("source_message_id"))
+            if _durable_reply_succeeded(delivery):
+                completed = coordinator.complete_reply_pending_from_outbound_evidence(
+                    owner=owner, stable_chat_handle=str(bridge.get("chat_handle") or ""),
+                    update_id=update_id, message_id=message.get("message_id"), outbound_sent=True,
+                )
+                if str(getattr(completed, "status", "")) == "completed_from_outbound_evidence":
+                    return {"status": "completed", "recovered": True}
+        return {"status": "reconciliation_required"}
+    if acquire_status == "running_reconciliation_required":
+        provider = getattr(runtime, "turn_recovery_provider", None)
+        expected_session_id = str(getattr(getattr(acquired, "intake", None), "expected_session_id", "") or "")
+        recovery = provider(session_id=expected_session_id, durable_turn_ref=str(getattr(acquired.intake, "id", "") or "")) if callable(provider) else {}
+        try:
+            reconciled = coordinator.reconcile_crashed_turn(
+                owner=owner,
+                stable_chat_handle=str(bridge.get("chat_handle") or ""),
+                update_id=update_id,
+                message_id=message.get("message_id"),
+                markers=tuple((recovery or {}).get("markers") or ()),
+            )
+        except Exception:
+            return {"status": "reconciliation_required"}
+        if str(getattr(reconciled, "status", "")) == "reconciled_reply_pending":
+            reply_text = str((recovery or {}).get("assistant_reply") or "")
+            if reply_text and reply_handler is not None:
+                delivery = _deliver_agent_reply(reply_handler, bridge["chat_id"], reply_text, bridge.get("source_message_id"))
+                if _durable_reply_succeeded(delivery):
+                    completed = coordinator.complete_reply_pending_from_outbound_evidence(
+                        owner=owner, stable_chat_handle=str(bridge.get("chat_handle") or ""),
+                        update_id=update_id, message_id=message.get("message_id"), outbound_sent=True,
+                    )
+                    if str(getattr(completed, "status", "")) == "completed_from_outbound_evidence":
+                        return {"status": "completed", "recovered": True}
+            return {"status": "reconciliation_required"}
+        if str(getattr(reconciled, "status", "")) == "reconciled_indeterminate":
+            if _has_exact_outbound_sent_evidence(store, stable_chat_handle=str(bridge.get("chat_handle") or ""), message_id=message.get("message_id")):
+                return {"status": "terminal"}
+            if reply_handler is None:
+                return {"status": "reconciliation_required"}
+            delivery = _deliver_agent_reply(reply_handler, bridge["chat_id"], "Diese Nachricht konnte nach einer Unterbrechung nicht sicher wiederhergestellt werden.", bridge.get("source_message_id"))
+            return {"status": "terminal" if _durable_reply_succeeded(delivery) else "reconciliation_required"}
+        return {"status": "reconciliation_required"}
     lease = getattr(acquired, "lease", None)
     intake = getattr(acquired, "intake", None)
     if acquire_status != "acquired" or lease is None or intake is None:
@@ -400,6 +491,7 @@ def _run_durable_polling_turn(
         return {"status": "reconciliation_required"}
 
     completed = False
+    reply_persisted = False
     typing_pulse: TelegramTypingPulse | None = None
     renewal_pulse: TelegramTurnRenewalPulse | None = None
     try:
@@ -408,6 +500,7 @@ def _run_durable_polling_turn(
             return {"status": "reconciliation_required"}
         durable_bridge = dict(bridge)
         durable_bridge["session_id"] = expected_session_id
+        durable_bridge["durable_turn_ref"] = str(getattr(intake, "id", "") or "")
         durable_bridge["session_scope"] = str(
             bridge.get("desired_session_scope") or bridge.get("session_scope") or "normal"
         )
@@ -415,7 +508,7 @@ def _run_durable_polling_turn(
             kind="session_bridge",
             status="ledger_bound",
             chat_id=durable_bridge["chat_id"],
-            session_id=expected_session_id,
+            session_id_present=bool(expected_session_id),
         )
         agent_turn = deterministic_telegram_agent_turn(durable_bridge)
         if agent_turn is None and callable(agent_turn_handler):
@@ -437,10 +530,11 @@ def _run_durable_polling_turn(
             kind="agent_turn",
             status="accepted",
             chat_id=durable_bridge["chat_id"],
-            session_id=expected_session_id,
+            session_id_present=bool(expected_session_id),
             reply_text_present=bool(agent_turn.get("reply_text_present")),
         )
         coordinator.mark_reply_persisted(lease)
+        reply_persisted = True
         reply_text = format_agent_turn_reply(agent_turn, failure_reply=_agent_failure_reply)
         if not reply_text or reply_handler is None:
             return {"status": "reconciliation_required"}
@@ -464,7 +558,7 @@ def _run_durable_polling_turn(
             typing_pulse.stop()
         if renewal_pulse is not None:
             lease = renewal_pulse.stop()
-        if not completed:
+        if not completed and not reply_persisted:
             try:
                 coordinator.release_turn(lease)
             except Exception:
@@ -594,6 +688,32 @@ def run_telegram_polling_cycle_impl(
             in {"lease_retry", "reconciliation_required"}
         )
         if durable_duplicate:
+            control_result = handle_control_command(
+                control_command(stored["message"]),
+                message=stored["message"],
+                raw_chat_id=str(message.get("chat_id") or ""),
+                sessions=sessions,
+                session_creator=session_creator,
+                reply_handler=reply_handler,
+                store=store,
+                pin_store=privacy_pins,
+                memory_manager=memory_manager,
+                memory_vector=memory_vector,
+                memory_owner=memory_owner,
+                project_registry_path=project_registry_path,
+            )
+            if control_result is not None:
+                control_commands += 1
+                if control_result.get("retryable") is True:
+                    store.update_inbound_status(stored["message"], intake_status="lease_retry")
+                    retry_offset = current_update_id or offset
+                    break
+                if telegram_rollover_runtime is not None:
+                    store.update_inbound_status(stored["message"], intake_status="control_completed")
+                if control_result.get("reply") is not None:
+                    replies += 1
+                processed += 1
+                continue
             retry_bridge_message = dict(stored["message"])
             retry_bridge_message["intake_status"] = "ready"
             bridge = build_agent_bridge_request(
@@ -649,13 +769,23 @@ def run_telegram_polling_cycle_impl(
             )
             if control_result is not None:
                 control_commands += 1
+                if control_result.get("retryable") is True:
+                    store.update_inbound_status(stored["message"], intake_status="lease_retry")
+                    retry_offset = current_update_id or offset
+                    break
+                if telegram_rollover_runtime is not None:
+                    store.update_inbound_status(stored["message"], intake_status="control_completed")
                 if control_result.get("reply") is not None:
                     replies += 1
                 store.append_event(
                     kind="control_command",
                     status=str(control_result.get("status") or "handled"),
                     chat_id=str(message.get("chat_id") or ""),
-                    session_id=str((control_result.get("binding") or {}).get("session_id") or ""),
+                    **({
+                        "session_id_present": bool((control_result.get("binding") or {}).get("session_id")),
+                    } if telegram_rollover_runtime is not None else {
+                        "session_id": str((control_result.get("binding") or {}).get("session_id") or ""),
+                    }),
                     command=str(control_result.get("command") or ""),
                 )
                 processed += 1

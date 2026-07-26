@@ -216,6 +216,7 @@ from plugins.telegram.webhook_service import (
     run_webhook_attachment_export_branch,
     run_webhook_agent_turn_branch,
     run_webhook_control_command_branch,
+    run_durable_webhook_agent_turn_branch,
     run_webhook_media_pipelines,
     run_webhook_project_intake_branch,
 )
@@ -401,6 +402,15 @@ def _public_agent_task_record(record: dict[str, Any]) -> dict[str, Any]:
     return public_agent_task_record(record)
 
 
+def _rollover_retry_http_exception(runtime: Any) -> HTTPException:
+    retry_seconds = int(getattr(runtime, "retry_seconds", 30) or 30)
+    return HTTPException(
+        status_code=503,
+        detail="telegram_retry",
+        headers={"Retry-After": str(max(1, min(300, retry_seconds)))},
+    )
+
+
 def _handle_calendar_control_command(
     command: str,
     *,
@@ -444,6 +454,9 @@ def _handle_telegram_control_command(
     memory_vector: Any = None,
     memory_owner: str | None = None,
     project_registry_path: str | Path | None = None,
+    telegram_rollover_runtime: Any = None,
+    rollover_session_creator: Any = None,
+    rollover_security_validator: Any = None,
 ) -> dict[str, Any] | None:
     if not command:
         return None
@@ -537,6 +550,9 @@ def _handle_telegram_control_command(
         sessions=sessions,
         session_creator=session_creator,
         build_agent_bridge_request=build_agent_bridge_request,
+        telegram_rollover_runtime=telegram_rollover_runtime,
+        rollover_session_creator=rollover_session_creator,
+        rollover_security_validator=rollover_security_validator,
     )
 
 
@@ -1192,6 +1208,17 @@ def run_telegram_polling_cycle(
     project_registry_path: str | Path | None = None,
     telegram_rollover_runtime: Any | None = None,
 ) -> dict[str, Any]:
+    def _control_with_runtime(command: str, **kwargs: Any) -> dict[str, Any] | None:
+        if telegram_rollover_runtime is None:
+            return _handle_telegram_control_command(command, **kwargs)
+        return _handle_telegram_control_command(
+            command,
+            **kwargs,
+            telegram_rollover_runtime=telegram_rollover_runtime,
+            rollover_session_creator=getattr(telegram_rollover_runtime, "rollover_session_creator", None),
+            rollover_security_validator=getattr(telegram_rollover_runtime, "rollover_security_validator", None),
+        )
+
     return run_telegram_polling_cycle_impl(
         data_dir=data_dir,
         fetch_updates=fetch_updates,
@@ -1212,7 +1239,7 @@ def run_telegram_polling_cycle(
         polling_enabled=_bool_env,
         parse_update=lambda update: parse_telegram_update(update, chat_allowed=_chat_allowed),
         control_command=_telegram_control_command,
-        handle_control_command=_handle_telegram_control_command,
+        handle_control_command=_control_with_runtime,
         build_live_voice_stt_provider=build_telegram_live_voice_stt_provider,
         run_voice_pipeline=run_telegram_voice_pipeline,
         run_image_action=run_telegram_image_action,
@@ -1313,6 +1340,8 @@ def setup(ctx):
     memory_vector = _ctx_attr("memory_vector")
     memory_owner = str(_ctx_attr("telegram_owner") or "telegram").strip() or "telegram"
     telegram_rollover_runtime = _ctx_attr("telegram_rollover_runtime")
+    rollover_session_creator = _ctx_attr("telegram_rollover_session_creator")
+    rollover_security_validator = _ctx_attr("telegram_rollover_security_validator")
     admin_gate = _ctx_attr("require_admin", require_admin) or require_admin
 
     def _require_admin(request: Request) -> None:
@@ -1817,11 +1846,35 @@ def setup(ctx):
             chat_id=str(message.get("chat_id") or ""),
         ) if stored["message"].get("kind") == "text" else None
         bridge = build_agent_bridge_request(
-            stored["message"],
+            {
+                **stored["message"],
+                **(
+                    {"intake_status": "ready"}
+                    if telegram_rollover_runtime is not None
+                    and not stored["stored"]
+                    and stored["message"].get("intake_status")
+                    in {"lease_retry", "reconciliation_required"}
+                    else {}
+                ),
+            },
             raw_chat_id=str(message.get("chat_id") or ""),
             voice_agent_turn=voice_agent_turn,
             recent_attachment_context=recent_attachment_context,
         )
+        if (
+            telegram_rollover_runtime is not None
+            and not stored["stored"]
+            and stored["message"].get("intake_status") == "control_completed"
+        ):
+            return build_webhook_response_payload(
+                stored=stored,
+                agent_bridge=bridge,
+                voice_pipeline=voice_pipeline,
+                image_action=image_action,
+                universal_inbox_attachment=inbox_attachment,
+                agent_turn=None,
+                reply=None,
+            )
         control_result = run_webhook_control_command_branch(
             message=message,
             stored_message=stored["message"],
@@ -1839,10 +1892,18 @@ def setup(ctx):
             memory_vector=memory_vector,
             memory_owner=memory_owner,
             project_registry_path=Path(ctx.data_dir) / _PROJECT_REGISTRY_FILE,
+            telegram_rollover_runtime=telegram_rollover_runtime,
+            rollover_session_creator=rollover_session_creator,
+            rollover_security_validator=rollover_security_validator,
             detect_control_command=_telegram_control_command,
             handle_control_command=_handle_telegram_control_command,
         )
         if control_result is not None:
+            if control_result.get("retryable") is True:
+                store.update_inbound_status(stored["message"], intake_status="lease_retry")
+                raise _rollover_retry_http_exception(telegram_rollover_runtime)
+            if telegram_rollover_runtime is not None:
+                store.update_inbound_status(stored["message"], intake_status="control_completed")
             return build_webhook_response_payload(
                 stored=stored,
                 agent_bridge=bridge,
@@ -1901,6 +1962,35 @@ def setup(ctx):
                 extra={
                     "project_intake": build_webhook_project_intake_summary(project_intake)
                 },
+            )
+        if telegram_rollover_runtime is not None and bridge["ready_for_agent"]:
+            durable_status, bridge, agent_turn, reply_result = await run_durable_webhook_agent_turn_branch(
+                runtime=telegram_rollover_runtime,
+                stored_message=stored["message"],
+                bridge=bridge,
+                raw_chat_id=str(message.get("chat_id") or ""),
+                store=store,
+                voice_agent_turn=voice_agent_turn,
+                recent_attachment_context=recent_attachment_context,
+                agent_turn_handler=agent_turn_handler,
+                build_agent_bridge_request=build_agent_bridge_request,
+                deterministic_agent_turn=deterministic_telegram_agent_turn,
+                run_agent_turn_async=_run_agent_turn_async,
+                typing_pulse=_telegram_typing_pulse_async,
+                agent_failure_reply=_agent_failure_reply,
+                reply_with_gate=_reply_with_gate,
+            )
+            if durable_status in {"lease_retry", "reconciliation_required"}:
+                store.update_inbound_status(stored["message"], intake_status=durable_status)
+                raise _rollover_retry_http_exception(telegram_rollover_runtime)
+            return build_webhook_response_payload(
+                stored=stored,
+                agent_bridge=bridge,
+                voice_pipeline=voice_pipeline,
+                image_action=image_action,
+                universal_inbox_attachment=inbox_attachment,
+                agent_turn=_public_agent_turn_result(agent_turn),
+                reply=_public_reply_result(reply_result),
             )
         bridge, agent_turn, reply_result = await run_webhook_agent_turn_branch(
             stored_message=stored["message"],

@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, time, timedelta, timezone
 import hashlib
 import hmac
@@ -2043,6 +2044,159 @@ def test_turn_coordinator_concurrent_updates_choose_one_winner_and_one_busy(tmp_
         assert results.count("acquired") == 1
         assert len(results) == 2
         assert next(status for status in results if status != "acquired").startswith("lease_busy")
+    finally:
+        engine.dispose()
+
+
+def test_rollover_coordinator_first_empty_poll_sweeps_due_binding_and_commits_one_replacement(tmp_path):
+    engine, factory, alice, bob, runtime, _now = _runtime_sweep_fixture(tmp_path)
+    try:
+        result = runtime.sweep_due_bindings()
+        assert result.status == "sweep_ok"
+        assert result.scanned_count == 1
+        assert result.committed_count == 1
+        database = factory()
+        try:
+            alice_row = database.execute(
+                database_module.TelegramSessionBinding.__table__.select().where(
+                    database_module.TelegramSessionBinding.id == alice.id
+                )
+            ).mappings().one()
+            bob_row = database.execute(
+                database_module.TelegramSessionBinding.__table__.select().where(
+                    database_module.TelegramSessionBinding.id == bob.id
+                )
+            ).mappings().one()
+            assert alice_row["generation"] == 1
+            assert alice_row["active_session_id"] != "runtime-alice-session"
+            assert database.get(Session, "runtime-alice-session").archived is True
+            assert bob_row["generation"] == 0
+            assert database.get(Session, "runtime-bob-session").archived is False
+        finally:
+            database.close()
+    finally:
+        engine.dispose()
+
+
+def test_rollover_coordinator_poll_and_webhook_share_durable_turn_lease_without_split(tmp_path):
+    from plugins.telegram.plugin import _chat_handle, run_telegram_polling_cycle
+    from plugins.telegram.webhook_service import run_durable_webhook_agent_turn_branch
+
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'shared-transport.sqlite'}",
+        connect_args={"check_same_thread": False},
+    )
+    try:
+        Base.metadata.create_all(bind=engine)
+        factory = sessionmaker(bind=engine, autoflush=False)
+        stable_chat_handle = _chat_handle("shared-runtime-chat")
+        database = factory()
+        try:
+            database.add(Session(
+                id="shared-runtime-session",
+                name="Synthetic",
+                endpoint_url="http://synthetic.invalid",
+                model="synthetic",
+                owner="alice",
+            ))
+            TelegramRolloverLedger(database, KEY).get_or_create_binding(
+                owner_reference=owner_ref(KEY, "alice"),
+                chat_reference=chat_handle_ref(KEY, stable_chat_handle),
+                scope="normal",
+                active_session_id="shared-runtime-session",
+                active_rollover_local_day="2026-07-25",
+            )
+            database.commit()
+        finally:
+            database.close()
+        legacy_path = tmp_path / "telegram_session_bridge.json"
+        legacy_path.write_text(json.dumps({"sessions": {}}), encoding="utf-8")
+        runtime = build_db_authoritative_rollover_runtime(
+            session_factory=factory,
+            config=RolloverConfig(enabled=True, reference_key=KEY),
+            telegram_owner="alice",
+            legacy_path=legacy_path,
+            now=lambda: datetime(2026, 7, 25, 12, tzinfo=timezone.utc),
+        )
+        assert runtime is not None
+        started = threading.Event()
+        release = threading.Event()
+        poll_result: list[dict] = []
+
+        def agent_turn(_bridge):
+            started.set()
+            assert release.wait(timeout=5)
+            return {"status": "accepted", "reply_text": "done"}
+
+        def run_poll():
+            poll_result.append(run_telegram_polling_cycle(
+                data_dir=tmp_path / "poll-data",
+                fetch_updates=lambda _offset: [{
+                    "update_id": 901,
+                    "message": {
+                        "message_id": 902,
+                        "chat": {"id": "shared-runtime-chat"},
+                        "text": "hold the durable lease",
+                    },
+                }],
+                agent_turn_handler=agent_turn,
+                reply_handler=lambda *_args, **_kwargs: {"ok": True},
+                telegram_rollover_runtime=runtime,
+            ))
+
+        import os
+        prior_enabled = os.environ.get("TELEGRAM_POLLING_ENABLED")
+        prior_allowed = os.environ.get("TELEGRAM_ALLOWED_CHAT_IDS")
+        os.environ["TELEGRAM_POLLING_ENABLED"] = "true"
+        os.environ["TELEGRAM_ALLOWED_CHAT_IDS"] = "shared-runtime-chat"
+        worker = threading.Thread(target=run_poll)
+        worker.start()
+        try:
+            assert started.wait(timeout=5)
+            status, _bridge, agent_turn_result, reply = asyncio.run(run_durable_webhook_agent_turn_branch(
+                runtime=runtime,
+                stored_message={"update_id": 903, "message_id": 904, "kind": "text", "intake_status": "ready"},
+                bridge={
+                    "chat_handle": stable_chat_handle,
+                    "chat_id": "shared-runtime-chat",
+                    "desired_session_scope": "normal",
+                },
+                raw_chat_id="shared-runtime-chat",
+                store=type("Store", (), {"append_event": lambda *_args, **_kwargs: None})(),
+                voice_agent_turn=None,
+                recent_attachment_context=None,
+                agent_turn_handler=lambda _bridge: pytest.fail("webhook must not split the active poll lease"),
+                build_agent_bridge_request=lambda *_args, **_kwargs: pytest.fail("webhook must not rebuild while busy"),
+                deterministic_agent_turn=lambda _bridge: pytest.fail("webhook must not run while busy"),
+                run_agent_turn_async=lambda *_args, **_kwargs: pytest.fail("webhook must not run while busy"),
+                typing_pulse=lambda *_args, **_kwargs: pytest.fail("webhook must not type while busy"),
+                agent_failure_reply=lambda _turn: "",
+                reply_with_gate=lambda *_args, **_kwargs: pytest.fail("webhook must not reply while busy"),
+            ))
+            assert status == "lease_retry"
+            assert agent_turn_result is None and reply is None
+        finally:
+            release.set()
+            worker.join(timeout=10)
+            if prior_enabled is None:
+                os.environ.pop("TELEGRAM_POLLING_ENABLED", None)
+            else:
+                os.environ["TELEGRAM_POLLING_ENABLED"] = prior_enabled
+            if prior_allowed is None:
+                os.environ.pop("TELEGRAM_ALLOWED_CHAT_IDS", None)
+            else:
+                os.environ["TELEGRAM_ALLOWED_CHAT_IDS"] = prior_allowed
+        assert not worker.is_alive()
+        assert poll_result and poll_result[0]["processed"] == 1
+        assert runtime.turn_coordinator is runtime.turn_coordinator
+        database = factory()
+        try:
+            rows = database.execute(database_module.TelegramTurnIntake.__table__.select()).mappings().all()
+            assert len(rows) == 2
+            assert sum(row["status"] == TurnIntakeState.COMPLETED.value for row in rows) == 1
+            assert sum(row["status"] == TurnIntakeState.LEASE_RETRY.value for row in rows) == 1
+        finally:
+            database.close()
     finally:
         engine.dispose()
 
