@@ -2051,9 +2051,10 @@ class AtomicTelegramSessionRolloverService:
     the final commit or rollback.
     """
 
-    def __init__(self, *, database: Any, config: RolloverConfig):
+    def __init__(self, *, database: Any, config: RolloverConfig, now: Any = None):
         self._database = database
         self._config = config
+        self._now = now or (lambda: datetime.now(ZoneInfo("UTC")))
 
     def rotate_binding(
         self,
@@ -2069,6 +2070,9 @@ class AtomicTelegramSessionRolloverService:
         _validate_local_day(rollover_local_day)
         replacement_id = replacement_session_id or uuid.uuid4().hex
         _validate_internal_id(replacement_id, "replacement_session_id")
+        observed_now = self._now()
+        _require_aware(observed_now)
+        observed_now = observed_now.astimezone(ZoneInfo("UTC"))
         ledger = TelegramRolloverLedger(self._database, self._config.reference_key)
         ledger.begin_atomic_rollover_transaction()
         ledger.verify_reference_key()
@@ -2120,15 +2124,72 @@ class AtomicTelegramSessionRolloverService:
             observed_retry = observed.retry_after
             if observed_retry is not None and (observed_retry.tzinfo is None or observed_retry.utcoffset() is None):
                 observed_retry = observed_retry.replace(tzinfo=ZoneInfo("UTC"))
+            observed_deferred_status = observed.status
+        lease_expiry = binding_row.get("turn_lease_expires_at")
+        if lease_expiry is not None:
+            if lease_expiry.tzinfo is None or lease_expiry.utcoffset() is None:
+                lease_expiry = lease_expiry.replace(tzinfo=ZoneInfo("UTC"))
+            if lease_expiry > observed_now:
+                current = (
+                    RolloverRecord(
+                        observed.status,
+                        observed.attempt_count,
+                        observed_retry,
+                        observed.reason_code,
+                    )
+                    if existing_rollover is not None
+                    else RolloverRecord()
+                )
+                transition = advance_rollover_state(
+                    current,
+                    event=RolloverEvent.ACTIVE_TURN,
+                    now=observed_now,
+                    config=self._config,
+                    lease_expires_at=lease_expiry,
+                )
+                if existing_rollover is None:
+                    deferred = ledger.reserve_or_get_rollover(
+                        binding_id=binding.id,
+                        rollover_local_day=rollover_local_day,
+                        expected_generation=binding.generation,
+                        state=transition.record.state,
+                        attempt_count=transition.record.attempt_count,
+                        retry_after=transition.record.retry_after,
+                        reason_code=transition.record.reason_code,
+                        max_attempts=self._config.max_attempts,
+                    )
+                else:
+                    deferred = ledger.persist_rollover_deferral(
+                        binding_id=binding.id,
+                        rollover_local_day=rollover_local_day,
+                        expected_generation=binding.generation,
+                        state=transition.record.state,
+                        attempt_count=transition.record.attempt_count,
+                        retry_after=transition.record.retry_after,
+                        max_attempts=self._config.max_attempts,
+                    )
+                return AtomicRolloverResult(
+                    deferred.status.value,
+                    binding.id,
+                    deferred.old_session_id,
+                    deferred.new_session_id,
+                    binding.generation,
+                )
+        if existing_rollover is not None:
             transition = advance_rollover_state(
                 RolloverRecord(observed.status, observed.attempt_count, observed_retry, observed.reason_code),
                 event=RolloverEvent.READY,
-                now=datetime.now(ZoneInfo("UTC")),
+                now=observed_now,
                 config=self._config,
             )
             if not transition.commit_eligible:
-                raise LedgerError("invalid_deferred_rollover")
-            observed_deferred_status = observed.status
+                return AtomicRolloverResult(
+                    observed.status.value,
+                    binding.id,
+                    observed.old_session_id,
+                    observed.new_session_id,
+                    binding.generation,
+                )
         session_table = tables["session"]
         old = _select_one(self._database, session_table, session_table.c.id == binding.active_session_id)
         if old is None or not _atomic_session_owner_scope_valid(old, binding, ledger._reference_key):
@@ -2151,7 +2212,7 @@ class AtomicTelegramSessionRolloverService:
             expected_generation=binding.generation,
             state=RolloverState.DEFERRED_ACTIVE_TURN,
             attempt_count=1,
-            retry_after=datetime.now(ZoneInfo("UTC")) + timedelta(seconds=self._config.retry_seconds),
+            retry_after=observed_now + timedelta(seconds=self._config.retry_seconds),
             reason_code=ReasonCode.ACTIVE_TURN,
             max_attempts=self._config.max_attempts,
         )
@@ -2254,6 +2315,197 @@ class AtomicTelegramSessionRolloverService:
                 reason_code=reason.value,
             ))
         return AtomicRolloverResult(state.value, binding.id, binding.active_session_id, None, binding.generation)
+
+
+@dataclass(frozen=True)
+class TelegramRolloverSweepResult:
+    """Content-free result for the default-off owner-scoped sweep seam."""
+
+    status: str
+    imported_count: int = 0
+    scanned_count: int = 0
+    committed_count: int = 0
+    deferred_count: int = 0
+    blocked_count: int = 0
+
+
+class TelegramRolloverRuntime:
+    """Compose A5 coordinators and a bounded owner-scoped due-binding sweep.
+
+    This is intentionally not a transport adapter.  It neither fetches nor
+    acknowledges Telegram updates, and no existing poll or webhook path calls
+    it yet.  Every database interaction has one factory-created Session and
+    closes it before returning; the shared lock covers only those short durable
+    operations.
+    """
+
+    def __init__(
+        self,
+        *,
+        session_factory: Any,
+        config: RolloverConfig,
+        telegram_owner: str,
+        legacy_path: Any,
+        bridge_factory: Any,
+        now: Any = None,
+        lock: Any = _TELEGRAM_TURN_COORDINATOR_LOCK,
+        max_bindings: int = 64,
+    ) -> None:
+        if not callable(session_factory) or not callable(bridge_factory):
+            raise LedgerError("invalid_session_factory")
+        if not isinstance(config, RolloverConfig) or not config.enabled or config.reference_key is None:
+            raise LedgerError("invalid_rollover_config")
+        if not callable(getattr(lock, "__enter__", None)):
+            raise LedgerError("invalid_turn_coordinator_lock")
+        if not isinstance(max_bindings, int) or isinstance(max_bindings, bool) or not 1 <= max_bindings <= 128:
+            raise LedgerError("invalid_sweep_limit")
+        owner = _runtime_telegram_owner(telegram_owner)
+        if owner is None:
+            raise LedgerError("invalid_telegram_owner")
+        self._session_factory = session_factory
+        self._config = config
+        self._owner = owner
+        self._legacy_path = legacy_path
+        self._bridge_factory = bridge_factory
+        self._now = now or (lambda: datetime.now(ZoneInfo("UTC")))
+        self._lock = lock
+        self._max_bindings = max_bindings
+        # The two public coordinators deliberately receive the same exact lock
+        # and factory instance.  A later transport adapter must reuse these
+        # objects rather than construct route-local alternatives.
+        self.turn_coordinator = TelegramTurnCoordinator(
+            session_factory=session_factory, config=config, now=self._now, lock=lock
+        )
+        self.binding_mutation_coordinator = TelegramBindingMutationCoordinator(
+            session_factory=session_factory, config=config, lock=lock
+        )
+
+    @property
+    def telegram_owner(self) -> str:
+        return self._owner
+
+    def sweep_due_bindings(self) -> TelegramRolloverSweepResult:
+        """Import one owner's legacy slots and rotate only its due bindings."""
+
+        observed_now = self._observed_now()
+        local_day = rollover_local_day(observed_now, self._config)
+        with self._lock:
+            try:
+                imported = self._import_legacy(local_day)
+                bindings = self._list_owner_bindings()
+            except Exception as error:
+                return TelegramRolloverSweepResult(
+                    "database_busy" if str(error) == "database_busy" else "import_blocked"
+                )
+            try:
+                due = tuple(
+                    binding
+                    for binding in bindings
+                    if rollover_is_due(binding.active_rollover_local_day, observed_now, self._config)
+                )[: self._max_bindings]
+            except Exception:
+                return TelegramRolloverSweepResult("sweep_blocked", imported)
+            committed = deferred = blocked = 0
+            for binding in due:
+                try:
+                    outcome = self._rotate_binding(binding.id, local_day, observed_now)
+                except Exception as error:
+                    if str(error) == "database_busy":
+                        return TelegramRolloverSweepResult(
+                            "database_busy", imported, len(due), committed, deferred, blocked
+                        )
+                    blocked += 1
+                    continue
+                if outcome.status == "committed":
+                    committed += 1
+                elif outcome.status in {
+                    RolloverState.DEFERRED_ACTIVE_TURN.value,
+                    RolloverState.DEFERRED_EXHAUSTED.value,
+                }:
+                    deferred += 1
+                elif outcome.status not in {"disabled"}:
+                    blocked += 1
+            status = "sweep_ok" if due else "no_due_bindings"
+            return TelegramRolloverSweepResult(status, imported, len(due), committed, deferred, blocked)
+
+    def _import_legacy(self, local_day: str) -> int:
+        def operation(database: Any) -> int:
+            bridge = self._bridge_factory(
+                database=database,
+                owner=self._owner,
+                reference_key=self._config.reference_key,
+                legacy_path=self._legacy_path,
+                rollover_local_day=local_day,
+            )
+            return len(bridge.import_legacy_once())
+
+        return self._operate(operation)
+
+    def _list_owner_bindings(self) -> tuple[LedgerBinding, ...]:
+        owner_reference = owner_ref(self._config.reference_key, self._owner)
+        return self._operate(
+            lambda database: TelegramRolloverLedger(
+                database, self._config.reference_key
+            ).list_bindings_for_owner(owner_reference=owner_reference)
+        )
+
+    def _rotate_binding(
+        self, binding_id: str, local_day: str, observed_now: datetime
+    ) -> AtomicRolloverResult:
+        return self._operate(
+            lambda database: AtomicTelegramSessionRolloverService(
+                database=database, config=self._config, now=lambda: observed_now
+            ).rotate_binding(binding_id=binding_id, rollover_local_day=local_day)
+        )
+
+    def _operate(self, operation: Any) -> Any:
+        database = self._session_factory()
+        if database is None:
+            raise LedgerError("invalid_session_factory")
+        try:
+            result = operation(database)
+            database.commit()
+            return result
+        except Exception:
+            database.rollback()
+            raise
+        finally:
+            database.close()
+
+    def _observed_now(self) -> datetime:
+        value = self._now()
+        _require_aware(value)
+        return value.astimezone(ZoneInfo("UTC"))
+
+
+def build_telegram_rollover_runtime(
+    *,
+    session_factory: Any,
+    config: RolloverConfig,
+    telegram_owner: str | None,
+    legacy_path: Any,
+    bridge_factory: Any,
+    now: Any = None,
+    lock: Any = _TELEGRAM_TURN_COORDINATOR_LOCK,
+) -> TelegramRolloverRuntime | None:
+    """Return the A5 runtime only for a valid explicit default-off opt-in."""
+
+    if (
+        not isinstance(config, RolloverConfig)
+        or not config.enabled
+        or config.reference_key is None
+        or _runtime_telegram_owner(telegram_owner) is None
+    ):
+        return None
+    return TelegramRolloverRuntime(
+        session_factory=session_factory,
+        config=config,
+        telegram_owner=telegram_owner,
+        legacy_path=legacy_path,
+        bridge_factory=bridge_factory,
+        now=now,
+        lock=lock,
+    )
 
 
 def create_or_get_binding(database: Any, reference_key: bytes, **kwargs: Any) -> LedgerBinding:
@@ -2861,6 +3113,15 @@ def _bounded_text(value: Any, label: str) -> str:
     if not normalized or len(normalized) > _MAX_REFERENCE_INPUT or "\x00" in normalized:
         raise ReferenceError(f"invalid_{label}")
     return normalized
+
+
+def _runtime_telegram_owner(value: Any) -> str | None:
+    """Validate the explicit A5 owner without consulting ambient identity."""
+
+    if not isinstance(value, str):
+        return None
+    owner = value.strip().lower()
+    return owner if owner and owner != "telegram" else None
 
 
 def _optional_bounded_integer(value: int | None, label: str) -> int | None:

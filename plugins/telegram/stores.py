@@ -25,6 +25,8 @@ from src.telegram_session_rollover import (
     RolloverConfig,
     TelegramBindingMutationCoordinator,
     TelegramRolloverLedger,
+    TelegramRolloverRuntime,
+    build_telegram_rollover_runtime,
     chat_handle_ref,
     owner_ref,
 )
@@ -609,6 +611,31 @@ def build_db_authoritative_binding_mutation_coordinator(
     """
 
     return TelegramBindingMutationCoordinator(session_factory=session_factory, config=config)
+
+
+def build_db_authoritative_rollover_runtime(
+    *,
+    session_factory: Any,
+    config: RolloverConfig,
+    telegram_owner: str | None,
+    legacy_path: str | Path,
+    now: Any = None,
+) -> TelegramRolloverRuntime | None:
+    """Compose the route-free A5C1 runtime only for a valid opt-in.
+
+    The runtime owns no polling or webhook acknowledgement.  Its bridge factory
+    is injected here solely to retain the accepted DB-authoritative import
+    boundary without making the legacy JSON store authoritative again.
+    """
+
+    return build_telegram_rollover_runtime(
+        session_factory=session_factory,
+        config=config,
+        telegram_owner=telegram_owner,
+        legacy_path=legacy_path,
+        bridge_factory=DbAuthoritativeTelegramSessionBridge,
+        now=now,
+    )
 
 
 class DbAuthoritativeTelegramSessionBridge:

@@ -921,6 +921,30 @@ def _telegram_binding_mutation_coordinator(config):
     )
 
 
+def _telegram_rollover_runtime():
+    """Compose the default-off A5C1 runtime without enabling any transport."""
+
+    from plugins.telegram.stores import build_db_authoritative_rollover_runtime
+    from src.telegram_session_rollover import parse_rollover_config
+
+    config = parse_rollover_config({
+        "TELEGRAM_SESSION_ROLLOVER_ENABLED": os.getenv("TELEGRAM_SESSION_ROLLOVER_ENABLED", "false"),
+        "TELEGRAM_SESSION_ROLLOVER_REFERENCE_KEY": os.getenv("TELEGRAM_SESSION_ROLLOVER_REFERENCE_KEY"),
+        "TELEGRAM_SESSION_ROLLOVER_TIMEZONE": os.getenv("TELEGRAM_SESSION_ROLLOVER_TIMEZONE", "Europe/Berlin"),
+        "TELEGRAM_SESSION_ROLLOVER_BOUNDARY": os.getenv("TELEGRAM_SESSION_ROLLOVER_BOUNDARY", "04:00"),
+        "TELEGRAM_SESSION_ROLLOVER_MAX_ATTEMPTS": os.getenv("TELEGRAM_SESSION_ROLLOVER_MAX_ATTEMPTS", "8"),
+        "TELEGRAM_SESSION_ROLLOVER_RETRY_SECONDS": os.getenv("TELEGRAM_SESSION_ROLLOVER_RETRY_SECONDS", "300"),
+        "TELEGRAM_SESSION_TURN_LEASE_SECONDS": os.getenv("TELEGRAM_SESSION_TURN_LEASE_SECONDS", "7200"),
+        "TELEGRAM_SESSION_CONTINUITY_ENABLED": os.getenv("TELEGRAM_SESSION_CONTINUITY_ENABLED", "false"),
+    })
+    return build_db_authoritative_rollover_runtime(
+        session_factory=SessionLocal,
+        config=config,
+        telegram_owner=_telegram_rollover_owner(),
+        legacy_path=os.path.join(DATA_DIR, "telegram_session_bridge.json"),
+    )
+
+
 def _telegram_refresh_session_headers(session_id: str) -> dict | None:
     """Reload endpoint auth headers for Telegram sessions after container restarts."""
 
@@ -1265,6 +1289,9 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
 app.state.telegram_session_bridge = _telegram_session_bridge
 app.state.telegram_agent_turn_handler = _telegram_agent_turn_handler
 app.state.telegram_owner = _telegram_owner()
+_telegram_rollover_runtime_instance = _telegram_rollover_runtime()
+if _telegram_rollover_runtime_instance is not None:
+    app.state.telegram_rollover_runtime = _telegram_rollover_runtime_instance
 logger.info("Telegram AI bridge initialized")
 
 # Webhooks

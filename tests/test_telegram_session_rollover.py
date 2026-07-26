@@ -11,7 +11,11 @@ from sqlalchemy.orm import Session as OrmSession, sessionmaker
 from core import database as database_module
 from core import database_migrations
 from core.database import Base, ChatMessage, Session
-from plugins.telegram.stores import DbAuthoritativeTelegramSessionBridge, TelegramRolloverBridgeError
+from plugins.telegram.stores import (
+    DbAuthoritativeTelegramSessionBridge,
+    TelegramRolloverBridgeError,
+    build_db_authoritative_rollover_runtime,
+)
 
 from src.telegram_session_rollover import (
     AtomicTelegramSessionRolloverService,
@@ -26,6 +30,8 @@ from src.telegram_session_rollover import (
     TurnMessageMarker,
     TelegramRolloverLedger,
     TelegramBindingMutationCoordinator,
+    TelegramRolloverRuntime,
+    TelegramRolloverSweepResult,
     TelegramTurnCoordinator,
     TelegramTurnLease,
     advance_rollover_state,
@@ -2632,5 +2638,335 @@ def test_binding_mutation_secure_fallback_requires_policy_and_commits_one_replac
             assert database.get(Session, secure_session_ids[-1]).archived is False
         finally:
             database.close()
+    finally:
+        engine.dispose()
+
+
+def _runtime_sweep_fixture(tmp_path, *, owner_day="2026-07-24"):
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(bind=engine)
+    factory = sessionmaker(bind=engine, autoflush=False)
+    database = factory()
+    try:
+        database.add_all([
+            Session(
+                id="runtime-alice-session",
+                name="Synthetic",
+                endpoint_url="http://synthetic.invalid",
+                model="synthetic",
+                owner="alice",
+            ),
+            Session(
+                id="runtime-bob-session",
+                name="Synthetic",
+                endpoint_url="http://synthetic.invalid",
+                model="synthetic",
+                owner="bob",
+            ),
+        ])
+        ledger = TelegramRolloverLedger(database, KEY)
+        alice = ledger.get_or_create_binding(
+            owner_reference=owner_ref(KEY, "alice"),
+            chat_reference=chat_handle_ref(KEY, "chat_a1b2c3d4"),
+            scope="normal",
+            active_session_id="runtime-alice-session",
+            active_rollover_local_day=owner_day,
+        )
+        bob = ledger.get_or_create_binding(
+            owner_reference=owner_ref(KEY, "bob"),
+            chat_reference=chat_handle_ref(KEY, "chat_b1c2d3e4"),
+            scope="normal",
+            active_session_id="runtime-bob-session",
+            active_rollover_local_day=owner_day,
+        )
+        database.commit()
+    finally:
+        database.close()
+    legacy_path = tmp_path / "telegram_session_bridge.json"
+    legacy_path.write_text(json.dumps({"sessions": {}}), encoding="utf-8")
+    now = datetime(2026, 7, 25, 12, 0, tzinfo=timezone.utc)
+    runtime = build_db_authoritative_rollover_runtime(
+        session_factory=factory,
+        config=RolloverConfig(enabled=True, reference_key=KEY),
+        telegram_owner="alice",
+        legacy_path=legacy_path,
+        now=lambda: now,
+    )
+    assert isinstance(runtime, TelegramRolloverRuntime)
+    return engine, factory, alice, bob, runtime, now
+
+
+def test_runtime_composition_disabled_invalid_or_missing_owner_opens_no_database():
+    opened = []
+
+    def factory():
+        opened.append(True)
+        raise AssertionError("invalid runtime composition must not open a database session")
+
+    legacy_path = "not-used.json"
+    assert build_db_authoritative_rollover_runtime(
+        session_factory=factory,
+        config=RolloverConfig(enabled=False),
+        telegram_owner="alice",
+        legacy_path=legacy_path,
+    ) is None
+    assert build_db_authoritative_rollover_runtime(
+        session_factory=factory,
+        config=RolloverConfig(enabled=True, reference_key=None),
+        telegram_owner="alice",
+        legacy_path=legacy_path,
+    ) is None
+    for owner in (None, "", " telegram "):
+        assert build_db_authoritative_rollover_runtime(
+            session_factory=factory,
+            config=RolloverConfig(enabled=True, reference_key=KEY),
+            telegram_owner=owner,
+            legacy_path=legacy_path,
+        ) is None
+    assert opened == []
+
+
+def test_runtime_composition_shares_one_exact_factory_and_lock_between_coordinators(tmp_path):
+    engine, factory, _alice, _bob, runtime, _now = _runtime_sweep_fixture(tmp_path)
+    try:
+        assert runtime.turn_coordinator._session_factory is factory
+        assert runtime.binding_mutation_coordinator._session_factory is factory
+        assert runtime.turn_coordinator._lock is runtime.binding_mutation_coordinator._lock
+    finally:
+        engine.dispose()
+
+
+def test_runtime_empty_cycle_sweeps_only_due_owner_binding_and_commits_one_replacement(tmp_path):
+    engine, factory, alice, bob, runtime, _now = _runtime_sweep_fixture(tmp_path)
+    try:
+        result = runtime.sweep_due_bindings()
+        assert result.status == "sweep_ok"
+        assert result.imported_count == 0
+        assert result.scanned_count == 1
+        assert result.committed_count == 1
+        assert result.deferred_count == 0
+        database = factory()
+        try:
+            alice_row = database.execute(
+                database_module.TelegramSessionBinding.__table__.select().where(
+                    database_module.TelegramSessionBinding.id == alice.id
+                )
+            ).mappings().one()
+            bob_row = database.execute(
+                database_module.TelegramSessionBinding.__table__.select().where(
+                    database_module.TelegramSessionBinding.id == bob.id
+                )
+            ).mappings().one()
+            assert alice_row["generation"] == 1
+            assert alice_row["active_session_id"] != "runtime-alice-session"
+            assert bob_row["generation"] == 0
+            assert bob_row["active_session_id"] == "runtime-bob-session"
+            assert database.get(Session, "runtime-alice-session").archived is True
+            assert database.get(Session, "runtime-bob-session").archived is False
+        finally:
+            database.close()
+    finally:
+        engine.dispose()
+
+
+def test_runtime_active_lease_defers_due_binding_without_session_replacement(tmp_path):
+    engine, factory, alice, _bob, runtime, now = _runtime_sweep_fixture(tmp_path)
+    try:
+        database = factory()
+        try:
+            database.execute(
+                update(database_module.TelegramSessionBinding.__table__)
+                .where(database_module.TelegramSessionBinding.id == alice.id)
+                .values(
+                    turn_lease_ref="h1_" + "a" * 32,
+                    active_turn_ref="t1_" + "b" * 32,
+                    turn_lease_expires_at=(now + timedelta(minutes=5)).replace(tzinfo=None),
+                    turn_started_at=now.replace(tzinfo=None),
+                )
+            )
+            database.commit()
+        finally:
+            database.close()
+        result = runtime.sweep_due_bindings()
+        assert result.status == "sweep_ok"
+        assert result.committed_count == 0
+        assert result.deferred_count == 1
+        database = factory()
+        try:
+            binding_row = database.execute(
+                database_module.TelegramSessionBinding.__table__.select().where(
+                    database_module.TelegramSessionBinding.id == alice.id
+                )
+            ).mappings().one()
+            rollover_row = database.execute(
+                database_module.TelegramSessionRollover.__table__.select()
+            ).mappings().one()
+            assert binding_row["active_session_id"] == "runtime-alice-session"
+            assert binding_row["generation"] == 0
+            assert rollover_row["status"] == RolloverState.DEFERRED_ACTIVE_TURN.value
+        finally:
+            database.close()
+    finally:
+        engine.dispose()
+
+
+def test_runtime_import_failure_rolls_back_and_closes_the_factory_session(tmp_path):
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(bind=engine)
+    raw_factory = sessionmaker(bind=engine, autoflush=False)
+    calls = {"rollback": 0, "close": 0}
+
+    class TrackingSession:
+        def __init__(self, database):
+            self._database = database
+
+        def __getattr__(self, name):
+            return getattr(self._database, name)
+
+        def rollback(self):
+            calls["rollback"] += 1
+            return self._database.rollback()
+
+        def close(self):
+            calls["close"] += 1
+            return self._database.close()
+
+    def factory():
+        return TrackingSession(raw_factory())
+
+    legacy_path = tmp_path / "telegram_session_bridge.json"
+    legacy_path.write_text("{not-json", encoding="utf-8")
+    runtime = build_db_authoritative_rollover_runtime(
+        session_factory=factory,
+        config=RolloverConfig(enabled=True, reference_key=KEY),
+        telegram_owner="alice",
+        legacy_path=legacy_path,
+        now=lambda: datetime(2026, 7, 25, 12, 0, tzinfo=timezone.utc),
+    )
+    try:
+        assert runtime is not None
+        assert runtime.sweep_due_bindings().status == "import_blocked"
+        assert calls == {"rollback": 1, "close": 1}
+    finally:
+        engine.dispose()
+
+
+def test_runtime_sweep_commits_and_closes_each_short_operation(tmp_path):
+    engine, raw_factory, _alice, _bob, _runtime, _now = _runtime_sweep_fixture(tmp_path)
+    calls = {"commit": 0, "rollback": 0, "close": 0}
+
+    class TrackingSession:
+        def __init__(self, database):
+            self._database = database
+
+        def __getattr__(self, name):
+            return getattr(self._database, name)
+
+        def commit(self):
+            calls["commit"] += 1
+            return self._database.commit()
+
+        def rollback(self):
+            calls["rollback"] += 1
+            return self._database.rollback()
+
+        def close(self):
+            calls["close"] += 1
+            return self._database.close()
+
+    def factory():
+        return TrackingSession(raw_factory())
+
+    runtime = build_db_authoritative_rollover_runtime(
+        session_factory=factory,
+        config=RolloverConfig(enabled=True, reference_key=KEY),
+        telegram_owner="alice",
+        legacy_path=tmp_path / "telegram_session_bridge.json",
+        now=lambda: datetime(2026, 7, 25, 12, 0, tzinfo=timezone.utc),
+    )
+    try:
+        assert runtime is not None
+        assert runtime.sweep_due_bindings().committed_count == 1
+        # Import, owner-scoped listing, and one atomic replacement each own a
+        # committed/closed operation; no Session crosses those boundaries.
+        assert calls == {"commit": 3, "rollback": 0, "close": 3}
+    finally:
+        engine.dispose()
+
+
+def test_runtime_rotation_failure_is_content_free_and_rolls_back_closes(tmp_path, monkeypatch):
+    engine, raw_factory, _alice, _bob, _runtime, _now = _runtime_sweep_fixture(tmp_path)
+    duplicate_id = "duplicate-replacement"
+    database = raw_factory()
+    try:
+        database.add(
+            Session(
+                id=duplicate_id,
+                name="Synthetic",
+                endpoint_url="http://synthetic.invalid",
+                model="synthetic",
+                owner="alice",
+            )
+        )
+        database.commit()
+    finally:
+        database.close()
+    calls = {"rollback": 0, "close": 0}
+
+    class TrackingSession:
+        def __init__(self, database):
+            self._database = database
+
+        def __getattr__(self, name):
+            return getattr(self._database, name)
+
+        def rollback(self):
+            calls["rollback"] += 1
+            return self._database.rollback()
+
+        def close(self):
+            calls["close"] += 1
+            return self._database.close()
+
+    def factory():
+        return TrackingSession(raw_factory())
+
+    class FixedUuid:
+        hex = duplicate_id
+
+    import src.telegram_session_rollover as rollover_module
+
+    monkeypatch.setattr(rollover_module.uuid, "uuid4", lambda: FixedUuid())
+    runtime = build_db_authoritative_rollover_runtime(
+        session_factory=factory,
+        config=RolloverConfig(enabled=True, reference_key=KEY),
+        telegram_owner="alice",
+        legacy_path=tmp_path / "telegram_session_bridge.json",
+        now=lambda: datetime(2026, 7, 25, 12, 0, tzinfo=timezone.utc),
+    )
+    try:
+        assert runtime is not None
+        result = runtime.sweep_due_bindings()
+        assert result.status == "sweep_ok"
+        assert result.committed_count == 0
+        assert result.blocked_count == 1
+        assert calls["rollback"] == 1
+        assert calls["close"] == 3
+    finally:
+        engine.dispose()
+
+
+def test_runtime_due_evaluation_failure_is_reserialized_without_exception(tmp_path, monkeypatch):
+    engine, _factory, _alice, _bob, runtime, _now = _runtime_sweep_fixture(tmp_path)
+    import src.telegram_session_rollover as rollover_module
+
+    monkeypatch.setattr(
+        rollover_module,
+        "rollover_is_due",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("private-row-detail")),
+    )
+    try:
+        result = runtime.sweep_due_bindings()
+        assert result == TelegramRolloverSweepResult("sweep_blocked", imported_count=0)
     finally:
         engine.dispose()
