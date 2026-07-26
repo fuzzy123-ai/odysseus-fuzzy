@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-25T23:04:59+02:00",
-  "status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
+  "updated_at": "2026-07-26T08:37:13+02:00",
+  "status": "ttd07a5_architecture_handoff_accepted_a5a_ledger_turn_coordinator_active_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_attachment_deferred",
+    "queue_status": "ttd07a5_architecture_handoff_accepted_a5a_active_attachment_deferred",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
+      "telegram_todo_truth": "ttd07a5_architecture_handoff_accepted_a5a_ledger_turn_coordinator_active_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,16 +85,27 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-07A5 remains required but two bounded implementation attempts were rejected: the shared poll turn lifecycle and offset hold, durable transport-update intake identity, and explicit owner enforcement across new secure bind and rebind are still absent. Re-enter only through a fresh architecture/recon handoff that first freezes the per-operation DB/session factory, stable transport identity and exact lease/intake state transition contract.",
-        "slice": "TTD-07A5-architecture-recon-and-reclaim-gate",
+        "reason": "The required TTD-07A5 architecture handoff is accepted after three independent read-only recon lanes and deep Sol synthesis. Execute only the freshly claimed A5A ledger-turn coordinator seam before owner/binding or transport wiring.",
+        "slice": "TTD-07A5A-ledger-turn-coordinator",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "do_not_resume_the_rejected_partial_diff_or_start_a_third_implementation_attempt; first produce_a_read_only_architecture_handoff_for_stable_transport_intake_poll_offset_and_owner_cutover; keep_feature_default_off"
+        "safe_default": "implement_only_the_two_path_a5a_ledger_coordinator_claim_with_synthetic_sqlite_and_keep_all_runtime_wiring_default_off"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-24"
     },
-    "active_claimed_slices": [],
+    "active_claimed_slices": [
+      {
+        "slice_id": "TTD-07A5A-ledger-turn-coordinator",
+        "run_id": "abc-ttd07a5a-20260726T083713+0200",
+        "owner": "/root/ttd07a5_db_lease_recon",
+        "lease_expires_at": "2026-07-26T12:37:13+02:00",
+        "allowed_paths": [
+          "src/telegram_session_rollover.py",
+          "tests/test_telegram_session_rollover.py"
+        ]
+      }
+    ],
     "latest_ci_repair_handoff": {
       "run_id": "abc-ci-agent-tools-parent-import-state-20260725T225320+0200",
       "slice_id": "CI-agent-tools-parent-import-state-isolation",
@@ -5176,7 +5187,7 @@
       "id": "TTD-07A5-poll-webhook-sweep-and-turn-lease",
       "class": "repo_only",
       "owner": "/root",
-      "status": "gated_after_two_rejected_attempts_2026-07-24",
+      "status": "architecture_handoff_accepted_2026-07-26_a5a_ledger_turn_coordinator_active",
       "claimable": false,
       "depends_on": [
         "TTD-07A0 accepted at contract commit 4fb9ba62",
@@ -5336,7 +5347,59 @@
           "issue a fresh durable claim before any implementation write"
         ],
         "rejected_partial_diff_committed": false,
-        "review_eligible": false
+        "review_eligible": true,
+        "architecture_recon_claim": {
+          "run_id": "abc-ttd07a5-r0-20260726T083531+0200",
+          "thread_id": "/root",
+          "slice_id": "TTD-07A5-R0-architecture-handoff",
+          "owner": "Sol",
+          "allowed_paths": [
+            "docs/plans/open-work-completion-master-roadmap.json",
+            "docs/plans/telegram-session-rollover-transaction-contract.md"
+          ],
+          "state": "released_accepted",
+          "acquired_at": "2026-07-26T08:35:31+02:00",
+          "lease_expires_at": null,
+          "released_at": "2026-07-26T08:37:13+02:00",
+          "forbidden": [
+            "all production and test paths",
+            "the rejected partial diff and divergent prior art",
+            "tests network provider Telegram send push deploy Debian and every live mutation"
+          ]
+        },
+        "architecture_recon_acceptance": {
+          "accepted_at": "2026-07-26T08:37:13+02:00",
+          "result": "accepted_after_three_independent_read_only_recon_lanes_and_deep_sol_synthesis",
+          "stable_identity": "keyed owner_ref chat_handle_ref transport_update_ref from mandatory telegram_owner stable handle and strict bounded update/message tuple",
+          "database_lifetime": "one caller-owned clean SQLAlchemy Session per short coordinator operation with commit rollback and close in finally",
+          "atomic_fence": "binding id generation active Session intake ref and lease ref fence acquisition renewal release and terminal transitions",
+          "transport_ack": "poll holds exact offset and stops on retryable busy; webhook persists lease_retry and returns 503 with bounded Retry-After",
+          "owner_cutover": "missing or ambiguous telegram_owner fails closed; memory_owner literal telegram and first-admin or first-user heuristics never substitute",
+          "strategy": [
+            "TTD-07A5A-ledger-turn-coordinator",
+            "TTD-07A5B-owner-binding-cutover",
+            "TTD-07A5C-poll-webhook-transport"
+          ],
+          "evidence_ref": "docs/plans/telegram-session-rollover-transaction-contract.md#ttd-07a5---pollwebhook-sweep-and-turn-lease"
+        },
+        "active_child_claim": {
+          "run_id": "abc-ttd07a5a-20260726T083713+0200",
+          "thread_id": "/root/ttd07a5_db_lease_recon",
+          "slice_id": "TTD-07A5A-ledger-turn-coordinator",
+          "owner": "Bob",
+          "allowed_paths": [
+            "src/telegram_session_rollover.py",
+            "tests/test_telegram_session_rollover.py"
+          ],
+          "state": "active",
+          "acquired_at": "2026-07-26T08:37:13+02:00",
+          "lease_expires_at": "2026-07-26T12:37:13+02:00",
+          "forbidden": [
+            "all app plugin route polling webhook control store and roadmap paths",
+            "the rejected stash divergent prior art and broad tests",
+            "runtime wiring feature activation network provider Telegram send push deploy Debian and every live mutation"
+          ]
+        }
       },
       "acceptance_contract": [
         "one injected-owner coordinator is shared by polling webhook control bind rebind secure fallback and new-session paths",
@@ -5371,7 +5434,7 @@
         "broad_tests_forbidden": true
       },
       "acceptance": "One injected-owner default-off coordinator gives poll webhook control bind and rebind paths the same durable lease, one-winner rollover and lossless retry semantics.",
-      "next_frontier": "TTD-07A6 remains blocked. TTD-07A5 may re-enter only after the architecture/recon handoff freezes stable transport intake identity, caller-owned database lifetime, atomic lease/intake fencing, poll offset hold and explicit owner cutover; no third routine implementation attempt is authorized.",
+      "next_frontier": "TTD-07A5A is actively claimed for the isolated ledger-turn coordinator. TTD-07A5B owner/binding cutover and TTD-07A5C poll/webhook transport remain serially blocked; TTD-07A6 remains dependency-blocked.",
       "done_when": "Exactly the eleven allowed paths and five focused nodes prove empty-poll sweep, one-winner concurrent rollover, unsplit active turns, offset hold, webhook retry, mandatory owner injection and default-off behavior."
     },
     {

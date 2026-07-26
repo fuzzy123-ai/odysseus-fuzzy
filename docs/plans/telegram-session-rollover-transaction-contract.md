@@ -675,6 +675,89 @@ Current gate:
   offset hold, webhook unacknowledged retry, and explicit owner cutover.
 - A fresh durable implementation claim is required after that handoff.
 
+Architecture handoff accepted on 2026-07-26:
+
+1. **Stable authority and identity.** A5 resolves one non-empty
+   `telegram_owner` at the application boundary and injects it through poll,
+   webhook, control, bind, rebind, secure fallback, Session creation, agent
+   execution, and Todo-digest scheduling. When A5 is enabled, a missing or
+   ambiguous owner fails closed; `memory_owner`, the literal `telegram`, raw
+   chat identity, and first-admin or first-user selection are not substitutes.
+   The durable intake natural key is exactly
+   `(owner_ref, chat_handle_ref, transport_update_ref)`. The update ref is
+   derived from the strict bounded `(update_id, message_id)` pair and at least
+   one component is required. Only keyed opaque refs are persisted or emitted.
+2. **Per-operation database lifetime.** One synchronous coordinator receives a
+   `SessionLocal`-compatible factory. Every ledger operation obtains its own
+   clean SQLAlchemy Session, verifies the reference-key fingerprint, begins the
+   required short transaction, commits or rolls back, and closes in `finally`.
+   No database Session crosses model, provider, tool, reply, or Telegram I/O.
+   One shared non-reentrant process mutex covers only the short ledger
+   transition; the SQLite write fence remains `BEGIN IMMEDIATE`.
+3. **Atomic intake and lease fence.** Intake get-or-create, immutable binding
+   ID, generation, active Session, owner/chat/scope, and expected Session are
+   validated before model execution. Binding lease acquisition and
+   `pending|lease_retry -> running` commit together and require the prior lease
+   to be null or expired. A loser persists `lease_retry` and never invokes the
+   model, tools, mutation, or reply. Renewal and release compare the complete
+   binding/generation/intake/lease tuple; stale operations update zero rows.
+   Release clears all lease fields in one transaction and immediately exposes
+   a deferred rollover to the accepted state machine.
+4. **Turn completion and recovery.** The opaque turn ref is written into both
+   Session message markers. Exactly one durable user-plus-assistant pair moves
+   `running -> reply_pending` and reuses the assistant result. Any absent,
+   partial, duplicate, or malformed pair becomes terminal
+   `indeterminate_turn` and is never automatically replayed. Only an existing
+   durable outbound `sent` marker moves `reply_pending -> completed`. A
+   completed duplicate invokes neither model nor reply.
+5. **Polling acknowledgement point.** An enabled poll resolves the owner,
+   performs the bounded owner-scoped legacy import and due-binding sweep, and
+   only then fetches the current offset. A temporary database or lease-busy
+   outcome commits `lease_retry`, holds the exact current update offset, stops
+   later update processing, and returns retryable status. The offset advances
+   only after `completed` or an allowlisted terminal outcome with its durable
+   safe response. JSON inbox deduplication remains payload/audit assistance and
+   never overrides the SQLite intake lifecycle.
+6. **Webhook acknowledgement point.** Webhook uses the same coordinator and
+   intake identity. Temporary busy persists `lease_retry` and returns HTTP 503
+   with bounded `Retry-After`, never 2xx. Redelivery of `lease_retry` remains
+   eligible even when the JSON inbox reports a duplicate. `completed` returns
+   a content-free duplicate outcome; `running`, `reply_pending`, and
+   `indeterminate_turn` follow the recovery rules above.
+7. **Binding and owner cutover.** New bind, `/new`, rebind, secure fallback,
+   and rollover use one guarded mutation API. DB authority wins when a valid
+   binding exists. Legacy JSON may seed one owner-validated slot only; malformed
+   or cross-owner state is left untouched. Secure fallback happens before lease
+   acquisition or transfers the exact matching lease atomically. An unleased
+   mid-turn rebind is forbidden. Busy mutations are retryable and cannot return
+   a success claim.
+8. **Activation and rollback.** A5 remains strictly default off through all
+   repository slices. Disabled behavior performs no new ledger intake, import,
+   sweep, rollover, provider call, send, or productive mutation. Repository
+   rollback disables A5 while preserving DB bindings, Sessions, ledger rows,
+   and compatibility projection; JSON is never restored as authority and no
+   productive Session is repaired, archived, or deleted.
+
+The rejected eleven-path implementation is replaced by three serial claims:
+
+- `TTD-07A5A-ledger-turn-coordinator`: only
+  `src/telegram_session_rollover.py` and
+  `tests/test_telegram_session_rollover.py`; implement per-operation factory
+  lifetime, stable identity, fenced acquire/renew/release, intake transitions,
+  and crash reconciliation without route wiring.
+- `TTD-07A5B-owner-binding-cutover`: only after A5A acceptance; wire the
+  mandatory injected owner and guarded binding/rebind/secure-fallback mutation
+  seam through `app.py`, `plugins/telegram/stores.py`,
+  `plugins/telegram/control_service.py`, and focused existing tests.
+- `TTD-07A5C-poll-webhook-transport`: only after A5B acceptance; wire the
+  owner-scoped pre-fetch sweep, exact offset hold, webhook 503 retry, duplicate
+  recovery, and final integration through polling, routes, plugin, and webhook
+  service. The original five A5 acceptance nodes remain the final gate.
+
+Each child requires a fresh durable claim and deep Sol review. No child may
+resume the rejected stash or divergent prior art, and no child may enable live
+Telegram behavior.
+
 Allowed paths:
 
 - `plugins/telegram/polling.py`
