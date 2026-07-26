@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-26T17:04:26+02:00",
-  "status": "uir02_data_paths_flags_configuration_accepted_repo_only",
+  "updated_at": "2026-07-26T17:17:54+02:00",
+  "status": "ci_uir02_runtime_inventory_refresh_accepted_repo_only",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -95,6 +95,61 @@
       "verified_at": "2026-07-24"
     },
     "active_claimed_slices": [],
+    "latest_uir02_ci_inventory_refresh_handoff": {
+      "run_id": "abc-ci-uir02-runtime-inventory-refresh-20260726T171629+0200",
+      "slice_id": "CI-UIR02-runtime-inventory-refresh",
+      "roadmap": "docs/plans/open-work-completion-master-roadmap.json",
+      "owner": "/root",
+      "state": "released_accepted_repo_only",
+      "lease_started_at": "2026-07-26T17:16:29+02:00",
+      "lease_expires_at": "2026-07-26T19:16:29+02:00",
+      "released_at": "2026-07-26T17:17:54+02:00",
+      "failed_commit": "8213a7106a6790f808b43f18bc10e5fabf4ef5e2",
+      "failed_ci_run": 30207594402,
+      "failed_ci_job": 89808261874,
+      "failing_node": "tests/test_audit_unified_source_index_runtime.py::test_committed_runtime_inventory_matches_deterministic_static_ast_scan",
+      "root_cause": "UIR-02 added one tracked Python configuration module after the deterministic content-free static caller inventory was last generated",
+      "repair": "regenerate the canonical content-free static AST inventory with the repository-owned generator; no runtime source or test implementation changes",
+      "changed_paths": [
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/unified-source-index-runtime-caller-inventory.json"
+      ],
+      "semantic_diff": {
+        "tracked_python_files_scanned": "828_to_829",
+        "caller_rows": "55_unchanged",
+        "relevant_file_hash_rows": "21_unchanged",
+        "classification_rules": "unchanged",
+        "unclassified_count": 0
+      },
+      "tests": {
+        "canonical_inventory_check": "pass",
+        "exact_previously_failing_node": "1 passed with one existing SQLAlchemy deprecation warning",
+        "roadmap_and_inventory_json_parse": "pass",
+        "scoped_git_diff_check": "pass",
+        "broad_local_pytest": "not_run_by_operator_request"
+      },
+      "review": {
+        "depth": "deep",
+        "reviewer": "/root",
+        "result": "pass",
+        "scope": "exact two-path deterministic inventory refresh",
+        "unexpected_semantic_changes": 0
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "skills": [
+          "abc",
+          "github:gh-fix-ci"
+        ],
+        "actual_master": "surface_default",
+        "worker": "not_used_root_owned_shared_integration_repair"
+      },
+      "not_verified": [
+        "exact repair commit GitHub Required CI",
+        "Debian deployment and live exact-revision readback"
+      ],
+      "next_action": "commit and push the exact two-path inventory refresh, require exact GitHub Required CI green, then stop at the separate Debian deployment gate"
+    },
     "latest_uir02_config_handoff": {
       "run_id": "abc-uir02-config-20260726T165219+0200",
       "slice_id": "UIR-02-data-paths-feature-flags-and-configuration",
