@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-26T09:27:58+02:00",
-  "status": "ttd07a5b_accepted_94a09428_a5c1_runtime_composition_active_live_default_off",
+  "updated_at": "2026-07-26T09:44:08+02:00",
+  "status": "ttd07a5c1_accepted_b7e3466d_a5c2_poll_transport_active_live_default_off",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,13 +23,13 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "ttd07a5b_accepted_a5c1_active_attachment_deferred",
+    "queue_status": "ttd07a5c1_accepted_a5c2_active_attachment_deferred",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
-      "telegram_todo_truth": "ttd07a5b_accepted_94a09428_a5c1_runtime_composition_active_live_default_off",
+      "telegram_todo_truth": "ttd07a5c1_accepted_b7e3466d_a5c2_poll_transport_active_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
@@ -85,28 +85,26 @@
       "non_ui_executable_now_count": 0,
       "recommended_next_operator_action": {
         "family": "telegram_todo_truth",
-        "reason": "TTD-07A5B is accepted at 94a09428 with 16 focused owner/binding tests. Execute only A5C1 default-off runtime composition and owner-scoped sweep seam before poll acknowledgement or webhook wiring.",
-        "slice": "TTD-07A5C1-runtime-composition-and-sweep",
+        "reason": "TTD-07A5C1 is accepted at b7e3466d with focused default-off composition, owner-isolation, lease-deferral and transaction evidence. Execute only A5C2 poll transport with pre-fetch sweep and exact busy-offset hold before webhook or control wiring.",
+        "slice": "TTD-07A5C2-poll-transport",
         "user_decision_required": false,
         "missing_runtime_gates": [],
-        "safe_default": "implement_only_the_six_path_a5c1_composition_claim_without_poll_webhook_acknowledgement_or_live_activation"
+        "safe_default": "implement_only_the_four_path_a5c2_poll_transport_claim_without_webhook_control_or_live_activation"
       },
       "queue_exhausted": false,
       "verified_at": "2026-07-24"
     },
     "active_claimed_slices": [
       {
-        "slice_id": "TTD-07A5C1-runtime-composition-and-sweep",
-        "run_id": "abc-ttd07a5c1-20260726T092758+0200",
+        "slice_id": "TTD-07A5C2-poll-transport",
+        "run_id": "abc-ttd07a5c2-20260726T094408+0200",
         "owner": "/root/ttd07a5_transport_recon",
-        "lease_expires_at": "2026-07-26T13:27:58+02:00",
+        "lease_expires_at": "2026-07-26T13:44:08+02:00",
         "allowed_paths": [
-          "app.py",
+          "plugins/telegram/polling.py",
           "plugins/telegram/plugin.py",
-          "plugins/telegram/stores.py",
-          "src/telegram_session_rollover.py",
-          "tests/test_telegram_plugin.py",
-          "tests/test_telegram_session_rollover.py"
+          "plugins/telegram/routes_polling.py",
+          "tests/test_telegram_plugin.py"
         ]
       }
     ],
@@ -1068,8 +1066,8 @@
       "id": "OWM-22",
       "name": "Telegram Todo Domain Truth And Digest Consistency",
       "priority": 4,
-      "status": "ttd07a5b_accepted_94a09428_a5c1_runtime_composition_active_live_default_off",
-      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-07 plus the disjoint TTD-08A history-privacy projection and TTD-08B bounded audit store are accepted. TTD-07A0 through A4 are accepted. The fresh A5 architecture handoff, TTD-07A5A at 70466cf1 and TTD-07A5B at 94a09428 are accepted with fenced turn and owner/binding mutation coordinators. TTD-07A5C1 default-off runtime composition and owner-scoped sweep is active; C2 poll acknowledgement, C3 webhook/control, TTD-07A6 and later work remain blocked. Live activation and production repair remain dormant.",
+      "status": "ttd07a5c1_accepted_b7e3466d_a5c2_poll_transport_active_live_default_off",
+      "why_open": "A production Telegram incident showed that clear Todo intents could write to Memory while the active todo_digest read Notes, completed items could remain open, and final Telegram claims could lose their semantic tool evidence. TTD-00 through TTD-07 plus the disjoint TTD-08A history-privacy projection and TTD-08B bounded audit store are accepted. TTD-07A0 through A4 are accepted. The fresh A5 architecture handoff, TTD-07A5A at 70466cf1, TTD-07A5B at 94a09428 and TTD-07A5C1 at b7e3466d are accepted with fenced turn, owner/binding mutation, default-off runtime and owner-scoped sweep coordinators. TTD-07A5C2 poll transport is active; C3 webhook/control, TTD-07A6 and later work remain blocked. Live activation and production repair remain dormant.",
       "source_roadmap": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "source_gate_family": "telegram_todo_truth",
       "dependencies": [
@@ -1082,14 +1080,14 @@
       "safe_default": "build_and_test_against_synthetic_notes_memory_and_telegram_fixtures_no_production_data_write_deploy_or_send",
       "user_gate_policy": "No user gate in TTD-00 through TTD-10, including TTD-07A. Repository work uses synthetic owner-scoped data and keeps all live actions disabled. Deployment, production data repair, Telegram smoke and productive session rollover are four separate dormant action-specific gates and each requires its own later operator Go.",
       "execution_protocol": {
-        "queue_registration": "TTD-00 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A5B are accepted. The disjoint six-path TTD-07A5C1 composition/sweep claim is active; C2, C3 and TTD-07A6 remain dependency-blocked. TTD-08C attachment work remains deferred pending a lifecycle owner and narrow delete authority, and TTD-09 through TTD-10 remain blocked_by_dependency.",
+        "queue_registration": "TTD-00 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A5C1 are accepted. The disjoint four-path TTD-07A5C2 poll-transport claim is active; C3 and TTD-07A6 remain dependency-blocked. TTD-08C attachment work remains deferred pending a lifecycle owner and narrow delete authority, and TTD-09 through TTD-10 remain blocked_by_dependency.",
         "dependency_rule": "Notes remains Todo truth; manage_todos is a domain facade over Notes, Memory rejects Todo storage, Telegram preserves semantic receipts, and every Digest claim requires a read-only include/exclude/schedule postcondition. Daily session rollover limits context but never substitutes old chat prose for domain readback.",
         "scheduling_decision": {
           "operator_priority_effective_at": "2026-07-21",
-          "position": "active_p0_corrective_track_ttd07a5b_accepted_a5c1_runtime_composition_active",
+          "position": "active_p0_corrective_track_ttd07a5c1_accepted_a5c2_poll_transport_active",
           "implementation_authority": "current_goal_repo_only_plus_read_only_debian_preflight_no_live_mutation_authority_before_ttd10"
         },
-        "future_goal_command": "/goal Fuehre TTD-07A5C1 als exakt claimed default-off Runtime-Composition und owner-scoped Sweep aus; danach seriell C2 Poll und C3 Webhook/Control. Keine Continuity-, Send-, Provider- oder Live-Aktion."
+        "future_goal_command": "/goal Fuehre TTD-07A5C2 als exakt claimed Poll-Transport mit pre-fetch Sweep, durable Intake und Offset-Hold aus; danach seriell C3 Webhook/Control. Keine Continuity-, Send-, Provider- oder Live-Aktion."
       },
       "activation_contract": {
         "id": "TTD-LIVE-DEPLOY",
@@ -5184,14 +5182,14 @@
         "live_validated": "no",
         "product_complete": "no"
       },
-      "next_frontier": "TTD-07A5A and A5B are accepted at 70466cf1 and 94a09428; A5C1 runtime composition and owner-scoped sweep is actively claimed before C2/C3 transport.",
+      "next_frontier": "TTD-07A5A, A5B and A5C1 are accepted at 70466cf1, 94a09428 and b7e3466d; A5C2 poll transport is actively claimed before C3 webhook/control integration.",
       "done_when": "Exactly the five claimed paths prove one-winner atomic replacement, strict owner/scope/security validation, rollback without orphans, deterministic winner reload and untouched productive runtime call sites."
     },
     {
       "id": "TTD-07A5-poll-webhook-sweep-and-turn-lease",
       "class": "repo_only",
       "owner": "/root",
-      "status": "a5b_owner_binding_cutover_accepted_94a09428_a5c1_runtime_composition_active",
+      "status": "a5c1_runtime_composition_accepted_b7e3466d_a5c2_poll_transport_active",
       "claimable": false,
       "depends_on": [
         "TTD-07A0 accepted at contract commit 4fb9ba62",
@@ -5436,28 +5434,51 @@
               "poll offset webhook retry and productive plugin transport remain unwired",
               "no broad pytest suite provider network Telegram send deploy or Debian action ran"
             ]
+          },
+          {
+            "run_id": "abc-ttd07a5c1-20260726T092758+0200",
+            "slice_id": "TTD-07A5C1-runtime-composition-and-sweep",
+            "owner": "/root/ttd07a5_transport_recon",
+            "state": "released_accepted",
+            "released_at": "2026-07-26T09:44:08+02:00",
+            "implementation_commit": "b7e3466d",
+            "changed_paths": [
+              "app.py",
+              "plugins/telegram/stores.py",
+              "src/telegram_session_rollover.py",
+              "tests/test_telegram_session_rollover.py"
+            ],
+            "evidence": [
+              "strict default-off config and mandatory TELEGRAM_OWNER opened no database when disabled invalid or missing",
+              "one runtime shared the exact Session factory and lock across turn and binding coordinators",
+              "owner-scoped empty-cycle sweep committed one due Alice replacement while Bob remained untouched",
+              "active lease deferred without Session replacement and import rotation or invalid-day failures reserialized content-free",
+              "eight exact Sol C1 tests passed after the worker focused lanes; AST all six allowed paths and exact four-path diff check passed"
+            ],
+            "not_verified": [
+              "poll offset webhook retry and control transport remain unwired",
+              "no broad pytest suite provider network Telegram send push deploy or Debian action ran"
+            ]
           }
         ],
         "active_child_claim": {
-          "run_id": "abc-ttd07a5c1-20260726T092758+0200",
+          "run_id": "abc-ttd07a5c2-20260726T094408+0200",
           "thread_id": "/root/ttd07a5_transport_recon",
-          "slice_id": "TTD-07A5C1-runtime-composition-and-sweep",
+          "slice_id": "TTD-07A5C2-poll-transport",
           "owner": "Bob",
           "allowed_paths": [
-            "app.py",
+            "plugins/telegram/polling.py",
             "plugins/telegram/plugin.py",
-            "plugins/telegram/stores.py",
-            "src/telegram_session_rollover.py",
-            "tests/test_telegram_plugin.py",
-            "tests/test_telegram_session_rollover.py"
+            "plugins/telegram/routes_polling.py",
+            "tests/test_telegram_plugin.py"
           ],
           "state": "active",
-          "acquired_at": "2026-07-26T09:27:58+02:00",
-          "lease_expires_at": "2026-07-26T13:27:58+02:00",
+          "acquired_at": "2026-07-26T09:44:08+02:00",
+          "lease_expires_at": "2026-07-26T13:44:08+02:00",
           "forbidden": [
-            "plugins/telegram/polling.py routes_polling.py webhook_service.py control_service.py and all nonclaimed paths",
+            "plugins/telegram/webhook_service.py control_service.py stores.py app.py src/telegram_session_rollover.py and all nonclaimed paths",
             "the rejected stash divergent prior art and broad tests",
-            "poll acknowledgement webhook response feature activation continuity network provider Telegram send push deploy Debian and every live mutation"
+            "webhook response control mutation feature activation continuity network provider Telegram send push deploy Debian and every live mutation"
           ]
         }
       },
@@ -5494,7 +5515,7 @@
         "broad_tests_forbidden": true
       },
       "acceptance": "One injected-owner default-off coordinator gives poll webhook control bind and rebind paths the same durable lease, one-winner rollover and lossless retry semantics.",
-      "next_frontier": "TTD-07A5A and A5B are accepted at 70466cf1 and 94a09428. TTD-07A5C1 is actively claimed for default-off runtime composition and owner-scoped sweep; C2 poll acknowledgement, C3 webhook/control and TTD-07A6 remain serially blocked.",
+      "next_frontier": "TTD-07A5A, A5B and A5C1 are accepted at 70466cf1, 94a09428 and b7e3466d. TTD-07A5C2 is actively claimed for pre-fetch sweep, durable poll intake and exact busy-offset hold; C3 webhook/control and TTD-07A6 remain serially blocked.",
       "done_when": "Exactly the eleven allowed paths and five focused nodes prove empty-poll sweep, one-winner concurrent rollover, unsplit active turns, offset hold, webhook retry, mandatory owner injection and default-off behavior."
     },
     {
@@ -11747,7 +11768,7 @@
     }
   ],
   "recommended_execution_order": [
-    "OWM-22 Telegram Todo Domain Truth And Digest Consistency: TTD-00 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A5B are accepted; execute active A5C1 default-off composition/sweep, then serial C2 poll and C3 webhook/control while TTD-07A6 remains blocked; keep the feature default off, never use the rejected stash or divergent 2cb685d8, keep TTD-08C attachment work deferred, keep later work dependency-blocked, keep Notes canonical and productive data unchanged, and leave repair send and productive rollover disabled behind their separate live packets.",
+    "OWM-22 Telegram Todo Domain Truth And Digest Consistency: TTD-00 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A5C1 are accepted; execute active A5C2 poll transport, then serial C3 webhook/control while TTD-07A6 remains blocked; keep the feature default off, never use the rejected stash or divergent 2cb685d8, keep TTD-08C attachment work deferred, keep later work dependency-blocked, keep Notes canonical and productive data unchanged, and leave repair send and productive rollover disabled behind their separate live packets.",
     "OWM-23 Agent Maintenance Safety Harness: after an explicit goal or Open Work reprioritization, open AMH-01 through AMH-03 only on disjoint handed-off paths; preserve Planning JSON and existing gate/claim authorities, keep AMH-04 onward dependency-blocked, and perform no automatic commit, push, deploy or live action.",
     "OWM-11 Tool Taxonomy, Registration And Lifecycle: execute TAX0 then TAX1 and continue the detailed repo-only queue without user gates; keep the feature disabled until the single final activation decision.",
     "OWM-12 Privacy-Safe Tool Usage Analytics: after TAX1, start the disjoint privacy/store baseline; wait for TAX5/TAX7/TAX10 at shared integration points and keep capture/backfill disabled until the single final activation decision.",

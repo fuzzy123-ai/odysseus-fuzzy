@@ -5,8 +5,8 @@ Stand: 2026-07-24
 Status: `TTD-07A0` accepted at `4fb9ba62`; `TTD-07A1` accepted at
 `daca1dc4`; `TTD-07A2` accepted at `090ede31`; `TTD-07A3` accepted at
 `53109195`; `TTD-07A4` accepted at `c48f47c8`; the fresh architecture handoff,
-`TTD-07A5A` at `70466cf1`, and `TTD-07A5B` at `94a09428` are accepted;
-`TTD-07A5C1` is active
+`TTD-07A5A` at `70466cf1`, `TTD-07A5B` at `94a09428`, and `TTD-07A5C1`
+at `b7e3466d` are accepted; `TTD-07A5C2` is active
 
 Authority:
 
@@ -757,7 +757,10 @@ The rejected eleven-path implementation is replaced by three serial claims:
 - `TTD-07A5C1-runtime-composition-and-sweep`: only after A5B acceptance;
   compose the strict default-off config, mandatory owner, one shared turn and
   binding coordinator, owner-scoped legacy import, and bounded due-binding
-  sweep without changing poll acknowledgement or webhook behavior.
+  sweep without changing poll acknowledgement or webhook behavior. Accepted at
+  `b7e3466d` after focused default-off, shared-identity, owner-isolation,
+  lease-deferral, transaction-lifetime and content-free failure tests plus deep
+  Sol review.
 - `TTD-07A5C2-poll-transport`: only after C1 acceptance; invoke the pre-fetch
   sweep, use the durable intake lifecycle, hold the exact busy offset, and stop
   later updates in that poll cycle.
