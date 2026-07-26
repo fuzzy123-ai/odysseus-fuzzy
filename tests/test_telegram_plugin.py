@@ -1857,7 +1857,9 @@ def test_polling_rollover_duplicate_json_update_still_retries_durable_lease(tmp_
     assert [call["update_id"] for call in runtime.turn_coordinator.acquire_calls] == [50, 50]
 
 
-def test_polling_rollover_rejects_contradictory_reply_ack_and_holds_offset(tmp_path, monkeypatch):
+def test_polling_rollover_contradictory_reply_ack_retains_reply_pending_lease_and_holds_offset(
+    tmp_path, monkeypatch
+):
     monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "runtime-chat")
     runtime = _PollingRolloverRuntime(statuses=["acquired"])
@@ -1874,7 +1876,7 @@ def test_polling_rollover_rejects_contradictory_reply_ack_and_holds_offset(tmp_p
     assert result["offset"] == 55
     assert runtime.turn_coordinator.completed == []
     assert len(runtime.turn_coordinator.marked) == 1
-    assert len(runtime.turn_coordinator.released) == 1
+    assert runtime.turn_coordinator.released == []
 
 
 def test_polling_rollover_missing_durable_session_holds_offset_fail_closed(tmp_path, monkeypatch):
