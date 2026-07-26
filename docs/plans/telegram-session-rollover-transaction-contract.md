@@ -5,8 +5,9 @@ Stand: 2026-07-24
 Status: `TTD-07A0` accepted at `4fb9ba62`; `TTD-07A1` accepted at
 `daca1dc4`; `TTD-07A2` accepted at `090ede31`; `TTD-07A3` accepted at
 `53109195`; `TTD-07A4` accepted at `c48f47c8`; the fresh architecture handoff,
-`TTD-07A5A` at `70466cf1`, `TTD-07A5B` at `94a09428`, and `TTD-07A5C1`
-at `b7e3466d` are accepted; `TTD-07A5C2` is active
+`TTD-07A5A` at `70466cf1`, `TTD-07A5B` at `94a09428`, `TTD-07A5C1`
+at `b7e3466d`, and `TTD-07A5C2` at `00e3029f` are accepted;
+`TTD-07A5C3` is active
 
 Authority:
 
@@ -763,7 +764,9 @@ The rejected eleven-path implementation is replaced by three serial claims:
   Sol review.
 - `TTD-07A5C2-poll-transport`: only after C1 acceptance; invoke the pre-fetch
   sweep, use the durable intake lifecycle, hold the exact busy offset, and stop
-  later updates in that poll cycle.
+  later updates in that poll cycle. Accepted at `00e3029f` after focused
+  sweep-before-fetch, renewable-lease, duplicate-retry, exact-offset and
+  fail-closed delivery tests plus deep Sol review.
 - `TTD-07A5C3-webhook-control-and-final-integration`: only after C2
   acceptance; wire webhook 503 retry, duplicate recovery, guarded control
   mutations, and the original five A5 acceptance nodes as the final gate.
