@@ -4,8 +4,8 @@ Stand: 2026-07-24
 
 Status: `TTD-07A0` accepted at `4fb9ba62`; `TTD-07A1` accepted at
 `daca1dc4`; `TTD-07A2` accepted at `090ede31`; `TTD-07A3` accepted at
-`53109195`; `TTD-07A4` accepted at `c48f47c8`; the `TTD-07A5` implementation
-claim is released and architecture-gated after two rejected incomplete attempts
+`53109195`; `TTD-07A4` accepted at `c48f47c8`; the fresh architecture handoff
+is accepted, `TTD-07A5A` is accepted at `70466cf1`, and `TTD-07A5B` is active
 
 Authority:
 
@@ -744,7 +744,9 @@ The rejected eleven-path implementation is replaced by three serial claims:
   `src/telegram_session_rollover.py` and
   `tests/test_telegram_session_rollover.py`; implement per-operation factory
   lifetime, stable identity, fenced acquire/renew/release, intake transitions,
-  and crash reconciliation without route wiring.
+  and crash reconciliation without route wiring. Accepted at `70466cf1` after
+  13 focused tests, including the bounded two-thread file-SQLite winner/busy
+  lane, plus deep Sol lease and recovery review.
 - `TTD-07A5B-owner-binding-cutover`: only after A5A acceptance; wire the
   mandatory injected owner and guarded binding/rebind/secure-fallback mutation
   seam through `app.py`, `plugins/telegram/stores.py`,
