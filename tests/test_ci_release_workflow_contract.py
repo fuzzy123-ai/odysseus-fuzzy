@@ -152,8 +152,10 @@ def test_docker_publication_has_a_same_run_exact_commit_gate() -> None:
     workflow = _load_workflow(DOCKER_PUBLISH_PATH)
     source = DOCKER_PUBLISH_PATH.read_text(encoding="utf-8")
     jobs = workflow["jobs"]
+    ignored_paths = set(workflow["on"]["push"]["paths-ignore"])
 
     assert set(workflow["on"]["push"]["branches"]) == {"dev", "main"}
+    assert ignored_paths == {"**.md", ".github/ISSUE_TEMPLATE/**"}
     assert "workflow_run" not in source
     assert jobs["quality-gate"]["uses"] == REUSABLE_GATE
     assert jobs["quality-gate"]["permissions"] == {"contents": "read"}

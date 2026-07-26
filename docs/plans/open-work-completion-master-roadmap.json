@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-26T15:30:55+02:00",
-  "status": "recent_changes_release_manifest_ci_inventory_repair_accepted_publish_pending",
+  "updated_at": "2026-07-26T15:35:46+02:00",
+  "status": "recent_changes_docker_publish_executable_docs_filter_repair_accepted_publish_pending",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -95,6 +95,54 @@
       "verified_at": "2026-07-24"
     },
     "active_claimed_slices": [],
+    "latest_recent_changes_docker_publish_filter_repair_handoff": {
+      "run_id": "abc-ci-docker-publish-json-contract-trigger-20260726T153431+0200",
+      "slice_id": "CI-docker-publish-executable-docs-filter-repair",
+      "owner": "/root",
+      "state": "released_accepted_repo_only",
+      "released_at": "2026-07-26T15:35:46+02:00",
+      "trigger_head_sha": "60d5c9adcfc88113d1e88c72565a6aa5b811dbbc",
+      "observed_required_ci_run": 30204273836,
+      "observed_docker_publish_run": "not_started",
+      "root_cause": "docker-publish paths-ignore excluded all docs paths even though versioned executable JSON gate inventories live under docs/plans; the exact inventory repair therefore started CI but could not start an image publication run",
+      "repair": "retain the Markdown and issue-template exclusions while removing the broad docs exclusion, with a regression contract that fixes the complete allowed ignore set",
+      "changed_paths": [
+        ".github/workflows/docker-publish.yml",
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "tests/test_ci_release_workflow_contract.py"
+      ],
+      "tests": {
+        "complete_ci_release_workflow_contract_file": "7 passed with one existing SQLAlchemy deprecation warning",
+        "exact_docker_publish_gate_node_after_strengthening": "1 passed with one existing SQLAlchemy deprecation warning",
+        "docker_workflow_yaml": "pass",
+        "roadmap_json_parse": "pass",
+        "git_diff_check": "pass",
+        "broad_local_pytest": "not_run_by_operator_request"
+      },
+      "review": {
+        "depth": "deep",
+        "reviewer": "/root",
+        "result": "pass",
+        "positive_path": "docs JSON contract changes now trigger Docker publish",
+        "negative_path": "Markdown-only and issue-template-only changes remain excluded"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "actual_master": "surface_default",
+        "worker": "not_used_root_owned_shared_publish_integration_repair",
+        "skills": [
+          "abc",
+          "github:gh-fix-ci",
+          "github:yeet"
+        ]
+      },
+      "not_verified": [
+        "exact repair commit GitHub Required CI",
+        "exact repair commit Docker image publication",
+        "Debian deployment and live fixed-schema readback"
+      ],
+      "next_action": "commit_and_push_the_exact_three_path_publish_trigger_repair_to_fuzzy_dev_require_both_exact_github_workflows_green_then_deploy_and_verify_the_exact_revision_on_debian"
+    },
     "latest_recent_changes_ci_inventory_repair_handoff": {
       "run_id": "abc-ci-release-manifest-runtime-inventory-20260726T152851+0200",
       "slice_id": "CI-release-manifest-static-runtime-inventory-refresh",
