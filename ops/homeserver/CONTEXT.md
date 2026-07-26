@@ -104,6 +104,29 @@ recreates the Podman deployment, and verifies the app plus ChromaDB. If a
 fast-forward update is available, it requires a clean worktree and runs the
 same backup-before-deploy flow after updating the checkout.
 
+The root-owned `odysseus-security-reporter` adds bounded maintenance context
+to an `odysseus_app_env` audit event only while systemd verifies that
+`odysseus-auto-update.service` is actively running the canonical
+`/home/homebase/.local/bin/odysseus-auto-update.sh`. Service state alone is not
+event provenance, so the audit event always remains a
+`Debian-Sicherheitsmeldung`; the updater context may explain concurrency but
+never downgrades or suppresses the security finding. The versioned patcher
+upgrades the earlier maintenance-only variant, validates every required
+postcondition plus Python syntax, and rejects partial or drifted installations.
+Check and apply it deterministically with a unique backup:
+
+```bash
+sudo python3 ops/homeserver/patch-security-reporter-auto-update-context.py \
+  --check \
+  --target /usr/local/sbin/odysseus-security-reporter
+sudo python3 ops/homeserver/patch-security-reporter-auto-update-context.py \
+  --backup /usr/local/sbin/odysseus-security-reporter.bak-YYYYMMDD \
+  --target /usr/local/sbin/odysseus-security-reporter
+```
+
+Rollback restores the exact backup with preserved ownership and mode before
+rerunning the reporter in dry-run mode.
+
 ## Local Model Maintenance Priority
 
 The Debian homeserver is CPU-only for local Gemma3. Foreground document checks,

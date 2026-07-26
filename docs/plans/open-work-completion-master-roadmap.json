@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-26T12:13:34+02:00",
-  "status": "ops_security_reporter_auto_update_context_sync_active_live_default_off",
+  "updated_at": "2026-07-26T13:59:13+02:00",
+  "status": "ops_security_reporter_auto_update_context_sync_accepted_ci_and_live_v2_pending",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -94,32 +94,41 @@
       "queue_exhausted": true,
       "verified_at": "2026-07-24"
     },
-    "active_claimed_slices": [
-      {
-        "slice_id": "OPS-security-reporter-auto-update-context-sync",
-        "run_id": "ops-security-reporter-sync-20260726T121334+0200",
-        "owner": "/root",
-        "lease_expires_at": "2026-07-26T14:13:34+02:00",
-        "dependencies": [
-          "fuzzy/dev at 1659a2596fb681174babd0aa5876b17c688f6bf9",
-          "unpublished commit ff152591e35467f0c254e99abd7dfcfe777e457f",
-          "patch applies cleanly to current dev"
-        ],
-        "allowed_paths": [
-          "docs/plans/open-work-completion-master-roadmap.json",
-          "ops/homeserver/CONTEXT.md",
-          "ops/homeserver/patch-security-reporter-auto-update-context.py",
-          "tests/test_patch_security_reporter_auto_update_context.py"
-        ],
-        "tests": [
-          "tests/test_patch_security_reporter_auto_update_context.py",
-          "Python AST for the patcher and test",
-          "roadmap JSON parse",
-          "exact path and diff checks"
-        ],
-        "gate": "user_authorized_publish_exact_green_commit_and_apply_backup_first_patch_on_debian"
-      }
-    ],
+    "active_claimed_slices": [],
+    "latest_ops_security_reporter_sync_handoff": {
+      "run_id": "ops-security-reporter-sync-20260726T121334+0200",
+      "slice_id": "OPS-security-reporter-auto-update-context-sync",
+      "owner": "/root",
+      "state": "released_accepted",
+      "released_at": "2026-07-26T13:59:13+02:00",
+      "source_commit": "ff152591e35467f0c254e99abd7dfcfe777e457f",
+      "merge_base_commit": "1659a2596fb681174babd0aa5876b17c688f6bf9",
+      "changed_paths": [
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "ops/homeserver/CONTEXT.md",
+        "ops/homeserver/patch-security-reporter-auto-update-context.py",
+        "tests/test_patch_security_reporter_auto_update_context.py"
+      ],
+      "security_repairs": [
+        "auto-update service state adds bounded context but never downgrades or suppresses an audit security alert",
+        "marker-only and otherwise partial v2 installations fail closed",
+        "known and structurally unambiguous drifted v1 installations upgrade to validated v2 while ambiguous control flow fails closed"
+      ],
+      "tests": {
+        "focused_patch_security_reporter_suite": "11_passed_with_1_existing_deprecation_warning",
+        "python_ast_patcher_and_test": "pass",
+        "roadmap_json_parse": "pass",
+        "git_diff_checks": "pass",
+        "live_v1_read_only_upgrade_check": "patch_ready",
+        "broad_local_pytest": "not_run_by_operator_request"
+      },
+      "not_verified": [
+        "exact merge commit GitHub required CI and image publication",
+        "backup-first Debian v2 application and bounded post-change readback",
+        "productive Telegram delivery"
+      ],
+      "next_action": "commit_the_reviewed_merge_push_to_fuzzy_dev_require_exact_ci_and_image_publish_green_then_deploy_the_exact_revision_and_apply_the_v2_reporter_patch_backup_first"
+    },
     "latest_exact_ci_reply_pending_contract_handoff": {
       "run_id": "abc-ci-telegram-reply-pending-contract-20260726T112308+0200",
       "slice_id": "CI-telegram-reply-pending-lease-contract-test-repair",
