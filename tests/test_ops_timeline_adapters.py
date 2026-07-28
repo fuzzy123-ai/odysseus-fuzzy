@@ -1,13 +1,17 @@
 import json
+from types import SimpleNamespace
 
+import src.constants as constants
 from src.observability_alert_routing import build_observability_alert_routes
 from src.observability_diagnostics_bridge import build_observability_diagnostic_packet
 from src.observability_metrics import build_runtime_metric_sample, build_runtime_metrics_snapshot
 from src.ops_timeline_adapters import (
     OPS_TIMELINE_ADAPTERS_SCHEMA,
     build_ops_timeline_from_sources,
+    create_default_security_incident_store,
     observability_diagnostic_events,
     security_remediation_plan_events,
+    persisted_security_store_events,
     system_health_dashboard_events,
 )
 from src.security_incident_model import build_recommended_action, build_security_incident
@@ -15,6 +19,7 @@ from src.security_remediation_actions import prepare_remediation_plan
 from src.security_response_policy import decide_incident_response
 from src.system_health_agent_interface import AlertSummary, CollectorStatus, HealthSnapshot
 from src.system_health_dashboard_summary import build_system_health_dashboard_summary
+from src.security_incident_store import SecurityIncidentStore
 
 
 def _dashboard_summary():
@@ -164,3 +169,63 @@ def test_empty_source_adapter_returns_normal_readonly_timeline():
     assert timeline["adapter_sources"] == ()
     assert timeline["raw_content_visible"] is False
     assert timeline["host_paths_visible"] is False
+
+
+def test_persisted_store_timeline_uses_audit_only_and_represents_expiry(tmp_path):
+    now = [100.0]
+    store = SecurityIncidentStore(tmp_path / "timeline.sqlite", clock=lambda: now[0])
+    store.create_incident(incident_id="inc-time", incident_ref="evidence:sha256:" + "a" * 64, audit_ref="audit:sha256:" + "b" * 64)
+    store.create_action(
+        action_id="act-time", incident_id="inc-time", action_type="service_restart",
+        scope_fingerprint="scope:sha256:" + "c" * 64, policy_revision="policy:sha256:" + "d" * 64,
+        idempotency_key="idem-time", ttl_seconds=5, audit_ref="audit:sha256:" + "e" * 64,
+    )
+    now[0] = 110.0
+    store.get_action("act-time")  # persist the expiry before the read-only adapter runs.
+
+    events = persisted_security_store_events(store)
+    timeline = build_ops_timeline_from_sources(store=store, timeline_id="ops-persisted")
+    encoded = json.dumps({"events": events, "timeline": timeline}, sort_keys=True)
+
+    assert events[0]["summary"].endswith("state is expired.")
+    assert timeline["status"] == "recovery"
+    assert "incident_ref" not in encoded
+    assert "scope:sha256:" not in encoded
+    assert "idempotency" not in encoded
+
+
+def test_persisted_store_orders_by_audit_sequence_and_selects_after_long_history():
+    audit = [SimpleNamespace(sequence=index, incident_id=f"inc-{index:03}", action_id=None, event_type="incident_created") for index in range(1, 102)]
+    audit.extend((
+        SimpleNamespace(sequence=102, incident_id="inc-target", action_id="act-a", event_type="action_proposed"),
+        SimpleNamespace(sequence=103, incident_id="inc-target", action_id="act-b", event_type="action_proposed"),
+        SimpleNamespace(sequence=104, incident_id="inc-target", action_id="act-a", event_type="action_prepared"),
+        SimpleNamespace(sequence=105, incident_id="inc-target", action_id="act-old", event_type="action_expired"),
+        SimpleNamespace(sequence=106, incident_id="inc-target", action_id="act-live", event_type="action_proposed"),
+    ))
+
+    class _Store:
+        def audit_events(self):
+            return tuple(audit)
+
+        def get_incident(self, incident_id):
+            return SimpleNamespace(incident_id=incident_id)
+
+    events = persisted_security_store_events(_Store())
+    target = next(event for event in events if event["event_id"].startswith("ops-persisted-security-"))
+    timeline = build_ops_timeline_from_sources(store=_Store(), timeline_id="ops-long")
+
+    assert len(events) == 20
+    assert "4 action records (3 active, 1 expired)" in target["summary"]
+    assert target["summary"].endswith("latest action state is proposed.")
+    assert target["status"] == "contain"
+    assert timeline["status"] == "contain"
+
+
+def test_default_store_provider_uses_fixed_data_dir_filename(tmp_path, monkeypatch):
+    monkeypatch.setattr(constants, "DATA_DIR", str(tmp_path))
+
+    store = create_default_security_incident_store()
+
+    assert store is not None
+    assert store.database_path == tmp_path / "security_incidents.sqlite"

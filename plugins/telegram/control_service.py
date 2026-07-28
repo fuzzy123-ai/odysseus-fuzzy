@@ -26,6 +26,7 @@ from plugins.telegram.formatting import (
     format_universal_inbox_review_missing_reply,
     format_universal_inbox_transfer_confirm_reply,
 )
+from plugins.telegram.security_incident_commands import handle_security_incident_command
 
 ReplyHandler = Callable[..., dict[str, Any] | None]
 BuildAgentBridgeRequest = Callable[..., dict[str, Any]]
@@ -123,6 +124,11 @@ def handle_agent_task_control_command(command: str) -> dict[str, Any]:
         "reply_text": format_agent_task_action_reply(action_text, record),
         "agent_task": public_agent_task_record(record),
     }
+
+
+def handle_security_incident_control_command(command: str) -> dict[str, Any] | None:
+    """Keep Telegram incident controls read-only until browser step-up occurs."""
+    return handle_security_incident_command(command)
 
 
 def handle_dsgvo_control_command(

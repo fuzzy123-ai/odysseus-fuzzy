@@ -33,6 +33,7 @@ from plugins.telegram.plugin import (
 )
 from plugins.telegram.control_service import handle_new_chat_control_command, telegram_control_owner
 from plugins.telegram.polling import TelegramTurnRenewalPulse
+from plugins.telegram.webhook_service import run_webhook_control_command_branch
 from src.image_tools_worker import ImageToolsWorkerResult
 from src import agent_task_ledger
 from src.plugin_capability_boundary import validate_plugin_capability_boundary
@@ -785,6 +786,55 @@ def test_task_control_status_and_pause_use_redacted_ledger(tmp_path, monkeypatch
     assert pause["status"] == "pause_requested"
     assert pause["agent_task"]["status"] == "pause_requested"
     assert "123" not in json.dumps(pause["agent_task"], sort_keys=True)
+
+
+def test_security_incident_control_is_browser_step_up_only_and_never_replies(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
+    message = parse_telegram_update({
+        "update_id": 11,
+        "message": {"message_id": 15, "chat": {"id": 123}, "text": "/incident approve action-one"},
+    })
+    result = _handle_telegram_control_command(
+        _telegram_control_command(message),
+        message=message,
+        raw_chat_id="123",
+        sessions=TelegramSessionBridgeStore(tmp_path),
+        session_creator=None,
+        reply_handler=lambda *_args: (_ for _ in ()).throw(AssertionError("must not send")),
+    )
+    assert result["status"] == "security_action_browser_step_up_required"
+    assert result["reply"] is None
+    assert result["security_incident"]["action_id"] == "action-one"
+
+
+def test_invalid_incident_attempts_are_quarantined_in_polling_and_webhook(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "runtime-chat")
+    raw = "/incident approve action-one now free-text"
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path / "polling",
+        fetch_updates=lambda _offset: [_polling_text_update(91, 901, raw)],
+        agent_turn_handler=lambda _bridge: pytest.fail("incident attempt must not reach agent"),
+        reply_handler=lambda *_args: pytest.fail("incident attempt must not reply"),
+    )
+    assert result["control_commands"] == 1 and result["agent_turns"] == 0 and result["replies"] == 0
+    store = TelegramInboxStore(tmp_path / "polling")
+    assert raw not in json.dumps(store.history(limit=10), sort_keys=True)
+    assert "action-one" not in json.dumps(store.audit_history(limit=10), sort_keys=True)
+
+    events = []
+    class _Store:
+        def append_event(self, **payload): events.append(payload)
+    stored = parse_telegram_update(_polling_text_update(92, 902, raw), chat_allowed=lambda _chat: True)
+    stored = TelegramInboxStore(tmp_path / "webhook").append_inbound(stored)["message"]
+    webhook = run_webhook_control_command_branch(
+        message={"chat_id": "runtime-chat", "update_id": 92, "message_id": 902}, stored_message=stored,
+        raw_chat_id="runtime-chat", sessions=TelegramSessionBridgeStore(tmp_path / "webhook"), session_creator=None,
+        reply_handler=lambda *_args: pytest.fail("incident attempt must not reply"), store=_Store(), pin_store=None,
+        memory_manager=None, memory_vector=None, memory_owner=None, project_registry_path=None,
+        detect_control_command=_telegram_control_command, handle_control_command=_handle_telegram_control_command,
+    )
+    assert webhook["command"] == "security_incident_control" and "action-one" not in json.dumps(events, sort_keys=True)
 
 
 def test_task_control_events_are_filterable_for_coding_runner(tmp_path, monkeypatch):

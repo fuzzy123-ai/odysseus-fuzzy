@@ -22,6 +22,8 @@ from mcp.types import Tool, TextContent
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.runtime_event_envelope import stable_payload_hash
+from src.ops_timeline_adapters import create_default_security_incident_store
+from src.security_executor_contracts import SECURITY_EXECUTION_REQUEST_SCHEMA
 
 
 server = Server("odysseus-debug")
@@ -67,8 +69,6 @@ DEBUG_TOOL_NAMES = (
     "security_recommend_next_action",
     "security_debug_bundle_read",
     "security_action_prepare",
-    "security_action_approve",
-    "security_action_deny",
     "security_action_execute",
 )
 
@@ -81,11 +81,41 @@ _ID_FIELDS = {
     "agent_debug_run_trace": "run_id",
     "security_incident_read": "incident_id",
     "security_incident_trace": "incident_id",
+    "security_recommend_next_action": "incident_id",
+    "security_action_prepare": "action_id",
     "security_debug_bundle_read": "bundle_id",
-    "security_action_approve": "action_id",
-    "security_action_deny": "action_id",
     "security_action_execute": "action_id",
 }
+
+# This is deliberately process configuration, never an MCP argument.  The
+# store is a local durable authority and callers may only provide opaque ids.
+_security_incident_store: Any | None = None
+_security_executor_kernel: Any | None = None
+_STORE_UNAVAILABLE = object()
+
+
+def configure_security_incident_store(store: Any | None) -> None:
+    """Configure the server-owned incident store for bounded MCP reads."""
+
+    global _security_incident_store
+    _security_incident_store = store
+
+
+def configure_security_executor_kernel_for_tests(kernel: Any | None) -> None:
+    """Inject only a typed fake-test kernel; ordinary startup never enables it."""
+
+    global _security_executor_kernel
+    from src.security_executor_kernel import SecurityExecutorKernel
+
+    if kernel is not None and not isinstance(kernel, SecurityExecutorKernel):
+        raise TypeError("security executor kernel must be an injected test kernel")
+    _security_executor_kernel = kernel
+
+
+def configure_default_security_incident_store() -> None:
+    """Perform fixed-path store construction at MCP server startup."""
+
+    configure_security_incident_store(create_default_security_incident_store())
 
 
 def debug_tool_names() -> tuple[str, ...]:
@@ -187,6 +217,31 @@ def _call_observability_tool_contract(name: str, arguments: Mapping[str, Any]) -
 
 
 def _call_security_tool_contract(name: str, arguments: Mapping[str, Any]) -> dict[str, Any]:
+    if any(key in arguments for key in ("incident", "incidents", "action", "actions")):
+        return _response(
+            name=name,
+            status="blocked",
+            reason="client_authority_objects_rejected",
+            arguments=arguments,
+            next_action="use_server_configured_store_and_opaque_ids",
+        )
+    allowed = {
+        "security_incident_list": {"limit"},
+        "security_incident_read": {"limit", "incident_id"},
+        "security_incident_trace": {"limit", "incident_id"},
+        "security_recommend_next_action": {"limit", "incident_id"},
+        "security_action_prepare": {"limit", "action_id", "expected_version"},
+        "security_action_execute": {
+            "schema", "action_id", "action_version", "action_type", "scope_fingerprint",
+            "policy_revision", "policy_gate", "timeout_seconds", "idempotency_key",
+            "rollback_descriptor", "expires_at",
+        },
+    }.get(name)
+    if allowed is not None and any(key not in allowed for key in arguments):
+        return _response(
+            name=name, status="blocked", reason="client_arguments_rejected", arguments=arguments,
+            next_action="use_declared_opaque_identifier_fields_only",
+        )
     if name == "security_policy_readiness":
         from src.security_response_policy import policy_readiness
 
@@ -205,14 +260,8 @@ def _call_security_tool_contract(name: str, arguments: Mapping[str, Any]) -> dic
         return _security_debug_bundle_read(arguments)
     if name == "security_action_prepare":
         return _security_action_prepare(arguments)
-    if name in {"security_action_approve", "security_action_deny", "security_action_execute"}:
-        return _response(
-            name=name,
-            status="blocked",
-            reason="action_store_not_configured",
-            arguments=arguments,
-            next_action="use_prepare_only_policy_review",
-        )
+    if name == "security_action_execute":
+        return _security_action_execute(arguments)
     return _response(name=name, status="blocked", reason="unknown_security_tool", arguments=arguments)
 
 
@@ -243,62 +292,62 @@ def _security_recent_anomalies(arguments: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _security_incident_list(arguments: Mapping[str, Any]) -> dict[str, Any]:
-    incidents = arguments.get("incidents")
-    if not isinstance(incidents, list):
-        return _response(
-            name="security_incident_list",
-            status="blocked",
-            reason="incident_store_not_configured",
-            arguments=arguments,
-            next_action="provide_redacted_incident_list",
-        )
-    from src.security_incident_model import summarize_incident
-
-    summaries = tuple(summarize_incident(item) for item in incidents[: _safe_limit(arguments.get("limit"))])
+    store = _configured_store()
+    if store is None:
+        return _store_blocked("security_incident_list", arguments)
+    limit = _safe_limit(arguments.get("limit"))
+    summaries = _persisted_incident_summaries(store, limit=limit)
+    if summaries is _STORE_UNAVAILABLE:
+        return _store_unavailable("security_incident_list", arguments)
     return _security_response(
         name="security_incident_list",
         status="success",
-        reason="incident_list_summarized",
+        reason="persisted_incidents_listed",
         payload={"incidents": summaries, "incident_count": len(summaries), "raw_content_visible": False},
     )
 
 
 def _security_incident_read(arguments: Mapping[str, Any]) -> dict[str, Any]:
-    incident = _select_incident(arguments)
-    if incident is None:
-        return _response(
-            name="security_incident_read",
-            status="blocked",
-            reason="incident_required",
-            arguments=arguments,
-            next_action="provide_redacted_incident_or_store",
-        )
-    from src.security_incident_model import summarize_incident
-
+    store = _configured_store()
+    incident_id = _opaque_id(arguments.get("incident_id"))
+    if store is None:
+        return _store_blocked("security_incident_read", arguments)
+    if not incident_id:
+        return _identifier_blocked("security_incident_read", arguments)
+    summary = _persisted_incident_summary(store, incident_id)
+    if summary is _STORE_UNAVAILABLE:
+        return _store_unavailable("security_incident_read", arguments)
+    if summary is None:
+        return _identifier_blocked("security_incident_read", arguments)
     return _security_response(
         name="security_incident_read",
         status="success",
-        reason="incident_summarized",
-        payload={"incident": summarize_incident(incident), "raw_content_visible": False},
+        reason="persisted_incident_read",
+        payload={"incident": summary, "raw_content_visible": False},
     )
 
 
 def _security_incident_trace(arguments: Mapping[str, Any]) -> dict[str, Any]:
-    incident = _select_incident(arguments)
-    if incident is None:
-        return _response(
-            name="security_incident_trace",
-            status="blocked",
-            reason="incident_required",
-            arguments=arguments,
-            next_action="provide_redacted_incident_or_store",
-        )
-    refs = tuple(str(value) for value in incident.get("evidence_refs", ())[:20])
-    correlations = tuple(str(value) for value in incident.get("correlation_ids", ())[:20])
+    store = _configured_store()
+    incident_id = _opaque_id(arguments.get("incident_id"))
+    if store is None:
+        return _store_blocked("security_incident_trace", arguments)
+    summary = _persisted_incident_summary(store, incident_id) if incident_id else None
+    if summary is _STORE_UNAVAILABLE:
+        return _store_unavailable("security_incident_trace", arguments)
+    if not incident_id or summary is None:
+        return _identifier_blocked("security_incident_trace", arguments)
+    events = _incident_audit_events(store, incident_id, limit=_safe_limit(arguments.get("limit")))
+    if events is _STORE_UNAVAILABLE:
+        return _store_unavailable("security_incident_trace", arguments)
+    total = _incident_audit_event_count(store, incident_id)
+    if total is _STORE_UNAVAILABLE:
+        return _store_unavailable("security_incident_trace", arguments)
     trace = {
-        "incident_id": _safe_token(incident.get("incident_id"), fallback="incident"),
-        "evidence_refs": tuple(_safe_token(value, fallback="evidence") for value in refs),
-        "correlation_ids": tuple(_safe_token(value, fallback="correlation") for value in correlations),
+        "incident_id": incident_id,
+        "event_count": len(events),
+        "events_truncated": total > len(events),
+        "events": events,
         "raw_content_visible": False,
     }
     return _security_response(
@@ -310,34 +359,20 @@ def _security_incident_trace(arguments: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _security_recommend_next_action(arguments: Mapping[str, Any]) -> dict[str, Any]:
-    incident = _select_incident(arguments)
-    if incident is None:
-        return _response(
-            name="security_recommend_next_action",
-            status="blocked",
-            reason="incident_required",
-            arguments=arguments,
-            next_action="provide_redacted_incident",
-        )
-    from src.security_incident_notifications import build_incident_notification_payload
-    from src.security_response_policy import decide_incident_response
-
-    policy = decide_incident_response(
-        incident,
-        approved_gates=arguments.get("approved_gates") if isinstance(arguments.get("approved_gates"), list) else (),
-        incident_mode=bool(arguments.get("incident_mode", True)),
-        dsgvo_mode=bool(arguments.get("dsgvo_mode", False)),
-    )
-    notification = build_incident_notification_payload(
-        incident,
-        policy_decision=policy,
-        debug_bundle=arguments.get("debug_bundle") if isinstance(arguments.get("debug_bundle"), Mapping) else None,
-    )
+    store = _configured_store()
+    incident_id = _opaque_id(arguments.get("incident_id"))
+    if store is None:
+        return _store_blocked("security_recommend_next_action", arguments)
+    summary = _persisted_incident_summary(store, incident_id) if incident_id else None
+    if summary is _STORE_UNAVAILABLE:
+        return _store_unavailable("security_recommend_next_action", arguments)
+    if not incident_id or summary is None:
+        return _identifier_blocked("security_recommend_next_action", arguments)
     return _security_response(
         name="security_recommend_next_action",
         status="success",
-        reason="policy_and_notification_prepared",
-        payload={"policy": policy, "notification": notification, "allowed_to_execute": False},
+        reason="persisted_authority_recommendation_ready",
+        payload={"incident_id": incident_id, "recommendation": "operator_review_required", "allowed_to_execute": False},
     )
 
 
@@ -362,44 +397,86 @@ def _security_debug_bundle_read(arguments: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _security_action_prepare(arguments: Mapping[str, Any]) -> dict[str, Any]:
-    action = arguments.get("action")
-    incident = _select_incident(arguments)
-    if not isinstance(action, Mapping) and incident is not None:
-        actions = incident.get("recommended_actions", ())
-        action_id = str(arguments.get("action_id") or "")
-        action = next(
-            (item for item in actions if isinstance(item, Mapping) and str(item.get("action_id") or "") == action_id),
-            None,
-        )
-    if not isinstance(action, Mapping):
-        return _response(
-            name="security_action_prepare",
-            status="blocked",
-            reason="action_required",
-            arguments=arguments,
-            next_action="provide_redacted_recommended_action",
-        )
-    from src.security_response_policy import decide_action
-
-    policy = decide_action(
-        action,
-        approved_gates=arguments.get("approved_gates") if isinstance(arguments.get("approved_gates"), list) else (),
-        incident_level=incident.get("level") if isinstance(incident, Mapping) else arguments.get("incident_level"),
-        incident_confidence=incident.get("confidence")
-        if isinstance(incident, Mapping)
-        else arguments.get("incident_confidence"),
-        incident_mode=bool(arguments.get("incident_mode", True)),
-        dsgvo_mode=bool(arguments.get("dsgvo_mode", False)),
-    )
+    store = _configured_store()
+    action_id = _opaque_id(arguments.get("action_id"))
+    expected_version = _strict_version(arguments.get("expected_version"))
+    if store is None:
+        return _store_blocked("security_action_prepare", arguments)
+    authority = _action_authority(store, action_id, expected_version) if action_id and expected_version else False
+    if authority is _STORE_UNAVAILABLE:
+        return _store_unavailable("security_action_prepare", arguments)
+    if not action_id or not authority:
+        return _identifier_blocked("security_action_prepare", arguments)
     return _security_response(
         name="security_action_prepare",
         status="success",
-        reason="action_policy_prepared",
-        payload={"policy": policy, "allowed_to_execute": False, "writes_performed": False},
+        reason="persisted_action_prepare_review_only",
+        payload={"action_id": action_id, "allowed_to_execute": False, "writes_performed": False},
     )
 
 
+def _security_action_execute(arguments: Mapping[str, Any]) -> dict[str, Any]:
+    """Dispatch one already-typed request only through an injected fake kernel."""
+
+    kernel = _security_executor_kernel
+    if kernel is None:
+        return _effectful_mcp_response(
+            status="blocked", reason="effectful_mcp_disabled",
+            next_action="use_later_gated_executor_operator_authorization_slices",
+        )
+    try:
+        result = kernel.execute(arguments)
+    except Exception:
+        return _effectful_mcp_response(status="blocked", reason="effectful_mcp_disabled")
+    if not isinstance(result, Mapping):
+        return _effectful_mcp_response(status="blocked", reason="effectful_mcp_disabled")
+    # The kernel result is already a bounded contract projection.  This MCP
+    # wrapper deliberately discards any unexpected values from an injected fake.
+    allowed = {
+        "status", "reason", "executed", "verified", "raw_content_visible", "schema",
+        "action_id", "action_version", "action_type", "idempotency_key", "receipt_ref",
+        "execution_state", "acknowledgement_received", "verification_state", "idempotent_replay",
+    }
+    safe = {key: result[key] for key in allowed if key in result}
+    if safe.get("status") not in {"success", "blocked"} or not isinstance(safe.get("reason"), str):
+        return _effectful_mcp_response(status="blocked", reason="effectful_mcp_disabled")
+    safe.update({
+        "schema": DEBUG_SERVER_SCHEMA, "tool": "security_action_execute", "read_only": False,
+        "redacted_output": True, "bounded": True, "raw_content_visible": False,
+        "raw_identifiers_visible": False, "writes_performed": bool(safe.get("executed") is True),
+        "allowed_to_execute": False,
+    })
+    return safe
+
+
 def _tool_contract(name: str) -> dict[str, Any]:
+    if name == "security_action_execute":
+        return {
+            "name": name,
+            "description": "Default-disabled high-risk typed security execution route for injected fake tests only.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "schema": {"type": "string", "const": SECURITY_EXECUTION_REQUEST_SCHEMA},
+                    "action_id": {"type": "string"}, "action_version": {"type": "integer", "minimum": 1},
+                    "action_type": {"type": "string"}, "scope_fingerprint": {"type": "string"},
+                    "policy_revision": {"type": "string"}, "policy_gate": {"type": "string"},
+                    "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 300},
+                    "idempotency_key": {"type": "string"}, "rollback_descriptor": {"type": "string"},
+                    "expires_at": {"type": "number"},
+                },
+                "required": [
+                    "schema", "action_id", "action_version", "action_type", "scope_fingerprint",
+                    "policy_revision", "policy_gate", "timeout_seconds", "idempotency_key",
+                    "rollback_descriptor", "expires_at",
+                ],
+                "additionalProperties": False,
+            },
+            "annotations": {
+                "read_only": False, "redacted_output": True, "bounded": True,
+                "no_raw_private_content": True, "high_risk": True, "default_disabled": True,
+            },
+        }
     properties: dict[str, Any] = {
         "limit": {
             "type": "integer",
@@ -417,6 +494,13 @@ def _tool_contract(name: str) -> dict[str, Any]:
             "description": f"Redacted {id_field}; raw private identifiers are not accepted.",
         }
         required.append(id_field)
+    if name == "security_action_prepare":
+        properties["expected_version"] = {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Exact persisted action version for read-only prepare review.",
+        }
+        required.append("expected_version")
     if name in {"security_recent_anomalies", "debug_bundle_create_redacted"}:
         properties["events"] = {
             "type": "array",
@@ -435,31 +519,10 @@ def _tool_contract(name: str) -> dict[str, Any]:
             "type": "string",
             "description": "Redacted Grafana dashboard UID. Server-side Grafana config is required.",
         }
-    if name in {
-        "security_incident_list",
-        "security_incident_read",
-        "security_incident_trace",
-        "security_recommend_next_action",
-        "security_action_prepare",
-    }:
-        properties["incident"] = {
-            "type": "object",
-            "description": "Redacted security incident object.",
-        }
-        properties["incidents"] = {
-            "type": "array",
-            "description": "Bounded list of redacted security incidents.",
-            "items": {"type": "object"},
-        }
-    if name in {"security_debug_bundle_read", "security_recommend_next_action"}:
+    if name == "security_debug_bundle_read":
         properties["debug_bundle"] = {
             "type": "object",
             "description": "Redacted debug bundle or summary.",
-        }
-    if name.startswith("security_action_"):
-        properties["action"] = {
-            "type": "object",
-            "description": "Redacted recommended action object.",
         }
     return {
         "name": name,
@@ -500,6 +563,7 @@ def _response(
         "raw_content_visible": False,
         "raw_identifiers_visible": False,
         "writes_performed": False,
+        "allowed_to_execute": False,
         "limit": _safe_limit(safe_args.get("limit")),
         "query_ref": stable_payload_hash(safe_args),
         "records": (),
@@ -523,6 +587,147 @@ def _security_response(*, name: str, status: str, reason: str, payload: Mapping[
         "allowed_to_execute": False,
         "payload": payload,
     }
+
+
+def _effectful_mcp_response(*, status: str, reason: str, next_action: str = "") -> dict[str, Any]:
+    """Return the fixed redacted contract for the high-risk disabled route."""
+
+    return {
+        "schema": DEBUG_SERVER_SCHEMA, "tool": "security_action_execute", "status": status,
+        "reason": reason, "read_only": False, "redacted_output": True, "bounded": True,
+        "raw_content_visible": False, "raw_identifiers_visible": False, "writes_performed": False,
+        "allowed_to_execute": False, "executed": False, "verified": False,
+        "next_action": next_action or "use_later_gated_executor_operator_authorization_slices",
+    }
+
+
+def _configured_store() -> Any | None:
+    """Return only a server-configured store with the required public API."""
+
+    store = _security_incident_store
+    required = ("get_incident", "audit_events")
+    return store if store is not None and all(callable(getattr(store, name, None)) for name in required) else None
+
+
+def _store_blocked(name: str, arguments: Mapping[str, Any]) -> dict[str, Any]:
+    return _response(
+        name=name, status="blocked", reason="incident_store_not_configured", arguments=arguments,
+        next_action="configure_server_incident_store",
+    )
+
+
+def _store_unavailable(name: str, arguments: Mapping[str, Any]) -> dict[str, Any]:
+    return _response(
+        name=name, status="blocked", reason="incident_store_unavailable", arguments=arguments,
+        next_action="retry_after_server_store_recovery",
+    )
+
+
+def _identifier_blocked(name: str, arguments: Mapping[str, Any]) -> dict[str, Any]:
+    # Never reflect an unknown caller id or a store exception.
+    return _response(
+        name=name, status="blocked", reason="persisted_authority_not_found", arguments=arguments,
+        next_action="use_a_valid_opaque_identifier",
+    )
+
+
+def _opaque_id(value: Any) -> str:
+    text = value.strip() if isinstance(value, str) else ""
+    return text if re.fullmatch(r"[a-z][a-z0-9_-]{2,127}", text) else ""
+
+
+def _strict_version(value: Any) -> int:
+    return value if type(value) is int and value >= 1 else 0
+
+
+def _audit_events(store: Any, action_id: str | None = None) -> tuple[Any, ...] | object:
+    try:
+        records = tuple(store.audit_events(action_id)) if action_id else tuple(store.audit_events())
+        return tuple(sorted(records, key=lambda event: int(event.sequence)))
+    except Exception:
+        return _STORE_UNAVAILABLE
+
+
+def _persisted_incident_summaries(store: Any, *, limit: int) -> tuple[dict[str, Any], ...] | object:
+    audit = _audit_events(store)
+    if audit is _STORE_UNAVAILABLE:
+        return _STORE_UNAVAILABLE
+    # Most-recent audit first, then deterministic de-duplication and output
+    # bounding.  We never truncate history before selecting authorities.
+    incident_ids = tuple(dict.fromkeys(str(event.incident_id) for event in reversed(audit)))[:limit]
+    summaries = []
+    for incident_id in incident_ids:
+        summary = _persisted_incident_summary(store, incident_id, audit=audit)
+        if summary is _STORE_UNAVAILABLE:
+            return _STORE_UNAVAILABLE
+        if summary is not None:
+            summaries.append(summary)
+    return tuple(summaries)
+
+
+def _persisted_incident_summary(store: Any, incident_id: str, *, audit: tuple[Any, ...] | None = None) -> dict[str, Any] | None | object:
+    audit = _audit_events(store) if audit is None else audit
+    if audit is _STORE_UNAVAILABLE:
+        return _STORE_UNAVAILABLE
+    try:
+        record = store.get_incident(incident_id)
+    except Exception as exc:
+        try:
+            from src.security_incident_store import IncidentNotFoundError
+            if isinstance(exc, IncidentNotFoundError):
+                return None
+        except Exception:
+            pass
+        return _STORE_UNAVAILABLE
+    actions = tuple(dict.fromkeys(
+        str(event.action_id) for event in audit
+        if str(getattr(event, "incident_id", "")) == record.incident_id and getattr(event, "action_id", None)
+    ))
+    action_limit = 100
+    return {
+        "incident_id": record.incident_id,
+        "version": int(record.version),
+        "action_count": min(len(actions), action_limit),
+        "action_count_truncated": len(actions) > action_limit,
+        "raw_content_visible": False,
+    }
+
+
+def _incident_audit_events(store: Any, incident_id: str, *, limit: int) -> tuple[dict[str, Any], ...] | object:
+    audit = _audit_events(store)
+    if audit is _STORE_UNAVAILABLE:
+        return _STORE_UNAVAILABLE
+    events = [event for event in audit if str(getattr(event, "incident_id", "")) == incident_id]
+    return tuple(
+        {
+            "sequence": int(event.sequence),
+            "event_type": _safe_token(getattr(event, "event_type", ""), fallback="audit"),
+            "has_action": bool(getattr(event, "action_id", None)),
+        }
+        for event in events[-limit:]
+    )
+
+
+def _incident_audit_event_count(store: Any, incident_id: str) -> int | object:
+    audit = _audit_events(store)
+    if audit is _STORE_UNAVAILABLE:
+        return _STORE_UNAVAILABLE
+    return sum(str(getattr(event, "incident_id", "")) == incident_id for event in audit)
+
+
+def _action_authority(store: Any, action_id: str, expected_version: int) -> bool | object:
+    # The action-filtered public API avoids discovery-window false negatives
+    # and still never invokes get_action(), which can durably expire a record.
+    events = _audit_events(store, action_id)
+    if events is _STORE_UNAVAILABLE:
+        return _STORE_UNAVAILABLE
+    if not events:
+        return False
+    latest = events[-1]
+    return (
+        str(getattr(latest, "event_type", "")) == "action_proposed"
+        and int(getattr(latest, "action_version", 0)) == expected_version
+    )
 
 
 def _select_incident(arguments: Mapping[str, Any]) -> Mapping[str, Any] | None:
@@ -608,6 +813,10 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
 
 async def run():
+    # Explicit startup configuration: never construct/migrate the store from a
+    # read-only MCP call.
+    if _configured_store() is None:
+        configure_default_security_incident_store()
     async with stdio_server() as (read_stream, write_stream):
         await server.run(read_stream, write_stream, server.create_initialization_options())
 

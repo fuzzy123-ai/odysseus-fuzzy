@@ -13,7 +13,7 @@ Odysseus soll Sicherheitsereignisse strukturiert behandeln:
 - redigierte Evidenz sammeln
 - Incident-Level bestimmen
 - Debug-Bundle vorbereiten
-- Operator knapp benachrichtigen
+- eine redigierte Operator-Notification als No-send vorbereiten
 - nur erlaubte Read-only-Diagnostik automatisch ausfuehren
 - jede Remediation als Gate behandeln
 
@@ -36,7 +36,8 @@ Odysseus soll Sicherheitsereignisse strukturiert behandeln:
 4. `security_policy_readiness` pruefen, falls Policy-Zustand unklar ist.
 5. `security_recommend_next_action` nutzen, um Policy und Operator-Notification vorzubereiten.
 6. Optional ein redigiertes Debug-Bundle vorbereiten.
-7. Operator informieren, aber keine Remediation ausfuehren.
+7. Eine redigierte Operator-Notification als No-send vorbereiten; keine
+   Zustellung und keine Remediation ausfuehren.
 8. Approve/Deny-Entscheidung abwarten, wenn eine Gate-Aktion vorgeschlagen wird.
 9. Nach Abschluss Incident auf Recovery oder Closed setzen.
 
@@ -47,7 +48,7 @@ Odysseus soll Sicherheitsereignisse strukturiert behandeln:
 - Incident-Kandidaten
 - Alert-Dedupe
 - lokale sensitive Analyse im DSGVO/Incident Mode
-- Operator-Notification mit redigierten Fakten
+- redigierte Operator-Notification als No-send-Entscheidung vorbereiten
 
 ## Gate-pflichtig
 
@@ -128,6 +129,36 @@ No-Go:
 - Host-Kommandos aus Odysseus-Core
 - nicht erklaerter Zugriff auf Live-Systeme
 
+## Activation packets and gate boundaries
+
+The template in
+`docs/plans/security-incident-response-activation-packet.md` is prepare-only
+material for a later, single operator decision. It grants no Go. Each request
+is single-use, action/policy-versioned, bound to an exact scope, and invalid
+at its recorded expiry. A preparation record, related gate, receipt or
+executor acknowledgement is not an authorization or effect proof.
+
+- Read-only observe needs the independent gates
+  `observability-live-smoke-go`, `debian-observability-live-go` and
+  `log-retention-policy-go`; it never authorizes delivery or mutation. Debian
+  readiness may reference only `ssh -F ops/homeserver/ssh_config odysseus-homeserver-probe` and its fixed redacted JSON projection.
+- One notification needs `OPS-ALERT-DELIVERY-GO`; a preview or delivery receipt
+  does not authorize CrowdSec, sessions or deployment.
+- CrowdSec needs all of `crowdsec-remediation-go`, `OPS-REMEDIATION-GO` and
+  `mcp-remediation-tools-go` as separate later decisions.
+- One non-operator test session needs
+  `security-incident-session-invalidation-go` and
+  `mcp-remediation-tools-go`. Credential, SSH and authentication-configuration
+  changes remain separately gated.
+- Temporal closure needs `security-incident-temporal-closure-go` after its own
+  canary outcomes. `deploy-live-go` remains independent for any deploy or
+  deploy rollback.
+
+Every future packet must state target class, exact bounded scope, timeout,
+single-use grant expiry, redacted evidence, rollback/recovery, independent
+readback, abort conditions, later operator decision and post-action status.
+Missing or ambiguous information is `blocked`; it must never be inferred.
+
 ## Recovery
 
 Recovery beginnt erst, wenn:
@@ -138,3 +169,27 @@ Recovery beginnt erst, wenn:
 - ein kurzer Post-Incident Summary ohne private Inhalte vorliegt
 
 Recovery darf keine Beweise loeschen. Cleanup ist ein separater, gated Schritt.
+
+## Transactional deploy stop gate
+
+`docs/plans/security-incident-response-transactional-deploy-packet.md` is a
+no-Go, `needs_live_observation` contract. Before an owner can bind any deploy
+values, one separately authorized source-redacted Podman Compose capability
+observation must establish the required service-scoped semantics. Repo-only
+tests cannot prove target-host `--no-deps --no-build`, no dependency
+recreate/pull, or rollback `--force-recreate` behavior. Do not infer a deploy
+executor, command, target, revision, image, lock, timeout, rollback, or health
+result from this runbook. SEC129 backup creation, restore, restic check, and
+delivery remain separate gates; `deploy-live-go` remains unsatisfied.
+
+The compatibility observation accepts only its complete fixed capability
+schema: all parser/proven flags true and raw stdout, stderr, exception,
+environment, source text, path, hostname, and secret visibility flags false.
+A constant validated Compose version is allowed; raw version output is not.
+
+If a future separately authorized transactional deploy reaches a runtime switch,
+any later failure, timeout, or ambiguity requires exactly one bounded rollback
+to the captured old image without data restore and independent old-revision
+verification. A verified rollback is `rolled_back`; a rollback failure,
+timeout, or ambiguity is `unknown` with no retry. Failure before switch leaves
+the old runtime in place and performs no rollback.

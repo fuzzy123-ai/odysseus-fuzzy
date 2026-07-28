@@ -105,6 +105,11 @@ class AuthManager:
         # Guards mutations of self._sessions and the on-disk sessions.json.
         # Validate/create/revoke run concurrently from the FastAPI threadpool.
         self._sessions_lock = threading.RLock()
+        # Monotonic in-process authority revision for ephemeral privileged
+        # action grants.  No grant survives an admin-role or active-TOTP
+        # security change, and this counter itself contains no credential data.
+        self._security_action_revision = 0
+        self._security_action_revision_lock = threading.Lock()
         # Guards all mutations of self._config and the on-disk auth.json so
         # concurrent create/delete/rename/privilege operations don't interleave
         # and corrupt the user database.
@@ -374,6 +379,14 @@ class AuthManager:
     def is_admin(self, username: str) -> bool:
         return self.users.get(username, {}).get("is_admin", False)
 
+    def security_action_revision(self) -> int:
+        with self._security_action_revision_lock:
+            return self._security_action_revision
+
+    def _bump_security_action_revision(self) -> None:
+        with self._security_action_revision_lock:
+            self._security_action_revision += 1
+
     def list_users(self) -> List[Dict[str, Any]]:
         return [
             {"username": u, "is_admin": d.get("is_admin", False), "privileges": self.get_privileges(u)}
@@ -441,6 +454,8 @@ class AuthManager:
                 admin_count = sum(1 for d in self.users.values() if d.get("is_admin"))
                 if admin_count <= 1:
                     return SetAdminResult.LAST_ADMIN
+            # Invalidate grants before exposing either side of the role change.
+            self._bump_security_action_revision()
             # Write order matters for lock-free readers: get_privileges()
             # reads without _config_lock and trusts is_admin, so the admin
             # flag must be flipped while the stored map is safe to expose —
@@ -477,6 +492,7 @@ class AuthManager:
         if not _verify_password(current_password, self.users[username]["password_hash"]):
             return False
         with self._config_lock:
+            self._bump_security_action_revision()
             self._config["users"][username]["password_hash"] = _hash_password(new_password)
             self._save()
         return True
@@ -526,6 +542,7 @@ class AuthManager:
             self._config["users"][username]["totp_backup_codes"] = backup
             self._save()
         logger.info(f"2FA enabled for '{username}'")
+        self._bump_security_action_revision()
         return True
 
     def totp_verify(self, username: str, code: str) -> bool:
@@ -552,6 +569,27 @@ class AuthManager:
         totp = pyotp.TOTP(secret)
         return totp.verify(code, valid_window=1)
 
+    def totp_verify_live(self, username: str, code: str) -> bool:
+        """Verify only a current authenticator-app code for privileged step-up.
+
+        Login intentionally continues to accept single-use backup codes.  They
+        are recovery credentials, not a substitute for the live second factor
+        required by security-incident operator actions.
+        """
+        username = username.strip().lower()
+        user = self.users.get(username, {})
+        if not user.get("totp_enabled"):
+            return False
+        secret = user.get("totp_secret")
+        if not isinstance(secret, str) or not secret:
+            return False
+        if not isinstance(code, str) or not code.strip():
+            return False
+        try:
+            return bool(pyotp.TOTP(secret).verify(code.strip(), valid_window=0))
+        except (TypeError, ValueError):
+            return False
+
     def totp_disable(self, username: str, password: str) -> bool:
         """Disable 2FA for a user. Requires password confirmation."""
         username = username.strip().lower()
@@ -564,6 +602,7 @@ class AuthManager:
             self._config["users"][username]["totp_enabled"] = False
             self._save()
         logger.info(f"2FA disabled for '{username}'")
+        self._bump_security_action_revision()
         return True
 
     # ------------------------------------------------------------------

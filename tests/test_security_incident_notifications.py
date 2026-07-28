@@ -6,8 +6,19 @@ from src.security_incident_model import build_recommended_action, build_security
 from src.security_incident_notifications import (
     SecurityIncidentNotificationError,
     build_incident_notification_payload,
+    canonical_operator_notification_body_ref,
+    canonical_operator_notification_smoke_body,
+    canonical_operator_notification_target_class_ref,
     format_incident_notification_for_telegram,
 )
+
+
+def test_canonical_operator_smoke_body_and_opaque_refs_are_fixed_and_redacted():
+    body = canonical_operator_notification_smoke_body()
+    assert body == canonical_operator_notification_smoke_body()
+    assert canonical_operator_notification_body_ref().startswith("body:sha256:")
+    assert canonical_operator_notification_target_class_ref().startswith("target_class:sha256:")
+    assert "token" not in body.lower() and "chat_id" not in body.lower()
 from src.security_response_policy import decide_incident_response
 
 

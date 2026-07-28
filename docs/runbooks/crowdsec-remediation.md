@@ -98,6 +98,29 @@ Operator-Kommandos duerfen nur Action-IDs referenzieren:
 
 Kommandos duerfen keine Tokens, Chat-IDs, IPs oder privaten Pfade enthalten.
 
+## Single-action packet before a later decision
+
+`crowdsec-remediation-go`, `OPS-REMEDIATION-GO` and
+`mcp-remediation-tools-go` are three independent gates. This runbook does not
+satisfy any of them. A later Go must decide all applicable gates for exactly
+one action/policy version and opaque scope. No prepared plan, other gate or
+receipt is reusable, or a permission for sessions, delivery, deployment or
+other remediation.
+
+The packet in
+`docs/plans/security-incident-response-activation-packet.md` must include one
+target class (`crowdsec_temp_block` or `crowdsec_unblock`), one action ID,
+opaque scope reference, exact TTL/unban or expiry route, action/readback
+timeout, single-use grant expiry, redacted preflight evidence, false-positive
+and lockout assessment, rollback/recovery owner, independent redacted effect
+and unban/expiry readback, stop conditions, later explicit operator decision
+and a final status. It aborts on broad or unlimited scope, missing TTL,
+lockout risk, uncertain evidence, missing readback, timeout, replay, scope
+drift or operator withdrawal.
+
+Only references and redacted facts may reach the handoff card. An executor
+acknowledgement never replaces independent readback.
+
 ## Recovery
 
 Nach einer genehmigten CrowdSec-Aktion muss ein Recovery-Plan vorbereitet werden:

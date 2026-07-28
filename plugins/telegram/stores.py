@@ -190,6 +190,10 @@ def build_telegram_draft_id(*, chat_id: str, source_message_id: Any = "") -> int
 
 def _sanitize_persisted_message(message: dict[str, Any]) -> dict[str, Any]:
     stored = dict(message)
+    # Parsed security-incident controls are ephemeral.  Do not retain their
+    # action identifier or source command in local Telegram history.
+    if stored.pop("security_incident_command", None) is not None:
+        stored["text"] = "[security incident command]"
     raw_chat_id = str(stored.pop("chat_id", "") or "")
     if raw_chat_id:
         stored["chat_handle"] = _chat_handle(raw_chat_id)

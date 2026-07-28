@@ -3,12 +3,14 @@ import json
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+import routes.ops_console_routes as ops_console_routes
 from routes.ops_console_routes import setup_ops_console_routes
 from src.ops_console_snapshot import OPS_CONSOLE_SNAPSHOT_SCHEMA, build_ops_console_snapshot
 from src.ops_timeline_adapters import build_ops_timeline_from_sources
 from src.security_incident_model import build_recommended_action, build_security_incident
 from src.security_remediation_actions import prepare_remediation_plan
 from src.security_response_policy import decide_incident_response
+from src.security_incident_store import SecurityIncidentStore
 
 
 class _AuthManager:
@@ -21,9 +23,11 @@ class _AuthManager:
         return user in self._admins
 
 
-def _app(*, user="admin", admins=("admin",), snapshot_builder=None):
+def _app(*, user="admin", admins=("admin",), snapshot_builder=None, store=None):
     app = FastAPI()
     app.state.auth_manager = _AuthManager(admins=admins)
+    if store is not None:
+        app.state.security_incident_store = store
 
     @app.middleware("http")
     async def _stamp_user(request, call_next):
@@ -31,8 +35,19 @@ def _app(*, user="admin", admins=("admin",), snapshot_builder=None):
             request.state.current_user = user
         return await call_next(request)
 
-    app.include_router(setup_ops_console_routes(snapshot_builder=snapshot_builder))
+    app.include_router(setup_ops_console_routes(snapshot_builder=snapshot_builder, incident_store=store if store is not None else object()))
     return app
+
+
+def _store(tmp_path, *, clock=lambda: 100.0):
+    store = SecurityIncidentStore(tmp_path / "ops.sqlite", clock=clock)
+    store.create_incident(incident_id="inc-ops", incident_ref="evidence:sha256:" + "a" * 64, audit_ref="audit:sha256:" + "b" * 64)
+    store.create_action(
+        action_id="act-ops", incident_id="inc-ops", action_type="service_restart",
+        scope_fingerprint="scope:sha256:" + "c" * 64, policy_revision="policy:sha256:" + "d" * 64,
+        idempotency_key="idem-ops", ttl_seconds=10, audit_ref="audit:sha256:" + "e" * 64,
+    )
+    return store
 
 
 def _security_sources():
@@ -160,3 +175,64 @@ def test_ops_console_route_accepts_injected_redacted_snapshot_builder():
     assert payload["timeline"]["timeline_id"] == "ops-injected"
     assert "private.log" not in encoded
     assert "evidence:sha256:" in encoded
+
+
+def test_ops_snapshot_and_registered_route_summarize_persisted_store_without_private_refs(tmp_path):
+    store = _store(tmp_path)
+    snapshot = build_ops_console_snapshot(store=store)
+    response = TestClient(_app(store=store)).get("/api/ops-console/snapshot")
+    encoded = json.dumps({"snapshot": snapshot, "route": response.json()}, sort_keys=True)
+
+    assert snapshot["source_states"]["persisted_security"] == "available"
+    assert snapshot["counts"]["persisted_security_events"] == 1
+    assert response.status_code == 200
+    assert "incident_ref" not in encoded
+    assert "scope:sha256:" not in encoded
+    assert "idempotency" not in encoded
+
+
+def test_ops_snapshot_marks_broken_store_unavailable_and_zero_arg_route_uses_provider(tmp_path, monkeypatch):
+    class _BrokenStore:
+        def audit_events(self):
+            raise RuntimeError("private store failure")
+
+        def get_incident(self, _incident_id):
+            raise RuntimeError("private store failure")
+
+    class _InvalidStore:
+        def audit_events(self):
+            return (object(),)
+
+        def get_incident(self, _incident_id):
+            return object()
+
+    class _PartialStore:
+        def audit_events(self):
+            from types import SimpleNamespace
+            return (SimpleNamespace(sequence=1, incident_id="inc-partial", action_id=None, event_type="incident_created"),)
+
+        def get_incident(self, _incident_id):
+            raise RuntimeError("hidden read failure")
+
+    unavailable = build_ops_console_snapshot(store=_BrokenStore())
+    invalid = build_ops_console_snapshot(store=_InvalidStore())
+    partial = build_ops_console_snapshot(store=_PartialStore())
+    store = _store(tmp_path)
+    monkeypatch.setattr(ops_console_routes, "create_default_security_incident_store", lambda: store)
+    app = FastAPI()
+    app.state.auth_manager = _AuthManager(admins=("admin",))
+
+    @app.middleware("http")
+    async def _stamp_user(request, call_next):
+        request.state.current_user = "admin"
+        return await call_next(request)
+
+    app.include_router(ops_console_routes.setup_ops_console_routes())
+    response = TestClient(app).get("/api/ops-console/snapshot")
+    encoded = json.dumps({"unavailable": unavailable, "route": response.json()}, sort_keys=True)
+
+    assert unavailable["source_states"]["persisted_security"] == "unavailable"
+    assert invalid["source_states"]["persisted_security"] == "unavailable"
+    assert partial["source_states"]["persisted_security"] == "unavailable"
+    assert response.json()["source_states"]["persisted_security"] == "available"
+    assert "private store failure" not in encoded

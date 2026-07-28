@@ -53,6 +53,7 @@
       "docs/plans/planning-definition-editor-roadmap.json",
       "docs/plans/project-versioning-forge-provider-roadmap.md",
       "docs/plans/product-planning-skills-integration-roadmap.md",
+      "docs/plans/security-incident-response-production-completion-roadmap.json",
       "docs/plans/temporal-light-agent-execution-roadmap.json",
       "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "docs/plans/tool-taxonomy-registration-roadmap.md",
@@ -77,7 +78,8 @@
       "GMI and GRO are runtime execution and observability tracks only. USI owns index identity, CBM is a rebuildable codegraph provider, Git/Project Versioning owns history, and Lens Code is a UI consumer; no one track may absorb the others.",
       "The normalized USI/CBM/Lineage/Lens roadmaps are planned follow-ups and do not replace the current TAX/TUA queue. On a future goal, only each roadmap's first declared slice becomes claimable. Productive CBM, Lineage and Lens activation remains independently gated; the UIR/UDA/ULO child closures share the parent USI gate.",
       "USI core is not activation-complete without its three child closures: UIR owns composition and consumers, UDA owns policy-aware domain adapters and best-effort change signals, and ULO owns index participation in existing owner/data lifecycle operations. None may absorb domain truth, existing operations, TAX/TUA, GRO/GMI, CBM/Lineage or Lens ownership.",
-      "Clarification is a planning precondition for the Harbor One autonomous workspace; missing product decisions must be asked, not inferred."
+      "Clarification is a planning precondition for the Harbor One autonomous workspace; missing product decisions must be asked, not inferred.",
+      "The operator reprioritized OWM-7 to the SIRP production-completion track on 2026-07-27. Only the dependency-ready SIRP slice may be claimed; diagnosis/preparation and every delivery, effectful tool, CrowdSec/session mutation, deploy, temporal canary and optional lockdown boundary remain distinct."
     ]
   },
   "profiles": {
@@ -196,12 +198,6 @@
       "ai_hint": "All declared extension tracks are complete. Use this master only for capability provenance and route production gaps to the current readiness roadmap."
     },
     {
-      "path": "docs/plans/agent-maintenance-safety-harness-roadmap.json",
-      "profile": "active_serial",
-      "state": "roadmap_registered_goal_not_started",
-      "ai_hint": "Do not start implementation without an explicit OWM-23 goal or Open Work reprioritization. Then claim only dependency-ready AMH slices on disjoint handed-off paths; keep Planning JSON, claims, gate_queue and clarification as canonical authorities, redact diagnostics before consumption, require current machine receipts, and perform no automatic commit, push, deploy or live action."
-    },
-    {
       "path": "docs/plans/agent-browser-sense-roadmap.json",
       "profile": "historical_done",
       "state": "done",
@@ -254,6 +250,12 @@
       "profile": "historical_done",
       "state": "done",
       "ai_hint": "Website research implementation is closed. Open a focused defect slice only when current tests or runtime evidence show a regression."
+    },
+    {
+      "path": "docs/plans/agent-maintenance-safety-harness-roadmap.json",
+      "profile": "active_serial",
+      "state": "roadmap_registered_goal_not_started",
+      "ai_hint": "Do not start implementation without an explicit OWM-23 goal or Open Work reprioritization. Then claim only dependency-ready AMH slices on disjoint handed-off paths; keep Planning JSON, claims, gate_queue and clarification as canonical authorities, redact diagnostics before consumption, require current machine receipts, and perform no automatic commit, push, deploy or live action."
     },
     {
       "path": "docs/plans/agent-profile-foundation-roadmap.md",
@@ -334,10 +336,22 @@
       "ai_hint": "Use this to choose and sequence domain work, never as a worker slice. Enforce at most three disjoint implementation lanes and serialize every shared file."
     },
     {
+      "path": "docs/plans/code-lineage-timeline-roadmap.md",
+      "profile": "active_parallel",
+      "state": "planned_after_usi_identity_real_history_default_off",
+      "ai_hint": "On a future goal claim CLT-00 only. Use synthetic Git repositories until the final gate, preserve Repo Registry/Git Adapter/Project Version Store as history truth, label time first-observable, and represent rename/copy/split/merge uncertainty with methods and confidence. Parallelize only disjoint contract/fixture work and stop before real history backfill or identity export."
+    },
+    {
       "path": "docs/plans/codebase-architecture-cleanup-roadmap.md",
       "profile": "gate_only",
       "state": "repo_complete_broad_moves_gated",
       "ai_hint": "Do not resume broad moves or alias removal from this roadmap. Require a measured boundary problem and a new scoped migration gate."
+    },
+    {
+      "path": "docs/plans/codebase-memory-integration-roadmap.md",
+      "profile": "active_serial",
+      "state": "preferred_engine_planned_after_usi_identity_live_default_off",
+      "ai_hint": "On a future explicit goal claim CBM-00 only. Treat CBM as a pinned rebuildable codegraph provider, never as repo/source/version/lineage/tool/planning truth. CBM-01 may prepare a disjoint benchmark harness, but persistent mapping waits for USI identity; serialize process, projection and query files, keep installer/hooks/auto-config/network/direct upstream tools disabled, and stop before CBM-LIVE-ACTIVATION."
     },
     {
       "path": "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
@@ -424,22 +438,16 @@
       "ai_hint": "The backend path is complete. Use Gemma3 plans for current local-model work; any legacy Gemma4 live smoke requires a separate bounded decision."
     },
     {
-      "path": "docs/plans/graphrag-raptor-observability-prometheus-grafana-roadmap.md",
-      "profile": "active_parallel",
-      "state": "ready_for_goal_start_live_default_off",
-      "ai_hint": "On goal start claim only GRO-00 and advance dependency-satisfied slices. Correct metric semantics before dashboards, use disjoint writers for registry, plugin performance and offline ops assets, and serialize observability_metrics.py, plugin routes, query_layer.py, raptor_cache.py and all Prometheus/Grafana assets. Keep scrape and services disabled until the single GRO-LIVE-ACTIVATION gate."
-    },
-    {
       "path": "docs/plans/github-issue-intelligence-roadmap.md",
       "profile": "gate_only",
       "state": "repo_slices_complete_provider_sync_and_write_gated",
       "ai_hint": "Do not invent issue backend slices. Choose read-only provider sync or one confirmation-gated write, with token handling and duplicate evidence, after operator Go."
     },
     {
-      "path": "docs/plans/headless-write-agent-orchestration-roadmap.md",
-      "profile": "active_serial",
-      "state": "hwa0_hwa1_complete_durable_state_next_live_actions_gated",
-      "ai_hint": "HWA0-HWA1 are complete. Claim the durable owner-scoped state, worktree-evidence and lease-fencing slice next with one scoped writer. Preserve commit_project as the only commit authority; provider delivery, merge and deploy are separate stages. Stop before real runner, scheduler, commit bridge, provider, merge or deploy actions without prerequisites and the exact named gate."
+      "path": "docs/plans/graphrag-raptor-observability-prometheus-grafana-roadmap.md",
+      "profile": "active_parallel",
+      "state": "ready_for_goal_start_live_default_off",
+      "ai_hint": "On goal start claim only GRO-00 and advance dependency-satisfied slices. Correct metric semantics before dashboards, use disjoint writers for registry, plugin performance and offline ops assets, and serialize observability_metrics.py, plugin routes, query_layer.py, raptor_cache.py and all Prometheus/Grafana assets. Keep scrape and services disabled until the single GRO-LIVE-ACTIVATION gate."
     },
     {
       "path": "docs/plans/harbor-planning-integration-master-roadmap.json",
@@ -448,22 +456,28 @@
       "ai_hint": "Planning contracts are ready. UI placement and external planning mutations must be selected through their design or write gate, one target at a time."
     },
     {
+      "path": "docs/plans/headless-write-agent-orchestration-roadmap.md",
+      "profile": "active_serial",
+      "state": "hwa0_hwa1_complete_durable_state_next_live_actions_gated",
+      "ai_hint": "HWA0-HWA1 are complete. Claim the durable owner-scoped state, worktree-evidence and lease-fencing slice next with one scoped writer. Preserve commit_project as the only commit authority; provider delivery, merge and deploy are separate stages. Stop before real runner, scheduler, commit bridge, provider, merge or deploy actions without prerequisites and the exact named gate."
+    },
+    {
       "path": "docs/plans/homeserver-backup-roadmap.md",
       "profile": "gate_only",
       "state": "backup_gate_go_deploy_separate",
       "ai_hint": "Use existing backup evidence. Deployment, restore, retention changes, or a new target remain individual operator-approved host actions."
     },
     {
-      "path": "docs/plans/internal-knowledge-reference-roadmap.md",
-      "profile": "gate_only",
-      "state": "backend_complete_ui_deferred",
-      "ai_hint": "Do not extend the backend without a current gap. UI reference presentation waits for the active design lane."
-    },
-    {
       "path": "docs/plans/interactive-game-artifact-closure-roadmap.md",
       "profile": "gate_only",
       "state": "production_complete_upstream_publication_hygiene_gated",
       "ai_hint": "Repository and bounded production validation are complete. Do not reopen artifact runtime work; any upstream push, persistent canary, cleanup endpoint, or publication action needs its own reviewed scope and operator gate."
+    },
+    {
+      "path": "docs/plans/internal-knowledge-reference-roadmap.md",
+      "profile": "gate_only",
+      "state": "backend_complete_ui_deferred",
+      "ai_hint": "Do not extend the backend without a current gap. UI reference presentation waits for the active design lane."
     },
     {
       "path": "docs/plans/large-file-refactoring-tool-implementations-map.md",
@@ -482,6 +496,12 @@
       "profile": "gate_only",
       "state": "backend_contracts_ready_ui_live_gated",
       "ai_hint": "Use this only to form legacy-chat decision packets. Do not dispatch new backend work from completed contract slices."
+    },
+    {
+      "path": "docs/plans/lens-code-graph-roadmap.md",
+      "profile": "active_serial",
+      "state": "planned_after_bounded_cbm_graph_api_ui_default_off",
+      "ai_hint": "On a future goal claim LCG-00 only. Backend fixture/API work may advance after dependencies, but one UI owner must serialize the selected Knowledge/Lens surface. Preserve the visually strong full-project Code Planet through progressive LOD, keep Code Graph/Timeline/Semantic/Trace truth labels separate, verify responsive/a11y/Playwright/canvas nonblank states, and stop before LCG-UI-LIVE."
     },
     {
       "path": "docs/plans/maintenance-ai-knowledge-master-roadmap.json",
@@ -526,16 +546,16 @@
       "ai_hint": "Use as human prioritization history, but trust mvp-roadmap-runner-state.json for completion. Do not reopen points 1-10 from this older active label."
     },
     {
-      "path": "docs/plans/mvp-roadmap-runner.md",
-      "profile": "canonical_router",
-      "state": "runner_contract_queue_exhausted",
-      "ai_hint": "Follow the runner protocol, but do not create a slice when the state has no active roadmap or active slice. Route next work through open-work decisions."
-    },
-    {
       "path": "docs/plans/mvp-roadmap-runner-state.json",
       "profile": "canonical_router",
       "state": "all_ten_roadmaps_complete_no_active_slice_ui_live_false",
       "ai_hint": "This is machine-readable MVP completion state. Only the orchestrator may update it from verified evidence; workers must never manufacture progress."
+    },
+    {
+      "path": "docs/plans/mvp-roadmap-runner.md",
+      "profile": "canonical_router",
+      "state": "runner_contract_queue_exhausted",
+      "ai_hint": "Follow the runner protocol, but do not create a slice when the state has no active roadmap or active slice. Route next work through open-work decisions."
     },
     {
       "path": "docs/plans/nextcloud-import-preparation-roadmap.md",
@@ -574,16 +594,16 @@
       "ai_hint": "Treat NOTIFY0-NOTIFY4 as completed evidence. A standalone external MCP server remains deferred and needs a fresh policy-reviewed roadmap."
     },
     {
-      "path": "docs/plans/open-work-completion-master-roadmap.json",
-      "profile": "canonical_router",
-      "state": "owm22_ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
-      "ai_hint": "This is the current gate authority. TTD-07A4 is accepted at c48f47c8 after an exact five-node check and deep Sol PASS. The TTD-07A5 implementation claim was released gated after two rejected incomplete attempts. Do not resume the partial diff or start a third routine implementation attempt. Re-enter through a read-only architecture handoff that freezes stable transport intake identity, per-operation DB lifetime, atomic lease/intake fencing, poll offset hold and explicit Telegram owner cutover. TTD-07A6 remains blocked."
-    },
-    {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
       "profile": "canonical_router",
       "state": "current_priority_decision_record_with_p0_normalization_required",
       "ai_hint": "Use this as the dated operator priority decision, not as permission to mutate the dirty primary checkout. Its P0 requires a clean-worktree reconciliation of UIX, stale PMCP9 and the Open-Work DAG before implementation. OWM-22 was separately reprioritized by the operator on 2026-07-21; the current Open-Work and central master authorities define its next-safe-frontier position."
+    },
+    {
+      "path": "docs/plans/open-work-completion-master-roadmap.json",
+      "profile": "canonical_router",
+      "state": "sirp03_deep_reviewed_accepted_sirp04_dependency_ready",
+      "ai_hint": "This remains the current gate authority. SIRP-03 is accepted after three bounded fix returns, fresh focused, primary adjacent and extended consumer tests, and four-round deep Sol review. Claim only dependency-ready SIRP-04 after a fresh collision check. Effectful MCP wiring, delivery, executors and every live action remain disabled."
     },
     {
       "path": "docs/plans/operator-dashboard-review-queue-roadmap.md",
@@ -634,10 +654,22 @@
       "ai_hint": "The repo-only context foundation is complete. New context-budget work needs current measurements and a new performance slice."
     },
     {
+      "path": "docs/plans/privacy-safe-tool-analytics-roadmap.md",
+      "profile": "active_parallel",
+      "state": "approved_repo_queue_live_capture_default_off",
+      "ai_hint": "Load TAX Descriptor v2 identity before implementation. TUA0-TUA2 may run on disjoint new files after TAX1; TUA3 must wait for TAX5 before sharing tool_execution.py and TUA9 must wait for TAX7 before sharing admin.js. Use only allowlisted content-free events, persist nothing in incognito, keep real backfill/capture disabled, and request no user gate until the single fully verified live activation packet exists."
+    },
+    {
       "path": "docs/plans/product-planning-skills-integration-roadmap.md",
       "profile": "active_serial",
       "state": "planned_waiting_for_operator_activation",
       "ai_hint": "This is an execution-ready follow-up created from the Kimchi skill review. Do not dispatch implementation until the operator says GO PPS repo-only implementation. After Go, PPS-1 and PPS-2 may run on their disjoint paths; Charlie alone integrates runtime contracts and roadmap state."
+    },
+    {
+      "path": "docs/plans/project-versioning-forge-provider-roadmap.md",
+      "profile": "gate_only",
+      "state": "offline_backend_complete_partial_ui_and_live_provider_gated",
+      "ai_hint": "PVF1-PVF8 and PVF13 are complete with one public commit_project workflow and 289 green tests. Do not reopen backend cleanup; start only the explicit UI-design gate or one bounded Nextcloud/GitHub live provider gate with exact operator scope."
     },
     {
       "path": "docs/plans/rag-memory-tokenization-roadmap.md",
@@ -676,18 +708,6 @@
       "ai_hint": "Reconcile every P0-P9 item with newer domain roadmaps and open-work status before selecting anything. Do not execute its old order directly."
     },
     {
-      "path": "docs/plans/privacy-safe-tool-analytics-roadmap.md",
-      "profile": "active_parallel",
-      "state": "approved_repo_queue_live_capture_default_off",
-      "ai_hint": "Load TAX Descriptor v2 identity before implementation. TUA0-TUA2 may run on disjoint new files after TAX1; TUA3 must wait for TAX5 before sharing tool_execution.py and TUA9 must wait for TAX7 before sharing admin.js. Use only allowlisted content-free events, persist nothing in incognito, keep real backfill/capture disabled, and request no user gate until the single fully verified live activation packet exists."
-    },
-    {
-      "path": "docs/plans/project-versioning-forge-provider-roadmap.md",
-      "profile": "gate_only",
-      "state": "offline_backend_complete_partial_ui_and_live_provider_gated",
-      "ai_hint": "PVF1-PVF8 and PVF13 are complete with one public commit_project workflow and 289 green tests. Do not reopen backend cleanup; start only the explicit UI-design gate or one bounded Nextcloud/GitHub live provider gate with exact operator scope."
-    },
-    {
       "path": "docs/plans/repo-control-roadmap.md",
       "profile": "historical_done",
       "state": "backend_track_complete",
@@ -697,7 +717,13 @@
       "path": "docs/plans/security-incident-response-escalation-roadmap.json",
       "profile": "gate_only",
       "state": "repo_slices_done_live_gated",
-      "ai_hint": "Run only one tabletop, probe, or remediation packet at a time. Firewall, CrowdSec, restart, rotation, and rollback actions require explicit host-level Go."
+      "ai_hint": "Treat this as historical prepare-only and synthetic-tabletop evidence. New production-completion work routes through SIRP; firewall, CrowdSec, restart, rotation, rollback and all other live actions retain their exact separate gates."
+    },
+    {
+      "path": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "profile": "gate_only",
+      "state": "ops_alert_D0A_fixed_wrapper_deep_accepted_waiting_path_scoped_publish",
+      "ai_hint": "ABC-SEC124 D0A implemented the fixed source-redacted predeploy wrapper with adversarial offline tests and deep Sol review. Do not invoke SSH or grant observation authority until the reviewed D0/D0A artifact is separately committed and pushed path-scoped. The later exact observation Go phrase is GO ABC-SEC123 D0 PREDEPLOY READ-ONLY OBSERVATION ONCE <=30S EXPIRES RUN_END. deploy-live-go and OPS-ALERT-DELIVERY-GO remain independent/not_go."
     },
     {
       "path": "docs/plans/server-project-runner-roadmap.md",
@@ -724,12 +750,6 @@
       "ai_hint": "Do not create generic optimization slices. Choose a measured live, design, or compatibility decision from current evidence."
     },
     {
-      "path": "docs/plans/temporal-light-agent-execution-roadmap.json",
-      "profile": "active_serial",
-      "state": "active_serial_contract_frozen",
-      "ai_hint": "After the shared-router handoff and PDE-04 completion, claim TLR-01 only. Serialize runtime hotfiles and require deterministic replay, authority and projection contracts before Agent UI, real Activities, service start, soak or external effects."
-    },
-    {
       "path": "docs/plans/telegram-agent-chat-roadmap.md",
       "profile": "gate_only",
       "state": "backend_complete_live_smoke_gated",
@@ -740,12 +760,6 @@
       "profile": "gate_only",
       "state": "repo_side_done_live_screenshot_and_sequence_smoke_gated",
       "ai_hint": "TTR0-TTR7 are complete. Only the bounded Telegram truth-state or screenshot delivery smoke remains; never claim sent from preview evidence."
-    },
-    {
-      "path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
-      "profile": "active_serial",
-      "state": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
-      "ai_hint": "TTD-04 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A4 are accepted. TTD-07A5 is gated after two rejected incomplete attempts; no active implementation claim remains. A fresh read-only architecture handoff and later durable reclaim must precede more writes. Preserve TTD-07A6, continuity, provider, productive enablement and live paths."
     },
     {
       "path": "docs/plans/telegram-dual-session-router-hotfix-roadmap.md",
@@ -778,6 +792,12 @@
       "ai_hint": "Backend and Telegram intake are closed. UI design must proceed through Harbor One clarification and design gates."
     },
     {
+      "path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "profile": "active_serial",
+      "state": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
+      "ai_hint": "TTD-04 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A4 are accepted. TTD-07A5 is gated after two rejected incomplete attempts; no active implementation claim remains. A fresh read-only architecture handoff and later durable reclaim must precede more writes. Preserve TTD-07A6, continuity, provider, productive enablement and live paths."
+    },
+    {
       "path": "docs/plans/telegram-voice-processing-roadmap.md",
       "profile": "gate_only",
       "state": "backend_complete_live_smoke_gated",
@@ -790,6 +810,12 @@
       "ai_hint": "The combined research-memory track is complete. New web or memory behavior belongs to its current domain roadmap."
     },
     {
+      "path": "docs/plans/temporal-light-agent-execution-roadmap.json",
+      "profile": "active_serial",
+      "state": "active_serial_contract_frozen",
+      "ai_hint": "After the shared-router handoff and PDE-04 completion, claim TLR-01 only. Serialize runtime hotfiles and require deterministic replay, authority and projection contracts before Agent UI, real Activities, service start, soak or external effects."
+    },
+    {
       "path": "docs/plans/tool-capability-maintenance-phase2-roadmap.json",
       "profile": "historical_done",
       "state": "done",
@@ -800,48 +826,6 @@
       "profile": "active_serial",
       "state": "approved_repo_queue_live_projection_default_off",
       "ai_hint": "Start with TAX0 then TAX1. Keep tool_catalog.py, tool_execution.py, model_routes.py and admin.js single-writer hotfiles; read-only scouts may inventory in parallel. Preserve all runtime confirmations and admin/effect policies, keep email/calendar/contacts plus assistant/presets deferred/default-hidden, secure tail_serve_output before reachability, and request no user gate until the single fully verified live activation packet exists."
-    },
-    {
-      "path": "docs/plans/codebase-memory-integration-roadmap.md",
-      "profile": "active_serial",
-      "state": "preferred_engine_planned_after_usi_identity_live_default_off",
-      "ai_hint": "On a future explicit goal claim CBM-00 only. Treat CBM as a pinned rebuildable codegraph provider, never as repo/source/version/lineage/tool/planning truth. CBM-01 may prepare a disjoint benchmark harness, but persistent mapping waits for USI identity; serialize process, projection and query files, keep installer/hooks/auto-config/network/direct upstream tools disabled, and stop before CBM-LIVE-ACTIVATION."
-    },
-    {
-      "path": "docs/plans/code-lineage-timeline-roadmap.md",
-      "profile": "active_parallel",
-      "state": "planned_after_usi_identity_real_history_default_off",
-      "ai_hint": "On a future goal claim CLT-00 only. Use synthetic Git repositories until the final gate, preserve Repo Registry/Git Adapter/Project Version Store as history truth, label time first-observable, and represent rename/copy/split/merge uncertainty with methods and confidence. Parallelize only disjoint contract/fixture work and stop before real history backfill or identity export."
-    },
-    {
-      "path": "docs/plans/lens-code-graph-roadmap.md",
-      "profile": "active_serial",
-      "state": "planned_after_bounded_cbm_graph_api_ui_default_off",
-      "ai_hint": "On a future goal claim LCG-00 only. Backend fixture/API work may advance after dependencies, but one UI owner must serialize the selected Knowledge/Lens surface. Preserve the visually strong full-project Code Planet through progressive LOD, keep Code Graph/Timeline/Semantic/Trace truth labels separate, verify responsive/a11y/Playwright/canvas nonblank states, and stop before LCG-UI-LIVE."
-    },
-    {
-      "path": "docs/plans/unified-source-index-implementation-roadmap.md",
-      "profile": "active_serial",
-      "state": "planned_after_current_queue_productive_sources_default_off",
-      "ai_hint": "On a future explicit goal claim USI-00 only and keep successors blocked_by_dependency. Implement the existing Source/Chunk/Graph/Job Store boundaries rather than inventing parallel stores; preserve domain truth, TAX/TUA tool/telemetry ownership, GMI/GRO runtime ownership and Project Versioning history. USI-15 waits for UIR-14, ULO-14 and UDA-18 for every selected source scope. Serialize schema/query integration and stop before productive source scans, legacy cutover or USI-LIVE-ACTIVATION."
-    },
-    {
-      "path": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
-      "profile": "active_serial",
-      "state": "planned_after_usi_core_runtime_and_consumers_default_off",
-      "ai_hint": "On a future parent goal claim UIR-00 only after the USI contract barrier. Serialize app.py, app_initializer.py, Personal Docs/RAG, Chat, Agent and runtime-route hotfiles. Compose one dependency-injected runtime and JobStore worker, use shadow results only for comparison, preserve exact/legacy fallback, create no second scheduler/tool/prompt path, and contribute UIR-14 to USI-LIVE-ACTIVATION rather than opening a new gate."
-    },
-    {
-      "path": "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md",
-      "profile": "active_parallel",
-      "state": "planned_source_waves_private_domains_deferred",
-      "ai_hint": "On a future parent goal claim UDA-00 only; after UDA-01, parallelize at most three disjoint new adapter files. Preserve each domain's truth, write, provider, review and exact-reader boundaries; change signals are content-free/best-effort and cannot fail domain commits. Keep Email, Calendar, Todos, Contacts and raw Session content blocked/default-off until explicit reprioritization, and contribute selected-wave UDA-18 evidence to the parent USI gate only."
-    },
-    {
-      "path": "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md",
-      "profile": "active_serial",
-      "state": "planned_owner_lifecycle_backup_restore_default_off",
-      "ai_hint": "On a future parent goal claim ULO-00 only using synthetic owners and temporary databases. Serialize Auth rename, backup/restore, Admin Wipe, constants and provider lifecycle hotfiles. Keep account/domain/system actions canonical, reuse USI-13 backup primitives, require stable owner scope plus eligibility/purge/rebuild verification, perform no real destructive or backup action, and contribute ULO-14 to USI-LIVE-ACTIVATION without replacing action-specific authorization."
     },
     {
       "path": "docs/plans/unified-feature-completion-roadmap.md",
@@ -860,6 +844,30 @@
       "profile": "gate_only",
       "state": "repo_slices_done_live_gated",
       "ai_hint": "Logging and MCP debug contracts are ready. Host logs, retention, exposure, or live debug access each need a bounded redacted gate."
+    },
+    {
+      "path": "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md",
+      "profile": "active_serial",
+      "state": "planned_owner_lifecycle_backup_restore_default_off",
+      "ai_hint": "On a future parent goal claim ULO-00 only using synthetic owners and temporary databases. Serialize Auth rename, backup/restore, Admin Wipe, constants and provider lifecycle hotfiles. Keep account/domain/system actions canonical, reuse USI-13 backup primitives, require stable owner scope plus eligibility/purge/rebuild verification, perform no real destructive or backup action, and contribute ULO-14 to USI-LIVE-ACTIVATION without replacing action-specific authorization."
+    },
+    {
+      "path": "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md",
+      "profile": "active_parallel",
+      "state": "planned_source_waves_private_domains_deferred",
+      "ai_hint": "On a future parent goal claim UDA-00 only; after UDA-01, parallelize at most three disjoint new adapter files. Preserve each domain's truth, write, provider, review and exact-reader boundaries; change signals are content-free/best-effort and cannot fail domain commits. Keep Email, Calendar, Todos, Contacts and raw Session content blocked/default-off until explicit reprioritization, and contribute selected-wave UDA-18 evidence to the parent USI gate only."
+    },
+    {
+      "path": "docs/plans/unified-source-index-implementation-roadmap.md",
+      "profile": "active_serial",
+      "state": "planned_after_current_queue_productive_sources_default_off",
+      "ai_hint": "On a future explicit goal claim USI-00 only and keep successors blocked_by_dependency. Implement the existing Source/Chunk/Graph/Job Store boundaries rather than inventing parallel stores; preserve domain truth, TAX/TUA tool/telemetry ownership, GMI/GRO runtime ownership and Project Versioning history. USI-15 waits for UIR-14, ULO-14 and UDA-18 for every selected source scope. Serialize schema/query integration and stop before productive source scans, legacy cutover or USI-LIVE-ACTIVATION."
+    },
+    {
+      "path": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
+      "profile": "active_serial",
+      "state": "planned_after_usi_core_runtime_and_consumers_default_off",
+      "ai_hint": "On a future parent goal claim UIR-00 only after the USI contract barrier. Serialize app.py, app_initializer.py, Personal Docs/RAG, Chat, Agent and runtime-route hotfiles. Compose one dependency-injected runtime and JobStore worker, use shadow results only for comparison, preserve exact/legacy fallback, create no second scheduler/tool/prompt path, and contribute UIR-14 to USI-LIVE-ACTIVATION rather than opening a new gate."
     },
     {
       "path": "docs/plans/universal-file-io-roadmap.md",

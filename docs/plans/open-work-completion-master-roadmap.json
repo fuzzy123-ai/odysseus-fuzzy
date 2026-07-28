@@ -10,12 +10,12 @@
     "required_before_claim": true,
     "rules": [
       "This file remains the current authority for open-work and gate state.",
-      "Execute the newly approved TAX/TUA repo-only slices before returning to older live decision packets; do not invent work outside their detailed child roadmaps.",
+      "Execute only the dependency-ready SIRP frontier from the registered production-completion roadmap; do not invent work outside its detailed slices or treat one live gate as authority for another.",
       "Keep broad UI and design work outside the non-UI execution ledger; TAX7/TUA9 may make only the explicitly scoped existing Admin metadata/aggregate projections after their backend contracts are complete."
     ]
   },
-  "goal_command": "/goal Bearbeite die offenen Odysseus-Feature-Roadmaps dependency-gesteuert ueber Open Work; nach UIX-ABC24 jeweils den naechsten tatsaechlich dependency-ready repo-only Slice mit fokussierter Evidence und ohne Push, Deploy, Provider oder Live-Mutation.",
-  "goal": "Advance the dependency-ready Open Work feature-roadmap frontier with disjoint repo-only claims, focused verification, Sol-reviewed Terra handoffs, durable ABC evidence and local commits.",
+  "goal_command": "/goal Implementiere die SIRP-Roadmap dependency-first bis zur produktiven operator-gestuetzten Security-Response-Kette; halte jede externe Aktion, jeden Deploy und jeden Live-Test hinter seinem exakten separaten Gate.",
+  "goal": "Deliver the SIRP assisted-security-response track from redacted evidence and durable incident/action state through exact explanation, fresh-auth operator approval, default-disabled typed executors, independent post-action readback, rollback and action-specific temporal live closure.",
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
@@ -23,7 +23,7 @@
     "unique_live_gates": 39,
     "unique_design_gates": 27,
     "other_open_json_items": 48,
-    "queue_status": "uir02_accepted_uir03_dependency_ready_unclaimed_runtime_default_off",
+    "queue_status": "ops_alert_D0A_wrapper_ready_waiting_path_scoped_publish_then_exact_observation_go",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -41,7 +41,8 @@
       "codebase_memory_projection": "cbm00_through_cbm08_accepted_cbm09_dependency_ready_not_selected_engine_disabled",
       "code_lineage_timeline": "clt00_through_clt02_accepted_clt03_ready_repo_only_live_default_off",
       "lens_code_graph": "planned_after_code_graph_api_ui_live_gated",
-      "agent_maintenance_safety_harness": "roadmap_registered_goal_not_started_repo_only"
+      "agent_maintenance_safety_harness": "roadmap_registered_goal_not_started_repo_only",
+      "security_incident_response_production": "sirp00_through_sirp11_offline_accepted_sirp12_observe_completed_B_C_accepted_D0A_wrapper_ready_publish_observation_go_required_D_deploy_not_go_E_delivery_not_go"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
@@ -726,6 +727,445 @@
       "remaining_gate_or_blocker": "commit_and_push_the_exact_nine_path_import_state_fix_then_wait_for_exact_required_ci_green_before_debian_deploy",
       "recommended_next_action": "commit_exact_nine_path_fix_push_only_fuzzy_dev_then_required_ci",
       "next_gate": "commit_push_only_fuzzy_dev_then_required_ci"
+    },
+    "latest_sirp01_route_blocker_handoff": {
+      "run_id": "ABC-SEC100-20260727-SIRP01",
+      "slice_id": "SIRP-01-durable-incident-action-store",
+      "master": "/root/sirp_repo_sol_master",
+      "worker": "/root/sirp_repo_sol_master/sirp01_bob_terra",
+      "status": "waiting_on_user",
+      "route": {
+        "master": "gpt-5.6-sol verified by parent task contract",
+        "worker_requested": "gpt-5.6-terra/high",
+        "worker_actual": "unknown",
+        "review": "not_started"
+      },
+      "implementation_claim": "retained_waiting_on_user",
+      "integration_claim": "released_without_feature_review_or_acceptance",
+      "preserved_unreviewed_paths": [
+        "src/security_incident_store.py",
+        "src/security_incident_store_migrations.py",
+        "tests/test_security_incident_store.py"
+      ],
+      "tests": "not_run",
+      "stage_commit_push_deploy_live": "not_done",
+      "next_action": "Require an observable verified Terra route or explicit operator-approved alternative before any test, review, replacement or acceptance."
+    },
+    "latest_sirp01_routing_override": {
+      "recorded_at": "2026-07-27T14:23:51+02:00",
+      "authority": "explicit operator steering",
+      "decision": "Continue with requested master gpt-5.6-sol/xhigh and worker gpt-5.6-terra/high routes despite unexposed actual identities.",
+      "actual_route_record": "unknown_user_approved",
+      "scope": "repo_only",
+      "implementation_paths": [
+        "src/security_incident_store.py",
+        "src/security_incident_store_migrations.py",
+        "tests/test_security_incident_store.py"
+      ],
+      "network_live_commit_push_deploy": false
+    },
+    "latest_sirp01_accepted_handoff": {
+      "recorded_at": "2026-07-27T14:52:05+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP01-R2",
+      "slice_id": "SIRP-01-durable-incident-action-store",
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "owner": "Bob/Terra requested route implementation; root/Sol requested route deep review",
+      "state": "released_accepted_repo_only",
+      "changed_paths": [
+        "src/security_incident_store.py",
+        "src/security_incident_store_migrations.py",
+        "tests/test_security_incident_store.py"
+      ],
+      "route": {
+        "master_requested": "gpt-5.6-sol/xhigh",
+        "worker_requested": "gpt-5.6-terra/high",
+        "master_actual": "unknown_user_approved",
+        "worker_actual": "unknown_user_approved"
+      },
+      "tests": {
+        "focused_store": "31 passed",
+        "adjacent_incident_policy_remediation_notification_classifier": "32 passed",
+        "compile_import": "pass"
+      },
+      "review": {
+        "depth": "deep",
+        "result": "pass_after_two_bounded_fix_rounds"
+      },
+      "evidence_reference": "docs/plans/security-incident-response-production-completion-evidence.json",
+      "next_action": "Claim only SIRP-02-evidence-broker-and-redaction-boundary after a fresh collision check.",
+      "not_verified": [
+        "SIRP-02 through SIRP-15",
+        "commit",
+        "push",
+        "deploy",
+        "external delivery",
+        "CrowdSec or session mutation",
+        "live validation and track-level temporal closure"
+      ]
+    },
+    "latest_sirp02_run_start": {
+      "recorded_at": "2026-07-27T15:02:17+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP02",
+      "slice_id": "SIRP-02-evidence-broker-and-redaction-boundary",
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "state": "active_repo_only",
+      "worker_claim": "/root/sirp_repo_sol_master/sirp02_bob_terra owns only the eight exact implementation paths.",
+      "sol_claim": "/root/sirp_repo_sol_master owns only the five planning, evidence and static-contract integration paths.",
+      "requested_route": {
+        "master": "gpt-5.6-sol/xhigh",
+        "worker": "gpt-5.6-terra/high"
+      },
+      "actual_route": {
+        "master": "unknown_user_approved",
+        "worker": "unknown_user_approved"
+      },
+      "scope": "offline typed adapter, broker and incident-service contracts only",
+      "network_live_commit_push_deploy": false
+    },
+    "latest_sirp02_accepted_handoff": {
+      "recorded_at": "2026-07-27T15:29:57+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP02",
+      "slice_id": "SIRP-02-evidence-broker-and-redaction-boundary",
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "owner": "Bob/Terra requested route implementation; root/Sol requested route deep review",
+      "state": "released_accepted_repo_only",
+      "changed_paths": [
+        "src/security_evidence_broker.py",
+        "src/security_evidence_sources.py",
+        "src/security_incident_service.py",
+        "tests/test_security_evidence_broker.py",
+        "tests/test_security_evidence_sources.py"
+      ],
+      "route": {
+        "master_requested": "gpt-5.6-sol/xhigh",
+        "worker_requested": "gpt-5.6-terra/high",
+        "master_actual": "unknown_user_approved",
+        "worker_actual": "unknown_user_approved"
+      },
+      "tests": {
+        "focused_broker_and_sources": "26 passed",
+        "adjacent_store_runtime_debug_observability_and_security": "79 passed",
+        "compile_import": "pass"
+      },
+      "review": {
+        "depth": "deep",
+        "result": "pass_after_three_bounded_fix_rounds"
+      },
+      "evidence_reference": "docs/plans/security-incident-response-production-completion-evidence.json",
+      "next_action": "Claim only SIRP-03-classifier-and-explanation-contract after a fresh collision check.",
+      "not_verified": [
+        "SIRP-03 through SIRP-15",
+        "repository-wide prevention of direct callers using the pre-existing public store API",
+        "commit",
+        "push",
+        "deploy",
+        "external delivery",
+        "CrowdSec or session mutation",
+        "live validation and track-level temporal closure"
+      ]
+    },
+    "latest_sirp03_run_start": {
+      "recorded_at": "2026-07-27T15:39:16+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP03",
+      "slice_id": "SIRP-03-classifier-and-explanation-contract",
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "state": "active_repo_only",
+      "worker_claim": "/root/sirp_repo_sol_master/sirp03_bob_terra owns only the five exact implementation paths, including hotfile src/security_incident_model.py.",
+      "sol_claim": "/root/sirp_repo_sol_master owns only the five planning, evidence and static-contract integration paths.",
+      "requested_route": {
+        "master": "gpt-5.6-sol/xhigh",
+        "worker": "gpt-5.6-terra/high"
+      },
+      "actual_route": {
+        "master": "unknown_user_approved",
+        "worker": "unknown_user_approved"
+      },
+      "scope": "deterministic offline classifier and exact redacted explanation contract only",
+      "network_live_commit_push_deploy": false
+    },
+    "latest_sirp03_accepted_handoff": {
+      "recorded_at": "2026-07-27T16:13:28+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP03",
+      "slice_id": "SIRP-03-classifier-and-explanation-contract",
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "owner": "Bob/Terra requested route implementation; root/Sol requested route deep review",
+      "state": "released_accepted_repo_only",
+      "changed_paths": [
+        "src/security_anomaly_classifier.py",
+        "src/security_incident_explanations.py",
+        "src/security_response_policy.py",
+        "tests/test_security_incident_explanations.py"
+      ],
+      "route": {
+        "master_requested": "gpt-5.6-sol/xhigh",
+        "worker_requested": "gpt-5.6-terra/high",
+        "master_actual": "unknown_user_approved",
+        "worker_actual": "unknown_user_approved"
+      },
+      "tests": {
+        "focused_explanation_contract": "19 passed",
+        "primary_adjacent_classifier_model_policy_broker_sources_store": "98 passed",
+        "extended_remediation_notification_tabletop_ops_debug_server": "34 passed",
+        "ast_import_diff": "pass"
+      },
+      "review": {
+        "depth": "deep",
+        "result": "pass_after_three_bounded_fix_returns_and_four_review_rounds"
+      },
+      "evidence_reference": "docs/plans/security-incident-response-production-completion-evidence.json",
+      "next_action": "Claim only SIRP-04-store-backed-mcp-and-api after a fresh collision check.",
+      "not_verified": [
+        "SIRP-04 through SIRP-15",
+        "commit",
+        "push",
+        "deploy",
+        "external delivery",
+        "CrowdSec or session mutation",
+        "live validation and track-level temporal closure"
+      ]
+    },
+    "latest_sirp04_accepted_handoff": {
+      "recorded_at": "2026-07-27T17:13:52+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP04",
+      "slice_id": "SIRP-04-store-backed-mcp-and-api",
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "owner": "Bob/Terra requested route implementation; root/Sol requested route deep review",
+      "state": "released_accepted_repo_only",
+      "changed_paths": [
+        "mcp_servers/debug_server.py",
+        "routes/security_routes.py",
+        "routes/ops_console_routes.py",
+        "src/ops_console_snapshot.py",
+        "src/ops_timeline_adapters.py",
+        "tests/test_mcp_debug_server.py",
+        "tests/test_security_routes.py",
+        "tests/test_ops_console_snapshot.py",
+        "tests/test_ops_timeline_adapters.py"
+      ],
+      "route": {
+        "master_requested": "gpt-5.6-sol/xhigh",
+        "worker_requested": "gpt-5.6-terra/high",
+        "master_actual": "unknown_user_approved",
+        "worker_actual": "unknown_user_approved"
+      },
+      "tests": {
+        "focused_mcp_routes_snapshot_timeline": "42 passed",
+        "adjacent_security_integration": "108 passed",
+        "existing_mcp_tabletop_ops_consumers": "18 passed",
+        "ast_import": "9 paths and 5 runtime modules passed",
+        "adversarial_probes": "pass",
+        "path_scoped_diff_check": "pass"
+      },
+      "review": {
+        "depth": "deep",
+        "result": "pass_after_three_bounded_fix_returns_and_four_review_rounds"
+      },
+      "runtime_artifact_note": "An early ordinary route test created ignored data/security_incidents.sqlite. It was never inspected or modified after discovery; metadata remained 53,248 bytes and 2026-07-27 16:52:26 through final verification.",
+      "evidence_reference": "docs/plans/security-incident-response-production-completion-evidence.json",
+      "next_action": "Wait for the exact SIRP-OPERATOR-AUTH-GO design decision before claiming SIRP-05.",
+      "not_verified": [
+        "SIRP-05 through SIRP-15",
+        "commit",
+        "push",
+        "deploy",
+        "external delivery",
+        "CrowdSec or session mutation",
+        "live validation and track-level temporal closure"
+      ]
+    },
+    "latest_sirp05_operator_auth_go": {
+      "recorded_at": "2026-07-27T19:26:17+02:00",
+      "authority": "explicit operator GO relayed by /root",
+      "gate_id": "SIRP-OPERATOR-AUTH-GO",
+      "status": "closed_accepted_2026-07-27",
+      "scope": "SIRP-05 repository-only implementation and local tests",
+      "privileged_human_role": "Only a server-derived human is_admin=true identity in a current valid browser-cookie session may approve, deny or manually expire an action.",
+      "non_privileged_boundaries": [
+        "Non-admin owners remain read-only and prepare-only.",
+        "Synthetic or internal identities cannot approve, deny or manually expire.",
+        "Bearer-token and API-token authentication paths cannot approve, deny or manually expire.",
+        "Automatic TTL expiry remains server-authoritative and does not consume a human step-up proof."
+      ],
+      "step_up": {
+        "factors": [
+          "password",
+          "current live TOTP"
+        ],
+        "totp_enrollment": "mandatory",
+        "backup_codes_qualify": false,
+        "freshness_ttl_seconds": 300,
+        "single_use": true
+      },
+      "server_side_binding": [
+        "current valid browser-cookie session",
+        "username",
+        "current is_admin=true role",
+        "action_id",
+        "action_version",
+        "scope_fingerprint",
+        "policy_revision"
+      ],
+      "fail_closed": [
+        "binding mismatch",
+        "role loss",
+        "session loss",
+        "stale proof",
+        "proof replay",
+        "concurrent consumption",
+        "missing TOTP",
+        "TOTP-disabled account",
+        "backup-code substitution",
+        "proof expiry",
+        "malformed proof"
+      ],
+      "privacy": "Password, TOTP, proof material and session tokens are never echoed, logged or persisted; only redacted blocker/audit state may be recorded.",
+      "delivery": "Delivery remains dry-run and blocked without OPS-ALERT-DELIVERY-GO; only immutable redacted no-send outcome/correlation with bounded retry behavior may be recorded.",
+      "does_not_authorize": [
+        "OPS-ALERT-DELIVERY-GO",
+        "effectful MCP",
+        "executor implementation or execution",
+        "provider or host writes",
+        "network sends",
+        "commit",
+        "push",
+        "deploy",
+        "any live action"
+      ]
+    },
+    "latest_sirp05_run_start": {
+      "recorded_at": "2026-07-27T19:26:17+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP05",
+      "slice_id": "SIRP-05-operator-auth-commands-and-delivery",
+      "state": "active_repo_only",
+      "worker_claim": "/root/sirp_repo_sol_master/sirp05_bob_terra owns only the 17 exact implementation and test paths.",
+      "sol_claim": "/root/sirp_repo_sol_master owns only the five planning, evidence and static-contract integration paths.",
+      "requested_route": {
+        "master": "gpt-5.6-sol/xhigh",
+        "worker": "gpt-5.6-terra/high"
+      },
+      "actual_route": {
+        "master": "unknown_user_approved",
+        "worker": "unknown_user_approved"
+      },
+      "test_isolation": "Tests inject or patch providers and use unique workspace-local basetemps; ignored data/security_incidents.sqlite remains uninspected and untouched.",
+      "network_live_commit_push_deploy": false
+    },
+    "latest_sirp05_accepted_handoff": {
+      "recorded_at": "2026-07-27T20:33:42+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP05",
+      "slice_id": "SIRP-05-operator-auth-commands-and-delivery",
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "owner": "Bob/Terra requested route implementation; root/Sol requested route deep review",
+      "state": "released_accepted_repo_only",
+      "route": {
+        "master_requested": "gpt-5.6-sol/xhigh",
+        "worker_requested": "gpt-5.6-terra/high",
+        "master_actual": "unknown_user_approved",
+        "worker_actual": "unknown_user_approved"
+      },
+      "tests": {
+        "fresh_sol_focused_authorization_and_commands": "16 passed",
+        "fresh_sol_primary_affected_suite": "170 passed",
+        "fresh_sol_adjacent_before_acceptance_integration": "193 passed with only expected active-state/hash assertions pending integration",
+        "worker_final_combined": "276 passed",
+        "ast_and_scoped_diff": "pass"
+      },
+      "review": {
+        "depth": "deep",
+        "result": "pass_after_three_bounded_fix_returns_and_four_review_rounds"
+      },
+      "next_action": "Stop this run after SIRP-05 acceptance; leave SIRP-06 dependency-ready and unclaimed.",
+      "live_actions": false
+    },
+    "latest_sirp06_run_start": {
+      "recorded_at": "2026-07-27T20:45:28+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP06",
+      "slice_id": "SIRP-06-executor-kernel-and-preflight",
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "state": "active_repo_only",
+      "worker_claim": "/root/sirp_repo_sol_master/sirp06_bob_terra owns only the nine exact implementation and test paths.",
+      "sol_claim": "/root/sirp_repo_sol_master owns only the five planning, evidence and static-contract integration paths.",
+      "requested_route": {
+        "master": "gpt-5.6-sol/xhigh",
+        "worker": "gpt-5.6-terra/high"
+      },
+      "actual_route": {
+        "master": "unknown_user_approved",
+        "worker": "unknown_user_approved"
+      },
+      "accepted_dirty_baseline": [
+        "src/security_response_policy.py",
+        "mcp_servers/debug_server.py",
+        "tests/test_mcp_debug_server.py"
+      ],
+      "scope": "default-disabled typed executor kernel, preflight, immutable redacted receipts and one disabled effectful MCP execute route with injected fake executors/transports only",
+      "test_isolation": "Injected fake executors/transports and unique workspace-local basetemps only; ignored data/security_incidents.sqlite remains uninspected and untouched.",
+      "network_live_commit_push_deploy": false
+    },
+    "latest_sirp06_accepted_handoff": {
+      "recorded_at": "2026-07-27T21:21:54+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP06",
+      "slice_id": "SIRP-06-executor-kernel-and-preflight",
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "owner": "Bob/Terra requested route implementation; root/Sol requested route deep review",
+      "state": "released_accepted_repo_only",
+      "route": {
+        "master_requested": "gpt-5.6-sol/xhigh",
+        "worker_requested": "gpt-5.6-terra/high",
+        "master_actual": "unknown_user_approved",
+        "worker_actual": "unknown_user_approved"
+      },
+      "changed_paths": [
+        "src/security_executor_kernel.py",
+        "src/security_executor_contracts.py",
+        "src/security_remediation_actions.py",
+        "src/security_response_policy.py",
+        "mcp_servers/debug_server.py",
+        "src/mcp_server_tool_policy.py",
+        "tests/test_security_executor_kernel.py",
+        "tests/test_mcp_debug_server.py",
+        "tests/test_mcp_server_tool_policy.py"
+      ],
+      "tests": {
+        "fresh_sol_focused": "57 passed",
+        "fresh_sol_affected_consumers": "136 passed",
+        "fresh_sol_telegram_isolation": "1 webhook passed; 1 polling passed; 119 full-file passed",
+        "worker_reconstructed_adjacent": "254 passed, 1 cumulative order-dependent Telegram persistence failure",
+        "ast_import_and_scoped_diff": "pass"
+      },
+      "review": {
+        "depth": "deep",
+        "result": "pass_after_three_bounded_fix_returns_and_four_review_rounds"
+      },
+      "verification_limit": "The cumulative 255-test adjacent order retains one legacy Telegram persistence isolation failure; both implicated exact nodes and the full Telegram plugin file pass fresh.",
+      "evidence_reference": "docs/plans/security-incident-response-production-completion-evidence.json",
+      "next_action": "Stop this run. SIRP-07 is the selected next serial frontier; SIRP-08 is dependency-satisfied but both remain unclaimed pending a future dispatch decision.",
+      "network_live_commit_push_deploy": false
+    },
+    "latest_sirp07_sirp08_run_start": {
+      "recorded_at": "2026-07-27T21:32:31+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP07-SIRP08",
+      "slice_ids": [
+        "SIRP-07-crowdsec-typed-executor",
+        "SIRP-08-session-invalidation-typed-executor"
+      ],
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "state": "parallel_claimed_repo_only",
+      "worker_claims": {
+        "/root/sirp_repo_sol_master/sirp07_bob_terra": "three exact SIRP-07 paths",
+        "/root/sirp_repo_sol_master/sirp08_bob_terra": "five exact SIRP-08 paths including the two accepted SIRP-05 baseline hotfiles"
+      },
+      "sol_claim": "/root/sirp_repo_sol_master owns only the five planning, evidence and static-contract integration paths.",
+      "requested_route": {
+        "master": "gpt-5.6-sol/xhigh",
+        "workers": "gpt-5.6-terra/high"
+      },
+      "actual_route": {
+        "master": "unknown_user_approved",
+        "workers": "unknown_user_approved"
+      },
+      "test_isolation": "Injected fake CrowdSec transport and isolated fake or temporary session store only; no runtime database, network, provider, host or live service access.",
+      "network_live_commit_push_deploy": false
     }
   },
   "non_ui_execution_ledger": {
@@ -772,9 +1212,10 @@
         "blockers": [
           "crowdsec-remediation-go remains open for any real ban/unban execution.",
           "lockdown-mode-go remains open for any automatic lockdown behavior.",
-          "mcp-remediation-tools-go remains open for exposing live remediation tools."
+          "mcp-remediation-tools-go remains open for exposing live remediation tools.",
+          "The new SIRP production-completion chain is not complete; durable state, operator-bound approval, typed executors, independent effect readback, rollback and temporal evidence remain required."
         ],
-        "next_action": "Keep remediation and lockdown actions prepare-only until their separate gates are approved.",
+        "next_action": "Execute SIRP-01-durable-incident-action-store after the accepted SIRP-00 roadmap handoff. Keep every effectful MCP path, external delivery, CrowdSec/session mutation, deploy and optional lockdown behind its own exact gate.",
         "tests": [
           "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q tests\\test_ops_tabletop_packet.py"
         ]
@@ -887,7 +1328,8 @@
     "docs/plans/codebase-memory-integration-roadmap.md",
     "docs/plans/code-lineage-timeline-roadmap.md",
     "docs/plans/lens-code-graph-roadmap.md",
-    "docs/plans/agent-maintenance-safety-harness-roadmap.json"
+    "docs/plans/agent-maintenance-safety-harness-roadmap.json",
+    "docs/plans/security-incident-response-production-completion-roadmap.json"
   ],
   "hard_rules": [
     "No legacy UI or v2 UI implementation from this backend ABC track.",
@@ -1046,21 +1488,28 @@
     },
     {
       "id": "OWM-7",
-      "name": "Security Ops And Incident Tabletop",
-      "priority": 60,
-      "status": "partially_resolved_live_remediation_gated",
-      "why_open": "Security incident response models and MCP debug surfaces are prepared, and synthetic tabletop evidence is complete; any CrowdSec/remediation/lockdown action still needs its own explicit operator gate.",
+      "name": "Security Incident Response Production Completion",
+      "priority": 0,
+      "status": "active_sirp_dependency_frontier_live_actions_gated",
+      "why_open": "The synthetic prepare-only tabletop is complete, but production completion still requires redacted evidence ingestion, durable incident/action state, exact login and incident explanations, fresh-auth operator decisions, default-disabled typed CrowdSec/session executors, independent effect readback, rollback and temporal live evidence.",
+      "source_roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
       "source_gate_family": "security_ops",
       "gate_ids": [
-        "SIR-8-live-tabletop-smoke",
-        "security-incident-tabletop-go",
+        "SIRP-OPERATOR-AUTH-GO",
+        "OPS-ALERT-DELIVERY-GO",
+        "observability-live-smoke-go",
+        "debian-observability-live-go",
+        "log-retention-policy-go",
         "crowdsec-remediation-go",
-        "lockdown-mode-go",
-        "mcp-remediation-tools-go"
+        "OPS-REMEDIATION-GO",
+        "mcp-remediation-tools-go",
+        "security-incident-session-invalidation-go",
+        "security-incident-temporal-closure-go",
+        "lockdown-mode-go"
       ],
-      "safe_default": "keep_security_actions_prepare_only",
-      "operator_go_phrase": "GO security_ops bounded tabletop",
-      "done_when": "A synthetic/redacted incident tabletop creates, diagnoses and resolves an incident through policy-gated actions; remediation remains disabled unless separately approved."
+      "safe_default": "allow_redacted_diagnose_and_offline_prepare_only_keep_delivery_and_all_effectful_paths_disabled",
+      "operator_go_phrase": "No broad security phrase is sufficient; each delivery, CrowdSec, session, deploy, remediation-tool and temporal packet requires its exact action-specific Go.",
+      "done_when": "SIRP-00 through SIRP-11 have revision-bound offline evidence; SIRP-12 through SIRP-14 each pass their separate live gate and independent readback; SIRP-15 proves expiry, replay safety, rollback and audit reconstruction; optional autonomous lockdown remains outside this denominator."
     },
     {
       "id": "OWM-8",
@@ -4221,7 +4670,10 @@
           "commit_sha": "308e6ff6",
           "state": "repo_fix_pending_commit",
           "diagnosis": "The focused test is current: timing was classified before first-person future intention plus change-action; the Telegram-v1 compatibility lane lacked equivalent sentence guards.",
-          "scope": ["src/claim_evidence_gate.py", "tests/test_claim_evidence_gate.py"],
+          "scope": [
+            "src/claim_evidence_gate.py",
+            "tests/test_claim_evidence_gate.py"
+          ],
           "safety_invariant": "Direct factual timing, provider, execution, and delivery claims remain unsupported in both receipt lanes; quotation, request, negation, generic future, and first-person/plural intention do not create claims.",
           "verification": "No broad pytest by user direction. Direct 12 ignored plus 4 factual parser cases in current and Telegram-v1 lanes passed under Python 3.11 and 3.14; AST parse and git diff --check passed."
         },
@@ -12447,6 +12899,750 @@
       "source_roadmap": "docs/plans/code-lineage-timeline-roadmap.md",
       "gate": "none_before_clt_live_activation",
       "done_when": "Synthetic repositories with merge rename delete and shallow boundaries produce deterministic code-lineage Git evidence without network fetch Git state mutation or raw command output exposure."
+    },
+    {
+      "id": "SIRP-00-roadmap-authority-and-gap-freeze",
+      "class": "safe_offline",
+      "owner": "Alice/Terra authoring; root deep review and queue integration",
+      "status": "accepted_2026-07-27",
+      "claimable": false,
+      "claim_blocker": null,
+      "depends_on": [],
+      "gate_requirements": [],
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "docs/plans/security-incident-response-production-completion-evidence.json",
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json",
+        "scripts/roadmap_safe_queue_audit.py",
+        "tests/test_roadmap_safe_queue_audit.py",
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "hotfiles": [
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json"
+      ],
+      "source_roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "evidence": {
+        "authority": "repo_only",
+        "mutation_class": "safe_offline_planning",
+        "required": [
+          "deep review",
+          "strict static roadmap contract",
+          "one canonical Open Work registration",
+          "one guidance registration",
+          "closed effectful/live gates"
+        ],
+        "live_actions": false
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "deep_pass",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "na",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "na",
+        "product_complete": "no"
+      },
+      "done_when": "The SIRP denominator, architecture, dependency DAG, action dispositions, exact gates and first safe frontier are machine-validated and durably registered."
+    },
+    {
+      "id": "SIRP-01-durable-incident-action-store",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "accepted_2026-07-27",
+      "claimable": false,
+      "claim_blocker": null,
+      "depends_on": [
+        "SIRP-00-roadmap-authority-and-gap-freeze accepted"
+      ],
+      "gate_requirements": [],
+      "allowed_paths": [
+        "src/security_incident_store.py",
+        "src/security_incident_store_migrations.py",
+        "tests/test_security_incident_store.py"
+      ],
+      "hotfiles": [],
+      "source_roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "evidence": {
+        "authority": "repo_only",
+        "mutation_class": "repo_only",
+        "required": [
+          "versioned durable incident/action/approval/receipt state",
+          "append-only transition evidence",
+          "single-use approval and stale-write rejection",
+          "bounded atomic persistence",
+          "focused offline tests and root deep review"
+        ],
+        "forbidden": [
+          "raw targets or evidence",
+          "executor implementation",
+          "live database migration",
+          "external mutation"
+        ]
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "deep_pass_after_two_fix_rounds",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "yes",
+        "product_complete": "no"
+      },
+      "done_when": "Store contracts and focused tests prove version, TTL, replay, lifecycle and redaction invariants entirely offline."
+    },
+    {
+      "id": "SIRP-02-evidence-broker-and-redaction-boundary",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "accepted_2026-07-27",
+      "claimable": false,
+      "claim_blocker": null,
+      "depends_on": [
+        "SIRP-01-durable-incident-action-store accepted"
+      ],
+      "gate_requirements": [],
+      "allowed_paths": [
+        "src/security_evidence_broker.py",
+        "src/security_evidence_sources.py",
+        "src/security_incident_service.py",
+        "src/runtime_event_envelope.py",
+        "src/debug_bundle.py",
+        "src/observability_clients.py",
+        "tests/test_security_evidence_broker.py",
+        "tests/test_security_evidence_sources.py"
+      ],
+      "hotfiles": [
+        "src/debug_bundle.py",
+        "src/observability_clients.py"
+      ],
+      "source_roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "evidence": {
+        "authority": "repo_only",
+        "mutation_class": "repo_only",
+        "required": [
+          "allowlisted redacted evidence envelopes",
+          "bounded deduplicated correlation references",
+          "forbidden-field rejection before persistence or logging",
+          "explicit source adapter contracts",
+          "focused offline tests and root deep review"
+        ],
+        "forbidden": [
+          "raw log, provider or environment forwarding",
+          "live query",
+          "external mutation"
+        ]
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "deep_pass_after_three_fix_rounds",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "no",
+        "product_complete": "no"
+      },
+      "done_when": "Evidence reaches store-backed incidents only through the broker and all unsafe corpus cases reject."
+    },
+    {
+      "id": "SIRP-03-classifier-and-explanation-contract",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "accepted_2026-07-27",
+      "claimable": false,
+      "claim_blocker": null,
+      "depends_on": [
+        "SIRP-02-evidence-broker-and-redaction-boundary accepted"
+      ],
+      "gate_requirements": [],
+      "allowed_paths": [
+        "src/security_anomaly_classifier.py",
+        "src/security_incident_explanations.py",
+        "src/security_response_policy.py",
+        "src/security_incident_model.py",
+        "tests/test_security_incident_explanations.py"
+      ],
+      "hotfiles": [
+        "src/security_incident_model.py"
+      ],
+      "source_roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "evidence": {
+        "authority": "repo_only",
+        "mutation_class": "repo_only",
+        "required": [
+          "deterministic exact explanation fields",
+          "classifier revision and bounded evidence references",
+          "truthful uncertainty and conflicting-evidence handling",
+          "privacy rejection and action-disposition rationale",
+          "focused offline tests and root deep review"
+        ],
+        "forbidden": [
+          "LLM-only attribution",
+          "invented execution or verification result",
+          "raw evidence or target data",
+          "external mutation"
+        ]
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "deep_pass_after_three_bounded_fix_returns",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "no",
+        "product_complete": "no"
+      },
+      "done_when": "All incident paths produce a bounded deterministic explanation or a redacted blocker."
+    },
+    {
+      "id": "SIRP-04-store-backed-mcp-and-api",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "accepted_2026-07-27",
+      "claimable": false,
+      "claim_blocker": null,
+      "depends_on": [
+        "SIRP-01-durable-incident-action-store accepted",
+        "SIRP-02-evidence-broker-and-redaction-boundary accepted",
+        "SIRP-03-classifier-and-explanation-contract accepted"
+      ],
+      "gate_requirements": [],
+      "allowed_paths": [
+        "mcp_servers/debug_server.py",
+        "routes/security_routes.py",
+        "routes/ops_console_routes.py",
+        "src/ops_console_snapshot.py",
+        "src/ops_timeline_adapters.py",
+        "tests/test_mcp_debug_server.py",
+        "tests/test_security_routes.py",
+        "tests/test_ops_console_snapshot.py",
+        "tests/test_ops_timeline_adapters.py"
+      ],
+      "hotfiles": [
+        "mcp_servers/debug_server.py",
+        "routes/security_routes.py",
+        "routes/ops_console_routes.py",
+        "src/ops_console_snapshot.py",
+        "src/ops_timeline_adapters.py"
+      ],
+      "source_roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "evidence": {
+        "authority": "repo_only",
+        "mutation_class": "repo_only",
+        "required": [
+          "store-backed read-only MCP discovery and trace",
+          "registered owner/admin-scoped incident API",
+          "persisted Ops Console incident/action snapshot",
+          "raw-evidence and target-handle privacy rejection",
+          "focused offline tests and root deep review"
+        ],
+        "forbidden": [
+          "generic execute API",
+          "client-supplied authority objects",
+          "unregistered route-only file",
+          "effectful MCP wiring",
+          "external mutation"
+        ]
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "deep_pass_after_three_bounded_fix_returns_and_four_review_rounds",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "no",
+        "product_complete": "no"
+      },
+      "done_when": "Read-only MCP discovery, the registered admin incident API and Ops Console snapshot are store-backed, bounded and read-only/prepare-only."
+    },
+    {
+      "id": "SIRP-05-operator-auth-commands-and-delivery",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "accepted_2026-07-27",
+      "claimable": false,
+      "claim_blocker": null,
+      "depends_on": [
+        "SIRP-01-durable-incident-action-store accepted",
+        "SIRP-04-store-backed-mcp-and-api accepted"
+      ],
+      "gate_requirements": [],
+      "allowed_paths": [
+        "src/security_action_authorization.py",
+        "src/security_incident_commands.py",
+        "src/security_incident_delivery.py",
+        "plugins/telegram/security_incident_commands.py",
+        "plugins/telegram/parsing.py",
+        "plugins/telegram/control_service.py",
+        "plugins/telegram/plugin.py",
+        "plugins/telegram/stores.py",
+        "src/security_incident_notifications.py",
+        "routes/auth_routes.py",
+        "core/auth.py",
+        "tests/test_security_action_authorization.py",
+        "tests/test_security_incident_commands.py",
+        "tests/test_security_incident_delivery.py",
+        "tests/test_telegram_incident_controls.py",
+        "tests/test_telegram_plugin.py",
+        "tests/test_telegram_control_service.py"
+      ],
+      "hotfiles": [
+        "routes/auth_routes.py",
+        "core/auth.py",
+        "plugins/telegram/parsing.py",
+        "plugins/telegram/control_service.py",
+        "plugins/telegram/plugin.py",
+        "plugins/telegram/stores.py"
+      ],
+      "source_roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "evidence": {
+        "authority": "repo_only_after_design_go",
+        "mutation_class": "repo_only",
+        "required": [
+          "server-derived privileged operator authority",
+          "fresh-auth or step-up proof bound to action version, scope fingerprint, gate and TTL",
+          "single-use approve, deny and expire commands",
+          "redacted delivery receipt contract",
+          "focused offline tests and root deep review"
+        ],
+        "forbidden": [
+          "free-text remediation",
+          "persisting chat IDs or tokens",
+          "implicit execution after approve",
+          "delivery without OPS-ALERT-DELIVERY-GO",
+          "external mutation"
+        ]
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "deep_pass_after_three_bounded_fix_returns_and_four_review_rounds",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "no",
+        "product_complete": "no"
+      },
+      "done_when": "A stored action can be safely approved, denied or expired offline and produces an immutable redacted decision/delivery receipt."
+    },
+    {
+      "id": "SIRP-06-executor-kernel-and-preflight",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "accepted_2026-07-27",
+      "claimable": false,
+      "claim_blocker": null,
+      "depends_on": [
+        "SIRP-01-durable-incident-action-store accepted",
+        "SIRP-05-operator-auth-commands-and-delivery accepted"
+      ],
+      "gate_requirements": [],
+      "allowed_paths": [
+        "src/security_executor_kernel.py",
+        "src/security_executor_contracts.py",
+        "src/security_remediation_actions.py",
+        "src/security_response_policy.py",
+        "mcp_servers/debug_server.py",
+        "src/mcp_server_tool_policy.py",
+        "tests/test_security_executor_kernel.py",
+        "tests/test_mcp_debug_server.py",
+        "tests/test_mcp_server_tool_policy.py"
+      ],
+      "hotfiles": [
+        "src/security_remediation_actions.py",
+        "src/security_response_policy.py",
+        "mcp_servers/debug_server.py",
+        "src/mcp_server_tool_policy.py"
+      ],
+      "source_roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "evidence": {
+        "authority": "repo_only",
+        "mutation_class": "repo_only",
+        "required": [
+          "default-disabled known-type executor dispatch",
+          "durable approved-state and consumed single-use capability binding",
+          "exact action version, opaque scope, policy revision and gate binding",
+          "bounded timeout, idempotency, rollback and expiry descriptor",
+          "fail-closed preflight before any injected fake side effect",
+          "immutable redacted bounded receipts and conflict-safe replay",
+          "effectful MCP classification with one disabled typed execute route",
+          "focused, adjacent and consumer tests plus root deep review"
+        ],
+        "forbidden": [
+          "network or live query",
+          "live executor or transport registration",
+          "CrowdSec or session mutation",
+          "arbitrary shell or command text",
+          "external delivery",
+          "stage, commit, push or deploy"
+        ]
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "deep_pass_after_three_bounded_fix_returns_and_four_review_rounds",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "no",
+        "product_complete": "no"
+      },
+      "done_when": "Injected fake typed executors satisfy preflight, receipt and fail-closed invariants with no external mutation."
+    },
+    {
+      "id": "SIRP-07-crowdsec-typed-executor",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "accepted_2026-07-28",
+      "claimable": false,
+      "claim_blocker": null,
+      "depends_on": [
+        "SIRP-06-executor-kernel-and-preflight accepted"
+      ],
+      "gate_requirements": [],
+      "allowed_paths": [
+        "src/security_executors/crowdsec.py",
+        "src/security_crowdsec_contracts.py",
+        "tests/test_security_crowdsec_executor.py"
+      ],
+      "hotfiles": [],
+      "source_roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "evidence": {
+        "authority": "repo_only",
+        "mutation_class": "repo_only",
+        "required": [
+          "production-capable but default-disabled typed block and unblock adapter",
+          "fixed redacted allowlisted transport boundary with no raw response forwarding",
+          "bounded TTL plus explicit unban and expiry descriptors",
+          "opaque scope never rendered to users",
+          "false-positive and operator-lockout blockers fail closed",
+          "injected fake transport tests and root deep review"
+        ],
+        "forbidden": [
+          "live CrowdSec or network access",
+          "real transport, provider, host or broad firewall mutation",
+          "unbounded ban",
+          "raw response forwarding",
+          "stage, commit, push or deploy"
+        ]
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "deep_pass_after_one_bounded_fix_cycle",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "no",
+        "product_complete": "no"
+      },
+      "done_when": "The default-disabled production CrowdSec adapter is fully offline-tested with fake transport and can mutate only inside its separate action-specific canary."
+    },
+    {
+      "id": "SIRP-08-session-invalidation-typed-executor",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "accepted_2026-07-28",
+      "claimable": false,
+      "claim_blocker": null,
+      "depends_on": [
+        "SIRP-06-executor-kernel-and-preflight accepted"
+      ],
+      "gate_requirements": [],
+      "allowed_paths": [
+        "src/security_executors/session_invalidation.py",
+        "src/security_session_contracts.py",
+        "core/auth.py",
+        "routes/auth_routes.py",
+        "tests/test_security_session_invalidation.py"
+      ],
+      "hotfiles": [
+        "core/auth.py",
+        "routes/auth_routes.py"
+      ],
+      "source_roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "evidence": {
+        "authority": "repo_only",
+        "mutation_class": "repo_only",
+        "required": [
+          "exact single-session versus bounded user session-set scope",
+          "current approving and operator session protection with separate recovery-path fail-closed rule",
+          "independent redacted readiness and verification distinct from acknowledgement",
+          "production-capable default-disabled application session-store adapter",
+          "injected isolated test-store coverage and root deep review"
+        ],
+        "forbidden": [
+          "live or network session invalidation",
+          "credential, password, TOTP, SSH or authentication configuration changes",
+          "unbounded all-user invalidation",
+          "secret, token or raw session output",
+          "stage, commit, push or deploy"
+        ]
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "deep_pass_after_one_bounded_fix_cycle",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "no",
+        "product_complete": "no"
+      },
+      "done_when": "The default-disabled production session adapter passes isolated-store tests and can mutate only inside its separate action-specific canary."
+    },
+    {
+      "id": "SIRP-09-verification-rollback-and-audit",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "accepted_2026-07-28",
+      "claimable": false,
+      "claim_blocker": null,
+      "depends_on": [
+        "SIRP-06-executor-kernel-and-preflight accepted",
+        "SIRP-07-crowdsec-typed-executor accepted",
+        "SIRP-08-session-invalidation-typed-executor accepted"
+      ],
+      "gate_requirements": [],
+      "allowed_paths": [
+        "src/security_post_action_verification.py",
+        "src/security_rollback.py",
+        "src/security_incident_audit.py",
+        "src/observability_clients.py",
+        "src/ops_timeline_adapters.py",
+        "tests/test_security_post_action_verification.py",
+        "tests/test_security_rollback.py"
+      ],
+      "hotfiles": [
+        "src/observability_clients.py",
+        "src/ops_timeline_adapters.py"
+      ],
+      "source_roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "evidence": {
+        "authority": "repo_only",
+        "mutation_class": "repo_only",
+        "required": [
+          "executor acknowledgement cannot set verified",
+          "independent bounded redacted read-only verification source",
+          "failed or unknown verification blocks closure",
+          "explicit rollback or expiry state and immutable audit receipt",
+          "focused offline tests and root deep review"
+        ],
+        "forbidden": [
+          "automatic rollback beyond preapproved expiry",
+          "raw observability lines",
+          "network, provider, host or live mutation",
+          "stage, commit, push or deploy"
+        ]
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "yes",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "no",
+        "product_complete": "no"
+      },
+      "done_when": "Every typed execution has receipt, independent verification result and rollback or expiry path represented in audit."
+    },
+    {
+      "id": "SIRP-10-offline-integration-and-attack-matrix",
+      "class": "repo_only",
+      "owner": "Charlie implementation; root/Sol deep review",
+      "status": "accepted_2026-07-28",
+      "claimable": false,
+      "claim_blocker": "accepted after one bounded fix cycle and two deep Sol review rounds",
+      "depends_on": [
+        "SIRP-02-evidence-broker-and-redaction-boundary accepted",
+        "SIRP-03-classifier-and-explanation-contract accepted",
+        "SIRP-04-store-backed-mcp-and-api accepted",
+        "SIRP-05-operator-auth-commands-and-delivery accepted",
+        "SIRP-09-verification-rollback-and-audit accepted"
+      ],
+      "gate_requirements": [],
+      "allowed_paths": [
+        "tests/test_security_incident_production_flow.py",
+        "tests/test_security_incident_attack_matrix.py",
+        "docs/plans/security-incident-response-production-test-matrix.md"
+      ],
+      "hotfiles": [],
+      "source_roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "evidence": {
+        "authority": "repo_only",
+        "mutation_class": "repo_only",
+        "required": [
+          "complete synthetic flow through verified and rolled-back terminal states",
+          "replay, stale-version, approval-reuse, target-substitution, scope-expansion, delivery-failure, verifier-failure and raw-data-injection negatives",
+          "no secret, host command, network, provider or live target",
+          "fresh focused tests and root deep review"
+        ],
+        "forbidden": [
+          "live configuration",
+          "network or real delivery",
+          "provider, host, CrowdSec or session mutation",
+          "stage, commit, push or deploy"
+        ]
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "yes",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "no",
+        "product_complete": "no"
+      },
+      "done_when": "All required offline flow and negative matrix tests are green with explicit blocked terminal states and no live dependency."
+    },
+    {
+      "id": "SIRP-11-activation-packet-and-runbooks",
+      "class": "safe_offline",
+      "owner": "Alice implementation; root/Sol deep review",
+      "status": "accepted_2026-07-28",
+      "claimable": false,
+      "claim_blocker": "accepted after one bounded fix cycle and two deep Sol review rounds",
+      "depends_on": [
+        "SIRP-10-offline-integration-and-attack-matrix accepted"
+      ],
+      "gate_requirements": [],
+      "allowed_paths": [
+        "docs/plans/security-incident-response-activation-packet.md",
+        "docs/runbooks/security-incident-response.md",
+        "docs/runbooks/crowdsec-remediation.md",
+        "docs/runbooks/telegram-security-incident.md",
+        "docs/plans/ops-security-console-live-runbook.md"
+      ],
+      "hotfiles": [
+        "docs/plans/ops-security-console-live-runbook.md"
+      ],
+      "source_roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "evidence": {
+        "authority": "repo_only",
+        "mutation_class": "safe_offline",
+        "required": [
+          "separate observe, delivery, CrowdSec, session and temporal activation packets",
+          "exact target class, scope, timeout, evidence, rollback, readback and abort conditions",
+          "fixed redacted Debian probe reference only where applicable",
+          "fresh document-contract tests and root deep review"
+        ],
+        "forbidden": [
+          "granting or implying any live Go",
+          "credential, SSH or authentication changes",
+          "network, delivery, provider, host, CrowdSec or session mutation",
+          "stage, commit, push or deploy"
+        ]
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "yes",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "na",
+        "temporal_validated": "no",
+        "product_complete": "no"
+      },
+      "done_when": "Activation packets and runbooks are review-ready and cannot be interpreted as broad or reusable live authority."
+    },
+    {
+      "id": "SIRP-12-live-observe-and-delivery",
+      "class": "needs_live_go",
+      "owner": "Charlie live evidence; root/Sol deep review",
+      "status": "observe_completed_B_C_accepted_D0A_wrapper_ready_waiting_publish",
+      "claimable": false,
+      "claim_blocker": "B and C are accepted repo-only. D0A fixed wrapper is implemented, adversarially tested and deep-reviewed, but it is not published and no exact single-use PREDEPLOY READ-ONLY OBSERVATION Go exists. Deployment remains separately not_go. E waits for successful D readback plus a fresh exact OPS-ALERT-DELIVERY-GO packet. Delivery remains unstarted.",
+      "depends_on": [
+        "SIRP-11-activation-packet-and-runbooks accepted"
+      ],
+      "gate_requirements": [
+        "OPS-ALERT-DELIVERY-GO",
+        "observability-live-smoke-go",
+        "debian-observability-live-go",
+        "log-retention-policy-go",
+        "deploy-live-go"
+      ],
+      "allowed_paths": [
+        "docs/plans/security-incident-response-live-observe-delivery-evidence.md"
+      ],
+      "hotfiles": [],
+      "source_roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "operator_request_status": "broad_continuation_go_recorded_not_send_authority",
+      "authorization_status": "observe_used_consumed_delivery_not_go_deploy_not_go",
+      "sirp12_started": true,
+      "observe_external_action_executed": true,
+      "observe_mutation_performed": false,
+      "live_go_id": "SIRP12-OBSERVE-PACKET-20260728",
+      "invocation_counter": 1,
+      "result_counter": 1,
+      "retry_counter": 0,
+      "follow_on_query_counter": 0,
+      "missing_fields": {
+        "observe": null,
+        "retention": null,
+        "delivery": "B default-disabled server-owned production transport/body/target resolution, then C fake app composition, D separate deployment, and E exact one-send/readback/human-confirmation packet",
+        "deploy": "separate exact target, artifact, limits, rollback and health readback; SIRP-12 forbids deploy"
+      },
+      "evidence": {
+        "authority": "single_use_observe_packet_used_consumed",
+        "mutation_class": "needs_live_go",
+        "required": [
+          "exactly-once observe receipt",
+          "repo-only fixed redacted Telegram target-and-reply readiness plus SIRP-bound delivery-adapter contract before any send packet",
+          "later exact single-send packet and independent redacted delivery readback"
+        ],
+        "forbidden": [
+          "a second invocation, retry or follow-on query",
+          "raw subprocess output or schema expansion",
+          "deploy under SIRP-12",
+          "raw output, secrets, network, SSH, provider or live action from this decision record"
+        ]
+      },
+      "completion": {
+        "implemented": "na",
+        "tested": "no",
+        "sol_reviewed": "no",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "no",
+        "product_complete": "no"
+      },
+      "done_when": "One separately approved observe action and one separately approved delivery action have bounded redacted receipt/readback evidence, with no deploy or remediation."
     }
   ],
   "recommended_execution_order": [
@@ -12469,7 +13665,8 @@
     "OWM-4 MCP Workbench activation: install/test services when available, then use them as verification aids.",
     "OWM-5 Nextcloud local-only pilot: only after subset/policy decision.",
     "OWM-6 Observability Ops: Debian metrics/logging before broad security automation.",
-    "OWM-7 Security tabletop: synthetic incident before real remediation.",
+    "OWM-7 Security Incident Response Production Completion: SIRP-00 through SIRP-11 are accepted offline and SIRP-12 observe completed exactly once. SIRP-12A-R2 plus OPS-ALERT B/C are accepted repo-only. D0A fixed source-redacted wrapper is adversarially tested and deep-reviewed. A separately authorized path-scoped publish is the next prerequisite; only after that published revision exists may the exact one-invocation D0 Go be requested. Deploy and E delivery remain independently not_go.",
+    "OWM-7 Security response: follow the SIRP dependency frontier; the old synthetic tabletop is historical evidence only and cannot prove production readiness or authorize remediation.",
     "OWM-8 UI handoff: UI agent owns actual UI implementation.",
     "OWM-9 Memory scale: live reindex/migration only with rollback and quality evidence.",
     "OWM-10 GitHub live rollout: post-MVP, bounded and token-gated."
@@ -12551,8 +13748,8 @@
       "family": "security_ops",
       "priority": 50,
       "open_gate_count": 4,
-      "next_decision": "Explicit remediation/lockdown action; synthetic tabletop is closed",
-      "safe_default": "keep_security_actions_prepare_only"
+      "next_decision": "No new operator decision during active repo-only SIRP-05. The recorded SIRP-OPERATOR-AUTH-GO design authorizes no delivery, execution or live action.",
+      "safe_default": "allow_redacted_diagnosis_and_offline_preparation_only_keep_delivery_effectful_tools_mutations_and_lockdown_disabled"
     },
     {
       "family": "ui_design",
@@ -12562,5 +13759,5 @@
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "None during TAX0-TAX12 and TUA0-TUA12 repository execution. Continue with automated tests, synthetic staging and reversible default-off behavior. Request exactly one bounded user decision per feature only after its complete activation and rollback packet is machine-verified; calendar, email and contacts remain deferred."
+  "recommended_next_human_decision": "Do not grant the D0 observation yet. First separately authorize a reviewed path-scoped commit and push containing the D0/D0A artifact. Then request exactly: GO ABC-SEC123 D0 PREDEPLOY READ-ONLY OBSERVATION ONCE <=30S EXPIRES RUN_END. Deployment and delivery remain separate not_go decisions."
 }

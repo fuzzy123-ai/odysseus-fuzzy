@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.security_incident_response_production_completion_planning_evidence",
+  "run_id": "ABC-SEC123-20260728-OPS-ALERT-CLOSURE",
+  "slices": [
+    "OPS-ALERT-B-production-transport-body-target-resolution",
+    "OPS-ALERT-C-app-route-fake-composition-packaging",
+    "OPS-ALERT-D-predeploy-parity-and-exact-deployment-packet",
+    "OPS-ALERT-D0-predeploy-readonly-observation-packet",
+    "OPS-ALERT-D0A-fixed-predeploy-observation-wrapper",
+    "OPS-ALERT-D0PUBLISH-PACKET",
+    "OPS-ALERT-D0PUBLISH-RECONSTRUCTION-STOP",
+    "OPS-ALERT-D0PUBLISH-RECONSTRUCTION-R2-BLOCKER",
+    "OPS-ALERT-D0PUBLISH-SEMANTIC-JSON-SPLIT",
+    "SEC128-BACKUP-SNAPSHOT-READONLY-OBSERVATION-READINESS",
+    "SEC129-PREDEPLOY-BACKUP-CREATION-CONTRACT",
+    "SEC130-D0-BACKUP-EVIDENCE-COMPOSITION",
+    "SEC131-TRANSACTIONAL-DEPLOY-ROLLBACK-STRATEGY"
+  ],
+  "recorded_at": "2026-07-29T00:20:00+02:00",
+  "status": "SEC131_needs_live_observation_transport_repaired_expanded_publish_candidate_ready_future_go_requestable_not_authorized",
+  "summary": "SEC131 deep-reviewed a transactional deploy/rollback design and stopped before executor implementation because repository sources cannot prove the installed Podman Compose 1.3.0 service-only/no-dependency switch and rollback semantics. It adds a no-Go packet and a fixed source-redacted capability observer whose help evidence cannot prove semantics and whose bounded installed-source audit is AST/function scoped. The coherent deferred model binds exact revisions and fresh SEC129 evidence, a single fetch/lock, detached release worktree, revision manifest, app-only switch, health-gated ff-only checkout advance, allowlisted metadata preservation and exactly one post-switch rollback attempt. Root readback rejected the first expanded candidate because its versioned patch remained SEC130-era; the repaired closure requires direct exact-HEAD generation and an independent fresh-alternate-index replay of all 84 paths before the 85th durable patch path is accepted. No live or real-index Git action occurred.",
+  "decision": {
+    "delivery_started": false,
+    "delivery_performed": false,
+    "new_live_go_created": false,
+    "authorization_status": "not_go",
+    "gate_status": "open",
+    "smallest_safe_frontier": "The repaired deterministic patch must remain bound to its exact manifest and alternate-index replay evidence. The exact SEC131 expanded stage/commit/push phrase may now be requested but remains ungranted. After publication, the exact capability observation is a separate requestable-not-granted gate. No deploy executor or deploy Go exists."
+  },
+  "contract_evidence": [
+    "Security-incident delivery and notification contracts are dry-run/no-send.",
+    "Generic Telegram delivery requires opaque target readiness, the reply gate and an allowed target.",
+    "The current agent-safe Debian projection attests TELEGRAM_BOT_TOKEN presence only, not opaque target_configured or TELEGRAM_AGENT_REPLY_ENABLED.",
+    "The generic bridge lacks SIRP action-version, single-use grant, expiry, immutable no-retry attempt and independent durable redacted correlation-readback binding.",
+    "Activation and runbook contracts require a later exact channel/body/timeout/expiry/no-retry/readback packet."
+  ],
+  "deep_sol_review": {
+    "status": "pass_SEC131_needs_live_observation_stop_and_source_redacted_capability_contract",
+    "route": "Alice/Terra authored and aligned the no-Go packet/runbook; Bob/Terra implemented the fixed read-only capability observer and adversarial tests; root/Sol rejected whole-module regex evidence, required AST/function-scoped dependency-control proof and kept deploy-executor implementation stopped.",
+    "independent_test_evidence": "Seven focused capability-observer tests pass offline with one unrelated warning. Synthetic installed-source tests prove valid handler-local structure while rejecting global, wrong-handler, dead-string/comment/if-false and nested-function decoys. Candidate tests run only in a detached temporary checkout.",
+    "overclaim_found": true,
+    "overclaim_disposition": "Corrected before handoff: the first SEC131 manifest counts were rejected because the on-disk transport patch omitted the SEC131 expansion; the repair is accepted only with exact path and alternate-index replay evidence."
+  },
+  "verification": [
+    {
+      "lane": "json_parse",
+      "status": "pass"
+    },
+    {
+      "lane": "focused_planning_contract_after_blocker",
+      "status": "pass",
+      "result": "7 passed; 1 unrelated SQLAlchemy deprecation warning"
+    },
+    {
+      "lane": "semantic_allowlist_verifier",
+      "status": "pass",
+      "result": "45 unique selectors; 14 SIRP handoff records; 13 SIRP queue records; no duplicate or ambiguous selector"
+    },
+    {
+      "lane": "backup_snapshot_observation_wrapper",
+      "status": "pass",
+      "result": "9 passed; fixed argv, no-lock read-only query, process-environment and lstat gates, schema redaction, timeout and no-retry behavior covered; 1 unrelated warning"
+    },
+    {
+      "lane": "predeploy_backup_creation_wrapper",
+      "status": "pass",
+      "result": "15 passed; exact one backup dispatch, fixed env, safe lock, strict post-start provenance, terminal unknown/no-retry behavior, redaction and canonical schemas covered; 1 unrelated warning"
+    },
+    {
+      "lane": "d0_backup_evidence_composition_wrapper",
+      "status": "pass",
+      "result": "7 passed; exact in-process SEC128 composition once, independent schema and digest validation, canonical D0 provenance, 9x1s plus 20s <=30s, stale/malformed/oversized/unexpected/hash/visibility/source/exception/timeout blocking and no partial fields covered; 1 unrelated warning"
+    },
+    {
+      "lane": "podman_compose_capability_observer",
+      "status": "pass",
+      "result": "7 passed; fixed sealed commands, exact version grammar, parser-versus-semantics separation, AST/function-scoped source audit, decoy resistance, canonical needs-live-observation and blocked schemas, timeout/no-retry and raw-leak suppression covered; 1 unrelated warning"
+    },
+    {
+      "lane": "detached_expanded_candidate_focused_and_adjacent",
+      "status": "pass",
+      "result": "461 passed in the isolated SEC131 85-path durable candidate; 1 unrelated TRP-dependent planning node explicitly deselected as not applicable; 5 warnings"
+    },
+    {
+      "lane": "transport_patch_exact_head_alternate_index_replay",
+      "status": "pass",
+      "result": "Versioned patch regenerated from exact HEAD for all 84 closure paths; three SEC131 additions present; independent fresh alternate-index replay produced the identical 84-path closure tree; real index untouched"
+    },
+    {
+      "lane": "safe_queue_audit",
+      "status": "pass",
+      "result": "exit 0; unrelated historical PMCP-9 safe-open item remains unchanged"
+    },
+    {
+      "lane": "external_action",
+      "status": "not_run"
+    }
+  ],
+  "not_verified": [
+    "published repository revision containing the fixed observations and backup creation wrappers/packets",
+    "an authorized real-index stage, commit or push",
+    "actual host-local wrapper runtime behavior, lock ownership and restic snapshot provenance",
+    "installed Podman Compose 1.3.0 capability observation",
+    "transactional deploy executor implementation and owner-bound deploy packet",
+    "exact deployment target, prior artifact, rollback execution and independent health readback",
+    "live redacted readiness or provider behavior",
+    "delivery send and human confirmation",
+    "runtime database state and temporal live closure",
+    "full repository test suite",
+    "stage, commit or push",
+    "SSH, either observation or backup creation"
+  ],
+  "file_sha256": {
+    "docs/plans/multi-agent-execution-guidance.json": "4b75fab41f64b5b371dc66a05c7af5b065527aa354322e5c0f14edfa1955b128",
+    "docs/plans/open-work-completion-master-roadmap.json": "0438c559db0866e95b968cb1bdd876ed7ded4056ddeff5372325c05ed2729987",
+    "docs/plans/security-incident-response-activation-packet.md": "aadf92703a2131c256d1af79de063ba2fb4f21becd34d83b794bff15be97a83f",
+    "docs/plans/security-incident-response-backup-creation-packet.md": "6994b528b5d3de9c98809ae201423a8ef8acb86a604dc23912a9d93a622c62ec",
+    "docs/plans/security-incident-response-backup-snapshot-observation-packet.md": "f5e9ef905e522c03175e6dae4d467e204f4ce73836ece6d7b5b66ecfa27450bf",
+    "docs/plans/security-incident-response-live-observe-delivery-evidence.md": "a488e1970d63bdb99a3daabe4aeb3490574654de0fb61dcb545ded6f76486f67",
+    "docs/plans/security-incident-response-production-completion-roadmap.json": "0121fe245e17e9b8788d68ae7b47087ece0f0b582d0b6052b7dd1a466378cb54",
+    "docs/plans/security-incident-response-transactional-deploy-packet.md": "04881d0a642539bf32fd879b59e0a05618d108914e50d89de9be99f6db495047",
+    "docs/runbooks/security-incident-response.md": "d9b62c8355783bca94de49137591bb4c5c94f6bdbe0000c7b7a24e1a7950149e",
+    "ops/homeserver/redacted_backup_snapshot_observation.py": "d838a0a99310171c8ca08d1835527df9d8ac03b240d57b0bd1bbd745e949a95b",
+    "ops/homeserver/redacted_podman_compose_capability_observation.py": "ba0bbaa530a0ec4a5f67a0328fe5156fe99306b8da8aeb764f9ea058b17da225",
+    "ops/homeserver/redacted_predeploy_backup_creation.py": "cb035e480a0e860718d6df7cd4154c1bbce5545ff72c7f70fd8ac78d73d98837",
+    "ops/homeserver/redacted_predeploy_observation.py": "2d19ef9c1834ea001e5fe683e1e1ec800da2c8fdbe6aec7a1e60e48f5ff3ec8b",
+    "tests/test_homeserver_redacted_backup_snapshot_observation.py": "ca74ccea6c0e486b1b84efbc21f631832862297eaa8ac109d5ad10a94c8c0493",
+    "tests/test_homeserver_redacted_predeploy_backup_creation.py": "a34e25b39d126f44562441ae359d06622d138f62cbd0b75f3466e177bb746433",
+    "tests/test_homeserver_redacted_predeploy_observation.py": "9c048fbc8a16d28450914c7d4c265e27ace9908189b14eaa49ca7047096d1f34",
+    "tests/test_homeserver_redacted_podman_compose_capability_observation.py": "5e232816c72abfae75e892f07b19dbeeafa9fb29c4ceb5439a491ae3c6f26f2d",
+    "tests/test_security_incident_response_production_completion_roadmap.py": "30d32039d91f7cf64ae067fb4d43497e91d5015dad56140de435fe7f603bcf07"
+  },
+  "aggregate_sha256": "a657fa55a6ab31b1a653000616eaa1ea22e4b0efb1655b52642caf58093c6f9f",
+  "claim_state": "released",
+  "remaining_frontier": "Finish and read back the SEC131 deterministic semantic manifest, then request the exact SEC131 expanded single-use stage/commit/push Go only if publication is still desired. After publication, the exact capability observation remains separate and ungranted. Executor implementation, fresh D0/SEC129 evidence, owner-bound deploy authority, restore, restic check and delivery remain separate gates."
+}

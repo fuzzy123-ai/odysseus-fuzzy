@@ -16,7 +16,11 @@ from src.security_incident_model import (
     SECURITY_ACTION_SCHEMA,
     summarize_incident,
 )
-from src.security_response_policy import SecurityResponsePolicyError, decide_action
+from src.security_response_policy import (
+    SecurityResponsePolicyError,
+    decide_action,
+    typed_executor_action_types,
+)
 
 
 SECURITY_REMEDIATION_PLAN_SCHEMA = "odysseus.security_remediation_plan.v1"
@@ -36,6 +40,10 @@ SUPPORTED_PREPARE_TYPES = frozenset({
     "deploy_rollback",
     "log_level_increase",
 })
+
+# Shared closed action-type authority for the default-disabled executor slice.
+# Preparation remains prepare-only and does not register an executor.
+TYPED_EXECUTOR_REMEDIATION_TYPES = typed_executor_action_types()
 
 FORBIDDEN_MARKERS = (
     "authorization:",

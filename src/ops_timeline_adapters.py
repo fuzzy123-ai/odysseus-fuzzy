@@ -2,12 +2,28 @@
 
 from __future__ import annotations
 
+import hashlib
+from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from src.ops_timeline import build_ops_timeline, build_ops_timeline_event
 
 
 OPS_TIMELINE_ADAPTERS_SCHEMA = "odysseus.ops_timeline.adapters.v1"
+_DEFAULT_INCIDENT_DB_NAME = "security_incidents.sqlite"
+
+
+def create_default_security_incident_store(*, database_path: str | Path | None = None) -> Any | None:
+    """Create the fixed local store during server setup, never during a read."""
+
+    try:
+        from src.constants import DATA_DIR
+        from src.security_incident_store import SecurityIncidentStore
+
+        path = Path(database_path) if database_path is not None else Path(DATA_DIR) / _DEFAULT_INCIDENT_DB_NAME
+        return SecurityIncidentStore(path)
+    except Exception:
+        return None
 
 
 def build_ops_timeline_from_sources(
@@ -18,6 +34,7 @@ def build_ops_timeline_from_sources(
     security_incident: Mapping[str, Any] | None = None,
     response_policy: Mapping[str, Any] | None = None,
     remediation_plan: Mapping[str, Any] | None = None,
+    store: Any = None,
     timeline_id: str | None = None,
     generated_at: str | None = None,
 ) -> dict[str, Any]:
@@ -30,6 +47,7 @@ def build_ops_timeline_from_sources(
     events.extend(security_incident_events(security_incident))
     events.extend(security_response_policy_events(response_policy))
     events.extend(security_remediation_plan_events(remediation_plan))
+    events.extend(persisted_security_store_events(store))
     timeline = build_ops_timeline(events, timeline_id=timeline_id, generated_at=generated_at)
     timeline["adapter_schema"] = OPS_TIMELINE_ADAPTERS_SCHEMA
     timeline["adapter_sources"] = tuple(
@@ -41,10 +59,86 @@ def build_ops_timeline_from_sources(
             ("security_incident", security_incident),
             ("security_response_policy", response_policy),
             ("security_remediation_plan", remediation_plan),
+            ("security_incident_store", store),
         )
         if value is not None
     )
     return timeline
+
+
+def persisted_security_store_status(store: Any) -> str:
+    if store is None or not callable(getattr(store, "audit_events", None)) or not callable(getattr(store, "get_incident", None)):
+        return "not_configured"
+    try:
+        records = tuple(store.audit_events())
+        for record in records:
+            int(record.sequence)
+            str(record.incident_id)
+        incident_ids = tuple(dict.fromkeys(str(record.incident_id) for record in sorted(records, key=lambda record: int(record.sequence), reverse=True)))[:20]
+        for incident_id in incident_ids:
+            store.get_incident(incident_id)
+    except Exception:
+        return "unavailable"
+    return "available"
+
+
+def persisted_security_store_events(store: Any) -> tuple[dict[str, Any], ...]:
+    """Summarize durable state through public, non-expiring store reads only.
+
+    `get_action()` intentionally performs expiry maintenance, so it is never
+    used here.  Audit history gives a deterministic, bounded view including
+    already-persisted expiry transitions without turning a snapshot into a
+    hidden write path.
+    """
+
+    if persisted_security_store_status(store) != "available":
+        return ()
+    try:
+        audit = tuple(sorted(tuple(store.audit_events()), key=lambda event: int(event.sequence)))
+    except Exception:
+        return ()
+    # Newest audit sequence first, deduplicated by incident, then bounded for
+    # output.  We intentionally select before bounding so old history cannot
+    # hide a newer persisted incident.
+    incident_ids = tuple(dict.fromkeys(str(event.incident_id) for event in reversed(audit)))[:20]
+    events: list[dict[str, Any]] = []
+    for incident_id in incident_ids:
+        try:
+            store.get_incident(incident_id)
+        except Exception:
+            continue
+        incident_events = tuple(event for event in audit if str(event.incident_id) == incident_id)
+        action_states: dict[str, tuple[int, str]] = {}
+        for event in incident_events:
+            action_id = getattr(event, "action_id", None)
+            if action_id:
+                action_states[str(action_id)] = (int(event.sequence), _audit_action_state(str(getattr(event, "event_type", ""))))
+        states = tuple(value[1] for value in action_states.values())
+        latest = max(action_states.values(), default=(0, "none"), key=lambda value: value[0])[1]
+        active_count = sum(state in {"proposed", "prepared", "approved", "executing"} for state in states)
+        expired_count = sum(state == "expired" for state in states)
+        status = "contain" if active_count else ("recovery" if latest == "expired" else "watch")
+        gates = ("OPS-REMEDIATION-GO",) if status == "contain" else ()
+        opaque = hashlib.sha256(incident_id.encode("utf-8")).hexdigest()[:16]
+        events.append(build_ops_timeline_event(
+            event_id=f"ops-persisted-security-{opaque}",
+            stage="action_plan" if action_states else "signal",
+            status=status,
+            surface="security",
+            severity="warning" if latest == "expired" else ("error" if action_states else "info"),
+            summary=f"Persisted security incident has {len(action_states)} action records ({active_count} active, {expired_count} expired); latest action state is {latest}.",
+            evidence_refs=("security-incident-store",),
+            required_gates=gates,
+        ))
+    return tuple(events)
+
+
+def _audit_action_state(event_type: str) -> str:
+    if event_type.startswith("action_"):
+        candidate = event_type.removeprefix("action_")
+        if candidate in {"proposed", "prepared", "approved", "denied", "expired", "executing", "executed", "verified", "failed", "rolled_back"}:
+            return candidate
+    return "recorded"
 
 
 def system_health_dashboard_events(summary: Any) -> tuple[dict[str, Any], ...]:
@@ -154,14 +248,15 @@ def security_incident_events(incident: Mapping[str, Any] | None) -> tuple[dict[s
     gates = ("OPS-REMEDIATION-GO",) if status in {"contain", "lockdown"} else ()
     return (
         build_ops_timeline_event(
-            event_id=f"ops-security-incident-{_safe_ref(incident_id)}",
+            event_id=f"ops-security-incident-{hashlib.sha256(incident_id.encode('utf-8')).hexdigest()[:16]}",
             stage="signal",
             status=status,
             surface="security",
             severity=_incident_severity(incident.get("severity"), status),
-            summary=f"Security incident {_summary_token(incident_id)} is {_summary_token(status)}.",
-            evidence_refs=tuple(incident.get("evidence_refs") or ()),
-            correlation_ids=tuple(incident.get("correlation_ids") or ()),
+            summary=f"Security incident summary is {_summary_token(status)}.",
+            # Do not relay incident evidence/correlation material into the Ops
+            # Console; the timeline is a status summary, not an evidence reader.
+            evidence_refs=("security-incident-summary",),
             required_gates=gates,
         ),
     )

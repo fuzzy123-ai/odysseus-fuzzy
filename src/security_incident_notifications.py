@@ -6,6 +6,7 @@ messages, read live incident stores, or expose delivery targets.
 
 from __future__ import annotations
 
+import hashlib
 import re
 from typing import Any, Mapping
 
@@ -14,10 +15,16 @@ from src.user_notification_contract import (
     NotificationContractError,
     build_user_notification_decision,
 )
+from src.security_incident_delivery import record_dry_run_delivery
 
 
 SECURITY_INCIDENT_NOTIFICATION_SCHEMA = "odysseus.security_incident_notification.v1"
 ALLOWED_NOTIFICATION_CHANNELS = {"telegram", "ui"}
+_OPERATOR_NOTIFICATION_SMOKE_BODY = (
+    "[Odysseus][warning] Security incident operator notification.\n"
+    "Review the approved incident action in Odysseus."
+)
+_OPERATOR_NOTIFICATION_TARGET_CLASS = "configured_telegram_operator_target_v1"
 MAX_ACTIONS = 5
 FORBIDDEN_TEXT_MARKERS = (
     "authorization",
@@ -38,6 +45,23 @@ HOST_PATH_RE = re.compile(r"([A-Za-z]:\\|/(home|Users|var/lib|mnt|srv|opt)/|~[\\
 
 class SecurityIncidentNotificationError(ValueError):
     """Raised when an incident notification would cross the redaction boundary."""
+
+
+def canonical_operator_notification_smoke_body() -> str:
+    """Return the one fixed, bounded body permitted for delivery smoke wiring."""
+    return _OPERATOR_NOTIFICATION_SMOKE_BODY
+
+
+def canonical_operator_notification_body_ref() -> str:
+    return "body:sha256:" + hashlib.sha256(
+        ("odysseus.security_incident_operator_notification.v1|" + _OPERATOR_NOTIFICATION_SMOKE_BODY).encode("utf-8")
+    ).hexdigest()
+
+
+def canonical_operator_notification_target_class_ref() -> str:
+    return "target_class:sha256:" + hashlib.sha256(
+        _OPERATOR_NOTIFICATION_TARGET_CLASS.encode("utf-8")
+    ).hexdigest()
 
 
 def build_incident_notification_payload(
@@ -147,7 +171,7 @@ def format_incident_notification_for_telegram(
     confirm_ids = [action["action_id"] for action in actions if action["requires_confirmation"]]
     if confirm_ids:
         joined = ", ".join(confirm_ids)
-        lines.append(f"Approve/deny: /incident approve <action_id> or /incident deny <action_id> ({joined})")
+        lines.append(f"Browser step-up required: /incident approve <action_id> or /incident deny <action_id> ({joined})")
     else:
         lines.append("No operator approval required for current recommendations.")
     text = "\n".join(lines)
@@ -275,3 +299,8 @@ def _reject_forbidden_text(text: str, *, field: str = "value") -> None:
         raise SecurityIncidentNotificationError(f"{field} contains a forbidden marker")
     if HOST_PATH_RE.search(text):
         raise SecurityIncidentNotificationError(f"{field} contains a private host path")
+
+
+def build_incident_delivery_preview(*, action_id: Any, retry_count: int = 0) -> dict[str, Any]:
+    """Expose a redacted immutable no-send receipt while the delivery GO is absent."""
+    return record_dry_run_delivery(action_id=action_id, retry_count=retry_count).as_dict()

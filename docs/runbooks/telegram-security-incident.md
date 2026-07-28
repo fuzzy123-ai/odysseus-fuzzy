@@ -92,6 +92,24 @@ Wenn eine Action fehlt:
 - Hinweis geben: Action-ID unbekannt oder expired
 - keine Live-Aktion ausfuehren
 
+## Single delivery activation
+
+A prepared Telegram notification is a no-send artifact. Delivery remains
+`not_run` without a later action-specific operator decision under
+`OPS-ALERT-DELIVERY-GO`. That gate is independent of observe, CrowdSec,
+session, MCP-tool, deploy and temporal-closure gates; no action ID or preview
+satisfies it.
+
+The one delivery packet in
+`docs/plans/security-incident-response-activation-packet.md` must state a
+channel target class with server-side target readiness but no disclosed target,
+exactly one redacted body/send, exact attempt timeout, single-use grant expiry,
+redacted preflight evidence, no-retry recovery, independent redacted
+status/correlation readback, abort conditions and later operator decision.
+Abort on target/body drift, private content, timeout, retry expansion or
+withdrawal. Record only the redacted final status; a delivery receipt never
+authorizes or proves a remediation.
+
 ## No-Go
 
 No-Go gilt bei:

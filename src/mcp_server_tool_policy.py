@@ -52,6 +52,14 @@ ALWAYS_DENIED_TOOLS = frozenset({
     "write_file",
 })
 
+# These names are intentionally high-risk even when a local debug server has
+# no injected kernel.  They must never inherit read-only exposure.
+EFFECTFUL_SECURITY_EXECUTION_TOOLS = frozenset({
+    "security_action_approve",
+    "security_action_deny",
+    "security_action_execute",
+})
+
 GENERIC_API_TOOLS = frozenset({
     "odysseus_call",
     "odysseus_list_endpoints",
@@ -125,9 +133,6 @@ DEBUG_READONLY_TOOLS = frozenset({
     "raptorgraph_debug_rebuild_readiness",
     "scheduler_debug_delivery_failures",
     "scheduler_debug_due_tasks",
-    "security_action_approve",
-    "security_action_deny",
-    "security_action_execute",
     "security_action_prepare",
     "security_debug_bundle_read",
     "security_incident_list",
@@ -202,7 +207,7 @@ def classify_mcp_tool(
     if not name:
         return McpToolDecision("", False, "invalid", "missing_tool_name")
 
-    if name in ALWAYS_DENIED_TOOLS:
+    if name in ALWAYS_DENIED_TOOLS or name in EFFECTFUL_SECURITY_EXECUTION_TOOLS:
         return McpToolDecision(name, False, "high_risk", "high_risk_tool_hidden")
     if name in GENERIC_API_TOOLS:
         return McpToolDecision(

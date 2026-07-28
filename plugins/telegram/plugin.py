@@ -154,6 +154,7 @@ from plugins.telegram.control_service import (
     handle_new_chat_control_command,
     handle_project_intake_control_command,
     handle_universal_inbox_control_command,
+    handle_security_incident_control_command,
     public_agent_task_record,
 )
 from plugins.telegram.formatting import (
@@ -467,6 +468,19 @@ def _handle_telegram_control_command(
             "binding": {},
             "reply_text": "",
             "reply": None,
+        }
+    incident_control = handle_security_incident_control_command(command)
+    if incident_control is not None:
+        return {
+            # The command string flows into polling/webhook audit and public
+            # summaries.  Keep the action id only in this ephemeral nested
+            # result and never in those durable/public surfaces.
+            "command": "security_incident_control",
+            "status": incident_control["status"],
+            "binding": {},
+            "reply_text": "",
+            "reply": None,
+            "security_incident": incident_control,
         }
     if command.startswith("dsgvo_"):
         return handle_dsgvo_control_command(

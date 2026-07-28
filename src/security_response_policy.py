@@ -7,6 +7,7 @@ diagnose, recommend, gated action, blocked or denied.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Iterable, Mapping
 
 from src.security_incident_model import (
@@ -23,6 +24,32 @@ from src.security_incident_model import (
 
 
 SECURITY_RESPONSE_POLICY_SCHEMA = "odysseus.security_response_policy.v1"
+
+# This table is the SIRP action authority.  It describes availability only;
+# it never grants execution permission.
+ACTION_POLICY_DISPOSITIONS = {
+    "operator_notification": ("delivery_prepare_only", "OPS-ALERT-DELIVERY-GO"),
+    "crowdsec_temp_block": ("typed_executor", "crowdsec-remediation-go"),
+    "crowdsec_unblock": ("typed_executor", "crowdsec-remediation-go"),
+    "session_invalidate_prepare": ("typed_executor", "security-incident-session-invalidation-go"),
+    "service_restart": ("manual_handoff", "OPS-REMEDIATION-GO"),
+    "scheduler_pause": ("manual_handoff", "OPS-REMEDIATION-GO"),
+    "scheduler_retry": ("manual_handoff", "OPS-REMEDIATION-GO"),
+    "raptorgraph_maintenance_restart": ("manual_handoff", "OPS-REMEDIATION-GO"),
+    "nextcloud_import_retry": ("manual_handoff", "nextcloud-local-only-extraction-go"),
+    "token_rotation_prepare": ("manual_handoff", "security-incident-credential-rotation-go"),
+    "cloudflare_tunnel_change": ("manual_handoff", "security-incident-cloudflare-change-go"),
+    "deploy_rollback": ("manual_handoff", "deploy-live-go"),
+    "log_level_increase": ("manual_handoff", "security-incident-log-privacy-go"),
+    "firewall_change": ("never_allowed_in_SIRP", "none"),
+    "external_upload_private_evidence": ("never_allowed_in_SIRP", "none"),
+    "hackback_or_third_party_exploit": ("never_allowed_in_SIRP", "none"),
+}
+
+TYPED_EXECUTOR_ACTION_TYPES = frozenset(
+    action_type for action_type, (disposition, _gate) in ACTION_POLICY_DISPOSITIONS.items()
+    if disposition == "typed_executor"
+)
 
 POLICY_DECISIONS = {
     "observe",
@@ -61,6 +88,16 @@ def decide_action(
 ) -> dict[str, Any]:
     """Classify one recommended action without executing it."""
 
+    if _is_canonical_never_allowed_action(action):
+        return _decision(
+            action=_minimal_never_allowed_action(action),
+            decision="denied",
+            reason="action_type_never_allowed",
+            operator_gate_required=False,
+            allowed_to_execute=False,
+            incident_mode=incident_mode,
+            dsgvo_mode=dsgvo_mode,
+        )
     normalized = _normalize_action(action)
     action_type = str(normalized["type"])
     approved = _approved_gate_set(approved_gates)
@@ -84,6 +121,19 @@ def decide_action(
             action=normalized,
             decision="blocked",
             reason="sensitive_external_action_blocked",
+            operator_gate_required=True,
+            allowed_to_execute=False,
+            incident_mode=incident_mode,
+            dsgvo_mode=dsgvo_mode,
+        )
+
+    if action_type == "operator_notification":
+        normalized = dict(normalized)
+        normalized["policy_gate"] = "OPS-ALERT-DELIVERY-GO"
+        return _decision(
+            action=normalized,
+            decision="gated_action",
+            reason="operator_delivery_gate_required_prepare_only",
             operator_gate_required=True,
             allowed_to_execute=False,
             incident_mode=incident_mode,
@@ -220,11 +270,37 @@ def policy_readiness() -> dict[str, Any]:
         "auto_allowed_action_types": tuple(sorted(AUTO_ALLOWED_ACTION_TYPES)),
         "confirmation_required_action_types": tuple(sorted(CONFIRMATION_REQUIRED_ACTION_TYPES)),
         "never_allowed_action_types": tuple(sorted(NEVER_ALLOWED_ACTION_TYPES)),
+        "action_policy_dispositions": tuple(
+            {"action_type": action_type, "disposition": disposition, "gate": gate}
+            for action_type, (disposition, gate) in sorted(ACTION_POLICY_DISPOSITIONS.items())
+        ),
         "operator_action_min_confidence": MIN_CONFIDENCE_FOR_OPERATOR_ACTION,
         "containment_recommendation_min_confidence": MIN_CONFIDENCE_FOR_CONTAINMENT_RECOMMENDATION,
         "executes_live_actions": False,
         "raw_content_visible": False,
     }
+
+
+def action_policy_disposition(action_type: Any) -> tuple[str, str]:
+    """Return the canonical SIRP disposition and named gate for one action."""
+
+    normalized = str(action_type or "").strip()
+    if normalized in ACTION_POLICY_DISPOSITIONS:
+        return ACTION_POLICY_DISPOSITIONS[normalized]
+    if normalized in AUTO_ALLOWED_ACTION_TYPES:
+        return "read_only_allowed", "none"
+    if normalized in NEVER_ALLOWED_ACTION_TYPES:
+        return "never_allowed_in_SIRP", "none"
+    return "never_allowed_in_SIRP", "none"
+
+
+def typed_executor_action_types() -> frozenset[str]:
+    """Return the closed set which a future typed executor may dispatch.
+
+    This is an availability classification only; it never grants execution.
+    """
+
+    return TYPED_EXECUTOR_ACTION_TYPES
 
 
 def _normalize_action(action: Mapping[str, Any]) -> dict[str, Any]:
@@ -245,6 +321,40 @@ def _normalize_action(action: Mapping[str, Any]) -> dict[str, Any]:
         )
     except SecurityIncidentModelError as exc:
         raise SecurityResponsePolicyError(str(exc)) from exc
+
+
+def _is_canonical_never_allowed_action(action: Any) -> bool:
+    return isinstance(action, Mapping) and str(action.get("type") or "") in {
+        "firewall_change", "external_upload_private_evidence", "hackback_or_third_party_exploit",
+    }
+
+
+def _minimal_never_allowed_action(action: Mapping[str, Any]) -> dict[str, Any]:
+    if action.get("schema") != SECURITY_ACTION_SCHEMA or action.get("raw_content_visible") is not False:
+        raise SecurityResponsePolicyError("never allowed action has invalid schema")
+    _reject_unsafe_never_allowed_action(action)
+    action_id = str(action.get("action_id") or "")
+    if not re.fullmatch(r"[A-Za-z0-9_.:@/-]{1,180}", action_id):
+        raise SecurityResponsePolicyError("never allowed action has invalid identifier")
+    return {"action_id": action_id, "type": str(action["type"]), "policy_gate": "none"}
+
+
+def _reject_unsafe_never_allowed_action(value: Any, *, field: str = "") -> None:
+    if isinstance(value, Mapping):
+        for key, nested in value.items():
+            name = str(key).lower()
+            if name != "raw_content_visible" and ("raw" in name or any(marker in name for marker in ("token", "cookie", "authorization", "private", "chat_id", "command"))):
+                raise SecurityResponsePolicyError("never allowed action contains forbidden content")
+            _reject_unsafe_never_allowed_action(nested, field=name)
+        return
+    if isinstance(value, (tuple, list, set)):
+        for nested in value:
+            _reject_unsafe_never_allowed_action(nested, field=field)
+        return
+    if isinstance(value, str):
+        lowered = value.lower()
+        if any(marker in lowered for marker in ("authorization:", "bearer ", "api_key", "password=", "cookie:", "token=", "chat_id", "private_document", "private_email", "raw_output")) or re.search(r"(?:[a-z]:[\\/]|/(?:home|users|var|mnt|srv|opt)/|~[\\/]|\b(?:\d{1,3}\.){3}\d{1,3}\b)", value, re.I):
+            raise SecurityResponsePolicyError("never allowed action contains forbidden content")
 
 
 def _validate_incident(incident: Mapping[str, Any]) -> None:

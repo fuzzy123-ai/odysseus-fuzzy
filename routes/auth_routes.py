@@ -28,6 +28,9 @@ from src.integrations import (
     migrate_from_settings,
 )
 from routes.auth_user_rename import migrate_renamed_user_references
+from src.security_action_authorization import SecurityActionAuthorization, SecurityActionAuthorizationError, build_redacted_auth_event
+from src.security_incident_commands import SecurityIncidentCommandError, SecurityIncidentCommands
+from src.ops_timeline_adapters import create_default_security_incident_store
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +78,11 @@ class SetAdminRequest(BaseModel):
 class SetOpenRegistrationRequest(BaseModel):
     enabled: bool
 
+
+class SecurityActionStepUpRequest(BaseModel):
+    password: str
+    totp_code: str
+
 SESSION_COOKIE = "odysseus_session"
 
 
@@ -84,6 +92,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
     _login_limiter = RateLimiter(max_requests=15, window_seconds=60)
     _signup_limiter = RateLimiter(max_requests=3, window_seconds=300)
     _setup_limiter = RateLimiter(max_requests=3, window_seconds=300)
+    _security_action_authorization = SecurityActionAuthorization(auth_manager)
 
     def _settings_response_dict(*, include_secrets: bool = True) -> dict:
         snapshot = list_settings(scope="global", store="setting", include_secrets=include_secrets)
@@ -96,6 +105,133 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
     def _get_current_user(request: Request) -> Optional[str]:
         token = request.cookies.get(SESSION_COOKIE)
         return auth_manager.get_username_for_token(token)
+
+    def _emit_redacted_auth_event(request: Request, *, username: str = "", outcome: str = "blocked", session_created: str = "not_applicable", event: Any = None) -> bool:
+        """Use the canonical adapter/broker envelope with only an in-process sink."""
+        try:
+            payload = (event or build_redacted_auth_event(
+                username=username, outcome=outcome, source_familiarity="unknown",
+                session_created=session_created,
+            )).envelope.to_dict()
+            sink = getattr(request.app.state, "security_auth_event_sink", None)
+            if callable(sink):
+                sink(payload)
+            else:
+                events = getattr(request.app.state, "security_auth_events", None)
+                if events is None:
+                    events = []
+                    request.app.state.security_auth_events = events
+                if not isinstance(events, list):
+                    return False
+                events.append(payload)
+                del events[:-64]
+            return True
+        except Exception:
+            return False
+
+    def _security_action_store(request: Request):
+        store = getattr(request.app.state, "security_incident_store", None)
+        required = ("get_action", "approve", "transition")
+        if store is not None:
+            return store if all(callable(getattr(store, name, None)) for name in required) else None
+        factory = getattr(request.app.state, "security_incident_store_factory", None)
+        if factory is None:
+            factory = create_default_security_incident_store
+        try:
+            candidate = factory()
+        except Exception:
+            return None
+        return candidate if candidate is not None and all(callable(getattr(candidate, name, None)) for name in required) else None
+
+    def _reject_non_browser_action_request(request: Request) -> None:
+        if request.query_params or request.headers.get("authorization") is not None or request.headers.get("x-odysseus-internal-token") is not None:
+            raise HTTPException(403, "Security action unavailable")
+
+    def _security_action_identity(request: Request) -> tuple[str, str]:
+        _reject_non_browser_action_request(request)
+        token = request.cookies.get(SESSION_COOKIE)
+        user = auth_manager.get_username_for_token(token)
+        if not token or not user:
+            raise HTTPException(403, "Security action unavailable")
+        return token, user
+
+    def _security_action_commands(request: Request) -> SecurityIncidentCommands:
+        store = _security_action_store(request)
+        if store is None:
+            raise HTTPException(503, "Security action unavailable")
+        return SecurityIncidentCommands(store, _security_action_authorization)
+
+    async def _strict_step_up_payload(request: Request) -> tuple[str, str]:
+        try:
+            body = await request.json()
+        except Exception:
+            raise HTTPException(403, "Security action unavailable") from None
+        if not isinstance(body, dict) or set(body) != {"password", "totp_code"}:
+            raise HTTPException(403, "Security action unavailable")
+        password, totp_code = body.get("password"), body.get("totp_code")
+        if not isinstance(password, str) or not isinstance(totp_code, str):
+            raise HTTPException(403, "Security action unavailable")
+        return password, totp_code
+
+    @router.post("/security-actions/{action_id}/step-up")
+    async def security_action_step_up(action_id: str, request: Request):
+        """Bind fresh password plus live TOTP to one action; never returns a proof."""
+        emitted = False
+        try:
+            token, user = _security_action_identity(request)
+            password, totp_code = await _strict_step_up_payload(request)
+            _security_action_authorization.verify_factors(
+                session_token=token, username=user, password=password, totp_code=totp_code,
+                auth_kind="browser_cookie",
+            )
+            store = _security_action_store(request)
+            if store is None:
+                raise SecurityActionAuthorizationError("security action authorization unavailable")
+            action = store.get_action(action_id)
+            def _emit_success(event):
+                nonlocal emitted
+                emitted = True
+                return _emit_redacted_auth_event(request, event=event)
+            event = _security_action_authorization.step_up_with_emission(
+                session_token=token, username=user, password=password, totp_code=totp_code,
+                action=action, auth_kind="browser_cookie", emit=_emit_success,
+            )
+        except Exception:
+            # The boundary intentionally collapses malformed credentials, stale
+            # actions, role/session changes, and invalid TOTP into one response.
+            if not emitted:
+                _emit_redacted_auth_event(request, username="", outcome="blocked", session_created="no")
+            raise HTTPException(403, "Security action unavailable") from None
+        return {"status": "step_up_accepted", "auth_evidence_ref": event.envelope.evidence_ref, "raw_content_visible": False}
+
+    async def _security_action_command(action_id: str, request: Request, operation: str):
+        try:
+            body = await request.body()
+        except Exception:
+            raise HTTPException(403, "Security action unavailable") from None
+        if body != b"":
+            raise HTTPException(403, "Security action unavailable")
+        token, user = _security_action_identity(request)
+        commands = _security_action_commands(request)
+        try:
+            result = getattr(commands, operation)(
+                action_id=action_id, session_token=token, username=user, auth_kind="browser_cookie"
+            )
+        except (SecurityIncidentCommandError, SecurityActionAuthorizationError, AttributeError):
+            raise HTTPException(409, "Security action unavailable") from None
+        return result
+
+    @router.post("/security-actions/{action_id}/approve")
+    async def approve_security_action(action_id: str, request: Request):
+        return await _security_action_command(action_id, request, "approve")
+
+    @router.post("/security-actions/{action_id}/deny")
+    async def deny_security_action(action_id: str, request: Request):
+        return await _security_action_command(action_id, request, "deny")
+
+    @router.post("/security-actions/{action_id}/expire")
+    async def expire_security_action(action_id: str, request: Request):
+        return await _security_action_command(action_id, request, "expire")
 
     @router.post("/setup")
     async def first_run_setup(body: SetupRequest, request: Request):
@@ -138,21 +274,26 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
     @router.post("/login")
     async def login(body: LoginRequest, request: Request, response: Response):
         if not _login_limiter.check(request.client.host):
+            _emit_redacted_auth_event(request, username="", outcome="blocked", session_created="no")
             raise HTTPException(429, "Too many requests — try again later")
         # Verify password first
         username = body.username.strip().lower()
         if not await asyncio.to_thread(auth_manager.verify_password, username, body.password):
+            _emit_redacted_auth_event(request, username=username, outcome="failed", session_created="no")
             raise HTTPException(401, "Invalid credentials")
         # Check 2FA if enabled
         if auth_manager.totp_enabled(username):
             if not body.totp_code:
+                _emit_redacted_auth_event(request, username=username, outcome="blocked", session_created="no")
                 # Password OK but need TOTP — tell client to show code input
                 return {"ok": False, "requires_totp": True, "username": username}
             if not auth_manager.totp_verify(username, body.totp_code):
+                _emit_redacted_auth_event(request, username=username, outcome="failed", session_created="no")
                 raise HTTPException(401, "Invalid 2FA code")
         # All checks passed — create session (password already verified above)
         token = await asyncio.to_thread(auth_manager.create_session_trusted, username)
         if not token:
+            _emit_redacted_auth_event(request, username=username, outcome="unknown", session_created="no")
             raise HTTPException(401, "Invalid credentials")
         cookie_kwargs = dict(
             key=SESSION_COOKIE,
@@ -165,20 +306,24 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         if body.remember:
             cookie_kwargs["max_age"] = TOKEN_TTL
         response.set_cookie(**cookie_kwargs)
+        _emit_redacted_auth_event(request, username=username, outcome="success", session_created="yes")
         return {"ok": True, "username": username}
 
     @router.post("/logout")
     async def logout(request: Request, response: Response):
         token = request.cookies.get(SESSION_COOKIE)
+        username = auth_manager.get_username_for_token(token) if token else ""
         if token:
             auth_manager.revoke_token(token)
         response.delete_cookie(SESSION_COOKIE, path="/")
+        _emit_redacted_auth_event(request, username=username or "", outcome="success" if username else "not_applicable", session_created="no")
         return {"ok": True}
 
     @router.get("/status")
     async def auth_status(request: Request):
         token = request.cookies.get(SESSION_COOKIE)
         result = auth_manager.status(token)
+        _emit_redacted_auth_event(request, username=str(result.get("username") or ""), outcome="success" if result.get("authenticated") else "failed", session_created="not_applicable")
         result["signup_enabled"] = auth_manager.signup_enabled
         # Include the caller's effective privileges so the frontend can
         # hide / dim UI controls the user isn't allowed to use. Admins get

@@ -1,6 +1,7 @@
 from src.mcp_server_tool_policy import (
     ALWAYS_DENIED_TOOLS,
     DEBUG_READONLY_TOOLS,
+    EFFECTFUL_SECURITY_EXECUTION_TOOLS,
     McpToolPolicyOptions,
     PLANNING_DEPRECATED_TOOLS,
     PLANNING_READONLY_TOOLS,
@@ -38,6 +39,15 @@ def test_mcp_policy_hides_high_risk_tools_even_with_expose_all():
     for tool_name in ALWAYS_DENIED_TOOLS:
         decision = classify_mcp_tool(tool_name, options)
         assert decision.exposed is False, tool_name
+        assert decision.category == "high_risk"
+        assert decision.reason == "high_risk_tool_hidden"
+
+
+def test_effectful_security_execution_is_high_risk_and_never_debug_readonly():
+    for tool_name in EFFECTFUL_SECURITY_EXECUTION_TOOLS:
+        decision = classify_mcp_tool(tool_name, McpToolPolicyOptions(expose_all=True))
+        assert tool_name not in DEBUG_READONLY_TOOLS
+        assert decision.exposed is False
         assert decision.category == "high_risk"
         assert decision.reason == "high_risk_tool_hidden"
 

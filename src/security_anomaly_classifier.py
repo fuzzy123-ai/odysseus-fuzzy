@@ -8,14 +8,24 @@ access.
 from __future__ import annotations
 
 from collections import defaultdict
+import hashlib
 import json
+import re
 from typing import Any, Iterable, Mapping
 
-from src.runtime_event_envelope import RUNTIME_EVENT_SCHEMA, stable_payload_hash
+from src.runtime_event_envelope import REQUIRED_EVENT_FIELDS, RUNTIME_EVENT_SCHEMA, stable_payload_hash
 from src.security_incident_model import build_recommended_action, build_security_incident
 
 
 SECURITY_ANOMALY_CLASSIFIER_SCHEMA = "odysseus.security_anomaly_classifier.v1"
+CLASSIFIER_FAMILY = "deterministic_offline_rules"
+CLASSIFIER_REVISION = "sirp03-r1"
+_PRIVATE_PATH = re.compile(r"(?:[a-z]:[\\/]|/(?:home|users|var|mnt|srv|opt)/|~[\\/])", re.I)
+_RAW_IP = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+_EMAIL = re.compile(r"\b[^@\s]+@[^@\s]+\.[^@\s]+\b")
+_COMMAND_TEXT = re.compile(r"(?:^|\s)(?:rm|del|curl|wget|powershell|bash|cmd|python(?:3)?)\s", re.I)
+_FORBIDDEN_KEY_PARTS = frozenset({"authorization", "token", "cookie", "header", "command", "target", "private", "credential", "secret"})
+_DEBUG_SERVER_LEGACY_EVENT_FIELDS = frozenset({"schema", "event_id", "surface", "component", "event_type", "status", "severity", "correlation_id", "raw_content_visible"})
 
 
 class SecurityAnomalyClassifierError(ValueError):
@@ -29,7 +39,9 @@ def classify_security_anomalies(
 ) -> dict[str, Any]:
     """Return redacted incident candidates for known anomaly families."""
 
-    normalized_events = tuple(_safe_event(event) for event in events)
+    # Canonical ordering prevents the caller's collection order from changing
+    # candidate identifiers, action identifiers, or output ordering.
+    normalized_events = tuple(sorted((_safe_event(event) for event in events), key=_event_sort_key))
     summary = _safe_summary(observability_summary or {})
     incidents: list[dict[str, Any]] = []
     incidents.extend(_classify_auth_failures(normalized_events, summary))
@@ -39,10 +51,12 @@ def classify_security_anomalies(
     incidents.extend(_classify_secret_leak_indicators(normalized_events, summary))
     return {
         "schema": SECURITY_ANOMALY_CLASSIFIER_SCHEMA,
+        "classifier_family": CLASSIFIER_FAMILY,
+        "classifier_revision": CLASSIFIER_REVISION,
         "status": "success",
         "event_count": len(normalized_events),
         "incident_count": len(incidents),
-        "incidents": tuple(incidents),
+        "incidents": tuple(sorted(incidents, key=lambda incident: str(incident["incident_id"]))),
         "summary": {
             "auth_failure_events": _count_events(normalized_events, _is_auth_failure),
             "endpoint_probe_events": _count_events(normalized_events, _is_endpoint_probe),
@@ -160,12 +174,15 @@ def _incident(
     actions: Iterable[str],
 ) -> dict[str, Any]:
     event_tuple = tuple(events)
-    action_objects = tuple(_action(action_type) for action_type in actions)
-    correlation_ids = tuple(dict.fromkeys(str(event.get("correlation_id") or "") for event in event_tuple if event.get("correlation_id")))
-    evidence_refs = tuple(dict.fromkeys(str(event.get("event_id") or "") for event in event_tuple if event.get("event_id")))
+    correlation_ids = tuple(sorted({str(event.get("correlation_id") or "") for event in event_tuple if event.get("correlation_id")}))
+    evidence_refs = tuple(sorted({str(event.get("event_id") or "") for event in event_tuple if event.get("event_id")}))
     if not correlation_ids and not evidence_refs:
         evidence_refs = (stable_payload_hash({"trigger": trigger, "count": len(event_tuple)}),)
+    fingerprint = hashlib.sha256(json.dumps({"trigger": trigger, "correlation_ids": correlation_ids, "evidence_refs": evidence_refs}, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    action_objects = tuple(_action(action_type, fingerprint=fingerprint) for action_type in actions)
+    observation_time = _observation_time(event_tuple)
     return build_security_incident(
+        incident_id=f"inc-{fingerprint[:24]}",
         level=level,
         severity=severity,
         confidence=confidence,
@@ -175,10 +192,12 @@ def _incident(
         correlation_ids=correlation_ids,
         evidence_refs=evidence_refs,
         recommended_actions=action_objects,
+        created_at=observation_time,
+        updated_at=observation_time,
     )
 
 
-def _action(action_type: str) -> dict[str, Any]:
+def _action(action_type: str, *, fingerprint: str) -> dict[str, Any]:
     summaries = {
         "read_only_diagnostics": "Collect bounded redacted diagnostics for this incident candidate.",
         "redacted_debug_bundle": "Prepare a redacted debug bundle for operator review.",
@@ -194,6 +213,7 @@ def _action(action_type: str) -> dict[str, Any]:
         action_type=action_type,
         summary=summaries[action_type],
         risk=risks.get(action_type, "Read-only or notification-only action with redacted evidence."),
+        action_id=f"act-{action_type[:32]}-{fingerprint[:12]}",
     )
 
 
@@ -205,6 +225,12 @@ def _safe_event(event: Mapping[str, Any]) -> dict[str, Any]:
     schema = str(event.get("schema") or RUNTIME_EVENT_SCHEMA)
     if schema != RUNTIME_EVENT_SCHEMA:
         raise SecurityAnomalyClassifierError("unsupported event schema")
+    if event.get("schema") == RUNTIME_EVENT_SCHEMA:
+        keys = frozenset(event)
+        is_full_runtime_envelope = all(field in event for field in REQUIRED_EVENT_FIELDS)
+        if not is_full_runtime_envelope and keys != _DEBUG_SERVER_LEGACY_EVENT_FIELDS:
+            raise SecurityAnomalyClassifierError("schema-tagged event is incomplete")
+    _reject_private_classifier_input(event, allow_root_raw_content_flag=True)
     encoded = json.dumps(event, ensure_ascii=False, sort_keys=True, default=str).lower()
     forbidden = (
         "authorization:",
@@ -220,13 +246,45 @@ def _safe_event(event: Mapping[str, Any]) -> dict[str, Any]:
     return dict(event)
 
 
+def _event_sort_key(event: Mapping[str, Any]) -> str:
+    return json.dumps(event, ensure_ascii=True, sort_keys=True, separators=(",", ":"), default=str)
+
+
+def _observation_time(events: Iterable[Mapping[str, Any]]) -> str:
+    values = sorted(str(event.get("ts") or "") for event in events)
+    valid = [value for value in values if re.fullmatch(r"\d{4}-\d{2}-\d{2}T[0-9:.+-]+Z?", value)]
+    # A fixed epoch is an explicit "time unavailable" sentinel for legacy
+    # envelopes rather than a fabricated classification-time observation.
+    return valid[-1] if valid else "1970-01-01T00:00:00Z"
+
+
 def _safe_summary(summary: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(summary, Mapping):
         return {}
+    _reject_private_classifier_input(summary)
     encoded = json.dumps(summary, ensure_ascii=False, sort_keys=True, default=str).lower()
     if any(marker in encoded for marker in ("authorization:", "bearer ", "api_key", "password=", "token=")):
         raise SecurityAnomalyClassifierError("summary contains forbidden raw marker")
     return dict(summary)
+
+
+def _reject_private_classifier_input(value: Any, *, allow_root_raw_content_flag: bool = False, depth: int = 0) -> None:
+    if isinstance(value, Mapping):
+        for key, nested in value.items():
+            name = str(key).lower()
+            parts = set(re.split(r"[^a-z0-9]+", name))
+            if name != "raw_content_visible" and ("raw" in parts or bool(parts & _FORBIDDEN_KEY_PARTS) or ({"chat", "id"} <= parts)):
+                raise SecurityAnomalyClassifierError("classifier input contains a forbidden field")
+            if name == "raw_content_visible" and not (depth == 0 and allow_root_raw_content_flag and nested is False):
+                raise SecurityAnomalyClassifierError("classifier input contains a forbidden field")
+            _reject_private_classifier_input(nested, depth=depth + 1)
+        return
+    if isinstance(value, (tuple, list, set)):
+        for nested in value:
+            _reject_private_classifier_input(nested, depth=depth + 1)
+        return
+    if isinstance(value, str) and (_PRIVATE_PATH.search(value) or _RAW_IP.search(value) or _EMAIL.search(value) or _COMMAND_TEXT.search(value)):
+        raise SecurityAnomalyClassifierError("classifier input contains private or executable content")
 
 
 def _group(events: Iterable[dict[str, Any]], predicate, *, key_fields: tuple[str, ...]) -> dict[tuple[str, ...], tuple[dict[str, Any], ...]]:

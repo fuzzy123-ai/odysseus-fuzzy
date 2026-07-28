@@ -11,6 +11,7 @@ from typing import Any, Callable
 
 from src.memory_triage_contract import normalize_memory_write_intent_status
 from src.telegram_image_actions import select_telegram_photo_variant
+from plugins.telegram.security_incident_commands import command_key, parse_security_incident_command
 
 
 def parse_telegram_update(
@@ -50,13 +51,22 @@ def parse_telegram_update(
     }
 
     if isinstance(message.get("text"), str):
+        text = message["text"]
+        first_token = text.strip().split(maxsplit=1)[0].split("@", 1)[0].lower() if text.strip() else ""
+        incident_attempt = first_token == "/incident"
+        incident_command = parse_security_incident_command(text) if incident_attempt else None
         base.update(
             {
                 "kind": "text",
-                "text": message["text"],
+                # A recognized incident command remains available only for the
+                # current control flow.  Its original message is never placed
+                # in the persistent Telegram history record.
+                "text": "[security incident command]" if incident_attempt else text,
                 "intake_status": "ready" if is_allowed else "blocked_chat",
             }
         )
+        if incident_command:
+            base["security_incident_command"] = incident_command
     elif isinstance(message.get("voice"), dict):
         voice = message["voice"]
         transcript_status = "pending_stt"
@@ -225,6 +235,11 @@ def build_telegram_workflow_context(
 def _telegram_control_command(message: dict[str, Any]) -> str:
     if message.get("kind") != "text":
         return ""
+    incident_key = command_key(message.get("security_incident_command"))
+    if incident_key:
+        return incident_key
+    if message.get("text") == "[security incident command]":
+        return "security_incident_control"
     text = str(message.get("text") or "").strip()
     parts = text.split(maxsplit=1)
     first = parts[0].lower() if parts else ""

@@ -6,7 +6,7 @@ from typing import Any, Mapping
 
 from src.observability_alert_routing import build_observability_alert_routes
 from src.observability_diagnostics_bridge import build_observability_diagnostic_packet
-from src.ops_timeline_adapters import build_ops_timeline_from_sources
+from src.ops_timeline_adapters import build_ops_timeline_from_sources, persisted_security_store_status
 from src.security_remediation_actions import remediation_readiness
 from src.security_response_policy import policy_readiness
 from src.system_health_dashboard_summary import build_system_health_dashboard_summary
@@ -23,6 +23,7 @@ def build_ops_console_snapshot(
     security_incident: Mapping[str, Any] | None = None,
     response_policy: Mapping[str, Any] | None = None,
     remediation_plan: Mapping[str, Any] | None = None,
+    store: Any = None,
     timeline_id: str = "ops-console-snapshot",
     generated_at: str | None = None,
 ) -> dict[str, Any]:
@@ -46,6 +47,7 @@ def build_ops_console_snapshot(
         security_incident=security_incident,
         response_policy=response_policy,
         remediation_plan=remediation_plan,
+        store=store,
         timeline_id=timeline_id,
         generated_at=generated_at,
     )
@@ -61,12 +63,14 @@ def build_ops_console_snapshot(
             "alert_routes": str(routes.get("status") or "unknown"),
             "security_policy": security_policy["status"],
             "remediation": remediation["status"],
+            "persisted_security": persisted_security_store_status(store),
         },
         "counts": {
             "timeline_events": timeline["event_count"],
             "required_gates": len(timeline["required_gates"]),
             "alert_routes": int(routes.get("route_count") or 0),
             "diagnostic_findings": len(tuple(diagnostics.get("findings") or ())),
+            "persisted_security_events": sum(1 for event in timeline["events"] if event["surface"] == "security" and event["event_id"].startswith("ops-persisted-security-")),
         },
         "operator_gates": timeline["required_gates"],
         "security_policy_readiness": security_policy,

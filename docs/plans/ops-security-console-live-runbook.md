@@ -125,6 +125,17 @@ Allowed result:
 - Delivery status, reason and redacted correlation id.
 - No token, chat id, recipient, private target or raw message source.
 
+## Delivery activation-packet binding
+
+`OPS-ALERT-DELIVERY-GO` remains open and this runbook grants no Go. A later
+operator decision may cover only one send: one channel target class, one
+server-side-ready opaque target, one redacted body, one attempt timeout and
+one single-use grant expiry. The packet must include redacted preflight
+evidence, a no-retry recovery path, independent redacted delivery-status or
+correlation readback, stop rules for target/body drift, private content,
+timeout, retry expansion or withdrawal, and a final status. It is independent
+from observe, remediation, session and deployment results.
+
 ## Gate: OPS-REMEDIATION-GO
 
 Class: needs_live_go
@@ -156,6 +167,39 @@ Allowed result:
 
 - A handoff card describing action id, decision, status, rollback and evidence.
 - Actual execution only in a separate explicitly approved live run.
+
+Activation-packet boundary:
+
+- `OPS-REMEDIATION-GO` does not substitute for `crowdsec-remediation-go` or
+  `mcp-remediation-tools-go` for a CrowdSec action. The single action packet
+  needs opaque scope, TTL, timeout, grant expiry, false-positive/lockout
+  review, rollback/expiry, independent redacted readback and abort rules.
+- It never authorizes session invalidation. That requires the separate
+  `security-incident-session-invalidation-go` plus
+  `mcp-remediation-tools-go` packet for one non-operator test session, with
+  recovery and independent redacted session-state readback.
+- It never authorizes deployment or deploy rollback. `deploy-live-go` remains
+  an independent later decision with its own target, rollback and readback.
+
+## Activation packet boundaries
+
+`docs/plans/security-incident-response-activation-packet.md` grants no Go and
+binds any future request to one target class, exact bounded scope, timeout,
+single-use grant expiry, redacted evidence, recovery, independent readback,
+abort conditions, later operator decision and final status.
+
+Read-only observe needs the distinct canonical gates
+`observability-live-smoke-go`, `debian-observability-live-go` and
+`log-retention-policy-go`. Its one source/query, time window/result limit and
+timeout are read-only; it cannot send alerts or mutate state. Debian readiness
+may reference only `ssh -F ops/homeserver/ssh_config odysseus-homeserver-probe` and its fixed redacted JSON projection.
+
+Temporal closure is separately gated by
+`security-incident-temporal-closure-go`: one approved start/end observation
+window and named canary evidence references, with expiry/retry/readback/audit
+evidence, independent review and stop on any evidence gap or new action
+family. It grants no lockdown, delivery, remediation, session action or
+deployment.
 
 ## Stop Rules
 
