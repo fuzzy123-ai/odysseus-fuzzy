@@ -73,6 +73,8 @@ def test_exact_git_and_ssh_argv_and_verified_published_bytes_are_the_only_inputs
     assert git_kwargs["timeout"] == 5 and git_kwargs["stderr"] is subprocess.DEVNULL and git_kwargs["shell"] is False
     assert ssh_kwargs["timeout"] == 20 and ssh_kwargs["input"] == b"verified-observer" and ssh_kwargs["stderr"] is subprocess.DEVNULL and ssh_kwargs["shell"] is False
     assert transport.REMOTE_COMMAND == "cd /opt/odysseus && exec /usr/bin/timeout --signal=KILL 15s /usr/bin/python3 -"
+    assert transport.PUBLISHED_REF == "refs/remotes/fuzzy/dev"
+    assert transport.PUBLISHED_OBJECT == "refs/remotes/fuzzy/dev:ops/homeserver/redacted_podman_compose_capability_observation.py"
 
 
 def test_blob_unavailable_or_digest_mismatch_is_fixed_terminal_without_ssh_or_raw_output():

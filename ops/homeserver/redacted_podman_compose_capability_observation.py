@@ -127,6 +127,8 @@ SOURCE_AUDIT_COMMAND = ("python3", "-I", "-c", _SOURCE_AUDIT_PROGRAM)
 
 # Debian package releases have documented both of these exact renderings.
 _VERSION = re.compile(r"^podman-compose version:? 1\.3\.0$")
+_COMPOSE_VERSION_LINE = re.compile(r"^podman-compose version:? [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$")
+_PODMAN_VERSION_LINE = re.compile(r"^podman version [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _ERRORS = frozenset({
     "version_unavailable", "version_mismatch", "help_unavailable", "source_audit_unavailable",
@@ -212,6 +214,19 @@ def _single_line(raw: str) -> str:
     return value
 
 
+def _parse_version_output(raw: str) -> str:
+    """Accept the bounded compose 1.3.0 rendering without retaining Podman output."""
+    if not raw or any((ord(character) < 32 and character != "\n") or ord(character) == 127 for character in raw):
+        raise CapabilityFailure("malformed_output")
+    body = raw[:-1] if raw.endswith("\n") else raw
+    lines = body.split("\n")
+    if len(lines) not in (1, 2) or any(not line for line in lines) or not _COMPOSE_VERSION_LINE.fullmatch(lines[0]):
+        raise CapabilityFailure("malformed_output")
+    if len(lines) == 2 and not _PODMAN_VERSION_LINE.fullmatch(lines[1]):
+        raise CapabilityFailure("malformed_output")
+    return lines[0]
+
+
 def _has_flag(help_text: str, flag: str) -> bool:
     return re.search(r"(?<![A-Za-z0-9_-])" + re.escape(flag) + r"(?![A-Za-z0-9_-])", help_text) is not None
 
@@ -242,7 +257,7 @@ def _parse_source_audit(raw: str) -> dict[str, Any]:
 def collect_podman_compose_capability_observation(*, runner: Callable[..., Any] = subprocess.run) -> dict[str, Any]:
     """Return one redacted capability result; every command is fixed and read-only."""
     try:
-        version = _single_line(_run(VERSION_COMMAND, runner))
+        version = _parse_version_output(_run(VERSION_COMMAND, runner))
         if not _VERSION.fullmatch(version):
             raise CapabilityFailure("version_mismatch")
         global_help = _run(GLOBAL_HELP_COMMAND, runner)

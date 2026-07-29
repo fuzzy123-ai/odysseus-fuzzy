@@ -89,6 +89,26 @@ def test_version_mismatch_and_missing_or_renamed_flags_fail_closed_without_parti
     assert all(set(item) in {observation._BLOCKED_KEYS, observation._NEEDS_KEYS} for item in (mismatch, missing, renamed))
 
 
+def test_version_parser_accepts_only_one_compose_line_and_one_bounded_podman_line_without_emitting_podman_version():
+    accepted = _collect({observation.VERSION_COMMAND: _Result("podman-compose version 1.3.0\npodman version 5.3.1\n")})
+    mismatch = _collect({observation.VERSION_COMMAND: _Result("podman-compose version 1.3.1\npodman version 5.3.1\n")})
+    malformed = [
+        "podman version 5.3.1\npodman-compose version 1.3.0\n",
+        "podman-compose version 1.3.0\npodman version 5.3.1\npodman version 5.3.1\n",
+        "podman-compose version 1.3.0\npodman version 5.3.1 extra\n",
+        "podman-compose version 1.3.0\x1b[31m\n",
+        "podman-compose version 1.3.0\r\n",
+    ]
+    blocked = [_collect({observation.VERSION_COMMAND: _Result(value)}) for value in malformed]
+
+    assert accepted["status"] == "ok" and accepted["podman_compose_version"] == "1.3.0"
+    assert "podman version" not in json.dumps(accepted)
+    assert mismatch["status"] == "blocked" and mismatch["error_code"] == "version_mismatch"
+    assert "5.3.1" not in json.dumps(mismatch)
+    assert all(item["status"] == "blocked" and item["error_code"] == "malformed_output" and item["retry_permitted"] is False for item in blocked)
+    assert "5.3.1" not in json.dumps(blocked)
+
+
 def test_help_flags_and_global_or_wrong_scope_tokens_cannot_prove_dependency_exclusion_semantics():
     no_semantics = _collect({observation.SOURCE_AUDIT_COMMAND: _Result(_audit(up_no_deps_guard_controls_dependency_expansion=False) + "\n")})
     wrong_scope = _collect({observation.SOURCE_AUDIT_COMMAND: _Result(_audit(build_service_selection_handler_local=False) + "\n")})

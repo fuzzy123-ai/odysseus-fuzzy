@@ -3,8 +3,8 @@
   "kind": "odysseus.security_incident_response_production_completion_roadmap",
   "id": "SIRP",
   "title": "Security Incident Response Production Completion",
-  "updated_at": "2026-07-29T07:39:31+02:00",
-  "status": "sec132_transport_recovery_deep_reviewed_repo_only_pending_publication",
+  "updated_at": "2026-07-29T10:24:22+02:00",
+  "status": "sec133_malformed_output_recovery_deep_reviewed_pending_publication",
   "mode": "safe_offline_dependency_ordered",
   "goal": "Close the explicit gap between prepare-only security incident contracts and a production-validated assisted response system with bounded evidence, durable incident and action state, operator-bound approvals, typed executors, independent effect readback and rollback.",
   "slice_contract_fields": ["id", "priority", "class", "owner", "status", "claimable", "depends_on", "gate_requirements", "blockers", "allowed_paths", "hotfiles", "goal", "acceptance", "tests_evidence", "forbidden", "done_when", "completion_matrix"],
@@ -21,6 +21,35 @@
     "optional_separate_track": "Autonomous lockdown is out of denominator and can begin only after assisted response is operationally closed and lockdown-mode-go is approved for a separately defined design."
   },
   "claims": [
+    {
+      "run_id": "ABC-SEC133-20260729-MALFORMED-OUTPUT-RECOVERY",
+      "thread_id": "/root/sec132_transport_bob",
+      "slice_id": "SEC133-version-output-and-current-published-blob-recovery",
+      "owner": "Bob/Terra",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-malformed-output-recovery-packet.md",
+        "ops/homeserver/redacted_podman_compose_capability_observation.py",
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_observation.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T10:18:53+02:00",
+      "lease_expires_at": "2026-07-29T12:18:53+02:00",
+      "handoff_required": true,
+      "phase": "repo_only_malformed_output_recovery_and_publishable_blob_binding",
+      "write_authority": true,
+      "review": "deep_root_sol_required",
+      "released_at": "2026-07-29T10:24:22+02:00",
+      "release_reason": "The bounded two-line version parser, publication-safe fuzzy/dev observer-blob binding, SEC133 recovery packet and adversarial tests passed Bob/Terra implementation plus independent deep root/Sol review. No SEC133 live, stage, commit, push, deploy or send action occurred.",
+      "forbidden_actions": [
+        "SSH, network or live observation",
+        "deploy, build, pull, container, backup, restore or send",
+        "stage, commit, push or fetch",
+        "editing outside the exact allowed paths"
+      ]
+    },
     {
       "run_id": "ABC-SEC132-20260729-OBSERVER-TRANSPORT-RECOVERY",
       "thread_id": "/root/sec132_transport_bob",
@@ -4069,7 +4098,7 @@
   "latest_sec132_observer_transport_recovery_handoff": {
     "recorded_at": "2026-07-29T07:39:31+02:00",
     "run_id": "ABC-SEC132-20260729-OBSERVER-TRANSPORT-RECOVERY",
-    "status": "accepted_repo_only_pending_publication",
+    "status": "published_and_single_live_observation_terminal_blocked_no_retry",
     "sec131_grant_status": "used_terminal_no_retry",
     "sec131_result": "transport_or_schema_validation_failed",
     "raw_cause_claimed": false,
@@ -4110,11 +4139,24 @@
       "pinned_blob_sha256": "pass",
       "pinned_revision_locally_known_fuzzy_ancestry": "pass"
     },
-    "authorization_status": "not_authorized_pending_publication",
-    "future_go_phrase_status": "ineffective_until_SEC132_artifacts_are_reviewed_published_and_revision_bound",
+    "publication_commit": "9e2afe207438c6c2efa46ab8c5c0a71c7b3158ad",
+    "publication_tree": "c78e2b34c13d8172da7861f0ded756ef64619a0c",
+    "publication_target": "fuzzy/dev",
+    "authorization_status": "used_expired_no_retry",
+    "future_go_phrase_status": "used_terminal_blocked_must_not_be_replayed",
     "future_exact_go_phrase": "GO ABC-SEC132 PODMAN COMPOSE PUBLISHED BLOB STDIN TRANSPORT READ-ONLY OBSERVATION ONCE <=30S EXPIRES RUN_END",
-    "external_actions": false,
-    "git_actions": false,
+    "live_observation": {
+      "observed_at": "2026-07-29T10:17:00+02:00",
+      "status": "blocked",
+      "error_code": "malformed_output",
+      "retry_permitted": false,
+      "schema_id": "odysseus.redacted_podman_compose_capability_observation.v1",
+      "evidence_sha256": "08bae6f55bcd382fb61c787fcde8c7a4d5f9ddf8ebae6655736d09ab189d8a47",
+      "raw_output_retained": false,
+      "raw_cause_claimed": false
+    },
+    "external_actions": true,
+    "git_actions": true,
     "active_claims_after_handoff": 0,
     "separate_gates": [
       "SEC132 path-scoped publication",
@@ -4125,7 +4167,51 @@
       "owner-bound deploy Go",
       "delivery send and readback"
     ],
-    "next_action": "Create and review the exact path-scoped SEC132 publication candidate. Only after its revision and byte hashes are published may the exact SEC132 observation phrase be requested."
+    "next_action": "Do not retry SEC132. Publish only the deep-reviewed SEC133 six-path recovery candidate, then obtain one plain-language action-specific approval for a single SEC133 read-only observation."
+  },
+  "latest_sec133_malformed_output_recovery_handoff": {
+    "recorded_at": "2026-07-29T10:24:22+02:00",
+    "run_id": "ABC-SEC133-20260729-MALFORMED-OUTPUT-RECOVERY",
+    "status": "accepted_repo_only_pending_publication",
+    "packet": "docs/plans/security-incident-response-malformed-output-recovery-packet.md",
+    "live_predecessor": {
+      "published_commit": "9e2afe207438c6c2efa46ab8c5c0a71c7b3158ad",
+      "result": "blocked_malformed_output",
+      "retry_permitted": false,
+      "raw_cause_claimed": false
+    },
+    "design_evidence": "Public upstream evidence documents that Podman Compose 1.3.0 can render one compose-version line followed by one Podman-version line; this is design evidence, not a claim about retained host raw output.",
+    "parser_recovery": {
+      "compose_version_required": "1.3.0",
+      "optional_bounded_podman_version_line": true,
+      "podman_version_emitted": false,
+      "order_changes_rejected": true,
+      "duplicates_or_extra_lines_rejected": true,
+      "ansi_or_control_characters_rejected": true,
+      "well_formed_other_compose_version_status": "version_mismatch"
+    },
+    "publication_safe_binding": {
+      "git_object": "refs/remotes/fuzzy/dev:ops/homeserver/redacted_podman_compose_capability_observation.py",
+      "observer_byte_sha256": "e534ec2e43c6b2d77245e3b2e1ad7f083bbf7e8200cb7dea1026dfaec3318509",
+      "ssh_before_exact_hash_match": false,
+      "self_referential_commit_pin": false
+    },
+    "accepted_review": {
+      "implementation_route": "Bob/Terra high",
+      "review_route": "root/Sol deep",
+      "correction_rounds": 1,
+      "focused_tests": "18 passed; 2 unrelated warnings in independent root run",
+      "python_compile": "pass",
+      "diff_check": "pass",
+      "observer_worktree_sha256_matches_packet": true
+    },
+    "publication_path_count": 6,
+    "authorization_status": "not_authorized_pending_publication",
+    "plain_language_action_specific_approval_allowed": true,
+    "external_actions": false,
+    "git_actions": false,
+    "active_claims_after_handoff": 0,
+    "next_action": "Build and verify the exact six-path SEC133 candidate, publish it to fuzzy/dev with one action-specific approval, then run at most one separately approved read-only observation without retry."
   },
   "latest_ops_alert_d0_run_start": {
     "recorded_at": "2026-07-28T16:32:00+02:00",

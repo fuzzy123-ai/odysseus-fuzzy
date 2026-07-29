@@ -17,10 +17,10 @@ from typing import Any, Callable, Mapping
 
 OBSERVER_SCHEMA_ID = "odysseus.redacted_podman_compose_capability_observation.v1"
 TRANSPORT_SCHEMA_ID = "odysseus.redacted_podman_compose_capability_transport.v1"
-PUBLISHED_REVISION = "0c61af3ce4d59fabed82dc87594e135527d726a8"
 OBSERVER_PATH = "ops/homeserver/redacted_podman_compose_capability_observation.py"
-PUBLISHED_OBJECT = f"{PUBLISHED_REVISION}:{OBSERVER_PATH}"
-PUBLISHED_OBSERVER_SHA256 = "31af417c21acb00cdc7c9050e8d9f2e7c38784e518234b84fe659a0c51b696bc"
+PUBLISHED_REF = "refs/remotes/fuzzy/dev"
+PUBLISHED_OBJECT = f"{PUBLISHED_REF}:{OBSERVER_PATH}"
+PUBLISHED_OBSERVER_SHA256 = "e534ec2e43c6b2d77245e3b2e1ad7f083bbf7e8200cb7dea1026dfaec3318509"
 EXPECTED_VERSION = "1.3.0"
 GIT_READ_TIMEOUT_SECONDS = 5
 WORKSTATION_TIMEOUT_SECONDS = 20
