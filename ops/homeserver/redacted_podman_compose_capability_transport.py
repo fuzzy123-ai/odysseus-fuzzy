@@ -20,7 +20,7 @@ TRANSPORT_SCHEMA_ID = "odysseus.redacted_podman_compose_capability_transport.v1"
 OBSERVER_PATH = "ops/homeserver/redacted_podman_compose_capability_observation.py"
 PUBLISHED_REF = "refs/remotes/fuzzy/dev"
 PUBLISHED_OBJECT = f"{PUBLISHED_REF}:{OBSERVER_PATH}"
-PUBLISHED_OBSERVER_SHA256 = "2ceb8cede61732895f6da336b2762db3a7599d7adbbeeaf273c42a288b00a56b"
+PUBLISHED_OBSERVER_SHA256 = "19be7e373b58ef55928bd2139b9963b96f46352a07f742a5ed7a2235970917e6"
 EXPECTED_VERSION = "1.3.0"
 GIT_READ_TIMEOUT_SECONDS = 5
 WORKSTATION_TIMEOUT_SECONDS = 20
@@ -54,7 +54,29 @@ _MISSING_PROOF_CODES = (
     "source_up_service_selection_missing", "source_up_no_deps_guard_missing",
     "source_rollback_force_recreate_missing",
 )
-_NEEDS_KEYS = frozenset({"schema_id", "status", "reason_code", "missing_proofs", "retry_permitted", "evidence_sha256"})
+_RUNTIME_SHAPE_KEYS = frozenset({"help_grammar", "source_ast"})
+_HELP_GRAMMAR_KEYS = frozenset({"build", "up"})
+_USAGE_SHAPE_KEYS = frozenset({
+    "usage_line_present", "uppercase_service_positional_grammar_present",
+    "bracketed_lowercase_services_positional_grammar_present",
+    "bare_lowercase_services_positional_grammar_present",
+})
+_SOURCE_AST_KEYS = frozenset({
+    "compose_build_handler_present", "compose_up_handler_present", "get_excluded_handler_present",
+    "exclusion_helper", "compose_up",
+})
+_EXCLUSION_HELPER_SHAPE_KEYS = frozenset({
+    "exact_signature", "empty_set_initialization", "args_services_branch", "compose_services_set",
+    "requested_service_loop", "dependency_lookup_subtraction", "selected_service_discard",
+})
+_COMPOSE_UP_SHAPE_KEYS = frozenset({
+    "exact_exclusion_helper_assignment", "compose_containers_loop", "excluded_service_continue_guard",
+    "no_deps_dependency_control_branch",
+})
+_NEEDS_KEYS = frozenset({
+    "schema_id", "status", "reason_code", "missing_proofs", "retry_permitted",
+    "runtime_shape_profile", "evidence_sha256",
+})
 _BLOCKED_KEYS = frozenset({"schema_id", "status", "error_code", "retry_permitted", "evidence_sha256"})
 _NEEDS_REASONS = frozenset({"semantic_proof_insufficient"})
 _OBSERVER_ERRORS = frozenset({
@@ -108,6 +130,32 @@ def _valid_sha256(value: Any) -> bool:
     return isinstance(value, str) and len(value) == 64 and all(character in _SHA256 for character in value)
 
 
+def _all_literal_bools(payload: Mapping[str, Any], keys: frozenset[str]) -> bool:
+    return set(payload) == keys and all(type(payload[key]) is bool for key in keys)
+
+
+def _valid_runtime_shape_profile(value: Any) -> bool:
+    if type(value) is not dict or set(value) != _RUNTIME_SHAPE_KEYS:
+        return False
+    help_grammar, source_ast = value["help_grammar"], value["source_ast"]
+    if type(help_grammar) is not dict or set(help_grammar) != _HELP_GRAMMAR_KEYS:
+        return False
+    if any(type(help_grammar[name]) is not dict or not _all_literal_bools(help_grammar[name], _USAGE_SHAPE_KEYS)
+           for name in _HELP_GRAMMAR_KEYS):
+        return False
+    if type(source_ast) is not dict or set(source_ast) != _SOURCE_AST_KEYS:
+        return False
+    if any(type(source_ast[key]) is not bool for key in {
+        "compose_build_handler_present", "compose_up_handler_present", "get_excluded_handler_present",
+    }):
+        return False
+    helper, compose_up = source_ast["exclusion_helper"], source_ast["compose_up"]
+    return (
+        type(helper) is dict and _all_literal_bools(helper, _EXCLUSION_HELPER_SHAPE_KEYS)
+        and type(compose_up) is dict and _all_literal_bools(compose_up, _COMPOSE_UP_SHAPE_KEYS)
+    )
+
+
 def _validate_observer_payload(raw: bytes) -> dict[str, Any] | None:
     if len(raw) > MAX_RESPONSE_BYTES:
         return None
@@ -133,7 +181,8 @@ def _validate_observer_payload(raw: bytes) -> dict[str, Any] | None:
         if (set(payload) != _NEEDS_KEYS or payload.get("reason_code") not in _NEEDS_REASONS
                 or payload.get("retry_permitted") is not False or type(missing) is not list
                 or not missing or len(missing) > len(_MISSING_PROOF_CODES)
-                or tuple(missing) != tuple(code for code in _MISSING_PROOF_CODES if code in missing)):
+                or tuple(missing) != tuple(code for code in _MISSING_PROOF_CODES if code in missing)
+                or not _valid_runtime_shape_profile(payload.get("runtime_shape_profile"))):
             return None
     elif status == "blocked":
         keys = set(payload)

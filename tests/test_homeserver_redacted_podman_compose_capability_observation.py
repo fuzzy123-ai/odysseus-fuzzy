@@ -20,6 +20,47 @@ def _digest(payload):
     return hashlib.sha256(json.dumps(body, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
+def _runtime_shape(**changes):
+    payload = {
+        "help_grammar": {
+            "build": {
+                "usage_line_present": True,
+                "uppercase_service_positional_grammar_present": True,
+                "bracketed_lowercase_services_positional_grammar_present": False,
+                "bare_lowercase_services_positional_grammar_present": False,
+            },
+            "up": {
+                "usage_line_present": True,
+                "uppercase_service_positional_grammar_present": True,
+                "bracketed_lowercase_services_positional_grammar_present": False,
+                "bare_lowercase_services_positional_grammar_present": False,
+            },
+        },
+        "source_ast": {
+            "compose_build_handler_present": True,
+            "compose_up_handler_present": True,
+            "get_excluded_handler_present": True,
+            "exclusion_helper": {
+                "exact_signature": True,
+                "empty_set_initialization": True,
+                "args_services_branch": True,
+                "compose_services_set": True,
+                "requested_service_loop": True,
+                "dependency_lookup_subtraction": True,
+                "selected_service_discard": True,
+            },
+            "compose_up": {
+                "exact_exclusion_helper_assignment": True,
+                "compose_containers_loop": True,
+                "excluded_service_continue_guard": True,
+                "no_deps_dependency_control_branch": True,
+            },
+        },
+    }
+    payload.update(changes)
+    return payload
+
+
 def _audit(**changes):
     payload = {
         "schema_id": observation.SOURCE_AUDIT_SCHEMA_ID,
@@ -27,6 +68,7 @@ def _audit(**changes):
         "up_service_selection_handler_local": True,
         "up_no_deps_guard_controls_dependency_expansion": True,
         "rollback_force_recreate_consumed_in_up": True,
+        "runtime_shape_profile": {"source_ast": _runtime_shape()["source_ast"]},
     }
     payload.update(changes)
     payload["evidence_sha256"] = _digest(payload)
@@ -58,6 +100,14 @@ def _runner(values, calls):
 def _collect(changes=None, calls=None):
     calls = [] if calls is None else calls
     return observation.collect_podman_compose_capability_observation(runner=_runner(_values(changes), calls))
+
+
+def _leaf_values(value):
+    if type(value) is dict:
+        for nested in value.values():
+            yield from _leaf_values(nested)
+    else:
+        yield value
 
 
 def test_structurally_proven_success_has_exact_schema_digest_and_only_fixed_read_commands():
@@ -155,7 +205,7 @@ def test_semantic_insufficiency_reports_every_missing_proof_in_fixed_order_witho
     assert all(set(item) == observation._NEEDS_KEYS and item["retry_permitted"] is False and item["evidence_sha256"] == _digest(item) for item in results.values())
     assert {code: item["missing_proofs"] for code, item in results.items()} == {code: [code] for code in individual}
     assert all_missing["missing_proofs"] == list(observation._MISSING_PROOF_CODES)
-    assert "usage" not in json.dumps((results, all_missing))
+    assert "usage: " not in json.dumps((results, all_missing))
 
 
 def test_official_compose_1_3_0_shape_leaves_only_the_real_no_deps_semantic_gap(monkeypatch, capsys):
@@ -306,11 +356,95 @@ def compose_up(compose,args):
         assert result["up_service_selection_handler_local"] is False
 
 
+def test_source_runtime_shape_individually_reports_each_ast_proof_link(monkeypatch, capsys):
+    base = """
+def compose_build(args):
+    for service in args.services: pass
+def get_excluded(compose,args):
+    excluded=set()
+    if args.services:
+        excluded=set(compose.services)
+        for service in args.services:
+            excluded -= set(x.name for x in compose.services[service]["_deps"])
+            excluded.discard(service)
+    return excluded
+def compose_up(compose,args):
+    excluded=get_excluded(compose,args)
+    for cnt in compose.containers:
+        if cnt["_service"] in excluded: continue
+    if args.no_deps:
+        services=args.services
+    else:
+        services=rec_deps()
+"""
+    proven = _run_source_audit_program(monkeypatch, capsys, base)["runtime_shape_profile"]["source_ast"]
+    assert set(proven) == observation._SOURCE_AST_KEYS
+    assert all(type(value) is bool for value in _leaf_values(proven))
+    assert all(proven["exclusion_helper"].values()) and all(proven["compose_up"].values())
+
+    variants = {
+        "exact_signature": base.replace("def get_excluded(compose,args):", "def get_excluded(args,compose):"),
+        "empty_set_initialization": base.replace("excluded=set()", "excluded=set(compose.services)", 1),
+        "args_services_branch": base.replace("if args.services:", "if args.other:"),
+        "compose_services_set": base.replace("excluded=set(compose.services)", "excluded=set()", 1),
+        "requested_service_loop": base.replace("for service in args.services:", "for service in other_services:"),
+        "dependency_lookup_subtraction": base.replace('compose.services[service]["_deps"]', "service._deps"),
+        "selected_service_discard": base.replace("excluded.discard(service)", "excluded.discard(other)"),
+        "exact_exclusion_helper_assignment": base.replace("excluded=get_excluded(compose,args)", "other=get_excluded(compose,args)"),
+        "compose_containers_loop": base.replace("for cnt in compose.containers:", "for cnt in other_containers:"),
+        "excluded_service_continue_guard": base.replace('if cnt["_service"] in excluded: continue', 'if other["_service"] in excluded: continue'),
+        "no_deps_dependency_control_branch": base.replace("if args.no_deps:", "if args.other:"),
+    }
+    helper_keys = set(observation._EXCLUSION_HELPER_SHAPE_KEYS)
+    for expected_key, source in variants.items():
+        result = _run_source_audit_program(monkeypatch, capsys, source)["runtime_shape_profile"]["source_ast"]
+        bucket = "exclusion_helper" if expected_key in helper_keys else "compose_up"
+        assert result[bucket][expected_key] is False
+    for function_name, profile_key in (
+        ("compose_build", "compose_build_handler_present"),
+        ("compose_up", "compose_up_handler_present"),
+        ("get_excluded", "get_excluded_handler_present"),
+    ):
+        result = _run_source_audit_program(monkeypatch, capsys, base.replace("def " + function_name, "def unrelated_" + function_name, 1))
+        assert result["runtime_shape_profile"]["source_ast"][profile_key] is False
+
+
 def test_lowercase_official_services_usage_is_parser_evidence_but_descriptive_tokens_are_not():
     assert observation._has_service_argument("usage: podman-compose up [services ...]", "up") is True
     assert observation._has_service_argument("usage: podman-compose build [services ...]", "build") is True
     assert observation._has_service_argument("usage: podman-compose up --describe-services", "up") is False
     assert observation._has_service_argument("usage: podman-compose up [--label services]", "up") is False
+
+
+def test_runtime_shape_profile_has_exact_boolean_leaves_for_each_help_grammar_variant():
+    uppercase = observation._usage_runtime_shape("usage: podman-compose build SERVICE [SERVICE ...]", "build")
+    bracketed = observation._usage_runtime_shape("usage: podman-compose up [services ...]", "up")
+    bare = observation._usage_runtime_shape("usage: podman-compose up services", "up")
+    descriptive = observation._usage_runtime_shape("usage: podman-compose up --label services", "up")
+    absent = observation._usage_runtime_shape("commands: up services", "up")
+
+    assert set(uppercase) == observation._USAGE_SHAPE_KEYS
+    assert all(type(value) is bool for shape in (uppercase, bracketed, bare, descriptive, absent) for value in shape.values())
+    assert uppercase == {**{key: False for key in observation._USAGE_SHAPE_KEYS}, "usage_line_present": True, "uppercase_service_positional_grammar_present": True}
+    assert bracketed == {**{key: False for key in observation._USAGE_SHAPE_KEYS}, "usage_line_present": True, "bracketed_lowercase_services_positional_grammar_present": True}
+    assert bare == {**{key: False for key in observation._USAGE_SHAPE_KEYS}, "usage_line_present": True, "bare_lowercase_services_positional_grammar_present": True}
+    assert descriptive == {**{key: False for key in observation._USAGE_SHAPE_KEYS}, "usage_line_present": True}
+    assert absent == {key: False for key in observation._USAGE_SHAPE_KEYS}
+
+
+def test_needs_live_runtime_shape_profile_is_exact_boolean_only_and_digest_bound():
+    payload = _collect({observation.SOURCE_AUDIT_COMMAND: _Result(_audit(up_no_deps_guard_controls_dependency_expansion=False) + "\n")})
+    profile = payload["runtime_shape_profile"]
+    assert set(payload) == observation._NEEDS_KEYS and payload["evidence_sha256"] == _digest(payload)
+    assert observation._valid_runtime_shape_profile(profile) is True
+    assert all(type(value) is bool for value in _leaf_values(profile))
+
+    invalid_profiles = []
+    missing = json.loads(json.dumps(profile)); del missing["help_grammar"]["build"]["usage_line_present"]; invalid_profiles.append(missing)
+    extra = json.loads(json.dumps(profile)); extra["source_ast"]["private_shape"] = False; invalid_profiles.append(extra)
+    non_bool = json.loads(json.dumps(profile)); non_bool["source_ast"]["compose_up"]["compose_containers_loop"] = 1; invalid_profiles.append(non_bool)
+    for invalid in invalid_profiles:
+        assert observation.needs_live_observation("semantic_proof_insufficient", ["source_up_no_deps_guard_missing"], invalid)["status"] == "blocked"
 
 
 def test_malformed_oversized_unexpected_or_hash_mismatched_source_audit_is_blocked_without_source_leak():

@@ -3,8 +3,8 @@
   "kind": "odysseus.security_incident_response_production_completion_roadmap",
   "id": "SIRP",
   "title": "Security Incident Response Production Completion",
-  "updated_at": "2026-07-29T13:49:35+02:00",
-  "status": "sec136_compose_1_3_0_recognizer_repair_deep_reviewed_pending_publication",
+  "updated_at": "2026-07-29T16:38:36+02:00",
+  "status": "sec137_exact_publication_and_single_read_only_observation_authorized",
   "mode": "safe_offline_dependency_ordered",
   "goal": "Close the explicit gap between prepare-only security incident contracts and a production-validated assisted response system with bounded evidence, durable incident and action state, operator-bound approvals, typed executors, independent effect readback and rollback.",
   "slice_contract_fields": ["id", "priority", "class", "owner", "status", "claimable", "depends_on", "gate_requirements", "blockers", "allowed_paths", "hotfiles", "goal", "acceptance", "tests_evidence", "forbidden", "done_when", "completion_matrix"],
@@ -2726,6 +2726,77 @@
         "commit",
         "push"
       ]
+    },
+    {
+      "run_id": "ABC-SEC137-20260729-RUNTIME-SHAPE-DIAGNOSTIC",
+      "thread_id": "/root/sec137_runtime_shape_bob",
+      "slice_id": "SEC137-fixed-enum-runtime-shape-diagnostic",
+      "owner": "Bob/Terra requested route",
+      "allowed_paths": [
+        "ops/homeserver/redacted_podman_compose_capability_observation.py",
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_observation.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T16:07:19+02:00",
+      "lease_expires_at": "2026-07-29T18:07:19+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "requested_route": {
+        "model": "gpt-5.6-terra",
+        "effort": "high"
+      },
+      "actual_route": "gpt-5.6-terra high via observable spawn route; worker handoff confirmed four-path implementation",
+      "phase": "handoff_accepted_after_root_sol_deep_review",
+      "released_at": "2026-07-29T16:19:13+02:00",
+      "release_reason": "The fixed bool-only runtime_shape_profile, exact source/help subprofiles, strict transport validation and focused tests passed independent root/Sol deep review. Four claimed paths only; no live or Git publication action.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "raw help, source, values, fragments, paths, environment, exceptions or stderr",
+        "changing capability pass semantics",
+        "network, SSH, probe, live observation, retry, provider, send, deploy, package, container or host action",
+        "stage",
+        "commit",
+        "push"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC137-20260729-RUNTIME-SHAPE-DIAGNOSTIC",
+      "thread_id": "/root",
+      "slice_id": "SEC137-root-contract-integration-and-deep-review",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "docs/plans/security-incident-response-runtime-shape-diagnostic-packet.md"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T16:07:19+02:00",
+      "lease_expires_at": "2026-07-29T18:07:19+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "requested_route": {
+        "model": "gpt-5.6-sol",
+        "effort": "high"
+      },
+      "actual_route": "root_surface",
+      "phase": "contract_and_deep_review_passed",
+      "released_at": "2026-07-29T16:19:13+02:00",
+      "release_reason": "Root/Sol independently verified exact nested keysets, literal-bool leaves, digest binding, no-false-pass semantics, unchanged ok/blocked envelopes, 44 exhaustive leaf type/deletion mutations, 28 focused tests, compilation and diff checking.",
+      "forbidden_actions": [
+        "worker implementation path edits",
+        "manufacturing a capability PASS",
+        "network, SSH, probe, live observation, retry, provider, send, deploy, package, container or host action",
+        "stage",
+        "commit",
+        "push"
+      ]
     }
   ],
   "live_go": [
@@ -4606,10 +4677,96 @@
     "active_claims_after_handoff": 0,
     "next_action": "Do not retry SEC135. If work resumes, first create and deep-review a repo-only SEC136 recognizer repair grounded in public Podman Compose 1.3.0 argparse and compose_up source structure for exactly the four missing proof classes. Any later observation needs new action-specific authority; deploy and delivery remain independently gated."
   },
+  "latest_sec137_runtime_shape_diagnostic_run_start": {
+    "recorded_at": "2026-07-29T16:07:19+02:00",
+    "run_id": "ABC-SEC137-20260729-RUNTIME-SHAPE-DIAGNOSTIC",
+    "status": "exact_publication_and_single_read_only_observation_authorized",
+    "packet": "docs/plans/security-incident-response-runtime-shape-diagnostic-packet.md",
+    "phase": "publication_binding",
+    "supervision": "interactive",
+    "queue_scope": "named_security_incident_response_production_completion_roadmap",
+    "mutation_authority": "exact seven-path fuzzy/dev publication plus one no-argument read-only observation without retry",
+    "predecessor": {
+      "revision": "4f0383f79fa75b167872d4e34c62b90e16831007",
+      "terminal_evidence_sha256": "d4bce89cd5f58eb465a5e232e12cb423bab9f517bffbcf4e80c425b0eafdc5bf",
+      "missing_proofs_unchanged": true,
+      "retry_permitted": false
+    },
+    "diagnostic_boundary": "Exact allowlisted boolean-only runtime-shape profile inside needs_live_observation; no raw output or capability pass implication.",
+    "user_steering": {
+      "plain_language_go_received": true,
+      "interpretation": "Implement and deep-review only the documented repo-only SEC137 fixed-enum diagnostic frontier.",
+      "publication_authority": true,
+      "live_observation_authority": true,
+      "deploy_authority": false,
+      "delivery_or_send_authority": false,
+      "package_upgrade_authority": false,
+      "host_mutation_authority": false
+    },
+    "worker_claim": "SEC137-fixed-enum-runtime-shape-diagnostic",
+    "root_claim": "SEC137-root-contract-integration-and-deep-review",
+    "review_required": "root_sol_deep",
+    "accepted_review": {
+      "worker_route": "gpt-5.6-terra high via observable spawn route",
+      "reviewer_route": "root/Sol deep",
+      "changed_paths": 4,
+      "focused_tests": "28 passed",
+      "python_compilation": "passed",
+      "diff_check": "passed",
+      "exhaustive_profile_leaf_mutations": "44 passed across all 22 leaves for non-boolean type and missing-key rejection in observer and transport validators",
+      "ok_schema_unchanged": true,
+      "blocked_schema_unchanged": true,
+      "capability_pass_semantics_unchanged": true,
+      "observer_sha256": "19be7e373b58ef55928bd2139b9963b96f46352a07f742a5ed7a2235970917e6",
+      "transport_pin_matches": true
+    },
+    "publication_scope": [
+      "docs/plans/security-incident-response-compose-recognizer-repair-packet.md",
+      "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "docs/plans/security-incident-response-runtime-shape-diagnostic-packet.md",
+      "ops/homeserver/redacted_podman_compose_capability_observation.py",
+      "ops/homeserver/redacted_podman_compose_capability_transport.py",
+      "tests/test_homeserver_redacted_podman_compose_capability_observation.py",
+      "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+    ],
+    "action_specific_live_go": {
+      "id": "SEC137-RUNTIME-SHAPE-OBSERVATION-20260729",
+      "action": "other/read_only_observation",
+      "target_class": "fixed redacted Podman Compose runtime-shape projection",
+      "artifact_or_inputs": "exact fuzzy/dev SEC137 published observer blob via no-argument redacted transport",
+      "limits": {
+        "maximum_invocations": 1,
+        "maximum_results": 1,
+        "outer_timeout_seconds": 30,
+        "follow_on_queries": 0
+      },
+      "retention": "Only the exact allowlisted needs_live_observation envelope, fixed missing-proof enums, literal-boolean runtime_shape_profile and canonical evidence digest may be persisted.",
+      "recovery": "Stop with no mutation and no retry on every terminal result.",
+      "independent_readback": "Verify fuzzy/dev revision and published observer SHA-256 before the fixed transport; accept only repository-owned strict schema validation and reserialization.",
+      "granted_by": "dann mach weiter",
+      "granted_at": "2026-07-29T16:38:36+02:00",
+      "expires_at": "run_end",
+      "status": "go",
+      "consumption_status": "unused",
+      "invocation_counter": 0,
+      "result_counter": 0,
+      "external_action_executed": false,
+      "mutation_performed": false,
+      "retry_counter": 0,
+      "follow_on_query_counter": 0,
+      "reuse_permitted": false,
+      "delivery_authority": false,
+      "deploy_authority": false,
+      "package_or_host_change_authority": false
+    },
+    "external_actions_started": false,
+    "git_actions_started": false,
+    "next_action": "Revalidate the exact seven-path candidate and tests, commit and push once to fuzzy/dev, verify published revision and observer hash, then consume exactly one no-argument redacted observation without retry. No deploy, delivery, package or host action."
+  },
   "latest_sec136_compose_recognizer_repair_run_start": {
     "recorded_at": "2026-07-29T13:31:46+02:00",
     "run_id": "ABC-SEC136-20260729-COMPOSE-RECOGNIZER-REPAIR",
-    "status": "deep_reviewed_pending_exact_publication",
+    "status": "published_single_observation_terminal_unchanged_four_missing_proofs_no_retry",
     "packet": "docs/plans/security-incident-response-compose-recognizer-repair-packet.md",
     "phase": "publication_binding",
     "supervision": "interactive",
@@ -4653,9 +4810,31 @@
       "observer_sha256": "2ceb8cede61732895f6da336b2762db3a7599d7adbbeeaf273c42a288b00a56b",
       "transport_pin_matches": true
     },
-    "external_actions_started": false,
-    "git_actions_started": false,
-    "next_action": "Bind and publish only the exact seven-path candidate to fuzzy/dev, verify published revision and observer hash, then consume at most one no-argument redacted published-blob observation without retry. No deploy, delivery, package upgrade, container or host mutation is authorized."
+    "publication": {
+      "revision": "4f0383f79fa75b167872d4e34c62b90e16831007",
+      "parent": "2c51fd349843d05e200c6d14e717e78a01e7e9f1",
+      "tree": "aeb2af69dceb57582a9b76f42cbc337c830aa373",
+      "remote": "fuzzy/dev",
+      "published_observer_sha256": "2ceb8cede61732895f6da336b2762db3a7599d7adbbeeaf273c42a288b00a56b",
+      "published_readback_passed": true
+    },
+    "terminal_observation": {
+      "attempts": 1,
+      "status": "needs_live_observation",
+      "reason_code": "semantic_proof_insufficient",
+      "missing_proofs": [
+        "build_service_argument_missing",
+        "up_service_argument_missing",
+        "source_up_service_selection_missing",
+        "source_up_no_deps_guard_missing"
+      ],
+      "retry_permitted": false,
+      "evidence_sha256": "d4bce89cd5f58eb465a5e232e12cb423bab9f517bffbcf4e80c425b0eafdc5bf",
+      "disposition": "The exact published SEC136 observer ran once through the fixed redacted transport and returned the same four proof gaps as SEC135. No retry occurred and the run grant is spent."
+    },
+    "external_actions_started": "one separately authorized read_only_observation_completed",
+    "git_actions_started": "exact_seven_path_commit_and_single_push_completed",
+    "next_action": "Do not retry SEC136 and do not deploy. The next repo-only frontier is a new bounded diagnostic contract that can distinguish actual runtime help-grammar and source-AST shape mismatches using fixed enum booleans only. Any later observation requires new action-specific authority; package upgrade, deploy and delivery remain independently gated."
   },
   "latest_ops_alert_d0_run_start": {
     "recorded_at": "2026-07-28T16:32:00+02:00",

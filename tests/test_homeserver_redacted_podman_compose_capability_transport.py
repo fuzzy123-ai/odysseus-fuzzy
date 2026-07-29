@@ -18,6 +18,40 @@ def _digest(payload):
     return hashlib.sha256(json.dumps(body, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
+def _runtime_shape():
+    return {
+        "help_grammar": {
+            name: {
+                "usage_line_present": True,
+                "uppercase_service_positional_grammar_present": True,
+                "bracketed_lowercase_services_positional_grammar_present": False,
+                "bare_lowercase_services_positional_grammar_present": False,
+            }
+            for name in ("build", "up")
+        },
+        "source_ast": {
+            "compose_build_handler_present": True,
+            "compose_up_handler_present": True,
+            "get_excluded_handler_present": True,
+            "exclusion_helper": {
+                "exact_signature": True,
+                "empty_set_initialization": True,
+                "args_services_branch": True,
+                "compose_services_set": True,
+                "requested_service_loop": True,
+                "dependency_lookup_subtraction": True,
+                "selected_service_discard": True,
+            },
+            "compose_up": {
+                "exact_exclusion_helper_assignment": True,
+                "compose_containers_loop": True,
+                "excluded_service_continue_guard": True,
+                "no_deps_dependency_control_branch": True,
+            },
+        },
+    }
+
+
 def _observer(status="ok", **changes):
     if status == "ok":
         payload = {
@@ -35,6 +69,7 @@ def _observer(status="ok", **changes):
             "schema_id": transport.OBSERVER_SCHEMA_ID, "status": status,
             "reason_code": "semantic_proof_insufficient",
             "missing_proofs": ["source_up_no_deps_guard_missing"], "retry_permitted": False,
+            "runtime_shape_profile": _runtime_shape(),
         }
     else:
         payload = {"schema_id": transport.OBSERVER_SCHEMA_ID, "status": "blocked", "error_code": "timeout", "retry_permitted": False}
@@ -138,6 +173,25 @@ def test_semantic_missing_proofs_schema_requires_nonempty_unique_canonical_allow
     assert all(item["error_code"] == "transport_invalid" for item in rejected)
     assert wrong_returncode["error_code"] == "transport_failed"
     assert "private" not in json.dumps((accepted, rejected, wrong_returncode))
+
+
+def test_transport_requires_exact_boolean_only_runtime_shape_profile_and_digest():
+    accepted = json.loads(_observer("needs_live_observation").decode())
+    assert transport._valid_runtime_shape_profile(accepted["runtime_shape_profile"]) is True
+
+    variants = []
+    missing = json.loads(json.dumps(accepted)); del missing["runtime_shape_profile"]["help_grammar"]["up"]["usage_line_present"]; variants.append(missing)
+    extra = json.loads(json.dumps(accepted)); extra["runtime_shape_profile"]["source_ast"]["private_shape"] = False; variants.append(extra)
+    non_bool = json.loads(json.dumps(accepted)); non_bool["runtime_shape_profile"]["source_ast"]["compose_up"]["compose_containers_loop"] = 1; variants.append(non_bool)
+    malformed = json.loads(json.dumps(accepted)); malformed["runtime_shape_profile"] = []; variants.append(malformed)
+    rejected = []
+    for variant in variants:
+        variant["evidence_sha256"] = _digest(variant)
+        rejected.append(_collect(response=_Result(json.dumps(variant, sort_keys=True, separators=(",", ":")).encode() + b"\n", 1)))
+    digest_inconsistent = json.loads(json.dumps(accepted)); digest_inconsistent["runtime_shape_profile"]["help_grammar"]["build"]["usage_line_present"] = False
+    rejected.append(_collect(response=_Result(json.dumps(digest_inconsistent, sort_keys=True, separators=(",", ":")).encode() + b"\n", 1)))
+
+    assert all(item["error_code"] == "transport_invalid" for item in rejected)
 
 
 def test_valid_observer_status_requires_its_exact_process_returncode():

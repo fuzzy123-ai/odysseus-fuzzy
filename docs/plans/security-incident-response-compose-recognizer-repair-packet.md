@@ -99,3 +99,36 @@ Next safe action: bind and publish only the exact seven-path candidate to
 at most one no-argument redacted published-blob observation without retry.
 Deploy, delivery, package upgrade, container and host mutation remain
 unauthorized.
+
+## Terminal publication and live outcome
+
+The accepted seven-path candidate was published as commit
+`4f0383f79fa75b167872d4e34c62b90e16831007` with tree
+`aeb2af69dceb57582a9b76f42cbc337c830aa373`. `fuzzy/dev` readback confirmed
+that revision and the observer SHA-256
+`2ceb8cede61732895f6da336b2762db3a7599d7adbbeeaf273c42a288b00a56b`.
+
+The separately authorized published-blob transport then ran exactly once. Its
+validated terminal envelope was `status=needs_live_observation`,
+`reason_code=semantic_proof_insufficient`, `retry_permitted=false`, with
+evidence digest
+`d4bce89cd5f58eb465a5e232e12cb423bab9f517bffbcf4e80c425b0eafdc5bf`.
+It still identified exactly:
+
+- `build_service_argument_missing`
+- `up_service_argument_missing`
+- `source_up_service_selection_missing`
+- `source_up_no_deps_guard_missing`
+
+No retry occurred. The observation grant is spent. The published code and its
+offline tests remain valid evidence of the bounded recognizer implementation,
+but the unchanged live envelope proves that the actual runtime help grammar
+and/or inspected source AST still does not satisfy those recognizers. No
+capability PASS, deploy readiness or delivery readiness is claimed.
+
+Next safe action: do not retry SEC136. First create and deep-review a new
+repo-only fixed-enum diagnostic contract that distinguishes the actual runtime
+help-grammar and source-AST shape mismatches without exposing raw output,
+source, paths, environment, exceptions or values. Any later observation needs
+new action-specific authority. Package upgrade, deploy and delivery remain
+independently gated.

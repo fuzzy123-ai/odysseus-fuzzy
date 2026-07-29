@@ -157,23 +157,48 @@ def is_selected_service_discard(node, service_name):
             and not node.value.keywords and len(node.value.args) == 1
             and isinstance(node.value.args[0], ast.Name) and node.value.args[0].id == service_name)
 
-def helper_constructs_service_exclusion(handler):
-    if handler is None or [argument.arg for argument in handler.args.args] != ["compose", "args"]:
-        return False
+def helper_runtime_shape(handler):
+    shape = {
+        "exact_signature": False,
+        "empty_set_initialization": False,
+        "args_services_branch": False,
+        "compose_services_set": False,
+        "requested_service_loop": False,
+        "dependency_lookup_subtraction": False,
+        "selected_service_discard": False,
+    }
+    if handler is None:
+        return shape
+    shape["exact_signature"] = [argument.arg for argument in handler.args.args] == ["compose", "args"]
     statements = handler.body
-    if len(statements) < 2 or not is_excluded_assignment(statements[0], is_empty_set):
-        return False
+    if statements:
+        shape["empty_set_initialization"] = is_excluded_assignment(statements[0], is_empty_set)
+    if len(statements) < 2:
+        return shape
     branch = statements[1]
-    if not (isinstance(branch, ast.If) and is_args_attribute(branch.test, "services") and not branch.orelse
-            and len(branch.body) >= 2 and is_excluded_assignment(branch.body[0], is_compose_services_set)):
-        return False
+    shape["args_services_branch"] = (
+        isinstance(branch, ast.If) and is_args_attribute(branch.test, "services") and not branch.orelse
+    )
+    if not shape["args_services_branch"]:
+        return shape
+    if branch.body:
+        shape["compose_services_set"] = is_excluded_assignment(branch.body[0], is_compose_services_set)
+    if len(branch.body) < 2:
+        return shape
     loop = branch.body[1]
-    if not (isinstance(loop, ast.For) and isinstance(loop.target, ast.Name)
-            and is_args_attribute(loop.iter, "services") and len(loop.body) >= 2):
-        return False
+    shape["requested_service_loop"] = (
+        isinstance(loop, ast.For) and isinstance(loop.target, ast.Name)
+        and is_args_attribute(loop.iter, "services")
+    )
+    if not shape["requested_service_loop"] or len(loop.body) < 2:
+        return shape
     service_name = loop.target.id
-    return (is_dependency_subtraction(loop.body[0], service_name)
-            and is_selected_service_discard(loop.body[1], service_name))
+    shape["dependency_lookup_subtraction"] = is_dependency_subtraction(loop.body[0], service_name)
+    shape["selected_service_discard"] = is_selected_service_discard(loop.body[1], service_name)
+    return shape
+
+def helper_constructs_service_exclusion(handler):
+    return all(helper_runtime_shape(handler).values())
 
 def loop_has_excluded_service_continue_guard(loop):
     if not (isinstance(loop, ast.For) and isinstance(loop.target, ast.Name)
@@ -192,15 +217,36 @@ def loop_has_excluded_service_continue_guard(loop):
             and isinstance(left.slice, ast.Constant) and left.slice.value == "_service"
             and isinstance(right, ast.Name) and right.id == "excluded")
 
-def up_uses_fixed_exclusion_handler(handler, helper_proven):
-    if handler is None or not helper_proven:
-        return False
+def compose_up_runtime_shape(handler):
+    shape = {
+        "exact_exclusion_helper_assignment": False,
+        "compose_containers_loop": False,
+        "excluded_service_continue_guard": False,
+        "no_deps_dependency_control_branch": False,
+    }
+    if handler is None:
+        return shape
     statements = handler.body
     for index, statement in enumerate(statements):
         if not assigns_fixed_exclusion_helper([statement]):
             continue
-        return any(loop_has_excluded_service_continue_guard(candidate) for candidate in statements[index + 1:])
-    return False
+        shape["exact_exclusion_helper_assignment"] = True
+        for candidate in statements[index + 1:]:
+            if not (isinstance(candidate, ast.For) and isinstance(candidate.target, ast.Name)
+                    and isinstance(candidate.iter, ast.Attribute) and isinstance(candidate.iter.value, ast.Name)
+                    and candidate.iter.value.id == "compose" and candidate.iter.attr == "containers"):
+                continue
+            shape["compose_containers_loop"] = True
+            shape["excluded_service_continue_guard"] = loop_has_excluded_service_continue_guard(candidate)
+            break
+        break
+    shape["no_deps_dependency_control_branch"] = no_deps_controls_expansion(local_nodes(handler))
+    return shape
+
+def up_uses_fixed_exclusion_handler(handler, helper_proven):
+    shape = compose_up_runtime_shape(handler)
+    return (helper_proven and shape["exact_exclusion_helper_assignment"]
+            and shape["compose_containers_loop"] and shape["excluded_service_continue_guard"])
 
 def no_deps_controls_expansion(nodes):
     for node in nodes:
@@ -214,13 +260,24 @@ def no_deps_controls_expansion(nodes):
 build, up, exclusion_helper = handlers.get("compose_build"), handlers.get("compose_up"), handlers.get("get_excluded")
 build_nodes = local_nodes(build) if build is not None else []
 up_nodes = local_nodes(up) if up is not None else []
-helper_proven = helper_constructs_service_exclusion(exclusion_helper)
+helper_shape = helper_runtime_shape(exclusion_helper)
+up_shape = compose_up_runtime_shape(up)
+helper_proven = all(helper_shape.values())
 payload = {
     "schema_id": "odysseus.podman_compose_source_audit.v1",
     "build_service_selection_handler_local": contains_attr(build_nodes, "services") or (assigns_fixed_exclusion_helper(build_nodes) and helper_proven),
     "up_service_selection_handler_local": up_uses_fixed_exclusion_handler(up, helper_proven),
-    "up_no_deps_guard_controls_dependency_expansion": no_deps_controls_expansion(up_nodes),
+    "up_no_deps_guard_controls_dependency_expansion": up_shape["no_deps_dependency_control_branch"],
     "rollback_force_recreate_consumed_in_up": contains_attr(up_nodes, "force_recreate"),
+    "runtime_shape_profile": {
+        "source_ast": {
+            "compose_build_handler_present": build is not None,
+            "compose_up_handler_present": up is not None,
+            "get_excluded_handler_present": exclusion_helper is not None,
+            "exclusion_helper": helper_shape,
+            "compose_up": up_shape,
+        },
+    },
 }
 encoded = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")
 payload["evidence_sha256"] = hashlib.sha256(encoded).hexdigest()
@@ -255,7 +312,30 @@ _VISIBILITY_KEYS = frozenset({
 _SOURCE_AUDIT_KEYS = frozenset({
     "schema_id", "build_service_selection_handler_local", "up_service_selection_handler_local",
     "up_no_deps_guard_controls_dependency_expansion", "rollback_force_recreate_consumed_in_up",
-    "evidence_sha256",
+    "runtime_shape_profile", "evidence_sha256",
+})
+_SOURCE_AUDIT_BOOL_KEYS = frozenset({
+    "build_service_selection_handler_local", "up_service_selection_handler_local",
+    "up_no_deps_guard_controls_dependency_expansion", "rollback_force_recreate_consumed_in_up",
+})
+_RUNTIME_SHAPE_KEYS = frozenset({"help_grammar", "source_ast"})
+_HELP_GRAMMAR_KEYS = frozenset({"build", "up"})
+_USAGE_SHAPE_KEYS = frozenset({
+    "usage_line_present", "uppercase_service_positional_grammar_present",
+    "bracketed_lowercase_services_positional_grammar_present",
+    "bare_lowercase_services_positional_grammar_present",
+})
+_SOURCE_AST_KEYS = frozenset({
+    "compose_build_handler_present", "compose_up_handler_present", "get_excluded_handler_present",
+    "exclusion_helper", "compose_up",
+})
+_EXCLUSION_HELPER_SHAPE_KEYS = frozenset({
+    "exact_signature", "empty_set_initialization", "args_services_branch", "compose_services_set",
+    "requested_service_loop", "dependency_lookup_subtraction", "selected_service_discard",
+})
+_COMPOSE_UP_SHAPE_KEYS = frozenset({
+    "exact_exclusion_helper_assignment", "compose_containers_loop", "excluded_service_continue_guard",
+    "no_deps_dependency_control_branch",
 })
 _OK_KEYS = frozenset({
     "schema_id", "status", "podman_compose_version", "global_env_file_parser_present",
@@ -266,7 +346,10 @@ _OK_KEYS = frozenset({
 })
 _BLOCKED_KEYS = frozenset({"schema_id", "status", "error_code", "retry_permitted", "evidence_sha256"})
 _VERSION_BLOCKED_KEYS = _BLOCKED_KEYS | {"diagnostic_code"}
-_NEEDS_KEYS = frozenset({"schema_id", "status", "reason_code", "missing_proofs", "retry_permitted", "evidence_sha256"})
+_NEEDS_KEYS = frozenset({
+    "schema_id", "status", "reason_code", "missing_proofs", "retry_permitted",
+    "runtime_shape_profile", "evidence_sha256",
+})
 
 
 class CapabilityFailure(ValueError):
@@ -281,6 +364,72 @@ def _digest(payload: Mapping[str, Any]) -> str:
     return hashlib.sha256(json.dumps(body, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
+def _all_literal_bools(payload: Mapping[str, Any], keys: frozenset[str]) -> bool:
+    return set(payload) == keys and all(type(payload[key]) is bool for key in keys)
+
+
+def _valid_source_runtime_shape(value: Any) -> bool:
+    if type(value) is not dict or set(value) != {"source_ast"}:
+        return False
+    source_ast = value["source_ast"]
+    if type(source_ast) is not dict or set(source_ast) != _SOURCE_AST_KEYS:
+        return False
+    if any(type(source_ast[key]) is not bool for key in {
+        "compose_build_handler_present", "compose_up_handler_present", "get_excluded_handler_present",
+    }):
+        return False
+    helper, compose_up = source_ast["exclusion_helper"], source_ast["compose_up"]
+    return (
+        type(helper) is dict and _all_literal_bools(helper, _EXCLUSION_HELPER_SHAPE_KEYS)
+        and type(compose_up) is dict and _all_literal_bools(compose_up, _COMPOSE_UP_SHAPE_KEYS)
+    )
+
+
+def _valid_runtime_shape_profile(value: Any) -> bool:
+    if type(value) is not dict or set(value) != _RUNTIME_SHAPE_KEYS:
+        return False
+    help_grammar, source_ast = value["help_grammar"], value["source_ast"]
+    if type(help_grammar) is not dict or set(help_grammar) != _HELP_GRAMMAR_KEYS:
+        return False
+    if any(type(help_grammar[name]) is not dict or not _all_literal_bools(help_grammar[name], _USAGE_SHAPE_KEYS)
+           for name in _HELP_GRAMMAR_KEYS):
+        return False
+    return _valid_source_runtime_shape({"source_ast": source_ast})
+
+
+def _usage_lines(help_text: str, subcommand: str) -> tuple[str, ...]:
+    pattern = re.compile(r"(?im)^\s*usage:.*\b" + re.escape(subcommand) + r"\b.*$")
+    return tuple(pattern.findall(help_text))
+
+
+def _usage_runtime_shape(help_text: str, subcommand: str) -> dict[str, bool]:
+    lines = _usage_lines(help_text, subcommand)
+    return {
+        "usage_line_present": bool(lines),
+        "uppercase_service_positional_grammar_present": any(
+            re.search(r"(?:^|\s)SERVICE(?=\s|\[|$)", line) is not None for line in lines
+        ),
+        "bracketed_lowercase_services_positional_grammar_present": any("[services ...]" in line for line in lines),
+        "bare_lowercase_services_positional_grammar_present": any(
+            re.search(r"\b" + re.escape(subcommand) + r"\b\s+services(?=\s|$)", line) is not None
+            for line in lines
+        ),
+    }
+
+
+def _runtime_shape_profile(build_help: str, up_help: str, source_audit: Mapping[str, Any]) -> dict[str, Any]:
+    source_profile = source_audit.get("runtime_shape_profile")
+    if not _valid_source_runtime_shape(source_profile):
+        raise CapabilityFailure("source_audit_invalid")
+    return {
+        "help_grammar": {
+            "build": _usage_runtime_shape(build_help, "build"),
+            "up": _usage_runtime_shape(up_help, "up"),
+        },
+        "source_ast": source_profile["source_ast"],
+    }
+
+
 def blocked(code: str, diagnostic_code: str | None = None) -> dict[str, Any]:
     payload = {"schema_id": SCHEMA_ID, "status": "blocked", "error_code": code if code in _ERRORS else "internal_error", "retry_permitted": False}
     if diagnostic_code in _VERSION_DIAGNOSTIC_CODES and payload["error_code"] in {"malformed_output", "version_mismatch"}:
@@ -289,18 +438,19 @@ def blocked(code: str, diagnostic_code: str | None = None) -> dict[str, Any]:
     return payload
 
 
-def needs_live_observation(reason: str, missing_proofs: Sequence[str]) -> dict[str, Any]:
+def needs_live_observation(reason: str, missing_proofs: Sequence[str], runtime_shape_profile: Mapping[str, Any]) -> dict[str, Any]:
     requested = tuple(missing_proofs)
     if (not requested or len(requested) > len(_MISSING_PROOF_CODES)
             or any(code not in _MISSING_PROOF_CODES for code in requested)):
         return blocked("internal_error")
     canonical = tuple(code for code in _MISSING_PROOF_CODES if code in requested)
-    if requested != canonical:
+    if requested != canonical or not _valid_runtime_shape_profile(runtime_shape_profile):
         return blocked("internal_error")
     payload = {
         "schema_id": SCHEMA_ID, "status": "needs_live_observation",
         "reason_code": reason if reason in _NEEDS_REASONS else "semantic_proof_insufficient",
         "missing_proofs": list(canonical), "retry_permitted": False,
+        "runtime_shape_profile": runtime_shape_profile,
     }
     payload["evidence_sha256"] = _digest(payload)
     return payload
@@ -367,7 +517,8 @@ def _has_flag(help_text: str, flag: str) -> bool:
 def _has_service_argument(help_text: str, subcommand: str) -> bool:
     # Require only the exact documented positional grammar in a usage line,
     # rather than treating descriptive uses of the word as parser evidence.
-    return re.search(r"(?im)^\s*usage:.*\b" + re.escape(subcommand) + r"\b.*(?:\bSERVICE(?=\s|\[|$)|\[services\s+\.\.\.\])", help_text) is not None
+    shape = _usage_runtime_shape(help_text, subcommand)
+    return shape["uppercase_service_positional_grammar_present"] or shape["bracketed_lowercase_services_positional_grammar_present"]
 
 
 def _parse_source_audit(raw: str) -> dict[str, Any]:
@@ -379,7 +530,9 @@ def _parse_source_audit(raw: str) -> dict[str, Any]:
         raise CapabilityFailure("source_audit_invalid")
     if payload.get("schema_id") != SOURCE_AUDIT_SCHEMA_ID:
         raise CapabilityFailure("source_audit_invalid")
-    if any(type(payload.get(key)) is not bool for key in _SOURCE_AUDIT_KEYS - {"schema_id", "evidence_sha256"}):
+    if any(type(payload.get(key)) is not bool for key in _SOURCE_AUDIT_BOOL_KEYS):
+        raise CapabilityFailure("source_audit_invalid")
+    if not _valid_source_runtime_shape(payload.get("runtime_shape_profile")):
         raise CapabilityFailure("source_audit_invalid")
     digest = payload.get("evidence_sha256")
     if not isinstance(digest, str) or not _SHA256.fullmatch(digest) or digest != _digest(payload):
@@ -397,6 +550,7 @@ def collect_podman_compose_capability_observation(*, runner: Callable[..., Any] 
         build_help = _run(BUILD_HELP_COMMAND, runner)
         up_help = _run(UP_HELP_COMMAND, runner)
         source_audit = _parse_source_audit(_run(SOURCE_AUDIT_COMMAND, runner))
+        runtime_shape_profile = _runtime_shape_profile(build_help, up_help, source_audit)
 
         proof_values = (
             ("global_env_file_parser_missing", _has_flag(global_help, "--env-file")),
@@ -413,7 +567,7 @@ def collect_podman_compose_capability_observation(*, runner: Callable[..., Any] 
         )
         missing_proofs = tuple(code for code, proven in proof_values if proven is not True)
         if missing_proofs:
-            return needs_live_observation("semantic_proof_insufficient", missing_proofs)
+            return needs_live_observation("semantic_proof_insufficient", missing_proofs, runtime_shape_profile)
         payload = {
             "schema_id": SCHEMA_ID, "status": "ok", "podman_compose_version": EXPECTED_VERSION,
             "global_env_file_parser_present": True, "global_project_name_parser_present": True,
