@@ -3,8 +3,8 @@
   "kind": "odysseus.security_incident_response_production_completion_roadmap",
   "id": "SIRP",
   "title": "Security Incident Response Production Completion",
-  "updated_at": "2026-07-29T19:26:02+02:00",
-  "status": "sec145_exact_publication_authorized_pre_staging",
+  "updated_at": "2026-07-29T21:34:39+02:00",
+  "status": "sec150_exact_git_publication_preflight_passed_staging_authorized",
   "mode": "safe_offline_dependency_ordered",
   "goal": "Close the explicit gap between prepare-only security incident contracts and a production-validated assisted response system with bounded evidence, durable incident and action state, operator-bound approvals, typed executors, independent effect readback and rollback.",
   "slice_contract_fields": ["id", "priority", "class", "owner", "status", "claimable", "depends_on", "gate_requirements", "blockers", "allowed_paths", "hotfiles", "goal", "acceptance", "tests_evidence", "forbidden", "done_when", "completion_matrix"],
@@ -3387,9 +3387,528 @@
         "amend, rebase, merge, retry, force push, cleanup or alternate remote",
         "observation, SSH, provider, deploy, send, package, container or host action"
       ]
+    },
+    {
+      "run_id": "ABC-SEC145-20260729-EXACT-PUBLICATION",
+      "thread_id": "/root",
+      "slice_id": "SEC145-terminal-publication-readback-bookkeeping",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T20:34:35+02:00",
+      "lease_expires_at": "2026-07-29T21:04:35+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": true,
+      "phase": "terminal_publication_readback_bookkeeping",
+      "released_at": "2026-07-29T20:34:35+02:00",
+      "release_reason": "Exactly one seven-path commit and one push to fuzzy/dev completed. Independent ls-remote plus content-addressed parent/tree/path/transport-hash readback passed. The enclosing goal surface still reports blocked, so overall run success remains false.",
+      "forbidden_actions": [
+        "stage",
+        "commit",
+        "push",
+        "retry",
+        "observation, SSH, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC146-20260729-PUBLISHED-COMPOSE-OBSERVATION-PACKET",
+      "thread_id": "/root/sec145_publication_alice",
+      "slice_id": "SEC146-exact-one-use-compose-observation-packet",
+      "owner": "Alice/Terra",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-sec146-compose-observation-packet.md"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T20:35:00+02:00",
+      "lease_expires_at": "2026-07-29T21:35:00+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "repo_only_action_specific_observation_packet_authoring",
+      "released_at": "2026-07-29T20:40:00+02:00",
+      "release_reason": "Alice/Terra changed only the SEC146 packet path. Root/Sol deep-reviewed the published binding, exact command, one-use limits, strict redaction boundary, terminal no-retry outcomes, explicit exclusions and task/goal completion rule.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "granting or consuming live authority",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC146-20260729-PUBLISHED-COMPOSE-OBSERVATION-PACKET",
+      "thread_id": "/root/sec145_frontier_test_charlie",
+      "slice_id": "SEC146-current-frontier-contract-sync",
+      "owner": "Charlie/Terra",
+      "allowed_paths": [
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T20:35:00+02:00",
+      "lease_expires_at": "2026-07-29T21:35:00+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "published_frontier_contract_sync",
+      "released_at": "2026-07-29T20:40:00+02:00",
+      "release_reason": "Charlie/Terra changed only the exact next_frontier assertion. Root/Sol reviewed the diff: gates, preconditions, live-go ledger checks and unrelated assertions remain intact.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "weakening or deleting unrelated assertions",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC146-20260729-PUBLISHED-COMPOSE-OBSERVATION-PACKET",
+      "thread_id": "/root",
+      "slice_id": "SEC146-root-ledger-binding-and-deep-review",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T20:35:00+02:00",
+      "lease_expires_at": "2026-07-29T21:35:00+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "packet_binding_and_deep_review",
+      "released_at": "2026-07-29T20:40:00+02:00",
+      "release_reason": "Root/Sol accepted both repo-only handoffs. The packet grants no live observation, Git, deployment, delivery or send authority.",
+      "forbidden_actions": [
+        "editing Alice or Charlie claimed paths",
+        "creating live authority before a later exact owner response",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC147-20260729-ACCESS-SOURCE-IP-NOTIFICATION-ROADMAP",
+      "thread_id": "/root",
+      "slice_id": "SEC147-access-source-ip-and-self-egress-suppression-roadmap",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T20:44:46+02:00",
+      "lease_expires_at": "2026-07-29T21:44:46+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "roadmap_authoring_decision_record",
+      "released_at": "2026-07-29T20:47:00+02:00",
+      "release_reason": "The owner-requested source-IP tracking, notification field, own-public-IP knowledge and exact self-egress suppression rule are now a dependency-ready repo-only C2 slice that blocks D. The contract fails open toward notification, trusts forwarding headers only behind explicit proxy trust, preserves security-critical alerts and requires privacy/retention controls.",
+      "forbidden_actions": [
+        "implementation or test edits",
+        "persisting any real IP address, proxy header, provider response or private access event",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, public-IP query, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC147-20260729-ACCESS-SOURCE-IP-NOTIFICATION-ROADMAP",
+      "thread_id": "/root/sec145_frontier_test_charlie",
+      "slice_id": "SEC147-source-ip-frontier-contract-sync",
+      "owner": "Charlie/Terra",
+      "allowed_paths": [
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T20:47:00+02:00",
+      "lease_expires_at": "2026-07-29T21:17:00+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "source_ip_dependency_contract_sync",
+      "released_at": "2026-07-29T20:48:00+02:00",
+      "release_reason": "Charlie/Terra inserted only the exact C2 dependency step after blocker resolution and before D. Root/Sol reviewed the diff; all other frontier fields, gates, preconditions, live-go assertions and unrelated tests remain intact.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "weakening or deleting unrelated assertions",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, public-IP query, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC146-20260729-PUBLISHED-COMPOSE-OBSERVATION",
+      "thread_id": "/root",
+      "slice_id": "SEC146-one-use-published-compose-observation",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T20:48:14+02:00",
+      "lease_expires_at": "2026-07-29T21:18:14+02:00",
+      "handoff_required": true,
+      "live_actions": true,
+      "external_action_executed": true,
+      "phase": "terminal_blocked_no_retry_strategy_gate",
+      "released_at": "2026-07-29T20:49:40+02:00",
+      "release_reason": "Preflight passed for grant freshness, remote revision, tree and both published hashes. The exact corrected transport ran once and again returned the same strict terminal blocked/transport_failed record with retry_permitted false. No retry, public-IP query, deploy or send occurred. Two terminal live candidates now require a new repo-only diagnostic strategy gate.",
+      "forbidden_actions": [
+        "any command other than the exact no-argument SEC146 transport command after preflight",
+        "any second invocation, retry or follow-on query",
+        "raw help, source, values, fragments, paths, environment, exceptions or stderr",
+        "public-IP query",
+        "deploy",
+        "delivery or send",
+        "provider mutation",
+        "host administration",
+        "stage",
+        "commit",
+        "push"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC148-20260729-TRANSPORT-BRANCH-DISAMBIGUATION-STRATEGY",
+      "thread_id": "/root/sec145_publication_alice",
+      "slice_id": "SEC148-fixed-enum-transport-branch-disambiguation-strategy",
+      "owner": "Alice/Terra",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-sec148-transport-branch-disambiguation-strategy.md"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T20:50:00+02:00",
+      "lease_expires_at": "2026-07-29T21:50:00+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "repo_only_strategy_gate_authoring",
+      "released_at": "2026-07-29T20:56:00+02:00",
+      "release_reason": "Alice/Terra changed only the SEC148 strategy path. Root/Sol deep-reviewed the strict v2 pair allowlist, branch precedence, v1 evidence compatibility, observer-schema preservation, no-leakage boundary, fake-runner matrix and two-path implementation scope.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "implementation or test edits",
+        "raw stdout, stderr, exception, environment, provider, host or private-path evidence",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, public-IP query, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC148-20260729-TRANSPORT-BRANCH-DISAMBIGUATION-STRATEGY",
+      "thread_id": "/root/sec145_frontier_test_charlie",
+      "slice_id": "SEC148-terminal-observation-ledger-and-frontier-contract-sync",
+      "owner": "Charlie/Terra",
+      "allowed_paths": [
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T20:50:00+02:00",
+      "lease_expires_at": "2026-07-29T21:50:00+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "terminal_live_go_and_frontier_contract_sync",
+      "released_at": "2026-07-29T20:56:00+02:00",
+      "release_reason": "Charlie/Terra synchronized only the exact strategy frontier and SEC146 consumed-terminal ledger assertions. Root/Sol reviewed the diff; historical SEC143/SIRP12 checks and unrelated assertions remain intact.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "weakening or deleting unrelated assertions",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, public-IP query, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC148-20260729-TRANSPORT-BRANCH-DISAMBIGUATION-STRATEGY",
+      "thread_id": "/root",
+      "slice_id": "SEC148-root-ledger-and-deep-review",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T20:50:00+02:00",
+      "lease_expires_at": "2026-07-29T21:50:00+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "strategy_binding_and_deep_review",
+      "released_at": "2026-07-29T20:56:00+02:00",
+      "release_reason": "Root/Sol accepted the repo-only strategy gate and contract synchronization. No implementation, publication, public-IP query, new observation, deploy or send authority exists.",
+      "forbidden_actions": [
+        "editing Alice or Charlie claimed paths",
+        "implementation, publication or new live authority",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, public-IP query, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC149-20260729-TRANSPORT-V2-FIXED-ENUM-IMPLEMENTATION",
+      "thread_id": "/root/sec144_transport_diagnosis_bob",
+      "slice_id": "SEC149-transport-v2-fixed-enum-implementation-and-tests",
+      "owner": "Bob/Terra",
+      "allowed_paths": [
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T20:57:00+02:00",
+      "lease_expires_at": "2026-07-29T21:57:00+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "repo_only_transport_v2_implementation",
+      "released_at": "2026-07-29T21:04:13+02:00",
+      "release_reason": "Bob/Terra changed exactly the transport and its dedicated test. Root/Sol deep-reviewed the v2 schema, pair allowlist, branch precedence, literal return-code handling, v1 compatibility, observer preservation and no-leakage matrix, then independently passed 36 combined tests, compilation and diff checks.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "observer source edits",
+        "raw stdout, stderr, exception, environment, provider, host, path, value, fragment, size or actual return-code disclosure",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, public-IP query, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC149-20260729-TRANSPORT-V2-FIXED-ENUM-IMPLEMENTATION",
+      "thread_id": "/root",
+      "slice_id": "SEC149-root-ledger-and-deep-review",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T20:57:00+02:00",
+      "lease_expires_at": "2026-07-29T21:57:00+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "implementation_binding_and_deep_review",
+      "released_at": "2026-07-29T21:04:13+02:00",
+      "release_reason": "Root/Sol accepted the repo-only SEC149 implementation. Every diagnostic pair remains terminal blocked/no-retry and no pair can imply capability. Publication and any new live observation remain unauthorized.",
+      "forbidden_actions": [
+        "editing Bob claimed implementation or test paths",
+        "publication or new live authority",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, public-IP query, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC150-20260729-PUBLICATION-READINESS",
+      "thread_id": "/root/sec145_publication_alice",
+      "slice_id": "SEC150-exact-seven-path-publication-readiness-packet",
+      "owner": "Alice/Terra",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-sec150-publication-readiness-packet.md"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T21:06:00+02:00",
+      "lease_expires_at": "2026-07-29T22:06:00+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "repo_only_exact_publication_packet_authoring",
+      "released_at": "2026-07-29T21:10:00+02:00",
+      "release_reason": "Alice/Terra changed only the SEC150 packet path. Root/Sol reviewed the immutable parent, exact seven-path inventory, v2 transport hash, required 36-test and roadmap lanes, one-commit/one-push boundary, independent readback and explicit no-authority exclusions.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, public-IP query, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC150-20260729-PUBLICATION-READINESS",
+      "thread_id": "/root",
+      "slice_id": "SEC150-root-ledger-binding-and-deep-review",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T21:06:00+02:00",
+      "lease_expires_at": "2026-07-29T22:06:00+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "candidate_binding_and_deep_review",
+      "released_at": "2026-07-29T21:10:00+02:00",
+      "release_reason": "Root/Sol accepted the repo-only publication packet. Git publication, network, public-IP query, observation, deployment and send remain unauthorized.",
+      "forbidden_actions": [
+        "editing Alice packet path",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, public-IP query, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC150-20260729-PUBLISH",
+      "thread_id": "/root",
+      "slice_id": "SEC150-exact-seven-path-publication",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "docs/plans/security-incident-response-sec146-compose-observation-packet.md",
+        "docs/plans/security-incident-response-sec148-transport-branch-disambiguation-strategy.md",
+        "docs/plans/security-incident-response-sec150-publication-readiness-packet.md",
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_transport.py",
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T21:28:11+02:00",
+      "lease_expires_at": "2026-07-29T22:28:11+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_authorized": true,
+      "phase": "exact_path_scoped_git_publication",
+      "released_at": "2026-07-29T21:30:00+02:00",
+      "release_reason": "Exact SEC150 authority, destination and predecessor were durably bound. The remote preflight matched; the claim is released before the required zero-active-claim publication gate.",
+      "forbidden_actions": [
+        "any path or hunk outside allowed_paths",
+        "more than one commit",
+        "more than one push",
+        "amend, rebase, merge, force push, cleanup or alternate destination",
+        "SSH, public-IP query, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC151-20260729-FRONTIER-CORRECTION",
+      "thread_id": "/root",
+      "slice_id": "SEC151-root-frontier-consistency-repair",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T21:31:08+02:00",
+      "lease_expires_at": "2026-07-29T22:31:08+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "phase": "queue_frontier_consistency_repair",
+      "released_at": "2026-07-29T21:33:28+02:00",
+      "release_reason": "Root/Sol corrected the stale global frontier to the accepted SEC149 and authorized SEC150 state and deep-reviewed the exact dependency order.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "stage, commit or push before claim release and full preflight",
+        "network, SSH, public-IP query, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC151-20260729-FRONTIER-CORRECTION",
+      "thread_id": "/root/sec145_frontier_test_charlie",
+      "slice_id": "SEC151-frontier-contract-test-repair",
+      "owner": "Charlie/Terra",
+      "allowed_paths": [
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T21:31:08+02:00",
+      "lease_expires_at": "2026-07-29T22:31:08+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "phase": "queue_frontier_contract_test_repair",
+      "released_at": "2026-07-29T21:33:28+02:00",
+      "release_reason": "Charlie/Terra changed only the claimed roadmap test. Root/Sol inspected the diff and accepted the exact frontier assertion after focused test, compilation and diff-check evidence.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "stage, commit or push",
+        "network, SSH, public-IP query, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
     }
   ],
   "live_go": [
+    {
+      "id": "SEC146-COMPOSE-OBSERVE-20260729",
+      "run_id": "ABC-SEC146-20260729-PUBLISHED-COMPOSE-OBSERVATION",
+      "action": "other/read_only_observation",
+      "target_class": "published corrected default-disabled Compose capability through repository-owned strict redacted transport",
+      "artifact_or_inputs": "revision 2a3b3bd93143cc03f4c267cdcedfc54b93fd5b56; tree 50a22b47e40ebdd8bd55789b890ebb2aa8faecf8; no-argument redacted_podman_compose_capability_transport.py",
+      "granted_by": "owner 'dann mach weiter' after requesting SEC147 roadmap addition and in exact SEC146 packet context",
+      "granted_at": "2026-07-29T20:48:14+02:00",
+      "expires_at": "run_end",
+      "limits": {
+        "arguments": 0,
+        "maximum_invocations": 1,
+        "maximum_results": 1,
+        "outer_timeout_seconds": 30,
+        "follow_on_queries": 0,
+        "retries": 0
+      },
+      "rollback_or_recovery": "read-only; terminal stop on every result; no retry",
+      "readback": "one strict repository-owned redacted JSON record and canonical evidence_sha256 only",
+      "revocable": true,
+      "consumed": true,
+      "status": "used",
+      "consumption_status": "consumed_terminal_blocked",
+      "used_at": "2026-07-29T20:49:20+02:00",
+      "invocation_counter": 1,
+      "result_counter": 1,
+      "terminal_result": {
+        "schema_id": "odysseus.redacted_podman_compose_capability_transport.v1",
+        "status": "blocked",
+        "error_code": "transport_failed",
+        "retry_permitted": false,
+        "evidence_sha256": "79764a306f77baf2216bafd5f68ae788dc2404a1cc075f17d248f4efb0ec1bab",
+        "strict_schema_validation": "passed",
+        "canonical_digest_validation": "passed"
+      },
+      "reuse_permitted": false,
+      "public_ip_query_authority": false,
+      "deploy_authority": false,
+      "delivery_or_send_authority": false
+    },
     {
       "id": "SEC143-COMPOSE-OBSERVE-20260729",
       "run_id": "ABC-SEC143-20260729-PUBLISHED-COMPOSE-OBSERVATION",
@@ -5679,6 +6198,7 @@
     "required_dag": [
       "B repo-only production transport/body/target resolution, no send, default disabled",
       "C repo-only app/CLI composition and isolated fake integration/packaging",
+      "C2 repo-only trusted source-IP context, operator notification field and own-public-egress suppression policy",
       "D pre-deploy parity plus exact deployment packet",
       "E exact one-send packet plus independent readback and human confirmation"
     ],
@@ -5770,11 +6290,60 @@
         "external_actions": false
       },
       {
+        "id": "OPS-ALERT-C2-source-ip-context-and-self-egress-suppression",
+        "class": "repo_only",
+        "status": "planned_dependency_ready",
+        "depends_on": [
+          "OPS-ALERT-C accepted"
+        ],
+        "allowed_paths": [
+          "app.py",
+          "routes/auth_routes.py",
+          "src/security_incident_model.py",
+          "src/security_incident_notifications.py",
+          "src/security_incident_delivery.py",
+          "src/security_incident_network_context.py",
+          "tests/test_security_incident_notifications.py",
+          "tests/test_security_incident_delivery.py",
+          "tests/test_security_incident_network_context.py"
+        ],
+        "goal": "Track the canonical accessing IP for access-security events, include it in the operator notification, maintain a fresh server-owned public IPv4/IPv6 set, and suppress only origin-only alerts whose validated external source equals that own public egress set.",
+        "acceptance": [
+          "Derive one canonical source IP from the direct peer or from forwarding headers only when the immediate peer is an explicitly trusted proxy; untrusted X-Forwarded-For, Forwarded, X-Real-IP and CF-Connecting-IP values never become evidence.",
+          "Normalize IPv4, IPv4-mapped IPv6 and IPv6 with the standard IP parser; reject ports, hostnames, zone identifiers, malformed values, ambiguous chains and multiple conflicting candidates.",
+          "Track and include the full canonical accessing IP in the owner-requested access notification with a fixed field label, bounded length and no adjacent raw headers, credentials, request body, path, query, user-agent or provider output.",
+          "Treat the accessing IP as security telemetry and personal data: bind it to the incident/audit record, define bounded retention and access control, and exclude it from model prompts, general logs and unrelated notification channels.",
+          "Maintain a server-owned fresh set of the system's own public IPv4 and IPv6 addresses using configured trusted deployment data or an allowlisted repository-owned resolver contract. Any third-party discovery call, provider choice or new network dependency requires a separate reviewed decision and may not expose raw provider responses.",
+          "Suppress notification only when the event is an external-access origin-only alert, the canonical source is public, the own-public-IP record is fresh, and exact normalized address equality is proven.",
+          "Never suppress authentication failures, lockouts, new privileged sessions, role or credential changes, step-up failures, break-glass use, session anomalies, remediation events or any alert with an independent security reason even when the source equals an own public IP.",
+          "Fail open toward notification when source provenance, proxy trust, public/private classification, own-IP freshness or equality is unknown, stale, malformed, conflicting or unavailable.",
+          "Persist a bounded suppression audit decision with policy version and reason code, without forwarding raw proxy chains or public-IP provider responses.",
+          "Offline tests cover direct peers, trusted and untrusted proxy chains, spoofed headers, IPv4/IPv6 normalization, stale/unknown own IP, exact match and mismatch, NAT/hairpin behavior, security-critical non-suppression, retention projection and notification rendering."
+        ],
+        "stop_rules": [
+          "Stop if a caller-controlled forwarding header can select the tracked source IP.",
+          "Stop if suppression can occur on uncertainty, prefix/range/hostname matching, stale own-IP data or any security-critical event class.",
+          "Stop if implementation requires an unapproved public-IP provider, leaks raw access data, or persists an unlimited IP history.",
+          "Stop if the accessing IP cannot be independently bound from request ingress through incident creation, notification rendering and suppression audit."
+        ],
+        "verification": [
+          "typed source provenance and trusted-proxy negative matrix",
+          "IPv4/IPv6 canonicalization and equality matrix",
+          "own-public-IP freshness and fail-open notification behavior",
+          "notification includes exact canonical source IP and no other request metadata",
+          "security-critical events remain unsuppressed",
+          "bounded audit retention and no model/provider leakage",
+          "deep Sol privacy and bypass review"
+        ],
+        "gates": [],
+        "external_actions": false
+      },
+      {
         "id": "OPS-ALERT-D-predeploy-parity-and-exact-deployment-packet",
         "class": "planning_then_needs_live_go",
         "status": "repo_only_parity_complete_waiting_deploy_live_go",
         "depends_on": [
-          "OPS-ALERT-C accepted"
+          "OPS-ALERT-C2 accepted"
         ],
         "repo_only_parity": [
           "Bind reviewed B/C artifact digest, exact deployment target class, config-schema fingerprint, disabled/no-send default, redacted readiness schema, health/readback contract and prior-artifact rollback identity."
@@ -5852,7 +6421,7 @@
       "result": "pass_B_and_C_accepted_D_packet_ready",
       "key_correction": "B/C/D/E labels follow the user-defined closure phases; deployment and send authorities remain independent."
     },
-    "next_action": "Stop at deploy-live-go. Request one exact D decision binding the reviewed digest, deployment target, prior artifact, limits, timeout, rollback and independent health readback. Do not infer E send authority."
+    "next_action": "Complete and deep-review OPS-ALERT-C2 before D. Then stop at deploy-live-go and request one exact D decision binding the reviewed digest, deployment target, prior artifact, limits, timeout, rollback and independent health readback. Do not infer E send authority."
   },
   "latest_ops_alert_bc_accepted_handoff": {
     "recorded_at": "2026-07-28T16:20:00+02:00",
@@ -6896,10 +7465,339 @@
       "overall product/release or autonomous lockdown is claimed from this track"
     ]
   },
+  "latest_sec150_publication_readiness": {
+    "recorded_at": "2026-07-29T21:06:00+02:00",
+    "run_id": "ABC-SEC150-20260729-PUBLICATION-READINESS",
+    "status": "exact_git_publication_preflight_passed_staging_authorized",
+    "phase": "exact_path_scoped_publication_readiness",
+    "queue_scope": "named_security_incident_response_production_completion_roadmap",
+    "mutation_authority": "repo_only",
+    "bound_parent": "2a3b3bd93143cc03f4c267cdcedfc54b93fd5b56",
+    "destination_if_later_authorized": "fuzzy/dev",
+    "candidate_paths": [
+      "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "docs/plans/security-incident-response-sec146-compose-observation-packet.md",
+      "docs/plans/security-incident-response-sec148-transport-branch-disambiguation-strategy.md",
+      "docs/plans/security-incident-response-sec150-publication-readiness-packet.md",
+      "ops/homeserver/redacted_podman_compose_capability_transport.py",
+      "tests/test_homeserver_redacted_podman_compose_capability_transport.py",
+      "tests/test_security_incident_response_production_completion_roadmap.py"
+    ],
+    "candidate_path_count": 7,
+    "accepted_transport_sha256": "fdbbb0a5103eca34d0a1b96e55f34d45f34ef7e83493fa1f7cafe3c772de44a3",
+    "publication_authority": true,
+    "live_observation_authority": false,
+    "public_ip_query_authority": false,
+    "deploy_authority": false,
+    "delivery_or_send_authority": false,
+    "external_actions_started": false,
+    "git_actions_started": false,
+    "publication_grant": {
+      "granted_by": "owner Go in exact SEC150 packet context",
+      "granted_at": "2026-07-29T21:28:11+02:00",
+      "scope": "exactly one commit containing the seven candidate paths and exactly one push to fuzzy/dev followed by independent remote readback",
+      "bound_parent": "2a3b3bd93143cc03f4c267cdcedfc54b93fd5b56",
+      "destination": "fuzzy/dev",
+      "maximum_commits": 1,
+      "maximum_pushes": 1,
+      "expires_at": "run_end",
+      "consumption_status": "go",
+      "reuse_permitted": false,
+      "observation_authority": false,
+      "public_ip_query_authority": false,
+      "deploy_authority": false,
+      "delivery_or_send_authority": false
+    },
+    "remote_preflight": {
+      "remote": "fuzzy",
+      "branch": "dev",
+      "revision": "2a3b3bd93143cc03f4c267cdcedfc54b93fd5b56",
+      "result": "passed"
+    },
+    "deep_review": {
+      "packet_path": "docs/plans/security-incident-response-sec150-publication-readiness-packet.md",
+      "worker_route": "Alice/Terra via /root/sec145_publication_alice",
+      "reviewer_route": "root/Sol deep",
+      "parent_and_destination_binding": "passed",
+      "seven_path_inventory": "passed",
+      "transport_hash_binding": "passed",
+      "required_test_lanes": "passed",
+      "one_commit_one_push_boundary": "passed",
+      "independent_readback_contract": "passed",
+      "no_git_or_live_authority": "passed",
+      "semantic_frontier_correction": {
+        "discovered_by": "Charlie/Terra independent prepublication review",
+        "issue": "global next_frontier and recommended_next_action still named the completed SEC148 strategy gate",
+        "roadmap_owner": "root/Sol",
+        "test_owner": "Charlie/Terra",
+        "focused_test": "1 passed",
+        "sol_deep_review": "passed",
+        "result": "accepted"
+      },
+      "result": "accepted"
+    },
+    "local_preflight": {
+      "recorded_at": "2026-07-29T21:34:39+02:00",
+      "result": "passed",
+      "branch": "dev",
+      "head": "2a3b3bd93143cc03f4c267cdcedfc54b93fd5b56",
+      "real_index_empty": true,
+      "candidate_dirty_path_count": 7,
+      "candidate_dirty_set_exact": true,
+      "unrelated_dirty_paths_preserved_and_excluded": 111,
+      "active_claim_count": 0,
+      "transport_sha256": "fdbbb0a5103eca34d0a1b96e55f34d45f34ef7e83493fa1f7cafe3c772de44a3",
+      "transport_hash_match": true,
+      "observer_transport_tests": "36 passed",
+      "roadmap_tests": "6 passed, 1 known stale evidence-manifest test deselected",
+      "python_compile": "passed",
+      "candidate_diff_check": "passed",
+      "remote_parent_match": true,
+      "semantic_frontier_consistency": "passed after SEC151 correction and Sol deep review",
+      "git_actions_started": false,
+      "external_actions_started": false
+    },
+    "active_claims_after_handoff": 0,
+    "next_action": "Stage exactly the seven accepted candidate paths, bind the cached diff and tree, create exactly one commit, push exactly once to fuzzy/dev and independently read back revision, parent, tree, path inventory and published transport hash."
+  },
+  "latest_sec149_transport_v2_implementation": {
+    "recorded_at": "2026-07-29T20:57:00+02:00",
+    "run_id": "ABC-SEC149-20260729-TRANSPORT-V2-FIXED-ENUM-IMPLEMENTATION",
+    "status": "accepted_repo_only_after_deep_security_review_publication_not_authorized",
+    "phase": "transport_v2_fixed_enum_implementation",
+    "queue_scope": "named_security_incident_response_production_completion_roadmap",
+    "mutation_authority": "repo_only",
+    "strategy": "docs/plans/security-incident-response-sec148-transport-branch-disambiguation-strategy.md",
+    "allowed_paths": [
+      "ops/homeserver/redacted_podman_compose_capability_transport.py",
+      "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+    ],
+    "implementation_authority": true,
+    "publication_authority": false,
+    "live_observation_authority": false,
+    "public_ip_query_authority": false,
+    "deploy_authority": false,
+    "delivery_or_send_authority": false,
+    "external_actions_started": false,
+    "git_actions_started": false,
+    "changed_paths": [
+      "ops/homeserver/redacted_podman_compose_capability_transport.py",
+      "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+    ],
+    "candidate_hashes": {
+      "transport_sha256": "fdbbb0a5103eca34d0a1b96e55f34d45f34ef7e83493fa1f7cafe3c772de44a3",
+      "transport_test_sha256": "0706dff52685f6b7a9d2b15f74f58d84bd0d850a3ed5ac6b00fad09894a90a03"
+    },
+    "deep_review": {
+      "worker_route": "Bob/Terra via /root/sec144_transport_diagnosis_bob",
+      "reviewer_route": "root/Sol deep",
+      "strict_v2_six_key_schema": "passed",
+      "complete_pair_allowlist": "passed",
+      "deterministic_branch_precedence": "passed",
+      "literal_integer_and_bool_rejection": "passed",
+      "historical_v1_validation": "passed",
+      "observer_envelope_preservation": "passed",
+      "rc255_no_ok_promotion": "passed",
+      "private_sentinel_non_leakage": "passed",
+      "dedicated_transport_suite": "18 passed",
+      "combined_observer_transport_suite": "36 passed",
+      "python_compilation": "passed",
+      "diff_check": "passed",
+      "pair_matrix": "passed",
+      "capability_promotion_possible": false,
+      "result": "accepted"
+    },
+    "active_claims_after_handoff": 0,
+    "next_action": "Prepare a repo-only exact publication-readiness packet for the accepted SEC148 strategy, SEC149 transport/test, current roadmap and contract test. Do not stage, commit, push or request another live observation yet."
+  },
+  "latest_sec148_transport_branch_disambiguation_strategy": {
+    "recorded_at": "2026-07-29T20:50:00+02:00",
+    "run_id": "ABC-SEC148-20260729-TRANSPORT-BRANCH-DISAMBIGUATION-STRATEGY",
+    "status": "strategy_gate_deep_review_passed_implementation_not_started",
+    "phase": "post_two-terminal-attempts_strategy_gate",
+    "queue_scope": "named_security_incident_response_production_completion_roadmap",
+    "mutation_authority": "repo_only",
+    "trigger": {
+      "sec143_status": "blocked_transport_failed",
+      "sec146_status": "blocked_transport_failed",
+      "same_evidence_sha256": "79764a306f77baf2216bafd5f68ae788dc2404a1cc075f17d248f4efb0ec1bab",
+      "both_retry_permitted": false
+    },
+    "required_outcome": "One implementation-ready strict fixed-enum diagnostic contract that distinguishes transport failure branches without exposing raw output, values, sizes, fragments, paths, environment, exceptions, provider responses or host identity.",
+    "implementation_authority": false,
+    "publication_authority": false,
+    "live_observation_authority": false,
+    "public_ip_query_authority": false,
+    "deploy_authority": false,
+    "delivery_or_send_authority": false,
+    "external_actions_started": false,
+    "git_actions_started": false,
+    "strategy": "docs/plans/security-incident-response-sec148-transport-branch-disambiguation-strategy.md",
+    "deep_review": {
+      "strategy_worker_route": "Alice/Terra via /root/sec145_publication_alice",
+      "test_worker_route": "Charlie/Terra via /root/sec145_frontier_test_charlie",
+      "reviewer_route": "root/Sol deep",
+      "strict_v2_schema": "passed",
+      "error_diagnostic_pair_allowlist": "passed",
+      "deterministic_branch_precedence": "passed",
+      "historical_v1_evidence_compatibility": "passed",
+      "observer_schema_preservation": "passed",
+      "no_raw_data_or_dynamic_diagnostic": "passed",
+      "fake_runner_matrix": "passed",
+      "smallest_implementation_scope": "passed",
+      "terminal_ledger_sync": "passed",
+      "frontier_contract_sync": "passed",
+      "gate_weakening": false,
+      "result": "accepted"
+    },
+    "active_claims_after_handoff": 0,
+    "next_action": "After post-release tests, open one repo-only implementation claim limited to the transport and its dedicated test. No publication or further live observation is requestable yet."
+  },
+  "latest_sec147_access_source_ip_notification_requirement": {
+    "recorded_at": "2026-07-29T20:47:00+02:00",
+    "run_id": "ABC-SEC147-20260729-ACCESS-SOURCE-IP-NOTIFICATION-ROADMAP",
+    "status": "roadmap_requirement_and_frontier_contract_deep_review_passed_C2_blocks_D",
+    "phase": "roadmap_authoring_decision_record",
+    "queue_scope": "named_security_incident_response_production_completion_roadmap",
+    "mutation_authority": "repo_only",
+    "owner_request": [
+      "Access notifications track and transmit the accessing IP address.",
+      "Odysseus knows its own public IPv4 and IPv6 addresses.",
+      "An origin-only external-access notification is suppressed when the validated source IP exactly equals a fresh own-public-IP entry."
+    ],
+    "slice_id": "OPS-ALERT-C2-source-ip-context-and-self-egress-suppression",
+    "dependency_effect": "OPS-ALERT-D now depends on OPS-ALERT-C2 accepted.",
+    "security_boundaries": [
+      "Forwarding headers are evidence only behind an explicitly trusted immediate proxy.",
+      "Unknown, stale, malformed or conflicting context fails open toward notification.",
+      "Exact normalized address equality only; no prefix, hostname or inferred-NAT matching.",
+      "Security-critical events are never suppressed solely because the source equals an own public IP.",
+      "Full canonical source IP is intentionally allowed only in the access notification and bounded incident/audit record; raw proxy chains and unrelated request data remain forbidden.",
+      "Any new public-IP discovery provider or network dependency requires a separate reviewed decision."
+    ],
+    "implementation_authority": false,
+    "live_authority": false,
+    "deploy_authority": false,
+    "delivery_or_send_authority": false,
+    "external_actions_started": false,
+    "git_actions_started": false,
+    "deep_review": {
+      "reviewer_route": "root/Sol deep",
+      "requirement_scope": "passed",
+      "trusted_proxy_and_spoofing_boundary": "passed",
+      "IPv4_IPv6_normalization_boundary": "passed",
+      "own_public_IP_freshness_and_fail_open_boundary": "passed",
+      "security_critical_non_suppression_boundary": "passed",
+      "privacy_retention_boundary": "passed",
+      "D_dependency_binding": "passed",
+      "frontier_contract_sync": "passed",
+      "gate_weakening": false,
+      "result": "accepted"
+    },
+    "active_claims_after_handoff": 0,
+    "next_action": "OPS-ALERT-C2 implementation is required before D. The immediate frontier remains the separately authorized SEC146 one-use observation; no public-IP query, deploy or send is authorized by this roadmap decision."
+  },
+  "latest_sec146_published_compose_observation_packet": {
+    "recorded_at": "2026-07-29T20:35:00+02:00",
+    "run_id": "ABC-SEC146-20260729-PUBLISHED-COMPOSE-OBSERVATION-PACKET",
+    "status": "second_single_observation_terminal_blocked_transport_failed_no_retry_strategy_gate",
+    "phase": "action_specific_packet_preparation",
+    "queue_scope": "named_security_incident_response_production_completion_roadmap",
+    "mutation_authority": "repo_only",
+    "packet": "docs/plans/security-incident-response-sec146-compose-observation-packet.md",
+    "published_binding": {
+      "revision": "2a3b3bd93143cc03f4c267cdcedfc54b93fd5b56",
+      "tree": "50a22b47e40ebdd8bd55789b890ebb2aa8faecf8",
+      "remote": "fuzzy/dev",
+      "observer_sha256": "af8e688ae86e1406a55f51d521f746d15b9300d399caeaa4698e53bd133bd46c",
+      "transport_sha256": "630e460799f4a940f582cb6b4396a13902d32c080d7d7a22176256f2c92bbe79",
+      "remote_readback": "passed"
+    },
+    "proposed_limits": {
+      "arguments": 0,
+      "maximum_invocations": 1,
+      "maximum_results": 1,
+      "outer_timeout_seconds": 30,
+      "follow_on_queries": 0,
+      "retries": 0,
+      "expires_at": "run_end"
+    },
+    "live_observation_authority": false,
+    "deploy_authority": false,
+    "delivery_or_send_authority": false,
+    "external_actions_started": true,
+    "git_actions_started": false,
+    "live_authority": {
+      "id": "SEC146-COMPOSE-OBSERVE-20260729",
+      "granted_by": "dann mach weiter",
+      "granted_at": "2026-07-29T20:48:14+02:00",
+      "scope": "exact accepted SEC146 packet only",
+      "consumption_status": "consumed_terminal_blocked",
+      "reuse_permitted": false,
+      "public_ip_query_authority": false,
+      "deploy_authority": false,
+      "delivery_or_send_authority": false
+    },
+    "preflight": {
+      "grant_freshness": "passed",
+      "active_claim_scope": "passed",
+      "remote_revision_readback": "passed",
+      "tree_readback": "passed",
+      "observer_sha256_readback": "passed",
+      "transport_sha256_readback": "passed"
+    },
+    "observation": {
+      "invocations": 1,
+      "results": 1,
+      "process_exit_code": 1,
+      "schema_id": "odysseus.redacted_podman_compose_capability_transport.v1",
+      "status": "blocked",
+      "error_code": "transport_failed",
+      "retry_permitted": false,
+      "evidence_sha256": "79764a306f77baf2216bafd5f68ae788dc2404a1cc075f17d248f4efb0ec1bab",
+      "strict_schema_validation": "passed",
+      "canonical_digest_validation": "passed",
+      "raw_output_retained": false,
+      "follow_on_queries": 0,
+      "retries": 0
+    },
+    "deep_review": {
+      "packet_worker_route": "Alice/Terra via /root/sec145_publication_alice",
+      "test_worker_route": "Charlie/Terra via /root/sec145_frontier_test_charlie",
+      "reviewer_route": "root/Sol deep",
+      "packet_scope": "passed",
+      "published_binding": "passed",
+      "exact_no_argument_command": "passed",
+      "bounded_single_use": "passed",
+      "strict_redaction_and_digest": "passed",
+      "terminal_no_retry": "passed",
+      "explicit_no_authority": "passed",
+      "task_goal_completion_rule": "passed",
+      "frontier_contract_sync": "passed",
+      "gate_weakening": false,
+      "diff_check": "passed",
+      "result": "accepted"
+    },
+    "active_claims_after_handoff": 0,
+    "task_goal_status_after_observation": "blocked",
+    "overall_run_success": false,
+    "strategy_gate": {
+      "status": "open_repo_only_no_more_live_attempts",
+      "reason": "SEC143 and corrected SEC146 both returned the identical strict blocked/transport_failed terminal envelope. The SEC144 SSH-255 preservation fix did not change the observed live classification and the redacted envelope cannot identify the internal branch.",
+      "forbidden": [
+        "retrying either consumed grant",
+        "creating another live observation packet before a new diagnostic strategy is accepted",
+        "raw stdout, stderr, exception, environment, provider or host inspection",
+        "deploy or send"
+      ],
+      "required_next": "Design a new repo-only branch-disambiguation contract that preserves secret-safe fixed-enum evidence at the transport boundary, with offline tests and deep review, before any new publication or live request."
+    },
+    "next_action": "Do not retry, deploy or send. Open one repo-only strategy-gate slice for fixed-enum branch disambiguation of transport_failed. OPS-ALERT-C2 remains a separate required implementation before D."
+  },
   "latest_sec145_publication_readiness": {
     "recorded_at": "2026-07-29T19:50:31+02:00",
     "run_id": "ABC-SEC145-20260729-PUBLICATION-READINESS",
-    "status": "exact_seven_path_publication_authorized_pre_staging",
+    "status": "published_remote_readback_passed_overall_goal_blocked",
     "phase": "exact_path_scoped_publication_readiness",
     "queue_scope": "named_security_incident_response_production_completion_roadmap",
     "mutation_authority": "repo_only",
@@ -6920,8 +7818,8 @@
     "live_observation_authority": false,
     "deploy_authority": false,
     "delivery_or_send_authority": false,
-    "external_actions_started": false,
-    "git_actions_started": false,
+    "external_actions_started": true,
+    "git_actions_started": true,
     "publication_grant": {
       "granted_by": "owner plain weiter in exact SEC145 packet context",
       "granted_at": "2026-07-29T20:30:36+02:00",
@@ -6931,7 +7829,7 @@
       "maximum_commits": 1,
       "maximum_pushes": 1,
       "expires_at": "run_end",
-      "consumption_status": "fresh_unconsumed",
+      "consumption_status": "consumed",
       "reuse_permitted": false,
       "observation_authority": false,
       "deploy_authority": false,
@@ -6975,8 +7873,27 @@
       "diff_check": "passed",
       "result": "passed"
     },
+    "publication": {
+      "commit": "2a3b3bd93143cc03f4c267cdcedfc54b93fd5b56",
+      "parent": "9ea87e67464015cedbeeaada9117899edcab3ae2",
+      "tree": "50a22b47e40ebdd8bd55789b890ebb2aa8faecf8",
+      "candidate_diff_sha256": "64dd66c33d398b79d5bebd844cb331cf7ac89108a909cbae34225526a0dced72",
+      "path_count": 7,
+      "transport_sha256": "630e460799f4a940f582cb6b4396a13902d32c080d7d7a22176256f2c92bbe79",
+      "commit_count": 1,
+      "push_count": 1,
+      "destination": "fuzzy/dev",
+      "remote_revision_readback": "passed",
+      "tracking_ref_readback": "passed",
+      "parent_readback": "passed",
+      "tree_readback": "passed",
+      "path_inventory_readback": "passed",
+      "published_transport_hash_readback": "passed"
+    },
     "active_claims_after_handoff": 0,
-    "next_action": "Re-run the exact local preflight with zero active claims, stage only the seven candidate paths, inspect cached inventory/diff/tree/hash, create exactly one commit, push exactly once to fuzzy/dev and independently read back remote revision, tree, changed paths and published transport hash."
+    "task_goal_status_after_publication": "blocked",
+    "overall_run_success": false,
+    "next_action": "Prepare a new repo-only one-use observation packet bound to published commit 2a3b3bd93143cc03f4c267cdcedfc54b93fd5b56, tree 50a22b47e40ebdd8bd55789b890ebb2aa8faecf8 and transport SHA-256 630e460799f4a940f582cb6b4396a13902d32c080d7d7a22176256f2c92bbe79. Publication grants no observation, deploy or send authority."
   },
   "latest_sec144_transport_failed_diagnosis": {
     "recorded_at": "2026-07-29T19:40:42+02:00",
@@ -7206,17 +8123,17 @@
       "deploy-live-go"
     ],
     "owner_of_queue_registration": "root",
-    "claim_status_now": "sec144_fix_accepted_waiting_repo_only_publication_readiness_and_separate_git_authority",
+    "claim_status_now": "sec150_exact_publication_authorized_preflight_running",
     "dependency_order": [
-      "prepare publication readiness for the accepted SEC144 transport fix",
-      "publish the corrected revision under separate Git authority and obtain a new separately reviewed one-use observation packet",
-      "observe the corrected published Compose capability once without retry",
-      "resolve any remaining real deployment blocker",
+      "complete the exact SEC150 seven-path publication to fuzzy/dev and require independent remote revision, parent, tree, path and transport-hash readback",
+      "prepare a new separately reviewed one-use observation packet bound to the published transport-v2 commit",
+      "obtain a new action-specific read-only observation grant and execute the packet exactly once with no retry",
+      "implement and deep-review OPS-ALERT-C2 source-IP context and self-egress suppression",
       "bind and execute D deployment with rollback and independent readback",
       "obtain fresh strict redacted runtime readiness",
       "bind one exact E delivery packet",
       "send exactly once and independently read back durable receipt plus human confirmation"
     ]
   },
-  "recommended_next_action": "Do not retry, deploy or send. Prepare one repo-only publication-readiness packet for the accepted SEC144 transport and dedicated regression test. Commit and push remain separate later Git actions."
+  "recommended_next_action": "Complete the authorized exact SEC150 seven-path publication and independent fuzzy/dev readback. Do not retry observation, deploy or send. After publication, prepare a new separately reviewed one-use transport-v2 observation packet; implement OPS-ALERT-C2 before D."
 }

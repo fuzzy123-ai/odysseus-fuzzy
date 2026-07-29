@@ -418,16 +418,23 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
         ],
         "owner_of_queue_registration": "root",
         "claim_status_now": (
-            "sec144_fix_accepted_waiting_repo_only_publication_readiness_and_separate_git_authority"
+            "sec150_exact_publication_authorized_preflight_running"
         ),
         "dependency_order": [
-            "prepare publication readiness for the accepted SEC144 transport fix",
             (
-                "publish the corrected revision under separate Git authority and "
-                "obtain a new separately reviewed one-use observation packet"
+                "complete the exact SEC150 seven-path publication to fuzzy/dev and "
+                "require independent remote revision, parent, tree, path and "
+                "transport-hash readback"
             ),
-            "observe the corrected published Compose capability once without retry",
-            "resolve any remaining real deployment blocker",
+            (
+                "prepare a new separately reviewed one-use observation packet bound "
+                "to the published transport-v2 commit"
+            ),
+            (
+                "obtain a new action-specific read-only observation grant and "
+                "execute the packet exactly once with no retry"
+            ),
+            "implement and deep-review OPS-ALERT-C2 source-IP context and self-egress suppression",
             "bind and execute D deployment with rollback and independent readback",
             "obtain fresh strict redacted runtime readiness",
             "bind one exact E delivery packet",
@@ -631,6 +638,7 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     assert set(live_go_by_id) == {
         "SIRP12-OBSERVE-PACKET-20260728",
         "SEC143-COMPOSE-OBSERVE-20260729",
+        "SEC146-COMPOSE-OBSERVE-20260729",
     }
     packet = live_go_by_id["SIRP12-OBSERVE-PACKET-20260728"]
     assert packet["id"] == "SIRP12-OBSERVE-PACKET-20260728"
@@ -670,6 +678,26 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     assert sec143["terminal_result"]["retry_permitted"] is False
     assert sec143["deploy_authority"] is False
     assert sec143["delivery_or_send_authority"] is False
+
+    sec146 = live_go_by_id["SEC146-COMPOSE-OBSERVE-20260729"]
+    assert sec146["status"] == "used"
+    assert sec146["consumption_status"] == "consumed_terminal_blocked"
+    assert sec146["invocation_counter"] == 1
+    assert sec146["result_counter"] == 1
+    assert sec146["limits"]["maximum_invocations"] == 1
+    assert sec146["limits"]["maximum_results"] == 1
+    assert sec146["limits"]["retries"] == 0
+    assert sec146["reuse_permitted"] is False
+    assert sec146["terminal_result"]["status"] == "blocked"
+    assert sec146["terminal_result"]["error_code"] == "transport_failed"
+    assert sec146["terminal_result"]["retry_permitted"] is False
+    assert (
+        sec146["terminal_result"]["evidence_sha256"]
+        == sec143["terminal_result"]["evidence_sha256"]
+    )
+    assert sec146["public_ip_query_authority"] is False
+    assert sec146["deploy_authority"] is False
+    assert sec146["delivery_or_send_authority"] is False
 
     evidence_text = LIVE_EVIDENCE_PATH.read_text(encoding="utf-8")
     projection = json.loads(

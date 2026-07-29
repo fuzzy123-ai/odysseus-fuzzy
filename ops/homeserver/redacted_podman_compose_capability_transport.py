@@ -16,7 +16,8 @@ from typing import Any, Callable, Mapping
 
 
 OBSERVER_SCHEMA_ID = "odysseus.redacted_podman_compose_capability_observation.v1"
-TRANSPORT_SCHEMA_ID = "odysseus.redacted_podman_compose_capability_transport.v1"
+HISTORICAL_TRANSPORT_SCHEMA_ID = "odysseus.redacted_podman_compose_capability_transport.v1"
+TRANSPORT_SCHEMA_ID = "odysseus.redacted_podman_compose_capability_transport.v2"
 OBSERVER_PATH = "ops/homeserver/redacted_podman_compose_capability_observation.py"
 PUBLISHED_REF = "refs/remotes/fuzzy/dev"
 PUBLISHED_OBJECT = f"{PUBLISHED_REF}:{OBSERVER_PATH}"
@@ -33,6 +34,20 @@ _SHA256 = "0123456789abcdef"
 _TRANSPORT_CODES = frozenset({
     "published_blob_unavailable", "published_blob_mismatch", "transport_timeout",
     "transport_failed", "transport_invalid", "invalid_invocation",
+})
+_TRANSPORT_PAIRS = frozenset({
+    ("published_blob_unavailable", "published_blob_unavailable"),
+    ("published_blob_mismatch", "published_blob_mismatch"),
+    ("transport_timeout", "ssh_timeout"),
+    ("transport_failed", "ssh_invocation_exception"),
+    ("transport_failed", "ssh_stdout_unavailable"),
+    ("transport_failed", "ssh_255_no_payload"),
+    ("transport_failed", "ssh_255_invalid_payload"),
+    ("transport_failed", "valid_payload_returncode_mismatch"),
+    ("transport_invalid", "invalid_payload_expected_returncode"),
+    ("transport_failed", "ssh_unexpected_returncode"),
+    ("invalid_invocation", "invalid_invocation"),
+    ("transport_invalid", "internal_contract_violation"),
 })
 _VISIBILITY_KEYS = frozenset({
     "raw_stdout_visible", "raw_stderr_visible", "exception_text_visible", "environment_visible",
@@ -78,6 +93,7 @@ _NEEDS_KEYS = frozenset({
     "runtime_shape_profile", "evidence_sha256",
 })
 _BLOCKED_KEYS = frozenset({"schema_id", "status", "error_code", "retry_permitted", "evidence_sha256"})
+_TRANSPORT_BLOCKED_KEYS = _BLOCKED_KEYS | {"diagnostic_code"}
 _NEEDS_REASONS = frozenset({"semantic_proof_insufficient"})
 _OBSERVER_ERRORS = frozenset({
     "version_unavailable", "version_mismatch", "help_unavailable", "source_audit_unavailable",
@@ -96,11 +112,19 @@ def _digest(payload: Mapping[str, Any]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def transport_blocked(code: str) -> dict[str, Any]:
+def transport_blocked(code: str, diagnostic_code: str) -> dict[str, Any]:
+    pair = (code, diagnostic_code)
+    if (
+        type(code) is not str
+        or type(diagnostic_code) is not str
+        or pair not in _TRANSPORT_PAIRS
+    ):
+        pair = ("transport_invalid", "internal_contract_violation")
     payload = {
         "schema_id": TRANSPORT_SCHEMA_ID,
         "status": "blocked",
-        "error_code": code if code in _TRANSPORT_CODES else "transport_invalid",
+        "error_code": pair[0],
+        "diagnostic_code": pair[1],
         "retry_permitted": False,
     }
     payload["evidence_sha256"] = _digest(payload)
@@ -109,7 +133,7 @@ def transport_blocked(code: str) -> dict[str, Any]:
 
 def _result_bytes(result: Any) -> bytes | None:
     value = getattr(result, "stdout", None)
-    return value if isinstance(value, bytes) else None
+    return value if type(value) is bytes else None
 
 
 def _load_published_observer(runner: Callable[..., Any]) -> bytes | None:
@@ -127,7 +151,38 @@ def _load_published_observer(runner: Callable[..., Any]) -> bytes | None:
 
 
 def _valid_sha256(value: Any) -> bool:
-    return isinstance(value, str) and len(value) == 64 and all(character in _SHA256 for character in value)
+    return type(value) is str and len(value) == 64 and all(character in _SHA256 for character in value)
+
+
+def _validate_transport_evidence(payload: Any) -> dict[str, Any] | None:
+    if type(payload) is not dict or payload.get("status") != "blocked":
+        return None
+    schema_id = payload.get("schema_id")
+    if schema_id == HISTORICAL_TRANSPORT_SCHEMA_ID:
+        error_code = payload.get("error_code")
+        if (
+            set(payload) != _BLOCKED_KEYS
+            or type(error_code) is not str
+            or error_code not in _TRANSPORT_CODES
+            or payload.get("retry_permitted") is not False
+        ):
+            return None
+    elif schema_id == TRANSPORT_SCHEMA_ID:
+        error_code = payload.get("error_code")
+        diagnostic_code = payload.get("diagnostic_code")
+        if (
+            set(payload) != _TRANSPORT_BLOCKED_KEYS
+            or type(error_code) is not str
+            or type(diagnostic_code) is not str
+            or (error_code, diagnostic_code) not in _TRANSPORT_PAIRS
+            or payload.get("retry_permitted") is not False
+        ):
+            return None
+    else:
+        return None
+    if not _valid_sha256(payload.get("evidence_sha256")) or payload["evidence_sha256"] != _digest(payload):
+        return None
+    return {key: payload[key] for key in sorted(payload)}
 
 
 def _all_literal_bools(payload: Mapping[str, Any], keys: frozenset[str]) -> bool:
@@ -178,7 +233,8 @@ def _validate_observer_payload(raw: bytes) -> dict[str, Any] | None:
             return None
     elif status == "needs_live_observation":
         missing = payload.get("missing_proofs")
-        if (set(payload) != _NEEDS_KEYS or payload.get("reason_code") not in _NEEDS_REASONS
+        reason_code = payload.get("reason_code")
+        if (set(payload) != _NEEDS_KEYS or type(reason_code) is not str or reason_code not in _NEEDS_REASONS
                 or payload.get("retry_permitted") is not False or type(missing) is not list
                 or not missing or len(missing) > len(_MISSING_PROOF_CODES)
                 or tuple(missing) != tuple(code for code in _MISSING_PROOF_CODES if code in missing)
@@ -186,13 +242,18 @@ def _validate_observer_payload(raw: bytes) -> dict[str, Any] | None:
             return None
     elif status == "blocked":
         keys = set(payload)
+        error_code = payload.get("error_code")
+        diagnostic_code = payload.get("diagnostic_code")
         is_generic = keys == _BLOCKED_KEYS
         is_version_diagnostic = (
             keys == _VERSION_BLOCKED_KEYS
-            and payload.get("error_code") in {"malformed_output", "version_mismatch"}
-            and payload.get("diagnostic_code") in _VERSION_DIAGNOSTIC_CODES
+            and type(error_code) is str
+            and error_code in {"malformed_output", "version_mismatch"}
+            and type(diagnostic_code) is str
+            and diagnostic_code in _VERSION_DIAGNOSTIC_CODES
         )
-        if (not (is_generic or is_version_diagnostic) or payload.get("error_code") not in _OBSERVER_ERRORS
+        if (not (is_generic or is_version_diagnostic) or type(error_code) is not str
+                or error_code not in _OBSERVER_ERRORS
                 or payload.get("retry_permitted") is not False):
             return None
     else:
@@ -206,46 +267,49 @@ def collect_published_podman_compose_capability_observation(*, runner: Callable[
     """Return one validated observer envelope, or a fixed terminal transport envelope."""
     source = _load_published_observer(runner)
     if source is None:
-        return transport_blocked("published_blob_unavailable")
+        return transport_blocked("published_blob_unavailable", "published_blob_unavailable")
     if hashlib.sha256(source).hexdigest() != PUBLISHED_OBSERVER_SHA256:
-        return transport_blocked("published_blob_mismatch")
+        return transport_blocked("published_blob_mismatch", "published_blob_mismatch")
     try:
         result = runner(
             list(SSH_COMMAND), input=source, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
             text=False, timeout=WORKSTATION_TIMEOUT_SECONDS, check=False, shell=False,
         )
     except subprocess.TimeoutExpired:
-        return transport_blocked("transport_timeout")
+        return transport_blocked("transport_timeout", "ssh_timeout")
     except Exception:
-        return transport_blocked("transport_failed")
+        return transport_blocked("transport_failed", "ssh_invocation_exception")
     response = _result_bytes(result)
     if response is None:
-        return transport_blocked("transport_failed")
+        return transport_blocked("transport_failed", "ssh_stdout_unavailable")
     validated = _validate_observer_payload(response)
-    if validated is None:
-        return transport_blocked(
-            "transport_invalid"
-            if getattr(result, "returncode", None) in (0, 1)
-            else "transport_failed"
-        )
-    expected_returncode = 0 if validated["status"] == "ok" else 1
-    if (
-        getattr(result, "returncode", None) == 255
-        and validated["status"] in {"needs_live_observation", "blocked"}
-    ):
-        # OpenSSH reserves 255 for a channel failure.  A complete, strictly
-        # validated fail-closed observer envelope received before that failure
-        # remains useful diagnostic evidence, but never promotes capability.
-        return validated
-    if getattr(result, "returncode", None) != expected_returncode:
-        return transport_blocked("transport_failed")
-    return validated
+    returncode = getattr(result, "returncode", None)
+    if validated is not None:
+        if validated["status"] == "ok" and type(returncode) is int and returncode == 0:
+            return validated
+        if (
+            validated["status"] in {"needs_live_observation", "blocked"}
+            and type(returncode) is int
+            and returncode in {1, 255}
+        ):
+            return validated
+        return transport_blocked("transport_failed", "valid_payload_returncode_mismatch")
+    if type(returncode) is int and returncode == 255:
+        diagnostic_code = "ssh_255_no_payload" if response == b"" else "ssh_255_invalid_payload"
+        return transport_blocked("transport_failed", diagnostic_code)
+    if type(returncode) is int and returncode in {0, 1}:
+        return transport_blocked("transport_invalid", "invalid_payload_expected_returncode")
+    return transport_blocked("transport_failed", "ssh_unexpected_returncode")
 
 
 def main(argv: list[str] | None = None) -> int:
     if argv is None:
         argv = sys.argv[1:]
-    payload = transport_blocked("invalid_invocation") if argv else collect_published_podman_compose_capability_observation()
+    payload = (
+        transport_blocked("invalid_invocation", "invalid_invocation")
+        if argv
+        else collect_published_podman_compose_capability_observation()
+    )
     print(json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":")))
     return 0 if payload["status"] == "ok" else 1
 
