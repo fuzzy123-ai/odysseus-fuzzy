@@ -3,8 +3,8 @@
   "kind": "odysseus.security_incident_response_production_completion_roadmap",
   "id": "SIRP",
   "title": "Security Incident Response Production Completion",
-  "updated_at": "2026-07-29T10:24:22+02:00",
-  "status": "sec133_malformed_output_recovery_deep_reviewed_pending_publication",
+  "updated_at": "2026-07-29T11:10:09+02:00",
+  "status": "sec134_bounded_version_output_diagnostic_deep_reviewed_pending_publication",
   "mode": "safe_offline_dependency_ordered",
   "goal": "Close the explicit gap between prepare-only security incident contracts and a production-validated assisted response system with bounded evidence, durable incident and action state, operator-bound approvals, typed executors, independent effect readback and rollback.",
   "slice_contract_fields": ["id", "priority", "class", "owner", "status", "claimable", "depends_on", "gate_requirements", "blockers", "allowed_paths", "hotfiles", "goal", "acceptance", "tests_evidence", "forbidden", "done_when", "completion_matrix"],
@@ -2474,6 +2474,77 @@
         "commit",
         "push"
       ]
+    },
+    {
+      "run_id": "ABC-SEC134-20260729-VERSION-OUTPUT-DIAGNOSTIC",
+      "thread_id": "/root/sec132_transport_bob",
+      "slice_id": "SEC134-bounded-version-output-diagnostic-classifier",
+      "owner": "Bob/Terra requested route",
+      "allowed_paths": [
+        "ops/homeserver/redacted_podman_compose_capability_observation.py",
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_observation.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T11:03:13+02:00",
+      "lease_expires_at": "2026-07-29T13:03:13+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "requested_route": {
+        "model": "gpt-5.6-terra",
+        "effort": "high"
+      },
+      "actual_route": "worker_thread_confirmed_requested_terra_identity_not_independently_inspectable",
+      "phase": "implementation_handoff_accepted",
+      "released_at": "2026-07-29T11:10:09+02:00",
+      "release_reason": "Four-path implementation handoff passed independent root/Sol deep review and focused verification; publication and live observation remain separately bounded.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "raw stdout, stderr, exception, source, path, hostname, environment or secret output",
+        "network, SSH, probe, provider, send, deploy, container or host action",
+        "stage",
+        "commit",
+        "push"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC134-20260729-VERSION-OUTPUT-DIAGNOSTIC",
+      "thread_id": "/root",
+      "slice_id": "SEC134-root-contract-integration-and-deep-review",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "docs/plans/security-incident-response-malformed-output-recovery-packet.md",
+        "docs/plans/security-incident-response-version-output-diagnostic-packet.md"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T11:03:13+02:00",
+      "lease_expires_at": "2026-07-29T13:03:13+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "requested_route": {
+        "model": "gpt-5.6-sol",
+        "effort": "high"
+      },
+      "actual_route": "root_surface",
+      "phase": "contract_and_deep_review_accepted",
+      "released_at": "2026-07-29T11:10:09+02:00",
+      "release_reason": "SEC134 contract, privacy invariants, fixed short-version strategy, schemas, negative paths and independent tests accepted; exact publication binding is the next frontier.",
+      "forbidden_actions": [
+        "worker implementation path edits",
+        "raw diagnostic output retention",
+        "network, SSH, probe, provider, send, deploy, container or host action",
+        "stage",
+        "commit",
+        "push"
+      ]
     }
   ],
   "live_go": [
@@ -4172,7 +4243,7 @@
   "latest_sec133_malformed_output_recovery_handoff": {
     "recorded_at": "2026-07-29T10:24:22+02:00",
     "run_id": "ABC-SEC133-20260729-MALFORMED-OUTPUT-RECOVERY",
-    "status": "accepted_repo_only_pending_publication",
+    "status": "published_and_single_live_observation_terminal_blocked_no_retry",
     "packet": "docs/plans/security-incident-response-malformed-output-recovery-packet.md",
     "live_predecessor": {
       "published_commit": "9e2afe207438c6c2efa46ab8c5c0a71c7b3158ad",
@@ -4206,12 +4277,73 @@
       "observer_worktree_sha256_matches_packet": true
     },
     "publication_path_count": 6,
-    "authorization_status": "not_authorized_pending_publication",
+    "publication": {
+      "commit": "6a0776cf577959d6aeff791efcd4ddb9f37c17ee",
+      "tree": "65539b2cbde9f899818f51f01d721a7c5db21cd4",
+      "remote": "fuzzy/dev",
+      "published_observer_sha256": "e534ec2e43c6b2d77245e3b2e1ad7f083bbf7e8200cb7dea1026dfaec3318509",
+      "path_count": 6
+    },
+    "single_live_observation": {
+      "executed_at": "2026-07-29T10:35:00+02:00",
+      "status": "blocked",
+      "error_code": "malformed_output",
+      "retry_permitted": false,
+      "evidence_sha256": "08bae6f55bcd382fb61c787fcde8c7a4d5f9ddf8ebae6655736d09ab189d8a47",
+      "raw_cause_claimed": false,
+      "evidence_digest_scope": "canonical terminal envelope only; it does not fingerprint or distinguish discarded raw command output"
+    },
+    "authorization_status": "used_terminal_no_retry",
     "plain_language_action_specific_approval_allowed": true,
     "external_actions": false,
-    "git_actions": false,
+    "git_actions": "exact_six_path_commit_and_single_push_completed",
     "active_claims_after_handoff": 0,
-    "next_action": "Build and verify the exact six-path SEC133 candidate, publish it to fuzzy/dev with one action-specific approval, then run at most one separately approved read-only observation without retry."
+    "next_action": "Do not retry SEC133. If work resumes, first create and deep-review a repo-only, fixed-schema diagnostic classifier that can distinguish bounded version-output shape classes without retaining raw output. Any later observation requires a new action-specific approval; deploy remains independently gated."
+  },
+  "latest_sec134_version_output_diagnostic_run_start": {
+    "recorded_at": "2026-07-29T11:07:05+02:00",
+    "run_id": "ABC-SEC134-20260729-VERSION-OUTPUT-DIAGNOSTIC",
+    "status": "accepted_repo_only_deep_reviewed_pending_publication",
+    "packet": "docs/plans/security-incident-response-version-output-diagnostic-packet.md",
+    "phase": "implementation",
+    "supervision": "interactive",
+    "queue_scope": "named_security_incident_response_production_completion_roadmap",
+    "mutation_authority": "repo_only_until_deep_review_and_exact_publication_binding",
+    "strategy_change": "Use the official fixed podman-compose version --short path so the positive rendering is one exact semantic version line; classify every rejected shape only through fixed terminal enums.",
+    "design_evidence": "Debian podman-compose 1.3.0 source defines version --short and emits only __version__ on that path.",
+    "user_steering": {
+      "plain_language_go_received": true,
+      "interpretation": "Implement and deep-review the previously described bounded repo-only classifier. After exact publication binding, at most one new no-argument read-only observation may be consumed; no retry.",
+      "deploy_authority": false,
+      "delivery_or_send_authority": false,
+      "host_mutation_authority": false
+    },
+    "worker_claim": "SEC134-bounded-version-output-diagnostic-classifier",
+    "root_claim": "SEC134-root-contract-integration-and-deep-review",
+    "review_required": "root_sol_deep_completed_pass",
+    "accepted_review": {
+      "implementation_route": "Bob/Terra requested high; worker identity not independently inspectable",
+      "review_route": "root/Sol deep",
+      "changed_worker_paths": 4,
+      "fixed_version_command": [
+        "podman-compose",
+        "version",
+        "--short"
+      ],
+      "accepted_version_output": "single exact 1.3.0 line only",
+      "diagnostic_codes_are_fixed_enums": true,
+      "raw_output_or_value_emitted": false,
+      "focused_tests": "19 passed; 2 unrelated warnings",
+      "combined_tests": "25 passed, 1 known stale evidence-manifest hash assertion deselected, 1 unrelated warning after claims release",
+      "python_compile": "pass",
+      "diff_check": "pass",
+      "observer_worktree_sha256": "01e648a9a861cee1b3ff446e1807b8bc840d3ffc5338208fe80d1209e49fd82e",
+      "transport_pin_matches_observer": true
+    },
+    "external_actions_started": false,
+    "git_actions_started": false,
+    "active_claims_after_handoff": 0,
+    "next_action": "Build and verify the exact seven-path SEC134 publication candidate. Only after fuzzy/dev readback confirms the revision and observer hash may the recorded single-use no-argument read-only observation be consumed once without retry."
   },
   "latest_ops_alert_d0_run_start": {
     "recorded_at": "2026-07-28T16:32:00+02:00",

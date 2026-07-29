@@ -25,7 +25,7 @@ OUTER_TIMEOUT_SECONDS = 10
 MAX_OUTPUT_CHARS = 32_768
 MAX_SOURCE_CHARS = 1_000_000
 
-VERSION_COMMAND = ("podman-compose", "--version")
+VERSION_COMMAND = ("podman-compose", "version", "--short")
 GLOBAL_HELP_COMMAND = ("podman-compose", "--help")
 BUILD_HELP_COMMAND = ("podman-compose", "build", "--help")
 UP_HELP_COMMAND = ("podman-compose", "up", "--help")
@@ -125,14 +125,16 @@ print(json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":
 """
 SOURCE_AUDIT_COMMAND = ("python3", "-I", "-c", _SOURCE_AUDIT_PROGRAM)
 
-# Debian package releases have documented both of these exact renderings.
-_VERSION = re.compile(r"^podman-compose version:? 1\.3\.0$")
-_COMPOSE_VERSION_LINE = re.compile(r"^podman-compose version:? [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$")
-_PODMAN_VERSION_LINE = re.compile(r"^podman version [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$")
+_VERSION = re.compile(r"^1\.3\.0$")
+_SHORT_VERSION_LINE = re.compile(r"^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _ERRORS = frozenset({
     "version_unavailable", "version_mismatch", "help_unavailable", "source_audit_unavailable",
     "source_audit_invalid", "malformed_output", "output_too_large", "timeout", "internal_error",
+})
+_VERSION_DIAGNOSTIC_CODES = frozenset({
+    "version_output_empty", "version_output_controls", "version_output_multiline",
+    "version_output_line_shape", "version_output_version_mismatch",
 })
 _NEEDS_REASONS = frozenset({"semantic_proof_insufficient"})
 _VISIBILITY_KEYS = frozenset({
@@ -152,13 +154,15 @@ _OK_KEYS = frozenset({
     "rollback_force_recreate_proven", "deployment_capability_supported", *_VISIBILITY_KEYS, "evidence_sha256",
 })
 _BLOCKED_KEYS = frozenset({"schema_id", "status", "error_code", "retry_permitted", "evidence_sha256"})
+_VERSION_BLOCKED_KEYS = _BLOCKED_KEYS | {"diagnostic_code"}
 _NEEDS_KEYS = frozenset({"schema_id", "status", "reason_code", "retry_permitted", "evidence_sha256"})
 
 
 class CapabilityFailure(ValueError):
-    def __init__(self, code: str) -> None:
+    def __init__(self, code: str, diagnostic_code: str | None = None) -> None:
         super().__init__(code)
         self.code = code if code in _ERRORS else "internal_error"
+        self.diagnostic_code = diagnostic_code if diagnostic_code in _VERSION_DIAGNOSTIC_CODES else None
 
 
 def _digest(payload: Mapping[str, Any]) -> str:
@@ -166,8 +170,10 @@ def _digest(payload: Mapping[str, Any]) -> str:
     return hashlib.sha256(json.dumps(body, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
-def blocked(code: str) -> dict[str, Any]:
+def blocked(code: str, diagnostic_code: str | None = None) -> dict[str, Any]:
     payload = {"schema_id": SCHEMA_ID, "status": "blocked", "error_code": code if code in _ERRORS else "internal_error", "retry_permitted": False}
+    if diagnostic_code in _VERSION_DIAGNOSTIC_CODES and payload["error_code"] in {"malformed_output", "version_mismatch"}:
+        payload["diagnostic_code"] = diagnostic_code
     payload["evidence_sha256"] = _digest(payload)
     return payload
 
@@ -215,16 +221,21 @@ def _single_line(raw: str) -> str:
 
 
 def _parse_version_output(raw: str) -> str:
-    """Accept the bounded compose 1.3.0 rendering without retaining Podman output."""
-    if not raw or any((ord(character) < 32 and character != "\n") or ord(character) == 127 for character in raw):
-        raise CapabilityFailure("malformed_output")
+    """Accept only the fixed one-line short Compose version without retaining output."""
+    if not raw:
+        raise CapabilityFailure("malformed_output", "version_output_empty")
+    if any((ord(character) < 32 and character != "\n") or ord(character) == 127 for character in raw):
+        raise CapabilityFailure("malformed_output", "version_output_controls")
     body = raw[:-1] if raw.endswith("\n") else raw
-    lines = body.split("\n")
-    if len(lines) not in (1, 2) or any(not line for line in lines) or not _COMPOSE_VERSION_LINE.fullmatch(lines[0]):
-        raise CapabilityFailure("malformed_output")
-    if len(lines) == 2 and not _PODMAN_VERSION_LINE.fullmatch(lines[1]):
-        raise CapabilityFailure("malformed_output")
-    return lines[0]
+    if not body:
+        raise CapabilityFailure("malformed_output", "version_output_empty")
+    if "\n" in body:
+        raise CapabilityFailure("malformed_output", "version_output_multiline")
+    if not _SHORT_VERSION_LINE.fullmatch(body):
+        raise CapabilityFailure("malformed_output", "version_output_line_shape")
+    if not _VERSION.fullmatch(body):
+        raise CapabilityFailure("version_mismatch", "version_output_version_mismatch")
+    return body
 
 
 def _has_flag(help_text: str, flag: str) -> bool:
@@ -292,7 +303,7 @@ def collect_podman_compose_capability_observation(*, runner: Callable[..., Any] 
             raise CapabilityFailure("internal_error")
         return payload
     except CapabilityFailure as failure:
-        return blocked(failure.code)
+        return blocked(failure.code, failure.diagnostic_code)
     except Exception:
         return blocked("internal_error")
 

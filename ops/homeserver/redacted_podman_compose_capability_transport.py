@@ -20,7 +20,7 @@ TRANSPORT_SCHEMA_ID = "odysseus.redacted_podman_compose_capability_transport.v1"
 OBSERVER_PATH = "ops/homeserver/redacted_podman_compose_capability_observation.py"
 PUBLISHED_REF = "refs/remotes/fuzzy/dev"
 PUBLISHED_OBJECT = f"{PUBLISHED_REF}:{OBSERVER_PATH}"
-PUBLISHED_OBSERVER_SHA256 = "e534ec2e43c6b2d77245e3b2e1ad7f083bbf7e8200cb7dea1026dfaec3318509"
+PUBLISHED_OBSERVER_SHA256 = "01e648a9a861cee1b3ff446e1807b8bc840d3ffc5338208fe80d1209e49fd82e"
 EXPECTED_VERSION = "1.3.0"
 GIT_READ_TIMEOUT_SECONDS = 5
 WORKSTATION_TIMEOUT_SECONDS = 20
@@ -53,6 +53,11 @@ _OBSERVER_ERRORS = frozenset({
     "version_unavailable", "version_mismatch", "help_unavailable", "source_audit_unavailable",
     "source_audit_invalid", "malformed_output", "output_too_large", "timeout", "internal_error",
 })
+_VERSION_DIAGNOSTIC_CODES = frozenset({
+    "version_output_empty", "version_output_controls", "version_output_multiline",
+    "version_output_line_shape", "version_output_version_mismatch",
+})
+_VERSION_BLOCKED_KEYS = _BLOCKED_KEYS | {"diagnostic_code"}
 
 
 def _digest(payload: Mapping[str, Any]) -> str:
@@ -119,7 +124,15 @@ def _validate_observer_payload(raw: bytes) -> dict[str, Any] | None:
         if set(payload) != _NEEDS_KEYS or payload.get("reason_code") not in _NEEDS_REASONS or payload.get("retry_permitted") is not False:
             return None
     elif status == "blocked":
-        if set(payload) != _BLOCKED_KEYS or payload.get("error_code") not in _OBSERVER_ERRORS or payload.get("retry_permitted") is not False:
+        keys = set(payload)
+        is_generic = keys == _BLOCKED_KEYS
+        is_version_diagnostic = (
+            keys == _VERSION_BLOCKED_KEYS
+            and payload.get("error_code") in {"malformed_output", "version_mismatch"}
+            and payload.get("diagnostic_code") in _VERSION_DIAGNOSTIC_CODES
+        )
+        if (not (is_generic or is_version_diagnostic) or payload.get("error_code") not in _OBSERVER_ERRORS
+                or payload.get("retry_permitted") is not False):
             return None
     else:
         return None

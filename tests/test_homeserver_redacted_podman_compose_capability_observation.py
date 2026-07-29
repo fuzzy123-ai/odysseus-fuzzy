@@ -35,7 +35,7 @@ def _audit(**changes):
 
 def _values(changes=None):
     values = {
-        observation.VERSION_COMMAND: _Result("podman-compose version 1.3.0\n"),
+        observation.VERSION_COMMAND: _Result("1.3.0\n"),
         observation.GLOBAL_HELP_COMMAND: _Result("usage: podman-compose [--env-file FILE] [--project-name NAME]\n"),
         observation.BUILD_HELP_COMMAND: _Result("usage: podman-compose build SERVICE [SERVICE ...]\n"),
         observation.UP_HELP_COMMAND: _Result("usage: podman-compose up SERVICE [SERVICE ...] [--no-deps] [--no-build] [--force-recreate]\n"),
@@ -75,38 +75,43 @@ def test_structurally_proven_success_has_exact_schema_digest_and_only_fixed_read
         observation.VERSION_COMMAND, observation.GLOBAL_HELP_COMMAND, observation.BUILD_HELP_COMMAND,
         observation.UP_HELP_COMMAND, observation.SOURCE_AUDIT_COMMAND,
     ]
+    assert observation.VERSION_COMMAND == ("podman-compose", "version", "--short")
     assert len(calls) == 5 and all(kwargs["timeout"] == 1 and kwargs["stderr"] is subprocess.DEVNULL and kwargs["env"] == {"PATH": "/usr/bin:/bin"} and "shell" not in kwargs for _command, kwargs in calls)
     assert not any(any(word in command for word in ("up", "build", "down", "rm", "run")) for command, _kwargs in calls if command not in {observation.UP_HELP_COMMAND, observation.BUILD_HELP_COMMAND})
 
 
 def test_version_mismatch_and_missing_or_renamed_flags_fail_closed_without_partial_success():
-    mismatch = _collect({observation.VERSION_COMMAND: _Result("podman-compose version 1.3.1\n")})
+    mismatch = _collect({observation.VERSION_COMMAND: _Result("1.3.1\n")})
     missing = _collect({observation.UP_HELP_COMMAND: _Result("usage: podman-compose up SERVICE [--no-build] [--force-recreate]\n")})
     renamed = _collect({observation.GLOBAL_HELP_COMMAND: _Result("usage: podman-compose [--environment-file FILE] [--project-name NAME]\n")})
 
     assert mismatch["error_code"] == "version_mismatch"
+    assert mismatch["diagnostic_code"] == "version_output_version_mismatch"
     assert missing["status"] == renamed["status"] == "needs_live_observation"
-    assert all(set(item) in {observation._BLOCKED_KEYS, observation._NEEDS_KEYS} for item in (mismatch, missing, renamed))
+    assert all(set(item) in {observation._VERSION_BLOCKED_KEYS, observation._NEEDS_KEYS} for item in (mismatch, missing, renamed))
 
 
-def test_version_parser_accepts_only_one_compose_line_and_one_bounded_podman_line_without_emitting_podman_version():
-    accepted = _collect({observation.VERSION_COMMAND: _Result("podman-compose version 1.3.0\npodman version 5.3.1\n")})
-    mismatch = _collect({observation.VERSION_COMMAND: _Result("podman-compose version 1.3.1\npodman version 5.3.1\n")})
-    malformed = [
-        "podman version 5.3.1\npodman-compose version 1.3.0\n",
-        "podman-compose version 1.3.0\npodman version 5.3.1\npodman version 5.3.1\n",
-        "podman-compose version 1.3.0\npodman version 5.3.1 extra\n",
-        "podman-compose version 1.3.0\x1b[31m\n",
-        "podman-compose version 1.3.0\r\n",
-    ]
-    blocked = [_collect({observation.VERSION_COMMAND: _Result(value)}) for value in malformed]
+def test_short_version_parser_accepts_only_one_1_3_0_line_and_emits_fixed_classes_without_values():
+    accepted = _collect({observation.VERSION_COMMAND: _Result("1.3.0\n")})
+    mismatch = _collect({observation.VERSION_COMMAND: _Result("1.3.1\n")})
+    malformed = {
+        "version_output_empty": "",
+        "version_output_controls": "1.3.0\x1b[31m\n",
+        "version_output_multiline": "1.3.0\n5.3.1\n",
+        "version_output_line_shape": "podman-compose version 1.3.0\n",
+    }
+    blocked = {code: _collect({observation.VERSION_COMMAND: _Result(value)}) for code, value in malformed.items()}
 
     assert accepted["status"] == "ok" and accepted["podman_compose_version"] == "1.3.0"
-    assert "podman version" not in json.dumps(accepted)
     assert mismatch["status"] == "blocked" and mismatch["error_code"] == "version_mismatch"
-    assert "5.3.1" not in json.dumps(mismatch)
-    assert all(item["status"] == "blocked" and item["error_code"] == "malformed_output" and item["retry_permitted"] is False for item in blocked)
-    assert "5.3.1" not in json.dumps(blocked)
+    assert mismatch["diagnostic_code"] == "version_output_version_mismatch"
+    assert "1.3.1" not in json.dumps(mismatch)
+    assert all(set(item) == observation._VERSION_BLOCKED_KEYS and item["status"] == "blocked" and item["error_code"] == "malformed_output" and item["retry_permitted"] is False for item in blocked.values())
+    assert {code: item["diagnostic_code"] for code, item in blocked.items()} == {code: code for code in malformed}
+    assert all(value not in json.dumps(blocked) for value in ("5.3.1", "podman-compose", "\x1b"))
+    crlf = _collect({observation.VERSION_COMMAND: _Result("1.3.0\r\n")})
+    assert crlf["error_code"] == "malformed_output" and crlf["diagnostic_code"] == "version_output_controls"
+    assert "1.3.0" not in json.dumps(crlf)
 
 
 def test_help_flags_and_global_or_wrong_scope_tokens_cannot_prove_dependency_exclusion_semantics():

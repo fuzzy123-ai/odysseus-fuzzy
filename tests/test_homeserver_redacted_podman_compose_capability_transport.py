@@ -107,6 +107,16 @@ def test_valid_observer_ok_needs_and_blocked_schemas_are_reserialized_with_verif
         assert payload["status"] == expected_status and payload["evidence_sha256"] == _digest(payload)
 
 
+def test_version_diagnostic_blocked_schema_is_allowlisted_and_unknown_or_extra_fields_are_rejected():
+    accepted = _collect(response=_Result(_observer("blocked", error_code="malformed_output", diagnostic_code="version_output_multiline"), 1))
+    unknown = _collect(response=_Result(_observer("blocked", error_code="malformed_output", diagnostic_code="private-raw-class"), 1))
+    wrong_error = _collect(response=_Result(_observer("blocked", error_code="timeout", diagnostic_code="version_output_multiline"), 1))
+
+    assert set(accepted) == transport._VERSION_BLOCKED_KEYS and accepted["diagnostic_code"] == "version_output_multiline"
+    assert all(item["error_code"] == "transport_invalid" for item in (unknown, wrong_error))
+    assert "private" not in json.dumps((accepted, unknown, wrong_error))
+
+
 def test_valid_observer_status_requires_its_exact_process_returncode():
     mismatches = (_Result(_observer(), 1), _Result(_observer("needs_live_observation"), 0), _Result(_observer("blocked"), 0))
     results = [_collect(response=response) for response in mismatches]

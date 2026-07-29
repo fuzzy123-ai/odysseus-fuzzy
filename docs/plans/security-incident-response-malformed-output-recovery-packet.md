@@ -2,9 +2,12 @@
 
 Run: `ABC-SEC133-20260729-MALFORMED-OUTPUT-RECOVERY`
 
-Status: `repo_only_pending_publication`. This packet grants no SSH, network,
-deploy, build, pull, checkout, container, backup, restore, send, or other
-live action.
+Status: `published_single_observation_terminal_blocked_no_retry`. The exact
+six-path candidate was published as commit
+`6a0776cf577959d6aeff791efcd4ddb9f37c17ee` with tree
+`65539b2cbde9f899818f51f01d721a7c5db21cd4`. This packet grants no further
+SSH, network, deploy, build, pull, checkout, container, backup, restore, send,
+or other live action.
 
 ## SEC132 terminal evidence and bounded recovery
 
@@ -36,7 +39,17 @@ and verifies that exact SHA-256 before opening SSH. Before the SEC133 artifact
 set is published, or after any blob drift, it fails closed with its separate
 redacted terminal envelope and makes no SSH call.
 
-## Future action (not authorized)
+## Terminal live outcome
+
+The separately approved transport was invoked exactly once after publication.
+It returned the validated terminal envelope `status=blocked`,
+`error_code=malformed_output`, `retry_permitted=false`, with evidence digest
+`08bae6f55bcd382fb61c787fcde8c7a4d5f9ddf8ebae6655736d09ab189d8a47`.
+No retry occurred. The digest covers the canonical terminal envelope only; it
+does not fingerprint or distinguish the discarded raw command output, so no
+raw cause is claimed.
+
+## Completed publication
 
 The exact six-path SEC133 publication set must first be reviewed and published:
 
@@ -47,16 +60,15 @@ The exact six-path SEC133 publication set must first be reviewed and published:
 - `tests/test_homeserver_redacted_podman_compose_capability_transport.py`
 - `docs/plans/security-incident-response-production-completion-roadmap.json`
 
-Only after a publication record binds the resulting `fuzzy/dev` revision and
-these byte hashes may the owner issue a separate plain-language,
-action-specific approval for exactly one no-argument execution of the fixed
-transport runner. That later approval must retain the 15-second remote limit,
-the 25-second aggregate subprocess budget inside a 30-second operator window,
-`RUN_END` expiry, and no retry. It grants neither deploy authority nor any
-other gate, even when the observer returns `ok`.
+The publication record binds `fuzzy/dev` revision
+`6a0776cf577959d6aeff791efcd4ddb9f37c17ee` and the hashes above. Its
+single-use observation authority is spent and cannot be reused. It granted
+neither deploy authority nor any other gate.
 
 ## Handoff
 
-Next safe action: deep review and an exact path-scoped publication packet. The
-existing SEC132 observation authority is spent; this recovery packet is not a
-replacement live GO.
+Next safe action: do not retry SEC133. If work resumes, first create and
+deep-review a repo-only fixed-schema diagnostic classifier that distinguishes
+bounded version-output shape classes without retaining raw output. A later
+observation requires a new action-specific approval. Deploy remains
+independently gated.
