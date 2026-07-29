@@ -3,8 +3,8 @@
   "kind": "odysseus.security_incident_response_production_completion_roadmap",
   "id": "SIRP",
   "title": "Security Incident Response Production Completion",
-  "updated_at": "2026-07-29T00:35:00+02:00",
-  "status": "sec131_transport_artifact_repaired_expanded_publish_candidate_future_go_requestable_not_authorized",
+  "updated_at": "2026-07-29T07:39:31+02:00",
+  "status": "sec132_transport_recovery_deep_reviewed_repo_only_pending_publication",
   "mode": "safe_offline_dependency_ordered",
   "goal": "Close the explicit gap between prepare-only security incident contracts and a production-validated assisted response system with bounded evidence, durable incident and action state, operator-bound approvals, typed executors, independent effect readback and rollback.",
   "slice_contract_fields": ["id", "priority", "class", "owner", "status", "claimable", "depends_on", "gate_requirements", "blockers", "allowed_paths", "hotfiles", "goal", "acceptance", "tests_evidence", "forbidden", "done_when", "completion_matrix"],
@@ -21,6 +21,37 @@
     "optional_separate_track": "Autonomous lockdown is out of denominator and can begin only after assisted response is operationally closed and lockdown-mode-go is approved for a separately defined design."
   },
   "claims": [
+    {
+      "run_id": "ABC-SEC132-20260729-OBSERVER-TRANSPORT-RECOVERY",
+      "thread_id": "/root/sec132_transport_bob",
+      "slice_id": "SEC132-published-blob-stdin-observer-transport",
+      "owner": "Bob/Terra",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-transport-recovery-packet.md",
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T07:30:08+02:00",
+      "lease_expires_at": "2026-07-29T09:30:08+02:00",
+      "handoff_required": true,
+      "phase": "repo_only_transport_recovery_packet_and_fixed_redacted_runner",
+      "write_authority": true,
+      "review": "deep_root_sol_required",
+      "released_at": "2026-07-29T07:39:31+02:00",
+      "release_reason": "The immutable published-observer Git blob transport, fixed SSH-stdin runner, terminal redaction envelope and SEC132 future authorization packet passed Bob/Terra implementation plus independent deep root/Sol review with 10 focused tests. No live, Git publication or external action occurred.",
+      "reopened_at": "2026-07-29T07:42:00+02:00",
+      "reopen_reason": "Final integration found that the packet still described a three-path publication set although the root-owned durable roadmap handoff is a fourth SEC132 publication path.",
+      "final_released_at": "2026-07-29T07:43:00+02:00",
+      "final_release_reason": "The packet now enumerates the exact four-path SEC132 publication set, including the root-owned durable roadmap handoff; the packet-contract suite remains green.",
+      "forbidden_actions": [
+        "SSH, network or live observation",
+        "deploy, build, pull, container, backup, restore or send",
+        "stage, commit, push or fetch",
+        "editing outside the exact allowed paths"
+      ]
+    },
     {
       "run_id": "ABC-SEC131-20260728-TRANSACTIONAL-DEPLOY-ROLLBACK",
       "thread_id": "/root/sirp_repo_sol_master",
@@ -4034,6 +4065,67 @@
     "git_actions": false,
     "active_claims_after_handoff": 0,
     "next_action": "Finish and read back the detached SEC131 candidate. After publication only, the exact one-use capability observation may be requested. An ok observation still creates no deploy authority; a separately implemented, reviewed, owner-bound executor packet and exact deploy Go remain mandatory."
+  },
+  "latest_sec132_observer_transport_recovery_handoff": {
+    "recorded_at": "2026-07-29T07:39:31+02:00",
+    "run_id": "ABC-SEC132-20260729-OBSERVER-TRANSPORT-RECOVERY",
+    "status": "accepted_repo_only_pending_publication",
+    "sec131_grant_status": "used_terminal_no_retry",
+    "sec131_result": "transport_or_schema_validation_failed",
+    "raw_cause_claimed": false,
+    "strategy_change": "Remove the remote-checkout file dependency by loading the exact published observer Git blob locally, verifying its immutable SHA-256 and sending only those bytes to one fixed Python-stdin SSH invocation.",
+    "packet": "docs/plans/security-incident-response-transport-recovery-packet.md",
+    "transport_runner": "ops/homeserver/redacted_podman_compose_capability_transport.py",
+    "tests": "tests/test_homeserver_redacted_podman_compose_capability_transport.py",
+    "immutable_observer_binding": {
+      "published_revision": "0c61af3ce4d59fabed82dc87594e135527d726a8",
+      "git_object": "0c61af3ce4d59fabed82dc87594e135527d726a8:ops/homeserver/redacted_podman_compose_capability_observation.py",
+      "blob_oid": "329a542e5e0e0174d47f068ad99292e665efc12f",
+      "byte_sha256": "31af417c21acb00cdc7c9050e8d9f2e7c38784e518234b84fe659a0c51b696bc",
+      "verified_blob_bytes": 13288
+    },
+    "transport_contract": {
+      "caller_arguments_allowed": false,
+      "shell": false,
+      "git_read_timeout_seconds": 5,
+      "ssh_timeout_seconds": 20,
+      "aggregate_subprocess_budget_seconds": 25,
+      "operator_window_seconds": 30,
+      "remote_timeout_seconds": 15,
+      "maximum_live_invocations_per_future_grant": 1,
+      "retry_count": 0,
+      "raw_stdout_retained": false,
+      "raw_stderr_retained": false,
+      "exception_text_retained": false,
+      "observer_schema_and_digest_validation_required": true,
+      "process_returncode_status_pairing_required": true
+    },
+    "accepted_review": {
+      "implementation_route": "Bob/Terra high",
+      "review_route": "root/Sol deep",
+      "correction_rounds": 2,
+      "focused_tests": "10 passed; 2 unrelated warnings in independent root run",
+      "python_compile": "pass",
+      "diff_check": "pass",
+      "pinned_blob_sha256": "pass",
+      "pinned_revision_locally_known_fuzzy_ancestry": "pass"
+    },
+    "authorization_status": "not_authorized_pending_publication",
+    "future_go_phrase_status": "ineffective_until_SEC132_artifacts_are_reviewed_published_and_revision_bound",
+    "future_exact_go_phrase": "GO ABC-SEC132 PODMAN COMPOSE PUBLISHED BLOB STDIN TRANSPORT READ-ONLY OBSERVATION ONCE <=30S EXPIRES RUN_END",
+    "external_actions": false,
+    "git_actions": false,
+    "active_claims_after_handoff": 0,
+    "separate_gates": [
+      "SEC132 path-scoped publication",
+      "SEC132 one-use read-only observation",
+      "transactional deploy executor implementation and review",
+      "fresh D0 predeploy observation",
+      "fresh SEC129 backup evidence",
+      "owner-bound deploy Go",
+      "delivery send and readback"
+    ],
+    "next_action": "Create and review the exact path-scoped SEC132 publication candidate. Only after its revision and byte hashes are published may the exact SEC132 observation phrase be requested."
   },
   "latest_ops_alert_d0_run_start": {
     "recorded_at": "2026-07-28T16:32:00+02:00",
