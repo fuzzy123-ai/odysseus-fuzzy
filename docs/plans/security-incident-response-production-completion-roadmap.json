@@ -3,8 +3,8 @@
   "kind": "odysseus.security_incident_response_production_completion_roadmap",
   "id": "SIRP",
   "title": "Security Incident Response Production Completion",
-  "updated_at": "2026-07-29T16:38:36+02:00",
-  "status": "sec137_exact_publication_and_single_read_only_observation_authorized",
+  "updated_at": "2026-07-29T19:09:07+02:00",
+  "status": "sec140_exact_seven_path_publication_running",
   "mode": "safe_offline_dependency_ordered",
   "goal": "Close the explicit gap between prepare-only security incident contracts and a production-validated assisted response system with bounded evidence, durable incident and action state, operator-bound approvals, typed executors, independent effect readback and rollback.",
   "slice_contract_fields": ["id", "priority", "class", "owner", "status", "claimable", "depends_on", "gate_requirements", "blockers", "allowed_paths", "hotfiles", "goal", "acceptance", "tests_evidence", "forbidden", "done_when", "completion_matrix"],
@@ -2797,6 +2797,153 @@
         "commit",
         "push"
       ]
+    },
+    {
+      "run_id": "ABC-SEC138-20260729-WRAPPED-USAGE-GUARD-REPAIR",
+      "thread_id": "/root/sec137_runtime_shape_bob",
+      "slice_id": "SEC138-wrapped-usage-and-exclusion-guard-repair",
+      "owner": "Bob/Terra",
+      "allowed_paths": [
+        "ops/homeserver/redacted_podman_compose_capability_observation.py",
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_observation.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T16:43:17+02:00",
+      "lease_expires_at": "2026-07-29T18:43:17+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "requested_route": {
+        "model": "gpt-5.6-terra",
+        "effort": "high"
+      },
+      "actual_route": "observable_reuse_followup:/root/sec137_runtime_shape_bob",
+      "phase": "handoff_accepted_after_root_sol_deep_review_r3",
+      "released_at": "2026-07-29T16:55:28+02:00",
+      "release_reason": "R3 accepted after root/Sol reproduced and returned two bounded-help false-positive classes, then independently verified wrapped usage bounds, prose rejection, exact logging-before-continue guard, unchanged bool-only schemas and retained no-deps=false. Three claimed paths changed; transport test remained unchanged.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "raw help, source, values, fragments, paths, environment, exceptions or stderr",
+        "claiming compose_up consumes no-deps",
+        "network, SSH, probe, live observation, retry, provider, send, deploy, package, container or host action",
+        "stage",
+        "commit",
+        "push"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC138-20260729-WRAPPED-USAGE-GUARD-REPAIR",
+      "thread_id": "/root",
+      "slice_id": "SEC138-root-contract-integration-and-deep-review",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "docs/plans/security-incident-response-wrapped-usage-guard-repair-packet.md"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T16:43:17+02:00",
+      "lease_expires_at": "2026-07-29T18:43:17+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "requested_route": {
+        "model": "gpt-5.6-sol",
+        "effort": "high"
+      },
+      "actual_route": "root_surface",
+      "phase": "contract_and_deep_review_passed_after_r3",
+      "released_at": "2026-07-29T16:55:28+02:00",
+      "release_reason": "Root/Sol reviewed the complete path-scoped diff, found and required correction of indented-prose and overlong-header false positives, then independently passed compilation, 31 focused tests, diff checking and observer-pin readback. No publication or external action occurred.",
+      "forbidden_actions": [
+        "worker implementation path edits",
+        "manufacturing a capability PASS for no-deps",
+        "network, SSH, probe, live observation, retry, provider, send, deploy, package, container or host action",
+        "stage",
+        "commit",
+        "push"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC139-20260729-PUBLICATION-READINESS",
+      "thread_id": "/root",
+      "slice_id": "SEC139-exact-sec138-publication-readiness-packet",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "docs/plans/security-incident-response-sec138-publication-readiness-packet.md"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T16:59:25+02:00",
+      "lease_expires_at": "2026-07-29T18:59:25+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "requested_route": {
+        "model": "gpt-5.6-sol",
+        "effort": "high"
+      },
+      "actual_route": "root_surface",
+      "phase": "repo_only_publication_readiness_binding_complete",
+      "released_at": "2026-07-29T17:00:35+02:00",
+      "release_reason": "Exact seven-path candidate, d91b2fb predecessor, fuzzy/dev-only destination, stop rules, hashes and required publication/readback checks are durable. JSON, compilation, 31 focused tests, diff checking, empty real index and path inventory passed. No Git or external action occurred.",
+      "forbidden_actions": [
+        "editing implementation or test candidate paths",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, probe, live observation, retry, provider, send, deploy, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC140-20260729-EXACT-PUBLICATION",
+      "thread_id": "/root",
+      "slice_id": "SEC140-exact-seven-path-fuzzy-dev-publication",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "docs/plans/security-incident-response-runtime-shape-diagnostic-packet.md",
+        "docs/plans/security-incident-response-wrapped-usage-guard-repair-packet.md",
+        "docs/plans/security-incident-response-sec138-publication-readiness-packet.md",
+        "ops/homeserver/redacted_podman_compose_capability_observation.py",
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_observation.py"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "running",
+      "acquired_at": "2026-07-29T19:09:07+02:00",
+      "lease_expires_at": "2026-07-29T21:09:07+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "requested_route": {
+        "model": "gpt-5.6-sol",
+        "effort": "high"
+      },
+      "actual_route": "root_surface",
+      "phase": "exact_path_scoped_commit_push_and_remote_readback",
+      "publication_authority": {
+        "granted_by": "Weiter",
+        "granted_at": "2026-07-29T19:09:07+02:00",
+        "scope": "one exact seven-path commit and one push to fuzzy/dev",
+        "expires_at": "run_end"
+      },
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "push to origin or any branch other than fuzzy/dev",
+        "network action other than the one authorized fuzzy/dev push and its readback",
+        "SSH, probe, live observation, retry, provider, send, deploy, package, container or host action"
+      ]
     }
   ],
   "live_go": [
@@ -4677,10 +4824,121 @@
     "active_claims_after_handoff": 0,
     "next_action": "Do not retry SEC135. If work resumes, first create and deep-review a repo-only SEC136 recognizer repair grounded in public Podman Compose 1.3.0 argparse and compose_up source structure for exactly the four missing proof classes. Any later observation needs new action-specific authority; deploy and delivery remain independently gated."
   },
+  "latest_sec139_publication_readiness": {
+    "recorded_at": "2026-07-29T17:00:35+02:00",
+    "run_id": "ABC-SEC139-20260729-PUBLICATION-READINESS",
+    "status": "exact_seven_path_publication_authorized_running",
+    "packet": "docs/plans/security-incident-response-sec138-publication-readiness-packet.md",
+    "phase": "repo_only_publication_readiness",
+    "queue_scope": "named_security_incident_response_production_completion_roadmap",
+    "mutation_authority": "repo_only",
+    "bound_parent": "d91b2fb695b32c57235c971e47d4f50e5d7bbb86",
+    "destination_if_later_authorized": "fuzzy/dev",
+    "candidate_paths": [
+      "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "docs/plans/security-incident-response-runtime-shape-diagnostic-packet.md",
+      "docs/plans/security-incident-response-wrapped-usage-guard-repair-packet.md",
+      "docs/plans/security-incident-response-sec138-publication-readiness-packet.md",
+      "ops/homeserver/redacted_podman_compose_capability_observation.py",
+      "ops/homeserver/redacted_podman_compose_capability_transport.py",
+      "tests/test_homeserver_redacted_podman_compose_capability_observation.py"
+    ],
+    "verification": {
+      "roadmap_json": "passed",
+      "python_compilation": "passed",
+      "focused_tests": "31 passed",
+      "diff_check": "passed",
+      "real_index_empty": true,
+      "branch": "dev",
+      "local_head": "d91b2fb695b32c57235c971e47d4f50e5d7bbb86",
+      "fuzzy_dev": "d91b2fb695b32c57235c971e47d4f50e5d7bbb86",
+      "observer_sha256": "af8e688ae86e1406a55f51d521f746d15b9300d399caeaa4698e53bd133bd46c",
+      "transport_pin_matches": true
+    },
+    "git_actions_started": false,
+    "external_actions_started": false,
+    "publication_authority": {
+      "granted": true,
+      "granted_by": "Weiter",
+      "granted_at": "2026-07-29T19:09:07+02:00",
+      "scope": "one exact seven-path commit and one push to fuzzy/dev",
+      "expires_at": "run_end"
+    },
+    "live_observation_authority": false,
+    "deploy_authority": false,
+    "delivery_or_send_authority": false,
+    "active_claims_after_handoff": 0,
+    "next_action": "Commit the exact seven staged paths, push once to fuzzy/dev and independently read back revision, tree and observer hash. Do not perform a live observation, deployment or delivery."
+  },
+  "latest_sec138_wrapped_usage_guard_repair_run_start": {
+    "recorded_at": "2026-07-29T16:43:17+02:00",
+    "run_id": "ABC-SEC138-20260729-WRAPPED-USAGE-GUARD-REPAIR",
+    "status": "repo_only_deep_review_passed_publication_not_authorized",
+    "packet": "docs/plans/security-incident-response-wrapped-usage-guard-repair-packet.md",
+    "phase": "repo_only_handoff",
+    "supervision": "interactive",
+    "queue_scope": "named_security_incident_response_production_completion_roadmap",
+    "mutation_authority": "repo_only",
+    "predecessor": {
+      "revision": "d91b2fb695b32c57235c971e47d4f50e5d7bbb86",
+      "terminal_evidence_sha256": "5c93b83f9c3c5ed7296d2eba245f9d3ab89ff0eaf80285a78b5c4a283ea8f555",
+      "retry_permitted": false
+    },
+    "repair_boundary": "Bounded wrapped usage continuations plus exact final-continue guard with expression-only prefix; retain no-deps false.",
+    "user_steering": {
+      "plain_language_continue_received": true,
+      "interpretation": "Continue through the next dependency-ready safe repo-only repair after consuming the exact SEC137 publication and observation authority.",
+      "publication_authority": false,
+      "live_observation_authority": false,
+      "deploy_authority": false,
+      "delivery_or_send_authority": false,
+      "package_upgrade_authority": false,
+      "host_mutation_authority": false
+    },
+    "worker_claim": "SEC138-wrapped-usage-and-exclusion-guard-repair",
+    "root_claim": "SEC138-root-contract-integration-and-deep-review",
+    "review_required": "root_sol_deep",
+    "accepted_review": {
+      "worker_route": "gpt-5.6-terra high via observable reuse followup",
+      "reviewer_route": "root/Sol deep",
+      "review_rounds": 3,
+      "changed_paths": [
+        "ops/homeserver/redacted_podman_compose_capability_observation.py",
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_observation.py"
+      ],
+      "unchanged_claimed_path": "tests/test_homeserver_redacted_podman_compose_capability_transport.py",
+      "focused_tests": "31 passed",
+      "python_compilation": "passed",
+      "diff_check": "passed",
+      "observer_sha256": "af8e688ae86e1406a55f51d521f746d15b9300d399caeaa4698e53bd133bd46c",
+      "transport_pin_matches": true,
+      "review_corrections": [
+        "Indented prose containing SERVICE or [services ...] no longer establishes positional grammar.",
+        "A matching usage header over MAX_USAGE_BLOCK_CHARS fails closed and cannot establish grammar."
+      ],
+      "usage_block_limits": {
+        "maximum_continuation_lines": 8,
+        "maximum_total_characters": 4096,
+        "first_matching_block_only": true
+      },
+      "ok_schema_unchanged": true,
+      "blocked_schema_unchanged": true,
+      "needs_live_observation_schema_unchanged": true,
+      "runtime_shape_profile_boolean_only": true,
+      "no_deps_semantic_proof_retained_false": true
+    },
+    "external_actions_started": false,
+    "git_actions_started": false,
+    "active_claims_after_handoff": 0,
+    "publication_authority": false,
+    "live_observation_authority": false,
+    "next_action": "SEC138 is locally complete and deep-reviewed. The next frontier is exact publication binding to fuzzy/dev only after explicit publication authority. A later single redacted observation requires separate action-specific live authority; no retry, deploy, delivery, package or host action is implied."
+  },
   "latest_sec137_runtime_shape_diagnostic_run_start": {
     "recorded_at": "2026-07-29T16:07:19+02:00",
     "run_id": "ABC-SEC137-20260729-RUNTIME-SHAPE-DIAGNOSTIC",
-    "status": "exact_publication_and_single_read_only_observation_authorized",
+    "status": "published_single_observation_terminal_runtime_shape_diagnosed_no_retry",
     "packet": "docs/plans/security-incident-response-runtime-shape-diagnostic-packet.md",
     "phase": "publication_binding",
     "supervision": "interactive",
@@ -4746,22 +5004,58 @@
       "granted_by": "dann mach weiter",
       "granted_at": "2026-07-29T16:38:36+02:00",
       "expires_at": "run_end",
-      "status": "go",
-      "consumption_status": "unused",
-      "invocation_counter": 0,
-      "result_counter": 0,
-      "external_action_executed": false,
+      "status": "used",
+      "consumption_status": "consumed",
+      "invocation_counter": 1,
+      "result_counter": 1,
+      "external_action_executed": true,
       "mutation_performed": false,
       "retry_counter": 0,
       "follow_on_query_counter": 0,
+      "used_at": "2026-07-29T16:43:17+02:00",
       "reuse_permitted": false,
       "delivery_authority": false,
       "deploy_authority": false,
       "package_or_host_change_authority": false
     },
-    "external_actions_started": false,
-    "git_actions_started": false,
-    "next_action": "Revalidate the exact seven-path candidate and tests, commit and push once to fuzzy/dev, verify published revision and observer hash, then consume exactly one no-argument redacted observation without retry. No deploy, delivery, package or host action."
+    "publication": {
+      "revision": "d91b2fb695b32c57235c971e47d4f50e5d7bbb86",
+      "parent": "4f0383f79fa75b167872d4e34c62b90e16831007",
+      "tree": "241fc79e8adf0383c065fbf9ee95dc880bbab107",
+      "remote": "fuzzy/dev",
+      "published_observer_sha256": "19be7e373b58ef55928bd2139b9963b96f46352a07f742a5ed7a2235970917e6",
+      "published_readback_passed": true
+    },
+    "terminal_observation": {
+      "status": "needs_live_observation",
+      "reason_code": "semantic_proof_insufficient",
+      "missing_proofs": [
+        "build_service_argument_missing",
+        "up_service_argument_missing",
+        "source_up_service_selection_missing",
+        "source_up_no_deps_guard_missing"
+      ],
+      "retry_permitted": false,
+      "evidence_sha256": "5c93b83f9c3c5ed7296d2eba245f9d3ab89ff0eaf80285a78b5c4a283ea8f555",
+      "runtime_shape_diagnosis": {
+        "build_usage_line_present": true,
+        "build_recognized_service_grammar_present": false,
+        "up_usage_line_present": true,
+        "up_recognized_service_grammar_present": false,
+        "compose_build_handler_present": true,
+        "compose_up_handler_present": true,
+        "get_excluded_handler_present": true,
+        "exclusion_helper_all_links_present": true,
+        "compose_up_exact_helper_assignment_present": true,
+        "compose_up_containers_loop_present": true,
+        "compose_up_excluded_service_continue_guard_present": false,
+        "compose_up_no_deps_dependency_control_present": false
+      },
+      "disposition": "The exact published observer ran once. The profile isolates wrapped or otherwise unrecognized help grammar plus an over-strict excluded-service guard recognizer; the real no-deps gap remains. No retry."
+    },
+    "external_actions_started": "one separately authorized read_only_observation_completed",
+    "git_actions_started": "exact_seven_path_commit_and_single_push_completed",
+    "next_action": "Do not retry SEC137. The next safe repo-only frontier is SEC138: recognize bounded wrapped usage continuations and accept the exact excluded-service guard when its branch contains non-control statements before continue, while retaining the real no-deps blocker. Any later publication and observation require fresh authority."
   },
   "latest_sec136_compose_recognizer_repair_run_start": {
     "recorded_at": "2026-07-29T13:31:46+02:00",

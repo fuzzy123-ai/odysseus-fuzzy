@@ -111,3 +111,28 @@ previously stated next sequence:
 The one-use live ledger entry is
 `SEC137-RUNTIME-SHAPE-OBSERVATION-20260729` and expires at `RUN_END`. It grants
 no deploy, delivery, send, package or host action.
+
+## Terminal publication and runtime-shape outcome
+
+The exact seven-path candidate was published as commit
+`d91b2fb695b32c57235c971e47d4f50e5d7bbb86` with tree
+`241fc79e8adf0383c065fbf9ee95dc880bbab107`. `fuzzy/dev` readback confirmed
+that revision and observer SHA-256
+`19be7e373b58ef55928bd2139b9963b96f46352a07f742a5ed7a2235970917e6`.
+
+The redacted transport ran exactly once and returned
+`status=needs_live_observation`, `retry_permitted=false`, with evidence digest
+`5c93b83f9c3c5ed7296d2eba245f9d3ab89ff0eaf80285a78b5c4a283ea8f555`.
+The fixed Boolean profile establishes:
+
+- both build and up help contain a usage line, but none of the three recognized
+  service-argument grammars appears on that single captured line;
+- all exclusion-helper links, both handlers, the exact helper assignment and
+  the `compose.containers` loop are present;
+- the exact excluded-service `continue` guard recognizer remains false;
+- the no-deps dependency-control branch remains false.
+
+No retry occurred and the grant is spent. The next safe repo-only frontier is a
+bounded SEC138 repair for wrapped usage continuations and a guard branch that
+contains non-control statements before `continue`. The real no-deps blocker
+must remain. Any later publication or observation needs fresh authority.

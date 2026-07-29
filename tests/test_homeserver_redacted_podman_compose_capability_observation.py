@@ -416,6 +416,92 @@ def test_lowercase_official_services_usage_is_parser_evidence_but_descriptive_to
     assert observation._has_service_argument("usage: podman-compose up [--label services]", "up") is False
 
 
+def test_wrapped_usage_blocks_recognize_only_immediate_bounded_positional_grammar():
+    wrapped_build = "usage: podman-compose build [OPTIONS]\n    SERVICE [SERVICE ...]\n"
+    wrapped_up = "usage: podman-compose up [OPTIONS]\n    [OPTIONS] [services ...]\n"
+    header_build = "usage: podman-compose build [OPTIONS] SERVICE [SERVICE ...]\n"
+    header_up = "usage: podman-compose up [services ...] [OPTIONS]\n"
+    assert observation._has_service_argument(wrapped_build, "build") is True
+    assert observation._has_service_argument(wrapped_up, "up") is True
+    assert observation._has_service_argument(header_build, "build") is True
+    assert observation._has_service_argument(header_up, "up") is True
+
+    later_heading = "usage: podman-compose up [OPTIONS]\nOptions:\n    [services ...]\n"
+    option_help = "usage: podman-compose up [OPTIONS]\n    --service [services ...]\n"
+    description = "usage: podman-compose build [OPTIONS]\nDescription: SERVICE\n"
+    indented_uppercase_prose = "usage: podman-compose build [OPTIONS]\n    Build one SERVICE image\n"
+    indented_lowercase_prose = "usage: podman-compose up [OPTIONS]\n    See [services ...] for details\n"
+    unrelated_block = "usage: podman-compose up [OPTIONS]\n\nusage: other [services ...]\n"
+    arbitrary_lowercase = "usage: podman-compose up [OPTIONS]\n    services are selected later\n"
+    too_many_lines = "usage: podman-compose build [OPTIONS]\n" + "    [OPTION]\n" * observation.MAX_USAGE_BLOCK_LINES + "    SERVICE\n"
+    too_many_chars = "usage: podman-compose up [OPTIONS]\n    " + "x" * observation.MAX_USAGE_BLOCK_CHARS + " [services ...]\n"
+    first_block_only = "usage: podman-compose up [OPTIONS]\nusage: podman-compose up [services ...]\n"
+    for raw, subcommand in (
+        (later_heading, "up"), (option_help, "up"), (description, "build"),
+        (indented_uppercase_prose, "build"), (indented_lowercase_prose, "up"),
+        (unrelated_block, "up"), (arbitrary_lowercase, "up"), (too_many_lines, "build"), (too_many_chars, "up"),
+        (first_block_only, "up"),
+    ):
+        assert observation._has_service_argument(raw, subcommand) is False
+
+
+def test_usage_block_header_and_aggregate_character_bounds_fail_closed_at_the_first_overlimit_byte():
+    prefix, suffix = "usage: podman-compose up ", " [services ...]"
+    exact_header = prefix + "x" * (observation.MAX_USAGE_BLOCK_CHARS - len(prefix) - len(suffix)) + suffix
+    over_header = exact_header + "x"
+    exact_header_shape = observation._usage_runtime_shape(exact_header, "up")
+    over_header_shape = observation._usage_runtime_shape(over_header, "up")
+    assert exact_header_shape["usage_line_present"] is True
+    assert exact_header_shape["bracketed_lowercase_services_positional_grammar_present"] is True
+    assert over_header_shape == {key: False for key in observation._USAGE_SHAPE_KEYS}
+
+    header = "usage: podman-compose up [OPTIONS]"
+    continuation = "    [services ...]"
+    exact_aggregate = header + "\n" + continuation + " " * (observation.MAX_USAGE_BLOCK_CHARS - len(header) - len(continuation))
+    over_aggregate = exact_aggregate + " "
+    assert observation._has_service_argument(exact_aggregate, "up") is True
+    assert observation._has_service_argument(over_aggregate, "up") is False
+
+
+def test_excluded_guard_allows_only_logging_style_expressions_before_direct_final_continue(monkeypatch, capsys):
+    base = """
+def compose_build(args):
+    for service in args.services: pass
+def get_excluded(compose,args):
+    excluded=set()
+    if args.services:
+        excluded=set(compose.services)
+        for service in args.services:
+            excluded -= set(x.name for x in compose.services[service]["_deps"])
+            excluded.discard(service)
+    return excluded
+def compose_up(compose,args):
+    excluded=get_excluded(compose,args)
+    for cnt in compose.containers:
+        if cnt["_service"] in excluded:
+            logger.debug("selected")
+            continue
+"""
+    proven = _run_source_audit_program(monkeypatch, capsys, base)
+    assert proven["up_service_selection_handler_local"] is True
+    assert proven["up_no_deps_guard_controls_dependency_expansion"] is False
+    assert proven["runtime_shape_profile"]["source_ast"]["compose_up"]["excluded_service_continue_guard"] is True
+
+    near_misses = (
+        base.replace('logger.debug("selected")', "selected = True"),
+        base.replace('logger.debug("selected")', "yield cnt"),
+        base.replace('logger.debug("selected")\n            continue', 'if enabled:\n                continue'),
+        base.replace('logger.debug("selected")\n            continue', 'continue\n            logger.debug("selected")'),
+        base.replace('if cnt["_service"] in excluded:', 'if other["_service"] in excluded:'),
+        base.replace('if cnt["_service"] in excluded:', 'if cnt["_service"] in other_excluded:'),
+        base.replace('            continue', '            continue\n        else:\n            pass'),
+        base.replace('            continue', '            pass'),
+    )
+    for source in near_misses:
+        profile = _run_source_audit_program(monkeypatch, capsys, source)["runtime_shape_profile"]["source_ast"]["compose_up"]
+        assert profile["excluded_service_continue_guard"] is False
+
+
 def test_runtime_shape_profile_has_exact_boolean_leaves_for_each_help_grammar_variant():
     uppercase = observation._usage_runtime_shape("usage: podman-compose build SERVICE [SERVICE ...]", "build")
     bracketed = observation._usage_runtime_shape("usage: podman-compose up [services ...]", "up")

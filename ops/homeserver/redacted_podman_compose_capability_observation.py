@@ -200,16 +200,22 @@ def helper_runtime_shape(handler):
 def helper_constructs_service_exclusion(handler):
     return all(helper_runtime_shape(handler).values())
 
+def is_non_control_expression(statement):
+    return (isinstance(statement, ast.Expr)
+            and not any(isinstance(node, (ast.Yield, ast.YieldFrom, ast.Await)) for node in ast.walk(statement.value)))
+
 def loop_has_excluded_service_continue_guard(loop):
     if not (isinstance(loop, ast.For) and isinstance(loop.target, ast.Name)
             and isinstance(loop.iter, ast.Attribute) and isinstance(loop.iter.value, ast.Name)
             and loop.iter.value.id == "compose" and loop.iter.attr == "containers" and loop.body):
         return False
     guard = loop.body[0]
-    if not (isinstance(guard, ast.If) and not guard.orelse and len(guard.body) == 1
-            and isinstance(guard.body[0], ast.Continue) and isinstance(guard.test, ast.Compare)
+    if not (isinstance(guard, ast.If) and not guard.orelse and guard.body
+            and isinstance(guard.body[-1], ast.Continue) and isinstance(guard.test, ast.Compare)
             and len(guard.test.ops) == 1 and isinstance(guard.test.ops[0], ast.In)
             and len(guard.test.comparators) == 1):
+        return False
+    if any(not is_non_control_expression(statement) for statement in guard.body[:-1]):
         return False
     container_name = loop.target.id
     left, right = guard.test.left, guard.test.comparators[0]
@@ -288,6 +294,8 @@ SOURCE_AUDIT_COMMAND = ("python3", "-I", "-c", _SOURCE_AUDIT_PROGRAM)
 _VERSION = re.compile(r"^1\.3\.0$")
 _SHORT_VERSION_LINE = re.compile(r"^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
+MAX_USAGE_BLOCK_LINES = 8
+MAX_USAGE_BLOCK_CHARS = 4_096
 _ERRORS = frozenset({
     "version_unavailable", "version_mismatch", "help_unavailable", "source_audit_unavailable",
     "source_audit_invalid", "malformed_output", "output_too_large", "timeout", "internal_error",
@@ -399,20 +407,53 @@ def _valid_runtime_shape_profile(value: Any) -> bool:
 
 def _usage_lines(help_text: str, subcommand: str) -> tuple[str, ...]:
     pattern = re.compile(r"(?im)^\s*usage:.*\b" + re.escape(subcommand) + r"\b.*$")
-    return tuple(pattern.findall(help_text))
+    lines = help_text.splitlines()
+    for index, line in enumerate(lines):
+        if pattern.fullmatch(line) is None:
+            continue
+        # An over-limit header is not a bounded usage block and is represented
+        # conservatively as absent, rather than partially inspecting it.
+        if len(line) > MAX_USAGE_BLOCK_CHARS:
+            return ()
+        block = [line]
+        block_chars = len(line)
+        for continuation in lines[index + 1:index + 1 + MAX_USAGE_BLOCK_LINES]:
+            stripped = continuation.lstrip()
+            if (not continuation or not continuation[0].isspace()
+                    or re.match(r"(?i)^(?:usage|options|commands|description)\s*:", stripped)):
+                break
+            if block_chars + len(continuation) > MAX_USAGE_BLOCK_CHARS:
+                break
+            block.append(continuation)
+            block_chars += len(continuation)
+        return tuple(block)
+    return ()
+
+
+def _is_positional_grammar_continuation(line: str) -> bool:
+    """Accept only an all-metavariable continuation, never descriptive prose."""
+    normalized = line.strip()
+    if not normalized or normalized.startswith("-") or ("SERVICE" not in normalized and "[services ...]" not in normalized):
+        return False
+    token = r"(?:SERVICE|\[SERVICE \.\.\.\]|\[services \.\.\.\]|\[OPTIONS?\]|\.\.\.|[|()])"
+    return re.fullmatch(token + r"(?:\s+" + token + r")*", normalized) is not None
 
 
 def _usage_runtime_shape(help_text: str, subcommand: str) -> dict[str, bool]:
     lines = _usage_lines(help_text, subcommand)
+    grammar_lines = tuple(
+        line for index, line in enumerate(lines)
+        if index == 0 or _is_positional_grammar_continuation(line)
+    )
     return {
         "usage_line_present": bool(lines),
         "uppercase_service_positional_grammar_present": any(
-            re.search(r"(?:^|\s)SERVICE(?=\s|\[|$)", line) is not None for line in lines
+            re.search(r"(?:^|\s)SERVICE(?=\s|\[|$)", line) is not None for line in grammar_lines
         ),
-        "bracketed_lowercase_services_positional_grammar_present": any("[services ...]" in line for line in lines),
+        "bracketed_lowercase_services_positional_grammar_present": any("[services ...]" in line for line in grammar_lines),
         "bare_lowercase_services_positional_grammar_present": any(
             re.search(r"\b" + re.escape(subcommand) + r"\b\s+services(?=\s|$)", line) is not None
-            for line in lines
+            for line in grammar_lines
         ),
     }
 
