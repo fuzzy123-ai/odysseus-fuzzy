@@ -399,8 +399,17 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
         "slice": "SIRP-12-live-observe-and-delivery",
         "preconditions": [
             "SIRP-11-activation-packet-and-runbooks accepted",
+            "SIRP-12A-R2 strict readiness contract accepted",
+            "OPS-ALERT-B accepted",
+            "OPS-ALERT-C accepted",
+            (
+                "SEC140 observer published at "
+                "9ea87e67464015cedbeeaada9117899edcab3ae2 with independent "
+                "remote readback"
+            ),
         ],
         "gate_requirements": [
+            "one new action-specific read-only Compose capability observation grant",
             "OPS-ALERT-DELIVERY-GO",
             "observability-live-smoke-go",
             "debian-observability-live-go",
@@ -409,8 +418,24 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
         ],
         "owner_of_queue_registration": "root",
         "claim_status_now": (
-            "delivery_blocked_missing_redacted_target_reply_readiness_contract"
+            "sec144_fix_accepted_waiting_repo_only_publication_readiness_and_separate_git_authority"
         ),
+        "dependency_order": [
+            "prepare publication readiness for the accepted SEC144 transport fix",
+            (
+                "publish the corrected revision under separate Git authority and "
+                "obtain a new separately reviewed one-use observation packet"
+            ),
+            "observe the corrected published Compose capability once without retry",
+            "resolve any remaining real deployment blocker",
+            "bind and execute D deployment with rollback and independent readback",
+            "obtain fresh strict redacted runtime readiness",
+            "bind one exact E delivery packet",
+            (
+                "send exactly once and independently read back durable receipt plus "
+                "human confirmation"
+            ),
+        ],
     }
 
     guidance_entries = [item for item in guidance["roadmaps"] if item["path"] == source]
@@ -602,8 +627,12 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     assert queue_item["observe_mutation_performed"] is False
 
     live_go = sirp["live_go"]
-    assert len(live_go) == 1
-    packet = live_go[0]
+    live_go_by_id = {item["id"]: item for item in live_go}
+    assert set(live_go_by_id) == {
+        "SIRP12-OBSERVE-PACKET-20260728",
+        "SEC143-COMPOSE-OBSERVE-20260729",
+    }
+    packet = live_go_by_id["SIRP12-OBSERVE-PACKET-20260728"]
     assert packet["id"] == "SIRP12-OBSERVE-PACKET-20260728"
     assert packet["action"] == "other/read_only_observation"
     assert packet["artifact_or_inputs"] == (
@@ -626,6 +655,21 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     assert packet["reuse_permitted"] is False
     assert packet["delivery_authority"] is False
     assert packet["deploy_authority"] is False
+
+    sec143 = live_go_by_id["SEC143-COMPOSE-OBSERVE-20260729"]
+    assert sec143["status"] == "used"
+    assert sec143["consumption_status"] == "consumed_terminal_blocked"
+    assert sec143["invocation_counter"] == 1
+    assert sec143["result_counter"] == 1
+    assert sec143["limits"]["maximum_invocations"] == 1
+    assert sec143["limits"]["maximum_results"] == 1
+    assert sec143["limits"]["retries"] == 0
+    assert sec143["reuse_permitted"] is False
+    assert sec143["terminal_result"]["status"] == "blocked"
+    assert sec143["terminal_result"]["error_code"] == "transport_failed"
+    assert sec143["terminal_result"]["retry_permitted"] is False
+    assert sec143["deploy_authority"] is False
+    assert sec143["delivery_or_send_authority"] is False
 
     evidence_text = LIVE_EVIDENCE_PATH.read_text(encoding="utf-8")
     projection = json.loads(

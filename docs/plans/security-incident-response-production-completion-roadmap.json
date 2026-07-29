@@ -3,8 +3,8 @@
   "kind": "odysseus.security_incident_response_production_completion_roadmap",
   "id": "SIRP",
   "title": "Security Incident Response Production Completion",
-  "updated_at": "2026-07-29T19:09:07+02:00",
-  "status": "sec140_exact_seven_path_publication_running",
+  "updated_at": "2026-07-29T19:26:02+02:00",
+  "status": "sec145_exact_publication_authorized_pre_staging",
   "mode": "safe_offline_dependency_ordered",
   "goal": "Close the explicit gap between prepare-only security incident contracts and a production-validated assisted response system with bounded evidence, durable incident and action state, operator-bound approvals, typed executors, independent effect readback and rollback.",
   "slice_contract_fields": ["id", "priority", "class", "owner", "status", "claimable", "depends_on", "gate_requirements", "blockers", "allowed_paths", "hotfiles", "goal", "acceptance", "tests_evidence", "forbidden", "done_when", "completion_matrix"],
@@ -2920,18 +2920,20 @@
       "hotfiles": [
         "docs/plans/security-incident-response-production-completion-roadmap.json"
       ],
-      "state": "running",
+      "state": "released",
       "acquired_at": "2026-07-29T19:09:07+02:00",
       "lease_expires_at": "2026-07-29T21:09:07+02:00",
       "handoff_required": true,
       "live_actions": false,
-      "external_action_executed": false,
+      "external_action_executed": true,
       "requested_route": {
         "model": "gpt-5.6-sol",
         "effort": "high"
       },
       "actual_route": "root_surface",
-      "phase": "exact_path_scoped_commit_push_and_remote_readback",
+      "phase": "exact_path_scoped_commit_push_and_remote_readback_complete",
+      "released_at": "2026-07-29T19:11:39+02:00",
+      "release_reason": "Exact seven-path commit 9ea87e67464015cedbeeaada9117899edcab3ae2 was pushed once to fuzzy/dev. Independent ls-remote and local tracking readback matched revision, tree 992bb061b311aac8cc537420ee1928bfb15ff7f6, seven-path inventory and observer SHA-256 af8e688ae86e1406a55f51d521f746d15b9300d399caeaa4698e53bd133bd46c.",
       "publication_authority": {
         "granted_by": "Weiter",
         "granted_at": "2026-07-29T19:09:07+02:00",
@@ -2944,9 +2946,489 @@
         "network action other than the one authorized fuzzy/dev push and its readback",
         "SSH, probe, live observation, retry, provider, send, deploy, package, container or host action"
       ]
+    },
+    {
+      "run_id": "ABC-SEC141-20260729-RUN-STATUS-COMPLETION-RULE",
+      "thread_id": "/root",
+      "slice_id": "SEC141-durable-run-status-completion-clarification",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T19:14:59+02:00",
+      "lease_expires_at": "2026-07-29T20:14:59+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "operator_clarification_record_complete",
+      "released_at": "2026-07-29T19:15:21+02:00",
+      "release_reason": "The owner correction is durable: action-layer success may never be reported as overall run success until the task/goal terminal state is independently inspected. If that surface is unavailable or reports failed/blocked, the final status must say so explicitly.",
+      "forbidden_actions": [
+        "implementation or test edits",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, probe, live observation, retry, provider, send, deploy, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC142-20260729-QUEUE-NORMALIZATION",
+      "thread_id": "/root",
+      "slice_id": "SEC142-sirp12-gate-and-completion-normalization",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T19:19:49+02:00",
+      "lease_expires_at": "2026-07-29T20:19:49+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "roadmap_authority_normalized_waiting_contract_test_sync",
+      "released_at": "2026-07-29T19:22:01+02:00",
+      "release_reason": "Roadmap authority now reflects accepted SIRP-12A-R2 and B/C, SEC140 partial publication evidence, the one-use Compose observation frontier, separate deploy/send gates and explicit incomplete-layer reasons. JSON and semantic assertions passed; one exact-frontier test requires synchronization. The legacy evidence-manifest hash test is broadly stale across foreign and historical paths and is not absorbed.",
+      "evidence_sources": [
+        "latest_sirp12a_r2_accepted_handoff",
+        "latest_ops_alert_bc_accepted_handoff",
+        "latest_ops_alert_closure_roadmap",
+        "latest_sec139_publication_readiness",
+        "latest_sec141_run_status_completion_clarification"
+      ],
+      "forbidden_actions": [
+        "implementation or test edits",
+        "inventing live, deployment, send or temporal PASS",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, probe, live observation, retry, provider, send, deploy, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC142-R2-20260729-CONTRACT-TEST-SYNC",
+      "thread_id": "/root/sec142_contract_test_charlie",
+      "slice_id": "SEC142-R2-next-frontier-contract-test-sync",
+      "owner": "Charlie/Terra",
+      "allowed_paths": [
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T19:22:32+02:00",
+      "lease_expires_at": "2026-07-29T20:22:32+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "requested_route": {
+        "model": "gpt-5.6-terra",
+        "effort": "medium"
+      },
+      "actual_route": "gpt-5.6-terra medium via observable spawn:/root/sec142_contract_test_charlie",
+      "phase": "exact_contract_test_sync_accepted",
+      "released_at": "2026-07-29T19:24:25+02:00",
+      "release_reason": "Charlie/Terra synchronized only the exact next_frontier assertion. Root/Sol reviewed the diff and independently passed the focused frontier test, py_compile and diff check with no gate weakening.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "changing production behavior or weakening live gates",
+        "updating the broadly stale evidence hash manifest",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, probe, live observation, retry, provider, send, deploy, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC142-R2-20260729-CONTRACT-TEST-SYNC",
+      "thread_id": "/root",
+      "slice_id": "SEC142-R2-root-deep-review-and-integration",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T19:22:32+02:00",
+      "lease_expires_at": "2026-07-29T20:22:32+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "contract_test_sync_deep_review_passed",
+      "released_at": "2026-07-29T19:24:25+02:00",
+      "release_reason": "Root/Sol confirmed the exact assertion preserves the one-use observation, deploy, readiness, one-send, durable readback and human-confirmation dependency order. Full suite follows after claim release with only the known stale evidence-manifest hash test excluded.",
+      "forbidden_actions": [
+        "editing worker test path",
+        "updating the broadly stale evidence hash manifest",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, probe, live observation, retry, provider, send, deploy, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC142-R3-20260729-NORMALIZATION-EVIDENCE",
+      "thread_id": "/root",
+      "slice_id": "SEC142-R3-root-normalization-evidence-integration",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T19:25:06+02:00",
+      "lease_expires_at": "2026-07-29T19:55:06+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "normalization_test_evidence_integrated",
+      "released_at": "2026-07-29T19:25:20+02:00",
+      "release_reason": "The normalized focused roadmap suite passed 6 tests with only the explicitly known broadly stale evidence-manifest hash assertion deselected. JSON, zero-active-claims and diff checks passed.",
+      "forbidden_actions": [
+        "test or implementation edits",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, probe, live observation, retry, provider, send, deploy, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC143-20260729-PUBLISHED-COMPOSE-OBSERVATION-PACKET",
+      "thread_id": "/root/sec143_observation_alice",
+      "slice_id": "SEC143-exact-one-use-compose-observation-packet",
+      "owner": "Alice/Terra requested route",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-sec143-compose-observation-packet.md"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T19:26:02+02:00",
+      "lease_expires_at": "2026-07-29T20:26:02+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "requested_route": {
+        "model": "gpt-5.6-terra",
+        "effort": "high"
+      },
+      "actual_route": "gpt-5.6-terra high via observable spawn:/root/sec143_observation_alice",
+      "phase": "repo_only_action_specific_observation_packet_authoring",
+      "released_at": "2026-07-29T19:29:33+02:00",
+      "release_reason": "Alice/Terra changed only the claimed SEC143 packet path. Root/Sol deep-reviewed the immutable publication binding, exact no-argument command, one-invocation/one-result and 30-second limits, strict redaction and digest boundary, terminal no-retry outcomes, explicit exclusions and task-status completion rule.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "granting or consuming live authority",
+        "raw help, source, values, fragments, paths, environment, exceptions or stderr",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, probe, live observation, retry, provider, send, deploy, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC143-20260729-PUBLISHED-COMPOSE-OBSERVATION-PACKET",
+      "thread_id": "/root",
+      "slice_id": "SEC143-root-ledger-binding-and-deep-review",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T19:26:02+02:00",
+      "lease_expires_at": "2026-07-29T20:26:02+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "packet_binding_and_deep_review",
+      "released_at": "2026-07-29T19:29:33+02:00",
+      "release_reason": "Root/Sol accepted the repo-only packet after exact-content review and diff checking. The packet grants no live observation, deployment, delivery, Git or other external authority.",
+      "forbidden_actions": [
+        "editing Alice packet path",
+        "creating a live_go entry before a later explicit action-specific owner response",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, probe, live observation, retry, provider, send, deploy, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC143-20260729-PUBLISHED-COMPOSE-OBSERVATION",
+      "thread_id": "/root",
+      "slice_id": "SEC143-one-use-published-compose-observation",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T19:37:42+02:00",
+      "lease_expires_at": "2026-07-29T20:07:42+02:00",
+      "handoff_required": true,
+      "live_actions": true,
+      "external_action_executed": true,
+      "phase": "terminal_blocked_no_retry",
+      "released_at": "2026-07-29T19:39:36+02:00",
+      "release_reason": "Preflight passed for grant freshness, remote revision, tree and both published hashes. The exact transport ran once and returned the strict validated terminal blocked/transport_failed record with retry_permitted false. No retry, follow-on, deploy or send occurred.",
+      "forbidden_actions": [
+        "any command other than the exact no-argument transport command after preflight",
+        "any second invocation, retry or follow-on query",
+        "raw help, source, values, fragments, paths, environment, exceptions or stderr",
+        "deploy",
+        "delivery or send",
+        "provider mutation",
+        "host administration",
+        "stage",
+        "commit",
+        "push"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC144-20260729-TRANSPORT-FAILED-DIAGNOSIS",
+      "thread_id": "/root/sec144_transport_diagnosis_bob",
+      "slice_id": "SEC144-transport-failed-repo-only-diagnosis-and-fix",
+      "owner": "Bob/Terra requested route",
+      "allowed_paths": [
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_observation.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T19:40:42+02:00",
+      "lease_expires_at": "2026-07-29T20:40:42+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "repo_only_transport_failure_diagnosis_and_focused_fix",
+      "released_at": "2026-07-29T19:50:31+02:00",
+      "release_reason": "After one bounded correction round, Bob/Terra left exactly the transport and its dedicated test modified. Root/Sol deep-reviewed the control flow and independently passed the combined 32-test suite, compilation and diff check.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "network, SSH, Podman, Docker, probe, observation, retry, provider, deploy, send, package, container or host action",
+        "raw secret, environment, provider, subprocess stdout, stderr or exception disclosure",
+        "stage",
+        "commit",
+        "push"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC144-20260729-TRANSPORT-FAILED-DIAGNOSIS",
+      "thread_id": "/root",
+      "slice_id": "SEC144-root-ledger-and-deep-review",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T19:40:42+02:00",
+      "lease_expires_at": "2026-07-29T20:40:42+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "claim_binding_and_deep_review",
+      "released_at": "2026-07-29T19:50:31+02:00",
+      "release_reason": "The repo-only fix is accepted: only a strict schema- and digest-validated needs_live_observation or blocked payload may survive SSH return code 255; ok, invalid/raw payloads and other unexpected codes remain terminal transport_failed. Publication and any new observation remain unauthorized.",
+      "forbidden_actions": [
+        "editing Bob claimed implementation or test paths",
+        "network, SSH, probe, observation, retry, provider, deploy, send, package, container or host action",
+        "stage",
+        "commit",
+        "push"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC145-20260729-PUBLICATION-READINESS",
+      "thread_id": "/root/sec145_publication_alice",
+      "slice_id": "SEC145-exact-publication-readiness-packet",
+      "owner": "Alice/Terra requested route",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-sec145-publication-readiness-packet.md"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T19:50:31+02:00",
+      "lease_expires_at": "2026-07-29T20:50:31+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "repo_only_exact_publication_packet_authoring",
+      "released_at": "2026-07-29T19:59:14+02:00",
+      "release_reason": "Alice/Terra changed only the exact SEC145 packet path. Root/Sol reviewed the immutable parent, seven-path inventory, transport hash, preflight lanes, one-commit/one-push boundary, independent remote readback and explicit no-authority exclusions.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC145-20260729-PUBLICATION-READINESS",
+      "thread_id": "/root",
+      "slice_id": "SEC145-root-ledger-binding-and-deep-review",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T19:50:31+02:00",
+      "lease_expires_at": "2026-07-29T20:50:31+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "candidate_binding_and_deep_review",
+      "released_at": "2026-07-29T19:59:14+02:00",
+      "release_reason": "Root/Sol accepted the publication packet after finding and correcting one stale current-frontier test contract. Git publication, network access and every live action remain unauthorized.",
+      "forbidden_actions": [
+        "editing Alice packet path",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC145-20260729-PUBLICATION-READINESS",
+      "thread_id": "/root/sec145_frontier_test_charlie",
+      "slice_id": "SEC145-current-frontier-contract-sync",
+      "owner": "Charlie/Terra requested route",
+      "allowed_paths": [
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T19:50:31+02:00",
+      "lease_expires_at": "2026-07-29T20:50:31+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "current_frontier_contract_sync",
+      "released_at": "2026-07-29T19:59:14+02:00",
+      "release_reason": "Charlie/Terra updated only the exact next_frontier assertion. Root/Sol reviewed the diff: preconditions, gates and unrelated assertions remain intact; only current claim status and dependency order were synchronized.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "weakening or deleting unrelated assertions",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC145-20260729-PUBLICATION-READINESS-R2",
+      "thread_id": "/root/sec145_frontier_test_charlie",
+      "slice_id": "SEC145-live-go-ledger-contract-sync",
+      "owner": "Charlie/Terra",
+      "allowed_paths": [
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T20:00:00+02:00",
+      "lease_expires_at": "2026-07-29T20:30:00+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "consumed_live_go_ledger_contract_sync",
+      "released_at": "2026-07-29T20:03:00+02:00",
+      "release_reason": "Charlie/Terra preserved every historical SIRP12 assertion, switched ledger selection from list position to exact ids, and added strict consumed-terminal SEC143 assertions. Root/Sol reviewed the diff; the focused test passed and the only interim suite failure was the intentionally active claim now released.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "weakening historical SIRP12 packet assertions",
+        "stage",
+        "commit",
+        "push",
+        "network, SSH, probe, observation, retry, provider, deploy, send, package, container or host action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC145-20260729-EXACT-PUBLICATION",
+      "thread_id": "/root",
+      "slice_id": "SEC145-exact-seven-path-publication",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T20:30:36+02:00",
+      "lease_expires_at": "2026-07-29T21:00:36+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "phase": "publication_authority_binding",
+      "released_at": "2026-07-29T20:30:36+02:00",
+      "release_reason": "The owner's plain weiter was bound only to the accepted SEC145 seven-path packet. Local and remote predecessor preflight passed; authority binding is complete and no writer claim remains before staging.",
+      "forbidden_actions": [
+        "any commit path outside the exact SEC145 seven-path candidate",
+        "more than one commit or one push",
+        "amend, rebase, merge, retry, force push, cleanup or alternate remote",
+        "observation, SSH, provider, deploy, send, package, container or host action"
+      ]
     }
   ],
   "live_go": [
+    {
+      "id": "SEC143-COMPOSE-OBSERVE-20260729",
+      "run_id": "ABC-SEC143-20260729-PUBLISHED-COMPOSE-OBSERVATION",
+      "action": "other/read_only_observation",
+      "target_class": "published default-disabled Compose capability through repository-owned strict redacted transport",
+      "artifact_or_inputs": "revision 9ea87e67464015cedbeeaada9117899edcab3ae2; tree 992bb061b311aac8cc537420ee1928bfb15ff7f6; no-argument redacted_podman_compose_capability_transport.py",
+      "granted_by": "owner plain Weiter in exact SEC143 packet context",
+      "granted_at": "2026-07-29T19:37:42+02:00",
+      "expires_at": "run_end",
+      "limits": {
+        "arguments": 0,
+        "maximum_invocations": 1,
+        "maximum_results": 1,
+        "outer_timeout_seconds": 30,
+        "follow_on_queries": 0,
+        "retries": 0
+      },
+      "rollback_or_recovery": "read-only; terminal stop on every result; no retry",
+      "readback": "one strict repository-owned redacted JSON record and canonical evidence_sha256 only",
+      "revocable": true,
+      "consumed": true,
+      "status": "used",
+      "consumption_status": "consumed_terminal_blocked",
+      "used_at": "2026-07-29T19:39:02+02:00",
+      "invocation_counter": 1,
+      "result_counter": 1,
+      "terminal_result": {
+        "schema_id": "odysseus.redacted_podman_compose_capability_transport.v1",
+        "status": "blocked",
+        "error_code": "transport_failed",
+        "retry_permitted": false,
+        "evidence_sha256": "79764a306f77baf2216bafd5f68ae788dc2404a1cc075f17d248f4efb0ec1bab",
+        "strict_schema_validation": "passed",
+        "canonical_digest_validation": "passed"
+      },
+      "reuse_permitted": false,
+      "deploy_authority": false,
+      "delivery_or_send_authority": false
+    },
     {
       "id": "SIRP12-OBSERVE-PACKET-20260728",
       "run_id": "ABC-SEC120-20260728-SIRP12-OBSERVE",
@@ -4824,10 +5306,36 @@
     "active_claims_after_handoff": 0,
     "next_action": "Do not retry SEC135. If work resumes, first create and deep-review a repo-only SEC136 recognizer repair grounded in public Podman Compose 1.3.0 argparse and compose_up source structure for exactly the four missing proof classes. Any later observation needs new action-specific authority; deploy and delivery remain independently gated."
   },
+  "latest_sec141_run_status_completion_clarification": {
+    "recorded_at": "2026-07-29T19:15:21+02:00",
+    "run_id": "ABC-SEC141-20260729-RUN-STATUS-COMPLETION-RULE",
+    "status": "accepted_operator_clarification",
+    "owner_correction": "The agent must independently inspect the actual Codex task/goal result before saying that a run succeeded; the owner must not have to report a visible Run failed state after the agent claimed success.",
+    "root_error": "Root conflated a successful Git commit, push and remote readback with success of the enclosing Codex run. The later user-visible Run failed report contradicted that broader claim.",
+    "mandatory_completion_gate": [
+      "Verify every invoked command or external action reached its expected terminal state.",
+      "Verify the repository/provider/runtime readback required by the slice.",
+      "Inspect the enclosing Codex task or goal status through the available task/goal surface.",
+      "Treat failed, blocked, cancelled, interrupted or unknown task status as not successful even when an inner Git, provider or runtime action passed.",
+      "If task status cannot be inspected, report only the proven action-layer result and explicitly label overall run status not verified.",
+      "If the owner reports Run failed, treat that as contradictory authoritative evidence and investigate before asserting success."
+    ],
+    "completion_language_rule": "Never say the run, task, goal or overall step succeeded based only on Git/provider/runtime success. Name each verified layer separately and include the task/goal layer.",
+    "current_correction": {
+      "git_commit": "passed",
+      "git_push": "passed",
+      "remote_readback": "passed",
+      "codex_run": "reported_failed_by_owner",
+      "overall_run_success": false,
+      "live_observation_executed": false
+    },
+    "applies_to": "All remaining ABC slices and final status reports in the OPS Alert / SIRP production-completion run.",
+    "active_claims_after_handoff": 0
+  },
   "latest_sec139_publication_readiness": {
     "recorded_at": "2026-07-29T17:00:35+02:00",
     "run_id": "ABC-SEC139-20260729-PUBLICATION-READINESS",
-    "status": "exact_seven_path_publication_authorized_running",
+    "status": "published_remote_readback_passed",
     "packet": "docs/plans/security-incident-response-sec138-publication-readiness-packet.md",
     "phase": "repo_only_publication_readiness",
     "queue_scope": "named_security_incident_response_production_completion_roadmap",
@@ -4855,7 +5363,18 @@
       "observer_sha256": "af8e688ae86e1406a55f51d521f746d15b9300d399caeaa4698e53bd133bd46c",
       "transport_pin_matches": true
     },
-    "git_actions_started": false,
+    "publication": {
+      "revision": "9ea87e67464015cedbeeaada9117899edcab3ae2",
+      "parent": "d91b2fb695b32c57235c971e47d4f50e5d7bbb86",
+      "tree": "992bb061b311aac8cc537420ee1928bfb15ff7f6",
+      "remote": "fuzzy/dev",
+      "path_count": 7,
+      "observer_sha256": "af8e688ae86e1406a55f51d521f746d15b9300d399caeaa4698e53bd133bd46c",
+      "remote_revision_readback": "passed",
+      "remote_tree_readback": "passed",
+      "published_observer_readback": "passed"
+    },
+    "git_actions_started": "one exact commit and one fuzzy/dev push completed",
     "external_actions_started": false,
     "publication_authority": {
       "granted": true,
@@ -4868,7 +5387,7 @@
     "deploy_authority": false,
     "delivery_or_send_authority": false,
     "active_claims_after_handoff": 0,
-    "next_action": "Commit the exact seven staged paths, push once to fuzzy/dev and independently read back revision, tree and observer hash. Do not perform a live observation, deployment or delivery."
+    "next_action": "Publication is terminal. A later no-argument redacted observation requires a new action-specific one-use grant bound to published revision 9ea87e67464015cedbeeaada9117899edcab3ae2. Deployment and delivery remain independent."
   },
   "latest_sec138_wrapped_usage_guard_repair_run_start": {
     "recorded_at": "2026-07-29T16:43:17+02:00",
@@ -6345,7 +6864,7 @@
     {"id": "SIRP-QUEUE-REGISTRATION-GO", "class": "queue_authority", "status": "closed_accepted_2026-07-27", "blocks": [], "decision_needed": "Satisfied by one canonical Open Work entry, one guidance registration and safe TRP-05 release with its dirty diff preserved."},
     {"id": "SIRP-OPERATOR-AUTH-GO", "class": "security_design_review", "status": "closed_accepted_2026-07-27", "blocks": [], "decision_needed": "Accepted for SIRP-05 repo-only implementation only: server-derived human is_admin=true browser-cookie sessions; password plus current live TOTP; mandatory enrollment; backup codes excluded; 300-second single-use proof bound server-side to session, username, current role, action id/version, scope fingerprint and policy revision; every mismatch fails closed; no secret/proof/session-token echo or persistence; no delivery, execution or live authority."},
     {"id": "mcp-remediation-tools-go", "class": "external_canonical", "status": "open", "blocks": ["effectful MCP activation and any AI-mediated action canary"], "decision_needed": "Existing canonical remediation-tool exposure decision; it is independent from CrowdSec, session, delivery and lockdown gates."},
-    {"id": "OPS-ALERT-DELIVERY-GO", "class": "needs_live_go", "status": "open", "blocks": ["SIRP-12-live-observe-and-delivery"], "decision_needed": "SIRP-12A-R2 completed the strict readiness and durable injected-adapter contract. First complete B default-disabled production transport/body/target resolution, C fake app composition and packaging, and D separately gated deployment with parity/readback. Then approve one exact E packet for one channel class, canonical fixed redacted body_ref, timeout, run-end expiry, no-retry recovery, independent durable delivery readback and human confirmation.", "operator_request_status": "broad_continuation_go_recorded_not_action_specific_send_authority", "authorization_status": "not_go", "request_run_id": "ABC-SEC120-20260728-SIRP12-DELIVERY-READINESS-DECISION", "request_received_at": "2026-07-28T14:16:47+02:00", "missing_fields": ["B default-disabled server-owned production transport/body/target resolution accepted", "C fake app/CLI composition and packaging accepted", "D separately gated deployment completed with independent healthy readback", "fresh strict redacted runtime readiness", "one delivery channel and canonical opaque target class", "one canonical fixed redacted body reference", "one attempt timeout and run-end expiry", "one single-use revocable E grant", "independent durable delivery readback", "separate human confirmation reference"], "current_probe_boundary": "The fixed agent-safe Debian probe now has a strict boolean-only Telegram target/reply/send readiness contract accepted in SIRP-12A-R2. No live readiness invocation is authorized by the repo-only acceptance.", "generic_bridge_boundary": "The generic bridge remains unsuitable for SIRP delivery. B must add a narrow server-owned, default-disabled production issuer with fixed body and server-side target resolution; C must compose it without request target/body fields.", "delivery_started": false, "delivery_performed": false, "new_live_go_created": false},
+    {"id": "OPS-ALERT-DELIVERY-GO", "class": "needs_live_go", "status": "open", "blocks": ["SIRP-12-live-observe-and-delivery"], "decision_needed": "SIRP-12A-R2 strict readiness and the B/C default-disabled production transport plus fake composition are accepted. First resolve the published Compose capability observation, then complete D as one separately gated deployment with rollback and independent healthy/readiness readback. Only afterward may one exact E packet be approved for one channel class, canonical fixed redacted body_ref, timeout, run-end expiry, no-retry recovery, independent durable delivery readback and human confirmation.", "operator_request_status": "broad_continuation_go_recorded_not_action_specific_send_authority", "authorization_status": "not_go", "request_run_id": "ABC-SEC120-20260728-SIRP12-DELIVERY-READINESS-DECISION", "request_received_at": "2026-07-28T14:16:47+02:00", "accepted_prerequisites": ["SIRP-12A-R2 fixed boolean-only target/reply/send readiness contract", "B default-disabled server-owned production transport/body/target resolution", "C fake app/CLI composition and packaging", "SEC140 exact published observer revision 9ea87e67464015cedbeeaada9117899edcab3ae2 with remote readback"], "missing_fields": ["one action-specific no-argument redacted Compose capability observation bound to revision 9ea87e67464015cedbeeaada9117899edcab3ae2", "resolution of any remaining no-deps deployment blocker without assuming a capability PASS", "D separately gated deployment completed with independent healthy and readiness readback", "fresh strict redacted runtime readiness after deployment", "one delivery channel and canonical opaque target class", "one canonical fixed redacted body reference", "one attempt timeout and run-end expiry", "one single-use revocable E grant", "independent durable delivery readback", "separate human confirmation reference"], "current_probe_boundary": "The fixed agent-safe Debian probe has a strict boolean-only Telegram target/reply/send readiness contract accepted in SIRP-12A-R2. No new live readiness invocation is authorized yet.", "production_bridge_boundary": "B/C are accepted and remain default-disabled. Production issuer/readiness composition, deployment, runtime readback and any send are still unverified.", "delivery_started": false, "delivery_performed": false, "new_live_go_created": false},
     {"id": "OPS-REMEDIATION-GO", "class": "external_canonical", "status": "open", "blocks": ["SIRP-13-crowdsec-canary"], "decision_needed": "Existing canonical exact-remediation decision; it does not approve session invalidation, delivery, deploy or lockdown."},
     {"id": "observability-live-smoke-go", "class": "external_canonical", "status": "used", "blocks": ["SIRP-12-live-observe-and-delivery"], "decision_needed": "Existing canonical bounded observability smoke decision.", "operator_request_status": "approved_exact_packet", "authorization_status": "used", "consumption_status": "consumed", "scope_status": "packet_scoped_used_consumed", "live_go_id": "SIRP12-OBSERVE-PACKET-20260728", "request_run_id": "ABC-SEC120-20260728-SIRP12-OBSERVE", "request_received_at": "2026-07-28T13:56:19+02:00", "used_at": "2026-07-28T14:04:49+02:00", "expires_at": "run_end", "missing_fields": [], "reuse_permitted": false},
     {"id": "debian-observability-live-go", "class": "external_canonical", "status": "used", "blocks": ["SIRP-12-live-observe-and-delivery"], "decision_needed": "Existing canonical Debian observability decision; diagnostic readiness is limited to the fixed redacted probe.", "operator_request_status": "approved_exact_packet", "authorization_status": "used", "consumption_status": "consumed", "scope_status": "packet_scoped_used_consumed", "live_go_id": "SIRP12-OBSERVE-PACKET-20260728", "request_run_id": "ABC-SEC120-20260728-SIRP12-OBSERVE", "request_received_at": "2026-07-28T13:56:19+02:00", "used_at": "2026-07-28T14:04:49+02:00", "expires_at": "run_end", "missing_fields": [], "reuse_permitted": false, "diagnostic_boundary": "The exact fixed alias ran once. The root wrapper reports strict schema validation and privacy-minimized reserialization; no second invocation is authorized."},
@@ -6377,6 +6896,265 @@
       "overall product/release or autonomous lockdown is claimed from this track"
     ]
   },
+  "latest_sec145_publication_readiness": {
+    "recorded_at": "2026-07-29T19:50:31+02:00",
+    "run_id": "ABC-SEC145-20260729-PUBLICATION-READINESS",
+    "status": "exact_seven_path_publication_authorized_pre_staging",
+    "phase": "exact_path_scoped_publication_readiness",
+    "queue_scope": "named_security_incident_response_production_completion_roadmap",
+    "mutation_authority": "repo_only",
+    "bound_parent": "9ea87e67464015cedbeeaada9117899edcab3ae2",
+    "destination_if_later_authorized": "fuzzy/dev",
+    "candidate_paths": [
+      "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "docs/plans/security-incident-response-sec138-publication-readiness-packet.md",
+      "docs/plans/security-incident-response-sec143-compose-observation-packet.md",
+      "docs/plans/security-incident-response-sec145-publication-readiness-packet.md",
+      "ops/homeserver/redacted_podman_compose_capability_transport.py",
+      "tests/test_homeserver_redacted_podman_compose_capability_transport.py",
+      "tests/test_security_incident_response_production_completion_roadmap.py"
+    ],
+    "candidate_path_count": 7,
+    "accepted_transport_sha256": "630e460799f4a940f582cb6b4396a13902d32c080d7d7a22176256f2c92bbe79",
+    "publication_authority": true,
+    "live_observation_authority": false,
+    "deploy_authority": false,
+    "delivery_or_send_authority": false,
+    "external_actions_started": false,
+    "git_actions_started": false,
+    "publication_grant": {
+      "granted_by": "owner plain weiter in exact SEC145 packet context",
+      "granted_at": "2026-07-29T20:30:36+02:00",
+      "scope": "exactly one commit containing the seven candidate paths and exactly one push to fuzzy/dev followed by independent readback",
+      "bound_parent": "9ea87e67464015cedbeeaada9117899edcab3ae2",
+      "destination": "fuzzy/dev",
+      "maximum_commits": 1,
+      "maximum_pushes": 1,
+      "expires_at": "run_end",
+      "consumption_status": "fresh_unconsumed",
+      "reuse_permitted": false,
+      "observation_authority": false,
+      "deploy_authority": false,
+      "delivery_or_send_authority": false
+    },
+    "remote_preflight": {
+      "remote": "fuzzy",
+      "branch": "dev",
+      "revision": "9ea87e67464015cedbeeaada9117899edcab3ae2",
+      "result": "passed"
+    },
+    "deep_review": {
+      "packet_path": "docs/plans/security-incident-response-sec145-publication-readiness-packet.md",
+      "worker_route": "Alice/Terra via observable spawn:/root/sec145_publication_alice",
+      "reviewer_route": "root/Sol deep",
+      "parent_and_destination_binding": "passed",
+      "seven_path_inventory": "passed",
+      "transport_hash_binding": "passed",
+      "one_commit_one_push_boundary": "passed",
+      "independent_readback_contract": "passed",
+      "no_git_or_live_authority": "passed",
+      "frontier_contract_correction": {
+        "worker_route": "Charlie/Terra via observable spawn:/root/sec145_frontier_test_charlie",
+        "changed_path": "tests/test_security_incident_response_production_completion_roadmap.py",
+        "focused_test": "1 passed",
+        "gate_weakening": false
+      },
+      "result": "accepted"
+    },
+    "local_preflight": {
+      "roadmap_json": "passed",
+      "active_claims": 0,
+      "branch": "dev",
+      "local_head": "9ea87e67464015cedbeeaada9117899edcab3ae2",
+      "real_index_empty": true,
+      "exact_candidate_path_count": 7,
+      "transport_sha256": "630e460799f4a940f582cb6b4396a13902d32c080d7d7a22176256f2c92bbe79",
+      "combined_observer_transport_suite": "32 passed",
+      "roadmap_suite": "6 passed, 1 known broadly stale evidence-manifest assertion deselected",
+      "python_compilation": "passed",
+      "diff_check": "passed",
+      "result": "passed"
+    },
+    "active_claims_after_handoff": 0,
+    "next_action": "Re-run the exact local preflight with zero active claims, stage only the seven candidate paths, inspect cached inventory/diff/tree/hash, create exactly one commit, push exactly once to fuzzy/dev and independently read back remote revision, tree, changed paths and published transport hash."
+  },
+  "latest_sec144_transport_failed_diagnosis": {
+    "recorded_at": "2026-07-29T19:40:42+02:00",
+    "run_id": "ABC-SEC144-20260729-TRANSPORT-FAILED-DIAGNOSIS",
+    "status": "accepted_repo_only_after_one_bounded_correction_and_deep_review",
+    "phase": "transport_failure_diagnosis_and_focused_fix",
+    "queue_scope": "named_security_incident_response_production_completion_roadmap",
+    "mutation_authority": "repo_only",
+    "trigger": {
+      "sec143_terminal_status": "blocked",
+      "error_code": "transport_failed",
+      "evidence_sha256": "79764a306f77baf2216bafd5f68ae788dc2404a1cc075f17d248f4efb0ec1bab",
+      "retry_permitted": false
+    },
+    "allowed_implementation_paths": [
+      "ops/homeserver/redacted_podman_compose_capability_transport.py",
+      "tests/test_homeserver_redacted_podman_compose_capability_observation.py",
+      "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+    ],
+    "live_observation_authority": false,
+    "deploy_authority": false,
+    "delivery_or_send_authority": false,
+    "external_actions_started": false,
+    "git_actions_started": false,
+    "diagnosis": "The old generic transport_failed envelope cannot prove its internal branch retroactively. Offline review found a concrete transport defect: SSH return code 255 discarded a complete strict fail-closed observer envelope before semantic interpretation.",
+    "fix_contract": {
+      "ssh_255_valid_needs_live_observation": "retain",
+      "ssh_255_valid_blocked": "retain",
+      "ssh_255_valid_ok": "transport_failed",
+      "ssh_255_invalid_or_raw": "transport_failed",
+      "other_unexpected_returncode": "transport_failed",
+      "capability_promotion_possible": false
+    },
+    "changed_paths": [
+      "ops/homeserver/redacted_podman_compose_capability_transport.py",
+      "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+    ],
+    "candidate_hashes": {
+      "transport_sha256": "630e460799f4a940f582cb6b4396a13902d32c080d7d7a22176256f2c92bbe79",
+      "transport_test_sha256": "4b004c37b76aa7b5bbd415cc0d99f8a696aa28d0ca12e7c1e89b8686a62ef122"
+    },
+    "deep_review": {
+      "worker_route": "Bob/Terra via observable spawn:/root/sec144_transport_diagnosis_bob",
+      "reviewer_route": "root/Sol deep",
+      "bounded_correction_rounds": 1,
+      "dedicated_transport_suite": "14 passed",
+      "combined_observer_transport_suite": "32 passed",
+      "python_compilation": "passed",
+      "diff_check": "passed",
+      "path_scope": "passed",
+      "result": "accepted"
+    },
+    "active_claims_after_handoff": 0,
+    "remaining_limit": "The old redacted envelope cannot establish that this exact defect caused the prior live failure. A corrected publication and a separately reviewed new one-use observation are required.",
+    "next_action": "Prepare a repo-only publication-readiness packet binding exactly the accepted transport and dedicated regression test. Do not stage, commit, push, observe, deploy or send without their separate authorities."
+  },
+  "latest_sec143_published_compose_observation_packet": {
+    "recorded_at": "2026-07-29T19:26:02+02:00",
+    "run_id": "ABC-SEC143-20260729-PUBLISHED-COMPOSE-OBSERVATION-PACKET",
+    "status": "single_observation_terminal_blocked_transport_failed_no_retry",
+    "packet": "docs/plans/security-incident-response-sec143-compose-observation-packet.md",
+    "phase": "action_specific_packet_preparation",
+    "queue_scope": "named_security_incident_response_production_completion_roadmap",
+    "mutation_authority": "repo_only",
+    "published_binding": {
+      "revision": "9ea87e67464015cedbeeaada9117899edcab3ae2",
+      "tree": "992bb061b311aac8cc537420ee1928bfb15ff7f6",
+      "remote": "fuzzy/dev",
+      "observer_sha256": "af8e688ae86e1406a55f51d521f746d15b9300d399caeaa4698e53bd133bd46c",
+      "transport_sha256": "9dfc48f746fe95515776552fedd15d846ac72b53eeecc3e53d414cb166a76dd3",
+      "remote_readback": "passed"
+    },
+    "proposed_limits": {
+      "arguments": 0,
+      "maximum_invocations": 1,
+      "maximum_results": 1,
+      "outer_timeout_seconds": 30,
+      "follow_on_queries": 0,
+      "retries": 0,
+      "expires_at": "run_end"
+    },
+    "live_observation_authority": false,
+    "deploy_authority": false,
+    "delivery_or_send_authority": false,
+    "external_actions_started": true,
+    "git_actions_started": false,
+    "live_authority": {
+      "id": "SEC143-COMPOSE-OBSERVE-20260729",
+      "granted_by": "Weiter",
+      "granted_at": "2026-07-29T19:37:42+02:00",
+      "scope": "exact accepted SEC143 packet only",
+      "consumption_status": "consumed_terminal_blocked",
+      "reuse_permitted": false
+    },
+    "preflight": {
+      "grant_freshness": "passed",
+      "active_claim_scope": "passed",
+      "remote_revision_readback": "passed",
+      "tree_readback": "passed",
+      "observer_sha256_readback": "passed",
+      "transport_sha256_readback": "passed"
+    },
+    "observation": {
+      "invocations": 1,
+      "results": 1,
+      "process_exit_code": 1,
+      "schema_id": "odysseus.redacted_podman_compose_capability_transport.v1",
+      "status": "blocked",
+      "error_code": "transport_failed",
+      "retry_permitted": false,
+      "evidence_sha256": "79764a306f77baf2216bafd5f68ae788dc2404a1cc075f17d248f4efb0ec1bab",
+      "strict_schema_validation": "passed",
+      "canonical_digest_validation": "passed",
+      "raw_output_retained": false,
+      "follow_on_queries": 0,
+      "retries": 0
+    },
+    "deep_review": {
+      "worker_route": "gpt-5.6-terra high via observable spawn:/root/sec143_observation_alice",
+      "reviewer_route": "root/Sol deep",
+      "changed_path": "docs/plans/security-incident-response-sec143-compose-observation-packet.md",
+      "scope_check": "passed",
+      "published_binding_check": "passed",
+      "no_argument_command_check": "passed",
+      "bounded_single_use_check": "passed",
+      "strict_redaction_and_digest_check": "passed",
+      "terminal_no_retry_check": "passed",
+      "explicit_no_authority_check": "passed",
+      "task_status_completion_rule_check": "passed",
+      "diff_check": "passed",
+      "result": "accepted"
+    },
+    "active_claims_after_handoff": 0,
+    "task_goal_status_after_observation": "blocked",
+    "overall_run_success": false,
+    "next_action": "Do not retry the consumed observation and do not deploy or send. Open a new repo-only diagnosis slice for the published transport_failed boundary, produce a corrected revision and a new independently reviewed observation packet before requesting any later live authority."
+  },
+  "latest_sec142_queue_normalization": {
+    "recorded_at": "2026-07-29T19:19:49+02:00",
+    "run_id": "ABC-SEC142-20260729-QUEUE-NORMALIZATION",
+    "status": "queue_normalization_deep_review_passed",
+    "phase": "roadmap_authority_normalization",
+    "queue_scope": "named_security_incident_response_production_completion_roadmap",
+    "mutation_authority": "repo_only",
+    "corrections": [
+      "Record SIRP-12A-R2 and OPS-ALERT-B/C as accepted prerequisites instead of missing fields.",
+      "Record SEC140 commit, push and remote observer readback as partial evidence without manufacturing whole-track completion.",
+      "Replace the stale readiness-implementation frontier with the one-use published Compose observation, deployment, readiness and one-send dependency order.",
+      "Preserve deploy-live-go and OPS-ALERT-DELIVERY-GO as separate not-Go gates.",
+      "Add explicit reasons for every incomplete completion layer."
+    ],
+    "external_actions_started": false,
+    "git_actions_started": false,
+    "verification": {
+      "roadmap_json": "passed",
+      "semantic_assertions": "passed",
+      "diff_check": "passed",
+      "focused_test": "4 passed, 2 expected contract-sync failures while claim/test remain stale, 1 known broadly stale evidence-manifest hash failure",
+      "evidence_manifest_disposition": "Do not rewrite hashes across foreign/historical dirty paths; keep the known stale manifest assertion explicitly excluded from this slice."
+    },
+    "contract_test_sync": {
+      "worker_route": "gpt-5.6-terra medium via observable spawn:/root/sec142_contract_test_charlie",
+      "reviewer_route": "root/Sol deep",
+      "changed_path": "tests/test_security_incident_response_production_completion_roadmap.py",
+      "focused_frontier_test": "1 passed",
+      "python_compilation": "passed",
+      "diff_check": "passed",
+      "gate_weakening": false
+    },
+    "final_verification": {
+      "roadmap_suite": "6 passed, 1 known broadly stale evidence-manifest hash assertion deselected",
+      "roadmap_json": "passed",
+      "active_claims": 0,
+      "diff_check": "passed",
+      "normalization_result": "accepted"
+    },
+    "next_action": "Queue normalization is accepted. Prepare the exact one-use published Compose capability observation packet bound to revision 9ea87e67464015cedbeeaada9117899edcab3ae2. No observation, deploy or send is authorized by SEC142."
+  },
   "completion_matrix": {
     "track": "assisted_security_response_100_percent",
     "implemented": "no",
@@ -6389,14 +7167,38 @@
     "visual_validated": "na",
     "temporal_validated": "no",
     "product_complete": "no",
+    "partial_evidence": {
+      "sirp00_through_sirp11": "implemented_tested_and_deep_reviewed",
+      "sirp12a_r2_readiness_contract": "accepted_repo_only",
+      "ops_alert_b_c": "accepted_after_deep_sol_fix_cycle_1",
+      "sec140_publication": "commit_9ea87e67464015cedbeeaada9117899edcab3ae2_pushed_to_fuzzy_dev_with_remote_readback",
+      "observability_live_smoke": "used",
+      "debian_observability_live": "used",
+      "log_retention_policy": "used"
+    },
+    "layer_reasons": {
+      "implemented_no": "SIRP-12 deployment/delivery, SIRP-13 and SIRP-14 canaries, and SIRP-15 temporal closure remain incomplete.",
+      "tested_no": "Offline B/C and SEC138 tests passed, but deployed runtime, one delivery, canaries and temporal behavior are unverified.",
+      "committed_no": "SEC140 is committed, but the full denominator and current terminal bookkeeping are not fully committed.",
+      "pushed_no": "SEC140 is pushed with readback, but the full denominator is not published as complete.",
+      "deployed_no": "No authorized D deployment has occurred.",
+      "live_validated_no": "The one authorized post-SEC140 Compose observation completed terminal blocked/transport_failed with no retry; deployed readiness and delivery readback remain absent.",
+      "temporal_validated_no": "The canaries and approved closure window have not run.",
+      "product_complete_no": "The named assisted-security-response denominator is not complete; overall Odysseus product completion is outside this matrix."
+    },
     "note": "This matrix measures only the stated assisted-security-response denominator; optional lockdown and overall product completion remain outside it."
   },
   "next_frontier": {
     "slice": "SIRP-12-live-observe-and-delivery",
     "preconditions": [
-      "SIRP-11-activation-packet-and-runbooks accepted"
+      "SIRP-11-activation-packet-and-runbooks accepted",
+      "SIRP-12A-R2 strict readiness contract accepted",
+      "OPS-ALERT-B accepted",
+      "OPS-ALERT-C accepted",
+      "SEC140 observer published at 9ea87e67464015cedbeeaada9117899edcab3ae2 with independent remote readback"
     ],
     "gate_requirements": [
+      "one new action-specific read-only Compose capability observation grant",
       "OPS-ALERT-DELIVERY-GO",
       "observability-live-smoke-go",
       "debian-observability-live-go",
@@ -6404,7 +7206,17 @@
       "deploy-live-go"
     ],
     "owner_of_queue_registration": "root",
-    "claim_status_now": "delivery_blocked_missing_redacted_target_reply_readiness_contract"
+    "claim_status_now": "sec144_fix_accepted_waiting_repo_only_publication_readiness_and_separate_git_authority",
+    "dependency_order": [
+      "prepare publication readiness for the accepted SEC144 transport fix",
+      "publish the corrected revision under separate Git authority and obtain a new separately reviewed one-use observation packet",
+      "observe the corrected published Compose capability once without retry",
+      "resolve any remaining real deployment blocker",
+      "bind and execute D deployment with rollback and independent readback",
+      "obtain fresh strict redacted runtime readiness",
+      "bind one exact E delivery packet",
+      "send exactly once and independently read back durable receipt plus human confirmation"
+    ]
   },
-  "recommended_next_action": "Do not send or create a delivery live Go. First claim a separate repo-only implementation slice for a fixed allowlisted readiness projection and a SIRP-bound single-use/expiry/immutable-attempt/independent-readback delivery adapter. Product and probe code are unchanged in this decision record. Deploy remains independent and not Go."
+  "recommended_next_action": "Do not retry, deploy or send. Prepare one repo-only publication-readiness packet for the accepted SEC144 transport and dedicated regression test. Commit and push remain separate later Git actions."
 }

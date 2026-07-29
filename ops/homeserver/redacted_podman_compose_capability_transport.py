@@ -221,12 +221,22 @@ def collect_published_podman_compose_capability_observation(*, runner: Callable[
     response = _result_bytes(result)
     if response is None:
         return transport_blocked("transport_failed")
-    if getattr(result, "returncode", None) not in (0, 1):
-        return transport_blocked("transport_failed")
     validated = _validate_observer_payload(response)
     if validated is None:
-        return transport_blocked("transport_invalid")
+        return transport_blocked(
+            "transport_invalid"
+            if getattr(result, "returncode", None) in (0, 1)
+            else "transport_failed"
+        )
     expected_returncode = 0 if validated["status"] == "ok" else 1
+    if (
+        getattr(result, "returncode", None) == 255
+        and validated["status"] in {"needs_live_observation", "blocked"}
+    ):
+        # OpenSSH reserves 255 for a channel failure.  A complete, strictly
+        # validated fail-closed observer envelope received before that failure
+        # remains useful diagnostic evidence, but never promotes capability.
+        return validated
     if getattr(result, "returncode", None) != expected_returncode:
         return transport_blocked("transport_failed")
     return validated

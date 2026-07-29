@@ -201,6 +201,29 @@ def test_valid_observer_status_requires_its_exact_process_returncode():
     assert all(set(item) == transport._BLOCKED_KEYS and item["error_code"] == "transport_failed" for item in results)
 
 
+def test_ssh_255_retains_only_strict_fail_closed_observer_evidence():
+    retained_needs = _collect(response=_Result(_observer("needs_live_observation"), 255))
+    retained_blocked = _collect(response=_Result(_observer("blocked"), 255))
+    rejected_ok = _collect(response=_Result(_observer(), 255))
+    rejected_raw = _collect(response=_Result(b"private raw output", 255))
+    rejected_unexpected_code = _collect(response=_Result(_observer("needs_live_observation"), 2))
+
+    assert set(retained_needs) == transport._NEEDS_KEYS
+    assert retained_needs["status"] == "needs_live_observation"
+    assert retained_needs["retry_permitted"] is False
+    assert retained_needs["evidence_sha256"] == _digest(retained_needs)
+    assert set(retained_blocked) == transport._BLOCKED_KEYS
+    assert retained_blocked["status"] == "blocked"
+    assert retained_blocked["retry_permitted"] is False
+    assert retained_blocked["evidence_sha256"] == _digest(retained_blocked)
+
+    rejected = (rejected_ok, rejected_raw, rejected_unexpected_code)
+    assert all(set(item) == transport._BLOCKED_KEYS for item in rejected)
+    assert all(item["status"] == "blocked" and item["error_code"] == "transport_failed" for item in rejected)
+    assert all(item["retry_permitted"] is False and item["evidence_sha256"] == _digest(item) for item in rejected)
+    assert "private" not in json.dumps((retained_needs, retained_blocked, rejected))
+
+
 def test_multiline_oversized_unexpected_visible_or_digest_mismatched_response_is_redacted_terminal_blocked():
     bad_payload = json.loads(_observer().decode())
     bad_payload["private_value"] = "do-not-leak"
