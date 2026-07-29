@@ -20,7 +20,7 @@ TRANSPORT_SCHEMA_ID = "odysseus.redacted_podman_compose_capability_transport.v1"
 OBSERVER_PATH = "ops/homeserver/redacted_podman_compose_capability_observation.py"
 PUBLISHED_REF = "refs/remotes/fuzzy/dev"
 PUBLISHED_OBJECT = f"{PUBLISHED_REF}:{OBSERVER_PATH}"
-PUBLISHED_OBSERVER_SHA256 = "01e648a9a861cee1b3ff446e1807b8bc840d3ffc5338208fe80d1209e49fd82e"
+PUBLISHED_OBSERVER_SHA256 = "1cb419b85206bc4e9d35602ebfb9544acf4722f1ff0ea38b334d54f852f28d30"
 EXPECTED_VERSION = "1.3.0"
 GIT_READ_TIMEOUT_SECONDS = 5
 WORKSTATION_TIMEOUT_SECONDS = 20
@@ -46,7 +46,15 @@ _OK_KEYS = frozenset({
     "rollback_force_recreate_proven", "deployment_capability_supported", *_VISIBILITY_KEYS,
     "evidence_sha256",
 })
-_NEEDS_KEYS = frozenset({"schema_id", "status", "reason_code", "retry_permitted", "evidence_sha256"})
+_MISSING_PROOF_CODES = (
+    "global_env_file_parser_missing", "global_project_name_parser_missing",
+    "build_service_argument_missing", "up_service_argument_missing",
+    "up_no_deps_parser_missing", "up_no_build_parser_missing",
+    "up_force_recreate_parser_missing", "source_build_service_selection_missing",
+    "source_up_service_selection_missing", "source_up_no_deps_guard_missing",
+    "source_rollback_force_recreate_missing",
+)
+_NEEDS_KEYS = frozenset({"schema_id", "status", "reason_code", "missing_proofs", "retry_permitted", "evidence_sha256"})
 _BLOCKED_KEYS = frozenset({"schema_id", "status", "error_code", "retry_permitted", "evidence_sha256"})
 _NEEDS_REASONS = frozenset({"semantic_proof_insufficient"})
 _OBSERVER_ERRORS = frozenset({
@@ -121,7 +129,11 @@ def _validate_observer_payload(raw: bytes) -> dict[str, Any] | None:
         if any(payload.get(key) is not True for key in required_true) or any(payload.get(key) is not False for key in _VISIBILITY_KEYS):
             return None
     elif status == "needs_live_observation":
-        if set(payload) != _NEEDS_KEYS or payload.get("reason_code") not in _NEEDS_REASONS or payload.get("retry_permitted") is not False:
+        missing = payload.get("missing_proofs")
+        if (set(payload) != _NEEDS_KEYS or payload.get("reason_code") not in _NEEDS_REASONS
+                or payload.get("retry_permitted") is not False or type(missing) is not list
+                or not missing or len(missing) > len(_MISSING_PROOF_CODES)
+                or tuple(missing) != tuple(code for code in _MISSING_PROOF_CODES if code in missing)):
             return None
     elif status == "blocked":
         keys = set(payload)

@@ -3,8 +3,8 @@
   "kind": "odysseus.security_incident_response_production_completion_roadmap",
   "id": "SIRP",
   "title": "Security Incident Response Production Completion",
-  "updated_at": "2026-07-29T11:10:09+02:00",
-  "status": "sec134_bounded_version_output_diagnostic_deep_reviewed_pending_publication",
+  "updated_at": "2026-07-29T11:34:22+02:00",
+  "status": "sec135_bounded_semantic_proof_diagnostic_deep_reviewed_pending_publication",
   "mode": "safe_offline_dependency_ordered",
   "goal": "Close the explicit gap between prepare-only security incident contracts and a production-validated assisted response system with bounded evidence, durable incident and action state, operator-bound approvals, typed executors, independent effect readback and rollback.",
   "slice_contract_fields": ["id", "priority", "class", "owner", "status", "claimable", "depends_on", "gate_requirements", "blockers", "allowed_paths", "hotfiles", "goal", "acceptance", "tests_evidence", "forbidden", "done_when", "completion_matrix"],
@@ -2545,6 +2545,77 @@
         "commit",
         "push"
       ]
+    },
+    {
+      "run_id": "ABC-SEC135-20260729-SEMANTIC-PROOF-DIAGNOSTIC",
+      "thread_id": "/root/sec132_transport_bob",
+      "slice_id": "SEC135-bounded-semantic-proof-diagnostic-classifier",
+      "owner": "Bob/Terra requested route",
+      "allowed_paths": [
+        "ops/homeserver/redacted_podman_compose_capability_observation.py",
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_observation.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T11:28:21+02:00",
+      "lease_expires_at": "2026-07-29T13:28:21+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "requested_route": {
+        "model": "gpt-5.6-terra",
+        "effort": "high"
+      },
+      "actual_route": "worker_thread_confirmed_requested_terra_identity_not_independently_inspectable",
+      "phase": "implementation_handoff_accepted",
+      "released_at": "2026-07-29T11:34:22+02:00",
+      "release_reason": "Four-path fixed-enum implementation passed independent root/Sol deep review, focused tests and exhaustive subset validation; publication and live observation remain separately bounded.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "raw stdout, stderr, help text, source, exception, path, hostname, environment, value, count or secret output",
+        "network, SSH, probe, provider, send, deploy, container or host action",
+        "stage",
+        "commit",
+        "push"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC135-20260729-SEMANTIC-PROOF-DIAGNOSTIC",
+      "thread_id": "/root",
+      "slice_id": "SEC135-root-contract-integration-and-deep-review",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "docs/plans/security-incident-response-version-output-diagnostic-packet.md",
+        "docs/plans/security-incident-response-semantic-proof-diagnostic-packet.md"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T11:28:21+02:00",
+      "lease_expires_at": "2026-07-29T13:28:21+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "requested_route": {
+        "model": "gpt-5.6-sol",
+        "effort": "high"
+      },
+      "actual_route": "root_surface",
+      "phase": "contract_and_deep_review_accepted",
+      "released_at": "2026-07-29T11:34:22+02:00",
+      "release_reason": "SEC135 contract, privacy invariants, canonical ordering, strict schema, fail-closed paths and independent verification accepted; exact publication binding is next.",
+      "forbidden_actions": [
+        "worker implementation path edits",
+        "raw diagnostic output retention",
+        "network, SSH, probe, provider, send, deploy, container or host action",
+        "stage",
+        "commit",
+        "push"
+      ]
     }
   ],
   "live_go": [
@@ -4303,7 +4374,7 @@
   "latest_sec134_version_output_diagnostic_run_start": {
     "recorded_at": "2026-07-29T11:07:05+02:00",
     "run_id": "ABC-SEC134-20260729-VERSION-OUTPUT-DIAGNOSTIC",
-    "status": "accepted_repo_only_deep_reviewed_pending_publication",
+    "status": "published_and_single_live_observation_terminal_needs_live_observation_no_retry",
     "packet": "docs/plans/security-incident-response-version-output-diagnostic-packet.md",
     "phase": "implementation",
     "supervision": "interactive",
@@ -4340,10 +4411,68 @@
       "observer_worktree_sha256": "01e648a9a861cee1b3ff446e1807b8bc840d3ffc5338208fe80d1209e49fd82e",
       "transport_pin_matches_observer": true
     },
+    "publication": {
+      "commit": "b7baf06bfe70b362c4cc6ef17cc0cf5ad587cb58",
+      "tree": "85b7a15a021e55e0c319a063c19f35f7719853b4",
+      "remote": "fuzzy/dev",
+      "path_count": 7,
+      "published_observer_sha256": "01e648a9a861cee1b3ff446e1807b8bc840d3ffc5338208fe80d1209e49fd82e"
+    },
+    "single_live_observation": {
+      "executed_at": "2026-07-29T11:14:00+02:00",
+      "status": "needs_live_observation",
+      "reason_code": "semantic_proof_insufficient",
+      "retry_permitted": false,
+      "evidence_sha256": "c57a19fbb46b8802d2f3298344026619ba0a2d3deab713d47dbd833b18d6de0d",
+      "version_failure_recurred": false,
+      "raw_cause_claimed": false,
+      "bounded_interpretation": "The fixed short-version gate passed; at least one downstream help-parser or source-audit semantic proof remained false. The envelope does not identify which proof."
+    },
+    "external_actions_started": "one separately authorized read_only_observation_completed",
+    "git_actions_started": "exact_seven_path_commit_and_single_push_completed",
+    "active_claims_after_handoff": 0,
+    "next_action": "Do not retry SEC134. If work resumes, first create and deep-review a repo-only fixed-enum semantic-proof classifier that identifies which allowlisted help-parser or source-audit proof is absent without emitting help text, source, values or counts. Any later observation needs new action-specific authority; deploy and delivery remain independently gated."
+  },
+  "latest_sec135_semantic_proof_diagnostic_run_start": {
+    "recorded_at": "2026-07-29T11:28:21+02:00",
+    "run_id": "ABC-SEC135-20260729-SEMANTIC-PROOF-DIAGNOSTIC",
+    "status": "accepted_repo_only_deep_reviewed_pending_publication",
+    "packet": "docs/plans/security-incident-response-semantic-proof-diagnostic-packet.md",
+    "phase": "implementation",
+    "supervision": "interactive",
+    "queue_scope": "named_security_incident_response_production_completion_roadmap",
+    "mutation_authority": "repo_only_until_deep_review_and_exact_publication_binding",
+    "strategy": "Return every absent allowlisted help-parser and source-audit proof as one non-empty unique canonical ordered fixed-enum list; expose no text, values, counts or raw evidence.",
+    "user_steering": {
+      "plain_language_go_received": true,
+      "interpretation": "Implement and deep-review SEC135, publish only an exact accepted candidate to fuzzy/dev, then consume at most one new no-argument read-only observation without retry.",
+      "deploy_authority": false,
+      "delivery_or_send_authority": false,
+      "host_mutation_authority": false
+    },
+    "worker_claim": "SEC135-bounded-semantic-proof-diagnostic-classifier",
+    "root_claim": "SEC135-root-contract-integration-and-deep-review",
+    "review_required": "root_sol_deep_completed_pass",
+    "accepted_review": {
+      "implementation_route": "Bob/Terra requested high; worker identity not independently inspectable",
+      "review_route": "root/Sol deep",
+      "changed_worker_paths": 4,
+      "fixed_missing_proof_codes": 11,
+      "all_missing_proofs_returned_in_one_envelope": true,
+      "canonical_order_required": true,
+      "raw_output_text_value_or_count_emitted": false,
+      "focused_tests": "21 passed; 2 unrelated warnings",
+      "exhaustive_enum_subset_validation": "2047 of 2047 non-empty subsets passed observer digest and transport validation",
+      "combined_tests": "27 passed, 1 known stale evidence-manifest hash assertion deselected, 1 unrelated warning after claims release",
+      "python_compile": "pass",
+      "diff_check": "pass",
+      "observer_worktree_sha256": "1cb419b85206bc4e9d35602ebfb9544acf4722f1ff0ea38b334d54f852f28d30",
+      "transport_pin_matches_observer": true
+    },
     "external_actions_started": false,
     "git_actions_started": false,
     "active_claims_after_handoff": 0,
-    "next_action": "Build and verify the exact seven-path SEC134 publication candidate. Only after fuzzy/dev readback confirms the revision and observer hash may the recorded single-use no-argument read-only observation be consumed once without retry."
+    "next_action": "Build and verify the exact seven-path SEC135 publication candidate. Only after fuzzy/dev readback confirms revision and observer hash may the recorded single-use no-argument read-only observation run once without retry."
   },
   "latest_ops_alert_d0_run_start": {
     "recorded_at": "2026-07-28T16:32:00+02:00",

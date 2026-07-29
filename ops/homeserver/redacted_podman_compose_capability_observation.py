@@ -137,6 +137,14 @@ _VERSION_DIAGNOSTIC_CODES = frozenset({
     "version_output_line_shape", "version_output_version_mismatch",
 })
 _NEEDS_REASONS = frozenset({"semantic_proof_insufficient"})
+_MISSING_PROOF_CODES = (
+    "global_env_file_parser_missing", "global_project_name_parser_missing",
+    "build_service_argument_missing", "up_service_argument_missing",
+    "up_no_deps_parser_missing", "up_no_build_parser_missing",
+    "up_force_recreate_parser_missing", "source_build_service_selection_missing",
+    "source_up_service_selection_missing", "source_up_no_deps_guard_missing",
+    "source_rollback_force_recreate_missing",
+)
 _VISIBILITY_KEYS = frozenset({
     "raw_stdout_visible", "raw_stderr_visible", "exception_text_visible", "environment_visible",
     "source_text_visible", "paths_visible", "hostnames_visible", "secret_values_visible",
@@ -155,7 +163,7 @@ _OK_KEYS = frozenset({
 })
 _BLOCKED_KEYS = frozenset({"schema_id", "status", "error_code", "retry_permitted", "evidence_sha256"})
 _VERSION_BLOCKED_KEYS = _BLOCKED_KEYS | {"diagnostic_code"}
-_NEEDS_KEYS = frozenset({"schema_id", "status", "reason_code", "retry_permitted", "evidence_sha256"})
+_NEEDS_KEYS = frozenset({"schema_id", "status", "reason_code", "missing_proofs", "retry_permitted", "evidence_sha256"})
 
 
 class CapabilityFailure(ValueError):
@@ -178,8 +186,19 @@ def blocked(code: str, diagnostic_code: str | None = None) -> dict[str, Any]:
     return payload
 
 
-def needs_live_observation(reason: str) -> dict[str, Any]:
-    payload = {"schema_id": SCHEMA_ID, "status": "needs_live_observation", "reason_code": reason if reason in _NEEDS_REASONS else "semantic_proof_insufficient", "retry_permitted": False}
+def needs_live_observation(reason: str, missing_proofs: Sequence[str]) -> dict[str, Any]:
+    requested = tuple(missing_proofs)
+    if (not requested or len(requested) > len(_MISSING_PROOF_CODES)
+            or any(code not in _MISSING_PROOF_CODES for code in requested)):
+        return blocked("internal_error")
+    canonical = tuple(code for code in _MISSING_PROOF_CODES if code in requested)
+    if requested != canonical:
+        return blocked("internal_error")
+    payload = {
+        "schema_id": SCHEMA_ID, "status": "needs_live_observation",
+        "reason_code": reason if reason in _NEEDS_REASONS else "semantic_proof_insufficient",
+        "missing_proofs": list(canonical), "retry_permitted": False,
+    }
     payload["evidence_sha256"] = _digest(payload)
     return payload
 
@@ -276,18 +295,22 @@ def collect_podman_compose_capability_observation(*, runner: Callable[..., Any] 
         up_help = _run(UP_HELP_COMMAND, runner)
         source_audit = _parse_source_audit(_run(SOURCE_AUDIT_COMMAND, runner))
 
-        parser_evidence = (
-            _has_flag(global_help, "--env-file") and _has_flag(global_help, "--project-name")
-            and _has_service_argument(build_help, "build") and _has_service_argument(up_help, "up")
-            and _has_flag(up_help, "--no-deps") and _has_flag(up_help, "--no-build")
-            and _has_flag(up_help, "--force-recreate")
+        proof_values = (
+            ("global_env_file_parser_missing", _has_flag(global_help, "--env-file")),
+            ("global_project_name_parser_missing", _has_flag(global_help, "--project-name")),
+            ("build_service_argument_missing", _has_service_argument(build_help, "build")),
+            ("up_service_argument_missing", _has_service_argument(up_help, "up")),
+            ("up_no_deps_parser_missing", _has_flag(up_help, "--no-deps")),
+            ("up_no_build_parser_missing", _has_flag(up_help, "--no-build")),
+            ("up_force_recreate_parser_missing", _has_flag(up_help, "--force-recreate")),
+            ("source_build_service_selection_missing", source_audit["build_service_selection_handler_local"]),
+            ("source_up_service_selection_missing", source_audit["up_service_selection_handler_local"]),
+            ("source_up_no_deps_guard_missing", source_audit["up_no_deps_guard_controls_dependency_expansion"]),
+            ("source_rollback_force_recreate_missing", source_audit["rollback_force_recreate_consumed_in_up"]),
         )
-        semantic_evidence = all(source_audit[key] is True for key in (
-            "build_service_selection_handler_local", "up_service_selection_handler_local",
-            "up_no_deps_guard_controls_dependency_expansion", "rollback_force_recreate_consumed_in_up",
-        ))
-        if not parser_evidence or not semantic_evidence:
-            return needs_live_observation("semantic_proof_insufficient")
+        missing_proofs = tuple(code for code, proven in proof_values if proven is not True)
+        if missing_proofs:
+            return needs_live_observation("semantic_proof_insufficient", missing_proofs)
         payload = {
             "schema_id": SCHEMA_ID, "status": "ok", "podman_compose_version": EXPECTED_VERSION,
             "global_env_file_parser_present": True, "global_project_name_parser_present": True,

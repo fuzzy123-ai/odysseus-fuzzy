@@ -121,8 +121,41 @@ def test_help_flags_and_global_or_wrong_scope_tokens_cannot_prove_dependency_exc
     assert set(no_semantics) == observation._NEEDS_KEYS
     assert no_semantics["status"] == "needs_live_observation" and no_semantics["retry_permitted"] is False
     assert no_semantics["evidence_sha256"] == _digest(no_semantics)
+    assert no_semantics["missing_proofs"] == ["source_up_no_deps_guard_missing"]
     assert "service_scoped_dependency_exclusion_proven" not in no_semantics
     assert wrong_scope["status"] == "needs_live_observation"
+    assert wrong_scope["missing_proofs"] == ["source_build_service_selection_missing"]
+
+
+def test_semantic_insufficiency_reports_every_missing_proof_in_fixed_order_without_evidence_values():
+    individual = {
+        "global_env_file_parser_missing": {observation.GLOBAL_HELP_COMMAND: _Result("usage: podman-compose [--project-name NAME]\n")},
+        "global_project_name_parser_missing": {observation.GLOBAL_HELP_COMMAND: _Result("usage: podman-compose [--env-file FILE]\n")},
+        "build_service_argument_missing": {observation.BUILD_HELP_COMMAND: _Result("usage: podman-compose build\n")},
+        "up_service_argument_missing": {observation.UP_HELP_COMMAND: _Result("usage: podman-compose up [--no-deps] [--no-build] [--force-recreate]\n")},
+        "up_no_deps_parser_missing": {observation.UP_HELP_COMMAND: _Result("usage: podman-compose up SERVICE [--no-build] [--force-recreate]\n")},
+        "up_no_build_parser_missing": {observation.UP_HELP_COMMAND: _Result("usage: podman-compose up SERVICE [--no-deps] [--force-recreate]\n")},
+        "up_force_recreate_parser_missing": {observation.UP_HELP_COMMAND: _Result("usage: podman-compose up SERVICE [--no-deps] [--no-build]\n")},
+        "source_build_service_selection_missing": {observation.SOURCE_AUDIT_COMMAND: _Result(_audit(build_service_selection_handler_local=False) + "\n")},
+        "source_up_service_selection_missing": {observation.SOURCE_AUDIT_COMMAND: _Result(_audit(up_service_selection_handler_local=False) + "\n")},
+        "source_up_no_deps_guard_missing": {observation.SOURCE_AUDIT_COMMAND: _Result(_audit(up_no_deps_guard_controls_dependency_expansion=False) + "\n")},
+        "source_rollback_force_recreate_missing": {observation.SOURCE_AUDIT_COMMAND: _Result(_audit(rollback_force_recreate_consumed_in_up=False) + "\n")},
+    }
+    results = {code: _collect(changes) for code, changes in individual.items()}
+    all_missing = _collect({
+        observation.GLOBAL_HELP_COMMAND: _Result("usage: podman-compose\n"),
+        observation.BUILD_HELP_COMMAND: _Result("usage: podman-compose build\n"),
+        observation.UP_HELP_COMMAND: _Result("usage: podman-compose up\n"),
+        observation.SOURCE_AUDIT_COMMAND: _Result(_audit(
+            build_service_selection_handler_local=False, up_service_selection_handler_local=False,
+            up_no_deps_guard_controls_dependency_expansion=False, rollback_force_recreate_consumed_in_up=False,
+        ) + "\n"),
+    })
+
+    assert all(set(item) == observation._NEEDS_KEYS and item["retry_permitted"] is False and item["evidence_sha256"] == _digest(item) for item in results.values())
+    assert {code: item["missing_proofs"] for code, item in results.items()} == {code: [code] for code in individual}
+    assert all_missing["missing_proofs"] == list(observation._MISSING_PROOF_CODES)
+    assert "usage" not in json.dumps((results, all_missing))
 
 
 def _run_source_audit_program(monkeypatch, capsys, source):

@@ -2,10 +2,9 @@
 
 Run: `ABC-SEC134-20260729-VERSION-OUTPUT-DIAGNOSTIC`
 
-Status: `accepted_repo_only_deep_reviewed_pending_publication`. This packet
-grants no SSH, network, probe, deploy, build, pull, checkout, container,
-backup, restore, send, or other live action before the exact publication
-binding and readback are complete.
+Status: `published_single_observation_terminal_needs_live_observation_no_retry`.
+The packet grants no further SSH, network, probe, deploy, build, pull,
+checkout, container, backup, restore, send, or other live action.
 
 ## Bounded strategy change
 
@@ -62,13 +61,22 @@ retry. It grants no deploy, delivery, backup, restore, or host mutation.
 
 ## Current frontier
 
-The four-path Bob/Terra handoff passed root/Sol deep review. Independent
-verification passed 19 focused tests, Python compilation, and diff checking.
-The observer worktree SHA-256 is
-`01e648a9a861cee1b3ff446e1807b8bc840d3ffc5338208fe80d1209e49fd82e`,
-and the transport pin matches it. Both SEC134 claims are released.
+The accepted seven-path candidate was published as commit
+`b7baf06bfe70b362c4cc6ef17cc0cf5ad587cb58` with tree
+`85b7a15a021e55e0c319a063c19f35f7719853b4`. `fuzzy/dev` readback confirmed
+the revision and observer SHA-256
+`01e648a9a861cee1b3ff446e1807b8bc840d3ffc5338208fe80d1209e49fd82e`.
 
-Next safe action: build and verify the exact seven-path publication candidate.
-Only after `fuzzy/dev` readback confirms its revision and observer hash may the
-recorded single-use no-argument read-only observation be consumed once without
-retry. Chat memory is not completion evidence.
+The separately authorized transport then ran exactly once. Its validated
+terminal envelope was `status=needs_live_observation`,
+`reason_code=semantic_proof_insufficient`, `retry_permitted=false`, with
+evidence digest
+`c57a19fbb46b8802d2f3298344026619ba0a2d3deab713d47dbd833b18d6de0d`.
+The earlier version-output failure did not recur. This proves the fixed
+short-version gate passed, but the envelope intentionally does not reveal which
+downstream help-parser or source-audit proof remained false. No retry occurred.
+
+Next safe action: first create and deep-review a repo-only fixed-enum
+semantic-proof classifier that identifies the missing allowlisted proof without
+emitting help text, source, values, or counts. Any later observation requires
+new action-specific authority. Deploy and delivery remain independently gated.

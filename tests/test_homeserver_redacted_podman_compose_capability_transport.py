@@ -31,7 +31,11 @@ def _observer(status="ok", **changes):
             **{key: False for key in transport._VISIBILITY_KEYS},
         }
     elif status == "needs_live_observation":
-        payload = {"schema_id": transport.OBSERVER_SCHEMA_ID, "status": status, "reason_code": "semantic_proof_insufficient", "retry_permitted": False}
+        payload = {
+            "schema_id": transport.OBSERVER_SCHEMA_ID, "status": status,
+            "reason_code": "semantic_proof_insufficient",
+            "missing_proofs": ["source_up_no_deps_guard_missing"], "retry_permitted": False,
+        }
     else:
         payload = {"schema_id": transport.OBSERVER_SCHEMA_ID, "status": "blocked", "error_code": "timeout", "retry_permitted": False}
     payload.update(changes)
@@ -115,6 +119,24 @@ def test_version_diagnostic_blocked_schema_is_allowlisted_and_unknown_or_extra_f
     assert set(accepted) == transport._VERSION_BLOCKED_KEYS and accepted["diagnostic_code"] == "version_output_multiline"
     assert all(item["error_code"] == "transport_invalid" for item in (unknown, wrong_error))
     assert "private" not in json.dumps((accepted, unknown, wrong_error))
+
+
+def test_semantic_missing_proofs_schema_requires_nonempty_unique_canonical_allowlist_and_returncode():
+    accepted = _collect(response=_Result(_observer("needs_live_observation", missing_proofs=["global_env_file_parser_missing", "source_up_no_deps_guard_missing"]), 1))
+    bad_variants = (
+        _observer("needs_live_observation", missing_proofs=[]),
+        _observer("needs_live_observation", missing_proofs=["source_up_no_deps_guard_missing", "global_env_file_parser_missing"]),
+        _observer("needs_live_observation", missing_proofs=["global_env_file_parser_missing", "global_env_file_parser_missing"]),
+        _observer("needs_live_observation", missing_proofs=["private-source-shape"]),
+        _observer("needs_live_observation", reason_code="other_reason"),
+    )
+    rejected = [_collect(response=_Result(value, 1)) for value in bad_variants]
+    wrong_returncode = _collect(response=_Result(_observer("needs_live_observation"), 0))
+
+    assert accepted["missing_proofs"] == ["global_env_file_parser_missing", "source_up_no_deps_guard_missing"]
+    assert all(item["error_code"] == "transport_invalid" for item in rejected)
+    assert wrong_returncode["error_code"] == "transport_failed"
+    assert "private" not in json.dumps((accepted, rejected, wrong_returncode))
 
 
 def test_valid_observer_status_requires_its_exact_process_returncode():
