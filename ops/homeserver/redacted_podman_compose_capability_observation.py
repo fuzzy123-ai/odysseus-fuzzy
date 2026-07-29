@@ -100,6 +100,108 @@ def assigns_dependency_expansion(nodes):
                 return True
     return False
 
+def assigns_fixed_exclusion_helper(nodes):
+    for node in nodes:
+        if not (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name) and node.targets[0].id == "excluded"):
+            continue
+        value = node.value
+        if (isinstance(value, ast.Call) and isinstance(value.func, ast.Name) and value.func.id == "get_excluded"
+                and len(value.args) == 2 and all(isinstance(arg, ast.Name) for arg in value.args)
+                and not value.keywords and value.args[0].id == "compose" and value.args[1].id == "args"):
+            return True
+    return False
+
+def is_excluded_assignment(node, value):
+    return (isinstance(node, ast.Assign) and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name) and node.targets[0].id == "excluded"
+            and value(node.value))
+
+def is_empty_set(node):
+    return (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "set"
+            and not node.args and not node.keywords)
+
+def is_compose_services_set(node):
+    return (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "set"
+            and not node.keywords and len(node.args) == 1
+            and isinstance(node.args[0], ast.Attribute) and isinstance(node.args[0].value, ast.Name)
+            and node.args[0].value.id == "compose" and node.args[0].attr == "services")
+
+def is_dependency_lookup(node, service_name):
+    return (isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant)
+            and node.slice.value == "_deps" and isinstance(node.value, ast.Subscript)
+            and isinstance(node.value.slice, ast.Name) and node.value.slice.id == service_name
+            and isinstance(node.value.value, ast.Attribute)
+            and isinstance(node.value.value.value, ast.Name)
+            and node.value.value.value.id == "compose" and node.value.value.attr == "services")
+
+def is_dependency_subtraction(node, service_name):
+    if not (isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Name) and node.target.id == "excluded"
+            and isinstance(node.op, ast.Sub) and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name) and node.value.func.id == "set"
+            and not node.value.keywords and len(node.value.args) == 1
+            and isinstance(node.value.args[0], ast.GeneratorExp)):
+        return False
+    expression = node.value.args[0]
+    if not (isinstance(expression.elt, ast.Attribute) and isinstance(expression.elt.value, ast.Name)
+            and expression.elt.attr == "name" and len(expression.generators) == 1):
+        return False
+    generator = expression.generators[0]
+    return (isinstance(generator.target, ast.Name) and generator.target.id == expression.elt.value.id
+            and not generator.ifs and not generator.is_async and is_dependency_lookup(generator.iter, service_name))
+
+def is_selected_service_discard(node, service_name):
+    return (isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Attribute) and isinstance(node.value.func.value, ast.Name)
+            and node.value.func.value.id == "excluded" and node.value.func.attr == "discard"
+            and not node.value.keywords and len(node.value.args) == 1
+            and isinstance(node.value.args[0], ast.Name) and node.value.args[0].id == service_name)
+
+def helper_constructs_service_exclusion(handler):
+    if handler is None or [argument.arg for argument in handler.args.args] != ["compose", "args"]:
+        return False
+    statements = handler.body
+    if len(statements) < 2 or not is_excluded_assignment(statements[0], is_empty_set):
+        return False
+    branch = statements[1]
+    if not (isinstance(branch, ast.If) and is_args_attribute(branch.test, "services") and not branch.orelse
+            and len(branch.body) >= 2 and is_excluded_assignment(branch.body[0], is_compose_services_set)):
+        return False
+    loop = branch.body[1]
+    if not (isinstance(loop, ast.For) and isinstance(loop.target, ast.Name)
+            and is_args_attribute(loop.iter, "services") and len(loop.body) >= 2):
+        return False
+    service_name = loop.target.id
+    return (is_dependency_subtraction(loop.body[0], service_name)
+            and is_selected_service_discard(loop.body[1], service_name))
+
+def loop_has_excluded_service_continue_guard(loop):
+    if not (isinstance(loop, ast.For) and isinstance(loop.target, ast.Name)
+            and isinstance(loop.iter, ast.Attribute) and isinstance(loop.iter.value, ast.Name)
+            and loop.iter.value.id == "compose" and loop.iter.attr == "containers" and loop.body):
+        return False
+    guard = loop.body[0]
+    if not (isinstance(guard, ast.If) and not guard.orelse and len(guard.body) == 1
+            and isinstance(guard.body[0], ast.Continue) and isinstance(guard.test, ast.Compare)
+            and len(guard.test.ops) == 1 and isinstance(guard.test.ops[0], ast.In)
+            and len(guard.test.comparators) == 1):
+        return False
+    container_name = loop.target.id
+    left, right = guard.test.left, guard.test.comparators[0]
+    return (isinstance(left, ast.Subscript) and isinstance(left.value, ast.Name) and left.value.id == container_name
+            and isinstance(left.slice, ast.Constant) and left.slice.value == "_service"
+            and isinstance(right, ast.Name) and right.id == "excluded")
+
+def up_uses_fixed_exclusion_handler(handler, helper_proven):
+    if handler is None or not helper_proven:
+        return False
+    statements = handler.body
+    for index, statement in enumerate(statements):
+        if not assigns_fixed_exclusion_helper([statement]):
+            continue
+        return any(loop_has_excluded_service_continue_guard(candidate) for candidate in statements[index + 1:])
+    return False
+
 def no_deps_controls_expansion(nodes):
     for node in nodes:
         if not isinstance(node, ast.If) or not contains_attr(list(ast.walk(node.test)), "no_deps"):
@@ -109,13 +211,14 @@ def no_deps_controls_expansion(nodes):
             return True
     return False
 
-build, up = handlers.get("compose_build"), handlers.get("compose_up")
+build, up, exclusion_helper = handlers.get("compose_build"), handlers.get("compose_up"), handlers.get("get_excluded")
 build_nodes = local_nodes(build) if build is not None else []
 up_nodes = local_nodes(up) if up is not None else []
+helper_proven = helper_constructs_service_exclusion(exclusion_helper)
 payload = {
     "schema_id": "odysseus.podman_compose_source_audit.v1",
-    "build_service_selection_handler_local": contains_attr(build_nodes, "services"),
-    "up_service_selection_handler_local": contains_attr(up_nodes, "services"),
+    "build_service_selection_handler_local": contains_attr(build_nodes, "services") or (assigns_fixed_exclusion_helper(build_nodes) and helper_proven),
+    "up_service_selection_handler_local": up_uses_fixed_exclusion_handler(up, helper_proven),
     "up_no_deps_guard_controls_dependency_expansion": no_deps_controls_expansion(up_nodes),
     "rollback_force_recreate_consumed_in_up": contains_attr(up_nodes, "force_recreate"),
 }
@@ -262,9 +365,9 @@ def _has_flag(help_text: str, flag: str) -> bool:
 
 
 def _has_service_argument(help_text: str, subcommand: str) -> bool:
-    # Require an explicit upper-case positional service grammar in the usage,
-    # rather than treating any descriptive use of the word as parser evidence.
-    return re.search(r"(?im)^\s*usage:.*\b" + re.escape(subcommand) + r"\b.*\bSERVICE(?:\s|\[|$)", help_text) is not None
+    # Require only the exact documented positional grammar in a usage line,
+    # rather than treating descriptive uses of the word as parser evidence.
+    return re.search(r"(?im)^\s*usage:.*\b" + re.escape(subcommand) + r"\b.*(?:\bSERVICE(?=\s|\[|$)|\[services\s+\.\.\.\])", help_text) is not None
 
 
 def _parse_source_audit(raw: str) -> dict[str, Any]:

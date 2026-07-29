@@ -2,10 +2,9 @@
 
 Run: `ABC-SEC135-20260729-SEMANTIC-PROOF-DIAGNOSTIC`
 
-Status: `accepted_repo_only_deep_reviewed_pending_publication`. This packet
-grants no SSH, network, probe, deploy, build, pull, checkout, container,
-backup, restore, send, or other live action before exact publication binding
-and readback.
+Status: `published_single_observation_terminal_four_missing_proofs_no_retry`.
+This packet grants no further SSH, network, probe, deploy, build, pull,
+checkout, container, backup, restore, send, or other live action.
 
 ## SEC134 terminal boundary
 
@@ -83,3 +82,31 @@ the transport pin matches it. Both SEC135 claims are released.
 Next safe action: bind and publish only the exact seven-path candidate. A
 single later read-only observation remains unavailable until `fuzzy/dev`
 readback confirms the revision and observer hash.
+
+## Terminal live outcome
+
+The accepted seven-path candidate was published as commit
+`2c51fd349843d05e200c6d14e717e78a01e7e9f1` with tree
+`a07b1323595259e9aaedf1d33b70c410e8c02f95`. `fuzzy/dev` readback confirmed
+the revision and observer SHA-256
+`1cb419b85206bc4e9d35602ebfb9544acf4722f1ff0ea38b334d54f852f28d30`.
+
+The separately authorized transport ran exactly once. Its validated terminal
+envelope was `status=needs_live_observation`,
+`reason_code=semantic_proof_insufficient`, `retry_permitted=false`, with
+evidence digest
+`d4bce89cd5f58eb465a5e232e12cb423bab9f517bffbcf4e80c425b0eafdc5bf`.
+It identified exactly:
+
+- `build_service_argument_missing`
+- `up_service_argument_missing`
+- `source_up_service_selection_missing`
+- `source_up_no_deps_guard_missing`
+
+The fixed short-version gate and the other seven proof classes passed. No raw
+help or source output was emitted or retained, and no retry occurred.
+
+Next safe action: first create and deep-review a repo-only SEC136 recognizer
+repair grounded in public Podman Compose 1.3.0 argparse and `compose_up` source
+structure for exactly these four proof classes. A later observation requires
+new action-specific authority. Deploy and delivery remain independently gated.

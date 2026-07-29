@@ -3,8 +3,8 @@
   "kind": "odysseus.security_incident_response_production_completion_roadmap",
   "id": "SIRP",
   "title": "Security Incident Response Production Completion",
-  "updated_at": "2026-07-29T11:34:22+02:00",
-  "status": "sec135_bounded_semantic_proof_diagnostic_deep_reviewed_pending_publication",
+  "updated_at": "2026-07-29T13:49:35+02:00",
+  "status": "sec136_compose_1_3_0_recognizer_repair_deep_reviewed_pending_publication",
   "mode": "safe_offline_dependency_ordered",
   "goal": "Close the explicit gap between prepare-only security incident contracts and a production-validated assisted response system with bounded evidence, durable incident and action state, operator-bound approvals, typed executors, independent effect readback and rollback.",
   "slice_contract_fields": ["id", "priority", "class", "owner", "status", "claimable", "depends_on", "gate_requirements", "blockers", "allowed_paths", "hotfiles", "goal", "acceptance", "tests_evidence", "forbidden", "done_when", "completion_matrix"],
@@ -2616,6 +2616,116 @@
         "commit",
         "push"
       ]
+    },
+    {
+      "run_id": "ABC-SEC136-20260729-COMPOSE-RECOGNIZER-REPAIR",
+      "thread_id": "/root/sec132_transport_bob",
+      "slice_id": "SEC136-compose-1.3.0-recognizer-repair",
+      "owner": "Bob/Terra requested route",
+      "allowed_paths": [
+        "ops/homeserver/redacted_podman_compose_capability_observation.py",
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_observation.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T13:31:46+02:00",
+      "lease_expires_at": "2026-07-29T15:31:46+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "requested_route": {
+        "model": "gpt-5.6-terra",
+        "effort": "high"
+      },
+      "actual_route": "worker_thread_confirmed_requested_terra_identity_not_independently_inspectable",
+      "phase": "deep_review_failed_after_two_implementation_attempts",
+      "released_at": "2026-07-29T13:39:36+02:00",
+      "release_reason": "ABC repeated-failure stop: the corrected fixture still simplified the official dependency expression and the recognizer would not match Debian 1.3.0 excluded -= set(x.name for x in compose.services[service]['_deps']) plus excluded.discard(service). No publication or live action.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "claiming --no-deps is consumed by compose_up without matching AST proof",
+        "raw stdout, stderr, help text, source, exception, path, hostname, environment, value, count or secret output",
+        "network, SSH, probe, provider, send, deploy, container or host action",
+        "stage",
+        "commit",
+        "push"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC136-20260729-COMPOSE-RECOGNIZER-REPAIR",
+      "thread_id": "/root",
+      "slice_id": "SEC136-root-contract-integration-and-deep-review",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "docs/plans/security-incident-response-semantic-proof-diagnostic-packet.md",
+        "docs/plans/security-incident-response-compose-recognizer-repair-packet.md"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-29T13:31:46+02:00",
+      "lease_expires_at": "2026-07-29T15:31:46+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "requested_route": {
+        "model": "gpt-5.6-sol",
+        "effort": "high"
+      },
+      "actual_route": "root_surface",
+      "phase": "deep_review_passed_release_ready",
+      "released_at": "2026-07-29T13:49:35+02:00",
+      "release_reason": "Root/Sol deep review accepted the bounded replacement: official Debian 1.3.0 helper and compose_up guard structure are recognized, the real source_up_no_deps_guard_missing blocker remains terminal, 24 focused tests and diff checking passed, and the observer SHA-256 matches the transport pin.",
+      "forbidden_actions": [
+        "worker implementation path edits",
+        "manufacturing a capability PASS for unsupported no-deps semantics",
+        "network, SSH, probe, provider, send, deploy, container or host action",
+        "stage",
+        "commit",
+        "push"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC136-R2-20260729-OFFICIAL-AST-FIXTURE",
+      "thread_id": "/root/sec136_r2_bob",
+      "slice_id": "SEC136-R2-official-1.3.0-AST-recognizer",
+      "owner": "Bob/Terra requested route",
+      "allowed_paths": [
+        "ops/homeserver/redacted_podman_compose_capability_observation.py",
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_observation.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-29T13:39:36+02:00",
+      "lease_expires_at": "2026-07-29T14:39:36+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "external_action_executed": false,
+      "requested_route": {
+        "model": "gpt-5.6-terra",
+        "effort": "high"
+      },
+      "actual_route": "gpt-5.6-terra high via observable spawn route; worker surface did not expose self-inspection metadata",
+      "phase": "handoff_accepted_after_root_sol_deep_review",
+      "predecessor_stop": "SEC136 original worker claim released after two failed deep-review attempts",
+      "released_at": "2026-07-29T13:49:35+02:00",
+      "release_reason": "Handoff changed only the four claimed paths. Root/Sol independently verified the official ordered exclusion helper, exact compose_up assignment and container guard, lowercase positional usage grammar, near-miss rejection, honest single remaining no-deps proof gap, matching observer/transport SHA-256, Python compilation and 24 focused tests.",
+      "forbidden_actions": [
+        "any path outside allowed_paths",
+        "simplified fixtures that do not match the public Debian 1.3.0 AST",
+        "claiming --no-deps is consumed by compose_up",
+        "raw source, help, values, environment, exceptions or secret output",
+        "network, SSH, probe, provider, send, deploy, container or host action",
+        "stage",
+        "commit",
+        "push"
+      ]
     }
   ],
   "live_go": [
@@ -4436,7 +4546,7 @@
   "latest_sec135_semantic_proof_diagnostic_run_start": {
     "recorded_at": "2026-07-29T11:28:21+02:00",
     "run_id": "ABC-SEC135-20260729-SEMANTIC-PROOF-DIAGNOSTIC",
-    "status": "accepted_repo_only_deep_reviewed_pending_publication",
+    "status": "published_and_single_live_observation_terminal_four_missing_proofs_no_retry",
     "packet": "docs/plans/security-incident-response-semantic-proof-diagnostic-packet.md",
     "phase": "implementation",
     "supervision": "interactive",
@@ -4469,10 +4579,83 @@
       "observer_worktree_sha256": "1cb419b85206bc4e9d35602ebfb9544acf4722f1ff0ea38b334d54f852f28d30",
       "transport_pin_matches_observer": true
     },
+    "publication": {
+      "commit": "2c51fd349843d05e200c6d14e717e78a01e7e9f1",
+      "tree": "a07b1323595259e9aaedf1d33b70c410e8c02f95",
+      "remote": "fuzzy/dev",
+      "path_count": 7,
+      "published_observer_sha256": "1cb419b85206bc4e9d35602ebfb9544acf4722f1ff0ea38b334d54f852f28d30"
+    },
+    "single_live_observation": {
+      "executed_at": "2026-07-29T11:38:00+02:00",
+      "status": "needs_live_observation",
+      "reason_code": "semantic_proof_insufficient",
+      "missing_proofs": [
+        "build_service_argument_missing",
+        "up_service_argument_missing",
+        "source_up_service_selection_missing",
+        "source_up_no_deps_guard_missing"
+      ],
+      "retry_permitted": false,
+      "evidence_sha256": "d4bce89cd5f58eb465a5e232e12cb423bab9f517bffbcf4e80c425b0eafdc5bf",
+      "raw_cause_claimed": false,
+      "bounded_interpretation": "The fixed short-version gate and the other seven allowlisted parser/source proofs passed. Only the four named fixed proof classes remain absent under the current conservative recognizers."
+    },
+    "external_actions_started": "one separately authorized read_only_observation_completed",
+    "git_actions_started": "exact_seven_path_commit_and_single_push_completed",
+    "active_claims_after_handoff": 0,
+    "next_action": "Do not retry SEC135. If work resumes, first create and deep-review a repo-only SEC136 recognizer repair grounded in public Podman Compose 1.3.0 argparse and compose_up source structure for exactly the four missing proof classes. Any later observation needs new action-specific authority; deploy and delivery remain independently gated."
+  },
+  "latest_sec136_compose_recognizer_repair_run_start": {
+    "recorded_at": "2026-07-29T13:31:46+02:00",
+    "run_id": "ABC-SEC136-20260729-COMPOSE-RECOGNIZER-REPAIR",
+    "status": "deep_reviewed_pending_exact_publication",
+    "packet": "docs/plans/security-incident-response-compose-recognizer-repair-packet.md",
+    "phase": "publication_binding",
+    "supervision": "interactive",
+    "queue_scope": "named_security_incident_response_production_completion_roadmap",
+    "mutation_authority": "repo_only_until_deep_review_and_exact_publication_binding",
+    "public_source_evidence": {
+      "package": "Debian podman-compose 1.3.0-1",
+      "services_metavar_is_lowercase": true,
+      "compose_up_delegates_service_selection_to_get_excluded": true,
+      "compose_up_uses_excluded_to_guard_container_processing": true,
+      "compose_up_consumes_no_deps": false,
+      "compose_run_consumes_no_deps": true
+    },
+    "safety_disposition": "Repair only the three conservative recognizer gaps. Do not manufacture service_scoped_dependency_exclusion_proven or deployment_capability_supported while compose_up lacks an actual no-deps guard.",
+    "user_steering": {
+      "plain_language_go_received": true,
+      "interpretation": "Implement and deep-review the bounded SEC136 recognizer repair, publish only an exact accepted candidate, then consume at most one read-only observation without retry.",
+      "deploy_authority": false,
+      "delivery_or_send_authority": false,
+      "package_upgrade_authority": false,
+      "host_mutation_authority": false
+    },
+    "worker_claim": "SEC136-R2-official-1.3.0-AST-recognizer",
+    "root_claim": "SEC136-root-contract-integration-and-deep-review",
+    "review_required": "root_sol_deep",
+    "accepted_review": {
+      "worker_route": "gpt-5.6-terra high via observable spawn route",
+      "reviewer_route": "root/Sol deep",
+      "focused_tests": "24 passed",
+      "python_compilation": "passed; a non-fatal Windows pycache cleanup warning was emitted after compilation",
+      "diff_check": "passed",
+      "official_source_shape": "passed",
+      "near_miss_negative_cases": "passed",
+      "honest_terminal_fixture": {
+        "status": "needs_live_observation",
+        "missing_proofs": [
+          "source_up_no_deps_guard_missing"
+        ],
+        "retry_permitted": false
+      },
+      "observer_sha256": "2ceb8cede61732895f6da336b2762db3a7599d7adbbeeaf273c42a288b00a56b",
+      "transport_pin_matches": true
+    },
     "external_actions_started": false,
     "git_actions_started": false,
-    "active_claims_after_handoff": 0,
-    "next_action": "Build and verify the exact seven-path SEC135 publication candidate. Only after fuzzy/dev readback confirms revision and observer hash may the recorded single-use no-argument read-only observation run once without retry."
+    "next_action": "Bind and publish only the exact seven-path candidate to fuzzy/dev, verify published revision and observer hash, then consume at most one no-argument redacted published-blob observation without retry. No deploy, delivery, package upgrade, container or host mutation is authorized."
   },
   "latest_ops_alert_d0_run_start": {
     "recorded_at": "2026-07-28T16:32:00+02:00",

@@ -158,6 +158,39 @@ def test_semantic_insufficiency_reports_every_missing_proof_in_fixed_order_witho
     assert "usage" not in json.dumps((results, all_missing))
 
 
+def test_official_compose_1_3_0_shape_leaves_only_the_real_no_deps_semantic_gap(monkeypatch, capsys):
+    official_source = """
+def compose_build(args):
+    for service in args.services:
+        pass
+def get_excluded(compose,args):
+    excluded=set()
+    if args.services:
+        excluded=set(compose.services)
+        for service in args.services:
+            excluded -= set(x.name for x in compose.services[service]["_deps"])
+            excluded.discard(service)
+    return excluded
+def compose_up(compose,args):
+    excluded=get_excluded(compose,args)
+    for cnt in compose.containers:
+        if cnt["_service"] in excluded:
+            continue
+    if args.force_recreate:
+        pass
+"""
+    source_audit = _run_source_audit_program(monkeypatch, capsys, official_source)
+    payload = _collect({
+        observation.BUILD_HELP_COMMAND: _Result("usage: podman-compose build [services ...]\n"),
+        observation.UP_HELP_COMMAND: _Result("usage: podman-compose up [services ...] [--no-deps] [--no-build] [--force-recreate]\n"),
+        observation.SOURCE_AUDIT_COMMAND: _Result(json.dumps(source_audit, ensure_ascii=True, sort_keys=True, separators=(",", ":")) + "\n"),
+    })
+
+    assert payload["status"] == "needs_live_observation"
+    assert payload["missing_proofs"] == ["source_up_no_deps_guard_missing"]
+    assert payload["retry_permitted"] is False and payload["evidence_sha256"] == _digest(payload)
+
+
 def _run_source_audit_program(monkeypatch, capsys, source):
     fake_package = types.ModuleType("podman_compose")
     monkeypatch.setitem(sys.modules, "podman_compose", fake_package)
@@ -173,11 +206,19 @@ def test_source_audit_profile_executes_only_exact_top_level_handler_semantics(mo
 def compose_build(args):
     for service in args.services:
         pass
-def compose_up(args):
-    if args.no_deps:
-        services = args.services
-    else:
-        services = rec_deps()
+def get_excluded(compose,args):
+    excluded=set()
+    if args.services:
+        excluded=set(compose.services)
+        for service in args.services:
+            excluded -= set(x.name for x in compose.services[service]["_deps"])
+            excluded.discard(service)
+    return excluded
+def compose_up(compose,args):
+    excluded=get_excluded(compose,args)
+    for cnt in compose.containers:
+        if cnt["_service"] in excluded:
+            continue
     if args.force_recreate:
         pass
 """
@@ -215,11 +256,61 @@ def compose_up(args):
 
     proven = _run_source_audit_program(monkeypatch, capsys, valid)
     assert set(proven) == observation._SOURCE_AUDIT_KEYS and proven["evidence_sha256"] == _digest(proven)
-    assert all(proven[key] is True for key in observation._SOURCE_AUDIT_KEYS - {"schema_id", "evidence_sha256"})
+    assert proven["build_service_selection_handler_local"] is True
+    assert proven["up_service_selection_handler_local"] is True
+    assert proven["rollback_force_recreate_consumed_in_up"] is True
+    assert proven["up_no_deps_guard_controls_dependency_expansion"] is False
     for source in decoys:
         result = _run_source_audit_program(monkeypatch, capsys, source)
         assert result["up_no_deps_guard_controls_dependency_expansion"] is False
         assert result["build_service_selection_handler_local"] is False or result["up_service_selection_handler_local"] is False
+
+
+def test_source_audit_requires_fixed_helper_service_consumption_and_real_exclusion_continue_guard(monkeypatch, capsys):
+    base = """
+def compose_build(args):
+    for service in args.services: pass
+def get_excluded(compose,args):
+    excluded=set()
+    if args.services:
+        excluded=set(compose.services)
+        for service in args.services:
+            excluded -= set(x.name for x in compose.services[service]["_deps"])
+            excluded.discard(service)
+    return excluded
+def compose_up(compose,args):
+    excluded=get_excluded(compose,args)
+    for cnt in compose.containers:
+        if cnt["_service"] in excluded: continue
+"""
+    near_misses = (
+        base.replace("excluded=get_excluded(compose,args)", "get_excluded(compose,args)"),
+        base.replace("excluded=get_excluded(compose,args)", "other=get_excluded(compose,args)"),
+        base.replace("excluded=get_excluded(compose,args)", "excluded,other=get_excluded(compose,args)"),
+        base.replace("get_excluded(compose,args)", "get_excluded(args,compose)"),
+        base.replace("excluded=set()", "excluded=set(compose.services)", 1),
+        base.replace("excluded=set(compose.services)", "excluded=set()", 1),
+        base.replace("if args.services:", "if args.other:"),
+        base.replace("for service in args.services:", "for service in unrelated:"),
+        base.replace('compose.services[service]["_deps"]', "service._deps"),
+        base.replace("excluded.discard(service)", "excluded.discard(other)"),
+        base.replace("for cnt in compose.containers:\n        if cnt[\"_service\"] in excluded: continue", "if cnt[\"_service\"] in excluded: continue\n    for cnt in compose.containers:\n        pass"),
+        base.replace("if cnt[\"_service\"] in excluded: continue", "if other[\"_service\"] in excluded: continue"),
+    )
+
+    proven = _run_source_audit_program(monkeypatch, capsys, base)
+    assert proven["up_service_selection_handler_local"] is True
+    assert proven["up_no_deps_guard_controls_dependency_expansion"] is False
+    for source in near_misses:
+        result = _run_source_audit_program(monkeypatch, capsys, source)
+        assert result["up_service_selection_handler_local"] is False
+
+
+def test_lowercase_official_services_usage_is_parser_evidence_but_descriptive_tokens_are_not():
+    assert observation._has_service_argument("usage: podman-compose up [services ...]", "up") is True
+    assert observation._has_service_argument("usage: podman-compose build [services ...]", "build") is True
+    assert observation._has_service_argument("usage: podman-compose up --describe-services", "up") is False
+    assert observation._has_service_argument("usage: podman-compose up [--label services]", "up") is False
 
 
 def test_malformed_oversized_unexpected_or_hash_mismatched_source_audit_is_blocked_without_source_leak():
