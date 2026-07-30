@@ -21,4 +21,13 @@ def test_accepted_uix_workbench_slices_are_not_reopened_in_active_queue():
 
     assert accepted_uix_slices.isdisjoint(queue)
     assert accepted_uix_slices.isdisjoint(active_claims)
-    assert "nach UIX-ABC24" in roadmap["goal_command"]
+
+    goal_command = roadmap["goal_command"]
+    assert "SIRP-Roadmap dependency-first" in goal_command
+    for gate_marker in (
+        "jede externe Aktion",
+        "jeden Deploy",
+        "jeden Live-Test",
+        "exakten separaten Gate",
+    ):
+        assert gate_marker in goal_command
