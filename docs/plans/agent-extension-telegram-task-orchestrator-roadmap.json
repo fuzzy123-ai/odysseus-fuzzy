@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.agent_extension_roadmap",
-  "updated_at": "2026-07-02",
+  "updated_at": "2026-07-29",
   "status": "done",
   "title": "Telegram Task Orchestrator Roadmap",
   "goal": "Let Telegram act as the remote operator surface for long-running Odysseus tasks without requiring constant manual supervision.",
@@ -53,6 +53,171 @@
       "goal": "Verify that Telegram can create a bounded task and receive progress/status on Debian.",
       "allowed_paths": ["reports/telegram_task_orchestrator/**"],
       "tests": []
+    },
+    {
+      "id": "TTO-6-flexible-todo-intent-routing",
+      "class": "repo_only",
+      "status": "accepted_2026-07-29",
+      "goal": "Treat todo, todos, aufgabe, aufgaben and zu erledigen as Todo-domain labels without allowing bare Todo vocabulary to trigger project intake.",
+      "acceptance": [
+        "Label-style Todo requests with optional German due qualifiers route to manage_todos.",
+        "Bare Todo vocabulary without a project marker does not trigger project intake.",
+        "Explicit project markers and strong project-planning terms retain project-intake behavior.",
+        "The exact Telegram incident wording is covered by deterministic regression tests."
+      ],
+      "claim": {
+        "run_id": "telegram-todo-intent-20260729",
+        "thread_id": "/root",
+        "owner": "/root",
+        "state": "accepted_released",
+        "allowed_paths": [
+          "docs/plans/agent-extension-telegram-task-orchestrator-roadmap.json",
+          "plugins/telegram/project_intake.py",
+          "src/agent_loop_intent.py",
+          "src/todo_intent.py",
+          "tests/test_telegram_project_intake.py",
+          "tests/test_telegram_plugin.py",
+          "tests/test_todo_intent_routing.py"
+        ],
+        "acquired_at": "2026-07-29T00:00:00+02:00",
+        "released_at": "2026-07-29T20:35:58+02:00"
+      },
+      "tests": [
+        "venv/Scripts/python.exe -m pytest -q -p no:cacheprovider tests/test_telegram_plugin.py tests/test_telegram_webhook_service.py tests/test_todo_intent_routing.py tests/test_manage_todos_wiring.py tests/test_telegram_project_intake.py"
+      ],
+      "evidence": {
+        "baseline_commit": "2a3b3bd93143cc03f4c267cdcedfc54b93fd5b56",
+        "result": "183 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "exact_replay": {
+          "project_intake": false,
+          "clear_todo_intent": true,
+          "agent_domains": ["todos"]
+        },
+        "sha256": {
+          "plugins/telegram/project_intake.py": "5B96FC2211F72CF15711B4C333AE16FFDE6DD8F424530D92D059FA6790231D65",
+          "src/agent_loop_intent.py": "F608DA6D031094B25046DD796011EB4F734F4CE94C6903DEDAEAE3434272381E",
+          "src/todo_intent.py": "C4B1AB540CB3D61AD575E5C60A6BAC0C589E18766BE4587BA24221BB81EF2FBF",
+          "tests/test_telegram_project_intake.py": "CFA87D847BCBA3E7EC168DAA90780891BC4AD2387090325D37502F8754C7DD2A",
+          "tests/test_telegram_plugin.py": "F09C5F2AEDD5CA4A8F7CCF94A56185FAEC7ABF63112532B01A3F1B8DAC59FC2A",
+          "tests/test_todo_intent_routing.py": "78792E071373AEABBC82C9BA526BB7C279004B665EFE58691B91AA54E1DBAB8E"
+        },
+        "committed": false,
+        "pushed": false,
+        "deployed": false,
+        "live_validated": false
+      },
+      "next_action": "Review and commit the exact claimed paths, then request a separate deploy-live-go before updating or restarting Debian."
+    },
+    {
+      "id": "TTO-7-telegram-followup-and-provider-error-resilience",
+      "class": "repo_only",
+      "status": "accepted_local_2026-07-30",
+      "goal": "Keep short German Telegram follow-ups bound to the immediately preceding topic and report provider failures honestly without leaking chat or provider content.",
+      "acceptance": [
+        "The exact follow-up 'Welche Punkte sind das?' inherits the immediately preceding changes topic and selects the recent-changes capability.",
+        "A terminal provider HTTP or SSE error is never rendered as an empty model response.",
+        "Telegram uses only owner-approved chat fallback candidates and reports an explicit redacted provider failure if none succeeds.",
+        "Claim-evidence corrections identify the exact unsupported assertion in the current response.",
+        "Diagnostics contain only bounded counts, booleans and closed status codes."
+      ],
+      "claim": {
+        "run_id": "telegram-followup-resilience-20260730",
+        "thread_id": "/root",
+        "owner": "/root",
+        "state": "accepted_released",
+        "allowed_paths": [
+          "docs/plans/agent-extension-telegram-task-orchestrator-roadmap.json",
+          "app.py",
+          "src/agent_loop.py",
+          "src/agent_loop_intent.py",
+          "src/agent_loop_orchestration.py",
+          "src/claim_evidence_gate.py",
+          "src/llm_fallbacks.py",
+          "src/telegram_turn_diagnostics.py",
+          "tests/test_agent_loop.py",
+          "tests/test_claim_evidence_gate.py",
+          "tests/test_llm_core_fallback.py",
+          "tests/test_llm_core_reasoning_content_fallback.py",
+          "tests/test_telegram_context_policy.py",
+          "tests/test_telegram_followup_resilience.py"
+        ],
+        "acquired_at": "2026-07-30T08:18:53+02:00",
+        "lease_expires_at": "2026-07-30T12:18:53+02:00",
+        "released_at": "2026-07-30T08:39:45+02:00"
+      },
+      "tests": [
+        "venv/Scripts/python.exe -m pytest -q -p no:cacheprovider tests/test_telegram_followup_resilience.py tests/test_telegram_context_policy.py tests/test_claim_evidence_gate.py tests/test_agent_loop.py",
+        "venv/Scripts/python.exe -m pytest -q -p no:cacheprovider tests/test_todo_intent_routing.py tests/test_recent_changes_agent_routing.py tests/test_llm_core_fallback.py"
+      ],
+      "evidence": {
+        "baseline_commit": "67f0737de5bc",
+        "dirty_path_manifest_sha256": "0273DA49ACB8A7E5F5791014FEDA3DBF6EA1887D532437C3DDA5144C0477E728",
+        "test_results": [
+          "365 passed: Telegram plugin/webhook, Todo routing/wiring/project-intake, follow-up resilience, context policy, claim evidence, agent loop, recent changes and both fallback lanes",
+          "74 passed: secret-safe diagnostics, AI activity diagnostics and Telegram history privacy"
+        ],
+        "warning": "One pre-existing SQLAlchemy declarative_base deprecation warning remained in both lanes.",
+        "committed": false,
+        "pushed": false,
+        "deployed": false,
+        "live_validated": false
+      },
+      "next_action": "Review and commit the exact TTO-6/TTO-7 paths, then request a separate deploy-live-go before updating or restarting Debian."
+    },
+    {
+      "id": "TTO-8-local-commit-publication",
+      "class": "repo_only",
+      "status": "accepted_local_2026-07-30",
+      "goal": "Publish the accepted TTO-6 and TTO-7 repository changes as one path-scoped local commit without absorbing unrelated dirty work.",
+      "acceptance": [
+        "Only the exact accepted TTO-6 and TTO-7 implementation, tests and roadmap paths are staged.",
+        "The staged diff passes whitespace checks and preserves the recorded green test evidence.",
+        "The resulting local commit has no unrelated paths.",
+        "Push and Debian deployment remain separate gates."
+      ],
+      "claim": {
+        "run_id": "telegram-resilience-local-commit-20260730",
+        "thread_id": "/root",
+        "owner": "/root",
+        "state": "accepted_released",
+        "allowed_paths": [
+          "app.py",
+          "docs/plans/agent-extension-telegram-task-orchestrator-roadmap.json",
+          "plugins/telegram/project_intake.py",
+          "src/agent_loop.py",
+          "src/agent_loop_intent.py",
+          "src/agent_loop_orchestration.py",
+          "src/claim_evidence_gate.py",
+          "src/llm_fallbacks.py",
+          "src/telegram_turn_diagnostics.py",
+          "src/todo_intent.py",
+          "tests/test_claim_evidence_gate.py",
+          "tests/test_llm_core_fallback.py",
+          "tests/test_llm_core_reasoning_content_fallback.py",
+          "tests/test_telegram_followup_resilience.py",
+          "tests/test_telegram_plugin.py",
+          "tests/test_telegram_project_intake.py",
+          "tests/test_todo_intent_routing.py"
+        ],
+        "acquired_at": "2026-07-30T09:10:23+02:00",
+        "lease_expires_at": "2026-07-30T10:10:23+02:00",
+        "released_at": "2026-07-30T09:11:30+02:00"
+      },
+      "evidence": {
+        "source_slices": [
+          "TTO-6-flexible-todo-intent-routing",
+          "TTO-7-telegram-followup-and-provider-error-resilience"
+        ],
+        "tests": [
+          "365 passed in final Telegram/agent integration lane",
+          "74 passed in final secret-safe diagnostics/privacy lane"
+        ],
+        "pre_release_staged_patch_sha256": "1CA3BF19B313EF4A8DB704E68B91A5FF1F28FC95934518274BBBCE323B5905E0",
+        "commit": "self",
+        "pushed": false,
+        "deployed": false
+      },
+      "next_action": "Read back the materialized commit, then request separate push and deploy-live gates."
     }
   ],
   "done_definition": [

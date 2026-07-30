@@ -100,6 +100,8 @@ def _empty_response_fallback(
     full_response: str,
     round_reasoning: str,
     tool_events: list,
+    *,
+    terminal_provider_error: Optional[Dict] = None,
 ) -> tuple:
     """Return (final_response, sse_chunk_or_none) for the end-of-loop empty-response guard.
 
@@ -113,6 +115,10 @@ def _empty_response_fallback(
             chunk is the SSE string to yield, or None if nothing should be emitted.
     """
     if full_response.strip() or tool_events:
+        return full_response, None
+    if terminal_provider_error:
+        # The provider error has its own typed SSE event. Do not overwrite it
+        # with the unrelated generic empty-model message.
         return full_response, None
     if round_reasoning.strip():
         return round_reasoning, None

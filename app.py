@@ -1264,6 +1264,12 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
     from src.agent_loop import stream_agent_loop
     from src.telegram_context_policy import build_telegram_turn_context
     from src.telegram_todo_truth import build_telegram_todo_truth_envelope
+    from src.telegram_turn_diagnostics import (
+        build_telegram_turn_diagnostic,
+        filter_telegram_fallback_candidates,
+        parse_terminal_provider_error_sse,
+        telegram_provider_error_reply,
+    )
     from src.telegram_truth_gate import project_telegram_todo_transactions
     from src.workflow_skills import WorkflowSkillError, resolve_workflow_skills
 
@@ -1280,6 +1286,13 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
     try:
         owner = _telegram_owner()
         local_rebind_notice = ""
+        telegram_local_only_required = bool(
+            bridge.get("local_only_required")
+            or (
+                isinstance(bridge.get("sensitivity_delegation"), dict)
+                and bridge["sensitivity_delegation"].get("local_worker_required")
+            )
+        )
         try:
             from src.privacy_runtime import is_dsgvo_mode_enabled
             from src.secure_provider_runtime import (
@@ -1293,10 +1306,11 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                 else {}
             )
             dsgvo_enforced = bool(is_dsgvo_mode_enabled() and not bridge.get("telegram_voice_dsgvo_exempt"))
+            telegram_local_only_required = bool(
+                telegram_local_only_required or dsgvo_enforced
+            )
             if (
-                dsgvo_enforced
-                or bool(bridge.get("local_only_required"))
-                or bool(sensitivity_delegation.get("local_worker_required"))
+                telegram_local_only_required
             ):
                 try:
                     enforce_session_provider_runtime_gate(
@@ -1451,10 +1465,28 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                     ),
                 }
 
-        async def _run_agent_turn() -> tuple[str, tuple[dict, ...], dict | None]:
+        try:
+            from src.endpoint_resolver import resolve_chat_fallback_candidates
+
+            fallback_candidates = filter_telegram_fallback_candidates(
+                resolve_chat_fallback_candidates(owner=owner),
+                local_only_required=telegram_local_only_required,
+            )
+        except Exception:
+            fallback_candidates = []
+
+        async def _run_agent_turn() -> tuple[
+            str,
+            tuple[dict, ...],
+            dict | None,
+            dict | None,
+            dict,
+        ]:
             reply_parts: list[str] = []
             todo_transactions: tuple[dict, ...] = ()
             todo_truth_envelope: dict | None = None
+            terminal_provider_error: dict | None = None
+            turn_metrics: dict = {}
             async for chunk in stream_agent_loop(
                 session.endpoint_url,
                 session.model,
@@ -1462,8 +1494,12 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                 headers=headers,
                 session_id=session_id,
                 owner=owner,
+                fallbacks=fallback_candidates,
                 workflow_skill_resolution=workflow_skill_resolution,
             ):
+                if chunk.startswith("event: error"):
+                    terminal_provider_error = parse_terminal_provider_error_sse(chunk)
+                    continue
                 if not chunk.startswith("data: ") or chunk.startswith("data: [DONE]"):
                     continue
                 try:
@@ -1473,6 +1509,9 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                 if "delta" in event and not event.get("thinking"):
                     reply_parts.append(str(event.get("delta") or ""))
                 if event.get("type") == "metrics" and isinstance(event.get("data"), dict):
+                    candidate_metrics = event["data"].get("telegram_turn")
+                    if isinstance(candidate_metrics, dict):
+                        turn_metrics = candidate_metrics
                     todo_transactions = project_telegram_todo_transactions(
                         event["data"].get("tool_transactions")
                     )
@@ -1481,11 +1520,55 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                         candidate = build_telegram_todo_truth_envelope(metric_events)
                         if candidate.get("counts", {}).get("postconditions", 0) > 0:
                             todo_truth_envelope = candidate
-            return "".join(reply_parts).strip(), todo_transactions, todo_truth_envelope
+            return (
+                "".join(reply_parts).strip(),
+                todo_transactions,
+                todo_truth_envelope,
+                terminal_provider_error,
+                turn_metrics,
+            )
 
-        response, todo_transactions, todo_truth_envelope = _run_async_bridge(_run_agent_turn())
+        (
+            response,
+            todo_transactions,
+            todo_truth_envelope,
+            terminal_provider_error,
+            turn_metrics,
+        ) = _run_async_bridge(_run_agent_turn())
+        if terminal_provider_error:
+            turn_metrics = dict(turn_metrics)
+            turn_metrics.setdefault(
+                "provider_failure",
+                terminal_provider_error,
+            )
+            provider_failure_reply = telegram_provider_error_reply(
+                terminal_provider_error
+            )
+            response = (
+                f"{response}\n\n{provider_failure_reply}".strip()
+                if response
+                else provider_failure_reply
+            )
         if not response:
             response = "Ich habe deine Nachricht verarbeitet, aber keine Textantwort erhalten."
+        turn_diagnostic = build_telegram_turn_diagnostic(
+            context_evidence={
+                "retained_history_message_count": context_window.evidence[
+                    "retained_history_message_count"
+                ],
+                "retained_history_character_count": context_window.evidence[
+                    "retained_history_character_count"
+                ],
+                "omitted_history_message_count": context_window.evidence[
+                    "omitted_history_message_count"
+                ],
+            },
+            agent_metrics=turn_metrics,
+        )
+        logger.info(
+            "Telegram turn diagnostic: %s",
+            json.dumps(turn_diagnostic, ensure_ascii=True, sort_keys=True),
+        )
         if local_rebind_notice:
             response = f"{local_rebind_notice}{response}"
         durable_turn_ref = str(bridge.get("durable_turn_ref") or "").strip()

@@ -7,6 +7,10 @@ from typing import Iterable
 
 
 TODO_DISCOVERY_KEYWORDS = frozenset({
+    "todo",
+    "aufgabe",
+    "aufgaben",
+    "zu erledigen",
     "add a todo",
     "add todo",
     "add task",
@@ -40,18 +44,20 @@ TODO_DISCOVERY_KEYWORDS = frozenset({
 
 _TODO_NOUN = re.compile(
     r"\b(?:to[\s-]?dos?|tasks?|checklists?|checklist[\s-]?items?|"
-    r"aufgaben?|aufgabenlisten?|todo[\s-]?listen?)\b",
+    r"aufgaben?|aufgabenlisten?|todo[\s-]?listen?|zu\s+erledigen)\b",
     re.IGNORECASE,
 )
 _TODO_VERB = re.compile(
     r"\b(?:add|create|new|save|write|note|complete|finish|mark|reopen|remove|delete|list|show|"
     r"neu(?:e[snr]?)?|erstelle|erstellen|fuege|füge|hinzufuegen|hinzufügen|notiere|"
-    r"speichere|erledige|erledigen|abhaken|oeffne|öffne|wieder(?:\s+)?oeffnen|"
+    r"schreibe|schreiben|setze|setzen|setz|packe|packen|speichere|speichern|"
+    r"erledige|erledigen|abhaken|oeffne|öffne|wieder(?:\s+)?oeffnen|"
     r"wieder(?:\s+)?öffnen|loesche|lösche|entferne|entfernen|liste|zeige)\b",
     re.IGNORECASE,
 )
 _TODO_PREFIX = re.compile(
-    r"^\s*(?:to[\s-]?do|task|checklist[\s-]?item|aufgabe)\s*[:#-]",
+    r"^\s*(?:to[\s-]?dos?|tasks?|checklist[\s-]?items?|aufgaben?|zu\s+erledigen)\b"
+    r"(?:\s+[^:\n]{1,80})?\s*[:#-]",
     re.IGNORECASE,
 )
 

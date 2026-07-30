@@ -341,6 +341,20 @@ def test_correction_mentions_unsupported_claim_types(tmp_path: Path):
     assert "nicht verifiziert" in correction
 
 
+def test_test_claim_correction_names_exact_unsupported_assertion_without_persisting_it(tmp_path: Path):
+    assertion = "Das Ganze ist schon getestet in 3 neuen Tests."
+    report = evaluate_response_claims(assertion, [], repo_root=tmp_path)
+
+    correction = build_claim_evidence_correction(report)
+
+    assert report.ok is False
+    assert report.unsupported[0].claim_type == "command_passed"
+    assert f"Nicht verifiziert: \u201e{assertion}\u201c" in correction
+    assert "erfolgreicher Testlauf" in correction
+    assert assertion not in repr(report.to_dict())
+    assert assertion not in repr(report)
+
+
 def test_test_success_claim_accepts_verified_transaction_without_raw_tool_event(tmp_path: Path):
     tx = ToolTransaction.create(
         surface="agent",
