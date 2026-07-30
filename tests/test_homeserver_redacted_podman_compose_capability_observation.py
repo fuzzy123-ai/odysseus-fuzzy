@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import inspect
 import json
+import os
 import subprocess
 import sys
 import types
@@ -77,7 +78,7 @@ def _audit(**changes):
 
 def _values(changes=None):
     values = {
-        observation.VERSION_COMMAND: _Result("1.3.0\n"),
+        observation.VERSION_COMMAND: _Result(observation.EXPECTED_VERSION + "\n"),
         observation.GLOBAL_HELP_COMMAND: _Result("usage: podman-compose [--env-file FILE] [--project-name NAME]\n"),
         observation.BUILD_HELP_COMMAND: _Result("usage: podman-compose build SERVICE [SERVICE ...]\n"),
         observation.UP_HELP_COMMAND: _Result("usage: podman-compose up SERVICE [SERVICE ...] [--no-deps] [--no-build] [--force-recreate]\n"),
@@ -115,7 +116,8 @@ def test_structurally_proven_success_has_exact_schema_digest_and_only_fixed_read
     payload = _collect(calls=calls)
 
     assert payload["status"] == "ok" and set(payload) == observation._OK_KEYS
-    assert payload["podman_compose_version"] == "1.3.0"
+    assert observation.EXPECTED_VERSION == "1.6.0"
+    assert payload["podman_compose_version"] == "1.6.0"
     assert payload["service_scoped_dependency_exclusion_proven"] is True
     assert payload["rollback_force_recreate_proven"] is True
     assert payload["deployment_capability_supported"] is True
@@ -125,13 +127,28 @@ def test_structurally_proven_success_has_exact_schema_digest_and_only_fixed_read
         observation.VERSION_COMMAND, observation.GLOBAL_HELP_COMMAND, observation.BUILD_HELP_COMMAND,
         observation.UP_HELP_COMMAND, observation.SOURCE_AUDIT_COMMAND,
     ]
-    assert observation.VERSION_COMMAND == ("podman-compose", "version", "--short")
+    assert observation.VERSION_COMMAND == (observation._COMPOSE_EXECUTABLE, "version", "--short")
     assert len(calls) == 5 and all(kwargs["timeout"] == 1 and kwargs["stderr"] is subprocess.DEVNULL and kwargs["env"] == {"PATH": "/usr/bin:/bin"} and "shell" not in kwargs for _command, kwargs in calls)
     assert not any(any(word in command for word in ("up", "build", "down", "rm", "run")) for command, _kwargs in calls if command not in {observation.UP_HELP_COMMAND, observation.BUILD_HELP_COMMAND})
 
 
+def test_all_observation_commands_share_the_running_interpreter_environment():
+    compose_commands = (
+        observation.VERSION_COMMAND,
+        observation.GLOBAL_HELP_COMMAND,
+        observation.BUILD_HELP_COMMAND,
+        observation.UP_HELP_COMMAND,
+    )
+
+    assert observation._COMPOSE_EXECUTABLE == os.path.join(os.path.dirname(sys.executable), "podman-compose")
+    assert all(command[0] == observation._COMPOSE_EXECUTABLE for command in compose_commands)
+    assert observation.SOURCE_AUDIT_COMMAND[0] == sys.executable
+    assert all(os.path.dirname(command[0]) == os.path.dirname(observation.SOURCE_AUDIT_COMMAND[0]) for command in compose_commands)
+    assert "python3" not in observation.SOURCE_AUDIT_COMMAND[:3]
+
+
 def test_version_mismatch_and_missing_or_renamed_flags_fail_closed_without_partial_success():
-    mismatch = _collect({observation.VERSION_COMMAND: _Result("1.3.1\n")})
+    mismatch = _collect({observation.VERSION_COMMAND: _Result("1.6.1\n")})
     missing = _collect({observation.UP_HELP_COMMAND: _Result("usage: podman-compose up SERVICE [--no-build] [--force-recreate]\n")})
     renamed = _collect({observation.GLOBAL_HELP_COMMAND: _Result("usage: podman-compose [--environment-file FILE] [--project-name NAME]\n")})
 
@@ -141,27 +158,27 @@ def test_version_mismatch_and_missing_or_renamed_flags_fail_closed_without_parti
     assert all(set(item) in {observation._VERSION_BLOCKED_KEYS, observation._NEEDS_KEYS} for item in (mismatch, missing, renamed))
 
 
-def test_short_version_parser_accepts_only_one_1_3_0_line_and_emits_fixed_classes_without_values():
-    accepted = _collect({observation.VERSION_COMMAND: _Result("1.3.0\n")})
-    mismatch = _collect({observation.VERSION_COMMAND: _Result("1.3.1\n")})
+def test_short_version_parser_accepts_only_one_1_6_0_line_and_emits_fixed_classes_without_values():
+    accepted = _collect({observation.VERSION_COMMAND: _Result("1.6.0\n")})
+    mismatch = _collect({observation.VERSION_COMMAND: _Result("1.6.1\n")})
     malformed = {
         "version_output_empty": "",
-        "version_output_controls": "1.3.0\x1b[31m\n",
-        "version_output_multiline": "1.3.0\n5.3.1\n",
-        "version_output_line_shape": "podman-compose version 1.3.0\n",
+        "version_output_controls": "1.6.0\x1b[31m\n",
+        "version_output_multiline": "1.6.0\n5.3.1\n",
+        "version_output_line_shape": "podman-compose version 1.6.0\n",
     }
     blocked = {code: _collect({observation.VERSION_COMMAND: _Result(value)}) for code, value in malformed.items()}
 
-    assert accepted["status"] == "ok" and accepted["podman_compose_version"] == "1.3.0"
+    assert accepted["status"] == "ok" and accepted["podman_compose_version"] == "1.6.0"
     assert mismatch["status"] == "blocked" and mismatch["error_code"] == "version_mismatch"
     assert mismatch["diagnostic_code"] == "version_output_version_mismatch"
-    assert "1.3.1" not in json.dumps(mismatch)
+    assert "1.6.1" not in json.dumps(mismatch)
     assert all(set(item) == observation._VERSION_BLOCKED_KEYS and item["status"] == "blocked" and item["error_code"] == "malformed_output" and item["retry_permitted"] is False for item in blocked.values())
     assert {code: item["diagnostic_code"] for code, item in blocked.items()} == {code: code for code in malformed}
     assert all(value not in json.dumps(blocked) for value in ("5.3.1", "podman-compose", "\x1b"))
-    crlf = _collect({observation.VERSION_COMMAND: _Result("1.3.0\r\n")})
+    crlf = _collect({observation.VERSION_COMMAND: _Result("1.6.0\r\n")})
     assert crlf["error_code"] == "malformed_output" and crlf["diagnostic_code"] == "version_output_controls"
-    assert "1.3.0" not in json.dumps(crlf)
+    assert "1.6.0" not in json.dumps(crlf)
 
 
 def test_help_flags_and_global_or_wrong_scope_tokens_cannot_prove_dependency_exclusion_semantics():
@@ -208,8 +225,8 @@ def test_semantic_insufficiency_reports_every_missing_proof_in_fixed_order_witho
     assert "usage: " not in json.dumps((results, all_missing))
 
 
-def test_official_compose_1_3_0_shape_leaves_only_the_real_no_deps_semantic_gap(monkeypatch, capsys):
-    official_source = """
+def test_debian_podman_compose_1_3_0_adverse_fixture_cannot_produce_ok(monkeypatch, capsys):
+    debian_1_3_0_source = """
 def compose_build(args):
     for service in args.services:
         pass
@@ -229,16 +246,23 @@ def compose_up(compose,args):
     if args.force_recreate:
         pass
 """
-    source_audit = _run_source_audit_program(monkeypatch, capsys, official_source)
-    payload = _collect({
+    source_audit = _run_source_audit_program(monkeypatch, capsys, debian_1_3_0_source)
+    semantic_adverse = _collect({
         observation.BUILD_HELP_COMMAND: _Result("usage: podman-compose build [services ...]\n"),
         observation.UP_HELP_COMMAND: _Result("usage: podman-compose up [services ...] [--no-deps] [--no-build] [--force-recreate]\n"),
         observation.SOURCE_AUDIT_COMMAND: _Result(json.dumps(source_audit, ensure_ascii=True, sort_keys=True, separators=(",", ":")) + "\n"),
     })
+    version_adverse = _collect({
+        observation.VERSION_COMMAND: _Result("1.3.0\n"),
+        observation.SOURCE_AUDIT_COMMAND: _Result(json.dumps(source_audit, ensure_ascii=True, sort_keys=True, separators=(",", ":")) + "\n"),
+    })
 
-    assert payload["status"] == "needs_live_observation"
-    assert payload["missing_proofs"] == ["source_up_no_deps_guard_missing"]
-    assert payload["retry_permitted"] is False and payload["evidence_sha256"] == _digest(payload)
+    assert semantic_adverse["status"] == "needs_live_observation"
+    assert semantic_adverse["missing_proofs"] == ["source_up_no_deps_guard_missing"]
+    assert semantic_adverse["retry_permitted"] is False and semantic_adverse["evidence_sha256"] == _digest(semantic_adverse)
+    assert set(version_adverse) == observation._VERSION_BLOCKED_KEYS
+    assert version_adverse["status"] == "blocked" and version_adverse["error_code"] == "version_mismatch"
+    assert version_adverse["retry_permitted"] is False and "1.3.0" not in json.dumps(version_adverse)
 
 
 def _run_source_audit_program(monkeypatch, capsys, source):

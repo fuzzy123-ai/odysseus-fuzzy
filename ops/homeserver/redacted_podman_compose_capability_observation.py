@@ -12,23 +12,29 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import subprocess
+import sys
 from typing import Any, Callable, Mapping, Sequence
 
 
 SCHEMA_ID = "odysseus.redacted_podman_compose_capability_observation.v1"
 SOURCE_AUDIT_SCHEMA_ID = "odysseus.podman_compose_source_audit.v1"
-EXPECTED_VERSION = "1.3.0"
+# Bound to the selected official-provenance result for this Gate-B observer.
+EXPECTED_VERSION = "1.6.0"
 COMMAND_TIMEOUT_SECONDS = 1
 OUTER_TIMEOUT_SECONDS = 10
 MAX_OUTPUT_CHARS = 32_768
 MAX_SOURCE_CHARS = 1_000_000
 
-VERSION_COMMAND = ("podman-compose", "version", "--short")
-GLOBAL_HELP_COMMAND = ("podman-compose", "--help")
-BUILD_HELP_COMMAND = ("podman-compose", "build", "--help")
-UP_HELP_COMMAND = ("podman-compose", "up", "--help")
+# Keep command and source-audit identity in the running interpreter's
+# environment; neither executable path is serialized into the evidence record.
+_COMPOSE_EXECUTABLE = os.path.join(os.path.dirname(sys.executable), "podman-compose")
+VERSION_COMMAND = (_COMPOSE_EXECUTABLE, "version", "--short")
+GLOBAL_HELP_COMMAND = (_COMPOSE_EXECUTABLE, "--help")
+BUILD_HELP_COMMAND = (_COMPOSE_EXECUTABLE, "build", "--help")
+UP_HELP_COMMAND = (_COMPOSE_EXECUTABLE, "up", "--help")
 # This fixed isolated program reads only the installed package's public source
 # structure and emits a bounded boolean projection; it never emits source,
 # paths, environment, exceptions, or package metadata.
@@ -289,9 +295,9 @@ encoded = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(","
 payload["evidence_sha256"] = hashlib.sha256(encoded).hexdigest()
 print(json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":")))
 """
-SOURCE_AUDIT_COMMAND = ("python3", "-I", "-c", _SOURCE_AUDIT_PROGRAM)
+SOURCE_AUDIT_COMMAND = (sys.executable, "-I", "-c", _SOURCE_AUDIT_PROGRAM)
 
-_VERSION = re.compile(r"^1\.3\.0$")
+_VERSION = re.compile(r"^1\.6\.0$")
 _SHORT_VERSION_LINE = re.compile(r"^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 MAX_USAGE_BLOCK_LINES = 8
