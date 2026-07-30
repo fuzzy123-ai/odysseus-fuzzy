@@ -3650,6 +3650,36 @@ def test_polling_cycle_project_intake_preview_for_mobile_plan(tmp_path, monkeypa
     assert "TOKEN=" not in persisted_text
 
 
+def test_polling_cycle_personal_todo_bypasses_project_intake(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "todo-chat-1")
+    turns = []
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 61,
+            "message": {
+                "message_id": 71,
+                "chat": {"id": "todo-chat-1"},
+                "text": "Todo für Freitag: Videos speichern und Tobi schicken.",
+            },
+        }],
+        session_creator=lambda **_kwargs: {"session_id": "todo-session"},
+        agent_turn_handler=lambda bridge: turns.append(bridge) or {
+            "status": "accepted",
+            "reply_text": "",
+        },
+    )
+
+    assert result["status"] == "poll_ok"
+    assert result["processed"] == 1
+    assert result["agent_turns"] == 1
+    assert turns[0]["prompt"] == "Todo für Freitag: Videos speichern und Tobi schicken."
+    history = TelegramInboxStore(tmp_path).history(limit=30)
+    assert not any(item.get("kind") == "project_intake_review" for item in history)
+
+
 def test_project_commands_report_and_confirm_latest_intake_review(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "project-chat-1")
