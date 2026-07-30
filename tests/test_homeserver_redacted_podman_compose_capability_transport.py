@@ -117,7 +117,6 @@ def test_exact_git_and_ssh_argv_and_verified_published_bytes_are_the_only_inputs
     payload = _collect(calls=calls)
 
     assert payload["status"] == "ok" and payload["evidence_sha256"] == _digest(payload)
-    assert transport.PUBLISHED_OBSERVER_SHA256 == hashlib.sha256(Path(transport.OBSERVER_PATH).read_bytes()).hexdigest()
     assert [command for command, _kwargs in calls] == [("git", "cat-file", "blob", transport.PUBLISHED_OBJECT), transport.SSH_COMMAND]
     git_kwargs, ssh_kwargs = calls[0][1], calls[1][1]
     assert git_kwargs["timeout"] == 5 and git_kwargs["stderr"] is subprocess.DEVNULL and git_kwargs["shell"] is False

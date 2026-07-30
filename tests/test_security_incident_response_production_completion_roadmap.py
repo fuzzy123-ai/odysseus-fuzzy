@@ -1180,6 +1180,7 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
             "SEC158-COMPOSE-CANDIDATE-PROVENANCE-READONLY-20260730",
             "SEC159-COMPOSE-CANDIDATE-PROVENANCE-EGRESS-RECOVERY-20260730",
             "SEC163-ISOLATED-GATE-B-PUBLISH-20260730",
+            "SEC164-CROSS-PLATFORM-BLOB-REPAIR-PUBLISH-20260730",
         }
     packet = live_go_by_id["SIRP12-OBSERVE-PACKET-20260728"]
     assert packet["id"] == "SIRP12-OBSERVE-PACKET-20260728"
@@ -1380,11 +1381,8 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         assert sec159_provenance[authority_key] is False
 
     sec163_publish = live_go_by_id["SEC163-ISOLATED-GATE-B-PUBLISH-20260730"]
-    assert sec163_publish["status"] == "actions_consumed_pending_remote_readback"
-    assert (
-        sec163_publish["consumption_status"]
-        == "consumed_before_isolated_publication"
-    )
+    assert sec163_publish["status"] == "used_terminal_validation_failed_before_push"
+    assert sec163_publish["consumption_status"] == "consumed_terminal_no_push"
     assert sec163_publish["consumed"] is True
     assert sec163_publish["limits"] == {
         "maximum_local_commits": 2,
@@ -1402,9 +1400,17 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     assert sec163_publish["local_commit_counter"] == 2
     assert sec163_publish["clean_worktree_counter"] == 1
     assert sec163_publish["cherry_pick_counter"] == 2
-    assert sec163_publish["push_counter"] == 1
+    assert sec163_publish["push_counter"] == 0
     assert sec163_publish["force_push_counter"] == 0
     assert sec163_publish["external_action_executed"] is True
+    assert sec163_publish["terminal_result"] == {
+        "status": "blocked",
+        "stage": "clean_worktree_gate_b_validation",
+        "passed_tests": 81,
+        "failed_tests": 1,
+        "failure_class": "platform_dependent_worktree_line_endings",
+        "push_executed": False,
+    }
     assert sec163_publish["reuse_permitted"] is False
     for authority_key in (
         "package_or_host_change_authority",
@@ -1414,6 +1420,42 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         "delivery_or_send_authority",
     ):
         assert sec163_publish[authority_key] is False
+
+    sec164_publish = live_go_by_id[
+        "SEC164-CROSS-PLATFORM-BLOB-REPAIR-PUBLISH-20260730"
+    ]
+    assert sec164_publish["status"] == "actions_consumed_pending_remote_readback"
+    assert (
+        sec164_publish["consumption_status"]
+        == "consumed_before_repair_publication"
+    )
+    assert sec164_publish["consumed"] is True
+    assert sec164_publish["limits"] == {
+        "maximum_local_commits": 1,
+        "maximum_new_worktrees": 0,
+        "maximum_cherry_picks": 1,
+        "maximum_pushes": 1,
+        "force_pushes": 0,
+        "remote": "fuzzy",
+        "branch": "dev",
+        "expected_remote_parent": "67f0737de5bccdb5b8841e4ad9deee3df0107b74",
+        "path_count": 3,
+    }
+    assert sec164_publish["local_commit_counter"] == 1
+    assert sec164_publish["new_worktree_counter"] == 0
+    assert sec164_publish["cherry_pick_counter"] == 1
+    assert sec164_publish["push_counter"] == 1
+    assert sec164_publish["force_push_counter"] == 0
+    assert sec164_publish["external_action_executed"] is True
+    assert sec164_publish["reuse_permitted"] is False
+    for authority_key in (
+        "package_or_host_change_authority",
+        "live_observation_authority",
+        "public_ip_query_authority",
+        "deploy_authority",
+        "delivery_or_send_authority",
+    ):
+        assert sec164_publish[authority_key] is False
 
     evidence_text = LIVE_EVIDENCE_PATH.read_text(encoding="utf-8")
     projection = json.loads(
