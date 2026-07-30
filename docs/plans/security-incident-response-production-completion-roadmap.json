@@ -4,7 +4,7 @@
   "id": "SIRP",
   "title": "Security Incident Response Production Completion",
   "updated_at": "2026-07-30T12:04:24+02:00",
-  "status": "sec164_cross_platform_blob_test_repair_claimed",
+  "status": "sec169_host_state_readback_publication_ledger_consumed",
   "mode": "safe_offline_dependency_ordered",
   "goal": "Close the explicit gap between prepare-only security incident contracts and a production-validated assisted response system with bounded evidence, durable incident and action state, operator-bound approvals, typed executors, independent effect readback and rollback.",
   "slice_contract_fields": ["id", "priority", "class", "owner", "status", "claimable", "depends_on", "gate_requirements", "blockers", "allowed_paths", "hotfiles", "goal", "acceptance", "tests_evidence", "forbidden", "done_when", "completion_matrix"],
@@ -4437,19 +4437,209 @@
       "hotfiles": [
         "docs/plans/security-incident-response-production-completion-roadmap.json"
       ],
-      "state": "claimed",
+      "state": "released",
       "acquired_at": "2026-07-30T12:14:18+02:00",
       "lease_expires_at": "2026-07-30T13:14:18+02:00",
       "handoff_required": true,
       "live_actions": true,
       "phase": "cross_platform_git_blob_assertion_repair_then_existing_isolated_worktree_fast_forward",
       "independent_review": "Bob/Terra confirmed the Windows CRLF checkout versus canonical LF Git-blob mismatch and accepted removal of only the irrelevant worktree-byte assertion; the fixed digest, exact PUBLISHED_OBJECT argv and fail-closed blob mismatch tests remain unchanged.",
+      "released_at": "2026-07-30T12:19:00+02:00",
+      "release_reason": "The cross-platform repair passed 20 focused tests and the clean isolated Gate-B lane passed 82/82. The three-commit isolated line was fast-forwarded to fuzzy/dev at c5850998889660eb8074f94c45948548e26331f6; independent fetch readback confirmed the expected base, exact 15-path closure, exclusion of the Telegram commit and all three production artifact hashes.",
       "forbidden_actions": [
         "edit any path outside allowed_paths",
         "change the production observer, transport, provenance or host-change implementation",
         "create another worktree, push local dev, publish the unrelated Telegram commit, force push or rewrite history",
         "package, host, SSH, container, deploy, delivery, provider or public-IP action",
         "push unless the full isolated Gate-B lane passes and fuzzy/dev still equals 67f0737de5bccdb5b8841e4ad9deee3df0107b74"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC165-20260730-SELECTED-COMPOSE-HOST-CHANGE",
+      "thread_id": "/root",
+      "slice_id": "SEC165-one-use-selected-compose-host-change",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-30T12:19:00+02:00",
+      "lease_expires_at": "2026-07-30T12:29:00+02:00",
+      "handoff_required": true,
+      "live_actions": true,
+      "phase": "one_use_published_default_disabled_compose_candidate_host_change",
+      "released_at": "2026-07-30T12:22:00+02:00",
+      "release_reason": "The exact host-change wrapper was invoked once with no retry. Its stdout was captured and raw stderr discarded, but the local readback adapter called a nonexistent validator name and therefore could not accept or retain the fixed-key envelope. The host outcome is unknown_readback; repeating the mutation is forbidden. Only a new read-only capability observation may resolve installed capability.",
+      "forbidden_actions": [
+        "edit any path outside allowed_paths",
+        "print raw subprocess output, stderr, exception text, environment, credentials, paths or provider responses",
+        "retry, substitute a package, alter the target, remove an unknown target or perform any rollback outside the published wrapper",
+        "run a capability observation, public-IP query, deploy, delivery or provider action",
+        "reuse the host-change grant after its one terminal invocation"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC166-20260730-POST-HOST-CHANGE-CAPABILITY-OBSERVATION",
+      "thread_id": "/root",
+      "slice_id": "SEC166-one-use-published-compose-capability-observation",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-30T12:22:00+02:00",
+      "lease_expires_at": "2026-07-30T12:52:00+02:00",
+      "handoff_required": true,
+      "live_actions": true,
+      "phase": "one_use_read_only_published_compose_capability_observation",
+      "released_at": "2026-07-30T12:25:00+02:00",
+      "release_reason": "The one-use published read-only transport returned a strictly validated fixed-key transport_failed/ssh_unexpected_returncode envelope and was not retried. Because the current transport discards remote stdout before validating a possible returncode-1 observer envelope, the host capability remains unresolved and a repo-only semantic returncode transport repair is required.",
+      "forbidden_actions": [
+        "edit any path outside allowed_paths",
+        "repeat the SEC165 host change or perform any package, target, cleanup or rollback action",
+        "print raw SSH stdout, stderr, exception text, environment, credentials, paths or provider responses outside the published transport boundary",
+        "retry or issue follow-on queries",
+        "public-IP query, deploy, delivery or provider action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC167-20260730-SEMANTIC-OBSERVER-RETURNCODE-TRANSPORT-REPAIR",
+      "thread_id": "/root",
+      "slice_id": "SEC167-semantic-observer-returncode-transport-repair",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "tests/test_security_incident_response_production_completion_roadmap.py",
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-30T12:25:00+02:00",
+      "lease_expires_at": "2026-07-30T13:25:00+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "phase": "repo_only_semantic_returncode_and_strict_observer_envelope_binding",
+      "released_at": "2026-07-30T12:29:00+02:00",
+      "release_reason": "Independent Bob/Terra and Charlie/Terra review found that the existing transport already validates stdout before returncode routing and safely accepts valid needs_live/blocked envelopes at rc 1. SEC166 instead produced invalid or absent stdout with an unexpected non-0/1/255 process code, so the proposed rc-1 repair would not diagnose or fix the observed boundary. No implementation change was made.",
+      "forbidden_actions": [
+        "edit any path outside allowed_paths",
+        "weaken fixed-key observer schema, digest validation, published-blob hash binding, SSH argv or timeout boundaries",
+        "forward raw stdout, stderr, exception text, environment, credentials, paths or provider responses",
+        "stage, commit, push or fetch",
+        "SSH, network, package, host, public-IP, deploy, delivery or provider action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC168-20260730-COMPOSE-CANDIDATE-HOST-STATE-READBACK",
+      "thread_id": "/root",
+      "slice_id": "SEC168-root-ledger-and-deep-review",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-30T12:29:00+02:00",
+      "lease_expires_at": "2026-07-30T13:59:00+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "phase": "repo_only_host_state_readback_contract_and_deep_review",
+      "released_at": "2026-07-30T12:29:30+02:00",
+      "release_reason": "Alice/Terra implementation and Charlie/Terra adversarial tests were accepted after independent root/Sol source review, no-mutation API scan, py_compile, diff check and a fresh 7-test pass. The observer emits only a canonical fixed-key envelope and never serializes child output, paths, versions, environment values or exception text.",
+      "forbidden_actions": [
+        "edit worker-owned implementation or test paths before handoff",
+        "stage, commit, push or fetch",
+        "SSH, network, package, host, public-IP, deploy, delivery or provider action",
+        "invent host outcome from SEC165 or SEC166"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC168-20260730-COMPOSE-CANDIDATE-HOST-STATE-READBACK",
+      "thread_id": "/root/sec158_instantiation_alice",
+      "slice_id": "SEC168-fixed-redacted-host-state-observer",
+      "owner": "Alice/Terra",
+      "allowed_paths": [
+        "ops/homeserver/redacted_compose_candidate_host_readback.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-30T12:29:00+02:00",
+      "lease_expires_at": "2026-07-30T13:29:00+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "phase": "repo_only_fixed_key_host_state_readback_implementation",
+      "released_at": "2026-07-30T12:29:30+02:00",
+      "release_reason": "Implementation handoff accepted by root/Sol after independent review and fresh verification; script sha256 f5d2324b67875324fd98ade26636b5d6b4ae3167c935483afce3d6683070e19e.",
+      "forbidden_actions": [
+        "edit any path outside allowed_paths",
+        "emit target paths, environment, credentials, subprocess output, exception text or package/provider responses",
+        "perform cleanup, mutation, package install or rollback",
+        "stage, commit, push, fetch, SSH, network, host, public-IP, deploy or delivery action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC168-20260730-COMPOSE-CANDIDATE-HOST-STATE-READBACK",
+      "thread_id": "/root/sec157_instantiation_charlie",
+      "slice_id": "SEC168-adversarial-host-state-readback-tests",
+      "owner": "Charlie/Terra",
+      "allowed_paths": [
+        "tests/test_redacted_compose_candidate_host_readback.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-30T12:29:00+02:00",
+      "lease_expires_at": "2026-07-30T13:29:00+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "phase": "repo_only_adversarial_host_state_readback_contract_tests",
+      "released_at": "2026-07-30T12:29:30+02:00",
+      "release_reason": "Adversarial test handoff accepted by root/Sol after a fresh 7-test pass, py_compile and diff check; test sha256 b56e595e3d9615c159faac2f1b49a8f565dc694ea0974c325022f26e502241ac.",
+      "forbidden_actions": [
+        "edit any path outside allowed_paths",
+        "weaken fixed-key, canonical-digest, zero-mutation or raw-output exclusion requirements",
+        "stage, commit, push, fetch, SSH, network, host, public-IP, deploy or delivery action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC169-20260730-HOST-STATE-READBACK-PUBLICATION",
+      "thread_id": "/root",
+      "slice_id": "SEC169-isolated-host-state-readback-publication",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "tests/test_security_incident_response_production_completion_roadmap.py",
+        "ops/homeserver/redacted_compose_candidate_host_readback.py",
+        "tests/test_redacted_compose_candidate_host_readback.py"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "claimed",
+      "acquired_at": "2026-07-30T12:29:30+02:00",
+      "lease_expires_at": "2026-07-30T13:29:30+02:00",
+      "handoff_required": true,
+      "live_actions": true,
+      "phase": "exact_commit_existing_clean_worktree_cherry_pick_and_fuzzy_dev_fast_forward",
+      "forbidden_actions": [
+        "stage any path outside allowed_paths",
+        "create another worktree or push local dev",
+        "publish the unrelated Telegram commit, force push, rewrite history, reset, clean or auto-resolve conflicts",
+        "SSH, package, host, public-IP, deploy, delivery or provider action",
+        "push unless fuzzy/dev still equals c5850998889660eb8074f94c45948548e26331f6"
       ]
     },
     {
@@ -4654,6 +4844,46 @@
   ],
   "live_go": [
     {
+      "id": "SEC169-HOST-STATE-READBACK-PUBLISH-20260730",
+      "run_id": "ABC-SEC169-20260730-HOST-STATE-READBACK-PUBLICATION",
+      "action": "git_commit_cherry_pick_and_push",
+      "target_class": "four exact SEC168 host-state readback implementation, tests and durable roadmap paths on the existing isolated OPS Alert publication line",
+      "artifact_or_inputs": "expected fuzzy/dev parent c5850998889660eb8074f94c45948548e26331f6; readback sha256 f5d2324b67875324fd98ade26636b5d6b4ae3167c935483afce3d6683070e19e; test sha256 b56e595e3d9615c159faac2f1b49a8f565dc694ea0974c325022f26e502241ac",
+      "granted_by": "owner instruction on 2026-07-30 to finish OPS Alert live without further explicit live GO; exact corrective readback publication scope only",
+      "granted_at": "2026-07-30T12:29:30+02:00",
+      "expires_at": "run_end",
+      "limits": {
+        "maximum_local_commits": 1,
+        "maximum_new_worktrees": 0,
+        "maximum_cherry_picks": 1,
+        "maximum_pushes": 1,
+        "force_pushes": 0,
+        "remote": "fuzzy",
+        "branch": "dev",
+        "expected_remote_parent": "c5850998889660eb8074f94c45948548e26331f6",
+        "path_count": 4
+      },
+      "rollback_or_recovery": "stop before push on any validation or remote-parent mismatch; after push only a separately reviewed forward revert is permitted",
+      "readback": "independent remote revision, parent, exact path set and readback/test SHA-256 values",
+      "revocable": true,
+      "consumed": true,
+      "status": "actions_consumed_pending_remote_readback",
+      "consumption_status": "consumed_before_publication",
+      "consumed_at": "2026-07-30T12:29:30+02:00",
+      "local_commit_counter": 1,
+      "new_worktree_counter": 0,
+      "cherry_pick_counter": 1,
+      "push_counter": 1,
+      "force_push_counter": 0,
+      "external_action_executed": true,
+      "reuse_permitted": false,
+      "package_or_host_change_authority": false,
+      "live_observation_authority": false,
+      "public_ip_query_authority": false,
+      "deploy_authority": false,
+      "delivery_or_send_authority": false
+    },
+    {
       "id": "SEC163-ISOLATED-GATE-B-PUBLISH-20260730",
       "run_id": "ABC-SEC163-20260730-ISOLATED-GATE-B-PUBLICATION",
       "action": "git_commit_and_push",
@@ -4727,8 +4957,8 @@
       "readback": "independent remote revision, parent chain, exact 15-path closure and three production artifact SHA-256 values",
       "revocable": true,
       "consumed": true,
-      "status": "actions_consumed_pending_remote_readback",
-      "consumption_status": "consumed_before_repair_publication",
+      "status": "used_completed_remote_readback",
+      "consumption_status": "consumed_terminal_completed",
       "consumed_at": "2026-07-30T12:14:18+02:00",
       "local_commit_counter": 1,
       "new_worktree_counter": 0,
@@ -4736,9 +4966,101 @@
       "push_counter": 1,
       "force_push_counter": 0,
       "external_action_executed": true,
+      "terminal_result": {
+        "status": "completed",
+        "remote_revision": "c5850998889660eb8074f94c45948548e26331f6",
+        "remote_tree": "5cc3c261a0f2a01c195a6f0ef39c25d2f961c247",
+        "expected_base_is_ancestor": true,
+        "changed_path_count": 15,
+        "telegram_commit_is_ancestor": false,
+        "gate_b_tests": "82 passed",
+        "observer_sha256": "c4a48afb4d6c92e94f96ce3c13cf200cfadfadaf6b8710e1ce8977791c713f09",
+        "transport_sha256": "bd6d20e43b75508a32707f7935360476441446be4e145057731935ce9c97cb54",
+        "host_change_sha256": "36332245325d1b5e852b1336d00f2e0e41a495442e351ee5fd74fefa9834d624"
+      },
       "reuse_permitted": false,
       "package_or_host_change_authority": false,
       "live_observation_authority": false,
+      "public_ip_query_authority": false,
+      "deploy_authority": false,
+      "delivery_or_send_authority": false
+    },
+    {
+      "id": "SEC165-SELECTED-COMPOSE-HOST-CHANGE-20260730",
+      "run_id": "ABC-SEC165-20260730-SELECTED-COMPOSE-HOST-CHANGE",
+      "action": "package_or_host_change",
+      "target_class": "one exact default-disabled user-owned podman-compose 1.6.0 runtime at /home/homebase/.local/share/odysseus-compose-1.6.0",
+      "artifact_or_inputs": "published fuzzy/dev revision c5850998889660eb8074f94c45948548e26331f6; host-change sha256 36332245325d1b5e852b1336d00f2e0e41a495442e351ee5fd74fefa9834d624; podman-compose 1.6.0 sdist sha256 c83fd9bcbaa635100d581ce52a7a4b712ee0d457481232aff392efe3ebc5a217",
+      "granted_by": "owner instruction on 2026-07-30 to finish OPS Alert live without further explicit live GO; exact host-change ledger remains separately bounded",
+      "granted_at": "2026-07-30T12:19:00+02:00",
+      "expires_at": "2026-07-30T12:28:00+02:00",
+      "limits": {
+        "maximum_invocations": 1,
+        "maximum_results": 1,
+        "maximum_wall_clock_seconds": 300,
+        "retries": 0,
+        "package_substitutions": 0,
+        "target_substitutions": 0
+      },
+      "rollback_or_recovery": "the published wrapper alone may remove an ownership-verified temp or target created by this invocation; unknown publication identity is terminal and must not be deleted",
+      "readback": "one repository-owned fixed-key validated host-change envelope and canonical evidence_sha256 only; no raw stdout, stderr, exception, provider response, environment or credential data",
+      "revocable": true,
+      "consumed": true,
+      "status": "used_terminal_unknown_readback",
+      "consumption_status": "consumed_terminal_no_retry",
+      "consumed_at": "2026-07-30T12:19:00+02:00",
+      "invocation_counter": 1,
+      "result_counter": 0,
+      "retry_counter": 0,
+      "external_action_executed": true,
+      "terminal_result": {
+        "status": "unknown_readback",
+        "reason_code": "local_validator_name_mismatch",
+        "host_change_repeated": false,
+        "retry_permitted": false
+      },
+      "reuse_permitted": false,
+      "live_observation_authority": false,
+      "public_ip_query_authority": false,
+      "deploy_authority": false,
+      "delivery_or_send_authority": false
+    },
+    {
+      "id": "SEC166-POST-HOST-CHANGE-COMPOSE-OBSERVE-20260730",
+      "run_id": "ABC-SEC166-20260730-POST-HOST-CHANGE-CAPABILITY-OBSERVATION",
+      "action": "other/read_only_observation",
+      "target_class": "published podman-compose 1.6.0 capability through the repository-owned strict redacted transport",
+      "artifact_or_inputs": "fuzzy/dev revision c5850998889660eb8074f94c45948548e26331f6; transport sha256 bd6d20e43b75508a32707f7935360476441446be4e145057731935ce9c97cb54; observer sha256 c4a48afb4d6c92e94f96ce3c13cf200cfadfadaf6b8710e1ce8977791c713f09",
+      "granted_by": "owner instruction on 2026-07-30 to finish OPS Alert live without further explicit live GO; read-only recovery after the one-use host-change readback adapter failed",
+      "granted_at": "2026-07-30T12:22:00+02:00",
+      "expires_at": "run_end",
+      "limits": {
+        "arguments": 0,
+        "maximum_invocations": 1,
+        "maximum_results": 1,
+        "outer_timeout_seconds": 30,
+        "follow_on_queries": 0,
+        "retries": 0
+      },
+      "rollback_or_recovery": "read-only and terminal on every result; do not retry and do not infer host mutation details",
+      "readback": "one repository-owned strictly validated fixed-key transport or preserved-observer envelope plus canonical evidence_sha256 only",
+      "revocable": true,
+      "consumed": true,
+      "status": "used_terminal_blocked",
+      "consumption_status": "consumed_terminal_no_retry",
+      "consumed_at": "2026-07-30T12:22:00+02:00",
+      "invocation_counter": 1,
+      "result_counter": 1,
+      "external_action_executed": true,
+      "terminal_result": {
+        "schema_id": "odysseus.redacted_podman_compose_capability_transport.v2",
+        "status": "blocked",
+        "error_code": "transport_failed",
+        "diagnostic_code": "ssh_unexpected_returncode",
+        "retry_permitted": false,
+        "evidence_sha256": "e2cbb8609cf9c38b5844fcd66d53a3596b8d7b5b662647b5e08c3c4aaf289a3f"
+      },
+      "reuse_permitted": false,
       "public_ip_query_authority": false,
       "deploy_authority": false,
       "delivery_or_send_authority": false
@@ -9776,7 +10098,7 @@
       "deploy-live-go"
     ],
     "owner_of_queue_registration": "root",
-    "claim_status_now": "sec164_cross_platform_blob_test_repair_claimed",
+    "claim_status_now": "sec169_host_state_readback_publication_ledger_consumed",
     "dependency_order": [
       "implement and deep-review offline observer and transport candidate fixtures while Debian 1.3.0 remains a negative needs_live_observation fixture",
       "publish the exact reviewed observer and transport candidate under separate Git authority",
@@ -9789,5 +10111,5 @@
       "send exactly once and independently read back durable receipt plus human confirmation"
     ]
   },
-  "recommended_next_action": "Complete the exact SEC164 cross-platform Git-blob test repair, rerun the full isolated 82-test Gate-B lane, and publish only if fuzzy/dev still equals the expected parent. Then independently read back the revision and artifact hashes before any separately ledgered host change. OPS-ALERT-C2 remains mandatory before D."
+  "recommended_next_action": "Publish the exact four-path SEC169 host-state readback slice through the existing isolated worktree, independently read back the remote bytes, then prepare a separate one-use read-only host-state query ledger. Do not repeat SEC165 or SEC166."
 }
