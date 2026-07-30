@@ -31,7 +31,17 @@ MAX_SOURCE_CHARS = 1_000_000
 # Keep command and source-audit identity in the running interpreter's
 # environment; neither executable path is serialized into the evidence record.
 _COMPOSE_EXECUTABLE = os.path.join(os.path.dirname(sys.executable), "podman-compose")
-VERSION_COMMAND = (_COMPOSE_EXECUTABLE, "version", "--short")
+_VERSION_PROGRAM = (
+    "import importlib.metadata as metadata,pathlib,sys,podman_compose;"
+    "root=pathlib.Path(sys.prefix).resolve();"
+    "module=pathlib.Path(podman_compose.__file__).resolve();"
+    "distribution=metadata.distribution('podman-compose');"
+    "distribution_root=pathlib.Path(distribution.locate_file('')).resolve();"
+    "print(distribution.version if root in module.parents and "
+    "root in distribution_root.parents and distribution_root in module.parents "
+    "else 'identity-mismatch')"
+)
+VERSION_COMMAND = (sys.executable, "-I", "-c", _VERSION_PROGRAM)
 GLOBAL_HELP_COMMAND = (_COMPOSE_EXECUTABLE, "--help")
 BUILD_HELP_COMMAND = (_COMPOSE_EXECUTABLE, "build", "--help")
 UP_HELP_COMMAND = (_COMPOSE_EXECUTABLE, "up", "--help")

@@ -127,14 +127,22 @@ def test_structurally_proven_success_has_exact_schema_digest_and_only_fixed_read
         observation.VERSION_COMMAND, observation.GLOBAL_HELP_COMMAND, observation.BUILD_HELP_COMMAND,
         observation.UP_HELP_COMMAND, observation.SOURCE_AUDIT_COMMAND,
     ]
-    assert observation.VERSION_COMMAND == (observation._COMPOSE_EXECUTABLE, "version", "--short")
+    assert observation.VERSION_COMMAND == (
+        sys.executable,
+        "-I",
+        "-c",
+        observation._VERSION_PROGRAM,
+    )
+    assert "metadata.distribution('podman-compose')" in observation._VERSION_PROGRAM
+    assert "distribution.locate_file('')" in observation._VERSION_PROGRAM
+    assert "root in module.parents" in observation._VERSION_PROGRAM
+    assert "distribution_root in module.parents" in observation._VERSION_PROGRAM
     assert len(calls) == 5 and all(kwargs["timeout"] == 1 and kwargs["stderr"] is subprocess.DEVNULL and kwargs["env"] == {"PATH": "/usr/bin:/bin"} and "shell" not in kwargs for _command, kwargs in calls)
     assert not any(any(word in command for word in ("up", "build", "down", "rm", "run")) for command, _kwargs in calls if command not in {observation.UP_HELP_COMMAND, observation.BUILD_HELP_COMMAND})
 
 
 def test_all_observation_commands_share_the_running_interpreter_environment():
     compose_commands = (
-        observation.VERSION_COMMAND,
         observation.GLOBAL_HELP_COMMAND,
         observation.BUILD_HELP_COMMAND,
         observation.UP_HELP_COMMAND,
@@ -142,6 +150,7 @@ def test_all_observation_commands_share_the_running_interpreter_environment():
 
     assert observation._COMPOSE_EXECUTABLE == os.path.join(os.path.dirname(sys.executable), "podman-compose")
     assert all(command[0] == observation._COMPOSE_EXECUTABLE for command in compose_commands)
+    assert observation.VERSION_COMMAND[0] == sys.executable
     assert observation.SOURCE_AUDIT_COMMAND[0] == sys.executable
     assert all(os.path.dirname(command[0]) == os.path.dirname(observation.SOURCE_AUDIT_COMMAND[0]) for command in compose_commands)
     assert "python3" not in observation.SOURCE_AUDIT_COMMAND[:3]
