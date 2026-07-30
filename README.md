@@ -327,10 +327,9 @@ python setup.py
 python -m uvicorn app:app --host 127.0.0.1 --port 7000
 ```
 
-If `python` points at an older interpreter, use `py -3.12` (or another installed
-3.11+ version) for the venv step.
+If `python` points at an older interpreter, use `py -3.11` for the venv step.
 
-**Requirements:** Python 3.11+. The core app (chat, agent, memory, documents,
+**Requirements:** Supported Python baseline: 3.11. The core app (chat, agent, memory, documents,
 email, calendar, deep research) runs fully native. For full **Cookbook** background
 model downloads and the agent shell tool, also install
 [Git for Windows](https://git-scm.com/download/win) (provides `bash.exe`).
