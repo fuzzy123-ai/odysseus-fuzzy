@@ -7,6 +7,7 @@ import httpx
 import pytest
 
 from src import llm_core
+from src import local_model_scheduler
 from src.local_model_scheduler import (
     LocalModelAdmissionRegistry,
     LocalModelRequestGate,
@@ -568,6 +569,30 @@ def test_maintenance_cpu_checkpoint_yields_while_local_model_is_active():
 
     assert result.yielded is True
     assert result.sleep_count >= 1
+    assert result.reason == "max_pause_reached"
+
+
+def test_maintenance_cpu_checkpoint_never_sleeps_past_max_pause_between_clock_reads(monkeypatch):
+    gate = LocalModelRequestGate(max_concurrency=1)
+    lease = gate.acquire(kind="foreground", url="http://ollama:11434/api/chat", model="gemma3:4b")
+    clock_values = iter((0.0, 0.5, 1.1, 1.1))
+    sleep_calls = []
+
+    monkeypatch.setattr(local_model_scheduler.time, "monotonic", lambda: next(clock_values))
+
+    def controlled_sleep(seconds):
+        assert seconds >= 0
+        sleep_calls.append(seconds)
+
+    monkeypatch.setattr(local_model_scheduler.time, "sleep", controlled_sleep)
+    try:
+        result = maintenance_cpu_checkpoint(gate=gate, sleep_seconds=5.0, max_pause_seconds=1.0)
+    finally:
+        gate.release(lease)
+
+    assert sleep_calls == [0.5]
+    assert result.yielded is True
+    assert result.sleep_count == 1
     assert result.reason == "max_pause_reached"
 
 

@@ -496,7 +496,8 @@ def maintenance_cpu_checkpoint(
                     "clear",
                 )
             )
-        if max_pause <= 0 or time.monotonic() - start >= max_pause:
+        elapsed = time.monotonic() - start
+        if max_pause <= 0 or elapsed >= max_pause:
             return _finish_maintenance_yield(
                 MaintenanceYieldResult(
                     sleep_count > 0,
@@ -505,7 +506,8 @@ def maintenance_cpu_checkpoint(
                     "max_pause_reached",
                 )
             )
-        time.sleep(min(sleep_for, max_pause - (time.monotonic() - start)))
+        remaining = max(0.0, max_pause - elapsed)
+        time.sleep(min(sleep_for, remaining))
         sleep_count += 1
 
 
