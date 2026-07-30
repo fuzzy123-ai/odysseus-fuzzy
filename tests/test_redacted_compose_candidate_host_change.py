@@ -5,6 +5,7 @@ import hashlib
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 from ops.homeserver import redacted_compose_candidate_host_change as host_change
 
@@ -125,8 +126,6 @@ class _Runner:
             return _Result(returncode=self.venv_returncode)
         if command[1:5] == ("-m", "pip", "install", "--no-deps"):
             return _Result(returncode=self.pip_returncode)
-        if command[-2:] == ("version", "--short"):
-            return _Result(host_change.EXPECTED_VERSION + "\n")
         if command[1:3] == ("-I", "-c"):
             if command[0].startswith(host_change.TEMP_TARGET_PATH + "/"):
                 if self.late_target_race:
@@ -205,13 +204,59 @@ def test_success_uses_exact_target_selected_package_hash_and_atomic_publish_with
         "--disable-pip-version-check", "--no-cache-dir", "--index-url", host_change.OFFICIAL_PYPI_SIMPLE_INDEX,
         "-r", host_change.REQUIREMENTS_PATH,
     )
-    assert commands[2][0] == host_change.TEMP_TARGET_PATH + "/bin/podman-compose"
-    assert commands[4][0] == host_change.TARGET_PATH + "/bin/podman-compose"
+    assert commands[2] == (
+        host_change.TEMP_TARGET_PATH + "/bin/python",
+        "-I",
+        "-c",
+        host_change._IDENTITY_PROGRAM,
+    )
+    assert commands[3] == (
+        host_change.TARGET_PATH + "/bin/python",
+        "-I",
+        "-c",
+        host_change._IDENTITY_PROGRAM,
+    )
+    assert len(commands) == 4
+    assert "metadata.distribution('podman-compose')" in host_change._IDENTITY_PROGRAM
+    assert "distribution.locate_file('')" in host_change._IDENTITY_PROGRAM
+    assert "version=='1.6.0'" in host_change._IDENTITY_PROGRAM
     assert all(
         kwargs["stderr"] is subprocess.DEVNULL and kwargs["shell"] is False and kwargs["env"] == host_change._MINIMAL_ENV
         for _command, kwargs in runner.calls
     )
     assert all(value not in json.dumps(payload) for value in (host_change.TARGET_PATH, host_change.SELECTED_PACKAGE, host_change.SELECTED_SDIST_SHA256))
+
+
+def test_identity_path_expression_rejects_split_distribution_and_module_provenance():
+    root = Path("/candidate")
+    local_distribution = Path("/candidate/lib/site-packages")
+    local_module = local_distribution / "podman_compose.py"
+    global_distribution = Path("/usr/lib/python/site-packages")
+    split_module = Path("/candidate/other/podman_compose.py")
+
+    assert eval(
+        host_change._IDENTITY_PATH_EXPRESSION,
+        {},
+        {
+            "root": root,
+            "distribution_root": local_distribution,
+            "module": local_module,
+        },
+    ) is True
+    for distribution_root, module in (
+        (global_distribution, local_module),
+        (local_distribution, split_module),
+        (global_distribution, split_module),
+    ):
+        assert eval(
+            host_change._IDENTITY_PATH_EXPRESSION,
+            {},
+            {
+                "root": root,
+                "distribution_root": distribution_root,
+                "module": module,
+            },
+        ) is False
 
 
 def test_precondition_adverses_do_not_run_subprocesses_and_reject_symlink_targets():
