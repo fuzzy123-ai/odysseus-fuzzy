@@ -2,17 +2,16 @@
 """Read one fixed, redacted Podman Compose capability observation.
 
 This is an observation-only contract for a future live deployment decision. It
-never starts, builds, recreates, removes, or inspects containers.  Help flags
-establish parser availability only; a separate bounded local source audit must
-also establish the conservative service/dependency semantics before ``ok`` is
-possible.  Otherwise the honest terminal result is ``needs_live_observation``.
+never starts, builds, recreates, removes, or inspects containers. A bounded
+local source-AST audit establishes both parser availability and conservative
+service/dependency semantics before ``ok`` is possible. Otherwise the honest
+terminal result is ``needs_live_observation``.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 import subprocess
 import sys
@@ -30,7 +29,6 @@ MAX_SOURCE_CHARS = 1_000_000
 
 # Keep command and source-audit identity in the running interpreter's
 # environment; neither executable path is serialized into the evidence record.
-_COMPOSE_EXECUTABLE = os.path.join(os.path.dirname(sys.executable), "podman-compose")
 _VERSION_PROGRAM = (
     "import importlib.metadata as metadata,pathlib,sys,podman_compose;"
     "root=pathlib.Path(sys.prefix).resolve();"
@@ -42,9 +40,6 @@ _VERSION_PROGRAM = (
     "else 'identity-mismatch')"
 )
 VERSION_COMMAND = (sys.executable, "-I", "-c", _VERSION_PROGRAM)
-GLOBAL_HELP_COMMAND = (_COMPOSE_EXECUTABLE, "--help")
-BUILD_HELP_COMMAND = (_COMPOSE_EXECUTABLE, "build", "--help")
-UP_HELP_COMMAND = (_COMPOSE_EXECUTABLE, "up", "--help")
 # This fixed isolated program reads only the installed package's public source
 # structure and emits a bounded boolean projection; it never emits source,
 # paths, environment, exceptions, or package metadata.
@@ -279,7 +274,183 @@ def no_deps_controls_expansion(nodes):
             return True
     return False
 
+def parser_argument_contract(main_handler):
+    empty = {
+        "global_env_file_parser_present": False,
+        "global_project_name_parser_present": False,
+        "build_service_argument_present": False,
+        "up_service_argument_present": False,
+        "up_no_deps_parser_present": False,
+        "up_no_build_parser_present": False,
+        "up_force_recreate_parser_present": False,
+    }
+    if main_handler is None:
+        return empty
+    # CLI proof is intentionally limited to direct main() statements. Parser
+    # construction or parsing nested under any branch, loop, try/match block,
+    # context manager, nested function or lambda is non-dominating and cannot
+    # establish the real command-line contract.
+    nodes = []
+    for statement in main_handler.body:
+        if not isinstance(statement, (ast.Assign, ast.AnnAssign, ast.Expr)):
+            continue
+        nodes.append(statement)
+        value = statement.value
+        if isinstance(value, ast.Call):
+            nodes.append(value)
+    parse_receivers = [
+        node.func.value.id
+        for node in nodes
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "parse_args"
+            and isinstance(node.func.value, ast.Name)
+        )
+    ]
+    if len(parse_receivers) != 1:
+        return empty
+    active_parser_name = parse_receivers[0]
+    def stored_names(target):
+        if isinstance(target, ast.Name):
+            return [target.id]
+        if isinstance(target, ast.Starred):
+            return stored_names(target.value)
+        if isinstance(target, (ast.Tuple, ast.List)):
+            return [name for element in target.elts for name in stored_names(element)]
+        return []
+
+    store_counts = {}
+    for statement in main_handler.body:
+        for node in ast.walk(statement):
+            if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+                store_counts[node.id] = store_counts.get(node.id, 0) + 1
+    if store_counts.get(active_parser_name) != 1:
+        return empty
+    active_parser_assignments = 0
+    for node in nodes:
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        if not any(isinstance(target, ast.Name) and target.id == active_parser_name for target in targets):
+            continue
+        value = node.value
+        if (
+            isinstance(value, ast.Call)
+            and (
+                isinstance(value.func, ast.Attribute)
+                and value.func.attr == "ArgumentParser"
+                or isinstance(value.func, ast.Name)
+                and value.func.id == "ArgumentParser"
+            )
+        ):
+            active_parser_assignments += 1
+    if active_parser_assignments != 1:
+        return empty
+
+    arguments = {"global": set(), "build": set(), "up": set()}
+    parser_kinds = {}
+    subparser_names = set()
+    for node in nodes:
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        value = node.value
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        names = [name for target in targets for name in stored_names(target)]
+        if not names or not isinstance(value, ast.Call):
+            continue
+        if (
+            isinstance(value.func, ast.Attribute)
+            and value.func.attr == "ArgumentParser"
+        ) or (
+            isinstance(value.func, ast.Name)
+            and value.func.id == "ArgumentParser"
+        ):
+            for name in names:
+                if name == active_parser_name:
+                    parser_kinds[name] = "global"
+        elif (
+            isinstance(value.func, ast.Attribute)
+            and isinstance(value.func.value, ast.Name)
+            and value.func.value.id in parser_kinds
+            and parser_kinds[value.func.value.id] == "global"
+            and value.func.attr == "add_subparsers"
+        ):
+            subparser_names.update(names)
+        elif (
+            isinstance(value.func, ast.Attribute)
+            and isinstance(value.func.value, ast.Name)
+            and value.func.value.id in subparser_names
+            and value.func.attr == "add_parser"
+            and value.args
+            and isinstance(value.args[0], ast.Constant)
+            and isinstance(value.args[0].value, str)
+        ):
+            for name in names:
+                parser_kinds[name] = value.args[0].value
+
+    if any(store_counts.get(name) != 1 for name in set(parser_kinds) | subparser_names):
+        return empty
+
+    allowed_methods = {
+        "global": {"add_argument", "add_subparsers", "parse_args"},
+        "build": {"add_argument", "set_defaults"},
+        "up": {"add_argument", "set_defaults"},
+        "subparsers": {"add_parser"},
+    }
+    parser_roles = dict(parser_kinds)
+    parser_roles.update({name: "subparsers" for name in subparser_names})
+    for statement in main_handler.body:
+        if not isinstance(statement, (ast.Assign, ast.AnnAssign, ast.Expr)):
+            continue
+        parents = {
+            child: parent
+            for parent in ast.walk(statement)
+            for child in ast.iter_child_nodes(parent)
+        }
+        for node in ast.walk(statement):
+            if not (
+                isinstance(node, ast.Name)
+                and isinstance(node.ctx, ast.Load)
+                and node.id in parser_roles
+            ):
+                continue
+            parent = parents.get(node)
+            if not (
+                isinstance(parent, ast.Attribute)
+                and parent.value is node
+                and parent.attr in allowed_methods[parser_roles[node.id]]
+            ):
+                return empty
+
+    for node in nodes:
+        if not (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "add_argument"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id in parser_kinds
+        ):
+            continue
+        kind = parser_kinds[node.func.value.id]
+        if kind not in arguments:
+            continue
+        for argument in node.args:
+            if isinstance(argument, ast.Constant) and isinstance(argument.value, str):
+                arguments[kind].add(argument.value)
+    service_names = {"service", "services", "SERVICE"}
+    return {
+        "global_env_file_parser_present": "--env-file" in arguments["global"],
+        "global_project_name_parser_present": "--project-name" in arguments["global"],
+        "build_service_argument_present": bool(arguments["build"] & service_names),
+        "up_service_argument_present": bool(arguments["up"] & service_names),
+        "up_no_deps_parser_present": "--no-deps" in arguments["up"],
+        "up_no_build_parser_present": "--no-build" in arguments["up"],
+        "up_force_recreate_parser_present": "--force-recreate" in arguments["up"],
+    }
+
 build, up, exclusion_helper = handlers.get("compose_build"), handlers.get("compose_up"), handlers.get("get_excluded")
+parser_contract = parser_argument_contract(handlers.get("main"))
 build_nodes = local_nodes(build) if build is not None else []
 up_nodes = local_nodes(up) if up is not None else []
 helper_shape = helper_runtime_shape(exclusion_helper)
@@ -291,6 +462,7 @@ payload = {
     "up_service_selection_handler_local": up_uses_fixed_exclusion_handler(up, helper_proven),
     "up_no_deps_guard_controls_dependency_expansion": up_shape["no_deps_dependency_control_branch"],
     "rollback_force_recreate_consumed_in_up": contains_attr(up_nodes, "force_recreate"),
+    **parser_contract,
     "runtime_shape_profile": {
         "source_ast": {
             "compose_build_handler_present": build is not None,
@@ -336,11 +508,18 @@ _VISIBILITY_KEYS = frozenset({
 _SOURCE_AUDIT_KEYS = frozenset({
     "schema_id", "build_service_selection_handler_local", "up_service_selection_handler_local",
     "up_no_deps_guard_controls_dependency_expansion", "rollback_force_recreate_consumed_in_up",
-    "runtime_shape_profile", "evidence_sha256",
+    "global_env_file_parser_present", "global_project_name_parser_present",
+    "build_service_argument_present", "up_service_argument_present",
+    "up_no_deps_parser_present", "up_no_build_parser_present",
+    "up_force_recreate_parser_present", "runtime_shape_profile", "evidence_sha256",
 })
 _SOURCE_AUDIT_BOOL_KEYS = frozenset({
     "build_service_selection_handler_local", "up_service_selection_handler_local",
     "up_no_deps_guard_controls_dependency_expansion", "rollback_force_recreate_consumed_in_up",
+    "global_env_file_parser_present", "global_project_name_parser_present",
+    "build_service_argument_present", "up_service_argument_present",
+    "up_no_deps_parser_present", "up_no_build_parser_present",
+    "up_force_recreate_parser_present",
 })
 _RUNTIME_SHAPE_KEYS = frozenset({"help_grammar", "source_ast"})
 _HELP_GRAMMAR_KEYS = frozenset({"build", "up"})
@@ -474,14 +653,24 @@ def _usage_runtime_shape(help_text: str, subcommand: str) -> dict[str, bool]:
     }
 
 
-def _runtime_shape_profile(build_help: str, up_help: str, source_audit: Mapping[str, Any]) -> dict[str, Any]:
+def _runtime_shape_profile(source_audit: Mapping[str, Any]) -> dict[str, Any]:
     source_profile = source_audit.get("runtime_shape_profile")
     if not _valid_source_runtime_shape(source_profile):
         raise CapabilityFailure("source_audit_invalid")
     return {
         "help_grammar": {
-            "build": _usage_runtime_shape(build_help, "build"),
-            "up": _usage_runtime_shape(up_help, "up"),
+            "build": {
+                "usage_line_present": source_audit["build_service_argument_present"],
+                "uppercase_service_positional_grammar_present": source_audit["build_service_argument_present"],
+                "bracketed_lowercase_services_positional_grammar_present": False,
+                "bare_lowercase_services_positional_grammar_present": False,
+            },
+            "up": {
+                "usage_line_present": source_audit["up_service_argument_present"],
+                "uppercase_service_positional_grammar_present": source_audit["up_service_argument_present"],
+                "bracketed_lowercase_services_positional_grammar_present": False,
+                "bare_lowercase_services_positional_grammar_present": False,
+            },
         },
         "source_ast": source_profile["source_ast"],
     }
@@ -603,20 +792,17 @@ def collect_podman_compose_capability_observation(*, runner: Callable[..., Any] 
         version = _parse_version_output(_run(VERSION_COMMAND, runner))
         if not _VERSION.fullmatch(version):
             raise CapabilityFailure("version_mismatch")
-        global_help = _run(GLOBAL_HELP_COMMAND, runner)
-        build_help = _run(BUILD_HELP_COMMAND, runner)
-        up_help = _run(UP_HELP_COMMAND, runner)
         source_audit = _parse_source_audit(_run(SOURCE_AUDIT_COMMAND, runner))
-        runtime_shape_profile = _runtime_shape_profile(build_help, up_help, source_audit)
+        runtime_shape_profile = _runtime_shape_profile(source_audit)
 
         proof_values = (
-            ("global_env_file_parser_missing", _has_flag(global_help, "--env-file")),
-            ("global_project_name_parser_missing", _has_flag(global_help, "--project-name")),
-            ("build_service_argument_missing", _has_service_argument(build_help, "build")),
-            ("up_service_argument_missing", _has_service_argument(up_help, "up")),
-            ("up_no_deps_parser_missing", _has_flag(up_help, "--no-deps")),
-            ("up_no_build_parser_missing", _has_flag(up_help, "--no-build")),
-            ("up_force_recreate_parser_missing", _has_flag(up_help, "--force-recreate")),
+            ("global_env_file_parser_missing", source_audit["global_env_file_parser_present"]),
+            ("global_project_name_parser_missing", source_audit["global_project_name_parser_present"]),
+            ("build_service_argument_missing", source_audit["build_service_argument_present"]),
+            ("up_service_argument_missing", source_audit["up_service_argument_present"]),
+            ("up_no_deps_parser_missing", source_audit["up_no_deps_parser_present"]),
+            ("up_no_build_parser_missing", source_audit["up_no_build_parser_present"]),
+            ("up_force_recreate_parser_missing", source_audit["up_force_recreate_parser_present"]),
             ("source_build_service_selection_missing", source_audit["build_service_selection_handler_local"]),
             ("source_up_service_selection_missing", source_audit["up_service_selection_handler_local"]),
             ("source_up_no_deps_guard_missing", source_audit["up_no_deps_guard_controls_dependency_expansion"]),

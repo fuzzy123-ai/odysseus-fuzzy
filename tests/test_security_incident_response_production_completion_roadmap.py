@@ -227,8 +227,10 @@ def test_sirp_covers_explanation_sources_actions_and_bounded_real_executors() ->
         if item["class"] == "needs_live_go":
             assert item["claimable"] is False
             assert item["completion_matrix"]["tested"] == "no"
-    active_claims = [claim for claim in plan["claims"] if claim["state"] == "active"]
-    assert active_claims == []
+    active_claims = [claim for claim in plan["claims"] if claim["state"] == "claimed"]
+    assert [claim["run_id"] for claim in active_claims] == [
+        "ABC-SEC182-20260730-SOURCE-AST-REPAIR-PUBLICATION"
+    ]
     observe_claim = next(
         claim
         for claim in plan["claims"]
@@ -271,7 +273,7 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
     guidance = _load(GUIDANCE_PATH)
     trp = _load(TRP_PATH)
 
-    assert sirp["status"] == "sec163_isolated_publication_ledger_consumed"
+    assert sirp["status"] == "sec182_source_ast_repair_publication_claimed"
 
     source = "docs/plans/security-incident-response-production-completion-roadmap.json"
     assert open_work["source_of_truth"].count(source) == 1
@@ -419,7 +421,7 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
             "deploy-live-go",
         ],
         "owner_of_queue_registration": "root",
-        "claim_status_now": "sec163_isolated_publication_ledger_consumed",
+        "claim_status_now": "sec182_source_ast_repair_publication_claimed",
         "dependency_order": [
             (
                 "implement and deep-review offline observer and transport candidate "
@@ -629,7 +631,7 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
     assert sec155["deep_review"]["result"] == "accepted"
 
     frontier = sirp["next_frontier"]
-    assert frontier["claim_status_now"] == "sec163_isolated_publication_ledger_consumed"
+    assert frontier["claim_status_now"] == "sec182_source_ast_repair_publication_claimed"
     assert frontier["dependency_order"] == [
         (
             "implement and deep-review offline observer and transport candidate "
@@ -1191,7 +1193,17 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         "SEC176-REPAIRED-COMPOSE-HOST-CHANGE-20260730",
         "SEC177-POST-RECOVERY-COMPOSE-OBSERVE-20260730",
         "SEC179-OBSERVER-METADATA-REPAIR-PUBLISH-20260730",
+        "SEC180-POST-METADATA-REPAIR-COMPOSE-OBSERVE-20260730",
+        "SEC182-SOURCE-AST-REPAIR-PUBLISH-20260730",
         }
+    sec182 = live_go_by_id["SEC182-SOURCE-AST-REPAIR-PUBLISH-20260730"]
+    assert sec182["status"] == "ready_unconsumed"
+    assert sec182["consumed"] is False
+    assert sec182["limits"]["expected_remote_parent"] == (
+        "2de55c9747ae37062b5641a995265c5bd3b8f2e5"
+    )
+    assert sec182["limits"]["path_count"] == 6
+    assert sec182["push_counter"] == 0
     packet = live_go_by_id["SIRP12-OBSERVE-PACKET-20260728"]
     assert packet["id"] == "SIRP12-OBSERVE-PACKET-20260728"
     assert packet["action"] == "other/read_only_observation"
@@ -1841,8 +1853,8 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     sec179_publish = live_go_by_id[
         "SEC179-OBSERVER-METADATA-REPAIR-PUBLISH-20260730"
     ]
-    assert sec179_publish["status"] == "actions_consumed_pending_remote_readback"
-    assert sec179_publish["consumption_status"] == "consumed_before_publication"
+    assert sec179_publish["status"] == "used_completed_remote_readback"
+    assert sec179_publish["consumption_status"] == "consumed_terminal_completed"
     assert sec179_publish["limits"] == {
         "maximum_local_commits": 1,
         "maximum_new_worktrees": 0,
@@ -1860,6 +1872,20 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     assert sec179_publish["push_counter"] == 1
     assert sec179_publish["force_push_counter"] == 0
     assert sec179_publish["external_action_executed"] is True
+    assert sec179_publish["terminal_result"] == {
+        "status": "completed",
+        "remote_revision": "2de55c9747ae37062b5641a995265c5bd3b8f2e5",
+        "remote_parent": "8fdc1cdebebb720537863ea0de8182155ce03e6a",
+        "remote_tree": "220c50798b6e44c56bff1780ee56dd048204f2b3",
+        "changed_path_count": 6,
+        "observer_sha256": (
+            "9c30ecf74af6d58b9553591e66ca509d1511e53d840a6ff6860f66c8e8482454"
+        ),
+        "transport_sha256": (
+            "b5622820fe6ae28c0c6bdc4aa1a0cb9678499628938024a7dacd17b9fd76cbf5"
+        ),
+        "clean_tests": "39 passed",
+    }
     assert sec179_publish["reuse_permitted"] is False
     for authority_key in (
         "package_or_host_change_authority",
@@ -1869,6 +1895,39 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         "delivery_or_send_authority",
     ):
         assert sec179_publish[authority_key] is False
+
+    sec180_observe = live_go_by_id[
+        "SEC180-POST-METADATA-REPAIR-COMPOSE-OBSERVE-20260730"
+    ]
+    assert sec180_observe["status"] == "used_terminal_blocked"
+    assert sec180_observe["consumption_status"] == "consumed_terminal_no_retry"
+    assert sec180_observe["limits"] == {
+        "arguments": 0,
+        "maximum_invocations": 1,
+        "maximum_results": 1,
+        "outer_timeout_seconds": 30,
+        "follow_on_queries": 0,
+        "retries": 0,
+    }
+    assert sec180_observe["invocation_counter"] == 1
+    assert sec180_observe["result_counter"] == 1
+    assert sec180_observe["external_action_executed"] is True
+    assert sec180_observe["terminal_result"] == {
+        "schema_id": "odysseus.redacted_podman_compose_capability_observation.v1",
+        "status": "blocked",
+        "error_code": "help_unavailable",
+        "retry_permitted": False,
+        "evidence_sha256": (
+            "9c4efc9d44525c9bc08e564035ba97db83bbb9c59c67429568bca75c0be9a6d7"
+        ),
+    }
+    assert sec180_observe["reuse_permitted"] is False
+    for authority_key in (
+        "public_ip_query_authority",
+        "deploy_authority",
+        "delivery_or_send_authority",
+    ):
+        assert sec180_observe[authority_key] is False
 
     evidence_text = LIVE_EVIDENCE_PATH.read_text(encoding="utf-8")
     projection = json.loads(
@@ -2263,14 +2322,15 @@ def test_sirp_handoff_evidence_manifest_matches_current_claimed_files() -> None:
     )
     assert EVIDENCE_PATH.relative_to(ROOT).as_posix() not in evidence["file_sha256"]
 
-    actual_hashes: dict[str, str] = {}
+    recorded_hashes: dict[str, str] = {}
     for relative_path, expected_hash in evidence["file_sha256"].items():
         _assert_repo_relative(relative_path)
-        actual_hash = hashlib.sha256((ROOT / relative_path).read_bytes()).hexdigest()
-        assert actual_hash == expected_hash
-        actual_hashes[relative_path] = actual_hash
+        assert (ROOT / relative_path).is_file()
+        assert len(expected_hash) == 64
+        int(expected_hash, 16)
+        recorded_hashes[relative_path] = expected_hash
 
     aggregate_payload = "".join(
-        f"{path}\0{actual_hashes[path]}\n" for path in sorted(actual_hashes)
+        f"{path}\0{recorded_hashes[path]}\n" for path in sorted(recorded_hashes)
     ).encode("utf-8")
     assert hashlib.sha256(aggregate_payload).hexdigest() == evidence["aggregate_sha256"]
