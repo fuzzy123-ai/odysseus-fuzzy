@@ -5,10 +5,10 @@
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
-    "docs_plans_count": 123,
+    "docs_plans_count": 124,
     "structured_specs_discovery": "All JSON files directly under specs/roadmaps.",
     "structured_specs_count": 7,
-    "total_count": 130,
+    "total_count": 131,
     "excluded": [
       "specs/roadmaps/odysseus-multiagent-start-2026-06-22.prompt.txt",
       "docs/plans/multi-agent-execution-guidance.json"
@@ -28,7 +28,7 @@
       "active_parallel": 8,
       "active_serial": 15,
       "canonical_router": 9,
-      "gate_only": 56,
+      "gate_only": 57,
       "historical_done": 35,
       "needs_normalization": 7
     },
