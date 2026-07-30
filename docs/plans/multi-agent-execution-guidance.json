@@ -5,10 +5,10 @@
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
-    "docs_plans_count": 124,
+    "docs_plans_count": 125,
     "structured_specs_discovery": "All JSON files directly under specs/roadmaps.",
     "structured_specs_count": 7,
-    "total_count": 131,
+    "total_count": 132,
     "excluded": [
       "specs/roadmaps/odysseus-multiagent-start-2026-06-22.prompt.txt",
       "docs/plans/multi-agent-execution-guidance.json"
@@ -28,7 +28,7 @@
       "active_parallel": 8,
       "active_serial": 15,
       "canonical_router": 9,
-      "gate_only": 57,
+      "gate_only": 58,
       "historical_done": 35,
       "needs_normalization": 7
     },
@@ -394,6 +394,12 @@
       "profile": "gate_only",
       "state": "backend_complete_ui_and_live_decisions_external",
       "ai_hint": "Backend privacy gates are closed. New channel or UI behavior requires an explicit product/privacy decision and must not weaken existing defaults."
+    },
+    {
+      "path": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+      "profile": "gate_only",
+      "state": "trp01_through_trp04_accepted_trp05_deferred_by_operator_priority_preserved_dirty_diff",
+      "ai_hint": "TRP-05 stays deferred under SIRP priority; all TRP slices remain non-claimable; do not absorb the preserved dirty transcription implementation. Any resume, live, model, or private-audio action requires explicit reprioritization, a fresh path-scoped claim, and its exact gate."
     },
     {
       "path": "docs/plans/gamedev-project-access-roadmap.md",
