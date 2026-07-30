@@ -60,11 +60,18 @@ _ENVELOPE_KEYS = frozenset({
     "schema_id", "status", "phase", "attempt_consumed", "retry_permitted",
     "rollback_performed", "target_published", "evidence_sha256",
 })
+_IDENTITY_PATH_EXPRESSION = (
+    "root in module.parents and root in distribution_root.parents "
+    "and distribution_root in module.parents"
+)
 _IDENTITY_PROGRAM = (
-    "import pathlib,sys,podman_compose;"
+    "import importlib.metadata as metadata,pathlib,sys,podman_compose;"
     "root=pathlib.Path(sys.prefix).resolve();"
     "module=pathlib.Path(podman_compose.__file__).resolve();"
-    "print('identity-ok' if root in module.parents else 'identity-bad')"
+    "distribution=metadata.distribution('podman-compose');"
+    "distribution_root=pathlib.Path(distribution.locate_file('')).resolve();"
+    "version=distribution.version;"
+    f"print('identity-ok' if {_IDENTITY_PATH_EXPRESSION} and version=='1.6.0' else 'identity-bad')"
 )
 
 
@@ -242,14 +249,7 @@ def _venv_python(root: str) -> str:
     return root + "/bin/python"
 
 
-def _venv_compose(root: str) -> str:
-    return root + "/bin/podman-compose"
-
-
 def _identity_matches(root: str, runner: Runner) -> bool:
-    version = _run((_venv_compose(root), "version", "--short"), runner, capture=True)
-    if version != EXPECTED_VERSION + "\n":
-        return False
     identity = _run((_venv_python(root), "-I", "-c", _IDENTITY_PROGRAM), runner, capture=True)
     return identity == "identity-ok\n"
 
