@@ -3,8 +3,8 @@
   "kind": "odysseus.security_incident_response_production_completion_roadmap",
   "id": "SIRP",
   "title": "Security Incident Response Production Completion",
-  "updated_at": "2026-07-30T12:04:24+02:00",
-  "status": "sec179_observer_metadata_repair_publication_ledger_consumed",
+  "updated_at": "2026-07-30T13:30:10+02:00",
+  "status": "sec182_source_ast_repair_publication_claimed",
   "mode": "safe_offline_dependency_ordered",
   "goal": "Close the explicit gap between prepare-only security incident contracts and a production-validated assisted response system with bounded evidence, durable incident and action state, operator-bound approvals, typed executors, independent effect readback and rollback.",
   "slice_contract_fields": ["id", "priority", "class", "owner", "status", "claimable", "depends_on", "gate_requirements", "blockers", "allowed_paths", "hotfiles", "goal", "acceptance", "tests_evidence", "forbidden", "done_when", "completion_matrix"],
@@ -4924,9 +4924,101 @@
       "hotfiles": [
         "docs/plans/security-incident-response-production-completion-roadmap.json"
       ],
-      "state": "claimed",
+      "state": "released",
       "acquired_at": "2026-07-30T12:54:27+02:00",
       "lease_expires_at": "2026-07-30T13:54:27+02:00",
+      "handoff_required": true,
+      "live_actions": true,
+      "phase": "exact_commit_existing_clean_worktree_cherry_pick_and_fuzzy_dev_fast_forward",
+      "released_at": "2026-07-30T12:56:50+02:00",
+      "release_reason": "The exact six-path SEC179 slice passed 39 clean-worktree tests and was fast-forwarded to fuzzy/dev at 2de55c9747ae37062b5641a995265c5bd3b8f2e5. Independent fetch readback confirmed parent 8fdc1cdebebb720537863ea0de8182155ce03e6a, six changed paths and exact observer/transport hashes.",
+      "forbidden_actions": [
+        "stage any path outside allowed_paths",
+        "create another worktree or push local dev",
+        "publish the unrelated Telegram commit, force push, rewrite history, reset, clean or auto-resolve conflicts",
+        "SSH, package, host, public-IP, deploy, delivery or provider action",
+        "push unless fuzzy/dev still equals 8fdc1cdebebb720537863ea0de8182155ce03e6a"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC180-20260730-POST-METADATA-REPAIR-OBSERVATION",
+      "thread_id": "/root",
+      "slice_id": "SEC180-one-use-post-metadata-repair-compose-observation",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-30T12:56:50+02:00",
+      "lease_expires_at": "2026-07-30T13:26:50+02:00",
+      "handoff_required": true,
+      "live_actions": true,
+      "phase": "one_use_published_post_metadata_repair_compose_capability_observation",
+      "released_at": "2026-07-30T12:58:24+02:00",
+      "release_reason": "The one-use published observer passed the repaired metadata-version boundary and returned a strictly validated fixed-key blocked/help_unavailable envelope. It was not retried. The sibling console launcher is not a reliable help path; version and source audit already use the exact target interpreter.",
+      "forbidden_actions": [
+        "edit any path outside allowed_paths",
+        "repeat prior observations or perform package, cleanup, rollback or host mutation",
+        "emit raw SSH stdout, stderr, exception text, environment, credentials, paths, versions or provider responses outside the published transport",
+        "retry or issue follow-on queries",
+        "public-IP query, deploy, delivery or provider action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC181-20260730-INTERPRETER-BOUND-HELP-REPAIR",
+      "thread_id": "/root",
+      "slice_id": "SEC181-repo-only-interpreter-bound-compose-help-repair",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "tests/test_security_incident_response_production_completion_roadmap.py",
+        "ops/homeserver/redacted_podman_compose_capability_observation.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_observation.py",
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-30T12:58:24+02:00",
+      "lease_expires_at": "2026-07-30T13:58:24+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "phase": "repo_only_replace_live_help_execution_with_exact_interpreter_source_ast_parser_contract",
+      "released_at": "2026-07-30T13:30:10+02:00",
+      "release_reason": "SEC181 removed all podman_compose.main and help execution, retained only exact-interpreter metadata and source-AST observation, bound parser proof to the single directly parsed main() parser tree, and rejected helper, unreachable-control-flow, overwrite, NamedExpr and opaque-mutation decoys. Root passed 49 combined tests; independent Alice/Terra review accepted the final fail-closed parser dataflow and observer/transport hash binding.",
+      "forbidden_actions": [
+        "edit any path outside allowed_paths",
+        "weaken exact version origin, help grammar, AST semantic proof, fixed-key schema, digest, blob hash or transport redaction",
+        "invoke any non-help Compose action or emit raw stdout, stderr, exception, path, environment, credential or provider output",
+        "stage, commit, push or fetch",
+        "SSH, network, package, host, public-IP, deploy or delivery action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC182-20260730-SOURCE-AST-REPAIR-PUBLICATION",
+      "thread_id": "/root",
+      "slice_id": "SEC182-isolated-source-ast-capability-repair-publication",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "tests/test_security_incident_response_production_completion_roadmap.py",
+        "ops/homeserver/redacted_podman_compose_capability_observation.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_observation.py",
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "claimed",
+      "acquired_at": "2026-07-30T13:30:10+02:00",
+      "lease_expires_at": "2026-07-30T14:30:10+02:00",
       "handoff_required": true,
       "live_actions": true,
       "phase": "exact_commit_existing_clean_worktree_cherry_pick_and_fuzzy_dev_fast_forward",
@@ -4935,7 +5027,7 @@
         "create another worktree or push local dev",
         "publish the unrelated Telegram commit, force push, rewrite history, reset, clean or auto-resolve conflicts",
         "SSH, package, host, public-IP, deploy, delivery or provider action",
-        "push unless fuzzy/dev still equals 8fdc1cdebebb720537863ea0de8182155ce03e6a"
+        "push unless fuzzy/dev still equals 2de55c9747ae37062b5641a995265c5bd3b8f2e5"
       ]
     },
     {
@@ -5140,6 +5232,45 @@
   ],
   "live_go": [
     {
+      "id": "SEC182-SOURCE-AST-REPAIR-PUBLISH-20260730",
+      "run_id": "ABC-SEC182-20260730-SOURCE-AST-REPAIR-PUBLICATION",
+      "action": "git_commit_cherry_pick_and_push",
+      "target_class": "six exact SEC181 source-AST observer/transport repair, tests and durable roadmap paths on the existing isolated OPS Alert line",
+      "artifact_or_inputs": "expected fuzzy/dev parent 2de55c9747ae37062b5641a995265c5bd3b8f2e5; observer sha256 4e79425f42d23ef22cc91c98da528446a608dfd863d8dae2e59828800788d666; transport sha256 f2abade7a5eb6db61d9a7a72db371e6c9508a9eea54f90630d88fce18b4a3598",
+      "granted_by": "owner instruction on 2026-07-30 to finish OPS Alert live without further explicit live GO; exact recovery publication scope",
+      "granted_at": "2026-07-30T13:30:10+02:00",
+      "expires_at": "run_end",
+      "limits": {
+        "maximum_local_commits": 1,
+        "maximum_new_worktrees": 0,
+        "maximum_cherry_picks": 1,
+        "maximum_pushes": 1,
+        "force_pushes": 0,
+        "remote": "fuzzy",
+        "branch": "dev",
+        "expected_remote_parent": "2de55c9747ae37062b5641a995265c5bd3b8f2e5",
+        "path_count": 6
+      },
+      "rollback_or_recovery": "stop before push on any validation or remote-parent mismatch; after push only a separately reviewed forward revert is permitted",
+      "readback": "independent remote revision, parent, exact path set and observer/transport SHA-256 values",
+      "revocable": true,
+      "consumed": false,
+      "status": "ready_unconsumed",
+      "consumption_status": "not_consumed",
+      "local_commit_counter": 0,
+      "new_worktree_counter": 0,
+      "cherry_pick_counter": 0,
+      "push_counter": 0,
+      "force_push_counter": 0,
+      "external_action_executed": false,
+      "reuse_permitted": false,
+      "package_or_host_change_authority": false,
+      "live_observation_authority": false,
+      "public_ip_query_authority": false,
+      "deploy_authority": false,
+      "delivery_or_send_authority": false
+    },
+    {
       "id": "SEC179-OBSERVER-METADATA-REPAIR-PUBLISH-20260730",
       "run_id": "ABC-SEC179-20260730-OBSERVER-METADATA-REPAIR-PUBLICATION",
       "action": "git_commit_cherry_pick_and_push",
@@ -5163,8 +5294,8 @@
       "readback": "independent remote revision, parent, exact path set and observer/transport SHA-256 values",
       "revocable": true,
       "consumed": true,
-      "status": "actions_consumed_pending_remote_readback",
-      "consumption_status": "consumed_before_publication",
+      "status": "used_completed_remote_readback",
+      "consumption_status": "consumed_terminal_completed",
       "consumed_at": "2026-07-30T12:54:27+02:00",
       "local_commit_counter": 1,
       "new_worktree_counter": 0,
@@ -5172,9 +5303,58 @@
       "push_counter": 1,
       "force_push_counter": 0,
       "external_action_executed": true,
+      "terminal_result": {
+        "status": "completed",
+        "remote_revision": "2de55c9747ae37062b5641a995265c5bd3b8f2e5",
+        "remote_parent": "8fdc1cdebebb720537863ea0de8182155ce03e6a",
+        "remote_tree": "220c50798b6e44c56bff1780ee56dd048204f2b3",
+        "changed_path_count": 6,
+        "observer_sha256": "9c30ecf74af6d58b9553591e66ca509d1511e53d840a6ff6860f66c8e8482454",
+        "transport_sha256": "b5622820fe6ae28c0c6bdc4aa1a0cb9678499628938024a7dacd17b9fd76cbf5",
+        "clean_tests": "39 passed"
+      },
       "reuse_permitted": false,
       "package_or_host_change_authority": false,
       "live_observation_authority": false,
+      "public_ip_query_authority": false,
+      "deploy_authority": false,
+      "delivery_or_send_authority": false
+    },
+    {
+      "id": "SEC180-POST-METADATA-REPAIR-COMPOSE-OBSERVE-20260730",
+      "run_id": "ABC-SEC180-20260730-POST-METADATA-REPAIR-OBSERVATION",
+      "action": "other/read_only_observation",
+      "target_class": "published repaired podman-compose 1.6.0 capability through the strict redacted transport",
+      "artifact_or_inputs": "fuzzy/dev revision 2de55c9747ae37062b5641a995265c5bd3b8f2e5; transport sha256 b5622820fe6ae28c0c6bdc4aa1a0cb9678499628938024a7dacd17b9fd76cbf5; observer sha256 9c30ecf74af6d58b9553591e66ca509d1511e53d840a6ff6860f66c8e8482454",
+      "granted_by": "owner instruction on 2026-07-30 to finish OPS Alert live without further explicit live GO; exact read-only post-repair scope",
+      "granted_at": "2026-07-30T12:56:50+02:00",
+      "expires_at": "run_end",
+      "limits": {
+        "arguments": 0,
+        "maximum_invocations": 1,
+        "maximum_results": 1,
+        "outer_timeout_seconds": 30,
+        "follow_on_queries": 0,
+        "retries": 0
+      },
+      "rollback_or_recovery": "read-only and terminal on every result; no retry",
+      "readback": "one repository-owned strictly validated fixed-key transport or observer envelope plus canonical evidence_sha256 only",
+      "revocable": true,
+      "consumed": true,
+      "status": "used_terminal_blocked",
+      "consumption_status": "consumed_terminal_no_retry",
+      "consumed_at": "2026-07-30T12:56:50+02:00",
+      "invocation_counter": 1,
+      "result_counter": 1,
+      "external_action_executed": true,
+      "terminal_result": {
+        "schema_id": "odysseus.redacted_podman_compose_capability_observation.v1",
+        "status": "blocked",
+        "error_code": "help_unavailable",
+        "retry_permitted": false,
+        "evidence_sha256": "9c4efc9d44525c9bc08e564035ba97db83bbb9c59c67429568bca75c0be9a6d7"
+      },
+      "reuse_permitted": false,
       "public_ip_query_authority": false,
       "deploy_authority": false,
       "delivery_or_send_authority": false
@@ -10722,7 +10902,7 @@
       "deploy-live-go"
     ],
     "owner_of_queue_registration": "root",
-    "claim_status_now": "sec179_observer_metadata_repair_publication_ledger_consumed",
+    "claim_status_now": "sec182_source_ast_repair_publication_claimed",
     "dependency_order": [
       "implement and deep-review offline observer and transport candidate fixtures while Debian 1.3.0 remains a negative needs_live_observation fixture",
       "publish the exact reviewed observer and transport candidate under separate Git authority",
@@ -10735,5 +10915,5 @@
       "send exactly once and independently read back durable receipt plus human confirmation"
     ]
   },
-  "recommended_next_action": "Publish the exact six-path SEC179 observer/transport repair through the existing isolated worktree, independently read back revision and hashes, then prepare a fresh one-use read-only capability observation."
+  "recommended_next_action": "Publish the exact six-path SEC182 source-AST observer/transport repair through the existing isolated worktree, independently read back revision and hashes, then prepare one fresh one-use read-only capability observation."
 }

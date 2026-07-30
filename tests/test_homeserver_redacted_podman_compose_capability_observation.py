@@ -65,6 +65,13 @@ def _runtime_shape(**changes):
 def _audit(**changes):
     payload = {
         "schema_id": observation.SOURCE_AUDIT_SCHEMA_ID,
+        "global_env_file_parser_present": True,
+        "global_project_name_parser_present": True,
+        "build_service_argument_present": True,
+        "up_service_argument_present": True,
+        "up_no_deps_parser_present": True,
+        "up_no_build_parser_present": True,
+        "up_force_recreate_parser_present": True,
         "build_service_selection_handler_local": True,
         "up_service_selection_handler_local": True,
         "up_no_deps_guard_controls_dependency_expansion": True,
@@ -79,9 +86,6 @@ def _audit(**changes):
 def _values(changes=None):
     values = {
         observation.VERSION_COMMAND: _Result(observation.EXPECTED_VERSION + "\n"),
-        observation.GLOBAL_HELP_COMMAND: _Result("usage: podman-compose [--env-file FILE] [--project-name NAME]\n"),
-        observation.BUILD_HELP_COMMAND: _Result("usage: podman-compose build SERVICE [SERVICE ...]\n"),
-        observation.UP_HELP_COMMAND: _Result("usage: podman-compose up SERVICE [SERVICE ...] [--no-deps] [--no-build] [--force-recreate]\n"),
         observation.SOURCE_AUDIT_COMMAND: _Result(_audit() + "\n"),
     }
     values.update(changes or {})
@@ -124,8 +128,8 @@ def test_structurally_proven_success_has_exact_schema_digest_and_only_fixed_read
     assert all(payload[key] is False for key in observation._VISIBILITY_KEYS)
     assert payload["evidence_sha256"] == _digest(payload)
     assert [command for command, _kwargs in calls] == [
-        observation.VERSION_COMMAND, observation.GLOBAL_HELP_COMMAND, observation.BUILD_HELP_COMMAND,
-        observation.UP_HELP_COMMAND, observation.SOURCE_AUDIT_COMMAND,
+        observation.VERSION_COMMAND,
+        observation.SOURCE_AUDIT_COMMAND,
     ]
     assert observation.VERSION_COMMAND == (
         sys.executable,
@@ -137,29 +141,23 @@ def test_structurally_proven_success_has_exact_schema_digest_and_only_fixed_read
     assert "distribution.locate_file('')" in observation._VERSION_PROGRAM
     assert "root in module.parents" in observation._VERSION_PROGRAM
     assert "distribution_root in module.parents" in observation._VERSION_PROGRAM
-    assert len(calls) == 5 and all(kwargs["timeout"] == 1 and kwargs["stderr"] is subprocess.DEVNULL and kwargs["env"] == {"PATH": "/usr/bin:/bin"} and "shell" not in kwargs for _command, kwargs in calls)
-    assert not any(any(word in command for word in ("up", "build", "down", "rm", "run")) for command, _kwargs in calls if command not in {observation.UP_HELP_COMMAND, observation.BUILD_HELP_COMMAND})
+    assert len(calls) == 2 and all(kwargs["timeout"] == 1 and kwargs["stderr"] is subprocess.DEVNULL and kwargs["env"] == {"PATH": "/usr/bin:/bin"} and "shell" not in kwargs for _command, kwargs in calls)
+    assert not any(any(word in command for word in ("up", "build", "down", "rm", "run")) for command, _kwargs in calls)
 
 
-def test_all_observation_commands_share_the_running_interpreter_environment():
-    compose_commands = (
-        observation.GLOBAL_HELP_COMMAND,
-        observation.BUILD_HELP_COMMAND,
-        observation.UP_HELP_COMMAND,
-    )
-
-    assert observation._COMPOSE_EXECUTABLE == os.path.join(os.path.dirname(sys.executable), "podman-compose")
-    assert all(command[0] == observation._COMPOSE_EXECUTABLE for command in compose_commands)
+def test_all_observation_commands_share_the_running_interpreter_without_executing_compose_main():
     assert observation.VERSION_COMMAND[0] == sys.executable
     assert observation.SOURCE_AUDIT_COMMAND[0] == sys.executable
-    assert all(os.path.dirname(command[0]) == os.path.dirname(observation.SOURCE_AUDIT_COMMAND[0]) for command in compose_commands)
+    assert os.path.dirname(observation.VERSION_COMMAND[0]) == os.path.dirname(observation.SOURCE_AUDIT_COMMAND[0])
     assert "python3" not in observation.SOURCE_AUDIT_COMMAND[:3]
+    assert "podman_compose.main()" not in observation._SOURCE_AUDIT_PROGRAM
+    assert not any(name.endswith("HELP_COMMAND") or name == "_COMPOSE_MAIN_PROGRAM" for name in vars(observation))
 
 
 def test_version_mismatch_and_missing_or_renamed_flags_fail_closed_without_partial_success():
     mismatch = _collect({observation.VERSION_COMMAND: _Result("1.6.1\n")})
-    missing = _collect({observation.UP_HELP_COMMAND: _Result("usage: podman-compose up SERVICE [--no-build] [--force-recreate]\n")})
-    renamed = _collect({observation.GLOBAL_HELP_COMMAND: _Result("usage: podman-compose [--environment-file FILE] [--project-name NAME]\n")})
+    missing = _collect({observation.SOURCE_AUDIT_COMMAND: _Result(_audit(up_no_deps_parser_present=False) + "\n")})
+    renamed = _collect({observation.SOURCE_AUDIT_COMMAND: _Result(_audit(global_env_file_parser_present=False) + "\n")})
 
     assert mismatch["error_code"] == "version_mismatch"
     assert mismatch["diagnostic_code"] == "version_output_version_mismatch"
@@ -205,13 +203,13 @@ def test_help_flags_and_global_or_wrong_scope_tokens_cannot_prove_dependency_exc
 
 def test_semantic_insufficiency_reports_every_missing_proof_in_fixed_order_without_evidence_values():
     individual = {
-        "global_env_file_parser_missing": {observation.GLOBAL_HELP_COMMAND: _Result("usage: podman-compose [--project-name NAME]\n")},
-        "global_project_name_parser_missing": {observation.GLOBAL_HELP_COMMAND: _Result("usage: podman-compose [--env-file FILE]\n")},
-        "build_service_argument_missing": {observation.BUILD_HELP_COMMAND: _Result("usage: podman-compose build\n")},
-        "up_service_argument_missing": {observation.UP_HELP_COMMAND: _Result("usage: podman-compose up [--no-deps] [--no-build] [--force-recreate]\n")},
-        "up_no_deps_parser_missing": {observation.UP_HELP_COMMAND: _Result("usage: podman-compose up SERVICE [--no-build] [--force-recreate]\n")},
-        "up_no_build_parser_missing": {observation.UP_HELP_COMMAND: _Result("usage: podman-compose up SERVICE [--no-deps] [--force-recreate]\n")},
-        "up_force_recreate_parser_missing": {observation.UP_HELP_COMMAND: _Result("usage: podman-compose up SERVICE [--no-deps] [--no-build]\n")},
+        "global_env_file_parser_missing": {observation.SOURCE_AUDIT_COMMAND: _Result(_audit(global_env_file_parser_present=False) + "\n")},
+        "global_project_name_parser_missing": {observation.SOURCE_AUDIT_COMMAND: _Result(_audit(global_project_name_parser_present=False) + "\n")},
+        "build_service_argument_missing": {observation.SOURCE_AUDIT_COMMAND: _Result(_audit(build_service_argument_present=False) + "\n")},
+        "up_service_argument_missing": {observation.SOURCE_AUDIT_COMMAND: _Result(_audit(up_service_argument_present=False) + "\n")},
+        "up_no_deps_parser_missing": {observation.SOURCE_AUDIT_COMMAND: _Result(_audit(up_no_deps_parser_present=False) + "\n")},
+        "up_no_build_parser_missing": {observation.SOURCE_AUDIT_COMMAND: _Result(_audit(up_no_build_parser_present=False) + "\n")},
+        "up_force_recreate_parser_missing": {observation.SOURCE_AUDIT_COMMAND: _Result(_audit(up_force_recreate_parser_present=False) + "\n")},
         "source_build_service_selection_missing": {observation.SOURCE_AUDIT_COMMAND: _Result(_audit(build_service_selection_handler_local=False) + "\n")},
         "source_up_service_selection_missing": {observation.SOURCE_AUDIT_COMMAND: _Result(_audit(up_service_selection_handler_local=False) + "\n")},
         "source_up_no_deps_guard_missing": {observation.SOURCE_AUDIT_COMMAND: _Result(_audit(up_no_deps_guard_controls_dependency_expansion=False) + "\n")},
@@ -219,10 +217,11 @@ def test_semantic_insufficiency_reports_every_missing_proof_in_fixed_order_witho
     }
     results = {code: _collect(changes) for code, changes in individual.items()}
     all_missing = _collect({
-        observation.GLOBAL_HELP_COMMAND: _Result("usage: podman-compose\n"),
-        observation.BUILD_HELP_COMMAND: _Result("usage: podman-compose build\n"),
-        observation.UP_HELP_COMMAND: _Result("usage: podman-compose up\n"),
         observation.SOURCE_AUDIT_COMMAND: _Result(_audit(
+            global_env_file_parser_present=False, global_project_name_parser_present=False,
+            build_service_argument_present=False, up_service_argument_present=False,
+            up_no_deps_parser_present=False, up_no_build_parser_present=False,
+            up_force_recreate_parser_present=False,
             build_service_selection_handler_local=False, up_service_selection_handler_local=False,
             up_no_deps_guard_controls_dependency_expansion=False, rollback_force_recreate_consumed_in_up=False,
         ) + "\n"),
@@ -254,11 +253,22 @@ def compose_up(compose,args):
             continue
     if args.force_recreate:
         pass
+def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--env-file")
+    parser.add_argument("--project-name")
+    subparsers=parser.add_subparsers()
+    build_parser=subparsers.add_parser("build")
+    build_parser.add_argument("services")
+    up_parser=subparsers.add_parser("up")
+    up_parser.add_argument("services")
+    up_parser.add_argument("--no-deps")
+    up_parser.add_argument("--no-build")
+    up_parser.add_argument("--force-recreate")
+    args=parser.parse_args()
 """
     source_audit = _run_source_audit_program(monkeypatch, capsys, debian_1_3_0_source)
     semantic_adverse = _collect({
-        observation.BUILD_HELP_COMMAND: _Result("usage: podman-compose build [services ...]\n"),
-        observation.UP_HELP_COMMAND: _Result("usage: podman-compose up [services ...] [--no-deps] [--no-build] [--force-recreate]\n"),
         observation.SOURCE_AUDIT_COMMAND: _Result(json.dumps(source_audit, ensure_ascii=True, sort_keys=True, separators=(",", ":")) + "\n"),
     })
     version_adverse = _collect({
@@ -347,6 +357,143 @@ def compose_up(args):
         result = _run_source_audit_program(monkeypatch, capsys, source)
         assert result["up_no_deps_guard_controls_dependency_expansion"] is False
         assert result["build_service_selection_handler_local"] is False or result["up_service_selection_handler_local"] is False
+
+
+def test_source_audit_proves_exact_parser_argument_contract_without_executing_parser(monkeypatch, capsys):
+    exact = """
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--env-file")
+    parser.add_argument("--project-name")
+    commands = parser.add_subparsers()
+    build_parser = commands.add_parser("build")
+    build_parser.add_argument("services")
+    up_parser = commands.add_parser("up")
+    up_parser.add_argument("services")
+    up_parser.add_argument("--no-deps")
+    up_parser.add_argument("--no-build")
+    up_parser.add_argument("--force-recreate")
+    parser.parse_args()
+"""
+    near_miss = exact.replace('    up_parser.add_argument("--no-deps")\n', "").replace(
+        '    parser.add_argument("--env-file")',
+        '    build_parser.add_argument("--env-file")',
+    )
+
+    exact_result = _run_source_audit_program(monkeypatch, capsys, exact)
+    near_miss_result = _run_source_audit_program(monkeypatch, capsys, near_miss)
+
+    assert all(exact_result[key] is True for key in (
+        "global_env_file_parser_present", "global_project_name_parser_present",
+        "build_service_argument_present", "up_service_argument_present",
+        "up_no_deps_parser_present", "up_no_build_parser_present",
+        "up_force_recreate_parser_present",
+    ))
+    assert near_miss_result["global_env_file_parser_present"] is False
+    assert near_miss_result["up_no_deps_parser_present"] is False
+
+
+def test_source_audit_rejects_complete_parser_contract_in_unused_decoy_helper(monkeypatch, capsys):
+    decoy = """
+def unused_parser_contract():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--env-file")
+    parser.add_argument("--project-name")
+    commands = parser.add_subparsers()
+    build_parser = commands.add_parser("build")
+    build_parser.add_argument("services")
+    up_parser = commands.add_parser("up")
+    up_parser.add_argument("services")
+    up_parser.add_argument("--no-deps")
+    up_parser.add_argument("--no-build")
+    up_parser.add_argument("--force-recreate")
+def main():
+    parser = argparse.ArgumentParser()
+    parser.parse_args()
+"""
+    result = _run_source_audit_program(monkeypatch, capsys, decoy)
+
+    assert all(result[key] is False for key in (
+        "global_env_file_parser_present", "global_project_name_parser_present",
+        "build_service_argument_present", "up_service_argument_present",
+        "up_no_deps_parser_present", "up_no_build_parser_present",
+        "up_force_recreate_parser_present",
+    ))
+
+
+def test_source_audit_rejects_complete_but_unparsed_or_overwritten_parser_in_main(monkeypatch, capsys):
+    complete = """
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--env-file")
+    parser.add_argument("--project-name")
+    commands = parser.add_subparsers()
+    build_parser = commands.add_parser("build")
+    build_parser.add_argument("services")
+    up_parser = commands.add_parser("up")
+    up_parser.add_argument("services")
+    up_parser.add_argument("--no-deps")
+    up_parser.add_argument("--no-build")
+    up_parser.add_argument("--force-recreate")
+"""
+    unparsed = complete + """
+    actual = argparse.ArgumentParser()
+    actual.parse_args()
+"""
+    overwritten = complete + """
+    parser = make_actual_parser()
+    parser.parse_args()
+"""
+    tuple_overwritten = complete + """
+    parser, ignored = make_actual_parsers()
+    parser.parse_args()
+"""
+    expression_overwritten = complete + """
+    remember(parser := make_actual_parser())
+    parser.parse_args()
+"""
+    opaque_mutation = complete + """
+    mutate(parser)
+    parser.parse_args()
+"""
+    for source in (unparsed, overwritten, tuple_overwritten, expression_overwritten, opaque_mutation):
+        result = _run_source_audit_program(monkeypatch, capsys, source)
+        assert all(result[key] is False for key in (
+            "global_env_file_parser_present", "global_project_name_parser_present",
+            "build_service_argument_present", "up_service_argument_present",
+            "up_no_deps_parser_present", "up_no_build_parser_present",
+            "up_force_recreate_parser_present",
+        ))
+
+
+def test_source_audit_rejects_parser_contract_inside_non_dominating_control_flow(monkeypatch, capsys):
+    parser_body = """
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--env-file")
+        parser.add_argument("--project-name")
+        commands = parser.add_subparsers()
+        build_parser = commands.add_parser("build")
+        build_parser.add_argument("services")
+        up_parser = commands.add_parser("up")
+        up_parser.add_argument("services")
+        up_parser.add_argument("--no-deps")
+        up_parser.add_argument("--no-build")
+        up_parser.add_argument("--force-recreate")
+        parser.parse_args()
+"""
+    sources = (
+        "def main():\n    if 0:\n" + parser_body,
+        "def main():\n    while False:\n" + parser_body,
+        "def main():\n    try:\n" + parser_body + "    except Exception:\n        pass\n",
+    )
+    for source in sources:
+        result = _run_source_audit_program(monkeypatch, capsys, source)
+        assert all(result[key] is False for key in (
+            "global_env_file_parser_present", "global_project_name_parser_present",
+            "build_service_argument_present", "up_service_argument_present",
+            "up_no_deps_parser_present", "up_no_build_parser_present",
+            "up_force_recreate_parser_present",
+        ))
 
 
 def test_source_audit_requires_fixed_helper_service_consumption_and_real_exclusion_continue_guard(monkeypatch, capsys):
@@ -581,14 +728,14 @@ def test_malformed_oversized_unexpected_or_hash_mismatched_source_audit_is_block
 
 def test_timeout_exception_and_raw_output_are_fixed_blocked_records_with_no_retry_or_repeat():
     timeout_calls, exception_calls, raw_calls = [], [], []
-    timeout = _collect({observation.GLOBAL_HELP_COMMAND: subprocess.TimeoutExpired(observation.GLOBAL_HELP_COMMAND, 1)}, timeout_calls)
+    timeout = _collect({observation.VERSION_COMMAND: subprocess.TimeoutExpired(observation.VERSION_COMMAND, 1)}, timeout_calls)
     exception = _collect({observation.SOURCE_AUDIT_COMMAND: RuntimeError("private exception")}, exception_calls)
-    raw = _collect({observation.BUILD_HELP_COMMAND: _Result("private help output", returncode=1)}, raw_calls)
+    raw = _collect({observation.VERSION_COMMAND: _Result("private version output", returncode=1)}, raw_calls)
 
-    assert [item["error_code"] for item in (timeout, exception, raw)] == ["timeout", "internal_error", "help_unavailable"]
+    assert [item["error_code"] for item in (timeout, exception, raw)] == ["timeout", "internal_error", "version_unavailable"]
     assert all(set(item) == observation._BLOCKED_KEYS and item["retry_permitted"] is False for item in (timeout, exception, raw))
     assert "private" not in json.dumps((timeout, exception, raw))
-    assert len(timeout_calls) == 2 and len(exception_calls) == 5 and len(raw_calls) == 3
+    assert len(timeout_calls) == 1 and len(exception_calls) == 2 and len(raw_calls) == 1
 
 
 def test_main_emits_one_canonical_json_line(monkeypatch, capsys):
