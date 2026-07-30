@@ -1380,8 +1380,11 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         assert sec159_provenance[authority_key] is False
 
     sec163_publish = live_go_by_id["SEC163-ISOLATED-GATE-B-PUBLISH-20260730"]
-    assert sec163_publish["status"] == "consumed_pending_actions"
-    assert sec163_publish["consumption_status"] == "consumed_before_commit"
+    assert sec163_publish["status"] == "actions_consumed_pending_remote_readback"
+    assert (
+        sec163_publish["consumption_status"]
+        == "consumed_before_isolated_publication"
+    )
     assert sec163_publish["consumed"] is True
     assert sec163_publish["limits"] == {
         "maximum_local_commits": 2,
@@ -1394,12 +1397,14 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         "expected_remote_parent": "67f0737de5bccdb5b8841e4ad9deee3df0107b74",
         "path_count": 15,
     }
-    assert sec163_publish["local_commit_counter"] == 0
-    assert sec163_publish["clean_worktree_counter"] == 0
-    assert sec163_publish["cherry_pick_counter"] == 0
-    assert sec163_publish["push_counter"] == 0
+    assert sec163_publish["local_content_commit"] == "3992ea9b"
+    assert sec163_publish["isolated_content_commit"] == "72231897"
+    assert sec163_publish["local_commit_counter"] == 2
+    assert sec163_publish["clean_worktree_counter"] == 1
+    assert sec163_publish["cherry_pick_counter"] == 2
+    assert sec163_publish["push_counter"] == 1
     assert sec163_publish["force_push_counter"] == 0
-    assert sec163_publish["external_action_executed"] is False
+    assert sec163_publish["external_action_executed"] is True
     assert sec163_publish["reuse_permitted"] is False
     for authority_key in (
         "package_or_host_change_authority",
