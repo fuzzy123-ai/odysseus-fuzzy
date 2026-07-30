@@ -65,7 +65,7 @@ def _runtime_shape():
 def _observer(status="ok", **changes):
     if status == "ok":
         payload = {
-            "schema_id": transport.OBSERVER_SCHEMA_ID, "status": "ok", "podman_compose_version": "1.3.0",
+            "schema_id": transport.OBSERVER_SCHEMA_ID, "status": "ok", "podman_compose_version": transport.EXPECTED_VERSION,
             "global_env_file_parser_present": True, "global_project_name_parser_present": True,
             "service_scoped_build_parser_present": True, "service_scoped_up_parser_present": True,
             "no_deps_parser_present": True, "no_build_parser_present": True,
@@ -122,7 +122,13 @@ def test_exact_git_and_ssh_argv_and_verified_published_bytes_are_the_only_inputs
     git_kwargs, ssh_kwargs = calls[0][1], calls[1][1]
     assert git_kwargs["timeout"] == 5 and git_kwargs["stderr"] is subprocess.DEVNULL and git_kwargs["shell"] is False
     assert ssh_kwargs["timeout"] == 20 and ssh_kwargs["input"] == b"verified-observer" and ssh_kwargs["stderr"] is subprocess.DEVNULL and ssh_kwargs["shell"] is False
-    assert transport.REMOTE_COMMAND == "cd /opt/odysseus && exec /usr/bin/timeout --signal=KILL 15s /usr/bin/python3 -"
+    assert transport.EXPECTED_VERSION == "1.6.0"
+    assert transport.PUBLISHED_OBSERVER_SHA256 == "c4a48afb4d6c92e94f96ce3c13cf200cfadfadaf6b8710e1ce8977791c713f09"
+    assert transport.REMOTE_OBSERVER_INTERPRETER == "/home/homebase/.local/share/odysseus-compose-1.6.0/bin/python"
+    assert transport.REMOTE_COMMAND == (
+        "cd /opt/odysseus && exec /usr/bin/timeout --signal=KILL 15s "
+        "/home/homebase/.local/share/odysseus-compose-1.6.0/bin/python -"
+    )
     assert transport.PUBLISHED_REF == "refs/remotes/fuzzy/dev"
     assert transport.PUBLISHED_OBJECT == "refs/remotes/fuzzy/dev:ops/homeserver/redacted_podman_compose_capability_observation.py"
 
@@ -160,6 +166,14 @@ def test_valid_observer_ok_needs_and_blocked_schemas_are_reserialized_with_verif
     for response, expected_status in ((_Result(_observer()), "ok"), (_Result(_observer("needs_live_observation"), 1), "needs_live_observation"), (_Result(_observer("blocked"), 1), "blocked")):
         payload = _collect(response=response)
         assert payload["status"] == expected_status and payload["evidence_sha256"] == _digest(payload)
+
+
+def test_selected_compose_version_is_exact_and_old_version_is_rejected_before_any_result_is_retained():
+    accepted = _collect(response=_Result(_observer()))
+    old_version = _collect(response=_Result(_observer(podman_compose_version="1.3.0")))
+
+    assert accepted["status"] == "ok"
+    _assert_transport_blocked(old_version, ("transport_invalid", "invalid_payload_expected_returncode"))
 
 
 def test_version_diagnostic_blocked_schema_is_allowlisted_and_unknown_or_extra_fields_are_rejected():

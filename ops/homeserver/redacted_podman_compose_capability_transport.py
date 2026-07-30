@@ -21,13 +21,14 @@ TRANSPORT_SCHEMA_ID = "odysseus.redacted_podman_compose_capability_transport.v2"
 OBSERVER_PATH = "ops/homeserver/redacted_podman_compose_capability_observation.py"
 PUBLISHED_REF = "refs/remotes/fuzzy/dev"
 PUBLISHED_OBJECT = f"{PUBLISHED_REF}:{OBSERVER_PATH}"
-PUBLISHED_OBSERVER_SHA256 = "af8e688ae86e1406a55f51d521f746d15b9300d399caeaa4698e53bd133bd46c"
-EXPECTED_VERSION = "1.3.0"
+PUBLISHED_OBSERVER_SHA256 = "c4a48afb4d6c92e94f96ce3c13cf200cfadfadaf6b8710e1ce8977791c713f09"
+EXPECTED_VERSION = "1.6.0"
 GIT_READ_TIMEOUT_SECONDS = 5
 WORKSTATION_TIMEOUT_SECONDS = 20
 MAX_OBSERVER_BYTES = 200_000
 MAX_RESPONSE_BYTES = 8_192
-REMOTE_COMMAND = "cd /opt/odysseus && exec /usr/bin/timeout --signal=KILL 15s /usr/bin/python3 -"
+REMOTE_OBSERVER_INTERPRETER = "/home/homebase/.local/share/odysseus-compose-1.6.0/bin/python"
+REMOTE_COMMAND = f"cd /opt/odysseus && exec /usr/bin/timeout --signal=KILL 15s {REMOTE_OBSERVER_INTERPRETER} -"
 SSH_COMMAND = ("ssh", "-F", "ops/homeserver/ssh_config", "odysseus-homeserver", REMOTE_COMMAND)
 
 _SHA256 = "0123456789abcdef"

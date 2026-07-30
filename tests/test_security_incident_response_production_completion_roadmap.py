@@ -271,6 +271,8 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
     guidance = _load(GUIDANCE_PATH)
     trp = _load(TRP_PATH)
 
+    assert sirp["status"] == "sec163_isolated_publication_ledger_consumed"
+
     source = "docs/plans/security-incident-response-production-completion-roadmap.json"
     assert open_work["source_of_truth"].count(source) == 1
 
@@ -417,22 +419,24 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
             "deploy-live-go",
         ],
         "owner_of_queue_registration": "root",
-        "claim_status_now": (
-            "sec150_exact_publication_authorized_preflight_running"
-        ),
+        "claim_status_now": "sec163_isolated_publication_ledger_consumed",
         "dependency_order": [
             (
-                "complete the exact SEC150 seven-path publication to fuzzy/dev and "
-                "require independent remote revision, parent, tree, path and "
-                "transport-hash readback"
+                "implement and deep-review offline observer and transport candidate "
+                "fixtures while Debian 1.3.0 remains a negative "
+                "needs_live_observation fixture"
             ),
             (
-                "prepare a new separately reviewed one-use observation packet bound "
-                "to the published transport-v2 commit"
+                "publish the exact reviewed observer and transport candidate under "
+                "separate Git authority"
             ),
             (
-                "obtain a new action-specific read-only observation grant and "
-                "execute the packet exactly once with no retry"
+                "prepare and separately authorize one bounded package or host change "
+                "with rollback and redacted access readback"
+            ),
+            (
+                "prepare and separately authorize one new one-use capability "
+                "observation after the package-change readback"
             ),
             "implement and deep-review OPS-ALERT-C2 source-IP context and self-egress suppression",
             "bind and execute D deployment with rollback and independent readback",
@@ -444,6 +448,539 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
             ),
         ],
     }
+
+    sec152 = sirp["latest_sec152_transport_v2_observation_packet"]
+    assert sec152["packet_path"] == (
+        "docs/plans/security-incident-response-sec152-compose-v2-observation-packet.md"
+    )
+    assert (ROOT / sec152["packet_path"]).is_file()
+    assert sec152["published_binding"] == {
+        "remote": "fuzzy",
+        "branch": "dev",
+        "revision": "67f0737de5bccdb5b8841e4ad9deee3df0107b74",
+        "tree": "05e35c526939ff277ad8d74e276b97f2c782ad98",
+        "observer_sha256": (
+            "af8e688ae86e1406a55f51d521f746d15b9300d399caeaa4698e53bd133bd46c"
+        ),
+        "transport_sha256": (
+            "fdbbb0a5103eca34d0a1b96e55f34d45f34ef7e83493fa1f7cafe3c772de44a3"
+        ),
+        "remote_readback": "passed_during_SEC150_publication",
+    }
+    assert sec152["transport_schema"] == (
+        "odysseus.redacted_podman_compose_capability_transport.v2"
+    )
+    assert sec152["exact_command"] == (
+        r"C:\Users\nkatz\odysseus\venv\Scripts\python.exe "
+        r"ops\homeserver\redacted_podman_compose_capability_transport.py"
+    )
+    assert sec152["arguments"] == 0
+    assert sec152["limits"] == {
+        "maximum_invocations": 1,
+        "maximum_results": 1,
+        "outer_timeout_seconds": 30,
+        "follow_on_queries_or_commands": 0,
+        "retries": 0,
+        "expires_at": "run_end",
+    }
+    assert sec152["accepted_result_families"] == [
+        (
+            "strict transport-generated v2 six-key blocked envelope with exact "
+            "allowed pair and canonical digest"
+        ),
+        (
+            "strict preserved observer v1 ok, needs_live_observation, generic "
+            "blocked or diagnostic blocked envelope returned unchanged"
+        ),
+    ]
+    for authority_key in (
+        "live_observation_authority",
+        "public_ip_query_authority",
+        "deploy_authority",
+        "delivery_or_send_authority",
+        "external_actions_started",
+        "git_actions_started",
+    ):
+        assert sec152[authority_key] is False
+    assert sec152["deep_review"]["result"] == "accepted"
+
+    sec154 = sirp["latest_sec154_compose_capability_remediation_strategy"]
+    assert sec154["strategy_path"] == (
+        "docs/plans/security-incident-response-sec154-compose-capability-remediation-strategy.md"
+    )
+    assert (ROOT / sec154["strategy_path"]).is_file()
+    assert sec154["terminal_evidence_binding"] == {
+        "grant_id": "SEC153-TRANSPORT-V2-OBSERVE-20260729",
+        "status": "needs_live_observation",
+        "reason_code": "semantic_proof_insufficient",
+        "missing_proofs": ["source_up_no_deps_guard_missing"],
+        "retry_permitted": False,
+        "evidence_sha256": (
+            "b34ebfd08cd39d721b105aa85b7a4442d98c1b48a07f8b95fc9c2a72390d5968"
+        ),
+    }
+    assert sec154["diagnosis"] == (
+        "real Debian podman-compose 1.3.0 compose_up capability gap, not an "
+        "observer false negative"
+    )
+    assert sec154["selected_strategy"] == (
+        "preserve fail-closed recognition and prepare a separately gated replacement "
+        "or upgrade to an officially supported Compose implementation with exact "
+        "provider-chain provenance and offline compose_up no-deps semantic proof"
+    )
+    assert sec154["selected_gates"] == [
+        "A_repo_only_candidate_selection_contract",
+        "B_offline_implementation_and_fixture_acceptance",
+        "C_reviewed_publication",
+        "D_separately_authorized_package_or_host_change_with_rollback_and_redacted_access_readback",
+        "E_new_one_use_capability_observation",
+    ]
+    assert sec154["next_candidate_contract_path"] == (
+        "docs/plans/security-incident-response-sec155-compose-candidate-selection-contract.md"
+    )
+    assert sec154["rejected_shortcuts"] == [
+        "weaken observer or AST recognizer",
+        "edit or replace installed system files in place",
+        "automatically install or upgrade a package",
+        "broaden transactional deployment to whole-stack Compose up",
+    ]
+    assert sec154["fallback"] == (
+        "Direct Podman executor requires a separate owner decision and roadmap slice"
+    )
+    for authority_key in (
+        "implementation_authority",
+        "candidate_research_or_network_authority",
+        "package_or_host_change_authority",
+        "live_observation_authority",
+        "public_ip_query_authority",
+        "deploy_authority",
+        "delivery_or_send_authority",
+        "external_actions_started",
+        "git_actions_started",
+    ):
+        assert sec154[authority_key] is False
+    assert sec154["deep_review"]["result"] == "accepted"
+    for correction in (
+        "real_gap_not_false_negative",
+        "debian_1_3_0_adverse_fixture_preserved",
+        "candidate_version_not_invented",
+        "provider_chain_binding_required",
+        "gate_A_contract_only_scope",
+        "sequential_package_rollback_readback_gates",
+        "package_change_has_no_compose_container_service_or_deploy_authority",
+        "C2_before_D_preserved",
+        "ascii_and_diff_integrity",
+    ):
+        assert sec154["deep_review"][correction] == "passed"
+
+    sec155 = sirp["latest_sec155_compose_candidate_selection_contract"]
+    assert sec155["contract_path"] == (
+        "docs/plans/security-incident-response-sec155-compose-candidate-selection-contract.md"
+    )
+    assert (ROOT / sec155["contract_path"]).is_file()
+    assert sec155["candidate_status"] == "unselected"
+    for candidate_key in (
+        "candidate_identity",
+        "candidate_version",
+        "candidate_distribution_channel",
+        "provider_chain",
+    ):
+        assert sec155[candidate_key] is None
+    assert sec155["allowed_candidate_result_statuses"] == [
+        "unselected",
+        "eligible",
+        "rejected",
+        "blocked",
+    ]
+    assert sec155["required_future_evidence"] == [
+        "exact implementation identity and supported distribution channel",
+        "complete entrypoint and delegated provider chain",
+        "exact package or artifact identity, version and architecture when applicable",
+        "immutable digest, checksum or signed identity with approved verification mechanism",
+        "bounded installed-identity predicates through a redacted fixed-key readback",
+        "offline synthetic source fixture bound to the selected provider behavior",
+        "deterministic AST proof for service-only no-deps and dependency-expanding opposite branch",
+        "independent service-selection, no-build and force-recreate proof",
+        "Debian podman-compose 1.3.0 adverse fixture preserving needs_live_observation and source_up_no_deps_guard_missing",
+    ]
+    assert sec155["eligibility_rule"] == (
+        "eligible is prohibited until one future separately authorized read-only "
+        "official-provenance exercise produces the complete fixed-key evidence envelope "
+        "and a durable owner decision selects exactly one candidate"
+    )
+    assert sec155["gate_b_paths_after_owner_selection_only"] == [
+        "ops/homeserver/redacted_podman_compose_capability_observation.py",
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_observation.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_transport.py",
+    ]
+    for authority_key in (
+        "implementation_authority",
+        "candidate_research_or_network_authority",
+        "package_or_host_change_authority",
+        "live_observation_authority",
+        "public_ip_query_authority",
+        "deploy_authority",
+        "delivery_or_send_authority",
+        "git_actions_started",
+        "external_actions_started",
+    ):
+        assert sec155[authority_key] is False
+    assert sec155["deep_review"]["result"] == "accepted"
+
+    frontier = sirp["next_frontier"]
+    assert frontier["claim_status_now"] == "sec163_isolated_publication_ledger_consumed"
+    assert frontier["dependency_order"] == [
+        (
+            "implement and deep-review offline observer and transport candidate "
+            "fixtures while Debian 1.3.0 remains a negative "
+            "needs_live_observation fixture"
+        ),
+        (
+            "publish the exact reviewed observer and transport candidate under "
+            "separate Git authority"
+        ),
+        (
+            "prepare and separately authorize one bounded package or host change "
+            "with rollback and redacted access readback"
+        ),
+        (
+            "prepare and separately authorize one new one-use capability "
+            "observation after the package-change readback"
+        ),
+        "implement and deep-review OPS-ALERT-C2 source-IP context and self-egress suppression",
+        "bind and execute D deployment with rollback and independent readback",
+        "obtain fresh strict redacted runtime readiness",
+        "bind one exact E delivery packet",
+        (
+            "send exactly once and independently read back durable receipt plus "
+            "human confirmation"
+        ),
+    ]
+    assert sec155["next_action"] == (
+        "Obtain separate owner authority for one bounded read-only official-provenance "
+        "exercise. No candidate, version, channel or provider is selected."
+    )
+
+    sec156 = sirp["latest_sec156_compose_candidate_provenance_readonly_packet"]
+    assert sec156["packet_path"] == (
+        "docs/plans/security-incident-response-sec156-compose-candidate-"
+        "provenance-readonly-packet.md"
+    )
+    assert (ROOT / sec156["packet_path"]).is_file()
+    assert sec156["template_bindable_now"] is False
+    assert sec156["candidate_status"] == "unselected"
+    assert sec156["evaluation_subject"] is None
+    assert sec156["approved_origins"] == []
+    assert sec156["instantiation_status"] == "waiting_on_user"
+    assert sec156["future_go_binding_rule"] == (
+        "plain go binds only when immediately responding to a fully instantiated "
+        "accepted packet with one exact non-null evaluation subject and a non-empty "
+        "exact approved-origin allowlist"
+    )
+    assert sec156["future_limits"] == {
+        "candidate_subjects": 1,
+        "substitutions": 0,
+        "maximum_requests": 12,
+        "maximum_opened_or_searched_pages": 8,
+        "maximum_inspected_bodies": 4,
+        "maximum_body_bytes": 524288,
+        "maximum_aggregate_body_bytes": 2097152,
+        "maximum_approved_origins": 3,
+        "maximum_wall_clock_seconds": 600,
+        "execution_attempts": 1,
+        "retries": 0,
+    }
+    assert sec156["permitted_source_classes"] == [
+        "official project or vendor documentation",
+        "official signed release metadata or official public immutable source",
+        "official operating-system distribution metadata",
+        "official language package index project and release metadata",
+    ]
+    assert sec156["permitted_operations_after_future_go_only"] == [
+        "unauthenticated read-only HTTPS GET within approved origins",
+        "unauthenticated read-only HTTPS HEAD within approved origins",
+        "domain-restricted search within approved origins",
+        "open within approved origins",
+    ]
+    for authority_key in (
+        "open_web_candidate_discovery_authority",
+        "network_authority",
+        "package_or_host_change_authority",
+        "runtime_or_provider_authority",
+        "live_observation_authority",
+        "public_ip_query_authority",
+        "deploy_authority",
+        "delivery_or_send_authority",
+        "git_actions_started",
+        "external_actions_started",
+    ):
+        assert sec156[authority_key] is False
+    assert sec156["deep_review"]["first_handoff_unfilled_go_binding_rejected"] is True
+    assert (
+        sec156["deep_review"]["language_package_index_metadata_only_source_class"]
+        == "passed"
+    )
+    assert sec156["deep_review"]["result"] == "accepted"
+    assert sec156["next_action"] == (
+        "Obtain the owner's nomination of one exact evidence-gathering subject, then "
+        "prepare the exact approved-origin instantiation repo-only. No network request "
+        "is authorized."
+    )
+
+    sec157 = sirp["latest_sec157_compose_candidate_provenance_readonly_instantiation"]
+    assert sec157["status"] == "repo_only_instantiation_and_test_binding_deep_review_passed"
+    assert sec157["instantiation_path"] == (
+        "docs/plans/security-incident-response-sec157-compose-candidate-"
+        "provenance-readonly-instantiation.md"
+    )
+    assert (ROOT / sec157["instantiation_path"]).is_file()
+    assert sec157["base_packet_path"] == sec156["packet_path"]
+    assert (ROOT / sec157["base_packet_path"]).is_file()
+    assert sec157["candidate_status"] == "unselected"
+    assert sec157["evaluation_subject"] == "containers/podman-compose upstream project"
+    assert sec157["nomination_is_adoption_selection"] is False
+    assert sec157["approved_origins"] == [
+        "https://github.com",
+        "https://raw.githubusercontent.com",
+        "https://pypi.org",
+    ]
+    assert sec157["approved_path_boundaries"] == [
+        (
+            "https://github.com exact /containers/podman-compose or descendants "
+            "beginning /containers/podman-compose/"
+        ),
+        (
+            "https://raw.githubusercontent.com prefix "
+            "/containers/podman-compose/<40-hex-full-commit-sha>/"
+            "<nonempty-source-path>"
+        ),
+        (
+            "https://pypi.org exact /pypi/podman-compose/json or prefix "
+            "/project/podman-compose/"
+        ),
+    ]
+    assert sec157["approved_source_classes"] == [
+        "official project or vendor documentation",
+        "official signed release metadata or official public immutable source",
+        "official operating-system distribution metadata",
+        "official language package index project and release metadata",
+    ]
+    assert sec157["future_limits"] == sec156["future_limits"]
+    assert sec157["expires_at"] is None
+    assert sec157["current_user_go_consumption"] == (
+        "consumed_for_repo_only_instantiation_not_reusable_for_provenance_requests"
+    )
+    assert sec157["future_go_required"] is True
+    assert sec157["future_go_binding_rule"] == (
+        "one new plain go must immediately respond to the accepted SEC157 "
+        "instantiation before a one-use expiring read-only provenance ledger may "
+        "be created"
+    )
+    for authority_key in (
+        "network_authority",
+        "package_or_host_change_authority",
+        "runtime_or_provider_authority",
+        "live_observation_authority",
+        "public_ip_query_authority",
+        "deploy_authority",
+        "delivery_or_send_authority",
+        "git_actions_started",
+        "external_actions_started",
+    ):
+        assert sec157[authority_key] is False
+    assert (
+        sec157["deep_review"]["first_handoff_source_class_and_boundary_rejected"]
+        is True
+    )
+    for correction in (
+        "pypi_metadata_only_source_class_after_correction",
+        "github_exact_repository_boundary_after_correction",
+        "raw_github_full_commit_sha_after_correction",
+        "candidate_nomination_not_selection",
+        "one_subject_zero_substitution",
+        "budget_and_expiry_binding",
+        "current_go_non_reuse",
+        "authority_boundaries",
+        "ascii_and_diff_integrity",
+    ):
+        assert sec157["deep_review"][correction] == "passed"
+    assert sec157["deep_review"]["result"] == "accepted"
+    assert sec157["next_action"] == (
+        "Wait for one new plain go immediately responding to the accepted SEC157 "
+        "instantiation. No provenance request is authorized yet."
+    )
+
+    sec158 = sirp["latest_sec158_compose_candidate_provenance_transport"]
+    assert sec158["status"] == (
+        "offline_transport_and_instantiation_correction_deep_review_passed"
+    )
+    assert sec158["transport_path"] == (
+        "ops/homeserver/redacted_compose_candidate_provenance.py"
+    )
+    assert sec158["evaluation_subject"] == "containers/podman-compose upstream project"
+    assert sec158["default_disabled"] is True
+    assert sec158["network_executed"] is False
+    assert sec158["candidate_status"] == "unselected"
+    assert sec158["limits"] == sec156["future_limits"]
+    assert sec158["deep_review"]["first_handoff_rejected"] is True
+    assert sec158["deep_review"]["result"] == "accepted"
+
+    sec159 = sirp["latest_sec159_compose_candidate_provenance_egress_recovery"]
+    assert sec159["status"] == "live_provenance_completed_candidate_selected"
+    assert sec159["prior_terminal_status"] == "fetch_error_before_any_body_received"
+    assert sec159["candidate_status"] == "selected"
+    assert sec159["selected_candidate"] == {
+        "implementation_identity": "containers/podman-compose",
+        "version": "1.6.0",
+        "package_or_artifact_identity": "podman_compose-1.6.0.tar.gz",
+        "immutable_identity": (
+            "sha256:c83fd9bcbaa635100d581ce52a7a4b712ee0d457481232aff392efe3ebc5a217"
+        ),
+        "supported_distribution_channel": "pypi.org project metadata",
+        "entrypoint_provider_chain": (
+            "podman-compose CLI -> podman_compose.py:compose_up -> podman CLI"
+        ),
+        "provenance_evidence_sha256": (
+            "74cea20633c55a55640b7fd4ac42348e7f186c64208645f76c09df7e0e84ddee"
+        ),
+    }
+    assert sec159["owner_selection_decision"]["decision"] == (
+        "selected_for_gate_b_offline_fixture_and_later_bounded_host_change"
+    )
+    for authority_key in (
+        "selection_is_install_authority",
+        "selection_is_host_change_authority",
+        "selection_is_deploy_authority",
+    ):
+        assert sec159["owner_selection_decision"][authority_key] is False
+    assert sec159["network_executed"] is True
+    assert sec159["strict_envelope_validation"] == "passed"
+    assert sec159["attempts_remaining_after_this_ledger"] == 0
+    assert sec159["next_action"] == (
+        "Implement and deep-review the Gate-B offline observer and transport fixtures "
+        "for the selected immutable candidate. Debian 1.3.0 remains the negative "
+        "needs_live_observation fixture."
+    )
+
+    sec160 = sirp["latest_sec160_selected_candidate_observer"]
+    assert sec160["status"] == "selected_candidate_observer_deep_review_passed"
+    assert sec160["selected_version"] == "1.6.0"
+    assert sec160["observer_path"] == (
+        "ops/homeserver/redacted_podman_compose_capability_observation.py"
+    )
+    assert sec160["observer_sha256"] == (
+        "c4a48afb4d6c92e94f96ce3c13cf200cfadfadaf6b8710e1ce8977791c713f09"
+    )
+    assert sec160["identity_binding"] == (
+        "all Compose commands resolve adjacent to sys.executable and source audit uses "
+        "that exact interpreter; paths are never serialized"
+    )
+    assert sec160["debian_1_3_0_adverse_fixture"] == {
+        "version_result": "blocked_version_mismatch",
+        "semantic_result": "needs_live_observation",
+        "missing_proofs": ["source_up_no_deps_guard_missing"],
+        "can_produce_ok": False,
+    }
+    assert sec160["deep_review"]["first_handoff_rejected_for_identity_ambiguity"] is True
+    for correction in (
+        "selected_version_binding",
+        "interpreter_and_compose_binary_identity",
+        "fixed_key_redaction",
+        "semantic_ast_gates",
+        "debian_1_3_0_adverse_fixture",
+    ):
+        assert sec160["deep_review"][correction] == "passed"
+    assert sec160["deep_review"]["focused_tests"] == "19 passed"
+    assert sec160["deep_review"]["result"] == "accepted"
+
+    sec161 = sirp["latest_sec161_selected_candidate_transport"]
+    assert sec161["status"] == "selected_candidate_transport_deep_review_passed"
+    assert sec161["transport_path"] == (
+        "ops/homeserver/redacted_podman_compose_capability_transport.py"
+    )
+    assert sec161["transport_sha256"] == (
+        "bd6d20e43b75508a32707f7935360476441446be4e145057731935ce9c97cb54"
+    )
+    assert sec161["selected_version"] == "1.6.0"
+    assert sec161["observer_sha256"] == sec160["observer_sha256"]
+    assert sec161["published_ref"] == "refs/remotes/fuzzy/dev"
+    assert sec161["remote_observer_interpreter"] == (
+        "/home/homebase/.local/share/odysseus-compose-1.6.0/bin/python"
+    )
+    for correction in (
+        "published_blob_digest_enforcement",
+        "dedicated_interpreter_binding",
+        "selected_version_binding",
+        "old_1_3_0_success_rejection",
+        "strict_schema_and_return_code_binding",
+        "no_retry",
+        "historical_schema_compatibility",
+    ):
+        assert sec161["deep_review"][correction] == "passed"
+    assert sec161["deep_review"]["focused_tests"] == "19 passed"
+    assert sec161["deep_review"]["result"] == "accepted"
+
+    sec162 = sirp["latest_sec162_selected_candidate_host_change_transport"]
+    assert sec162["status"] == "default_disabled_host_change_transport_deep_review_passed"
+    assert sec162["transport_path"] == (
+        "ops/homeserver/redacted_compose_candidate_host_change.py"
+    )
+    assert sec162["transport_sha256"] == (
+        "36332245325d1b5e852b1336d00f2e0e41a495442e351ee5fd74fefa9834d624"
+    )
+    assert sec162["test_path"] == "tests/test_redacted_compose_candidate_host_change.py"
+    assert sec162["test_sha256"] == (
+        "3843f90bac58fe5da89bd85d42c6a2214d00638cb1626ddf3369445f2d946d10"
+    )
+    assert sec162["selected_package"] == "podman-compose==1.6.0"
+    assert sec162["selected_sdist_sha256"] == (
+        "c83fd9bcbaa635100d581ce52a7a4b712ee0d457481232aff392efe3ebc5a217"
+    )
+    assert sec162["target_class"] == "dedicated homebase venv odysseus-compose-1.6.0"
+    assert sec162["future_grant_id"] == "SEC162-COMPOSE-CANDIDATE-HOST-CHANGE-GO"
+    assert sec162["default_disabled"] is True
+    assert sec162["max_grant_seconds"] == 600
+    assert sec162["attempts"] == 1
+    assert sec162["retries"] == 0
+    assert sec162["provider_boundary"] == (
+        "isolated pip with explicit https://pypi.org/simple, exact sdist hash, no "
+        "deps, no binary, no build isolation, no inherited pip configuration or "
+        "environment"
+    )
+    assert sec162["atomicity_and_rollback"] == (
+        "exact real parent, Linux renameat2 RENAME_NOREPLACE, opaque dev/inode "
+        "ownership tokens, delete only attempt-owned temp or target, unknown "
+        "ownership never deleted"
+    )
+    for rejected_handoff in (
+        "first_handoff_rejected_for_environment_and_no_clobber",
+        "second_handoff_rejected_for_publish_identity_unknown",
+        "third_handoff_rejected_for_none_token_equality",
+    ):
+        assert sec162["deep_review"][rejected_handoff] is True
+    for correction in (
+        "default_disabled",
+        "fixed_subprocess_environment",
+        "exact_hash_and_provider_boundary",
+        "parent_and_no_clobber_boundary",
+        "owned_rollback_only",
+        "publish_outcome_unknown_fail_closed",
+        "cross_field_envelope_validation",
+    ):
+        assert sec162["deep_review"][correction] == "passed"
+    assert sec162["deep_review"]["focused_tests"] == "19 passed"
+    assert sec162["deep_review"]["py_compile"] == "passed"
+    assert sec162["deep_review"]["result"] == "accepted"
+    for authority_key in (
+        "external_actions_started",
+        "package_or_host_change_authority",
+        "live_observation_authority",
+        "public_ip_query_authority",
+        "deploy_authority",
+        "delivery_or_send_authority",
+    ):
+        assert sec162[authority_key] is False
 
     guidance_entries = [item for item in guidance["roadmaps"] if item["path"] == source]
     assert len(guidance_entries) == 1
@@ -639,7 +1176,11 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         "SIRP12-OBSERVE-PACKET-20260728",
         "SEC143-COMPOSE-OBSERVE-20260729",
         "SEC146-COMPOSE-OBSERVE-20260729",
-    }
+            "SEC153-TRANSPORT-V2-OBSERVE-20260729",
+            "SEC158-COMPOSE-CANDIDATE-PROVENANCE-READONLY-20260730",
+            "SEC159-COMPOSE-CANDIDATE-PROVENANCE-EGRESS-RECOVERY-20260730",
+            "SEC163-ISOLATED-GATE-B-PUBLISH-20260730",
+        }
     packet = live_go_by_id["SIRP12-OBSERVE-PACKET-20260728"]
     assert packet["id"] == "SIRP12-OBSERVE-PACKET-20260728"
     assert packet["action"] == "other/read_only_observation"
@@ -698,6 +1239,176 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     assert sec146["public_ip_query_authority"] is False
     assert sec146["deploy_authority"] is False
     assert sec146["delivery_or_send_authority"] is False
+
+    sec153 = live_go_by_id["SEC153-TRANSPORT-V2-OBSERVE-20260729"]
+    assert sec153["status"] == "used"
+    assert sec153["consumption_status"] == (
+        "consumed_terminal_needs_live_observation"
+    )
+    assert sec153["consumed"] is True
+    assert sec153["invocation_counter"] == 1
+    assert sec153["result_counter"] == 1
+    assert sec153["limits"] == {
+        "arguments": 0,
+        "maximum_invocations": 1,
+        "maximum_results": 1,
+        "outer_timeout_seconds": 30,
+        "follow_on_queries": 0,
+        "retries": 0,
+    }
+    assert sec153["reuse_permitted"] is False
+    assert sec153["terminal_result"] == {
+        "result_family": "strict_preserved_observer_v1",
+        "schema_id": "odysseus.redacted_podman_compose_capability_observation.v1",
+        "status": "needs_live_observation",
+        "reason_code": "semantic_proof_insufficient",
+        "missing_proofs": ["source_up_no_deps_guard_missing"],
+        "retry_permitted": False,
+        "evidence_sha256": (
+            "b34ebfd08cd39d721b105aa85b7a4442d98c1b48a07f8b95fc9c2a72390d5968"
+        ),
+        "offline_strict_validation": "passed",
+    }
+    assert sec153["public_ip_query_authority"] is False
+    assert sec153["deploy_authority"] is False
+    assert sec153["delivery_or_send_authority"] is False
+
+    latest_sec153 = sirp["latest_sec153_transport_v2_observation_run"]
+    assert latest_sec153["status"] == (
+        "single_observation_terminal_needs_live_observation_no_retry"
+    )
+    assert latest_sec153["invocation_counter"] == 1
+    assert latest_sec153["result_counter"] == 1
+    assert latest_sec153["grant_consumption"] == {
+        "status": "consumed_terminal_needs_live_observation",
+        "invocations": 1,
+        "results": 1,
+        "retries": 0,
+        "follow_on_queries": 0,
+        "reuse_permitted": False,
+    }
+    assert latest_sec153["terminal_result"]["capability_supported"] is False
+    assert latest_sec153["terminal_result"]["deploy_authority_granted"] is False
+    assert (
+        latest_sec153["terminal_result"]["delivery_or_send_authority_granted"]
+        is False
+    )
+    assert latest_sec153["public_ip_query_authority"] is False
+    assert latest_sec153["deploy_authority"] is False
+    assert latest_sec153["delivery_or_send_authority"] is False
+
+    sec158_provenance = live_go_by_id[
+        "SEC158-COMPOSE-CANDIDATE-PROVENANCE-READONLY-20260730"
+    ]
+    assert sec158_provenance["status"] == "used_terminal_blocked"
+    assert sec158_provenance["consumption_status"] == (
+        "consumed_terminal_fetch_error_at_local_network_boundary"
+    )
+    assert sec158_provenance["consumed"] is True
+    assert sec158_provenance["invocation_counter"] == 1
+    assert sec158_provenance["result_counter"] == 1
+    assert sec158_provenance["external_action_executed"] is True
+    assert sec158_provenance["reuse_permitted"] is False
+    assert sec158_provenance["terminal_result"] == {
+        "schema_id": "odysseus.redacted_compose_candidate_provenance.v1",
+        "status": "blocked",
+        "candidate_status": "blocked",
+        "execution_status": "fetch_error",
+        "request_count": 1,
+        "page_count": 1,
+        "body_count": 0,
+        "body_bytes": 0,
+        "origin_count": 1,
+        "retry_permitted": False,
+        "redaction_status": "fixed_key_only",
+        "evidence_sha256": (
+            "95fd4f9e5b71867b9d62a8419b019910b2e771064fff2930ce5c649627856536"
+        ),
+    }
+    for authority_key in (
+        "package_or_host_change_authority",
+        "live_observation_authority",
+        "public_ip_query_authority",
+        "deploy_authority",
+        "delivery_or_send_authority",
+    ):
+        assert sec158_provenance[authority_key] is False
+
+    sec159_provenance = live_go_by_id[
+        "SEC159-COMPOSE-CANDIDATE-PROVENANCE-EGRESS-RECOVERY-20260730"
+    ]
+    assert sec159_provenance["status"] == "used_completed"
+    assert sec159_provenance["consumption_status"] == (
+        "consumed_terminal_completed_candidate_eligible"
+    )
+    assert sec159_provenance["consumed"] is True
+    assert sec159_provenance["invocation_counter"] == 1
+    assert sec159_provenance["result_counter"] == 1
+    assert sec159_provenance["external_action_executed"] is True
+    assert sec159_provenance["reuse_permitted"] is False
+    assert sec159_provenance["terminal_result"] == {
+        "schema_id": "odysseus.redacted_compose_candidate_provenance.v1",
+        "status": "completed",
+        "candidate_status": "eligible",
+        "required_field_status": "complete",
+        "provider_chain_status": "complete",
+        "immutable_identity_status": "verified",
+        "signature_verification_status": "unavailable",
+        "version": "1.6.0",
+        "package_or_artifact_identity": "podman_compose-1.6.0.tar.gz",
+        "immutable_identity": (
+            "sha256:c83fd9bcbaa635100d581ce52a7a4b712ee0d457481232aff392efe3ebc5a217"
+        ),
+        "request_count": 4,
+        "page_count": 4,
+        "body_count": 4,
+        "body_bytes": 243602,
+        "origin_count": 3,
+        "retry_permitted": False,
+        "redaction_status": "fixed_key_only",
+        "evidence_sha256": (
+            "74cea20633c55a55640b7fd4ac42348e7f186c64208645f76c09df7e0e84ddee"
+        ),
+    }
+    for authority_key in (
+        "package_or_host_change_authority",
+        "live_observation_authority",
+        "public_ip_query_authority",
+        "deploy_authority",
+        "delivery_or_send_authority",
+    ):
+        assert sec159_provenance[authority_key] is False
+
+    sec163_publish = live_go_by_id["SEC163-ISOLATED-GATE-B-PUBLISH-20260730"]
+    assert sec163_publish["status"] == "consumed_pending_actions"
+    assert sec163_publish["consumption_status"] == "consumed_before_commit"
+    assert sec163_publish["consumed"] is True
+    assert sec163_publish["limits"] == {
+        "maximum_local_commits": 2,
+        "maximum_clean_worktrees": 1,
+        "maximum_cherry_picks": 2,
+        "maximum_pushes": 1,
+        "force_pushes": 0,
+        "remote": "fuzzy",
+        "branch": "dev",
+        "expected_remote_parent": "67f0737de5bccdb5b8841e4ad9deee3df0107b74",
+        "path_count": 15,
+    }
+    assert sec163_publish["local_commit_counter"] == 0
+    assert sec163_publish["clean_worktree_counter"] == 0
+    assert sec163_publish["cherry_pick_counter"] == 0
+    assert sec163_publish["push_counter"] == 0
+    assert sec163_publish["force_push_counter"] == 0
+    assert sec163_publish["external_action_executed"] is False
+    assert sec163_publish["reuse_permitted"] is False
+    for authority_key in (
+        "package_or_host_change_authority",
+        "live_observation_authority",
+        "public_ip_query_authority",
+        "deploy_authority",
+        "delivery_or_send_authority",
+    ):
+        assert sec163_publish[authority_key] is False
 
     evidence_text = LIVE_EVIDENCE_PATH.read_text(encoding="utf-8")
     projection = json.loads(
