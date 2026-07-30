@@ -1181,6 +1181,9 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
             "SEC159-COMPOSE-CANDIDATE-PROVENANCE-EGRESS-RECOVERY-20260730",
             "SEC163-ISOLATED-GATE-B-PUBLISH-20260730",
             "SEC164-CROSS-PLATFORM-BLOB-REPAIR-PUBLISH-20260730",
+            "SEC165-SELECTED-COMPOSE-HOST-CHANGE-20260730",
+        "SEC166-POST-HOST-CHANGE-COMPOSE-OBSERVE-20260730",
+        "SEC169-HOST-STATE-READBACK-PUBLISH-20260730",
         }
     packet = live_go_by_id["SIRP12-OBSERVE-PACKET-20260728"]
     assert packet["id"] == "SIRP12-OBSERVE-PACKET-20260728"
@@ -1424,11 +1427,8 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     sec164_publish = live_go_by_id[
         "SEC164-CROSS-PLATFORM-BLOB-REPAIR-PUBLISH-20260730"
     ]
-    assert sec164_publish["status"] == "actions_consumed_pending_remote_readback"
-    assert (
-        sec164_publish["consumption_status"]
-        == "consumed_before_repair_publication"
-    )
+    assert sec164_publish["status"] == "used_completed_remote_readback"
+    assert sec164_publish["consumption_status"] == "consumed_terminal_completed"
     assert sec164_publish["consumed"] is True
     assert sec164_publish["limits"] == {
         "maximum_local_commits": 1,
@@ -1447,6 +1447,24 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     assert sec164_publish["push_counter"] == 1
     assert sec164_publish["force_push_counter"] == 0
     assert sec164_publish["external_action_executed"] is True
+    assert sec164_publish["terminal_result"] == {
+        "status": "completed",
+        "remote_revision": "c5850998889660eb8074f94c45948548e26331f6",
+        "remote_tree": "5cc3c261a0f2a01c195a6f0ef39c25d2f961c247",
+        "expected_base_is_ancestor": True,
+        "changed_path_count": 15,
+        "telegram_commit_is_ancestor": False,
+        "gate_b_tests": "82 passed",
+        "observer_sha256": (
+            "c4a48afb4d6c92e94f96ce3c13cf200cfadfadaf6b8710e1ce8977791c713f09"
+        ),
+        "transport_sha256": (
+            "bd6d20e43b75508a32707f7935360476441446be4e145057731935ce9c97cb54"
+        ),
+        "host_change_sha256": (
+            "36332245325d1b5e852b1336d00f2e0e41a495442e351ee5fd74fefa9834d624"
+        ),
+    }
     assert sec164_publish["reuse_permitted"] is False
     for authority_key in (
         "package_or_host_change_authority",
@@ -1456,6 +1474,102 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         "delivery_or_send_authority",
     ):
         assert sec164_publish[authority_key] is False
+
+    sec165_host_change = live_go_by_id[
+        "SEC165-SELECTED-COMPOSE-HOST-CHANGE-20260730"
+    ]
+    assert sec165_host_change["status"] == "used_terminal_unknown_readback"
+    assert sec165_host_change["consumption_status"] == "consumed_terminal_no_retry"
+    assert sec165_host_change["limits"] == {
+        "maximum_invocations": 1,
+        "maximum_results": 1,
+        "maximum_wall_clock_seconds": 300,
+        "retries": 0,
+        "package_substitutions": 0,
+        "target_substitutions": 0,
+    }
+    assert sec165_host_change["invocation_counter"] == 1
+    assert sec165_host_change["result_counter"] == 0
+    assert sec165_host_change["retry_counter"] == 0
+    assert sec165_host_change["external_action_executed"] is True
+    assert sec165_host_change["terminal_result"] == {
+        "status": "unknown_readback",
+        "reason_code": "local_validator_name_mismatch",
+        "host_change_repeated": False,
+        "retry_permitted": False,
+    }
+    assert sec165_host_change["reuse_permitted"] is False
+    for authority_key in (
+        "live_observation_authority",
+        "public_ip_query_authority",
+        "deploy_authority",
+        "delivery_or_send_authority",
+    ):
+        assert sec165_host_change[authority_key] is False
+
+    sec166_observe = live_go_by_id[
+        "SEC166-POST-HOST-CHANGE-COMPOSE-OBSERVE-20260730"
+    ]
+    assert sec166_observe["status"] == "used_terminal_blocked"
+    assert sec166_observe["consumption_status"] == "consumed_terminal_no_retry"
+    assert sec166_observe["limits"] == {
+        "arguments": 0,
+        "maximum_invocations": 1,
+        "maximum_results": 1,
+        "outer_timeout_seconds": 30,
+        "follow_on_queries": 0,
+        "retries": 0,
+    }
+    assert sec166_observe["invocation_counter"] == 1
+    assert sec166_observe["result_counter"] == 1
+    assert sec166_observe["external_action_executed"] is True
+    assert sec166_observe["terminal_result"] == {
+        "schema_id": "odysseus.redacted_podman_compose_capability_transport.v2",
+        "status": "blocked",
+        "error_code": "transport_failed",
+        "diagnostic_code": "ssh_unexpected_returncode",
+        "retry_permitted": False,
+        "evidence_sha256": (
+            "e2cbb8609cf9c38b5844fcd66d53a3596b8d7b5b662647b5e08c3c4aaf289a3f"
+        ),
+    }
+    assert sec166_observe["reuse_permitted"] is False
+    for authority_key in (
+        "public_ip_query_authority",
+        "deploy_authority",
+        "delivery_or_send_authority",
+    ):
+        assert sec166_observe[authority_key] is False
+
+    sec169_publish = live_go_by_id["SEC169-HOST-STATE-READBACK-PUBLISH-20260730"]
+    assert sec169_publish["status"] == "actions_consumed_pending_remote_readback"
+    assert sec169_publish["consumption_status"] == "consumed_before_publication"
+    assert sec169_publish["limits"] == {
+        "maximum_local_commits": 1,
+        "maximum_new_worktrees": 0,
+        "maximum_cherry_picks": 1,
+        "maximum_pushes": 1,
+        "force_pushes": 0,
+        "remote": "fuzzy",
+        "branch": "dev",
+        "expected_remote_parent": "c5850998889660eb8074f94c45948548e26331f6",
+        "path_count": 4,
+    }
+    assert sec169_publish["local_commit_counter"] == 1
+    assert sec169_publish["new_worktree_counter"] == 0
+    assert sec169_publish["cherry_pick_counter"] == 1
+    assert sec169_publish["push_counter"] == 1
+    assert sec169_publish["force_push_counter"] == 0
+    assert sec169_publish["external_action_executed"] is True
+    assert sec169_publish["reuse_permitted"] is False
+    for authority_key in (
+        "package_or_host_change_authority",
+        "live_observation_authority",
+        "public_ip_query_authority",
+        "deploy_authority",
+        "delivery_or_send_authority",
+    ):
+        assert sec169_publish[authority_key] is False
 
     evidence_text = LIVE_EVIDENCE_PATH.read_text(encoding="utf-8")
     projection = json.loads(
