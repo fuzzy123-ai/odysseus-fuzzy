@@ -6,6 +6,7 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON_BASELINE = "3.11"
+MCP_REQUIREMENT = "mcp==1.27.2"
 
 
 def test_python_311_baseline_contract_is_consistent():
@@ -33,3 +34,15 @@ def test_python_311_baseline_contract_is_consistent():
             step,
             flags=re.MULTILINE,
         ), f"{workflow.relative_to(ROOT)} must pin actions/setup-python to {PYTHON_BASELINE}"
+
+
+def test_mcp_dependency_is_exactly_pinned_to_the_compatible_1x_release():
+    requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
+    active_requirements = [line.strip() for line in requirements if line.strip() and not line.lstrip().startswith("#")]
+    mcp_requirements = [
+        requirement
+        for requirement in active_requirements
+        if re.match(r"(?i)^mcp(?:\s|[<>=!~@;\[]|$)", requirement)
+    ]
+
+    assert mcp_requirements == [MCP_REQUIREMENT]
