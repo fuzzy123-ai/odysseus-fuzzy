@@ -4,7 +4,7 @@
   "id": "SIRP",
   "title": "Security Incident Response Production Completion",
   "updated_at": "2026-07-30T12:04:24+02:00",
-  "status": "sec163_isolated_publication_ledger_consumed",
+  "status": "sec164_cross_platform_blob_test_repair_claimed",
   "mode": "safe_offline_dependency_ordered",
   "goal": "Close the explicit gap between prepare-only security incident contracts and a production-validated assisted response system with bounded evidence, durable incident and action state, operator-bound approvals, typed executors, independent effect readback and rollback.",
   "slice_contract_fields": ["id", "priority", "class", "owner", "status", "claimable", "depends_on", "gate_requirements", "blockers", "allowed_paths", "hotfiles", "goal", "acceptance", "tests_evidence", "forbidden", "done_when", "completion_matrix"],
@@ -4408,18 +4408,48 @@
       "hotfiles": [
         "docs/plans/security-incident-response-production-completion-roadmap.json"
       ],
-      "state": "claimed",
+      "state": "released",
       "acquired_at": "2026-07-30T12:04:24+02:00",
       "lease_expires_at": "2026-07-30T13:04:24+02:00",
       "handoff_required": true,
       "live_actions": true,
       "phase": "exact_commit_then_clean_worktree_cherry_pick_and_fuzzy_dev_fast_forward",
+      "released_at": "2026-07-30T12:14:18+02:00",
+      "release_reason": "The clean isolated 82-test Gate-B lane stopped before push at 81 passed and one platform-dependent test failure: the test compared the canonical LF Git blob digest with Windows CRLF worktree bytes. No push, package, host, observation, deploy or delivery action occurred.",
       "forbidden_actions": [
         "stage any path outside allowed_paths",
         "push local dev directly because it contains unrelated Telegram commit 2c24c9e3074deb1d98ea64b5e70f159295539459",
         "force push, rewrite, reset, clean, checkout-based rewrite or automatic conflict resolution",
         "package, host, SSH, container, deploy, delivery, provider or public-IP action",
         "publish unless remote fuzzy/dev still equals expected base 67f0737de5bccdb5b8841e4ad9deee3df0107b74"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC164-20260730-CROSS-PLATFORM-BLOB-TEST-REPAIR",
+      "thread_id": "/root",
+      "slice_id": "SEC164-cross-platform-published-blob-test-repair-and-isolated-publication",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "tests/test_security_incident_response_production_completion_roadmap.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "claimed",
+      "acquired_at": "2026-07-30T12:14:18+02:00",
+      "lease_expires_at": "2026-07-30T13:14:18+02:00",
+      "handoff_required": true,
+      "live_actions": true,
+      "phase": "cross_platform_git_blob_assertion_repair_then_existing_isolated_worktree_fast_forward",
+      "independent_review": "Bob/Terra confirmed the Windows CRLF checkout versus canonical LF Git-blob mismatch and accepted removal of only the irrelevant worktree-byte assertion; the fixed digest, exact PUBLISHED_OBJECT argv and fail-closed blob mismatch tests remain unchanged.",
+      "forbidden_actions": [
+        "edit any path outside allowed_paths",
+        "change the production observer, transport, provenance or host-change implementation",
+        "create another worktree, push local dev, publish the unrelated Telegram commit, force push or rewrite history",
+        "package, host, SSH, container, deploy, delivery, provider or public-IP action",
+        "push unless the full isolated Gate-B lane passes and fuzzy/dev still equals 67f0737de5bccdb5b8841e4ad9deee3df0107b74"
       ]
     },
     {
@@ -4647,14 +4677,62 @@
       "readback": "independent remote revision, parent, tree, exact path set, observer hash, transport hash and host-change hash",
       "revocable": true,
       "consumed": true,
-      "status": "actions_consumed_pending_remote_readback",
-      "consumption_status": "consumed_before_isolated_publication",
+      "status": "used_terminal_validation_failed_before_push",
+      "consumption_status": "consumed_terminal_no_push",
       "consumed_at": "2026-07-30T12:04:24+02:00",
       "local_content_commit": "3992ea9b",
       "isolated_content_commit": "72231897",
       "local_commit_counter": 2,
       "clean_worktree_counter": 1,
       "cherry_pick_counter": 2,
+      "push_counter": 0,
+      "force_push_counter": 0,
+      "external_action_executed": true,
+      "terminal_result": {
+        "status": "blocked",
+        "stage": "clean_worktree_gate_b_validation",
+        "passed_tests": 81,
+        "failed_tests": 1,
+        "failure_class": "platform_dependent_worktree_line_endings",
+        "push_executed": false
+      },
+      "reuse_permitted": false,
+      "package_or_host_change_authority": false,
+      "live_observation_authority": false,
+      "public_ip_query_authority": false,
+      "deploy_authority": false,
+      "delivery_or_send_authority": false
+    },
+    {
+      "id": "SEC164-CROSS-PLATFORM-BLOB-REPAIR-PUBLISH-20260730",
+      "run_id": "ABC-SEC164-20260730-CROSS-PLATFORM-BLOB-TEST-REPAIR",
+      "action": "git_commit_cherry_pick_and_push",
+      "target_class": "one exact cross-platform Git-blob test repair plus its durable roadmap record on the existing isolated OPS Alert publication line",
+      "artifact_or_inputs": "three exact claim paths; existing clean worktree C:/tmp/odysseus-sec163-publish-20260730 at 085f95c707838559669bdfb3654d197f48d41d5f; expected fuzzy/dev parent 67f0737de5bccdb5b8841e4ad9deee3df0107b74",
+      "granted_by": "owner instruction on 2026-07-30 to finish OPS Alert live without further explicit live GO; corrective publication scope only after SEC163 stopped before push",
+      "granted_at": "2026-07-30T12:14:18+02:00",
+      "expires_at": "run_end",
+      "limits": {
+        "maximum_local_commits": 1,
+        "maximum_new_worktrees": 0,
+        "maximum_cherry_picks": 1,
+        "maximum_pushes": 1,
+        "force_pushes": 0,
+        "remote": "fuzzy",
+        "branch": "dev",
+        "expected_remote_parent": "67f0737de5bccdb5b8841e4ad9deee3df0107b74",
+        "path_count": 3
+      },
+      "rollback_or_recovery": "stop before push on any validation or remote-parent mismatch; after push use only a separately reviewed forward revert",
+      "readback": "independent remote revision, parent chain, exact 15-path closure and three production artifact SHA-256 values",
+      "revocable": true,
+      "consumed": true,
+      "status": "actions_consumed_pending_remote_readback",
+      "consumption_status": "consumed_before_repair_publication",
+      "consumed_at": "2026-07-30T12:14:18+02:00",
+      "local_commit_counter": 1,
+      "new_worktree_counter": 0,
+      "cherry_pick_counter": 1,
       "push_counter": 1,
       "force_push_counter": 0,
       "external_action_executed": true,
@@ -9698,7 +9776,7 @@
       "deploy-live-go"
     ],
     "owner_of_queue_registration": "root",
-    "claim_status_now": "sec163_isolated_publication_ledger_consumed",
+    "claim_status_now": "sec164_cross_platform_blob_test_repair_claimed",
     "dependency_order": [
       "implement and deep-review offline observer and transport candidate fixtures while Debian 1.3.0 remains a negative needs_live_observation fixture",
       "publish the exact reviewed observer and transport candidate under separate Git authority",
@@ -9711,5 +9789,5 @@
       "send exactly once and independently read back durable receipt plus human confirmation"
     ]
   },
-  "recommended_next_action": "Complete SEC160 Gate-B offline observer review for the selected immutable podman-compose 1.6.0 candidate, then bind the transport to the reviewed observer bytes. Debian 1.3.0 remains an explicit adverse fixture. No package, host, observation, public-IP, deploy or delivery action is authorized by the provenance result; each later action receives its own exact ledger. OPS-ALERT-C2 remains mandatory before D."
+  "recommended_next_action": "Complete the exact SEC164 cross-platform Git-blob test repair, rerun the full isolated 82-test Gate-B lane, and publish only if fuzzy/dev still equals the expected parent. Then independently read back the revision and artifact hashes before any separately ledgered host change. OPS-ALERT-C2 remains mandatory before D."
 }
