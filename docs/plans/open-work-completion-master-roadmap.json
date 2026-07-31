@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-31T13:44:00+02:00",
-  "status": "ops_alert_waiting_on_user_action_specific_backup_credential_migration_authority",
+  "updated_at": "2026-07-31T15:53:00+02:00",
+  "status": "ops_alert_backup_credential_migration_repo_only_ready_to_publish",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -225,7 +225,8 @@
           "latest_ops_alert_root_integration_handoff",
           "GitHub CI run 30622495185 terminal success",
           "latest_ops_alert_d_transactional_deploy_handoff",
-          "latest_ops_alert_c6_activation_handoff"
+          "latest_ops_alert_c6_activation_handoff",
+          "ABC-OPS-ALERT-CREDENTIAL-MIGRATION-PREP-20260731 published exact revision and terminal Required CI"
         ],
         "allowed_paths": [
           "docs/plans/open-work-completion-master-roadmap.json",
@@ -533,6 +534,71 @@
           "retry after any ambiguous or terminal live action",
           "restore, prune, cleanup, secret rotation, authentication configuration or unrelated host mutation",
           "Telegram send before transactional deploy and delivery activation both return validated success"
+        ],
+        "handoff_required": true
+      },
+      {
+        "run_id": "ABC-OPS-ALERT-CREDENTIAL-MIGRATION-PREP-20260731",
+        "thread_id": "/root",
+        "slice_id": "OPS-ALERT-backup-credential-migration-repo-only-package",
+        "owner": "root/Sol integrator with Terra implementation and Charlie review",
+        "state": "claimed",
+        "acquired_at": "2026-07-31T13:54:00+02:00",
+        "lease_expires_at": "2026-07-31T17:54:00+02:00",
+        "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
+        "base_revision": "861ea76078796a36aa1c630fe84b41d0428a6c65",
+        "dependencies": [
+          "backup_configuration_diagnostic_v3 evidence 539572681818c2448bb3a998031f13571b35df4fd9c19696ee817ed2dd9d32ec",
+          "GitHub CI run 30628106204 terminal success"
+        ],
+        "unblocks": [
+          "ABC-OPS-ALERT-LIVE-CLOSE-20260731 after exact publication, terminal Required CI and separate action-specific live authority"
+        ],
+        "allowed_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json",
+          "ops/homeserver/redacted_backup_credential_migration.py",
+          "ops/homeserver/redacted_backup_credential_migration_transport.py",
+          "tests/test_homeserver_redacted_backup_credential_migration.py",
+          "tests/test_homeserver_redacted_backup_credential_migration_transport.py"
+        ],
+        "phase": "repo_only_reviewed_ready_for_path_scoped_commit_and_push",
+        "live_actions": false,
+        "required_contract": {
+          "source": "existing systemd backup EnvironmentFile supplies RESTIC_PASSWORD_FILE only; RESTIC_PASSWORD and RESTIC_PASSWORD_COMMAND are rejected",
+          "migration": "copy credential bytes internally without output into a new fd-bound private file; atomically install a fixed nonsecret pointer configuration",
+          "preconditions": "source is absolute, regular, single-link, nonempty, bounded, non-group/world-writable and owned by homebase or root; destination directory is owner-correct and non-group/world-writable",
+          "rollback": "preserve prior directory entries without reading them and restore them after every pre-readback failure",
+          "post_change_readback": "fixed Restic repository query succeeds with the migrated credential before success",
+          "terminal_uncertainty": "no retry; any ambiguous effect is unknown and requires manual reconciliation",
+          "visibility": "no credential value, path, filename, length, hash, environment, raw stdout, raw stderr or exception text"
+        },
+        "verification_evidence": {
+          "python_runtime": "CPython 3.11 from C:/tmp/odysseus-ci-py311-20260730/Scripts/python.exe",
+          "focused_core_transport_and_roadmap_lane": "69 passed, 1 pre-existing SQLAlchemy warning",
+          "ops_alert_backup_deploy_activation_delivery_corridor": "446 passed, 1 pre-existing SQLAlchemy warning",
+          "indexed_core_blob_bytes": 32660,
+          "indexed_core_blob_sha256": "2c5cc84b79cfa2339e768073e138c646f7353567276eb041b7b43a8b9d5ede08",
+          "transport_and_bootstrap_pin_match": true,
+          "roadmap_json_validation": "passed",
+          "deterministic_roadmap_safe_queue_audit": "passed; one documented unrelated PMCP-9 stale safe-open item remains",
+          "claim_coverage": "5 changed paths, 5 allowed paths, 0 unclaimed, 0 missing",
+          "git_diff_check": "passed",
+          "charlie_final_security_review": "PASS; no remaining P0-P2 findings after two bounded fix cycles"
+        },
+        "not_verified": [
+          "exact commit publication and terminal GitHub Required CI",
+          "Debian renameat2 filesystem capability and transient systemd-run execution",
+          "credential migration, post-change Restic readback, backup, deploy, activation and live alert delivery"
+        ],
+        "permitted_actions": [
+          "repo-only implementation and tests",
+          "path-scoped commit and push after local gates",
+          "terminal Required CI observation"
+        ],
+        "forbidden_actions": [
+          "SSH, systemd-run, credential read, credential copy, host mutation, backup, deploy, provider send or Telegram action",
+          "support for RESTIC_PASSWORD or RESTIC_PASSWORD_COMMAND",
+          "staging paths outside this exact claim"
         ],
         "handoff_required": true
       }
