@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-31T17:43:00+02:00",
-  "status": "ops_alert_namespace_capability_probe_repo_claim_active_live_credential_authority_still_required",
+  "updated_at": "2026-07-31T17:55:00+02:00",
+  "status": "ops_alert_namespace_capability_probe_published_ci_green_read_only_packet_ready_credential_authority_still_required",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,7 +23,7 @@
     "unique_live_gates": 53,
     "unique_design_gates": 27,
     "other_open_json_items": 108,
-    "queue_status": "ops_alert_namespace_capability_probe_repo_claim_active_live_credential_authority_still_required",
+    "queue_status": "ops_alert_namespace_capability_probe_published_ci_green_read_only_packet_ready_credential_authority_still_required",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -286,9 +286,9 @@
         "thread_id": "/root",
         "slice_id": "OPS-ALERT-private-user-mount-namespace-read-only-capability-probe",
         "owner": "root/Sol implementer and final reviewer",
-        "state": "claimed",
+        "state": "released_after_exact_push_and_terminal_ci",
         "acquired_at": "2026-07-31T17:23:00+02:00",
-        "lease_expires_at": "2026-07-31T19:23:00+02:00",
+        "lease_expires_at": null,
         "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
         "base_revision": "2ce8895861fa62a6e5077b5d31fbea34a6ad88c3",
         "dependencies": [
@@ -302,7 +302,10 @@
           "tests/test_homeserver_redacted_predeploy_backup_capability.py",
           "tests/test_homeserver_redacted_predeploy_backup_capability_transport.py"
         ],
-        "phase": "sol_review_pass_local_python_3_11_green_ready_for_commit_push_ci",
+        "phase": "completed_exact_push_and_terminal_required_ci_green",
+        "published_revision": "ecae52e3e8bf9ebff0f90ce63c6b99c6774164cb",
+        "github_ci_run": 30644154168,
+        "github_ci_conclusion": "success",
         "live_actions": false,
         "acceptance": [
           "probe performs no repository write, backup, credential read, deployment, provider send or persistent host mutation",
@@ -319,9 +322,9 @@
           "published_core_candidate_sha256": "50a77606af9b5a127ada57ca44533a9821612fd6e71ddeca17564c1586a8562e",
           "python_3_11_focused_suite": "13 passed, 1 pre-existing SQLAlchemy warning",
           "independent_final_review": "PASS with no remaining P0-P2 after three bounded correction cycles",
-          "effects": "none; no SSH, namespace invocation, credential, repository, backup, deploy or provider action",
+          "published_required_ci": "run 30644154168 terminal success: Python syntax, JS syntax and complete Python regression suite all green",
+          "effects": "one exact Git push to fuzzy/dev and read-only GitHub CI observation; no SSH, namespace invocation, credential, repository, backup, deploy or provider action",
           "not_verified": [
-            "terminal Ubuntu Required CI",
             "real Debian read-only namespace capability observation"
           ]
         },
@@ -349,7 +352,8 @@
           "latest_ops_alert_d_transactional_deploy_handoff",
           "latest_ops_alert_c6_activation_handoff",
           "ABC-OPS-ALERT-CREDENTIAL-MIGRATION-PREP-20260731 published as b187d00e45e0c2e3d2cf7c47a36b586d66da7bde with GitHub CI run 30636302437 terminal success",
-          "ABC-OPS-ALERT-FD-BACKUP-REDESIGN-20260731 published as a9e1cd776b2550be2caa39208f8a5cc2ab04eb94 with GitHub CI run 30641375933 terminal success"
+          "ABC-OPS-ALERT-FD-BACKUP-REDESIGN-20260731 published as a9e1cd776b2550be2caa39208f8a5cc2ab04eb94 with GitHub CI run 30641375933 terminal success",
+          "ABC-OPS-ALERT-NAMESPACE-CAPABILITY-PREP-20260731 published as ecae52e3e8bf9ebff0f90ce63c6b99c6774164cb with GitHub CI run 30644154168 terminal success"
         ],
         "allowed_paths": [
           "docs/plans/open-work-completion-master-roadmap.json",
@@ -362,6 +366,8 @@
           "ops/homeserver/redacted_backup_credential_migration_transport.py",
           "ops/homeserver/redacted_predeploy_backup_creation.py",
           "ops/homeserver/redacted_predeploy_backup_creation_transport.py",
+          "ops/homeserver/redacted_predeploy_backup_capability.py",
+          "ops/homeserver/redacted_predeploy_backup_capability_transport.py",
           "ops/homeserver/redacted_backup_snapshot_observation.py",
           "ops/homeserver/redacted_backup_snapshot_observation_transport.py",
           "tests/test_homeserver_redacted_backup_configuration_diagnostic.py",
@@ -376,6 +382,42 @@
         "phase": "credential_migration_package_published_ci_green_waiting_on_action_specific_live_authority",
         "live_actions": true,
         "action_packets": {
+          "predeploy_backup_namespace_capability": {
+            "schema_id": "odysseus.ops_alert_predeploy_backup_namespace_capability_authority.v1",
+            "state": "authorized_single_read_only_observation",
+            "authority_basis": "active user objective requires live OPS Alert closure; this diagnostic is read-only, fixed-target, nonsecret and has no persistent host or provider effect",
+            "mode": "one_private_user_mount_namespace_capability_observation",
+            "target": "odysseus-homeserver",
+            "source_revision": "ecae52e3e8bf9ebff0f90ce63c6b99c6774164cb",
+            "github_ci_run": 30644154168,
+            "github_ci_conclusion": "success",
+            "source_delivery": "published_blob_stdin",
+            "transport": "ops/homeserver/redacted_predeploy_backup_capability_transport.py",
+            "published_core_blob_sha256": "50a77606af9b5a127ada57ca44533a9821612fd6e71ddeca17564c1586a8562e",
+            "maximum_invocations": 1,
+            "retry_count": 0,
+            "timeout_seconds": 30,
+            "expires": "run_end",
+            "required_result": "supported envelope with all fixed capability booleans true and every visibility boolean false",
+            "forbidden_effects": [
+              "credential read or change",
+              "repository read or write",
+              "backup creation",
+              "deployment",
+              "provider send",
+              "persistent host mutation",
+              "automatic retry"
+            ],
+            "forbidden_output": [
+              "raw stdout",
+              "raw stderr",
+              "exception text",
+              "environment",
+              "path",
+              "hostname",
+              "secret value"
+            ]
+          },
           "backup_snapshot_observation": {
             "schema_id": "odysseus.ops_alert_live_backup_observation_authority.v1",
             "source_revision": "707564941379646de2020304f03fa5889a7756b5",
