@@ -68,6 +68,7 @@ _KEYS = frozenset(
         "status",
         "error_code",
         "effect_may_have_occurred",
+        "directory_metadata_repaired",
         "password_metadata_repaired",
         "configuration_replaced",
         "automatic_rollback_attempted",
@@ -99,6 +100,7 @@ def envelope(
     error_code: str,
     *,
     effect: bool = False,
+    directory_repaired: bool = False,
     password_repaired: bool = False,
     configuration_replaced: bool = False,
     rollback_attempted: bool = False,
@@ -111,6 +113,7 @@ def envelope(
         else "unknown",
         "error_code": error_code if error_code in _ERRORS else "mutation_ambiguous",
         "effect_may_have_occurred": effect is True,
+        "directory_metadata_repaired": directory_repaired is True,
         "password_metadata_repaired": password_repaired is True,
         "configuration_replaced": configuration_replaced is True,
         "automatic_rollback_attempted": rollback_attempted is True,
@@ -135,6 +138,7 @@ def validate_envelope(value: Any) -> bool:
             type(value.get(key)) is not bool
             for key in {
                 "effect_may_have_occurred",
+                "directory_metadata_repaired",
                 "password_metadata_repaired",
                 "configuration_replaced",
                 "automatic_rollback_attempted",
@@ -149,6 +153,7 @@ def validate_envelope(value: Any) -> bool:
         value["status"],
         value["error_code"],
         value["effect_may_have_occurred"],
+        value["directory_metadata_repaired"],
         value["password_metadata_repaired"],
         value["configuration_replaced"],
         value["automatic_rollback_attempted"],
@@ -167,16 +172,26 @@ def validate_envelope(value: Any) -> bool:
                 "transport_failed",
                 "transport_invalid",
             }
-            and state[2:] == (False, False, False, False, False)
+            and state[2:] == (False, False, False, False, False, False)
         )
-        or state == ("succeeded", "none", True, True, True, False, False)
         or state
-        == ("rolled_back", "execution_failed", True, False, False, True, True)
+        == ("succeeded", "none", True, True, True, True, False, False)
+        or state
+        == (
+            "rolled_back",
+            "execution_failed",
+            True,
+            False,
+            False,
+            False,
+            True,
+            True,
+        )
         or (
             state[0] == "unknown"
             and state[1] == "mutation_ambiguous"
             and state[2] is True
-            and state[6] is False
+            and state[7] is False
         )
     )
     digest = value.get("evidence_sha256")
@@ -269,7 +284,8 @@ def _safe_directory(info: Any, uid: int) -> bool:
         return bool(
             stat.S_ISDIR(int(info.st_mode))
             and int(info.st_uid) == uid
-            and permissions == 0o700
+            and permissions & 0o700 == 0o700
+            and permissions & 0o022 == 0
         )
     except Exception:
         return False
@@ -342,9 +358,11 @@ def repair_backup_configuration(
     password_fd: int | None = None
     temporary_fd: int | None = None
     temporary_created = False
+    directory_mutated = False
     password_mutated = False
     configuration_replaced = False
     old_metadata: tuple[int, int, int] | None = None
+    old_directory_mode: int | None = None
     try:
         owner = _valid_owner(selected.owner())
         if owner is None:
@@ -353,6 +371,9 @@ def repair_backup_configuration(
         directory_fd = selected.open_directory()
         if not _safe_directory(selected.stat_fd(directory_fd), uid):
             return envelope("blocked", "preflight_failed")
+        old_directory_mode = stat.S_IMODE(
+            int(selected.stat_fd(directory_fd).st_mode)
+        )
         try:
             selected.stat_at(directory_fd, TEMPORARY_NAME)
         except FileNotFoundError:
@@ -394,6 +415,9 @@ def repair_backup_configuration(
         selected.close(temporary_fd)
         temporary_fd = None
 
+        selected.fchmod(directory_fd, 0o700)
+        directory_mutated = True
+        selected.fsync(directory_fd)
         selected.fchown(password_fd, uid, gid)
         password_mutated = True
         selected.fchmod(password_fd, 0o600)
@@ -420,6 +444,7 @@ def repair_backup_configuration(
             "succeeded",
             "none",
             effect=True,
+            directory_repaired=True,
             password_repaired=True,
             configuration_replaced=True,
         )
@@ -429,10 +454,13 @@ def repair_backup_configuration(
                 "unknown",
                 "mutation_ambiguous",
                 effect=True,
+                directory_repaired=directory_mutated,
                 password_repaired=password_mutated,
                 configuration_replaced=True,
             )
-        rollback_attempted = temporary_created or password_mutated
+        rollback_attempted = (
+            temporary_created or directory_mutated or password_mutated
+        )
         rollback_succeeded = True
         if password_mutated and password_fd is not None and old_metadata is not None:
             try:
@@ -453,6 +481,23 @@ def repair_backup_configuration(
                 selected.fsync(directory_fd)
             except Exception:
                 rollback_succeeded = False
+        if (
+            directory_mutated
+            and directory_fd is not None
+            and old_directory_mode is not None
+        ):
+            try:
+                selected.fchmod(directory_fd, old_directory_mode)
+                selected.fsync(directory_fd)
+                rollback_succeeded = bool(
+                    rollback_succeeded
+                    and stat.S_IMODE(
+                        int(selected.stat_fd(directory_fd).st_mode)
+                    )
+                    == old_directory_mode
+                )
+            except Exception:
+                rollback_succeeded = False
         if rollback_attempted and rollback_succeeded:
             return envelope(
                 "rolled_back",
@@ -466,6 +511,7 @@ def repair_backup_configuration(
                 "unknown",
                 "mutation_ambiguous",
                 effect=True,
+                directory_repaired=directory_mutated,
                 password_repaired=password_mutated,
                 rollback_attempted=True,
             )

@@ -93,8 +93,14 @@ class FakeOperations:
         target.st_gid = gid
 
     def fchmod(self, descriptor, mode):
-        target = self.password if descriptor == self.password_fd else self.temporary
-        target.st_mode = stat.S_IFREG | mode
+        if descriptor == self.password_fd:
+            self.password.st_mode = stat.S_IFREG | mode
+        elif descriptor == self.temporary_fd:
+            self.temporary.st_mode = stat.S_IFREG | mode
+        elif descriptor == self.directory_fd:
+            self.directory.st_mode = stat.S_IFDIR | mode
+        else:
+            raise AssertionError(descriptor)
 
     def write(self, descriptor, value):
         assert descriptor == self.temporary_fd
@@ -107,7 +113,11 @@ class FakeOperations:
         return self.written[:maximum]
 
     def fsync(self, descriptor):
-        if self.fail == "post_replace_fsync" and descriptor == self.directory_fd:
+        if (
+            self.fail == "post_replace_fsync"
+            and descriptor == self.directory_fd
+            and self.configuration_replaced
+        ):
             raise OSError("synthetic-private-error")
 
     def replace_at(self, _directory_fd, source, target):
@@ -134,6 +144,7 @@ def test_success_changes_only_metadata_and_exact_nonsecret_configuration():
     )
 
     assert payload["status"] == "succeeded"
+    assert payload["directory_metadata_repaired"] is True
     assert payload["password_metadata_repaired"] is True
     assert payload["configuration_replaced"] is True
     assert operations.password.st_uid == 1000
@@ -167,7 +178,7 @@ def test_success_changes_only_metadata_and_exact_nonsecret_configuration():
         lambda value: setattr(
             value,
             "directory",
-            _info(stat.S_IFDIR, 0o755, 1000),
+            _info(stat.S_IFDIR, 0o722, 1000),
         ),
         lambda value: setattr(
             value,
@@ -196,6 +207,7 @@ def test_unsafe_preflight_is_terminal_value_free_and_has_no_effect(mutate):
 
 def test_replace_failure_restores_original_password_metadata_and_removes_temp():
     operations = FakeOperations()
+    operations.directory.st_mode = stat.S_IFDIR | 0o755
     operations.fail = "replace"
 
     payload = repair.repair_backup_configuration(
@@ -211,6 +223,22 @@ def test_replace_failure_restores_original_password_metadata_and_removes_temp():
     assert stat.S_IMODE(operations.password.st_mode) == 0o640
     assert operations.temporary_exists is False
     assert operations.configuration_replaced is False
+    assert stat.S_IMODE(operations.directory.st_mode) == 0o755
+    assert repair.validate_envelope(payload)
+
+
+def test_safe_nonexact_directory_mode_is_hardened_to_private():
+    operations = FakeOperations()
+    operations.directory.st_mode = stat.S_IFDIR | 0o755
+
+    payload = repair.repair_backup_configuration(
+        execute=True,
+        operations=operations,
+    )
+
+    assert payload["status"] == "succeeded"
+    assert payload["directory_metadata_repaired"] is True
+    assert stat.S_IMODE(operations.directory.st_mode) == 0o700
     assert repair.validate_envelope(payload)
 
 

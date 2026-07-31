@@ -40,6 +40,7 @@ def test_exact_blob_reaches_one_ssh_and_validated_projection_survives():
         "succeeded",
         "none",
         effect=True,
+        directory_repaired=True,
         password_repaired=True,
         configuration_replaced=True,
     )

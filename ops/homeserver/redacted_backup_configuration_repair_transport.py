@@ -17,12 +17,12 @@ from ops.homeserver import redacted_backup_configuration_repair as repair
 
 PUBLISHED_REF = "refs/remotes/fuzzy/dev"
 REPAIR_PATH = "ops/homeserver/redacted_backup_configuration_repair.py"
-PUBLISHED_REPAIR_SHA256 = "c003ccfe3777db7535c91be33958d8a76a5b8f27ecf591d8142577001adaf333"
+PUBLISHED_REPAIR_SHA256 = "f5d257cb9df12aba246c3e8fef523f2df8c52da45867f35629c15f983788c69f"
 _BOOTSTRAP = """import base64,hashlib,json,sys,types
 raw=sys.stdin.buffer.read(400001)
 if len(raw)>400000: raise SystemExit(2)
 bundle=json.loads(raw.decode('utf-8'))
-expected='c003ccfe3777db7535c91be33958d8a76a5b8f27ecf591d8142577001adaf333'
+expected='f5d257cb9df12aba246c3e8fef523f2df8c52da45867f35629c15f983788c69f'
 if type(bundle) is not dict or set(bundle)!={'execute','sha256','source'} or bundle['execute'] is not True or bundle['sha256']!=expected: raise SystemExit(2)
 source=base64.b64decode(bundle['source'],validate=True)
 if hashlib.sha256(source).hexdigest()!=expected: raise SystemExit(2)
