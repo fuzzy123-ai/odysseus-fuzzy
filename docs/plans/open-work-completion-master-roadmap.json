@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-26T17:17:54+02:00",
-  "status": "ci_uir02_runtime_inventory_refresh_accepted_repo_only",
+  "updated_at": "2026-07-31T09:48:00+02:00",
+  "status": "ops_alert_c2_required_ci_green_d_transactional_executor_claimed",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -20,10 +20,10 @@
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
     "safe_open_json_slices": 0,
-    "unique_live_gates": 39,
+    "unique_live_gates": 53,
     "unique_design_gates": 27,
-    "other_open_json_items": 48,
-    "queue_status": "ops_alert_D0A_wrapper_ready_waiting_path_scoped_publish_then_exact_observation_go",
+    "other_open_json_items": 108,
+    "queue_status": "ops_alert_c2_required_ci_green_d_transactional_executor_repo_implementation_claimed",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -42,15 +42,17 @@
       "code_lineage_timeline": "clt00_through_clt02_accepted_clt03_ready_repo_only_live_default_off",
       "lens_code_graph": "planned_after_code_graph_api_ui_live_gated",
       "agent_maintenance_safety_harness": "roadmap_registered_goal_not_started_repo_only",
-      "security_incident_response_production": "sirp00_through_sirp11_offline_accepted_sirp12_observe_completed_B_C_accepted_D0A_wrapper_ready_publish_observation_go_required_D_deploy_not_go_E_delivery_not_go"
+      "local_transcription_protocol": "trp01_through_trp04_accepted_trp05_deferred_by_operator_priority_preserved_dirty_diff",
+      "security_incident_response_production": "sirp00_through_sirp11_offline_accepted_sirp12_sec184_required_ci_green_sec176_host_change_completed_sec190_observation_ok_C2_next_D_deploy_not_go_E_delivery_not_go"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
       "safe_open_count": 0,
       "raw_audit_safe_open_count": 1,
-      "raw_audit_stale_item": "PMCP-9-definition-runtime-separation is completed in canonical Open-Work evidence but remains planned in its older detail roadmap; it is not claimable and is outside this slice.",
-      "other_open_count": 48,
-      "unique_live_gate_count": 39,
+      "raw_audit_stale_item": "PMCP-9-definition-runtime-separation is completed in canonical Open-Work evidence but remains planned in its older detail roadmap; it is not the current frontier.",
+      "raw_audit_duplicate_frontier": "SIRP-11 is accepted in both canonical and detailed SIRP state. Historical PMCP-9 remains the only unrelated stale safe item; no SIRP safe-offline slice remains open.",
+      "other_open_count": 117,
+      "unique_live_gate_count": 53,
       "unique_design_gate_count": 27,
       "decision_packet_families": [
         "version_release",
@@ -83,19 +85,1726 @@
       "non_ui_gate_readiness_api": "/api/non-ui-gates/readiness",
       "non_ui_gate_readiness_markdown_api": "/api/non-ui-gates/readiness.md",
       "non_ui_gate_readiness_status": "blocked",
-      "non_ui_executable_now_count": 0,
+      "non_ui_executable_now_count": 1,
       "recommended_next_operator_action": {
-        "family": "unified_source_index_runtime",
-        "reason": "UIR-02 is accepted after fifty-five focused tests and deep Sol review. UIR-03 is dependency-ready but requires a fresh app composition hotfile collision and ownership handoff before any edit.",
-        "slice": "UIR-03-composition-root-and-dependency-injection",
-        "user_decision_required": false,
-        "missing_runtime_gates": [],
-        "safe_default": "leave UIR-03 unclaimed until exact composition paths are collision-free; keep all productive USI runtime provider worker shadow and query behavior disabled"
+        "family": "security_incident_response_production",
+        "reason": "B and C are accepted repo-only. D parity and its exact deployment packet are ready; the current frontier is the independent deploy-live-go decision. E delivery remains separately gated.",
+        "slice": "SIRP-12-live-observe-and-delivery",
+        "user_decision_required": true,
+        "missing_runtime_gates": [
+          "OPS-ALERT-DELIVERY-GO",
+          "deploy-live-go"
+        ],
+        "missing_capabilities": [
+          "D separately gated deployment and independent healthy readback",
+          "E separately gated exact one-send and independent human-confirmed readback"
+        ],
+        "missing_action_packet_fields": {
+          "observe": null,
+          "retention": null,
+          "delivery": "after B and C repo-only acceptance plus D separately gated deployment, one exact channel class, canonical fixed redacted body_ref, attempt timeout, fresh readiness, expiry, no-retry recovery, independent durable readback and human confirmation",
+          "deploy": "separate exact target, artifact, limits, rollback and health readback; never SIRP-12 authority"
+        },
+        "safe_default": "stop at deploy-live-go; keep production issuer uncomposed, deployment disabled and OPS-ALERT-DELIVERY-GO not_go"
       },
-      "queue_exhausted": true,
-      "verified_at": "2026-07-24"
+      "queue_exhausted": false,
+      "verified_at": "2026-07-27"
     },
-    "active_claimed_slices": [],
+    "active_claimed_slices": [
+      {
+        "run_id": "ABC-OPS-ALERT-ROOT-INTEGRATE-PUBLISH-20260731",
+        "thread_id": "/root",
+        "slice_id": "OPS-ALERT-root-integration-python311-publication",
+        "owner": "root/Sol integrator and final reviewer",
+        "state": "claimed",
+        "acquired_at": "2026-07-31T11:18:00+02:00",
+        "lease_expires_at": "2026-07-31T15:18:00+02:00",
+        "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
+        "source_worktrees": [
+          "C:/Users/nkatz/odysseus",
+          "C:/tmp/odysseus-ops-alert-c6-activation-20260731"
+        ],
+        "base_revision": "24941871072593c54e80dd4bec07ea082dba4e66",
+        "accepted_inputs": [
+          "a34a20a48e3de77941f94b4cd16479965f927398",
+          "24941871072593c54e80dd4bec07ea082dba4e66",
+          "68bff99c8e5e533c2f1b1615756049d81eb087dd",
+          "latest_ops_alert_c5_automatic_delivery_handoff",
+          "latest_ops_alert_c6_activation_handoff"
+        ],
+        "allowed_paths": [
+          "app.py",
+          "docker-compose.yml",
+          "routes/auth_routes.py",
+          "src/security_access_alert_delivery.py",
+          "src/security_auth_incident_bridge.py",
+          "src/security_incident_delivery.py",
+          "src/security_incident_egress.py",
+          "src/security_incident_network_context.py",
+          "src/security_incident_notifications.py",
+          "src/security_incident_store.py",
+          "src/security_incident_store_migrations.py",
+          "src/security_incident_telegram_transport.py",
+          "ops/homeserver/redacted_runtime_probe.py",
+          "ops/homeserver/redacted_transactional_app_deploy.py",
+          "ops/homeserver/redacted_transactional_app_deploy_readback.py",
+          "ops/homeserver/redacted_transactional_app_deploy_transport.py",
+          "ops/homeserver/redacted_security_incident_delivery_activation.py",
+          "ops/homeserver/redacted_security_incident_delivery_activation_readback.py",
+          "ops/homeserver/redacted_security_incident_delivery_activation_transport.py",
+          "tests/test_docker_devops_hardening.py",
+          "tests/test_homeserver_redacted_runtime_probe.py",
+          "tests/test_homeserver_redacted_transactional_app_deploy.py",
+          "tests/test_homeserver_redacted_transactional_app_deploy_readback.py",
+          "tests/test_homeserver_redacted_transactional_app_deploy_transport.py",
+          "tests/test_homeserver_redacted_security_incident_delivery_activation.py",
+          "tests/test_homeserver_redacted_security_incident_delivery_activation_readback.py",
+          "tests/test_homeserver_redacted_security_incident_delivery_activation_transport.py",
+          "tests/test_security_access_alert_delivery.py",
+          "tests/test_security_auth_incident_bridge.py",
+          "tests/test_security_incident_delivery.py",
+          "tests/test_security_incident_egress.py",
+          "tests/test_security_incident_network_context.py",
+          "tests/test_security_incident_notifications.py",
+          "tests/test_security_incident_production_flow.py",
+          "tests/test_security_incident_store.py",
+          "tests/test_security_incident_telegram_transport.py",
+          "docs/plans/open-work-completion-master-roadmap.json",
+          "docs/plans/unified-source-index-runtime-caller-inventory.json"
+        ],
+        "phase": "integrate_reviewed_slices_full_python311_regression_exact_publish_and_terminal_ci",
+        "live_actions": false,
+        "permitted_git_actions": [
+          "stage only reviewed allowed paths",
+          "create local integration commits",
+          "push the exact tested commit to fuzzy/dev after all required local gates pass",
+          "observe exact GitHub Actions runs to terminal state"
+        ],
+        "forbidden_actions": [
+          "SSH, host mutation, deployment, environment change, container action, provider call or Telegram send before the later exact live action packets",
+          "staging or absorbing paths outside this exact claim",
+          "publishing a revision whose full Python 3.11 regression or deterministic inventory check is not green"
+        ],
+        "handoff_required": true
+      }
+    ],
+    "latest_ops_alert_c5_automatic_delivery_handoff": {
+      "recorded_at": "2026-07-31T11:12:28+02:00",
+      "run_id": "ABC-OPS-ALERT-C5-AUTOMATIC-IP-DELIVERY-20260731",
+      "slice_id": "OPS-ALERT-C5-integrated-automatic-ip-aware-delivery",
+      "status": "accepted_repo_only_after_sol_deep_review",
+      "claim": "released",
+      "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
+      "base_revision": "24941871072593c54e80dd4bec07ea082dba4e66",
+      "changed_paths": [
+        "app.py",
+        "docker-compose.yml",
+        "src/security_access_alert_delivery.py",
+        "src/security_auth_incident_bridge.py",
+        "src/security_incident_delivery.py",
+        "src/security_incident_notifications.py",
+        "src/security_incident_store.py",
+        "src/security_incident_telegram_transport.py",
+        "tests/test_security_access_alert_delivery.py",
+        "tests/test_security_incident_delivery.py",
+        "tests/test_security_incident_notifications.py",
+        "tests/test_security_incident_telegram_transport.py",
+        "tests/test_security_incident_production_flow.py",
+        "tests/test_security_auth_incident_bridge.py",
+        "tests/test_security_incident_store.py",
+        "tests/test_docker_devops_hardening.py"
+      ],
+      "verification": {
+        "worker_focused_tests": "143 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "worker_adjacent_tests": "56 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "root_python_3_11_focused_and_adjacent_tests": "208 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "python_3_11_no_write_compile": "passed for all changed Python paths",
+        "diff_check": "passed"
+      },
+      "deep_review": {
+        "exact_ip_aware_body_and_body_ref": "passed for canonical IPv4, IPv6, public and private addresses",
+        "self_egress_suppression_and_security_critical_fail_open": "preserved",
+        "production_readiness": "requires allowed server target, reply gate and bot-token presence without exposing values",
+        "durable_recovery": "proposed, prepared and approved recover; executing, failed and unknown outcomes never retry",
+        "shutdown_bound": "at most one fixed-timeout external send attempt per reconcile",
+        "dedupe": "same auth event and source dedupe within five minutes; a later window creates a new alert",
+        "result": "pass"
+      },
+      "evidence_limits": [
+        "No live provider, Telegram, SSH, host or container action was performed.",
+        "Full repository regression, real ASGI lifecycle, deployment, live public ingress and durable live receipt remain unverified."
+      ],
+      "next_action": "Accept C6, integrate C5 plus D plus C6 plus the two-path runtime-readiness patch, then run the full Python 3.11 regression and terminal Required CI before deployment."
+    },
+    "latest_ops_alert_c6_activation_handoff": {
+      "recorded_at": "2026-07-31T11:17:44+02:00",
+      "run_id": "ABC-OPS-ALERT-C6-ACTIVATION-IMPLEMENT-20260731",
+      "slice_id": "OPS-ALERT-C6-transactional-security-alert-activation",
+      "status": "accepted_repo_only_after_sol_deep_review",
+      "claim": "released",
+      "worktree": "C:/tmp/odysseus-ops-alert-c6-activation-20260731",
+      "base_revision": "68bff99c8e5e533c2f1b1615756049d81eb087dd",
+      "changed_paths": [
+        "ops/homeserver/redacted_security_incident_delivery_activation.py",
+        "ops/homeserver/redacted_security_incident_delivery_activation_readback.py",
+        "ops/homeserver/redacted_security_incident_delivery_activation_transport.py",
+        "tests/test_homeserver_redacted_security_incident_delivery_activation.py",
+        "tests/test_homeserver_redacted_security_incident_delivery_activation_readback.py",
+        "tests/test_homeserver_redacted_security_incident_delivery_activation_transport.py"
+      ],
+      "verification": {
+        "worker_focused_tests": "20 passed",
+        "root_python_3_11_focused_tests": "20 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "python_3_11_no_write_compile": "passed for all six paths",
+        "diff_check": "passed",
+        "published_source_pins": "activation 32591f0f1dc1027232e041be3676abf604f530fcd10a1c2c513edd4e07446b8b; readback f0334e42fa4dc12146b6ba1208443da903c8b404fde80f648028d6bbacbc1e50"
+      },
+      "deep_review": {
+        "packet_binding": "exact revision, manifest, stable backup snapshot id, prior snapshot evidence digest, true enable flag and bounded expiry",
+        "env_boundary": "fixed regular non-symlink file; bounded UTF-8; exact target key only; duplicate and ambiguous dotenv spellings fail closed",
+        "mutation": "atomic temp write, POSIX mode and owner preservation, fsync, mutation-aware post-replace ambiguity handling",
+        "rollback": "one exact in-memory byte restore; no recreate before confirmed restore; independent disabled readback",
+        "runtime_scope": "app-only no-deps no-build force-recreate; dependencies and mounts must remain unchanged",
+        "transport": "published source pins, fixed stdin-only SSH command, bounded timeouts, no raw subprocess forwarding",
+        "result": "pass"
+      },
+      "evidence_limits": [
+        "No SSH, host mutation, environment write, container recreate, deployment, provider call or notification send was performed.",
+        "The existing D transport source-pin self-test is not Windows-CRLF portable and must be repaired during root integration without changing its published blob pin."
+      ],
+      "next_action": "Root integration claim: commit C5, integrate D and C6, apply runtime readiness, repair the Windows-only source-pin self-test, then run full Python 3.11 regression and terminal CI."
+    },
+    "latest_ops_alert_c3_egress_handoff": {
+      "recorded_at": "2026-07-31T10:38:00+02:00",
+      "run_id": "ABC-OPS-ALERT-C3-EGRESS-IMPLEMENT-20260731",
+      "slice_id": "OPS-ALERT-C3-server-owned-public-egress-refresh",
+      "status": "accepted_repo_only_after_sol_deep_review",
+      "claim": "released",
+      "worktree": "C:/tmp/odysseus-ops-alert-c3-egress-20260731",
+      "base_revision": "a09847f81539e5aabb516e1d8fa0f1bba05cfa41",
+      "local_commit": "c6be0bc52e64627caebe0db70611723378ddb048",
+      "changed_paths": [
+        "app.py",
+        "src/security_incident_network_context.py",
+        "src/security_incident_egress.py",
+        "tests/test_security_incident_network_context.py",
+        "tests/test_security_incident_egress.py",
+        "tests/test_security_incident_production_flow.py"
+      ],
+      "verification": {
+        "focused_and_adjacent_tests": "139 passed, 1 pre-existing SQLAlchemy deprecation warning",
+        "python_3_11_no_write_compile": "passed for all six changed Python paths",
+        "diff_check": "passed"
+      },
+      "evidence_limits": [
+        "No live Cloudflare call or TLS handshake was performed.",
+        "Live cloudflared forwarding, runtime lifecycle, refresh stability, deployment, commit, push and CI remain unverified."
+      ],
+      "next_action": "Integrate only after the remaining C4 bridge and D transactional deploy executor handoffs pass root/Sol review."
+    },
+    "latest_ops_alert_c4_auth_bridge_handoff": {
+      "recorded_at": "2026-07-31T10:42:00+02:00",
+      "run_id": "ABC-OPS-ALERT-C4-AUTH-INCIDENT-BRIDGE-20260731",
+      "slice_id": "OPS-ALERT-C4-auth-to-durable-incident-and-notification-action-bridge",
+      "status": "accepted_repo_only_after_sol_deep_review",
+      "claim": "released",
+      "worktree": "C:/tmp/odysseus-ops-alert-c4-bridge-20260731",
+      "base_revision": "a09847f81539e5aabb516e1d8fa0f1bba05cfa41",
+      "local_commit": "fede710bac8046caaf8f8267e92aa1655da8e8fb",
+      "changed_paths": [
+        "routes/auth_routes.py",
+        "src/security_auth_incident_bridge.py",
+        "src/security_incident_store.py",
+        "src/security_incident_store_migrations.py",
+        "tests/test_security_auth_incident_bridge.py",
+        "tests/test_security_incident_store.py"
+      ],
+      "verification": {
+        "focused_and_adjacent_tests": "115 passed, 5 pre-existing deprecation warnings",
+        "python_3_11_no_write_compile": "passed for all six changed Python paths",
+        "diff_check": "passed"
+      },
+      "evidence_limits": [
+        "Startup composition, automatic delivery, Telegram provider acknowledgement, deployment, push and CI remain unverified."
+      ],
+      "next_action": "Create the isolated local commit, then integrate with C3 and the accepted D handoff before implementing automatic IP-aware delivery."
+    },
+    "latest_ops_alert_d_transactional_deploy_handoff": {
+      "recorded_at": "2026-07-31T10:50:00+02:00",
+      "run_id": "ABC-OPS-ALERT-D-EXECUTOR-IMPLEMENT-20260731",
+      "slice_id": "OPS-ALERT-D-dedicated-transactional-app-deploy-executor",
+      "status": "accepted_repo_only_after_sol_deep_review",
+      "claim": "released",
+      "worktree": "C:/tmp/odysseus-sec163-publish-20260730",
+      "base_revision": "a09847f81539e5aabb516e1d8fa0f1bba05cfa41",
+      "local_commit": "68bff99c8e5e533c2f1b1615756049d81eb087dd",
+      "changed_paths": [
+        "ops/homeserver/redacted_transactional_app_deploy.py",
+        "ops/homeserver/redacted_transactional_app_deploy_readback.py",
+        "ops/homeserver/redacted_transactional_app_deploy_transport.py",
+        "tests/test_homeserver_redacted_transactional_app_deploy.py",
+        "tests/test_homeserver_redacted_transactional_app_deploy_readback.py",
+        "tests/test_homeserver_redacted_transactional_app_deploy_transport.py"
+      ],
+      "verification": {
+        "focused_executor_transport_readback_tests": "20 passed, 2 non-functional warnings",
+        "python_3_11_no_write_compile": "passed for all six changed Python paths",
+        "diff_check": "passed",
+        "published_source_pins": "executor 1f35c5fb0157606587865719c5ec8e4af17812923e128e1d666eb50dbcc92071; readback 45650dfc03f3763e2952d7609230765418e6e7705881da3c8aa1768b650e2a65"
+      },
+      "evidence_limits": [
+        "No SSH, host mutation, container action, deployment, provider call, commit, push or live readback was performed."
+      ],
+      "next_action": "Create the isolated local commit, then integrate it into the final OPS Alert branch after C5 handoff acceptance."
+    },
+    "latest_ops_alert_runtime_readiness_publication_gap_audit": {
+      "recorded_at": "2026-07-31T10:03:00+02:00",
+      "run_id": "ABC-OPS-ALERT-RUNTIME-READINESS-PUBLISH-AUDIT-20260731",
+      "slice_id": "OPS-ALERT-runtime-probe-readiness-publication-gap-audit",
+      "status": "accepted_read_only_exact_two_path_publish_gap",
+      "claim": "released",
+      "published_revision_audited": "a09847f81539e5aabb516e1d8fa0f1bba05cfa41",
+      "finding": "The published runtime probe lacks telegram_delivery_readiness and therefore cannot issue the already-published TrustedTelegramDeliveryReadiness contract.",
+      "minimal_unpublished_paths": [
+        "ops/homeserver/redacted_runtime_probe.py",
+        "tests/test_homeserver_redacted_runtime_probe.py"
+      ],
+      "published_dependencies_blob_identical": [
+        "src/security_evidence_sources.py",
+        "tests/test_security_evidence_sources.py",
+        "src/security_incident_delivery.py",
+        "tests/test_security_incident_delivery.py"
+      ],
+      "focused_tests": {
+        "runtime_probe": "13 passed",
+        "security_evidence_sources": "17 passed",
+        "broader_lane": "43 passed before 11 sandbox tmp_path setup errors; no assertion failure"
+      },
+      "diff_check": "passed",
+      "external_or_git_actions": false,
+      "next_action": "After D releases the shared publish worktree, materialize only the exact two-path patch on the current fuzzy/dev parent, reverify with a bounded writable basetemp, deep-review and publish before deployment."
+    },
+    "latest_ops_alert_end_to_end_live_gap_audit": {
+      "recorded_at": "2026-07-31T10:10:00+02:00",
+      "run_id": "ABC-OPS-ALERT-END-TO-END-LIVE-GAP-AUDIT-20260731",
+      "slice_id": "OPS-ALERT-end-to-end-access-alert-live-gap-audit",
+      "status": "accepted_read_only_live_composition_gap",
+      "claim": "released",
+      "published_revision_audited": "a09847f81539e5aabb516e1d8fa0f1bba05cfa41",
+      "findings": [
+        "Auth events and source-IP contexts terminate in separate bounded in-memory ledgers; neither reaches durable incident persistence, classification, notification creation, transport or receipt handling.",
+        "Production starts with no trusted proxy networks and no fresh server-owned public-egress snapshot provider or refresh path, so self-egress suppression is default-disabled and fail-open.",
+        "The computed suppression decision is audit-only and is not consumed by an incident or notification bridge.",
+        "Operator notifications are dry-run and the production Telegram transport is deliberately default-disabled at normal app startup.",
+        "The mounted delivery route requires a pre-approved durable action plus injected production transport and trusted readiness; no independent durable receipt-readback route is mounted.",
+        "The fixed delivery smoke body does not carry the bounded accessing-IP context."
+      ],
+      "smallest_honest_missing_slices": [
+        "Auth-to-incident classification bridge with durable bounded access-IP context.",
+        "Reviewed server-owned trusted-proxy configuration and fresh own-public-egress discovery or refresh composition.",
+        "Notification/action creation bridge that consumes the suppression decision.",
+        "Production Telegram composition and an independent durable readback surface."
+      ],
+      "overlap_risk": {
+        "separate_telegram_task": "high",
+        "paths": [
+          "app.py",
+          "routes/security_routes.py",
+          "src/security_incident_delivery.py",
+          "src/security_incident_telegram_transport.py"
+        ],
+        "rule": "Recheck queue claims and current fuzzy/dev immediately before claiming or editing these paths."
+      },
+      "changed_paths": [],
+      "tests": "read-only source and composition trace; no runtime mutation",
+      "external_or_git_actions": false,
+      "remaining_verification_limits": [
+        "No live access event was generated.",
+        "No production transport or independent receipt was exercised."
+      ],
+      "next_action": "Finish and publish the dedicated transactional app-deploy executor, then claim and implement the four missing composition slices without overlapping the separate Telegram task before deploying the final revision."
+    },
+    "latest_ops_alert_c2_implementation_handoff": {
+      "recorded_at": "2026-07-31T09:28:00+02:00",
+      "run_id": "ABC-OPS-ALERT-C2-IMPLEMENT-20260731",
+      "slice_id": "OPS-ALERT-C2-source-ip-context-and-self-egress-suppression",
+      "status": "accepted_repo_only_deep_review_passed",
+      "claim": "released",
+      "base_revision": "8b12fec4e8b93c68563e327f9743b7f3035bd1af",
+      "changed_paths": [
+        "app.py",
+        "routes/auth_routes.py",
+        "src/security_incident_model.py",
+        "src/security_incident_notifications.py",
+        "src/security_incident_network_context.py",
+        "tests/test_security_incident_notifications.py",
+        "tests/test_security_incident_network_context.py"
+      ],
+      "worker_tests": "78 passed",
+      "root_tests": {
+        "focused_security_incident_lane": "78 passed",
+        "adjacent_auth_and_production_flow_lane": "64 passed",
+        "native_linux_python311_compile": "passed",
+        "scoped_diff_check": "passed"
+      },
+      "deep_review": {
+        "trusted_proxy_spoofing_boundary": "passed after hardening",
+        "exact_ipv4_ipv6_normalization": "passed",
+        "own_egress_freshness_and_fail_open": "passed",
+        "security_critical_non_suppression": "passed",
+        "bounded_64_record_retention": "passed",
+        "notification_privacy_projection": "passed",
+        "provider_or_network_dependency_added": false,
+        "result": "pass"
+      },
+      "remaining_limit": "Production must separately inject a reviewed server-owned fresh public-egress snapshot; the default remains fail-open to notification.",
+      "next_action": "Normalize the detailed C2 status, run its contract lane, then publish the exact accepted paths and require terminal green Required CI."
+    },
+    "latest_ops_alert_c2_publication_handoff": {
+      "recorded_at": "2026-07-31T09:32:00+02:00",
+      "run_id": "ABC-OPS-ALERT-C2-NORMALIZE-PUBLISH-20260731",
+      "slice_id": "OPS-ALERT-C2-roadmap-normalization-and-exact-publication",
+      "status": "published_required_ci_running",
+      "commit": "81ed981e86a29bd9ddbd48105e60f44dcdad1e1d",
+      "parent": "8b12fec4e8b93c68563e327f9743b7f3035bd1af",
+      "tree": "931afaebac59e447fa9245cf788562558a84556e",
+      "remote": "fuzzy/dev",
+      "remote_readback": "81ed981e86a29bd9ddbd48105e60f44dcdad1e1d",
+      "changed_path_count": 9,
+      "github_actions": {
+        "run_id": 30612478357,
+        "head_sha": "81ed981e86a29bd9ddbd48105e60f44dcdad1e1d",
+        "status": "in_progress"
+      },
+      "next_action": "Observe GitHub run 30612478357 to terminal success before opening D executor implementation."
+    },
+    "latest_ops_alert_c2_inventory_ci_repair_handoff": {
+      "recorded_at": "2026-07-31T09:40:00+02:00",
+      "run_id": "ABC-OPS-ALERT-C2-NORMALIZE-PUBLISH-20260731",
+      "status": "one_path_repair_published_required_ci_queued",
+      "failed_run": 30612478357,
+      "failing_node": "tests/test_audit_unified_source_index_runtime.py::test_committed_runtime_inventory_matches_deterministic_static_ast_scan",
+      "cause": "The new C2 Python module and line/hash shifts made the deterministic content-free inventory stale.",
+      "repair": {
+        "commit": "a09847f81539e5aabb516e1d8fa0f1bba05cfa41",
+        "parent": "81ed981e86a29bd9ddbd48105e60f44dcdad1e1d",
+        "tree": "e9499fb6b969128a4201802a62765efde9a86920",
+        "changed_paths": [
+          "docs/plans/unified-source-index-runtime-caller-inventory.json"
+        ],
+        "generator_check": "passed",
+        "focused_tests": "4 passed",
+        "diff_check": "passed",
+        "remote_readback": "a09847f81539e5aabb516e1d8fa0f1bba05cfa41"
+      },
+      "github_actions": {
+        "run_id": 30612852452,
+        "head_sha": "a09847f81539e5aabb516e1d8fa0f1bba05cfa41",
+        "status": "queued"
+      },
+      "next_action": "Observe run 30612852452 to terminal success; do not open D before all required jobs are green."
+    },
+    "latest_ops_alert_c2_required_ci_terminal_handoff": {
+      "recorded_at": "2026-07-31T09:48:00+02:00",
+      "run_id": "ABC-OPS-ALERT-C2-NORMALIZE-PUBLISH-20260731",
+      "status": "accepted_terminal_green",
+      "claim": "released",
+      "commit": "a09847f81539e5aabb516e1d8fa0f1bba05cfa41",
+      "github_run_id": 30612852452,
+      "head_sha_match": true,
+      "required_jobs": {
+        "pytest": "success",
+        "javascript_syntax": "success",
+        "python_compileall": "success"
+      },
+      "next_action": "Implement and deep-review the dedicated default-disabled transactional app-only D executor, strict transport and independent readback."
+    },
+    "latest_sec190_post_sec184_capability_observation_handoff": {
+      "recorded_at": "2026-07-31T09:00:00+02:00",
+      "run_id": "ABC-SEC190-POST-SEC184-CAPABILITY-OBSERVE-20260731",
+      "slice_id": "SEC190-post-SEC184-published-compose-capability-observation",
+      "status": "accepted_terminal_ok",
+      "claim": "released",
+      "invocations": 1,
+      "retries": 0,
+      "published_commit": "8b12fec4e8b93c68563e327f9743b7f3035bd1af",
+      "observer_sha256": "01c6eaacb3a4936dcb7d5b0c566a64688c2a68848183482c43ae9114297c8007",
+      "transport_sha256": "0258aca80cc66559971706e6c21ec5f7c94638ef66ba35b6cbb76df501026e3f",
+      "result": {
+        "schema_id": "odysseus.redacted_podman_compose_capability_observation.v1",
+        "status": "ok",
+        "podman_compose_version": "1.6.0",
+        "deployment_capability_supported": true,
+        "service_scoped_dependency_exclusion_proven": true,
+        "rollback_force_recreate_proven": true,
+        "all_visibility_flags_false": true,
+        "evidence_sha256": "a84a72cd78ce2990e207a6b797f0d2dee45de5ad72e9c9500c233e5993bb0896"
+      },
+      "external_mutation": false,
+      "host_change_repeated": false,
+      "not_authorized": [
+        "public-IP query",
+        "deployment",
+        "notification send"
+      ],
+      "next_action": "Open a repo-only OPS-ALERT-C2 claim for source-IP context and suppression when a verified external source IP equals the system's verified own public IP."
+    },
+    "latest_sec184_required_ci_terminal_handoff": {
+      "recorded_at": "2026-07-31T08:58:00+02:00",
+      "run_id": "ABC-SEC184-GITHUB-CI-20260731",
+      "slice_id": "SEC184-exact-publication-required-ci",
+      "status": "accepted_terminal_green",
+      "claim": "released",
+      "commit": "8b12fec4e8b93c68563e327f9743b7f3035bd1af",
+      "github_run_id": 30610701265,
+      "workflow_status": "completed",
+      "workflow_conclusion": "success",
+      "required_jobs": {
+        "pytest": "success",
+        "javascript_syntax": "success",
+        "python_compileall": "success"
+      },
+      "host_change_precondition": "already satisfied by consumed completed SEC176-REPAIRED-COMPOSE-HOST-CHANGE-20260730; repeating it is forbidden",
+      "next_action": "Execute exactly one fresh SEC190 read-only observation using the published SEC184 observer and transport."
+    },
+    "latest_sec184_exact_publication_handoff": {
+      "recorded_at": "2026-07-31T08:48:00+02:00",
+      "run_id": "ABC-SEC184-EXACT-PUBLISH-20260731",
+      "slice_id": "SEC184-exact-six-path-publication",
+      "status": "published_required_ci_green",
+      "claim": "released",
+      "commit": "8b12fec4e8b93c68563e327f9743b7f3035bd1af",
+      "parent": "0c266d2f8c8ffb5828e4895bb0baffe42325439f",
+      "remote": "fuzzy/dev",
+      "remote_readback": "8b12fec4e8b93c68563e327f9743b7f3035bd1af",
+      "changed_path_count": 6,
+      "github_actions": {
+        "run_id": 30610701265,
+        "head_sha": "8b12fec4e8b93c68563e327f9743b7f3035bd1af",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/fuzzy123-ai/odysseus-fuzzy/actions/runs/30610701265"
+      },
+      "not_verified": [
+        "post-change observation, C2, deployment and delivery"
+      ],
+      "next_action": "Use the already completed SEC176 host change as the immutable precondition and execute exactly one separately bound read-only capability observation; do not repeat the host change."
+    },
+    "latest_sec184_green_base_integration_handoff": {
+      "recorded_at": "2026-07-31T08:50:00+02:00",
+      "run_id": "ABC-SEC184-INTEGRATE-ON-GREEN-BASE-20260731",
+      "slice_id": "SEC184-integrate-accepted-official-source-candidate-on-green-base",
+      "status": "accepted_ready_exact_publication",
+      "claim": "released",
+      "base_revision": "0c266d2f8c8ffb5828e4895bb0baffe42325439f",
+      "changed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "tests/test_security_incident_response_production_completion_roadmap.py",
+        "ops/homeserver/redacted_podman_compose_capability_observation.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_observation.py",
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+      ],
+      "route": {
+        "worker_preflight": "Bob worker stopped before writes because actual Terra model was unobservable",
+        "integration": "root/Sol explicit shared integration of previously accepted candidate",
+        "review": "root/Sol deep"
+      },
+      "tests": {
+        "focused_integration_lane": "51 passed",
+        "python311_compile": "passed",
+        "roadmap_json": "passed",
+        "diff_check": "passed"
+      },
+      "deep_review": {
+        "result": "pass",
+        "observer_sha256": "01c6eaacb3a4936dcb7d5b0c566a64688c2a68848183482c43ae9114297c8007",
+        "transport_sha256": "0258aca80cc66559971706e6c21ec5f7c94638ef66ba35b6cbb76df501026e3f",
+        "runtime_authority_added": false,
+        "host_change_authority_added": false,
+        "deploy_or_delivery_authority_added": false
+      },
+      "not_verified": [
+        "SEC184 publication and Required CI",
+        "host change, new capability observation, C2, deployment and delivery"
+      ],
+      "next_action": "Publish exactly the six accepted paths to fuzzy/dev and require terminal green Required CI."
+    },
+    "latest_ops_alert_post_ci_gate_audit_handoff": {
+      "recorded_at": "2026-07-31T08:39:00+02:00",
+      "run_id": "ABC-OPS-ALERT-POST-CI-GATE-AUDIT-20260731",
+      "slice_id": "OPS-ALERT-post-ci-live-gate-audit",
+      "status": "accepted_read_only_sec184_integration_is_next_claimable_frontier",
+      "claim": "released",
+      "published_ci_evidence": {
+        "commit": "0c266d2f8c8ffb5828e4895bb0baffe42325439f",
+        "github_run_id": 30609614353,
+        "conclusion": "success"
+      },
+      "findings": [
+        "The accepted SEC184 observer and transport candidate is not yet published on fuzzy/dev.",
+        "No prior observation grant is reusable; all recorded one-use grants are consumed and expired at their run end.",
+        "OPS-ALERT-C2 source-IP context and self-egress suppression remains required before deployment.",
+        "deploy-live-go and OPS-ALERT-DELIVERY-GO have no current action-specific live ledger.",
+        "The detailed SIRP status is stale relative to the new green Required CI handoff and must be normalized with the SEC184 publication candidate."
+      ],
+      "dependency_order": [
+        "integrate, reverify and publish the exact accepted SEC184 six-path candidate",
+        "bind and execute one separately authorized bounded Compose candidate host change with rollback and redacted access readback",
+        "bind and execute one new one-use capability observation",
+        "implement and deep-review OPS-ALERT-C2 source-IP context and self-egress suppression",
+        "bind and execute one exact deployment with rollback and independent health/readiness readback",
+        "obtain fresh strict runtime readiness",
+        "bind one exact delivery packet",
+        "send exactly once and independently read back durable receipt plus human confirmation"
+      ],
+      "root_sol_deep_review": {
+        "result": "pass",
+        "independent_checks": [
+          "gate queue statuses and packet independence",
+          "published versus accepted observer and transport hashes",
+          "transactional deploy template remains incomplete and grants no deploy authority"
+        ]
+      },
+      "not_verified": [
+        "SEC184 publication and Required CI",
+        "host change and post-change capability observation",
+        "C2 implementation",
+        "deployment, runtime readiness and delivery"
+      ],
+      "next_action": "Complete the active SEC184 clean-worktree integration claim on parent 0c266d2f8c8ffb5828e4895bb0baffe42325439f."
+    },
+    "latest_python311_github_required_ci_handoff": {
+      "recorded_at": "2026-07-31T08:34:00+02:00",
+      "run_id": "ABC-CI-PY311-AUTH-ROUTES-GITHUB-CI-20260731",
+      "slice_id": "CI-python311-auth-and-route-compatibility-required-ci",
+      "status": "terminal_success",
+      "claim": "released",
+      "commit": "0c266d2f8c8ffb5828e4895bb0baffe42325439f",
+      "remote": "fuzzy/dev",
+      "github_actions": {
+        "run_id": 30609614353,
+        "workflow": "CI",
+        "head_sha": "0c266d2f8c8ffb5828e4895bb0baffe42325439f",
+        "status": "completed",
+        "conclusion": "success",
+        "jobs": {
+          "Required quality gate / Python tests (pytest)": "success",
+          "Required quality gate / JS syntax (node --check)": "success",
+          "Required quality gate / Python syntax (compileall)": "success"
+        },
+        "url": "https://github.com/fuzzy123-ai/odysseus-fuzzy/actions/runs/30609614353"
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "deep",
+        "committed": "yes",
+        "pushed": "yes",
+        "deployed": "no",
+        "live_validated": "no",
+        "product_complete": "no"
+      },
+      "not_verified": [
+        "OPS Alert deployment, delivery and live operation"
+      ],
+      "next_action": "Resolve the exact current deploy, observation and delivery gate ledger for OPS Alert before any live mutation."
+    },
+    "latest_python311_auth_route_fixes_publication_handoff": {
+      "recorded_at": "2026-07-31T08:26:00+02:00",
+      "run_id": "ABC-CI-PY311-AUTH-ROUTES-PUBLISH-20260731",
+      "slice_id": "CI-python311-auth-and-route-compatibility-publication",
+      "status": "published_exact_commit_required_ci_queued",
+      "claim": "released",
+      "commit": "0c266d2f8c8ffb5828e4895bb0baffe42325439f",
+      "parent": "20fabc6e94af62036707db11d9fb591e4c16c92e",
+      "remote": "fuzzy/dev",
+      "remote_readback": "0c266d2f8c8ffb5828e4895bb0baffe42325439f",
+      "changed_paths": [
+        "routes/auth_routes.py",
+        "tests/test_security_routes.py"
+      ],
+      "prepublication_evidence": {
+        "native_linux_python311_full_suite": "11213 tests, 0 failures, 0 errors, 151 skipped, exit 0",
+        "root_sol_deep_review": "pass",
+        "cached_diff_check": "pass",
+        "foreign_staged_paths": 0
+      },
+      "github_actions": {
+        "run_id": 30609614353,
+        "workflow": "CI",
+        "head_sha": "0c266d2f8c8ffb5828e4895bb0baffe42325439f",
+        "status": "queued",
+        "url": "https://github.com/fuzzy123-ai/odysseus-fuzzy/actions/runs/30609614353"
+      },
+      "not_verified": [
+        "terminal GitHub Required CI green",
+        "OPS Alert deployment, delivery and live operation"
+      ],
+      "next_action": "Observe GitHub run 30609614353 to a terminal conclusion; continue only if every required job is green."
+    },
+    "latest_python311_full_parity_handoff": {
+      "recorded_at": "2026-07-31T08:24:00+02:00",
+      "run_id": "ABC-CI-PY311-FULL-VERIFY-R5-20260731",
+      "slice_id": "CI-python311-full-verification-contract-valid-tmp",
+      "status": "accepted_terminal_green_ready_path_scoped_publication",
+      "claim": "released",
+      "tested_parent": "20fabc6e94af62036707db11d9fb591e4c16c92e",
+      "tested_paths": [
+        "C:/tmp/odysseus-sec163-publish-20260730/routes/auth_routes.py",
+        "C:/tmp/odysseus-sec163-publish-20260730/tests/test_security_routes.py"
+      ],
+      "environment": "native WSL Ubuntu Linux, CPython 3.11, pinned Temporal CLI 1.8.0, contract-valid /tmp basetemp and pure Linux PATH",
+      "tests": {
+        "temporal_runtime_config_check": "passed",
+        "focused_security_auth_review": "24 passed",
+        "full_pytest_junit": "11213 tests, 0 failures, 0 errors, 151 skipped",
+        "full_pytest_exit_code": 0,
+        "junit_time_seconds": 450.411,
+        "post_test_diff_check": "pass",
+        "tested_files_match_publish_worktree": true
+      },
+      "invalid_verifier_attempts": [
+        "r4 used basetemp outside /tmp and failed the intentional tool path confinement contract",
+        "r5 inherited Windows powershell.exe through WSL interop; pure Linux PATH correctly skipped the single Windows parser test"
+      ],
+      "root_sol_deep_review": {
+        "result": "pass",
+        "security_invariants": [
+          "Auth behavior is unchanged; only the pre-existing Any annotation becomes resolvable on Python 3.11.",
+          "The no-/execute assertion remains fail-closed for every actual route path and ignores only non-route FastAPI entries without path."
+        ]
+      },
+      "not_verified": [
+        "GitHub Required CI on the publication commit",
+        "OPS Alert deployment, delivery and live operation"
+      ],
+      "next_action": "Commit exactly the two reviewed paths, push the exact commit to fuzzy/dev, then require terminal GitHub Required CI."
+    },
+    "latest_user_stop_handoff": {
+      "recorded_at": "2026-07-30T23:12:00+02:00",
+      "status": "paused_safe_no_active_claim_or_runner",
+      "goal_status": "active_unreached",
+      "released_claim": "ABC-CI-PY311-SECURITY-ROUTE-SCAN-COMPAT-20260730",
+      "runner_state": "The last native Linux Python 3.11 run ended terminally with exit 1; no test, worker heartbeat, publish, deploy, delivery or live action remains running.",
+      "reviewed_unpublished_paths": [
+        "C:/tmp/odysseus-sec163-publish-20260730/routes/auth_routes.py",
+        "C:/tmp/odysseus-sec163-publish-20260730/tests/test_security_routes.py"
+      ],
+      "verified": [
+        "root native Linux Python 3.11 focused Security/Auth lane: 24 passed",
+        "auth and route-scan diffs passed root/Sol deep security review",
+        "full verification attempt produced structured JUnit node tests.test_tool_path_confinement::test_allows_tmp and exit 1"
+      ],
+      "blocker": "Full Required-CI parity is not yet green. The last failure is classified as a verifier artifact because pytest basetemp was forced outside the path-confinement contract's allowed /tmp root.",
+      "next_frontier": "Reacquire an exact verification-only claim and rerun the unchanged native Linux Python 3.11 suite with pytest basetemp under /tmp. Only after terminal green may the two reviewed paths be claimed for commit and push; GitHub Required CI, deploy and OPS Alert live gates remain subsequent separate steps.",
+      "not_verified": [
+        "full native Linux Python 3.11 suite with contract-valid /tmp basetemp",
+        "GitHub Required CI green for the unpublished fixes",
+        "OPS Alert deployment, delivery and live operation"
+      ]
+    },
+    "latest_python311_security_route_scan_compatibility_handoff": {
+      "recorded_at": "2026-07-30T23:10:00+02:00",
+      "run_id": "ABC-CI-PY311-SECURITY-ROUTE-SCAN-COMPAT-20260730",
+      "slice_id": "CI-python311-security-route-scan-compatibility-repair",
+      "status": "implementation_and_focused_review_passed_full_verification_retry_required_due_invalid_harness_basetemp",
+      "claim": "released_on_user_stop",
+      "changed_paths": [
+        "C:/tmp/odysseus-sec163-publish-20260730/tests/test_security_routes.py"
+      ],
+      "implementation": "The negative no-/execute scan now uses an empty path default for FastAPI app.routes entries without a path attribute; route registration and response behavior are unchanged.",
+      "tests": {
+        "worker_python311_compile": "passed",
+        "worker_exact_node": "1 passed",
+        "worker_security_routes": "15 passed",
+        "worker_adjacent_authorization": "8 passed",
+        "root_native_linux_python311_security_auth_lane": "24 passed"
+      },
+      "root_sol_deep_review": {
+        "result": "pass",
+        "security_invariant": "The assertion still fails if any route exposes a path ending in /execute and only ignores non-route FastAPI entries that have no path."
+      },
+      "invalid_full_verification_attempt": {
+        "junit_node": "tests.test_tool_path_confinement::test_allows_tmp",
+        "exit_code": 1,
+        "classification": "verification_harness_artifact_not_product_failure",
+        "cause": "The verifier forced pytest basetemp under /home/fuzzy/.cache even though this security contract intentionally allows the system /tmp root; pytest therefore supplied a tmp_path outside the asserted allowlist.",
+        "correction": "Rerun the unchanged revision with pytest basetemp under /tmp and require terminal exit plus structured JUnit evidence."
+      },
+      "not_verified": [
+        "full native Linux Python 3.11 suite with contract-valid /tmp basetemp",
+        "GitHub Required CI green",
+        "publication, deploy, delivery or live actions"
+      ],
+      "next_action": "Run the unchanged full native Linux Python 3.11 lane with basetemp under /tmp; publish only after terminal green evidence."
+    },
+    "latest_python311_auth_routes_any_import_handoff": {
+      "recorded_at": "2026-07-30T22:34:00+02:00",
+      "run_id": "ABC-CI-PY311-AUTH-ANY-IMPORT-20260730",
+      "slice_id": "CI-python311-auth-routes-any-import-repair",
+      "status": "accepted_repo_only_next_distinct_test_compatibility_failure_identified",
+      "claim": "released",
+      "changed_paths": [
+        "C:/tmp/odysseus-sec163-publish-20260730/routes/auth_routes.py"
+      ],
+      "implementation": "Added Any to the existing typing import; no auth behavior, annotation, route contract or test changed.",
+      "tests": {
+        "python311_compile": "passed",
+        "exact_github_failing_node": "passed",
+        "auth_and_authorization_deep_lane": "22 passed",
+        "native_linux_child_process_checks": "2 passed"
+      },
+      "root_sol_deep_review": {
+        "result": "pass",
+        "security_invariant": "The change only makes the pre-existing redacted auth-event annotation resolvable under Python 3.11."
+      },
+      "native_linux_python311_full_suite_follow_on": {
+        "result": "1 failed, 8117 passed, 130 skipped",
+        "failing_node": "tests/test_security_routes.py::test_security_action_prepare_is_incident_bound_versioned_and_no_execute",
+        "cause": "The negative execute-route assertion directly reads route.path for every FastAPI app.routes entry, but current FastAPI includes a non-path _IncludedRouter entry."
+      },
+      "not_verified": [
+        "full native Linux Python 3.11 suite after the route-scan compatibility repair",
+        "GitHub Required CI green",
+        "publication, deploy, delivery or live actions"
+      ],
+      "next_action": "Update only the negative test route scan to use an empty default for entries without path, preserve the no-/execute invariant, and rerun the native Linux Python 3.11 lane."
+    },
+    "latest_python311_trp_dependency_bundle_publication_handoff": {
+      "recorded_at": "2026-07-30T21:18:00+02:00",
+      "run_id": "ABC-CI-PY311-TRP-DEPENDENCY-BUNDLE-PUBLISH-20260730",
+      "slice_id": "CI-python311-trp-dependency-bundle-publication",
+      "status": "published_required_ci_terminal_failed_on_python311_auth_annotation_import",
+      "claim": "released",
+      "commit": "20fabc6e94af62036707db11d9fb591e4c16c92e",
+      "parent": "f8de6d19e9837bb68def98ed2ff8f69f7207322b",
+      "remote": "fuzzy/dev",
+      "changed_paths": [
+        "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json",
+        "tests/test_signature_route_hardening.py"
+      ],
+      "prepublication_tests": {
+        "focused_roadmap_and_guidance": "6 passed",
+        "signature_hardening": "11 passed",
+        "windows_utf8_full_suite_under_repo_python314_venv": "11165 passed, 29 skipped"
+      },
+      "github_actions": {
+        "run_id": 30571595987,
+        "head_sha": "20fabc6e94af62036707db11d9fb591e4c16c92e",
+        "python_syntax": "passed",
+        "javascript_syntax": "passed",
+        "full_python311_pytest": "failed"
+      },
+      "exact_python311_local_reproduction": {
+        "environment": "isolated Python 3.11 environment with repository requirements.txt",
+        "result": "1 failed, 1021 passed, 10 skipped",
+        "failing_node": "tests/test_auth_event_loop.py::test_login_offloads_bcrypt_bearing_calls",
+        "cause": "routes/auth_routes.py uses Any in a nested function annotation but imports only Optional; Python 3.11 eagerly resolves the annotation and raises NameError during route setup."
+      },
+      "not_verified": [
+        "full Python 3.11 suite after the import repair",
+        "GitHub Required CI green",
+        "deploy, delivery or any live action"
+      ],
+      "next_action": "Add only typing.Any to the existing auth_routes typing import, deep-review the auth boundary, and rerun the exact Python 3.11 lane before publication."
+    },
+    "latest_python311_signature_param_nodeid_bound_handoff": {
+      "recorded_at": "2026-07-30T21:02:00+02:00",
+      "run_id": "ABC-CI-PY311-SIGNATURE-PARAM-ID-BOUND-20260730",
+      "slice_id": "CI-python311-signature-param-nodeid-bound-repair",
+      "status": "accepted_repo_only_ready_publication",
+      "claim": "released",
+      "changed_paths": [
+        "C:/tmp/odysseus-sec163-publish-20260730/tests/test_signature_route_hardening.py"
+      ],
+      "implementation": "Added five stable short pytest parameter ids only; parameter values, assertions and production behavior are unchanged.",
+      "tests": {
+        "signature_hardening_file": "11 passed",
+        "python311_compile": "passed",
+        "security_regressions_utf8": "91 passed, 1 skipped",
+        "full_utf8_suite": "11165 passed, 29 skipped"
+      },
+      "root_sol_deep_review": {
+        "result": "pass",
+        "bounded_node_id": "maximum collected target node id length 115; oversized payload is not embedded"
+      },
+      "local_environment_limits": [
+        "The full suite used the repository venv on Windows with PYTHONUTF8=1 and excluded three previously documented Windows-only symlink/bash tests.",
+        "GitHub Python 3.11 Required CI remains the authoritative publication evidence."
+      ],
+      "not_verified": [
+        "GitHub Required CI after publication",
+        "deploy, delivery or any live action"
+      ],
+      "next_action": "Publish exactly the reviewed three-path dependency bundle to fuzzy/dev, then monitor the exact GitHub run to terminal."
+    },
+    "latest_python311_trp_guidance_registration_handoff": {
+      "recorded_at": "2026-07-30T20:42:00+02:00",
+      "run_id": "ABC-CI-PY311-TRP-GUIDANCE-REGISTRATION-20260730",
+      "slice_id": "CI-python311-trp-guidance-registration-repair",
+      "status": "accepted_repo_only_waiting_full_suite_closure",
+      "claim": "released",
+      "changed_paths": [
+        "C:/tmp/odysseus-sec163-publish-20260730/docs/plans/multi-agent-execution-guidance.json"
+      ],
+      "tests": {
+        "guidance_suite": "5 passed",
+        "exact_sirp_dependency_node": "1 passed",
+        "guidance_cli": "valid; 132 discovered and listed, zero missing, unknown or duplicate paths",
+        "security_regressions_utf8": "91 passed, 1 skipped"
+      },
+      "root_sol_deep_review": {
+        "result": "pass",
+        "verified_diff": "one sorted gate_only row and exactly three deterministic count changes"
+      },
+      "full_suite_follow_on": {
+        "result": "failed_after_8167_passed_at_signature_parameter_setup",
+        "failing_node": "tests/test_signature_route_hardening.py::test_signature_png_normalization_rejects_invalid_inputs[oversized_payload]",
+        "cause": "The 2.8 MB parameter value is embedded into the pytest node id and PYTEST_CURRENT_TEST because the parameterization has no bounded ids; setup fails before product logic executes."
+      },
+      "not_verified": [
+        "full local suite after bounded parameter ids",
+        "GitHub Required CI",
+        "publication or live actions"
+      ],
+      "next_action": "Add stable bounded ids only to the existing invalid-signature parameterization, then rerun the focused file and full UTF-8 suite."
+    },
+    "latest_python311_missing_trp_roadmap_dependency_handoff": {
+      "recorded_at": "2026-07-30T20:24:00+02:00",
+      "run_id": "ABC-CI-PY311-TRP-ROADMAP-DEPENDENCY-REPAIR-20260730",
+      "slice_id": "CI-python311-missing-trp-roadmap-dependency-repair",
+      "status": "implementation_complete_integration_requires_guidance_registration",
+      "claim": "released",
+      "changed_paths": [
+        "C:/tmp/odysseus-sec163-publish-20260730/docs/plans/faster-whisper-transcription-protocol-roadmap.json"
+      ],
+      "source_and_destination_sha256": "2cf216170cbb902df94fb99a616244d27393a261ea12d3d03047ef9a97576990",
+      "tests": {
+        "json_validation": "passed",
+        "exact_sirp_failing_node": "1 passed",
+        "guidance_adjacent_lane": "1 failed, 5 passed"
+      },
+      "root_sol_deep_review": {
+        "result": "implementation_scope_passed_integration_gate_found",
+        "finding": "The newly discovered roadmap requires one guidance row plus total_count 132, docs_plans_count 125 and the selected profile count refresh before publication."
+      },
+      "not_verified": [
+        "guidance registry green",
+        "broader suite",
+        "GitHub Required CI",
+        "publication or live actions"
+      ],
+      "next_action": "Complete the separately claimed deterministic guidance registration and rerun both focused lanes before any publication."
+    },
+    "latest_python311_guidance_inventory_count_publication_handoff": {
+      "recorded_at": "2026-07-30T20:12:00+02:00",
+      "run_id": "ABC-CI-PY311-GUIDANCE-COUNTS-PUBLISH-20260730",
+      "slice_id": "CI-python311-guidance-inventory-count-publication",
+      "status": "published_required_ci_terminal_failed_on_distinct_missing_trp_roadmap_dependency",
+      "claim": "released",
+      "commit": "f8de6d19e9837bb68def98ed2ff8f69f7207322b",
+      "parent": "0eba1a18aed4e3a4416afb847f3ef617da3545b0",
+      "remote": "fuzzy/dev",
+      "changed_paths": [
+        "docs/plans/multi-agent-execution-guidance.json"
+      ],
+      "tests": {
+        "focused_guidance_contract": "5 passed",
+        "guidance_inventory": "131 discovered, 131 listed, zero missing, unknown or duplicate paths",
+        "github_required_ci_run": 30566175573,
+        "python_syntax": "passed",
+        "javascript_syntax": "passed",
+        "full_pytest": "failed"
+      },
+      "local_reproduction": {
+        "environment": "Windows local checkout at exact published commit; three known Windows-only tests ignored",
+        "result": "1 failed, 8020 passed, 22 skipped",
+        "failing_node": "tests/test_security_incident_response_production_completion_roadmap.py::test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released",
+        "cause": "The tracked SIRP test loads docs/plans/faster-whisper-transcription-protocol-roadmap.json, but that roadmap remains untracked and deferred in the dirty main worktree and is absent from fuzzy/dev."
+      },
+      "foreign_dirty_boundary": "No transcription roadmap, transcription implementation path or dirty SIRP test change was absorbed. The candidate repair is read-only until ownership and deferral safety are reviewed.",
+      "not_verified": [
+        "full GitHub Required CI green",
+        "whether publishing the deferred TRP roadmap artifact is authorized and semantically safe",
+        "later hidden maxfail=1 failures"
+      ],
+      "next_action": "Deep-review the exact missing-roadmap dependency without edits; only then create a fresh path-scoped claim or record waiting_on_user."
+    },
+    "latest_sirp01_route_blocker_handoff": {
+      "run_id": "ABC-SEC100-20260727-SIRP01",
+      "slice_id": "SIRP-01-durable-incident-action-store",
+      "master": "/root/sirp_repo_sol_master",
+      "worker": "/root/sirp_repo_sol_master/sirp01_bob_terra",
+      "status": "waiting_on_user",
+      "route": {
+        "master": "gpt-5.6-sol verified by parent task contract",
+        "worker_requested": "gpt-5.6-terra/high",
+        "worker_actual": "unknown",
+        "review": "not_started"
+      },
+      "implementation_claim": "retained_waiting_on_user",
+      "integration_claim": "released_without_feature_review_or_acceptance",
+      "preserved_unreviewed_paths": [
+        "src/security_incident_store.py",
+        "src/security_incident_store_migrations.py",
+        "tests/test_security_incident_store.py"
+      ],
+      "tests": "not_run",
+      "stage_commit_push_deploy_live": "not_done",
+      "next_action": "Require an observable verified Terra route or explicit operator-approved alternative before any test, review, replacement or acceptance."
+    },
+    "latest_sirp01_routing_override": {
+      "recorded_at": "2026-07-27T14:23:51+02:00",
+      "authority": "explicit operator steering",
+      "decision": "Continue with requested master gpt-5.6-sol/xhigh and worker gpt-5.6-terra/high routes despite unexposed actual identities.",
+      "actual_route_record": "unknown_user_approved",
+      "scope": "repo_only",
+      "implementation_paths": [
+        "src/security_incident_store.py",
+        "src/security_incident_store_migrations.py",
+        "tests/test_security_incident_store.py"
+      ],
+      "network_live_commit_push_deploy": false
+    },
+    "latest_sirp01_accepted_handoff": {
+      "recorded_at": "2026-07-27T14:52:05+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP01-R2",
+      "slice_id": "SIRP-01-durable-incident-action-store",
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "owner": "Bob/Terra requested route implementation; root/Sol requested route deep review",
+      "state": "released_accepted_repo_only",
+      "changed_paths": [
+        "src/security_incident_store.py",
+        "src/security_incident_store_migrations.py",
+        "tests/test_security_incident_store.py"
+      ],
+      "route": {
+        "master_requested": "gpt-5.6-sol/xhigh",
+        "worker_requested": "gpt-5.6-terra/high",
+        "master_actual": "unknown_user_approved",
+        "worker_actual": "unknown_user_approved"
+      },
+      "tests": {
+        "focused_store": "31 passed",
+        "adjacent_incident_policy_remediation_notification_classifier": "32 passed",
+        "compile_import": "pass"
+      },
+      "review": {
+        "depth": "deep",
+        "result": "pass_after_two_bounded_fix_rounds"
+      },
+      "evidence_reference": "docs/plans/security-incident-response-production-completion-evidence.json",
+      "next_action": "Claim only SIRP-02-evidence-broker-and-redaction-boundary after a fresh collision check.",
+      "not_verified": [
+        "SIRP-02 through SIRP-15",
+        "commit",
+        "push",
+        "deploy",
+        "external delivery",
+        "CrowdSec or session mutation",
+        "live validation and track-level temporal closure"
+      ]
+    },
+    "latest_sirp02_run_start": {
+      "recorded_at": "2026-07-27T15:02:17+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP02",
+      "slice_id": "SIRP-02-evidence-broker-and-redaction-boundary",
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "state": "active_repo_only",
+      "worker_claim": "/root/sirp_repo_sol_master/sirp02_bob_terra owns only the eight exact implementation paths.",
+      "sol_claim": "/root/sirp_repo_sol_master owns only the five planning, evidence and static-contract integration paths.",
+      "requested_route": {
+        "master": "gpt-5.6-sol/xhigh",
+        "worker": "gpt-5.6-terra/high"
+      },
+      "actual_route": {
+        "master": "unknown_user_approved",
+        "worker": "unknown_user_approved"
+      },
+      "scope": "offline typed adapter, broker and incident-service contracts only",
+      "network_live_commit_push_deploy": false
+    },
+    "latest_sirp02_accepted_handoff": {
+      "recorded_at": "2026-07-27T15:29:57+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP02",
+      "slice_id": "SIRP-02-evidence-broker-and-redaction-boundary",
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "owner": "Bob/Terra requested route implementation; root/Sol requested route deep review",
+      "state": "released_accepted_repo_only",
+      "changed_paths": [
+        "src/security_evidence_broker.py",
+        "src/security_evidence_sources.py",
+        "src/security_incident_service.py",
+        "tests/test_security_evidence_broker.py",
+        "tests/test_security_evidence_sources.py"
+      ],
+      "route": {
+        "master_requested": "gpt-5.6-sol/xhigh",
+        "worker_requested": "gpt-5.6-terra/high",
+        "master_actual": "unknown_user_approved",
+        "worker_actual": "unknown_user_approved"
+      },
+      "tests": {
+        "focused_broker_and_sources": "26 passed",
+        "adjacent_store_runtime_debug_observability_and_security": "79 passed",
+        "compile_import": "pass"
+      },
+      "review": {
+        "depth": "deep",
+        "result": "pass_after_three_bounded_fix_rounds"
+      },
+      "evidence_reference": "docs/plans/security-incident-response-production-completion-evidence.json",
+      "next_action": "Claim only SIRP-03-classifier-and-explanation-contract after a fresh collision check.",
+      "not_verified": [
+        "SIRP-03 through SIRP-15",
+        "repository-wide prevention of direct callers using the pre-existing public store API",
+        "commit",
+        "push",
+        "deploy",
+        "external delivery",
+        "CrowdSec or session mutation",
+        "live validation and track-level temporal closure"
+      ]
+    },
+    "latest_sirp03_run_start": {
+      "recorded_at": "2026-07-27T15:39:16+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP03",
+      "slice_id": "SIRP-03-classifier-and-explanation-contract",
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "state": "active_repo_only",
+      "worker_claim": "/root/sirp_repo_sol_master/sirp03_bob_terra owns only the five exact implementation paths, including hotfile src/security_incident_model.py.",
+      "sol_claim": "/root/sirp_repo_sol_master owns only the five planning, evidence and static-contract integration paths.",
+      "requested_route": {
+        "master": "gpt-5.6-sol/xhigh",
+        "worker": "gpt-5.6-terra/high"
+      },
+      "actual_route": {
+        "master": "unknown_user_approved",
+        "worker": "unknown_user_approved"
+      },
+      "scope": "deterministic offline classifier and exact redacted explanation contract only",
+      "network_live_commit_push_deploy": false
+    },
+    "latest_sirp03_accepted_handoff": {
+      "recorded_at": "2026-07-27T16:13:28+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP03",
+      "slice_id": "SIRP-03-classifier-and-explanation-contract",
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "owner": "Bob/Terra requested route implementation; root/Sol requested route deep review",
+      "state": "released_accepted_repo_only",
+      "changed_paths": [
+        "src/security_anomaly_classifier.py",
+        "src/security_incident_explanations.py",
+        "src/security_response_policy.py",
+        "tests/test_security_incident_explanations.py"
+      ],
+      "route": {
+        "master_requested": "gpt-5.6-sol/xhigh",
+        "worker_requested": "gpt-5.6-terra/high",
+        "master_actual": "unknown_user_approved",
+        "worker_actual": "unknown_user_approved"
+      },
+      "tests": {
+        "focused_explanation_contract": "19 passed",
+        "primary_adjacent_classifier_model_policy_broker_sources_store": "98 passed",
+        "extended_remediation_notification_tabletop_ops_debug_server": "34 passed",
+        "ast_import_diff": "pass"
+      },
+      "review": {
+        "depth": "deep",
+        "result": "pass_after_three_bounded_fix_returns_and_four_review_rounds"
+      },
+      "evidence_reference": "docs/plans/security-incident-response-production-completion-evidence.json",
+      "next_action": "Claim only SIRP-04-store-backed-mcp-and-api after a fresh collision check.",
+      "not_verified": [
+        "SIRP-04 through SIRP-15",
+        "commit",
+        "push",
+        "deploy",
+        "external delivery",
+        "CrowdSec or session mutation",
+        "live validation and track-level temporal closure"
+      ]
+    },
+    "latest_sirp04_accepted_handoff": {
+      "recorded_at": "2026-07-27T17:13:52+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP04",
+      "slice_id": "SIRP-04-store-backed-mcp-and-api",
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "owner": "Bob/Terra requested route implementation; root/Sol requested route deep review",
+      "state": "released_accepted_repo_only",
+      "changed_paths": [
+        "mcp_servers/debug_server.py",
+        "routes/security_routes.py",
+        "routes/ops_console_routes.py",
+        "src/ops_console_snapshot.py",
+        "src/ops_timeline_adapters.py",
+        "tests/test_mcp_debug_server.py",
+        "tests/test_security_routes.py",
+        "tests/test_ops_console_snapshot.py",
+        "tests/test_ops_timeline_adapters.py"
+      ],
+      "route": {
+        "master_requested": "gpt-5.6-sol/xhigh",
+        "worker_requested": "gpt-5.6-terra/high",
+        "master_actual": "unknown_user_approved",
+        "worker_actual": "unknown_user_approved"
+      },
+      "tests": {
+        "focused_mcp_routes_snapshot_timeline": "42 passed",
+        "adjacent_security_integration": "108 passed",
+        "existing_mcp_tabletop_ops_consumers": "18 passed",
+        "ast_import": "9 paths and 5 runtime modules passed",
+        "adversarial_probes": "pass",
+        "path_scoped_diff_check": "pass"
+      },
+      "review": {
+        "depth": "deep",
+        "result": "pass_after_three_bounded_fix_returns_and_four_review_rounds"
+      },
+      "runtime_artifact_note": "An early ordinary route test created ignored data/security_incidents.sqlite. It was never inspected or modified after discovery; metadata remained 53,248 bytes and 2026-07-27 16:52:26 through final verification.",
+      "evidence_reference": "docs/plans/security-incident-response-production-completion-evidence.json",
+      "next_action": "Wait for the exact SIRP-OPERATOR-AUTH-GO design decision before claiming SIRP-05.",
+      "not_verified": [
+        "SIRP-05 through SIRP-15",
+        "commit",
+        "push",
+        "deploy",
+        "external delivery",
+        "CrowdSec or session mutation",
+        "live validation and track-level temporal closure"
+      ]
+    },
+    "latest_sirp05_operator_auth_go": {
+      "recorded_at": "2026-07-27T19:26:17+02:00",
+      "authority": "explicit operator GO relayed by /root",
+      "gate_id": "SIRP-OPERATOR-AUTH-GO",
+      "status": "closed_accepted_2026-07-27",
+      "scope": "SIRP-05 repository-only implementation and local tests",
+      "privileged_human_role": "Only a server-derived human is_admin=true identity in a current valid browser-cookie session may approve, deny or manually expire an action.",
+      "non_privileged_boundaries": [
+        "Non-admin owners remain read-only and prepare-only.",
+        "Synthetic or internal identities cannot approve, deny or manually expire.",
+        "Bearer-token and API-token authentication paths cannot approve, deny or manually expire.",
+        "Automatic TTL expiry remains server-authoritative and does not consume a human step-up proof."
+      ],
+      "step_up": {
+        "factors": ["password", "current live TOTP"],
+        "totp_enrollment": "mandatory",
+        "backup_codes_qualify": false,
+        "freshness_ttl_seconds": 300,
+        "single_use": true
+      },
+      "server_side_binding": [
+        "current valid browser-cookie session",
+        "username",
+        "current is_admin=true role",
+        "action_id",
+        "action_version",
+        "scope_fingerprint",
+        "policy_revision"
+      ],
+      "fail_closed": [
+        "binding mismatch",
+        "role loss",
+        "session loss",
+        "stale proof",
+        "proof replay",
+        "concurrent consumption",
+        "missing TOTP",
+        "TOTP-disabled account",
+        "backup-code substitution",
+        "proof expiry",
+        "malformed proof"
+      ],
+      "privacy": "Password, TOTP, proof material and session tokens are never echoed, logged or persisted; only redacted blocker/audit state may be recorded.",
+      "delivery": "Delivery remains dry-run and blocked without OPS-ALERT-DELIVERY-GO; only immutable redacted no-send outcome/correlation with bounded retry behavior may be recorded.",
+      "does_not_authorize": [
+        "OPS-ALERT-DELIVERY-GO",
+        "effectful MCP",
+        "executor implementation or execution",
+        "provider or host writes",
+        "network sends",
+        "commit",
+        "push",
+        "deploy",
+        "any live action"
+      ]
+    },
+    "latest_sirp05_run_start": {
+      "recorded_at": "2026-07-27T19:26:17+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP05",
+      "slice_id": "SIRP-05-operator-auth-commands-and-delivery",
+      "state": "active_repo_only",
+      "worker_claim": "/root/sirp_repo_sol_master/sirp05_bob_terra owns only the 17 exact implementation and test paths.",
+      "sol_claim": "/root/sirp_repo_sol_master owns only the five planning, evidence and static-contract integration paths.",
+      "requested_route": {
+        "master": "gpt-5.6-sol/xhigh",
+        "worker": "gpt-5.6-terra/high"
+      },
+      "actual_route": {
+        "master": "unknown_user_approved",
+        "worker": "unknown_user_approved"
+      },
+      "test_isolation": "Tests inject or patch providers and use unique workspace-local basetemps; ignored data/security_incidents.sqlite remains uninspected and untouched.",
+      "network_live_commit_push_deploy": false
+    },
+    "latest_sirp05_accepted_handoff": {
+      "recorded_at": "2026-07-27T20:33:42+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP05",
+      "slice_id": "SIRP-05-operator-auth-commands-and-delivery",
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "owner": "Bob/Terra requested route implementation; root/Sol requested route deep review",
+      "state": "released_accepted_repo_only",
+      "route": {
+        "master_requested": "gpt-5.6-sol/xhigh",
+        "worker_requested": "gpt-5.6-terra/high",
+        "master_actual": "unknown_user_approved",
+        "worker_actual": "unknown_user_approved"
+      },
+      "tests": {
+        "fresh_sol_focused_authorization_and_commands": "16 passed",
+        "fresh_sol_primary_affected_suite": "170 passed",
+        "fresh_sol_adjacent_before_acceptance_integration": "193 passed with only expected active-state/hash assertions pending integration",
+        "worker_final_combined": "276 passed",
+        "ast_and_scoped_diff": "pass"
+      },
+      "review": {
+        "depth": "deep",
+        "result": "pass_after_three_bounded_fix_returns_and_four_review_rounds"
+      },
+      "next_action": "Stop this run after SIRP-05 acceptance; leave SIRP-06 dependency-ready and unclaimed.",
+      "live_actions": false
+    },
+    "latest_python311_guidance_inventory_count_handoff": {
+      "run_id": "ABC-CI-PY311-GUIDANCE-COUNTS-20260730",
+      "slice_id": "CI-python311-guidance-inventory-count-repair",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "state": "released_accepted_repo_only_ready_for_exact_publication",
+      "lease_started_at": "2026-07-30T19:52:00+02:00",
+      "lease_expires_at": "2026-07-30T20:52:00+02:00",
+      "released_at": "2026-07-30T20:02:00+02:00",
+      "base_revision": "0eba1a18aed4e3a4416afb847f3ef617da3545b0",
+      "changed_paths": [
+        "docs/plans/multi-agent-execution-guidance.json"
+      ],
+      "semantic_diff": {
+        "inventory_total_count": "130_to_131",
+        "inventory_docs_plans_count": "123_to_124",
+        "analysis_summary_profile_counts_gate_only": "56_to_57",
+        "structured_specs_count": "7_unchanged",
+        "all_other_json_semantics": "unchanged",
+        "roadmap_entries_added_removed_reordered_or_modified": false
+      },
+      "tests": {
+        "worker_focused_guidance": "5 passed",
+        "root_focused_guidance": "5 passed",
+        "repository_validator": "valid_true_discovered_131_listed_131_docs_plans_124_structured_specs_7",
+        "missing_unknown_duplicate_counts": "all_zero",
+        "python311_compile": "passed",
+        "json_semantic_three_field_proof": "passed",
+        "root_diff_check": "passed",
+        "exact_one_path_scope": "passed"
+      },
+      "review": {
+        "depth": "deep",
+        "reviewer": "root/Sol",
+        "result": "pass",
+        "unexpected_semantic_changes": 0
+      },
+      "not_verified": [
+        "full GitHub Required CI green",
+        "later hidden maxfail=1 failures",
+        "SEC184 publication",
+        "Debian deployment and live OPS Alert delivery"
+      ],
+      "next_action": "Under a separate exact publication claim, commit and push only multi-agent-execution-guidance.json to fuzzy/dev and require terminal GitHub Required CI."
+    },
+    "latest_python311_scheduler_gmi_hash_binding_publication_handoff": {
+      "run_id": "ABC-CI-PY311-SCHEDULER-GMI-HASH-PUBLISH-20260730",
+      "slice_id": "CI-python311-scheduler-gmi-hash-binding-publication",
+      "owner": "root/Sol",
+      "state": "released_terminal_ci_failed_on_distinct_guidance_inventory_counts",
+      "lease_started_at": "2026-07-30T19:28:00+02:00",
+      "lease_expires_at": "2026-07-30T20:28:00+02:00",
+      "released_at": "2026-07-30T19:48:00+02:00",
+      "commit": "0eba1a18aed4e3a4416afb847f3ef617da3545b0",
+      "parent": "3532899ba17b33da5885a9b5938d0b117000964e",
+      "remote": "fuzzy/dev",
+      "changed_paths": [
+        "docs/plans/gemma3-memory-ops-offline-acceptance.json"
+      ],
+      "remote_readback": {
+        "exact_commit": true,
+        "exact_parent": true,
+        "exact_path_set": true
+      },
+      "github_actions": {
+        "run_id": 30562031764,
+        "head_sha": "0eba1a18aed4e3a4416afb847f3ef617da3545b0",
+        "python_dependency_install": "passed",
+        "python_syntax": "passed",
+        "javascript_syntax": "passed",
+        "full_pytest": "failed"
+      },
+      "gmi_hash_binding_result": {
+        "activation_and_offline_acceptance_tests": "17 passed",
+        "packet_ready_preflight": "passed_live_prerequisites_still_missing",
+        "only_scheduler_hash_changed": true
+      },
+      "new_failure_projection": {
+        "failing_node": "tests/test_roadmap_multi_agent_guidance.py::test_repository_guidance_covers_every_discovered_roadmap",
+        "error_class": "AssertionError",
+        "local_reproduction": "7417 passed and 22 skipped before the exact failure after excluding three Windows-only files",
+        "root_cause": "The guidance already lists all 131 discovered roadmaps with no missing unknown or duplicate paths, but inventory.total_count remains 130 and inventory.docs_plans_count remains 123 while discovery reports 131 total and 124 docs/plans.",
+        "required_semantic_change": "Only total_count 130_to_131 and docs_plans_count 123_to_124; structured_specs_count remains 7 and roadmap entries remain unchanged.",
+        "introduced_by_gmi_hash_commit": false
+      },
+      "not_verified": [
+        "full GitHub Required CI green",
+        "guidance inventory count repair",
+        "later hidden maxfail=1 failures",
+        "SEC184 publication",
+        "Debian deployment and live OPS Alert delivery"
+      ],
+      "next_action": "After explicit approval, claim and update only the two stale inventory counters in multi-agent-execution-guidance.json, verify repository guidance coverage, publish the exact repair and require a new terminal GitHub Actions run."
+    },
+    "latest_python311_scheduler_gmi_hash_binding_handoff": {
+      "run_id": "ABC-CI-PY311-SCHEDULER-GMI-HASH-20260730",
+      "slice_id": "CI-python311-scheduler-gmi-hash-binding-correction",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "state": "released_accepted_repo_only_ready_for_exact_publication",
+      "lease_started_at": "2026-07-30T19:18:00+02:00",
+      "lease_expires_at": "2026-07-30T20:18:00+02:00",
+      "released_at": "2026-07-30T19:26:00+02:00",
+      "base_revision": "3532899ba17b33da5885a9b5938d0b117000964e",
+      "changed_paths": [
+        "docs/plans/gemma3-memory-ops-offline-acceptance.json"
+      ],
+      "canonical_scheduler_sha256": "D2BD9A25B4392F98578C0D14BAB91272CC302D1F03166DA31448D7FC7EBCA222",
+      "semantic_diff": {
+        "changed_top_level_keys": [
+          "hash_manifest"
+        ],
+        "changed_hash_keys": [
+          "src/local_model_scheduler.py"
+        ],
+        "verdict_changed": false,
+        "safe_state_changed": false,
+        "activation_status_changed": false,
+        "other_hashes_changed": false
+      },
+      "tests": {
+        "worker_gmi_activation_and_offline_acceptance": "17 passed",
+        "root_gmi_activation_and_offline_acceptance": "17 passed",
+        "packet_ready_preflight": "passed_live_prerequisites_still_missing",
+        "json_parse_and_semantic_one_field_diff": "passed",
+        "root_diff_check": "passed",
+        "exact_one_path_scope": "passed"
+      },
+      "review": {
+        "depth": "deep",
+        "reviewer": "root/Sol",
+        "result": "pass",
+        "unexpected_semantic_changes": 0
+      },
+      "not_verified": [
+        "full GitHub Required CI green",
+        "later hidden maxfail=1 failures",
+        "GMI live prerequisites or activation",
+        "SEC184 publication",
+        "Debian deployment and live OPS Alert delivery"
+      ],
+      "next_action": "Under a separate exact publication claim, commit and push only the accepted GMI manifest path to fuzzy/dev and require terminal GitHub Required CI."
+    },
+    "latest_python311_scheduler_negative_sleep_race_publication_handoff": {
+      "run_id": "ABC-CI-PY311-SCHEDULER-SLEEP-RACE-PUBLISH-20260730",
+      "slice_id": "CI-python311-scheduler-negative-sleep-race-publication",
+      "owner": "root/Sol",
+      "state": "released_terminal_ci_failed_on_required_hash_binding_integration",
+      "lease_started_at": "2026-07-30T18:54:00+02:00",
+      "lease_expires_at": "2026-07-30T19:54:00+02:00",
+      "released_at": "2026-07-30T19:18:00+02:00",
+      "commit": "3532899ba17b33da5885a9b5938d0b117000964e",
+      "parent": "b34523466c9a390f2bc91de8f508b5034df91376",
+      "remote": "fuzzy/dev",
+      "changed_paths": [
+        "src/local_model_scheduler.py",
+        "tests/test_local_model_scheduler.py"
+      ],
+      "remote_readback": {
+        "exact_commit": true,
+        "exact_parent": true,
+        "exact_path_set": true
+      },
+      "github_actions": {
+        "run_id": 30560778890,
+        "head_sha": "3532899ba17b33da5885a9b5938d0b117000964e",
+        "python_dependency_install": "passed",
+        "python_syntax": "passed",
+        "javascript_syntax": "passed",
+        "full_pytest": "failed"
+      },
+      "scheduler_repair_result": {
+        "focused_and_adjacent_tests": "30 passed",
+        "negative_sleep_race": "repaired",
+        "foreign_dirty_work_absorbed": false
+      },
+      "integration_failure_projection": {
+        "failing_node": "tests/test_gemma3_activation_packet.py::test_preflight_marks_packet_ready_without_authorizing_live_execution",
+        "observed_status": "offline_packet_blocked",
+        "expected_status": "packet_ready_awaiting_gro_live_validation_and_gmi_live_go",
+        "only_false_offline_gate": "gmi_hash_manifest_matches",
+        "offline_blockers": [
+          "gmi_hash_manifest_matches",
+          "gmi_hash_manifest_mismatch"
+        ],
+        "root_cause": "The accepted fail-closed GMI manifest binds src/local_model_scheduler.py; the reviewed scheduler fix intentionally changed that file while its canonical hash remained at the prior revision.",
+        "introduced_by_scheduler_fix": true
+      },
+      "next_action": "Refresh only the canonical src/local_model_scheduler.py hash in the GMI offline acceptance manifest, verify the complete activation packet and publish the exact correction before rerunning Required CI."
+    },
+    "latest_python311_scheduler_negative_sleep_race_handoff": {
+      "run_id": "ABC-CI-PY311-SCHEDULER-SLEEP-RACE-20260730",
+      "slice_id": "CI-python311-scheduler-negative-sleep-race-repair",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "state": "released_accepted_repo_only_ready_for_exact_publication",
+      "lease_started_at": "2026-07-30T18:40:00+02:00",
+      "lease_expires_at": "2026-07-30T19:40:00+02:00",
+      "released_at": "2026-07-30T18:52:00+02:00",
+      "base_revision": "b34523466c9a390f2bc91de8f508b5034df91376",
+      "changed_paths": [
+        "src/local_model_scheduler.py",
+        "tests/test_local_model_scheduler.py"
+      ],
+      "repair": "Read elapsed monotonic time once, preserve the existing max-pause branch, derive a clamped remaining budget and never pass a negative duration to time.sleep.",
+      "regression_contract": {
+        "deterministic_clock_values": [
+          0.0,
+          0.5,
+          1.1,
+          1.1
+        ],
+        "old_behavior": "second clock read produced negative 0.1 second sleep and ValueError",
+        "new_behavior": "one 0.5 second controlled sleep then max_pause_reached",
+        "wall_clock_flakiness": false
+      },
+      "tests": {
+        "worker_focused_old_and_new_nodes": "2 passed",
+        "worker_scheduler_and_adjacent_maintenance": "30 passed",
+        "root_scheduler_and_adjacent_maintenance": "30 passed",
+        "worker_python311_compile": "passed",
+        "root_diff_check": "passed",
+        "exact_two_path_scope": "passed"
+      },
+      "review": {
+        "depth": "deep",
+        "reviewer": "root/Sol",
+        "result": "pass",
+        "clear_disabled_sleep_count_result_schema_api_preserved": true,
+        "unexpected_semantic_changes": 0
+      },
+      "foreign_dirty_boundary": "The dirty main-worktree scheduler redesign and transcription work were neither edited nor absorbed.",
+      "not_verified": [
+        "full GitHub Required CI green",
+        "later hidden maxfail=1 failures",
+        "real live local-model timing",
+        "SEC184 publication",
+        "Debian deployment and live OPS Alert delivery"
+      ],
+      "next_action": "Under a separate exact publication claim, commit and push only the two accepted clean-worktree paths to fuzzy/dev and require terminal GitHub Required CI."
+    },
+    "latest_python311_stale_uix_priority_test_publication_handoff": {
+      "run_id": "ABC-CI-PY311-UIX-PRIORITY-PUBLISH-20260730",
+      "slice_id": "CI-python311-stale-uix-priority-test-publication",
+      "owner": "root/Sol",
+      "state": "released_terminal_ci_failed_on_distinct_scheduler_race",
+      "lease_started_at": "2026-07-30T18:14:00+02:00",
+      "lease_expires_at": "2026-07-30T19:14:00+02:00",
+      "released_at": "2026-07-30T18:34:00+02:00",
+      "commit": "b34523466c9a390f2bc91de8f508b5034df91376",
+      "parent": "49e255f292469bc3be4be6f4dba007039bbabd6a",
+      "remote": "fuzzy/dev",
+      "changed_paths": [
+        "tests/test_open_roadmap_priority_contract.py"
+      ],
+      "remote_readback": {
+        "exact_commit": true,
+        "exact_parent": true,
+        "exact_path_set": true
+      },
+      "github_actions": {
+        "run_id": 30557697203,
+        "head_sha": "b34523466c9a390f2bc91de8f508b5034df91376",
+        "python_dependency_install": "passed",
+        "python_syntax": "passed",
+        "javascript_syntax": "passed",
+        "full_pytest": "failed"
+      },
+      "priority_contract_result": {
+        "focused_test": "passed_locally_before_publication",
+        "current_sirp_goal_preserved": true,
+        "accepted_uix_slices_reopened": false
+      },
+      "new_failure_projection": {
+        "failing_node": "tests/test_local_model_scheduler.py::test_cpu_checkpoint_yields_for_registry_gemma_activity",
+        "error_class": "ValueError",
+        "error_contract": "sleep length must be non-negative",
+        "local_reproduction": "4201 passed and 17 skipped before the exact failure after excluding Windows-only files",
+        "root_cause": "maintenance_cpu_checkpoint performs a second monotonic clock read inside the sleep argument after its max-pause boundary check; elapsed time can cross the boundary between reads and produce a negative remaining sleep.",
+        "introduced_by_priority_test_commit": false,
+        "foreign_dirty_overlap": "The main worktree contains broader uncommitted local-model scheduler changes but does not repair this negative-sleep race; preserve that work and implement only in the clean worktree after a fresh exact claim."
+      },
+      "not_verified": [
+        "full GitHub Required CI green",
+        "scheduler race repair",
+        "later hidden maxfail=1 failures",
+        "SEC184 publication",
+        "Debian deployment and live OPS Alert delivery"
+      ],
+      "next_action": "After explicit approval, claim an exact clean-worktree scheduler race fix plus focused regression test, deep-review it, publish only the reviewed paths and require a new terminal GitHub Actions run."
+    },
+    "latest_python311_stale_uix_priority_test_repair_handoff": {
+      "run_id": "ABC-CI-PY311-UIX-PRIORITY-TEST-20260730",
+      "slice_id": "CI-python311-stale-uix-priority-test-repair",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "state": "released_accepted_repo_only_ready_for_exact_publication",
+      "lease_started_at": "2026-07-30T18:06:00+02:00",
+      "lease_expires_at": "2026-07-30T19:06:00+02:00",
+      "released_at": "2026-07-30T18:12:00+02:00",
+      "base_revision": "49e255f292469bc3be4be6f4dba007039bbabd6a",
+      "changed_paths": [
+        "tests/test_open_roadmap_priority_contract.py"
+      ],
+      "authority_evidence": {
+        "uix_retirement_commit": "55dceb80",
+        "current_sirp_goal_commit": "0c61af3c",
+        "current_operator_priority": "OPS Alert completion",
+        "roadmap_goal_changed": false,
+        "uix_slices_reopened": false
+      },
+      "repair": "Preserve exclusion of accepted UIX-ABC13 through UIX-ABC24 slices and replace only the stale post-UIX goal marker with bounded current SIRP dependency-first and separate external/deploy/live gate markers.",
+      "tests": {
+        "worker_focused_contract": "1 passed",
+        "worker_python311_compile": "passed",
+        "root_focused_contract": "1 passed",
+        "root_diff_check": "passed",
+        "exact_path_scope": "passed"
+      },
+      "review": {
+        "depth": "deep",
+        "reviewer": "root/Sol",
+        "result": "pass",
+        "unexpected_semantic_changes": 0
+      },
+      "not_verified": [
+        "full GitHub Required CI green",
+        "later hidden maxfail=1 failures",
+        "SEC184 publication",
+        "Debian deployment and live OPS Alert delivery"
+      ],
+      "next_action": "Under a separate exact publication claim, commit and push only tests/test_open_roadmap_priority_contract.py to fuzzy/dev and require terminal GitHub Required CI."
+    },
+    "latest_python311_runtime_inventory_publication_handoff": {
+      "run_id": "ABC-CI-PY311-UIR-PUBLISH-20260730",
+      "slice_id": "CI-python311-runtime-inventory-refresh-publication",
+      "owner": "root/Sol",
+      "state": "released_terminal_ci_failed_on_distinct_preexisting_roadmap_contract",
+      "lease_started_at": "2026-07-30T17:42:00+02:00",
+      "lease_expires_at": "2026-07-30T18:42:00+02:00",
+      "released_at": "2026-07-30T17:58:00+02:00",
+      "commit": "49e255f292469bc3be4be6f4dba007039bbabd6a",
+      "parent": "089002d2715122e13b5eaa5f2fccedae83aef29e",
+      "remote": "fuzzy/dev",
+      "changed_paths": [
+        "docs/plans/unified-source-index-runtime-caller-inventory.json"
+      ],
+      "remote_readback": {
+        "exact_commit": true,
+        "exact_parent": true,
+        "exact_path_set": true
+      },
+      "github_actions": {
+        "run_id": 30555830881,
+        "head_sha": "49e255f292469bc3be4be6f4dba007039bbabd6a",
+        "python_dependency_install": "passed",
+        "python_syntax": "passed",
+        "javascript_syntax": "passed",
+        "full_pytest": "failed"
+      },
+      "inventory_repair_result": {
+        "previously_failing_node": "passed_locally_before_publication",
+        "full_inventory_test_file": "4_passed",
+        "semantic_delta": "only tracked_python_files_scanned 829_to_848 and ast_files_parsed 199_to_215",
+        "runtime_logic_changed": false
+      },
+      "new_failure_projection": {
+        "failing_node": "tests/test_open_roadmap_priority_contract.py::test_accepted_uix_workbench_slices_are_not_reopened_in_active_queue",
+        "error_class": "AssertionError",
+        "local_reproduction": "5668 passed and 19 skipped before the exact failure after excluding two Windows-only test files",
+        "root_cause": "The committed Open Work goal_command still names the SIRP dependency-first goal while the accepted UIX priority contract requires the durable post-UIX-ABC24 goal marker.",
+        "introduced_by_inventory_commit": false
+      },
+      "not_verified": [
+        "full GitHub Required CI green",
+        "exact goal_command contract repair",
+        "SEC184 publication",
+        "Debian deployment and live OPS Alert delivery"
+      ],
+      "next_action": "After explicit approval, claim and reconcile the exact Open Work goal_command plus its focused contract, then publish only the reviewed repair and require a new terminal GitHub Actions run."
+    },
+    "latest_python311_runtime_inventory_refresh_handoff": {
+      "run_id": "ABC-CI-PY311-UIR-INVENTORY-20260730",
+      "slice_id": "CI-python311-runtime-inventory-refresh",
+      "roadmap": "docs/plans/open-work-completion-master-roadmap.json",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "state": "released_accepted_repo_only_ready_for_exact_publication",
+      "lease_started_at": "2026-07-30T17:27:00+02:00",
+      "lease_expires_at": "2026-07-30T18:27:00+02:00",
+      "released_at": "2026-07-30T17:40:00+02:00",
+      "failed_commit": "089002d2715122e13b5eaa5f2fccedae83aef29e",
+      "failed_ci_run": 30553849019,
+      "failing_node": "tests/test_audit_unified_source_index_runtime.py::test_committed_runtime_inventory_matches_deterministic_static_ast_scan",
+      "repair": "regenerate the canonical content-free static AST inventory at the exact failed revision; no runtime source or test implementation changes",
+      "implementation_changed_paths": [
+        "docs/plans/unified-source-index-runtime-caller-inventory.json"
+      ],
+      "inventory_sha256": "92d9548e3ef6b684d2f6465ff5a31072c9a401e2b68ea5fc091d8d56010a9095",
+      "semantic_diff": {
+        "changed_top_level_keys": [
+          "summary"
+        ],
+        "tracked_python_files_scanned": "829_to_848",
+        "ast_files_parsed": "199_to_215",
+        "caller_rows": "55_unchanged",
+        "relevant_file_hash_rows": "21_unchanged",
+        "classification_rules": "unchanged",
+        "scan_contract": "unchanged",
+        "unclassified_count": 0
+      },
+      "tests": {
+        "worker_exact_previously_failing_node": "1 passed with one existing SQLAlchemy deprecation warning",
+        "root_full_inventory_test_file": "4 passed with existing warnings only",
+        "canonical_inventory_check": "pass",
+        "inventory_json_parse": "pass",
+        "scoped_git_diff_check": "pass",
+        "exact_path_scope": "pass"
+      },
+      "review": {
+        "depth": "deep",
+        "reviewer": "root/Sol",
+        "result": "pass",
+        "unexpected_semantic_changes": 0
+      },
+      "not_verified": [
+        "exact repair commit GitHub Required CI",
+        "SEC184 publication",
+        "Debian deployment and live OPS Alert delivery"
+      ],
+      "next_action": "Commit and push only the accepted inventory path to fuzzy/dev, independently read back the exact revision and require terminal green GitHub Required CI before SEC184 publication."
+    },
     "latest_uir02_ci_inventory_refresh_handoff": {
       "run_id": "abc-ci-uir02-runtime-inventory-refresh-20260726T171629+0200",
       "slice_id": "CI-UIR02-runtime-inventory-refresh",
@@ -200,8 +1909,98 @@
           "fixture and disabled modes reject productive provider flags",
           "all productive booleans use exact lowercase true or false",
           "default construction and deterministic config accessor have explicit zero-side-effect coverage"
-        ]
+      ]
+    },
+    "latest_sirp06_run_start": {
+      "recorded_at": "2026-07-27T20:45:28+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP06",
+      "slice_id": "SIRP-06-executor-kernel-and-preflight",
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "state": "active_repo_only",
+      "worker_claim": "/root/sirp_repo_sol_master/sirp06_bob_terra owns only the nine exact implementation and test paths.",
+      "sol_claim": "/root/sirp_repo_sol_master owns only the five planning, evidence and static-contract integration paths.",
+      "requested_route": {
+        "master": "gpt-5.6-sol/xhigh",
+        "worker": "gpt-5.6-terra/high"
       },
+      "actual_route": {
+        "master": "unknown_user_approved",
+        "worker": "unknown_user_approved"
+      },
+      "accepted_dirty_baseline": [
+        "src/security_response_policy.py",
+        "mcp_servers/debug_server.py",
+        "tests/test_mcp_debug_server.py"
+      ],
+      "scope": "default-disabled typed executor kernel, preflight, immutable redacted receipts and one disabled effectful MCP execute route with injected fake executors/transports only",
+      "test_isolation": "Injected fake executors/transports and unique workspace-local basetemps only; ignored data/security_incidents.sqlite remains uninspected and untouched.",
+      "network_live_commit_push_deploy": false
+    },
+    "latest_sirp06_accepted_handoff": {
+      "recorded_at": "2026-07-27T21:21:54+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP06",
+      "slice_id": "SIRP-06-executor-kernel-and-preflight",
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "owner": "Bob/Terra requested route implementation; root/Sol requested route deep review",
+      "state": "released_accepted_repo_only",
+      "route": {
+        "master_requested": "gpt-5.6-sol/xhigh",
+        "worker_requested": "gpt-5.6-terra/high",
+        "master_actual": "unknown_user_approved",
+        "worker_actual": "unknown_user_approved"
+      },
+      "changed_paths": [
+        "src/security_executor_kernel.py",
+        "src/security_executor_contracts.py",
+        "src/security_remediation_actions.py",
+        "src/security_response_policy.py",
+        "mcp_servers/debug_server.py",
+        "src/mcp_server_tool_policy.py",
+        "tests/test_security_executor_kernel.py",
+        "tests/test_mcp_debug_server.py",
+        "tests/test_mcp_server_tool_policy.py"
+      ],
+      "tests": {
+        "fresh_sol_focused": "57 passed",
+        "fresh_sol_affected_consumers": "136 passed",
+        "fresh_sol_telegram_isolation": "1 webhook passed; 1 polling passed; 119 full-file passed",
+        "worker_reconstructed_adjacent": "254 passed, 1 cumulative order-dependent Telegram persistence failure",
+        "ast_import_and_scoped_diff": "pass"
+      },
+      "review": {
+        "depth": "deep",
+        "result": "pass_after_three_bounded_fix_returns_and_four_review_rounds"
+      },
+      "verification_limit": "The cumulative 255-test adjacent order retains one legacy Telegram persistence isolation failure; both implicated exact nodes and the full Telegram plugin file pass fresh.",
+      "evidence_reference": "docs/plans/security-incident-response-production-completion-evidence.json",
+      "next_action": "Stop this run. SIRP-07 is the selected next serial frontier; SIRP-08 is dependency-satisfied but both remain unclaimed pending a future dispatch decision.",
+      "network_live_commit_push_deploy": false
+    },
+    "latest_sirp07_sirp08_run_start": {
+      "recorded_at": "2026-07-27T21:32:31+02:00",
+      "run_id": "ABC-SEC100-20260727-SIRP07-SIRP08",
+      "slice_ids": [
+        "SIRP-07-crowdsec-typed-executor",
+        "SIRP-08-session-invalidation-typed-executor"
+      ],
+      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "state": "parallel_claimed_repo_only",
+      "worker_claims": {
+        "/root/sirp_repo_sol_master/sirp07_bob_terra": "three exact SIRP-07 paths",
+        "/root/sirp_repo_sol_master/sirp08_bob_terra": "five exact SIRP-08 paths including the two accepted SIRP-05 baseline hotfiles"
+      },
+      "sol_claim": "/root/sirp_repo_sol_master owns only the five planning, evidence and static-contract integration paths.",
+      "requested_route": {
+        "master": "gpt-5.6-sol/xhigh",
+        "workers": "gpt-5.6-terra/high"
+      },
+      "actual_route": {
+        "master": "unknown_user_approved",
+        "workers": "unknown_user_approved"
+      },
+      "test_isolation": "Injected fake CrowdSec transport and isolated fake or temporary session store only; no runtime database, network, provider, host or live service access.",
+      "network_live_commit_push_deploy": false
+    },
       "route": {
         "entrypoint": "/abc",
         "actual_master": "surface_default",
@@ -727,445 +2526,6 @@
       "remaining_gate_or_blocker": "commit_and_push_the_exact_nine_path_import_state_fix_then_wait_for_exact_required_ci_green_before_debian_deploy",
       "recommended_next_action": "commit_exact_nine_path_fix_push_only_fuzzy_dev_then_required_ci",
       "next_gate": "commit_push_only_fuzzy_dev_then_required_ci"
-    },
-    "latest_sirp01_route_blocker_handoff": {
-      "run_id": "ABC-SEC100-20260727-SIRP01",
-      "slice_id": "SIRP-01-durable-incident-action-store",
-      "master": "/root/sirp_repo_sol_master",
-      "worker": "/root/sirp_repo_sol_master/sirp01_bob_terra",
-      "status": "waiting_on_user",
-      "route": {
-        "master": "gpt-5.6-sol verified by parent task contract",
-        "worker_requested": "gpt-5.6-terra/high",
-        "worker_actual": "unknown",
-        "review": "not_started"
-      },
-      "implementation_claim": "retained_waiting_on_user",
-      "integration_claim": "released_without_feature_review_or_acceptance",
-      "preserved_unreviewed_paths": [
-        "src/security_incident_store.py",
-        "src/security_incident_store_migrations.py",
-        "tests/test_security_incident_store.py"
-      ],
-      "tests": "not_run",
-      "stage_commit_push_deploy_live": "not_done",
-      "next_action": "Require an observable verified Terra route or explicit operator-approved alternative before any test, review, replacement or acceptance."
-    },
-    "latest_sirp01_routing_override": {
-      "recorded_at": "2026-07-27T14:23:51+02:00",
-      "authority": "explicit operator steering",
-      "decision": "Continue with requested master gpt-5.6-sol/xhigh and worker gpt-5.6-terra/high routes despite unexposed actual identities.",
-      "actual_route_record": "unknown_user_approved",
-      "scope": "repo_only",
-      "implementation_paths": [
-        "src/security_incident_store.py",
-        "src/security_incident_store_migrations.py",
-        "tests/test_security_incident_store.py"
-      ],
-      "network_live_commit_push_deploy": false
-    },
-    "latest_sirp01_accepted_handoff": {
-      "recorded_at": "2026-07-27T14:52:05+02:00",
-      "run_id": "ABC-SEC100-20260727-SIRP01-R2",
-      "slice_id": "SIRP-01-durable-incident-action-store",
-      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
-      "owner": "Bob/Terra requested route implementation; root/Sol requested route deep review",
-      "state": "released_accepted_repo_only",
-      "changed_paths": [
-        "src/security_incident_store.py",
-        "src/security_incident_store_migrations.py",
-        "tests/test_security_incident_store.py"
-      ],
-      "route": {
-        "master_requested": "gpt-5.6-sol/xhigh",
-        "worker_requested": "gpt-5.6-terra/high",
-        "master_actual": "unknown_user_approved",
-        "worker_actual": "unknown_user_approved"
-      },
-      "tests": {
-        "focused_store": "31 passed",
-        "adjacent_incident_policy_remediation_notification_classifier": "32 passed",
-        "compile_import": "pass"
-      },
-      "review": {
-        "depth": "deep",
-        "result": "pass_after_two_bounded_fix_rounds"
-      },
-      "evidence_reference": "docs/plans/security-incident-response-production-completion-evidence.json",
-      "next_action": "Claim only SIRP-02-evidence-broker-and-redaction-boundary after a fresh collision check.",
-      "not_verified": [
-        "SIRP-02 through SIRP-15",
-        "commit",
-        "push",
-        "deploy",
-        "external delivery",
-        "CrowdSec or session mutation",
-        "live validation and track-level temporal closure"
-      ]
-    },
-    "latest_sirp02_run_start": {
-      "recorded_at": "2026-07-27T15:02:17+02:00",
-      "run_id": "ABC-SEC100-20260727-SIRP02",
-      "slice_id": "SIRP-02-evidence-broker-and-redaction-boundary",
-      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
-      "state": "active_repo_only",
-      "worker_claim": "/root/sirp_repo_sol_master/sirp02_bob_terra owns only the eight exact implementation paths.",
-      "sol_claim": "/root/sirp_repo_sol_master owns only the five planning, evidence and static-contract integration paths.",
-      "requested_route": {
-        "master": "gpt-5.6-sol/xhigh",
-        "worker": "gpt-5.6-terra/high"
-      },
-      "actual_route": {
-        "master": "unknown_user_approved",
-        "worker": "unknown_user_approved"
-      },
-      "scope": "offline typed adapter, broker and incident-service contracts only",
-      "network_live_commit_push_deploy": false
-    },
-    "latest_sirp02_accepted_handoff": {
-      "recorded_at": "2026-07-27T15:29:57+02:00",
-      "run_id": "ABC-SEC100-20260727-SIRP02",
-      "slice_id": "SIRP-02-evidence-broker-and-redaction-boundary",
-      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
-      "owner": "Bob/Terra requested route implementation; root/Sol requested route deep review",
-      "state": "released_accepted_repo_only",
-      "changed_paths": [
-        "src/security_evidence_broker.py",
-        "src/security_evidence_sources.py",
-        "src/security_incident_service.py",
-        "tests/test_security_evidence_broker.py",
-        "tests/test_security_evidence_sources.py"
-      ],
-      "route": {
-        "master_requested": "gpt-5.6-sol/xhigh",
-        "worker_requested": "gpt-5.6-terra/high",
-        "master_actual": "unknown_user_approved",
-        "worker_actual": "unknown_user_approved"
-      },
-      "tests": {
-        "focused_broker_and_sources": "26 passed",
-        "adjacent_store_runtime_debug_observability_and_security": "79 passed",
-        "compile_import": "pass"
-      },
-      "review": {
-        "depth": "deep",
-        "result": "pass_after_three_bounded_fix_rounds"
-      },
-      "evidence_reference": "docs/plans/security-incident-response-production-completion-evidence.json",
-      "next_action": "Claim only SIRP-03-classifier-and-explanation-contract after a fresh collision check.",
-      "not_verified": [
-        "SIRP-03 through SIRP-15",
-        "repository-wide prevention of direct callers using the pre-existing public store API",
-        "commit",
-        "push",
-        "deploy",
-        "external delivery",
-        "CrowdSec or session mutation",
-        "live validation and track-level temporal closure"
-      ]
-    },
-    "latest_sirp03_run_start": {
-      "recorded_at": "2026-07-27T15:39:16+02:00",
-      "run_id": "ABC-SEC100-20260727-SIRP03",
-      "slice_id": "SIRP-03-classifier-and-explanation-contract",
-      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
-      "state": "active_repo_only",
-      "worker_claim": "/root/sirp_repo_sol_master/sirp03_bob_terra owns only the five exact implementation paths, including hotfile src/security_incident_model.py.",
-      "sol_claim": "/root/sirp_repo_sol_master owns only the five planning, evidence and static-contract integration paths.",
-      "requested_route": {
-        "master": "gpt-5.6-sol/xhigh",
-        "worker": "gpt-5.6-terra/high"
-      },
-      "actual_route": {
-        "master": "unknown_user_approved",
-        "worker": "unknown_user_approved"
-      },
-      "scope": "deterministic offline classifier and exact redacted explanation contract only",
-      "network_live_commit_push_deploy": false
-    },
-    "latest_sirp03_accepted_handoff": {
-      "recorded_at": "2026-07-27T16:13:28+02:00",
-      "run_id": "ABC-SEC100-20260727-SIRP03",
-      "slice_id": "SIRP-03-classifier-and-explanation-contract",
-      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
-      "owner": "Bob/Terra requested route implementation; root/Sol requested route deep review",
-      "state": "released_accepted_repo_only",
-      "changed_paths": [
-        "src/security_anomaly_classifier.py",
-        "src/security_incident_explanations.py",
-        "src/security_response_policy.py",
-        "tests/test_security_incident_explanations.py"
-      ],
-      "route": {
-        "master_requested": "gpt-5.6-sol/xhigh",
-        "worker_requested": "gpt-5.6-terra/high",
-        "master_actual": "unknown_user_approved",
-        "worker_actual": "unknown_user_approved"
-      },
-      "tests": {
-        "focused_explanation_contract": "19 passed",
-        "primary_adjacent_classifier_model_policy_broker_sources_store": "98 passed",
-        "extended_remediation_notification_tabletop_ops_debug_server": "34 passed",
-        "ast_import_diff": "pass"
-      },
-      "review": {
-        "depth": "deep",
-        "result": "pass_after_three_bounded_fix_returns_and_four_review_rounds"
-      },
-      "evidence_reference": "docs/plans/security-incident-response-production-completion-evidence.json",
-      "next_action": "Claim only SIRP-04-store-backed-mcp-and-api after a fresh collision check.",
-      "not_verified": [
-        "SIRP-04 through SIRP-15",
-        "commit",
-        "push",
-        "deploy",
-        "external delivery",
-        "CrowdSec or session mutation",
-        "live validation and track-level temporal closure"
-      ]
-    },
-    "latest_sirp04_accepted_handoff": {
-      "recorded_at": "2026-07-27T17:13:52+02:00",
-      "run_id": "ABC-SEC100-20260727-SIRP04",
-      "slice_id": "SIRP-04-store-backed-mcp-and-api",
-      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
-      "owner": "Bob/Terra requested route implementation; root/Sol requested route deep review",
-      "state": "released_accepted_repo_only",
-      "changed_paths": [
-        "mcp_servers/debug_server.py",
-        "routes/security_routes.py",
-        "routes/ops_console_routes.py",
-        "src/ops_console_snapshot.py",
-        "src/ops_timeline_adapters.py",
-        "tests/test_mcp_debug_server.py",
-        "tests/test_security_routes.py",
-        "tests/test_ops_console_snapshot.py",
-        "tests/test_ops_timeline_adapters.py"
-      ],
-      "route": {
-        "master_requested": "gpt-5.6-sol/xhigh",
-        "worker_requested": "gpt-5.6-terra/high",
-        "master_actual": "unknown_user_approved",
-        "worker_actual": "unknown_user_approved"
-      },
-      "tests": {
-        "focused_mcp_routes_snapshot_timeline": "42 passed",
-        "adjacent_security_integration": "108 passed",
-        "existing_mcp_tabletop_ops_consumers": "18 passed",
-        "ast_import": "9 paths and 5 runtime modules passed",
-        "adversarial_probes": "pass",
-        "path_scoped_diff_check": "pass"
-      },
-      "review": {
-        "depth": "deep",
-        "result": "pass_after_three_bounded_fix_returns_and_four_review_rounds"
-      },
-      "runtime_artifact_note": "An early ordinary route test created ignored data/security_incidents.sqlite. It was never inspected or modified after discovery; metadata remained 53,248 bytes and 2026-07-27 16:52:26 through final verification.",
-      "evidence_reference": "docs/plans/security-incident-response-production-completion-evidence.json",
-      "next_action": "Wait for the exact SIRP-OPERATOR-AUTH-GO design decision before claiming SIRP-05.",
-      "not_verified": [
-        "SIRP-05 through SIRP-15",
-        "commit",
-        "push",
-        "deploy",
-        "external delivery",
-        "CrowdSec or session mutation",
-        "live validation and track-level temporal closure"
-      ]
-    },
-    "latest_sirp05_operator_auth_go": {
-      "recorded_at": "2026-07-27T19:26:17+02:00",
-      "authority": "explicit operator GO relayed by /root",
-      "gate_id": "SIRP-OPERATOR-AUTH-GO",
-      "status": "closed_accepted_2026-07-27",
-      "scope": "SIRP-05 repository-only implementation and local tests",
-      "privileged_human_role": "Only a server-derived human is_admin=true identity in a current valid browser-cookie session may approve, deny or manually expire an action.",
-      "non_privileged_boundaries": [
-        "Non-admin owners remain read-only and prepare-only.",
-        "Synthetic or internal identities cannot approve, deny or manually expire.",
-        "Bearer-token and API-token authentication paths cannot approve, deny or manually expire.",
-        "Automatic TTL expiry remains server-authoritative and does not consume a human step-up proof."
-      ],
-      "step_up": {
-        "factors": [
-          "password",
-          "current live TOTP"
-        ],
-        "totp_enrollment": "mandatory",
-        "backup_codes_qualify": false,
-        "freshness_ttl_seconds": 300,
-        "single_use": true
-      },
-      "server_side_binding": [
-        "current valid browser-cookie session",
-        "username",
-        "current is_admin=true role",
-        "action_id",
-        "action_version",
-        "scope_fingerprint",
-        "policy_revision"
-      ],
-      "fail_closed": [
-        "binding mismatch",
-        "role loss",
-        "session loss",
-        "stale proof",
-        "proof replay",
-        "concurrent consumption",
-        "missing TOTP",
-        "TOTP-disabled account",
-        "backup-code substitution",
-        "proof expiry",
-        "malformed proof"
-      ],
-      "privacy": "Password, TOTP, proof material and session tokens are never echoed, logged or persisted; only redacted blocker/audit state may be recorded.",
-      "delivery": "Delivery remains dry-run and blocked without OPS-ALERT-DELIVERY-GO; only immutable redacted no-send outcome/correlation with bounded retry behavior may be recorded.",
-      "does_not_authorize": [
-        "OPS-ALERT-DELIVERY-GO",
-        "effectful MCP",
-        "executor implementation or execution",
-        "provider or host writes",
-        "network sends",
-        "commit",
-        "push",
-        "deploy",
-        "any live action"
-      ]
-    },
-    "latest_sirp05_run_start": {
-      "recorded_at": "2026-07-27T19:26:17+02:00",
-      "run_id": "ABC-SEC100-20260727-SIRP05",
-      "slice_id": "SIRP-05-operator-auth-commands-and-delivery",
-      "state": "active_repo_only",
-      "worker_claim": "/root/sirp_repo_sol_master/sirp05_bob_terra owns only the 17 exact implementation and test paths.",
-      "sol_claim": "/root/sirp_repo_sol_master owns only the five planning, evidence and static-contract integration paths.",
-      "requested_route": {
-        "master": "gpt-5.6-sol/xhigh",
-        "worker": "gpt-5.6-terra/high"
-      },
-      "actual_route": {
-        "master": "unknown_user_approved",
-        "worker": "unknown_user_approved"
-      },
-      "test_isolation": "Tests inject or patch providers and use unique workspace-local basetemps; ignored data/security_incidents.sqlite remains uninspected and untouched.",
-      "network_live_commit_push_deploy": false
-    },
-    "latest_sirp05_accepted_handoff": {
-      "recorded_at": "2026-07-27T20:33:42+02:00",
-      "run_id": "ABC-SEC100-20260727-SIRP05",
-      "slice_id": "SIRP-05-operator-auth-commands-and-delivery",
-      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
-      "owner": "Bob/Terra requested route implementation; root/Sol requested route deep review",
-      "state": "released_accepted_repo_only",
-      "route": {
-        "master_requested": "gpt-5.6-sol/xhigh",
-        "worker_requested": "gpt-5.6-terra/high",
-        "master_actual": "unknown_user_approved",
-        "worker_actual": "unknown_user_approved"
-      },
-      "tests": {
-        "fresh_sol_focused_authorization_and_commands": "16 passed",
-        "fresh_sol_primary_affected_suite": "170 passed",
-        "fresh_sol_adjacent_before_acceptance_integration": "193 passed with only expected active-state/hash assertions pending integration",
-        "worker_final_combined": "276 passed",
-        "ast_and_scoped_diff": "pass"
-      },
-      "review": {
-        "depth": "deep",
-        "result": "pass_after_three_bounded_fix_returns_and_four_review_rounds"
-      },
-      "next_action": "Stop this run after SIRP-05 acceptance; leave SIRP-06 dependency-ready and unclaimed.",
-      "live_actions": false
-    },
-    "latest_sirp06_run_start": {
-      "recorded_at": "2026-07-27T20:45:28+02:00",
-      "run_id": "ABC-SEC100-20260727-SIRP06",
-      "slice_id": "SIRP-06-executor-kernel-and-preflight",
-      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
-      "state": "active_repo_only",
-      "worker_claim": "/root/sirp_repo_sol_master/sirp06_bob_terra owns only the nine exact implementation and test paths.",
-      "sol_claim": "/root/sirp_repo_sol_master owns only the five planning, evidence and static-contract integration paths.",
-      "requested_route": {
-        "master": "gpt-5.6-sol/xhigh",
-        "worker": "gpt-5.6-terra/high"
-      },
-      "actual_route": {
-        "master": "unknown_user_approved",
-        "worker": "unknown_user_approved"
-      },
-      "accepted_dirty_baseline": [
-        "src/security_response_policy.py",
-        "mcp_servers/debug_server.py",
-        "tests/test_mcp_debug_server.py"
-      ],
-      "scope": "default-disabled typed executor kernel, preflight, immutable redacted receipts and one disabled effectful MCP execute route with injected fake executors/transports only",
-      "test_isolation": "Injected fake executors/transports and unique workspace-local basetemps only; ignored data/security_incidents.sqlite remains uninspected and untouched.",
-      "network_live_commit_push_deploy": false
-    },
-    "latest_sirp06_accepted_handoff": {
-      "recorded_at": "2026-07-27T21:21:54+02:00",
-      "run_id": "ABC-SEC100-20260727-SIRP06",
-      "slice_id": "SIRP-06-executor-kernel-and-preflight",
-      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
-      "owner": "Bob/Terra requested route implementation; root/Sol requested route deep review",
-      "state": "released_accepted_repo_only",
-      "route": {
-        "master_requested": "gpt-5.6-sol/xhigh",
-        "worker_requested": "gpt-5.6-terra/high",
-        "master_actual": "unknown_user_approved",
-        "worker_actual": "unknown_user_approved"
-      },
-      "changed_paths": [
-        "src/security_executor_kernel.py",
-        "src/security_executor_contracts.py",
-        "src/security_remediation_actions.py",
-        "src/security_response_policy.py",
-        "mcp_servers/debug_server.py",
-        "src/mcp_server_tool_policy.py",
-        "tests/test_security_executor_kernel.py",
-        "tests/test_mcp_debug_server.py",
-        "tests/test_mcp_server_tool_policy.py"
-      ],
-      "tests": {
-        "fresh_sol_focused": "57 passed",
-        "fresh_sol_affected_consumers": "136 passed",
-        "fresh_sol_telegram_isolation": "1 webhook passed; 1 polling passed; 119 full-file passed",
-        "worker_reconstructed_adjacent": "254 passed, 1 cumulative order-dependent Telegram persistence failure",
-        "ast_import_and_scoped_diff": "pass"
-      },
-      "review": {
-        "depth": "deep",
-        "result": "pass_after_three_bounded_fix_returns_and_four_review_rounds"
-      },
-      "verification_limit": "The cumulative 255-test adjacent order retains one legacy Telegram persistence isolation failure; both implicated exact nodes and the full Telegram plugin file pass fresh.",
-      "evidence_reference": "docs/plans/security-incident-response-production-completion-evidence.json",
-      "next_action": "Stop this run. SIRP-07 is the selected next serial frontier; SIRP-08 is dependency-satisfied but both remain unclaimed pending a future dispatch decision.",
-      "network_live_commit_push_deploy": false
-    },
-    "latest_sirp07_sirp08_run_start": {
-      "recorded_at": "2026-07-27T21:32:31+02:00",
-      "run_id": "ABC-SEC100-20260727-SIRP07-SIRP08",
-      "slice_ids": [
-        "SIRP-07-crowdsec-typed-executor",
-        "SIRP-08-session-invalidation-typed-executor"
-      ],
-      "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
-      "state": "parallel_claimed_repo_only",
-      "worker_claims": {
-        "/root/sirp_repo_sol_master/sirp07_bob_terra": "three exact SIRP-07 paths",
-        "/root/sirp_repo_sol_master/sirp08_bob_terra": "five exact SIRP-08 paths including the two accepted SIRP-05 baseline hotfiles"
-      },
-      "sol_claim": "/root/sirp_repo_sol_master owns only the five planning, evidence and static-contract integration paths.",
-      "requested_route": {
-        "master": "gpt-5.6-sol/xhigh",
-        "workers": "gpt-5.6-terra/high"
-      },
-      "actual_route": {
-        "master": "unknown_user_approved",
-        "workers": "unknown_user_approved"
-      },
-      "test_isolation": "Injected fake CrowdSec transport and isolated fake or temporary session store only; no runtime database, network, provider, host or live service access.",
-      "network_live_commit_push_deploy": false
     }
   },
   "non_ui_execution_ledger": {
@@ -1304,6 +2664,7 @@
     "docs/plans/planning-mcp-roadmap.json",
     "docs/plans/autonomy-calendar-coding-master-roadmap.json",
     "docs/plans/observability-security-ops-master-roadmap.json",
+    "docs/plans/security-incident-response-production-completion-roadmap.json",
     "docs/plans/agent-capability-expansion-master-roadmap.json",
     "docs/plans/agent-autonomy-extensions-master-roadmap.json",
     "docs/plans/agent-extension-browser-devtools-roadmap.json",
@@ -1328,8 +2689,7 @@
     "docs/plans/codebase-memory-integration-roadmap.md",
     "docs/plans/code-lineage-timeline-roadmap.md",
     "docs/plans/lens-code-graph-roadmap.md",
-    "docs/plans/agent-maintenance-safety-harness-roadmap.json",
-    "docs/plans/security-incident-response-production-completion-roadmap.json"
+    "docs/plans/agent-maintenance-safety-harness-roadmap.json"
   ],
   "hard_rules": [
     "No legacy UI or v2 UI implementation from this backend ABC track.",
@@ -4670,10 +6030,7 @@
           "commit_sha": "308e6ff6",
           "state": "repo_fix_pending_commit",
           "diagnosis": "The focused test is current: timing was classified before first-person future intention plus change-action; the Telegram-v1 compatibility lane lacked equivalent sentence guards.",
-          "scope": [
-            "src/claim_evidence_gate.py",
-            "tests/test_claim_evidence_gate.py"
-          ],
+          "scope": ["src/claim_evidence_gate.py", "tests/test_claim_evidence_gate.py"],
           "safety_invariant": "Direct factual timing, provider, execution, and delivery claims remain unsupported in both receipt lanes; quotation, request, negation, generic future, and first-person/plural intention do not create claims.",
           "verification": "No broad pytest by user direction. Direct 12 ignored plus 4 factual parser cases in current and Telegram-v1 lanes passed under Python 3.11 and 3.14; AST parse and git diff --check passed."
         },
@@ -12901,6 +14258,520 @@
       "done_when": "Synthetic repositories with merge rename delete and shallow boundaries produce deterministic code-lineage Git evidence without network fetch Git state mutation or raw command output exposure."
     },
     {
+      "id": "TRP-00-roadmap-contract-and-authority-freeze",
+      "class": "safe_offline",
+      "owner": "root/Sol roadmap and shared-queue authority",
+      "status": "accepted_2026-07-26",
+      "claimable": false,
+      "claim": {
+        "run_id": "ABC-TRP-20260726",
+        "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
+        "slice_id": "TRP-00-roadmap-contract-and-authority-freeze",
+        "owner": "root",
+        "allowed_paths": [
+          "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+          "docs/plans/open-work-completion-master-roadmap.json",
+          "docs/plans/multi-agent-execution-guidance.json"
+        ],
+        "hotfiles": [
+          "docs/plans/open-work-completion-master-roadmap.json",
+          "docs/plans/multi-agent-execution-guidance.json"
+        ],
+        "state": "released",
+        "acquired_at": "2026-07-26T19:04:42+02:00",
+        "lease_expires_at": "2026-07-26T21:04:42+02:00",
+        "released_at": "2026-07-26T19:09:29+02:00",
+        "review": "deep_pass",
+        "handoff_required": false,
+        "preserved_foreign_paths": [
+          "all existing feature implementation and UI paths",
+          "untracked pytest artifacts and static/mockups/odysseus-fixed-workbench.html"
+        ],
+        "runtime_scope": "roadmap JSON and structured queue registration only",
+        "live_actions": false
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected_skills": [
+          "abc"
+        ],
+        "master": "surface_default_root",
+        "worker": "gpt-5.6-terra_readonly_recon",
+        "review": "root_deep"
+      },
+      "evidence": {
+        "target_environment": "repository planning JSON",
+        "authority": "repo",
+        "mutation_class": "safe_offline",
+        "required": [
+          "valid_json",
+          "complete_dependency_dag",
+          "guidance_registration",
+          "open_work_registration",
+          "privacy_durability_ai_authority_resource_and_live_boundaries",
+          "deep_root_review"
+        ],
+        "positive_path_required": true,
+        "forbidden": [
+          "implementation before roadmap acceptance",
+          "UI work",
+          "provider, host, backup, restore, deploy, model download or live audio action",
+          "private content or secrets in roadmap evidence"
+        ]
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "yes",
+        "sol_reviewed": "deep",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "no",
+        "product_complete": "no"
+      },
+      "depends_on": [
+        "user requested roadmap, ABC execution and a goal through the live test",
+        "tracked worktree clean",
+        "UI remains deferred"
+      ],
+      "source_roadmap": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+      "gate": "none for roadmap authoring; action-specific live go before TRP-08",
+      "done_when": "The TRP roadmap is valid, registered, dependency-safe, deep-reviewed and exposes only TRP-01 as the next claimable repository frontier."
+    },
+    {
+      "id": "TRP-01-durable-artifact-and-job-contracts",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "accepted_2026-07-26",
+      "claimable": false,
+      "claim": {
+        "run_id": "ABC-TRP-20260726",
+        "thread_id": "/root/trp01_contracts",
+        "slice_id": "TRP-01-durable-artifact-and-job-contracts",
+        "owner": "Bob",
+        "allowed_paths": [
+          "src/transcription_contracts.py",
+          "tests/test_transcription_contracts.py"
+        ],
+        "hotfiles": [],
+        "acquired_at": "2026-07-26T19:09:29+02:00",
+        "lease_expires_at": "2026-07-26T21:09:29+02:00",
+        "released_at": "2026-07-26T19:32:16+02:00",
+        "review": "deep_pass_after_two_fix_cycles",
+        "state": "released",
+        "handoff_required": true,
+        "preserved_foreign_paths": [
+          "all existing feature implementation and UI paths",
+          "untracked pytest artifacts and static/mockups/odysseus-fixed-workbench.html"
+        ],
+        "runtime_scope": "repository-only typed domain contracts and tests",
+        "live_actions": false
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected_skills": [
+          "abc"
+        ],
+        "master": "surface_default_root",
+        "worker": "requested_gpt-5.6-terra_high_actual_unobservable",
+        "review": "root_deep"
+      },
+      "evidence": {
+        "target_environment": "local repository fixtures",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "typed immutable contracts",
+          "deterministic serialization",
+          "strict state-transition tests",
+          "cross-owner reference rejection",
+          "uncited protocol-claim rejection",
+          "fabricated backup-protection rejection",
+          "deep root review"
+        ],
+        "positive_path_required": true,
+        "forbidden": [
+          "UI work",
+          "model, provider, network, host, backup, restore, deploy or live audio action",
+          "raw participant content or owner identities in evidence"
+        ]
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "py_compile_pass_focused_pytest_11_passed_diff_check_pass_root_rerun",
+        "sol_reviewed": "deep_pass_after_two_fix_cycles",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "no",
+        "product_complete": "no"
+      },
+      "depends_on": [
+        "TRP-00-roadmap-contract-and-authority-freeze accepted"
+      ],
+      "source_roadmap": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+      "gate": "none; repository-only",
+      "done_when": "Strict immutable owner-scoped contracts reject invalid state, unsupported or uncited protocol claims, cross-owner references and fabricated backup protection."
+    },
+    {
+      "id": "TRP-02-atomic-owner-scoped-audio-store",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "accepted_2026-07-26",
+      "claimable": false,
+      "claim": {
+        "run_id": "ABC-TRP-20260726",
+        "thread_id": "/root/trp02_atomic_store",
+        "slice_id": "TRP-02-atomic-owner-scoped-audio-store",
+        "owner": "Bob",
+        "allowed_paths": [
+          "src/transcription_store.py",
+          "tests/test_transcription_store.py"
+        ],
+        "hotfiles": [],
+        "state": "released",
+        "acquired_at": "2026-07-26T19:32:16+02:00",
+        "lease_expires_at": "2026-07-26T21:32:16+02:00",
+        "released_at": "2026-07-26T20:04:19+02:00",
+        "review": "deep_pass_after_three_fix_cycles",
+        "handoff_required": true,
+        "preserved_foreign_paths": [
+          "all existing feature implementation and UI paths",
+          "untracked pytest artifacts and static/mockups/odysseus-fixed-workbench.html"
+        ],
+        "runtime_scope": "repository-only isolated audio store and focused tests",
+        "live_actions": false
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected_skills": [
+          "abc"
+        ],
+        "master": "surface_default_root",
+        "worker": "requested_gpt-5.6-terra_high_actual_unobservable",
+        "review": "root_deep"
+      },
+      "evidence": {
+        "target_environment": "temporary local filesystem and isolated SQLite fixtures",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "bounded chunk streaming",
+          "file and directory durability ordering",
+          "atomic no-overwrite publish",
+          "SQLite WAL and idempotency",
+          "owner-isolated lookup",
+          "crash and restart recovery",
+          "fenced single-worker lease",
+          "verified-receipt-only protection",
+          "deep root review"
+        ],
+        "positive_path_required": true,
+        "forbidden": [
+          "generic upload cleanup ownership",
+          "UI work",
+          "model, provider, network, host, backup, restore, deploy or live audio action",
+          "raw participant content, owner identities or filesystem paths in evidence"
+        ]
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "py_compile_pass_focused_pytest_21_passed_root_independent_rerun",
+        "sol_reviewed": "deep_pass_after_three_fix_cycles",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "no",
+        "product_complete": "no"
+      },
+      "depends_on": [
+        "TRP-01-durable-artifact-and-job-contracts accepted"
+      ],
+      "source_roadmap": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+      "gate": "none; repository-only",
+      "done_when": "Crash, retry, duplicate key, truncated input, checksum mismatch and cross-owner tests cannot lose, overwrite, duplicate or disclose an accepted artifact."
+    },
+    {
+      "id": "TRP-03-local-faster-whisper-adapter",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "accepted",
+      "claimable": false,
+      "claim": {
+        "run_id": "ABC-TRP-20260726",
+        "thread_id": "/root/trp03_faster_whisper",
+        "slice_id": "TRP-03-local-faster-whisper-adapter",
+        "owner": "Bob",
+        "allowed_paths": [
+          "services/transcription/__init__.py",
+          "services/transcription/faster_whisper_adapter.py",
+          "tests/test_faster_whisper_transcription_adapter.py",
+          "requirements-optional.txt",
+          "requirements-stt.txt",
+          "Dockerfile"
+        ],
+        "hotfiles": [
+          "Dockerfile"
+        ],
+        "state": "released",
+        "acquired_at": "2026-07-26T20:04:19+02:00",
+        "lease_expires_at": "2026-07-26T22:04:19+02:00",
+        "released_at": "2026-07-26T20:27:13+02:00",
+        "review": "deep_pass_after_one_fix_cycle",
+        "handoff_required": true,
+        "preserved_foreign_paths": [
+          "all existing feature implementation and UI paths",
+          "untracked pytest artifacts and static/mockups/odysseus-fixed-workbench.html"
+        ],
+        "runtime_scope": "repository-only local adapter, fixture tests and pinned optional packaging",
+        "live_actions": false
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected_skills": [
+          "abc"
+        ],
+        "master": "surface_default_root",
+        "worker": "requested_gpt-5.6-terra_high_actual_unobservable",
+        "review": "root_deep_pass"
+      },
+      "evidence": {
+        "target_environment": "local fixture model plus static Python 3.14 packaging assertions",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "local absolute pinned model path",
+          "lazy faster-whisper import",
+          "CPU int8 single-worker configuration",
+          "finite bounded segment evidence",
+          "no temporary file or network fallback",
+          "single pinned STT installation path",
+          "deep root review"
+        ],
+        "positive_path_required": true,
+        "forbidden": [
+          "model or package download",
+          "UI work",
+          "external provider, host, backup, restore, deploy or live audio action",
+          "raw transcript, host path or provider exception in evidence"
+        ]
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "py_compile_pass_focused_pytest_21_passed_1_symlink_fixture_skipped_root_independent_rerun",
+        "sol_reviewed": "deep_pass_after_one_fix_cycle",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "no",
+        "product_complete": "no"
+      },
+      "depends_on": [
+        "TRP-01-durable-artifact-and-job-contracts accepted",
+        "TRP-02-atomic-owner-scoped-audio-store accepted"
+      ],
+      "source_roadmap": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+      "gate": "none; repository-only",
+      "done_when": "Injected fixture models produce strict local-only segment evidence and packaging has exactly one pinned Python 3.14 STT install path without downloading a real model."
+    },
+    {
+      "id": "TRP-04-resumable-single-worker-pipeline",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "accepted",
+      "claimable": false,
+      "claim": {
+        "run_id": "ABC-TRP-20260726",
+        "thread_id": "/root/trp04_pipeline_recon",
+        "slice_id": "TRP-04-resumable-single-worker-pipeline",
+        "owner": "Bob",
+        "allowed_paths": [
+          "src/transcription_pipeline.py",
+          "src/transcription_store.py",
+          "src/local_model_scheduler.py",
+          "tests/test_transcription_pipeline.py",
+          "tests/test_transcription_store.py"
+        ],
+        "hotfiles": [
+          "src/local_model_scheduler.py"
+        ],
+        "state": "released",
+        "acquired_at": "2026-07-26T20:29:25+02:00",
+        "lease_expires_at": "2026-07-26T22:29:25+02:00",
+        "released_at": "2026-07-26T20:59:47+02:00",
+        "review": "deep_pass_after_two_fix_cycles",
+        "handoff_required": true,
+        "preserved_foreign_paths": [
+          "all existing feature implementation and UI paths",
+          "untracked pytest artifacts and static/mockups/odysseus-fixed-workbench.html"
+        ],
+        "runtime_scope": "repository-only durable discovery, fenced retry/recovery and heartbeat pipeline fixtures",
+        "live_actions": false
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected_skills": [
+          "abc"
+        ],
+        "master": "surface_default_root",
+        "worker": "requested_gpt-5.6-terra_high_actual_unobservable",
+        "review": "root_deep_pass"
+      },
+      "evidence": {
+        "target_environment": "local SQLite and blocking adapter fixtures",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "atomic oldest-runnable durable discovery",
+          "fenced single CPU-heavy worker",
+          "lease heartbeat during blocking ASR",
+          "restart and stale-worker convergence",
+          "foreground-aware defer without retry consumption",
+          "source preservation and content-free failure receipts",
+          "deep root review"
+        ],
+        "positive_path_required": true,
+        "forbidden": [
+          "model or package download",
+          "UI work",
+          "external provider, host, backup, restore, deploy or live audio action",
+          "raw audio, transcript, owner, host path, digest or exception text in metrics"
+        ]
+      },
+      "completion": {
+        "implemented": "yes",
+        "tested": "py_compile_pass_focused_pytest_42_passed_1_symlink_fixture_skipped_root_independent_rerun",
+        "sol_reviewed": "deep_pass_after_two_fix_cycles",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "no",
+        "product_complete": "no"
+      },
+      "depends_on": [
+        "TRP-02-atomic-owner-scoped-audio-store accepted",
+        "TRP-03-local-faster-whisper-adapter accepted"
+      ],
+      "source_roadmap": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+      "gate": "none; repository-only",
+      "done_when": "Injected crashes, lease loss and retries converge to one immutable transcript without parallel heavy execution or source loss."
+    },
+    {
+      "id": "TRP-05-gemma-correction-and-protocol-provenance",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "deferred_by_operator_priority_2026-07-27",
+      "claimable": false,
+      "claim_blocker": "Requires explicit TRP reprioritization, a fresh path-scoped claim, collision check and deep review of the preserved dirty diff before continuation.",
+      "claim": {
+        "run_id": "ABC-TRP-20260726",
+        "thread_id": "/root",
+        "slice_id": "TRP-05-gemma-correction-and-protocol-provenance",
+        "owner": "root/Sol fallback",
+        "allowed_paths": [
+          "src/transcription_review.py",
+          "src/transcription_local_model.py",
+          "src/transcription_pipeline.py",
+          "src/transcription_contracts.py",
+          "src/transcription_store.py",
+          "src/llm_async_call.py",
+          "src/llm_sync_call.py",
+          "src/llm_core.py",
+          "src/local_model_scheduler.py",
+          "tests/test_transcription_review.py",
+          "tests/test_transcription_pipeline.py",
+          "tests/test_transcription_contracts.py",
+          "tests/test_transcription_store.py",
+          "tests/test_local_model_scheduler.py",
+          "tests/test_llm_core_ollama.py",
+          "tests/test_maintenance_llm_runtime.py"
+        ],
+        "hotfiles": [
+          "src/transcription_pipeline.py",
+          "src/transcription_contracts.py",
+          "src/transcription_store.py",
+          "src/llm_core.py",
+          "src/local_model_scheduler.py"
+        ],
+        "state": "released",
+        "acquired_at": "2026-07-26T21:22:15+02:00",
+        "lease_expires_at": "2026-07-26T23:22:15+02:00",
+        "released_at": "2026-07-27T13:20:00+02:00",
+        "release_reason": "superseded_by_SIRP_operator_priority_preserved_dirty_diff",
+        "resumed_from": {
+          "thread_id": "/root/trp05_review_recon and /root/trp05_review_finish",
+          "released_at": "2026-07-26T21:22:15+02:00",
+          "reason": "two_worker_requests_blocked_after_partial_repo_only_implementation",
+          "preserved_paths": "all claimed worktree changes",
+          "review_status": "pending"
+        },
+        "handoff_required": true,
+        "preserved_foreign_paths": [
+          "all existing feature implementation and UI paths",
+          "untracked pytest artifacts and static/mockups/odysseus-fixed-workbench.html"
+        ],
+        "runtime_scope": "repository-only strict local Gemma review, semantic provenance and shared heavy-model admission fixtures",
+        "live_actions": false
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected_skills": [
+          "abc"
+        ],
+        "master": "surface_default_root",
+        "worker": "root_sol_native_fallback_after_two_worker_request_blocks",
+        "review": "root_deep"
+      },
+      "evidence": {
+        "target_environment": "local injected reviewer and local-model transport fixtures",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "strict bounded duplicate-key-safe reviewer JSON",
+          "immutable raw transcript and deterministic correction provenance",
+          "server-constructed cited protocol claims",
+          "needs_review fail-closed fallback",
+          "one shared heavy-model broker across generic local calls, streams and reviewer",
+          "deep root review"
+        ],
+        "positive_path_required": true,
+        "forbidden": [
+          "model or package download",
+          "UI work",
+          "external provider, host, backup, restore, deploy or live audio action",
+          "model-generated owner, digest, evidence ids or unsupported claim text"
+        ]
+      },
+      "completion": {
+        "implemented": "no",
+        "tested": "no",
+        "sol_reviewed": "no",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "visual_validated": "na",
+        "temporal_validated": "no",
+        "product_complete": "no"
+      },
+      "depends_on": [
+        "TRP-04-resumable-single-worker-pipeline accepted"
+      ],
+      "source_roadmap": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+      "gate": "none; repository-only",
+      "done_when": "Adversarial local reviewer output cannot mutate raw evidence or create an uncited protocol claim, and all local heavy-model paths serialize through one broker."
+    },
+    {
       "id": "SIRP-00-roadmap-authority-and-gap-freeze",
       "class": "safe_offline",
       "owner": "Alice/Terra authoring; root deep review and queue integration",
@@ -12914,6 +14785,7 @@
         "docs/plans/security-incident-response-production-completion-evidence.json",
         "docs/plans/open-work-completion-master-roadmap.json",
         "docs/plans/multi-agent-execution-guidance.json",
+        "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
         "scripts/roadmap_safe_queue_audit.py",
         "tests/test_roadmap_safe_queue_audit.py",
         "tests/test_security_incident_response_production_completion_roadmap.py"
@@ -13646,6 +15518,8 @@
     }
   ],
   "recommended_execution_order": [
+    "OWM-7 Security Incident Response Production Completion: SIRP-00 through SIRP-11 are accepted offline and SIRP-12 observe completed exactly once. SIRP-12A-R2 plus OPS-ALERT B/C are accepted repo-only. D0A fixed source-redacted wrapper is adversarially tested and deep-reviewed. A separately authorized path-scoped publish is the next prerequisite; only after that published revision exists may the exact one-invocation D0 Go be requested. Deploy and E delivery remain independently not_go.",
+    "OWM-24 Local Faster-Whisper Transcription And Protocols: TRP-05 is deferred by the 2026-07-27 operator priority; preserve its dirty diff untouched and resume only after explicit TRP reprioritization, a fresh path-scoped claim, collision check and deep review.",
     "OWM-22 Telegram Todo Domain Truth And Digest Consistency: TTD-00 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A5 are accepted, culminating at fd2340a6; TTD-07A6 optional continuity is dependency-ready but unselected; keep the feature default off, never use the rejected stash or divergent 2cb685d8, keep TTD-08C attachment work deferred, keep later work dependency-blocked, keep Notes canonical and productive data unchanged, and leave repair send and productive rollover disabled behind their separate live packets.",
     "OWM-23 Agent Maintenance Safety Harness: after an explicit goal or Open Work reprioritization, open AMH-01 through AMH-03 only on disjoint handed-off paths; preserve Planning JSON and existing gate/claim authorities, keep AMH-04 onward dependency-blocked, and perform no automatic commit, push, deploy or live action.",
     "OWM-11 Tool Taxonomy, Registration And Lifecycle: execute TAX0 then TAX1 and continue the detailed repo-only queue without user gates; keep the feature disabled until the single final activation decision.",
@@ -13665,7 +15539,6 @@
     "OWM-4 MCP Workbench activation: install/test services when available, then use them as verification aids.",
     "OWM-5 Nextcloud local-only pilot: only after subset/policy decision.",
     "OWM-6 Observability Ops: Debian metrics/logging before broad security automation.",
-    "OWM-7 Security Incident Response Production Completion: SIRP-00 through SIRP-11 are accepted offline and SIRP-12 observe completed exactly once. SIRP-12A-R2 plus OPS-ALERT B/C are accepted repo-only. D0A fixed source-redacted wrapper is adversarially tested and deep-reviewed. A separately authorized path-scoped publish is the next prerequisite; only after that published revision exists may the exact one-invocation D0 Go be requested. Deploy and E delivery remain independently not_go.",
     "OWM-7 Security response: follow the SIRP dependency frontier; the old synthetic tabletop is historical evidence only and cannot prove production readiness or authorize remediation.",
     "OWM-8 UI handoff: UI agent owns actual UI implementation.",
     "OWM-9 Memory scale: live reindex/migration only with rollback and quality evidence.",
@@ -13740,14 +15613,14 @@
     {
       "family": "observability_ops",
       "priority": 40,
-      "open_gate_count": 11,
+      "open_gate_count": 12,
       "next_decision": "Debian observability inventory/setup, Grafana exposure, or log-retention evidence",
       "safe_default": "keep_observability_contracts_repo_only"
     },
     {
       "family": "security_ops",
       "priority": 50,
-      "open_gate_count": 4,
+      "open_gate_count": 11,
       "next_decision": "No new operator decision during active repo-only SIRP-05. The recorded SIRP-OPERATOR-AUTH-GO design authorizes no delivery, execution or live action.",
       "safe_default": "allow_redacted_diagnosis_and_offline_preparation_only_keep_delivery_effectful_tools_mutations_and_lockdown_disabled"
     },
