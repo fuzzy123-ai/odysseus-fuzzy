@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-31T19:37:12+02:00",
-  "status": "ops_alert_podman_unshare_capability_local_green_ready_publish_credential_authority_still_required",
+  "updated_at": "2026-07-31T20:36:00+02:00",
+  "status": "ops_alert_podman_unshare_stage_diagnostic_root_reviewed_local_green_ready_publish_credential_authority_still_required",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,7 +23,7 @@
     "unique_live_gates": 53,
     "unique_design_gates": 27,
     "other_open_json_items": 108,
-    "queue_status": "ops_alert_podman_unshare_capability_local_green_ready_publish_credential_authority_still_required",
+    "queue_status": "ops_alert_podman_unshare_stage_diagnostic_root_reviewed_local_green_ready_publish_credential_authority_still_required",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -450,7 +450,7 @@
         "thread_id": "/root/podman_unshare_capability_bob",
         "slice_id": "OPS-ALERT-podman-unshare-descriptor-bound-backup-capability",
         "owner": "Bob/Terra implementation; root/Sol deep review",
-        "state": "released_after_root_deep_review_local_green_ready_publish",
+        "state": "released_after_exact_push_and_terminal_required_ci",
         "acquired_at": "2026-07-31T19:15:00+02:00",
         "lease_expires_at": "2026-07-31T21:15:00+02:00",
         "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
@@ -504,6 +504,71 @@
           "root_deep_review": "PASS; fixed podman unshare boundary proves rootless user mapping plus a second mount-only namespace, private propagation, descriptor-bound read-only source, EBADF source closure and CLOEXEC executable; transport and local receipt fail closed and no-retry",
           "residual_risk": "Windows local receipt parent replacement race remains bounded by a fixed module-relative nonsecret root; the symlink test must run unchanged in Ubuntu Required CI before live eligibility"
         },
+        "published_revision": "bd6345cdfc806d85e0375af2aab4d3f078e2b471",
+        "github_ci_run": 30651967227,
+        "github_ci_conclusion": "success",
+        "handoff_required": true
+      },
+      {
+        "run_id": "ABC-OPS-ALERT-PODMAN-UNSHARE-STAGE-DIAGNOSTIC-20260731",
+        "thread_id": "/root/podman_stage_diagnostic_charlie",
+        "slice_id": "OPS-ALERT-podman-unshare-fixed-stage-capability-diagnostic",
+        "owner": "Charlie/Terra implementation after Bob handoff; root/Sol deep review",
+        "state": "released_after_root_deep_review_local_green_ready_publish",
+        "acquired_at": "2026-07-31T20:22:00+02:00",
+        "lease_expires_at": "2026-07-31T22:22:00+02:00",
+        "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
+        "depends_on": [
+          "Podman unshare package bd6345cdfc806d85e0375af2aab4d3f078e2b471 with GitHub CI run 30651967227 terminal success",
+          "one durable Podman unshare observation consumed terminal unsupported/capability_unavailable with no retry and identical independent local readback"
+        ],
+        "allowed_paths": [
+          "ops/homeserver/redacted_predeploy_backup_podman_unshare_stage_diagnostic.py",
+          "ops/homeserver/redacted_predeploy_backup_podman_unshare_stage_diagnostic_transport.py",
+          "tests/test_homeserver_redacted_predeploy_backup_podman_unshare_stage_diagnostic.py",
+          "tests/test_homeserver_redacted_predeploy_backup_podman_unshare_stage_diagnostic_transport.py"
+        ],
+        "hotfiles": [],
+        "class": "repo_only",
+        "live_actions": false,
+        "acceptance": [
+          "report only fixed booleans for preflight, mount namespace, private propagation, tmpfs, descriptor bind identity, read-only remount, source-FD closure and executable CLOEXEC/dispatch stages",
+          "preserve the exact published-blob stdin, fixed SSH alias, podman unshare, timeout, kill/reap and separate create-exclusive local receipt boundaries",
+          "distinguish the first failed stage without raw output, errno, exception, path, environment, hostname, file content, credential or host identifier",
+          "remain inert by default and make no backup, credential, deploy, provider or persistent remote change",
+          "prove strict envelope cross-products, one-invocation/no-retry transport semantics and independent local readback in adversarial tests"
+        ],
+        "forbidden_actions": [
+          "SSH, podman, live observation, host mutation, credential access, backup, deploy, provider call, commit or push",
+          "edit existing capability, transport, receipt, Planning JSON or unrelated paths",
+          "stage, absorb or clean foreign work",
+          "persist or emit raw subprocess or secret-bearing data"
+        ],
+        "route": {
+          "entrypoint": "$abc",
+          "selected": {
+            "skills": ["abc"],
+            "master": "root/Sol",
+            "worker": "gpt-5.6-terra/high fresh re-dispatch",
+            "review": "root/Sol deep"
+          },
+          "handoff_history": "Bob correctly marked the initial compact draft not publishable because it lacked the real mount/FD chain and adversarial receipt depth; Charlie received the unchanged four-path claim for a complete hardened adaptation",
+          "actual": {
+            "worker": "Charlie/Terra completed the full hardened four-path adaptation after the initial Bob handoff",
+            "review": "root/Sol deep PASS with no P0-P2 findings after verifying the real mount/FD chain, strict source/transport cross-products, bounded execution and durable receipt projection"
+          }
+        },
+        "verification_evidence": {
+          "python_runtime": "CPython 3.11.15 from C:/tmp/odysseus-ci-py311-20260730/Scripts/python.exe",
+          "focused_stage_suite": "13 passed, 1 Windows symlink-privilege skip, 1 pre-existing SQLAlchemy warning",
+          "combined_podman_capability_stage_and_roadmap_suite": "62 passed, 2 Windows symlink-privilege skips, 1 pre-existing SQLAlchemy warning",
+          "python_compile": "passed",
+          "diff_check": "passed",
+          "diagnostic_blob_sha256": "dc1fb28ee88a6dc85066b4c6187b6b28696500ff4f553247c86b7a66a6f224d7",
+          "core_and_bootstrap_pin_match": true,
+          "root_deep_review": "PASS; fixed first-failed-stage evidence is generated by the real bd6345-equivalent CLONE_NEWNS, private propagation, tmpfs, descriptor identity, read-only remount, EBADF, CLOEXEC and exact dispatch chain; transport retains only strict redacted projections with create-exclusive independent receipt readback",
+          "residual_risk": "Windows local receipt parent replacement race remains bounded by the fixed module-relative nonsecret root; two symlink tests must pass unchanged in Ubuntu Required CI before live eligibility"
+        },
         "handoff_required": true
       },
       {
@@ -525,7 +590,8 @@
           "ABC-OPS-ALERT-FD-BACKUP-REDESIGN-20260731 published as a9e1cd776b2550be2caa39208f8a5cc2ab04eb94 with GitHub CI run 30641375933 terminal success",
           "ABC-OPS-ALERT-NAMESPACE-CAPABILITY-PREP-20260731 published as ecae52e3e8bf9ebff0f90ce63c6b99c6774164cb with GitHub CI run 30644154168 terminal success",
           "namespace capability authority receipt published as 7f83f9a1e3816c1f8e1c2c4a9a824f5cd61977d1 with GitHub CI run 30644914675 terminal success",
-          "durable capability receipt v3 published as f7a0dbf8b42f78a5861792cf9682f3f62b18b53c with GitHub CI run 30646907409 terminal success"
+          "durable capability receipt v3 published as f7a0dbf8b42f78a5861792cf9682f3f62b18b53c with GitHub CI run 30646907409 terminal success",
+          "Podman unshare capability package published as bd6345cdfc806d85e0375af2aab4d3f078e2b471 with GitHub CI run 30651967227 terminal success"
         ],
         "allowed_paths": [
           "docs/plans/open-work-completion-master-roadmap.json",
@@ -541,6 +607,8 @@
           "ops/homeserver/redacted_predeploy_backup_capability.py",
           "ops/homeserver/redacted_predeploy_backup_capability_transport.py",
           "ops/homeserver/redacted_predeploy_backup_capability_receipt.py",
+          "ops/homeserver/redacted_predeploy_backup_podman_unshare_capability.py",
+          "ops/homeserver/redacted_predeploy_backup_podman_unshare_capability_transport.py",
           "ops/homeserver/redacted_backup_snapshot_observation.py",
           "ops/homeserver/redacted_backup_snapshot_observation_transport.py",
           "tests/test_homeserver_redacted_backup_configuration_diagnostic.py",
@@ -550,12 +618,65 @@
           "tests/test_homeserver_redacted_predeploy_backup_creation.py",
           "tests/test_homeserver_redacted_predeploy_backup_creation_transport.py",
           "tests/test_homeserver_redacted_predeploy_backup_capability_receipt.py",
+          "tests/test_homeserver_redacted_predeploy_backup_podman_unshare_capability.py",
+          "tests/test_homeserver_redacted_predeploy_backup_podman_unshare_capability_transport.py",
           "tests/test_homeserver_redacted_backup_snapshot_observation.py",
           "tests/test_homeserver_redacted_backup_snapshot_observation_transport.py"
         ],
-        "phase": "namespace_capability_confirmed_unavailable_reviewing_existing_podman_or_host_change_frontier_credential_live_authority_still_required",
+        "phase": "podman_unshare_capability_terminal_unsupported_no_retry_stage_diagnostic_root_reviewed_local_green_ready_publish_credential_live_authority_still_required",
         "live_actions": true,
         "action_packets": {
+          "predeploy_backup_podman_unshare_capability": {
+            "schema_id": "odysseus.ops_alert_predeploy_backup_podman_unshare_capability_authority.v1",
+            "state": "consumed_terminal_unsupported_no_retry",
+            "authority_basis": "active user objective requires complete live OPS Alert closure; direct namespace capability is terminal unsupported, the accepted SEC190 observation proves rootless Podman/podman-compose availability, and this fixed-target read-only observation has no persistent remote, credential, repository, backup, deploy or provider effect",
+            "mode": "one_rootless_podman_unshare_descriptor_bound_backup_capability_observation_with_create_exclusive_local_redacted_receipt",
+            "target": "odysseus-homeserver",
+            "source_revision": "bd6345cdfc806d85e0375af2aab4d3f078e2b471",
+            "github_ci_run": 30651967227,
+            "github_ci_conclusion": "success",
+            "published_core_blob_sha256": "3657509756a6cfb68aba2cc9d787af9934a524802a3b8894ae42d7dcdd174633",
+            "local_wrapper": "ops/homeserver/redacted_predeploy_backup_podman_unshare_capability_transport.py",
+            "receipt_root": "fixed_separate_module_relative_create_exclusive_nonsecret_root",
+            "maximum_invocations": 1,
+            "retry_count": 0,
+            "timeout_seconds": 30,
+            "expires": "run_end",
+            "required_result": "persisted summary and independent local readback both report source supported none, effect_may_have_occurred true, retry_permitted false and identical source, evidence and receipt digests",
+            "observed_result": {
+              "collection_status": "persisted",
+              "source_status": "unsupported",
+              "source_error_code": "capability_unavailable",
+              "effect_may_have_occurred": true,
+              "retry_permitted": false,
+              "independent_local_readback_identical": true,
+              "receipt_sha256": "3229626052368f537f6e486e9e495d26aaac2f61c18ed5575e69f1f46c07d21d",
+              "source_evidence_sha256": "eec797b24b66af3db1f28ff383fc547c21ec7556931838a36b8e58202840afe5",
+              "summary_sha256": "27a2810d881b5d3e5d69f5b2b4157a7b085fb203f9bcbbd0aa6d5f2ed7952a8d"
+            },
+            "next_frontier": "prepare and deep-review a repo-only rollback-bound host capability change package; no host mutation is authorized by this consumed read-only packet",
+            "forbidden_effects": [
+              "credential read or change",
+              "repository read or write on the remote host",
+              "backup creation",
+              "deployment",
+              "provider send",
+              "persistent remote host mutation",
+              "automatic retry"
+            ],
+            "forbidden_output": [
+              "raw stdout",
+              "raw stderr",
+              "exception text",
+              "environment",
+              "path",
+              "hostname",
+              "file content",
+              "secret value",
+              "unvalidated receipt content"
+            ],
+            "rollback": "not applicable to the ephemeral remote read-only observation; preserve the create-exclusive local redacted receipt for independent readback"
+          },
           "predeploy_backup_namespace_capability_v2_durable_receipt": {
             "schema_id": "odysseus.ops_alert_predeploy_backup_namespace_capability_authority.v2",
             "state": "consumed_terminal_unsupported_no_retry",
@@ -951,11 +1072,26 @@
             "published_revision": "f7a0dbf8b42f78a5861792cf9682f3f62b18b53c",
             "github_ci_run": 30646907409,
             "github_ci_conclusion": "success"
+          },
+          "predeploy_backup_podman_unshare_capability": {
+            "consumed_at": "2026-07-31T20:16:00+02:00",
+            "status": "unsupported",
+            "error_code": "capability_unavailable",
+            "effect_may_have_occurred": true,
+            "retry_permitted": false,
+            "persistent_remote_effect": false,
+            "receipt_sha256": "3229626052368f537f6e486e9e495d26aaac2f61c18ed5575e69f1f46c07d21d",
+            "source_evidence_sha256": "eec797b24b66af3db1f28ff383fc547c21ec7556931838a36b8e58202840afe5",
+            "summary_sha256": "27a2810d881b5d3e5d69f5b2b4157a7b085fb203f9bcbbd0aa6d5f2ed7952a8d",
+            "independent_local_readback_identical": true,
+            "published_revision": "bd6345cdfc806d85e0375af2aab4d3f078e2b471",
+            "github_ci_run": 30651967227,
+            "github_ci_conclusion": "success"
           }
         },
         "waiting_on_user": {
-          "reason": "The durable successor observation confirmed that the required private user/mount namespace capability is unavailable on the Debian target, so the fd-bound backup cannot run under the current host capability; additionally, the rollback-safe migration package is published and terminal Required CI is green, but the current user instruction does not explicitly authorize this exact live credential mutation.",
-          "capability_gate": "Select and review an already evidenced Podman isolation path or an exact rollback-bound host capability change; do not retry either consumed namespace observation and do not weaken the descriptor-bound backup invariant.",
+          "reason": "Both the durable direct namespace observation and the separately published Podman unshare observation are terminal unsupported with no retry, so the fd-bound backup cannot yet run under the proven host capability; the current repo-only frontier is a fixed-stage redacted diagnostic package that will identify the smallest repair boundary. Additionally, the rollback-safe migration package is published and terminal Required CI is green, but the current user instruction does not explicitly authorize this exact live credential mutation.",
+          "capability_gate": "Complete and publish the fixed-stage Podman unshare diagnostic, then use one separately bounded read-only observation to select the smallest exact rollback-bound repair; do not retry either consumed capability observation and do not weaken the descriptor-bound backup invariant.",
           "required_authority": "Explicitly authorize exactly one internal copy of the existing Restic credential into the fixed private password-file contract. This does not rotate, generate, print, delete or externally transmit the credential.",
           "rollback_required": true,
           "post_change_readback_required": true,
