@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-31T17:04:00+02:00",
-  "status": "ops_alert_fd_bound_backup_redesign_repo_claim_active_live_credential_authority_still_required",
+  "updated_at": "2026-07-31T17:14:00+02:00",
+  "status": "ops_alert_fd_bound_backup_published_ci_green_waiting_on_action_specific_credential_migration_authority",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,7 +23,7 @@
     "unique_live_gates": 53,
     "unique_design_gates": 27,
     "other_open_json_items": 108,
-    "queue_status": "ops_alert_fd_bound_backup_redesign_repo_claim_active_live_credential_authority_still_required",
+    "queue_status": "ops_alert_fd_bound_backup_published_ci_green_waiting_on_action_specific_credential_migration_authority",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -216,9 +216,9 @@
         "thread_id": "/root",
         "slice_id": "OPS-ALERT-fd-bound-predeploy-backup-and-independent-observation",
         "owner": "root/Sol implementer and final reviewer",
-        "state": "claimed",
+        "state": "released_after_exact_push_and_terminal_ci",
         "acquired_at": "2026-07-31T16:21:00+02:00",
-        "lease_expires_at": "2026-07-31T18:21:00+02:00",
+        "lease_expires_at": null,
         "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
         "base_revision": "ff8ba9aa4fe866cc278bd28e35f94c62851a9f51",
         "dependencies": [
@@ -236,7 +236,10 @@
           "tests/test_homeserver_redacted_backup_snapshot_observation.py",
           "tests/test_homeserver_redacted_backup_snapshot_observation_transport.py"
         ],
-        "phase": "all_local_python_3_11_and_integration_gates_green_ready_for_exact_commit_push_ci",
+        "phase": "completed_exact_push_and_terminal_required_ci_green",
+        "published_revision": "a9e1cd776b2550be2caa39208f8a5cc2ab04eb94",
+        "github_ci_run": 30641375933,
+        "github_ci_conclusion": "success",
         "live_actions": false,
         "acceptance": [
           "source, repository, credential and executable identities are opened once without following links and remain descriptor-bound through dispatch and readback",
@@ -259,6 +262,7 @@
           "python_3_11_roadmap_and_queue_contracts": "24 passed, 1 pre-existing SQLAlchemy warning",
           "deterministic_runtime_inventory": "check passed",
           "staged_diff_check": "passed",
+          "published_required_ci": "run 30641375933 terminal success: Python syntax, JS syntax and complete Python regression suite all green",
           "independent_final_review": "PASS with no remaining P0-P2 after three bounded correction cycles",
           "closed_findings": [
             "outer and embedded transport pins agree with each current core blob",
@@ -267,7 +271,7 @@
             "readv into wipeable credential buffers followed by sealed memfd dispatch",
             "no post-exec source, repository, credential, mount, config or executable bypass descriptors"
           ],
-          "external_actions": "none"
+          "external_actions": "one exact Git push to fuzzy/dev and read-only GitHub CI observation; no host, credential, backup, deploy or provider action"
         },
         "permitted_git_actions": [
           "stage only the nine reviewed allowed paths",
@@ -292,7 +296,8 @@
           "GitHub CI run 30622495185 terminal success",
           "latest_ops_alert_d_transactional_deploy_handoff",
           "latest_ops_alert_c6_activation_handoff",
-          "ABC-OPS-ALERT-CREDENTIAL-MIGRATION-PREP-20260731 published as b187d00e45e0c2e3d2cf7c47a36b586d66da7bde with GitHub CI run 30636302437 terminal success"
+          "ABC-OPS-ALERT-CREDENTIAL-MIGRATION-PREP-20260731 published as b187d00e45e0c2e3d2cf7c47a36b586d66da7bde with GitHub CI run 30636302437 terminal success",
+          "ABC-OPS-ALERT-FD-BACKUP-REDESIGN-20260731 published as a9e1cd776b2550be2caa39208f8a5cc2ab04eb94 with GitHub CI run 30641375933 terminal success"
         ],
         "allowed_paths": [
           "docs/plans/open-work-completion-master-roadmap.json",
@@ -482,9 +487,14 @@
           },
           "predeploy_backup_creation": {
             "schema_id": "odysseus.ops_alert_predeploy_backup_creation_authority.v1",
-            "state": "repo_only_not_live_eligible_pending_fd_bound_redesign",
-            "mode": "one_fixed_pre_update_snapshot_after_repair",
+            "state": "published_ci_green_not_live_eligible_before_credential_migration_and_capability_probe",
+            "mode": "one_fd_bound_private_namespace_pre_update_snapshot_after_migration",
             "source_delivery": "published_blob_stdin",
+            "source_revision": "a9e1cd776b2550be2caa39208f8a5cc2ab04eb94",
+            "github_ci_run": 30641375933,
+            "github_ci_conclusion": "success",
+            "published_creation_blob_sha256": "65044c06153b6a2b35f0cd734963781b5bbfb7519595924316714d23966bef0c",
+            "published_observation_blob_sha256": "ce435c9f940722e40df51933beec2e4cd978dafe6aa9fe7418513077731081dd",
             "maximum_invocations_after_repair_and_terminal_ci": 0,
             "retry_count": 0,
             "timeout_seconds": 1860,
@@ -629,10 +639,10 @@
           "existing_pointer_diagnostic_v3_suite": "30 passed, 1 pre-existing SQLAlchemy warning",
           "backup_deploy_activation_smoke_corridor": "110 passed, 1 pre-existing SQLAlchemy warning",
           "published_repair_blob_sha256": "f5d257cb9df12aba246c3e8fef523f2df8c52da45867f35629c15f983788c69f",
-          "published_backup_creation_blob_sha256": "549cf978ee6dbd12654918771be119ca6e212ea75dfb52830ff169d49d214db4",
-          "published_snapshot_observation_blob_sha256": "4e891f203ad04801c538a01db1bd9c3bfa9844ebe9670814b7feab7636d07ff5",
+          "published_backup_creation_blob_sha256": "65044c06153b6a2b35f0cd734963781b5bbfb7519595924316714d23966bef0c",
+          "published_snapshot_observation_blob_sha256": "ce435c9f940722e40df51933beec2e4cd978dafe6aa9fe7418513077731081dd",
           "repair_contract": "credential bytes are never read or changed; fd-bound owner/mode hardening plus atomic exact nonsecret configuration replacement; terminal rolled_back or unknown on failure",
-          "backup_creation_contract": "repo-only and explicitly not live-eligible until source, repository, credential and executable identities are fd-bound through dispatch",
+          "backup_creation_contract": "published and terminal Required CI green; source, mounted repository, sealed credential and executable are descriptor-bound through private namespace dispatch and bounded readback; still not live-eligible before credential migration success and a separate capability probe packet",
           "post_dispatch_rule": "all repair or backup-creation transport failures after SSH dispatch are terminal unknown with effect-may-have-occurred; only pre-dispatch failures are blocked",
           "bounded_transport_output": "repair, backup-creation and read-only observation SSH output is capped while streaming before schema validation",
           "final_independent_review": "two P1 and two P2 findings reviewed; post-dispatch state and streaming bounds corrected, lock descriptor lifecycle corrected, path-based backup creation quarantined from live use pending fd-bound redesign",
