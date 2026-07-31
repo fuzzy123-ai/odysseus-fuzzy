@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-31T18:21:08+02:00",
-  "status": "ops_alert_capability_receipt_v3_local_green_ready_publish_credential_authority_still_required",
+  "updated_at": "2026-07-31T19:37:12+02:00",
+  "status": "ops_alert_podman_unshare_capability_local_green_ready_publish_credential_authority_still_required",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,7 +23,7 @@
     "unique_live_gates": 53,
     "unique_design_gates": 27,
     "other_open_json_items": 108,
-    "queue_status": "ops_alert_capability_receipt_v3_local_green_ready_publish_credential_authority_still_required",
+    "queue_status": "ops_alert_podman_unshare_capability_local_green_ready_publish_credential_authority_still_required",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -390,7 +390,7 @@
         "thread_id": "/root/capability_receipt_v3_charlie",
         "slice_id": "OPS-ALERT-capability-result-projection-v3",
         "owner": "Charlie/Terra bounded fix; root/Sol deep review",
-        "state": "released_after_root_deep_review_local_green_ready_publish",
+        "state": "released_after_exact_push_and_terminal_required_ci",
         "acquired_at": "2026-07-31T18:16:17+02:00",
         "lease_expires_at": "2026-07-31T19:16:17+02:00",
         "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
@@ -440,6 +440,70 @@
           "root_deep_review": "PASS; fixed source outcome survives create-exclusive persistence and independent local readback; wrapper-local failures remain fixed-schema and no-retry",
           "residual_risk": "Windows lacks descriptor-relative O_NOFOLLOW opens; fixed module-relative nonsecret receipt root plus lstat/O_EXCL bounds but does not atomically eliminate a malicious parent replacement race"
         },
+        "published_revision": "f7a0dbf8b42f78a5861792cf9682f3f62b18b53c",
+        "github_ci_run": 30646907409,
+        "github_ci_conclusion": "success",
+        "handoff_required": true
+      },
+      {
+        "run_id": "ABC-OPS-ALERT-PODMAN-UNSHARE-CAPABILITY-PREP-20260731",
+        "thread_id": "/root/podman_unshare_capability_bob",
+        "slice_id": "OPS-ALERT-podman-unshare-descriptor-bound-backup-capability",
+        "owner": "Bob/Terra implementation; root/Sol deep review",
+        "state": "released_after_root_deep_review_local_green_ready_publish",
+        "acquired_at": "2026-07-31T19:15:00+02:00",
+        "lease_expires_at": "2026-07-31T21:15:00+02:00",
+        "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
+        "depends_on": [
+          "durable namespace capability v2 confirmed unsupported/capability_unavailable with no retry",
+          "SEC190 published rootless Podman/podman-compose capability observation accepted terminal ok",
+          "durable local receipt boundary f7a0dbf8b42f78a5861792cf9682f3f62b18b53c with GitHub CI run 30646907409 terminal success"
+        ],
+        "allowed_paths": [
+          "ops/homeserver/redacted_predeploy_backup_podman_unshare_capability.py",
+          "ops/homeserver/redacted_predeploy_backup_podman_unshare_capability_transport.py",
+          "tests/test_homeserver_redacted_predeploy_backup_podman_unshare_capability.py",
+          "tests/test_homeserver_redacted_predeploy_backup_podman_unshare_capability_transport.py"
+        ],
+        "hotfiles": [],
+        "class": "repo_only",
+        "live_actions": false,
+        "acceptance": [
+          "probe the same descriptor-bound private-mount, read-only-source and closed-FD invariants inside one fixed rootless podman unshare boundary without changing the host",
+          "load only the exact published core blob and invoke only fixed SSH and podman unshare argv with bounded stdin/stdout, timeout, kill and reap",
+          "persist one validated fixed-schema result create-exclusively in a separate module-relative nonsecret receipt root before reporting and provide independent local readback without SSH",
+          "remain inert by default and expose no raw stdout, stderr, exception, environment, path, hostname, file content or credential data",
+          "do not weaken the fd-bound backup invariant or infer backup/deploy/credential authority from a supported probe"
+        ],
+        "forbidden_actions": [
+          "SSH, podman, live observation, host mutation, credential access, backup, deploy, provider call, commit or push",
+          "edit Planning JSON or any existing core/transport/receipt path",
+          "stage, absorb or clean foreign work",
+          "persist or emit raw subprocess or secret-bearing data"
+        ],
+        "route": {
+          "entrypoint": "$abc",
+          "selected": {
+            "skills": ["abc"],
+            "master": "root/Sol",
+            "worker": "gpt-5.6-terra/high",
+            "review": "root/Sol deep"
+          },
+          "actual": {
+            "worker": "gpt-5.6-terra requested through the enforced spawn model selector; worker surface did not echo a model id",
+            "review": "root/Sol deep PASS after two bounded correction rounds"
+          }
+        },
+        "verification_evidence": {
+          "python_runtime": "CPython 3.11.15 from C:/tmp/odysseus-ci-py311-20260730/Scripts/python.exe",
+          "focused_core_transport_receipt_suite": "25 passed, 1 Windows symlink-privilege skip, 1 pre-existing SQLAlchemy warning",
+          "python_compile": "passed",
+          "diff_check": "passed",
+          "core_blob_sha256": "3657509756a6cfb68aba2cc9d787af9934a524802a3b8894ae42d7dcdd174633",
+          "core_and_bootstrap_pin_match": true,
+          "root_deep_review": "PASS; fixed podman unshare boundary proves rootless user mapping plus a second mount-only namespace, private propagation, descriptor-bound read-only source, EBADF source closure and CLOEXEC executable; transport and local receipt fail closed and no-retry",
+          "residual_risk": "Windows local receipt parent replacement race remains bounded by a fixed module-relative nonsecret root; the symlink test must run unchanged in Ubuntu Required CI before live eligibility"
+        },
         "handoff_required": true
       },
       {
@@ -460,7 +524,8 @@
           "ABC-OPS-ALERT-CREDENTIAL-MIGRATION-PREP-20260731 published as b187d00e45e0c2e3d2cf7c47a36b586d66da7bde with GitHub CI run 30636302437 terminal success",
           "ABC-OPS-ALERT-FD-BACKUP-REDESIGN-20260731 published as a9e1cd776b2550be2caa39208f8a5cc2ab04eb94 with GitHub CI run 30641375933 terminal success",
           "ABC-OPS-ALERT-NAMESPACE-CAPABILITY-PREP-20260731 published as ecae52e3e8bf9ebff0f90ce63c6b99c6774164cb with GitHub CI run 30644154168 terminal success",
-          "namespace capability authority receipt published as 7f83f9a1e3816c1f8e1c2c4a9a824f5cd61977d1 with GitHub CI run 30644914675 terminal success"
+          "namespace capability authority receipt published as 7f83f9a1e3816c1f8e1c2c4a9a824f5cd61977d1 with GitHub CI run 30644914675 terminal success",
+          "durable capability receipt v3 published as f7a0dbf8b42f78a5861792cf9682f3f62b18b53c with GitHub CI run 30646907409 terminal success"
         ],
         "allowed_paths": [
           "docs/plans/open-work-completion-master-roadmap.json",
@@ -488,9 +553,48 @@
           "tests/test_homeserver_redacted_backup_snapshot_observation.py",
           "tests/test_homeserver_redacted_backup_snapshot_observation_transport.py"
         ],
-        "phase": "namespace_capability_observation_consumed_unknown_waiting_on_safe_successor_and_credential_live_authority",
+        "phase": "namespace_capability_confirmed_unavailable_reviewing_existing_podman_or_host_change_frontier_credential_live_authority_still_required",
         "live_actions": true,
         "action_packets": {
+          "predeploy_backup_namespace_capability_v2_durable_receipt": {
+            "schema_id": "odysseus.ops_alert_predeploy_backup_namespace_capability_authority.v2",
+            "state": "consumed_terminal_unsupported_no_retry",
+            "authority_basis": "active user objective requires live OPS Alert closure; v1 is terminal unknown and non-retryable, while this separately reviewed strategy persists one validated redacted result locally before reporting and has no persistent remote or provider effect",
+            "not_an_automatic_retry": true,
+            "mode": "one_private_user_mount_namespace_capability_observation_with_create_exclusive_local_redacted_receipt",
+            "target": "odysseus-homeserver",
+            "source_revision": "f7a0dbf8b42f78a5861792cf9682f3f62b18b53c",
+            "github_ci_run": 30646907409,
+            "github_ci_conclusion": "success",
+            "local_wrapper": "ops/homeserver/redacted_predeploy_backup_capability_receipt.py",
+            "remote_transport": "ops/homeserver/redacted_predeploy_backup_capability_transport.py",
+            "receipt_root": "fixed_module_relative_create_exclusive_nonsecret_root",
+            "maximum_invocations": 1,
+            "retry_count": 0,
+            "timeout_seconds": 30,
+            "expires": "run_end",
+            "required_result": "persisted summary and independent local readback both report core supported none, effect_may_have_occurred true, retry_permitted false and identical source/receipt digests",
+            "forbidden_effects": [
+              "credential read or change",
+              "repository read or write on the remote host",
+              "backup creation",
+              "deployment",
+              "provider send",
+              "persistent remote host mutation",
+              "automatic retry"
+            ],
+            "forbidden_output": [
+              "raw stdout",
+              "raw stderr",
+              "exception text",
+              "environment",
+              "path",
+              "hostname",
+              "secret value",
+              "unvalidated receipt content"
+            ],
+            "rollback": "not applicable to the remote read-only probe; preserve the create-exclusive local redacted receipt for independent readback"
+          },
           "predeploy_backup_namespace_capability": {
             "schema_id": "odysseus.ops_alert_predeploy_backup_namespace_capability_authority.v1",
             "state": "consumed_terminal_unknown_no_retry",
@@ -831,11 +935,27 @@
             "authority_receipt_github_ci_conclusion": "success",
             "published_core_blob_sha256": "50a77606af9b5a127ada57ca44533a9821612fd6e71ddeca17564c1586a8562e",
             "evidence_limit": "The tool boundary reported truncated output instead of a validated fixed-schema envelope; no raw output was recovered or persisted."
+          },
+          "predeploy_backup_namespace_capability_v2_durable_receipt": {
+            "consumed_at": "2026-07-31T18:31:00+02:00",
+            "status": "unsupported",
+            "error_code": "capability_unavailable",
+            "source_envelope_kind": "core",
+            "effect_may_have_occurred": true,
+            "retry_permitted": false,
+            "persistent_remote_effect": false,
+            "receipt_sha256": "69599e7b3380da0e4c9a581ea23bfa67cd6668ed768a748694cead0cbfedd07b",
+            "source_evidence_sha256": "5875819b0fc5ca1c11ebeaffbd76af0698769f0d184fb7fb4fe0c1ec31088a11",
+            "summary_sha256": "5461f2f5c56f4fd11ef945e8cca1587c0974ac2ccf7e6374c2de17a3df709f1f",
+            "independent_local_readback_identical": true,
+            "published_revision": "f7a0dbf8b42f78a5861792cf9682f3f62b18b53c",
+            "github_ci_run": 30646907409,
+            "github_ci_conclusion": "success"
           }
         },
         "waiting_on_user": {
-          "reason": "The one authorized namespace capability observation is consumed without a validated result and may not be retried; additionally, the rollback-safe migration package is published and terminal Required CI is green, but the current user instruction does not explicitly authorize this exact live credential mutation.",
-          "capability_gate": "A fresh, separately bounded successor observation strategy must be reviewed and recorded before another capability invocation; the consumed packet cannot be reused.",
+          "reason": "The durable successor observation confirmed that the required private user/mount namespace capability is unavailable on the Debian target, so the fd-bound backup cannot run under the current host capability; additionally, the rollback-safe migration package is published and terminal Required CI is green, but the current user instruction does not explicitly authorize this exact live credential mutation.",
+          "capability_gate": "Select and review an already evidenced Podman isolation path or an exact rollback-bound host capability change; do not retry either consumed namespace observation and do not weaken the descriptor-bound backup invariant.",
           "required_authority": "Explicitly authorize exactly one internal copy of the existing Restic credential into the fixed private password-file contract. This does not rotate, generate, print, delete or externally transmit the credential.",
           "rollback_required": true,
           "post_change_readback_required": true,
@@ -873,7 +993,8 @@
           "diff_check": "passed",
           "external_actions": "none for the diagnostic package",
           "namespace_capability_observation": "single authorized invocation consumed; terminal result unknown because the tool boundary returned no usable validated envelope; no local python or ssh process remained; no retry performed",
-          "namespace_capability_authority_receipt_ci": "commit 7f83f9a1e3816c1f8e1c2c4a9a824f5cd61977d1; GitHub CI run 30644914675 terminal success"
+          "namespace_capability_authority_receipt_ci": "commit 7f83f9a1e3816c1f8e1c2c4a9a824f5cd61977d1; GitHub CI run 30644914675 terminal success",
+          "namespace_capability_v2_observation": "published receipt wrapper commit f7a0dbf8b42f78a5861792cf9682f3f62b18b53c; GitHub CI run 30646907409 terminal success; one manual read-only observation and independent local readback both persisted the same fixed unsupported/capability_unavailable outcome; no retry and no persistent remote effect"
         },
         "permitted_actions": [
           "one fixed repo-owned redacted backup snapshot observation over the explicitly live-gated odysseus-homeserver alias",
