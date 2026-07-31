@@ -35,6 +35,7 @@ from src.security_incident_network_context import (
     decide_self_egress_suppression,
     derive_access_source_context,
 )
+from src.security_auth_incident_bridge import AUTH_BRIDGE_SCHEMA
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +111,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         token = request.cookies.get(SESSION_COOKIE)
         return auth_manager.get_username_for_token(token)
 
-    def _emit_redacted_auth_event(request: Request, *, username: str = "", outcome: str = "blocked", session_created: str = "not_applicable", event: Any = None) -> bool:
+    def _emit_redacted_auth_event(request: Request, *, username: str = "", outcome: str = "blocked", session_created: str = "not_applicable", event: Any = None, event_kind: str = "status") -> bool:
         """Use the canonical adapter/broker envelope with only an in-process sink."""
         try:
             payload = (event or build_redacted_auth_event(
@@ -129,12 +130,12 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
                     return False
                 events.append(payload)
                 del events[:-64]
-            _record_access_context(request, payload)
+            _record_access_context(request, payload, event_kind=event_kind)
             return True
         except Exception:
             return False
 
-    def _record_access_context(request: Request, event_payload: Mapping[str, Any]) -> None:
+    def _record_access_context(request: Request, event_payload: Mapping[str, Any], *, event_kind: str) -> None:
         """Keep a bounded incident-only ingress binding without raw headers.
 
         The existing evidence envelope stays content-free.  A downstream
@@ -151,7 +152,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
             # All other values remain fail-open if the configured snapshot is
             # absent, stale or invalid.
             status = str(event_payload.get("status") or "").strip().lower()
-            event_class = "authentication_failure" if status in {"failed", "blocked", "unknown"} else "external_access_origin_only"
+            event_class = "step_up_failure" if event_kind == "step_up" else ("authentication_failure" if status in {"failed", "blocked", "unknown"} else "external_access_origin_only")
             suppression_audit = decide_self_egress_suppression(
                 incident_id=event_payload.get("correlation_ref"),
                 event_class=event_class,
@@ -168,14 +169,38 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
             sink = getattr(request.app.state, "security_auth_access_context_sink", None)
             if callable(sink):
                 sink(record)
-                return
-            records = getattr(request.app.state, "security_auth_access_contexts", None)
-            if records is None:
-                records = []
-                request.app.state.security_auth_access_contexts = records
-            if isinstance(records, list):
-                records.append(record)
-                del records[:-64]
+            else:
+                records = getattr(request.app.state, "security_auth_access_contexts", None)
+                if records is None:
+                    records = []
+                    request.app.state.security_auth_access_contexts = records
+                if isinstance(records, list):
+                    records.append(record)
+                    del records[:-64]
+            combined = {
+                "schema": AUTH_BRIDGE_SCHEMA,
+                "event_kind": event_kind,
+                "auth_event": dict(event_payload),
+                "accessing_ip_context": context.as_incident_projection(),
+                "suppression_audit": suppression_audit,
+                "raw_content_visible": False,
+            }
+            combined_sink = getattr(request.app.state, "security_auth_incident_sink", None)
+            if callable(combined_sink):
+                combined_sink(combined)
+            else:
+                combined_records = getattr(request.app.state, "security_auth_incident_records", None)
+                if combined_records is None:
+                    combined_records = []
+                    request.app.state.security_auth_incident_records = combined_records
+                if isinstance(combined_records, list):
+                    combined_records.append(combined)
+                    del combined_records[:-64]
+                bridge = getattr(request.app.state, "security_auth_incident_bridge", None)
+                if callable(bridge):
+                    bridge(combined)
+                elif callable(getattr(bridge, "process", None)):
+                    bridge.process(combined)
         except Exception:
             pass
 
@@ -241,7 +266,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
             def _emit_success(event):
                 nonlocal emitted
                 emitted = True
-                return _emit_redacted_auth_event(request, event=event)
+                return _emit_redacted_auth_event(request, event=event, event_kind="step_up")
             event = _security_action_authorization.step_up_with_emission(
                 session_token=token, username=user, password=password, totp_code=totp_code,
                 action=action, auth_kind="browser_cookie", emit=_emit_success,
@@ -250,7 +275,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
             # The boundary intentionally collapses malformed credentials, stale
             # actions, role/session changes, and invalid TOTP into one response.
             if not emitted:
-                _emit_redacted_auth_event(request, username="", outcome="blocked", session_created="no")
+                _emit_redacted_auth_event(request, username="", outcome="blocked", session_created="no", event_kind="step_up")
             raise HTTPException(403, "Security action unavailable") from None
         return {"status": "step_up_accepted", "auth_evidence_ref": event.envelope.evidence_ref, "raw_content_visible": False}
 
@@ -324,26 +349,26 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
     @router.post("/login")
     async def login(body: LoginRequest, request: Request, response: Response):
         if not _login_limiter.check(request.client.host):
-            _emit_redacted_auth_event(request, username="", outcome="blocked", session_created="no")
+            _emit_redacted_auth_event(request, username="", outcome="blocked", session_created="no", event_kind="login")
             raise HTTPException(429, "Too many requests — try again later")
         # Verify password first
         username = body.username.strip().lower()
         if not await asyncio.to_thread(auth_manager.verify_password, username, body.password):
-            _emit_redacted_auth_event(request, username=username, outcome="failed", session_created="no")
+            _emit_redacted_auth_event(request, username=username, outcome="failed", session_created="no", event_kind="login")
             raise HTTPException(401, "Invalid credentials")
         # Check 2FA if enabled
         if auth_manager.totp_enabled(username):
             if not body.totp_code:
-                _emit_redacted_auth_event(request, username=username, outcome="blocked", session_created="no")
+                _emit_redacted_auth_event(request, username=username, outcome="blocked", session_created="no", event_kind="login")
                 # Password OK but need TOTP — tell client to show code input
                 return {"ok": False, "requires_totp": True, "username": username}
             if not auth_manager.totp_verify(username, body.totp_code):
-                _emit_redacted_auth_event(request, username=username, outcome="failed", session_created="no")
+                _emit_redacted_auth_event(request, username=username, outcome="failed", session_created="no", event_kind="login")
                 raise HTTPException(401, "Invalid 2FA code")
         # All checks passed — create session (password already verified above)
         token = await asyncio.to_thread(auth_manager.create_session_trusted, username)
         if not token:
-            _emit_redacted_auth_event(request, username=username, outcome="unknown", session_created="no")
+            _emit_redacted_auth_event(request, username=username, outcome="unknown", session_created="no", event_kind="login")
             raise HTTPException(401, "Invalid credentials")
         cookie_kwargs = dict(
             key=SESSION_COOKIE,
@@ -356,7 +381,7 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
         if body.remember:
             cookie_kwargs["max_age"] = TOKEN_TTL
         response.set_cookie(**cookie_kwargs)
-        _emit_redacted_auth_event(request, username=username, outcome="success", session_created="yes")
+        _emit_redacted_auth_event(request, username=username, outcome="success", session_created="yes", event_kind="login")
         return {"ok": True, "username": username}
 
     @router.post("/logout")

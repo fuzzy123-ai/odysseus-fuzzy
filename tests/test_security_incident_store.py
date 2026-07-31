@@ -29,6 +29,19 @@ def _store(tmp_path: Path, clock=lambda: 100.0) -> SecurityIncidentStore:
     return SecurityIncidentStore(tmp_path / "incidents.sqlite3", clock=clock)
 
 
+def test_v1_store_migrates_to_private_context_schema_without_rewriting_existing_tables(tmp_path: Path) -> None:
+    path = tmp_path / "v1.sqlite"
+    db = sqlite3.connect(path)
+    migrations._migration_1(db)
+    db.execute("PRAGMA user_version=1")
+    db.execute(f"PRAGMA application_id={SQLITE_APPLICATION_ID}")
+    db.commit(); db.close()
+    store = SecurityIncidentStore(path)
+    with store._read() as migrated:
+        assert int(migrated.execute("PRAGMA user_version").fetchone()[0]) == SCHEMA_VERSION
+        assert migrated.execute("SELECT 1 FROM sqlite_master WHERE name='incident_contexts'").fetchone() is not None
+
+
 def _prepared(store: SecurityIncidentStore, *, ttl: int = 60):
     store.create_incident(incident_id="incident-one", incident_ref=_ref("incident"), audit_ref=_ref("audit"))
     created = store.create_action(action_id="action-one", incident_id="incident-one", action_type="session_invalidate_prepare", scope_fingerprint=SCOPE, policy_revision=POLICY, idempotency_key="idem-one", ttl_seconds=ttl, audit_ref=_ref("audit", "d"))

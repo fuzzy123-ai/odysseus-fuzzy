@@ -20,6 +20,7 @@ from typing import Any
 
 from src.security_incident_model import AUTO_ALLOWED_ACTION_TYPES, CONFIRMATION_REQUIRED_ACTION_TYPES
 from src.security_incident_store_migrations import apply_migrations
+from src.security_incident_network_context import NETWORK_CONTEXT_POLICY_VERSION, SecurityIncidentNetworkContextError, decide_self_egress_suppression, validate_access_source_context
 
 
 INCIDENT_STORE_SCHEMA = "odysseus.security_incident_store.v1"
@@ -74,6 +75,20 @@ class IncidentRecord:
     incident_id: str
     incident_ref: str
     version: int
+    created_at: float
+
+
+@dataclass(frozen=True, slots=True)
+class IncidentContextRecord:
+    incident_id: str
+    event_class: str
+    accessing_ip: str
+    provenance: str
+    is_public: bool
+    reason_code: str
+    suppression_decision: str
+    suppression_reason: str
+    notification_binding_ref: str
     created_at: float
 
 
@@ -303,6 +318,41 @@ class SecurityIncidentStore:
             raise IncidentNotFoundError("incident not found")
         return _incident_record(row)
 
+    def bind_incident_context(self, *, incident_id: Any, event_class: Any, access_context: Mapping[str, Any], suppression_audit: Mapping[str, Any], correlation_ref: Any, notification_binding_ref: Any, audit_ref: Any) -> IncidentContextRecord:
+        incident = _identifier(incident_id, "incident_id")
+        event = _auth_event_class(event_class)
+        binding, audit = _opaque_ref(notification_binding_ref, "notification_binding_ref"), _opaque_ref(audit_ref, "audit_ref")
+        context, decision, reason = validate_incident_context_binding(event, access_context, suppression_audit, correlation_ref)
+        expected = (event, context.canonical_ip, context.provenance, int(context.is_public), context.reason_code, decision, reason, binding)
+        now = self._now()
+        with self._immediate() as db:
+            if db.execute("SELECT 1 FROM incidents WHERE incident_id=?", (incident,)).fetchone() is None:
+                raise IncidentNotFoundError("incident not found")
+            row = db.execute("SELECT * FROM incident_contexts WHERE incident_id=?", (incident,)).fetchone()
+            if row is None:
+                db.execute("INSERT INTO incident_contexts(incident_id,event_class,accessing_ip,provenance,is_public,reason_code,suppression_decision,suppression_reason,notification_binding_ref,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)", (incident, *expected, now))
+                self._append_audit(db, incident, None, 0, "incident_context_bound", audit, now)
+                row = db.execute("SELECT * FROM incident_contexts WHERE incident_id=?", (incident,)).fetchone()
+            elif tuple(row[key] for key in ("event_class", "accessing_ip", "provenance", "is_public", "reason_code", "suppression_decision", "suppression_reason", "notification_binding_ref")) != expected:
+                raise ConflictError("incident context replay conflicts")
+            return _incident_context_record(row)
+
+    def get_incident_context(self, incident_id: Any) -> IncidentContextRecord:
+        incident = _identifier(incident_id, "incident_id")
+        with self._read() as db:
+            row = db.execute("SELECT * FROM incident_contexts WHERE incident_id=?", (incident,)).fetchone()
+        if row is None:
+            raise IncidentNotFoundError("incident context not found")
+        return _incident_context_record(row)
+
+    def get_incident_context_for_action(self, action_id: Any) -> IncidentContextRecord:
+        action = _identifier(action_id, "action_id")
+        with self._read() as db:
+            row = db.execute("SELECT contexts.* FROM incident_contexts AS contexts JOIN actions ON actions.incident_id=contexts.incident_id WHERE actions.action_id=?", (action,)).fetchone()
+        if row is None:
+            raise IncidentNotFoundError("incident context not found")
+        return _incident_context_record(row)
+
     def get_action(self, action_id: Any) -> ActionRecord:
         action = _identifier(action_id, "action_id")
         now = self._now()
@@ -386,6 +436,72 @@ class SecurityIncidentStore:
 
 def _incident_record(row: sqlite3.Row) -> IncidentRecord:
     return IncidentRecord(incident_id=row["incident_id"], incident_ref=row["incident_ref"], version=row["version"], created_at=row["created_at"])
+
+
+def _incident_context_record(row: sqlite3.Row) -> IncidentContextRecord:
+    return IncidentContextRecord(incident_id=row["incident_id"], event_class=row["event_class"], accessing_ip=row["accessing_ip"], provenance=row["provenance"], is_public=bool(row["is_public"]), reason_code=row["reason_code"], suppression_decision=row["suppression_decision"], suppression_reason=row["suppression_reason"], notification_binding_ref=row["notification_binding_ref"], created_at=row["created_at"])
+
+
+def _auth_event_class(value: Any) -> str:
+    text = _text(value, "event_class")
+    if text not in {"authentication_failure", "step_up_failure", "external_access_origin_only"}:
+        raise RedactionError("invalid event_class")
+    return text
+
+
+def validate_incident_context_binding(event_class: Any, access_context: Any, suppression_audit: Any, correlation_ref: Any) -> tuple[Any, str, str]:
+    """Validate a canonical context binding before durable persistence."""
+    context, decision, reason = validate_untrusted_incident_context_evidence(
+        event_class, access_context, suppression_audit, correlation_ref,
+    )
+    _canonical_suppression_semantics(_auth_event_class(event_class), decision, reason)
+    return context, decision, reason
+
+
+def validate_untrusted_incident_context_evidence(event_class: Any, access_context: Any, suppression_audit: Any, correlation_ref: Any) -> tuple[Any, str, str]:
+    """Validate shape and cross-references before bridge canonicalization."""
+    event = _auth_event_class(event_class)
+    if not isinstance(correlation_ref, str) or not _OPAQUE_REF_RE.fullmatch(correlation_ref):
+        raise RedactionError("invalid correlation reference")
+    try:
+        context = validate_access_source_context(access_context)
+    except SecurityIncidentNetworkContextError:
+        raise RedactionError("invalid incident access context") from None
+    decision, reason = _suppression_audit(suppression_audit, event, correlation_ref, context)
+    return context, decision, reason
+
+
+def _suppression_audit(value: Any, event_class: str, correlation_ref: str, context: Any) -> tuple[str, str]:
+    if not isinstance(value, Mapping) or set(value) != {"policy_version", "incident_ref", "event_class", "decision", "reason_code", "source_ref", "raw_content_visible"}:
+        raise RedactionError("invalid suppression audit")
+    if value.get("raw_content_visible") is not False or value.get("event_class") != event_class:
+        raise RedactionError("invalid suppression audit")
+    decision, reason = value.get("decision"), value.get("reason_code")
+    if decision not in {"notify", "suppress_notification"} or not isinstance(reason, str) or not re.fullmatch(r"[a-z_]{3,96}", reason):
+        raise RedactionError("invalid suppression audit")
+    if value.get("policy_version") != NETWORK_CONTEXT_POLICY_VERSION:
+        raise RedactionError("invalid suppression audit")
+    expected = decide_self_egress_suppression(incident_id=correlation_ref, event_class=event_class, source_context=context, own_public_egress=None)
+    if value.get("incident_ref") != expected["incident_ref"] or value.get("source_ref") != expected["source_ref"]:
+        raise RedactionError("suppression incident context mismatch")
+    return decision, reason
+
+
+def _canonical_suppression_semantics(event_class: str, decision: str, reason: str) -> None:
+    if event_class in {"authentication_failure", "step_up_failure"}:
+        if decision != "notify" or reason != "notification_required_security_critical":
+            raise RedactionError("security critical alert cannot be suppressed")
+        return
+    if event_class == "external_access_origin_only":
+        if decision == "suppress_notification" and reason == "suppressed_exact_fresh_self_egress_match":
+            return
+        if decision == "notify" and reason in {
+            "notification_required_unknown", "notification_required_source_unknown",
+            "notification_required_source_not_public", "notification_required_own_egress_unavailable",
+            "notification_required_egress_mismatch",
+        }:
+            return
+    raise RedactionError("invalid canonical suppression audit")
 
 
 def _approval_record(row: sqlite3.Row) -> ApprovalRecord:
@@ -493,6 +609,6 @@ def _unsafe_text(text: str) -> bool:
 
 __all__ = [
     "ACTION_STATES", "ActionEvidenceRecord", "ActionNotFoundError", "ActionRecord",
-    "ApprovalRecord", "AuditRecord", "ConflictError", "IncidentNotFoundError",
-    "IncidentRecord", "RedactionError", "SecurityIncidentStore", "SecurityIncidentStoreError",
+    "ApprovalRecord", "AuditRecord", "ConflictError", "IncidentContextRecord", "IncidentNotFoundError",
+    "IncidentRecord", "RedactionError", "SecurityIncidentStore", "SecurityIncidentStoreError", "validate_incident_context_binding", "validate_untrusted_incident_context_evidence",
 ]
