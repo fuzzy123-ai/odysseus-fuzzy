@@ -3,8 +3,8 @@
   "kind": "odysseus.security_incident_response_production_completion_roadmap",
   "id": "SIRP",
   "title": "Security Incident Response Production Completion",
-  "updated_at": "2026-07-30T13:30:10+02:00",
-  "status": "sec182_source_ast_repair_publication_claimed",
+  "updated_at": "2026-07-31T08:49:00+02:00",
+  "status": "sec189_sec184_candidate_reverified_deep_reviewed_ready_exact_publication",
   "mode": "safe_offline_dependency_ordered",
   "goal": "Close the explicit gap between prepare-only security incident contracts and a production-validated assisted response system with bounded evidence, durable incident and action state, operator-bound approvals, typed executors, independent effect readback and rollback.",
   "slice_contract_fields": ["id", "priority", "class", "owner", "status", "claimable", "depends_on", "gate_requirements", "blockers", "allowed_paths", "hotfiles", "goal", "acceptance", "tests_evidence", "forbidden", "done_when", "completion_matrix"],
@@ -5016,18 +5016,222 @@
       "hotfiles": [
         "docs/plans/security-incident-response-production-completion-roadmap.json"
       ],
-      "state": "claimed",
+      "state": "released",
       "acquired_at": "2026-07-30T13:30:10+02:00",
       "lease_expires_at": "2026-07-30T14:30:10+02:00",
       "handoff_required": true,
       "live_actions": true,
       "phase": "exact_commit_existing_clean_worktree_cherry_pick_and_fuzzy_dev_fast_forward",
+      "released_at": "2026-07-30T13:35:05+02:00",
+      "release_reason": "The exact six-path SEC182 commit was fast-forwarded to fuzzy/dev at e40a14af58019169936e89378e621de2747c91ca. Independent fetch readback confirmed parent 2de55c9747ae37062b5641a995265c5bd3b8f2e5, six changed paths, observer blob sha256 4e79425f42d23ef22cc91c98da528446a608dfd863d8dae2e59828800788d666 and transport blob sha256 f2abade7a5eb6db61d9a7a72db371e6c9508a9eea54f90630d88fce18b4a3598.",
       "forbidden_actions": [
         "stage any path outside allowed_paths",
         "create another worktree or push local dev",
         "publish the unrelated Telegram commit, force push, rewrite history, reset, clean or auto-resolve conflicts",
         "SSH, package, host, public-IP, deploy, delivery or provider action",
         "push unless fuzzy/dev still equals 2de55c9747ae37062b5641a995265c5bd3b8f2e5"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC183-20260730-POST-SOURCE-AST-REPAIR-OBSERVATION",
+      "thread_id": "/root",
+      "slice_id": "SEC183-one-use-post-source-ast-repair-compose-observation",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-30T13:35:05+02:00",
+      "lease_expires_at": "2026-07-30T14:05:05+02:00",
+      "handoff_required": true,
+      "live_actions": true,
+      "phase": "one_use_published_post_source_ast_repair_compose_capability_observation",
+      "released_at": "2026-07-30T13:41:54+02:00",
+      "release_reason": "SEC183 was invoked exactly once and returned a strictly validated needs_live_observation/semantic_proof_insufficient envelope with nine fixed missing proof codes and evidence sha256 d004b673a1dc2f861a03a367ab91fae7f62d3a810e81bbf4093ce25cb4068049. It was not retried. No host, package, container, deploy, public-IP, delivery or provider mutation occurred.",
+      "forbidden_actions": [
+        "edit any path outside allowed_paths",
+        "repeat prior observations or perform package, cleanup, rollback or host mutation",
+        "emit raw SSH stdout, stderr, exception text, environment, credentials, paths, versions or provider responses outside the published transport",
+        "retry or issue follow-on queries",
+        "public-IP query, deploy, delivery or provider action"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC184-20260730-OFFICIAL-GITHUB-SOURCE-ALIGNMENT",
+      "thread_id": "/root",
+      "slice_id": "SEC184-repo-only-official-github-source-alignment",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "tests/test_security_incident_response_production_completion_roadmap.py",
+        "ops/homeserver/redacted_podman_compose_capability_observation.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_observation.py",
+        "ops/homeserver/redacted_podman_compose_capability_transport.py",
+        "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-30T13:41:54+02:00",
+      "lease_expires_at": "2026-07-30T14:41:54+02:00",
+      "handoff_required": true,
+      "live_actions": true,
+      "phase": "official_github_identity_readonly_then_repo_only_exact_source_fixture_and_observer_alignment",
+      "released_at": "2026-07-30T13:59:28+02:00",
+      "release_reason": "SEC184 bound the observer to the verified official containers/podman-compose v1.6.0 commit 0f6537e9cfa38f6035ac57c1716b6d55dbaf3ca4, Git blob 2f7781a94fd976df1bbff16abfb0877c9c00e8ba and canonical LF source sha256 10df1662477a673dc803c03e89c1bc1fba6c8c091e716fb6c7dd09c0081e1255. The import-free loader and official dynamic parser/decorator/no-deps recognizer replayed all eleven proofs with evidence sha256 bee2a2b54acb2c91d3843e3c215fdb025da865f0221d851ef9ad5070d15f3f02. Combined focused verification passed 50 tests, all five SEC184 Python files compiled under Python 3.11, diff check passed, and independent Alice review accepted with no P0/P1/P2. Observer sha256 is 01c6eaacb3a4936dcb7d5b0c566a64688c2a68848183482c43ae9114297c8007 and transport sha256 is 0258aca80cc66559971706e6c21ec5f7c94638ef66ba35b6cbb76df501026e3f. No stage, commit, push, deploy, send, host mutation or repeat observation occurred.",
+      "forbidden_actions": [
+        "edit any path outside allowed_paths",
+        "read installed remote source or emit raw SSH, provider, environment, path, credential or source output",
+        "weaken fixed-key schemas, digest binding, exact version origin, service/dependency semantics or fail-closed behavior",
+        "stage, commit, push, deploy, send, package or host mutation",
+        "repeat SEC183 or perform any live capability observation"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC185-20260730-PYTHON311-BASELINE-AND-CI-REPAIR",
+      "thread_id": "/root/sec185_python311_bob",
+      "slice_id": "SEC185-python311-baseline-and-ci-repair",
+      "owner": "Bob/Terra",
+      "allowed_paths": [
+        "C:/tmp/odysseus-sec163-publish-20260730/.python-version",
+        "C:/tmp/odysseus-sec163-publish-20260730/Dockerfile",
+        "C:/tmp/odysseus-sec163-publish-20260730/README.md",
+        "C:/tmp/odysseus-sec163-publish-20260730/.github/workflows/dependency-review.yml",
+        "C:/tmp/odysseus-sec163-publish-20260730/.github/workflows/workflow-security.yml",
+        "C:/tmp/odysseus-sec163-publish-20260730/src/security_evidence_broker.py",
+        "C:/tmp/odysseus-sec163-publish-20260730/tests/test_security_evidence_broker.py",
+        "C:/tmp/odysseus-sec163-publish-20260730/tests/test_python_version_contract.py"
+      ],
+      "hotfiles": [
+        "C:/tmp/odysseus-sec163-publish-20260730/Dockerfile",
+        "C:/tmp/odysseus-sec163-publish-20260730/src/security_evidence_broker.py"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-30T14:26:37+02:00",
+      "lease_expires_at": "2026-07-30T15:26:37+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "phase": "repo_only_python311_baseline_contract_and_preexisting_ci_syntax_repair_in_clean_worktree",
+      "base_revision": "e40a14af58019169936e89378e621de2747c91ca",
+      "released_at": "2026-07-30T14:34:20+02:00",
+      "release_reason": "Bob/Terra completed the exact eight-path clean-worktree Python 3.11 baseline and CI repair. Root/Sol deep review confirmed all 2402 CI-covered Python files compile under Python 3.11, the fixed digest equals the immutable reference hash under Python 3.11, 21 focused security/baseline/release tests pass, path scope and diff check pass, and no semantic weakening or foreign main-worktree change occurred.",
+      "acceptance": [
+        "all GitHub Actions setup-python steps select Python 3.11",
+        "the OCI runtime and build stages use Python 3.11",
+        "local version-manager metadata and operator documentation select Python 3.11 rather than an open-ended newer minor",
+        "security_evidence_broker compiles and its focused tests pass under Python 3.11",
+        "a repository contract test fails closed on future Python-minor drift"
+      ],
+      "forbidden_actions": [
+        "edit the foreign dirty main-worktree Dockerfile or any path outside the clean-worktree allowed_paths",
+        "weaken security evidence validation, redaction or digest semantics",
+        "stage, commit, push, deploy, send, host mutation or live observation",
+        "claim Python 3.11 coverage from a Python 3.14-only test run"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC186-20260730-PYTHON311-BASELINE-PUBLICATION",
+      "thread_id": "/root",
+      "slice_id": "SEC186-python311-baseline-publication-and-github-readback",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "C:/tmp/odysseus-sec163-publish-20260730/.python-version",
+        "C:/tmp/odysseus-sec163-publish-20260730/Dockerfile",
+        "C:/tmp/odysseus-sec163-publish-20260730/README.md",
+        "C:/tmp/odysseus-sec163-publish-20260730/.github/workflows/dependency-review.yml",
+        "C:/tmp/odysseus-sec163-publish-20260730/.github/workflows/workflow-security.yml",
+        "C:/tmp/odysseus-sec163-publish-20260730/src/security_evidence_broker.py",
+        "C:/tmp/odysseus-sec163-publish-20260730/tests/test_security_evidence_broker.py",
+        "C:/tmp/odysseus-sec163-publish-20260730/tests/test_python_version_contract.py",
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-30T14:34:20+02:00",
+      "lease_expires_at": "2026-07-30T15:34:20+02:00",
+      "handoff_required": true,
+      "live_actions": true,
+      "phase": "exact_eight_path_commit_fuzzy_dev_fast_forward_and_github_actions_terminal_readback",
+      "expected_remote_parent": "e40a14af58019169936e89378e621de2747c91ca",
+      "released_at": "2026-07-30T14:41:46+02:00",
+      "release_reason": "The exact eight-path SEC186 commit 1c2df18124ee946e6942f25cc6ec74709188a6b7 was fast-forwarded to fuzzy/dev from parent e40a14af58019169936e89378e621de2747c91ca and independently fetched with exact path readback. GitHub Actions run 30543301965 proved Python 3.11 compileall green and JS syntax green. Its pytest job reached collection and failed on a separate pre-existing dependency drift: fresh install selected mcp 2.0.0 while the repository uses the MCP 1.x Server.list_tools API; local known-compatible mcp is 1.27.2. SEC186 is terminal and must not be retried unchanged.",
+      "forbidden_actions": [
+        "stage or commit any path outside the exact eight clean-worktree implementation paths",
+        "push anywhere except fuzzy/dev or push if its parent differs from e40a14af58019169936e89378e621de2747c91ca",
+        "amend, force-push, rewrite history or absorb the dirty main worktree",
+        "publish SEC184, deploy, send, host mutation or live observation before SEC186 GitHub Actions is terminal green"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC187-20260730-EXACT-MCP1-PIN-AND-CI-REPAIR",
+      "thread_id": "/root/sec185_python311_bob",
+      "slice_id": "SEC187-exact-mcp1-pin-and-ci-repair",
+      "owner": "Bob/Terra",
+      "allowed_paths": [
+        "C:/tmp/odysseus-sec163-publish-20260730/requirements.txt",
+        "C:/tmp/odysseus-sec163-publish-20260730/tests/test_python_version_contract.py"
+      ],
+      "hotfiles": [
+        "C:/tmp/odysseus-sec163-publish-20260730/requirements.txt"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-30T16:46:40+02:00",
+      "lease_expires_at": "2026-07-30T17:46:40+02:00",
+      "handoff_required": true,
+      "live_actions": false,
+      "phase": "repo_only_exact_mcp_1_27_2_pin_and_fail_closed_dependency_contract",
+      "base_revision": "1c2df18124ee946e6942f25cc6ec74709188a6b7",
+      "released_at": "2026-07-30T16:49:48+02:00",
+      "release_reason": "The exact two-path mcp==1.27.2 pin and fail-closed dependency contract passed Bob/Terra implementation and root/Sol deep review. Independent evidence includes Python 3.11 compilation, installed-version plus Server.list_tools API readback, 37 focused MCP/debug-bundle/baseline tests, exact path scope and diff check. No install, network, stage, commit, push, deploy or live action occurred.",
+      "acceptance": [
+        "requirements.txt pins mcp exactly to 1.27.2",
+        "a repository contract test rejects an unpinned, ranged or MCP 2.x dependency",
+        "the existing Python 3.11 baseline contract remains green",
+        "focused MCP and debug-bundle behavior remains green under the locally known-compatible dependency"
+      ],
+      "forbidden_actions": [
+        "edit any path outside the two clean-worktree allowed paths",
+        "upgrade application code to MCP 2.x or weaken MCP tool contracts",
+        "install or download dependencies",
+        "stage, commit, push, deploy, send, host mutation or live observation"
+      ]
+    },
+    {
+      "run_id": "ABC-SEC188-20260730-EXACT-MCP1-PIN-PUBLICATION",
+      "thread_id": "/root",
+      "slice_id": "SEC188-exact-mcp1-pin-publication-and-github-readback",
+      "owner": "root/Sol",
+      "allowed_paths": [
+        "C:/tmp/odysseus-sec163-publish-20260730/requirements.txt",
+        "C:/tmp/odysseus-sec163-publish-20260730/tests/test_python_version_contract.py",
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "hotfiles": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-30T16:49:48+02:00",
+      "lease_expires_at": "2026-07-30T17:49:48+02:00",
+      "handoff_required": true,
+      "live_actions": true,
+      "phase": "exact_two_path_commit_fuzzy_dev_fast_forward_and_github_actions_terminal_readback",
+      "expected_remote_parent": "1c2df18124ee946e6942f25cc6ec74709188a6b7",
+      "released_at": "2026-07-30T17:18:00+02:00",
+      "release_reason": "The exact two-path commit 089002d2715122e13b5eaa5f2fccedae83aef29e was fast-forwarded to fuzzy/dev from parent 1c2df18124ee946e6942f25cc6ec74709188a6b7 and independently fetched with exact path readback. GitHub Actions run 30553849019 proved the fresh Python 3.11 dependency installation, Python syntax and JavaScript syntax lanes green, then failed the full pytest lane only at the pre-existing deterministic Unified Source Index runtime inventory equality check. SEC188 is terminal and must not be retried unchanged.",
+      "forbidden_actions": [
+        "stage or commit any path outside requirements.txt and tests/test_python_version_contract.py in the clean worktree",
+        "push anywhere except fuzzy/dev or push if its parent differs from 1c2df18124ee946e6942f25cc6ec74709188a6b7",
+        "amend, force-push, rewrite history or absorb the dirty main worktree",
+        "publish SEC184, deploy, send, host mutation or live observation before SEC188 GitHub Actions is terminal green"
       ]
     },
     {
@@ -5254,19 +5458,202 @@
       "rollback_or_recovery": "stop before push on any validation or remote-parent mismatch; after push only a separately reviewed forward revert is permitted",
       "readback": "independent remote revision, parent, exact path set and observer/transport SHA-256 values",
       "revocable": true,
-      "consumed": false,
-      "status": "ready_unconsumed",
-      "consumption_status": "not_consumed",
-      "local_commit_counter": 0,
+      "consumed": true,
+      "status": "used_completed_remote_readback",
+      "consumption_status": "consumed_terminal_completed",
+      "consumed_at": "2026-07-30T13:35:05+02:00",
+      "local_commit_counter": 1,
       "new_worktree_counter": 0,
-      "cherry_pick_counter": 0,
-      "push_counter": 0,
+      "cherry_pick_counter": 1,
+      "push_counter": 1,
       "force_push_counter": 0,
-      "external_action_executed": false,
+      "external_action_executed": true,
+      "terminal_result": {
+        "status": "completed",
+        "remote_revision": "e40a14af58019169936e89378e621de2747c91ca",
+        "remote_parent": "2de55c9747ae37062b5641a995265c5bd3b8f2e5",
+        "changed_path_count": 6,
+        "observer_sha256": "4e79425f42d23ef22cc91c98da528446a608dfd863d8dae2e59828800788d666",
+        "transport_sha256": "f2abade7a5eb6db61d9a7a72db371e6c9508a9eea54f90630d88fce18b4a3598",
+        "clean_tests": "48 passed; 1 unrelated pre-existing missing unversioned transcription-roadmap dependency"
+      },
       "reuse_permitted": false,
       "package_or_host_change_authority": false,
       "live_observation_authority": false,
       "public_ip_query_authority": false,
+      "deploy_authority": false,
+      "delivery_or_send_authority": false
+    },
+    {
+      "id": "SEC183-POST-SOURCE-AST-REPAIR-COMPOSE-OBSERVE-20260730",
+      "run_id": "ABC-SEC183-20260730-POST-SOURCE-AST-REPAIR-OBSERVATION",
+      "action": "other/read_only_observation",
+      "target_class": "published source-AST-only podman-compose 1.6.0 capability through the strict redacted transport",
+      "artifact_or_inputs": "fuzzy/dev revision e40a14af58019169936e89378e621de2747c91ca; transport sha256 f2abade7a5eb6db61d9a7a72db371e6c9508a9eea54f90630d88fce18b4a3598; observer sha256 4e79425f42d23ef22cc91c98da528446a608dfd863d8dae2e59828800788d666",
+      "granted_by": "owner instruction on 2026-07-30 to finish OPS Alert live without further explicit live GO; exact one-use read-only post-repair scope",
+      "granted_at": "2026-07-30T13:35:05+02:00",
+      "expires_at": "run_end",
+      "limits": {
+        "arguments": 0,
+        "maximum_invocations": 1,
+        "maximum_results": 1,
+        "outer_timeout_seconds": 30,
+        "follow_on_queries": 0,
+        "retries": 0
+      },
+      "rollback_or_recovery": "read-only and terminal on every result; no retry",
+      "readback": "one repository-owned strictly validated fixed-key transport or observer envelope plus canonical evidence_sha256 only",
+      "revocable": true,
+      "consumed": true,
+      "status": "used_terminal_needs_live_observation",
+      "consumption_status": "consumed_terminal_no_retry",
+      "consumed_at": "2026-07-30T13:35:05+02:00",
+      "invocation_counter": 1,
+      "result_counter": 1,
+      "external_action_executed": true,
+      "terminal_result": {
+        "schema_id": "odysseus.redacted_podman_compose_capability_observation.v1",
+        "status": "needs_live_observation",
+        "reason_code": "semantic_proof_insufficient",
+        "missing_proofs": [
+          "global_env_file_parser_missing",
+          "global_project_name_parser_missing",
+          "build_service_argument_missing",
+          "up_service_argument_missing",
+          "up_no_deps_parser_missing",
+          "up_no_build_parser_missing",
+          "up_force_recreate_parser_missing",
+          "source_up_service_selection_missing",
+          "source_up_no_deps_guard_missing"
+        ],
+        "retry_permitted": false,
+        "evidence_sha256": "d004b673a1dc2f861a03a367ab91fae7f62d3a810e81bbf4093ce25cb4068049"
+      },
+      "reuse_permitted": false,
+      "public_ip_query_authority": false,
+      "deploy_authority": false,
+      "delivery_or_send_authority": false
+    },
+    {
+      "id": "SEC184-OFFICIAL-GITHUB-SOURCE-READONLY-20260730",
+      "run_id": "ABC-SEC184-20260730-OFFICIAL-GITHUB-SOURCE-ALIGNMENT",
+      "action": "other/public_repository_read_only",
+      "target_class": "official containers/podman-compose GitHub tags, commits, release metadata and exact 1.6.0 source identity",
+      "artifact_or_inputs": "GitHub repository containers/podman-compose; version identity 1.6.0; fixed metadata and selected exact source blob only",
+      "granted_by": "owner clarification 'github' on 2026-07-30 plus standing instruction to complete OPS Alert",
+      "granted_at": "2026-07-30T13:41:54+02:00",
+      "expires_at": "run_end",
+      "limits": {
+        "maximum_metadata_requests": 10,
+        "maximum_source_blobs": 2,
+        "writes": 0,
+        "retries_per_request": 0
+      },
+      "rollback_or_recovery": "read-only; stop on absent or ambiguous official 1.6.0 identity and record the ambiguity without guessing",
+      "readback": "official repository, tag or commit identity, bounded file names and immutable blob/commit SHA only; no raw provider response retained",
+      "revocable": true,
+      "consumed": true,
+      "status": "used_completed_exact_identity_and_replay",
+      "consumption_status": "consumed_terminal_completed",
+      "consumed_at": "2026-07-30T13:45:00+02:00",
+      "metadata_request_counter": 3,
+      "source_blob_counter": 2,
+      "external_action_executed": true,
+      "terminal_result": {
+        "status": "completed",
+        "tag_ref": "refs/tags/v1.6.0",
+        "tag_object_sha": "b1e2edceed26c4d470e1648faf92b4e286431352",
+        "tag_verified": true,
+        "commit_sha": "0f6537e9cfa38f6035ac57c1716b6d55dbaf3ca4",
+        "source_blob_sha": "2f7781a94fd976df1bbff16abfb0877c9c00e8ba",
+        "source_size": 185464,
+        "offline_projection_evidence_sha256": "06a0b461ed4d29f81e15f8ae0e5be1c8bf5968738175b177b2017eb9c4ed28ca",
+        "live_projection_match": true
+      },
+      "reuse_permitted": false,
+      "package_or_host_change_authority": false,
+      "live_observation_authority": false,
+      "deploy_authority": false,
+      "delivery_or_send_authority": false
+    },
+    {
+      "id": "SEC184-OFFICIAL-GITHUB-STRUCTURAL-PROJECTION-20260730",
+      "run_id": "ABC-SEC184-20260730-OFFICIAL-GITHUB-SOURCE-ALIGNMENT",
+      "action": "other/public_repository_read_only",
+      "target_class": "one bounded structural AST projection of official containers/podman-compose v1.6.0 source blob",
+      "artifact_or_inputs": "commit 0f6537e9cfa38f6035ac57c1716b6d55dbaf3ca4; source blob 2f7781a94fd976df1bbff16abfb0877c9c00e8ba",
+      "granted_by": "owner clarification 'github' on 2026-07-30 plus standing instruction to complete OPS Alert",
+      "granted_at": "2026-07-30T13:45:00+02:00",
+      "expires_at": "run_end",
+      "limits": {
+        "maximum_source_blobs": 1,
+        "maximum_results": 1,
+        "raw_source_output": 0,
+        "writes": 0,
+        "retries": 0
+      },
+      "rollback_or_recovery": "read-only and terminal; no retry",
+      "readback": "one fixed-key bounded structural AST projection containing only counts, boolean shapes, public function/class names and allowlisted CLI literals",
+      "revocable": true,
+      "consumed": true,
+      "status": "used_completed_structural_projection",
+      "consumption_status": "consumed_terminal_completed",
+      "consumed_at": "2026-07-30T13:48:00+02:00",
+      "source_blob_counter": 1,
+      "result_counter": 1,
+      "external_action_executed": true,
+      "terminal_result": {
+        "status": "completed",
+        "argument_parser_context": "PodmanCompose._parse_args",
+        "get_excluded_signature": ["compose", "args", "dep_field"],
+        "compose_up_signature": ["compose", "args"],
+        "compose_up_excluded_in_compare_count": 4,
+        "compose_up_no_deps_attr_count": 1,
+        "compose_up_force_recreate_attr_count": 2,
+        "raw_source_output": false
+      },
+      "reuse_permitted": false,
+      "package_or_host_change_authority": false,
+      "live_observation_authority": false,
+      "deploy_authority": false,
+      "delivery_or_send_authority": false
+    },
+    {
+      "id": "SEC184-OFFICIAL-GITHUB-VERIFIED-SHALLOW-CHECKOUT-20260730",
+      "run_id": "ABC-SEC184-20260730-OFFICIAL-GITHUB-SOURCE-ALIGNMENT",
+      "action": "other/public_repository_read_only_clone",
+      "target_class": "official containers/podman-compose v1.6.0 shallow detached analysis checkout",
+      "artifact_or_inputs": "https://github.com/containers/podman-compose.git tag v1.6.0 verified commit 0f6537e9cfa38f6035ac57c1716b6d55dbaf3ca4; new target C:/tmp/podman-compose-v1.6.0-official",
+      "granted_by": "owner clarification 'github' on 2026-07-30 plus standing instruction to complete OPS Alert",
+      "granted_at": "2026-07-30T13:48:00+02:00",
+      "expires_at": "run_end",
+      "limits": {
+        "maximum_clones": 1,
+        "depth": 1,
+        "branch_or_tag": "v1.6.0",
+        "remote_writes": 0,
+        "target_must_be_absent": true
+      },
+      "rollback_or_recovery": "analysis-only temporary checkout; do not delete automatically; stop if checked-out commit differs from the verified tag commit",
+      "readback": "exact checked-out commit SHA, clean status and selected local source blob SHA only",
+      "revocable": true,
+      "consumed": true,
+      "status": "used_completed_verified_checkout",
+      "consumption_status": "consumed_terminal_completed",
+      "consumed_at": "2026-07-30T13:50:00+02:00",
+      "clone_counter": 1,
+      "external_action_executed": true,
+      "terminal_result": {
+        "status": "completed",
+        "checked_out_commit": "0f6537e9cfa38f6035ac57c1716b6d55dbaf3ca4",
+        "source_blob_sha": "2f7781a94fd976df1bbff16abfb0877c9c00e8ba",
+        "canonical_source_sha256": "10df1662477a673dc803c03e89c1bc1fba6c8c091e716fb6c7dd09c0081e1255",
+        "working_tree_clean": true,
+        "temporary_checkout": "C:/tmp/podman-compose-v1.6.0-official"
+      },
+      "reuse_permitted": false,
+      "package_or_host_change_authority": false,
+      "live_observation_authority": false,
       "deploy_authority": false,
       "delivery_or_send_authority": false
     },
@@ -10851,6 +11238,333 @@
     },
     "next_action": "Queue normalization is accepted. Prepare the exact one-use published Compose capability observation packet bound to revision 9ea87e67464015cedbeeaada9117899edcab3ae2. No observation, deploy or send is authorized by SEC142."
   },
+  "latest_sec184_official_source_alignment_handoff": {
+    "recorded_at": "2026-07-30T13:59:28+02:00",
+    "run_id": "ABC-SEC184-20260730-OFFICIAL-GITHUB-SOURCE-ALIGNMENT",
+    "status": "accepted_repo_only_sec185_ci_fix_authorized_and_claimed",
+    "roadmap": "docs/plans/security-incident-response-production-completion-roadmap.json",
+    "slice": "SEC184-repo-only-official-github-source-alignment",
+    "owner": "root/Sol",
+    "claim": "ABC-SEC184-20260730-OFFICIAL-GITHUB-SOURCE-ALIGNMENT released",
+    "changed_paths": [
+      "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "tests/test_security_incident_response_production_completion_roadmap.py",
+      "ops/homeserver/redacted_podman_compose_capability_observation.py",
+      "tests/test_homeserver_redacted_podman_compose_capability_observation.py",
+      "ops/homeserver/redacted_podman_compose_capability_transport.py",
+      "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+    ],
+    "official_source_identity": {
+      "repository": "containers/podman-compose",
+      "tag_ref": "refs/tags/v1.6.0",
+      "tag_object_sha": "b1e2edceed26c4d470e1648faf92b4e286431352",
+      "tag_verified": true,
+      "commit_sha": "0f6537e9cfa38f6035ac57c1716b6d55dbaf3ca4",
+      "source_blob_sha": "2f7781a94fd976df1bbff16abfb0877c9c00e8ba",
+      "canonical_source_sha256": "10df1662477a673dc803c03e89c1bc1fba6c8c091e716fb6c7dd09c0081e1255"
+    },
+    "candidate_hashes": {
+      "observer_sha256": "01c6eaacb3a4936dcb7d5b0c566a64688c2a68848183482c43ae9114297c8007",
+      "transport_sha256": "0258aca80cc66559971706e6c21ec5f7c94638ef66ba35b6cbb76df501026e3f",
+      "official_source_replay_evidence_sha256": "bee2a2b54acb2c91d3843e3c215fdb025da865f0221d851ef9ad5070d15f3f02"
+    },
+    "tests_and_results": [
+      "combined roadmap, observer and transport focused verification: 50 passed",
+      "Python 3.11 in-memory compilation of five SEC184 Python files: passed",
+      "git diff --check: passed",
+      "official exact Git blob replay: all eleven proof booleans true"
+    ],
+    "deep_review": {
+      "reviewer_route": "Alice independent review via /root/sec158_instantiation_alice",
+      "official_identity_and_hash_binding": "passed",
+      "import_free_loader_and_distribution_containment": "passed",
+      "dynamic_parser_decorator_and_no_deps_semantics": "passed",
+      "observer_transport_digest_binding": "passed",
+      "findings": [],
+      "result": "accepted"
+    },
+    "next_action": "SEC185 is explicitly authorized and claimed in the existing clean worktree. Implement the Python 3.11 baseline plus compatibility fix, complete focused Python 3.11 verification and deep Sol review, then publish and verify GitHub Actions before publishing SEC184.",
+    "blocker": {
+      "status": "resolved_by_operator_instruction",
+      "system": "GitHub Actions",
+      "run_id": "30539085918",
+      "head_revision": "e40a14af58019169936e89378e621de2747c91ca",
+      "failing_jobs": [
+        "compileall",
+        "pytest"
+      ],
+      "root_cause": "src/security_evidence_broker.py line 56 uses a nested same-quote f-string expression accepted by local Python 3.14 but rejected by workflow Python 3.11.",
+      "introduced_by": "pre-existing commit 0c61af3ce4d59fabed82dc87594e135527d726a8; not introduced by SEC182 or SEC184",
+      "required_decision": "Resolved by operator instruction on 2026-07-30 to ensure the project stays on Python 3.11.",
+      "implementation_started": true,
+      "git_or_external_write_started": false
+    },
+    "not_verified": [
+      "GitHub Actions green on a revision containing SEC184",
+      "SEC184 committed or pushed",
+      "new one-use live capability observation",
+      "C2 source-IP and self-egress suppression",
+      "deployment and rollback readback",
+      "live delivery, durable receipt and human confirmation"
+    ]
+  },
+  "latest_sec185_python311_baseline_handoff": {
+    "recorded_at": "2026-07-30T14:34:20+02:00",
+    "run_id": "ABC-SEC185-20260730-PYTHON311-BASELINE-AND-CI-REPAIR",
+    "status": "accepted_repo_only_ready_for_exact_publication",
+    "base_revision": "e40a14af58019169936e89378e621de2747c91ca",
+    "clean_worktree": "C:/tmp/odysseus-sec163-publish-20260730",
+    "changed_paths": [
+      ".python-version",
+      "Dockerfile",
+      "README.md",
+      ".github/workflows/dependency-review.yml",
+      ".github/workflows/workflow-security.yml",
+      "src/security_evidence_broker.py",
+      "tests/test_security_evidence_broker.py",
+      "tests/test_python_version_contract.py"
+    ],
+    "candidate_sha256": {
+      ".python-version": "49a506dd32096b010d75205acf3430c9ae6c40351888129499e5a5e487126c93",
+      "Dockerfile": "3b15b894ab855e8718c22af8e4c09c8db150ca36e77a4e612398af5f9c7df709",
+      "README.md": "45f1484b1641b3cedc1ba953d4dc1e9adb63e01a352a9ab7f08014079cc44b52",
+      ".github/workflows/dependency-review.yml": "c6bfb74d38fa927b02ca272951a2562e0e71cc7d3037c0758ef6e2689cec09d5",
+      ".github/workflows/workflow-security.yml": "9e124756d6e4a02854b7ace73489ecd98e1dfb35daaddb8d7604b5cbc6576c8a",
+      "src/security_evidence_broker.py": "303846993e890ead0c4fb39b8a620a7bfeb098bf47f423f6fc8301e2a9913955",
+      "tests/test_security_evidence_broker.py": "3a715faa3c9777e86071df66157854c1b08e2533279eddf370aa476ef376b5b9",
+      "tests/test_python_version_contract.py": "1a68b5a7197097d857396682bddfd2fb5e89e2c7f8eabcfb5b9d5f0f01b0c782"
+    },
+    "route": {
+      "entrypoint": "abc",
+      "worker": "Bob/Terra requested gpt-5.6-terra high via /root/sec185_python311_bob",
+      "worker_actual_model": "not exposed to worker",
+      "reviewer": "root/Sol",
+      "review_depth": "deep",
+      "secondary_skill": "github:gh-fix-ci"
+    },
+    "tests_and_results": [
+      "Python 3.11.9 syntax compile of security_evidence_broker: passed",
+      "Python 3.11 in-memory compile of all 2402 CI-covered Python files: passed",
+      "Python 3.11 digest readback against immutable expected SHA-256: passed",
+      "focused security evidence, Python baseline and CI release contracts: 21 passed under current venv",
+      "git diff --check and exact eight-path scope: passed"
+    ],
+    "not_verified": [
+      "pytest under local Python 3.11 because pytest is not installed in that interpreter",
+      "GitHub Actions green on the candidate revision",
+      "OCI image build and runtime smoke under Python 3.11",
+      "SEC184 publication",
+      "OPS Alert deployment and live delivery"
+    ],
+    "next_action": "Under SEC186, re-read fuzzy/dev parent, stage only the exact eight paths, inspect the cached diff, commit once, fast-forward push only to fuzzy/dev, then require a terminal green GitHub Actions readback."
+  },
+  "latest_sec186_python311_publication_handoff": {
+    "recorded_at": "2026-07-30T14:41:46+02:00",
+    "run_id": "ABC-SEC186-20260730-PYTHON311-BASELINE-PUBLICATION",
+    "status": "published_python311_syntax_green_full_ci_failed_on_new_preexisting_dependency_drift",
+    "remote": "fuzzy/dev",
+    "revision": "1c2df18124ee946e6942f25cc6ec74709188a6b7",
+    "parent": "e40a14af58019169936e89378e621de2747c91ca",
+    "changed_path_count": 8,
+    "remote_readback": "passed",
+    "github_actions": {
+      "run_id": "30543301965",
+      "url": "https://github.com/fuzzy123-ai/odysseus-fuzzy/actions/runs/30543301965",
+      "head_revision": "1c2df18124ee946e6942f25cc6ec74709188a6b7",
+      "status": "completed",
+      "conclusion": "failure",
+      "jobs": {
+        "python_syntax_compileall": "success",
+        "javascript_syntax": "success",
+        "python_pytest": "failure"
+      }
+    },
+    "python311_baseline_evidence": [
+      ".python-version is 3.11",
+      "both Docker Python base stages are 3.11-slim",
+      "all GitHub Actions setup-python steps select 3.11",
+      "README operator baseline is exact Python 3.11",
+      "GitHub Python 3.11 compileall passed"
+    ],
+    "new_ci_failure_projection": {
+      "phase": "pytest_collection",
+      "test_file": "tests/test_debug_bundle.py",
+      "error_class": "AttributeError",
+      "object_type": "Server",
+      "missing_attribute": "list_tools",
+      "fresh_installed_dependency": "mcp 2.0.0",
+      "repository_api_contract": "MCP 1.x Server.list_tools decorator",
+      "local_known_compatible_dependency": "mcp 1.27.2",
+      "introduced_by_sec185_or_sec186": false
+    },
+    "next_action": {
+      "status": "authorized_and_claimed",
+      "slice": "SEC187-exact-mcp-1x-pin-and-ci-readback",
+      "focused_plan": [
+        "pin mcp exactly to the locally tested compatible 1.27.2 release in requirements.txt",
+        "add a dependency contract regression preventing silent MCP 2.x drift",
+        "run focused MCP/debug-bundle tests and Python 3.11 compile evidence",
+        "publish one exact follow-up commit and require terminal green GitHub Actions"
+      ],
+      "required_decision": "Resolved by explicit operator GO on 2026-07-30.",
+      "implementation_started": true
+    },
+    "not_verified": [
+      "full GitHub pytest green under Python 3.11",
+      "OCI build/runtime smoke under Python 3.11",
+      "SEC184 publication",
+      "OPS Alert deployment and live delivery"
+    ]
+  },
+  "latest_sec187_exact_mcp1_pin_handoff": {
+    "recorded_at": "2026-07-30T16:49:48+02:00",
+    "run_id": "ABC-SEC187-20260730-EXACT-MCP1-PIN-AND-CI-REPAIR",
+    "status": "accepted_repo_only_ready_for_exact_publication",
+    "base_revision": "1c2df18124ee946e6942f25cc6ec74709188a6b7",
+    "changed_paths": [
+      "requirements.txt",
+      "tests/test_python_version_contract.py"
+    ],
+    "candidate_sha256": {
+      "requirements.txt": "c15b9827f6c1a69f503cb83738a4f14be9188eae686da6b59a2d87be1dd061f0",
+      "tests/test_python_version_contract.py": "c0d7ae9c7bcef9dd7827ca90af26ccf0fd7904344c5fcd9044e726a5acab06db"
+    },
+    "dependency_contract": {
+      "package": "mcp",
+      "exact_requirement": "mcp==1.27.2",
+      "known_compatible_api": "Server.list_tools",
+      "rejects": [
+        "bare dependency",
+        "range dependency",
+        "MCP 2.x drift",
+        "duplicate active MCP requirements"
+      ]
+    },
+    "route": {
+      "entrypoint": "abc",
+      "worker": "Bob/Terra requested via /root/sec185_python311_bob",
+      "worker_actual_model": "not exposed to worker",
+      "reviewer": "root/Sol",
+      "review_depth": "deep",
+      "secondary_skill": "github:gh-fix-ci"
+    },
+    "tests_and_results": [
+      "Python 3.11.9 compile of the changed contract test: passed",
+      "local installed mcp version 1.27.2 and Server.list_tools API readback: passed",
+      "focused baseline, debug-bundle, calendar MCP and planning MCP suites: 37 passed",
+      "exact two-path scope and git diff --check: passed"
+    ],
+    "not_verified": [
+      "fresh dependency installation with the exact pin",
+      "full GitHub pytest green under Python 3.11",
+      "SEC184 publication",
+      "OPS Alert deployment and live delivery"
+    ],
+    "next_action": "Under SEC188, confirm fuzzy/dev still equals 1c2df18124ee946e6942f25cc6ec74709188a6b7, stage and commit only the two accepted paths, push only to fuzzy/dev and require a terminal GitHub Actions readback."
+  },
+  "latest_sec188_exact_mcp1_pin_publication_handoff": {
+    "recorded_at": "2026-07-30T17:18:00+02:00",
+    "run_id": "ABC-SEC188-20260730-EXACT-MCP1-PIN-PUBLICATION",
+    "status": "published_dependency_install_green_full_ci_failed_on_preexisting_runtime_inventory_drift",
+    "commit": "089002d2715122e13b5eaa5f2fccedae83aef29e",
+    "parent": "1c2df18124ee946e6942f25cc6ec74709188a6b7",
+    "remote": "fuzzy/dev",
+    "changed_paths": [
+      "requirements.txt",
+      "tests/test_python_version_contract.py"
+    ],
+    "remote_readback": {
+      "fast_forward": true,
+      "exact_commit": true,
+      "exact_parent": true,
+      "exact_path_set": true
+    },
+    "github_actions": {
+      "run_id": 30553849019,
+      "run_url": "https://github.com/fuzzy123-ai/odysseus-fuzzy/actions/runs/30553849019",
+      "head_sha": "089002d2715122e13b5eaa5f2fccedae83aef29e",
+      "fresh_python311_dependency_install": "passed",
+      "python_syntax": "passed",
+      "javascript_syntax": "passed",
+      "full_pytest": "failed",
+      "failing_node": "tests/test_audit_unified_source_index_runtime.py::test_committed_runtime_inventory_matches_deterministic_static_ast_scan",
+      "error_class": "AssertionError",
+      "introduced_by_sec187_or_sec188": false
+    },
+    "diagnosis": {
+      "class": "preexisting_deterministic_static_inventory_drift",
+      "existing_queue_authority": "docs/plans/open-work-completion-master-roadmap.json latest_uir02_ci_inventory_refresh_handoff",
+      "repair_shape": "regenerate the canonical content-free static AST inventory for the exact published revision; do not change runtime logic",
+      "approval_boundary": "Treat this as a distinct CI fix and obtain explicit approval before implementation or publication."
+    },
+    "not_verified": [
+      "full GitHub pytest green under Python 3.11",
+      "SEC184 publication",
+      "OPS Alert deployment and live delivery"
+    ],
+    "next_action": "After explicit approval, claim one exact deterministic runtime-inventory refresh, regenerate only through the repository-owned generator, deep-review the semantic diff, publish the exact repair and require a new terminal GitHub Actions run."
+  },
+  "latest_sec189_required_ci_green_sec184_integration_handoff": {
+    "recorded_at": "2026-07-31T08:45:00+02:00",
+    "run_id": "ABC-SEC184-INTEGRATE-ON-GREEN-BASE-20260731",
+    "status": "candidate_integrated_reverified_and_deep_reviewed_ready_exact_publication",
+    "base_revision": "0c266d2f8c8ffb5828e4895bb0baffe42325439f",
+    "base_required_ci": {
+      "run_id": 30609614353,
+      "workflow": "CI",
+      "head_sha": "0c266d2f8c8ffb5828e4895bb0baffe42325439f",
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": {
+        "python_pytest": "success",
+        "python_syntax": "success",
+        "javascript_syntax": "success"
+      }
+    },
+    "candidate_paths": [
+      "docs/plans/security-incident-response-production-completion-roadmap.json",
+      "tests/test_security_incident_response_production_completion_roadmap.py",
+      "ops/homeserver/redacted_podman_compose_capability_observation.py",
+      "tests/test_homeserver_redacted_podman_compose_capability_observation.py",
+      "ops/homeserver/redacted_podman_compose_capability_transport.py",
+      "tests/test_homeserver_redacted_podman_compose_capability_transport.py"
+    ],
+    "accepted_runtime_hashes": {
+      "observer_sha256": "01c6eaacb3a4936dcb7d5b0c566a64688c2a68848183482c43ae9114297c8007",
+      "transport_sha256": "0258aca80cc66559971706e6c21ec5f7c94638ef66ba35b6cbb76df501026e3f"
+    },
+    "tests_and_results": [
+      "combined roadmap, observer and transport integration lane: 51 passed",
+      "Python 3.11 compilation of all five candidate Python files: passed",
+      "roadmap JSON parse: passed",
+      "exact six-path git diff check: passed",
+      "observer and transport accepted SHA-256 values: passed"
+    ],
+    "deep_review": {
+      "reviewer": "root/Sol",
+      "result": "accepted",
+      "official_source_identity_and_hash_binding": "passed",
+      "selected_version_and_interpreter_binding": "passed",
+      "fixed_key_redaction_and_no_retry": "passed",
+      "Debian 1.3.0 adverse fixture remains fail-closed": "passed",
+      "publication_does_not_grant_host_change_observation_deploy_or_delivery": "passed"
+    },
+    "authority": {
+      "candidate_integration": "repo_only",
+      "publication": "requires exact path-scoped fuzzy/dev claim",
+      "package_or_host_change": false,
+      "live_observation": false,
+      "deploy": false,
+      "delivery_or_send": false
+    },
+    "not_verified": [
+      "SEC184 publication and Required CI",
+      "bounded Compose candidate host change and post-change observation",
+      "OPS-ALERT-C2 source-IP context and self-egress suppression",
+      "deployment, readiness, delivery, canaries and temporal closure"
+    ],
+    "next_action": "Publish exactly the six candidate paths to fuzzy/dev and require a terminal green GitHub Actions run before any host change, observation, deployment or delivery."
+  },
   "completion_matrix": {
     "track": "assisted_security_response_100_percent",
     "implemented": "no",
@@ -10868,6 +11582,7 @@
       "sirp12a_r2_readiness_contract": "accepted_repo_only",
       "ops_alert_b_c": "accepted_after_deep_sol_fix_cycle_1",
       "sec140_publication": "commit_9ea87e67464015cedbeeaada9117899edcab3ae2_pushed_to_fuzzy_dev_with_remote_readback",
+      "python311_required_ci": "run_30609614353_success_on_0c266d2f8c8ffb5828e4895bb0baffe42325439f",
       "observability_live_smoke": "used",
       "debian_observability_live": "used",
       "log_retention_policy": "used"
@@ -10902,10 +11617,9 @@
       "deploy-live-go"
     ],
     "owner_of_queue_registration": "root",
-    "claim_status_now": "sec182_source_ast_repair_publication_claimed",
+    "claim_status_now": "sec184_candidate_reverified_deep_reviewed_ready_exact_publication",
     "dependency_order": [
-      "implement and deep-review offline observer and transport candidate fixtures while Debian 1.3.0 remains a negative needs_live_observation fixture",
-      "publish the exact reviewed observer and transport candidate under separate Git authority",
+      "complete focused integration verification and publish the already deep-reviewed SEC184 observer and transport candidate while Debian 1.3.0 remains a negative needs_live_observation fixture",
       "prepare and separately authorize one bounded package or host change with rollback and redacted access readback",
       "prepare and separately authorize one new one-use capability observation after the package-change readback",
       "implement and deep-review OPS-ALERT-C2 source-IP context and self-egress suppression",
@@ -10915,5 +11629,5 @@
       "send exactly once and independently read back durable receipt plus human confirmation"
     ]
   },
-  "recommended_next_action": "Publish the exact six-path SEC182 source-AST observer/transport repair through the existing isolated worktree, independently read back revision and hashes, then prepare one fresh one-use read-only capability observation."
+  "recommended_next_action": "Publish exactly the six reverified and deep-reviewed SEC184 candidate paths on green parent 0c266d2f8c8ffb5828e4895bb0baffe42325439f to fuzzy/dev, then require terminal green Required CI before any host change, observation, deployment or delivery."
 }

@@ -228,9 +228,7 @@ def test_sirp_covers_explanation_sources_actions_and_bounded_real_executors() ->
             assert item["claimable"] is False
             assert item["completion_matrix"]["tested"] == "no"
     active_claims = [claim for claim in plan["claims"] if claim["state"] == "claimed"]
-    assert [claim["run_id"] for claim in active_claims] == [
-        "ABC-SEC182-20260730-SOURCE-AST-REPAIR-PUBLICATION"
-    ]
+    assert active_claims == []
     observe_claim = next(
         claim
         for claim in plan["claims"]
@@ -273,7 +271,9 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
     guidance = _load(GUIDANCE_PATH)
     trp = _load(TRP_PATH)
 
-    assert sirp["status"] == "sec182_source_ast_repair_publication_claimed"
+    assert sirp["status"] == (
+        "sec189_sec184_candidate_reverified_deep_reviewed_ready_exact_publication"
+    )
 
     source = "docs/plans/security-incident-response-production-completion-roadmap.json"
     assert open_work["source_of_truth"].count(source) == 1
@@ -420,19 +420,18 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
             "log-retention-policy-go",
             "deploy-live-go",
         ],
-        "owner_of_queue_registration": "root",
-        "claim_status_now": "sec182_source_ast_repair_publication_claimed",
-        "dependency_order": [
-            (
-                "implement and deep-review offline observer and transport candidate "
-                "fixtures while Debian 1.3.0 remains a negative "
-                "needs_live_observation fixture"
+            "owner_of_queue_registration": "root",
+            "claim_status_now": (
+                "sec184_candidate_reverified_deep_reviewed_ready_exact_publication"
             ),
-            (
-                "publish the exact reviewed observer and transport candidate under "
-                "separate Git authority"
-            ),
-            (
+            "dependency_order": [
+                (
+                    "complete focused integration verification and publish the already "
+                    "deep-reviewed SEC184 observer and transport candidate while Debian "
+                    "1.3.0 remains a negative "
+                    "needs_live_observation fixture"
+                ),
+                (
                 "prepare and separately authorize one bounded package or host change "
                 "with rollback and redacted access readback"
             ),
@@ -631,16 +630,15 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
     assert sec155["deep_review"]["result"] == "accepted"
 
     frontier = sirp["next_frontier"]
-    assert frontier["claim_status_now"] == "sec182_source_ast_repair_publication_claimed"
+    assert frontier["claim_status_now"] == (
+        "sec184_candidate_reverified_deep_reviewed_ready_exact_publication"
+    )
     assert frontier["dependency_order"] == [
         (
-            "implement and deep-review offline observer and transport candidate "
-            "fixtures while Debian 1.3.0 remains a negative "
+            "complete focused integration verification and publish the already "
+            "deep-reviewed SEC184 observer and transport candidate while Debian "
+            "1.3.0 remains a negative "
             "needs_live_observation fixture"
-        ),
-        (
-            "publish the exact reviewed observer and transport candidate under "
-            "separate Git authority"
         ),
         (
             "prepare and separately authorize one bounded package or host change "
@@ -1195,15 +1193,48 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         "SEC179-OBSERVER-METADATA-REPAIR-PUBLISH-20260730",
         "SEC180-POST-METADATA-REPAIR-COMPOSE-OBSERVE-20260730",
         "SEC182-SOURCE-AST-REPAIR-PUBLISH-20260730",
+        "SEC183-POST-SOURCE-AST-REPAIR-COMPOSE-OBSERVE-20260730",
+        "SEC184-OFFICIAL-GITHUB-SOURCE-READONLY-20260730",
+        "SEC184-OFFICIAL-GITHUB-STRUCTURAL-PROJECTION-20260730",
+        "SEC184-OFFICIAL-GITHUB-VERIFIED-SHALLOW-CHECKOUT-20260730",
         }
     sec182 = live_go_by_id["SEC182-SOURCE-AST-REPAIR-PUBLISH-20260730"]
-    assert sec182["status"] == "ready_unconsumed"
-    assert sec182["consumed"] is False
+    assert sec182["status"] == "used_completed_remote_readback"
+    assert sec182["consumed"] is True
     assert sec182["limits"]["expected_remote_parent"] == (
         "2de55c9747ae37062b5641a995265c5bd3b8f2e5"
     )
     assert sec182["limits"]["path_count"] == 6
-    assert sec182["push_counter"] == 0
+    assert sec182["push_counter"] == 1
+    sec183 = live_go_by_id["SEC183-POST-SOURCE-AST-REPAIR-COMPOSE-OBSERVE-20260730"]
+    assert sec183["status"] == "used_terminal_needs_live_observation"
+    assert sec183["consumed"] is True
+    assert sec183["invocation_counter"] == 1
+    assert sec183["terminal_result"]["evidence_sha256"] == (
+        "d004b673a1dc2f861a03a367ab91fae7f62d3a810e81bbf4093ce25cb4068049"
+    )
+    sec184 = live_go_by_id["SEC184-OFFICIAL-GITHUB-SOURCE-READONLY-20260730"]
+    assert sec184["status"] == "used_completed_exact_identity_and_replay"
+    assert sec184["consumed"] is True
+    assert sec184["limits"]["writes"] == 0
+    assert sec184["terminal_result"]["commit_sha"] == (
+        "0f6537e9cfa38f6035ac57c1716b6d55dbaf3ca4"
+    )
+    projection = live_go_by_id[
+        "SEC184-OFFICIAL-GITHUB-STRUCTURAL-PROJECTION-20260730"
+    ]
+    assert projection["status"] == "used_completed_structural_projection"
+    assert projection["consumed"] is True
+    assert projection["limits"]["raw_source_output"] == 0
+    checkout = live_go_by_id[
+        "SEC184-OFFICIAL-GITHUB-VERIFIED-SHALLOW-CHECKOUT-20260730"
+    ]
+    assert checkout["status"] == "used_completed_verified_checkout"
+    assert checkout["consumed"] is True
+    assert checkout["limits"]["maximum_clones"] == 1
+    assert checkout["terminal_result"]["canonical_source_sha256"] == (
+        "10df1662477a673dc803c03e89c1bc1fba6c8c091e716fb6c7dd09c0081e1255"
+    )
     packet = live_go_by_id["SIRP12-OBSERVE-PACKET-20260728"]
     assert packet["id"] == "SIRP12-OBSERVE-PACKET-20260728"
     assert packet["action"] == "other/read_only_observation"
@@ -2334,3 +2365,43 @@ def test_sirp_handoff_evidence_manifest_matches_current_claimed_files() -> None:
         f"{path}\0{recorded_hashes[path]}\n" for path in sorted(recorded_hashes)
     ).encode("utf-8")
     assert hashlib.sha256(aggregate_payload).hexdigest() == evidence["aggregate_sha256"]
+
+
+def test_sec188_publication_is_terminal_and_records_the_distinct_ci_blocker() -> None:
+    sirp = _load(SIRP_PATH)
+    claim = next(
+        claim
+        for claim in sirp["claims"]
+        if claim["slice_id"]
+        == "SEC188-exact-mcp1-pin-publication-and-github-readback"
+    )
+    assert claim["state"] == "released"
+    assert claim["expected_remote_parent"] == (
+        "1c2df18124ee946e6942f25cc6ec74709188a6b7"
+    )
+
+    handoff = sirp["latest_sec188_exact_mcp1_pin_publication_handoff"]
+    assert handoff["commit"] == "089002d2715122e13b5eaa5f2fccedae83aef29e"
+    assert handoff["parent"] == "1c2df18124ee946e6942f25cc6ec74709188a6b7"
+    assert handoff["remote"] == "fuzzy/dev"
+    assert handoff["changed_paths"] == [
+        "requirements.txt",
+        "tests/test_python_version_contract.py",
+    ]
+    assert set(handoff["remote_readback"].values()) == {True}
+
+    actions = handoff["github_actions"]
+    assert actions["run_id"] == 30553849019
+    assert actions["head_sha"] == handoff["commit"]
+    assert actions["fresh_python311_dependency_install"] == "passed"
+    assert actions["python_syntax"] == "passed"
+    assert actions["javascript_syntax"] == "passed"
+    assert actions["full_pytest"] == "failed"
+    assert actions["failing_node"] == (
+        "tests/test_audit_unified_source_index_runtime.py::"
+        "test_committed_runtime_inventory_matches_deterministic_static_ast_scan"
+    )
+    assert actions["introduced_by_sec187_or_sec188"] is False
+    assert handoff["diagnosis"]["approval_boundary"].startswith(
+        "Treat this as a distinct CI fix"
+    )
