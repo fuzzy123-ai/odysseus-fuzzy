@@ -9,11 +9,13 @@ from fastapi.testclient import TestClient
 from routes.auth_routes import setup_auth_routes
 
 from src.security_incident_network_context import (
+    DEFAULT_TRUSTED_PROXY_NETWORKS,
     SecurityIncidentNetworkContextError,
     build_own_public_egress_snapshot,
     canonical_ip,
     decide_self_egress_suppression,
     derive_access_source_context,
+    trusted_proxy_networks_from_config,
 )
 
 
@@ -58,6 +60,46 @@ def test_trusted_proxy_requires_one_non_conflicting_single_hop_candidate():
 def test_trusted_proxy_configuration_rejects_broad_or_public_networks(network):
     context = derive_access_source_context(_request("8.8.8.8", **{"x-real-ip": "1.1.1.1"}), trusted_proxy_networks=(network,))
     assert context.canonical_ip is None and context.reason_code == "trusted_proxy_configuration_invalid"
+
+
+def test_server_proxy_config_defaults_to_loopback_and_accepts_only_private_additions():
+    assert trusted_proxy_networks_from_config(None) == DEFAULT_TRUSTED_PROXY_NETWORKS
+    assert trusted_proxy_networks_from_config("") == DEFAULT_TRUSTED_PROXY_NETWORKS
+    configured = trusted_proxy_networks_from_config("10.20.0.0/16,fe80::/64")
+    assert configured == DEFAULT_TRUSTED_PROXY_NETWORKS + ("10.20.0.0/16", "fe80::/64")
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "0.0.0.0/0",
+        "::/0",
+        "8.8.8.0/24",
+        "10.0.0.0/8,",
+        " 10.0.0.0/8",
+        "10.0.0.0/8, 192.168.0.0/16",
+        ",".join(["10.0.0.0/8"] * 17),
+        "x" * 1025,
+    ],
+)
+def test_invalid_server_proxy_config_falls_back_to_loopback_only(value):
+    assert trusted_proxy_networks_from_config(value) == DEFAULT_TRUSTED_PROXY_NETWORKS
+
+
+def test_loopback_proxy_baseline_accepts_cloudflare_source_but_untrusted_peer_cannot_spoof():
+    forwarded = {"cf-connecting-ip": "8.8.8.8"}
+    trusted = derive_access_source_context(
+        _request("127.0.0.1", **forwarded),
+        trusted_proxy_networks=trusted_proxy_networks_from_config(None),
+    )
+    untrusted = derive_access_source_context(
+        _request("192.0.2.10", **forwarded),
+        trusted_proxy_networks=trusted_proxy_networks_from_config(None),
+    )
+    assert trusted.canonical_ip == "8.8.8.8"
+    assert trusted.provenance == "trusted_proxy_forwarded"
+    assert untrusted.canonical_ip == "192.0.2.10"
+    assert untrusted.provenance == "direct_peer"
 
 
 def test_own_egress_snapshot_is_configured_public_data_only_and_freshness_is_bounded():

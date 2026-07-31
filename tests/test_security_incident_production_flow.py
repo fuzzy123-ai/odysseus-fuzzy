@@ -1,7 +1,9 @@
 """Offline SIRP-10 integration evidence; no runtime service or transport is used."""
 
+import ast
 import json
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
@@ -28,6 +30,20 @@ from src.security_rollback import (
     issue_test_rollback_acknowledgement,
     issue_test_rollback_adapter,
 )
+
+
+def test_app_composes_bounded_egress_refresh_and_loopback_proxy_trust_across_lifecycle():
+    source = (Path(__file__).resolve().parents[1] / "app.py").read_text(encoding="utf-8")
+    ast.parse(source)
+    assert "trusted_proxy_networks_from_config(" in source
+    assert 'os.getenv("ODYSSEUS_SECURITY_TRUSTED_PROXY_NETWORKS")' in source
+    assert "PublicEgressRefreshController()" in source
+    assert "discovery_enabled_from_disable_value(os.getenv(PUBLIC_EGRESS_DISABLE_ENV))" in source
+    assert "asyncio.create_task(egress_controller.run(_publish_security_egress))" in source
+    assert "app.state.security_own_public_egress_snapshot = snapshot" in source
+    assert "egress_task.cancel()" in source
+    assert "await egress_task" in source
+    assert "app.state.security_own_public_egress_snapshot = None" in source
 
 
 def _ref(kind, char):

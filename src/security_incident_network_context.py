@@ -19,8 +19,10 @@ from typing import Any, Iterable, Mapping
 
 NETWORK_CONTEXT_POLICY_VERSION = "ops-alert-c2.v1"
 MAX_TRUSTED_PROXY_NETWORKS = 16
+MAX_TRUSTED_PROXY_CONFIG_LENGTH = 1024
 MAX_OWN_PUBLIC_IPS = 16
 MAX_EGRESS_SNAPSHOT_AGE_SECONDS = 24 * 60 * 60
+DEFAULT_TRUSTED_PROXY_NETWORKS = ("127.0.0.0/8", "::1/128")
 SECURITY_CRITICAL_EVENT_CLASSES = frozenset({
     "authentication_failure", "lockout", "new_privileged_session",
     "role_change", "credential_change", "step_up_failure", "break_glass",
@@ -41,6 +43,7 @@ _PRIVATE_PROXY_NETWORKS = (
     ipaddress.ip_network("192.168.0.0/16"), ipaddress.ip_network("::1/128"),
     ipaddress.ip_network("fe80::/10"), ipaddress.ip_network("fc00::/7"),
 )
+_OWN_EGRESS_SOURCES = frozenset({"configured_deployment_data", "cloudflare_trace"})
 
 
 class SecurityIncidentNetworkContextError(ValueError):
@@ -129,8 +132,8 @@ def build_own_public_egress_snapshot(
     addresses: Iterable[Any], *, observed_at: Any, ttl_seconds: Any = MAX_EGRESS_SNAPSHOT_AGE_SECONDS,
     source: str = "configured_deployment_data",
 ) -> OwnPublicEgressSnapshot:
-    """Validate a configured, server-owned snapshot without discovering IPs."""
-    if source != "configured_deployment_data":
+    """Validate a server-owned snapshot without performing discovery here."""
+    if source not in _OWN_EGRESS_SOURCES:
         raise SecurityIncidentNetworkContextError("own egress source unavailable")
     if isinstance(addresses, (str, bytes)):
         raise SecurityIncidentNetworkContextError("own egress snapshot unavailable")
@@ -143,6 +146,30 @@ def build_own_public_egress_snapshot(
     if isinstance(ttl_seconds, bool) or not isinstance(ttl_seconds, int) or not 1 <= ttl_seconds <= MAX_EGRESS_SNAPSHOT_AGE_SECONDS:
         raise SecurityIncidentNetworkContextError("own egress snapshot unavailable")
     return OwnPublicEgressSnapshot(values, _now(observed_at), ttl_seconds, source)
+
+
+def trusted_proxy_networks_from_config(value: Any) -> tuple[str, ...]:
+    """Return loopback trust plus strictly validated private configured CIDRs.
+
+    Cloudflared is a host user service forwarding to the loopback-bound app,
+    so loopback is the fixed production baseline.  Configuration can only add
+    bounded private/link-local networks.  Any malformed or over-broad value
+    falls back to that baseline instead of trusting caller-controlled headers.
+    """
+    if value is None or value == "":
+        return DEFAULT_TRUSTED_PROXY_NETWORKS
+    if not isinstance(value, str) or len(value) > MAX_TRUSTED_PROXY_CONFIG_LENGTH:
+        return DEFAULT_TRUSTED_PROXY_NETWORKS
+    parts = value.split(",")
+    if not parts or any(part != part.strip() or not part for part in parts):
+        return DEFAULT_TRUSTED_PROXY_NETWORKS
+    candidates = DEFAULT_TRUSTED_PROXY_NETWORKS + tuple(parts)
+    try:
+        networks = _trusted_networks(candidates)
+    except SecurityIncidentNetworkContextError:
+        return DEFAULT_TRUSTED_PROXY_NETWORKS
+    canonical = tuple(dict.fromkeys(str(network) for network in networks))
+    return canonical
 
 
 def decide_self_egress_suppression(
@@ -284,8 +311,9 @@ def _incident_ref(value: Any) -> str:
 
 
 __all__ = [
-    "ACCESS_CONTEXT_REASON_CODES", "AccessSourceContext", "MAX_EGRESS_SNAPSHOT_AGE_SECONDS", "NETWORK_CONTEXT_POLICY_VERSION",
+    "ACCESS_CONTEXT_REASON_CODES", "AccessSourceContext", "DEFAULT_TRUSTED_PROXY_NETWORKS",
+    "MAX_EGRESS_SNAPSHOT_AGE_SECONDS", "MAX_TRUSTED_PROXY_CONFIG_LENGTH", "NETWORK_CONTEXT_POLICY_VERSION",
     "OwnPublicEgressSnapshot", "SECURITY_CRITICAL_EVENT_CLASSES", "SecurityIncidentNetworkContextError",
     "build_own_public_egress_snapshot", "canonical_ip", "decide_self_egress_suppression",
-    "derive_access_source_context", "validate_access_source_context",
+    "derive_access_source_context", "trusted_proxy_networks_from_config", "validate_access_source_context",
 ]

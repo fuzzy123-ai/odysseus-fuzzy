@@ -75,6 +75,12 @@ import bcrypt as _bcrypt
 
 from src.app_helpers import abs_join, serve_html_with_nonce
 from src.generated_images import GENERATED_IMAGE_HEADERS, resolve_generated_image_path
+from src.security_incident_egress import (
+    PUBLIC_EGRESS_DISABLE_ENV,
+    PublicEgressRefreshController,
+    discovery_enabled_from_disable_value,
+)
+from src.security_incident_network_context import trusted_proxy_networks_from_config
 from starlette.responses import RedirectResponse
 
 # ========= LOGGING =========
@@ -120,11 +126,20 @@ app = FastAPI(
     description="Comprehensive AI chat with memory, research, and multi-modal capabilities",
     version="1.0.0",
 )
-# Closed defaults: a deployment integration may provide only an explicit
-# trusted-proxy network list and a validated, server-owned egress snapshot.
-# No startup public-IP discovery or provider call is permitted here.
-app.state.security_trusted_proxy_networks = ()
+# Cloudflared is a host service forwarding to this app's loopback bind. Trust
+# that fixed hop, plus only strictly validated private configured additions.
+# Invalid configuration falls back to loopback-only and therefore cannot make
+# caller-controlled forwarding headers authoritative.
+app.state.security_trusted_proxy_networks = trusted_proxy_networks_from_config(
+    os.getenv("ODYSSEUS_SECURITY_TRUSTED_PROXY_NETWORKS")
+)
 app.state.security_own_public_egress_snapshot = None
+app.state._security_public_egress_refresh_task = None
+app.state._security_public_egress_controller = (
+    PublicEgressRefreshController()
+    if discovery_enabled_from_disable_value(os.getenv(PUBLIC_EGRESS_DISABLE_ENV))
+    else None
+)
 
 # ========= CORS =========
 CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"]
@@ -1637,6 +1652,15 @@ async def _startup_event():
     # GC tasks created with `asyncio.create_task(...)` before they finish.
     _startup_tasks: list[asyncio.Task] = getattr(app.state, "_startup_tasks", [])
     app.state._startup_tasks = _startup_tasks
+    egress_controller = getattr(app.state, "_security_public_egress_controller", None)
+    egress_task = getattr(app.state, "_security_public_egress_refresh_task", None)
+    if egress_controller is not None and (egress_task is None or egress_task.done()):
+        def _publish_security_egress(snapshot):
+            app.state.security_own_public_egress_snapshot = snapshot
+
+        egress_task = asyncio.create_task(egress_controller.run(_publish_security_egress))
+        app.state._security_public_egress_refresh_task = egress_task
+        _startup_tasks.append(egress_task)
     if upload_cleanup_func:
         upload_cleanup_task = asyncio.create_task(upload_cleanup_func())
     # Always-on monitor that auto-continues the agent when a background bash
@@ -1885,6 +1909,15 @@ async def _startup_event():
 
 async def _shutdown_event():
     logger.info("Application shutting down...")
+    egress_task = getattr(app.state, "_security_public_egress_refresh_task", None)
+    if egress_task is not None and not egress_task.done():
+        egress_task.cancel()
+        try:
+            await egress_task
+        except asyncio.CancelledError:
+            pass
+    app.state._security_public_egress_refresh_task = None
+    app.state.security_own_public_egress_snapshot = None
     try:
         from src.plugin_system import get_manager
         mgr = get_manager()
