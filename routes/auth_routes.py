@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Request, Response, HTTPException
 from pydantic import BaseModel
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 import asyncio
 import logging
 import os
@@ -31,6 +31,10 @@ from routes.auth_user_rename import migrate_renamed_user_references
 from src.security_action_authorization import SecurityActionAuthorization, SecurityActionAuthorizationError, build_redacted_auth_event
 from src.security_incident_commands import SecurityIncidentCommandError, SecurityIncidentCommands
 from src.ops_timeline_adapters import create_default_security_incident_store
+from src.security_incident_network_context import (
+    decide_self_egress_suppression,
+    derive_access_source_context,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -125,9 +129,55 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
                     return False
                 events.append(payload)
                 del events[:-64]
+            _record_access_context(request, payload)
             return True
         except Exception:
             return False
+
+    def _record_access_context(request: Request, event_payload: Mapping[str, Any]) -> None:
+        """Keep a bounded incident-only ingress binding without raw headers.
+
+        The existing evidence envelope stays content-free.  A downstream
+        incident worker may opt into the separate in-process sink to construct
+        an incident and owner notification with the canonical IP context.
+        Capture failures never change authentication or notification behavior.
+        """
+        try:
+            trusted = getattr(request.app.state, "security_trusted_proxy_networks", ())
+            context = derive_access_source_context(request, trusted_proxy_networks=trusted)
+            if not context.canonical_ip:
+                return
+            # Authentication failures and blocks are never origin-only noise.
+            # All other values remain fail-open if the configured snapshot is
+            # absent, stale or invalid.
+            status = str(event_payload.get("status") or "").strip().lower()
+            event_class = "authentication_failure" if status in {"failed", "blocked", "unknown"} else "external_access_origin_only"
+            suppression_audit = decide_self_egress_suppression(
+                incident_id=event_payload.get("correlation_ref"),
+                event_class=event_class,
+                source_context=context,
+                own_public_egress=getattr(request.app.state, "security_own_public_egress_snapshot", None),
+            )
+            record = {
+                "evidence_ref": str(event_payload.get("evidence_ref") or ""),
+                "correlation_ref": str(event_payload.get("correlation_ref") or ""),
+                "accessing_ip_context": context.as_incident_projection(),
+                "suppression_audit": suppression_audit,
+                "raw_content_visible": False,
+            }
+            sink = getattr(request.app.state, "security_auth_access_context_sink", None)
+            if callable(sink):
+                sink(record)
+                return
+            records = getattr(request.app.state, "security_auth_access_contexts", None)
+            if records is None:
+                records = []
+                request.app.state.security_auth_access_contexts = records
+            if isinstance(records, list):
+                records.append(record)
+                del records[:-64]
+        except Exception:
+            pass
 
     def _security_action_store(request: Request):
         store = getattr(request.app.state, "security_incident_store", None)

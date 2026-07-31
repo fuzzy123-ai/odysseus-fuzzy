@@ -272,7 +272,7 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
     trp = _load(TRP_PATH)
 
     assert sirp["status"] == (
-        "sec189_sec184_candidate_reverified_deep_reviewed_ready_exact_publication"
+        "ops_alert_c2_accepted_repo_only_d_transactional_executor_next"
     )
 
     source = "docs/plans/security-incident-response-production-completion-roadmap.json"
@@ -406,6 +406,8 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
             "SIRP-12A-R2 strict readiness contract accepted",
             "OPS-ALERT-B accepted",
             "OPS-ALERT-C accepted",
+            "OPS-ALERT-C2 accepted repo-only",
+            "SEC190 Compose capability observation terminal ok",
             (
                 "SEC140 observer published at "
                 "9ea87e67464015cedbeeaada9117899edcab3ae2 with independent "
@@ -422,24 +424,18 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
         ],
             "owner_of_queue_registration": "root",
             "claim_status_now": (
-                "sec184_candidate_reverified_deep_reviewed_ready_exact_publication"
+                "ops_alert_c2_accepted_waiting_exact_publication_and_required_ci"
             ),
             "dependency_order": [
-                (
-                    "complete focused integration verification and publish the already "
-                    "deep-reviewed SEC184 observer and transport candidate while Debian "
-                    "1.3.0 remains a negative "
-                    "needs_live_observation fixture"
-                ),
-                (
-                "prepare and separately authorize one bounded package or host change "
-                "with rollback and redacted access readback"
+            "publish the accepted OPS-ALERT-C2 paths and require terminal green Required CI",
+            (
+                "implement and deep-review the dedicated transactional app-only D "
+                "executor, strict transport and independent readback"
             ),
             (
-                "prepare and separately authorize one new one-use capability "
-                "observation after the package-change readback"
+                "bind a complete one-use D deployment packet to exact revisions, C2 "
+                "configuration schema, rollback and readback"
             ),
-            "implement and deep-review OPS-ALERT-C2 source-IP context and self-egress suppression",
             "bind and execute D deployment with rollback and independent readback",
             "obtain fresh strict redacted runtime readiness",
             "bind one exact E delivery packet",
@@ -631,24 +627,18 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
 
     frontier = sirp["next_frontier"]
     assert frontier["claim_status_now"] == (
-        "sec184_candidate_reverified_deep_reviewed_ready_exact_publication"
+        "ops_alert_c2_accepted_waiting_exact_publication_and_required_ci"
     )
     assert frontier["dependency_order"] == [
+        "publish the accepted OPS-ALERT-C2 paths and require terminal green Required CI",
         (
-            "complete focused integration verification and publish the already "
-            "deep-reviewed SEC184 observer and transport candidate while Debian "
-            "1.3.0 remains a negative "
-            "needs_live_observation fixture"
+            "implement and deep-review the dedicated transactional app-only D "
+            "executor, strict transport and independent readback"
         ),
         (
-            "prepare and separately authorize one bounded package or host change "
-            "with rollback and redacted access readback"
+            "bind a complete one-use D deployment packet to exact revisions, C2 "
+            "configuration schema, rollback and readback"
         ),
-        (
-            "prepare and separately authorize one new one-use capability "
-            "observation after the package-change readback"
-        ),
-        "implement and deep-review OPS-ALERT-C2 source-IP context and self-egress suppression",
         "bind and execute D deployment with rollback and independent readback",
         "obtain fresh strict redacted runtime readiness",
         "bind one exact E delivery packet",

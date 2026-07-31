@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.security_incident_model import build_recommended_action, build_security_incident
+from src.security_incident_model import SecurityIncidentModelError, build_recommended_action, build_security_incident
 from src.security_incident_notifications import (
     SecurityIncidentNotificationError,
     build_incident_notification_payload,
@@ -64,6 +64,42 @@ def test_formats_telegram_incident_with_action_ids_and_gate_hint():
     assert "/incident deny <action_id>" in text
     assert "chat_id" not in text.lower()
     assert "token" not in text.lower()
+
+
+def test_owner_notification_includes_only_the_canonical_access_ip_context():
+    incident = dict(_incident())
+    incident["accessing_ip_context"] = {
+        "canonical_ip": "2606:4700:4700::1111",
+        "provenance": "trusted_proxy_forwarded",
+        "is_public": True,
+        "reason_code": "trusted_proxy_forwarded",
+        "raw_content_visible": False,
+    }
+    text = format_incident_notification_for_telegram(incident)
+    payload = build_incident_notification_payload(incident)
+    ui_payload = build_incident_notification_payload(incident, channel="ui")
+    assert "Accessing IP: 2606:4700:4700::1111" in text
+    assert "2606:4700:4700::1111" not in str(payload["incident"])
+    assert "2606:4700:4700::1111" not in ui_payload["message"]
+    assert "forwarded" not in text.lower()
+
+
+@pytest.mark.parametrize("field, value", [("is_public", False), ("reason_code", "caller_supplied_reason")])
+def test_access_context_tampering_is_rejected_by_model_and_notification(field, value):
+    context = {
+        "canonical_ip": "8.8.8.8", "provenance": "direct_peer", "is_public": True,
+        "reason_code": "direct_peer", "raw_content_visible": False,
+    }
+    context[field] = value
+    with pytest.raises(SecurityIncidentModelError):
+        build_security_incident(
+            level=1, severity="low", confidence=0.5, status="open", trigger="Auth observation",
+            affected_surfaces=("odysseus_api",), correlation_ids=("corr-context",),
+            accessing_ip_context=context,
+        )
+    incident = dict(_incident()); incident["accessing_ip_context"] = context
+    with pytest.raises(SecurityIncidentNotificationError):
+        format_incident_notification_for_telegram(incident)
 
 
 def test_builds_prepare_only_notification_payload_without_delivery_target():

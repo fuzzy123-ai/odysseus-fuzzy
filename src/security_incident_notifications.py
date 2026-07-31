@@ -16,6 +16,7 @@ from src.user_notification_contract import (
     build_user_notification_decision,
 )
 from src.security_incident_delivery import record_dry_run_delivery
+from src.security_incident_network_context import SecurityIncidentNetworkContextError, validate_access_source_context
 
 
 SECURITY_INCIDENT_NOTIFICATION_SCHEMA = "odysseus.security_incident_notification.v1"
@@ -82,6 +83,7 @@ def build_incident_notification_payload(
         incident,
         policy_decision=policy,
         debug_bundle=bundle,
+        include_accessing_ip=normalized_channel == "telegram",
     )
 
     severity = _notification_severity(summary)
@@ -139,6 +141,7 @@ def format_incident_notification_for_telegram(
     *,
     policy_decision: Mapping[str, Any] | None = None,
     debug_bundle: Mapping[str, Any] | None = None,
+    include_accessing_ip: bool = True,
 ) -> str:
     """Render a compact redacted incident notification suitable for Telegram."""
 
@@ -156,6 +159,11 @@ def format_incident_notification_for_telegram(
         ),
         f"Surface: {surfaces}",
     ]
+    access_context = _safe_operator_access_context(incident) if include_accessing_ip else {}
+    if access_context:
+        # The fixed label makes the lone permitted personal-data field obvious
+        # to the operator.  No raw ingress header is ever rendered alongside.
+        lines.append(f"Accessing IP: {access_context['canonical_ip']}")
     if policy:
         gate = "yes" if bool(policy.get("operator_gate_required")) else "no"
         lines.append(f"Policy: {policy.get('decision')} ({policy.get('reason')}); operator gate: {gate}")
@@ -197,6 +205,22 @@ def _safe_incident_summary(incident: Mapping[str, Any]) -> dict[str, Any]:
         raise SecurityIncidentNotificationError(str(exc)) from exc
     _reject_forbidden_payload(summary)
     return summary
+
+
+def _safe_operator_access_context(incident: Mapping[str, Any]) -> dict[str, Any]:
+    """Read the incident-only IP context for the owner notification.
+
+    This projection is deliberately not part of ``summarize_incident`` and so
+    cannot flow to generic listings or model-facing summary consumers.
+    """
+    value = incident.get("accessing_ip_context")
+    if value is None:
+        return {}
+    try:
+        context = validate_access_source_context(value)
+    except SecurityIncidentNetworkContextError:
+        raise SecurityIncidentNotificationError("accessing IP context is invalid") from None
+    return {"canonical_ip": context.canonical_ip}
 
 
 def _safe_action(action: Mapping[str, Any]) -> dict[str, Any]:

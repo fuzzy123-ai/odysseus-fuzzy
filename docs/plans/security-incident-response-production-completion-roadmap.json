@@ -3,8 +3,8 @@
   "kind": "odysseus.security_incident_response_production_completion_roadmap",
   "id": "SIRP",
   "title": "Security Incident Response Production Completion",
-  "updated_at": "2026-07-31T08:49:00+02:00",
-  "status": "sec189_sec184_candidate_reverified_deep_reviewed_ready_exact_publication",
+  "updated_at": "2026-07-31T09:30:00+02:00",
+  "status": "ops_alert_c2_accepted_repo_only_d_transactional_executor_next",
   "mode": "safe_offline_dependency_ordered",
   "goal": "Close the explicit gap between prepare-only security incident contracts and a production-validated assisted response system with bounded evidence, durable incident and action state, operator-bound approvals, typed executors, independent effect readback and rollback.",
   "slice_contract_fields": ["id", "priority", "class", "owner", "status", "claimable", "depends_on", "gate_requirements", "blockers", "allowed_paths", "hotfiles", "goal", "acceptance", "tests_evidence", "forbidden", "done_when", "completion_matrix"],
@@ -8838,7 +8838,7 @@
       {
         "id": "OPS-ALERT-C2-source-ip-context-and-self-egress-suppression",
         "class": "repo_only",
-        "status": "planned_dependency_ready",
+        "status": "accepted_repo_only_deep_review_passed",
         "depends_on": [
           "OPS-ALERT-C accepted"
         ],
@@ -11558,12 +11558,57 @@
       "delivery_or_send": false
     },
     "not_verified": [
-      "SEC184 publication and Required CI",
-      "bounded Compose candidate host change and post-change observation",
-      "OPS-ALERT-C2 source-IP context and self-egress suppression",
+      "OPS-ALERT-C2 publication and Required CI",
       "deployment, readiness, delivery, canaries and temporal closure"
     ],
-    "next_action": "Publish exactly the six candidate paths to fuzzy/dev and require a terminal green GitHub Actions run before any host change, observation, deployment or delivery."
+    "next_action": "Publish the accepted OPS-ALERT-C2 paths and require terminal green Required CI, then implement and deep-review the dedicated transactional app-only D executor, strict transport and independent readback before any deployment."
+  },
+  "latest_sec190_capability_observation_and_ops_alert_c2_handoff": {
+    "recorded_at": "2026-07-31T09:30:00+02:00",
+    "status": "sec190_terminal_ok_c2_repo_only_accepted",
+    "sec190": {
+      "run_id": "ABC-SEC190-POST-SEC184-CAPABILITY-OBSERVE-20260731",
+      "published_commit": "8b12fec4e8b93c68563e327f9743b7f3035bd1af",
+      "invocations": 1,
+      "retries": 0,
+      "schema_id": "odysseus.redacted_podman_compose_capability_observation.v1",
+      "status": "ok",
+      "podman_compose_version": "1.6.0",
+      "deployment_capability_supported": true,
+      "service_scoped_dependency_exclusion_proven": true,
+      "rollback_force_recreate_proven": true,
+      "all_visibility_flags_false": true,
+      "evidence_sha256": "a84a72cd78ce2990e207a6b797f0d2dee45de5ad72e9c9500c233e5993bb0896"
+    },
+    "c2": {
+      "run_id": "ABC-OPS-ALERT-C2-IMPLEMENT-20260731",
+      "slice_id": "OPS-ALERT-C2-source-ip-context-and-self-egress-suppression",
+      "status": "accepted_repo_only_deep_review_passed",
+      "changed_paths": [
+        "app.py",
+        "routes/auth_routes.py",
+        "src/security_incident_model.py",
+        "src/security_incident_notifications.py",
+        "src/security_incident_network_context.py",
+        "tests/test_security_incident_notifications.py",
+        "tests/test_security_incident_network_context.py"
+      ],
+      "focused_tests": "78 passed",
+      "adjacent_tests": "64 passed",
+      "native_linux_python311_compile": "passed",
+      "trusted_proxy_spoofing_boundary": "passed",
+      "fail_open_and_security_critical_non_suppression": "passed",
+      "bounded_retention_and_notification_privacy": "passed",
+      "network_or_provider_dependency_added": false,
+      "production_egress_snapshot_wired": false
+    },
+    "authority": {
+      "repo_only": true,
+      "public_ip_query": false,
+      "deploy": false,
+      "delivery_or_send": false
+    },
+    "next_action": "Publish C2 and require green Required CI; then implement the dedicated D executor, strict transport and independent readback. Do not use a generic whole-stack updater."
   },
   "completion_matrix": {
     "track": "assisted_security_response_100_percent",
@@ -11581,7 +11626,9 @@
       "sirp00_through_sirp11": "implemented_tested_and_deep_reviewed",
       "sirp12a_r2_readiness_contract": "accepted_repo_only",
       "ops_alert_b_c": "accepted_after_deep_sol_fix_cycle_1",
+      "ops_alert_c2": "accepted_repo_only_waiting_publication_and_required_ci",
       "sec140_publication": "commit_9ea87e67464015cedbeeaada9117899edcab3ae2_pushed_to_fuzzy_dev_with_remote_readback",
+      "sec190_compose_capability": "terminal_ok_on_8b12fec4e8b93c68563e327f9743b7f3035bd1af",
       "python311_required_ci": "run_30609614353_success_on_0c266d2f8c8ffb5828e4895bb0baffe42325439f",
       "observability_live_smoke": "used",
       "debian_observability_live": "used",
@@ -11606,6 +11653,8 @@
       "SIRP-12A-R2 strict readiness contract accepted",
       "OPS-ALERT-B accepted",
       "OPS-ALERT-C accepted",
+      "OPS-ALERT-C2 accepted repo-only",
+      "SEC190 Compose capability observation terminal ok",
       "SEC140 observer published at 9ea87e67464015cedbeeaada9117899edcab3ae2 with independent remote readback"
     ],
     "gate_requirements": [
@@ -11617,17 +11666,16 @@
       "deploy-live-go"
     ],
     "owner_of_queue_registration": "root",
-    "claim_status_now": "sec184_candidate_reverified_deep_reviewed_ready_exact_publication",
+    "claim_status_now": "ops_alert_c2_accepted_waiting_exact_publication_and_required_ci",
     "dependency_order": [
-      "complete focused integration verification and publish the already deep-reviewed SEC184 observer and transport candidate while Debian 1.3.0 remains a negative needs_live_observation fixture",
-      "prepare and separately authorize one bounded package or host change with rollback and redacted access readback",
-      "prepare and separately authorize one new one-use capability observation after the package-change readback",
-      "implement and deep-review OPS-ALERT-C2 source-IP context and self-egress suppression",
+      "publish the accepted OPS-ALERT-C2 paths and require terminal green Required CI",
+      "implement and deep-review the dedicated transactional app-only D executor, strict transport and independent readback",
+      "bind a complete one-use D deployment packet to exact revisions, C2 configuration schema, rollback and readback",
       "bind and execute D deployment with rollback and independent readback",
       "obtain fresh strict redacted runtime readiness",
       "bind one exact E delivery packet",
       "send exactly once and independently read back durable receipt plus human confirmation"
     ]
   },
-  "recommended_next_action": "Publish exactly the six reverified and deep-reviewed SEC184 candidate paths on green parent 0c266d2f8c8ffb5828e4895bb0baffe42325439f to fuzzy/dev, then require terminal green Required CI before any host change, observation, deployment or delivery."
+  "recommended_next_action": "Publish the accepted OPS-ALERT-C2 paths on parent 8b12fec4e8b93c68563e327f9743b7f3035bd1af to fuzzy/dev and require terminal green Required CI. Then implement the dedicated transactional app-only D executor, strict transport and independent readback before any deployment or delivery."
 }

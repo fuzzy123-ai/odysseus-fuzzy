@@ -13,6 +13,12 @@ import re
 from typing import Any, Iterable, Mapping
 from uuid import uuid4
 
+from src.security_incident_network_context import (
+    AccessSourceContext,
+    SecurityIncidentNetworkContextError,
+    validate_access_source_context,
+)
+
 
 SECURITY_INCIDENT_SCHEMA = "odysseus.security_incident.v1"
 SECURITY_ACTION_SCHEMA = "odysseus.security_incident_action.v1"
@@ -149,6 +155,7 @@ def build_security_incident(
     correlation_ids: Iterable[Any] = (),
     evidence_refs: Iterable[Any] = (),
     recommended_actions: Iterable[Mapping[str, Any]] = (),
+    accessing_ip_context: AccessSourceContext | Mapping[str, Any] | None = None,
     incident_id: str | None = None,
     created_at: str | None = None,
     updated_at: str | None = None,
@@ -187,8 +194,24 @@ def build_security_incident(
         raise SecurityIncidentModelError("incident requires at least one affected surface")
     if not incident["evidence_refs"] and not incident["correlation_ids"]:
         raise SecurityIncidentModelError("incident requires evidence_refs or correlation_ids")
+    access_context = _safe_accessing_ip_context(accessing_ip_context)
+    if access_context:
+        # This is security telemetry retained only on the incident record.  The
+        # compact summary intentionally omits it so generic lists/prompts do
+        # not receive an access IP.
+        incident["accessing_ip_context"] = access_context
     _reject_forbidden_payload(incident)
     return incident
+
+
+def _safe_accessing_ip_context(value: AccessSourceContext | Mapping[str, Any] | None) -> dict[str, Any]:
+    if value is None:
+        return {}
+    try:
+        context = validate_access_source_context(value)
+    except SecurityIncidentNetworkContextError:
+        raise SecurityIncidentModelError("accessing IP context is invalid") from None
+    return context.as_incident_projection()
 
 
 def summarize_incident(incident: Mapping[str, Any]) -> dict[str, Any]:

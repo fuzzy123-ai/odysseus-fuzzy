@@ -120,6 +120,11 @@ app = FastAPI(
     description="Comprehensive AI chat with memory, research, and multi-modal capabilities",
     version="1.0.0",
 )
+# Closed defaults: a deployment integration may provide only an explicit
+# trusted-proxy network list and a validated, server-owned egress snapshot.
+# No startup public-IP discovery or provider call is permitted here.
+app.state.security_trusted_proxy_networks = ()
+app.state.security_own_public_egress_snapshot = None
 
 # ========= CORS =========
 CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"]
