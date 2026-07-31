@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-31T13:32:00+02:00",
-  "status": "ops_alert_backup_existing_pointer_diagnostic_v3_ready_for_publication",
+  "updated_at": "2026-07-31T13:44:00+02:00",
+  "status": "ops_alert_waiting_on_user_action_specific_backup_credential_migration_authority",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -216,11 +216,11 @@
         "thread_id": "/root",
         "slice_id": "OPS-ALERT-live-backup-deploy-activation-delivery-proof",
         "owner": "root/Sol live executor and final reviewer",
-        "state": "claimed",
+        "state": "waiting_on_user",
         "acquired_at": "2026-07-31T12:18:00+02:00",
-        "lease_expires_at": "2026-07-31T13:30:00+02:00",
+        "lease_expires_at": null,
         "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
-        "published_revision": "707564941379646de2020304f03fa5889a7756b5",
+        "published_revision": "39973ccc96055df4522d978f7eb247f76be89e38",
         "dependencies": [
           "latest_ops_alert_root_integration_handoff",
           "GitHub CI run 30622495185 terminal success",
@@ -247,7 +247,7 @@
           "tests/test_homeserver_redacted_backup_snapshot_observation.py",
           "tests/test_homeserver_redacted_backup_snapshot_observation_transport.py"
         ],
-        "phase": "diagnostic_v2_consumed_expected_path_unsafe_existing_pointer_v3_repo_only",
+        "phase": "diagnostic_v3_consumed_no_safe_file_pointer_waiting_on_user_credential_migration_authority",
         "live_actions": true,
         "action_packets": {
           "backup_snapshot_observation": {
@@ -472,7 +472,32 @@
             "published_revision": "be944027cfe5f691598c4ce7ef5fda13a0ce8a96",
             "github_ci_run": 30626808102,
             "github_ci_conclusion": "success"
+          },
+          "backup_configuration_diagnostic_v3": {
+            "consumed_at": "2026-07-31T13:41:00+02:00",
+            "status": "observed",
+            "error_code": "none",
+            "contract_ready": false,
+            "existing_pointer_syntax_safe": false,
+            "existing_pointer_regular_single_link": false,
+            "existing_pointer_owner_safe": false,
+            "existing_pointer_mode_safe": false,
+            "existing_pointer_nonempty_bounded": false,
+            "existing_pointer_contract_ready": false,
+            "retry_permitted": false,
+            "evidence_sha256": "539572681818c2448bb3a998031f13571b35df4fd9c19696ee817ed2dd9d32ec",
+            "published_revision": "39973ccc96055df4522d978f7eb247f76be89e38",
+            "github_ci_run": 30627466695,
+            "github_ci_conclusion": "success"
           }
+        },
+        "waiting_on_user": {
+          "reason": "No credential-free backup path remains: the fixed password file is not a safe regular credential and the existing configuration is not a safe non-executing private password-file pointer.",
+          "required_authority": "One action-specific live authorization to migrate or provision the existing Restic credential internally into the fixed private password file, without emitting credential bytes, then atomically write the fixed pointer configuration.",
+          "rollback_required": true,
+          "post_change_readback_required": true,
+          "credential_value_output_forbidden": true,
+          "safe_default": "do not deploy, activate delivery or send a Telegram alert"
         },
         "verification_evidence": {
           "python_runtime": "CPython 3.11.15 from C:/tmp/odysseus-ci-py311-20260730/Scripts/python.exe",
@@ -15987,5 +16012,5 @@
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "Do not grant the D0 observation yet. First separately authorize a reviewed path-scoped commit and push containing the D0/D0A artifact. Then request exactly: GO ABC-SEC123 D0 PREDEPLOY READ-ONLY OBSERVATION ONCE <=30S EXPIRES RUN_END. Deployment and delivery remain separate not_go decisions."
+  "recommended_next_human_decision": "Authorize exactly one rollback-bound internal Restic credential migration/provisioning action for OPS Alert. A plain-language confirmation such as 'Ja, migriere das bestehende Restic-Credential intern in den festen privaten Passwortdatei-Vertrag und fahre danach mit OPS Alert bis live fort' is sufficient. No credential value may be emitted; post-change redacted readback is mandatory."
 }
