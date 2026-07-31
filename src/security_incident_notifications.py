@@ -16,7 +16,11 @@ from src.user_notification_contract import (
     build_user_notification_decision,
 )
 from src.security_incident_delivery import record_dry_run_delivery
-from src.security_incident_network_context import SecurityIncidentNetworkContextError, validate_access_source_context
+from src.security_incident_network_context import (
+    SecurityIncidentNetworkContextError,
+    canonical_ip,
+    validate_access_source_context,
+)
 
 
 SECURITY_INCIDENT_NOTIFICATION_SCHEMA = "odysseus.security_incident_notification.v1"
@@ -26,6 +30,12 @@ _OPERATOR_NOTIFICATION_SMOKE_BODY = (
     "Review the approved incident action in Odysseus."
 )
 _OPERATOR_NOTIFICATION_TARGET_CLASS = "configured_telegram_operator_target_v1"
+_ACCESS_ALERT_BODY_SCHEMA = "odysseus.security_access_alert_body.v1"
+_ACCESS_ALERT_MEANINGS = {
+    "authentication_failure": "Fehlgeschlagener Login erkannt.",
+    "step_up_failure": "Fehlgeschlagene Sicherheitsfreigabe erkannt.",
+    "external_access_origin_only": "Erfolgreicher externer Login erkannt.",
+}
 MAX_ACTIONS = 5
 FORBIDDEN_TEXT_MARKERS = (
     "authorization",
@@ -62,6 +72,33 @@ def canonical_operator_notification_body_ref() -> str:
 def canonical_operator_notification_target_class_ref() -> str:
     return "target_class:sha256:" + hashlib.sha256(
         _OPERATOR_NOTIFICATION_TARGET_CLASS.encode("utf-8")
+    ).hexdigest()
+
+
+def canonical_access_alert_body(*, event_class: Any, accessing_ip: Any) -> str:
+    """Build the sole dynamic access-alert body from durable server context."""
+    meaning = _ACCESS_ALERT_MEANINGS.get(event_class)
+    try:
+        address = canonical_ip(accessing_ip)
+    except SecurityIncidentNetworkContextError:
+        raise SecurityIncidentNotificationError("access alert context unavailable") from None
+    if meaning is None or address != accessing_ip:
+        raise SecurityIncidentNotificationError("access alert context unavailable")
+    body = (
+        "Odysseus Sicherheitswarnung\n"
+        f"{meaning}\n"
+        f"Zugreifende IP: {address}\n"
+        "Bitte pruefe den Zugriff in Odysseus."
+    )
+    if len(body) > 320:
+        raise SecurityIncidentNotificationError("access alert body unavailable")
+    return body
+
+
+def canonical_access_alert_body_ref(*, event_class: Any, accessing_ip: Any) -> str:
+    body = canonical_access_alert_body(event_class=event_class, accessing_ip=accessing_ip)
+    return "body:sha256:" + hashlib.sha256(
+        (_ACCESS_ALERT_BODY_SCHEMA + "|" + body).encode("utf-8")
     ).hexdigest()
 
 

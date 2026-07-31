@@ -375,6 +375,24 @@ class SecurityIncidentStore:
             failure_ref=record.failure_ref, rollback_ref=record.rollback_ref,
         )
 
+    def pending_operator_notification_actions(
+        self, *, limit: int = 32, after_action_id: str | None = None,
+    ) -> tuple[ActionRecord, ...]:
+        """Return a bounded recovery frontier; terminal/ambiguous states never appear."""
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 64:
+            raise SecurityIncidentStoreError("invalid candidate limit")
+        after = "" if after_action_id is None else _identifier(after_action_id, "action_id")
+        with self._read() as db:
+            rows = db.execute(
+                """SELECT * FROM actions
+                   WHERE action_type='operator_notification'
+                     AND state IN ('proposed','prepared','approved')
+                     AND action_id>?
+                   ORDER BY action_id LIMIT ?""",
+                (after, limit),
+            ).fetchall()
+        return tuple(_record(row) for row in rows)
+
     def audit_events(self, action_id: Any | None = None) -> tuple[AuditRecord, ...]:
         if action_id is None:
             query, values = "SELECT * FROM audit_references ORDER BY sequence", ()

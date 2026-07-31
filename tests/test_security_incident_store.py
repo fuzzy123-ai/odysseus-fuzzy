@@ -21,6 +21,33 @@ SCOPE = "scope:sha256:" + "a" * 64
 POLICY = "policy:sha256:" + "b" * 64
 
 
+def test_pending_operator_notification_query_is_bounded_and_excludes_terminal_states(tmp_path):
+    store = SecurityIncidentStore(tmp_path / "pending.sqlite", clock=lambda: 100)
+    incident = store.create_incident(
+        incident_id="incident-pending", incident_ref="incident:sha256:" + "a" * 64,
+        audit_ref="audit:sha256:" + "b" * 64,
+    )
+    action = store.create_action(
+        action_id="action-pending", incident_id=incident.incident_id,
+        action_type="operator_notification", scope_fingerprint=SCOPE,
+        policy_revision=POLICY, idempotency_key="idempotency-pending",
+        ttl_seconds=60, audit_ref="audit:sha256:" + "c" * 64,
+    )
+    assert store.pending_operator_notification_actions(limit=1) == (action,)
+    prepared = store.transition(
+        action_id=action.action_id, expected_version=action.version,
+        target_state="prepared", audit_ref="audit:sha256:" + "d" * 64,
+    )
+    denied = store.transition(
+        action_id=prepared.action_id, expected_version=prepared.version,
+        target_state="denied", audit_ref="audit:sha256:" + "e" * 64,
+    )
+    assert denied.state == "denied"
+    assert store.pending_operator_notification_actions() == ()
+    with pytest.raises(Exception):
+        store.pending_operator_notification_actions(limit=65)
+
+
 def _ref(kind: str, char: str = "c") -> str:
     return f"{kind}:sha256:{char * 64}"
 

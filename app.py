@@ -81,6 +81,17 @@ from src.security_incident_egress import (
     discovery_enabled_from_disable_value,
 )
 from src.security_incident_network_context import trusted_proxy_networks_from_config
+from src.ops_timeline_adapters import create_default_security_incident_store
+from src.security_access_alert_delivery import (
+    SECURITY_INCIDENT_DELIVERY_ENABLED_ENV,
+    SecurityAccessAlertDeliveryCoordinator,
+    automatic_delivery_enabled,
+)
+from src.security_auth_incident_bridge import SecurityAuthIncidentBridge
+from src.security_incident_delivery import SecurityIncidentDeliveryAdapter
+from src.security_incident_telegram_transport import (
+    build_production_security_incident_telegram_transport,
+)
 from starlette.responses import RedirectResponse
 
 # ========= LOGGING =========
@@ -140,6 +151,58 @@ app.state._security_public_egress_controller = (
     if discovery_enabled_from_disable_value(os.getenv(PUBLIC_EGRESS_DISABLE_ENV))
     else None
 )
+app.state.security_incident_store = create_default_security_incident_store()
+app.state.security_auth_incident_bridge = (
+    SecurityAuthIncidentBridge(
+        app.state.security_incident_store,
+        own_public_egress_provider=lambda: app.state.security_own_public_egress_snapshot,
+    )
+    if app.state.security_incident_store is not None
+    else None
+)
+_security_delivery_enabled = automatic_delivery_enabled(
+    os.getenv(SECURITY_INCIDENT_DELIVERY_ENABLED_ENV)
+)
+_security_delivery_transport = build_production_security_incident_telegram_transport(
+    enabled=_security_delivery_enabled,
+    store=app.state.security_incident_store,
+)
+app.state.security_access_alert_delivery_coordinator = (
+    SecurityAccessAlertDeliveryCoordinator(
+        app.state.security_incident_store,
+        SecurityIncidentDeliveryAdapter(
+            app.state.security_incident_store, transport=_security_delivery_transport,
+        ),
+    )
+    if _security_delivery_enabled
+    and app.state.security_incident_store is not None
+    and _security_delivery_transport is not None
+    else None
+)
+app.state._security_access_alert_delivery_wake = None
+app.state._security_access_alert_delivery_loop = None
+app.state._security_access_alert_delivery_task = None
+
+
+def _process_security_auth_incident(record):
+    """Persist synchronously; wake asynchronous delivery without affecting auth."""
+    bridge = app.state.security_auth_incident_bridge
+    if bridge is None:
+        return
+    try:
+        bridge.process(record)
+    except Exception:
+        return
+    loop = app.state._security_access_alert_delivery_loop
+    wake = app.state._security_access_alert_delivery_wake
+    if loop is not None and wake is not None:
+        try:
+            loop.call_soon_threadsafe(wake.set)
+        except Exception:
+            pass
+
+
+app.state.security_auth_incident_sink = _process_security_auth_incident
 
 # ========= CORS =========
 CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"]
@@ -1652,6 +1715,15 @@ async def _startup_event():
     # GC tasks created with `asyncio.create_task(...)` before they finish.
     _startup_tasks: list[asyncio.Task] = getattr(app.state, "_startup_tasks", [])
     app.state._startup_tasks = _startup_tasks
+    delivery_coordinator = getattr(app.state, "security_access_alert_delivery_coordinator", None)
+    delivery_task = getattr(app.state, "_security_access_alert_delivery_task", None)
+    if delivery_coordinator is not None and (delivery_task is None or delivery_task.done()):
+        delivery_wake = asyncio.Event()
+        app.state._security_access_alert_delivery_wake = delivery_wake
+        app.state._security_access_alert_delivery_loop = asyncio.get_running_loop()
+        delivery_task = asyncio.create_task(delivery_coordinator.run(delivery_wake))
+        app.state._security_access_alert_delivery_task = delivery_task
+        _startup_tasks.append(delivery_task)
     egress_controller = getattr(app.state, "_security_public_egress_controller", None)
     egress_task = getattr(app.state, "_security_public_egress_refresh_task", None)
     if egress_controller is not None and (egress_task is None or egress_task.done()):
@@ -1909,6 +1981,16 @@ async def _startup_event():
 
 async def _shutdown_event():
     logger.info("Application shutting down...")
+    delivery_task = getattr(app.state, "_security_access_alert_delivery_task", None)
+    if delivery_task is not None and not delivery_task.done():
+        delivery_task.cancel()
+        try:
+            await delivery_task
+        except asyncio.CancelledError:
+            pass
+    app.state._security_access_alert_delivery_task = None
+    app.state._security_access_alert_delivery_wake = None
+    app.state._security_access_alert_delivery_loop = None
     egress_task = getattr(app.state, "_security_public_egress_refresh_task", None)
     if egress_task is not None and not egress_task.done():
         egress_task.cancel()

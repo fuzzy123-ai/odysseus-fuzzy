@@ -46,6 +46,19 @@ def test_app_composes_bounded_egress_refresh_and_loopback_proxy_trust_across_lif
     assert "app.state.security_own_public_egress_snapshot = None" in source
 
 
+def test_app_composes_one_shared_auth_incident_store_bridge_and_cancel_safe_delivery_task():
+    source = (Path(__file__).resolve().parents[1] / "app.py").read_text(encoding="utf-8")
+    ast.parse(source)
+    assert source.count("create_default_security_incident_store()") == 1
+    assert "app.state.security_incident_store =" in source
+    assert "SecurityAuthIncidentBridge(" in source
+    assert "own_public_egress_provider=lambda: app.state.security_own_public_egress_snapshot" in source
+    assert "os.getenv(SECURITY_INCIDENT_DELIVERY_ENABLED_ENV)" in source
+    assert "app.state.security_auth_incident_sink = _process_security_auth_incident" in source
+    assert "asyncio.create_task(delivery_coordinator.run(delivery_wake))" in source
+    assert "delivery_task.cancel()" in source and "await delivery_task" in source
+
+
 def _ref(kind, char):
     return f"{kind}:sha256:{char * 64}"
 

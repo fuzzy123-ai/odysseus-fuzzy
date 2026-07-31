@@ -78,6 +78,49 @@ def test_trusted_readiness_rejects_incomplete_or_forged_ok_probe(mutator):
     with pytest.raises(ValueError): TrustedTelegramDeliveryReadiness.from_redacted_probe(probe)
 
 
+def test_server_configuration_readiness_has_no_caller_override(monkeypatch):
+    with pytest.raises(TypeError):
+        TrustedTelegramDeliveryReadiness.from_server_configuration(
+            opaque_target_configured=True,
+            agent_reply_enabled=True,
+        )
+    monkeypatch.setattr(
+        "src.user_notification_delivery._configured_telegram_target",
+        lambda: "configured-target",
+    )
+    monkeypatch.setattr(
+        "plugins.telegram.plugin._chat_allowed",
+        lambda target: target == "configured-target",
+    )
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-only-token")
+    readiness = TrustedTelegramDeliveryReadiness.from_server_configuration()
+    assert readiness.values() == {
+        "opaque_target_configured": True,
+        "agent_reply_enabled": True,
+        "send_ready": True,
+        "raw_target_visible": False,
+        "secret_values_visible": False,
+    }
+
+
+def test_server_configuration_readiness_requires_bot_token(monkeypatch):
+    monkeypatch.setattr(
+        "src.user_notification_delivery._configured_telegram_target",
+        lambda: "configured-target",
+    )
+    monkeypatch.setattr("plugins.telegram.plugin._chat_allowed", lambda _target: True)
+    monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    assert TrustedTelegramDeliveryReadiness.from_server_configuration().values() == {
+        "opaque_target_configured": True,
+        "agent_reply_enabled": True,
+        "send_ready": False,
+        "raw_target_visible": False,
+        "secret_values_visible": False,
+    }
+
+
 def test_caller_supplied_readiness_mapping_and_free_callable_transport_never_dispatch(tmp_path):
     clock, calls, request = [100.0], [], _request()
     store = _approved_store(tmp_path, clock, request)

@@ -12,6 +12,7 @@ from dataclasses import dataclass
 import hashlib
 import json
 import math
+import os
 import re
 import threading
 import time
@@ -90,7 +91,39 @@ class TrustedTelegramDeliveryReadiness:
         if not isinstance(presence, Mapping) or set(presence) != _PROBE_CREDENTIAL_KEYS or any(type(presence[key]) is not bool for key in _PROBE_CREDENTIAL_KEYS): raise ValueError("trusted delivery readiness unavailable")
         entries = _probe_count(probe.get("environment_entry_count")); unknown = _probe_count(probe.get("unknown_sensitive_key_count")); present = sum(presence.values())
         if present > entries or unknown > entries or present + unknown > entries: raise ValueError("trusted delivery readiness unavailable")
-        return cls(probe["telegram_delivery_readiness"], _issuer=_READINESS_ISSUER)
+        readiness = probe["telegram_delivery_readiness"]
+        if (
+            not isinstance(readiness, Mapping)
+            or readiness.get("send_ready")
+            != (
+                readiness.get("opaque_target_configured")
+                and readiness.get("agent_reply_enabled")
+            )
+        ):
+            raise ValueError("trusted delivery readiness unavailable")
+        return cls(readiness, _issuer=_READINESS_ISSUER)
+
+    @classmethod
+    def from_server_configuration(cls) -> "TrustedTelegramDeliveryReadiness":
+        """Issue readiness only by resolving named server configuration here."""
+        try:
+            from src.user_notification_delivery import _configured_telegram_target
+            from plugins.telegram.plugin import _chat_allowed
+            target = _configured_telegram_target()
+            opaque_target_configured = bool(target and _chat_allowed(target))
+        except Exception:
+            opaque_target_configured = False
+        agent_reply_enabled = (
+            os.getenv("TELEGRAM_AGENT_REPLY_ENABLED") or ""
+        ).strip().lower() in {"1", "true", "yes", "on"}
+        token_present = bool((os.getenv("TELEGRAM_BOT_TOKEN") or "").strip())
+        return cls({
+            "opaque_target_configured": opaque_target_configured,
+            "agent_reply_enabled": agent_reply_enabled,
+            "send_ready": opaque_target_configured and agent_reply_enabled and token_present,
+            "raw_target_visible": False,
+            "secret_values_visible": False,
+        }, _issuer=_READINESS_ISSUER)
 
     def values(self) -> dict[str, bool]:
         return dict(self._values)
@@ -310,15 +343,35 @@ class SecurityIncidentDeliveryAdapter:
 
 def delivery_idempotency_key(request_value: Any) -> str:
     request = _request(request_value)
+    return delivery_idempotency_identity(
+        incident_id=request.incident_id, action_id=request.action_id,
+        scope_fingerprint=request.scope_fingerprint, policy_revision=request.policy_revision,
+        body_ref=request.body_ref, approved_target_class_ref=request.approved_target_class_ref,
+        channel=request.channel, policy_gate=request.policy_gate,
+    )
+
+
+def delivery_idempotency_identity(
+    *, incident_id: Any, action_id: Any, scope_fingerprint: Any,
+    policy_revision: Any, body_ref: Any, approved_target_class_ref: Any,
+    channel: Any = "telegram", policy_gate: Any = DELIVERY_POLICY_GATE,
+) -> str:
+    """Stable action-creation identity; excludes transient readiness and expiry."""
     values = {
-        "incident_id": request.incident_id, "action_id": request.action_id,
-        "scope_fingerprint": request.scope_fingerprint, "policy_revision": request.policy_revision,
-        "body_ref": request.body_ref, "channel": request.channel,
-        "approved_target_class_ref": request.approved_target_class_ref,
-        "grant_expires_at": float(request.grant_expires_at),
-        "telegram_delivery_readiness": request.telegram_delivery_readiness.values(),
-        "policy_gate": request.policy_gate,
+        "incident_id": incident_id, "action_id": action_id,
+        "scope_fingerprint": scope_fingerprint, "policy_revision": policy_revision,
+        "body_ref": body_ref, "channel": channel,
+        "approved_target_class_ref": approved_target_class_ref,
+        "policy_gate": policy_gate,
     }
+    if (
+        not _identifier(incident_id) or not _identifier(action_id)
+        or not isinstance(scope_fingerprint, str) or not _SCOPE_REF.fullmatch(scope_fingerprint)
+        or not _opaque(policy_revision) or not _opaque(body_ref)
+        or not _opaque(approved_target_class_ref) or channel != "telegram"
+        or policy_gate != DELIVERY_POLICY_GATE
+    ):
+        raise ValueError("invalid delivery identity")
     return "delivery-" + hashlib.sha256(json.dumps(values, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
@@ -365,6 +418,47 @@ def build_server_owned_delivery_request(
         raise ValueError("server-owned security incident delivery unavailable") from None
 
 
+def build_access_alert_delivery_request(
+    action: Any,
+    readiness: Any,
+    store: Any,
+    *,
+    timeout_seconds: int = DEFAULT_DELIVERY_TIMEOUT_SECONDS,
+) -> SecurityIncidentDeliveryRequest:
+    """Bind a durable access-alert context to its exact dynamic body reference."""
+    try:
+        from src.security_incident_notifications import (
+            canonical_access_alert_body_ref,
+            canonical_operator_notification_target_class_ref,
+        )
+        if (
+            getattr(action, "action_type") != DELIVERY_ACTION_TYPE
+            or getattr(action, "state") != "approved"
+            or type(getattr(action, "version")) is not int
+        ):
+            raise ValueError
+        context = store.get_incident_context_for_action(getattr(action, "action_id"))
+        body_ref = canonical_access_alert_body_ref(
+            event_class=context.event_class, accessing_ip=context.accessing_ip,
+        )
+        if body_ref != context.notification_binding_ref:
+            raise ValueError
+        request = SecurityIncidentDeliveryRequest(
+            incident_id=action.incident_id, action_id=action.action_id,
+            action_version=action.version, scope_fingerprint=action.scope_fingerprint,
+            policy_revision=action.policy_revision, body_ref=body_ref,
+            approved_target_class_ref=canonical_operator_notification_target_class_ref(),
+            channel="telegram", grant_expires_at=action.expires_at,
+            timeout_seconds=timeout_seconds, telegram_delivery_readiness=readiness,
+        )
+        request.validate()
+        if action.idempotency_key != delivery_idempotency_key(request):
+            raise ValueError
+        return request
+    except Exception:
+        raise ValueError("server-owned access alert delivery unavailable") from None
+
+
 def is_sealed_security_incident_delivery_transport(value: Any) -> bool:
     """Return whether a server-owned delivery transport can be used safely."""
     return _approved_transport(value)
@@ -391,7 +485,17 @@ def _receipt_ref(value: Any) -> bool:
 def _readiness(value: Any) -> dict[str, bool]:
     if not isinstance(value, Mapping) or set(value) != _READINESS_FIELDS or any(type(value[key]) is not bool for key in _READINESS_FIELDS):
         raise ValueError("invalid delivery readiness")
-    if value["raw_target_visible"] is not False or value["secret_values_visible"] is not False or value["send_ready"] != (value["opaque_target_configured"] and value["agent_reply_enabled"]):
+    if (
+        value["raw_target_visible"] is not False
+        or value["secret_values_visible"] is not False
+        or (
+            value["send_ready"]
+            and not (
+                value["opaque_target_configured"]
+                and value["agent_reply_enabled"]
+            )
+        )
+    ):
         raise ValueError("invalid delivery readiness")
     return {key: value[key] for key in sorted(_READINESS_FIELDS)}
 
@@ -446,6 +550,6 @@ def _transport_result(value: Any) -> dict[str, str]:
 __all__ = [
     "DELIVERY_ACTION_TYPE", "DELIVERY_POLICY_GATE", "DELIVERY_REQUEST_SCHEMA",
     "DEFAULT_DELIVERY_TIMEOUT_SECONDS", "MAX_DELIVERY_TIMEOUT_SECONDS", "MAX_DRY_RUN_RETRIES", "SecurityIncidentDeliveryAdapter",
-    "SecurityIncidentDeliveryReceipt", "SecurityIncidentDeliveryRequest", "TrustedTelegramDeliveryReadiness", "InjectedSecurityIncidentDeliveryTransport", "delivery_idempotency_key", "issue_test_delivery_transport",
-    "build_server_owned_delivery_request", "is_sealed_security_incident_delivery_transport", "record_dry_run_delivery",
+    "SecurityIncidentDeliveryReceipt", "SecurityIncidentDeliveryRequest", "TrustedTelegramDeliveryReadiness", "InjectedSecurityIncidentDeliveryTransport", "delivery_idempotency_identity", "delivery_idempotency_key", "issue_test_delivery_transport",
+    "build_access_alert_delivery_request", "build_server_owned_delivery_request", "is_sealed_security_incident_delivery_transport", "record_dry_run_delivery",
 ]

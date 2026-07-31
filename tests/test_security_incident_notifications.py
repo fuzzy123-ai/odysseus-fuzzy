@@ -4,6 +4,8 @@ import pytest
 
 from src.security_incident_model import SecurityIncidentModelError, build_recommended_action, build_security_incident
 from src.security_incident_notifications import (
+    canonical_access_alert_body,
+    canonical_access_alert_body_ref,
     SecurityIncidentNotificationError,
     build_incident_notification_payload,
     canonical_operator_notification_body_ref,
@@ -11,6 +13,31 @@ from src.security_incident_notifications import (
     canonical_operator_notification_target_class_ref,
     format_incident_notification_for_telegram,
 )
+
+
+def test_canonical_access_alert_body_binds_exact_event_and_ipv4_ipv6_without_identity():
+    first = canonical_access_alert_body(
+        event_class="authentication_failure", accessing_ip="8.8.8.8",
+    )
+    second = canonical_access_alert_body(
+        event_class="step_up_failure", accessing_ip="2606:4700:4700::1111",
+    )
+    assert "Fehlgeschlagener Login" in first and "Zugreifende IP: 8.8.8.8" in first
+    private_v4 = canonical_access_alert_body(
+        event_class="authentication_failure", accessing_ip="10.20.30.40",
+    )
+    private_v6 = canonical_access_alert_body(
+        event_class="external_access_origin_only", accessing_ip="fd00::1234",
+    )
+    assert "Sicherheitsfreigabe" in second and "2606:4700:4700::1111" in second
+    assert "10.20.30.40" in private_v4 and "fd00::1234" in private_v6
+    assert all(body.isascii() for body in (first, second, private_v4, private_v6))
+    assert canonical_access_alert_body_ref(
+        event_class="authentication_failure", accessing_ip="8.8.8.8",
+    ) != canonical_access_alert_body_ref(
+        event_class="authentication_failure", accessing_ip="1.1.1.1",
+    )
+    assert all(marker not in (first + second).lower() for marker in ("username", "password", "token", "header"))
 
 
 def test_canonical_operator_smoke_body_and_opaque_refs_are_fixed_and_redacted():

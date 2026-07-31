@@ -2,17 +2,24 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import time
 from collections.abc import Callable
 from typing import Any, Mapping
 
 from src.security_evidence_broker import SECURITY_EVIDENCE_SCHEMA, build_security_evidence_envelope
+from src.security_incident_delivery import delivery_idempotency_identity
 from src.security_incident_network_context import OwnPublicEgressSnapshot, decide_self_egress_suppression
+from src.security_incident_notifications import (
+    canonical_access_alert_body_ref,
+    canonical_operator_notification_target_class_ref,
+)
 from src.security_incident_store import SecurityIncidentStore, validate_untrusted_incident_context_evidence
 
 
 AUTH_BRIDGE_SCHEMA = "odysseus.security_auth_incident_bridge.v1"
 ACTION_TTL_SECONDS = 900
+AUTH_ALERT_DEDUPE_WINDOW_SECONDS = 300
 _EVENT_KINDS = frozenset({"login", "step_up", "status", "logout"})
 
 
@@ -34,16 +41,30 @@ class SecurityAuthIncidentBridge:
         event_class = _classify(event_kind, envelope)
         if event_class is None:
             return {"status": "ignored_routine_auth_event", "raw_content_visible": False}
+        now = self._server_now()
         context, supplied_decision, supplied_reason = validate_untrusted_incident_context_evidence(event_class, context, audit, envelope.correlation_ref)
         canonical_audit = self._canonical_suppression_audit(
             event_class=event_class, correlation_ref=envelope.correlation_ref, context=context,
             supplied_decision=supplied_decision, supplied_reason=supplied_reason,
+            now=now,
         )
         source_ref = str(canonical_audit["source_ref"])
-        incident_id = "inc-auth-" + _digest("incident", envelope.evidence_ref, event_class, source_ref)[:24]
-        incident_ref = _ref("incident", envelope.evidence_ref, event_class, source_ref)
-        audit_ref = _ref("audit", envelope.correlation_ref, event_class, "context")
-        binding_ref = _ref("body", "operator_notification", event_class, envelope.evidence_ref, source_ref)
+        generation = (
+            str(int(now // AUTH_ALERT_DEDUPE_WINDOW_SECONDS))
+            if now is not None else "clock-unavailable"
+        )
+        incident_id = "inc-auth-" + _digest(
+            "incident", envelope.evidence_ref, event_class, source_ref, generation,
+        )[:24]
+        incident_ref = _ref(
+            "incident", envelope.evidence_ref, event_class, source_ref, generation,
+        )
+        audit_ref = _ref(
+            "audit", envelope.correlation_ref, event_class, generation, "context",
+        )
+        binding_ref = canonical_access_alert_body_ref(
+            event_class=event_class, accessing_ip=context.canonical_ip,
+        )
         incident = self._store.create_incident(incident_id=incident_id, incident_ref=incident_ref, audit_ref=audit_ref)
         durable_context = self._store.bind_incident_context(
             incident_id=incident.incident_id, event_class=event_class, access_context=context,
@@ -52,9 +73,13 @@ class SecurityAuthIncidentBridge:
         action_id = "notify-" + _digest("action", incident.incident_id, binding_ref)[:32]
         if durable_context.suppression_decision == "suppress_notification":
             return {"status": "suppressed", "incident_id": incident.incident_id, "action_created": False, "raw_content_visible": False}
-        scope = _ref("scope", "auth_incident", incident.incident_id)
-        policy = _ref("policy", "ops_alert_c4", event_class)
-        idempotency = "idem-" + _digest("idempotency", incident.incident_id, binding_ref)[:32]
+        scope = operator_notification_scope_fingerprint(incident.incident_id)
+        policy = operator_notification_policy_revision(event_class)
+        idempotency = delivery_idempotency_identity(
+            incident_id=incident.incident_id, action_id=action_id,
+            scope_fingerprint=scope, policy_revision=policy, body_ref=binding_ref,
+            approved_target_class_ref=canonical_operator_notification_target_class_ref(),
+        )
         action = self._store.create_action(
             action_id=action_id, incident_id=incident.incident_id, action_type="operator_notification",
             scope_fingerprint=scope, policy_revision=policy, idempotency_key=idempotency,
@@ -64,7 +89,8 @@ class SecurityAuthIncidentBridge:
         return {"status": "action_proposed", "incident_id": incident.incident_id, "action_id": action.action_id, "action_created": not action.idempotent_replay, "raw_content_visible": False}
 
     def _canonical_suppression_audit(self, *, event_class: str, correlation_ref: str, context: Any,
-                                     supplied_decision: str, supplied_reason: str) -> dict[str, Any]:
+                                     supplied_decision: str, supplied_reason: str,
+                                     now: float | None) -> dict[str, Any]:
         """Use only a trusted, fresh injected snapshot to allow suppression."""
         snapshot = None
         if self._own_public_egress_provider is not None:
@@ -73,11 +99,8 @@ class SecurityAuthIncidentBridge:
                 snapshot = candidate if isinstance(candidate, OwnPublicEgressSnapshot) else None
             except Exception:
                 snapshot = None
-        try:
-            now = self._clock()
-        except Exception:
+        if now is None:
             snapshot = None
-            now = None
         canonical = decide_self_egress_suppression(
             incident_id=correlation_ref, event_class=event_class, source_context=context,
             own_public_egress=snapshot, now=now,
@@ -88,6 +111,16 @@ class SecurityAuthIncidentBridge:
                 own_public_egress=None, now=now,
             )
         return canonical
+
+    def _server_now(self) -> float | None:
+        try:
+            value = self._clock()
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                return None
+            numeric = float(value)
+            return numeric if math.isfinite(numeric) and numeric >= 0 else None
+        except Exception:
+            return None
 
 
 def _record(value: Any):
@@ -133,4 +166,18 @@ def _ref(kind: str, *parts: str) -> str:
     return f"{kind}:sha256:{_digest(*parts)}"
 
 
-__all__ = ["ACTION_TTL_SECONDS", "AUTH_BRIDGE_SCHEMA", "SecurityAuthIncidentBridge"]
+def operator_notification_scope_fingerprint(incident_id: str) -> str:
+    return _ref("scope", "auth_incident", incident_id)
+
+
+def operator_notification_policy_revision(event_class: str) -> str:
+    if event_class not in {"authentication_failure", "step_up_failure", "external_access_origin_only"}:
+        raise ValueError("security auth incident policy unavailable")
+    return _ref("policy", "ops_alert_c4", event_class)
+
+
+__all__ = [
+    "ACTION_TTL_SECONDS", "AUTH_ALERT_DEDUPE_WINDOW_SECONDS", "AUTH_BRIDGE_SCHEMA",
+    "SecurityAuthIncidentBridge",
+    "operator_notification_policy_revision", "operator_notification_scope_fingerprint",
+]
