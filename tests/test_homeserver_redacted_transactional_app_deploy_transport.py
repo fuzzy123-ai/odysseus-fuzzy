@@ -19,7 +19,7 @@ def test_validated_bundle_alone_reaches_the_production_entrypoint(monkeypatch):
  result=t.invoke_bundle(bundle,production_entrypoint=lambda p,execute: called.append((p,execute)) or e._envelope('blocked','preflight','failed',False));assert called and e.validate_envelope(result)
  bundle['execute']=False;assert t.invoke_bundle(bundle,production_entrypoint=lambda **_:(_ for _ in ()).throw(AssertionError()))['status']=='blocked'
 def test_literal_bootstrap_loads_actual_pinned_sources_on_safe_execute_false_path():
- root=Path.cwd(); source=(root/t.EXECUTOR_PATH).read_bytes(); readback=(root/t.READBACK_PATH).read_bytes()
+ root=Path.cwd(); source=(root/t.EXECUTOR_PATH).read_bytes().replace(b'\r\n',b'\n'); readback=(root/t.READBACK_PATH).read_bytes().replace(b'\r\n',b'\n')
  assert hashlib.sha256(source).hexdigest()==t.PUBLISHED_EXECUTOR_SHA256 and hashlib.sha256(readback).hexdigest()==t.PUBLISHED_READBACK_SHA256
  bundle={'packet':packet(),'execute':False,'executor':{'sha256':t.PUBLISHED_EXECUTOR_SHA256,'source':base64.b64encode(source).decode()},'readback':{'sha256':t.PUBLISHED_READBACK_SHA256,'source':base64.b64encode(readback).decode()}}
  bootstrap=t._BOOTSTRAP.replace('/opt/odysseus',str(root).replace('\\','/'))

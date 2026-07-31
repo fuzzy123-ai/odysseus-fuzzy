@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-31T09:48:00+02:00",
+  "updated_at": "2026-07-31T13:14:00+02:00",
   "status": "ops_alert_c2_required_ci_green_d_transactional_executor_claimed",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -135,6 +135,8 @@
         "allowed_paths": [
           "app.py",
           "docker-compose.yml",
+          "docker-compose.gpu-amd.yml",
+          "docker-compose.gpu-nvidia.yml",
           "routes/auth_routes.py",
           "src/security_access_alert_delivery.py",
           "src/security_auth_incident_bridge.py",
@@ -152,6 +154,8 @@
           "ops/homeserver/redacted_security_incident_delivery_activation.py",
           "ops/homeserver/redacted_security_incident_delivery_activation_readback.py",
           "ops/homeserver/redacted_security_incident_delivery_activation_transport.py",
+          "ops/homeserver/redacted_security_access_alert_live_readback.py",
+          "ops/homeserver/redacted_security_access_alert_live_smoke_transport.py",
           "tests/test_docker_devops_hardening.py",
           "tests/test_homeserver_redacted_runtime_probe.py",
           "tests/test_homeserver_redacted_transactional_app_deploy.py",
@@ -160,6 +164,8 @@
           "tests/test_homeserver_redacted_security_incident_delivery_activation.py",
           "tests/test_homeserver_redacted_security_incident_delivery_activation_readback.py",
           "tests/test_homeserver_redacted_security_incident_delivery_activation_transport.py",
+          "tests/test_homeserver_redacted_security_access_alert_live_readback.py",
+          "tests/test_homeserver_redacted_security_access_alert_live_smoke_transport.py",
           "tests/test_security_access_alert_delivery.py",
           "tests/test_security_auth_incident_bridge.py",
           "tests/test_security_incident_delivery.py",
@@ -172,7 +178,23 @@
           "docs/plans/open-work-completion-master-roadmap.json",
           "docs/plans/unified-source-index-runtime-caller-inventory.json"
         ],
-        "phase": "integrate_reviewed_slices_full_python311_regression_exact_publish_and_terminal_ci",
+        "phase": "local_python311_and_inventory_green_exact_commit_push_then_terminal_ubuntu_ci",
+        "verification_evidence": {
+          "python_runtime": "CPython 3.11.15 from C:/tmp/odysseus-ci-py311-20260730/Scripts/python.exe",
+          "ops_alert_integration_corridor": "231 passed, 1 pre-existing SQLAlchemy warning",
+          "gpu_compose_and_devops_contracts_after_drift_repair": "20 passed, 1 pre-existing SQLAlchemy warning",
+          "full_windows_compatible_suite": "11348 passed, 29 skipped, 7 deselected, 12 warnings",
+          "full_windows_compatible_suite_duration_seconds": 693.86,
+          "locally_deselected_linux_gates": [
+            "four symlink-bound agent migration tests requiring Windows symlink privilege",
+            "one personal-directory symlink escape test requiring Windows symlink privilege",
+            "two bash path/syntax tests whose Git Bash cannot consume a Windows worktree path"
+          ],
+          "locally_deselected_gate_rule": "These seven tests are not PASS locally and must pass unchanged in the terminal GitHub Ubuntu Required quality gate before live work.",
+          "deterministic_runtime_inventory": "check passed",
+          "diff_check": "passed",
+          "tested_dirty_diff_authority": "active claim allowed paths only; exact staged digest and commit revision to be recorded before push"
+        },
         "live_actions": false,
         "permitted_git_actions": [
           "stage only reviewed allowed paths",
@@ -183,7 +205,8 @@
         "forbidden_actions": [
           "SSH, host mutation, deployment, environment change, container action, provider call or Telegram send before the later exact live action packets",
           "staging or absorbing paths outside this exact claim",
-          "publishing a revision whose full Python 3.11 regression or deterministic inventory check is not green"
+          "treating the seven locally unavailable Linux gates as PASS before the exact pushed commit reaches terminal green on GitHub Ubuntu",
+          "publishing a revision whose locally applicable Python 3.11 regression or deterministic inventory check is not green"
         ],
         "handoff_required": true
       }

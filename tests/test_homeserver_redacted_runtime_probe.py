@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import json
+import os
 from pathlib import Path
 from types import ModuleType
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,14 +32,23 @@ class _Result:
 
 
 def _safe_payload(module: ModuleType) -> dict[str, object]:
+    presence = {
+        name: index % 2 == 0
+        for index, name in enumerate(module.EXPECTED_CREDENTIAL_KEYS)
+    }
+    presence["TELEGRAM_BOT_TOKEN"] = True
     return {
         "schema_id": module.CONTAINER_SCHEMA_ID,
         "environment_entry_count": 24,
-        "credential_presence": {
-            name: index % 2 == 0
-            for index, name in enumerate(module.EXPECTED_CREDENTIAL_KEYS)
-        },
+        "credential_presence": presence,
         "unknown_sensitive_key_count": 1,
+        "telegram_delivery_readiness": {
+            "opaque_target_configured": True,
+            "agent_reply_enabled": True,
+            "send_ready": True,
+            "raw_target_visible": False,
+            "secret_values_visible": False,
+        },
     }
 
 
@@ -52,7 +66,7 @@ def test_command_uses_fixed_in_container_projection_without_shell_or_env_inspect
     assert "bash -c" not in encoded
 
 
-def test_projection_drops_unknown_fields_and_never_serializes_secret_values() -> None:
+def test_projection_rejects_unknown_fields_and_never_serializes_secret_values() -> None:
     module = _load_module()
     payload = _safe_payload(module)
     payload["unexpected"] = {
@@ -60,20 +74,10 @@ def test_projection_drops_unknown_fields_and_never_serializes_secret_values() ->
         "nested": ["another-synthetic-value"],
     }
 
-    projection = module.parse_container_projection(
-        json.dumps(payload), container="odysseus_odysseus_1"
-    )
-    encoded = json.dumps(projection, sort_keys=True)
-
-    assert projection["status"] == "ok"
-    assert projection["raw_environment_visible"] is False
-    assert projection["secret_values_visible"] is False
-    assert "unexpected" not in projection
-    assert "synthetic-value-that-must-never-survive" not in encoded
-    assert "another-synthetic-value" not in encoded
-    assert set(projection["credential_presence"]) == set(
-        module.EXPECTED_CREDENTIAL_KEYS
-    )
+    with pytest.raises(ValueError):
+        module.parse_container_projection(
+            json.dumps(payload), container="odysseus_odysseus_1"
+        )
 
 
 def test_malformed_or_secret_bearing_subprocess_output_is_fail_closed_and_redacted() -> None:
@@ -98,6 +102,13 @@ def test_malformed_or_secret_bearing_subprocess_output_is_fail_closed_and_redact
         "error_code": "container_probe_failed",
         "raw_environment_visible": False,
         "secret_values_visible": False,
+        "telegram_delivery_readiness": {
+            "opaque_target_configured": False,
+            "agent_reply_enabled": False,
+            "send_ready": False,
+            "raw_target_visible": False,
+            "secret_values_visible": False,
+        },
     }
     assert raw_marker not in encoded
 
@@ -142,6 +153,98 @@ def test_legitimate_probe_preserves_presence_and_runtime_readiness() -> None:
     assert projection["environment_entry_count"] == 24
     assert projection["unknown_sensitive_key_count"] == 1
     assert projection["credential_presence"] == payload["credential_presence"]
+    assert projection["telegram_delivery_readiness"] == payload["telegram_delivery_readiness"]
+
+
+def test_nested_telegram_readiness_is_exact_and_token_bound() -> None:
+    module = _load_module()
+    payload = _safe_payload(module)
+    payload["telegram_delivery_readiness"]["send_ready"] = False
+    with pytest.raises(ValueError):
+        module.parse_container_projection(
+            json.dumps(payload), container="odysseus_odysseus_1"
+        )
+
+    payload = _safe_payload(module)
+    payload["credential_presence"]["TELEGRAM_BOT_TOKEN"] = False
+    with pytest.raises(ValueError):
+        module.parse_container_projection(
+            json.dumps(payload), container="odysseus_odysseus_1"
+        )
+
+    payload = _safe_payload(module)
+    payload["telegram_delivery_readiness"]["extra"] = True
+    with pytest.raises(ValueError):
+        module.parse_container_projection(
+            json.dumps(payload), container="odysseus_odysseus_1"
+        )
+
+
+def _container_program_payload(
+    module: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    environment: dict[str, str],
+) -> dict[str, object]:
+    stream = io.StringIO()
+    monkeypatch.setattr(os, "environ", environment)
+    with contextlib.redirect_stdout(stream):
+        exec(module._CONTAINER_PROGRAM, {})
+    return json.loads(stream.getvalue())
+
+
+@pytest.mark.parametrize(
+    "target_marker",
+    ["TELEGRAM_NOTIFICATION_CHAT_ID", "TELEGRAM_ALLOWED_CHAT_IDS", "TELEGRAM_CHAT_ID"],
+)
+def test_container_target_readiness_requires_token_without_leaking_values(
+    monkeypatch: pytest.MonkeyPatch,
+    target_marker: str,
+) -> None:
+    module = _load_module()
+    payload = _container_program_payload(
+        module,
+        monkeypatch,
+        {
+            target_marker: "configured-target",
+            "TELEGRAM_AGENT_REPLY_ENABLED": "true",
+            "TELEGRAM_BOT_TOKEN": "synthetic-token-value",
+        },
+    )
+    assert payload["telegram_delivery_readiness"] == {
+        "opaque_target_configured": True,
+        "agent_reply_enabled": True,
+        "send_ready": True,
+        "raw_target_visible": False,
+        "secret_values_visible": False,
+    }
+    encoded = json.dumps(payload, sort_keys=True)
+    assert payload["unknown_sensitive_key_count"] == 0
+    assert "configured-target" not in encoded
+    assert "synthetic-token-value" not in encoded
+
+
+def test_container_send_readiness_is_false_without_target_or_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_module()
+    no_target = _container_program_payload(
+        module,
+        monkeypatch,
+        {"TELEGRAM_AGENT_REPLY_ENABLED": "true", "TELEGRAM_BOT_TOKEN": "configured"},
+    )
+    assert no_target["telegram_delivery_readiness"]["send_ready"] is False
+
+    no_token = _container_program_payload(
+        module,
+        monkeypatch,
+        {
+            "TELEGRAM_NOTIFICATION_CHAT_ID": "configured",
+            "TELEGRAM_AGENT_REPLY_ENABLED": "true",
+        },
+    )
+    assert no_token["telegram_delivery_readiness"]["send_ready"] is False
+    assert no_target["unknown_sensitive_key_count"] == 0
+    assert no_token["unknown_sensitive_key_count"] == 0
 
 
 def test_invalid_container_name_is_rejected_without_starting_a_process() -> None:

@@ -34,7 +34,7 @@ def test_transport_timeout_and_literal_bootstrap_execute_false_are_safe(monkeypa
     monkeypatch.setattr(t, "_blob", lambda *_: b"x")
     value = t.collect_published_delivery_activation(packet(), execute=True, runner=lambda *_a, **_k: (_ for _ in ()).throw(subprocess.TimeoutExpired("ssh", 1)))
     assert value["error_code"] == "transport_timeout"
-    root = Path.cwd(); source = (root / t.ACTIVATION_PATH).read_bytes(); readback = (root / t.READBACK_PATH).read_bytes()
+    root = Path.cwd(); source = (root / t.ACTIVATION_PATH).read_bytes().replace(b"\r\n", b"\n"); readback = (root / t.READBACK_PATH).read_bytes().replace(b"\r\n", b"\n")
     assert hashlib.sha256(source).hexdigest() == t.PUBLISHED_ACTIVATION_SHA256 and hashlib.sha256(readback).hexdigest() == t.PUBLISHED_READBACK_SHA256
     bootstrap = t._BOOTSTRAP.replace("/opt/odysseus", str(root).replace("\\", "/")).replace("'0' * 64", "")
     bootstrap = bootstrap.replace("0000000000000000000000000000000000000000000000000000000000000000", hashlib.sha256(source).hexdigest(), 1).replace("0000000000000000000000000000000000000000000000000000000000000000", hashlib.sha256(readback).hexdigest(), 1)

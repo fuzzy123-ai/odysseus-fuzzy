@@ -52,14 +52,42 @@ SENSITIVE_KEY_MARKERS = (
     "TOKEN",
 )
 
+_TELEGRAM_READINESS_KEYS = (
+    "opaque_target_configured",
+    "agent_reply_enabled",
+    "send_ready",
+    "raw_target_visible",
+    "secret_values_visible",
+)
+
+_TELEGRAM_READINESS_ENV_KEYS = (
+    "TELEGRAM_NOTIFICATION_CHAT_ID",
+    "TELEGRAM_ALLOWED_CHAT_IDS",
+    "TELEGRAM_CHAT_ID",
+    "TELEGRAM_AGENT_REPLY_ENABLED",
+)
+
 _CONTAINER_PROGRAM = """\
 import json
 import os
 
 expected = %r
 markers = %r
+readiness_keys = %r
 keys = tuple(os.environ)
-known = set(expected)
+known = set(expected) | set(readiness_keys)
+notification_target = (os.environ.get("TELEGRAM_NOTIFICATION_CHAT_ID") or "").strip()
+allowed_targets = (os.environ.get("TELEGRAM_ALLOWED_CHAT_IDS") or "").strip()
+fallback_target = (os.environ.get("TELEGRAM_CHAT_ID") or "").strip()
+target_configured = bool(
+    notification_target
+    if notification_target
+    else allowed_targets.split(",", 1)[0].strip()
+    if allowed_targets
+    else fallback_target
+)
+agent_reply_enabled = os.environ.get("TELEGRAM_AGENT_REPLY_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
+bot_token_configured = bool((os.environ.get("TELEGRAM_BOT_TOKEN") or "").strip())
 payload = {
     "schema_id": %r,
     "environment_entry_count": len(keys),
@@ -69,9 +97,16 @@ payload = {
         for name in keys
         if name not in known and any(marker in name.upper() for marker in markers)
     ),
+    "telegram_delivery_readiness": {
+        "opaque_target_configured": target_configured,
+        "agent_reply_enabled": agent_reply_enabled,
+        "send_ready": target_configured and agent_reply_enabled and bot_token_configured,
+        "raw_target_visible": False,
+        "secret_values_visible": False,
+    },
 }
 print(json.dumps(payload, sort_keys=True, separators=(",", ":")))
-""" % (EXPECTED_CREDENTIAL_KEYS, SENSITIVE_KEY_MARKERS, CONTAINER_SCHEMA_ID)
+""" % (EXPECTED_CREDENTIAL_KEYS, SENSITIVE_KEY_MARKERS, _TELEGRAM_READINESS_ENV_KEYS, CONTAINER_SCHEMA_ID)
 
 
 def _blocked(error_code: str) -> dict[str, Any]:
@@ -80,6 +115,17 @@ def _blocked(error_code: str) -> dict[str, Any]:
         "status": "blocked",
         "error_code": error_code,
         "raw_environment_visible": False,
+        "secret_values_visible": False,
+        "telegram_delivery_readiness": _blocked_telegram_readiness(),
+    }
+
+
+def _blocked_telegram_readiness() -> dict[str, bool]:
+    return {
+        "opaque_target_configured": False,
+        "agent_reply_enabled": False,
+        "send_ready": False,
+        "raw_target_visible": False,
         "secret_values_visible": False,
     }
 
@@ -103,7 +149,18 @@ def parse_container_projection(raw: str, *, container: str) -> dict[str, Any]:
         payload = json.loads(raw)
     except (TypeError, json.JSONDecodeError) as exc:
         raise ValueError("invalid_probe_payload") from exc
-    if not isinstance(payload, dict) or payload.get("schema_id") != CONTAINER_SCHEMA_ID:
+    if (
+        not isinstance(payload, dict)
+        or set(payload)
+        != {
+            "schema_id",
+            "environment_entry_count",
+            "credential_presence",
+            "unknown_sensitive_key_count",
+            "telegram_delivery_readiness",
+        }
+        or payload.get("schema_id") != CONTAINER_SCHEMA_ID
+    ):
         raise ValueError("invalid_probe_payload")
 
     raw_presence = payload.get("credential_presence")
@@ -113,6 +170,10 @@ def parse_container_projection(raw: str, *, container: str) -> dict[str, Any]:
         raise ValueError("invalid_probe_payload")
     if any(type(raw_presence[name]) is not bool for name in EXPECTED_CREDENTIAL_KEYS):
         raise ValueError("invalid_probe_payload")
+    readiness = _telegram_readiness(
+        payload.get("telegram_delivery_readiness"),
+        bot_token_configured=raw_presence["TELEGRAM_BOT_TOKEN"],
+    )
 
     return {
         "schema_id": HOST_SCHEMA_ID,
@@ -130,7 +191,32 @@ def parse_container_projection(raw: str, *, container: str) -> dict[str, Any]:
         ),
         "raw_environment_visible": False,
         "secret_values_visible": False,
+        "telegram_delivery_readiness": readiness,
     }
+
+
+def _telegram_readiness(
+    value: Any,
+    *,
+    bot_token_configured: bool,
+) -> dict[str, bool]:
+    if (
+        not isinstance(value, dict)
+        or set(value) != set(_TELEGRAM_READINESS_KEYS)
+        or type(bot_token_configured) is not bool
+    ):
+        raise ValueError("invalid_probe_payload")
+    if any(type(value[key]) is not bool for key in _TELEGRAM_READINESS_KEYS):
+        raise ValueError("invalid_probe_payload")
+    if value["raw_target_visible"] is not False or value["secret_values_visible"] is not False:
+        raise ValueError("invalid_probe_payload")
+    if value["send_ready"] != (
+        value["opaque_target_configured"]
+        and value["agent_reply_enabled"]
+        and bot_token_configured
+    ):
+        raise ValueError("invalid_probe_payload")
+    return {key: value[key] for key in _TELEGRAM_READINESS_KEYS}
 
 
 def collect_runtime_projection(
@@ -177,7 +263,7 @@ def _self_check() -> dict[str, Any]:
                 "environment_entry_count": len(presence),
                 "credential_presence": presence,
                 "unknown_sensitive_key_count": 0,
-                "ignored": {"password": "synthetic-value"},
+                "telegram_delivery_readiness": _blocked_telegram_readiness(),
             }
         ),
         container=DEFAULT_CONTAINER,
@@ -188,6 +274,7 @@ def _self_check() -> dict[str, Any]:
         if projection["status"] == "ok"
         and projection["secret_values_visible"] is False
         and projection["raw_environment_visible"] is False
+        and projection["telegram_delivery_readiness"] == _blocked_telegram_readiness()
         else "failed",
         "secret_values_visible": False,
         "raw_environment_visible": False,
