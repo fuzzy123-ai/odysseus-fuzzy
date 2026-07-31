@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-31T17:14:00+02:00",
-  "status": "ops_alert_fd_bound_backup_published_ci_green_waiting_on_action_specific_credential_migration_authority",
+  "updated_at": "2026-07-31T17:43:00+02:00",
+  "status": "ops_alert_namespace_capability_probe_repo_claim_active_live_credential_authority_still_required",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,7 +23,7 @@
     "unique_live_gates": 53,
     "unique_design_gates": 27,
     "other_open_json_items": 108,
-    "queue_status": "ops_alert_fd_bound_backup_published_ci_green_waiting_on_action_specific_credential_migration_authority",
+    "queue_status": "ops_alert_namespace_capability_probe_repo_claim_active_live_credential_authority_still_required",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -275,6 +275,58 @@
         },
         "permitted_git_actions": [
           "stage only the nine reviewed allowed paths",
+          "create one local integration commit from the exact tested index",
+          "push that exact commit to fuzzy/dev",
+          "observe the exact GitHub Required quality gate run to terminal state"
+        ],
+        "handoff_required": false
+      },
+      {
+        "run_id": "ABC-OPS-ALERT-NAMESPACE-CAPABILITY-PREP-20260731",
+        "thread_id": "/root",
+        "slice_id": "OPS-ALERT-private-user-mount-namespace-read-only-capability-probe",
+        "owner": "root/Sol implementer and final reviewer",
+        "state": "claimed",
+        "acquired_at": "2026-07-31T17:23:00+02:00",
+        "lease_expires_at": "2026-07-31T19:23:00+02:00",
+        "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
+        "base_revision": "2ce8895861fa62a6e5077b5d31fbea34a6ad88c3",
+        "dependencies": [
+          "ABC-OPS-ALERT-FD-BACKUP-REDESIGN-20260731 published as a9e1cd776b2550be2caa39208f8a5cc2ab04eb94 with GitHub CI run 30641375933 terminal success",
+          "roadmap receipt 2ce8895861fa62a6e5077b5d31fbea34a6ad88c3 with GitHub CI run 30642034974 terminal success"
+        ],
+        "allowed_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json",
+          "ops/homeserver/redacted_predeploy_backup_capability.py",
+          "ops/homeserver/redacted_predeploy_backup_capability_transport.py",
+          "tests/test_homeserver_redacted_predeploy_backup_capability.py",
+          "tests/test_homeserver_redacted_predeploy_backup_capability_transport.py"
+        ],
+        "phase": "sol_review_pass_local_python_3_11_green_ready_for_commit_push_ci",
+        "live_actions": false,
+        "acceptance": [
+          "probe performs no repository write, backup, credential read, deployment, provider send or persistent host mutation",
+          "probe proves private user namespace, private mount namespace, descriptor bind mounts, read-only source remount and executable CLOEXEC using only fixed nonsecret inputs",
+          "all subprocess output is discarded and only a fixed-key boolean redacted envelope is emitted",
+          "transport is pinned to the exact published blob, bounded, single invocation, no retry and terminal on ambiguity",
+          "Python 3.11 focused tests, adversarial tests and terminal Ubuntu Required CI are green before any live observation packet"
+        ],
+        "forbidden_actions": [
+          "SSH, namespace invocation, host mutation, credential access, backup creation, deployment, provider send or Telegram send",
+          "staging or absorbing paths outside this claim"
+        ],
+        "verification_evidence": {
+          "published_core_candidate_sha256": "50a77606af9b5a127ada57ca44533a9821612fd6e71ddeca17564c1586a8562e",
+          "python_3_11_focused_suite": "13 passed, 1 pre-existing SQLAlchemy warning",
+          "independent_final_review": "PASS with no remaining P0-P2 after three bounded correction cycles",
+          "effects": "none; no SSH, namespace invocation, credential, repository, backup, deploy or provider action",
+          "not_verified": [
+            "terminal Ubuntu Required CI",
+            "real Debian read-only namespace capability observation"
+          ]
+        },
+        "permitted_git_actions": [
+          "stage only the five reviewed allowed paths",
           "create one local integration commit from the exact tested index",
           "push that exact commit to fuzzy/dev",
           "observe the exact GitHub Required quality gate run to terminal state"
