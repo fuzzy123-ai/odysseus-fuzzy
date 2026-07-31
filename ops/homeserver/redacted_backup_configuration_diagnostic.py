@@ -42,6 +42,12 @@ _PROOFS = frozenset(
         "password_nonempty_bounded",
         "repair_temporary_absent",
         "repair_platform_ready",
+        "existing_pointer_syntax_safe",
+        "existing_pointer_regular_single_link",
+        "existing_pointer_owner_safe",
+        "existing_pointer_mode_safe",
+        "existing_pointer_nonempty_bounded",
+        "existing_pointer_contract_ready",
     }
 )
 _VISIBILITY = frozenset(
@@ -84,6 +90,7 @@ _KEYS = frozenset(
     }
 )
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
+_SAFE_CREDENTIAL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 
 def _digest(payload: Mapping[str, Any]) -> str:
@@ -289,6 +296,72 @@ def _password_nonempty_bounded(
         return False
 
 
+def _safe_existing_pointer(value: Any) -> str | None:
+    if (
+        not isinstance(value, str)
+        or len(value.encode("utf-8")) > 4096
+        or value.count("\n") != 1
+        or not value.endswith("\n")
+    ):
+        return None
+    prefix = "RESTIC_PASSWORD_FILE="
+    if not value.startswith(prefix):
+        return None
+    candidate = value[len(prefix) : -1]
+    directory, separator, name = candidate.rpartition("/")
+    return (
+        candidate
+        if separator == "/"
+        and directory == CONFIG_DIRECTORY
+        and _SAFE_CREDENTIAL_NAME.fullmatch(name)
+        and name
+        not in {
+            CONFIG_PATH.rsplit("/", 1)[-1],
+            TEMPORARY_PATH.rsplit("/", 1)[-1],
+        }
+        else None
+    )
+
+
+def _existing_pointer_proofs(
+    path: str | None,
+    *,
+    uid: int | None,
+    lstat: Callable[[str], Any],
+) -> dict[str, bool]:
+    proofs = {
+        "existing_pointer_syntax_safe": path is not None,
+        "existing_pointer_regular_single_link": False,
+        "existing_pointer_owner_safe": False,
+        "existing_pointer_mode_safe": False,
+        "existing_pointer_nonempty_bounded": False,
+    }
+    if path is None or uid is None:
+        proofs["existing_pointer_contract_ready"] = False
+        return proofs
+    try:
+        info = lstat(path)
+        proofs.update(
+            {
+                "existing_pointer_regular_single_link": bool(
+                    stat.S_ISREG(int(info.st_mode))
+                    and int(info.st_nlink) == 1
+                ),
+                "existing_pointer_owner_safe": int(info.st_uid) == uid,
+                "existing_pointer_mode_safe": (
+                    stat.S_IMODE(int(info.st_mode)) == 0o600
+                ),
+                "existing_pointer_nonempty_bounded": (
+                    0 < int(info.st_size) <= 16_384
+                ),
+            }
+        )
+    except Exception:
+        pass
+    proofs["existing_pointer_contract_ready"] = all(proofs.values())
+    return proofs
+
+
 def _read_config() -> str:
     with open(CONFIG_PATH, "r", encoding="utf-8") as handle:
         return handle.read(4097)
@@ -321,7 +394,13 @@ def collect_backup_configuration_diagnostic(
                 == "RESTIC_PASSWORD_FILE=" + PASSWORD_FILE + "\n"
             )
         except Exception:
+            content = None
             content_exact = False
+        existing_pointer = _existing_pointer_proofs(
+            _safe_existing_pointer(content),
+            uid=uid,
+            lstat=lstat,
+        )
         try:
             temporary_absent = not bool(path_exists(TEMPORARY_PATH))
         except Exception:
@@ -391,6 +470,7 @@ def collect_backup_configuration_diagnostic(
             ),
             "repair_temporary_absent": temporary_absent,
             "repair_platform_ready": platform_ready,
+            **existing_pointer,
         }
         return envelope("observed", "none", proofs)
     except Exception:

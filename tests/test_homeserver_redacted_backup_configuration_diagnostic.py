@@ -242,3 +242,56 @@ def test_envelope_never_serializes_non_boolean_proof_values():
     assert result["password_file_safe"] is False
     assert "synthetic-secret-bearing-value" not in json.dumps(result, sort_keys=True)
     assert module.validate_envelope(result)
+
+
+def test_safe_existing_private_pointer_is_proven_without_path_disclosure():
+    dependencies, values = _dependencies()
+    alternate = module.CONFIG_DIRECTORY + "/existing-private-credential"
+    values[alternate] = _stat(stat.S_IFREG, 0o600, 1000)
+    dependencies["config_reader"] = lambda: (
+        "RESTIC_PASSWORD_FILE=" + alternate + "\n"
+    )
+
+    result = module.collect_backup_configuration_diagnostic(**dependencies)
+
+    assert result["configuration_content_exact"] is False
+    assert result["existing_pointer_contract_ready"] is True
+    assert all(
+        result[key] is True
+        for key in (
+            "existing_pointer_syntax_safe",
+            "existing_pointer_regular_single_link",
+            "existing_pointer_owner_safe",
+            "existing_pointer_mode_safe",
+            "existing_pointer_nonempty_bounded",
+        )
+    )
+    assert alternate not in json.dumps(result, sort_keys=True)
+    assert module.validate_envelope(result)
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "RESTIC_PASSWORD_COMMAND=synthetic-private-command\n",
+        "RESTIC_PASSWORD_FILE=/outside/private-credential\n",
+        "RESTIC_PASSWORD_FILE="
+        + module.CONFIG_DIRECTORY
+        + "/../private-credential\n",
+        "RESTIC_PASSWORD_FILE="
+        + module.CONFIG_DIRECTORY
+        + "/"
+        + module.CONFIG_PATH.rsplit("/", 1)[-1]
+        + "\n",
+    ],
+)
+def test_unsafe_existing_pointer_forms_are_rejected_without_disclosure(content):
+    dependencies, _values = _dependencies()
+    dependencies["config_reader"] = lambda: content
+
+    result = module.collect_backup_configuration_diagnostic(**dependencies)
+
+    assert result["existing_pointer_contract_ready"] is False
+    assert result["existing_pointer_syntax_safe"] is False
+    assert "synthetic-private" not in json.dumps(result, sort_keys=True)
+    assert module.validate_envelope(result)

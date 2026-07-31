@@ -13,7 +13,7 @@ from ops.homeserver import redacted_backup_configuration_diagnostic as diagnosti
 
 PUBLISHED_REF = "refs/remotes/fuzzy/dev"
 DIAGNOSTIC_PATH = "ops/homeserver/redacted_backup_configuration_diagnostic.py"
-PUBLISHED_DIAGNOSTIC_SHA256 = "7d5e4763e38f8c8e8ca3338b422bd5b0271f29d45b20fa4be6a462959b6e1b80"
+PUBLISHED_DIAGNOSTIC_SHA256 = "aa3a222ed0630f3f4940ece9db690d0def352183900e9f87fc2afffb873f4a4c"
 SSH_COMMAND = (
     "ssh",
     "-F",

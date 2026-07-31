@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-31T13:23:00+02:00",
-  "status": "ops_alert_backup_configuration_diagnostic_v2_ready_for_publication",
+  "updated_at": "2026-07-31T13:32:00+02:00",
+  "status": "ops_alert_backup_existing_pointer_diagnostic_v3_ready_for_publication",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -247,7 +247,7 @@
           "tests/test_homeserver_redacted_backup_snapshot_observation.py",
           "tests/test_homeserver_redacted_backup_snapshot_observation_transport.py"
         ],
-        "phase": "repair_v2_consumed_no_effect_expanded_read_only_diagnostic_repo_only",
+        "phase": "diagnostic_v2_consumed_expected_path_unsafe_existing_pointer_v3_repo_only",
         "live_actions": true,
         "action_packets": {
           "backup_snapshot_observation": {
@@ -305,6 +305,33 @@
               "value length",
               "value hash",
               "path",
+              "raw stdout",
+              "raw stderr",
+              "exception text"
+            ]
+          },
+          "backup_configuration_diagnostic_v3": {
+            "schema_id": "odysseus.ops_alert_backup_configuration_diagnostic_authority.v3",
+            "mode": "read_only_boolean_projection_of_existing_private_password_file_pointer",
+            "source_delivery": "published_blob_stdin",
+            "published_diagnostic_blob_sha256": "aa3a222ed0630f3f4940ece9db690d0def352183900e9f87fc2afffb873f4a4c",
+            "maximum_invocations_after_publication_and_terminal_ci": 1,
+            "retry_count": 0,
+            "timeout_seconds": 30,
+            "expires": "run_end",
+            "safe_pointer_grammar": "one RESTIC_PASSWORD_FILE assignment to a normalized simple filename inside the private backup configuration directory",
+            "required_proofs": [
+              "regular single-link file",
+              "expected owner",
+              "mode 0600",
+              "nonempty bounded credential file"
+            ],
+            "forbidden_output": [
+              "credential value",
+              "configured path",
+              "filename",
+              "value length",
+              "value hash",
               "raw stdout",
               "raw stderr",
               "exception text"
@@ -427,6 +454,24 @@
             "published_revision": "8da2794e798abb0245d23fd53479aaa706b20573",
             "github_ci_run": 30626165687,
             "github_ci_conclusion": "success"
+          },
+          "backup_configuration_diagnostic_v2": {
+            "consumed_at": "2026-07-31T13:28:00+02:00",
+            "status": "observed",
+            "error_code": "none",
+            "contract_ready": false,
+            "configuration_directory_owner_safe": true,
+            "configuration_single_link": true,
+            "repair_temporary_absent": true,
+            "repair_platform_ready": true,
+            "password_regular_single_link": false,
+            "password_owner_repairable": false,
+            "password_nonempty_bounded": false,
+            "retry_permitted": false,
+            "evidence_sha256": "91c83a27b451a40de6e3854c101cec810de601a73549afd6f78fcfdd53e213a4",
+            "published_revision": "be944027cfe5f691598c4ce7ef5fda13a0ce8a96",
+            "github_ci_run": 30626808102,
+            "github_ci_conclusion": "success"
           }
         },
         "verification_evidence": {
@@ -435,10 +480,12 @@
           "expanded_backup_gate_suite": "42 passed, 1 pre-existing SQLAlchemy warning",
           "published_diagnostic_blob_sha256": "c5c5fa09d77bab0d08999814171b8d3c2a48f140b4e6e872eacdebc447b1d72e",
           "published_diagnostic_v2_blob_sha256": "7d5e4763e38f8c8e8ca3338b422bd5b0271f29d45b20fa4be6a462959b6e1b80",
+          "published_diagnostic_v3_blob_sha256": "aa3a222ed0630f3f4940ece9db690d0def352183900e9f87fc2afffb873f4a4c",
           "independent_review": "two P1 fail-closed findings and one P2 pin-test finding corrected before publication",
           "repair_observation_and_quarantined_creation_suite": "69 passed, 1 pre-existing SQLAlchemy warning",
           "expanded_diagnostic_v2_suite": "25 passed, 1 pre-existing SQLAlchemy warning",
-          "backup_deploy_activation_smoke_corridor": "105 passed, 1 pre-existing SQLAlchemy warning",
+          "existing_pointer_diagnostic_v3_suite": "30 passed, 1 pre-existing SQLAlchemy warning",
+          "backup_deploy_activation_smoke_corridor": "110 passed, 1 pre-existing SQLAlchemy warning",
           "published_repair_blob_sha256": "f5d257cb9df12aba246c3e8fef523f2df8c52da45867f35629c15f983788c69f",
           "published_backup_creation_blob_sha256": "549cf978ee6dbd12654918771be119ca6e212ea75dfb52830ff169d49d214db4",
           "published_snapshot_observation_blob_sha256": "4e891f203ad04801c538a01db1bd9c3bfa9844ebe9670814b7feab7636d07ff5",
