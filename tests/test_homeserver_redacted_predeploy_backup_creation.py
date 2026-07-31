@@ -98,6 +98,7 @@ def test_success_uses_exact_fixed_argv_environment_lock_and_canonical_packet():
 def test_environment_override_rejection_is_pre_dispatch_and_secret_free():
     for environment in (
         {"RESTIC_PASSWORD": "private-token"}, {"RESTIC_PASSWORD_COMMAND": "private-command"},
+        {"RESTIC_PASSWORD": ""}, {"RESTIC_PASSWORD_COMMAND": ""},
         {"RESTIC_REPOSITORY": "/private/repo"}, {"RESTIC_BINARY": "/private/bin"},
         {"RESTIC_BIN": "/private/bin"}, {"BACKUP_MOUNT": "/private/mount"},
         {"ODYSSEUS_ROOT": "/private/root"}, {"SOURCE": "/private/source"},
@@ -277,3 +278,10 @@ def test_main_emits_one_canonical_json_line(monkeypatch, capsys):
     captured = capsys.readouterr()
     assert len(captured.out.splitlines()) == 1 and json.loads(captured.out)["error_code"] == "lock_contended"
     assert captured.err == ""
+
+
+def test_creation_envelope_validation_rejects_visibility_or_digest_tampering():
+    payload = creation._ok("a" * 64, 0, action_provenance_ref=creation._action_provenance_ref(1.0))
+    assert creation.validate_envelope(payload)
+    payload["paths_visible"] = True; payload["evidence_sha256"] = creation._digest(payload)
+    assert not creation.validate_envelope(payload)

@@ -75,6 +75,39 @@ def blocked(code: str) -> dict[str, Any]:
     return payload
 
 
+def validate_envelope(value: Any) -> bool:
+    if type(value) is not dict or type(value.get("status")) is not str:
+        return False
+    if value["status"] == "blocked":
+        return bool(
+            set(value) == _BLOCKED_KEYS
+            and value.get("schema_id") == SCHEMA_ID
+            and value.get("error_code") in _ERRORS
+            and type(value.get("evidence_sha256")) is str
+            and _SNAPSHOT_ID.fullmatch(value["evidence_sha256"])
+            and value["evidence_sha256"] == _digest(value)
+        )
+    visibility = {key for key in _OK_KEYS if key.endswith("_visible")}
+    return bool(
+        value["status"] == "ok"
+        and set(value) == _OK_KEYS
+        and value.get("schema_id") == SCHEMA_ID
+        and value.get("repository_identity") == "restic_homeserver_backup_v1"
+        and value.get("protected_source_identity")
+        == "odysseus_protected_source_v1"
+        and value.get("source_included") is True
+        and value.get("snapshot_fresh") is True
+        and type(value.get("snapshot_id")) is str
+        and _SNAPSHOT_ID.fullmatch(value["snapshot_id"])
+        and type(value.get("snapshot_age_seconds")) is int
+        and 0 <= value["snapshot_age_seconds"] <= MAX_SNAPSHOT_AGE_SECONDS
+        and all(value.get(key) is False for key in visibility)
+        and type(value.get("evidence_sha256")) is str
+        and _SNAPSHOT_ID.fullmatch(value["evidence_sha256"])
+        and value["evidence_sha256"] == _digest(value)
+    )
+
+
 def _read_fixed_config() -> str:
     try:
         with open(CONFIG_PATH, "r", encoding="utf-8") as handle:
@@ -98,8 +131,7 @@ def _validate_process_environment(value: Any) -> None:
     if not isinstance(value, Mapping):
         raise ObservationFailure("config_invalid")
     for key in ("RESTIC_PASSWORD_COMMAND", "RESTIC_PASSWORD"):
-        candidate = value.get(key)
-        if candidate is not None and (not isinstance(candidate, str) or bool(candidate)):
+        if key in value:
             raise ObservationFailure("config_invalid")
     for key in ("RESTIC_REPOSITORY", "RESTIC_BINARY", "BACKUP_MOUNT", "ODYSSEUS_ROOT"):
         if key in value:

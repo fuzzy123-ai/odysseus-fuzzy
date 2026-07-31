@@ -17,6 +17,7 @@ import os
 import re
 import stat
 import subprocess
+import sys
 import time
 from datetime import datetime, timezone
 from typing import Any, Callable, Mapping
@@ -158,8 +159,7 @@ def _validate_process_environment(value: Any) -> None:
     if not isinstance(value, Mapping):
         raise ContractFailure("config_invalid")
     for key in ("RESTIC_PASSWORD", "RESTIC_PASSWORD_COMMAND"):
-        candidate = value.get(key)
-        if candidate is not None and (not isinstance(candidate, str) or bool(candidate)):
+        if key in value:
             raise ContractFailure("config_invalid")
     for key in (
         "RESTIC_REPOSITORY", "RESTIC_BINARY", "RESTIC_BIN", "BACKUP_MOUNT", "ODYSSEUS_ROOT", "SOURCE",
@@ -235,6 +235,7 @@ def _production_mount_checker(path: str) -> bool:
 
 def _production_lock_acquire(expected_uid: int) -> int:
     """Create/validate and take the fixed local advisory lock without following links."""
+    descriptor: int | None = None
     try:
         import fcntl
         nofollow = getattr(os, "O_NOFOLLOW", None)
@@ -254,17 +255,27 @@ def _production_lock_acquire(expected_uid: int) -> int:
         raise
     except Exception:
         raise ContractFailure("lock_unavailable") from None
+    finally:
+        if descriptor is not None and sys.exc_info()[0] is not None:
+            try:
+                os.close(descriptor)
+            except Exception:
+                pass
 
 
 def _production_lock_release(descriptor: Any) -> None:
     try:
         import fcntl
         fcntl.flock(int(descriptor), fcntl.LOCK_UN)
-        os.close(int(descriptor))
     except Exception:
         # The invocation is already represented by a canonical result; release
         # errors must neither disclose nor transform that outcome.
         pass
+    finally:
+        try:
+            os.close(int(descriptor))
+        except Exception:
+            pass
 
 
 def _parse_snapshot_time(value: Any) -> float:
@@ -359,6 +370,57 @@ def _ok(snapshot_id: str, age: int, *, action_provenance_ref: str) -> dict[str, 
     }
     payload["evidence_sha256"] = _digest(payload)
     return payload
+
+
+def validate_envelope(value: Any) -> bool:
+    """Accept only one fully redacted creation result from the fixed runner."""
+    if type(value) is not dict or type(value.get("status")) is not str:
+        return False
+    status = value["status"]
+    if status == "blocked":
+        return bool(
+            set(value) == _BLOCKED_KEYS
+            and value.get("error_code") in _BLOCKED_ERRORS
+            and value.get("backup_invoked") is False
+            and value.get("retry_permitted") is False
+            and type(value.get("evidence_sha256")) is str
+            and _SNAPSHOT_ID.fullmatch(value["evidence_sha256"])
+            and _digest(value) == value["evidence_sha256"]
+        )
+    if status == "unknown":
+        return bool(
+            set(value) == _UNKNOWN_KEYS
+            and value.get("error_code") in _UNKNOWN_ERRORS
+            and value.get("effect_may_have_occurred") is True
+            and value.get("retry_permitted") is False
+            and value.get("manual_recovery_required") is True
+            and type(value.get("action_provenance_ref")) is str
+            and _PROVENANCE_REF.fullmatch(value["action_provenance_ref"])
+            and type(value.get("evidence_sha256")) is str
+            and _SNAPSHOT_ID.fullmatch(value["evidence_sha256"])
+            and _digest(value) == value["evidence_sha256"]
+        )
+    if status != "ok" or set(value) != _OK_KEYS:
+        return False
+    required = {
+        "repository_identity": "restic_homeserver_backup_v1", "protected_source_identity": "odysseus_protected_source_v1",
+        "backup_effect": "created", "source_included": True, "snapshot_created_after_start": True,
+        "snapshot_fresh": True, "concurrent_lock_held": True, "partial_snapshot_detected": False,
+    }
+    visible = {key for key in _OK_KEYS if key.endswith("_visible")}
+    return bool(
+        all(value.get(key) == expected for key, expected in required.items())
+        and type(value.get("snapshot_id")) is str
+        and _SNAPSHOT_ID.fullmatch(value["snapshot_id"])
+        and type(value.get("snapshot_age_seconds")) is int
+        and 0 <= value["snapshot_age_seconds"] <= MAX_SNAPSHOT_AGE_SECONDS
+        and type(value.get("action_provenance_ref")) is str
+        and _PROVENANCE_REF.fullmatch(value["action_provenance_ref"])
+        and all(value.get(key) is False for key in visible)
+        and type(value.get("evidence_sha256")) is str
+        and _SNAPSHOT_ID.fullmatch(value["evidence_sha256"])
+        and _digest(value) == value["evidence_sha256"]
+    )
 
 
 def collect_predeploy_backup_creation(

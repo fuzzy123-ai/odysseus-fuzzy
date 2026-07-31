@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-31T12:25:00+02:00",
-  "status": "ops_alert_live_backup_diagnostic_ready_for_publication",
+  "updated_at": "2026-07-31T13:03:00+02:00",
+  "status": "ops_alert_backup_repair_and_read_only_observation_ready_for_publication",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -232,10 +232,22 @@
           "docs/plans/unified-source-index-runtime-caller-inventory.json",
           "ops/homeserver/redacted_backup_configuration_diagnostic.py",
           "ops/homeserver/redacted_backup_configuration_diagnostic_transport.py",
+          "ops/homeserver/redacted_backup_configuration_repair.py",
+          "ops/homeserver/redacted_backup_configuration_repair_transport.py",
+          "ops/homeserver/redacted_predeploy_backup_creation.py",
+          "ops/homeserver/redacted_predeploy_backup_creation_transport.py",
+          "ops/homeserver/redacted_backup_snapshot_observation.py",
+          "ops/homeserver/redacted_backup_snapshot_observation_transport.py",
           "tests/test_homeserver_redacted_backup_configuration_diagnostic.py",
-          "tests/test_homeserver_redacted_backup_configuration_diagnostic_transport.py"
+          "tests/test_homeserver_redacted_backup_configuration_diagnostic_transport.py",
+          "tests/test_homeserver_redacted_backup_configuration_repair.py",
+          "tests/test_homeserver_redacted_backup_configuration_repair_transport.py",
+          "tests/test_homeserver_redacted_predeploy_backup_creation.py",
+          "tests/test_homeserver_redacted_predeploy_backup_creation_transport.py",
+          "tests/test_homeserver_redacted_backup_snapshot_observation.py",
+          "tests/test_homeserver_redacted_backup_snapshot_observation_transport.py"
         ],
-        "phase": "backup_observation_consumed_terminal_config_invalid_repo_only_redacted_diagnostic",
+        "phase": "published_diagnostic_consumed_repair_and_read_only_snapshot_observation_repo_only",
         "live_actions": true,
         "action_packets": {
           "backup_snapshot_observation": {
@@ -269,6 +281,63 @@
               "raw stderr",
               "exception text"
             ]
+          },
+          "backup_configuration_repair": {
+            "schema_id": "odysseus.ops_alert_backup_configuration_repair_authority.v1",
+            "mode": "fixed_path_metadata_hardening_and_atomic_nonsecret_config_replacement",
+            "source_delivery": "published_blob_stdin",
+            "maximum_invocations_after_publication_and_terminal_ci": 1,
+            "retry_count": 0,
+            "timeout_seconds": 30,
+            "expires": "run_end",
+            "rollback": "automatic in-process restoration of pre-action metadata before atomic config replacement; fail-closed unknown after any ambiguous mutation",
+            "secret_value_change": false,
+            "forbidden_effects": [
+              "credential value rotation",
+              "credential value replacement",
+              "secret migration",
+              "repository mutation",
+              "backup creation",
+              "deployment",
+              "raw value output"
+            ]
+          },
+          "predeploy_backup_creation": {
+            "schema_id": "odysseus.ops_alert_predeploy_backup_creation_authority.v1",
+            "state": "repo_only_not_live_eligible_pending_fd_bound_redesign",
+            "mode": "one_fixed_pre_update_snapshot_after_repair",
+            "source_delivery": "published_blob_stdin",
+            "maximum_invocations_after_repair_and_terminal_ci": 0,
+            "retry_count": 0,
+            "timeout_seconds": 1860,
+            "expires": "run_end",
+            "required_result": "validated fresh snapshot with exact opaque snapshot_id and digest-bound evidence",
+            "forbidden_effects": [
+              "restore",
+              "prune",
+              "cleanup",
+              "credential change",
+              "deployment",
+              "provider send",
+              "raw output forwarding"
+            ]
+          },
+          "backup_snapshot_observation_after_repair": {
+            "schema_id": "odysseus.ops_alert_post_repair_backup_observation_authority.v1",
+            "mode": "read_only_published_blob_stdin",
+            "maximum_invocations_after_repair_success": 1,
+            "retry_count": 0,
+            "timeout_seconds": 30,
+            "expires": "run_end",
+            "required_result": "validated fresh snapshot with exact opaque snapshot_id and digest-bound evidence",
+            "forbidden_output": [
+              "credential value",
+              "configuration content",
+              "raw stdout",
+              "raw stderr",
+              "exception text",
+              "environment"
+            ]
           }
         },
         "consumed_actions": {
@@ -278,6 +347,20 @@
             "error_code": "config_invalid",
             "retry_permitted": false,
             "evidence_sha256": "cbe7f4b77d618bd4f2219074f14c07daf5814adb3c753740d2b3249a1c18aa16"
+          },
+          "backup_configuration_diagnostic": {
+            "consumed_at": "2026-07-31T12:34:00+02:00",
+            "status": "observed",
+            "error_code": "none",
+            "contract_ready": false,
+            "configuration_content_exact": false,
+            "password_file_safe": false,
+            "all_other_contract_proofs": true,
+            "retry_permitted": false,
+            "evidence_sha256": "b3654ff3e1fe9632a9582e3006c91869d50ba78213047779b5efde384dbf5ae0",
+            "published_revision": "964d2805931cb547fb851314ce850fd02d985319",
+            "github_ci_run": 30623652036,
+            "github_ci_conclusion": "success"
           }
         },
         "verification_evidence": {
@@ -286,6 +369,16 @@
           "expanded_backup_gate_suite": "42 passed, 1 pre-existing SQLAlchemy warning",
           "published_diagnostic_blob_sha256": "c5c5fa09d77bab0d08999814171b8d3c2a48f140b4e6e872eacdebc447b1d72e",
           "independent_review": "two P1 fail-closed findings and one P2 pin-test finding corrected before publication",
+          "repair_observation_and_quarantined_creation_suite": "69 passed, 1 pre-existing SQLAlchemy warning",
+          "backup_deploy_activation_smoke_corridor": "97 passed, 1 pre-existing SQLAlchemy warning",
+          "published_repair_blob_sha256": "c003ccfe3777db7535c91be33958d8a76a5b8f27ecf591d8142577001adaf333",
+          "published_backup_creation_blob_sha256": "549cf978ee6dbd12654918771be119ca6e212ea75dfb52830ff169d49d214db4",
+          "published_snapshot_observation_blob_sha256": "4e891f203ad04801c538a01db1bd9c3bfa9844ebe9670814b7feab7636d07ff5",
+          "repair_contract": "credential bytes are never read or changed; fd-bound owner/mode hardening plus atomic exact nonsecret configuration replacement; terminal rolled_back or unknown on failure",
+          "backup_creation_contract": "repo-only and explicitly not live-eligible until source, repository, credential and executable identities are fd-bound through dispatch",
+          "post_dispatch_rule": "all repair or backup-creation transport failures after SSH dispatch are terminal unknown with effect-may-have-occurred; only pre-dispatch failures are blocked",
+          "bounded_transport_output": "repair, backup-creation and read-only observation SSH output is capped while streaming before schema validation",
+          "final_independent_review": "two P1 and two P2 findings reviewed; post-dispatch state and streaming bounds corrected, lock descriptor lifecycle corrected, path-based backup creation quarantined from live use pending fd-bound redesign",
           "deterministic_runtime_inventory": "check passed",
           "diff_check": "passed",
           "external_actions": "none for the diagnostic package"

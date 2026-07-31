@@ -127,6 +127,7 @@ def test_malicious_config_and_path_override_never_dispatch_or_leak():
 def test_actual_environment_override_attempts_are_rejected_before_dispatch_without_value_leak():
     for environment in (
         {"RESTIC_PASSWORD_COMMAND": "cat private-token"}, {"RESTIC_PASSWORD": "private-token"},
+        {"RESTIC_PASSWORD_COMMAND": ""}, {"RESTIC_PASSWORD": ""},
         {"RESTIC_REPOSITORY": "/private/repo"}, {"RESTIC_BINARY": "/private/bin"},
         {"BACKUP_MOUNT": "/private/mount"}, {"ODYSSEUS_ROOT": "/private/root"},
         {"RESTIC_PASSWORD_FILE": "/private/password"},
@@ -135,6 +136,16 @@ def test_actual_environment_override_attempts_are_rejected_before_dispatch_witho
         payload = _collect(deps)
         assert payload["error_code"] == "config_invalid" and deps["calls"] == []
         assert "private" not in json.dumps(payload)
+
+
+def test_observation_envelope_validator_accepts_canonical_and_rejects_tamper():
+    blocked = observation.blocked("snapshot_missing")
+    assert observation.validate_envelope(blocked)
+
+    tampered = dict(blocked)
+    tampered["secret"] = "synthetic-private-value"
+    tampered["evidence_sha256"] = observation._digest(tampered)
+    assert observation.validate_envelope(tampered) is False
 
 
 def test_unsafe_mount_repository_or_password_permissions_fail_closed_without_path_output():
