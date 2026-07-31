@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-31T17:55:00+02:00",
-  "status": "ops_alert_namespace_capability_probe_published_ci_green_read_only_packet_ready_credential_authority_still_required",
+  "updated_at": "2026-07-31T18:21:08+02:00",
+  "status": "ops_alert_capability_receipt_v3_local_green_ready_publish_credential_authority_still_required",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,7 +23,7 @@
     "unique_live_gates": 53,
     "unique_design_gates": 27,
     "other_open_json_items": 108,
-    "queue_status": "ops_alert_namespace_capability_probe_published_ci_green_read_only_packet_ready_credential_authority_still_required",
+    "queue_status": "ops_alert_capability_receipt_v3_local_green_ready_publish_credential_authority_still_required",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -337,6 +337,112 @@
         "handoff_required": false
       },
       {
+        "run_id": "ABC-OPS-ALERT-CAPABILITY-RECEIPT-V2-20260731",
+        "thread_id": "/root/capability_receipt_v2_bob",
+        "slice_id": "OPS-ALERT-local-durable-redacted-capability-receipt-v2",
+        "owner": "Bob/Terra implementation; root/Sol deep review",
+        "state": "released_after_handoff_deep_review_gate",
+        "acquired_at": "2026-07-31T18:01:32+02:00",
+        "lease_expires_at": "2026-07-31T20:01:32+02:00",
+        "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
+        "depends_on": [
+          "ABC-OPS-ALERT-NAMESPACE-CAPABILITY-PREP-20260731 published as ecae52e3e8bf9ebff0f90ce63c6b99c6774164cb with GitHub CI run 30644154168 terminal success",
+          "predeploy_backup_namespace_capability v1 consumed terminal unknown with no retry"
+        ],
+        "allowed_paths": [
+          "ops/homeserver/redacted_predeploy_backup_capability_receipt.py",
+          "tests/test_homeserver_redacted_predeploy_backup_capability_receipt.py"
+        ],
+        "hotfiles": [],
+        "class": "repo_only",
+        "live_actions": false,
+        "acceptance": [
+          "invoke the existing published capability transport only behind an explicit execute flag",
+          "validate one fixed redacted core or transport envelope before any local persistence",
+          "write one bounded ASCII JSON receipt by create-exclusive confined local path and fsync without overwriting",
+          "emit only a fixed bounded summary that cannot expose raw subprocess output, paths, environment, exceptions or secrets",
+          "keep every remote invocation, SSH action, credential action, backup, deploy and provider send disabled in tests and implementation review"
+        ],
+        "route": {
+          "entrypoint": "$abc",
+          "selected": {
+            "skills": ["abc"],
+            "master": "root/Sol",
+            "worker": "gpt-5.6-terra/high",
+            "review": "root/Sol deep"
+          },
+          "actual": {
+            "master": "root/Sol surface authority",
+            "worker": "gpt-5.6-terra requested through the enforced spawn model selector; worker surface did not echo a model id",
+            "review": "two correction rounds closed confinement, summary cross-products, FD lifecycle and durable local readback; final deep review gated acceptance because the fixed summary omitted the source capability status/error projection"
+          }
+        },
+        "forbidden_actions": [
+          "edit the existing capability core or transport",
+          "edit Planning JSON or any path outside the exact claim",
+          "run SSH, live observation, host mutation, credential access, backup, deploy, provider call, commit or push",
+          "persist or print raw stdout, stderr, exception text, paths, environment, credential or host identifiers"
+        ],
+        "handoff_required": true
+      },
+      {
+        "run_id": "ABC-OPS-ALERT-CAPABILITY-RECEIPT-V3-20260731",
+        "thread_id": "/root/capability_receipt_v3_charlie",
+        "slice_id": "OPS-ALERT-capability-result-projection-v3",
+        "owner": "Charlie/Terra bounded fix; root/Sol deep review",
+        "state": "released_after_root_deep_review_local_green_ready_publish",
+        "acquired_at": "2026-07-31T18:16:17+02:00",
+        "lease_expires_at": "2026-07-31T19:16:17+02:00",
+        "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
+        "depends_on": [
+          "ABC-OPS-ALERT-CAPABILITY-RECEIPT-V2-20260731 handoff after two correction rounds",
+          "root/Sol deep-review gate: durable summary must preserve fixed source capability outcome"
+        ],
+        "allowed_paths": [
+          "ops/homeserver/redacted_predeploy_backup_capability_receipt.py",
+          "tests/test_homeserver_redacted_predeploy_backup_capability_receipt.py"
+        ],
+        "hotfiles": [
+          "ops/homeserver/redacted_predeploy_backup_capability_receipt.py",
+          "tests/test_homeserver_redacted_predeploy_backup_capability_receipt.py"
+        ],
+        "class": "repo_only",
+        "live_actions": false,
+        "acceptance": [
+          "add fixed allowlisted source_status and source_error_code fields to collection and readback summaries",
+          "derive both fields only from a validated embedded core or transport envelope",
+          "strictly validate every allowed kind/status/error/effect cross-product and preserve zero values for wrapper-local failures",
+          "prove supported core readback is distinguishable from unsupported, blocked and transport-unknown outcomes without exposing raw output"
+        ],
+        "forbidden_actions": [
+          "change collector, SSH transport, remote capability logic, receipt target, persistence semantics or any file outside the two exact paths",
+          "run live, SSH, credential, backup, deploy, provider, commit or push actions",
+          "edit Planning JSON or absorb foreign work"
+        ],
+        "route": {
+          "entrypoint": "$abc",
+          "selected": {
+            "skills": ["abc"],
+            "master": "root/Sol",
+            "worker": "gpt-5.6-terra/high",
+            "review": "root/Sol deep"
+          },
+          "actual": {
+            "worker": "gpt-5.6-terra requested through the enforced spawn model selector; worker surface did not echo a model id",
+            "review": "root/Sol deep PASS after the no-op negative-test correction"
+          }
+        },
+        "verification_evidence": {
+          "python_runtime": "CPython 3.11.15 from C:/tmp/odysseus-ci-py311-20260730/Scripts/python.exe",
+          "focused_core_transport_receipt_suite": "53 passed, 1 pre-existing SQLAlchemy warning",
+          "python_compile": "passed",
+          "diff_check": "passed",
+          "root_deep_review": "PASS; fixed source outcome survives create-exclusive persistence and independent local readback; wrapper-local failures remain fixed-schema and no-retry",
+          "residual_risk": "Windows lacks descriptor-relative O_NOFOLLOW opens; fixed module-relative nonsecret receipt root plus lstat/O_EXCL bounds but does not atomically eliminate a malicious parent replacement race"
+        },
+        "handoff_required": true
+      },
+      {
         "run_id": "ABC-OPS-ALERT-LIVE-CLOSE-20260731",
         "thread_id": "/root",
         "slice_id": "OPS-ALERT-live-backup-deploy-activation-delivery-proof",
@@ -353,7 +459,8 @@
           "latest_ops_alert_c6_activation_handoff",
           "ABC-OPS-ALERT-CREDENTIAL-MIGRATION-PREP-20260731 published as b187d00e45e0c2e3d2cf7c47a36b586d66da7bde with GitHub CI run 30636302437 terminal success",
           "ABC-OPS-ALERT-FD-BACKUP-REDESIGN-20260731 published as a9e1cd776b2550be2caa39208f8a5cc2ab04eb94 with GitHub CI run 30641375933 terminal success",
-          "ABC-OPS-ALERT-NAMESPACE-CAPABILITY-PREP-20260731 published as ecae52e3e8bf9ebff0f90ce63c6b99c6774164cb with GitHub CI run 30644154168 terminal success"
+          "ABC-OPS-ALERT-NAMESPACE-CAPABILITY-PREP-20260731 published as ecae52e3e8bf9ebff0f90ce63c6b99c6774164cb with GitHub CI run 30644154168 terminal success",
+          "namespace capability authority receipt published as 7f83f9a1e3816c1f8e1c2c4a9a824f5cd61977d1 with GitHub CI run 30644914675 terminal success"
         ],
         "allowed_paths": [
           "docs/plans/open-work-completion-master-roadmap.json",
@@ -368,6 +475,7 @@
           "ops/homeserver/redacted_predeploy_backup_creation_transport.py",
           "ops/homeserver/redacted_predeploy_backup_capability.py",
           "ops/homeserver/redacted_predeploy_backup_capability_transport.py",
+          "ops/homeserver/redacted_predeploy_backup_capability_receipt.py",
           "ops/homeserver/redacted_backup_snapshot_observation.py",
           "ops/homeserver/redacted_backup_snapshot_observation_transport.py",
           "tests/test_homeserver_redacted_backup_configuration_diagnostic.py",
@@ -376,15 +484,16 @@
           "tests/test_homeserver_redacted_backup_configuration_repair_transport.py",
           "tests/test_homeserver_redacted_predeploy_backup_creation.py",
           "tests/test_homeserver_redacted_predeploy_backup_creation_transport.py",
+          "tests/test_homeserver_redacted_predeploy_backup_capability_receipt.py",
           "tests/test_homeserver_redacted_backup_snapshot_observation.py",
           "tests/test_homeserver_redacted_backup_snapshot_observation_transport.py"
         ],
-        "phase": "credential_migration_package_published_ci_green_waiting_on_action_specific_live_authority",
+        "phase": "namespace_capability_observation_consumed_unknown_waiting_on_safe_successor_and_credential_live_authority",
         "live_actions": true,
         "action_packets": {
           "predeploy_backup_namespace_capability": {
             "schema_id": "odysseus.ops_alert_predeploy_backup_namespace_capability_authority.v1",
-            "state": "authorized_single_read_only_observation",
+            "state": "consumed_terminal_unknown_no_retry",
             "authority_basis": "active user objective requires live OPS Alert closure; this diagnostic is read-only, fixed-target, nonsecret and has no persistent host or provider effect",
             "mode": "one_private_user_mount_namespace_capability_observation",
             "target": "odysseus-homeserver",
@@ -703,10 +812,30 @@
             "published_revision": "39973ccc96055df4522d978f7eb247f76be89e38",
             "github_ci_run": 30627466695,
             "github_ci_conclusion": "success"
+          },
+          "predeploy_backup_namespace_capability": {
+            "consumed_at": "2026-07-31T17:58:28+02:00",
+            "status": "unknown",
+            "error_code": "validated_output_unavailable_after_dispatch",
+            "execution_may_have_occurred": true,
+            "persistent_effect_possible": false,
+            "result_validated": false,
+            "tool_output_available": false,
+            "local_process_remaining": false,
+            "retry_permitted": false,
+            "published_revision": "ecae52e3e8bf9ebff0f90ce63c6b99c6774164cb",
+            "github_ci_run": 30644154168,
+            "github_ci_conclusion": "success",
+            "authority_receipt_revision": "7f83f9a1e3816c1f8e1c2c4a9a824f5cd61977d1",
+            "authority_receipt_github_ci_run": 30644914675,
+            "authority_receipt_github_ci_conclusion": "success",
+            "published_core_blob_sha256": "50a77606af9b5a127ada57ca44533a9821612fd6e71ddeca17564c1586a8562e",
+            "evidence_limit": "The tool boundary reported truncated output instead of a validated fixed-schema envelope; no raw output was recovered or persisted."
           }
         },
         "waiting_on_user": {
-          "reason": "The rollback-safe migration package is published and terminal Required CI is green, but the current user instruction does not explicitly authorize this exact live credential mutation.",
+          "reason": "The one authorized namespace capability observation is consumed without a validated result and may not be retried; additionally, the rollback-safe migration package is published and terminal Required CI is green, but the current user instruction does not explicitly authorize this exact live credential mutation.",
+          "capability_gate": "A fresh, separately bounded successor observation strategy must be reviewed and recorded before another capability invocation; the consumed packet cannot be reused.",
           "required_authority": "Explicitly authorize exactly one internal copy of the existing Restic credential into the fixed private password-file contract. This does not rotate, generate, print, delete or externally transmit the credential.",
           "rollback_required": true,
           "post_change_readback_required": true,
@@ -742,7 +871,9 @@
           "final_independent_review": "two P1 and two P2 findings reviewed; post-dispatch state and streaming bounds corrected, lock descriptor lifecycle corrected, path-based backup creation quarantined from live use pending fd-bound redesign",
           "deterministic_runtime_inventory": "check passed",
           "diff_check": "passed",
-          "external_actions": "none for the diagnostic package"
+          "external_actions": "none for the diagnostic package",
+          "namespace_capability_observation": "single authorized invocation consumed; terminal result unknown because the tool boundary returned no usable validated envelope; no local python or ssh process remained; no retry performed",
+          "namespace_capability_authority_receipt_ci": "commit 7f83f9a1e3816c1f8e1c2c4a9a824f5cd61977d1; GitHub CI run 30644914675 terminal success"
         },
         "permitted_actions": [
           "one fixed repo-owned redacted backup snapshot observation over the explicitly live-gated odysseus-homeserver alias",
