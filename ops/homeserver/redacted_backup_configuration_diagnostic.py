@@ -18,6 +18,11 @@ REPOSITORY = "/mnt/backup/restic/homeserver"
 SOURCE = "/opt/odysseus"
 CONFIG_PATH = "/home/homebase/.config/odysseus-backup/restic-observation.env"
 PASSWORD_FILE = "/home/homebase/.config/odysseus-backup/restic-password"
+CONFIG_DIRECTORY = "/home/homebase/.config/odysseus-backup"
+TEMPORARY_PATH = (
+    "/home/homebase/.config/odysseus-backup/"
+    ".restic-observation.env.ops-alert-repair"
+)
 EXPECTED_OWNER = "homebase"
 _PROOFS = frozenset(
     {
@@ -30,6 +35,13 @@ _PROOFS = frozenset(
         "configuration_metadata_safe",
         "configuration_content_exact",
         "password_file_safe",
+        "configuration_directory_owner_safe",
+        "configuration_single_link",
+        "password_regular_single_link",
+        "password_owner_repairable",
+        "password_nonempty_bounded",
+        "repair_temporary_absent",
+        "repair_platform_ready",
     }
 )
 _VISIBILITY = frozenset(
@@ -218,6 +230,65 @@ def _safe_directory(
         return False
 
 
+def _configuration_directory_owner_safe(
+    *,
+    uid: int | None,
+    lstat: Callable[[str], Any],
+) -> bool:
+    if uid is None:
+        return False
+    try:
+        info = lstat(CONFIG_DIRECTORY)
+        permissions = stat.S_IMODE(int(info.st_mode))
+        return bool(
+            stat.S_ISDIR(int(info.st_mode))
+            and int(info.st_uid) == uid
+            and permissions & 0o700 == 0o700
+            and permissions & 0o022 == 0
+        )
+    except Exception:
+        return False
+
+
+def _single_regular_link(
+    path: str,
+    *,
+    lstat: Callable[[str], Any],
+) -> bool:
+    try:
+        info = lstat(path)
+        return bool(
+            stat.S_ISREG(int(info.st_mode))
+            and int(info.st_nlink) == 1
+        )
+    except Exception:
+        return False
+
+
+def _password_owner_repairable(
+    *,
+    uid: int | None,
+    lstat: Callable[[str], Any],
+) -> bool:
+    if uid is None:
+        return False
+    try:
+        return int(lstat(PASSWORD_FILE).st_uid) in {0, uid}
+    except Exception:
+        return False
+
+
+def _password_nonempty_bounded(
+    *,
+    lstat: Callable[[str], Any],
+) -> bool:
+    try:
+        size = int(lstat(PASSWORD_FILE).st_size)
+        return 0 < size <= 16_384
+    except Exception:
+        return False
+
+
 def _read_config() -> str:
     with open(CONFIG_PATH, "r", encoding="utf-8") as handle:
         return handle.read(4097)
@@ -230,6 +301,11 @@ def collect_backup_configuration_diagnostic(
     lstat: Callable[[str], Any] = os.lstat,
     mount_checker: Callable[[str], bool] = os.path.ismount,
     config_reader: Callable[[], str] = _read_config,
+    path_exists: Callable[[str], bool] = os.path.lexists,
+    platform_checker: Callable[[], bool] = lambda: bool(
+        getattr(os, "O_DIRECTORY", 0)
+        and getattr(os, "O_NOFOLLOW", 0)
+    ),
 ) -> dict[str, Any]:
     try:
         uid = _uid(owner_lookup)
@@ -246,6 +322,14 @@ def collect_backup_configuration_diagnostic(
             )
         except Exception:
             content_exact = False
+        try:
+            temporary_absent = not bool(path_exists(TEMPORARY_PATH))
+        except Exception:
+            temporary_absent = False
+        try:
+            platform_ready = platform_checker() is True
+        except Exception:
+            platform_ready = False
         proofs = {
             "process_environment_safe": _safe_environment(process_environment),
             "owner_resolved": uid is not None,
@@ -284,6 +368,29 @@ def collect_backup_configuration_diagnostic(
                 owner=uid if uid is not None else -1,
                 mode=0o600,
             ),
+            "configuration_directory_owner_safe": (
+                _configuration_directory_owner_safe(
+                    uid=uid,
+                    lstat=lstat,
+                )
+            ),
+            "configuration_single_link": _single_regular_link(
+                CONFIG_PATH,
+                lstat=lstat,
+            ),
+            "password_regular_single_link": _single_regular_link(
+                PASSWORD_FILE,
+                lstat=lstat,
+            ),
+            "password_owner_repairable": _password_owner_repairable(
+                uid=uid,
+                lstat=lstat,
+            ),
+            "password_nonempty_bounded": _password_nonempty_bounded(
+                lstat=lstat,
+            ),
+            "repair_temporary_absent": temporary_absent,
+            "repair_platform_ready": platform_ready,
         }
         return envelope("observed", "none", proofs)
     except Exception:

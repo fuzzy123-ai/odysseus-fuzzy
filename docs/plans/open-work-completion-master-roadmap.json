@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-31T13:11:00+02:00",
-  "status": "ops_alert_backup_repair_v2_ready_for_publication",
+  "updated_at": "2026-07-31T13:23:00+02:00",
+  "status": "ops_alert_backup_configuration_diagnostic_v2_ready_for_publication",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -247,7 +247,7 @@
           "tests/test_homeserver_redacted_backup_snapshot_observation.py",
           "tests/test_homeserver_redacted_backup_snapshot_observation_transport.py"
         ],
-        "phase": "repair_v1_consumed_no_effect_repair_v2_repo_only_green",
+        "phase": "repair_v2_consumed_no_effect_expanded_read_only_diagnostic_repo_only",
         "live_actions": true,
         "action_packets": {
           "backup_snapshot_observation": {
@@ -277,6 +277,34 @@
               "credential value",
               "value length",
               "value hash",
+              "raw stdout",
+              "raw stderr",
+              "exception text"
+            ]
+          },
+          "backup_configuration_diagnostic_v2": {
+            "schema_id": "odysseus.ops_alert_backup_configuration_diagnostic_authority.v2",
+            "mode": "expanded_read_only_boolean_projection",
+            "source_delivery": "published_blob_stdin",
+            "published_diagnostic_blob_sha256": "7d5e4763e38f8c8e8ca3338b422bd5b0271f29d45b20fa4be6a462959b6e1b80",
+            "maximum_invocations_after_publication_and_terminal_ci": 1,
+            "retry_count": 0,
+            "timeout_seconds": 30,
+            "expires": "run_end",
+            "proofs_added": [
+              "configuration directory owner and non-writable mode",
+              "single-link config and password files",
+              "repairable password owner",
+              "nonempty bounded password file",
+              "repair temporary absence",
+              "Linux nofollow and directory flags"
+            ],
+            "forbidden_output": [
+              "configuration value",
+              "credential value",
+              "value length",
+              "value hash",
+              "path",
               "raw stdout",
               "raw stderr",
               "exception text"
@@ -386,6 +414,19 @@
             "published_revision": "843b3551f4f0ccfe2ef7231b649855782240003e",
             "github_ci_run": 30625460289,
             "github_ci_conclusion": "success"
+          },
+          "backup_configuration_repair_v2": {
+            "consumed_at": "2026-07-31T13:20:00+02:00",
+            "status": "blocked",
+            "error_code": "preflight_failed",
+            "effect_may_have_occurred": false,
+            "directory_metadata_repaired": false,
+            "automatic_rollback_attempted": false,
+            "retry_permitted": false,
+            "evidence_sha256": "089de3aa508fd66c073ca4cf2bca1a86dee15b366e559143c3eaea9655caec4c",
+            "published_revision": "8da2794e798abb0245d23fd53479aaa706b20573",
+            "github_ci_run": 30626165687,
+            "github_ci_conclusion": "success"
           }
         },
         "verification_evidence": {
@@ -393,9 +434,11 @@
           "focused_diagnostic_suite": "18 passed, 1 pre-existing SQLAlchemy warning",
           "expanded_backup_gate_suite": "42 passed, 1 pre-existing SQLAlchemy warning",
           "published_diagnostic_blob_sha256": "c5c5fa09d77bab0d08999814171b8d3c2a48f140b4e6e872eacdebc447b1d72e",
+          "published_diagnostic_v2_blob_sha256": "7d5e4763e38f8c8e8ca3338b422bd5b0271f29d45b20fa4be6a462959b6e1b80",
           "independent_review": "two P1 fail-closed findings and one P2 pin-test finding corrected before publication",
           "repair_observation_and_quarantined_creation_suite": "69 passed, 1 pre-existing SQLAlchemy warning",
-          "backup_deploy_activation_smoke_corridor": "98 passed, 1 pre-existing SQLAlchemy warning",
+          "expanded_diagnostic_v2_suite": "25 passed, 1 pre-existing SQLAlchemy warning",
+          "backup_deploy_activation_smoke_corridor": "105 passed, 1 pre-existing SQLAlchemy warning",
           "published_repair_blob_sha256": "f5d257cb9df12aba246c3e8fef523f2df8c52da45867f35629c15f983788c69f",
           "published_backup_creation_blob_sha256": "549cf978ee6dbd12654918771be119ca6e212ea75dfb52830ff169d49d214db4",
           "published_snapshot_observation_blob_sha256": "4e891f203ad04801c538a01db1bd9c3bfa9844ebe9670814b7feab7636d07ff5",

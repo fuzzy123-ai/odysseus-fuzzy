@@ -9,8 +9,13 @@ import pytest
 from ops.homeserver import redacted_backup_configuration_diagnostic as module
 
 
-def _stat(kind, mode, uid):
-    return SimpleNamespace(st_mode=kind | mode, st_uid=uid)
+def _stat(kind, mode, uid, *, nlink=1, size=32):
+    return SimpleNamespace(
+        st_mode=kind | mode,
+        st_uid=uid,
+        st_nlink=nlink,
+        st_size=size,
+    )
 
 
 def _dependencies():
@@ -21,6 +26,7 @@ def _dependencies():
         module.REPOSITORY: _stat(stat.S_IFDIR, 0o700, uid),
         module.CONFIG_PATH: _stat(stat.S_IFREG, 0o600, uid),
         module.PASSWORD_FILE: _stat(stat.S_IFREG, 0o600, uid),
+        module.CONFIG_DIRECTORY: _stat(stat.S_IFDIR, 0o700, uid),
     }
     return {
         "process_environment": {},
@@ -30,6 +36,8 @@ def _dependencies():
         "config_reader": lambda: (
             "RESTIC_PASSWORD_FILE=" + module.PASSWORD_FILE + "\n"
         ),
+        "path_exists": lambda _path: False,
+        "platform_checker": lambda: True,
     }, values
 
 
@@ -116,6 +124,81 @@ def test_exact_ready_contract_is_boolean_only_and_value_free():
             "password_file_safe",
             lambda _dependencies, values: values.update(
                 {module.PASSWORD_FILE: _stat(stat.S_IFREG, 0o644, 1000)}
+            ),
+        ),
+        (
+            "configuration_directory_owner_safe",
+            lambda _dependencies, values: values.update(
+                {
+                    module.CONFIG_DIRECTORY: _stat(
+                        stat.S_IFDIR,
+                        0o722,
+                        1000,
+                    )
+                }
+            ),
+        ),
+        (
+            "configuration_single_link",
+            lambda _dependencies, values: values.update(
+                {
+                    module.CONFIG_PATH: _stat(
+                        stat.S_IFREG,
+                        0o600,
+                        1000,
+                        nlink=2,
+                    )
+                }
+            ),
+        ),
+        (
+            "password_regular_single_link",
+            lambda _dependencies, values: values.update(
+                {
+                    module.PASSWORD_FILE: _stat(
+                        stat.S_IFREG,
+                        0o600,
+                        1000,
+                        nlink=2,
+                    )
+                }
+            ),
+        ),
+        (
+            "password_owner_repairable",
+            lambda _dependencies, values: values.update(
+                {
+                    module.PASSWORD_FILE: _stat(
+                        stat.S_IFREG,
+                        0o600,
+                        2000,
+                    )
+                }
+            ),
+        ),
+        (
+            "password_nonempty_bounded",
+            lambda _dependencies, values: values.update(
+                {
+                    module.PASSWORD_FILE: _stat(
+                        stat.S_IFREG,
+                        0o600,
+                        1000,
+                        size=0,
+                    )
+                }
+            ),
+        ),
+        (
+            "repair_temporary_absent",
+            lambda dependencies, _values: dependencies.update(
+                path_exists=lambda _path: True
+            ),
+        ),
+        (
+            "repair_platform_ready",
+            lambda dependencies, _values: dependencies.update(
+                platform_checker=lambda: False
             ),
         ),
     ],
