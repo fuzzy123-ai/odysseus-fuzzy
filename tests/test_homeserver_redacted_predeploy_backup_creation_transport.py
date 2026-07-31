@@ -22,6 +22,7 @@ def _indexed_source() -> bytes:
 def test_pin_matches_exact_indexed_blob_and_command_is_fixed():
     source = _indexed_source()
     assert hashlib.sha256(source).hexdigest() == transport.PUBLISHED_CREATION_SHA256
+    assert f"expected='{transport.PUBLISHED_CREATION_SHA256}'" in transport._BOOTSTRAP
     assert transport.SSH_COMMAND[:4] == (
         "ssh",
         "-F",

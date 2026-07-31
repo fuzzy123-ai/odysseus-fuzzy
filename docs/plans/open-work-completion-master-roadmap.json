@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-31T16:05:00+02:00",
-  "status": "ops_alert_backup_credential_migration_published_ci_green_waiting_on_action_specific_live_authority",
+  "updated_at": "2026-07-31T17:04:00+02:00",
+  "status": "ops_alert_fd_bound_backup_redesign_repo_claim_active_live_credential_authority_still_required",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,7 +23,7 @@
     "unique_live_gates": 53,
     "unique_design_gates": 27,
     "other_open_json_items": 108,
-    "queue_status": "ops_alert_credential_migration_published_ci_green_waiting_on_action_specific_live_authority",
+    "queue_status": "ops_alert_fd_bound_backup_redesign_repo_claim_active_live_credential_authority_still_required",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -208,6 +208,72 @@
           "staging or absorbing paths outside this exact claim",
           "treating the seven locally unavailable Linux gates as PASS before the exact pushed commit reaches terminal green on GitHub Ubuntu",
           "publishing a revision whose locally applicable Python 3.11 regression or deterministic inventory check is not green"
+        ],
+        "handoff_required": false
+      },
+      {
+        "run_id": "ABC-OPS-ALERT-FD-BACKUP-REDESIGN-20260731",
+        "thread_id": "/root",
+        "slice_id": "OPS-ALERT-fd-bound-predeploy-backup-and-independent-observation",
+        "owner": "root/Sol implementer and final reviewer",
+        "state": "claimed",
+        "acquired_at": "2026-07-31T16:21:00+02:00",
+        "lease_expires_at": "2026-07-31T18:21:00+02:00",
+        "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
+        "base_revision": "ff8ba9aa4fe866cc278bd28e35f94c62851a9f51",
+        "dependencies": [
+          "ABC-OPS-ALERT-CREDENTIAL-MIGRATION-PREP-20260731 published with terminal Required CI green",
+          "independent backup creation reviews completed with path-TOCTOU quarantine confirmed"
+        ],
+        "allowed_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json",
+          "ops/homeserver/redacted_predeploy_backup_creation.py",
+          "ops/homeserver/redacted_predeploy_backup_creation_transport.py",
+          "ops/homeserver/redacted_backup_snapshot_observation.py",
+          "ops/homeserver/redacted_backup_snapshot_observation_transport.py",
+          "tests/test_homeserver_redacted_predeploy_backup_creation.py",
+          "tests/test_homeserver_redacted_predeploy_backup_creation_transport.py",
+          "tests/test_homeserver_redacted_backup_snapshot_observation.py",
+          "tests/test_homeserver_redacted_backup_snapshot_observation_transport.py"
+        ],
+        "phase": "all_local_python_3_11_and_integration_gates_green_ready_for_exact_commit_push_ci",
+        "live_actions": false,
+        "acceptance": [
+          "source, repository, credential and executable identities are opened once without following links and remain descriptor-bound through dispatch and readback",
+          "the backup runs in a private mount namespace whose fixed /opt/odysseus view is bound from the validated source descriptor",
+          "the snapshot continues to record the exact protected path /opt/odysseus and a fresh opaque snapshot id",
+          "all failures after Restic dispatch are terminal unknown with no automatic retry and no raw output",
+          "the independent observer uses descriptor-bound repository and credential inputs",
+          "focused Python 3.11 tests, adversarial swap tests, deterministic inventory and terminal Ubuntu Required CI are green before any live capability probe"
+        ],
+        "forbidden_actions": [
+          "SSH, host mutation, credential access, backup creation, deployment, provider send or Telegram send",
+          "weakening the protected-source or independent-evidence contract to accept a tar-stream substitute",
+          "staging or absorbing paths outside this claim"
+        ],
+        "verification_evidence": {
+          "creation_core_sha256": "65044c06153b6a2b35f0cd734963781b5bbfb7519595924316714d23966bef0c",
+          "observation_core_sha256": "ce435c9f940722e40df51933beec2e4cd978dafe6aa9fe7418513077731081dd",
+          "python_3_11_focused_core_and_transport_suite": "53 passed, 1 pre-existing SQLAlchemy warning",
+          "python_3_11_backup_deploy_activation_corridor": "198 passed, 1 pre-existing SQLAlchemy warning",
+          "python_3_11_roadmap_and_queue_contracts": "24 passed, 1 pre-existing SQLAlchemy warning",
+          "deterministic_runtime_inventory": "check passed",
+          "staged_diff_check": "passed",
+          "independent_final_review": "PASS with no remaining P0-P2 after three bounded correction cycles",
+          "closed_findings": [
+            "outer and embedded transport pins agree with each current core blob",
+            "retained mount-id proof plus repository-relative component opens",
+            "streaming bounded Restic readback with kill and reap on overflow or timeout",
+            "readv into wipeable credential buffers followed by sealed memfd dispatch",
+            "no post-exec source, repository, credential, mount, config or executable bypass descriptors"
+          ],
+          "external_actions": "none"
+        },
+        "permitted_git_actions": [
+          "stage only the nine reviewed allowed paths",
+          "create one local integration commit from the exact tested index",
+          "push that exact commit to fuzzy/dev",
+          "observe the exact GitHub Required quality gate run to terminal state"
         ],
         "handoff_required": false
       },

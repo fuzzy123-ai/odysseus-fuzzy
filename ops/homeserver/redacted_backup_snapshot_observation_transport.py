@@ -18,7 +18,7 @@ from ops.homeserver import redacted_backup_snapshot_observation as observation
 SCHEMA_ID = "odysseus.redacted_backup_snapshot_observation_transport.v1"
 PUBLISHED_REF = "refs/remotes/fuzzy/dev"
 OBSERVATION_PATH = "ops/homeserver/redacted_backup_snapshot_observation.py"
-PUBLISHED_OBSERVATION_SHA256 = "4e891f203ad04801c538a01db1bd9c3bfa9844ebe9670814b7feab7636d07ff5"
+PUBLISHED_OBSERVATION_SHA256 = "ce435c9f940722e40df51933beec2e4cd978dafe6aa9fe7418513077731081dd"
 _CODES = frozenset(
     {
         "invalid_invocation",
@@ -41,7 +41,7 @@ _BOOTSTRAP = """import base64,hashlib,json,sys,types
 raw=sys.stdin.buffer.read(500001)
 if len(raw)>500000: raise SystemExit(2)
 bundle=json.loads(raw.decode('utf-8'))
-expected='4e891f203ad04801c538a01db1bd9c3bfa9844ebe9670814b7feab7636d07ff5'
+expected='ce435c9f940722e40df51933beec2e4cd978dafe6aa9fe7418513077731081dd'
 if type(bundle) is not dict or set(bundle)!={'execute','sha256','source'} or bundle['execute'] is not True or bundle['sha256']!=expected: raise SystemExit(2)
 source=base64.b64decode(bundle['source'],validate=True)
 if hashlib.sha256(source).hexdigest()!=expected: raise SystemExit(2)

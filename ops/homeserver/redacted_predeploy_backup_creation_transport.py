@@ -18,7 +18,7 @@ from ops.homeserver import redacted_predeploy_backup_creation as creation
 SCHEMA_ID = "odysseus.redacted_predeploy_backup_creation_transport.v1"
 PUBLISHED_REF = "refs/remotes/fuzzy/dev"
 CREATION_PATH = "ops/homeserver/redacted_predeploy_backup_creation.py"
-PUBLISHED_CREATION_SHA256 = "549cf978ee6dbd12654918771be119ca6e212ea75dfb52830ff169d49d214db4"
+PUBLISHED_CREATION_SHA256 = "65044c06153b6a2b35f0cd734963781b5bbfb7519595924316714d23966bef0c"
 _CODES = frozenset(
     {
         "invalid_invocation",
@@ -54,7 +54,7 @@ _BOOTSTRAP = """import base64,hashlib,json,sys,types
 raw=sys.stdin.buffer.read(500001)
 if len(raw)>500000: raise SystemExit(2)
 bundle=json.loads(raw.decode('utf-8'))
-expected='549cf978ee6dbd12654918771be119ca6e212ea75dfb52830ff169d49d214db4'
+expected='65044c06153b6a2b35f0cd734963781b5bbfb7519595924316714d23966bef0c'
 if type(bundle) is not dict or set(bundle)!={'execute','sha256','source'} or bundle['execute'] is not True or bundle['sha256']!=expected: raise SystemExit(2)
 source=base64.b64decode(bundle['source'],validate=True)
 if hashlib.sha256(source).hexdigest()!=expected: raise SystemExit(2)
