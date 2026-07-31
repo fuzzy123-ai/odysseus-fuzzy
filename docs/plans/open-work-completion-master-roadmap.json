@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-31T14:12:00+02:00",
-  "status": "ops_alert_c2_required_ci_green_d_transactional_executor_claimed",
+  "updated_at": "2026-07-31T12:25:00+02:00",
+  "status": "ops_alert_live_backup_diagnostic_ready_for_publication",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -116,7 +116,7 @@
         "thread_id": "/root",
         "slice_id": "OPS-ALERT-root-integration-python311-publication",
         "owner": "root/Sol integrator and final reviewer",
-        "state": "claimed",
+        "state": "released_after_exact_push_and_terminal_ci",
         "acquired_at": "2026-07-31T11:18:00+02:00",
         "lease_expires_at": "2026-07-31T15:18:00+02:00",
         "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
@@ -178,7 +178,7 @@
           "docs/plans/open-work-completion-master-roadmap.json",
           "docs/plans/unified-source-index-runtime-caller-inventory.json"
         ],
-        "phase": "exact_local_integration_commit_bound_pending_push_and_terminal_ubuntu_ci",
+        "phase": "completed_exact_push_and_terminal_ubuntu_ci_green",
         "verification_evidence": {
           "python_runtime": "CPython 3.11.15 from C:/tmp/odysseus-ci-py311-20260730/Scripts/python.exe",
           "ops_alert_integration_corridor": "231 passed, 1 pre-existing SQLAlchemy warning",
@@ -209,15 +209,107 @@
           "treating the seven locally unavailable Linux gates as PASS before the exact pushed commit reaches terminal green on GitHub Ubuntu",
           "publishing a revision whose locally applicable Python 3.11 regression or deterministic inventory check is not green"
         ],
+        "handoff_required": false
+      },
+      {
+        "run_id": "ABC-OPS-ALERT-LIVE-CLOSE-20260731",
+        "thread_id": "/root",
+        "slice_id": "OPS-ALERT-live-backup-deploy-activation-delivery-proof",
+        "owner": "root/Sol live executor and final reviewer",
+        "state": "claimed",
+        "acquired_at": "2026-07-31T12:18:00+02:00",
+        "lease_expires_at": "2026-07-31T13:30:00+02:00",
+        "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
+        "published_revision": "707564941379646de2020304f03fa5889a7756b5",
+        "dependencies": [
+          "latest_ops_alert_root_integration_handoff",
+          "GitHub CI run 30622495185 terminal success",
+          "latest_ops_alert_d_transactional_deploy_handoff",
+          "latest_ops_alert_c6_activation_handoff"
+        ],
+        "allowed_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json",
+          "docs/plans/unified-source-index-runtime-caller-inventory.json",
+          "ops/homeserver/redacted_backup_configuration_diagnostic.py",
+          "ops/homeserver/redacted_backup_configuration_diagnostic_transport.py",
+          "tests/test_homeserver_redacted_backup_configuration_diagnostic.py",
+          "tests/test_homeserver_redacted_backup_configuration_diagnostic_transport.py"
+        ],
+        "phase": "backup_observation_consumed_terminal_config_invalid_repo_only_redacted_diagnostic",
+        "live_actions": true,
+        "action_packets": {
+          "backup_snapshot_observation": {
+            "schema_id": "odysseus.ops_alert_live_backup_observation_authority.v1",
+            "source_revision": "707564941379646de2020304f03fa5889a7756b5",
+            "target": "odysseus-homeserver",
+            "fixed_remote_program": "ops/homeserver/redacted_backup_snapshot_observation.py",
+            "mode": "read_only",
+            "maximum_invocations": 1,
+            "retry_count": 0,
+            "timeout_seconds": 30,
+            "expires_at": "2026-07-31T12:30:00+02:00",
+            "raw_stdout_retained": false,
+            "raw_stderr_retained": false,
+            "only_fixed_redacted_schema_may_be_persisted": true
+          },
+          "backup_configuration_diagnostic": {
+            "schema_id": "odysseus.ops_alert_backup_configuration_diagnostic_authority.v1",
+            "mode": "read_only_boolean_projection",
+            "source_delivery": "published_blob_stdin",
+            "maximum_invocations_after_publication": 1,
+            "retry_count": 0,
+            "timeout_seconds": 30,
+            "expires": "run_end",
+            "forbidden_output": [
+              "configuration value",
+              "credential value",
+              "value length",
+              "value hash",
+              "raw stdout",
+              "raw stderr",
+              "exception text"
+            ]
+          }
+        },
+        "consumed_actions": {
+          "backup_snapshot_observation": {
+            "consumed_at": "2026-07-31T12:19:00+02:00",
+            "status": "blocked",
+            "error_code": "config_invalid",
+            "retry_permitted": false,
+            "evidence_sha256": "cbe7f4b77d618bd4f2219074f14c07daf5814adb3c753740d2b3249a1c18aa16"
+          }
+        },
+        "verification_evidence": {
+          "python_runtime": "CPython 3.11.15 from C:/tmp/odysseus-ci-py311-20260730/Scripts/python.exe",
+          "focused_diagnostic_suite": "18 passed, 1 pre-existing SQLAlchemy warning",
+          "expanded_backup_gate_suite": "42 passed, 1 pre-existing SQLAlchemy warning",
+          "published_diagnostic_blob_sha256": "c5c5fa09d77bab0d08999814171b8d3c2a48f140b4e6e872eacdebc447b1d72e",
+          "independent_review": "two P1 fail-closed findings and one P2 pin-test finding corrected before publication",
+          "deterministic_runtime_inventory": "check passed",
+          "diff_check": "passed",
+          "external_actions": "none for the diagnostic package"
+        },
+        "permitted_actions": [
+          "one fixed repo-owned redacted backup snapshot observation over the explicitly live-gated odysseus-homeserver alias",
+          "after a validated fresh snapshot, persist exact deploy and activation packets before each single invocation",
+          "after validated activation, perform one published C7 synthetic rejected-login smoke and fixed read-only durable receipt observation"
+        ],
+        "forbidden_actions": [
+          "raw environment, journal, process, provider, SSH stderr or unvalidated stdout readback",
+          "retry after any ambiguous or terminal live action",
+          "restore, prune, cleanup, secret rotation, authentication configuration or unrelated host mutation",
+          "Telegram send before transactional deploy and delivery activation both return validated success"
+        ],
         "handoff_required": true
       }
     ],
     "latest_ops_alert_root_integration_handoff": {
-      "recorded_at": "2026-07-31T14:12:00+02:00",
+      "recorded_at": "2026-07-31T12:07:19+02:00",
       "run_id": "ABC-OPS-ALERT-ROOT-INTEGRATE-PUBLISH-20260731",
       "slice_id": "OPS-ALERT-root-integration-python311-publication",
-      "status": "local_integration_accepted_commit_bound_awaiting_exact_push_and_terminal_ci",
-      "claim": "narrowed_to_exact_push_and_terminal_ci_observation",
+      "status": "published_exact_revision_terminal_github_ci_green",
+      "claim": "released_after_exact_push_and_terminal_ci",
       "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
       "tested_integration_revision": "fb5f79d7d3fcd26a2048410d7e39d1087f6d5402",
       "changed_path_count_against_fuzzy_dev": 44,
@@ -228,13 +320,20 @@
         "full_windows_compatible_python311_suite": "11348 passed, 29 skipped, 7 deselected",
         "deterministic_runtime_inventory": "passed",
         "diff_check": "passed",
-        "staged_live_readback_sha256": "acdca4919b31b5c4c872000c4f885bad98db5eda3c1088d0f916484a99666b5a"
+        "staged_live_readback_sha256": "acdca4919b31b5c4c872000c4f885bad98db5eda3c1088d0f916484a99666b5a",
+        "published_revision": "707564941379646de2020304f03fa5889a7756b5",
+        "github_ci_run": 30622495185,
+        "github_ci_conclusion": "success",
+        "github_ci_jobs": [
+          "Python tests (pytest)",
+          "Python syntax (compileall)",
+          "JS syntax (node --check)"
+        ]
       },
       "not_verified": [
-        "Seven Linux/symlink gates remain explicitly not locally verified and require terminal GitHub Ubuntu CI.",
-        "No push, SSH, deploy, environment mutation, provider send or live Telegram action has occurred at this handoff."
+        "No deploy, environment mutation, provider send or live Telegram action has occurred at this handoff."
       ],
-      "next_action": "Commit this roadmap-only handoff, push the exact resulting revision to fuzzy/dev once, and observe every required GitHub check to terminal state."
+      "next_action": "Publish the separately claimed redacted backup-configuration diagnostic, require terminal CI on its exact revision, then execute that fixed value-free observation once."
     },
     "latest_ops_alert_c5_automatic_delivery_handoff": {
       "recorded_at": "2026-07-31T11:12:28+02:00",
