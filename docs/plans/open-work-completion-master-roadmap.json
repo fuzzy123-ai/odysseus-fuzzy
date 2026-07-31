@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-31T13:14:00+02:00",
+  "updated_at": "2026-07-31T14:12:00+02:00",
   "status": "ops_alert_c2_required_ci_green_d_transactional_executor_claimed",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
@@ -178,7 +178,7 @@
           "docs/plans/open-work-completion-master-roadmap.json",
           "docs/plans/unified-source-index-runtime-caller-inventory.json"
         ],
-        "phase": "local_python311_and_inventory_green_exact_commit_push_then_terminal_ubuntu_ci",
+        "phase": "exact_local_integration_commit_bound_pending_push_and_terminal_ubuntu_ci",
         "verification_evidence": {
           "python_runtime": "CPython 3.11.15 from C:/tmp/odysseus-ci-py311-20260730/Scripts/python.exe",
           "ops_alert_integration_corridor": "231 passed, 1 pre-existing SQLAlchemy warning",
@@ -193,7 +193,8 @@
           "locally_deselected_gate_rule": "These seven tests are not PASS locally and must pass unchanged in the terminal GitHub Ubuntu Required quality gate before live work.",
           "deterministic_runtime_inventory": "check passed",
           "diff_check": "passed",
-          "tested_dirty_diff_authority": "active claim allowed paths only; exact staged digest and commit revision to be recorded before push"
+          "tested_dirty_diff_authority": "active claim allowed paths only",
+          "tested_integration_revision": "fb5f79d7d3fcd26a2048410d7e39d1087f6d5402"
         },
         "live_actions": false,
         "permitted_git_actions": [
@@ -211,6 +212,30 @@
         "handoff_required": true
       }
     ],
+    "latest_ops_alert_root_integration_handoff": {
+      "recorded_at": "2026-07-31T14:12:00+02:00",
+      "run_id": "ABC-OPS-ALERT-ROOT-INTEGRATE-PUBLISH-20260731",
+      "slice_id": "OPS-ALERT-root-integration-python311-publication",
+      "status": "local_integration_accepted_commit_bound_awaiting_exact_push_and_terminal_ci",
+      "claim": "narrowed_to_exact_push_and_terminal_ci_observation",
+      "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
+      "tested_integration_revision": "fb5f79d7d3fcd26a2048410d7e39d1087f6d5402",
+      "changed_path_count_against_fuzzy_dev": 44,
+      "unclaimed_changed_paths": [],
+      "verification": {
+        "ops_alert_integration_corridor": "231 passed",
+        "gpu_compose_and_devops_contracts": "20 passed",
+        "full_windows_compatible_python311_suite": "11348 passed, 29 skipped, 7 deselected",
+        "deterministic_runtime_inventory": "passed",
+        "diff_check": "passed",
+        "staged_live_readback_sha256": "acdca4919b31b5c4c872000c4f885bad98db5eda3c1088d0f916484a99666b5a"
+      },
+      "not_verified": [
+        "Seven Linux/symlink gates remain explicitly not locally verified and require terminal GitHub Ubuntu CI.",
+        "No push, SSH, deploy, environment mutation, provider send or live Telegram action has occurred at this handoff."
+      ],
+      "next_action": "Commit this roadmap-only handoff, push the exact resulting revision to fuzzy/dev once, and observe every required GitHub check to terminal state."
+    },
     "latest_ops_alert_c5_automatic_delivery_handoff": {
       "recorded_at": "2026-07-31T11:12:28+02:00",
       "run_id": "ABC-OPS-ALERT-C5-AUTOMATIC-IP-DELIVERY-20260731",
