@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-31T15:53:00+02:00",
-  "status": "ops_alert_backup_credential_migration_repo_only_ready_to_publish",
+  "updated_at": "2026-07-31T16:05:00+02:00",
+  "status": "ops_alert_backup_credential_migration_published_ci_green_waiting_on_action_specific_live_authority",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -23,7 +23,7 @@
     "unique_live_gates": 53,
     "unique_design_gates": 27,
     "other_open_json_items": 108,
-    "queue_status": "ops_alert_c2_required_ci_green_d_transactional_executor_repo_implementation_claimed",
+    "queue_status": "ops_alert_credential_migration_published_ci_green_waiting_on_action_specific_live_authority",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
@@ -226,7 +226,7 @@
           "GitHub CI run 30622495185 terminal success",
           "latest_ops_alert_d_transactional_deploy_handoff",
           "latest_ops_alert_c6_activation_handoff",
-          "ABC-OPS-ALERT-CREDENTIAL-MIGRATION-PREP-20260731 published exact revision and terminal Required CI"
+          "ABC-OPS-ALERT-CREDENTIAL-MIGRATION-PREP-20260731 published as b187d00e45e0c2e3d2cf7c47a36b586d66da7bde with GitHub CI run 30636302437 terminal success"
         ],
         "allowed_paths": [
           "docs/plans/open-work-completion-master-roadmap.json",
@@ -235,6 +235,8 @@
           "ops/homeserver/redacted_backup_configuration_diagnostic_transport.py",
           "ops/homeserver/redacted_backup_configuration_repair.py",
           "ops/homeserver/redacted_backup_configuration_repair_transport.py",
+          "ops/homeserver/redacted_backup_credential_migration.py",
+          "ops/homeserver/redacted_backup_credential_migration_transport.py",
           "ops/homeserver/redacted_predeploy_backup_creation.py",
           "ops/homeserver/redacted_predeploy_backup_creation_transport.py",
           "ops/homeserver/redacted_backup_snapshot_observation.py",
@@ -248,7 +250,7 @@
           "tests/test_homeserver_redacted_backup_snapshot_observation.py",
           "tests/test_homeserver_redacted_backup_snapshot_observation_transport.py"
         ],
-        "phase": "diagnostic_v3_consumed_no_safe_file_pointer_waiting_on_user_credential_migration_authority",
+        "phase": "credential_migration_package_published_ci_green_waiting_on_action_specific_live_authority",
         "live_actions": true,
         "action_packets": {
           "backup_snapshot_observation": {
@@ -370,6 +372,47 @@
             "precondition": "v1 consumed blocked preflight_failed with effect_may_have_occurred false",
             "rollback": "restore original directory and password metadata and remove staged nonsecret config before the atomic replacement boundary; terminal unknown after ambiguous replacement",
             "secret_value_change": false
+          },
+          "backup_credential_migration": {
+            "schema_id": "odysseus.ops_alert_backup_credential_migration_authority.v1",
+            "state": "prepared_not_authorized",
+            "mode": "one_rollback_bound_internal_credential_copy_and_atomic_fixed_pointer_install",
+            "source_revision": "b187d00e45e0c2e3d2cf7c47a36b586d66da7bde",
+            "github_ci_run": 30636302437,
+            "github_ci_conclusion": "success",
+            "target": "odysseus-homeserver",
+            "source_delivery": "published_blob_stdin",
+            "transport": "ops/homeserver/redacted_backup_credential_migration_transport.py",
+            "published_core_blob_sha256": "2c5cc84b79cfa2339e768073e138c646f7353567276eb041b7b43a8b9d5ede08",
+            "maximum_invocations": 0,
+            "maximum_invocations_after_action_specific_live_authority": 1,
+            "retry_count": 0,
+            "transport_timeout_seconds": 60,
+            "transient_unit_runtime_max_seconds": 45,
+            "expires": "run_end",
+            "rollback": "automatic verified restoration of prior destination, configuration and directory mode; ambiguous restoration is terminal unknown",
+            "post_change_readback": "fixed no-lock Restic repository query must return zero and final fd-bound identities, contents, metadata and preserved rollback entries must remain valid",
+            "required_success": "strict succeeded envelope with credential_installed, configuration_installed and post_change_readback_succeeded true",
+            "forbidden_output": [
+              "credential value",
+              "source or destination path",
+              "filename",
+              "value length",
+              "value hash",
+              "environment",
+              "raw stdout",
+              "raw stderr",
+              "exception text"
+            ],
+            "forbidden_effects": [
+              "credential rotation or generation",
+              "source credential deletion or modification",
+              "repository mutation",
+              "backup creation",
+              "deployment",
+              "provider send",
+              "automatic retry"
+            ]
           },
           "predeploy_backup_creation": {
             "schema_id": "odysseus.ops_alert_predeploy_backup_creation_authority.v1",
@@ -493,12 +536,19 @@
           }
         },
         "waiting_on_user": {
-          "reason": "No credential-free backup path remains: the fixed password file is not a safe regular credential and the existing configuration is not a safe non-executing private password-file pointer.",
-          "required_authority": "One action-specific live authorization to migrate or provision the existing Restic credential internally into the fixed private password file, without emitting credential bytes, then atomically write the fixed pointer configuration.",
+          "reason": "The rollback-safe migration package is published and terminal Required CI is green, but the current user instruction does not explicitly authorize this exact live credential mutation.",
+          "required_authority": "Explicitly authorize exactly one internal copy of the existing Restic credential into the fixed private password-file contract. This does not rotate, generate, print, delete or externally transmit the credential.",
           "rollback_required": true,
           "post_change_readback_required": true,
           "credential_value_output_forbidden": true,
-          "safe_default": "do not deploy, activate delivery or send a Telegram alert"
+          "automatic_retry_forbidden": true,
+          "safe_default": "do not invoke the migration transport, backup, deploy, activate delivery or send Telegram",
+          "excluded_without_separate_authority": [
+            "credential rotation or generation",
+            "source credential deletion",
+            "SSH key or authentication configuration change",
+            "unrelated host mutation"
+          ]
         },
         "verification_evidence": {
           "python_runtime": "CPython 3.11.15 from C:/tmp/odysseus-ci-py311-20260730/Scripts/python.exe",
@@ -542,7 +592,7 @@
         "thread_id": "/root",
         "slice_id": "OPS-ALERT-backup-credential-migration-repo-only-package",
         "owner": "root/Sol integrator with Terra implementation and Charlie review",
-        "state": "claimed",
+        "state": "released_after_exact_push_and_terminal_ci",
         "acquired_at": "2026-07-31T13:54:00+02:00",
         "lease_expires_at": "2026-07-31T17:54:00+02:00",
         "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
@@ -561,7 +611,7 @@
           "tests/test_homeserver_redacted_backup_credential_migration.py",
           "tests/test_homeserver_redacted_backup_credential_migration_transport.py"
         ],
-        "phase": "repo_only_reviewed_ready_for_path_scoped_commit_and_push",
+        "phase": "published_exact_revision_terminal_github_ci_green",
         "live_actions": false,
         "required_contract": {
           "source": "existing systemd backup EnvironmentFile supplies RESTIC_PASSWORD_FILE only; RESTIC_PASSWORD and RESTIC_PASSWORD_COMMAND are rejected",
@@ -583,10 +633,17 @@
           "deterministic_roadmap_safe_queue_audit": "passed; one documented unrelated PMCP-9 stale safe-open item remains",
           "claim_coverage": "5 changed paths, 5 allowed paths, 0 unclaimed, 0 missing",
           "git_diff_check": "passed",
-          "charlie_final_security_review": "PASS; no remaining P0-P2 findings after two bounded fix cycles"
+          "charlie_final_security_review": "PASS; no remaining P0-P2 findings after two bounded fix cycles",
+          "published_revision": "b187d00e45e0c2e3d2cf7c47a36b586d66da7bde",
+          "github_ci_run": 30636302437,
+          "github_ci_conclusion": "success",
+          "github_ci_jobs": [
+            "Required quality gate / Python syntax (compileall)",
+            "Required quality gate / JS syntax (node --check)",
+            "Required quality gate / Python tests (pytest)"
+          ]
         },
         "not_verified": [
-          "exact commit publication and terminal GitHub Required CI",
           "Debian renameat2 filesystem capability and transient systemd-run execution",
           "credential migration, post-change Restic readback, backup, deploy, activation and live alert delivery"
         ],
@@ -16078,5 +16135,5 @@
       "safe_default": "do_not_edit_ui_from_backend_abc"
     }
   ],
-  "recommended_next_human_decision": "Authorize exactly one rollback-bound internal Restic credential migration/provisioning action for OPS Alert. A plain-language confirmation such as 'Ja, migriere das bestehende Restic-Credential intern in den festen privaten Passwortdatei-Vertrag und fahre danach mit OPS Alert bis live fort' is sufficient. No credential value may be emitted; post-change redacted readback is mandatory."
+  "recommended_next_human_decision": "Explicitly authorize exactly one rollback-bound internal copy of the existing Restic credential into the fixed private password-file contract. No credential is rotated, generated, printed, deleted or externally transmitted; the action has no retry and requires a redacted Restic post-change readback."
 }
