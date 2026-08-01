@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-07-31T09:48:00+02:00",
-  "status": "ops_alert_c2_required_ci_green_d_transactional_executor_claimed",
+  "updated_at": "2026-08-01T21:10:50.2963779+02:00",
+  "status": "native_knowledge_graph_causality_master_registered / ops_alert_publication_preserved_in_existing_handoffs",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -14,7 +14,7 @@
       "Keep broad UI and design work outside the non-UI execution ledger; TAX7/TUA9 may make only the explicitly scoped existing Admin metadata/aggregate projections after their backend contracts are complete."
     ]
   },
-  "goal_command": "/goal Implementiere die SIRP-Roadmap dependency-first bis zur produktiven operator-gestuetzten Security-Response-Kette; halte jede externe Aktion, jeden Deploy und jeden Live-Test hinter seinem exakten separaten Gate.",
+  "goal_command": "/goal Implementiere nach UIX-ABC24 die SIRP-Roadmap dependency-first bis zur produktiven operator-gestuetzten Security-Response-Kette; halte jede externe Aktion, jeden Deploy und jeden Live-Test hinter seinem exakten separaten Gate.",
   "goal": "Deliver the SIRP assisted-security-response track from redacted evidence and durable incident/action state through exact explanation, fresh-auth operator approval, default-disabled typed executors, independent post-action readback, rollback and action-specific temporal live closure.",
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
@@ -110,13 +110,13 @@
       "queue_exhausted": false,
       "verified_at": "2026-07-27"
     },
-    "active_claimed_slices": [
+    "recovered_expired_claims": [
       {
         "run_id": "ABC-OPS-ALERT-ROOT-INTEGRATE-PUBLISH-20260731",
         "thread_id": "/root",
         "slice_id": "OPS-ALERT-root-integration-python311-publication",
         "owner": "root/Sol integrator and final reviewer",
-        "state": "claimed",
+        "prior_state": "claimed",
         "acquired_at": "2026-07-31T11:18:00+02:00",
         "lease_expires_at": "2026-07-31T15:18:00+02:00",
         "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
@@ -185,9 +185,46 @@
           "staging or absorbing paths outside this exact claim",
           "publishing a revision whose full Python 3.11 regression or deterministic inventory check is not green"
         ],
-        "handoff_required": true
+        "handoff_required": true,
+        "recovered_at": "2026-08-01T20:59:52.1790824+02:00",
+        "disposition": "expired_without_master_diff",
+        "evidence": "The declared worktree exists and its master-roadmap path is clean; no active task listing capability was available on this surface.",
+        "remaining_work": "OPS Alert integration and publication remain owned by their existing handoffs and are not absorbed by this roadmap-authoring slice."
       }
     ],
+    "active_claimed_slices": [],
+    "latest_native_knowledge_master_handoff": {
+      "run_id": "ABC-NATIVE-KNOWLEDGE-MASTER-20260801",
+      "thread_id": "/root",
+      "slice_id": "OWM-native-knowledge-graph-causality-master-registration",
+      "owner": "root/Sol",
+      "state": "released_deep_review_pass",
+      "acquired_at": "2026-08-01T20:59:52.1790824+02:00",
+      "released_at": "2026-08-01T21:10:50.2963779+02:00",
+      "worktree": "C:/Users/nkatz/odysseus",
+      "base_revision": "a1f5b00e1a47f99114683515a25060f1616ce145",
+      "allowed_paths": [
+        "docs/plans/open-work-completion-master-roadmap.json"
+      ],
+      "changed_paths": [
+        "docs/plans/open-work-completion-master-roadmap.json"
+      ],
+      "live_actions": false,
+      "review": {
+        "reviewer": "root/Sol",
+        "depth": "deep",
+        "result": "pass"
+      },
+      "evidence": {
+        "json_parse": "pass",
+        "master_invariants": "pass",
+        "focused_master_tests": "17 passed with one existing SQLAlchemy deprecation warning",
+        "diff_check": "pass",
+        "guidance_tests": "4 passed, 1 pre-existing profile-count mismatch in foreign dirty guidance"
+      },
+      "commit_scope": "exact master-roadmap path; resulting hash is recorded in Git history and the final handoff",
+      "next_action": "Commit the exact master path. Before NMG-00 can be claimed, reconcile the separately owned multi-agent guidance profile counts and register its route without absorbing foreign changes."
+    },
     "latest_ops_alert_c5_automatic_delivery_handoff": {
       "recorded_at": "2026-07-31T11:12:28+02:00",
       "run_id": "ABC-OPS-ALERT-C5-AUTOMATIC-IP-DELIVERY-20260731",
@@ -2681,6 +2718,8 @@
     "docs/plans/privacy-safe-tool-analytics-roadmap.md",
     "docs/plans/gemma3-memory-ops-optimization-roadmap.md",
     "docs/plans/graphrag-raptor-observability-prometheus-grafana-roadmap.md",
+    "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
+    "docs/plans/memory-scale-foundation-roadmap.md",
     "docs/plans/unified-source-index-implementation-roadmap.md",
     "docs/plans/unified-source-index-integration-impact-map.md",
     "docs/plans/unified-source-index-runtime-integration-roadmap.md",
@@ -2702,7 +2741,8 @@
     "Existing per-action confirmations, admin checks, destructive-operation policies and external-write gates remain authoritative after feature activation.",
     "Email and calendar capabilities are deferred by operator priority; contacts remain default-off as their dependent communication capability. Retain code and evidence, but do not schedule feature work or a live smoke.",
     "Push only to fuzzy/dev; never push to origin.",
-    "Do not touch unrelated dirty files unless the selected slice explicitly owns them."
+    "Do not touch unrelated dirty files unless the selected slice explicitly owns them.",
+    "Obsidian is legacy evidence only and may not be selected as a source, fallback, truth store, projection owner, runtime dependency or activation target."
   ],
   "operator_deferred_families": [
     {
@@ -2891,16 +2931,13 @@
       "id": "OWM-9",
       "name": "Memory/Raptor Runtime Reindex And Scale Foundation",
       "priority": 80,
-      "status": "post_backend_live_gated",
-      "why_open": "Tokenizer/chunking, Raptor cache and diagnostics are repo-complete; live reindex of real collections and Postgres/pgvector scale foundation are post-1.0 or evidence-driven.",
+      "status": "historical_reference_nonclaimable_future_scale_evidence_required",
+      "why_open": "Tokenizer/chunking and diagnostics remain useful history, but the former Obsidian/Raptor reindex path is legacy and PostgreSQL/pgvector is not the selected current truth. USI SQLite remains authoritative until measured native scale evidence justifies a new migration roadmap.",
       "source_gate_family": "memory_scale",
-      "gate_ids": [
-        "RMT-LIVE-REINDEX",
-        "memory-scale-foundation-go"
-      ],
-      "safe_default": "do_not_migrate_or_reindex_real_collections_without_go",
-      "operator_go_phrase": "GO memory_scale bounded reindex plan",
-      "done_when": "A live reindex/migration plan has rollback evidence and quality gates, or the track is explicitly deferred until diagnostics show a real scale problem."
+      "gate_ids": [],
+      "safe_default": "retain_usi_sqlite_and_collect_native_scale_evidence_no_legacy_reindex_or_storage_migration",
+      "operator_go_phrase": null,
+      "done_when": "The historical plan remains nonclaimable until native diagnostics demonstrate a real scale problem and a new bounded migration roadmap defines truth, rollback and quality evidence."
     },
     {
       "id": "OWM-10",
@@ -2996,17 +3033,16 @@
       "id": "OWM-13",
       "name": "Gemma3 Maintenance Runtime Isolation",
       "priority": 7,
-      "status": "repo_complete_offline_go_activation_packet_ready_two_live_gates_closed",
-      "why_open": "GMI-00 through GMI-15 are repository-complete with exact gemma3:4b maintenance-only isolation, async-safe context, bounded metrics, offline SLO evidence and a validated transactional activation/rollback packet. Live work remains closed until GRO-LIVE-ACTIVATION has a Go soak and the user separately grants GMI-LIVE-ACTIVATION.",
+      "status": "repo_complete_historical_gro_dependency_superseded_native_observability_revalidation_required",
+      "why_open": "GMI-00 through GMI-15 are repository-complete for their dated runtime packet. Its former GRO-LIVE-ACTIVATION dependency is historical plugin evidence and cannot authorize current activation. GMI remains closed until native shared-observability readiness is revalidated against the exact current runtime and the user separately grants GMI-LIVE-ACTIVATION.",
       "source_roadmap": "docs/plans/gemma3-memory-ops-optimization-roadmap.md",
       "source_gate_family": "gemma3_maintenance_runtime",
       "dependencies": [
         "Explicit goal start or operator reprioritization; this planning entry does not replace the current TAX/TUA execution goal",
         "GMI-00 ownership and dirty-hotfile baseline before runtime edits",
-        "GRO-14 observability activation packet readiness before GMI final live activation"
+        "Native shared-observability readiness from UIR-13 and the current activation packet before GMI final live activation"
       ],
       "gate_ids": [
-        "GRO-LIVE-ACTIVATION",
         "GMI-LIVE-ACTIVATION"
       ],
       "safe_default": "keep_new_gemma3_runtime_lane_disabled_and_preserve_existing_agent_cloud_behavior",
@@ -3014,14 +3050,14 @@
       "execution_protocol": {
         "queue_registration": "Do not add every slice as pending. On future goal start register only GMI-00 as claimable and keep successors blocked_by_dependency.",
         "dependency_rule": "Charlie advances exactly the next dependency-satisfied slice; the safe-queue audit is discovery only and must not be treated as a dependency runner.",
-        "future_goal_command": "/goal Implementiere OWM-13 und OWM-14 im Overnight Backend Mode fuer 12-24 Stunden; beginne mit GMI-00 und GRO-00, halte alle Nachfolger blocked_by_dependency, keine User-Gates vor den fertigen Live-Aktivierungspaketen."
+        "future_goal_command": "/goal Revalidiere OWM-13 gegen die native UIR-13/USI-15 Observability-Evidence; verwende GRO nur als historische Vergleichsevidenz und stoppe vor GMI-LIVE-ACTIVATION."
       },
       "activation_contract": {
         "id": "GMI-LIVE-ACTIVATION",
         "dormant_until": "GMI-00 through GMI-15 complete with exact gemma3:4b maintenance-only isolation, async context, bypass non-regression, content-free metrics, SLO and rollback evidence",
         "repo_barrier_status": "satisfied",
-        "current_status": "awaiting_separate_gro_live_go_result_then_action_specific_gmi_live_go",
-        "required_prior_live_gate": "GRO-LIVE-ACTIVATION",
+        "current_status": "blocked_pending_native_shared_observability_revalidation_then_action_specific_gmi_live_go",
+        "required_prior_readiness": "UIR-13 native runtime observability plus exact current activation-packet evidence",
         "safe_default": "new_runtime_lane_disabled",
         "single_future_go_phrase": "GO GMI-LIVE-ACTIVATION: deploy and canary the exact gemma3:4b maintenance-only runtime in <environment>; activate only if all SLO and observability checks are green; otherwise roll back automatically."
       },
@@ -3031,8 +3067,12 @@
       "id": "OWM-14",
       "name": "GraphRAG/RAPTOR Memory Performance And Observability",
       "priority": 8,
-      "status": "repo_complete_offline_go_live_activation_awaiting_user_gate",
-      "why_open": "GRO-00 through GRO-15 now provide verified offline_go evidence with bounded cache and status fast paths, correct metrics, private assets, alerts and rollback. Only action-specific live activation, remote readback and the prepared 12-24h soak remain.",
+      "status": "historical_plugin_evidence_archived_native_runtime_revalidation_required",
+      "why_open": "GRO-00 through GRO-15 remain immutable dated offline evidence for the legacy Obsidian plugin. Generic metric, privacy, exporter, dashboard and benchmark contracts are reusable, but plugin-specific runtime results and GRO-LIVE-ACTIVATION are not current execution authority.",
+      "historical_evidence": true,
+      "current_execution_authority": false,
+      "legacy_runtime": "obsidian_plugin",
+      "superseded_by": "UIR-13 native runtime observability and USI-15 activation evidence",
       "source_roadmap": "docs/plans/graphrag-raptor-observability-prometheus-grafana-roadmap.md",
       "source_gate_family": "memory_observability",
       "dependencies": [
@@ -3040,15 +3080,13 @@
         "GRO-00 metric, capability, SLO and privacy contract before instrumentation",
         "Shared src/observability_metrics.py writer handoff with GMI-12"
       ],
-      "gate_ids": [
-        "GRO-LIVE-ACTIVATION"
-      ],
-      "safe_default": "build_test_and_validate_metrics_cache_benchmarks_prometheus_grafana_all_live_disabled",
-      "user_gate_policy": "No user gate in GRO-00 through GRO-15. No service start, live token, productive scrape, host change or productive corpus rebuild occurs. Exactly one live activation decision may be materialized after metric correctness, performance, privacy, assets, alerts, soak plan and rollback acceptance is green.",
+      "gate_ids": [],
+      "safe_default": "historical_evidence_read_only_no_plugin_runtime_activation",
+      "user_gate_policy": "The historical GRO-LIVE-ACTIVATION record is preserved but nonclaimable and cannot activate the native system. Any future native observability activation must be a new action-specific gate bound to an exact native runtime generation.",
       "execution_protocol": {
-        "queue_registration": "Do not add every slice as pending. On future goal start register only GRO-00 as claimable and keep successors blocked_by_dependency.",
-        "dependency_rule": "Charlie advances only dependency-satisfied slices and serializes shared plugin/exporter hotfiles.",
-        "future_goal_command": "/goal Implementiere OWM-13 und OWM-14 im Overnight Backend Mode fuer 12-24 Stunden; beginne mit GMI-00 und GRO-00, halte alle Nachfolger blocked_by_dependency, keine User-Gates vor den fertigen Live-Aktivierungspaketen.",
+        "queue_registration": "GRO-00 through GRO-15 are accepted historical evidence and no GRO slice or gate is claimable. Native successor work is registered through UIR-13 and USI-15.",
+        "dependency_rule": "Preserve dated hashes, measurements and claims. Reuse only backend-neutral contracts after native runtime binding; no plugin route, worker, cache, vault or artifact may become an activation dependency.",
+        "future_goal_command": "/goal Revalidiere native RAPTOR/Graph Observability in UIR-13 fuer die exakte USI-Runtime; nutze GRO-00 bis GRO-15 nur als historische Vergleichsevidenz und starte kein Plugin-Live-Gate.",
         "last_released_claim": {
           "slice": "GRO-00",
           "run_id": "post-mvp-gro-20260718T114709+0200",
@@ -3184,14 +3222,15 @@
           "GRO-15"
         ],
         "next_claimable": [],
-        "next_gate": "GRO-LIVE-ACTIVATION requires a new action-specific user Go"
+        "next_gate": null,
+        "superseding_disposition": "GRO-LIVE-ACTIVATION is historical and nonclaimable; native activation evidence belongs to UIR-13 and USI-15."
       },
       "activation_contract": {
         "id": "GRO-LIVE-ACTIVATION",
         "dormant_until": "an action-specific user Go names the exact environment for the verified GRO-00 through GRO-15 packet",
-        "current_state": "eligible_awaiting_action_specific_live_go",
-        "activation_eligible": true,
-        "current_blocker": "No action-specific GRO-LIVE-ACTIVATION user Go has been recorded; offline_go does not authorize host, deploy, token, scrape, service or soak actions.",
+        "current_state": "historical_superseded_nonclaimable",
+        "activation_eligible": false,
+        "current_blocker": "The packet targets the legacy plugin runtime and cannot be reused for native activation.",
         "safe_default": "metrics_scrape_prometheus_grafana_disabled",
         "single_future_go_phrase": "GO GRO-LIVE-ACTIVATION: deploy the scoped Odysseus metrics endpoint and private Prometheus/Grafana stack in <environment>, verify dashboards/alerts, run the prepared 12-24h soak and auto-rollback on No-Go."
       },
@@ -3201,31 +3240,43 @@
       "id": "OWM-15",
       "name": "Unified Source Index Foundation",
       "priority": 9,
-      "status": "usi00_through_usi14_accepted_usi15_blocked_by_uir14_ulo14_uda18_live_default_off",
-      "why_open": "USI-00 through USI-14 are accepted, including canonical default-off query_knowledge, clean TAX/USI inventories, bounded backup/restore/rebuild/scale evidence and a focused security/privacy/failure matrix. USI-15 remains blocked until the declared runtime, lifecycle and selected-domain child closures finish; all productive sources remain disabled.",
+      "status": "usi00_through_usi14_accepted_native_knowledge_graph_causality_registered_usi15_blocked_live_default_off",
+      "why_open": "USI-00 through USI-14 are accepted. The current direction is native domain truth to USI index truth to rebuildable native RAPTOR/graph and causal projections. Obsidian is legacy and excluded. USI-15 remains blocked until UIR-14, UIR-12A, ULO-14, selected-scope UDA-18, NMG-08 and USI-C6 close.",
       "source_roadmap": "docs/plans/unified-source-index-implementation-roadmap.md",
       "source_gate_family": "unified_source_index",
       "dependencies": [
-        "Explicit new goal or operator reprioritization; this track does not displace TAX/TUA or the planned GMI/GRO goal",
+        "Explicit new goal or operator reprioritization",
         "USI-00 overlap inventory before runtime implementation",
         "TAX1/TAX5/TAX8 accepted before the default-off query_knowledge projection",
-        "GRO-00 before shared metrics/exporter integration"
+        "Native UIR-13 observability contract before shared metrics/exporter activation evidence"
       ],
       "gate_ids": [],
-      "safe_default": "build_and_test_usi_with_temporary_fixtures_all_productive_sources_disabled",
-      "user_gate_policy": "No user gate in USI-00 through USI-15 or the UIR/UDA/ULO child closure tracks. No productive source scan, real legacy cutover or persistent private-data indexing occurs. Exactly one live activation decision may be materialized after core identity/store/query plus runtime/consumer, selected domain-adapter and lifecycle/operations acceptance is green.",
+      "safe_default": "build_and_test_native_usi_knowledge_graph_and_causality_with_temporary_fixtures_all_productive_sources_disabled",
+      "user_gate_policy": "No user gate in USI, UIR, UDA, ULO, NMG or USI-C repository slices. No productive source scan, legacy import/removal, persistent private-data indexing or live model/provider action occurs. Exactly one native live activation decision may be materialized after every selected closure is green.",
       "execution_protocol": {
-        "queue_registration": "USI-14 is accepted and its claim released. Keep USI-15 blocked by UIR-14, ULO-14 and UDA-18; execute only the next dependency-ready child slice, UIR-00.",
-        "dependency_rule": "USI-01 and USI-03 are identity/store barriers; UIR, UDA and ULO open only at their declared barriers and must close the selected source scope before USI-15. TAX, GRO, domain truth and Project Versioning hotfiles require explicit owner handoffs.",
-        "future_goal_command": "/goal Implementiere OWM-15 im Overnight Backend Mode bis zum fertigen USI activation packet; beginne nur mit USI-00, halte Nachfolger blocked_by_dependency und aktiviere keine produktive Source."
+        "queue_registration": "USI-14 is accepted. Current safe fronts are UIR-03 after exact hotfile handoff, UDA-00, ULO-00 and NMG-00; NMG successors and USI-C remain blocked_by_dependency. USI-15 stays blocked by UIR-14 including UIR-12A, ULO-14, selected-scope UDA-18, NMG-08 and USI-C6.",
+        "dependency_rule": "Native domain stores own content truth; CausalClaimStore alone owns causal truth and review; USI owns index identity/provenance and rebuildable projections. UDA owns the single Knowledge adapter. NMG owns native RAPTOR worker and causal domain implementation. Obsidian is never a source, fallback, truth, projection or activation dependency.",
+        "future_goal_command": "/goal Implementiere OWM-15 nativ ab der dependency-ready Frontier UIR-03, UDA-00, ULO-00 und NMG-00; halte NMG/USI-C Nachfolger blocked_by_dependency, Obsidian ausgeschlossen und alle produktiven Quellen aus."
+      },
+      "native_memory_graph_causality_extension": {
+        "source_roadmap": "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
+        "knowledge_boundary": "Personal Docs remains current truth until an explicit cutover; native Knowledge must not create parallel truth or dual writes.",
+        "raptor_boundary": "NMG-04 defines and implements a native clustering/summarization worker before USI projection or runtime composition.",
+        "causality_boundary": "CausalClaimStore is sole causal domain truth and review owner; USI contains only evidence-bound rebuildable CausalClaimIndexRecord projections.",
+        "registered_frontier": "NMG-00-legacy-boundary-audit",
+        "blocked_successor_ranges": [
+          "NMG-01 through NMG-08",
+          "USI-C0 through USI-C6"
+        ],
+        "claimability_gate": "NMG-00 requires an explicit goal and clean guidance registration; successors require their exact detail-roadmap dependencies."
       },
       "activation_contract": {
         "id": "USI-LIVE-ACTIVATION",
-        "dormant_until": "USI-00 through USI-15, UIR-00 through UIR-14, ULO-00 through ULO-14 and UDA-18 for every selected source scope complete with green identity, policy, SQLite, FTS, jobs, query, runtime consumers, source adapters, owner lifecycle, backup, rebuild, security and rollback evidence",
+        "dormant_until": "USI-00 through USI-15, UIR-00 through UIR-14 including UIR-12A, ULO-00 through ULO-14, UDA-18 for every selected native source scope, NMG-00 through NMG-08 and USI-C0 through USI-C6 complete with green identity, policy, SQLite, FTS, jobs, query, runtime consumers, native source adapters, RAPTOR worker, causal review, owner lifecycle, backup, rebuild, security and rollback evidence",
         "safe_default": "productive_indexing_and_legacy_cutover_disabled",
         "single_future_go_phrase": "GO USI-LIVE-ACTIVATION: activate USI <version> for <source scopes> in <environment> using <policies/generation>; observe <window>; auto-rollback via <plan> on No-Go."
       },
-      "done_when": "One USI control plane owns index identity and provenance; one injected runtime serves bounded consumers; selected domains have policy-aware adapters; rename/delete/export/backup/restore/wipe lifecycle is verified; domain systems retain truth and writes; Chroma, CBM and RAPTOR remain rebuildable projections; every result has exact source/version/locator evidence; one rollback-safe live packet remains."
+      "done_when": "One USI control plane owns index identity and provenance; native domain stores retain content truth; CausalClaimStore retains causal truth and review; one injected runtime serves bounded consumers; selected native domains have policy-aware adapters; native RAPTOR/graph/causal index state is rebuildable; lifecycle and verified Obsidian retirement are green; every result has exact source/version/locator/evidence; one rollback-safe live packet remains."
     },
     {
       "id": "OWM-16",
@@ -3330,39 +3381,41 @@
         "OWM-15 USI-01/USI-03/USI-04 identity, store and job contracts",
         "TAX Descriptor/security handoff before canonical query_knowledge binding",
         "UDA selected-source capability and ULO lifecycle contracts before source canary",
-        "Single-writer handoff for app.py, app initializer, Personal Docs, Chat, Agent and runtime routes"
+        "Single-writer handoff for app.py, app initializer, Personal Docs, Chat, Agent and runtime routes",
+        "UIR-12 inventory/classification, NMG-07 retirement and UIR-12A post-retirement verification execute in that order"
       ],
       "gate_ids": [],
       "safe_default": "runtime_disabled_shadow_results_excluded_from_prompts_productive_workers_and_cutover_disabled",
-      "user_gate_policy": "No independent UIR product gate. Contracts, dependency injection, fake workers, synthetic shadow comparisons and failure tests remain repo-only. UIR-14 contributes runtime evidence to the existing USI-LIVE-ACTIVATION gate; no productive scan, prompt cutover or provider process starts before that parent decision.",
+      "user_gate_policy": "No independent UIR product gate. Contracts, dependency injection, fake workers, synthetic shadow comparisons, legacy-caller audits and failure tests remain repo-only. UIR-14 contributes runtime evidence to the existing USI-LIVE-ACTIVATION gate; no productive scan, prompt cutover, provider process or Obsidian fallback starts before that parent decision.",
       "execution_protocol": {
-        "queue_registration": "UIR-00 through UIR-02 are accepted and their claims released. UIR-03 is dependency-ready but unclaimed pending exact composition-hotfile collision and ownership recon; keep UIR-04 and all later runtime successors blocked_by_dependency.",
-        "dependency_rule": "Serialize runtime hotfiles. UIR owns composition and consumers, not source extraction, domain writes, lifecycle actions, tool identity, telemetry or metrics exporters.",
-        "future_goal_command": "/goal Implementiere OWM-19 als Child von OWM-15; beginne UIR-00, halte Runtime produktiv aus und speise nur das gemeinsame USI activation packet."
+        "queue_registration": "UIR-00 through UIR-02 are accepted and their claims released. UIR-03 is dependency-ready but unclaimed pending exact composition-hotfile collision and ownership recon; UIR-04 and later successors stay blocked_by_dependency, with UIR-12A explicitly after NMG-07.",
+        "dependency_rule": "Serialize runtime hotfiles. UIR owns composition and consumers, not source extraction, domain writes, lifecycle actions, tool identity, telemetry or metrics exporters. Every Obsidian caller is retire/excluded; startup, fallback, query_knowledge and rollback must remain first-party native.",
+        "future_goal_command": "/goal Implementiere OWM-19 ab UIR-03; binde query_knowledge nativ, halte Runtime produktiv aus, klassifiziere Obsidian als retire/excluded und speise nur das gemeinsame USI activation packet."
       },
-      "done_when": "USI is composed exactly once; JobStore owns bounded worker state; health is safe; Personal Docs, Chat, Agent and query_knowledge use one generation-pinned facade with explicit shadow, fallback and rollback; UIR adds evidence to the parent USI gate only."
+      "done_when": "USI is composed exactly once; JobStore owns bounded worker state; health is safe; Personal Docs, Chat, Agent and query_knowledge use one generation-pinned native facade with explicit shadow, fallback and rollback; UIR-12A proves no selected runtime path imports, registers or requires Obsidian; UIR adds evidence to the parent USI gate only."
     },
     {
       "id": "OWM-20",
       "name": "USI Domain Adapter Rollout",
       "priority": 9,
-      "status": "planned_child_source_waves",
-      "why_open": "A source-neutral core needs real domain readers and deletion/change observations, but those adapters must preserve each domain's truth, policy, exact-reader and provider boundaries instead of becoming a generic crawler or second domain store.",
+      "status": "planned_native_child_source_waves_obsidian_excluded",
+      "why_open": "A source-neutral core needs native domain readers and deletion/change observations, but adapters must preserve each domain's truth, policy, exact-reader and provider boundaries. Obsidian/ORCA vault is legacy and excluded; UDA-05 is the sole conditional native Knowledge adapter after NMG-02.",
       "source_roadmap": "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md",
       "source_gate_family": "unified_source_index",
       "dependencies": [
         "OWM-15 source/version/chunk/policy and JobStore contracts",
         "UDA-00 domain truth and mutation inventory before adapter registration",
         "Explicit owner handoff before any existing domain commit boundary is edited",
-        "Email, Calendar, Todos, Contacts and raw Session content remain deferred/default-off until explicit reprioritization"
+        "Email, Calendar, Todos, Contacts and raw Session content remain deferred/default-off until explicit reprioritization",
+        "Native Knowledge UDA-05 waits for NMG-02 and is selected only when Knowledge is in the activation scope"
       ],
       "gate_ids": [],
       "safe_default": "synthetic_adapter_fixtures_only_productive_domain_scans_and_private_communication_sources_disabled",
-      "user_gate_policy": "No independent UDA product gate. Registry, adapters, fixtures, comparisons and best-effort signal tests are repo-only. Each selected source wave contributes to the existing USI-LIVE-ACTIVATION gate. Wave C planning does not authorize access to real Email, Calendar, Todo, Contact or Session content.",
+      "user_gate_policy": "No independent UDA product gate. Registry, native adapters, fixtures, comparisons and best-effort signal tests are repo-only. Obsidian/ORCA vault cannot be selected as a source, exact reader or fallback. Each selected native source wave contributes to the existing USI-LIVE-ACTIVATION gate.",
       "execution_protocol": {
-        "queue_registration": "After a future goal register UDA-00 only; after UDA-01, allow at most three disjoint new adapter-file writers while all domain hotfile integrations remain serialized.",
-        "dependency_rule": "Domain truth commits first and notifier failure cannot fail the domain action. UDA never writes domain objects, bypasses providers/review, owns query routing or duplicates generic chunking.",
-        "future_goal_command": "/goal Implementiere OWM-20 als Child von OWM-15; beginne UDA-00, baue Wave A/B mit synthetischen Fixtures und lasse Wave C bis zur Repriorisierung blockiert."
+        "queue_registration": "UDA-00 is a current safe frontier after an explicit goal. After UDA-01, allow at most three disjoint new adapter-file writers; UDA-05 stays blocked until NMG-02 and selection of native Knowledge scope. Obsidian has no queue entry.",
+        "dependency_rule": "Domain truth commits first and notifier failure cannot fail the domain action. UDA owns exactly one Knowledge adapter and never writes domain objects, bypasses providers/review, owns query routing or duplicates generic chunking.",
+        "future_goal_command": "/goal Implementiere OWM-20 nativ ab UDA-00; baue Personal Memory und Personal Docs zuerst, UDA-05 nur nach NMG-02 und expliziter Knowledge-Auswahl, Obsidian ausgeschlossen."
       },
       "done_when": "Every selected source has one deterministic, owner/policy-aware adapter and exact-reader mapping; best-effort signals converge through discovery; deferred domains remain disabled; UDA-18 contributes honest Go/Partial/No-Go scope evidence to the parent USI gate only."
     },
@@ -3370,25 +3423,26 @@
       "id": "OWM-21",
       "name": "USI Data Lifecycle And Operations",
       "priority": 9,
-      "status": "planned_child_after_usi_store_contract",
-      "why_open": "USI adds persistent owner-scoped records and rebuildable projections that must participate correctly in username rename, account/domain deletion, access revocation, export/import, system backup/restore, category wipe, retention and disaster recovery.",
+      "status": "planned_native_child_after_usi_store_contract_legacy_artifacts_excluded",
+      "why_open": "USI adds persistent owner-scoped records and rebuildable native projections that must participate correctly in lifecycle operations. Obsidian vaults, plugin databases, caches and plugin-derived artifacts are outside current backup, restore, portability, erasure and rollback authority.",
       "source_roadmap": "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md",
       "source_gate_family": "unified_source_index",
       "dependencies": [
         "OWM-15 USI identity/store/tombstone/JobStore and USI-13 backup primitives",
         "UIR generation quiesce/swap/rollback contracts before operational integration",
         "UDA deletion/access semantics for every selected source scope",
-        "Single-writer handoff for Auth rename, backup/restore, Admin Wipe, constants and provider lifecycle hotfiles"
+        "Single-writer handoff for Auth rename, backup/restore, Admin Wipe, constants and provider lifecycle hotfiles",
+        "Any legacy archival import or deletion requires a separate exact action-specific gate and cannot create dual writes"
       ],
       "gate_ids": [],
       "safe_default": "synthetic_owners_and_temporary_databases_only_no_productive_rename_delete_export_backup_restore_or_wipe",
-      "user_gate_policy": "No independent ULO product gate. Synthetic lifecycle, temporary backup/restore and recovery drills are repo-only and contribute to USI-LIVE-ACTIVATION. Product activation never authorizes a real rename, deletion, export, backup, restore or wipe; every such later action retains its existing authorization and destructive-operation confirmation.",
+      "user_gate_policy": "No independent ULO product gate. Synthetic native lifecycle, temporary backup/restore and recovery drills are repo-only and contribute to USI-LIVE-ACTIVATION. Product activation never authorizes a real rename, deletion, export, backup, restore, wipe or legacy archival action.",
       "execution_protocol": {
-        "queue_registration": "After a future goal register ULO-00 only; keep auth/backup/wipe integrations blocked until ULO-01/ULO-02 contracts and explicit hotfile handoffs are green.",
-        "dependency_rule": "USI-13 owns SQLite backup/rebuild primitives; existing account/domain/system services own user actions; ULO only orchestrates owner scope, eligibility, projection lifecycle and verification.",
-        "future_goal_command": "/goal Implementiere OWM-21 als Child von OWM-15 mit synthetischen Ownern und temporaeren Datenbanken; beginne ULO-00 und fuehre keine echte Lifecycle- oder Backup-Aktion aus."
+        "queue_registration": "ULO-00 is a current safe frontier after an explicit goal; keep auth/backup/wipe integrations blocked until ULO-01/ULO-02 contracts and explicit hotfile handoffs are green.",
+        "dependency_rule": "USI-13 owns SQLite backup/rebuild primitives; existing account/domain/system services own user actions; ULO only orchestrates owner scope, eligibility, native projection lifecycle and verification. Legacy plugin state is excluded.",
+        "future_goal_command": "/goal Implementiere OWM-21 nativ ab ULO-00 mit synthetischen Ownern und temporaeren Datenbanken; schliesse Obsidian-Artefakte aus und fuehre keine echte Lifecycle-, Archiv- oder Backup-Aktion aus."
       },
-      "done_when": "Stable opaque owner scope survives rename; deletion/access/erasure cannot leave eligible stale data; portability rebuilds from domain truth; system backup/restore is generation-safe; wipe, retention and recovery are bounded; ULO-14 contributes lifecycle evidence to the parent USI gate only."
+      "done_when": "Stable opaque owner scope survives rename; deletion/access/erasure cannot leave eligible stale native data; portability rebuilds from native domain truth; system backup/restore is generation-safe; legacy plugin artifacts are neither authority nor implicit migration input; ULO-14 contributes lifecycle evidence to the parent USI gate only."
     },
     {
       "id": "OWM-22",
@@ -15515,6 +15569,90 @@
         "product_complete": "no"
       },
       "done_when": "One separately approved observe action and one separately approved delivery action have bounded redacted receipt/readback evidence, with no deploy or remediation."
+    },
+    {
+      "id": "UIR-03-application-composition-root-and-dependency-injection",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "dependency_ready_pending_exact_hotfile_handoff",
+      "claimable": false,
+      "claim_blocker": "Exact single-writer handoff is still required for application composition hotfiles; existing unrelated runtime work must not be absorbed.",
+      "depends_on": [
+        "UIR-02 accepted",
+        "USI-03 accepted",
+        "exact app.py and app-initializer hotfile recon"
+      ],
+      "allowed_paths": [
+        "app.py",
+        "src/app_initializer.py",
+        "src/unified_source_index_runtime.py",
+        "tests/test_unified_source_index_runtime_composition.py"
+      ],
+      "source_roadmap": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
+      "acceptance": "Compose exactly one default-off native USI runtime and bind query_knowledge without importing or initializing Obsidian.",
+      "live_actions": false
+    },
+    {
+      "id": "UDA-00-domain-truth-and-mutation-inventory",
+      "class": "safe_offline",
+      "owner": "Alice/Terra implementation; root/Sol deep review",
+      "status": "registered_waiting_explicit_goal",
+      "claimable": false,
+      "claim_blocker": "No implementation goal is active for this roadmap-authoring run.",
+      "depends_on": [
+        "USI-04 accepted",
+        "explicit Open Work goal"
+      ],
+      "allowed_paths": [
+        "docs/plans/unified-source-index-domain-owner-inventory.json",
+        "scripts/audit_unified_source_index_domain_owners.py",
+        "tests/test_audit_unified_source_index_domain_owners.py"
+      ],
+      "source_roadmap": "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md",
+      "acceptance": "Freeze native domain truth, exact readers and mutation boundaries; Obsidian/ORCA vault is excluded and no adapter is implemented.",
+      "live_actions": false
+    },
+    {
+      "id": "ULO-00-lifecycle-owner-and-runtime-inventory",
+      "class": "safe_offline",
+      "owner": "Alice/Terra implementation; root/Sol deep review",
+      "status": "registered_waiting_explicit_goal",
+      "claimable": false,
+      "claim_blocker": "No implementation goal is active for this roadmap-authoring run.",
+      "depends_on": [
+        "USI-03 and USI-13 accepted",
+        "explicit Open Work goal"
+      ],
+      "allowed_paths": [
+        "docs/plans/unified-source-index-lifecycle-owner-inventory.json",
+        "scripts/audit_unified_source_index_lifecycle_owners.py",
+        "tests/test_audit_unified_source_index_lifecycle_owners.py"
+      ],
+      "source_roadmap": "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md",
+      "acceptance": "Freeze native lifecycle owners and exact effects while excluding plugin vault, database, cache and derived artifacts from current backup/restore/erasure authority.",
+      "live_actions": false
+    },
+    {
+      "id": "NMG-00-legacy-boundary-audit",
+      "class": "safe_offline",
+      "owner": "Alice/Terra implementation; root/Sol deep review",
+      "status": "registered_waiting_goal_and_guidance_registration",
+      "claimable": false,
+      "claim_blocker": "An explicit implementation goal and a clean multi-agent guidance registration are required; the current guidance file contains foreign working-tree changes.",
+      "depends_on": [
+        "OWM-15 native-system amendment committed as a1f5b00e1a47f99114683515a25060f1616ce145",
+        "explicit Open Work goal",
+        "clean guidance registration"
+      ],
+      "allowed_paths": [
+        "docs/plans/native-knowledge-runtime-legacy-boundary-inventory.json",
+        "scripts/audit_native_knowledge_legacy_boundary.py",
+        "tests/test_audit_native_knowledge_legacy_boundary.py"
+      ],
+      "source_roadmap": "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
+      "acceptance": "Inventory every remaining core/app/plugin coupling and record retire/excluded decisions without deletion, migration, runtime import or live action.",
+      "next_frontier_on_acceptance": "NMG-01-native-knowledge-contract; all later NMG and USI-C slices remain blocked by their exact detail-roadmap dependencies.",
+      "live_actions": false
     }
   ],
   "recommended_execution_order": [
@@ -15524,12 +15662,12 @@
     "OWM-23 Agent Maintenance Safety Harness: after an explicit goal or Open Work reprioritization, open AMH-01 through AMH-03 only on disjoint handed-off paths; preserve Planning JSON and existing gate/claim authorities, keep AMH-04 onward dependency-blocked, and perform no automatic commit, push, deploy or live action.",
     "OWM-11 Tool Taxonomy, Registration And Lifecycle: execute TAX0 then TAX1 and continue the detailed repo-only queue without user gates; keep the feature disabled until the single final activation decision.",
     "OWM-12 Privacy-Safe Tool Usage Analytics: after TAX1, start the disjoint privacy/store baseline; wait for TAX5/TAX7/TAX10 at shared integration points and keep capture/backfill disabled until the single final activation decision.",
-    "OWM-13 Gemma3 Maintenance Runtime Isolation: after an explicit new goal or reprioritization, open only GMI-00, then advance dependency-satisfied slices; keep gemma3:4b maintenance-only and the new runtime lane disabled until its single final activation decision.",
-    "OWM-14 GraphRAG/RAPTOR Memory Performance And Observability: after the same goal start, open GRO-00 in parallel where paths are disjoint; complete metric correctness before dashboards and keep metrics scrape, Prometheus and Grafana disabled until the single final activation decision.",
-    "OWM-15 Unified Source Index Foundation: after the current active queue or explicit reprioritization, open only USI-00; freeze identity/store boundaries, then execute the UIR/UDA/ULO child barriers and keep all productive sources and legacy cutovers disabled until USI-15 has their selected-scope closure evidence.",
-    "OWM-19 USI Runtime And Consumer Integration: after the USI core contract barriers, open UIR-00 only; serialize app/Chat/Agent/runtime hotfiles and keep workers, prompt cutover and provider processes disabled while contributing to the parent USI gate.",
-    "OWM-20 USI Domain Adapter Rollout: after USI source/job contracts, open UDA-00 only; parallelize disjoint adapter files after the registry barrier, serialize domain signal hotfiles, and leave communication-domain Wave C blocked until reprioritized.",
-    "OWM-21 USI Data Lifecycle And Operations: after USI store/tombstone contracts, open ULO-00 only; use synthetic owners and temporary databases, serialize Auth/backup/wipe hotfiles, and retain every action-specific authorization while contributing to the parent USI gate.",
+    "OWM-13 Gemma3 Maintenance Runtime Isolation: preserve the accepted repository packet but revalidate it against UIR-13 native shared observability; the historical GRO live gate cannot satisfy or authorize GMI activation.",
+    "OWM-14 GraphRAG/RAPTOR Memory Performance And Observability: preserve GRO-00 through GRO-15 as historical plugin evidence only; do not open GRO slices or GRO-LIVE-ACTIVATION, and route native performance evidence through NMG-04A/04B, UIR-13 and USI-15.",
+    "OWM-15 Unified Source Index Foundation: USI-00 through USI-14 are accepted; after explicit reprioritization use the registered frontier UIR-03 after hotfile handoff, UDA-00, ULO-00 and NMG-00 after clean guidance registration; keep successors dependency-blocked, Obsidian excluded and every productive source disabled.",
+    "OWM-19 USI Runtime And Consumer Integration: start at UIR-03 after exact composition-hotfile handoff; bind query_knowledge natively, serialize app/Chat/Agent/runtime hotfiles and execute UIR-12 classification, NMG-07 retirement and UIR-12A verification in order.",
+    "OWM-20 USI Domain Adapter Rollout: UDA-00 is registered; build Personal Memory and Personal Docs first, select UDA-05 only after NMG-02 for an explicit native Knowledge scope, and never register Obsidian/ORCA vault as a source or fallback.",
+    "OWM-21 USI Data Lifecycle And Operations: ULO-00 is registered; use synthetic owners and temporary databases, exclude legacy plugin artifacts from lifecycle authority, serialize Auth/backup/wipe hotfiles and retain every action-specific authorization.",
     "OWM-16 Codebase Memory Code Intelligence: prepare CBM-00/CBM-01 as a pinned vendor and hybrid benchmark lane, but wait for USI identity before persistent projection; keep engine, hooks, auto-config and direct upstream tools disabled until one final activation decision.",
     "OWM-17 Code Lineage And Timeline: after USI identity, start CLT-00 with synthetic Git fixtures; keep Git read-only, label time first-observable and stop before real history backfill until one final activation decision.",
     "OWM-18 Lens Code Graph: after the bounded CBM graph API, start LCG-00 and fixture/backend work with one UI owner; preserve the visually strong Code Planet mode but keep production placement and real project graphs disabled until one independent UI-live decision.",
@@ -15541,7 +15679,7 @@
     "OWM-6 Observability Ops: Debian metrics/logging before broad security automation.",
     "OWM-7 Security response: follow the SIRP dependency frontier; the old synthetic tabletop is historical evidence only and cannot prove production readiness or authorize remediation.",
     "OWM-8 UI handoff: UI agent owns actual UI implementation.",
-    "OWM-9 Memory scale: live reindex/migration only with rollback and quality evidence.",
+    "OWM-9 Memory scale: historical and nonclaimable; retain USI SQLite until native diagnostics justify a new bounded storage-migration roadmap.",
     "OWM-10 GitHub live rollout: post-MVP, bounded and token-gated."
   ],
   "abc_report_format": {
