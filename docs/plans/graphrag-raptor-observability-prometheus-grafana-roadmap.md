@@ -1,8 +1,42 @@
 # GraphRAG/RAPTOR Memory Performance & Observability Roadmap
 
-Stand: 2026-07-13
+Stand: 2026-08-01
 
-Status: `active_repo_execution / live_default_off`
+Status: `historical_plugin_evidence / native_runtime_revalidation_required / live_not_eligible`
+
+## Superseding Native Observability Amendment 2026-08-01
+
+GRO-00 through GRO-15 are preserved as historical offline evidence for the
+legacy Obsidian-plugin backend. Their test counts, measurements, hashes and
+accepted privacy/metrics contracts remain valid for that dated implementation,
+but they do not prove readiness of the current native USI/RAPTOR runtime.
+
+Reusable assets are limited to backend-neutral metric semantics,
+low-cardinality/privacy rules, exporter patterns, dashboard/alert design and
+benchmark methodology. Plugin routes, caches, workers, UI and vault-backed
+benchmarks are not current activation evidence.
+
+`GRO-LIVE-ACTIVATION` is therefore not eligible for the current system and must
+not start or validate an Obsidian runtime path. Native performance evidence is
+owned by UIR-13 and the USI-15 activation packet. A future native activation
+must name the exact USI runtime generation and selected first-party source
+scopes.
+
+Any GMI or master-roadmap dependency that still names the old
+`GRO-LIVE-ACTIVATION` remains blocked until its owning structured roadmap can be
+amended to reference native shared-observability readiness. This document does
+not silently reinterpret that external gate.
+
+### Native successor checks
+
+| Check | Owner roadmap | Done when |
+| --- | --- | --- |
+| Native metric binding | UIR-03/05 and USI-12 | Query, cache, status and derived-run spans originate from first-party runtime code. |
+| Native RAPTOR benchmark | NMG-04A/04B and UIR-13 | Synthetic quick/standard profiles exercise the native RAPTOR worker and its USI projection through the composed runtime. |
+| Dashboard/alert remap | UIR-13/GRO assets | No dashboard or alert depends on plugin-only labels, routes or semantics. |
+| Closure | USI-15 | Performance, privacy, failure isolation, rollback and temporal requirements are bound to one native generation. |
+
+## Historical GRO-00 Through GRO-15 Snapshot (preserved)
 
 Modus: `Overnight Backend Mode`
 

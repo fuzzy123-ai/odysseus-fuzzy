@@ -1,16 +1,36 @@
 # Memory RaptorGraph Consolidation Roadmap
 
-Status: in progress under Standard ABC
+Status: `native_successor_planned / MEM1-MEM6 historical evidence / Obsidian legacy excluded`
 
 ABC mode: Standard ABC
 
-## Goal
+## Superseding Native-System Amendment 2026-08-01
+
+The original Obsidian/ORCA consolidation direction is superseded. Obsidian is
+not a current product architecture, source provider, graph owner, query path or
+activation target. The dated MEM1-MEM6 results below remain historical evidence
+for lifecycle, provenance, diagnostics and privacy contracts; their plugin
+paths and compatibility language are not current execution authority.
+
+The current system builds on native domain truth plus USI. Repository code still
+contains legacy runtime couplings, so removal is an explicit verified migration,
+not an assumed completed fact. New work uses the `NMG` queue below and may not
+add dependencies on `plugins/obsidian/**`.
+
+## Current Native Goal
+
+Build one first-party Knowledge/Memory system on native domain truth and USI:
+versioned sources, bounded retrieval, rebuildable graph/RAPTOR projections,
+reviewable causal claims, native runtime/query integration and verified legacy
+retirement.
+
+## Historical Goal
 
 Make Memory, RAG, RaptorGraph, ORCA/Lens and Universal Inbox writes follow one
 canonical source-to-memory lifecycle: source metadata, extraction abstraction,
 review, memory write intent, provenance, graph event, diagnostics and rebuild.
 
-## Current Evidence
+## Historical Evidence
 
 - Memory surfaces exist in `src/memory_store_interfaces.py`,
   `src/memory_provenance_ledger.py`, `src/memory_write_policy.py`,
@@ -71,7 +91,7 @@ gets a bounded operator Go.
   graph and query budget stages.
 - Create deprecation map for legacy Obsidian-specific terms and paths.
 
-## Slice Queue
+## Historical Slice Queue
 
 | Slice | Class | Owner | Allowed paths | Tests |
 | --- | --- | --- | --- | --- |
@@ -82,6 +102,31 @@ gets a bounded operator Go.
 | MEM5 diagnostics consolidation | repo_only | Bob | diagnostics modules/routes | Done: `tests/test_memory_diagnostics_consolidation.py` |
 | MEM6 legacy naming migration map | safe_offline | Alice | docs/plans | Done: `docs/plans/memory-legacy-naming-migration-map.md` |
 | MEM7 live reindex packet | needs_live_go | Charlie | docs only until approved | no live run |
+
+`MEM7` and the old live-reindex/removal gates are archived for the superseded
+plugin direction and are not claimable by the current system.
+
+## Native Memory/Graph Queue
+
+| Slice | Class | Dependencies | Outcome |
+| --- | --- | --- | --- |
+| `NMG-00-legacy-boundary-audit` | safe_offline | explicit goal | Inventory every remaining core/app/plugin coupling and freeze `retire/excluded` decisions without deleting code. |
+| `NMG-01-native-knowledge-contract` | repo_only | `NMG-00-legacy-boundary-audit`, USI-01, USI-02 | Freeze the Personal Docs/Knowledge boundary and cutover rule: Personal Docs remains current truth until an explicitly selected migration; Knowledge must not create parallel truth or dual writes. |
+| `NMG-02-native-knowledge-store` | repo_only | `NMG-01-native-knowledge-contract` | Implement the native domain store and exact reader with owner, policy, version, tombstone and export contracts. |
+| `NMG-03-native-adapter-acceptance` | repo_only | `NMG-02-native-knowledge-store`, UDA-05 | Accept the single UDA-05 adapter against exact-read, version, deletion and no-fallback fixtures; NMG does not implement a second adapter. |
+| `NMG-04-native-RAPTOR-worker-contract` | safe_offline | `NMG-03-native-adapter-acceptance`, USI-10 | Define provider-neutral clustering, summarization, model/algorithm injection, artifact ownership, bounded execution and failure isolation over immutable USI snapshots. |
+| `NMG-04A-native-RAPTOR-worker` | repo_only | `NMG-04-native-RAPTOR-worker-contract` | Implement deterministic/injected clustering and summarization workers plus a rebuildable derived-artifact store without source writes. |
+| `NMG-04B-native-RAPTOR-runtime-projection` | repo_only | `NMG-04A-native-RAPTOR-worker`, USI-10, UIR-03 | Compose native RAPTOR runs and project their manifests into USI; the existing adapter alone is not treated as a worker. |
+| `NMG-05-causal-domain-contract` | safe_offline | `NMG-01-native-knowledge-contract` | Define `CausalClaimStore` as sole causal truth/review owner, with epistemic states, evidence, conflicts, retractions and forbidden automatic inference. |
+| `NMG-05A-causal-store-and-review` | repo_only | `NMG-05-causal-domain-contract` | Persist evidence-bound claims and append-only review transitions with exact owner scope and no USI dual writes. |
+| `NMG-05B-causal-candidate-generation` | repo_only | `NMG-05A-causal-store-and-review`, selected accepted UDA adapters | Generate bounded candidates for review; correlation, co-occurrence and model suggestions never become `supported` automatically. |
+| `NMG-06-native-query-and-lens` | repo_only | `NMG-04B-native-RAPTOR-runtime-projection`, `NMG-05B-causal-candidate-generation`, `USI-C4-causal-query`, UIR-06 | Expose bounded retrieval, graph and causal explanations through the canonical runtime and AI Lens. |
+| `NMG-07-legacy-runtime-retirement` | repo_only | `NMG-02-native-knowledge-store` through `NMG-06-native-query-and-lens`, UIR-12 | Remove direct Obsidian imports/routes/providers/jobs after native parity; any retained plugin code is inert archive outside the current product runtime. |
+| `NMG-08-closure-packet` | repo_only | `NMG-00-legacy-boundary-audit` through `NMG-07-legacy-runtime-retirement`, UIR-12A, UIR-13, ULO-14 | Produce static, functional, privacy, backup, rollback and performance evidence for the parent USI activation packet. |
+
+Dependency rule: `NMG-07` cannot start from naming alone. Native truth, exact
+reads, query/context behavior, state/claim authority and rollback must be green
+first. No live data import, reindex, delete or deploy is authorized here.
 
 ## Execution Progress
 
@@ -152,7 +197,7 @@ gets a bounded operator Go.
   `MEM-LEGACY-REMOVAL-GO`.
 - MEM6 verification passed: docs-only scoped `git diff --check`.
 
-## Gate Queue
+## Historical Gate Queue (preserved snapshot)
 
 Gate: `MEM-LIVE-REINDEX-GO`
 Class: needs_live_go
@@ -170,7 +215,12 @@ Safe preparation done: ORCA/Lens aliasing and deprecation map
 Risk if bypassed: broken plugin compatibility and user confusion
 Next safe slice: additive aliases and docs
 
-## Paths
+Superseding disposition: both gates above are dated evidence only and are
+nonclaimable. They block nothing in the native queue and authorize no current
+action. `NMG-07` owns retirement after native parity; any live migration or
+deletion requires a new action-specific gate bound to the native architecture.
+
+## Historical Paths
 
 Alice path:
 - define lifecycle and operator wording
@@ -198,6 +248,6 @@ Charlie path:
 ## Go Language
 
 - Go: canonical lifecycle and adapters exist, with no raw content persistence.
-- Partial: some legacy consumers still use compatibility adapters.
+- Partial: native runtime composition or legacy caller retirement remains open.
 - Deferred: live reindex and storage migration require operator Go.
 - No-Go: raw source text or private paths enter memory/graph evidence.

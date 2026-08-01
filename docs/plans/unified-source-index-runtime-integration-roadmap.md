@@ -1,8 +1,20 @@
 # Unified Source Index Runtime And Consumer Integration Roadmap
 
-Updated: 2026-07-26
+Updated: 2026-08-01
 
 Status: `UIR-00/01/02 accepted / UIR-03 dependency-ready pending hotfile handoff`; runtime and productive query path default-off
+
+## Native Runtime Amendment 2026-08-01
+
+Obsidian is a legacy compatibility subsystem, not a target runtime provider.
+In this roadmap, `legacy fallback` means the current first-party Personal
+Docs/RAG or exact native domain reader only. It never means an Obsidian route,
+tool, context provider, vault service, worker, cache or RAPTOR artifact.
+
+UIR must remove the remaining core/runtime couplings only after equivalent
+first-party behavior exists. Until then the roadmap reports those couplings as
+open migration evidence; it must not describe technical decoupling as already
+complete. No productive activation scope may include `plugins/obsidian/**`.
 
 Parent: `OWM-15` / `0.28.x` Unified Source Index Foundation
 
@@ -87,7 +99,7 @@ read-only consumers
   -> Chat / Agent / query_knowledge
 
 fallback
-  -> legacy Personal Docs/RAG search or exact domain reader
+  -> current first-party Personal Docs/RAG search or exact native domain reader
   -> explicit degraded/partial evidence
 ```
 
@@ -353,12 +365,16 @@ shared parent gate.
   - build one runtime object from accepted store/query/adapter dependencies;
   - place it on application state and inject it into consumers/routes;
   - opening the app in disabled mode creates no scan, job or engine process;
-  - startup failure is controlled and leaves legacy runtime available;
+  - startup failure is controlled and leaves the prior native runtime available;
   - import order and optional dependencies remain safe.
 - Tests:
   - `python -m pytest -q tests/test_unified_source_index_runtime_wiring.py tests/test_app_router_initialization_order.py`
 - Done when: disabled and read-only startup are deterministic, dependency
   failures do not break application import and exactly one runtime exists.
+- Native acceptance: the composition root binds the canonical
+  `query_knowledge` planner explicitly; disabled/native startup does not require
+  importing or initializing the Obsidian plugin; plugin discovery cannot become
+  a required Knowledge/Memory dependency.
 
 ### UIR-04 - Bounded Index Job Worker Lifecycle
 
@@ -537,8 +553,11 @@ shared parent gate.
   - `docs/plans/unified-source-index-consumer-migration-report.md`
 - Work:
   - prove no active Chat/Agent path bypasses the runtime facade;
-  - classify RAGManager, MemoryVector and plugin query paths as keep/fallback/
-    compatibility/retire per source wave;
+  - classify RAGManager and MemoryVector paths as keep/fallback/retire per
+    source wave;
+  - classify every Obsidian/ORCA-plugin query, context, state, auth, route,
+    scheduler and maintenance caller as `retire/excluded`;
+  - name the exact first-party replacement and owner for every retiring caller;
   - name exact parity evidence and rollback for each retirement;
   - prohibit removal while any active caller or source policy depends on it;
   - keep admin/domain exact operations separate from query consumers.
@@ -546,11 +565,31 @@ shared parent gate.
 - Done when: every direct caller has one owner and no duplicate active prompt
   injection or public query surface remains unexplained.
 
+### UIR-12A - Post-Retirement Native Runtime Verification
+
+- Class: `repo_only`
+- Owner: Charlie
+- Dependencies: `UIR-12`, `NMG-07-legacy-runtime-retirement`
+- Allowed paths:
+  - `scripts/audit_native_runtime_legacy_dependencies.py`
+  - `tests/test_audit_native_runtime_legacy_dependencies.py`
+  - `docs/plans/unified-source-index-consumer-migration-report.md`
+- Work:
+  - prove core/app code has no direct `plugins.obsidian` import;
+  - prove disabled/native startup registers no Obsidian route, provider, tool,
+    job, scheduler or maintenance task;
+  - prove `query_knowledge` is composed through the first-party planner;
+  - preserve any retained plugin code as inert archive outside product runtime.
+- Tests:
+  - `python -m pytest -q tests/test_audit_native_runtime_legacy_dependencies.py`
+- Done when: static and startup evidence demonstrate native runtime independence
+  without claiming deletion of historical repository evidence.
+
 ### UIR-13 - Runtime Concurrency, Performance And Failure Suite
 
 - Class: `repo_only`
 - Owner: Charlie
-- Dependencies: `UIR-03` through `UIR-12`, GRO metric contract
+- Dependencies: `UIR-03` through `UIR-12`, `UIR-12A`, native observability contract
 - Allowed paths:
   - `tests/test_unified_source_index_runtime_concurrency.py`
   - `tests/test_unified_source_index_runtime_failure_matrix.py`
@@ -572,7 +611,7 @@ shared parent gate.
 
 - Class: `repo_only`
 - Owner: Charlie
-- Dependencies: `UIR-00` through `UIR-13`; ULO closure and at least one green
+- Dependencies: `UIR-00` through `UIR-13`, including `UIR-12A`; ULO closure and at least one green
   UDA source wave for any proposed activation scope
 - Allowed paths:
   - `docs/plans/unified-source-index-runtime-closure-packet.md`
@@ -581,7 +620,9 @@ shared parent gate.
 - Work:
   - exact artifact, config, routes, source wave, generation and fallback;
   - startup/shutdown/health/authorization and package parity evidence;
-  - legacy rollback path and direct-caller audit result;
+  - rollback to the prior native query path and direct-caller audit result;
+  - static proof that runtime, selected source scope and rollback do not require
+    Obsidian plugin code or artifacts;
   - declare deferred domains/providers without overclaim;
   - contribute evidence to the existing parent gate only.
 - Tests: focused UIR suite plus JSON/guidance validation
@@ -608,6 +649,7 @@ shared parent gate.
 - one Chat/Agent request has one authoritative knowledge context pack;
 - every USI result has source/version/locator/generation evidence;
 - legacy fallback is explicit, bounded and owner/policy equivalent;
+- Obsidian is absent from the selected runtime, fallback and activation scope;
 - optional provider failure never hides an exact/lexical result;
 - rollback changes no domain truth and restores the prior query path;
 - no active direct RAG consumer remains unclassified;
@@ -632,4 +674,6 @@ environment, source wave and generation named in that phrase.
 - `query_knowledge` binds to that same facade after TAX handoff.
 - shadow/canary/fallback/rollback behavior is test-proven.
 - direct legacy consumers have explicit keep/retire decisions.
+- all Obsidian-backed callers are retired/excluded and no new dependency points
+  at `plugins/obsidian/**`.
 - UIR adds evidence to `USI-LIVE-ACTIVATION` and creates no second gate.

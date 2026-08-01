@@ -1,5 +1,19 @@
 # Roadmap: Memory Scale Foundation nach 1.0
 
+Status: `historical_reference_nonclaimable / current authority USI SQLite`
+
+## Superseding Amendment 2026-08-01
+
+This document remains architecture history, not a current migration queue.
+Accepted USI contracts and the first-party SQLite implementation are the
+current index foundation. PostgreSQL/pgvector is an evidence-triggered future
+migration option only; it is not the selected current truth and no MS/O slice
+below is claimable without a new diagnostics-backed migration roadmap.
+
+Obsidian/vault/plugin storage is legacy and has no role in the current scale
+target. Native domain stores remain truth, USI owns index identity and
+provenance, and Chroma/RAPTOR/CBM remain rebuildable projections.
+
 ## Superseding Amendment 2026-07-13
 
 Diese Roadmap ist historische Scale-Foundation-Evidence. Ihre frueheren Kuzu-
@@ -24,13 +38,16 @@ Diese Roadmap beginnt **nach Abschluss der aktuellen Memory-first 1.0 Roadmap**.
 
 ## Leitentscheidung
 
-Die naechste stabile Storage-Basis ist:
+Die historisch vorgeschlagene spaetere Storage-Basis war:
 
 ```text
-PostgreSQL + pgvector
+PostgreSQL + pgvector (nur bei spaeterem, messbarem Bedarf)
 ```
 
-Postgres wird die zentrale Wahrheit fuer Quellen, Ledger, Chunks, Provenance, Jobs, Review, Query Cache und Graph-Metadaten. pgvector ergaenzt semantische Suche direkt im selben verlaesslichen Datenkern.
+In diesem historischen Entwurf sollte Postgres die zentrale Wahrheit fuer
+Quellen, Ledger, Chunks, Provenance, Jobs, Review, Query Cache und
+Graph-Metadaten werden. Diese Auswahl ist nicht aktuell autorisiert; heute gilt
+USI SQLite, bis Messdaten eine neue Migrationsentscheidung rechtfertigen.
 
 Qdrant bleibt ein optionaler Spezialmotor. Kuzu ist kein Kandidat mehr:
 

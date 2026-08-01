@@ -1,8 +1,16 @@
 # Unified Source Index Domain Adapter Rollout Roadmap
 
-Updated: 2026-07-13
+Updated: 2026-08-01
 
 Status: planned child track; productive domain indexing default-off
+
+## Native Source Amendment 2026-08-01
+
+Obsidian/ORCA vault is removed from the active domain rollout. The plugin and
+its aliases are legacy and cannot be selected as a productive source adapter,
+Wave-A dependency, exact reader, fallback or activation scope. A future
+one-shot archival import would require its own bounded decision and would not
+restore the plugin as runtime authority.
 
 Parent: `OWM-15` / `0.28.x` Unified Source Index Foundation
 
@@ -18,8 +26,8 @@ Implement real, owner-scoped and policy-aware Source Adapters for Odysseus
 domain systems without moving their writes or truth into USI.
 
 The roadmap turns the generic `SourceAdapter` and `IndexJobStore` contracts from
-USI-04 into a controlled rollout for Personal Memory, Personal Docs, ORCA/Vault,
-Planning, Library/Research, Universal Inbox, Nextcloud and later communication
+USI-04 into a controlled rollout for Personal Memory, Personal Docs, native
+Knowledge sources, Planning, Library/Research, Universal Inbox, Nextcloud and later communication
 domains.
 
 The adapter layer is source-neutral at its core but domain-specific at its
@@ -32,7 +40,8 @@ provider bypass or second domain store.
 | --- | --- | --- |
 | Personal Memory | `MemoryManager`, memory lifecycle and review policy | `memory.py`, `memory_provider.py`, lifecycle adapters |
 | Personal Docs | PersonalDocsManager and owner-scoped files | `personal_docs.py`, RAG manager/vector compatibility |
-| ORCA/Vault | vault files, vault policy, ledger/history | Obsidian backend vault/query/context modules |
+| Native Knowledge | first-party Knowledge/domain store | accepted native store and exact-reader APIs |
+| Obsidian/ORCA vault | no current owner; legacy only | excluded from active adapter rollout |
 | Planning | Planning stores/MCP and roadmap files | planning source inventory and service |
 | Library/Documents | document/session stores and version routes | document helpers/routes/processors |
 | Deep Research | owner-scoped research store | `research_handler_storage.py`, research routes |
@@ -97,7 +106,8 @@ responses or content outside the accepted policy ceiling.
 | --- | --- | --- |
 | Personal Docs | local inline for explicitly indexed owner files | exact reader remains domain-owned |
 | Approved Personal Memory | local inline for accepted records | no automatic Memory creation |
-| ORCA/Vault | local inline or reference-only per vault rule | locked/private rules remain authoritative |
+| Native Knowledge | local inline or reference-only per native policy | exact reader and owner policy remain authoritative |
+| Obsidian/ORCA vault | disabled/excluded | no active adapter or activation scope |
 | Planning/Roadmaps | local inline for accepted project sources | Planning writes remain MCP-owned |
 | Library/Research | local inline for owner-approved local artifacts | citations and document versions preserved |
 | Universal Inbox | metadata/reference until review allows extraction | no review bypass |
@@ -112,8 +122,8 @@ summaries and query results.
 
 ## 6. Rollout Waves
 
-- Wave A: Personal Memory, Personal Docs and ORCA/Vault. These already have
-  direct retrieval paths and are required for initial query parity.
+- Wave A: Personal Memory and Personal Docs. A native Knowledge adapter joins
+  only after its first-party truth owner and exact-reader contract exist.
 - Wave B: Planning, Library/Research, Universal Inbox and Nextcloud. These have
   established owner/provenance contracts and can integrate after Wave A core
   behavior is stable.
@@ -239,23 +249,23 @@ gate.
 - Done when: identical content in two files remains two occurrences and exact
   source reads resolve through the existing Personal Docs reader.
 
-### UDA-05 - ORCA And Vault Source Adapter
+### UDA-05 - Native Knowledge Source Adapter
 
 - Class: `repo_only`
-- Owner: Bob with plugin owner handoff
-- Dependencies: `UDA-01`, vault security/rules contract
+- Owner: Bob with native Knowledge owner handoff
+- Dependencies: `UDA-01`, `NMG-02-native-knowledge-store`
 - Allowed paths:
-  - `src/unified_source_index_sources/orca_vault.py`
-  - `tests/test_unified_source_index_orca_vault_source.py`
+  - `src/unified_source_index_sources/knowledge.py`
+  - `tests/test_unified_source_index_knowledge_source.py`
 - Work:
-  - read vault files through accepted vault service/security boundaries;
-  - map ledger/history refs to source versions and discovery checkpoints;
-  - preserve links, headings, tags and file locators as evidence;
-  - locked or denied vault content fails closed;
-  - no write to vault, derived index or RAPTOR artifacts.
-- Tests: `python -m pytest -q tests/test_unified_source_index_orca_vault_source.py`
-- Done when: fixture vault retrieval has owner/policy/locator parity with the
-  plugin path and does not require `derived_index.json` as truth.
+  - read only through accepted first-party Knowledge APIs;
+  - preserve native revisions, typed locators, relations and policy evidence;
+  - denied, deleted or unreviewed records fail closed;
+  - no write to domain truth or derived projections;
+  - no import from `plugins/obsidian` and no plugin artifact compatibility.
+- Tests: `python -m pytest -q tests/test_unified_source_index_knowledge_source.py`
+- Done when: synthetic native Knowledge records have deterministic
+  owner/policy/version/locator parity without a plugin or vault dependency.
 
 ### UDA-06 - Planning And Roadmap Source Adapter
 
@@ -415,13 +425,14 @@ gate.
 
 - Class: `repo_only`
 - Owner: Charlie with one domain writer at a time
-- Dependencies: `UDA-02` through `UDA-05`, adapter parity evidence
+- Dependencies: `UDA-02`, `UDA-03`, `UDA-04`, adapter parity evidence; add
+  `UDA-05` only when native Knowledge is selected for the activation scope
 - Allowed paths, serialized by domain:
   - `src/memory.py` or `src/memory_provider.py` only after Memory handoff
   - `src/personal_docs.py` and `routes/personal_routes.py` only after Personal
     Docs handoff
-  - selected `plugins/obsidian/backend/` commit/service boundary only after
-    plugin handoff
+  - accepted native Knowledge commit/service boundary only after its owner
+    handoff
   - `tests/test_unified_source_index_wave_a_signals.py`
 - Work:
   - emit best-effort content-free change signals after successful domain commit;
@@ -491,8 +502,9 @@ gate.
 
 - Class: `repo_only`
 - Owner: Charlie
-- Dependencies: `UDA-00` through `UDA-17` for the selected wave; deferred
-  slices remain explicitly blocked
+- Dependencies: every dependency-satisfied adapter, signal and policy slice
+  required by the explicitly selected source scopes; `UDA-05` is required only
+  when native Knowledge is selected; deferred/excluded slices remain blocked
 - Allowed paths:
   - `docs/plans/unified-source-index-domain-adapter-acceptance.md`
   - `docs/plans/unified-source-index-activation-packet.md`
@@ -519,6 +531,7 @@ gate.
   observations and unavailability.
 - RAPTOR/CBM/Lineage are projection/query consumers, not source adapters for
   unrelated domains.
+- Obsidian/ORCA plugin paths are legacy and never enter an active UDA wave.
 - GRO owns exporter files; UDA emits only accepted content-free metric calls
   after handoff.
 
