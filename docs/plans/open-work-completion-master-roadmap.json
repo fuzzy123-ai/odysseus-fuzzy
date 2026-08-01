@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-01T22:42:03+02:00",
-  "status": "running_ops_alert_root_helper_authority_probe_go",
+  "updated_at": "2026-08-01T22:45:04+02:00",
+  "status": "waiting_on_user_ops_alert_root_helper_initial_installation_gate",
   "abc_mode": "Standard ABC",
-  "runner_state": "running_one_shot_read_only_root_helper_authority_probe",
+  "runner_state": "waiting_on_user_for_root_helper_initial_installation_host_change_go",
   "heartbeat_state": "interactive_root_no_running_workers_no_automation",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -25,17 +25,17 @@
     "unique_live_gates": 53,
     "unique_design_gates": 27,
     "other_open_json_items": 108,
-    "queue_status": "running_ops_alert_root_helper_authority_probe_go",
+    "queue_status": "waiting_on_user_ops_alert_root_helper_initial_installation_gate",
     "active_ops_alert_goal": {
       "status": "active_unreached",
       "objective": "Complete the existing OPS Alert roadmap through terminal Python 3.11 CI, safe backup, deploy, activation and live delivery evidence, and finish only when OPS Alert is actually live verified.",
       "current_revision": "d691cebc0b850e13b7087ab3866d7902940ead67",
       "published_ref": "fuzzy/dev",
-      "published_ref_matches_current_revision": true,
+      "published_ref_matches_current_revision": false,
       "stop_reason": null,
       "resumed_at": "2026-08-01T17:08:09+02:00",
       "resume_authority": "explicit user instruction to continue, set a goal and implement through /abc",
-      "current_frontier": "execute exactly one read-only root-helper bootstrap probe against odysseus-homeserver using artifact revision 668a371f6615f8c1652bf6e6f1a54daf97322141 under the user grant recorded at 2026-08-01T22:42:03+02:00; mode=install remains a separate host-change gate"
+      "current_frontier": "publish the local probe-go and probe-result queue commits to fuzzy/dev when separately authorized, then obtain a separate action-specific host-change go to install exactly the SHA-pinned root helper bundle; no backup, deploy, credential or delivery effect is authorized"
     },
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
@@ -913,7 +913,7 @@
         "thread_id": "/root",
         "slice_id": "OPS-ALERT-live-backup-deploy-activation-delivery-proof",
         "owner": "root/Sol live executor and final reviewer",
-        "state": "running_one_shot_read_only_authority_probe_install_still_gated",
+        "state": "waiting_on_user_root_helper_initial_installation_go_after_probe_success",
         "acquired_at": "2026-07-31T12:18:00+02:00",
         "lease_expires_at": null,
         "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
@@ -970,12 +970,12 @@
           "tests/test_homeserver_redacted_backup_snapshot_observation.py",
           "tests/test_homeserver_redacted_backup_snapshot_observation_transport.py"
         ],
-        "phase": "root_helper_install_transport_published_ci_green_waiting_on_read_only_authority_probe_install_separately_gated",
+        "phase": "root_helper_authority_probe_consumed_success_waiting_on_initial_installation_host_change_go",
         "live_actions": true,
         "action_packets": {
           "root_helper_authority_probe": {
             "schema_id": "odysseus.ops_alert_root_helper_authority_probe.v1",
-            "state": "go_unconsumed",
+            "state": "consumed_success",
             "action": "read_only_live_observation",
             "target": "odysseus-homeserver",
             "artifact_revision": "668a371f6615f8c1652bf6e6f1a54daf97322141",
@@ -989,6 +989,11 @@
             "authority_basis": "user instructed Codex to proceed until OPS Alert is live immediately after being told that the next required action is the one-shot read-only authority probe; this grants this probe only and does not grant mode=install or any later mutation",
             "granted_by": "user turn 2026-08-01: dann leg los bis ops live ist",
             "granted_at": "2026-08-01T22:42:03+02:00",
+            "consumed_at": "2026-08-01T22:45:04+02:00",
+            "invocation_count": 1,
+            "result_status": "probe_ok",
+            "evidence_sha256": "dd7661dd3bc45bcfc2656182c48ff21d2618ddf4e39c2e69f805bf56d7a0d729",
+            "effect_occurred": false,
             "required_result": "one strict redacted success envelope with euid_root true, mode probe and ssh_argv_authority true",
             "unknown_policy": "on timeout, transport failure, nonzero exit, oversized output or invalid envelope record probe_unknown, do not retry and do not infer authority",
             "expires": "run_end",
@@ -996,14 +1001,14 @@
           },
           "root_helper_initial_installation": {
             "schema_id": "odysseus.ops_alert_root_helper_initial_installation_authority.v1",
-            "state": "not_go_waiting_on_successful_separately_authorized_read_only_probe_then_separate_host_change_go",
+            "state": "waiting_on_action_specific_user_go_after_successful_read_only_probe",
             "action": "host_change",
             "target": "odysseus-homeserver",
             "artifact_revision": "668a371f6615f8c1652bf6e6f1a54daf97322141",
             "github_ci_run": 30710531811,
             "github_ci_conclusion": "success",
             "bounded_effect": "install exactly the SHA-pinned root helper, independent receipt reader, one disabled oneshot unit and one exact NOSETENV sudoers policy; do not arm, start or enable the unit and do not read credentials or create a backup",
-            "missing_authority": "one action-specific read-only invocation of the published byte-identical bootstrap argv in mode=probe, followed only on success by a separate host-change go for mode=install; the policy being installed cannot authorize its own installation",
+            "missing_authority": "one separate action-specific host-change go for exactly one mode=install invocation; the prerequisite byte-identical mode=probe invocation succeeded once with redacted evidence and is consumed",
             "owner_choices": [
               "operator-assisted root console execution of the reviewed pinned bundle",
               "separately approved fixed sudo bootstrap invocation after a redacted authority probe proves it exists",
