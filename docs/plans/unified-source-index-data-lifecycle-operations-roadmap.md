@@ -1,8 +1,16 @@
 # Unified Source Index Data Lifecycle And Operations Roadmap
 
-Updated: 2026-07-13
+Updated: 2026-08-01
 
 Status: planned child track; productive lifecycle actions default-off
+
+## Native Lifecycle Amendment 2026-08-01
+
+Obsidian vaults, plugin databases, caches and plugin-derived RAPTOR artifacts
+are outside the current owner lifecycle and activation scope. They cannot be
+domain truth, portability content, backup authority, restore dependency or
+erasure-success evidence. Any archival import or repository removal is a
+separate bounded cleanup/migration action and cannot create dual-write.
 
 Parent: `OWM-15` / `0.28.x` Unified Source Index Foundation
 
@@ -38,7 +46,7 @@ turn derived index records into domain truth.
 - `src/constants.py` and `src/config.py` define existing data roots and runtime
   configuration boundaries.
 - system backup/update routes already own broader operational workflows.
-- `src/memory.py`, Personal Docs, ORCA, Planning, Inbox and provider domains
+- `src/memory.py`, Personal Docs, native Knowledge, Planning, Inbox and provider domains
   retain their own delete, archive, access and retention semantics.
 - USI-03/04 define transactional stores, tombstones, jobs and projection
   manifests; USI-13 defines consistent SQLite backup/restore/rebuild
@@ -88,6 +96,9 @@ The complete integration inventory is frozen in
    action returns an explicit pending/degraded lifecycle state and retries from
    durable USI JobStore truth.
 10. No cleanup, rename, export, restore or wipe is triggered by a query.
+11. Legacy Obsidian/plugin state is neither migrated nor preserved implicitly;
+    a separately approved archival action must name its exact source, target,
+    rollback and readback.
 
 ## 5. Lifecycle State Model
 
@@ -444,6 +455,8 @@ authorized operational actions occur.
   samples after handoff.
 - CBM, RAPTOR, Chroma and Lineage remain rebuildable providers and cannot veto
   core eligibility fencing when unavailable.
+- No ULO success or rollback path depends on Obsidian routes, vault files,
+  plugin databases or plugin-owned derived artifacts.
 
 ## 9. Acceptance Metrics
 

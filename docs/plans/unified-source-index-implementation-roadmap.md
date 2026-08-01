@@ -1,8 +1,55 @@
 # Unified Source Index Implementation Roadmap
 
-Stand: 2026-07-23
+Stand: 2026-08-01
 
-Status: `USI-14_accepted / USI-15_blocked_by_child_closure / UIR-00_dependency_ready / runtime_default_off`
+Status: `USI-14_accepted / USI-15_blocked_by_child_closure / UIR-03_dependency_ready_pending_handoff / runtime_default_off`
+
+## Native-System Amendment 2026-08-01
+
+The operator decision is explicit: Obsidian is legacy and is not part of the
+target Knowledge, Memory, RAG, Graph or RAPTOR architecture. References to
+`plugins/obsidian/**`, Obsidian routes/tools, vault files, ORCA aliases backed
+by that plugin and plugin-owned RAPTOR artifacts are historical compatibility
+evidence only. They are not a selectable USI source scope, fallback authority,
+truth store, projection owner or activation dependency.
+
+This decision does not claim that the repository is already technically
+decoupled. Current application code still contains legacy imports and runtime
+registration seams. UIR owns their measured removal after first-party
+replacements are composed and verified. No new canonical capability may add a
+dependency on the legacy subsystem.
+
+Current authority is the first-party USI contract/store/query/runtime family,
+the existing native domain truth owners and rebuildable projections referenced
+through USI records and manifests. Historical acceptance records remain intact
+but cannot authorize current runtime activation.
+
+Roadmap-authoring claim:
+
+```yaml
+run_id: ABC-NATIVE-KNOWLEDGE-ROADMAP-20260801
+owner: root/Sol
+phase: roadmap_authoring
+state: released
+released_at: 2026-08-01T20:17:48.3399923+02:00
+allowed_paths:
+  - docs/plans/unified-source-index-implementation-roadmap.md
+  - docs/plans/unified-source-index-runtime-integration-roadmap.md
+  - docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md
+  - docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md
+  - docs/plans/memory-raptorgraph-consolidation-roadmap.md
+  - docs/plans/memory-scale-foundation-roadmap.md
+  - docs/plans/graphrag-raptor-observability-prometheus-grafana-roadmap.md
+live_actions: false
+evidence:
+  - roadmap_invariants=pass
+  - focused_USI_contract_runtime_tests=85_passed
+  - scoped_git_diff_check=pass
+follow_up_blockers:
+  - master roadmap has an existing claimed writer and requires its handoff
+  - execution guidance contains foreign working-tree changes
+  - NMG and USI-C slices remain nonclaimable until master/guidance registration
+```
 
 Master-Track: `0.28.x`, `OWM-15`, `L21`
 
@@ -45,9 +92,10 @@ The track is done when:
   `QueryCacheStore`, but no common runtime implementation exists yet.
 - `src/rag_text_chunking.py` and the completed RMT roadmap provide the generic
   structure-aware text splitter and chunking evidence.
-- Chroma/FastEmbed, Personal Docs, Memory, Obsidian/Lens and RaptorGraph each
-  have useful data, but currently use different identities and lifecycle
-  boundaries.
+- Chroma/FastEmbed, Personal Docs, Memory and RaptorGraph each have useful data,
+  but currently use different identities and lifecycle boundaries. Historical
+  Obsidian/Lens artifacts are comparison-only legacy inputs with a fixed
+  `retire/excluded` decision.
 - Project Versioning and the Local Forge already own project/revision facts.
 - TAX/TUA own tool identity and usage telemetry. GRO owns the Prometheus and
   Grafana runtime observation plane. GMI owns local Gemma maintenance runtime.
@@ -98,6 +146,7 @@ Queue rules:
 | Usage analytics | TUA | one canonical invocation plus internal spans | no duplicate per-engine invocation ledger |
 | Runtime explanation | AI Lens/Context Transparency | source-linked selection events | no reuse of index graph as runtime trace |
 | User code visualization | Lens Code Graph roadmap | bounded graph API and source refs | no separate top-level UI shell |
+| Legacy Obsidian subsystem | none in the target architecture | inventory remaining callers and prove retirement | no source scope, fallback, truth, projection or activation authority |
 
 ## 5. Target Architecture
 
@@ -918,6 +967,8 @@ Also required:
 - no-query-full-scan checks;
 - synthetic owner/classification/deletion matrix;
 - comparison report against each legacy source lane;
+- static proof that no selected activation scope depends on
+  `plugins/obsidian/**`, vault files, plugin routes or plugin RAPTOR artifacts;
 - green UIR runtime/consumer closure and ULO lifecycle closure;
 - UDA acceptance for every source scope named by the activation packet;
 - valid guidance and master-roadmap JSON.
@@ -950,3 +1001,36 @@ Also required:
   metrics stack, scheduler, commit history or Lens shell.
 - Productive activation has exactly one explicit user gate and a tested
   rollback.
+
+## 12. Native Graph And Causality Extension
+
+This extension builds on accepted USI identities and evidence. It does not
+reinterpret links, retrieval flow, temporal order or model output as causality.
+It remains repo-only until the parent runtime and selected native source scopes
+are accepted.
+
+| Slice | Class | Dependencies | Outcome |
+| --- | --- | --- | --- |
+| `USI-C0-causality-index-contract` | safe_offline | USI-01, `NMG-05-causal-domain-contract` | Freeze the USI projection vocabulary, epistemic-state mapping, evidence requirements and forbidden inference claims without becoming causal truth owner. |
+| `USI-C1-causal-claim-index-records` | repo_only | `USI-C0-causality-index-contract`, USI-02, USI-03 | Add a backend-neutral, rebuildable `CausalClaimIndexRecord` projection with canonical claim/evidence references, confidence, method, temporal window, alternatives and retraction state. |
+| `USI-C2-causal-store-adapter` | repo_only | `USI-C1-causal-claim-index-records`, `NMG-05A-causal-store-and-review` | Project reviewed records from the canonical native `CausalClaimStore`; USI never accepts a second writer or plugin fallback. |
+| `USI-C3-conflict-and-retraction-propagation` | repo_only | `USI-C2-causal-store-adapter`, `NMG-05B-causal-candidate-generation` | Propagate review, conflict, supersession and retraction changes into the rebuildable index with append-only evidence references. |
+| `USI-C4-causal-query` | repo_only | `USI-C3-conflict-and-retraction-propagation`, USI-07, USI-08 | Answer bounded `why`, mechanism and alternative-cause queries with exact evidence and explicit uncertainty. |
+| `USI-C5-counterfactual-boundary` | repo_only | `USI-C4-causal-query` | Represent counterfactuals and interventions as hypotheses or simulations, never observed facts. |
+| `USI-C6-evaluation-and-closure` | repo_only | `USI-C0-causality-index-contract` through `USI-C5-counterfactual-boundary`, UIR-13 | Prove precision, contradiction handling, retraction, privacy, bounded traversal and no hidden-model-causality claims. |
+
+Minimum causal index-projection fields:
+
+```text
+claim_id, owner_scope, cause_ref, effect_ref, mechanism,
+temporal_window, evidence_refs, method, confidence,
+alternative_causes, status, supersedes, source_version
+```
+
+The native `CausalClaimStore` defined by NMG is the sole domain truth and review
+authority. USI stores only an evidence-bound projection that can be discarded
+and rebuilt from that store. Allowed projected statuses are `candidate`,
+`supported`, `contested`, `retracted` and `insufficient_evidence`. `supported`
+means supported by the attached evidence; it does not mean universally proven.
+The layer must preserve the existing AI Lens rule that observable retrieval or
+answer flow is not hidden model causality.
