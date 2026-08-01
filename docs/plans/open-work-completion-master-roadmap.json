@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-01T18:50:00+02:00",
-  "status": "waiting_on_user_ops_alert_root_bootstrap_authority_live_actions_gated",
+  "updated_at": "2026-08-01T19:25:04+02:00",
+  "status": "running_ops_alert_install_transport_publication_frontier_live_actions_gated",
   "abc_mode": "Standard ABC",
-  "runner_state": "waiting_on_user_root_bootstrap_authority_no_safe_successor",
+  "runner_state": "running_install_transport_exact_path_publication_frontier",
   "heartbeat_state": "interactive_root_and_two_bounded_read_only_workers_no_automation",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -25,17 +25,17 @@
     "unique_live_gates": 53,
     "unique_design_gates": 27,
     "other_open_json_items": 108,
-    "queue_status": "waiting_on_user_ops_alert_root_bootstrap_authority_live_actions_gated",
+    "queue_status": "running_ops_alert_install_transport_publication_frontier_live_actions_gated",
     "active_ops_alert_goal": {
       "status": "active_unreached",
       "objective": "Complete the existing OPS Alert roadmap through terminal Python 3.11 CI, safe backup, deploy, activation and live delivery evidence, and finish only when OPS Alert is actually live verified.",
       "current_revision": "572361fba02c3a6a926282ef7c97c9a5a7977099",
       "published_ref": "fuzzy/dev",
       "published_ref_matches_current_revision": true,
-      "stop_reason": "The published helper cannot install its own initial root-owned unit and sudoers policy: the existing fixed sudoers contract grants only service start and receipt readback, while no already-proven noninteractive root bootstrap channel is recorded. An owner must authorize one exact bootstrap method before transport acceptance or host mutation.",
+      "stop_reason": null,
       "resumed_at": "2026-08-01T17:08:09+02:00",
       "resume_authority": "explicit user instruction to continue, set a goal and implement through /abc",
-      "current_frontier": "owner decision and action-specific authority for exactly one initial root bootstrap method; then finish the pinned install transport and independent readback without assuming circular sudo authority"
+      "current_frontier": "publish the accepted four-path same-argv authority-probe and root-helper-install transport to fuzzy/dev, require terminal green CI, then request one action-specific read-only authority probe; install remains a separate gate"
     },
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
@@ -728,7 +728,7 @@
       },
       {
         "run_id": "ABC-OPS-ALERT-ROOT-HELPER-REPO-20260801",
-        "thread_id": "/root/root_helper_architecture_alice",
+        "thread_id": "/root/root_helper_transport_charlie",
         "slice_id": "OPS-ALERT-root-owned-argv-free-backup-helper-package",
         "owner": "Alice/Terra implementation; root/Sol deep review",
         "state": "released_after_sol_deep_acceptance_ready_for_exact_path_publication",
@@ -819,12 +819,12 @@
       },
       {
         "run_id": "ABC-OPS-ALERT-ROOT-HELPER-INSTALL-TRANSPORT-20260801",
-        "thread_id": "/root/root_helper_architecture_alice",
+        "thread_id": "/root/root_helper_transport_charlie",
         "slice_id": "OPS-ALERT-root-helper-pinned-install-transport-and-readback",
-        "owner": "Alice/Terra implementation; root/Sol deep review",
-        "state": "waiting_on_user_retained_partial_claim_no_worker",
+        "owner": "Charlie/Terra replacement implementation; root/Sol deep review",
+        "state": "released_after_charlie_handoff_bob_pass_and_sol_deep_acceptance_ready_for_publication",
         "acquired_at": "2026-08-01T18:46:00+02:00",
-        "lease_expires_at": "2026-08-01T20:46:00+02:00",
+        "lease_expires_at": "2026-08-01T21:02:47+02:00",
         "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
         "base_revision": "572361fba02c3a6a926282ef7c97c9a5a7977099",
         "depends_on": [
@@ -841,6 +841,7 @@
         "class": "repo_only",
         "live_actions": false,
         "acceptance": [
+          "one immutable remote sudo Python bootstrap argv supports both an effect-free authority probe bundle and a separately gated install bundle through stdin, so a successful probe proves authority for the exact later command without installing anything",
           "the transport remains inert by default and only an execute=True programmatic call can invoke one fixed SSH stdin command against odysseus-homeserver",
           "the remote bootstrap accepts only exact SHA-pinned blobs from fuzzy/dev, has fixed absolute timeout sudo and Python argv, no caller command path environment shell interpolation or retry, and bounds stdout while discarding stderr",
           "the bootstrap constructs only SecureHostOperations at root=/ and calls install once; ambiguous timeout transport or output returns unknown with retry_permitted false and never forwards raw output",
@@ -856,7 +857,7 @@
         "route": {
           "entrypoint": "$abc",
           "master": "root/Sol",
-          "worker": "Alice/Terra implementation",
+          "worker": "Charlie/Terra replacement implementation after two incomplete Alice handoffs",
           "independent_reviewer": "Bob/Terra read-only adversarial review",
           "final_review": "root/Sol deep"
         },
@@ -872,10 +873,24 @@
           "independent_review": "blocked: current sudoers permits only exact backup service start and readback, not initial installation; silently invoking sudo -n python would be circular and unauthorized",
           "git_live": "not committed, not pushed, not deployed, no SSH sudo systemd credential backup provider or delivery action"
         },
+        "failed_attempts": {
+          "Alice_partial_attempt_1": "four preliminary tests only; no bounded I/O, exact bootstrap authority contract or independent systemd/arm proof",
+          "Alice_partial_attempt_2": "shared argv skeleton begun but install bootstrap execution, bounded I/O and descriptor-rooted independent readback remained missing",
+          "recovery": "one ABC-permitted replacement worker Charlie/Terra on the unchanged four-path claim; no further replacement after this attempt"
+        },
+        "final_evidence": {
+          "worker": "Charlie/Terra replacement handoff after Sol correction: CPython 3.11 focused corridor 32 passed and git diff check passed",
+          "independent_review": "Bob/Terra read-only final review PASS with no P0-P2 on the exact four files",
+          "sol_deep_review": "PASS after requiring install-mode root validation, kill/reap/stream cleanup for every abnormal transport state, descriptor-open state-directory validation and identity-stable arm absence",
+          "root_python311_focused": "47 passed across the root helper, installer, transport, install readback and operational readback modules",
+          "root_python311_integration": "231 passed and 3 skipped across the complete 18-module predeploy backup corridor",
+          "static": "all four claimed Python files parsed under CPython 3.11; current install-readback SHA 25781cf52da653c7be32a143205bb5f58a28fc7820e12fa0cfe17f21dda848c2 matches both transport and embedded bootstrap pins; git diff check passed",
+          "live": "not run; no SSH sudo systemd host credential backup deploy provider or notification effect"
+        },
         "completion": {
-          "implemented": "no",
-          "tested": "no",
-          "sol_reviewed": "no",
+          "implemented": "yes",
+          "tested": "yes",
+          "sol_reviewed": "deep",
           "committed": "no",
           "pushed": "no",
           "deployed": "no",
@@ -885,16 +900,18 @@
           "updater_or_resume_clean": "yes",
           "product_complete": "no"
         },
-        "blocker": "Choose and authorize one exact initial root bootstrap channel: operator-assisted root console execution, a separately approved fixed sudo bootstrap command, or another pre-existing root-owned installer. Do not infer this authority from the service start/readback sudoers file.",
-        "next_frontier": "after owner selection, bind the fixed transport argv and rollback/readback contract to that exact bootstrap channel and resume only these four paths",
-        "handoff_required": true
+        "blocker": null,
+        "resolution": "Use one byte-identical fixed sudo bootstrap argv for both modes. The repo-only implementation never assumes authority; the later action-specific read-only probe executes that exact argv with mode=probe and performs no installation. Only a successful redacted probe can make the separately gated mode=install action eligible.",
+        "next_frontier": "exact-path commit and fast-forward push to fuzzy/dev followed by terminal Required CI; only then may the separately gated one-shot read-only authority probe be requested",
+        "released_at": "2026-08-01T19:25:04+02:00",
+        "handoff_required": false
       },
       {
         "run_id": "ABC-OPS-ALERT-LIVE-CLOSE-20260731",
         "thread_id": "/root",
         "slice_id": "OPS-ALERT-live-backup-deploy-activation-delivery-proof",
         "owner": "root/Sol live executor and final reviewer",
-        "state": "waiting_on_user_root_bootstrap_authority_before_live_install",
+        "state": "running_repo_publication_frontier_live_probe_and_install_still_gated",
         "acquired_at": "2026-07-31T12:18:00+02:00",
         "lease_expires_at": null,
         "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
@@ -951,19 +968,19 @@
           "tests/test_homeserver_redacted_backup_snapshot_observation.py",
           "tests/test_homeserver_redacted_backup_snapshot_observation_transport.py"
         ],
-        "phase": "root_helper_package_published_required_ci_green_initial_root_bootstrap_authority_missing",
+        "phase": "root_helper_install_transport_accepted_pending_publication_live_probe_and_install_separately_gated",
         "live_actions": true,
         "action_packets": {
           "root_helper_initial_installation": {
             "schema_id": "odysseus.ops_alert_root_helper_initial_installation_authority.v1",
-            "state": "not_go_waiting_on_owner_bootstrap_method",
+            "state": "not_go_waiting_on_install_transport_publication_and_terminal_ci_before_probe",
             "action": "host_change",
             "target": "odysseus-homeserver",
             "artifact_revision": "572361fba02c3a6a926282ef7c97c9a5a7977099",
             "github_ci_run": 30708557332,
             "github_ci_conclusion": "success",
             "bounded_effect": "install exactly the SHA-pinned root helper, independent receipt reader, one disabled oneshot unit and one exact NOSETENV sudoers policy; do not arm, start or enable the unit and do not read credentials or create a backup",
-            "missing_authority": "one exact pre-existing initial root bootstrap channel; the policy being installed cannot authorize its own installation",
+            "missing_authority": "one action-specific read-only invocation of the published byte-identical bootstrap argv in mode=probe, followed only on success by a separate host-change go for mode=install; the policy being installed cannot authorize its own installation",
             "owner_choices": [
               "operator-assisted root console execution of the reviewed pinned bundle",
               "separately approved fixed sudo bootstrap invocation after a redacted authority probe proves it exists",
