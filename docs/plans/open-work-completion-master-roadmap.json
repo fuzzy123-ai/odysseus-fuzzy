@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-01T17:08:09+02:00",
-  "status": "running_ops_alert_root_helper_repo_frontier_live_actions_gated",
+  "updated_at": "2026-08-01T18:18:00+02:00",
+  "status": "running_ops_alert_root_helper_publication_frontier_live_actions_gated",
   "abc_mode": "Standard ABC",
-  "runner_state": "running_dependency_ready_repo_only_frontier",
+  "runner_state": "running_root_helper_exact_path_publication_frontier",
   "heartbeat_state": "interactive_root_and_two_bounded_read_only_workers_no_automation",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -25,17 +25,17 @@
     "unique_live_gates": 53,
     "unique_design_gates": 27,
     "other_open_json_items": 108,
-    "queue_status": "running_ops_alert_root_helper_repo_frontier_live_actions_gated",
+    "queue_status": "running_ops_alert_root_helper_publication_frontier_live_actions_gated",
     "active_ops_alert_goal": {
       "status": "active_unreached",
       "objective": "Complete the existing OPS Alert roadmap through terminal Python 3.11 CI, safe backup, deploy, activation and live delivery evidence, and finish only when OPS Alert is actually live verified.",
-      "current_revision": "6690a7fc7187b3f9faf496fbbf090c6edbbdfb51",
+      "current_revision": "aec9574f9f605cef522f460bf21754d6d2d8a795",
       "published_ref": "fuzzy/dev",
       "published_ref_matches_current_revision": true,
       "stop_reason": null,
       "resumed_at": "2026-08-01T17:08:09+02:00",
       "resume_authority": "explicit user instruction to continue, set a goal and implement through /abc",
-      "current_frontier": "publish the durable resume checkpoint, then claim and implement only the repo-owned argv-free systemd one-shot helper package; live installation remains separately gated"
+      "current_frontier": "publish the accepted root-owned argv-free systemd one-shot helper package by exact-path commit to fuzzy/dev and require terminal green Required CI; host installation, credential migration, backup, deploy, activation and delivery remain separately gated"
     },
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
@@ -671,7 +671,7 @@
         "thread_id": "/root",
         "slice_id": "OPS-ALERT-resume-stop-evidence-checkpoint",
         "owner": "root/Sol queue owner and final reviewer",
-        "state": "in_progress",
+        "state": "released_after_exact_push_and_terminal_required_ci",
         "acquired_at": "2026-08-01T17:08:09+02:00",
         "lease_expires_at": "2026-08-01T18:08:09+02:00",
         "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
@@ -710,7 +710,111 @@
           ],
           "review": "root/Sol deep"
         },
-        "handoff_required": true
+        "published_revision": "aec9574f9f605cef522f460bf21754d6d2d8a795",
+        "github_ci_run": 30705352794,
+        "github_ci_conclusion": "success",
+        "verification_evidence": {
+          "python_runtime": "CPython 3.11.15 from C:/tmp/odysseus-ci-py311-20260730/Scripts/python.exe",
+          "roadmap_and_queue_contracts": "24 passed, 1 pre-existing SQLAlchemy warning",
+          "first_local_attempt": "invalid harness only: 9 passed and 15 tmp_path setup errors because the sandbox denied the fresh C:/tmp basetemp; no test assertion failed",
+          "rerun_with_exact_suite_and_writable_basetemp": "24 passed",
+          "json_parse": "passed",
+          "diff_check": "passed",
+          "exact_path_staged": "docs/plans/open-work-completion-master-roadmap.json only",
+          "published_required_ci": "run 30705352794 terminal success: Python syntax, JS syntax and complete Python regression suite all green"
+        },
+        "released_at": "2026-08-01T17:19:30+02:00",
+        "handoff_required": false
+      },
+      {
+        "run_id": "ABC-OPS-ALERT-ROOT-HELPER-REPO-20260801",
+        "thread_id": "/root/root_helper_architecture_alice",
+        "slice_id": "OPS-ALERT-root-owned-argv-free-backup-helper-package",
+        "owner": "Alice/Terra implementation; root/Sol deep review",
+        "state": "released_after_sol_deep_acceptance_ready_for_exact_path_publication",
+        "acquired_at": "2026-08-01T17:19:30+02:00",
+        "lease_expires_at": "2026-08-01T19:19:30+02:00",
+        "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
+        "base_revision": "aec9574f9f605cef522f460bf21754d6d2d8a795",
+        "depends_on": [
+          "resume checkpoint aec9574f9f605cef522f460bf21754d6d2d8a795 published to fuzzy/dev",
+          "GitHub Required CI run 30705352794 terminal success",
+          "classic procfs descriptor bind and rootless FD-native open_tree capability observations consumed terminal unsupported/no-retry"
+        ],
+        "allowed_paths": [
+          "ops/homeserver/redacted_predeploy_backup_root_helper.py",
+          "ops/homeserver/redacted_predeploy_backup_root_helper_install.py",
+          "ops/homeserver/redacted_predeploy_backup_root_helper_install_transport.py",
+          "ops/homeserver/redacted_predeploy_backup_root_helper_readback.py",
+          "ops/homeserver/root-helper/odysseus-predeploy-backup-root-helper.service",
+          "ops/homeserver/root-helper/odysseus-predeploy-backup-root-helper.sudoers",
+          "tests/test_homeserver_redacted_predeploy_backup_root_helper.py",
+          "tests/test_homeserver_redacted_predeploy_backup_root_helper_install.py",
+          "tests/test_homeserver_redacted_predeploy_backup_root_helper_install_transport.py",
+          "tests/test_homeserver_redacted_predeploy_backup_root_helper_readback.py"
+        ],
+        "hotfiles": [],
+        "class": "repo_only",
+        "live_actions": false,
+        "acceptance": [
+          "one root-owned systemd oneshot executes a fixed absolute Python 3.11 helper with no arguments, shell, stdin, EnvironmentFile or caller-controlled path, command or environment",
+          "the helper uses only a private mount namespace in the initial user namespace, retains descriptor-bound source, repository, credential and Restic identities, makes source and credential read-only, closes mount-capable descriptors, then drops groups, uid, gid and capabilities before fixed Restic dispatch",
+          "a root-owned single-use expiry-bound arm record is atomically consumed before dispatch; absent, stale, mismatched, replayed or concurrent grants fail closed without backup",
+          "the unit is disabled and unarmed by default with minimal capabilities, no network, null stdout/stderr, bounded runtime and writable access only to the fixed repository and redacted state",
+          "the installer is no-clobber or exact-baseline rollback-safe, verifies fixed blob digests, parents, owner, mode, unit and sudo policy, never starts or enables the unit, and emits only a strict redacted receipt",
+          "the sudo policy permits only the exact no-argument unit start with NOSETENV and grants no generic sudo, shell, environment, systemctl verb, edit, reload or arbitrary unit authority",
+          "independent readback revalidates only fixed-key metadata and digests without journals, environment, file contents, raw subprocess output or secret material",
+          "focused CPython 3.11 tests cover negative identity, symlink, ownership, mode, digest, arm replay/expiry/concurrency, capability/drop, timeout, overflow, rollback and redaction matrices"
+        ],
+        "forbidden_actions": [
+          "editing the roadmap or any path outside this exact claim",
+          "SSH, root console, sudo, systemctl, host installation, credential access or mutation, backup, deploy, provider call or Telegram send",
+          "generic sudo or polkit, wildcard rules, privileged containers, setcap, checkout-resident root execution, pathname or procfs fallback after identity binding, raw journal/status/environment output",
+          "retrying any consumed capability observation, committing, pushing or claiming live readiness"
+        ],
+        "route": {
+          "entrypoint": "$abc",
+          "master": "root/Sol",
+          "worker": "Alice/Terra implementation",
+          "independent_reviewer": "Bob/Terra adversarial review after handoff",
+          "final_review": "root/Sol deep"
+        },
+        "review_evidence": {
+          "initial_worker_checks": "CPython 3.11 py_compile passed; four focused modules 12 passed; pin identity and diff check passed",
+          "independent_review": "FAIL with five P1 and four P2 findings; no edits or live actions",
+          "sol_deep_review": "FAIL with additional P1 findings for stale descriptor reuse closing Restic, missing fixed backup-mount proof, missing run-duration concurrency lock, non-wipeable credential copies and incomplete capability-drop proof",
+          "correction_scope": "same ten allowed paths only; add adversarial tests for every finding and rerun exact Python 3.11 lanes",
+          "correction_round_1_recheck": "FAIL: reusable view anchor remained exist_ok false; run lock ended before receipt publication; credential wipe still rebound immutable bytes; installer durability and parent validation remained unimplemented; readback still omitted current action binding; only 13 focused tests existed",
+          "correction_round_2_evidence": "CPython 3.11 focused suite independently rerun by Sol: 26 passed with one pre-existing SQLAlchemy warning and one expected pytest unknown-config warning because asyncio plugin was intentionally disabled; no-write syntax, three blob pins, static service and sudoers current-byte parity, and diff check passed",
+          "correction_round_2_recheck": "FAIL: one P1 remains because the installer still relies on an unenforced abstract Operations adapter rather than a repository-owned descriptor-rooted nofollow durable production adapter; three P2 cross-product, readback interpreter and sudoers parity issues plus two Sol P2 credential-copy and strict reference issues returned",
+          "correction_round_3_evidence": "CPython 3.11 focused suite independently rerun by Sol: 32 passed; no-write syntax, three pins, static asset parity and diff check passed; direct retained-parent, final no-clobber and foreign-temp preservation tests present",
+          "correction_round_3_recheck": "FAIL: SecureHostOperations opened the temporary asset write-only although its verifier reads from that descriptor, and failures after link publication could escape before install recorded ownership; multi-asset rollback was not exact-content identity-bound",
+          "correction_round_4_evidence": "Worker focused suite: 36 passed; no-write syntax, three pins, static asset parity and diff check passed; published finals are preserved on uncertain post-link failure and exact rollback refuses a foreign replacement",
+          "correction_round_4_recheck": "FAIL: install could still classify an uncertain post-link failure as rolled_back/write_failed when every target parent pre-existed and its created tracking remained empty; no publication claim is accepted until an explicit transaction-state regression proves unknown/rollback_failed with the final preserved",
+          "correction_round_5_scope": "same ten allowed paths only; propagate conservative post-publication uncertainty and add the all-parents-pre-existing post-link failure regression before final independent and Sol review",
+          "correction_round_7_evidence": "CPython 3.11.15 focused suite independently rerun by root/Sol: 37 passed; actual install to SecureHostOperations.write_new regression injects a post-link parent-fsync failure with every installer parent pre-existing, preserves the published final and returns unknown/rollback_failed; separate no-write syntax, three current SHA pins, checked-in service and sudoers byte parity, and git diff check all passed",
+          "integration_corridor": "CPython 3.11.15 exact 17-module predeploy backup corridor: initial sandbox run invalid because Windows ACLs caused 42 fixture setup errors after 181 passes and one skip; exact elevated rerun terminal green with 221 passed and 3 skipped",
+          "roadmap_contract_lane": "CPython 3.11.15 four-module queue/status/priority/SIRP contract lane: initial sandbox run invalid because Windows ACLs caused 15 fixture setup errors after 9 passes; exact elevated rerun terminal green with 24 passed",
+          "independent_final_review": "PASS with no P0-P2 after CR7 on the exact ten claimed files; reviewer performed no edits, Git or live actions",
+          "sol_deep_final_review": "PASS with no P0-P2 after independently reconstructing argv, identity, mount, credential, capability-drop, concurrency, publication uncertainty, rollback, redaction, install, readback and default-inert invariants against current bytes",
+          "live_gate": "closed"
+        },
+        "completion": {
+          "implemented": "yes",
+          "tested": "yes",
+          "sol_reviewed": "deep",
+          "committed": "no",
+          "pushed": "no",
+          "deployed": "no",
+          "live_validated": "no",
+          "visual_validated": "na",
+          "temporal_validated": "no",
+          "updater_or_resume_clean": "yes",
+          "product_complete": "no"
+        },
+        "released_at": "2026-08-01T18:35:01+02:00",
+        "handoff": "Alice/Terra implementation accepted after CR7; Bob/Terra independent review PASS; root/Sol deep review PASS; exact ten paths remain uncommitted pending root-owned exact-path publication with the queue hotfile",
+        "handoff_required": false
       },
       {
         "run_id": "ABC-OPS-ALERT-LIVE-CLOSE-20260731",
@@ -774,7 +878,7 @@
           "tests/test_homeserver_redacted_backup_snapshot_observation.py",
           "tests/test_homeserver_redacted_backup_snapshot_observation_transport.py"
         ],
-        "phase": "resume_checkpoint_then_root_owned_argv_free_helper_repo_package",
+        "phase": "root_owned_argv_free_helper_repo_package_accepted_pending_exact_path_publication_live_install_still_gated",
         "live_actions": true,
         "action_packets": {
           "predeploy_backup_fd_native_mount_capability": {
