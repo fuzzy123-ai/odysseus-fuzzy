@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-01T19:40:02+02:00",
-  "status": "waiting_on_user_ops_alert_root_helper_authority_probe_gate",
+  "updated_at": "2026-08-01T22:42:03+02:00",
+  "status": "running_ops_alert_root_helper_authority_probe_go",
   "abc_mode": "Standard ABC",
-  "runner_state": "waiting_on_user_for_one_shot_read_only_root_helper_authority_probe",
+  "runner_state": "running_one_shot_read_only_root_helper_authority_probe",
   "heartbeat_state": "interactive_root_no_running_workers_no_automation",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -25,17 +25,17 @@
     "unique_live_gates": 53,
     "unique_design_gates": 27,
     "other_open_json_items": 108,
-    "queue_status": "waiting_on_user_ops_alert_root_helper_authority_probe_gate",
+    "queue_status": "running_ops_alert_root_helper_authority_probe_go",
     "active_ops_alert_goal": {
       "status": "active_unreached",
       "objective": "Complete the existing OPS Alert roadmap through terminal Python 3.11 CI, safe backup, deploy, activation and live delivery evidence, and finish only when OPS Alert is actually live verified.",
-      "current_revision": "668a371f6615f8c1652bf6e6f1a54daf97322141",
+      "current_revision": "d691cebc0b850e13b7087ab3866d7902940ead67",
       "published_ref": "fuzzy/dev",
       "published_ref_matches_current_revision": true,
       "stop_reason": null,
       "resumed_at": "2026-08-01T17:08:09+02:00",
       "resume_authority": "explicit user instruction to continue, set a goal and implement through /abc",
-      "current_frontier": "obtain action-specific authority for one read-only root-helper bootstrap probe against odysseus-homeserver using published revision 668a371f6615f8c1652bf6e6f1a54daf97322141; mode=install remains a separate host-change gate"
+      "current_frontier": "execute exactly one read-only root-helper bootstrap probe against odysseus-homeserver using artifact revision 668a371f6615f8c1652bf6e6f1a54daf97322141 under the user grant recorded at 2026-08-01T22:42:03+02:00; mode=install remains a separate host-change gate"
     },
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
@@ -913,7 +913,7 @@
         "thread_id": "/root",
         "slice_id": "OPS-ALERT-live-backup-deploy-activation-delivery-proof",
         "owner": "root/Sol live executor and final reviewer",
-        "state": "waiting_on_user_read_only_authority_probe_install_still_gated",
+        "state": "running_one_shot_read_only_authority_probe_install_still_gated",
         "acquired_at": "2026-07-31T12:18:00+02:00",
         "lease_expires_at": null,
         "worktree": "C:/tmp/odysseus-ops-alert-final-20260731",
@@ -975,7 +975,7 @@
         "action_packets": {
           "root_helper_authority_probe": {
             "schema_id": "odysseus.ops_alert_root_helper_authority_probe.v1",
-            "state": "waiting_on_action_specific_user_go",
+            "state": "go_unconsumed",
             "action": "read_only_live_observation",
             "target": "odysseus-homeserver",
             "artifact_revision": "668a371f6615f8c1652bf6e6f1a54daf97322141",
@@ -986,6 +986,9 @@
             "timeout_seconds": 35,
             "maximum_invocations": 1,
             "retry_count": 0,
+            "authority_basis": "user instructed Codex to proceed until OPS Alert is live immediately after being told that the next required action is the one-shot read-only authority probe; this grants this probe only and does not grant mode=install or any later mutation",
+            "granted_by": "user turn 2026-08-01: dann leg los bis ops live ist",
+            "granted_at": "2026-08-01T22:42:03+02:00",
             "required_result": "one strict redacted success envelope with euid_root true, mode probe and ssh_argv_authority true",
             "unknown_policy": "on timeout, transport failure, nonzero exit, oversized output or invalid envelope record probe_unknown, do not retry and do not infer authority",
             "expires": "run_end",
