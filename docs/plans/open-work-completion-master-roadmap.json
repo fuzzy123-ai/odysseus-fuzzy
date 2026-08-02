@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-02T18:25:35+02:00",
-  "status": "wave5r_independent_qa_pass_pending_current_inventory_refresh / acpr11_bounded_qa_fix / trp05_accepted_trp06_repo_only_claimed / cleanup_one_worktree_clean / live_gates_preserved",
+  "updated_at": "2026-08-02T18:41:46+02:00",
+  "status": "wave5r_independent_qa_pass_pending_current_inventory_refresh / acpr11_accepted_released / trp06_repo_only_claimed / cleanup_one_worktree_clean / live_gates_preserved",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -20,15 +20,15 @@
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 2,
+    "safe_open_json_slices": 1,
     "unique_live_gates": 61,
     "unique_design_gates": 29,
     "other_open_json_items": 155,
-    "queue_status": "wave5r_qa_pass_acpr11_fix_and_trp06_implementation_running",
+    "queue_status": "wave5r_qa_pass_pending_inventory_refresh_and_trp06_implementation_running",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "live_contextual_layer": "lcl00_roadmap_deep_reviewed_registered_lcl01_waiting_cao08b",
-      "autonomous_coding_loop": "cao08a_through_f_and_c1_accepted_acpr11_dependency_reconciled_claimed_local_fake_adapter_activation_off",
+      "autonomous_coding_loop": "cao08a_through_f_and_c1_plus_acpr11_accepted_acpr12_dependency_ready_unclaimed_local_fake_adapter_activation_off",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated_pmcp9_stale_detail_normalized",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
@@ -50,8 +50,8 @@
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 2,
-      "raw_audit_safe_open_count": 2,
+      "safe_open_count": 1,
+      "raw_audit_safe_open_count": 1,
       "raw_audit_stale_item": null,
       "raw_audit_duplicate_frontier": "SIRP-11 is accepted in both canonical and detailed SIRP state; no SIRP safe-offline slice remains open.",
       "other_open_count": 155,
@@ -515,36 +515,6 @@
     ],
     "active_claimed_slices": [
       {
-        "claim_id": "ABC-ACPR-11-20260802T180406+0200",
-        "slice_id": "ACPR-11-planning-authority-and-memory-checkpoints",
-        "roadmap": "docs/plans/autonomous-coding-production-readiness-roadmap.json",
-        "owner": "/root/acpr11_planning_memory",
-        "class": "repo_only",
-        "state": "claimed",
-        "acquired_at": "2026-08-02T18:04:06+02:00",
-        "lease_expires_at": "2026-08-02T20:04:06+02:00",
-        "base_revision": "352e4966409ce4a53d071b2b4e3c1508de55a82d",
-        "allowed_paths": [
-          "src/coding_project_scope.py",
-          "src/coding_agent_runner_state.py",
-          "src/coding_agent_memory_bridge.py",
-          "tests/test_coding_project_scope.py",
-          "tests/test_coding_agent_runner_state.py",
-          "tests/test_coding_agent_memory_bridge.py"
-        ],
-        "router_write_paths": [],
-        "writer_count": 1,
-        "independent_qa_required": true,
-        "live_actions": false,
-        "collision_check": "pass: exact ACPR-11 paths are disjoint from the read-only Wave-5R QA and TRP-05 read-only reclaim audit; the canonical roadmap files remain Root-only",
-        "forbidden_actions": [
-          "editing either canonical roadmap authority from the worker",
-          "paths outside the exact allowed_paths",
-          "push, deploy, provider, network, host, send or other live action",
-          "treating RAPTOR/GraphRAG memory as Planning, claim or gate authority"
-        ]
-      },
-      {
         "claim_id": "ABC-TRP06-20260802T182535+0200",
         "slice_id": "TRP-06-owner-scoped-backend-api",
         "roadmap": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
@@ -583,6 +553,35 @@
         ]
       }
     ],
+    "latest_acpr11_acceptance": {
+      "accepted_at": "2026-08-02T18:41:46+02:00",
+      "roadmap": "docs/plans/autonomous-coding-production-readiness-roadmap.json",
+      "slice_id": "ACPR-11-planning-authority-and-memory-checkpoints",
+      "claim_id": "ABC-ACPR-11-20260802T180406+0200",
+      "implementation_owner": "/root/acpr11_planning_memory",
+      "independent_qa_owner": "/root/acpr11_independent_qa",
+      "changed_paths": [
+        "src/coding_project_scope.py",
+        "src/coding_agent_runner_state.py",
+        "src/coding_agent_memory_bridge.py",
+        "tests/test_coding_project_scope.py",
+        "tests/test_coding_agent_runner_state.py",
+        "tests/test_coding_agent_memory_bridge.py"
+      ],
+      "tests_and_results": [
+        "47 final focused tests passed",
+        "50 integrated focused plus remote-control smoke tests passed",
+        "independent QA PASS after two reproduced bypasses and bounded fixes",
+        "Root deep review PASS"
+      ],
+      "acceptance": "Planning item/revision/scope/acceptance/gates bind before scope; four RAPTOR/GraphRAG checkpoints are content-free and advisory; persistence validates current CAO authority digest and rejects every effect or receipt forgery",
+      "not_verified": [
+        "route/controller injection of canonical Planning binding and expected authority digest",
+        "real graph, memory writeback, worker/thread dispatch, network, provider, push, deploy or live action"
+      ],
+      "next_action": "Leave ACPR-12 dependency-ready and unclaimed for the post-Round-5 normalization task.",
+      "live_actions": false
+    },
     "latest_trp05_acceptance": {
       "accepted_at": "2026-08-02T18:25:35+02:00",
       "roadmap": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",

@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.autonomous_coding_production_readiness_roadmap",
-  "updated_at": "2026-08-02T18:04:06+02:00",
-  "status": "acpr_0_through_10_accepted_acpr_11_dependency_ready_claimed_for_repo_only_implementation",
+  "updated_at": "2026-08-02T18:41:46+02:00",
+  "status": "acpr_0_through_11_accepted_acpr_12_dependency_ready_unclaimed_live_gates_closed",
   "mode": "backend_logic_first",
   "title": "Autonomous Coding Production Readiness Roadmap",
   "goal": "Move the autonomous coding foundation from proven backend pieces to a reliable workstation-first project-runner workflow that can be monitored and controlled remotely through Telegram.",
@@ -37,8 +37,8 @@
     "memory_bridge": "src/coding_agent_memory_bridge.py"
   },
   "current_state_audit": {
-    "status": "acpr_0_through_10_accepted_acpr_11_dependency_reconciled_and_claimed",
-    "updated_at": "2026-08-02T18:04:06+02:00",
+    "status": "acpr_0_through_11_accepted_next_readiness_slice_dependency_ready_unclaimed",
+    "updated_at": "2026-08-02T18:41:46+02:00",
     "implemented_foundation": [
       "routes/coding_agent_routes.py exposes task-plan, quality-gate, worktree-quality-gate, sandbox-checks, done-gate, patch-set, publish-plan and subagents-plan endpoints.",
       "src/coding_agent_backend.py already provides task plans, worktree creation gates, patch-set application gates, quality/done gates, publish plans and subagent contracts.",
@@ -75,12 +75,12 @@
     "raw_content_visible": false
   },
   "current_frontier": {
-    "status": "ACPR-10, CAO-08A and CAO-08B are accepted; ACPR-11 is the dependency-ready repo-only frontier and has one exact active Terra writer claim.",
+    "status": "ACPR-11 is accepted after bounded fix cycles, 50-test integrated Root evidence and independent QA; ACPR-12 is dependency-ready but intentionally unclaimed for the Round-5 router handoff.",
     "claimable_slices": [
-      "ACPR-11-planning-authority-and-memory-checkpoints"
+      "ACPR-12-transactional-worktree-and-safe-tool-capsules"
     ],
     "blocked_by": [],
-    "next_after_acceptance": "After ACPR-11 independent QA and Root acceptance, ACPR-12 becomes dependency-ready because CAO-08D and CAO-08E are already accepted.",
+    "next_after_acceptance": "A future explicitly registered round may claim ACPR-12 because ACPR-11, CAO-08D and CAO-08E are accepted; this Round-5 handoff starts no new central roadmap claim.",
     "later_bundle_constraints": "ACPR-17 is deliberately later: it requires accepted CAO-08B1/C1 subagent contracts and ACPR readiness prerequisites, then supplies VCL-7 before CAO-08G can consume readiness lanes."
   },
   "cross_roadmap_ownership": {
@@ -673,16 +673,18 @@
       "id": "ACPR-11-planning-authority-and-memory-checkpoints",
       "class": "repo_only",
       "owner": "Bob/Terra implementation; root/Sol deep review",
-      "status": "claimed_2026-08-02_dependency_reconciled_repo_only_implementation",
+      "status": "accepted_2026-08-02_after_two_qa_fix_cycles_root_deep_review_and_independent_qa",
       "claim": {
         "claim_id": "ABC-ACPR-11-20260802T180406+0200",
         "owner": "/root/acpr11_planning_memory",
-        "state": "claimed",
+        "state": "released_accepted",
         "acquired_at": "2026-08-02T18:04:06+02:00",
         "lease_expires_at": "2026-08-02T20:04:06+02:00",
         "base_revision": "352e4966409ce4a53d071b2b4e3c1508de55a82d",
         "writer_count": 1,
         "live_actions": false,
+        "released_at": "2026-08-02T18:41:46+02:00",
+        "release_reason": "accepted_after_full_planning_scope_acceptance_gate_revision_and_receipt_integrity_binding",
         "forbidden": [
           "paths outside allowed_paths",
           "push, deploy, provider, network, host, send or other live action",
@@ -708,6 +710,26 @@
         "revision-bound receipt schema tests"
       ],
       "done_when": "Every editable coding slice conforms to the accepted CAO-08A/B canonical lifecycle/controller and graph-boundary contracts by binding a validated Planning item and revision before scope resolution; all four memory checkpoints emit bounded receipts and cannot widen scope, close gates or substitute for Planning.",
+      "acceptance_evidence": {
+        "implementation_owner": "/root/acpr11_planning_memory",
+        "independent_qa_owner": "/root/acpr11_independent_qa",
+        "changed_paths": [
+          "src/coding_project_scope.py",
+          "src/coding_agent_runner_state.py",
+          "src/coding_agent_memory_bridge.py",
+          "tests/test_coding_project_scope.py",
+          "tests/test_coding_agent_runner_state.py",
+          "tests/test_coding_agent_memory_bridge.py"
+        ],
+        "root_machine_evidence": "47 focused passed and 50 integrated remote-control/focused passed; one existing SQLAlchemy deprecation warning",
+        "independent_qa": "PASS after two reproduced bypasses and bounded fixes; prior effect/digest and Planning/scope/acceptance/gate mismatches rejected",
+        "root_review": "deep pass; Planning remains canonical, memory advisory only, all effect flags false and current CAO authority digest caller-bound",
+        "not_verified": [
+          "route/controller injection of canonical Planning binding and expected authority digest",
+          "real graph, memory writeback, worker/thread dispatch, network, provider, push, deploy or live action"
+        ],
+        "live_actions": false
+      },
       "gate_requirements": [
         "machine_auto Planning-binding validation",
         "agent_auto independent review",

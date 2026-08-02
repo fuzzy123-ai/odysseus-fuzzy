@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-08-02T18:25:35+02:00",
+  "updated_at": "2026-08-02T18:41:46+02:00",
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
@@ -26,9 +26,9 @@
   "analysis_summary": {
     "profile_counts": {
       "active_parallel": 10,
-      "active_serial": 18,
+      "active_serial": 19,
       "canonical_router": 9,
-      "gate_only": 55,
+      "gate_only": 54,
       "historical_done": 35,
       "needs_normalization": 6
     },
@@ -322,9 +322,9 @@
     },
     {
       "path": "docs/plans/autonomous-coding-production-readiness-roadmap.json",
-      "profile": "gate_only",
-      "state": "remote_control_live_smoke_done_deploy_gated",
-      "ai_hint": "Repository and remote-control work is closed. Advance only one reviewed deployment, allowlist, or production-control gate with pause/stop evidence."
+      "profile": "active_serial",
+      "state": "acpr00_through_11_accepted_acpr12_dependency_ready_unclaimed_round5_handoff",
+      "ai_hint": "ACPR-11 is accepted after Root deep review, two bounded QA fix cycles and independent PASS. Planning remains canonical; RAPTOR/GraphRAG is advisory at four checkpoints and the persistence boundary validates scope, acceptance, gates, receipt hash and current CAO authority digest. ACPR-12 is dependency-ready but deliberately unclaimed for the post-Round-5 normalization task; no real adapter, dispatch, graph/writeback, push, deploy or live authority exists."
     },
     {
       "path": "docs/plans/autonomy-calendar-coding-master-roadmap.json",
@@ -354,7 +354,7 @@
       "path": "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
       "profile": "active_parallel",
       "state": "cao08a_through_f_and_c1_accepted_local_fake_adapter_activation_off",
-      "ai_hint": "CAO-08A through CAO-08F plus CAO-08C1 are accepted after Root deep review and independent QA. C1 is a pure local/fake bounded delegation and receipt reducer; its earlier released_waiting_on_peer claim remains historical. Reconcile ACPR-11 through ACPR-17 before CAO-08G. Do not activate a real adapter, dispatch a real worker or thread, cross workspace boundaries, mutate productive state, push, deploy or perform any live action."
+      "ai_hint": "CAO-08A through CAO-08F plus CAO-08C1 and ACPR-11 are accepted after Root deep review and independent QA. C1 is a pure local/fake bounded delegation and receipt reducer; its earlier released_waiting_on_peer claim remains historical. Start no new central claim in the Round-5 handoff; a later normalization task may register ACPR-12 onward before CAO-08G. Do not activate a real adapter, dispatch a real worker or thread, cross workspace boundaries, mutate productive state, push, deploy or perform any live action."
     },
     {
       "path": "docs/plans/context-budget-dynamic-abc-roadmap.md",
