@@ -461,10 +461,11 @@ no implementation evidence was manufactured. CAO-08D was accepted on
 186-test combined QA lane. CAO-08E was accepted on 2026-08-02 at local commit
 `a3630fb1` after one bounded Root fix cycle, 10 focused tests, a 155-test Root
 CAO A-E dependency lane and Charlie's independent 200-test combined Wave-2 QA
-lane. CAO-08F now requires exact dependency/path evaluation and a durable
-claim; CAO-08C1 remains a separate deferred reclaim. The historical CAO1-CAO7
-evidence remains accepted and is not reinterpreted as evidence for the new
-production-loop behaviors.
+lane. CAO-08F passed three-way dependency/path review and is registered as the
+exact five-file coding lane for Wave 3; implementation still requires its
+registration commit and durable claim. CAO-08C1 remains a separate deferred
+fresh reclaim. The historical CAO1-CAO7 evidence remains accepted and is not
+reinterpreted as evidence for the new production-loop behaviors.
 
 ## Gate Queue
 
