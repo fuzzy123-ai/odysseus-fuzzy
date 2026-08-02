@@ -11,6 +11,7 @@ from src.local_model_scheduler import (
     local_model_admission_registry_snapshot,
     local_model_sync_slot,
     read_local_model_foreground_marker,
+    reset_local_model_gate_for_tests,
 )
 from src.maintenance_llm_runtime import (
     MAINTENANCE_LLM_REQUEST_SCHEMA,
@@ -110,6 +111,58 @@ class _ParallelStreamClient:
 
     def stream(self, *_args, **_kwargs):
         return _ParallelStreamContext(self)
+
+
+class _SerialProbeStreamResponse:
+    status_code = 200
+
+    def __init__(self, *, native: bool, hold: asyncio.Event | None = None) -> None:
+        self.native = native
+        self.hold = hold
+
+    async def aread(self):
+        return b""
+
+    async def aiter_lines(self):
+        if self.native:
+            yield '{"message":{"content":"ok"},"done":false}'
+        else:
+            yield 'data: {"choices":[{"delta":{"content":"ok"}}]}'
+        if self.hold is not None:
+            await self.hold.wait()
+        if self.native:
+            yield '{"message":{},"done":true}'
+        else:
+            yield "data: [DONE]"
+
+
+class _SerialProbeStreamContext:
+    def __init__(self, client, *, native: bool) -> None:
+        self.client = client
+        self.native = native
+
+    async def __aenter__(self):
+        self.client.active += 1
+        self.client.max_active = max(self.client.max_active, self.client.active)
+        await asyncio.sleep(0.03)
+        return _SerialProbeStreamResponse(native=self.native, hold=self.client.hold)
+
+    async def __aexit__(self, *_args):
+        self.client.active -= 1
+        return False
+
+
+class _SerialProbeStreamClient:
+    def __init__(self, *, hold: asyncio.Event | None = None) -> None:
+        self.active = 0
+        self.max_active = 0
+        self.hold = hold
+
+    def stream(self, _method, url, **_kwargs):
+        return _SerialProbeStreamContext(
+            self,
+            native="/api/" in str(url),
+        )
 
 
 async def _wait_until(predicate, *, timeout: float = 1.0) -> None:
@@ -408,6 +461,67 @@ async def test_parallel_generic_agent_cloud_streams_do_not_touch_gemma_lane(monk
     assert read_local_model_foreground_marker() is None
 
 
+@pytest.mark.asyncio
+async def test_native_and_v1_local_streams_share_one_lane_until_eof(monkeypatch) -> None:
+    reset_local_model_gate_for_tests()
+    client = _SerialProbeStreamClient()
+    monkeypatch.setattr(llm_core, "_get_http_client", lambda: client)
+    monkeypatch.setattr(llm_core, "_is_host_dead", lambda _url: False)
+    monkeypatch.setattr(llm_core, "note_model_activity", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(llm_core, "_clear_host_dead", lambda *_args, **_kwargs: None)
+
+    async def consume(url: str) -> list[str]:
+        return [
+            chunk
+            async for chunk in llm_core._stream_llm_impl(
+                url,
+                "foreground-model",
+                [{"role": "user", "content": "local request"}],
+                prompt_type="coding_task",
+            )
+        ]
+
+    native, compatible = await asyncio.gather(
+        consume("http://127.0.0.1:11434/api"),
+        consume("http://127.0.0.1:11434/v1/chat/completions"),
+    )
+    snapshot = local_model_admission_registry_snapshot()
+
+    assert native and compatible
+    assert client.max_active == 1
+    assert snapshot["active_lease_count"] == 0
+    assert snapshot["waiting_lease_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_local_stream_aclose_releases_lane_before_upstream_eof(monkeypatch) -> None:
+    reset_local_model_gate_for_tests()
+    hold = asyncio.Event()
+    client = _SerialProbeStreamClient(hold=hold)
+    monkeypatch.setattr(llm_core, "_get_http_client", lambda: client)
+    monkeypatch.setattr(llm_core, "_is_host_dead", lambda _url: False)
+    monkeypatch.setattr(llm_core, "note_model_activity", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(llm_core, "_clear_host_dead", lambda *_args, **_kwargs: None)
+
+    stream = llm_core._stream_llm_impl(
+        "http://127.0.0.1:11434/api",
+        "foreground-model",
+        [{"role": "user", "content": "local request"}],
+        prompt_type="coding_task",
+    )
+    first = await stream.__anext__()
+    assert first
+    assert client.active == 1
+    assert local_model_admission_registry_snapshot()["active_lease_count"] == 1
+
+    await stream.aclose()
+
+    assert client.active == 0
+    snapshot = local_model_admission_registry_snapshot()
+    assert snapshot["active_lease_count"] == 0
+    assert snapshot["waiting_lease_count"] == 0
+
+
 def test_runtime_refuses_when_scheduler_lane_is_disabled(monkeypatch) -> None:
     monkeypatch.setenv("ODYSSEUS_LOCAL_MODEL_QUEUE", "0")
     registry = LocalModelAdmissionRegistry()
@@ -425,7 +539,7 @@ def test_runtime_refuses_when_scheduler_lane_is_disabled(monkeypatch) -> None:
     assert registry.snapshot()["entry_count"] == 0
 
 
-def test_untyped_generic_local_and_cloud_calls_never_allocate_lane() -> None:
+def test_untyped_generic_local_uses_foreground_lane_while_cloud_bypasses() -> None:
     registry = LocalModelAdmissionRegistry()
 
     with local_model_sync_slot(
@@ -434,7 +548,8 @@ def test_untyped_generic_local_and_cloud_calls_never_allocate_lane() -> None:
         provider="ollama",
         registry=registry,
     ) as local_lease:
-        assert local_lease is None
+        assert local_lease is not None
+        assert local_lease.kind == "foreground"
     with local_model_sync_slot(
         "https://api.example.test/v1/chat/completions",
         "cloud-model",
@@ -444,7 +559,9 @@ def test_untyped_generic_local_and_cloud_calls_never_allocate_lane() -> None:
     ) as cloud_lease:
         assert cloud_lease is None
 
-    assert registry.snapshot()["entry_count"] == 0
+    snapshot = registry.snapshot()
+    assert snapshot["entry_count"] == 1
+    assert snapshot["active_lease_count"] == 0
 
 
 def test_request_result_and_error_diagnostics_are_content_free() -> None:

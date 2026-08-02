@@ -5,6 +5,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 import asyncio
+from contextvars import ContextVar
 import json
 import os
 from pathlib import Path
@@ -39,6 +40,41 @@ _FOREGROUND_HINTS = (
 _MARKER_SCHEMA = "odysseus.local_model_foreground_marker.v1"
 _DEFAULT_MARKER_PATH = "/tmp/odysseus-local-model-foreground.json"
 _DEFAULT_MARKER_TTL_SECONDS = 600.0
+# A nested model invocation in one logical request would wait for the slot it
+# already owns.  Do not make that an unbounded self-deadlock: nested admission
+# is deliberately rejected before it allocates a reservation or touches a
+# marker.  A child asyncio task inherits context variables, so the value binds
+# the owning task rather than acting as a plain boolean.  A copied context in
+# ``asyncio.to_thread`` remains nested and is rejected because no asyncio task
+# is running in that worker thread.
+_ACTIVE_LOCAL_MODEL_SLOT: ContextVar[tuple[str, object] | None] = ContextVar(
+    "odysseus_active_local_model_slot", default=None
+)
+
+
+def _local_model_execution_owner() -> tuple[str, object]:
+    try:
+        task = asyncio.current_task()
+    except RuntimeError:
+        task = None
+    if task is not None:
+        return ("async_task", task)
+    return ("thread", threading.get_ident())
+
+
+def _local_model_slot_is_reentrant() -> bool:
+    active_owner = _ACTIVE_LOCAL_MODEL_SLOT.get()
+    if active_owner is None:
+        return False
+    try:
+        task = asyncio.current_task()
+    except RuntimeError:
+        task = None
+    if task is None:
+        # Pure sync nesting and asyncio.to_thread both inherit an active
+        # logical slot but have no independently schedulable asyncio task.
+        return True
+    return active_owner == ("async_task", task)
 
 
 @dataclass(frozen=True)
@@ -66,6 +102,10 @@ class MaintenanceYieldResult:
 
 class _LocalModelAcquireCancelled(RuntimeError):
     pass
+
+
+class LocalModelAdmissionError(RuntimeError):
+    """Content-free rejection at the shared local heavy-resource boundary."""
 
 
 class LocalModelRequestGate:
@@ -160,7 +200,6 @@ class LocalModelRequestGate:
 
 @dataclass
 class _RegistryEntry:
-    gate: LocalModelRequestGate
     last_used: float
     reservations: int = 0
 
@@ -173,7 +212,7 @@ class _RegistryLease:
 
 
 class LocalModelAdmissionRegistry:
-    """Bounded per-endpoint/model admission gates for maintenance calls."""
+    """Bounded bookkeeping around one shared local heavy-resource gate."""
 
     def __init__(
         self,
@@ -191,6 +230,7 @@ class LocalModelAdmissionRegistry:
         self._clock = clock
         self._condition = threading.Condition()
         self._entries: dict[tuple[str, str], _RegistryEntry] = {}
+        self._resource_gate = LocalModelRequestGate(max_concurrency=1)
         self._evictions_total = 0
         self._capacity_waiters = 0
 
@@ -199,8 +239,10 @@ class LocalModelAdmissionRegistry:
         *,
         url: str,
         model: str,
+        kind: str = "maintenance",
         cancel_event: threading.Event | None = None,
     ) -> _RegistryLease:
+        normalized_kind = "maintenance" if kind == "maintenance" else "foreground"
         key = canonical_local_model_key(url, model)
         capacity_waiting = False
         try:
@@ -219,7 +261,7 @@ class LocalModelAdmissionRegistry:
                                 self._sync_maintenance_marker_locked()
                             self._condition.wait(timeout=0.05 if cancel_event is not None else None)
                             continue
-                        entry = _RegistryEntry(gate=LocalModelRequestGate(max_concurrency=1), last_used=now)
+                        entry = _RegistryEntry(last_used=now)
                         self._entries[key] = entry
                     if capacity_waiting:
                         self._capacity_waiters = max(0, self._capacity_waiters - 1)
@@ -236,8 +278,8 @@ class LocalModelAdmissionRegistry:
                     self._condition.notify_all()
             raise
         try:
-            lease = entry.gate.acquire(
-                kind="maintenance",
+            lease = self._resource_gate.acquire(
+                kind=normalized_kind,
                 url=url,
                 model=model,
                 cancel_event=cancel_event,
@@ -250,7 +292,7 @@ class LocalModelAdmissionRegistry:
         return _RegistryLease(key=key, entry=entry, lease=lease)
 
     def release(self, handle: _RegistryLease) -> None:
-        handle.entry.gate.release(handle.lease)
+        self._resource_gate.release(handle.lease)
         self._release_reservation(handle.key, handle.entry)
 
     def evict_idle(self) -> int:
@@ -263,14 +305,15 @@ class LocalModelAdmissionRegistry:
     def snapshot(self) -> dict[str, int | str]:
         with self._condition:
             self._evict_expired_locked(self._clock())
-            active_leases = 0
-            waiting_leases = self._capacity_waiters
+            gate = self._resource_gate.snapshot()
+            active_leases = int(gate.get("active", 0))
+            waiting_leases = self._capacity_waiters + max(
+                0,
+                sum(entry.reservations for entry in self._entries.values())
+                - active_leases,
+            )
             active_keys = 0
             for entry in self._entries.values():
-                gate = entry.gate.snapshot()
-                active = int(gate.get("active", 0))
-                active_leases += active
-                waiting_leases += max(0, entry.reservations - active)
                 if entry.reservations:
                     active_keys += 1
             return {
@@ -282,6 +325,7 @@ class LocalModelAdmissionRegistry:
                 "waiting_lease_count": waiting_leases,
                 "max_entries": self.max_entries,
                 "max_concurrency_per_key": 1,
+                "max_concurrency": 1,
                 "evictions_total": self._evictions_total,
             }
 
@@ -320,18 +364,21 @@ class LocalModelAdmissionRegistry:
         return True
 
     def _sync_maintenance_marker_locked(self) -> None:
-        active = 0
-        waiting = self._capacity_waiters
-        for entry in self._entries.values():
-            gate = entry.gate.snapshot()
-            entry_active = int(gate.get("active", 0))
-            active += entry_active
-            waiting += max(0, entry.reservations - entry_active)
+        gate = self._resource_gate.snapshot()
+        active = int(gate.get("active", 0))
+        waiting = self._capacity_waiters + max(
+            0,
+            sum(entry.reservations for entry in self._entries.values()) - active,
+        )
         if active or waiting:
+            foreground = (
+                int(gate.get("active_foreground", 0)) > 0
+                or int(gate.get("waiting_foreground", 0)) > 0
+            )
             _refresh_foreground_marker(
-                model=DEFAULT_MAINTENANCE_MODEL,
+                model="local-model" if foreground else DEFAULT_MAINTENANCE_MODEL,
                 reason="active" if active else "waiting",
-                activity_scope="maintenance",
+                activity_scope="foreground" if foreground else "maintenance",
                 active_count=active,
                 waiting_count=waiting,
             )
@@ -509,10 +556,17 @@ def maintenance_cpu_checkpoint(
         sleep_count += 1
 
 
-def should_gate_local_model(url: str, *, provider: str = "") -> bool:
-    if os.getenv("ODYSSEUS_LOCAL_MODEL_QUEUE", "1").strip().lower() in {"0", "false", "off", "no"}:
-        return False
-    if provider not in {"ollama", DEFAULT_MAINTENANCE_PROVIDER}:
+def _local_model_queue_enabled() -> bool:
+    return os.getenv("ODYSSEUS_LOCAL_MODEL_QUEUE", "1").strip().lower() not in {
+        "0",
+        "false",
+        "off",
+        "no",
+    }
+
+
+def is_local_model_resource(url: str, *, provider: str = "") -> bool:
+    if provider not in {"ollama", DEFAULT_MAINTENANCE_PROVIDER, "openai"}:
         return False
     try:
         parsed = urlparse(str(url or ""))
@@ -521,10 +575,59 @@ def should_gate_local_model(url: str, *, provider: str = "") -> bool:
         return False
     host = (parsed.hostname or "").lower().rstrip(".")
     path = (parsed.path or "").rstrip("/")
-    return (
-        host in {"localhost", "127.0.0.1", "0.0.0.0", "::1", "ollama"}
-        or port == 11434
-    ) and (path == "" or path.startswith("/api") or path.startswith("/v1"))
+    local_host = host in {"localhost", "127.0.0.1", "0.0.0.0", "::1", "ollama"}
+    if provider == "openai":
+        # _detect_provider deliberately labels local OpenAI-compatible servers
+        # as ``openai``.  Only a bounded local /v1 endpoint may enter this
+        # broker; public OpenAI-compatible providers remain a true bypass.
+        return local_host and path.startswith("/v1")
+    return (local_host or port == 11434) and (
+        path == "" or path.startswith("/api") or path.startswith("/v1")
+    )
+
+
+def should_gate_local_model(url: str, *, provider: str = "") -> bool:
+    return _local_model_queue_enabled() and is_local_model_resource(
+        url, provider=provider
+    )
+
+
+def _local_model_admission_kind(
+    url: str,
+    model: str,
+    *,
+    provider: str,
+    role: MaintenanceModelRole | None,
+    fallback_requested: bool,
+    truth_write_requested: bool,
+) -> str | None:
+    if not is_local_model_resource(url, provider=provider):
+        return None
+    if not _local_model_queue_enabled():
+        if role is MaintenanceModelRole.MAINTENANCE:
+            # Existing typed runtimes treat ``None`` as an explicit disabled
+            # admission and fail before transport.
+            return "disabled"
+        raise LocalModelAdmissionError("local model admission unavailable")
+    if _local_model_slot_is_reentrant():
+        raise LocalModelAdmissionError("local model admission rejected")
+    typed_request = (
+        role is not None
+        or fallback_requested is not False
+        or truth_write_requested is not False
+    )
+    if typed_request:
+        if not is_maintenance_model_eligible(
+            url,
+            model,
+            provider=provider,
+            role=role,
+            fallback_requested=fallback_requested,
+            truth_write_requested=truth_write_requested,
+        ):
+            raise LocalModelAdmissionError("local model admission rejected")
+        return "maintenance"
+    return "foreground"
 
 
 def canonical_local_model_key(url: str, model: str) -> tuple[str, str]:
@@ -597,11 +700,16 @@ def _refresh_foreground_marker(
 ) -> None:
     marker_path = Path(path) if path is not None else local_model_foreground_marker_path()
     now = time.time()
+    safe_model = (
+        DEFAULT_MAINTENANCE_MODEL
+        if model == DEFAULT_MAINTENANCE_MODEL
+        else "local-model"
+    )
     payload = {
         "schema": _MARKER_SCHEMA,
         "pid": os.getpid(),
-        "model": str(model or "local-model")[:80],
-        "model_scope": "gemma3_4b" if model == DEFAULT_MAINTENANCE_MODEL else "other",
+        "model": safe_model,
+        "model_scope": "gemma3_4b" if safe_model == DEFAULT_MAINTENANCE_MODEL else "other",
         "activity_scope": "maintenance" if activity_scope == "maintenance" else "foreground",
         "state": "waiting" if reason == "waiting" else "active",
         "reason": str(reason or "foreground")[:40],
@@ -733,27 +841,32 @@ async def local_model_async_slot(
     gate: LocalModelRequestGate | None = None,
     registry: LocalModelAdmissionRegistry | None = None,
 ):
-    if not is_maintenance_model_eligible(
+    kind = _local_model_admission_kind(
         url,
         model,
         provider=provider,
         role=role,
         fallback_requested=fallback_requested,
         truth_write_requested=truth_write_requested,
-    ):
+    )
+    if kind is None:
         _record_gmi_metric("admission", status="bypassed")
+        yield None
+        return
+    if kind == "disabled":
+        _record_gmi_metric("admission", status="disabled")
         yield None
         return
     if gate is not None:
         if registry is not None:
             raise ValueError("gate and registry are mutually exclusive")
         if gate.max_concurrency != 1:
-            raise ValueError("maintenance gate concurrency must be 1")
+            raise ValueError("local model gate concurrency must be 1")
         wait_started = time.monotonic()
         try:
             lease = await _acquire_cancel_safe(
                 lambda cancel: gate.acquire(
-                    kind="maintenance",
+                    kind=kind,
                     url=url,
                     model=model,
                     cancel_event=cancel,
@@ -773,6 +886,7 @@ async def local_model_async_slot(
         _record_maintenance_queue_depth(gate=gate)
         runtime_started = time.monotonic()
         runtime_status = "completed"
+        slot_token = _ACTIVE_LOCAL_MODEL_SLOT.set(_local_model_execution_owner())
         try:
             yield lease
         except asyncio.CancelledError:
@@ -780,6 +894,7 @@ async def local_model_async_slot(
             _record_gmi_metric("cancellation", status="runtime")
             raise
         finally:
+            _ACTIVE_LOCAL_MODEL_SLOT.reset(slot_token)
             gate.release(lease)
             _record_gmi_metric("runtime", status=runtime_status, value=time.monotonic() - runtime_started)
             _record_maintenance_queue_depth(gate=gate)
@@ -791,6 +906,7 @@ async def local_model_async_slot(
             lambda cancel: selected_registry.acquire(
                 url=url,
                 model=model,
+                kind=kind,
                 cancel_event=cancel,
             ),
             selected_registry.release,
@@ -808,6 +924,7 @@ async def local_model_async_slot(
     _record_maintenance_queue_depth(registry=selected_registry)
     runtime_started = time.monotonic()
     runtime_status = "completed"
+    slot_token = _ACTIVE_LOCAL_MODEL_SLOT.set(_local_model_execution_owner())
     try:
         yield handle.lease
     except asyncio.CancelledError:
@@ -815,6 +932,7 @@ async def local_model_async_slot(
         _record_gmi_metric("cancellation", status="runtime")
         raise
     finally:
+        _ACTIVE_LOCAL_MODEL_SLOT.reset(slot_token)
         selected_registry.release(handle)
         _record_gmi_metric("runtime", status=runtime_status, value=time.monotonic() - runtime_started)
         _record_maintenance_queue_depth(registry=selected_registry)
@@ -834,25 +952,30 @@ def local_model_sync_slot(
     gate: LocalModelRequestGate | None = None,
     registry: LocalModelAdmissionRegistry | None = None,
 ) -> Iterator[LocalModelLease | None]:
-    if not is_maintenance_model_eligible(
+    kind = _local_model_admission_kind(
         url,
         model,
         provider=provider,
         role=role,
         fallback_requested=fallback_requested,
         truth_write_requested=truth_write_requested,
-    ):
+    )
+    if kind is None:
         _record_gmi_metric("admission", status="bypassed")
+        yield None
+        return
+    if kind == "disabled":
+        _record_gmi_metric("admission", status="disabled")
         yield None
         return
     if gate is not None:
         if registry is not None:
             raise ValueError("gate and registry are mutually exclusive")
         if gate.max_concurrency != 1:
-            raise ValueError("maintenance gate concurrency must be 1")
+            raise ValueError("local model gate concurrency must be 1")
         wait_started = time.monotonic()
         try:
-            lease = gate.acquire(kind="maintenance", url=url, model=model)
+            lease = gate.acquire(kind=kind, url=url, model=model)
         except Exception:
             _record_gmi_metric("admission", status="rejected")
             raise
@@ -860,9 +983,11 @@ def local_model_sync_slot(
         _record_gmi_metric("admission", status="admitted")
         _record_maintenance_queue_depth(gate=gate)
         runtime_started = time.monotonic()
+        slot_token = _ACTIVE_LOCAL_MODEL_SLOT.set(_local_model_execution_owner())
         try:
             yield lease
         finally:
+            _ACTIVE_LOCAL_MODEL_SLOT.reset(slot_token)
             gate.release(lease)
             _record_gmi_metric("runtime", status="completed", value=time.monotonic() - runtime_started)
             _record_maintenance_queue_depth(gate=gate)
@@ -870,7 +995,7 @@ def local_model_sync_slot(
     selected_registry = registry or _GLOBAL_REGISTRY
     wait_started = time.monotonic()
     try:
-        handle = selected_registry.acquire(url=url, model=model)
+        handle = selected_registry.acquire(url=url, model=model, kind=kind)
     except Exception:
         _record_gmi_metric("admission", status="rejected")
         raise
@@ -878,9 +1003,11 @@ def local_model_sync_slot(
     _record_gmi_metric("admission", status="admitted")
     _record_maintenance_queue_depth(registry=selected_registry)
     runtime_started = time.monotonic()
+    slot_token = _ACTIVE_LOCAL_MODEL_SLOT.set(_local_model_execution_owner())
     try:
         yield handle.lease
     finally:
+        _ACTIVE_LOCAL_MODEL_SLOT.reset(slot_token)
         selected_registry.release(handle)
         _record_gmi_metric("runtime", status="completed", value=time.monotonic() - runtime_started)
         _record_maintenance_queue_depth(registry=selected_registry)

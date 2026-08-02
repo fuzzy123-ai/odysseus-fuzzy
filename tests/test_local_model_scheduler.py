@@ -8,6 +8,7 @@ import pytest
 
 from src import llm_core
 from src.local_model_scheduler import (
+    LocalModelAdmissionError,
     LocalModelAdmissionRegistry,
     LocalModelRequestGate,
     _refresh_foreground_marker,
@@ -32,6 +33,10 @@ def test_local_model_gate_only_targets_local_ollama():
     assert should_gate_local_model("http://ollama:11434/api/chat", provider="ollama")
     assert should_gate_local_model("http://ollama:11434/api/chat", provider="local_ollama")
     assert should_gate_local_model("http://localhost:11434/api", provider="ollama")
+    assert should_gate_local_model(
+        "http://localhost:11434/v1/chat/completions",
+        provider="openai",
+    )
     assert not should_gate_local_model("http://localhost:11434/api")
     assert not should_gate_local_model("https://ollama.com/api", provider="ollama")
     assert not should_gate_local_model("https://api.openai.com/v1/chat/completions", provider="openai")
@@ -75,7 +80,7 @@ def test_typed_exact_maintenance_request_waits_for_the_gate():
     assert order == ["maintenance"]
 
 
-def test_generic_llm_call_does_not_enter_maintenance_queue_without_typed_role():
+def test_generic_local_llm_calls_share_the_foreground_heavy_model_lane():
     reset_local_model_gate_for_tests(max_concurrency=1)
     active = 0
     max_active = 0
@@ -114,34 +119,36 @@ def test_generic_llm_call_does_not_enter_maintenance_queue_without_typed_role():
     results = asyncio.run(run())
 
     assert results == ["OK", "OK"]
-    assert max_active == 2
+    assert max_active == 1
     assert len(starts) == 2
 
 
-def test_ineligible_async_and_sync_requests_bypass_a_busy_gate():
+def test_ineligible_typed_async_and_sync_requests_fail_closed():
     gate = LocalModelRequestGate(max_concurrency=1)
     blocker = gate.acquire(kind="maintenance", url="http://ollama:11434/api/chat", model="gemma3:4b")
 
     async def run() -> None:
-        async with local_model_async_slot(
-            "http://ollama:11434/api/chat",
-            "gemma3:4b",
-            provider="ollama",
-            role="chat",  # type: ignore[arg-type]
-            gate=gate,
-        ) as lease:
-            assert lease is None
+        with pytest.raises(LocalModelAdmissionError, match="admission rejected"):
+            async with local_model_async_slot(
+                "http://ollama:11434/api/chat",
+                "gemma3:4b",
+                provider="ollama",
+                role="chat",  # type: ignore[arg-type]
+                gate=gate,
+            ):
+                pytest.fail("invalid typed request acquired the gate")
 
     try:
         asyncio.run(run())
-        with local_model_sync_slot(
-            "http://ollama:11434/api/chat",
-            "gemma3:latest",
-            provider="ollama",
-            role=MaintenanceModelRole.MAINTENANCE,
-            gate=gate,
-        ) as lease:
-            assert lease is None
+        with pytest.raises(LocalModelAdmissionError, match="admission rejected"):
+            with local_model_sync_slot(
+                "http://ollama:11434/api/chat",
+                "gemma3:latest",
+                provider="ollama",
+                role=MaintenanceModelRole.MAINTENANCE,
+                gate=gate,
+            ):
+                pytest.fail("invalid typed request acquired the gate")
     finally:
         gate.release(blocker)
 
@@ -170,7 +177,7 @@ def test_canonical_key_collapses_request_paths_but_keeps_endpoint_identity():
     assert versioned == ("http://ollama:11434/v1", "gemma3:4b")
 
 
-def test_registry_serializes_same_key_and_runs_different_keys_in_parallel():
+def test_registry_serializes_same_and_different_keys_through_one_resource():
     async def measure(urls: tuple[str, str]) -> int:
         registry = LocalModelAdmissionRegistry(max_entries=4)
         active = 0
@@ -201,7 +208,7 @@ def test_registry_serializes_same_key_and_runs_different_keys_in_parallel():
     )
 
     assert same_key == 1
-    assert different_keys == 2
+    assert different_keys == 1
 
 
 def test_registry_capacity_and_idle_ttl_evict_without_exposing_keys():
@@ -315,18 +322,19 @@ def test_registry_waits_for_capacity_when_every_existing_key_is_active():
     assert snapshot["evictions_total"] == 1
 
 
-def test_ineligible_request_does_not_allocate_a_registry_entry():
+def test_ineligible_request_fails_closed_without_allocating_a_registry_entry():
     registry = LocalModelAdmissionRegistry(max_entries=2)
 
     async def run() -> None:
-        async with local_model_async_slot(
-            "http://ollama:11434/api",
-            "gemma3:latest",
-            provider="ollama",
-            role=MaintenanceModelRole.MAINTENANCE,
-            registry=registry,
-        ) as lease:
-            assert lease is None
+        with pytest.raises(LocalModelAdmissionError, match="admission rejected"):
+            async with local_model_async_slot(
+                "http://ollama:11434/api",
+                "gemma3:latest",
+                provider="ollama",
+                role=MaintenanceModelRole.MAINTENANCE,
+                registry=registry,
+            ):
+                pytest.fail("invalid typed request acquired the registry")
 
     asyncio.run(run())
     assert registry.snapshot()["entry_count"] == 0
@@ -340,6 +348,7 @@ def test_global_registry_snapshot_is_content_free_and_bounded():
     assert snapshot["schema"] == "odysseus.local_model_admission_registry.v1"
     assert snapshot["max_entries"] == 3
     assert snapshot["max_concurrency_per_key"] == 1
+    assert snapshot["max_concurrency"] == 1
     assert "url" not in encoded
     assert "endpoint_ref" not in encoded
     assert "model_ref" not in encoded
@@ -477,6 +486,58 @@ def test_exception_inside_slot_releases_lease_and_marker(monkeypatch, tmp_path):
     asyncio.run(run())
     assert registry.snapshot()["active_lease_count"] == 0
     assert read_local_model_foreground_marker(path=marker_path) is None
+
+
+def test_reentrant_sync_and_async_slots_fail_closed_without_leaking_a_lease():
+    registry = LocalModelAdmissionRegistry(max_entries=2)
+
+    with local_model_sync_slot(
+        "http://ollama:11434/api",
+        "foreground-model",
+        provider="ollama",
+        registry=registry,
+    ):
+        with pytest.raises(LocalModelAdmissionError, match="admission rejected"):
+            with local_model_sync_slot(
+                "http://ollama:11434/api/chat",
+                "foreground-model",
+                provider="ollama",
+                registry=registry,
+            ):
+                pytest.fail("reentrant sync slot acquired")
+
+    async def run() -> None:
+        async with local_model_async_slot(
+            "http://ollama:11434/v1/chat/completions",
+            "foreground-model",
+            provider="openai",
+            registry=registry,
+        ):
+            with pytest.raises(LocalModelAdmissionError, match="admission rejected"):
+                async with local_model_async_slot(
+                    "http://ollama:11434/v1/chat/completions",
+                    "foreground-model",
+                    provider="openai",
+                    registry=registry,
+                ):
+                    pytest.fail("reentrant async slot acquired")
+            with pytest.raises(LocalModelAdmissionError, match="admission rejected"):
+                await asyncio.to_thread(_nested_sync_local_call, registry)
+
+    asyncio.run(run())
+    snapshot = registry.snapshot()
+    assert snapshot["active_lease_count"] == 0
+    assert snapshot["waiting_lease_count"] == 0
+
+
+def _nested_sync_local_call(registry: LocalModelAdmissionRegistry) -> None:
+    with local_model_sync_slot(
+        "http://ollama:11434/api",
+        "foreground-model",
+        provider="ollama",
+        registry=registry,
+    ):
+        pytest.fail("to_thread reentrant slot acquired")
 
 
 def test_atomic_marker_writes_remain_valid_under_threads(tmp_path):
