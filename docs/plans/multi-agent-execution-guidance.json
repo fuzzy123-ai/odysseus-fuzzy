@@ -353,8 +353,8 @@
     {
       "path": "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
       "profile": "active_parallel",
-      "state": "cao08a_through_c_accepted_c1_later_reclaim_d_claimable",
-      "ai_hint": "CAO-08D is dependency-ready and claimable on its five declared new execution-plane and test paths after the verified one-worktree cleanup and explicit surface_default/root authorization. CAO-08C1 remains a later exact-scope reclaim. Never overlap lifecycle, controller, app, model, scheduler, OPS-Alert, security, homeserver or UI hotfiles; keep real sandbox execution, push, deploy and every live action disabled."
+      "state": "cao08a_through_d_accepted_c1_later_reclaim_e_next_registration",
+      "ai_hint": "CAO-08D is accepted at local commit 744debea after Root deep review and Charlie independent QA. Register an exact CAO-08E transactional-edit claim before implementation; CAO-08C1 remains a later exact-scope reclaim. Never overlap lifecycle, controller, app, model, scheduler, OPS-Alert, security, homeserver or UI hotfiles; keep real sandbox execution, push, deploy and every live action disabled."
     },
     {
       "path": "docs/plans/context-budget-dynamic-abc-roadmap.md",
@@ -521,8 +521,8 @@
     {
       "path": "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
       "profile": "active_parallel",
-      "state": "mem1_mem6_historical_nmg00_claimable",
-      "ai_hint": "Do not reopen MEM1-MEM6. NMG-00 is dependency-ready and claimable on its three declared new inventory/audit/test paths after the verified cleanup and master-route authorization. Inventory remaining legacy couplings without deletion or runtime mutation and keep NMG-01 through NMG-08 plus USI-C successors dependency-blocked. Do not touch llm_core, llm_async_call, local_model_scheduler, productive sources, private data, Obsidian, providers or live activation."
+      "state": "mem1_mem6_historical_nmg00_accepted_nmg01_next_registration",
+      "ai_hint": "Do not reopen MEM1-MEM6. NMG-00 is accepted at local commit 1487c732 after a bounded review fix, Root deep review and Charlie independent QA. Register an exact NMG-01 contract claim before implementation and keep NMG-02 through NMG-08 plus USI-C successors dependency-blocked. Do not touch llm_core, llm_async_call, local_model_scheduler, productive sources, private data, Obsidian, providers or live activation."
     },
     {
       "path": "docs/plans/memory-scale-foundation-roadmap.md",
@@ -587,8 +587,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "parallel_development_p0_cao08d_nmg00_claimable",
-      "ai_hint": "This remains the current gate and claim authority. The verified one-worktree cleanup and explicit surface_default/root authorization expose exactly the disjoint CAO-08D and NMG-00 repository lanes; keep CAO-08C1 for a later reclaim and reserve a third worker for independent read-only QA. Root is the sole router writer and reviewer. SIRP deploy/delivery, productive memory sources, external dispatch and every live action remain disabled behind their exact gates."
+      "state": "parallel_development_p0_wave_accepted_next_frontier_registration",
+      "ai_hint": "This remains the current gate and claim authority. CAO-08D and NMG-00 are accepted in disjoint local commits after independent QA. Root must register exact non-overlapping CAO-08E and NMG-01 claims before another wave; evaluate CAO-08C1 only as its separate deferred reclaim and reserve a third worker for read-only QA. SIRP deploy/delivery, productive memory sources, external dispatch and every live action remain disabled behind their exact gates."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",

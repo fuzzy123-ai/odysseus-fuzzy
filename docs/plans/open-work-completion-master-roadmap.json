@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-02T12:55:26+02:00",
-  "status": "parallel_development_p0_cao08d_nmg00_claimable / cleanup_and_master_route_satisfied / ops_alert_live_gates_preserved",
+  "updated_at": "2026-08-02T13:24:01+02:00",
+  "status": "parallel_development_p0_cao08d_nmg00_accepted / next_repo_frontier_requires_exact_registration / ops_alert_live_gates_preserved",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -15,8 +15,8 @@
       "Keep broad UI and design work outside the non-UI execution ledger; TAX7/TUA9 may make only the explicitly scoped existing Admin metadata/aggregate projections after their backend contracts are complete."
     ]
   },
-  "goal_command": "/goal Bereinige die neun Repository-, Roadmap-, Claim-, Gate- und Multitasking-Inkonsistenzen verlustfrei; stelle genau einen kanonischen Worktree her und oeffne CAO-08D plus NMG-00 erst nach Cleanup- und Master-Route-Gates.",
-  "goal": "Die neun identifizierten Inkonsistenzen verlustfrei bereinigen, einen eindeutigen Ein-Worktree-Ausgangszustand herstellen und danach sichere parallele CAO-08D/NMG-00-Ausfuehrung mit unabhaengiger QA ermoeglichen.",
+  "goal_command": "/goal Bearbeite nach UIX-ABC24 die Open-Work-Roadmaps bis zum repo-lokal verifizierten Abschluss; nur echte Live-Aktionen bleiben Nutzer-Gates.",
+  "goal": "Die registrierten dependency-sicheren Repo-Slices mit disjunkten Claims, unabhaengiger QA und Root-Review bis zum naechsten echten Live-Gate abarbeiten.",
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
@@ -24,11 +24,11 @@
     "unique_live_gates": 61,
     "unique_design_gates": 29,
     "other_open_json_items": 155,
-    "queue_status": "parallel_wave_cao08d_nmg00_dependency_ready_claimable",
+    "queue_status": "parallel_wave_cao08d_nmg00_accepted_next_frontier_registration_required",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "live_contextual_layer": "lcl00_roadmap_deep_reviewed_registered_lcl01_waiting_cao08b",
-      "autonomous_coding_loop": "cao08a_through_c_accepted_c1_deferred_current_wave_cao08d_selected_waiting_cleanup_and_master_route",
+      "autonomous_coding_loop": "cao08a_through_d_accepted_c1_later_reclaim_cao08e_next_after_exact_registration",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated_pmcp9_stale_detail_normalized",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
@@ -36,7 +36,7 @@
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
-      "memory_observability": "gro00_through_gro15_historical_nmg00_selected_waiting_cleanup_and_master_route_productive_sources_off",
+      "memory_observability": "gro00_through_gro15_historical_nmg00_accepted_nmg01_next_after_exact_registration_productive_sources_off",
       "unified_source_index": "usi00_through_usi14_accepted_usi15_blocked_by_child_closure_productive_sources_off",
       "usi_runtime_consumer_integration": "uir00_through_uir02_accepted_uir03_dependency_ready_runtime_default_off",
       "usi_domain_adapters": "planned_child_source_waves_default_off_private_domains_deferred",
@@ -113,7 +113,7 @@
       "queue_exhausted": false,
       "raw_safe_queue_exhausted": true,
       "guidance_normalization": {
-        "selected_parallel_lanes": [
+        "completed_parallel_lanes": [
           "CAO-08D-scoped-execution-plane-consolidation",
           "NMG-00-legacy-boundary-audit"
         ],
@@ -127,7 +127,7 @@
           "mode": "read_only",
           "writer_claim": false,
           "allowed_write_paths": [],
-          "state": "active",
+          "state": "completed_pass",
           "evidence_required": [
             "path collision readback",
             "focused test readback",
@@ -138,7 +138,7 @@
           "live_actions": false
         },
         "router_writer": "root only",
-        "focused_tests": "21 passed, 1 existing SQLAlchemy deprecation warning",
+        "focused_tests": "25 passed; combined independent regression 186 passed; Root CAO regression 178 passed; one existing SQLAlchemy deprecation warning",
         "master_route": "surface_default/root; exact runtime model identifier not exposed",
         "worktree_policy": "Exactly one clean canonical Git worktree; parallel lanes use disjoint exact-path claims and shared router/hotfiles stay root-only.",
         "implementation_gate": "Satisfied for the exact CAO-08D and NMG-00 repo-only wave by verified one-worktree cleanup plus the 2026-08-02 explicit surface_default/root authorization; no live authority is implied."
@@ -499,10 +499,7 @@
         "remaining_work": "OPS Alert integration and publication remain owned by their existing handoffs and are not absorbed by this roadmap-authoring slice."
       }
     ],
-    "active_claimed_slices": [
-      "CAO-08D-scoped-execution-plane-consolidation",
-      "NMG-00-legacy-boundary-audit"
-    ],
+    "active_claimed_slices": [],
     "latest_parallel_development_p0_handoff": {
       "roadmap_path": "docs/plans/open-work-completion-master-roadmap.json",
       "run_id": "goal-parallel-roadmaps-20260802-p0",
@@ -544,6 +541,45 @@
         "No commit, push, merge, deploy, provider call, host change or live action was performed.",
         "Full repository regression and Memory runtime regression were not run."
       ]
+    },
+    "latest_parallel_wave_acceptance": {
+      "run_id": "goal-open-work-roadmaps-20260802-wave1",
+      "thread_id": "/root",
+      "owner": "root surface_default explicitly user-authorized for repo-only review and release",
+      "state": "accepted_released",
+      "accepted_at": "2026-08-02T13:24:01+02:00",
+      "slices": [
+        "CAO-08D-scoped-execution-plane-consolidation",
+        "NMG-00-legacy-boundary-audit"
+      ],
+      "implementation_commits": {
+        "CAO-08D": "744debea",
+        "NMG-00": "1487c732"
+      },
+      "changed_path_count": 8,
+      "cross_lane_overlap_count": 0,
+      "root_review": {
+        "CAO_regression": "178 passed with one existing SQLAlchemy deprecation warning",
+        "NMG_focused": "8 passed with one existing SQLAlchemy deprecation warning",
+        "static_and_diff": "pass; forbidden imports/calls absent, canonical inventory and diff checks passed",
+        "immutable_inputs": "all ten recorded CAO prerequisite blob object IDs matched"
+      },
+      "independent_qa": {
+        "owner": "Charlie/Terra-requested read-only QA",
+        "focused": "25 passed",
+        "combined": "186 passed with one existing SQLAlchemy deprecation warning",
+        "findings": 0,
+        "scope": "exactly eight claimed paths; zero staged, foreign-claim or cross-lane overlap"
+      },
+      "not_verified": [
+        "full repository suite or external CI",
+        "real sandbox execution",
+        "productive memory runtime behavior",
+        "push, deploy, provider, host, send or other live action",
+        "exact runtime model identity"
+      ],
+      "next_frontier": "Register exact disjoint claims for CAO-08E and NMG-01 before implementation; evaluate the separately deferred CAO-08C1 reclaim without widening either slice.",
+      "live_actions": false
     },
     "latest_parallel_wave_preflight_handoff": {
       "roadmap_path": "docs/plans/open-work-completion-master-roadmap.json",
@@ -17104,7 +17140,7 @@
       "id": "CAO-08D-scoped-execution-plane-consolidation",
       "class": "repo_only",
       "owner": "bob_cao08d_impl/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
-      "status": "claimed_running",
+      "status": "accepted_2026-08-02_root_deep_review_charlie_qa_commit_744debea",
       "claimable": false,
       "depends_on": [
         "CAO-08C accepted_2026-08-02_after_root_deep_review",
@@ -17147,10 +17183,12 @@
         "thread_id": "/root/bob_cao08d_impl",
         "slice_id": "CAO-08D-scoped-execution-plane-consolidation",
         "owner": "Bob/Terra-requested",
-        "state": "claimed",
+        "state": "accepted_released",
         "recorded_at": "2026-08-02T13:02:08+02:00",
         "acquired_at": "2026-08-02T13:02:08+02:00",
         "lease_expires_at": "2026-08-02T17:02:08+02:00",
+        "released_at": "2026-08-02T13:24:01+02:00",
+        "implementation_commit": "744debea",
         "allowed_paths_digest_sha256": "5e7ab952370a079fdb3bdb52ce6c8cfba683c732250e09cc14383f123ec9921d",
         "base_revision": "408c21a7f26c0a96cfdb9b718faf6a16ab605979",
         "cleanup_evidence_ref": "/current_position/verification/repo_cleanup_one_worktree_gate/completion_evidence",
@@ -17192,7 +17230,7 @@
         "actual": {
           "master": "surface_default/root; exact runtime model identifier not exposed",
           "worker": "unknown/surface_default; spawn requested gpt-5.6-terra/high and task route /root/bob_cao08d_impl",
-          "review": "not started"
+          "review": "surface_default/root deep review passed; Charlie independent read-only QA passed"
         },
         "fallback": "surface_default_worker_explicitly_user_authorized_for_non_live_repo_only_run"
       },
@@ -17230,12 +17268,18 @@
           "scoped_diff_check": "pass",
           "protected_path_boundary": "pass; OPS-Alert, security, homeserver, UI, routes and multi-agent guidance paths are explicitly excluded"
         },
+        "verified": [
+          "five-path claim scope and zero cross-lane overlap",
+          "17 claimed tests, 178 Root dependency tests and 186 independent combined QA tests passed",
+          "all ten immutable prerequisite blob IDs matched",
+          "controller, Planning, claim, scope, input, capsule, check and capability bindings",
+          "argv allowlist, read-only claim mounts, bounded resources, network none, empty network allowlist and no secrets",
+          "static forbidden-import/call scan and scoped diff check"
+        ],
         "not_verified": [
-          "implementation",
-          "focused or integration tests",
-          "Terra handoff or Sol deep review",
+          "full repository suite or external CI",
           "real sandbox execution",
-          "commit, push, deploy or live action"
+          "push, deploy or live action"
         ]
       },
       "post_acceptance_checkpoint": {
@@ -17250,7 +17294,7 @@
         ],
         "resume_condition": "Normal dependency and gate evaluation after the mandatory CAO-08D completion report."
       },
-      "next_action": "After REPO-CLEANUP-ONE-WORKTREE and CAO-MASTER-ROUTE-VERIFICATION are both satisfied, atomically set claimable true, assign the exact five paths to one Terra/high worker with a bounded lease, and require root/Sol deep review before acceptance. Do not modify or activate the legacy backend, bridge, worker, routes or generic tool execution. After acceptance, report the exact evidence to the user before any successor is considered.",
+      "next_action": "CAO-08D is accepted and reported. Register an exact CAO-08E transactional-edit claim before implementation; keep real sandbox execution, external dispatch, push, deploy and all live actions gated. Evaluate CAO-08C1 only as its separately deferred reclaim.",
       "live_actions": false
     },
     {
@@ -17415,7 +17459,7 @@
       "id": "NMG-00-legacy-boundary-audit",
       "class": "safe_offline",
       "owner": "alice_nmg00_impl/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
-      "status": "claimed_running",
+      "status": "accepted_2026-08-02_root_deep_review_charlie_qa_commit_1487c732",
       "claimable": false,
       "claim_blocker": null,
       "depends_on": [
@@ -17449,10 +17493,12 @@
         "thread_id": "/root/alice_nmg00_impl",
         "slice_id": "NMG-00-legacy-boundary-audit",
         "owner": "Alice/Terra-requested",
-        "state": "claimed",
+        "state": "accepted_released",
         "recorded_at": "2026-08-02T13:02:08+02:00",
         "acquired_at": "2026-08-02T13:02:08+02:00",
         "lease_expires_at": "2026-08-02T17:02:08+02:00",
+        "released_at": "2026-08-02T13:24:01+02:00",
+        "implementation_commit": "1487c732",
         "allowed_paths_digest_sha256": "09862f284192b24b35fdcebe076750bda0d601278d78b1e15e4b1a2b622728cd",
         "base_revision": "408c21a7f26c0a96cfdb9b718faf6a16ab605979",
         "cleanup_evidence_ref": "/current_position/verification/repo_cleanup_one_worktree_gate/completion_evidence",
@@ -17494,7 +17540,7 @@
         "actual": {
           "master": "surface_default/root; exact runtime model identifier not exposed",
           "worker": "unknown/surface_default; spawn requested gpt-5.6-terra/medium and task route /root/alice_nmg00_impl",
-          "review": "not started"
+          "review": "surface_default/root deep review passed after one bounded fix cycle; Charlie independent read-only QA passed"
         },
         "fallback": "surface_default_worker_explicitly_user_authorized_for_non_live_repo_only_run"
       },
@@ -17526,15 +17572,20 @@
           "commit, push, deploy or external action",
           "OPS-Alert/security/homeserver/UI edits"
         ],
+        "verified": [
+          "three-path claim scope and zero cross-lane overlap",
+          "ten unique canonical full boundary tuples with exact kind, family, disposition and retirement gate",
+          "8 focused tests and 186 independent combined QA tests passed",
+          "canonical check, static import review and scoped diff check",
+          "identifiers-only policy, live_effect false and no runtime/provider/productive-source access"
+        ],
         "not_verified": [
-          "implementation or generated inventory",
-          "focused test",
-          "Terra handoff or Sol deep review",
           "productive memory runtime behavior",
-          "commit, push, deploy or live action"
+          "full repository suite or external CI",
+          "push, deploy or live action"
         ]
       },
-      "next_frontier_on_acceptance": "NMG-01-native-knowledge-contract; all later NMG and USI-C slices remain blocked by their exact detail-roadmap dependencies.",
+      "next_frontier_on_acceptance": "Register the exact NMG-01-native-knowledge-contract claim; all later NMG and USI-C slices remain blocked by their exact detail-roadmap dependencies.",
       "live_actions": false
     }
   ],

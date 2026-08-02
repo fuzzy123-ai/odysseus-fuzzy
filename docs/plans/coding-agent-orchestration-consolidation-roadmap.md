@@ -315,9 +315,10 @@ stdout/stderr remains a separately claimed and action-specific gate. Scoped
 patch application and exact-read receipts remain CAO-08E responsibilities.
 
 After CAO-08D passes its Terra handoff, root/Sol deep review and focused
-integration lane, the ABC run pauses before any CAO-08E claim. Root reports the
-accepted D evidence and waits for the user's cleanup pass; no successor slice
-is implicitly opened by CAO-08D acceptance.
+integration lane, Root reports the accepted D evidence before any CAO-08E
+claim. The cleanup pause was satisfied on 2026-08-02 before implementation, and
+the later goal explicitly authorized continued repo-only work while preserving
+all live gates. No successor slice is implicitly opened without an exact claim.
 
 ### Cross-roadmap ownership boundary
 
@@ -453,11 +454,13 @@ lane. CAO-08B1 was accepted after one bounded root fix cycle and a final
 122-test lifecycle/context/subagent-capsule integration lane. CAO-08C was
 accepted after a documented writer transfer, two bounded root fix cycles, a
 final 150-test CAO integration lane and a 9-test adjacent compatibility lane.
-CAO-08C1 remains dependency-ready but `waiting_on_peer`; no implementation
-evidence was manufactured. CAO-08D is the current repo-only planning frontier,
-but its implementation is blocked by CAO-MASTER-ROUTE-VERIFICATION. The historical
-CAO1-CAO7 evidence remains accepted and is not reinterpreted as evidence for
-the new production-loop behaviors.
+CAO-08C1 remains dependency-ready but deferred to a later exact-scope reclaim;
+no implementation evidence was manufactured. CAO-08D was accepted on
+2026-08-02 at local commit `744debea` after one bounded Root review cycle,
+17 claimed tests, a 178-test Root dependency lane and Charlie's independent
+186-test combined QA lane. CAO-08E is next only after an exact claim is
+registered. The historical CAO1-CAO7 evidence remains accepted and is not
+reinterpreted as evidence for the new production-loop behaviors.
 
 ## Gate Queue
 

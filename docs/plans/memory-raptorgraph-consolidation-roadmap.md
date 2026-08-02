@@ -1,6 +1,6 @@
 # Memory RaptorGraph Consolidation Roadmap
 
-Status: `native_successor_planned / MEM1-MEM6 historical evidence / Obsidian legacy excluded`
+Status: `native_successor_in_progress / NMG-00 accepted / MEM1-MEM6 historical evidence / Obsidian legacy excluded`
 
 ABC mode: Standard ABC
 
@@ -240,6 +240,17 @@ first. No live data import, reindex, delete or deploy is authorized here.
   and stop rules, and keeps route/tool/data-path removal behind
   `MEM-LEGACY-REMOVAL-GO`.
 - MEM6 verification passed: docs-only scoped `git diff --check`.
+
+2026-08-02:
+- NMG-00 legacy-boundary audit accepted at local commit `1487c732` after one
+  bounded Root review fix cycle. The committed identifiers-only inventory
+  freezes ten canonical full boundary tuples with explicit `retire` or
+  `excluded` disposition and no runtime, provider, productive-source, migration,
+  deletion or live effect.
+- NMG-00 verification passed: 8 focused tests, canonical inventory check,
+  static import review, Root deep review and Charlie's independent 186-test
+  combined QA lane. NMG-01 is next only after an exact claim registration;
+  NMG-02 through NMG-08 remain dependency-blocked.
 
 ## Historical Gate Queue (preserved snapshot)
 
