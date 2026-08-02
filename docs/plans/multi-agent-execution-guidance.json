@@ -588,7 +588,7 @@
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
       "state": "parallel_development_wave5_implementations_committed_independent_qa_channel_gate",
-      "ai_hint": "This remains the current gate and claim authority. UIR-00R, UDA-00 and ULO-00 are locally committed and passed Root review plus 251 bounded USI tests, but independent read-only QA did not return after one bounded replacement turn. Writer authority is closed and claims are released pending QA. Do not mark the wave accepted until a fresh independent read-only QA handoff passes. ACPR-11 remains separate. Productive sources, adapters, lifecycle actions, push, deploy, provider or host writes, sends and every live action remain disabled behind their exact gates."
+      "ai_hint": "This remains the current gate and claim authority. UIR-00R, UDA-00 and ULO-00 are locally committed and passed Root review plus 251 bounded USI tests, but independent read-only QA did not return after one bounded replacement turn. Writer authority is closed and claims are released pending QA. The preserved codex/merge-all-20260802 handoff branch has one exact seven-conflict local merge packet; the broad merge was safety-rejected and remains waiting_on_user until its recorded GO phrase is supplied. Do not mark the wave or cleanup handoff accepted early. ACPR-11 remains separate. Productive sources, adapters, lifecycle actions, push, deploy, provider or host writes, sends and every live action remain disabled behind their exact gates."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",

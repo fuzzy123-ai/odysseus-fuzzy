@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-02T16:46:28+02:00",
-  "status": "parallel_development_wave5_implementations_committed_independent_qa_channel_gate / waves1_to4_accepted / ops_alert_live_gates_preserved",
+  "updated_at": "2026-08-02T16:53:50+02:00",
+  "status": "parallel_development_wave5_implementations_committed_independent_qa_channel_gate / cleanup_handoff_local_conflict_merge_waiting_explicit_user_go / waves1_to4_accepted / ops_alert_live_gates_preserved",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -771,6 +771,56 @@
         "cleanup": "After this durable rejection commit, the two original claim owners must remove exactly their three untracked rejected drafts; Root then verifies the clean single worktree before any recovery registration."
       },
       "next_action": "Run one fresh independent read-only QA handoff against the three committed implementations. Do not reopen writer claims or mark Wave-5R accepted until that handoff passes. Continue other dependency-safe repo-only work meanwhile.",
+      "live_actions": false
+    },
+    "pending_cleanup_handoff_merge_gate": {
+      "id": "REPO-CLEANUP-HANDOFF-LOCAL-CONFLICT-MERGE",
+      "class": "repo_only_safety_gate",
+      "status": "waiting_on_user_after_sandbox_risk_rejection",
+      "action": "local_no_commit_merge_then_semantic_conflict_resolution_and_local_commit",
+      "source_branch": "codex/merge-all-20260802",
+      "source_revision": "727e7863512305593ea515dc9ba1ea3688769878",
+      "merge_base": "67f0737de5bccdb5b8841e4ad9deee3df0107b74",
+      "target_branch": "dev",
+      "target_revision_at_preflight": "cecd815e7a35f83b3e79785789ba526df847c8f3",
+      "preserved_source_commits": [
+        "614a5745 Fix Telegram todo and follow-up resilience",
+        "3d52d8b9 docs: align native knowledge graph roadmaps",
+        "727e7863 Integrate unique worktree changes safely"
+      ],
+      "worktree_count": 1,
+      "working_tree_clean": true,
+      "conflict_paths": [
+        "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
+        "docs/plans/multi-agent-execution-guidance.json",
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "ops/homeserver/redacted_runtime_probe.py",
+        "tests/test_homeserver_redacted_runtime_probe.py",
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "semantic_resolution_plan": {
+        "current_authority_wins": [
+          "docs/plans/memory-raptorgraph-consolidation-roadmap.md because current NMG-00/NMG-05 and tokenizer/generation constraints strictly supersede the source branch",
+          "docs/plans/multi-agent-execution-guidance.json because both inventories have the same 133 paths and only seven current states are newer"
+        ],
+        "source_authority_wins": [
+          "docs/plans/security-incident-response-production-completion-roadmap.json because the source branch advances SEC189/SEC190 and OPS-ALERT-C2 beyond the current stale SEC188 state",
+          "ops/homeserver/redacted_runtime_probe.py because the source branch adds token-bound Telegram send readiness",
+          "tests/test_homeserver_redacted_runtime_probe.py because it proves the token-bound readiness and redaction boundary",
+          "tests/test_security_incident_response_production_completion_roadmap.py because it matches the newer SEC189/SEC190 and OPS-ALERT-C2 roadmap authority"
+        ],
+        "manual_union": "Keep the entire current Open Work master so its 21 newer queue items and Wave-5R gate survive; add only the source branch's missing historical OPS root-integration and worktree-consolidation handoffs, while excluding its stale heartbeat, runner and active-goal authority values."
+      },
+      "risk_rejection": "The attempted --no-commit merge was rejected because it would mutate more than 100 paths in the sole worktree and create seven conflicts. No merge state was created and no workaround is authorized.",
+      "required_go_phrase": "GO lokaler Konflikt-Merge codex/merge-all-20260802 nach dev; Konflikte verlustfrei auflösen und lokal committen, ohne Push, Deploy oder Live-Aktion.",
+      "explicit_user_go_received": false,
+      "forbidden_until_go": [
+        "git merge or equivalent broad repository integration",
+        "conflict-resolution writes",
+        "merge commit",
+        "push, deploy and every live action"
+      ],
       "live_actions": false
     },
     "latest_parallel_wave_preflight_handoff": {
