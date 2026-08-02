@@ -1,8 +1,24 @@
 {
   "schema_version": 1,
   "kind": "odysseus.usi_owner_inventory_recovery_contract",
-  "status": "accepted_read_only_architecture_handoff_pending_implementation",
+  "status": "wave5r_accepted_released_after_independent_qa_and_integrated_inventory_refresh",
   "source_revision": "034a16c09f17c757055196ad27dcbbf2cb3ed7d9",
+  "accepted_at": "2026-08-02T19:00:49+02:00",
+  "acceptance_evidence": {
+    "implementation_commits": {
+      "UIR-00R": "22755bfd5473885555fd487cd476810750ddd1b7",
+      "UDA-00": "35026ae7ced88fda4cacd159c1dbd2d48d8050f0",
+      "ULO-00": "397f0c6ddcad44c70c0698e4e0feefc4a3188440"
+    },
+    "independent_qa": "PASS after fresh read-only resume; exact tuple/negative-matrix semantics accepted, with the then-stale runtime inventory isolated to current integrated source growth",
+    "integrated_refresh_base": "bf82fd5f62be7c2be53e6f2fe6f3ad43896d0232",
+    "canonical_audits": "domain owner --check PASS; lifecycle owner --check PASS; runtime caller --check PASS",
+    "integrated_regression": "all 25 tests/test_*unified_source_index*.py modules: 251 passed",
+    "runtime_inventory": "55 candidates, 0 unclassified, 239 AST files parsed, 877 tracked Python files scanned",
+    "worktree_count": 1,
+    "writer_claims": 0,
+    "live_actions": false
+  },
   "authority": {
     "planning": "docs/plans/open-work-completion-master-roadmap.json",
     "domain": "existing domain stores, readers and action owners remain canonical",
@@ -500,7 +516,18 @@
       "do not edit app.py, generator or tests",
       "audit --check and all tests/test_audit_unified_source_index_runtime.py pass",
       "no runtime import, provider, private-data, network, write or live behavior is executed"
-    ]
+    ],
+    "final_integrated_refresh": {
+      "base_revision": "bf82fd5f62be7c2be53e6f2fe6f3ad43896d0232",
+      "app.py_sha256": "c393dafb3f0ada14d8f331bb2ffdb11e823764c0913b175a656c8f241ae3d5f3",
+      "owner_inventory_call_line": 1473,
+      "tracked_python_files_scanned": 877,
+      "ast_files_parsed": 239,
+      "candidate_count": 55,
+      "unclassified_count": 0,
+      "audit_check": "pass",
+      "regression": "251 passed"
+    }
   },
   "not_authorized": [
     "real source or private-data read",

@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-02T18:54:06+02:00",
-  "status": "wave5r_independent_qa_pass_pending_current_inventory_refresh / acpr11_accepted_released / trp06_accepted_released / cleanup_one_worktree_clean / live_gates_preserved",
+  "updated_at": "2026-08-02T19:00:49+02:00",
+  "status": "round5_accepted_released / wave5r_accepted_integrated_inventory_current / acpr11_and_trp06_accepted_released / zero_active_claims / cleanup_one_worktree_clean / central_router_released / live_gates_preserved",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -24,7 +24,7 @@
     "unique_live_gates": 61,
     "unique_design_gates": 29,
     "other_open_json_items": 155,
-    "queue_status": "wave5r_qa_pass_pending_current_inventory_refresh_no_active_writer_claims",
+    "queue_status": "round5_closed_zero_active_claims_post_round5_normalization_handoff_only",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "live_contextual_layer": "lcl00_roadmap_deep_reviewed_registered_lcl01_waiting_cao08b",
@@ -38,9 +38,9 @@
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
       "memory_observability": "gro00_through_gro15_historical_nmg00_through_nmg02_and_nmg05_accepted_productive_sources_off",
       "unified_source_index": "usi00_through_usi14_accepted_usi15_blocked_by_child_closure_productive_sources_off",
-      "usi_runtime_consumer_integration": "uir00_through_uir02_accepted_uir03_dependency_ready_runtime_default_off",
-      "usi_domain_adapters": "uda00_recovery_implementation_committed_root_review_pass_qa_pending_default_off",
-      "usi_data_lifecycle_operations": "ulo00_recovery_implementation_committed_root_review_pass_qa_pending_live_actions_default_off",
+      "usi_runtime_consumer_integration": "uir00r_inventory_accepted_current_uir03_dependency_ready_unclaimed_round5_handoff_runtime_default_off",
+      "usi_domain_adapters": "uda00_wave5r_accepted_released_adapters_default_off",
+      "usi_data_lifecycle_operations": "ulo00_wave5r_accepted_released_live_actions_default_off",
       "codebase_memory_projection": "cbm00_through_cbm08_accepted_cbm09_dependency_ready_not_selected_engine_disabled",
       "code_lineage_timeline": "clt00_through_clt02_accepted_clt03_ready_repo_only_live_default_off",
       "lens_code_graph": "planned_after_code_graph_api_ui_live_gated",
@@ -141,7 +141,7 @@
           "mode": "read_only",
           "writer_claim": false,
           "allowed_write_paths": [],
-          "state": "wave5_recovery_implementations_committed_independent_qa_channel_failed_after_replacement",
+          "state": "wave5r_accepted_released_after_fresh_independent_qa_and_integrated_inventory_refresh",
           "evidence_required": [
             "path collision readback",
             "focused test readback",
@@ -152,10 +152,10 @@
           "live_actions": false
         },
         "router_writer": "root only",
-        "focused_tests": "Wave 4: Root CAO A-F+C1 plus NMG-05 combined lane 241 passed; Charlie focused C1+NMG-05 56 passed and the same 241-test combined regression passed; one existing SQLAlchemy deprecation warning",
+        "focused_tests": "Wave 5R: independent read-only QA PASS; all three canonical audits pass on the integrated tree; all 25 Unified Source Index test modules pass, 251 passed total",
         "master_route": "surface_default/root; exact runtime model identifier not exposed",
         "worktree_policy": "Exactly one clean canonical Git worktree; parallel lanes use disjoint exact-path claims and shared router/hotfiles stay root-only.",
-        "implementation_gate": "Closed after all three exact implementations were locally committed and Root-reviewed. Independent read-only QA remains mandatory and did not return after one bounded replacement turn; no further writer or live authority remains."
+        "implementation_gate": "Accepted and released after all three exact implementations, fresh independent read-only QA, the integrated runtime inventory refresh and the complete 251-test USI regression. No writer or live authority remains."
       },
       "repo_cleanup_one_worktree_gate": {
         "id": "REPO-CLEANUP-ONE-WORKTREE",
@@ -604,6 +604,51 @@
       ],
       "live_actions": false
     },
+    "round5_central_router_release_handoff": {
+      "roadmap": "docs/plans/open-work-completion-master-roadmap.json",
+      "slice_id": "ROUND5-central-router-and-master-release",
+      "owner": "root/Sol",
+      "state": "released",
+      "released_at": "2026-08-02T19:00:49+02:00",
+      "predecessor_revision": "bf82fd5f62be7c2be53e6f2fe6f3ad43896d0232",
+      "central_paths": [
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json"
+      ],
+      "accepted_lanes": [
+        "ACPR-11-planning-authority-and-memory-checkpoints",
+        "TRP-06-owner-scoped-backend-api",
+        "UIR-00R-runtime-caller-inventory-refresh",
+        "UDA-00-domain-truth-and-mutation-inventory",
+        "ULO-00-lifecycle-owner-and-runtime-inventory"
+      ],
+      "active_claim_count": 0,
+      "router_writer_count": 0,
+      "released_hotfiles": [
+        "app.py",
+        "core/auth.py",
+        "docker-compose.yml"
+      ],
+      "tests_and_results": [
+        "TRP-06 Root integration: 206 passed, 2 skipped; independent QA PASS with 10 focused tests",
+        "Wave-5R independent read-only QA PASS",
+        "domain, lifecycle and runtime canonical audit --check lanes PASS",
+        "all 25 Unified Source Index test modules: 251 passed",
+        "roadmap authority and guidance lane: 14 passed before final Wave-5R publication"
+      ],
+      "post_round5_unclaimed_frontiers": [
+        "ACPR-12",
+        "TRP-07",
+        "UIR-03",
+        "LCL-01"
+      ],
+      "next_action": "A separate post-Round-5 task may normalize disjoint Coding, Memory/Data, App Integration and independent QA lanes; do not reopen these central paths in this round.",
+      "not_verified": [
+        "full repository suite or external CI",
+        "productive sources, providers, host actions, push, deploy or any live gate"
+      ],
+      "live_actions": false
+    },
     "latest_parallel_development_p0_handoff": {
       "roadmap_path": "docs/plans/open-work-completion-master-roadmap.json",
       "run_id": "goal-parallel-roadmaps-20260802-p0",
@@ -646,7 +691,7 @@
         "Full repository regression and Memory runtime regression were not run."
       ]
     },
-    "latest_parallel_wave_acceptance": {
+    "previous_parallel_wave_acceptance": {
       "run_id": "goal-open-work-roadmaps-20260802-wave4",
       "thread_id": "/root",
       "owner": "root surface_default explicitly user-authorized for repo-only review and release",
@@ -685,8 +730,44 @@
       "next_frontier": "Register the independently audited canonical UDA-00 and ULO-00 three-new-path inventories as Wave 5; separately reconcile ACPR-11 before its existing-hotfile claim. No live authority is implied.",
       "live_actions": false
     },
+    "latest_parallel_wave_acceptance": {
+      "run_id": "goal-open-work-roadmaps-20260802-wave5r",
+      "thread_id": "/root",
+      "owner": "root/Sol review and release",
+      "state": "accepted_released",
+      "accepted_at": "2026-08-02T19:00:49+02:00",
+      "slices": [
+        "UIR-00R-runtime-caller-inventory-refresh",
+        "UDA-00-domain-truth-and-mutation-inventory",
+        "ULO-00-lifecycle-owner-and-runtime-inventory"
+      ],
+      "implementation_commits": {
+        "UIR-00R": "22755bfd5473885555fd487cd476810750ddd1b7",
+        "UDA-00": "35026ae7ced88fda4cacd159c1dbd2d48d8050f0",
+        "ULO-00": "397f0c6ddcad44c70c0698e4e0feefc4a3188440"
+      },
+      "integrated_refresh_base": "bf82fd5f62be7c2be53e6f2fe6f3ad43896d0232",
+      "cross_lane_overlap_count": 0,
+      "root_review": "deep pass for UDA/ULO, deterministic current-tree refresh for UIR-00R",
+      "independent_qa": {
+        "owner": "/root/charlie_wave5r_qa_resume",
+        "result": "PASS",
+        "scope": "three committed recovery lanes; runtime mismatch isolated to expected integrated source growth before final deterministic refresh"
+      },
+      "current_tree_evidence": {
+        "canonical_audits": "domain, lifecycle and runtime --check PASS",
+        "full_usi_regression": "251 passed",
+        "runtime_inventory": "55 candidates, 0 unclassified, 239 AST files parsed, 877 tracked Python files scanned"
+      },
+      "not_verified": [
+        "full repository suite or external CI",
+        "productive sources, adapters, provider/network access, lifecycle mutation, host, push, deploy or live action"
+      ],
+      "next_frontier": "No new Round-5 claim. ACPR-12, TRP-07, UIR-03 and LCL-01 remain unclaimed for the post-Round-5 normalization task.",
+      "live_actions": false
+    },
     "next_parallel_wave_registration": {
-      "state": "fresh_independent_readonly_qa_running_after_user_resume",
+      "state": "wave5r_accepted_released_historical_registration",
       "rejected_at": "2026-08-02T15:46:00+02:00",
       "recovery_registered_at": "2026-08-02T16:08:23+02:00",
       "registered_at": "2026-08-02T15:32:37+02:00",
@@ -734,7 +815,7 @@
         "recovery_contract": {
           "path": "docs/plans/unified-source-index-owner-inventory-recovery-contract.json",
           "sha256": "5ce494adb1b8a6c79ab3c82f04361024bcd33146920510c2787f2cf8e500a64c",
-          "status": "accepted_read_only_architecture_handoff_pending_implementation",
+          "status": "wave5r_accepted_released_after_independent_qa_and_integrated_inventory_refresh",
           "current_domain_ids": ["personal_memory", "personal_docs"],
           "future_native_knowledge_state": "not_selected_no_current_truth",
           "lifecycle_action_count": 12,
@@ -769,7 +850,7 @@
             "tests/test_audit_unified_source_index_domain_owners.py"
           ],
           "allowed_paths_digest_sha256": "b8cccb619e8eb4a09ee7e07fe9f0c70aef7fb02e83cc8f88a42daebc24205ac8",
-          "state": "released_pending_independent_qa",
+          "state": "released_accepted",
           "acquired_at": "2026-08-02T16:11:41+02:00",
           "lease_expires_at": "2026-08-02T20:11:41+02:00",
           "released_at": "2026-08-02T16:46:28+02:00",
@@ -787,7 +868,7 @@
             "tests/test_audit_unified_source_index_lifecycle_owners.py"
           ],
           "allowed_paths_digest_sha256": "b22e2c20590c3570a754b699dd2dbc9e77c096a64d3e7383e0af701172b58f85",
-          "state": "released_pending_independent_qa",
+          "state": "released_accepted",
           "acquired_at": "2026-08-02T16:11:41+02:00",
           "lease_expires_at": "2026-08-02T20:11:41+02:00",
           "released_at": "2026-08-02T16:46:28+02:00",
@@ -803,7 +884,7 @@
             "docs/plans/unified-source-index-runtime-caller-inventory.json"
           ],
           "allowed_paths_digest_sha256": "40e2aa745f782505db7a73840b8a75e4d26a3eaf035bd0d7f9a42a79a4ea9793",
-          "state": "released_pending_independent_qa",
+          "state": "released_accepted",
           "acquired_at": "2026-08-02T16:11:41+02:00",
           "lease_expires_at": "2026-08-02T20:11:41+02:00",
           "released_at": "2026-08-02T16:46:28+02:00",
@@ -823,12 +904,12 @@
           "ULO-00": "deep_pass_exact_existing_owners_artifact_policies_and_negative_matrix"
         },
         "root_tests": [
-          "24 focused UDA/ULO/overlap/runtime audit tests passed with one existing SQLAlchemy deprecation warning",
-          "all 25 tests/test_*unified_source_index*.py modules passed in five deterministic batches: 251 passed total with one existing SQLAlchemy deprecation warning per batch",
-          "the monolithic 251-test invocation exceeded 300 seconds after collection and was terminated; no failure was observed, so only the completed five-batch rerun is PASS evidence"
+          "all three canonical audit --check lanes passed on the integrated tree",
+          "all 25 tests/test_*unified_source_index*.py modules passed in one current-tree run: 251 passed",
+          "runtime inventory current: 55 candidates, 0 unclassified, 239 AST files parsed, 877 tracked Python files scanned"
         ],
         "independent_qa": {
-          "status": "fresh_reclaim_running",
+          "status": "pass",
           "reviewer": "/root/charlie_wave5r_qa_resume",
           "writer_claim": false,
           "initial_turn": "stalled_without_final_handoff",
@@ -853,7 +934,8 @@
             "staging, commit or push",
             "provider, network, private-data, runtime mutation or live action"
           ],
-          "required_next_action": "return one fresh independent read-only QA handoff before Wave-5R acceptance"
+          "final_result": "Fresh read-only QA accepted UDA/ULO semantics and isolated the UIR mismatch to expected integrated source growth; Root refreshed the deterministic inventory and reran every canonical check.",
+          "required_next_action": "none; Wave-5R accepted and released"
         },
         "worktree_count": 1,
         "working_tree_clean": true,
@@ -877,7 +959,7 @@
         },
         "cleanup": "After this durable rejection commit, the two original claim owners must remove exactly their three untracked rejected drafts; Root then verifies the clean single worktree before any recovery registration."
       },
-      "next_action": "Run one fresh independent read-only QA handoff against the three committed implementations. Do not reopen writer claims or mark Wave-5R accepted until that handoff passes. Continue other dependency-safe repo-only work meanwhile.",
+      "next_action": "No new Round-5 claim; preserve the released state for the post-Round-5 normalization task.",
       "live_actions": false
     },
     "latest_ops_alert_root_integration_handoff": {
@@ -16666,7 +16748,7 @@
       "id": "UIR-00R-runtime-caller-inventory-refresh",
       "class": "safe_offline",
       "owner": "Charlie/Terra-xhigh recovery scout transferred to mechanical refresh; root surface_default standard review explicitly user-authorized",
-      "status": "implementation_committed_22755bfd_root_standard_review_pass_independent_qa_pending",
+      "status": "accepted_released_wave5r_current_inventory_251_passed",
       "claimable": false,
       "claim_blocker": null,
       "depends_on": [
@@ -16682,7 +16764,7 @@
         "thread_id": "/root/charlie_usi_recovery_arch",
         "slice_id": "UIR-00R-runtime-caller-inventory-refresh",
         "owner": "Charlie/gpt-5.6-terra/xhigh",
-        "state": "released_pending_independent_qa",
+        "state": "released_accepted",
         "acquired_at": "2026-08-02T16:11:41+02:00",
         "lease_expires_at": "2026-08-02T20:11:41+02:00",
         "allowed_paths_digest_sha256": "40e2aa745f782505db7a73840b8a75e4d26a3eaf035bd0d7f9a42a79a4ea9793",
@@ -16717,14 +16799,14 @@
           "commit, push or deploy by the worker"
         ]
       },
-      "next_action": "Wait for fresh independent read-only Wave-5R QA; no writer authority remains.",
+      "next_action": "Accepted and released; UIR-03 remains unclaimed for post-Round-5 normalization.",
       "live_actions": false
     },
     {
       "id": "UDA-00-domain-truth-and-mutation-inventory",
       "class": "safe_offline",
       "owner": "Alice/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
-      "status": "implementation_committed_35026ae7_root_deep_review_pass_independent_qa_pending",
+      "status": "accepted_released_wave5r_independent_qa_pass",
       "claimable": false,
       "claim_blocker": null,
       "depends_on": [
@@ -16762,7 +16844,7 @@
         "thread_id": "/root/alice_uda00_recovery_impl",
         "slice_id": "UDA-00-domain-truth-and-mutation-inventory",
         "owner": "Alice/gpt-5.6-terra/xhigh",
-        "state": "released_pending_independent_qa",
+        "state": "released_accepted",
         "acquired_at": "2026-08-02T16:11:41+02:00",
         "lease_expires_at": "2026-08-02T20:11:41+02:00",
         "allowed_paths_digest_sha256": "b8cccb619e8eb4a09ee7e07fe9f0c70aef7fb02e83cc8f88a42daebc24205ac8",
@@ -16811,14 +16893,14 @@
           "commit, push, deploy or live action by the worker"
         ]
       },
-      "next_action": "Wait for fresh independent read-only Wave-5R QA; no writer authority remains.",
+      "next_action": "Accepted and released; no new Round-5 writer claim.",
       "live_actions": false
     },
     {
       "id": "ULO-00-lifecycle-owner-and-runtime-inventory",
       "class": "safe_offline",
       "owner": "Bob/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
-      "status": "implementation_committed_397f0c6d_root_deep_review_pass_independent_qa_pending",
+      "status": "accepted_released_wave5r_independent_qa_pass",
       "claimable": false,
       "claim_blocker": null,
       "depends_on": [
@@ -16856,7 +16938,7 @@
         "thread_id": "/root/alice_uda00_recovery_impl",
         "slice_id": "ULO-00-lifecycle-owner-and-runtime-inventory",
         "owner": "Alice/gpt-5.6-terra/xhigh replacement",
-        "state": "released_pending_independent_qa",
+        "state": "released_accepted",
         "acquired_at": "2026-08-02T16:11:41+02:00",
         "lease_expires_at": "2026-08-02T20:11:41+02:00",
         "allowed_paths_digest_sha256": "b22e2c20590c3570a754b699dd2dbc9e77c096a64d3e7383e0af701172b58f85",
@@ -16908,7 +16990,7 @@
           "commit, push, deploy or live action by the worker"
         ]
       },
-      "next_action": "Wait for fresh independent read-only Wave-5R QA; no writer authority remains.",
+      "next_action": "Accepted and released; no new Round-5 writer claim.",
       "live_actions": false
     },
     {

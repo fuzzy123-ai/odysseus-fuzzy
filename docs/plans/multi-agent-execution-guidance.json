@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-08-02T18:41:46+02:00",
+  "updated_at": "2026-08-02T19:00:49+02:00",
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
@@ -587,8 +587,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "parallel_development_wave5_implementations_committed_independent_qa_channel_gate",
-      "ai_hint": "This remains the current gate and claim authority. UIR-00R, UDA-00 and ULO-00 are locally committed and passed Root review plus 251 bounded USI tests, but independent read-only QA did not return after one bounded replacement turn. Writer authority is closed and claims are released pending QA. The preserved codex/merge-all-20260802 handoff branch has one exact seven-conflict local merge packet; the broad merge was safety-rejected and remains waiting_on_user until its recorded GO phrase is supplied. Do not mark the wave or cleanup handoff accepted early. ACPR-11 remains separate. Productive sources, adapters, lifecycle actions, push, deploy, provider or host writes, sends and every live action remain disabled behind their exact gates."
+      "state": "round5_accepted_released_zero_claims_central_router_handoff",
+      "ai_hint": "Round 5 is accepted and released: UIR-00R, UDA-00, ULO-00, ACPR-11 and TRP-06 have current Root evidence, independent QA where required, and zero active claims. The integrated runtime inventory is current with 55 candidates and 0 unclassified; the full USI family is 251 passed. Do not start another Round-5 or central-router writer. ACPR-12, TRP-07, UIR-03 and LCL-01 remain unclaimed for the post-Round-5 normalization task. Productive sources, adapters, lifecycle actions, push, deploy, provider or host writes, sends and every live action remain disabled behind their exact gates."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
@@ -851,20 +851,20 @@
     {
       "path": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
       "profile": "active_serial",
-      "state": "planned_after_usi_core_runtime_and_consumers_default_off",
-      "ai_hint": "On a future parent goal claim UIR-00 only after the USI contract barrier. Serialize app.py, app_initializer.py, Personal Docs/RAG, Chat, Agent and runtime-route hotfiles. Compose one dependency-injected runtime and JobStore worker, use shadow results only for comparison, preserve exact/legacy fallback, create no second scheduler/tool/prompt path, and contribute UIR-14 to USI-LIVE-ACTIVATION rather than opening a new gate."
+      "state": "uir00r_inventory_accepted_current_uir03_unclaimed_round5_handoff",
+      "ai_hint": "The UIR-00R inventory is accepted and current on the integrated tree: 55 candidates, 0 unclassified and canonical --check PASS. UIR-03 remains deliberately unclaimed for post-Round-5 normalization. When later claimed, serialize app.py, app_initializer.py, Personal Docs/RAG, Chat, Agent and runtime-route hotfiles; keep runtime and productive sources default-off."
     },
     {
       "path": "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md",
       "profile": "active_parallel",
-      "state": "uda00_recovery_implementation_committed_root_deep_review_pass_qa_pending",
-      "ai_hint": "UDA-00 is locally committed at 35026ae7 and passed Root deep review plus the focused/combined tests. Its writer claim is released pending a fresh independent read-only QA handoff. The older domain-inventory filenames remain stale and forbidden. Keep Native Knowledge future-only/not-selected, and keep every adapter, source read and productive source blocked/default-off."
+      "state": "uda00_wave5r_accepted_released",
+      "ai_hint": "UDA-00 is accepted and released at 35026ae7 after Root deep review, fresh independent read-only QA and the integrated 251-test USI regression. The older domain-inventory filenames remain stale and forbidden. Keep Native Knowledge future-only/not-selected, and keep every adapter, source read and productive source blocked/default-off."
     },
     {
       "path": "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md",
       "profile": "active_serial",
-      "state": "ulo00_recovery_implementation_committed_root_deep_review_pass_qa_pending",
-      "ai_hint": "ULO-00 is locally committed at 397f0c6d and passed Root deep review plus the focused/combined tests. Its writer claim is released pending a fresh independent read-only QA handoff. The older lifecycle-inventory filenames remain stale and forbidden. Perform no lifecycle, destructive, backup, restore, provider or live action."
+      "state": "ulo00_wave5r_accepted_released",
+      "ai_hint": "ULO-00 is accepted and released at 397f0c6d after Root deep review, fresh independent read-only QA and the integrated 251-test USI regression. The older lifecycle-inventory filenames remain stale and forbidden. Perform no lifecycle, destructive, backup, restore, provider or live action."
     },
     {
       "path": "docs/plans/unified-feature-completion-roadmap.md",
