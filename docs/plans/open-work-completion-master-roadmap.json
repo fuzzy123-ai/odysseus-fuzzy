@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-02T13:34:13+02:00",
-  "status": "parallel_development_wave2_cao08e_nmg01_claimable / prior_wave_accepted / ops_alert_live_gates_preserved",
+  "updated_at": "2026-08-02T13:41:02+02:00",
+  "status": "parallel_development_wave2_cao08e_nmg01_claimed_running / prior_wave_accepted / ops_alert_live_gates_preserved",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -20,11 +20,11 @@
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 2,
+    "safe_open_json_slices": 0,
     "unique_live_gates": 61,
     "unique_design_gates": 29,
     "other_open_json_items": 155,
-    "queue_status": "parallel_wave2_cao08e_nmg01_dependency_ready_claimable",
+    "queue_status": "parallel_wave2_cao08e_nmg01_claimed_running",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "live_contextual_layer": "lcl00_roadmap_deep_reviewed_registered_lcl01_waiting_cao08b",
@@ -50,8 +50,8 @@
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 2,
-      "raw_audit_safe_open_count": 2,
+      "safe_open_count": 0,
+      "raw_audit_safe_open_count": 0,
       "raw_audit_stale_item": null,
       "raw_audit_duplicate_frontier": "SIRP-11 is accepted in both canonical and detailed SIRP state; no SIRP safe-offline slice remains open.",
       "other_open_count": 155,
@@ -111,7 +111,7 @@
         "safe_default": "stop at deploy-live-go; keep production issuer uncomposed, deployment disabled and OPS-ALERT-DELIVERY-GO not_go"
       },
       "queue_exhausted": false,
-      "raw_safe_queue_exhausted": false,
+      "raw_safe_queue_exhausted": true,
       "guidance_normalization": {
         "selected_parallel_lanes": [
           "CAO-08E-transactional-worktree-edit-and-exact-read-receipts",
@@ -131,7 +131,7 @@
           "mode": "read_only",
           "writer_claim": false,
           "allowed_write_paths": [],
-          "state": "reserved_wave2_not_started",
+          "state": "active_wave2",
           "evidence_required": [
             "path collision readback",
             "focused test readback",
@@ -503,7 +503,20 @@
         "remaining_work": "OPS Alert integration and publication remain owned by their existing handoffs and are not absorbed by this roadmap-authoring slice."
       }
     ],
-    "active_claimed_slices": [],
+    "active_claimed_slices": [
+      {
+        "slice_id": "CAO-08E-transactional-worktree-edit-and-exact-read-receipts",
+        "owner": "Bob/Terra-requested",
+        "thread_id": "/root/bob_cao08d_impl",
+        "allowed_paths_digest_sha256": "b46abe88cee417374d1d0307448c20130893f2a319071ed768c340dd57d6ae4c"
+      },
+      {
+        "slice_id": "NMG-01-native-knowledge-contract",
+        "owner": "Alice/Terra-requested",
+        "thread_id": "/root/alice_nmg00_impl",
+        "allowed_paths_digest_sha256": "e8099a5f6701bbc5322a21ebd148df2e59a926b28d2451b899f488f13b8c0a2f"
+      }
+    ],
     "latest_parallel_development_p0_handoff": {
       "roadmap_path": "docs/plans/open-work-completion-master-roadmap.json",
       "run_id": "goal-parallel-roadmaps-20260802-p0",
@@ -625,8 +638,9 @@
         "working_tree_clean": true,
         "independent_frontier_audit": "Charlie PASS; source-grounded recommendation selects CAO-08E plus NMG-01 and preserves all other candidate fronts as deferred or registration-blocked"
       },
-      "implementation_authority": false,
-      "next_action": "Commit this registration, then acquire two exact durable claims before dispatching disjoint Terra workers and read-only QA.",
+      "registration_commit": "fa659c6c5f6f6d1ac0b27a659a24d245c06a0645",
+      "implementation_authority": true,
+      "next_action": "Dispatch only the two exact durable claims to the existing Terra-requested workers and reserve Charlie for read-only QA; no live authority is implied.",
       "live_actions": false
     },
     "latest_parallel_wave_preflight_handoff": {
@@ -17640,8 +17654,8 @@
       "id": "CAO-08E-transactional-worktree-edit-and-exact-read-receipts",
       "class": "repo_only",
       "owner": "Bob/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
-      "status": "planned",
-      "claimable": true,
+      "status": "claimed_running",
+      "claimable": false,
       "depends_on": [
         "CAO-08B accepted",
         "CAO-08C accepted",
@@ -17656,6 +17670,22 @@
         "tests/test_coding_edit_transaction_integration.py"
       ],
       "allowed_paths_digest_sha256": "b46abe88cee417374d1d0307448c20130893f2a319071ed768c340dd57d6ae4c",
+      "claim": {
+        "run_id": "goal-open-work-roadmaps-20260802-cao08e",
+        "thread_id": "/root/bob_cao08d_impl",
+        "slice_id": "CAO-08E-transactional-worktree-edit-and-exact-read-receipts",
+        "owner": "Bob/Terra-requested",
+        "state": "claimed",
+        "recorded_at": "2026-08-02T13:41:02+02:00",
+        "acquired_at": "2026-08-02T13:41:02+02:00",
+        "lease_expires_at": "2026-08-02T17:41:02+02:00",
+        "allowed_paths_digest_sha256": "b46abe88cee417374d1d0307448c20130893f2a319071ed768c340dd57d6ae4c",
+        "registration_commit": "fa659c6c5f6f6d1ac0b27a659a24d245c06a0645",
+        "target_paths_absent_at_claim": true,
+        "cross_lane_overlap_count": 0,
+        "handoff_required": true,
+        "blocker": null
+      },
       "excluded_paths": [
         "docs/plans/**",
         "src/coding_agent_backend.py",
@@ -17699,8 +17729,6 @@
           "ACPR_non_duplication": "CAO owns exact-read-to-edit transaction semantics; ACPR retains verification/readiness engines and evidence policy",
           "immutable_inputs": {
             "docs/plans/coding-agent-orchestration-consolidation-roadmap.md": "54ce6ff5edd13cb08c6ea6babe808c90d163b84e",
-            "docs/plans/open-work-completion-master-roadmap.json": "67586d33f391a8fced97a2289c85cf52979eb731",
-            "docs/plans/multi-agent-execution-guidance.json": "32c8a0c2bd3e6365a8e3cbc612ada0b4c932a8be",
             "src/coding_lifecycle_authority.py": "4aa95a826b7d27c5f6640d523fb53ef6691fefcf",
             "src/coding_context_envelope.py": "c6ca5a4dd5a8c6b6b30ed6795882f86d6ae1880e",
             "src/coding_graph_boundary.py": "70450f43d5544ed6bb2f481b4b80820b707f4ca5",
@@ -17736,8 +17764,8 @@
       "id": "NMG-01-native-knowledge-contract",
       "class": "repo_only",
       "owner": "Alice/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
-      "status": "planned",
-      "claimable": true,
+      "status": "claimed_running",
+      "claimable": false,
       "depends_on": [
         "NMG-00 accepted at 1487c732",
         "USI-01 accepted 2026-07-13",
@@ -17750,6 +17778,22 @@
         "tests/test_audit_native_knowledge_contract.py"
       ],
       "allowed_paths_digest_sha256": "e8099a5f6701bbc5322a21ebd148df2e59a926b28d2451b899f488f13b8c0a2f",
+      "claim": {
+        "run_id": "goal-open-work-roadmaps-20260802-nmg01",
+        "thread_id": "/root/alice_nmg00_impl",
+        "slice_id": "NMG-01-native-knowledge-contract",
+        "owner": "Alice/Terra-requested",
+        "state": "claimed",
+        "recorded_at": "2026-08-02T13:41:02+02:00",
+        "acquired_at": "2026-08-02T13:41:02+02:00",
+        "lease_expires_at": "2026-08-02T17:41:02+02:00",
+        "allowed_paths_digest_sha256": "e8099a5f6701bbc5322a21ebd148df2e59a926b28d2451b899f488f13b8c0a2f",
+        "registration_commit": "fa659c6c5f6f6d1ac0b27a659a24d245c06a0645",
+        "target_paths_absent_at_claim": true,
+        "cross_lane_overlap_count": 0,
+        "handoff_required": true,
+        "blocker": null
+      },
       "excluded_paths": [
         "docs/plans/open-work-completion-master-roadmap.json",
         "docs/plans/multi-agent-execution-guidance.json",
@@ -17792,8 +17836,6 @@
           "unavoidable_hotfiles": [],
           "material_decision": "none; no migration is selected and any later migration/cutover remains separately gated",
           "immutable_inputs": {
-            "docs/plans/open-work-completion-master-roadmap.json": "67586d33f391a8fced97a2289c85cf52979eb731",
-            "docs/plans/multi-agent-execution-guidance.json": "32c8a0c2bd3e6365a8e3cbc612ada0b4c932a8be",
             "docs/plans/native-knowledge-runtime-legacy-boundary-inventory.json": "c6679665fe5f5332826740667051e67c15f21b3c",
             "docs/plans/memory-raptorgraph-consolidation-roadmap.md": "51197fa3c6673abe9615686ab0c964e2cf6c0398",
             "docs/plans/unified-source-index-architecture-contract.md": "8a71ec4da68f0dbedc6214423f2b7a1fd45fded5",
