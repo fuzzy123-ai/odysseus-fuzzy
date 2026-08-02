@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-02T10:55:00+02:00",
-  "status": "parallel_development_p0_cleanup_waiting_on_user / implementation_waiting_cleanup_and_master_route / ops_alert_live_gates_preserved",
+  "updated_at": "2026-08-02T12:55:26+02:00",
+  "status": "parallel_development_p0_cao08d_nmg00_claimable / cleanup_and_master_route_satisfied / ops_alert_live_gates_preserved",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -24,7 +24,7 @@
     "unique_live_gates": 61,
     "unique_design_gates": 29,
     "other_open_json_items": 155,
-    "queue_status": "parallel_wave_cao08d_nmg00_selected_blocked_after_three_goal_turns_waiting_user_cleanup_authorities",
+    "queue_status": "parallel_wave_cao08d_nmg00_dependency_ready_claimable",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "live_contextual_layer": "lcl00_roadmap_deep_reviewed_registered_lcl01_waiting_cao08b",
@@ -121,23 +121,38 @@
           "CAO-08C1-bounded-delegation-runtime"
         ],
         "qa_lane": "Charlie read-only collision, focused-test and combined-regression evidence",
+        "qa_assignment": {
+          "owner": "Charlie/Terra",
+          "mode": "read_only",
+          "writer_claim": false,
+          "allowed_write_paths": [],
+          "state": "ready",
+          "evidence_required": [
+            "path collision readback",
+            "focused test readback",
+            "combined regression readback",
+            "handoff scope and diff review"
+          ],
+          "acceptance_authority": false,
+          "live_actions": false
+        },
         "router_writer": "root only",
         "focused_tests": "21 passed, 1 existing SQLAlchemy deprecation warning",
         "master_route": "surface_default/root; exact runtime model identifier not exposed",
         "worktree_policy": "Exactly one clean canonical Git worktree; parallel lanes use disjoint exact-path claims and shared router/hotfiles stay root-only.",
-        "implementation_gate": "No implementation claim or integration until REPO-CLEANUP-ONE-WORKTREE passes and the master is observably gpt-5.6-sol or the user explicitly authorizes surface_default/root for this bounded goal run."
+        "implementation_gate": "Satisfied for the exact CAO-08D and NMG-00 repo-only wave by verified one-worktree cleanup plus the 2026-08-02 explicit surface_default/root authorization; no live authority is implied."
       },
       "repo_cleanup_one_worktree_gate": {
         "id": "REPO-CLEANUP-ONE-WORKTREE",
         "class": "repo_only",
         "owner": "root with explicit preservation handoffs",
-        "status": "waiting_on_user_lossless_preservation_and_master_route_authority",
+        "status": "satisfied_lossless_one_worktree_evidence",
         "claimable": false,
         "requested_by_user": "2026-08-02 cleanup steering",
-        "observed_worktree_count": 13,
-        "observed_pytest_artifact_directory_count": 233,
-        "readable_pytest_artifact_directory_count": 188,
-        "acl_blocked_pytest_artifact_directory_count": 45,
+        "observed_worktree_count": 1,
+        "observed_pytest_artifact_directory_count": 0,
+        "readable_pytest_artifact_directory_count": 0,
+        "acl_blocked_pytest_artifact_directory_count": 0,
         "acceptance": [
           "git worktree list reports exactly one canonical worktree",
           "every retained staged, unstaged and untracked path has explicit owner, claim or accepted evidence",
@@ -146,13 +161,30 @@
           "PMCP-9 no longer appears as a safe-open slice",
           "all CAO immutable input object IDs are rehashed after cleanup"
         ],
-        "known_preservation_blocks": [
-          "the canonical dev worktree contains 32 modified tracked paths and 31 meaningful untracked paths; 58 working blobs are not identical to any currently reachable local commit and require lossless preservation",
-          "abc-open-roadmaps contains four staged UIX paths and six locally unique commits",
-          "ops-alert-final contains two commits not in local fuzzy/dev plus at least one untracked receipt and unreadable receipt/test directories",
-          "ops-alert-sec163 contains an unreadable test-artifact directory",
-          "the completed cleanup task released its active work, but ref creation, the four-path local archive commit, filesystem preservation moves and non-force worktree removal still require explicit authority"
+        "resolved_preservation_blocks": [
+          "the canonical dev worktree 63-path packet was split into six tested local commits",
+          "all twelve auxiliary worktree heads plus the staged UIX handoff are retained by thirteen immutable archive refs",
+          "the OPS receipt and fifteen companion artifact directories were moved without content emission to the preservation archive",
+          "all twelve auxiliary worktrees were removed normally without force and no branch or archive ref was deleted",
+          "all 233 generated top-level pytest directories and the zero-byte %ln artifact were removed after exact root and name validation"
         ],
+        "completion_evidence": {
+          "observed_at": "2026-08-02T12:55:26+02:00",
+          "canonical_branch": "dev",
+          "canonical_head": "f324f7eb2a0d7f382cbf862ef58a54029f80377a",
+          "worktree_count": 1,
+          "git_status_entries": 0,
+          "archive_ref_count": 13,
+          "archive_ref_manifest_sha256": "580175f104936404cf794c6ae91795bcac55c59cd20c8ea5774a3af10306d760",
+          "filesystem_preservation_archive": "C:/tmp/odysseus-worktree-consolidation-20260802-preserve/",
+          "preservation_commit_count": 6,
+          "focused_tests": "161 coding passed; 94 transcription passed and 2 skipped; 124 runtime/OPS passed; 39 roadmap/guidance passed; one existing SQLAlchemy deprecation warning per lane",
+          "git_connectivity": "pass",
+          "lossless": true,
+          "force_removal_used": false,
+          "branch_or_archive_ref_deleted": false,
+          "push_or_live_action": false
+        },
         "prepared_cleanup": {
           "latest_cleanup_task_handoff": {
             "thread_id": "019f9fe1-36f9-7d11-a2f0-9b65c8edccd3",
@@ -161,7 +193,7 @@
             "raw_provider_output_persisted": false,
             "active_claimed_slices_after_handoff": [],
             "worktree_count_after_handoff": 13,
-            "result": "handoff_received_but_one_worktree_acceptance_not_met"
+            "result": "handoff_received_and_losslessly_consolidated"
           },
           "local_comparison_refs": {
             "primary_head": "8723fb7858f05d62541f1f1ae10e503438cc6858",
@@ -176,17 +208,18 @@
             "working_blobs_not_identical_to_any_local_commit": 58,
             "cao08d_allowed_path_overlap": 0,
             "nmg00_allowed_path_overlap": 0,
-            "disposition": "preserve by logical path-scoped packets before cleanup; no broad staging, cleaning or discard"
+            "final_git_status_entries": 0,
+            "disposition": "preserved in six tested path-scoped commits; generated artifacts excluded"
           },
           "archive_plan": {
             "commit_ref_namespace": "refs/archive/worktree-consolidation/20260802/",
             "filesystem_preservation_root": "C:/tmp/odysseus-worktree-consolidation-20260802-preserve/",
-            "archive_refs_currently_present": 0,
+            "archive_refs_currently_present": 13,
             "worktree_head_refs_required": 12,
             "uix_staged_commit_ref_required": true,
             "normal_non_force_worktree_removal_only": true,
             "branch_or_archive_ref_deletion_allowed": false,
-            "authority": "waiting_on_user"
+            "authority": "satisfied_by_2026-08-02_user_repo_only_self_release"
           },
           "clean_contained_worktree_removal_candidates": [
             "C:/tmp/odysseus-abc-autonomous-ai-lens-20260716",
@@ -199,7 +232,7 @@
             "C:/tmp/odysseus-ops-alert-c3-egress-20260731 at c6be0bc52e64627caebe0db70611723378ddb048",
             "C:/tmp/odysseus-ops-alert-c4-bridge-20260731 at fede710bac8046caaf8f8267e92aa1655da8e8fb"
           ],
-          "preserve_until_authorized_consolidation": [
+          "removed_after_authorized_preservation": [
             "C:/tmp/odysseus-abc-open-roadmaps-20260715",
             "C:/tmp/odysseus-merge-all-20260802",
             "C:/tmp/odysseus-ops-alert-c3-egress-20260731",
@@ -219,7 +252,7 @@
             "git_diff_check": "pass",
             "javascript_syntax": "pass",
             "bounded_secret_pattern_findings": 0,
-            "publication": "not authorized; exact local archive commit awaiting user permission"
+            "publication": "local preservation commit 5205e80d0422f18e06f732bb1b6fd2845bb59dbc; no push"
           },
           "ops_alert_final_packet": {
             "unique_commits_vs_local_fuzzy_dev": [
@@ -237,13 +270,13 @@
             "disposition": "preserve; this is structured OPS evidence, not generic pytest noise"
           },
           "generated_artifacts": {
-            "pytest_directories_total": 233,
-            "readable_and_prepared_for_removal": 188,
-            "acl_blocked_requires_elevated_owner_cleanup": 45,
-            "zero_byte_shell_artifact": "%ln"
+            "pytest_directories_removed": 233,
+            "pytest_directories_remaining": 0,
+            "zero_byte_shell_artifact_removed": true,
+            "acl_changed": false
           }
         },
-        "blocked_audit": {
+        "resolved_blocked_audit": {
           "consecutive_goal_turns": 3,
           "same_blocking_condition": "Repository/Git cleanup mutations cannot start while surface_default/root has not been explicitly authorized for this bounded ABC run; exact archive-ref creation, the four-path UIX archive commit, filesystem preservation moves and non-force worktree removal are also not authorized.",
           "meaningful_safe_progress_exhausted": [
@@ -264,12 +297,7 @@
           ],
           "safe_default": "Preserve every worktree, staged path, OPS receipt, branch and live gate unchanged; keep CAO-08D and NMG-00 claimable false."
         },
-        "blocks": [
-          "CAO-08D-scoped-execution-plane-consolidation",
-          "NMG-00-legacy-boundary-audit",
-          "CAO-08C1-bounded-delegation-runtime",
-          "all later CAO-08 and NMG successors"
-        ],
+        "blocks": [],
         "live_actions": false
       },
       "roadmap_normalization_claim": {
@@ -289,7 +317,7 @@
           "docs/plans/open-work-completion-master-roadmap.json",
           "docs/plans/multi-agent-execution-guidance.json"
         ],
-        "state": "released_waiting_on_user_master_route_for_repo_cleanup_mutations",
+        "state": "released_cleanup_and_route_satisfied",
         "acquired_at": "2026-08-02T10:41:41+02:00",
         "lease_expires_at": "2026-08-02T14:41:41+02:00",
         "released_at": "2026-08-02T10:48:00+02:00",
@@ -315,65 +343,65 @@
           "read-only Alice/Bob/Charlie worktree and roadmap audits from 2026-08-02",
           "current local fuzzy/dev reference d691cebc0b85"
         ],
-        "remaining_gate_or_blocker": "REPO-CLEANUP-ONE-WORKTREE remains open; CAO-MASTER-ROUTE-VERIFICATION remains waiting on explicit user authorization; unique UIX and active OPS-Alert work prevent lossless immediate reduction to one worktree.",
+        "remaining_gate_or_blocker": "none for the bounded CAO-08D/NMG-00 repo-only wave; all live gates remain separate and closed",
         "collision_check": "pass; this authoring slice changed only the six declared planning files and did not touch OPS-Alert, product code, UI implementation, worktrees or Git refs.",
-        "recommended_next_action": "Obtain explicit surface_default/root authorization for this bounded cleanup run, preserve the exact four staged UIX paths in a local archive commit, remove only clean/contained worktrees first, and leave active OPS-Alert worktrees untouched until their owner handoff.",
+        "recommended_next_action": "Acquire the exact disjoint CAO-08D and NMG-00 claims and start their Terra workers plus independent read-only QA.",
         "handoff_required": true
       },
       "parallel_wave_immutable_input_preflight": {
-        "observed_at": "2026-08-02T10:19:54+02:00",
-        "base_revision": "8723fb7858f05d62541f1f1ae10e503438cc6858",
+        "observed_at": "2026-08-02T12:55:26+02:00",
+        "base_revision": "f324f7eb2a0d7f382cbf862ef58a54029f80377a",
         "input_contract": "Workers must exact-read these files and verify the recorded Git blob object IDs immediately before implementation. Any mismatch invalidates the packet and returns the slice to waiting_on_peer without widening its claim.",
         "cao_prerequisite_inputs": [
           {
             "path": "src/coding_lifecycle.py",
             "git_blob_oid": "4e534c1219b42c7566f802448c2fe3181ef2afee",
-            "worktree_state": "tracked_modified"
+            "worktree_state": "tracked_clean"
           },
           {
             "path": "src/coding_lifecycle_authority.py",
             "git_blob_oid": "4aa95a826b7d27c5f6640d523fb53ef6691fefcf",
-            "worktree_state": "untracked"
+            "worktree_state": "tracked_clean"
           },
           {
             "path": "src/coding_lifecycle_adapters.py",
             "git_blob_oid": "b56bf17e23c7d7e3aa4d69c661e869330b05ce17",
-            "worktree_state": "tracked_modified"
+            "worktree_state": "tracked_clean"
           },
           {
             "path": "src/coding_context_envelope.py",
             "git_blob_oid": "c6ca5a4dd5a8c6b6b30ed6795882f86d6ae1880e",
-            "worktree_state": "untracked"
+            "worktree_state": "tracked_clean"
           },
           {
             "path": "src/coding_graph_boundary.py",
             "git_blob_oid": "70450f43d5544ed6bb2f481b4b80820b707f4ca5",
-            "worktree_state": "untracked"
+            "worktree_state": "tracked_clean"
           },
           {
             "path": "src/coding_subagent_capsule.py",
             "git_blob_oid": "92c7f0076b7268a0682511551c0cad4a11b27f4a",
-            "worktree_state": "untracked"
+            "worktree_state": "tracked_clean"
           },
           {
             "path": "src/coding_subagent_context_broker.py",
             "git_blob_oid": "a04331ddb4bc2414b503e07525933a6071982c23",
-            "worktree_state": "untracked"
+            "worktree_state": "tracked_clean"
           },
           {
             "path": "src/coding_loop_contracts.py",
             "git_blob_oid": "8b182a8cb4595126fa34f4bd5f1304ce55ec0113",
-            "worktree_state": "untracked"
+            "worktree_state": "tracked_clean"
           },
           {
             "path": "src/coding_loop_controller.py",
             "git_blob_oid": "5bc2482db826d982aead4d1f804dd60f46decdf5",
-            "worktree_state": "untracked"
+            "worktree_state": "tracked_clean"
           },
           {
             "path": "src/coding_loop_model_adapter.py",
             "git_blob_oid": "3dca6c3b097c7065d34b3bc272dd4b676c012935",
-            "worktree_state": "untracked"
+            "worktree_state": "tracked_clean"
           }
         ],
         "selected_targets": {
@@ -383,11 +411,8 @@
         },
         "baseline_tests": "161 CAO lifecycle/context/capsule/controller tests passed with one existing SQLAlchemy deprecation warning in 8.58 seconds.",
         "memory_runtime_tests": "not required for the content-free NMG-00 inventory preflight; run the NMG focused test after implementation and preserve dirty LLM/scheduler hotfiles as excluded",
-        "implementation_authority": false,
-        "remaining_gates": [
-          "REPO-CLEANUP-ONE-WORKTREE",
-          "CAO-MASTER-ROUTE-VERIFICATION"
-        ]
+        "implementation_authority": true,
+        "remaining_gates": []
       },
       "verified_at": "2026-08-02"
     },
@@ -16991,7 +17016,7 @@
       "id": "CAO-MASTER-ROUTE-VERIFICATION",
       "class": "roadmap_authoring",
       "owner": "root/operator decision",
-      "status": "waiting_on_user_2026-08-02_master_model_identity_not_observable",
+      "status": "satisfied_explicit_surface_default_root_authorization",
       "claimable": false,
       "depends_on": [
         "CAO-08C accepted_2026-08-02_after_root_deep_review"
@@ -17016,10 +17041,10 @@
         "thread_id": "/root",
         "slice_id": "CAO-MASTER-ROUTE-VERIFICATION",
         "owner": "root",
-        "state": "released_waiting_on_user",
+        "state": "released_satisfied_by_user_authorization",
         "acquired_at": "2026-08-02T09:56:55+02:00",
         "released_at": "2026-08-02T09:56:55+02:00",
-        "release_reason": "The app surface exposes the root thread but no verifiable runtime model identity. Current ABC policy permits roadmap authoring but stops implementation delegation and integration until the Sol master route is verified or the user explicitly authorizes a different master route.",
+        "release_reason": "The exact runtime model identity remains unobservable, but the user explicitly authorized ABC to self-review and release every non-live gate for this bounded roadmap run on 2026-08-02.",
         "handoff_required": true
       },
       "route": {
@@ -17031,8 +17056,14 @@
         },
         "observed": {
           "master": "surface_default/root; exact runtime model identifier not exposed",
-          "worker": "not dispatched while route gate is open",
-          "review": "not started"
+          "worker": "gpt-5.6-terra requested explicitly per bounded claim",
+          "review": "surface_default/root deep review explicitly user-authorized for non-live acceptance"
+        },
+        "authorized": {
+          "master": "surface_default/root",
+          "scope": "bounded repo-only roadmap cleanup, CAO-08D, NMG-00 and dependency-safe non-live successors",
+          "authority_ref": "user steering 2026-08-02: only live actions remain user-gated; ABC may self-review and release all other gates",
+          "live_authority": false
         },
         "verification_attempts": [
           "No callable tool in the active surface exposes the current root runtime model identity.",
@@ -17050,6 +17081,11 @@
           "durable_route_record",
           "scoped_diff_check"
         ],
+        "verified": [
+          "explicit user authorization for surface_default/root on the bounded non-live ABC run",
+          "exactly one clean dev worktree at f324f7eb2a0d7f382cbf862ef58a54029f80377a",
+          "cleanup preservation and Git connectivity evidence bound in REPO-CLEANUP-ONE-WORKTREE"
+        ],
         "not_verified": [
           "current root runtime model identity",
           "CAO-08D implementation",
@@ -17057,15 +17093,15 @@
           "commit, push, deploy or live action"
         ]
       },
-      "next_action": "Prefer switching or verifying this task as gpt-5.6-sol. Otherwise obtain an explicit user authorization to use surface_default/root as the master for this bounded goal run. Route satisfaction alone does not make CAO-08D or NMG-00 claimable; REPO-CLEANUP-ONE-WORKTREE must also pass before their disjoint exact-path claims are acquired.",
+      "next_action": "Acquire only the exact disjoint CAO-08D and NMG-00 repo-only claims. Do not infer commit publication, push, deploy, provider, host, send or other live authority.",
       "live_actions": false
     },
     {
       "id": "CAO-08D-scoped-execution-plane-consolidation",
       "class": "repo_only",
       "owner": "bob_quality_loop/Terra implementation after cleanup and route gates; root/Sol deep review",
-      "status": "waiting_on_user_2026-08-02_repo_cleanup_and_master_route_verification",
-      "claimable": false,
+      "status": "open",
+      "claimable": true,
       "depends_on": [
         "CAO-08C accepted_2026-08-02_after_root_deep_review",
         "REPO-CLEANUP-ONE-WORKTREE satisfied before claim",
@@ -17107,10 +17143,10 @@
         "thread_id": "unassigned",
         "slice_id": "CAO-08D-scoped-execution-plane-consolidation",
         "owner": "unassigned",
-        "state": "unclaimed_waiting_on_user",
+        "state": "unclaimed_dependency_ready",
         "recorded_at": "2026-08-02T10:01:32+02:00",
         "lease_expires_at": null,
-        "blocker": "REPO-CLEANUP-ONE-WORKTREE and CAO-MASTER-ROUTE-VERIFICATION are not satisfied.",
+        "blocker": null,
         "handoff_required": true
       },
       "route": {
@@ -17137,16 +17173,16 @@
           }
         },
         "selected": {
-          "master": "pending CAO-MASTER-ROUTE-VERIFICATION",
-          "worker": "gpt-5.6-terra/high after gate",
-          "review": "gpt-5.6-sol deep after handoff"
+          "master": "surface_default/root explicitly user-authorized",
+          "worker": "gpt-5.6-terra/high",
+          "review": "surface_default/root deep after handoff"
         },
         "actual": {
           "master": "surface_default/root; exact runtime model identifier not exposed",
           "worker": "not dispatched",
           "review": "not started"
         },
-        "fallback": "blocked_missing_capability"
+        "fallback": "none"
       },
       "acceptance": "A pure Planning-bound execution reducer consumes exactly one CAO-08C request_bounded_check intent already stored in a verifying controller state plus a tester-capsule-authorized bounded argv request, revalidates all Planning/revision/claim/scope/input/capsule/check/capability bindings, and renders only deterministic SandboxJobRequest plans with read-only claim-scope mounts, network none, no secrets, bounded resources, minimal trusted capabilities and dispatch_allowed/execution_performed/live_effect_allowed all false.",
       "done_when": "Focused and dependency integration tests prove controller-state and tester-role binding, non-empty repository-relative claim scope, blocked-scope exclusion, canonical check-command allowlisting, capsule acceptance-check/capability/time-budget enforcement, deterministic idempotent replay and semantic collision rejection, fixed trusted runtime-profile mapping, argv-only job rendering, read-only mounts, network none, no secrets, bounded content-free fake status reduction, and zero imports or calls to subprocess, generic tool execution, host shell helpers, SandboxWorker, routes, graph/memory writers, real dispatch or live adapters.",
@@ -17178,7 +17214,7 @@
           "legacy_boundary_review": "pass; existing backend contains a direct subprocess runner and existing sandbox bridge can submit a real worker, so both remain excluded rather than silently reused",
           "proposed_path_collision_check": "pass; all five proposed CAO-08D files are absent",
           "open_work_json_parse": "pass",
-          "safe_queue_audit": "pass; CAO-08D is categorized other_open with claimable false, not safe-open",
+          "safe_queue_audit": "pending fresh post-transition readback; must expose CAO-08D as safe-open before claim acquisition",
           "scoped_diff_check": "pass",
           "protected_path_boundary": "pass; OPS-Alert, security, homeserver, UI, routes and multi-agent guidance paths are explicitly excluded"
         },
@@ -17367,9 +17403,9 @@
       "id": "NMG-00-legacy-boundary-audit",
       "class": "safe_offline",
       "owner": "Alice/Terra implementation; root/Sol deep review",
-      "status": "goal_active_guidance_registered_waiting_repo_cleanup_and_master_route_verification",
-      "claimable": false,
-      "claim_blocker": "The explicit Open Work goal and guidance registration are satisfied. Implementation remains gated until REPO-CLEANUP-ONE-WORKTREE passes and the master route is observably gpt-5.6-sol or the user explicitly authorizes surface_default/root for this bounded goal run.",
+      "status": "open",
+      "claimable": true,
+      "claim_blocker": null,
       "depends_on": [
         "OWM-15 native-system amendment committed as a1f5b00e1a47f99114683515a25060f1616ce145",
         "explicit Open Work goal satisfied 2026-08-02",
@@ -17401,10 +17437,10 @@
         "thread_id": "unassigned",
         "slice_id": "NMG-00-legacy-boundary-audit",
         "owner": "unassigned",
-        "state": "unclaimed_waiting_on_user",
+        "state": "unclaimed_dependency_ready",
         "recorded_at": "2026-08-02T10:41:41+02:00",
         "lease_expires_at": null,
-        "blocker": "REPO-CLEANUP-ONE-WORKTREE and CAO-MASTER-ROUTE-VERIFICATION are not satisfied.",
+        "blocker": null,
         "handoff_required": true
       },
       "route": {
@@ -17431,16 +17467,16 @@
           }
         },
         "selected": {
-          "master": "pending CAO-MASTER-ROUTE-VERIFICATION",
-          "worker": "gpt-5.6-terra/medium after cleanup and route gates",
-          "review": "gpt-5.6-sol deep after handoff"
+          "master": "surface_default/root explicitly user-authorized",
+          "worker": "gpt-5.6-terra/medium",
+          "review": "surface_default/root deep after handoff"
         },
         "actual": {
           "master": "surface_default/root; exact runtime model identifier not exposed",
           "worker": "not dispatched",
           "review": "not started"
         },
-        "fallback": "blocked_missing_capability"
+        "fallback": "none"
       },
       "source_roadmap": "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
       "acceptance": "Inventory every remaining core/app/plugin coupling and record retire/excluded decisions without deletion, migration, runtime import or live action.",
@@ -17491,7 +17527,7 @@
     "OWM-12 Privacy-Safe Tool Usage Analytics: after TAX1, start the disjoint privacy/store baseline; wait for TAX5/TAX7/TAX10 at shared integration points and keep capture/backfill disabled until the single final activation decision.",
     "OWM-13 Gemma3 Maintenance Runtime Isolation: preserve the accepted repository packet but revalidate it against UIR-13 native shared observability; the historical GRO live gate cannot satisfy or authorize GMI activation.",
     "OWM-14 GraphRAG/RAPTOR Memory Performance And Observability: preserve GRO-00 through GRO-15 as historical plugin evidence only; do not open GRO slices or GRO-LIVE-ACTIVATION, and route native performance evidence through NMG-04A/04B, UIR-13 and USI-15.",
-    "OWM-15 Unified Source Index Foundation: USI-00 through USI-14 are accepted; NMG-00 is selected for the first bounded parallel wave but remains unclaimable until REPO-CLEANUP-ONE-WORKTREE and CAO-MASTER-ROUTE-VERIFICATION pass. Other registered frontiers remain unselected; keep successors dependency-blocked, Obsidian excluded and every productive source disabled.",
+    "OWM-15 Unified Source Index Foundation: USI-00 through USI-14 are accepted; NMG-00 is dependency-ready and claimable in the first bounded parallel wave after the satisfied cleanup and master-route gates. Other registered frontiers remain unselected; keep successors dependency-blocked, Obsidian excluded and every productive source disabled.",
     "OWM-19 USI Runtime And Consumer Integration: start at UIR-03 after exact composition-hotfile handoff; bind query_knowledge natively, serialize app/Chat/Agent/runtime hotfiles and execute UIR-12 classification, NMG-07 retirement and UIR-12A verification in order.",
     "OWM-20 USI Domain Adapter Rollout: UDA-00 is registered; build Personal Memory and Personal Docs first, select UDA-05 only after NMG-02 for an explicit native Knowledge scope, and never register Obsidian/ORCA vault as a source or fallback.",
     "OWM-21 USI Data Lifecycle And Operations: ULO-00 is registered; use synthetic owners and temporary databases, exclude legacy plugin artifacts from lifecycle authority, serialize Auth/backup/wipe hotfiles and retain every action-specific authorization.",
@@ -17499,7 +17535,7 @@
     "OWM-17 Code Lineage And Timeline: after USI identity, start CLT-00 with synthetic Git fixtures; keep Git read-only, label time first-observable and stop before real history backfill until one final activation decision.",
     "OWM-18 Lens Code Graph: after the bounded CBM graph API, start LCG-00 and fixture/backend work with one UI owner; preserve the visually strong Code Planet mode but keep production placement and real project graphs disabled until one independent UI-live decision.",
     "OWM-1 Version 1.0 Release Gate: do not claim 1.0 until UI live.",
-    "OWM-25 Coding Loop Planning, Memory And Gate Consolidation: CAO-08A through CAO-08C are accepted; CAO-08D is selected with NMG-00 for the first bounded parallel wave after REPO-CLEANUP-ONE-WORKTREE and CAO-MASTER-ROUTE-VERIFICATION. CAO-08C1 is deferred to a later reclaim. Planning is authoritative, RAPTOR/GraphRAG is advisory at four checkpoints, routine engineering gates remain autonomous, and UI/product/security/live acceptance remains user-owned.",
+    "OWM-25 Coding Loop Planning, Memory And Gate Consolidation: CAO-08A through CAO-08C are accepted; CAO-08D and NMG-00 are dependency-ready and claimable in the first bounded parallel wave after the satisfied cleanup and master-route gates. CAO-08C1 is deferred to a later reclaim. Planning is authoritative, RAPTOR/GraphRAG is advisory at four checkpoints, routine engineering gates are autonomous, and only live actions remain user-gated for this run.",
     "OWM-26 Subagent Context And Delegation: CAO-08J, ACPR-17 authoring and H1-39 authoring are accepted. After CAO-08A/08B, implement CAO-08B1 role capsules, CAO-08C controller and CAO-08C1 bounded delegation; ACPR-17 verifies VCL-7 only after its exact prerequisites, and H1-39 remains a later read-only projection. Adapter activation and external dispatch are user-gated, while subsequent routine in-policy internal children are machine/agent automatic and quiet.",
     "OWM-27 Live Contextual Layer: LCL-00 roadmap authoring, deep review and router registration are accepted. LCL-01 is the first future frontier only after CAO-08B acceptance; later fake runtime, candidate ledger, canonical promotion, project projection, UI, local process, soak and production slices follow exact dependencies and five separate user/live gates. Hypotheses remain advisory and never override Planning, domain truth, USI, Memory/Causal review, claims or gates.",
     "OWM-3 Autonomous Coding runtime control: follow OWM-25's dependency order; no runtime, worker dispatch, publication or live authority was granted by the roadmap-authoring run.",
