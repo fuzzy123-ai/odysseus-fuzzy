@@ -688,9 +688,9 @@
         },
         {
           "run_id": "goal-open-work-roadmaps-20260802-wave5r",
-          "thread_id": "/root/bob_ulo00_recovery_impl",
+          "thread_id": "/root/alice_uda00_recovery_impl",
           "slice_id": "ULO-00-lifecycle-owner-and-runtime-inventory",
-          "owner": "Bob/gpt-5.6-terra/xhigh",
+          "owner": "Alice/gpt-5.6-terra/xhigh replacement",
           "allowed_paths": [
             "docs/plans/unified-source-index-lifecycle-owner-inventory.json",
             "scripts/audit_unified_source_index_lifecycle_owners.py",
@@ -16361,9 +16361,9 @@
       },
       "recovery_claim": {
         "run_id": "goal-open-work-roadmaps-20260802-wave5r",
-        "thread_id": "/root/bob_ulo00_recovery_impl",
+        "thread_id": "/root/alice_uda00_recovery_impl",
         "slice_id": "ULO-00-lifecycle-owner-and-runtime-inventory",
-        "owner": "Bob/gpt-5.6-terra/xhigh",
+        "owner": "Alice/gpt-5.6-terra/xhigh replacement",
         "state": "claimed",
         "acquired_at": "2026-08-02T16:11:41+02:00",
         "lease_expires_at": "2026-08-02T20:11:41+02:00",
@@ -16372,6 +16372,9 @@
         "recovery_contract_blob_oid": "e6fef886a80b29b330c431039a0a12ac4cb30851",
         "target_paths_absent_at_claim": true,
         "cross_lane_overlap_count": 0,
+        "transferred_at": "2026-08-02T16:26:30+02:00",
+        "previous_owner": "Bob/gpt-5.6-terra/xhigh",
+        "transfer_reason": "The original recovery worker created only the three claimed paths but remained silent after one nudge and bounded waits; it was interrupted and the unchanged path claim transferred once for bounded finalization.",
         "handoff_required": true
       },
       "source_roadmap": "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md",
