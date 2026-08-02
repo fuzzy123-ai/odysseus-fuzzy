@@ -123,10 +123,11 @@
         "qa_lane": "Charlie read-only collision, focused-test and combined-regression evidence",
         "qa_assignment": {
           "owner": "Charlie/Terra",
+          "thread_id": "/root/charlie_parallel_qa",
           "mode": "read_only",
           "writer_claim": false,
           "allowed_write_paths": [],
-          "state": "ready",
+          "state": "active",
           "evidence_required": [
             "path collision readback",
             "focused test readback",
@@ -498,7 +499,10 @@
         "remaining_work": "OPS Alert integration and publication remain owned by their existing handoffs and are not absorbed by this roadmap-authoring slice."
       }
     ],
-    "active_claimed_slices": [],
+    "active_claimed_slices": [
+      "CAO-08D-scoped-execution-plane-consolidation",
+      "NMG-00-legacy-boundary-audit"
+    ],
     "latest_parallel_development_p0_handoff": {
       "roadmap_path": "docs/plans/open-work-completion-master-roadmap.json",
       "run_id": "goal-parallel-roadmaps-20260802-p0",
@@ -17099,9 +17103,9 @@
     {
       "id": "CAO-08D-scoped-execution-plane-consolidation",
       "class": "repo_only",
-      "owner": "bob_quality_loop/Terra implementation after cleanup and route gates; root/Sol deep review",
-      "status": "open",
-      "claimable": true,
+      "owner": "bob_cao08d_impl/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
+      "status": "claimed_running",
+      "claimable": false,
       "depends_on": [
         "CAO-08C accepted_2026-08-02_after_root_deep_review",
         "REPO-CLEANUP-ONE-WORKTREE satisfied before claim",
@@ -17140,12 +17144,20 @@
       ],
       "claim": {
         "run_id": "goal-coding-loop-20260802-cao08d",
-        "thread_id": "unassigned",
+        "thread_id": "/root/bob_cao08d_impl",
         "slice_id": "CAO-08D-scoped-execution-plane-consolidation",
-        "owner": "unassigned",
-        "state": "unclaimed_dependency_ready",
-        "recorded_at": "2026-08-02T10:01:32+02:00",
-        "lease_expires_at": null,
+        "owner": "Bob/Terra-requested",
+        "state": "claimed",
+        "recorded_at": "2026-08-02T13:02:08+02:00",
+        "acquired_at": "2026-08-02T13:02:08+02:00",
+        "lease_expires_at": "2026-08-02T17:02:08+02:00",
+        "allowed_paths_digest_sha256": "5e7ab952370a079fdb3bdb52ce6c8cfba683c732250e09cc14383f123ec9921d",
+        "base_revision": "408c21a7f26c0a96cfdb9b718faf6a16ab605979",
+        "cleanup_evidence_ref": "/current_position/verification/repo_cleanup_one_worktree_gate/completion_evidence",
+        "route_evidence_ref": "CAO-MASTER-ROUTE-VERIFICATION",
+        "input_preflight_ref": "/current_position/verification/parallel_wave_immutable_input_preflight",
+        "target_paths_absent_at_claim": true,
+        "cross_lane_overlap_count": 0,
         "blocker": null,
         "handoff_required": true
       },
@@ -17179,10 +17191,10 @@
         },
         "actual": {
           "master": "surface_default/root; exact runtime model identifier not exposed",
-          "worker": "not dispatched",
+          "worker": "unknown/surface_default; spawn requested gpt-5.6-terra/high and task route /root/bob_cao08d_impl",
           "review": "not started"
         },
-        "fallback": "none"
+        "fallback": "surface_default_worker_explicitly_user_authorized_for_non_live_repo_only_run"
       },
       "acceptance": "A pure Planning-bound execution reducer consumes exactly one CAO-08C request_bounded_check intent already stored in a verifying controller state plus a tester-capsule-authorized bounded argv request, revalidates all Planning/revision/claim/scope/input/capsule/check/capability bindings, and renders only deterministic SandboxJobRequest plans with read-only claim-scope mounts, network none, no secrets, bounded resources, minimal trusted capabilities and dispatch_allowed/execution_performed/live_effect_allowed all false.",
       "done_when": "Focused and dependency integration tests prove controller-state and tester-role binding, non-empty repository-relative claim scope, blocked-scope exclusion, canonical check-command allowlisting, capsule acceptance-check/capability/time-budget enforcement, deterministic idempotent replay and semantic collision rejection, fixed trusted runtime-profile mapping, argv-only job rendering, read-only mounts, network none, no secrets, bounded content-free fake status reduction, and zero imports or calls to subprocess, generic tool execution, host shell helpers, SandboxWorker, routes, graph/memory writers, real dispatch or live adapters.",
@@ -17402,9 +17414,9 @@
     {
       "id": "NMG-00-legacy-boundary-audit",
       "class": "safe_offline",
-      "owner": "Alice/Terra implementation; root/Sol deep review",
-      "status": "open",
-      "claimable": true,
+      "owner": "alice_nmg00_impl/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
+      "status": "claimed_running",
+      "claimable": false,
       "claim_blocker": null,
       "depends_on": [
         "OWM-15 native-system amendment committed as a1f5b00e1a47f99114683515a25060f1616ce145",
@@ -17434,12 +17446,20 @@
       ],
       "claim": {
         "run_id": "goal-cleanup-parallel-wave-20260802-nmg00",
-        "thread_id": "unassigned",
+        "thread_id": "/root/alice_nmg00_impl",
         "slice_id": "NMG-00-legacy-boundary-audit",
-        "owner": "unassigned",
-        "state": "unclaimed_dependency_ready",
-        "recorded_at": "2026-08-02T10:41:41+02:00",
-        "lease_expires_at": null,
+        "owner": "Alice/Terra-requested",
+        "state": "claimed",
+        "recorded_at": "2026-08-02T13:02:08+02:00",
+        "acquired_at": "2026-08-02T13:02:08+02:00",
+        "lease_expires_at": "2026-08-02T17:02:08+02:00",
+        "allowed_paths_digest_sha256": "09862f284192b24b35fdcebe076750bda0d601278d78b1e15e4b1a2b622728cd",
+        "base_revision": "408c21a7f26c0a96cfdb9b718faf6a16ab605979",
+        "cleanup_evidence_ref": "/current_position/verification/repo_cleanup_one_worktree_gate/completion_evidence",
+        "route_evidence_ref": "CAO-MASTER-ROUTE-VERIFICATION",
+        "input_preflight_ref": "/current_position/verification/parallel_wave_immutable_input_preflight",
+        "target_paths_absent_at_claim": true,
+        "cross_lane_overlap_count": 0,
         "blocker": null,
         "handoff_required": true
       },
@@ -17473,10 +17493,10 @@
         },
         "actual": {
           "master": "surface_default/root; exact runtime model identifier not exposed",
-          "worker": "not dispatched",
+          "worker": "unknown/surface_default; spawn requested gpt-5.6-terra/medium and task route /root/alice_nmg00_impl",
           "review": "not started"
         },
-        "fallback": "none"
+        "fallback": "surface_default_worker_explicitly_user_authorized_for_non_live_repo_only_run"
       },
       "source_roadmap": "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
       "acceptance": "Inventory every remaining core/app/plugin coupling and record retire/excluded decisions without deletion, migration, runtime import or live action.",
