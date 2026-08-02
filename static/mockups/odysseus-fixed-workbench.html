@@ -1,0 +1,3694 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Odysseus – Fixed Workbench Mockup</title>
+  <style>
+    @font-face {
+      font-family: "Fira Code";
+      font-style: normal;
+      font-weight: 400;
+      font-display: swap;
+      src: url("../fonts/FiraCode-Regular.woff2") format("woff2");
+    }
+
+    @font-face {
+      font-family: "Fira Code";
+      font-style: normal;
+      font-weight: 600;
+      font-display: swap;
+      src: url("../fonts/FiraCode-SemiBold.woff2") format("woff2");
+    }
+
+    :root {
+      color-scheme: dark;
+      --bg: #02070d;
+      --surface: #040f19;
+      --surface-2: #061522;
+      --surface-3: #081b28;
+      --ink: #bdd9e2;
+      --ink-strong: #d7f7ff;
+      --muted: #7899a6;
+      --dim: #587b88;
+      --border: #12303d;
+      --border-strong: #1b5361;
+      --cyan: #10b6ca;
+      --blue: #4b8cff;
+      --teal: #1dbda6;
+      --green: #4ade80;
+      --amber: #f7b955;
+      --red: #ff5c73;
+      --focus: #7be6f1;
+      --split-size: 5px;
+      --header-h: 6.25rem;
+      --status-h: 1.75rem;
+      --radius: 0.55rem;
+      --font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+      --mono: "Fira Code", "SFMono-Regular", Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+      font-size: 16px;
+      font-kerning: normal;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      color: inherit;
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    button:focus,
+    input:focus,
+    textarea:focus {
+      outline: none;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    ::selection {
+      background: color-mix(in srgb, var(--cyan) 38%, transparent);
+      color: var(--ink-strong);
+    }
+
+    .skip-link {
+      position: fixed;
+      left: 1rem;
+      top: -4rem;
+      z-index: 100;
+      border-radius: 0.35rem;
+      background: var(--cyan);
+      color: var(--bg);
+      padding: 0.65rem 0.9rem;
+      font: 600 0.75rem/1 var(--mono);
+    }
+
+    .skip-link:focus {
+      top: 0.75rem;
+    }
+
+    .app {
+      position: relative;
+      width: 100vw;
+      height: 100dvh;
+      display: grid;
+      grid-template-rows: var(--header-h) minmax(0, 1fr) var(--status-h);
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(30, 92, 182, 0.13), transparent 28%),
+        radial-gradient(circle at 82% 12%, rgba(16, 182, 202, 0.09), transparent 28%),
+        var(--bg);
+    }
+
+    .topline {
+      position: relative;
+      z-index: 20;
+      min-width: 0;
+      display: grid;
+      grid-template-columns: minmax(10rem, 0.7fr) minmax(32rem, 2.2fr) minmax(10rem, 0.7fr);
+      align-items: center;
+      gap: 1rem;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--bg) 94%, var(--cyan) 6%);
+      padding: 0 1rem;
+    }
+
+    .brand {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .brand-mark {
+      width: 2.25rem;
+      height: 2.25rem;
+      display: grid;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 0;
+      background: transparent;
+      color: var(--cyan);
+      padding: 0;
+    }
+
+    .brand-mark svg {
+      width: 2rem;
+      height: 2rem;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.8;
+    }
+
+    .brand-copy {
+      min-width: 0;
+      display: grid;
+      gap: 0.1rem;
+      font-family: var(--mono);
+    }
+
+    .brand-copy strong,
+    .brand-copy span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .brand-copy strong {
+      color: var(--ink-strong);
+      font-size: 0.75rem;
+    }
+
+    .brand-copy span {
+      color: var(--dim);
+      font-size: 0.58rem;
+    }
+
+    .screen-navigation {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: auto 2.15rem;
+      justify-self: center;
+      width: min(52rem, 100%);
+      border: 1px solid var(--border);
+      border-radius: 0.7rem;
+      background: rgba(3, 12, 20, 0.86);
+      padding: 0.28rem;
+    }
+
+    .screen-tabs {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(6.5rem, 1fr));
+    }
+
+    .screen-tab {
+      --tab: var(--cyan);
+      min-width: 0;
+      height: 2.25rem;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.5rem;
+      border: 1px solid transparent;
+      border-radius: 0.45rem;
+      background: transparent;
+      color: var(--muted);
+      padding: 0 0.7rem;
+      text-align: left;
+      font: 600 0.71rem/1 var(--mono);
+    }
+
+    .screen-tab:hover {
+      background: color-mix(in srgb, var(--tab) 5%, transparent);
+      color: var(--ink);
+    }
+
+    .screen-tab[aria-selected="true"] {
+      border-color: color-mix(in srgb, var(--tab) 56%, transparent);
+      background: color-mix(in srgb, var(--tab) 11%, transparent);
+      color: var(--ink-strong);
+    }
+
+    .screen-dot {
+      width: 0.45rem;
+      height: 0.45rem;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--tab) 72%, white 6%);
+    }
+
+    .screen-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .screen-count {
+      min-width: 1.25rem;
+      height: 1.25rem;
+      display: grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--tab) 44%, transparent);
+      border-radius: 999px;
+      color: color-mix(in srgb, var(--tab) 76%, white 8%);
+      font-size: 0.59rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .header-tabsets {
+      min-width: 0;
+      overflow: hidden;
+      background: rgba(2, 8, 15, 0.48);
+    }
+
+    .header-tabset {
+      min-width: 0;
+      height: 2.15rem;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      align-items: stretch;
+      gap: 0.4rem;
+      padding: 0 0.25rem;
+    }
+
+    .header-tabset.has-action {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .header-tab-list {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: repeat(var(--tab-count), minmax(0, 1fr));
+      align-items: stretch;
+      overflow: hidden;
+    }
+
+    .header-tabset[hidden] {
+      display: none;
+    }
+
+    .header-subtab {
+      position: relative;
+      min-width: 0;
+      border: 0;
+      background: transparent;
+      color: var(--dim);
+      padding: 0 0.45rem;
+      text-align: center;
+      font: 600 0.61rem/1 var(--mono);
+    }
+
+    .header-subtab + .header-subtab::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.48rem;
+      bottom: 0.48rem;
+      width: 1px;
+      background: color-mix(in srgb, var(--cyan) 15%, transparent);
+    }
+
+    .header-subtab:hover {
+      color: var(--ink);
+    }
+
+    .header-subtab[aria-selected="true"] {
+      color: var(--ink-strong);
+    }
+
+    .header-subtab[aria-selected="true"]::after {
+      content: "";
+      position: absolute;
+      left: 0.55rem;
+      right: 0.55rem;
+      bottom: 0;
+      height: 2px;
+      background: var(--header-tab, var(--cyan));
+    }
+
+    .header-tab-action {
+      min-width: 6.4rem;
+      align-self: center;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+    }
+
+    .top-actions {
+      min-width: 0;
+      display: flex;
+      justify-content: end;
+      gap: 0.4rem;
+    }
+
+    .icon-button,
+    .pane-button,
+    .compact-button {
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid var(--border);
+      border-radius: 0.42rem;
+      background: var(--surface);
+      color: var(--muted);
+    }
+
+    .icon-button {
+      width: 2.25rem;
+      height: 2.25rem;
+    }
+
+    .icon-button:hover,
+    .pane-button:hover,
+    .compact-button:hover {
+      border-color: var(--border-strong);
+      background: var(--surface-2);
+      color: var(--ink-strong);
+    }
+
+    .icon-button svg,
+    .pane-button svg {
+      width: 1rem;
+      height: 1rem;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.8;
+    }
+
+    .workspace {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      padding: 0.65rem;
+    }
+
+    .screen {
+      position: absolute;
+      inset: 0.65rem;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .screen[hidden] {
+      display: none;
+    }
+
+    .workbench-grid {
+      --left-size: 17.5rem;
+      --right-size: 19rem;
+      --bottom-size: 13rem;
+      --left-track: var(--left-size);
+      --left-grip: var(--split-size);
+      --right-track: var(--right-size);
+      --right-grip: var(--split-size);
+      --bottom-track: var(--bottom-size);
+      --bottom-grip: var(--split-size);
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns:
+        var(--left-track)
+        var(--left-grip)
+        minmax(22rem, 1fr)
+        var(--right-grip)
+        var(--right-track);
+      grid-template-rows:
+        minmax(16rem, 1fr)
+        var(--bottom-grip)
+        var(--bottom-track);
+      overflow: hidden;
+    }
+
+    .workbench-grid.hide-left {
+      --left-track: 0px;
+      --left-grip: 0px;
+    }
+
+    .workbench-grid.hide-right {
+      --right-track: 0px;
+      --right-grip: 0px;
+    }
+
+    .workbench-grid.hide-bottom {
+      --bottom-track: 0px;
+      --bottom-grip: 0px;
+    }
+
+    .workbench-grid.no-bottom {
+      --bottom-track: 0px;
+      --bottom-grip: 0px;
+    }
+
+    .workbench-grid.hide-left > .pane-left,
+    .workbench-grid.hide-left > .split-left,
+    .workbench-grid.hide-right > .pane-right,
+    .workbench-grid.hide-right > .split-right,
+    .workbench-grid.hide-bottom > .pane-bottom,
+    .workbench-grid.hide-bottom > .split-bottom {
+      display: none;
+    }
+
+    .pane {
+      --pane-accent: var(--cyan);
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      border: 1px solid color-mix(in srgb, var(--pane-accent) 18%, var(--border));
+      border-radius: var(--radius);
+      background: color-mix(in srgb, var(--surface) 96%, var(--pane-accent) 4%);
+      overflow: hidden;
+    }
+
+    .pane-left {
+      grid-column: 1;
+      grid-row: 1 / 4;
+    }
+
+    .pane-center {
+      grid-column: 3;
+      grid-row: 1;
+    }
+
+    .pane-right {
+      grid-column: 5;
+      grid-row: 1;
+    }
+
+    .pane-bottom {
+      grid-column: 3 / 6;
+      grid-row: 3;
+    }
+
+    .center-editor {
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    .pane-head {
+      min-width: 0;
+      min-height: 2.55rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 1px solid color-mix(in srgb, var(--pane-accent) 14%, var(--border));
+      padding: 0 0.55rem 0 0.75rem;
+    }
+
+    .pane-heading {
+      min-width: 0;
+      display: grid;
+      flex: 1 1 auto;
+      gap: 0.08rem;
+      font-family: var(--mono);
+    }
+
+    .pane-heading strong,
+    .pane-heading span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .pane-heading strong {
+      color: var(--ink-strong);
+      font-size: 0.73rem;
+    }
+
+    .pane-heading span {
+      color: var(--dim);
+      font-size: 0.56rem;
+    }
+
+    .pane-head-actions {
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .pane-button {
+      width: 1.7rem;
+      height: 1.7rem;
+      background: transparent;
+    }
+
+    .compact-button {
+      min-height: 1.75rem;
+      padding: 0 0.55rem;
+      font: 600 0.62rem/1 var(--mono);
+    }
+
+    .compact-button.primary {
+      border-color: color-mix(in srgb, var(--pane-accent) 48%, transparent);
+      background: color-mix(in srgb, var(--pane-accent) 10%, transparent);
+      color: color-mix(in srgb, var(--pane-accent) 78%, white 10%);
+    }
+
+    .pane-body {
+      min-width: 0;
+      min-height: 0;
+      overflow: auto;
+      scrollbar-color: var(--border-strong) transparent;
+      scrollbar-width: thin;
+    }
+
+    .splitter {
+      position: relative;
+      z-index: 4;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      touch-action: none;
+    }
+
+    .splitter::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: transparent;
+      transition: background 140ms ease;
+    }
+
+    .splitter:hover::after,
+    .splitter.dragging::after {
+      background: color-mix(in srgb, var(--cyan) 72%, transparent);
+    }
+
+    .split-left {
+      grid-column: 2;
+      grid-row: 1 / 4;
+      cursor: col-resize;
+    }
+
+    .split-right {
+      grid-column: 4;
+      grid-row: 1 / 4;
+      cursor: col-resize;
+    }
+
+    .split-bottom {
+      grid-column: 3 / 6;
+      grid-row: 2;
+      cursor: row-resize;
+    }
+
+    .pane-tabs,
+    .editor-tabs {
+      min-width: 0;
+      display: flex;
+      align-items: stretch;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .pane-tabs::-webkit-scrollbar,
+    .editor-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .pane-tab,
+    .editor-tab {
+      position: relative;
+      min-width: 0;
+      flex: 0 0 auto;
+      border: 0;
+      border-right: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font: 600 0.65rem/1 var(--mono);
+      white-space: nowrap;
+    }
+
+    .pane-tab {
+      min-height: 2.55rem;
+      padding: 0 0.75rem;
+    }
+
+    .editor-tab {
+      height: 2.1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0 0.7rem;
+    }
+
+    .pane-tab:hover,
+    .editor-tab:hover {
+      background: color-mix(in srgb, var(--pane-accent) 5%, transparent);
+      color: var(--ink);
+    }
+
+    .pane-tab[aria-selected="true"],
+    .editor-tab[aria-selected="true"] {
+      background: color-mix(in srgb, var(--pane-accent) 8%, transparent);
+      color: var(--ink-strong);
+    }
+
+    .pane-tab[aria-selected="true"]::after,
+    .editor-tab[aria-selected="true"]::after {
+      content: "";
+      position: absolute;
+      left: 0.55rem;
+      right: 0.55rem;
+      bottom: 0;
+      height: 2px;
+      background: var(--pane-accent);
+    }
+
+    .tab-view {
+      min-width: 0;
+      min-height: 0;
+      height: 100%;
+    }
+
+    .tab-view[hidden] {
+      display: none;
+    }
+
+    .filter-bar {
+      min-height: 2.3rem;
+      display: grid;
+      grid-template-columns: 1.25rem minmax(0, 1fr);
+      align-items: center;
+      gap: 0.35rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--dim);
+      padding: 0 0.7rem;
+    }
+
+    .filter-bar input {
+      min-width: 0;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      font: 400 0.67rem/1 var(--mono);
+    }
+
+    .filter-bar input::placeholder,
+    .composer textarea::placeholder,
+    .command-search input::placeholder {
+      color: #7796a1;
+      opacity: 1;
+    }
+
+    .item-list {
+      display: grid;
+      align-content: start;
+      gap: 0.35rem;
+      padding: 0.55rem;
+    }
+
+    .list-row {
+      --row: var(--cyan);
+      width: 100%;
+      min-width: 0;
+      min-height: 3.25rem;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.65rem;
+      border: 1px solid transparent;
+      border-radius: 0.42rem;
+      background: transparent;
+      color: var(--ink);
+      padding: 0.55rem 0.65rem;
+      text-align: left;
+    }
+
+    .list-row[hidden] {
+      display: none;
+    }
+
+    .list-row:hover {
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .list-row.active {
+      border-color: color-mix(in srgb, var(--row) 48%, transparent);
+      background: color-mix(in srgb, var(--row) 8%, transparent);
+    }
+
+    .list-copy {
+      min-width: 0;
+      display: grid;
+      gap: 0.18rem;
+    }
+
+    .list-copy strong,
+    .list-copy span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .list-copy strong {
+      color: var(--ink-strong);
+      font: 600 0.68rem/1.2 var(--mono);
+    }
+
+    .list-copy span {
+      color: var(--muted);
+      font-size: 0.68rem;
+      line-height: 1.25;
+    }
+
+    .row-meta {
+      display: grid;
+      justify-items: end;
+      gap: 0.22rem;
+      color: color-mix(in srgb, var(--row) 74%, white 8%);
+      font: 600 0.58rem/1 var(--mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tag-row {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      margin-top: 0.1rem;
+    }
+
+    .tag {
+      min-height: 1.1rem;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--row, var(--cyan)) 28%, transparent);
+      border-radius: 999px;
+      color: color-mix(in srgb, var(--row, var(--cyan)) 72%, var(--ink) 28%);
+      padding: 0 0.4rem;
+      font: 600 0.51rem/1 var(--mono);
+    }
+
+    .editor-shell {
+      height: 100%;
+      display: grid;
+      grid-template-rows: 2.1rem minmax(0, 1fr);
+    }
+
+    .editor-tabs {
+      border-bottom: 1px solid var(--border);
+      background: rgba(2, 9, 16, 0.7);
+    }
+
+    .close-tab {
+      width: 1.1rem;
+      height: 1.1rem;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 0.25rem;
+      background: transparent;
+      color: var(--dim);
+      padding: 0;
+      font-size: 0.72rem;
+    }
+
+    .close-tab:hover {
+      background: color-mix(in srgb, var(--red) 12%, transparent);
+      color: var(--red);
+    }
+
+    .editor-content {
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .conversation {
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+    }
+
+    .conversation-meta {
+      min-height: 2.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+      border-bottom: 1px solid var(--border);
+      padding: 0 0.8rem;
+      font: 600 0.61rem/1 var(--mono);
+    }
+
+    .conversation-meta span:first-child {
+      color: var(--ink-strong);
+    }
+
+    .conversation-meta span:last-child {
+      color: var(--dim);
+    }
+
+    .messages {
+      min-height: 0;
+      overflow: auto;
+      padding: 1.3rem max(1rem, 7%);
+    }
+
+    .message {
+      width: min(44rem, 94%);
+      margin: 0 auto 1.1rem;
+    }
+
+    .message-label {
+      display: block;
+      margin-bottom: 0.35rem;
+      color: var(--dim);
+      font: 600 0.58rem/1 var(--mono);
+    }
+
+    .message-body {
+      color: var(--ink);
+      font-size: 0.9rem;
+      line-height: 1.55;
+      letter-spacing: 0.005em;
+    }
+
+    .message.user .message-body {
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      background: var(--surface-2);
+      padding: 0.75rem 0.85rem;
+    }
+
+    .work-log {
+      display: grid;
+      gap: 0.4rem;
+      margin-top: 0.75rem;
+      color: var(--muted);
+      font: 400 0.68rem/1.35 var(--mono);
+    }
+
+    .work-step {
+      display: grid;
+      grid-template-columns: 0.65rem minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .work-step i {
+      width: 0.45rem;
+      height: 0.45rem;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    .work-step.working i {
+      background: var(--amber);
+    }
+
+    .work-step b {
+      color: var(--dim);
+      font-weight: 400;
+    }
+
+    .composer-wrap {
+      border-top: 1px solid var(--border);
+      padding: 0.65rem;
+    }
+
+    .composer {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 0.5rem;
+      border: 1px solid var(--border-strong);
+      border-radius: 0.55rem;
+      background: var(--surface-2);
+      padding: 0.45rem;
+    }
+
+    .composer textarea {
+      width: 100%;
+      min-height: 2.1rem;
+      max-height: 7rem;
+      resize: none;
+      border: 0;
+      background: transparent;
+      color: var(--ink-strong);
+      padding: 0.45rem 0.35rem;
+      font-size: 0.86rem;
+      line-height: 1.35;
+    }
+
+    .composer-tool,
+    .send-button {
+      min-height: 2.1rem;
+      border-radius: 0.42rem;
+      font: 600 0.62rem/1 var(--mono);
+    }
+
+    .composer-tool {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      padding: 0 0.55rem;
+    }
+
+    .send-button {
+      width: 2.1rem;
+      border: 1px solid color-mix(in srgb, var(--cyan) 58%, transparent);
+      background: color-mix(in srgb, var(--cyan) 16%, var(--surface));
+      color: var(--ink-strong);
+    }
+
+    .empty-workspace,
+    .stub-view {
+      height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 1.5rem;
+    }
+
+    .stub-card {
+      max-width: 38rem;
+      display: grid;
+      justify-items: start;
+      gap: 0.65rem;
+    }
+
+    .stub-card h2,
+    .stub-card p {
+      margin: 0;
+    }
+
+    .stub-card h2 {
+      color: var(--ink-strong);
+      font: 600 1.05rem/1.25 var(--mono);
+    }
+
+    .stub-card p {
+      max-width: 65ch;
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.55;
+    }
+
+    .info-grid {
+      display: grid;
+      gap: 0.55rem;
+      padding: 0.7rem;
+    }
+
+    .info-row {
+      min-width: 0;
+      min-height: 2.4rem;
+      display: grid;
+      grid-template-columns: 5.5rem minmax(0, 1fr);
+      align-items: center;
+      gap: 0.55rem;
+      border-bottom: 1px solid var(--border);
+      padding: 0 0.3rem;
+      font: 400 0.64rem/1.25 var(--mono);
+    }
+
+    .info-row span:first-child {
+      color: var(--dim);
+    }
+
+    .info-row span:last-child {
+      overflow: hidden;
+      color: var(--ink);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .terminal {
+      height: 100%;
+      overflow: auto;
+      background: #02070b;
+      color: #8fb7c1;
+      padding: 0.7rem 0.85rem;
+      font: 400 0.68rem/1.55 var(--mono);
+    }
+
+    .terminal-line {
+      display: block;
+      white-space: pre-wrap;
+    }
+
+    .terminal-prompt {
+      color: var(--green);
+    }
+
+    .planning-canvas {
+      position: relative;
+      height: 100%;
+      min-height: 24rem;
+      overflow: auto;
+      background:
+        linear-gradient(rgba(16, 182, 202, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(16, 182, 202, 0.035) 1px, transparent 1px),
+        var(--bg);
+      background-size: 2rem 2rem;
+    }
+
+    .graph {
+      position: relative;
+      width: 68rem;
+      height: 35rem;
+    }
+
+    .graph svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .graph path {
+      fill: none;
+      stroke: var(--green);
+      stroke-linecap: round;
+      stroke-width: 5;
+      opacity: 0.58;
+    }
+
+    .graph path.branch {
+      stroke-width: 3;
+    }
+
+    .graph-node {
+      --node: var(--green);
+      position: absolute;
+      left: var(--x);
+      top: var(--y);
+      min-width: 5rem;
+      height: 2.25rem;
+      border: 1px solid color-mix(in srgb, var(--node) 48%, transparent);
+      border-radius: 0.45rem;
+      background: var(--bg);
+      color: color-mix(in srgb, var(--node) 78%, white 8%);
+      padding: 0 0.65rem;
+      font: 600 0.65rem/1 var(--mono);
+      transform: translate(-50%, -50%);
+    }
+
+    .graph-node:hover,
+    .graph-node.active {
+      border-color: color-mix(in srgb, var(--node) 82%, white 8%);
+      background: color-mix(in srgb, var(--node) 9%, var(--bg));
+    }
+
+    .document-view {
+      height: 100%;
+      overflow: auto;
+      padding: 1.5rem max(1.2rem, 6%);
+    }
+
+    .document-view article {
+      max-width: 70ch;
+      margin: 0 auto;
+    }
+
+    .document-view h2,
+    .document-view h3,
+    .document-view p {
+      margin-top: 0;
+    }
+
+    .document-view h2 {
+      color: var(--ink-strong);
+      font: 600 1.15rem/1.25 var(--mono);
+    }
+
+    .document-view h3 {
+      margin-bottom: 0.45rem;
+      color: var(--ink-strong);
+      font: 600 0.85rem/1.25 var(--mono);
+    }
+
+    .document-view p,
+    .document-view li {
+      color: var(--ink);
+      font-size: 0.86rem;
+      line-height: 1.6;
+    }
+
+    .document-view pre {
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 0.45rem;
+      background: var(--bg);
+      color: #a8ced7;
+      padding: 0.9rem;
+      font: 400 0.68rem/1.5 var(--mono);
+    }
+
+    .mail-preview {
+      height: 100%;
+      overflow: auto;
+      padding: 1.15rem;
+    }
+
+    .mail-preview h2 {
+      margin: 0 0 0.35rem;
+      color: var(--ink-strong);
+      font: 600 1rem/1.25 var(--mono);
+    }
+
+    .mail-preview .mail-meta {
+      margin-bottom: 1.25rem;
+      color: var(--dim);
+      font: 400 0.64rem/1.4 var(--mono);
+    }
+
+    .mail-preview p {
+      max-width: 68ch;
+      color: var(--ink);
+      font-size: 0.86rem;
+      line-height: 1.6;
+    }
+
+    .calendar-grid {
+      min-width: 43rem;
+      height: 100%;
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      grid-template-rows: 2rem repeat(5, minmax(4rem, 1fr));
+      gap: 1px;
+      background: var(--border);
+    }
+
+    .calendar-cell {
+      min-width: 0;
+      background: var(--surface);
+      padding: 0.45rem;
+      color: var(--muted);
+      font: 400 0.62rem/1.2 var(--mono);
+    }
+
+    .calendar-cell.header {
+      display: grid;
+      place-items: center;
+      background: var(--surface-2);
+      color: var(--dim);
+    }
+
+    .calendar-event {
+      display: block;
+      overflow: hidden;
+      margin-top: 0.35rem;
+      border: 1px solid color-mix(in srgb, var(--green) 36%, transparent);
+      border-radius: 0.3rem;
+      background: color-mix(in srgb, var(--green) 8%, transparent);
+      color: #9be9b8;
+      padding: 0.28rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .statusbar {
+      position: relative;
+      z-index: 20;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      border-top: 1px solid var(--border);
+      background: #03101a;
+      padding: 0 0.55rem;
+      font: 400 0.58rem/1 var(--mono);
+    }
+
+    .status-item,
+    .pane-toggle {
+      min-width: 0;
+      height: 1.35rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      border: 1px solid transparent;
+      border-radius: 0.28rem;
+      background: transparent;
+      color: var(--muted);
+      padding: 0 0.4rem;
+      white-space: nowrap;
+    }
+
+    .pane-toggle[hidden] {
+      display: none;
+    }
+
+    .pane-toggle:hover,
+    .pane-toggle[aria-pressed="true"] {
+      border-color: var(--border);
+      background: var(--surface-2);
+      color: var(--ink);
+    }
+
+    .status-spacer {
+      flex: 1 1 auto;
+    }
+
+    .status-dot {
+      width: 0.38rem;
+      height: 0.38rem;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    dialog {
+      color: var(--ink);
+    }
+
+    dialog::backdrop {
+      background: rgba(0, 4, 8, 0.72);
+    }
+
+    .command-dialog {
+      width: min(43rem, calc(100vw - 2rem));
+      max-height: min(36rem, calc(100dvh - 3rem));
+      margin: 10vh auto 0;
+      border: 1px solid var(--border-strong);
+      border-radius: 0.65rem;
+      background: var(--surface);
+      padding: 0;
+      box-shadow: 0 8px 14px rgba(0, 0, 0, 0.34);
+      overflow: hidden;
+    }
+
+    .command-search {
+      min-height: 3.2rem;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.65rem;
+      border-bottom: 1px solid var(--border);
+      padding: 0 0.85rem;
+    }
+
+    .command-search input {
+      min-width: 0;
+      border: 0;
+      background: transparent;
+      color: var(--ink-strong);
+      font: 400 0.82rem/1 var(--mono);
+    }
+
+    .key {
+      min-width: 1.55rem;
+      height: 1.35rem;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid var(--border);
+      border-radius: 0.28rem;
+      background: var(--bg);
+      color: var(--dim);
+      padding: 0 0.35rem;
+      font: 600 0.55rem/1 var(--mono);
+    }
+
+    .command-list {
+      max-height: 27rem;
+      overflow: auto;
+      padding: 0.45rem;
+    }
+
+    .command-group-label {
+      display: block;
+      padding: 0.55rem 0.6rem 0.35rem;
+      color: var(--dim);
+      font: 600 0.55rem/1 var(--mono);
+    }
+
+    .command-item {
+      width: 100%;
+      min-height: 2.5rem;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.8rem;
+      border: 1px solid transparent;
+      border-radius: 0.4rem;
+      background: transparent;
+      color: var(--ink);
+      padding: 0 0.65rem;
+      text-align: left;
+    }
+
+    .command-item[hidden],
+    .command-group-label[hidden] {
+      display: none;
+    }
+
+    .command-item:hover,
+    .command-item.focused {
+      border-color: var(--border);
+      background: var(--surface-2);
+    }
+
+    .command-item strong {
+      display: block;
+      color: var(--ink-strong);
+      font: 600 0.69rem/1.2 var(--mono);
+    }
+
+    .command-item span {
+      display: block;
+      margin-top: 0.15rem;
+      color: var(--dim);
+      font-size: 0.67rem;
+    }
+
+    .utility-screen {
+      position: absolute;
+      inset: 0.65rem;
+      z-index: 12;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    .utility-screen[hidden] {
+      display: none;
+    }
+
+    .utility-head {
+      min-height: 3rem;
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      border-bottom: 1px solid var(--border);
+      padding: 0 0.7rem;
+    }
+
+    .utility-head h2 {
+      flex: 1 1 auto;
+      margin: 0;
+      color: var(--ink-strong);
+      font: 600 0.8rem/1 var(--mono);
+    }
+
+    .utility-layout {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 15rem minmax(0, 1fr);
+    }
+
+    .utility-nav {
+      display: grid;
+      align-content: start;
+      gap: 0.3rem;
+      border-right: 1px solid var(--border);
+      padding: 0.7rem;
+    }
+
+    .utility-tab {
+      min-height: 2.35rem;
+      border: 1px solid transparent;
+      border-radius: 0.4rem;
+      background: transparent;
+      color: var(--muted);
+      padding: 0 0.65rem;
+      text-align: left;
+      font: 600 0.68rem/1 var(--mono);
+    }
+
+    .utility-tab:hover,
+    .utility-tab[aria-selected="true"] {
+      border-color: var(--border);
+      background: var(--surface-2);
+      color: var(--ink-strong);
+    }
+
+    .utility-content {
+      min-width: 0;
+      min-height: 0;
+      overflow: auto;
+      padding: 1.2rem;
+    }
+
+    .settings-section {
+      max-width: 56rem;
+    }
+
+    .settings-section h3 {
+      margin: 0 0 0.4rem;
+      color: var(--ink-strong);
+      font: 600 1rem/1.25 var(--mono);
+    }
+
+    .settings-section > p {
+      margin: 0 0 1.2rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    .settings-row {
+      min-height: 3.4rem;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .settings-row strong,
+    .settings-row span {
+      display: block;
+    }
+
+    .settings-row strong {
+      color: var(--ink);
+      font: 600 0.7rem/1.25 var(--mono);
+    }
+
+    .settings-row span {
+      margin-top: 0.18rem;
+      color: var(--dim);
+      font-size: 0.7rem;
+    }
+
+    .switch {
+      width: 2.4rem;
+      height: 1.35rem;
+      display: flex;
+      align-items: center;
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
+      background: var(--surface);
+      padding: 0.12rem;
+    }
+
+    .switch::after {
+      content: "";
+      width: 0.9rem;
+      height: 0.9rem;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: transform 160ms ease-out, background 160ms ease-out;
+    }
+
+    .switch[aria-pressed="true"] {
+      background: color-mix(in srgb, var(--cyan) 16%, var(--surface));
+    }
+
+    .switch[aria-pressed="true"]::after {
+      background: var(--cyan);
+      transform: translateX(1rem);
+    }
+
+    .toast-region {
+      position: fixed;
+      right: 0.8rem;
+      bottom: calc(var(--status-h) + 0.8rem);
+      z-index: 90;
+      display: grid;
+      gap: 0.45rem;
+      pointer-events: none;
+    }
+
+    .toast {
+      min-width: 17rem;
+      max-width: 25rem;
+      border: 1px solid var(--border-strong);
+      border-radius: 0.45rem;
+      background: var(--surface-2);
+      color: var(--ink);
+      padding: 0.7rem 0.8rem;
+      font-size: 0.75rem;
+      line-height: 1.35;
+      animation: toast-in 180ms ease-out both;
+    }
+
+    .toast strong {
+      display: block;
+      margin-bottom: 0.15rem;
+      color: var(--ink-strong);
+      font: 600 0.64rem/1 var(--mono);
+    }
+
+    .notifications-popover {
+      width: min(23rem, calc(100vw - 1.5rem));
+      max-height: 30rem;
+      inset: 4rem 0.8rem auto auto;
+      border: 1px solid var(--border-strong);
+      border-radius: 0.55rem;
+      background: var(--surface);
+      color: var(--ink);
+      padding: 0;
+      box-shadow: 0 8px 14px rgba(0, 0, 0, 0.34);
+      overflow: hidden;
+    }
+
+    .notifications-popover h2 {
+      margin: 0;
+      border-bottom: 1px solid var(--border);
+      padding: 0.8rem;
+      color: var(--ink-strong);
+      font: 600 0.74rem/1 var(--mono);
+    }
+
+    .notification {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 0.5rem minmax(0, 1fr);
+      gap: 0.65rem;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      background: transparent;
+      color: var(--ink);
+      padding: 0.8rem;
+      text-align: left;
+    }
+
+    .notification:hover {
+      background: var(--surface-2);
+    }
+
+    .notification i {
+      width: 0.45rem;
+      height: 0.45rem;
+      margin-top: 0.3rem;
+      border-radius: 50%;
+      background: var(--amber);
+    }
+
+    .notification strong,
+    .notification span {
+      display: block;
+    }
+
+    .notification strong {
+      color: var(--ink-strong);
+      font: 600 0.66rem/1.25 var(--mono);
+    }
+
+    .notification span {
+      margin-top: 0.2rem;
+      color: var(--muted);
+      font-size: 0.7rem;
+      line-height: 1.35;
+    }
+
+    @keyframes toast-in {
+      from {
+        opacity: 0;
+        transform: translateY(0.45rem);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 1120px) {
+      .topline {
+        grid-template-columns: 3rem minmax(28rem, 1fr) auto;
+      }
+
+      .brand-copy {
+        display: none;
+      }
+
+      .workbench-grid {
+        --left-size: 14rem;
+        --right-size: 16rem;
+      }
+
+      .screen-tab {
+        padding: 0 0.5rem;
+      }
+
+      .top-actions .icon-button:first-child {
+        display: none;
+      }
+    }
+
+    @media (max-width: 840px) {
+      :root {
+        --header-h: 9rem;
+        --status-h: 2rem;
+      }
+
+      .topline {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-rows: 3.1rem 5.4rem;
+        gap: 0 0.6rem;
+        padding: 0 0.7rem;
+      }
+
+      .screen-navigation {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        width: 100%;
+      }
+
+      .workbench-grid {
+        --left-track: 0px;
+        --left-grip: 0px;
+        --right-track: 0px;
+        --right-grip: 0px;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(14rem, 1fr) var(--bottom-grip) var(--bottom-track);
+      }
+
+      .pane-left,
+      .pane-right,
+      .split-left,
+      .split-right {
+        display: none;
+      }
+
+      .workbench-grid {
+        position: relative;
+      }
+
+      .workbench-grid.mobile-show-left > .pane-left,
+      .workbench-grid.mobile-show-right > .pane-right {
+        position: absolute;
+        inset: 0;
+        z-index: 12;
+        display: grid;
+      }
+
+      .pane-center {
+        grid-column: 1;
+      }
+
+      .pane-bottom,
+      .split-bottom {
+        grid-column: 1;
+      }
+
+      .status-item.hide-narrow {
+        display: none;
+      }
+
+      .utility-layout {
+        grid-template-columns: 10rem minmax(0, 1fr);
+      }
+
+      .utility-screen {
+        inset: 0.4rem;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .screen-tabs {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .screen-tab {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .screen-count {
+        display: none;
+      }
+
+      .screen-label {
+        font-size: 0.58rem;
+      }
+
+      .workspace {
+        padding: 0.35rem;
+      }
+
+      .screen {
+        inset: 0.35rem;
+      }
+
+      .utility-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(0, 1fr);
+      }
+
+      .utility-nav {
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(6rem, 1fr);
+        overflow-x: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .message {
+        width: 100%;
+      }
+
+      .composer-tool {
+        display: none;
+      }
+
+      .composer {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+    }
+
+    @media (pointer: coarse) {
+      .icon-button,
+      .screen-tab,
+      .pane-button,
+      .compact-button,
+      .pane-tab,
+      .editor-tab,
+      .pane-toggle {
+        min-height: 2.75rem;
+      }
+    }
+
+    /*
+      Distilled frame pass:
+      the primary navigation header is the only outlined surface. Everything
+      below it is grouped by tone, spacing and state instead of nested boxes.
+    */
+    body *:not(.screen-navigation) {
+      border: 0;
+    }
+
+    .screen-navigation {
+      border: 1px solid color-mix(in srgb, var(--cyan) 26%, var(--border));
+    }
+
+    .topline {
+      background: color-mix(in srgb, var(--bg) 97%, var(--cyan) 3%);
+    }
+
+    .screen-tab[aria-selected="true"] {
+      background: transparent;
+      color: color-mix(in srgb, var(--tab) 74%, white 20%);
+      box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--tab) 78%, white 6%);
+    }
+
+    .screen-count {
+      background: transparent;
+    }
+
+    .icon-button,
+    .pane-button,
+    .compact-button,
+    .composer-tool,
+    .send-button {
+      background: transparent;
+    }
+
+    .icon-button:hover,
+    .pane-button:hover,
+    .compact-button:hover,
+    .composer-tool:hover {
+      background: var(--surface-2);
+    }
+
+    .compact-button.primary,
+    .send-button {
+      background: color-mix(in srgb, var(--pane-accent, var(--cyan)) 13%, transparent);
+    }
+
+    .pane {
+      border-radius: 0;
+      background: color-mix(in srgb, var(--surface) 97%, var(--pane-accent) 3%);
+    }
+
+    .pane-head,
+    .filter-bar,
+    .conversation-meta {
+      background: color-mix(in srgb, var(--surface-2) 42%, transparent);
+    }
+
+    .pane-tab,
+    .editor-tab {
+      margin-right: 0.1rem;
+    }
+
+    .item-list {
+      gap: 0.14rem;
+    }
+
+    .list-row.active {
+      background: color-mix(in srgb, var(--row) 10%, transparent);
+    }
+
+    .tag {
+      background: color-mix(in srgb, var(--row, var(--cyan)) 9%, transparent);
+    }
+
+    .editor-tabs {
+      background: color-mix(in srgb, var(--surface-2) 58%, transparent);
+    }
+
+    .message.user .message-body,
+    .composer {
+      border: 0;
+      background: var(--surface-2);
+    }
+
+    .composer-wrap {
+      background: color-mix(in srgb, var(--surface) 82%, transparent);
+    }
+
+    .graph-node {
+      background: color-mix(in srgb, var(--node) 9%, var(--bg));
+    }
+
+    .graph-node:hover,
+    .graph-node.active {
+      background: color-mix(in srgb, var(--node) 16%, var(--bg));
+      box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--node) 74%, transparent);
+    }
+
+    .document-view pre {
+      background: var(--surface-2);
+    }
+
+    .calendar-grid {
+      gap: 0.3rem;
+      background: transparent;
+      padding: 0.3rem;
+    }
+
+    .calendar-cell {
+      background: color-mix(in srgb, var(--surface) 78%, transparent);
+    }
+
+    .calendar-cell.header {
+      background: transparent;
+    }
+
+    .calendar-event {
+      background: color-mix(in srgb, var(--green) 11%, transparent);
+    }
+
+    .statusbar {
+      background: color-mix(in srgb, var(--bg) 96%, var(--cyan) 4%);
+    }
+
+    .pane-toggle:hover,
+    .pane-toggle[aria-pressed="true"],
+    .command-item:hover,
+    .command-item.focused,
+    .utility-tab:hover,
+    .utility-tab[aria-selected="true"] {
+      background: var(--surface-2);
+    }
+
+    .command-dialog,
+    .notifications-popover {
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.46);
+    }
+
+    .key {
+      background: color-mix(in srgb, var(--surface-2) 78%, transparent);
+    }
+
+    .utility-screen {
+      border-radius: 0;
+    }
+
+    .utility-nav {
+      background: color-mix(in srgb, var(--surface) 72%, transparent);
+    }
+
+    .switch {
+      background: color-mix(in srgb, var(--surface-2) 84%, transparent);
+    }
+
+    .toast {
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.38);
+    }
+
+    /* Harbor One V3 refinement: retain the fixed shell, restore its identity. */
+    .app {
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 50% 78%, rgba(10, 164, 214, 0.13), transparent 27%),
+        radial-gradient(circle at 12% 16%, rgba(30, 92, 182, 0.16), transparent 29%),
+        radial-gradient(circle at 88% 22%, rgba(21, 214, 245, 0.09), transparent 31%),
+        var(--bg);
+    }
+
+    .app::before {
+      content: "";
+      position: absolute;
+      inset: var(--header-h) 0 var(--status-h);
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.72;
+      background:
+        radial-gradient(circle at 4% 18%, rgba(89, 226, 249, 0.74) 0 1px, rgba(16, 182, 202, 0.1) 2px 7px, transparent 8px),
+        radial-gradient(circle at 13% 71%, rgba(89, 226, 249, 0.62) 0 1px, rgba(16, 182, 202, 0.08) 2px 8px, transparent 9px),
+        radial-gradient(circle at 24% 13%, rgba(89, 226, 249, 0.56) 0 1px, rgba(16, 182, 202, 0.07) 2px 6px, transparent 7px),
+        radial-gradient(circle at 76% 9%, rgba(89, 226, 249, 0.6) 0 1px, rgba(16, 182, 202, 0.08) 2px 7px, transparent 8px),
+        radial-gradient(circle at 92% 34%, rgba(89, 226, 249, 0.58) 0 1px, rgba(16, 182, 202, 0.07) 2px 8px, transparent 9px),
+        radial-gradient(circle at 84% 82%, rgba(89, 226, 249, 0.5) 0 1px, rgba(16, 182, 202, 0.06) 2px 7px, transparent 8px),
+        linear-gradient(113deg, transparent 0 11.9%, rgba(16, 182, 202, 0.07) 12%, transparent 12.1% 100%),
+        linear-gradient(68deg, transparent 0 82.9%, rgba(16, 182, 202, 0.055) 83%, transparent 83.1% 100%);
+    }
+
+    .topline,
+    .workspace,
+    .statusbar {
+      z-index: 2;
+    }
+
+    .topline {
+      grid-template-columns: minmax(4.5rem, 1fr) minmax(38rem, 47rem) minmax(11rem, 1fr);
+      gap: 1.1rem;
+      background: color-mix(in srgb, var(--bg) 94%, black);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.24);
+    }
+
+    .brand {
+      gap: 0.45rem;
+    }
+
+    .brand-mark,
+    .brand-logo-crop {
+      width: 3.5rem;
+      height: 3.5rem;
+    }
+
+    .brand-mark {
+      overflow: hidden;
+      filter: drop-shadow(0 0 10px color-mix(in srgb, var(--cyan) 22%, transparent));
+      transition: filter 150ms ease-out, transform 150ms ease-out;
+    }
+
+    .brand-mark:hover {
+      filter: drop-shadow(0 0 14px color-mix(in srgb, var(--cyan) 38%, transparent));
+      transform: translateY(-1px);
+    }
+
+    .brand-logo-crop {
+      display: block;
+      overflow: hidden;
+    }
+
+    .brand-logo-crop img {
+      width: 8.85rem;
+      height: 8.85rem;
+      display: block;
+      max-width: none;
+      object-fit: cover;
+      transform: translate(-2.68rem, -2.68rem);
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .brand-copy strong {
+      color: var(--ink-strong);
+      text-shadow: 0 0 12px rgba(16, 182, 202, 0.12);
+    }
+
+    .screen-navigation {
+      width: min(47rem, 100%);
+      border-color: color-mix(in srgb, var(--cyan) 30%, transparent);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--cyan) 7%, transparent), rgba(2, 9, 16, 0.94)),
+        rgba(2, 9, 16, 0.9);
+      box-shadow: inset 0 0 0 1px rgba(215, 247, 255, 0.025);
+    }
+
+    .screen-tab {
+      color: rgba(215, 247, 255, 0.58);
+      transition: color 160ms ease-out, background 160ms ease-out, box-shadow 160ms ease-out;
+    }
+
+    .screen-tab:hover {
+      background: color-mix(in srgb, var(--tab) 7%, transparent);
+      color: rgba(236, 253, 255, 0.9);
+    }
+
+    .screen-tab[aria-selected="true"] {
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--tab) 15%, transparent), color-mix(in srgb, var(--tab) 5%, transparent)),
+        rgba(2, 12, 21, 0.7);
+      color: rgba(236, 253, 255, 0.96);
+      box-shadow:
+        inset 0 -2px 0 color-mix(in srgb, var(--tab) 78%, white 6%),
+        0 0 14px color-mix(in srgb, var(--tab) 10%, transparent);
+    }
+
+    .screen-dot {
+      box-shadow: 0 0 10px color-mix(in srgb, var(--tab) 28%, transparent);
+    }
+
+    .screen-count {
+      color: color-mix(in srgb, var(--tab) 86%, var(--ink));
+      text-shadow: 0 0 8px color-mix(in srgb, var(--tab) 22%, transparent);
+    }
+
+    .header-subtab {
+      color: rgba(189, 217, 226, 0.52);
+      transition: color 140ms ease-out, background 140ms ease-out;
+    }
+
+    .header-subtab:hover,
+    .header-subtab[aria-selected="true"] {
+      color: color-mix(in srgb, var(--header-tab) 72%, white 18%);
+    }
+
+    .header-subtab:hover {
+      background: color-mix(in srgb, var(--header-tab) 5%, transparent);
+    }
+
+    .header-subtab[aria-selected="true"] {
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--header-tab) 9%, transparent), transparent),
+        rgba(2, 12, 21, 0.34);
+    }
+
+    .header-tab-action {
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--header-tab) 23%, transparent), color-mix(in srgb, var(--header-tab) 12%, transparent)),
+        rgba(2, 12, 21, 0.94);
+      color: color-mix(in srgb, var(--header-tab) 72%, white 28%);
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--header-tab) 26%, transparent),
+        0 0 12px color-mix(in srgb, var(--header-tab) 11%, transparent);
+    }
+
+    .header-tab-action:hover {
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--header-tab) 31%, transparent), color-mix(in srgb, var(--header-tab) 17%, transparent)),
+        rgba(2, 12, 21, 0.96);
+      color: var(--ink-strong);
+    }
+
+    .top-actions {
+      gap: 0.55rem;
+    }
+
+    .top-actions .icon-button {
+      background: color-mix(in srgb, var(--cyan) 5%, rgba(2, 12, 21, 0.9));
+      color: var(--cyan-text, #79bbc7);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cyan) 16%, transparent);
+    }
+
+    .top-actions .icon-button:hover {
+      background: color-mix(in srgb, var(--cyan) 11%, rgba(2, 12, 21, 0.92));
+      color: var(--ink-strong);
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--cyan) 30%, transparent),
+        0 0 10px color-mix(in srgb, var(--cyan) 9%, transparent);
+    }
+
+    .workspace {
+      background: transparent;
+      padding: 0;
+    }
+
+    .screen {
+      inset: 0.75rem auto;
+      left: 50%;
+      width: min(calc(100% - 1.5rem), 82.5rem);
+      transform: translateX(-50%);
+    }
+
+    .workbench-grid {
+      --split-size: 0.55rem;
+    }
+
+    .pane {
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--pane-accent) 2.5%, rgba(6, 17, 27, 0.96)), rgba(2, 8, 15, 0.96));
+      box-shadow: 0 8px 14px rgba(0, 0, 0, 0.18);
+    }
+
+    .pane-center {
+      background:
+        radial-gradient(circle at 50% 8%, color-mix(in srgb, var(--pane-accent) 4%, transparent), transparent 34%),
+        rgba(3, 14, 24, 0.97);
+    }
+
+    .pane-head {
+      min-height: 2.85rem;
+      background: color-mix(in srgb, var(--surface-2) 58%, rgba(2, 8, 15, 0.9));
+    }
+
+    .pane-heading strong {
+      color: var(--ink-strong);
+      text-shadow: 0 0 10px color-mix(in srgb, var(--pane-accent) 9%, transparent);
+    }
+
+    .filter-bar {
+      min-height: 2.6rem;
+      background: rgba(2, 9, 16, 0.46);
+    }
+
+    .list-row {
+      min-height: 3.45rem;
+      transition: background 140ms ease-out, color 140ms ease-out, box-shadow 140ms ease-out;
+    }
+
+    .list-row:hover {
+      background: color-mix(in srgb, var(--row, var(--cyan)) 4%, transparent);
+    }
+
+    .list-row.active {
+      background:
+        linear-gradient(90deg, color-mix(in srgb, var(--row) 11%, transparent), transparent 78%),
+        rgba(4, 18, 31, 0.52);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--row) 6%, transparent);
+    }
+
+    .conversation-meta {
+      min-height: 2.8rem;
+      background: rgba(2, 9, 16, 0.36);
+    }
+
+    .messages {
+      padding-top: 1.8rem;
+      padding-bottom: 1.4rem;
+    }
+
+    .message {
+      position: relative;
+      margin-bottom: 1.35rem;
+    }
+
+    .message-label {
+      color: color-mix(in srgb, var(--cyan) 56%, var(--muted));
+    }
+
+    .message.user .message-body {
+      background:
+        linear-gradient(90deg, color-mix(in srgb, var(--blue) 9%, transparent), transparent 86%),
+        rgba(7, 24, 42, 0.76);
+      box-shadow: 0 0 12px rgba(30, 92, 182, 0.08);
+    }
+
+    .work-log {
+      gap: 0.5rem;
+      background:
+        linear-gradient(90deg, color-mix(in srgb, var(--red) 6%, transparent), transparent 82%),
+        rgba(9, 14, 24, 0.58);
+      padding: 0.72rem 0.8rem;
+    }
+
+    .work-step i {
+      box-shadow: 0 0 8px color-mix(in srgb, currentColor 28%, transparent);
+    }
+
+    .composer-wrap {
+      padding: 0.8rem 1rem;
+      background: rgba(2, 8, 15, 0.8);
+    }
+
+    .composer {
+      min-height: 4.6rem;
+      align-items: center;
+      background:
+        linear-gradient(90deg, color-mix(in srgb, var(--cyan) 4%, transparent), transparent 72%),
+        rgba(2, 12, 21, 0.96);
+      box-shadow: 0 8px 14px rgba(0, 0, 0, 0.2);
+    }
+
+    .composer textarea {
+      min-height: 3rem;
+      font-size: 0.88rem;
+    }
+
+    .send-button {
+      background: color-mix(in srgb, var(--cyan) 15%, rgba(2, 12, 21, 0.94));
+      color: var(--ink-strong);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--cyan) 10%, transparent);
+    }
+
+    .info-row span:first-child {
+      color: color-mix(in srgb, var(--cyan) 45%, var(--muted));
+    }
+
+    .statusbar {
+      background: rgba(2, 8, 15, 0.88);
+      color: rgba(189, 217, 226, 0.58);
+    }
+
+    .status-dot {
+      box-shadow: 0 0 8px color-mix(in srgb, var(--green) 44%, transparent);
+    }
+
+    @media (min-width: 841px) {
+      .messages {
+        padding-left: max(3.8rem, 8%);
+      }
+
+      .message::before {
+        content: "";
+        position: absolute;
+        left: -2.35rem;
+        top: 1.25rem;
+        width: 0.42rem;
+        height: 0.42rem;
+        border-radius: 50%;
+        background: var(--blue);
+        box-shadow: 0 0 10px color-mix(in srgb, var(--blue) 52%, transparent);
+      }
+
+      .message::after {
+        content: "";
+        position: absolute;
+        left: -2.16rem;
+        top: 1.65rem;
+        bottom: -1.6rem;
+        width: 1px;
+        background: linear-gradient(180deg, color-mix(in srgb, var(--blue) 38%, transparent), transparent);
+      }
+
+      .message:last-child::after {
+        display: none;
+      }
+    }
+
+    .harbor-thread {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 1rem;
+      padding: 1.75rem 2rem 7rem 4.6rem;
+    }
+
+    .harbor-thread::before {
+      content: "";
+      position: absolute;
+      left: 2.15rem;
+      top: 1.9rem;
+      bottom: 5.8rem;
+      width: 1px;
+      background: linear-gradient(
+        180deg,
+        transparent,
+        color-mix(in srgb, var(--blue) 46%, transparent) 12%,
+        color-mix(in srgb, var(--cyan) 24%, transparent) 76%,
+        transparent
+      );
+      pointer-events: none;
+    }
+
+    .harbor-thread .message {
+      width: min(46rem, 88%);
+      margin: 0;
+    }
+
+    .harbor-thread .message.user {
+      align-self: flex-end;
+    }
+
+    .harbor-thread .message.ai {
+      --node-color: var(--blue);
+      align-self: flex-start;
+    }
+
+    .harbor-thread .message.ai.working {
+      --node-color: var(--cyan);
+    }
+
+    .harbor-thread .message::before,
+    .harbor-thread .message::after {
+      content: none;
+    }
+
+    .harbor-thread .message.ai::before {
+      content: "";
+      position: absolute;
+      left: -2.68rem;
+      top: 1.42rem;
+      width: 0.46rem;
+      height: 0.46rem;
+      border-radius: 50%;
+      background: var(--node-color);
+      box-shadow:
+        0 0 0 3px color-mix(in srgb, var(--node-color) 8%, transparent),
+        0 0 12px color-mix(in srgb, var(--node-color) 58%, transparent);
+    }
+
+    .harbor-thread .message.ai::after {
+      content: "";
+      position: absolute;
+      left: -2.22rem;
+      top: 1.63rem;
+      width: 2.2rem;
+      height: 1px;
+      background: linear-gradient(90deg, color-mix(in srgb, var(--node-color) 72%, transparent), transparent);
+    }
+
+    .work-run {
+      --run-color: var(--red);
+      position: relative;
+      width: min(38rem, 82%);
+      align-self: flex-start;
+      color: color-mix(in srgb, var(--run-color) 46%, var(--ink));
+      font: 400 0.68rem/1.3 var(--mono);
+    }
+
+    .work-run.running {
+      --run-color: var(--amber);
+    }
+
+    .work-run-summary {
+      width: 100%;
+      min-height: 2.35rem;
+      display: grid;
+      grid-template-columns: 0.85rem minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.6rem;
+      background:
+        linear-gradient(90deg, color-mix(in srgb, var(--run-color) 9%, transparent), transparent 78%),
+        rgba(7, 11, 20, 0.46);
+      color: inherit;
+      padding: 0.4rem 0.6rem 0.4rem 0.5rem;
+      text-align: left;
+    }
+
+    .work-run-summary:hover,
+    .work-run-summary:focus-visible {
+      background:
+        linear-gradient(90deg, color-mix(in srgb, var(--run-color) 14%, transparent), transparent 82%),
+        rgba(7, 11, 20, 0.62);
+    }
+
+    .work-run-dot {
+      position: relative;
+      width: 0.5rem;
+      height: 0.5rem;
+      border-radius: 50%;
+      background: var(--bg);
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--run-color) 88%, transparent),
+        0 0 12px color-mix(in srgb, var(--run-color) 46%, transparent);
+    }
+
+    .work-run-dot::before {
+      content: "";
+      position: absolute;
+      right: 100%;
+      top: calc(50% - 0.5px);
+      width: 2.95rem;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--run-color) 72%, transparent));
+    }
+
+    .work-run.running .work-run-dot {
+      animation: harbor-node-pulse 1.1s steps(1) infinite;
+    }
+
+    .work-run-copy {
+      min-width: 0;
+      display: grid;
+      gap: 0.14rem;
+    }
+
+    .work-run-copy strong {
+      overflow: hidden;
+      color: color-mix(in srgb, var(--run-color) 82%, white 8%);
+      font-size: 0.66rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .work-run-copy span,
+    .work-run-meta {
+      color: var(--dim);
+      font-size: 0.6rem;
+    }
+
+    .work-run-meta {
+      color: color-mix(in srgb, var(--run-color) 48%, var(--dim));
+      white-space: nowrap;
+    }
+
+    .work-run-details {
+      position: relative;
+      display: grid;
+      padding: 0.45rem 0 0.2rem 1.9rem;
+    }
+
+    .work-run-details::before {
+      content: "";
+      position: absolute;
+      left: 0.68rem;
+      top: 0.15rem;
+      bottom: 0.55rem;
+      width: 1px;
+      background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--run-color) 12%, transparent),
+        color-mix(in srgb, var(--run-color) 38%, transparent),
+        color-mix(in srgb, var(--run-color) 8%, transparent)
+      );
+    }
+
+    .work-run.collapsed .work-run-details {
+      display: none;
+    }
+
+    .harbor-thread .work-step {
+      --step-color: var(--cyan);
+      position: relative;
+      min-height: 2.2rem;
+      display: grid;
+      grid-template-columns: 4.3rem minmax(0, 1fr) auto;
+      align-items: baseline;
+      column-gap: 0.65rem;
+      row-gap: 0.08rem;
+      background: transparent;
+      padding: 0.32rem 0.5rem 0.38rem 0;
+    }
+
+    .harbor-thread .work-step[data-work-step-type="checked"] {
+      --step-color: var(--blue);
+    }
+
+    .harbor-thread .work-step[data-work-step-type="prepared"] {
+      --step-color: var(--amber);
+    }
+
+    .harbor-thread .work-step[data-work-step-type="done"] {
+      --step-color: var(--green);
+    }
+
+    .harbor-thread .work-step::before {
+      content: "";
+      position: absolute;
+      left: -1.2rem;
+      top: 0.9rem;
+      width: 0.9rem;
+      height: 1px;
+      background: color-mix(in srgb, var(--step-color) 48%, transparent);
+    }
+
+    .harbor-thread .work-step::after {
+      content: "";
+      position: absolute;
+      left: -1.34rem;
+      top: 0.72rem;
+      width: 0.38rem;
+      height: 0.38rem;
+      border-radius: 50%;
+      background: var(--bg);
+      box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--step-color) 86%, transparent),
+        0 0 8px color-mix(in srgb, var(--step-color) 32%, transparent);
+    }
+
+    .harbor-thread .work-step:hover {
+      background: linear-gradient(90deg, color-mix(in srgb, var(--step-color) 5%, transparent), transparent 76%);
+    }
+
+    .harbor-thread .work-step-type {
+      color: color-mix(in srgb, var(--step-color) 78%, var(--ink));
+      font-size: 0.58rem;
+    }
+
+    .harbor-thread .work-step strong {
+      min-width: 0;
+      overflow: hidden;
+      color: color-mix(in srgb, var(--ink-strong) 90%, transparent);
+      font-size: 0.66rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .harbor-thread .work-step small {
+      grid-column: 2;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 0.6rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .harbor-thread .work-step-index {
+      grid-column: 3;
+      grid-row: 1 / span 2;
+      color: color-mix(in srgb, var(--step-color) 44%, var(--dim));
+      font-size: 0.58rem;
+    }
+
+    .busy-signal {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      color: var(--cyan);
+      font-family: var(--mono);
+    }
+
+    .pixel-wave {
+      display: inline-block;
+      min-width: 2.4rem;
+      letter-spacing: 0.12rem;
+      animation: harbor-pixel-wave 0.9s steps(1) infinite;
+    }
+
+    @keyframes harbor-node-pulse {
+      50% {
+        background: color-mix(in srgb, var(--run-color) 34%, var(--bg));
+        box-shadow:
+          inset 0 0 0 1px color-mix(in srgb, var(--run-color) 96%, transparent),
+          0 0 16px color-mix(in srgb, var(--run-color) 66%, transparent);
+      }
+    }
+
+    @keyframes harbor-pixel-wave {
+      0%,
+      100% {
+        opacity: 0.45;
+        transform: translateY(0);
+      }
+      50% {
+        opacity: 1;
+        transform: translateY(-1px);
+      }
+    }
+
+    @media (max-width: 1120px) {
+      .topline {
+        grid-template-columns: 3.75rem minmax(32rem, 1fr) auto;
+        gap: 0.7rem;
+        padding-inline: 0.7rem;
+      }
+
+      .screen-navigation {
+        width: 100%;
+      }
+    }
+
+    @media (max-width: 840px) {
+      .topline {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-rows: 3.1rem 5.4rem;
+        gap: 0 0.6rem;
+        padding: 0 0.7rem;
+      }
+
+      .screen-navigation {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        width: 100%;
+      }
+
+      .brand-mark,
+      .brand-logo-crop {
+        width: 2.7rem;
+        height: 2.7rem;
+      }
+
+      .brand-logo-crop img {
+        width: 6.85rem;
+        height: 6.85rem;
+        transform: translate(-2.08rem, -2.08rem);
+      }
+
+      .screen {
+        inset: 0.45rem auto;
+        left: 50%;
+        width: calc(100% - 0.9rem);
+      }
+
+      .pane {
+        box-shadow: none;
+      }
+
+      .harbor-thread {
+        padding: 1.4rem 1rem 6rem 3.5rem;
+      }
+
+      .harbor-thread::before {
+        left: 1.4rem;
+      }
+
+      .harbor-thread .message.ai::before {
+        left: -2.35rem;
+      }
+
+      .harbor-thread .message.ai::after {
+        left: -1.9rem;
+        width: 1.9rem;
+      }
+
+      .work-run-dot::before {
+        width: 2.3rem;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .header-subtab {
+        padding-inline: 0.5rem;
+        font-size: 0.57rem;
+      }
+
+      .header-tab-action {
+        padding-inline: 0.45rem;
+      }
+
+      .harbor-thread {
+        padding-left: 3rem;
+        padding-right: 0.7rem;
+      }
+
+      .harbor-thread .message {
+        width: 100%;
+      }
+
+      .work-run {
+        width: 94%;
+      }
+
+      .harbor-thread .work-step {
+        grid-template-columns: 3.7rem minmax(0, 1fr) auto;
+      }
+
+      .work-run-meta {
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main-workspace">Zur Arbeitsfläche springen</a>
+  <div class="app" id="app" data-active-screen="agent">
+    <header class="topline">
+      <div class="brand">
+        <button class="brand-mark" type="button" data-open-command aria-label="Odysseus-Werkzeuge öffnen">
+          <span class="brand-logo-crop" aria-hidden="true">
+            <img src="../frontpage-v2/assets/harbor-one-a2.png" alt="">
+          </span>
+        </button>
+        <span class="brand-copy">
+          <strong>Odysseus</strong>
+          <span>Local AI Workbench</span>
+        </span>
+      </div>
+
+      <div class="screen-navigation">
+        <nav class="screen-tabs" role="tablist" aria-label="Arbeitsbereiche">
+          <button class="screen-tab" style="--tab:var(--blue)" type="button" role="tab" aria-selected="true" aria-controls="screen-agent" id="screen-tab-agent" data-screen-target="agent">
+            <i class="screen-dot"></i><span class="screen-label">Agent</span><b class="screen-count">3</b>
+          </button>
+          <button class="screen-tab" style="--tab:var(--cyan)" type="button" role="tab" aria-selected="false" aria-controls="screen-knowledge" id="screen-tab-knowledge" data-screen-target="knowledge" tabindex="-1">
+            <i class="screen-dot"></i><span class="screen-label">Knowledge</span><b class="screen-count">6</b>
+          </button>
+          <button class="screen-tab" style="--tab:var(--amber)" type="button" role="tab" aria-selected="false" aria-controls="screen-planning" id="screen-tab-planning" data-screen-target="planning" tabindex="-1">
+            <i class="screen-dot"></i><span class="screen-label">Planning</span><b class="screen-count">1</b>
+          </button>
+          <button class="screen-tab" style="--tab:var(--green)" type="button" role="tab" aria-selected="false" aria-controls="screen-inbox" id="screen-tab-inbox" data-screen-target="inbox" tabindex="-1">
+            <i class="screen-dot"></i><span class="screen-label">Inbox</span><b class="screen-count">4</b>
+          </button>
+        </nav>
+
+        <div class="header-tabsets">
+          <div class="header-tabset has-action" style="--header-tab:var(--blue);--tab-count:4" data-header-tabs="agent">
+            <div class="header-tab-list" role="tablist" aria-label="Agent-Ansichten">
+              <button class="header-subtab" type="button" role="tab" aria-selected="true" data-tab-group="agent-center" data-tab-target="chat">Chat</button>
+              <button class="header-subtab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="agent-center" data-tab-target="compare">Compare</button>
+              <button class="header-subtab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="agent-center" data-tab-target="research">Research</button>
+              <button class="header-subtab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="agent-center" data-tab-target="activity">Activity</button>
+            </div>
+            <button class="compact-button primary header-tab-action" type="button" data-new-chat aria-label="Neuen Chat erstellen"><span aria-hidden="true">＋</span><span>New chat</span></button>
+          </div>
+
+          <div class="header-tabset" style="--header-tab:var(--cyan);--tab-count:5" data-header-tabs="knowledge" hidden>
+            <div class="header-tab-list" role="tablist" aria-label="Knowledge-Ansichten">
+              <button class="header-subtab" type="button" role="tab" aria-selected="true" data-tab-group="knowledge-center" data-tab-target="document">Document</button>
+              <button class="header-subtab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="knowledge-center" data-tab-target="note">Note</button>
+              <button class="header-subtab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="knowledge-center" data-tab-target="memory">Memory</button>
+              <button class="header-subtab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="knowledge-center" data-tab-target="skills">Skills</button>
+              <button class="header-subtab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="knowledge-center" data-tab-target="gallery">Gallery</button>
+            </div>
+          </div>
+
+          <div class="header-tabset has-action" style="--header-tab:var(--amber);--tab-count:3" data-header-tabs="planning" hidden>
+            <div class="header-tab-list" role="tablist" aria-label="Planning-Ansichten">
+              <button class="header-subtab" type="button" role="tab" aria-selected="true" data-tab-group="planning-center" data-tab-target="overview">Overview</button>
+              <button class="header-subtab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="planning-center" data-tab-target="document">Roadmap</button>
+              <button class="header-subtab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="planning-center" data-tab-target="json">Definition JSON</button>
+            </div>
+            <button class="compact-button primary header-tab-action" type="button" data-mock-action="Neuer Roadmap-Entwurf vorbereitet">New roadmap</button>
+          </div>
+
+          <div class="header-tabset has-action" style="--header-tab:var(--green);--tab-count:3" data-header-tabs="inbox" hidden>
+            <div class="header-tab-list" role="tablist" aria-label="Inbox-Ansichten">
+              <button class="header-subtab" type="button" role="tab" aria-selected="true" data-tab-group="inbox-center" data-tab-target="universal">Universal</button>
+              <button class="header-subtab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="inbox-center" data-tab-target="email">Email</button>
+              <button class="header-subtab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="inbox-center" data-tab-target="calendar">Calendar</button>
+            </div>
+            <button class="compact-button primary header-tab-action" type="button" data-mock-action="Neues Inbox-Element vorbereitet">New</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <button class="icon-button" type="button" data-mock-action="Letzte Layout-Aktion zurückgenommen" aria-label="Rückgängig">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 8H4v5"></path><path d="M4 13a8 8 0 1 0 2.3-5.7L4 8"></path></svg>
+        </button>
+        <button class="icon-button" type="button" popovertarget="notifications" aria-label="Benachrichtigungen">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 16v-5a6 6 0 0 0-12 0v5l-2 3h16l-2-3Z"></path><path d="M9.5 21a3 3 0 0 0 5 0"></path></svg>
+        </button>
+        <button class="icon-button" type="button" data-open-command aria-label="Werkzeuge und Befehle öffnen" title="Werkzeuge (Strg+K)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h7"></path><path d="M15 7h5"></path><path d="M4 17h5"></path><path d="M13 17h7"></path><circle cx="13" cy="7" r="2.2"></circle><circle cx="11" cy="17" r="2.2"></circle></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="workspace" id="main-workspace">
+      <section class="screen" id="screen-agent" data-screen="agent" role="tabpanel" aria-labelledby="screen-tab-agent">
+        <div class="workbench-grid no-bottom" data-layout="agent" style="--left-size:17rem;--right-size:18.5rem">
+          <aside class="pane pane-left" style="--pane-accent:var(--blue)">
+            <header class="pane-head">
+              <span class="pane-heading"><strong>Chats</strong><span>sessions and agent runs</span></span>
+              <span class="pane-head-actions">
+                <button class="pane-button" type="button" data-new-chat aria-label="Neuen Chat erstellen">+</button>
+                <button class="pane-button" type="button" data-pane-toggle="left" aria-label="Chatbereich schließen">×</button>
+              </span>
+            </header>
+            <div class="pane-body">
+              <label class="filter-bar"><span>⌕</span><input type="search" placeholder="Chats durchsuchen" aria-label="Chats durchsuchen"></label>
+              <div class="item-list" id="agent-session-list">
+                <button class="list-row active selectable" style="--row:var(--blue)" type="button" data-title="Frontend V2" data-subtitle="Gemma 3 · arbeitet">
+                  <span class="list-copy"><strong>Frontend V2</strong><span>Navigation und App-Shell</span></span>
+                  <span class="row-meta"><span>jetzt</span><span>●</span></span>
+                </button>
+                <button class="list-row selectable" style="--row:var(--green)" type="button" data-title="Memory Debug" data-subtitle="Qwen Coder · fertig">
+                  <span class="list-copy"><strong>Memory Debug</strong><span>RaptorGraph query path</span></span>
+                  <span class="row-meta"><span>18:42</span><span>✓</span></span>
+                </button>
+                <button class="list-row selectable" style="--row:var(--amber)" type="button" data-title="Release Evidence" data-subtitle="GPT-5 · wartet">
+                  <span class="list-copy"><strong>Release Evidence</strong><span>Review gate needs input</span></span>
+                  <span class="row-meta"><span>gestern</span><span>!</span></span>
+                </button>
+                <button class="list-row selectable" style="--row:var(--cyan)" type="button" data-title="Research Notes" data-subtitle="Deep Research">
+                  <span class="list-copy"><strong>Research Notes</strong><span>Sources and synthesis</span></span>
+                  <span class="row-meta"><span>Mo</span><span>8</span></span>
+                </button>
+              </div>
+            </div>
+          </aside>
+
+          <button class="splitter split-left" type="button" aria-label="Chatbereichsbreite ändern" data-resize-var="--left-size" data-axis="x" data-factor="1" data-min="190" data-max="440"></button>
+
+          <section class="pane pane-center center-editor" style="--pane-accent:var(--cyan)">
+            <div class="pane-body">
+              <div class="tab-view conversation" data-tab-view-group="agent-center" data-tab-view="chat">
+                <div class="conversation-meta"><span id="active-chat-title">Frontend V2</span><span id="active-chat-subtitle">Gemma 3 · arbeitet</span></div>
+                <div class="messages harbor-thread" aria-label="Chatverlauf">
+                  <article class="message user">
+                    <span class="message-label">DU</span>
+                    <div class="message-body">Plane einen Odysseus-Rohbau ohne Sidebar. Das Layout soll fest, aber wie in VS Code größenverstellbar sein.</div>
+                  </article>
+
+                  <section class="work-run tool-run collapsed" data-work-run>
+                    <button class="work-run-summary" type="button" data-work-run-toggle aria-expanded="false" aria-controls="completed-work-log">
+                      <span class="work-run-dot" aria-hidden="true"></span>
+                      <span class="work-run-copy"><strong>Odysseus used 3 tools</strong><span data-work-run-state>Show work log</span></span>
+                      <span class="work-run-meta">12.8s · done</span>
+                    </button>
+                    <div class="work-run-details" id="completed-work-log">
+                      <div class="work-step" data-work-step-type="read"><span class="work-step-type">Read</span><strong>Frontend surfaces mapped</strong><small>Chat, Knowledge, Planning and Inbox contracts inspected.</small><span class="work-step-index">done</span></div>
+                      <div class="work-step" data-work-step-type="checked"><span class="work-step-type">Checked</span><strong>Harbor V3 compared</strong><small>Navigation, workline and fixed-layout rules aligned.</small><span class="work-step-index">done</span></div>
+                      <div class="work-step" data-work-step-type="done"><span class="work-step-type">Done</span><strong>Shell direction selected</strong><small>Fixed resizable panels without floating windows.</small><span class="work-step-index">done</span></div>
+                    </div>
+                  </section>
+
+                  <article class="message ai">
+                    <span class="message-label">ODYSSEUS</span>
+                    <div class="message-body">Ich ordne die Oberfläche in vier stabile Arbeitsbereiche. Werkzeuge öffnen als Tabs oder feste Panels; die globale Navigation bleibt oben.</div>
+                  </article>
+
+                  <section class="work-run running" data-work-run>
+                    <button class="work-run-summary" type="button" data-work-run-toggle aria-expanded="true" aria-controls="running-work-log">
+                      <span class="work-run-dot" aria-hidden="true"></span>
+                      <span class="work-run-copy"><strong>Odysseus is checking 3 steps</strong><span data-work-run-state>Hide work log</span></span>
+                      <span class="work-run-meta">live</span>
+                    </button>
+                    <div class="work-run-details" id="running-work-log">
+                      <div class="work-step" data-work-step-type="read"><span class="work-step-type">Read</span><strong>Chat structure traced</strong><small>Following Harbor One’s message and activity rhythm.</small><span class="work-step-index">live</span></div>
+                      <div class="work-step" data-work-step-type="checked"><span class="work-step-type">Checked</span><strong>Node semantics verified</strong><small>Agent, tools, running work and completion remain distinguishable.</small><span class="work-step-index">live</span></div>
+                      <div class="work-step" data-work-step-type="prepared"><span class="work-step-type">Prepared</span><strong>Interactive mock ready</strong><small>Waiting for the next visual decision.</small><span class="work-step-index">queued</span></div>
+                    </div>
+                  </section>
+
+                  <article class="message ai working">
+                    <span class="message-label">ODYSSEUS · WORKING</span>
+                    <div class="message-body busy-signal">Harbor workline integrated <span class="pixel-wave" aria-hidden="true">▁▂▃</span></div>
+                  </article>
+                </div>
+                <div class="composer-wrap">
+                  <div class="composer">
+                    <button class="composer-tool" type="button" data-open-command>Tools</button>
+                    <textarea rows="1" placeholder="Nachricht an Odysseus …" aria-label="Nachricht an Odysseus"></textarea>
+                    <button class="send-button" type="button" data-send-demo aria-label="Nachricht senden">↑</button>
+                  </div>
+                </div>
+              </div>
+              <div class="tab-view stub-view" data-tab-view-group="agent-center" data-tab-view="compare" hidden>
+                <div class="stub-card"><h2>Model Compare</h2><p>Ein fester Vergleichsmodus mit zwei bis vier Spalten. Modellspalten werden innerhalb dieser Fläche geteilt und nicht als Fenster überlagert.</p><button class="compact-button primary" type="button" data-mock-action="Dritte Vergleichsspalte vorbereitet">Spalte hinzufügen</button></div>
+              </div>
+              <div class="tab-view stub-view" data-tab-view-group="agent-center" data-tab-view="research" hidden>
+                <div class="stub-card"><h2>Deep Research</h2><p>Rechercheauftrag, Quellenfortschritt und Ergebnis bleiben in derselben Editorfläche. Der rechte Bereich zeigt Quellen und Laufkontext.</p><button class="compact-button primary" type="button" data-mock-action="Neuer Rechercheentwurf erstellt">Recherche starten</button></div>
+              </div>
+              <div class="tab-view" data-tab-view-group="agent-center" data-tab-view="activity" hidden>
+                <div class="document-view">
+                  <article>
+                    <h2>Run activity</h2>
+                    <p>Die Activity ist die nachvollziehbare Chronik des aktiven Agent-Laufs: Aktionen, Claims, Gates und Evidence. Sie gehört zum Agent und belegt keinen permanenten Zusatzbereich.</p>
+                    <div class="info-grid">
+                      <div class="info-row"><span>18:46</span><span>Workspace snapshot read</span></div>
+                      <div class="info-row"><span>18:49</span><span>Frontend path claim active</span></div>
+                      <div class="info-row"><span>18:52</span><span>Browser evidence recorded</span></div>
+                    </div>
+                  </article>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <button class="splitter split-right" type="button" aria-label="Kontextbereichsbreite ändern" data-resize-var="--right-size" data-axis="x" data-factor="-1" data-min="220" data-max="480"></button>
+
+          <aside class="pane pane-right" style="--pane-accent:var(--amber)">
+            <header class="pane-head">
+              <div class="pane-tabs" role="tablist" aria-label="Agent-Kontext">
+                <button class="pane-tab" type="button" role="tab" aria-selected="true" data-tab-group="agent-right" data-tab-target="run">Run</button>
+                <button class="pane-tab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="agent-right" data-tab-target="context">Context</button>
+              </div>
+              <button class="pane-button" type="button" data-pane-toggle="right" aria-label="Kontextbereich schließen">×</button>
+            </header>
+            <div class="pane-body">
+              <div class="tab-view" data-tab-view-group="agent-right" data-tab-view="run">
+                <div class="info-grid">
+                  <div class="info-row"><span>Status</span><span style="color:var(--amber)">working</span></div>
+                  <div class="info-row"><span>Model</span><span>Gemma 3 Local</span></div>
+                  <div class="info-row"><span>Context</span><span>28k / 128k</span></div>
+                  <div class="info-row"><span>Workspace</span><span>odysseus</span></div>
+                  <div class="info-row"><span>Agent</span><span>Codex</span></div>
+                  <div class="info-row"><span>Gate</span><span>repo-only</span></div>
+                </div>
+              </div>
+              <div class="tab-view" data-tab-view-group="agent-right" data-tab-view="context" hidden>
+                <div class="item-list">
+                  <button class="list-row active" type="button"><span class="list-copy"><strong>PRODUCT.md</strong><span>Product context</span></span><span class="row-meta">pinned</span></button>
+                  <button class="list-row" type="button"><span class="list-copy"><strong>DESIGN.md</strong><span>Visual system</span></span><span class="row-meta">pinned</span></button>
+                  <button class="list-row" type="button"><span class="list-copy"><strong>Frontend V2</strong><span>Planning definition</span></span><span class="row-meta">linked</span></button>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+        </div>
+      </section>
+
+      <section class="screen" id="screen-knowledge" data-screen="knowledge" role="tabpanel" aria-labelledby="screen-tab-knowledge" hidden>
+        <div class="workbench-grid" data-layout="knowledge" style="--left-size:16rem;--right-size:18rem;--bottom-size:11rem">
+          <aside class="pane pane-left" style="--pane-accent:var(--cyan)">
+            <header class="pane-head"><span class="pane-heading"><strong>Knowledge</strong><span>sources and memory</span></span><span class="pane-head-actions"><button class="pane-button" type="button" data-mock-action="Quellenimport geöffnet" aria-label="Quelle hinzufügen">+</button><button class="pane-button" type="button" data-pane-toggle="left" aria-label="Quellenbereich schließen">×</button></span></header>
+            <div class="pane-body">
+              <label class="filter-bar"><span>⌕</span><input type="search" placeholder="Wissen durchsuchen" aria-label="Wissen durchsuchen"></label>
+              <div class="item-list">
+                <button class="list-row active selectable" type="button" style="--row:var(--cyan)"><span class="list-copy"><strong>All knowledge</strong><span>1,284 indexed items</span></span><span class="row-meta">1284</span></button>
+                <button class="list-row selectable" type="button" style="--row:var(--blue)"><span class="list-copy"><strong>Documents</strong><span>Markdown, PDF, code</span></span><span class="row-meta">318</span></button>
+                <button class="list-row selectable" type="button" style="--row:var(--green)"><span class="list-copy"><strong>Memory</strong><span>Facts and decisions</span></span><span class="row-meta">624</span></button>
+                <button class="list-row selectable" type="button" style="--row:var(--amber)"><span class="list-copy"><strong>Skills</strong><span>Reusable instructions</span></span><span class="row-meta">47</span></button>
+                <button class="list-row selectable" type="button" style="--row:var(--cyan)"><span class="list-copy"><strong>Research</strong><span>Reports and sources</span></span><span class="row-meta">92</span></button>
+                <button class="list-row selectable" type="button" style="--row:var(--blue)"><span class="list-copy"><strong>Gallery</strong><span>Images and generations</span></span><span class="row-meta">203</span></button>
+              </div>
+            </div>
+          </aside>
+
+          <button class="splitter split-left" type="button" aria-label="Quellenbereichsbreite ändern" data-resize-var="--left-size" data-axis="x" data-factor="1" data-min="190" data-max="420"></button>
+
+          <section class="pane pane-center center-editor" style="--pane-accent:var(--cyan)">
+            <div class="pane-body">
+              <div class="tab-view document-view" data-tab-view-group="knowledge-center" data-tab-view="document"><article><h2>Frontend V2 – Shell Contract</h2><p>Die globale Navigation besteht aus vier stabilen Orten. Alle weiteren Werkzeuge öffnen als Tabs in einer festen Editorfläche oder als kontextuelles Unterpanel.</p><h3>Layout invariants</h3><ul><li>Keine globale Sidebar und keine schwebenden Fenster.</li><li>Alle Split-Grenzen sind größenverstellbar und zurücksetzbar.</li><li>Aktive Orte, Tabs und Panelzustände sind eindeutig sichtbar.</li><li>Command-Palette bleibt der schnelle Weg zu seltenen Werkzeugen.</li></ul></article></div>
+              <div class="tab-view stub-view" data-tab-view-group="knowledge-center" data-tab-view="note" hidden><div class="stub-card"><h2>Notes</h2><p>Notizen verwenden denselben festen Editorbereich. Listen, Editor und Metadaten können über die vorhandenen Splitter verteilt werden.</p><button class="compact-button primary" type="button" data-mock-action="Neue Notiz vorbereitet">Neue Notiz</button></div></div>
+              <div class="tab-view stub-view" data-tab-view-group="knowledge-center" data-tab-view="memory" hidden><div class="stub-card"><h2>Memory</h2><p>Memory wird als durchsuchbare Wissensansicht behandelt, nicht als modales Spezialfenster. Auswahl und Details bleiben dauerhaft nachvollziehbar.</p></div></div>
+              <div class="tab-view stub-view" data-tab-view-group="knowledge-center" data-tab-view="skills" hidden><div class="stub-card"><h2>Skills Library</h2><p>Skills, Audit-Zustände und Entwürfe teilen sich diese Editorfläche. Der rechte Bereich zeigt den gewählten Skill-Vertrag.</p></div></div>
+              <div class="tab-view stub-view" data-tab-view-group="knowledge-center" data-tab-view="gallery" hidden><div class="stub-card"><h2>Gallery</h2><p>Galerie und Bildeditor öffnen als feste Editor-Tabs. Der Editor kann die gesamte mittlere Fläche übernehmen, ohne andere Fenster zu überlagern.</p></div></div>
+            </div>
+          </section>
+
+          <button class="splitter split-right" type="button" aria-label="Metadatenbereichsbreite ändern" data-resize-var="--right-size" data-axis="x" data-factor="-1" data-min="210" data-max="430"></button>
+
+          <aside class="pane pane-right" style="--pane-accent:var(--blue)">
+            <header class="pane-head"><div class="pane-tabs" role="tablist" aria-label="Dokumentkontext"><button class="pane-tab" type="button" role="tab" aria-selected="true" data-tab-group="knowledge-right" data-tab-target="related">Related</button><button class="pane-tab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="knowledge-right" data-tab-target="metadata">Metadata</button></div><button class="pane-button" type="button" data-pane-toggle="right" aria-label="Metadatenbereich schließen">×</button></header>
+            <div class="pane-body">
+              <div class="tab-view" data-tab-view-group="knowledge-right" data-tab-view="related"><div class="item-list"><button class="list-row active" type="button"><span class="list-copy"><strong>PRODUCT.md</strong><span>Product purpose</span></span><span class="row-meta">0.94</span></button><button class="list-row" type="button"><span class="list-copy"><strong>DESIGN.md</strong><span>Visual system</span></span><span class="row-meta">0.89</span></button><button class="list-row" type="button"><span class="list-copy"><strong>UI roadmap</strong><span>Planning source</span></span><span class="row-meta">0.78</span></button></div></div>
+              <div class="tab-view" data-tab-view-group="knowledge-right" data-tab-view="metadata" hidden><div class="info-grid"><div class="info-row"><span>Type</span><span>Markdown</span></div><div class="info-row"><span>Source</span><span>local workspace</span></div><div class="info-row"><span>Indexed</span><span>2026-07-26</span></div><div class="info-row"><span>Scope</span><span>owner-only</span></div></div></div>
+            </div>
+          </aside>
+
+          <button class="splitter split-bottom" type="button" aria-label="Recherchepanel in der Höhe ändern" data-resize-var="--bottom-size" data-axis="y" data-factor="-1" data-min="100" data-max="360"></button>
+
+          <section class="pane pane-bottom" style="--pane-accent:var(--green)">
+            <header class="pane-head"><div class="pane-tabs" role="tablist" aria-label="Knowledge-Ausgabe"><button class="pane-tab" type="button" role="tab" aria-selected="true" data-tab-group="knowledge-bottom" data-tab-target="search">Search results</button><button class="pane-tab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="knowledge-bottom" data-tab-target="sources">Sources</button><button class="pane-tab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="knowledge-bottom" data-tab-target="index">Index activity</button></div><button class="pane-button" type="button" data-pane-toggle="bottom" aria-label="Recherchepanel schließen">×</button></header>
+            <div class="pane-body">
+              <div class="tab-view" data-tab-view-group="knowledge-bottom" data-tab-view="search"><div class="info-grid"><div class="info-row"><span>0.94</span><span>Global navigation is limited to four stable places.</span></div><div class="info-row"><span>0.89</span><span>Tools open inside the fixed editor or bottom panel.</span></div></div></div>
+              <div class="tab-view" data-tab-view-group="knowledge-bottom" data-tab-view="sources" hidden><div class="info-grid"><div class="info-row"><span>local</span><span>PRODUCT.md</span></div><div class="info-row"><span>local</span><span>DESIGN.md</span></div></div></div>
+              <div class="tab-view terminal" data-tab-view-group="knowledge-bottom" data-tab-view="index" hidden><span class="terminal-line">Index idle · 1,284 items available</span></div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-planning" data-screen="planning" role="tabpanel" aria-labelledby="screen-tab-planning" hidden>
+        <div class="workbench-grid" data-layout="planning" style="--left-size:18rem;--right-size:19rem;--bottom-size:13.5rem">
+          <aside class="pane pane-left" style="--pane-accent:var(--green)">
+            <header class="pane-head"><span class="pane-heading"><strong>Projects</strong><span>versioned planning definitions</span></span><span class="pane-head-actions"><button class="pane-button" type="button" data-mock-action="Neuer Projektentwurf angelegt" aria-label="Projekt hinzufügen">+</button><button class="pane-button" type="button" data-pane-toggle="left" aria-label="Projektbereich schließen">×</button></span></header>
+            <div class="pane-body">
+              <label class="filter-bar"><span>⌕</span><input type="search" placeholder="Projekt finden" aria-label="Projekt finden"></label>
+              <div class="item-list">
+                <button class="list-row active selectable" style="--row:var(--green)" type="button"><span class="list-copy"><strong>Agent Autonomy</strong><span>completed JSON master</span></span><span class="row-meta">6/6</span><span class="tag-row"><span class="tag">master</span><span class="tag">gates passed</span></span></button>
+                <button class="list-row selectable" style="--row:var(--blue)" type="button"><span class="list-copy"><strong>Frontend V2</strong><span>active · needs review</span></span><span class="row-meta">8/14</span><span class="tag-row"><span class="tag">repo ready</span><span class="tag">push held</span></span></button>
+                <button class="list-row selectable" style="--row:var(--amber)" type="button"><span class="list-copy"><strong>Local Models</strong><span>waiting · choose setup</span></span><span class="row-meta">2/7</span><span class="tag-row"><span class="tag">waiting</span><span class="tag">local</span></span></button>
+                <button class="list-row selectable" style="--row:var(--red)" type="button"><span class="list-copy"><strong>Project Atlas</strong><span>blocked · repo missing</span></span><span class="row-meta">1/9</span><span class="tag-row"><span class="tag">blocked</span></span></button>
+              </div>
+            </div>
+          </aside>
+
+          <button class="splitter split-left" type="button" aria-label="Projektbereichsbreite ändern" data-resize-var="--left-size" data-axis="x" data-factor="1" data-min="210" data-max="470"></button>
+
+          <section class="pane pane-center center-editor" style="--pane-accent:var(--amber)">
+            <div class="pane-body">
+              <div class="tab-view planning-canvas" data-tab-view-group="planning-center" data-tab-view="overview">
+                <div class="graph">
+                  <svg viewBox="0 0 1088 560" preserveAspectRatio="none" aria-hidden="true">
+                    <path d="M110 280 C180 280 210 280 270 280"></path><path d="M350 280 C410 280 438 280 500 280"></path><path d="M580 280 C650 280 700 280 765 280"></path><path d="M845 280 C905 280 930 280 985 280"></path>
+                    <path class="branch" d="M310 280 C350 170 410 135 500 125"></path><path class="branch" d="M580 125 C680 125 730 185 805 280"></path>
+                    <path class="branch" d="M310 280 C350 390 420 430 510 435"></path><path class="branch" d="M590 435 C690 435 740 360 805 280"></path>
+                  </svg>
+                  <button class="graph-node active" style="--x:110px;--y:280px" type="button" data-mock-action="Roadmap AAE-1 ausgewählt">AAE-1</button>
+                  <button class="graph-node" style="--x:310px;--y:280px" type="button" data-mock-action="Definition Gate ausgewählt">Gate</button>
+                  <button class="graph-node" style="--x:540px;--y:280px" type="button" data-mock-action="Roadmap AAE-3 ausgewählt">AAE-3</button>
+                  <button class="graph-node" style="--x:540px;--y:125px" type="button" data-mock-action="Roadmap AAE-2 ausgewählt">AAE-2</button>
+                  <button class="graph-node" style="--x:550px;--y:435px" type="button" data-mock-action="Roadmap AAE-5 ausgewählt">AAE-5</button>
+                  <button class="graph-node" style="--x:805px;--y:280px" type="button" data-mock-action="Evidence Gate ausgewählt">Gate</button>
+                  <button class="graph-node" style="--x:995px;--y:280px" type="button" data-mock-action="Revision v0.2 ausgewählt">v0.2</button>
+                </div>
+              </div>
+              <div class="tab-view document-view" data-tab-view-group="planning-center" data-tab-view="document" hidden><article><h2>Telegram Task Orchestrator</h2><p>Starts, pauses, queries and reports long-running bounded agent tasks through Telegram. Planning owns the immutable definition; runtime state remains in Agent.</p><h3>Definition contract</h3><ul><li>Owner-scoped inputs and paths</li><li>Explicit dependencies and gate requirements</li><li>Verification commands and done conditions</li></ul></article></div>
+              <div class="tab-view document-view" data-tab-view-group="planning-center" data-tab-view="json" hidden><article><h2>Definition JSON</h2><pre>{
+  "id": "AAE-1",
+  "title": "Telegram Task Orchestrator",
+  "status": "approved",
+  "dependencies": [],
+  "allowed_paths": ["plugins/telegram/*"],
+  "verification": ["pytest -q tests/test_telegram_plugin.py"]
+}</pre></article></div>
+            </div>
+          </section>
+
+          <button class="splitter split-right" type="button" aria-label="Roadmapbereichsbreite ändern" data-resize-var="--right-size" data-axis="x" data-factor="-1" data-min="230" data-max="480"></button>
+
+          <aside class="pane pane-right" style="--pane-accent:var(--blue)">
+            <header class="pane-head"><span class="pane-heading"><strong>Roadmaps</strong><span>selected project</span></span><span class="pane-head-actions"><button class="pane-button" type="button" data-mock-action="Roadmap-Entwurf hinzugefügt" aria-label="Roadmap hinzufügen">+</button><button class="pane-button" type="button" data-pane-toggle="right" aria-label="Roadmapbereich schließen">×</button></span></header>
+            <div class="pane-body">
+              <label class="filter-bar"><span>⌕</span><input type="search" placeholder="Roadmap oder Gate finden" aria-label="Roadmap finden"></label>
+              <div class="item-list">
+                <button class="list-row active selectable" style="--row:var(--green)" type="button" data-activate-tab-group="planning-center" data-activate-tab="document"><span class="list-copy"><strong>Telegram Task Orchestrator</strong><span>Remote task lifecycle</span></span><span class="row-meta">AAE-1</span></button>
+                <button class="list-row selectable" style="--row:var(--green)" type="button" data-activate-tab-group="planning-center" data-activate-tab="document"><span class="list-copy"><strong>Website Research Pipeline</strong><span>Scopes, crawl caps, synthesis</span></span><span class="row-meta">AAE-2</span></button>
+                <button class="list-row selectable" style="--row:var(--green)" type="button" data-activate-tab-group="planning-center" data-activate-tab="document"><span class="list-copy"><strong>Browser DevTools</strong><span>DOM and network evidence</span></span><span class="row-meta">AAE-3</span></button>
+                <button class="list-row selectable" style="--row:var(--amber)" type="button" data-activate-tab-group="planning-center" data-activate-tab="document"><span class="list-copy"><strong>Sandbox Execution</strong><span>Awaiting gate definition</span></span><span class="row-meta">AAE-5</span></button>
+              </div>
+            </div>
+          </aside>
+
+          <button class="splitter split-bottom" type="button" aria-label="Planning-Detailbereich in der Höhe ändern" data-resize-var="--bottom-size" data-axis="y" data-factor="-1" data-min="120" data-max="390"></button>
+
+          <section class="pane pane-bottom" style="--pane-accent:var(--green)">
+            <header class="pane-head"><div class="pane-tabs" role="tablist" aria-label="Planning-Details"><button class="pane-tab" type="button" role="tab" aria-selected="true" data-tab-group="planning-bottom" data-tab-target="summary">Summary</button><button class="pane-tab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="planning-bottom" data-tab-target="todos">Todos</button><button class="pane-tab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="planning-bottom" data-tab-target="validation">Validation</button></div><button class="pane-button" type="button" data-pane-toggle="bottom" aria-label="Planning-Detailbereich schließen">×</button></header>
+            <div class="pane-body">
+              <div class="tab-view document-view" data-tab-view-group="planning-bottom" data-tab-view="summary"><article><h2>Telegram Task Orchestrator</h2><p>Definition revision 6 · hash 74a1…d92c · approved for Agent handoff. Planning zeigt bewusst keinen Laufstatus.</p></article></div>
+              <div class="tab-view" data-tab-view-group="planning-bottom" data-tab-view="todos" hidden><div class="info-grid"><div class="info-row"><span>done</span><span>Task lifecycle definition</span></div><div class="info-row"><span>done</span><span>Redacted run ledger contract</span></div><div class="info-row"><span>open</span><span>Operator acceptance wording</span></div></div></div>
+              <div class="tab-view terminal" data-tab-view-group="planning-bottom" data-tab-view="validation" hidden><span class="terminal-line">✓ schema valid</span><span class="terminal-line">✓ dependency DAG acyclic</span><span class="terminal-line">✓ runtime fields absent</span></div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-inbox" data-screen="inbox" role="tabpanel" aria-labelledby="screen-tab-inbox" hidden>
+        <div class="workbench-grid" data-layout="inbox" style="--left-size:15.5rem;--right-size:21rem;--bottom-size:11rem">
+          <aside class="pane pane-left" style="--pane-accent:var(--green)">
+            <header class="pane-head"><span class="pane-heading"><strong>Inbox</strong><span>all incoming work</span></span><button class="pane-button" type="button" data-pane-toggle="left" aria-label="Inbox-Quellen schließen">×</button></header>
+            <div class="pane-body">
+              <div class="item-list">
+                <button class="list-row active selectable" style="--row:var(--green)" type="button"><span class="list-copy"><strong>Universal</strong><span>Everything requiring attention</span></span><span class="row-meta">4</span></button>
+                <button class="list-row selectable" style="--row:var(--blue)" type="button" data-activate-tab-group="inbox-center" data-activate-tab="email"><span class="list-copy"><strong>Email</strong><span>IMAP and SMTP</span></span><span class="row-meta">2</span></button>
+                <button class="list-row selectable" style="--row:var(--amber)" type="button" data-activate-tab-group="inbox-center" data-activate-tab="calendar"><span class="list-copy"><strong>Calendar</strong><span>Events and reminders</span></span><span class="row-meta">1</span></button>
+                <button class="list-row selectable" style="--row:var(--cyan)" type="button" data-activate-tab-group="inbox-bottom" data-activate-tab="tasks"><span class="list-copy"><strong>Tasks</strong><span>Scheduled and assigned</span></span><span class="row-meta">1</span></button>
+                <button class="list-row selectable" style="--row:var(--red)" type="button"><span class="list-copy"><strong>Review gates</strong><span>Human decisions</span></span><span class="row-meta">1</span></button>
+              </div>
+            </div>
+          </aside>
+
+          <button class="splitter split-left" type="button" aria-label="Inbox-Quellenbreite ändern" data-resize-var="--left-size" data-axis="x" data-factor="1" data-min="190" data-max="390"></button>
+
+          <section class="pane pane-center center-editor" style="--pane-accent:var(--green)">
+            <div class="pane-body">
+              <div class="tab-view" data-tab-view-group="inbox-center" data-tab-view="universal">
+                <label class="filter-bar"><span>⌕</span><input type="search" placeholder="Inbox durchsuchen" aria-label="Inbox durchsuchen"></label>
+                <div class="item-list">
+                  <button class="list-row active selectable" style="--row:var(--amber)" type="button" data-preview-title="Frontend V2 review" data-preview-body="Der neue Fixed-Workbench-Rohbau wartet auf eine visuelle Entscheidung."><span class="list-copy"><strong>Frontend V2 review</strong><span>Planning · needs decision</span></span><span class="row-meta">jetzt</span></button>
+                  <button class="list-row selectable" style="--row:var(--blue)" type="button" data-preview-title="Re: Deployment evidence" data-preview-body="Die Release-Evidence ist vollständig; Deployment bleibt gesperrt."><span class="list-copy"><strong>Re: Deployment evidence</strong><span>Email · ops@example.test</span></span><span class="row-meta">18:11</span></button>
+                  <button class="list-row selectable" style="--row:var(--green)" type="button" data-preview-title="Memory index complete" data-preview-body="Der lokale Indexlauf wurde erfolgreich abgeschlossen."><span class="list-copy"><strong>Memory index complete</strong><span>System · Knowledge</span></span><span class="row-meta">17:54</span></button>
+                  <button class="list-row selectable" style="--row:var(--red)" type="button" data-preview-title="Runtime gate waiting" data-preview-body="Ein Agent-Lauf benötigt eine begrenzte Owner-Entscheidung."><span class="list-copy"><strong>Runtime gate waiting</strong><span>Agent · requires input</span></span><span class="row-meta">16:20</span></button>
+                </div>
+              </div>
+              <div class="tab-view" data-tab-view-group="inbox-center" data-tab-view="email" hidden>
+                <label class="filter-bar"><span>⌕</span><input type="search" placeholder="E-Mail durchsuchen" aria-label="E-Mail durchsuchen"></label>
+                <div class="item-list"><button class="list-row active selectable" style="--row:var(--blue)" type="button" data-preview-title="Re: Deployment evidence" data-preview-body="Die Release-Evidence ist vollständig; Deployment bleibt gesperrt."><span class="list-copy"><strong>ops@example.test</strong><span>Re: Deployment evidence</span></span><span class="row-meta">18:11</span></button><button class="list-row selectable" style="--row:var(--cyan)" type="button" data-preview-title="Weekly research digest" data-preview-body="Sieben neue Quellen wurden zusammengefasst."><span class="list-copy"><strong>research@example.test</strong><span>Weekly research digest</span></span><span class="row-meta">Mo</span></button></div>
+              </div>
+              <div class="tab-view" data-tab-view-group="inbox-center" data-tab-view="calendar" hidden>
+                <div class="calendar-grid">
+                  <div class="calendar-cell header">Mo</div><div class="calendar-cell header">Di</div><div class="calendar-cell header">Mi</div><div class="calendar-cell header">Do</div><div class="calendar-cell header">Fr</div><div class="calendar-cell header">Sa</div><div class="calendar-cell header">So</div>
+                  <div class="calendar-cell">27</div><div class="calendar-cell">28</div><div class="calendar-cell">29</div><div class="calendar-cell">30</div><div class="calendar-cell">31</div><div class="calendar-cell">1</div><div class="calendar-cell">2</div>
+                  <div class="calendar-cell">3</div><div class="calendar-cell">4<span class="calendar-event">UI review</span></div><div class="calendar-cell">5</div><div class="calendar-cell">6</div><div class="calendar-cell">7<span class="calendar-event">Release gate</span></div><div class="calendar-cell">8</div><div class="calendar-cell">9</div>
+                  <div class="calendar-cell">10</div><div class="calendar-cell">11</div><div class="calendar-cell">12</div><div class="calendar-cell">13</div><div class="calendar-cell">14</div><div class="calendar-cell">15</div><div class="calendar-cell">16</div>
+                  <div class="calendar-cell">17</div><div class="calendar-cell">18</div><div class="calendar-cell">19</div><div class="calendar-cell">20</div><div class="calendar-cell">21</div><div class="calendar-cell">22</div><div class="calendar-cell">23</div>
+                  <div class="calendar-cell">24</div><div class="calendar-cell">25</div><div class="calendar-cell">26</div><div class="calendar-cell">27</div><div class="calendar-cell">28</div><div class="calendar-cell">29</div><div class="calendar-cell">30</div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <button class="splitter split-right" type="button" aria-label="Vorschaubereichsbreite ändern" data-resize-var="--right-size" data-axis="x" data-factor="-1" data-min="240" data-max="520"></button>
+
+          <aside class="pane pane-right" style="--pane-accent:var(--amber)">
+            <header class="pane-head"><div class="pane-tabs" role="tablist" aria-label="Inbox-Vorschau"><button class="pane-tab" type="button" role="tab" aria-selected="true" data-tab-group="inbox-right" data-tab-target="preview">Preview</button><button class="pane-tab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="inbox-right" data-tab-target="context">Context</button></div><button class="pane-button" type="button" data-pane-toggle="right" aria-label="Vorschaubereich schließen">×</button></header>
+            <div class="pane-body">
+              <div class="tab-view mail-preview" data-tab-view-group="inbox-right" data-tab-view="preview"><h2 id="inbox-preview-title">Frontend V2 review</h2><div class="mail-meta">Planning · needs decision · today</div><p id="inbox-preview-body">Der neue Fixed-Workbench-Rohbau wartet auf eine visuelle Entscheidung.</p><button class="compact-button primary" type="button" data-open-tool="planning">In Planning öffnen</button></div>
+              <div class="tab-view" data-tab-view-group="inbox-right" data-tab-view="context" hidden><div class="info-grid"><div class="info-row"><span>Source</span><span>Planning</span></div><div class="info-row"><span>Priority</span><span>high</span></div><div class="info-row"><span>Owner</span><span>you</span></div></div></div>
+            </div>
+          </aside>
+
+          <button class="splitter split-bottom" type="button" aria-label="Aufgabenbereich in der Höhe ändern" data-resize-var="--bottom-size" data-axis="y" data-factor="-1" data-min="100" data-max="350"></button>
+
+          <section class="pane pane-bottom" style="--pane-accent:var(--cyan)">
+            <header class="pane-head"><div class="pane-tabs" role="tablist" aria-label="Inbox-Aufgaben"><button class="pane-tab" type="button" role="tab" aria-selected="true" data-tab-group="inbox-bottom" data-tab-target="tasks">Tasks</button><button class="pane-tab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="inbox-bottom" data-tab-target="queue">Queue</button><button class="pane-tab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="inbox-bottom" data-tab-target="drafts">Drafts</button></div><button class="pane-button" type="button" data-pane-toggle="bottom" aria-label="Aufgabenbereich schließen">×</button></header>
+            <div class="pane-body">
+              <div class="tab-view" data-tab-view-group="inbox-bottom" data-tab-view="tasks"><div class="info-grid"><div class="info-row"><span>today</span><span>Review fixed workbench mockup</span></div><div class="info-row"><span>tomorrow</span><span>Decide navigation vocabulary</span></div></div></div>
+              <div class="tab-view terminal" data-tab-view-group="inbox-bottom" data-tab-view="queue" hidden><span class="terminal-line">2 incoming · 1 waiting · 0 failed</span></div>
+              <div class="tab-view" data-tab-view-group="inbox-bottom" data-tab-view="drafts" hidden><div class="empty-workspace"><div class="stub-card"><h2>No drafts</h2><p>Entwürfe aus E-Mail, Notes oder Agent erscheinen hier.</p></div></div></div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="utility-screen" id="utility-screen" aria-label="Tools und Einstellungen" hidden>
+        <header class="utility-head"><button class="pane-button" type="button" data-close-utility aria-label="Zurück zur Arbeitsfläche">←</button><h2>Tools & Settings</h2><button class="compact-button" type="button" data-open-command>Command palette</button></header>
+        <div class="utility-layout">
+          <nav class="utility-nav" role="tablist" aria-label="Einstellungen">
+            <button class="utility-tab" type="button" role="tab" aria-selected="true" data-tab-group="utility" data-tab-target="general">General</button>
+            <button class="utility-tab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="utility" data-tab-target="models">Models</button>
+            <button class="utility-tab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="utility" data-tab-target="plugins">Plugins</button>
+            <button class="utility-tab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="utility" data-tab-target="mcp">MCP</button>
+            <button class="utility-tab" type="button" role="tab" aria-selected="false" tabindex="-1" data-tab-group="utility" data-tab-target="security">Security</button>
+          </nav>
+          <div class="utility-content">
+            <div class="tab-view settings-section" data-tab-view-group="utility" data-tab-view="general"><h3>General</h3><p>Globale Einstellungen bleiben eine feste Vollflächenansicht und werden nicht als Modal- oder Floating-Window gestapelt.</p><div class="settings-row"><span><strong>Restore last workspace</strong><span>Open the most recent screen and tabs on launch.</span></span><button class="switch" type="button" role="switch" aria-pressed="true" aria-label="Letzten Arbeitsbereich wiederherstellen"></button></div><div class="settings-row"><span><strong>Compact density</strong><span>Use tighter controls for long operator sessions.</span></span><button class="switch" type="button" role="switch" aria-pressed="false" aria-label="Kompakte Dichte"></button></div><div class="settings-row"><span><strong>Reduced motion</strong><span>Follow the operating system preference.</span></span><button class="switch" type="button" role="switch" aria-pressed="true" aria-label="Reduzierte Bewegung"></button></div></div>
+            <div class="tab-view settings-section" data-tab-view-group="utility" data-tab-view="models" hidden><h3>Models</h3><p>Lokale und API-Modelle mit Status, Kontextbudget und Providergrenze.</p><div class="info-grid"><div class="info-row"><span>online</span><span>Gemma 3 Local · 128k</span></div><div class="info-row"><span>online</span><span>GPT-5 API · external</span></div><div class="info-row"><span>offline</span><span>Qwen Coder Local</span></div></div></div>
+            <div class="tab-view settings-section" data-tab-view-group="utility" data-tab-view="plugins" hidden><h3>Plugins</h3><p>Plugins erben dieselbe Workbench-Struktur. Ihre Hauptansichten öffnen als Editor-Tabs in einem der vier Orte.</p><div class="info-grid"><div class="info-row"><span>enabled</span><span>Telegram</span></div><div class="info-row"><span>enabled</span><span>System Health Checker</span></div><div class="info-row"><span>example</span><span>Plugin scaffold</span></div></div></div>
+            <div class="tab-view settings-section" data-tab-view-group="utility" data-tab-view="mcp" hidden><h3>MCP</h3><p>Serverstatus und Toolberechtigungen bleiben sichtbar, aber vom normalen Navigationsmodell getrennt.</p><div class="info-grid"><div class="info-row"><span>ready</span><span>Planning</span></div><div class="info-row"><span>ready</span><span>Memory</span></div><div class="info-row"><span>ready</span><span>Calendar</span></div><div class="info-row"><span>limited</span><span>Shell</span></div></div></div>
+            <div class="tab-view settings-section" data-tab-view-group="utility" data-tab-view="security" hidden><h3>Security</h3><p>Privacy mode, mounts, vault, tokens and live gates are operational settings, not decorative dashboard metrics.</p><div class="settings-row"><span><strong>Nobody mode</strong><span>No memory and no chat history.</span></span><button class="switch" type="button" role="switch" aria-pressed="false" aria-label="Nobody-Modus"></button></div><div class="settings-row"><span><strong>Live effects</strong><span>Require explicit GO before external changes.</span></span><button class="switch" type="button" role="switch" aria-pressed="true" aria-label="Live-Effekte schützen"></button></div></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="statusbar" aria-label="Workbench-Status">
+      <button class="pane-toggle" type="button" data-pane-toggle="left" aria-pressed="true">Left panel</button>
+      <button class="pane-toggle" type="button" data-pane-toggle="bottom" aria-pressed="true">Bottom panel</button>
+      <button class="pane-toggle" type="button" data-pane-toggle="right" aria-pressed="true">Right panel</button>
+      <span class="status-spacer"></span>
+      <span class="status-item hide-narrow"><i class="status-dot"></i> local</span>
+      <span class="status-item hide-narrow">odysseus</span>
+      <span class="status-item" id="status-screen">Agent</span>
+      <button class="status-item" type="button" data-open-command>Ctrl+K</button>
+    </footer>
+  </div>
+
+  <dialog class="command-dialog" id="command-dialog" aria-labelledby="command-title">
+    <div class="command-search">
+      <span aria-hidden="true">⌕</span>
+      <input id="command-input" type="search" placeholder="Ort, Werkzeug oder Aktion suchen …" autocomplete="off" aria-labelledby="command-title">
+      <kbd class="key">Esc</kbd>
+    </div>
+    <div class="command-list" id="command-list">
+      <span class="command-group-label" id="command-title">PLACES</span>
+      <button class="command-item" type="button" data-open-tool="agent"><span><strong>Agent</strong><span>Chats, runs, research and activity</span></span><kbd class="key">Alt 1</kbd></button>
+      <button class="command-item" type="button" data-open-tool="knowledge"><span><strong>Knowledge</strong><span>Documents, memory, skills and gallery</span></span><kbd class="key">Alt 2</kbd></button>
+      <button class="command-item" type="button" data-open-tool="planning"><span><strong>Planning</strong><span>Projects, roadmaps and definitions</span></span><kbd class="key">Alt 3</kbd></button>
+      <button class="command-item" type="button" data-open-tool="inbox"><span><strong>Inbox</strong><span>Email, calendar, tasks and review gates</span></span><kbd class="key">Alt 4</kbd></button>
+      <span class="command-group-label">TOOLS</span>
+      <button class="command-item" type="button" data-open-tool="documents"><span><strong>Documents</strong><span>Open in Knowledge</span></span></button>
+      <button class="command-item" type="button" data-open-tool="notes"><span><strong>Notes</strong><span>Open in Knowledge</span></span></button>
+      <button class="command-item" type="button" data-open-tool="memory"><span><strong>Memory</strong><span>Open in Knowledge</span></span></button>
+      <button class="command-item" type="button" data-open-tool="skills"><span><strong>Skills</strong><span>Open in Knowledge</span></span></button>
+      <button class="command-item" type="button" data-open-tool="gallery"><span><strong>Gallery</strong><span>Open in Knowledge</span></span></button>
+      <button class="command-item" type="button" data-open-tool="compare"><span><strong>Compare</strong><span>Open in Agent</span></span></button>
+      <button class="command-item" type="button" data-open-tool="research"><span><strong>Deep Research</strong><span>Open in Agent</span></span></button>
+      <button class="command-item" type="button" data-open-tool="email"><span><strong>Email</strong><span>Open in Inbox</span></span></button>
+      <button class="command-item" type="button" data-open-tool="calendar"><span><strong>Calendar</strong><span>Open in Inbox</span></span></button>
+      <button class="command-item" type="button" data-open-tool="tasks"><span><strong>Tasks</strong><span>Open Inbox bottom panel</span></span></button>
+      <span class="command-group-label">SYSTEM</span>
+      <button class="command-item" type="button" data-open-tool="settings"><span><strong>Settings</strong><span>General appearance and behavior</span></span></button>
+      <button class="command-item" type="button" data-open-tool="models"><span><strong>Models</strong><span>Local and API endpoints</span></span></button>
+      <button class="command-item" type="button" data-open-tool="plugins"><span><strong>Plugins</strong><span>Installed product extensions</span></span></button>
+      <button class="command-item" type="button" data-open-tool="mcp"><span><strong>MCP</strong><span>Servers, tools and permissions</span></span></button>
+      <button class="command-item" type="button" data-open-tool="security"><span><strong>Security</strong><span>Privacy, vault, mounts and gates</span></span></button>
+    </div>
+  </dialog>
+
+  <div class="notifications-popover" id="notifications" popover>
+    <h2>Notifications</h2>
+    <button class="notification" type="button" data-open-tool="planning"><i></i><span><strong>Planning definition needs review</strong><span>Frontend V2 · open exact revision</span></span></button>
+    <button class="notification" type="button" data-open-tool="agent"><i style="background:var(--red)"></i><span><strong>Runtime gate waiting</strong><span>Agent run · owner decision required</span></span></button>
+    <button class="notification" type="button" data-open-tool="inbox"><i style="background:var(--blue)"></i><span><strong>2 unread emails</strong><span>Universal Inbox</span></span></button>
+  </div>
+
+  <div class="toast-region" id="toast-region" role="status" aria-live="polite"></div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      const app = document.getElementById("app");
+      const commandDialog = document.getElementById("command-dialog");
+      const commandInput = document.getElementById("command-input");
+      const commandList = document.getElementById("command-list");
+      const utilityScreen = document.getElementById("utility-screen");
+      const toastRegion = document.getElementById("toast-region");
+      const screenOrder = ["agent", "knowledge", "planning", "inbox"];
+      const screenNames = { agent: "Agent", knowledge: "Knowledge", planning: "Planning", inbox: "Inbox" };
+      let activeScreen = localStorage.getItem("odysseus-mock-screen") || "agent";
+      let commandFocusIndex = -1;
+
+      function showToast(title, detail) {
+        const toast = document.createElement("div");
+        toast.className = "toast";
+        toast.innerHTML = "<strong></strong><span></span>";
+        toast.querySelector("strong").textContent = title;
+        toast.querySelector("span").textContent = detail || "Mockup interaction completed.";
+        toastRegion.appendChild(toast);
+        window.setTimeout(() => toast.remove(), 2800);
+      }
+
+      function currentGrid() {
+        return document.querySelector('.screen[data-screen="' + activeScreen + '"] .workbench-grid');
+      }
+
+      function syncPaneButtons() {
+        const grid = currentGrid();
+        if (!grid) return;
+        const narrow = window.matchMedia("(max-width: 840px)").matches;
+        ["left", "right", "bottom"].forEach((pane) => {
+          const paneElement = grid.querySelector(".pane-" + pane);
+          const statusButtons = document.querySelectorAll('.statusbar [data-pane-toggle="' + pane + '"]');
+          statusButtons.forEach((button) => {
+            button.hidden = !paneElement;
+          });
+          if (!paneElement) return;
+          const visible = narrow && pane !== "bottom"
+            ? grid.classList.contains("mobile-show-" + pane)
+            : !grid.classList.contains("hide-" + pane);
+          statusButtons.forEach((button) => {
+            button.setAttribute("aria-pressed", String(visible));
+          });
+        });
+        grid.querySelectorAll(".splitter[data-resize-var]").forEach((splitter) => {
+          const variable = splitter.dataset.resizeVar;
+          const pane = variable === "--left-size"
+            ? grid.querySelector(".pane-left")
+            : variable === "--right-size"
+              ? grid.querySelector(".pane-right")
+              : grid.querySelector(".pane-bottom");
+          const rect = pane.getBoundingClientRect();
+          const value = splitter.dataset.axis === "x" ? rect.width : rect.height;
+          splitter.setAttribute("aria-valuenow", String(Math.round(value)));
+        });
+      }
+
+      function switchScreen(name, options) {
+        if (!screenOrder.includes(name)) return;
+        activeScreen = name;
+        utilityScreen.hidden = true;
+        app.dataset.activeScreen = name;
+        document.querySelectorAll(".screen[data-screen]").forEach((screen) => {
+          screen.hidden = screen.dataset.screen !== name;
+        });
+        document.querySelectorAll("[data-screen-target]").forEach((tab) => {
+          const selected = tab.dataset.screenTarget === name;
+          tab.setAttribute("aria-selected", String(selected));
+          tab.tabIndex = selected ? 0 : -1;
+        });
+        document.querySelectorAll("[data-header-tabs]").forEach((tabset) => {
+          tabset.hidden = tabset.dataset.headerTabs !== name;
+        });
+        document.getElementById("status-screen").textContent = screenNames[name];
+        localStorage.setItem("odysseus-mock-screen", name);
+        document.querySelectorAll(".workbench-grid").forEach((grid) => {
+          grid.classList.remove("mobile-show-left", "mobile-show-right");
+        });
+        syncPaneButtons();
+        if (!options || !options.silent) showToast(screenNames[name], "Arbeitsbereich geöffnet.");
+      }
+
+      function activateTab(group, target, options) {
+        const tabs = Array.from(document.querySelectorAll('[data-tab-group="' + group + '"]'));
+        const views = Array.from(document.querySelectorAll('[data-tab-view-group="' + group + '"]'));
+        const selectedTab = tabs.find((tab) => tab.dataset.tabTarget === target);
+        if (!selectedTab) return;
+        tabs.forEach((tab) => {
+          const selected = tab === selectedTab;
+          tab.setAttribute("aria-selected", String(selected));
+          tab.tabIndex = selected ? 0 : -1;
+        });
+        views.forEach((view) => {
+          view.hidden = view.dataset.tabView !== target;
+        });
+        if (options && options.focus) selectedTab.focus();
+      }
+
+      const toolTargets = {
+        agent: { screen: "agent" },
+        knowledge: { screen: "knowledge" },
+        planning: { screen: "planning" },
+        inbox: { screen: "inbox" },
+        documents: { screen: "knowledge", group: "knowledge-center", tab: "document" },
+        notes: { screen: "knowledge", group: "knowledge-center", tab: "note" },
+        memory: { screen: "knowledge", group: "knowledge-center", tab: "memory" },
+        skills: { screen: "knowledge", group: "knowledge-center", tab: "skills" },
+        gallery: { screen: "knowledge", group: "knowledge-center", tab: "gallery" },
+        compare: { screen: "agent", group: "agent-center", tab: "compare" },
+        research: { screen: "agent", group: "agent-center", tab: "research" },
+        email: { screen: "inbox", group: "inbox-center", tab: "email" },
+        calendar: { screen: "inbox", group: "inbox-center", tab: "calendar" },
+        tasks: { screen: "inbox", group: "inbox-bottom", tab: "tasks", pane: "bottom" },
+        settings: { utility: "general" },
+        models: { utility: "models" },
+        plugins: { utility: "plugins" },
+        mcp: { utility: "mcp" },
+        security: { utility: "security" }
+      };
+
+      function openTool(name) {
+        const target = toolTargets[name];
+        if (!target) return;
+        if (commandDialog.open) commandDialog.close();
+        const notifications = document.getElementById("notifications");
+        if (notifications.matches(":popover-open")) notifications.hidePopover();
+        if (target.utility) {
+          utilityScreen.hidden = false;
+          activateTab("utility", target.utility);
+          showToast("Tools & Settings", target.utility + " geöffnet.");
+          return;
+        }
+        switchScreen(target.screen, { silent: true });
+        if (target.pane) {
+          const grid = currentGrid();
+          grid.classList.remove("hide-" + target.pane);
+        }
+        if (target.group && target.tab) activateTab(target.group, target.tab);
+        syncPaneButtons();
+        showToast(screenNames[target.screen], (target.tab || "Arbeitsbereich") + " geöffnet.");
+      }
+
+      function togglePane(pane) {
+        const grid = currentGrid();
+        if (!grid) return;
+        if (!grid.querySelector(".pane-" + pane)) return;
+        if (window.matchMedia("(max-width: 840px)").matches && pane !== "bottom") {
+          const className = "mobile-show-" + pane;
+          const shouldOpen = !grid.classList.contains(className);
+          grid.classList.remove("mobile-show-left", "mobile-show-right");
+          grid.classList.toggle(className, shouldOpen);
+          syncPaneButtons();
+          showToast(shouldOpen ? "Panel geöffnet" : "Panel geschlossen", pane + " panel");
+          return;
+        }
+        const hidden = grid.classList.toggle("hide-" + pane);
+        syncPaneButtons();
+        showToast(hidden ? "Panel geschlossen" : "Panel geöffnet", pane + " panel");
+      }
+
+      function openCommand() {
+        commandInput.value = "";
+        filterCommands("");
+        commandFocusIndex = -1;
+        if (!commandDialog.open) commandDialog.showModal();
+        window.requestAnimationFrame(() => commandInput.focus());
+      }
+
+      function visibleCommandItems() {
+        return Array.from(commandList.querySelectorAll(".command-item")).filter((item) => !item.hidden);
+      }
+
+      function setCommandFocus(index) {
+        const items = visibleCommandItems();
+        items.forEach((item) => item.classList.remove("focused"));
+        if (!items.length) {
+          commandFocusIndex = -1;
+          return;
+        }
+        commandFocusIndex = Math.max(0, Math.min(index, items.length - 1));
+        items[commandFocusIndex].classList.add("focused");
+        items[commandFocusIndex].scrollIntoView({ block: "nearest" });
+      }
+
+      function filterCommands(value) {
+        const query = value.trim().toLowerCase();
+        commandList.querySelectorAll(".command-item").forEach((item) => {
+          item.hidden = query && !item.textContent.toLowerCase().includes(query);
+        });
+        commandList.querySelectorAll(".command-group-label").forEach((label) => {
+          let next = label.nextElementSibling;
+          let hasVisible = false;
+          while (next && !next.classList.contains("command-group-label")) {
+            if (next.classList.contains("command-item") && !next.hidden) hasVisible = true;
+            next = next.nextElementSibling;
+          }
+          label.hidden = !hasVisible;
+        });
+        setCommandFocus(0);
+      }
+
+      function restoreLayouts() {
+        document.querySelectorAll(".workbench-grid[data-layout]").forEach((grid) => {
+          const raw = localStorage.getItem("odysseus-mock-layout-" + grid.dataset.layout);
+          if (!raw) return;
+          try {
+            const saved = JSON.parse(raw);
+            ["--left-size", "--right-size", "--bottom-size"].forEach((key) => {
+              if (saved[key]) grid.style.setProperty(key, saved[key]);
+            });
+            ["left", "right", "bottom"].forEach((pane) => {
+              grid.classList.toggle("hide-" + pane, saved["hide-" + pane] === true);
+            });
+          } catch (_) {
+            localStorage.removeItem("odysseus-mock-layout-" + grid.dataset.layout);
+          }
+        });
+      }
+
+      function saveLayout(grid) {
+        const data = {};
+        ["--left-size", "--right-size", "--bottom-size"].forEach((key) => {
+          data[key] = grid.style.getPropertyValue(key);
+        });
+        ["left", "right", "bottom"].forEach((pane) => {
+          data["hide-" + pane] = grid.classList.contains("hide-" + pane);
+        });
+        localStorage.setItem("odysseus-mock-layout-" + grid.dataset.layout, JSON.stringify(data));
+      }
+
+      document.addEventListener("click", (event) => {
+        const screenTab = event.target.closest("[data-screen-target]");
+        if (screenTab) {
+          switchScreen(screenTab.dataset.screenTarget);
+          return;
+        }
+
+        const paneTab = event.target.closest("[data-tab-group][data-tab-target]");
+        if (paneTab) {
+          activateTab(paneTab.dataset.tabGroup, paneTab.dataset.tabTarget);
+          return;
+        }
+
+        const workRunToggle = event.target.closest("[data-work-run-toggle]");
+        if (workRunToggle) {
+          const workRun = workRunToggle.closest("[data-work-run]");
+          const wasExpanded = workRunToggle.getAttribute("aria-expanded") === "true";
+          workRunToggle.setAttribute("aria-expanded", String(!wasExpanded));
+          workRun.classList.toggle("collapsed", wasExpanded);
+          const stateLabel = workRunToggle.querySelector("[data-work-run-state]");
+          if (stateLabel) {
+            stateLabel.textContent = wasExpanded ? "Show work log" : "Hide work log";
+          }
+          return;
+        }
+
+        const paneToggle = event.target.closest("[data-pane-toggle]");
+        if (paneToggle) {
+          togglePane(paneToggle.dataset.paneToggle);
+          saveLayout(currentGrid());
+          return;
+        }
+
+        if (event.target.closest("[data-open-command]")) {
+          openCommand();
+          return;
+        }
+
+        const toolButton = event.target.closest("[data-open-tool]");
+        if (toolButton) {
+          openTool(toolButton.dataset.openTool);
+          return;
+        }
+
+        if (event.target.closest("[data-close-utility]")) {
+          utilityScreen.hidden = true;
+          showToast(screenNames[activeScreen], "Zur Arbeitsfläche zurückgekehrt.");
+          return;
+        }
+
+        const directTab = event.target.closest("[data-activate-tab-group][data-activate-tab]");
+        if (directTab) {
+          activateTab(directTab.dataset.activateTabGroup, directTab.dataset.activateTab);
+        }
+
+        const selectable = event.target.closest(".selectable");
+        if (selectable) {
+          const list = selectable.parentElement;
+          list.querySelectorAll(".selectable").forEach((row) => row.classList.remove("active"));
+          selectable.classList.add("active");
+          if (selectable.dataset.title) {
+            document.getElementById("active-chat-title").textContent = selectable.dataset.title;
+            document.getElementById("active-chat-subtitle").textContent = selectable.dataset.subtitle || "";
+          }
+          if (selectable.dataset.previewTitle) {
+            document.getElementById("inbox-preview-title").textContent = selectable.dataset.previewTitle;
+            document.getElementById("inbox-preview-body").textContent = selectable.dataset.previewBody || "";
+          }
+        }
+
+        const mockAction = event.target.closest("[data-mock-action]");
+        if (mockAction) {
+          showToast("Rohbau-Aktion", mockAction.dataset.mockAction);
+        }
+
+        const switchButton = event.target.closest(".switch");
+        if (switchButton) {
+          const pressed = switchButton.getAttribute("aria-pressed") === "true";
+          switchButton.setAttribute("aria-pressed", String(!pressed));
+          showToast("Einstellung geändert", !pressed ? "Aktiviert" : "Deaktiviert");
+        }
+
+        if (event.target.closest("[data-new-chat]")) {
+          const list = document.getElementById("agent-session-list");
+          list.querySelectorAll(".selectable").forEach((row) => row.classList.remove("active"));
+          const button = document.createElement("button");
+          button.className = "list-row active selectable";
+          button.type = "button";
+          button.style.setProperty("--row", "var(--cyan)");
+          button.dataset.title = "New Chat";
+          button.dataset.subtitle = "No model selected";
+          button.innerHTML = '<span class="list-copy"><strong>New Chat</strong><span>No model selected</span></span><span class="row-meta"><span>jetzt</span><span>new</span></span>';
+          list.prepend(button);
+          document.getElementById("active-chat-title").textContent = "New Chat";
+          document.getElementById("active-chat-subtitle").textContent = "No model selected";
+          showToast("New Chat", "Neue lokale Mockup-Session angelegt.");
+        }
+
+        if (event.target.closest("[data-send-demo]")) {
+          const textarea = event.target.closest(".composer").querySelector("textarea");
+          const value = textarea.value.trim();
+          if (!value) {
+            showToast("Keine Nachricht", "Gib zuerst Text in den Composer ein.");
+          } else {
+            textarea.value = "";
+            showToast("Nachricht vorgemerkt", "Der Rohbau sendet noch nicht an ein Backend.");
+          }
+        }
+      });
+
+      document.querySelectorAll("[data-screen-target]").forEach((tab) => {
+        tab.addEventListener("keydown", (event) => {
+          if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+          event.preventDefault();
+          const index = screenOrder.indexOf(tab.dataset.screenTarget);
+          let next = index;
+          if (event.key === "ArrowLeft") next = (index - 1 + screenOrder.length) % screenOrder.length;
+          if (event.key === "ArrowRight") next = (index + 1) % screenOrder.length;
+          if (event.key === "Home") next = 0;
+          if (event.key === "End") next = screenOrder.length - 1;
+          switchScreen(screenOrder[next], { silent: true });
+          document.querySelector('[data-screen-target="' + screenOrder[next] + '"]').focus();
+        });
+      });
+
+      document.querySelectorAll("[data-tab-group][data-tab-target]").forEach((tab) => {
+        tab.addEventListener("keydown", (event) => {
+          if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+          event.preventDefault();
+          const tabs = Array.from(document.querySelectorAll('[data-tab-group="' + tab.dataset.tabGroup + '"]'));
+          const index = tabs.indexOf(tab);
+          let next = index;
+          if (event.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
+          if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+          if (event.key === "Home") next = 0;
+          if (event.key === "End") next = tabs.length - 1;
+          activateTab(tab.dataset.tabGroup, tabs[next].dataset.tabTarget, { focus: true });
+        });
+      });
+
+      document.querySelectorAll(".splitter[data-resize-var]").forEach((splitter) => {
+        const orientation = splitter.dataset.axis === "x" ? "vertical" : "horizontal";
+        splitter.setAttribute("role", "separator");
+        splitter.setAttribute("aria-orientation", orientation);
+        splitter.setAttribute("aria-valuemin", splitter.dataset.min);
+        splitter.setAttribute("aria-valuemax", splitter.dataset.max);
+
+        function getMeasuredSize(grid) {
+          const variable = splitter.dataset.resizeVar;
+          const measuredPane = variable === "--left-size"
+            ? grid.querySelector(".pane-left")
+            : variable === "--right-size"
+              ? grid.querySelector(".pane-right")
+              : grid.querySelector(".pane-bottom");
+          const paneRect = measuredPane.getBoundingClientRect();
+          return splitter.dataset.axis === "x" ? paneRect.width : paneRect.height;
+        }
+
+        function applySize(grid, value) {
+          const min = Number(splitter.dataset.min || 100);
+          const max = Number(splitter.dataset.max || 500);
+          const next = Math.max(min, Math.min(max, value));
+          grid.style.setProperty(splitter.dataset.resizeVar, next + "px");
+          splitter.setAttribute("aria-valuenow", String(Math.round(next)));
+          return next;
+        }
+
+        splitter.addEventListener("pointerdown", (event) => {
+          if (window.matchMedia("(max-width: 840px)").matches) return;
+          const grid = splitter.closest(".workbench-grid");
+          const variable = splitter.dataset.resizeVar;
+          const axis = splitter.dataset.axis;
+          const factor = Number(splitter.dataset.factor || 1);
+          const startPoint = axis === "x" ? event.clientX : event.clientY;
+          const startValue = getMeasuredSize(grid);
+          splitter.classList.add("dragging");
+          splitter.setPointerCapture(event.pointerId);
+
+          function onMove(moveEvent) {
+            const point = axis === "x" ? moveEvent.clientX : moveEvent.clientY;
+            applySize(grid, startValue + (point - startPoint) * factor);
+          }
+
+          function onEnd(endEvent) {
+            splitter.classList.remove("dragging");
+            splitter.releasePointerCapture(endEvent.pointerId);
+            splitter.removeEventListener("pointermove", onMove);
+            splitter.removeEventListener("pointerup", onEnd);
+            splitter.removeEventListener("pointercancel", onEnd);
+            saveLayout(grid);
+          }
+
+          splitter.addEventListener("pointermove", onMove);
+          splitter.addEventListener("pointerup", onEnd);
+          splitter.addEventListener("pointercancel", onEnd);
+        });
+
+        splitter.addEventListener("keydown", (event) => {
+          const axisKeys = splitter.dataset.axis === "x"
+            ? ["ArrowLeft", "ArrowRight"]
+            : ["ArrowUp", "ArrowDown"];
+          if (!axisKeys.includes(event.key) && !["Home", "End"].includes(event.key)) return;
+          event.preventDefault();
+          const grid = splitter.closest(".workbench-grid");
+          const factor = Number(splitter.dataset.factor || 1);
+          const min = Number(splitter.dataset.min || 100);
+          const max = Number(splitter.dataset.max || 500);
+          let next = getMeasuredSize(grid);
+          if (event.key === "Home") next = min;
+          if (event.key === "End") next = max;
+          if (event.key === "ArrowLeft" || event.key === "ArrowUp") next -= 16 * factor;
+          if (event.key === "ArrowRight" || event.key === "ArrowDown") next += 16 * factor;
+          applySize(grid, next);
+          saveLayout(grid);
+        });
+
+        splitter.addEventListener("dblclick", () => {
+          const grid = splitter.closest(".workbench-grid");
+          const defaults = {
+            agent: { "--left-size": "17rem", "--right-size": "18.5rem", "--bottom-size": "12.5rem" },
+            knowledge: { "--left-size": "16rem", "--right-size": "18rem", "--bottom-size": "11rem" },
+            planning: { "--left-size": "18rem", "--right-size": "19rem", "--bottom-size": "13.5rem" },
+            inbox: { "--left-size": "15.5rem", "--right-size": "21rem", "--bottom-size": "11rem" }
+          };
+          grid.style.setProperty(splitter.dataset.resizeVar, defaults[grid.dataset.layout][splitter.dataset.resizeVar]);
+          splitter.setAttribute("aria-valuenow", String(Math.round(getMeasuredSize(grid))));
+          saveLayout(grid);
+          showToast("Panelgröße zurückgesetzt", "Doppelklick setzt den jeweiligen Split zurück.");
+        });
+
+      });
+
+      commandInput.addEventListener("input", () => filterCommands(commandInput.value));
+      commandInput.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          setCommandFocus(commandFocusIndex + 1);
+        }
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          setCommandFocus(commandFocusIndex - 1);
+        }
+        if (event.key === "Enter") {
+          event.preventDefault();
+          const items = visibleCommandItems();
+          if (items[commandFocusIndex]) items[commandFocusIndex].click();
+        }
+      });
+
+      document.querySelectorAll(".filter-bar input").forEach((input) => {
+        input.addEventListener("input", () => {
+          const query = input.value.trim().toLowerCase();
+          const paneBody = input.closest(".pane-body");
+          if (!paneBody) return;
+          paneBody.querySelectorAll(".item-list .list-row").forEach((row) => {
+            row.hidden = query && !row.textContent.toLowerCase().includes(query);
+          });
+        });
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if ((event.ctrlKey || event.metaKey) && (event.key.toLowerCase() === "k" || event.key.toLowerCase() === "p")) {
+          event.preventDefault();
+          openCommand();
+          return;
+        }
+        if (event.altKey && /^[1-4]$/.test(event.key)) {
+          event.preventDefault();
+          switchScreen(screenOrder[Number(event.key) - 1]);
+        }
+      });
+
+      restoreLayouts();
+      switchScreen(activeScreen, { silent: true });
+    })();
+  </script>
+</body>
+</html>
