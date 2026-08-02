@@ -13,6 +13,7 @@ from src.transcription_contracts import (
 )
 from src.transcription_pipeline import TranscriptionPipeline
 from src.local_model_scheduler import _refresh_foreground_marker
+from src.transcription_review import REVIEW_RESULT_SCHEMA, TranscriptionReviewer
 from src.transcription_store import (
     LeaseConflictError,
     TranscriptionStore,
@@ -98,6 +99,40 @@ class _Adapter:
     def transcribe(self, store: TranscriptionStore, artifact: object) -> tuple[RawTranscriptSegment, ...]:
         self.calls += 1
         return self.call(store, artifact)
+
+
+class _ReviewTransport:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def review(self, request_json: str) -> str:
+        request = json.loads(request_json)
+        self.calls += 1
+        segment_id = request["segments"][0]["segment_id"]
+        return json.dumps(
+            {
+                "schema": REVIEW_RESULT_SCHEMA,
+                "chunk_index": request["chunk_index"],
+                "corrections": [],
+                "claims": [
+                    {
+                        "claim_kind": "decision",
+                        "segment_ids": [segment_id],
+                        "assignee": None,
+                        "critical_uncertainty": False,
+                    }
+                ],
+            }
+        )
+
+
+class _FailingReviewer:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def review(self, _record: object) -> object:
+        self.calls += 1
+        raise RuntimeError("injected reviewer failure")
 
 
 def test_restart_discovers_durable_work_and_transcribed_job_is_never_rerun(tmp_path: Path) -> None:
@@ -532,4 +567,84 @@ def test_terminal_retry_limit_preserves_source_and_backup_receipt(tmp_path: Path
             (protected.job.job_id,),
         ).fetchone()
         assert tuple(row) == (1, "transcription_exhausted", None, None)
+        assert db.execute("SELECT 1 FROM cpu_lease").fetchone() is None
+
+
+def test_review_claim_runs_injected_reviewer_and_atomically_persists_protocol_ready(
+    tmp_path: Path,
+) -> None:
+    store = _store(tmp_path)
+    protected = _protect(store, "review_protocol", b"synthetic review audio")
+    raw_adapter = _Adapter(lambda _store, artifact: (_segment(artifact, "Decide now"),))
+    assert TranscriptionPipeline(
+        store,
+        raw_adapter,
+        worker_token="review_asr_worker",
+        foreground_busy=lambda: False,
+    ).run_once().status == "transcribed"
+
+    transport = _ReviewTransport()
+    review_adapter = _Adapter(
+        lambda _store, _artifact: (_ for _ in ()).throw(AssertionError("ASR must not rerun"))
+    )
+    result = TranscriptionPipeline(
+        store,
+        review_adapter,
+        reviewer=TranscriptionReviewer(transport),
+        worker_token="review_protocol_worker",
+        foreground_busy=lambda: False,
+    ).run_once()
+
+    assert result.status == "protocol_ready"
+    assert raw_adapter.calls == 1
+    assert review_adapter.calls == 0
+    assert transport.calls == 1
+    record = store.read_record(OWNER, protected.job.job_id)
+    assert record.job.state == "protocol_ready"
+    assert record.segments[0].text == "Decide now"
+    assert record.corrections == ()
+    assert record.protocol is not None
+    assert record.protocol.claims[0].text == record.segments[0].text
+    with store._connect() as db:
+        assert db.execute("SELECT COUNT(*) FROM protocols").fetchone()[0] == 1
+        row = db.execute(
+            "SELECT worker_token,lease_expires FROM jobs WHERE job_id=?",
+            (protected.job.job_id,),
+        ).fetchone()
+        assert tuple(row) == (None, None)
+        assert db.execute("SELECT 1 FROM cpu_lease").fetchone() is None
+
+
+def test_reviewer_failure_persists_needs_review_without_mutating_raw_evidence(
+    tmp_path: Path,
+) -> None:
+    store = _store(tmp_path)
+    protected = _protect(store, "review_fallback", b"synthetic fallback audio")
+    raw_adapter = _Adapter(lambda _store, artifact: (_segment(artifact, "Keep raw evidence"),))
+    assert TranscriptionPipeline(
+        store,
+        raw_adapter,
+        worker_token="fallback_asr_worker",
+        foreground_busy=lambda: False,
+    ).run_once().status == "transcribed"
+
+    reviewer = _FailingReviewer()
+    result = TranscriptionPipeline(
+        store,
+        _Adapter(lambda _store, _artifact: (_ for _ in ()).throw(AssertionError("ASR must not rerun"))),
+        reviewer=reviewer,
+        worker_token="fallback_review_worker",
+        foreground_busy=lambda: False,
+    ).run_once()
+
+    assert result.status == "needs_review"
+    assert reviewer.calls == 1
+    record = store.read_record(OWNER, protected.job.job_id)
+    assert record.job.state == "needs_review"
+    assert record.segments[0].text == "Keep raw evidence"
+    assert record.corrections == ()
+    assert record.protocol is None
+    with store._connect() as db:
+        assert db.execute("SELECT COUNT(*) FROM corrections").fetchone()[0] == 0
+        assert db.execute("SELECT COUNT(*) FROM protocols").fetchone()[0] == 0
         assert db.execute("SELECT 1 FROM cpu_lease").fetchone() is None

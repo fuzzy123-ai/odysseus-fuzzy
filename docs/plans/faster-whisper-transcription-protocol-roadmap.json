@@ -3,8 +3,8 @@
   "kind": "odysseus.faster_whisper_transcription_protocol_roadmap",
   "id": "TRP",
   "title": "Local Faster-Whisper Transcription And Evidence-Backed Protocols",
-  "updated_at": "2026-08-02T18:07:28+02:00",
-  "status": "trp01_through_trp04_accepted_trp05_reprioritized_test_first_reclaim_claimed",
+  "updated_at": "2026-08-02T18:25:35+02:00",
+  "status": "trp01_through_trp05_accepted_trp06_repo_only_claimed_trp08_live_gated",
   "goal": "Deliver a backend-first, local-only transcription pipeline that cannot acknowledge an audio upload before durable primary storage, preserves immutable source evidence, uses faster-whisper for timestamped ASR, constrains Gemma to review and protocol synthesis, and reaches one bounded consent-safe Debian live test with backup and rollback evidence.",
   "scope": {
     "included": [
@@ -253,9 +253,9 @@
       "id": "TRP-05-gemma-correction-and-protocol-provenance",
       "class": "repo_only",
       "owner": "Bob/Terra; root/Sol deep review",
-      "status": "claimed_2026-08-02_test_first_integration_evidence_reclaim",
+      "status": "accepted_2026-08-02_root_deep_review_independent_qa_146_passed_1_skipped",
       "claimable": false,
-      "claim_blocker": "One exact test-first writer claim is active; source widening requires a separate Root decision after a reproduced defect.",
+      "claim_blocker": null,
       "depends_on": [
         "TRP-04-resumable-single-worker-pipeline"
       ],
@@ -301,9 +301,9 @@
       "id": "TRP-06-owner-scoped-backend-api",
       "class": "repo_only",
       "owner": "Bob/Terra; root/Sol deep review",
-      "status": "planned",
+      "status": "claimed_2026-08-02_dependency_ready_exact_hotfile_handoff",
       "claimable": false,
-      "claim_blocker": "TRP-04 and TRP-05 not accepted",
+      "claim_blocker": "One exact TRP-06 writer claim is active; app.py, core/auth.py and docker-compose.yml are serialized against UIR-03 and every other composition lane.",
       "depends_on": [
         "TRP-04-resumable-single-worker-pipeline",
         "TRP-05-gemma-correction-and-protocol-provenance"
@@ -666,7 +666,7 @@
         "tests/test_security_incident_response_production_completion_roadmap.py"
       ],
       "hotfiles": [],
-      "state": "claimed",
+      "state": "released_accepted",
       "acquired_at": "2026-08-02T18:07:28+02:00",
       "lease_expires_at": "2026-08-02T20:07:28+02:00",
       "base_revision": "49456aa2",
@@ -683,6 +683,55 @@
         "writes outside the four exact test paths"
       ],
       "collision_check": "pass: four test paths are disjoint from ACPR-11 and Wave-5R QA; exactly one worktree is clean at base revision",
+      "live_actions": false,
+      "released_at": "2026-08-02T18:25:35+02:00",
+      "release_reason": "accepted_after_test_first_integration_evidence_root_deep_review_and_independent_qa",
+      "acceptance_evidence": {
+        "changed_paths": [
+          "tests/test_transcription_pipeline.py",
+          "tests/test_transcription_store.py",
+          "tests/test_maintenance_llm_runtime.py"
+        ],
+        "worker_focused_and_corridor": "146 passed, 1 skipped",
+        "independent_qa": "PASS; four new nodes and full 146 passed, 1 skipped corridor",
+        "root_review": "deep pass; no source changes, immutable raw evidence, atomic protocol_ready and fail-closed needs_review verified",
+        "known_limit": "one existing timing-sensitive heartbeat assertion failed once in QA and passed on immediate isolated plus full-corridor rerun",
+        "live_actions": false
+      }
+    },
+    {
+      "run_id": "ABC-TRP06-20260802T182535+0200",
+      "thread_id": "/root/bob_trp05_reclaim_audit",
+      "slice_id": "TRP-06-owner-scoped-backend-api",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "allowed_paths": [
+        "core/auth.py",
+        "src/transcription_runtime.py",
+        "routes/transcription_routes.py",
+        "app.py",
+        "docker-compose.yml",
+        "tests/test_auth_subject_identity.py",
+        "tests/test_transcription_runtime.py",
+        "tests/test_transcription_routes.py",
+        "tests/test_app_transcription_wiring.py"
+      ],
+      "hotfiles": [
+        "core/auth.py",
+        "app.py",
+        "docker-compose.yml"
+      ],
+      "state": "claimed",
+      "acquired_at": "2026-08-02T18:25:35+02:00",
+      "lease_expires_at": "2026-08-02T20:25:35+02:00",
+      "base_revision": "0297e457db032c1edc1e259ecfd07ff802d90caa",
+      "handoff_required": true,
+      "runtime_scope": "repository-only default-off owner-scoped API, fake/injected worker lifecycle and synthetic audio fixtures",
+      "collision_check": "pass: all nine paths are clean and disjoint from ACPR-11/Wave-5R; app.py, core/auth.py and docker-compose.yml are exclusively serialized here and UIR-03 remains unclaimed",
+      "forbidden": [
+        "UI implementation, legacy route activation, productive/private audio, provider/model/network/host/backup/restore/push/deploy/live action",
+        "writes outside the nine exact paths",
+        "claiming TRP-08 or any live evidence"
+      ],
       "live_actions": false
     }
   ],
@@ -784,5 +833,23 @@
     "updater_or_resume_clean": "no",
     "product_complete": "no"
   },
-  "next_frontier": "TRP-05 test-first reclaim is active; after focused integration evidence, independent QA and Root deep review, TRP-06 becomes the next repo-only frontier while TRP-08 remains live-gated"
+  "latest_trp05_acceptance": {
+    "accepted_at": "2026-08-02T18:25:35+02:00",
+    "claim_id": "ABC-TRP05-RECLAIM-20260802T180728+0200",
+    "implementation_owner": "/root/bob_trp05_reclaim_audit",
+    "independent_qa_owner": "/root/trp05_independent_qa",
+    "changed_paths": [
+      "tests/test_transcription_pipeline.py",
+      "tests/test_transcription_store.py",
+      "tests/test_maintenance_llm_runtime.py"
+    ],
+    "tests": "146 passed, 1 skipped in worker and independent QA corridors; four new evidence nodes green",
+    "evidence_digest": "sha256:67164c591fc55d3080e9c1ed9055a777c79d6278c5068c06ef6e4bd0a46d349b",
+    "not_verified": [
+      "full repository suite or external CI",
+      "live Gemma/Ollama, productive audio, host, deployment or runtime activation"
+    ],
+    "next_action": "Implement and independently review TRP-06 under its exact default-off repo-only claim; TRP-08 remains live-gated."
+  },
+  "next_frontier": "TRP-06 owner-scoped backend API is claimed repo-only with exact composition-hotfile serialization; after acceptance run TRP-07, then stop at TRP-08 live gates"
 }

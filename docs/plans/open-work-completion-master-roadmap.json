@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-02T18:07:28+02:00",
-  "status": "parallel_wave5r_readonly_qa_acpr11_implementation_and_trp05_test_first_reclaim_running / cleanup_one_worktree_clean / ops_alert_live_gates_preserved",
+  "updated_at": "2026-08-02T18:25:35+02:00",
+  "status": "wave5r_independent_qa_pass_pending_current_inventory_refresh / acpr11_bounded_qa_fix / trp05_accepted_trp06_repo_only_claimed / cleanup_one_worktree_clean / live_gates_preserved",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -24,7 +24,7 @@
     "unique_live_gates": 61,
     "unique_design_gates": 29,
     "other_open_json_items": 155,
-    "queue_status": "parallel_wave5r_readonly_qa_acpr11_implementation_and_trp05_test_first_reclaim_running",
+    "queue_status": "wave5r_qa_pass_acpr11_fix_and_trp06_implementation_running",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "live_contextual_layer": "lcl00_roadmap_deep_reviewed_registered_lcl01_waiting_cao08b",
@@ -45,7 +45,7 @@
       "code_lineage_timeline": "clt00_through_clt02_accepted_clt03_ready_repo_only_live_default_off",
       "lens_code_graph": "planned_after_code_graph_api_ui_live_gated",
       "agent_maintenance_safety_harness": "roadmap_registered_goal_not_started_repo_only",
-      "local_transcription_protocol": "trp01_through_trp04_accepted_trp05_user_reprioritized_test_first_reclaim_claimed",
+      "local_transcription_protocol": "trp01_through_trp05_accepted_trp06_repo_only_claimed_trp08_live_gated",
       "security_incident_response_production": "sirp00_through_sirp11_offline_accepted_sirp12_sec184_required_ci_green_sec176_host_change_completed_sec190_observation_ok_C2_next_D_deploy_not_go_E_delivery_not_go"
     },
     "verification": {
@@ -545,20 +545,25 @@
         ]
       },
       {
-        "claim_id": "ABC-TRP05-RECLAIM-20260802T180728+0200",
-        "slice_id": "TRP-05-gemma-correction-and-protocol-provenance",
+        "claim_id": "ABC-TRP06-20260802T182535+0200",
+        "slice_id": "TRP-06-owner-scoped-backend-api",
         "roadmap": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
         "owner": "/root/bob_trp05_reclaim_audit",
         "class": "repo_only",
         "state": "claimed",
-        "acquired_at": "2026-08-02T18:07:28+02:00",
-        "lease_expires_at": "2026-08-02T20:07:28+02:00",
-        "base_revision": "49456aa2",
+        "acquired_at": "2026-08-02T18:25:35+02:00",
+        "lease_expires_at": "2026-08-02T20:25:35+02:00",
+        "base_revision": "0297e457db032c1edc1e259ecfd07ff802d90caa",
         "allowed_paths": [
-          "tests/test_transcription_pipeline.py",
-          "tests/test_transcription_store.py",
-          "tests/test_transcription_review.py",
-          "tests/test_maintenance_llm_runtime.py"
+          "core/auth.py",
+          "src/transcription_runtime.py",
+          "routes/transcription_routes.py",
+          "app.py",
+          "docker-compose.yml",
+          "tests/test_auth_subject_identity.py",
+          "tests/test_transcription_runtime.py",
+          "tests/test_transcription_routes.py",
+          "tests/test_app_transcription_wiring.py"
         ],
         "router_write_paths": [
           "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
@@ -569,15 +574,42 @@
         "writer_count": 1,
         "independent_qa_required": true,
         "live_actions": false,
-        "collision_check": "pass: exact test-only TRP-05 paths are disjoint from ACPR-11 and read-only Wave-5R QA; one clean worktree at claim base",
+        "collision_check": "pass: nine TRP-06 paths are clean and disjoint from ACPR-11/Wave-5R; app.py, core/auth.py and docker-compose.yml are exclusively serialized here and UIR-03 remains unclaimed",
         "forbidden_actions": [
-          "source edits without a reproduced defect and fresh Root claim widening",
           "editing canonical roadmap authorities from the worker",
-          "provider/model calls, downloads, productive/private audio, runtime composition, network, host, backup, restore, push, deploy or live action",
-          "writes outside the four exact test paths"
+          "UI implementation, legacy route activation, productive/private audio, provider/model/network/host/backup/restore/push/deploy/live action",
+          "writes outside the nine exact paths",
+          "claiming TRP-08 or any live evidence"
         ]
       }
     ],
+    "latest_trp05_acceptance": {
+      "accepted_at": "2026-08-02T18:25:35+02:00",
+      "roadmap": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+      "slice_id": "TRP-05-gemma-correction-and-protocol-provenance",
+      "claim_id": "ABC-TRP05-RECLAIM-20260802T180728+0200",
+      "implementation_owner": "/root/bob_trp05_reclaim_audit",
+      "independent_qa_owner": "/root/trp05_independent_qa",
+      "changed_paths": [
+        "tests/test_transcription_pipeline.py",
+        "tests/test_transcription_store.py",
+        "tests/test_maintenance_llm_runtime.py"
+      ],
+      "tests_and_results": [
+        "four new TRP-05 integration evidence nodes passed",
+        "worker corridor: 146 passed, 1 skipped",
+        "independent QA corridor: 146 passed, 1 skipped",
+        "Root deep review: pass"
+      ],
+      "evidence_ref": "sha256:67164c591fc55d3080e9c1ed9055a777c79d6278c5068c06ef6e4bd0a46d349b",
+      "known_limit": "one pre-existing timing-sensitive heartbeat assertion failed once and passed on isolated plus full-corridor rerun",
+      "next_action": "Complete TRP-06 under the exact active claim, then independent QA and Root deep review; TRP-08 remains live-gated.",
+      "not_verified": [
+        "full repository suite or external CI",
+        "live Gemma/Ollama, productive audio, host, deployment or runtime activation"
+      ],
+      "live_actions": false
+    },
     "latest_parallel_development_p0_handoff": {
       "roadmap_path": "docs/plans/open-work-completion-master-roadmap.json",
       "run_id": "goal-parallel-roadmaps-20260802-p0",
@@ -15690,9 +15722,9 @@
       "id": "TRP-05-gemma-correction-and-protocol-provenance",
       "class": "repo_only",
       "owner": "Bob/Terra implementation; root/Sol deep review",
-      "status": "claimed_2026-08-02_test_first_integration_evidence_reclaim",
+      "status": "accepted_2026-08-02_root_deep_review_independent_qa_146_passed_1_skipped",
       "claimable": false,
-      "claim_blocker": "One exact test-first writer claim is active; source widening requires a separate Root decision after a reproduced defect.",
+      "claim_blocker": null,
       "claim": {
         "run_id": "ABC-TRP-20260726",
         "thread_id": "/root",
@@ -15773,10 +15805,10 @@
         ]
       },
       "completion": {
-        "implemented": "no",
-        "tested": "no",
-        "sol_reviewed": "no",
-        "committed": "no",
+        "implemented": "yes_existing_sources_plus_three_test_only_integration_evidence_paths",
+        "tested": "146_passed_1_skipped_worker_and_independent_qa_corridors",
+        "sol_reviewed": "deep_pass",
+        "committed": "pending_exact_acceptance_commit",
         "pushed": "no",
         "deployed": "no",
         "live_validated": "no",
@@ -15789,7 +15821,83 @@
       ],
       "source_roadmap": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
       "gate": "none; repository-only",
-      "done_when": "Adversarial local reviewer output cannot mutate raw evidence or create an uncited protocol claim, and all local heavy-model paths serialize through one broker."
+      "done_when": "Adversarial local reviewer output cannot mutate raw evidence or create an uncited protocol claim, and all local heavy-model paths serialize through one broker.",
+      "acceptance_evidence": {
+        "claim_id": "ABC-TRP05-RECLAIM-20260802T180728+0200",
+        "changed_paths": [
+          "tests/test_transcription_pipeline.py",
+          "tests/test_transcription_store.py",
+          "tests/test_maintenance_llm_runtime.py"
+        ],
+        "worker": "146 passed, 1 skipped",
+        "independent_qa": "PASS; four new evidence nodes and full corridor 146 passed, 1 skipped",
+        "root_review": "deep pass",
+        "diff_digest": "sha256:67164c591fc55d3080e9c1ed9055a777c79d6278c5068c06ef6e4bd0a46d349b",
+        "known_limit": "one pre-existing timing-sensitive heartbeat assertion failed once and passed on isolated plus full-corridor rerun",
+        "live_actions": false
+      }
+    },
+    {
+      "id": "TRP-06-owner-scoped-backend-api",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "claimed_2026-08-02_dependency_ready_exact_hotfile_handoff",
+      "claimable": false,
+      "claim_blocker": "One exact TRP-06 writer claim is active; app.py, core/auth.py and docker-compose.yml are serialized against UIR-03 and every other composition lane.",
+      "claim": {
+        "run_id": "ABC-TRP06-20260802T182535+0200",
+        "thread_id": "/root/bob_trp05_reclaim_audit",
+        "slice_id": "TRP-06-owner-scoped-backend-api",
+        "owner": "Bob/Terra implementation; root/Sol deep review",
+        "allowed_paths": [
+          "core/auth.py",
+          "src/transcription_runtime.py",
+          "routes/transcription_routes.py",
+          "app.py",
+          "docker-compose.yml",
+          "tests/test_auth_subject_identity.py",
+          "tests/test_transcription_runtime.py",
+          "tests/test_transcription_routes.py",
+          "tests/test_app_transcription_wiring.py"
+        ],
+        "hotfiles": [
+          "core/auth.py",
+          "app.py",
+          "docker-compose.yml"
+        ],
+        "state": "claimed",
+        "acquired_at": "2026-08-02T18:25:35+02:00",
+        "lease_expires_at": "2026-08-02T20:25:35+02:00",
+        "base_revision": "0297e457db032c1edc1e259ecfd07ff802d90caa",
+        "handoff_required": true,
+        "runtime_scope": "repository-only default-off owner-scoped API, fake/injected worker lifecycle and synthetic audio fixtures",
+        "collision_check": "pass: exact nine paths clean, UIR-03 unclaimed, all composition hotfiles serialized",
+        "live_actions": false
+      },
+      "depends_on": [
+        "TRP-04-resumable-single-worker-pipeline accepted",
+        "TRP-05-gemma-correction-and-protocol-provenance accepted"
+      ],
+      "source_roadmap": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+      "gate": "none; repository-only default-off implementation",
+      "acceptance": [
+        "authenticated immutable-subject owner-scoped upload, status and result routes",
+        "bounded streamed application/octet-stream ingestion with exact idempotency, size, digest, media and timeout contracts",
+        "same-origin session/cookie CSRF protection and bearer upload closed in v1",
+        "one default-off worker lifecycle, legacy generic STT incompatibility and local-only behavior",
+        "no arbitrary paths, filenames, source bytes or transcript in status logs"
+      ],
+      "completion": {
+        "implemented": "in_progress",
+        "tested": "pending",
+        "sol_reviewed": "pending",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "no",
+        "product_complete": "no"
+      },
+      "done_when": "Authorization, cross-owner, oversize, retry, failure and success route tests pass without UI, external provider behavior or productive audio."
     },
     {
       "id": "SIRP-00-roadmap-authority-and-gap-freeze",

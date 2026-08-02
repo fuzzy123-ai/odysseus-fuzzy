@@ -984,12 +984,12 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
     )
 
     assert trp["status"] == (
-        "trp01_through_trp04_accepted_trp05_reprioritized_test_first_reclaim_claimed"
+        "trp01_through_trp05_accepted_trp06_repo_only_claimed_trp08_live_gated"
     )
     trp_05 = next(item for item in trp["slice_queue"] if item["id"].startswith("TRP-05-"))
     assert trp_05["claimable"] is False
     assert trp_05["status"] == (
-        "claimed_2026-08-02_test_first_integration_evidence_reclaim"
+        "accepted_2026-08-02_root_deep_review_independent_qa_146_passed_1_skipped"
     )
     historical_claim = next(
         item
@@ -1001,20 +1001,32 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
     assert historical_claim["release_reason"] == (
         "superseded_by_SIRP_operator_priority_preserved_dirty_diff"
     )
-    active_claim = next(
+    accepted_claim = next(
         item
         for item in trp["claims"]
         if item["run_id"] == "ABC-TRP05-RECLAIM-20260802T180728+0200"
     )
-    assert active_claim["state"] == "claimed"
-    assert active_claim["slice_id"] == trp_05["id"]
-    assert active_claim["live_actions"] is False
-    assert active_claim["allowed_paths"] == [
+    assert accepted_claim["state"] == "released_accepted"
+    assert accepted_claim["slice_id"] == trp_05["id"]
+    assert accepted_claim["live_actions"] is False
+    assert accepted_claim["allowed_paths"] == [
         "tests/test_transcription_pipeline.py",
         "tests/test_transcription_store.py",
         "tests/test_transcription_review.py",
         "tests/test_maintenance_llm_runtime.py",
     ]
+    trp_06 = next(item for item in trp["slice_queue"] if item["id"].startswith("TRP-06-"))
+    assert trp_06["status"] == (
+        "claimed_2026-08-02_dependency_ready_exact_hotfile_handoff"
+    )
+    trp_06_claim = next(
+        item
+        for item in trp["claims"]
+        if item["run_id"] == "ABC-TRP06-20260802T182535+0200"
+    )
+    assert trp_06_claim["state"] == "claimed"
+    assert trp_06_claim["slice_id"] == trp_06["id"]
+    assert trp_06_claim["live_actions"] is False
 
 
 def test_sirp11_packets_are_bounded_non_authorizing_and_secret_safe() -> None:

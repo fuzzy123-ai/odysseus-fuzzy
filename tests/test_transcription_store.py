@@ -9,7 +9,7 @@ import threading
 
 import pytest
 
-from src.transcription_contracts import BackupReceipt, CorrectionProposal, RawTranscriptSegment, RecordingAuthorizationRef, RetentionPolicyRef
+from src.transcription_contracts import BackupReceipt, CorrectionProposal, ProtocolClaim, ProtocolDocument, ProtocolEvidence, RawTranscriptSegment, RecordingAuthorizationRef, RetentionPolicyRef
 from src.transcription_store import (
     CpuLease,
     IdempotencyConflictError,
@@ -253,6 +253,78 @@ def test_fenced_raw_and_review_commits_are_atomic_and_release_cpu_lease(tmp_path
             (result.job.job_id,),
         ).fetchone()
         assert tuple(row) == (None, None)
+
+
+def test_claimed_review_commits_protocol_ready_atomically_with_raw_evidence(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    protected = _protect(store, "protocol_ready", b"review")
+    transcription = store.claim_oldest_due_transcription("protocol_asr_worker")
+    assert transcription is not None
+    segment = RawTranscriptSegment(
+        "segment_protocol",
+        protected.artifact.artifact_id,
+        OWNER,
+        protected.artifact.source_sha256,
+        0,
+        100,
+        "Approve the plan",
+        0,
+    )
+    store.commit_transcribed(
+        OWNER,
+        protected.job.job_id,
+        transcription.lease.worker_token,
+        transcription.lease.fence,
+        (segment,),
+    )
+    review = store.claim_oldest_due_review("protocol_review_worker")
+    assert review is not None
+    evidence = ProtocolEvidence(
+        "evidence_protocol",
+        protected.artifact.artifact_id,
+        OWNER,
+        (segment.segment_id,),
+        protected.artifact.source_sha256,
+    )
+    claim = ProtocolClaim(
+        "claim_protocol",
+        OWNER,
+        "decision",
+        segment.text,
+        (evidence.evidence_id,),
+    )
+    protocol = ProtocolDocument(
+        "protocol_ready",
+        protected.artifact.artifact_id,
+        OWNER,
+        (evidence,),
+        (claim,),
+    )
+
+    committed = store.commit_review(
+        OWNER,
+        protected.job.job_id,
+        review.lease.worker_token,
+        review.lease.fence,
+        (),
+        protocol,
+        "protocol_ready",
+    )
+
+    assert committed.job.state == "protocol_ready"
+    assert committed.segments == (segment,)
+    assert committed.corrections == ()
+    assert committed.protocol == protocol
+    with store._connect() as db:
+        assert db.execute("SELECT COUNT(*) FROM raw_segments").fetchone()[0] == 1
+        assert db.execute("SELECT COUNT(*) FROM corrections").fetchone()[0] == 0
+        assert db.execute("SELECT COUNT(*) FROM protocols").fetchone()[0] == 1
+        row = db.execute(
+            "SELECT state,worker_token,lease_expires FROM jobs WHERE job_id=?",
+            (protected.job.job_id,),
+        ).fetchone()
+        assert tuple(row) == ("protocol_ready", None, None)
+        assert db.execute("SELECT 1 FROM cpu_lease").fetchone() is None
 
 
 def test_reserved_process_crash_converges_to_retry_without_publish(tmp_path: Path) -> None:
