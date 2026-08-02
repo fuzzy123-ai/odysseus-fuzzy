@@ -458,9 +458,13 @@ CAO-08C1 remains dependency-ready but deferred to a later exact-scope reclaim;
 no implementation evidence was manufactured. CAO-08D was accepted on
 2026-08-02 at local commit `744debea` after one bounded Root review cycle,
 17 claimed tests, a 178-test Root dependency lane and Charlie's independent
-186-test combined QA lane. CAO-08E is next only after an exact claim is
-registered. The historical CAO1-CAO7 evidence remains accepted and is not
-reinterpreted as evidence for the new production-loop behaviors.
+186-test combined QA lane. CAO-08E was accepted on 2026-08-02 at local commit
+`a3630fb1` after one bounded Root fix cycle, 10 focused tests, a 155-test Root
+CAO A-E dependency lane and Charlie's independent 200-test combined Wave-2 QA
+lane. CAO-08F now requires exact dependency/path evaluation and a durable
+claim; CAO-08C1 remains a separate deferred reclaim. The historical CAO1-CAO7
+evidence remains accepted and is not reinterpreted as evidence for the new
+production-loop behaviors.
 
 ## Gate Queue
 

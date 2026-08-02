@@ -119,7 +119,9 @@
         ],
         "completed_parallel_lanes": [
           "CAO-08D-scoped-execution-plane-consolidation",
-          "NMG-00-legacy-boundary-audit"
+          "NMG-00-legacy-boundary-audit",
+          "CAO-08E-transactional-worktree-edit-and-exact-read-receipts",
+          "NMG-01-native-knowledge-contract"
         ],
         "deferred_current_wave": [
           "CAO-08C1-bounded-delegation-runtime"
@@ -131,7 +133,7 @@
           "mode": "read_only",
           "writer_claim": false,
           "allowed_write_paths": [],
-          "state": "active_wave2",
+          "state": "wave2_accepted_released",
           "evidence_required": [
             "path collision readback",
             "focused test readback",
@@ -142,10 +144,10 @@
           "live_actions": false
         },
         "router_writer": "root only",
-        "focused_tests": "25 passed; combined independent regression 186 passed; Root CAO regression 178 passed; one existing SQLAlchemy deprecation warning",
+        "focused_tests": "Wave 2: Root CAO A-E lane 155 passed and NMG-01 focused 12 passed; Charlie focused 22 passed and combined independent regression 200 passed; one existing SQLAlchemy deprecation warning",
         "master_route": "surface_default/root; exact runtime model identifier not exposed",
         "worktree_policy": "Exactly one clean canonical Git worktree; parallel lanes use disjoint exact-path claims and shared router/hotfiles stay root-only.",
-        "implementation_gate": "Satisfied for the exact CAO-08E and NMG-01 repo-only wave by the preserved one-worktree evidence plus the 2026-08-02 explicit surface_default/root authorization; durable claims are still required and no live authority is implied."
+        "implementation_gate": "CAO-08E and NMG-01 accepted and claims released after Root deep review plus Charlie independent QA; the next repo-only frontier still requires exact dependency evaluation, registration and durable claims, and no live authority is implied."
       },
       "repo_cleanup_one_worktree_gate": {
         "id": "REPO-CLEANUP-ONE-WORKTREE",
@@ -503,20 +505,7 @@
         "remaining_work": "OPS Alert integration and publication remain owned by their existing handoffs and are not absorbed by this roadmap-authoring slice."
       }
     ],
-    "active_claimed_slices": [
-      {
-        "slice_id": "CAO-08E-transactional-worktree-edit-and-exact-read-receipts",
-        "owner": "Bob/Terra-requested",
-        "thread_id": "/root/bob_cao08d_impl",
-        "allowed_paths_digest_sha256": "b46abe88cee417374d1d0307448c20130893f2a319071ed768c340dd57d6ae4c"
-      },
-      {
-        "slice_id": "NMG-01-native-knowledge-contract",
-        "owner": "Alice/Terra-requested",
-        "thread_id": "/root/alice_nmg00_impl",
-        "allowed_paths_digest_sha256": "e8099a5f6701bbc5322a21ebd148df2e59a926b28d2451b899f488f13b8c0a2f"
-      }
-    ],
+    "active_claimed_slices": [],
     "latest_parallel_development_p0_handoff": {
       "roadmap_path": "docs/plans/open-work-completion-master-roadmap.json",
       "run_id": "goal-parallel-roadmaps-20260802-p0",
@@ -560,46 +549,48 @@
       ]
     },
     "latest_parallel_wave_acceptance": {
-      "run_id": "goal-open-work-roadmaps-20260802-wave1",
+      "run_id": "goal-open-work-roadmaps-20260802-wave2",
       "thread_id": "/root",
       "owner": "root surface_default explicitly user-authorized for repo-only review and release",
       "state": "accepted_released",
-      "accepted_at": "2026-08-02T13:24:01+02:00",
+      "accepted_at": "2026-08-02T14:02:13+02:00",
       "slices": [
-        "CAO-08D-scoped-execution-plane-consolidation",
-        "NMG-00-legacy-boundary-audit"
+        "CAO-08E-transactional-worktree-edit-and-exact-read-receipts",
+        "NMG-01-native-knowledge-contract"
       ],
       "implementation_commits": {
-        "CAO-08D": "744debea",
-        "NMG-00": "1487c732"
+        "CAO-08E": "a3630fb1",
+        "NMG-01": "8a5e9c0f"
       },
       "changed_path_count": 8,
       "cross_lane_overlap_count": 0,
       "root_review": {
-        "CAO_regression": "178 passed with one existing SQLAlchemy deprecation warning",
-        "NMG_focused": "8 passed with one existing SQLAlchemy deprecation warning",
-        "static_and_diff": "pass; forbidden imports/calls absent, canonical inventory and diff checks passed",
-        "immutable_inputs": "all ten recorded CAO prerequisite blob object IDs matched"
+        "CAO_regression": "155 passed across CAO-08A through CAO-08E with one existing SQLAlchemy deprecation warning",
+        "NMG_focused": "12 passed with one existing SQLAlchemy deprecation warning",
+        "static_and_diff": "pass; forbidden imports/calls absent, canonical Native Knowledge contract check and scoped diff checks passed",
+        "review_findings": "CAO-08E passed one bounded Root fix cycle for reader identity, exact receipt coverage, bounded replacement evidence and genuine multi-file atomic rejection; NMG-01 passed one bounded Root hardening cycle for exact markers, operation gates, plugin IDs and migration evidence"
       },
       "independent_qa": {
         "owner": "Charlie/Terra-requested read-only QA",
-        "focused": "25 passed",
-        "combined": "186 passed with one existing SQLAlchemy deprecation warning",
+        "focused": "22 passed",
+        "combined": "200 passed with one existing SQLAlchemy deprecation warning",
         "findings": 0,
         "scope": "exactly eight claimed paths; zero staged, foreign-claim or cross-lane overlap"
       },
       "not_verified": [
         "full repository suite or external CI",
-        "real sandbox execution",
-        "productive memory runtime behavior",
+        "real filesystem patch application, rollback or sandbox execution",
+        "productive Native Knowledge runtime behavior or migration",
         "push, deploy, provider, host, send or other live action",
         "exact runtime model identity"
       ],
-      "next_frontier": "Register exact disjoint claims for CAO-08E and NMG-01 before implementation; evaluate the separately deferred CAO-08C1 reclaim without widening either slice.",
+      "next_frontier": "Evaluate CAO-08F, NMG-02 and the separately deferred CAO-08C1 against exact dependencies, path ownership and cross-roadmap contracts before registering the next disjoint repo-only wave.",
       "live_actions": false
     },
     "next_parallel_wave_registration": {
+      "state": "accepted_released",
       "registered_at": "2026-08-02T13:34:13+02:00",
+      "accepted_at": "2026-08-02T14:02:13+02:00",
       "base_revision": "80ade50eccc025782728d8009b171d80d925bde4",
       "selected_lanes": [
         "CAO-08E-transactional-worktree-edit-and-exact-read-receipts",
@@ -639,8 +630,8 @@
         "independent_frontier_audit": "Charlie PASS; source-grounded recommendation selects CAO-08E plus NMG-01 and preserves all other candidate fronts as deferred or registration-blocked"
       },
       "registration_commit": "fa659c6c5f6f6d1ac0b27a659a24d245c06a0645",
-      "implementation_authority": true,
-      "next_action": "Dispatch only the two exact durable claims to the existing Terra-requested workers and reserve Charlie for read-only QA; no live authority is implied.",
+      "implementation_authority": false,
+      "next_action": "Wave 2 is accepted and released; evaluate CAO-08F, NMG-02 and CAO-08C1 before registering any successor claims. No live authority is implied.",
       "live_actions": false
     },
     "latest_parallel_wave_preflight_handoff": {
@@ -17654,7 +17645,7 @@
       "id": "CAO-08E-transactional-worktree-edit-and-exact-read-receipts",
       "class": "repo_only",
       "owner": "Bob/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
-      "status": "claimed_running",
+      "status": "accepted",
       "claimable": false,
       "depends_on": [
         "CAO-08B accepted",
@@ -17675,10 +17666,12 @@
         "thread_id": "/root/bob_cao08d_impl",
         "slice_id": "CAO-08E-transactional-worktree-edit-and-exact-read-receipts",
         "owner": "Bob/Terra-requested",
-        "state": "claimed",
+        "state": "released_accepted",
         "recorded_at": "2026-08-02T13:41:02+02:00",
         "acquired_at": "2026-08-02T13:41:02+02:00",
         "lease_expires_at": "2026-08-02T17:41:02+02:00",
+        "released_at": "2026-08-02T14:02:13+02:00",
+        "implementation_commit": "a3630fb1",
         "allowed_paths_digest_sha256": "b46abe88cee417374d1d0307448c20130893f2a319071ed768c340dd57d6ae4c",
         "registration_commit": "fa659c6c5f6f6d1ac0b27a659a24d245c06a0645",
         "target_paths_absent_at_claim": true,
@@ -17748,12 +17741,19 @@
           "subprocess, shell, SandboxWorker, generic tool executor or route integration",
           "ACPR verification-engine duplication",
           "raw source, patch, diff, stdout, stderr, prompt, objective or private path in durable output",
-          "commit, push, deploy or live action"
+          "worker-side commit, push, deploy or live action before Root acceptance"
         ],
+        "verified": [
+          "five-path claim scope, immutable-input rehash and zero cross-lane overlap",
+          "10 focused CAO-08E tests and 155 Root CAO A-E dependency tests passed",
+          "Charlie independently passed 22 focused and 200 combined Wave-2 tests with zero findings",
+          "reader identity, exact receipt coverage, bounded replacement evidence, multi-file atomic failure and deterministic replay",
+          "static forbidden-boundary and scoped diff checks"
+        ],
+        "accepted_commit": "a3630fb1",
         "not_verified": [
-          "implementation or focused tests",
-          "worker handoff, Root deep review or independent QA",
-          "real worktree editing or sandbox execution",
+          "real filesystem or Git worktree patch application and rollback",
+          "real sandbox execution or external CI",
           "push, deploy or live action"
         ]
       },
@@ -17764,7 +17764,7 @@
       "id": "NMG-01-native-knowledge-contract",
       "class": "repo_only",
       "owner": "Alice/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
-      "status": "claimed_running",
+      "status": "accepted",
       "claimable": false,
       "depends_on": [
         "NMG-00 accepted at 1487c732",
@@ -17783,10 +17783,12 @@
         "thread_id": "/root/alice_nmg00_impl",
         "slice_id": "NMG-01-native-knowledge-contract",
         "owner": "Alice/Terra-requested",
-        "state": "claimed",
+        "state": "released_accepted",
         "recorded_at": "2026-08-02T13:41:02+02:00",
         "acquired_at": "2026-08-02T13:41:02+02:00",
         "lease_expires_at": "2026-08-02T17:41:02+02:00",
+        "released_at": "2026-08-02T14:02:13+02:00",
+        "implementation_commit": "8a5e9c0f",
         "allowed_paths_digest_sha256": "e8099a5f6701bbc5322a21ebd148df2e59a926b28d2451b899f488f13b8c0a2f",
         "registration_commit": "fa659c6c5f6f6d1ac0b27a659a24d245c06a0645",
         "target_paths_absent_at_claim": true,
@@ -17851,12 +17853,19 @@
           "Personal Docs, Knowledge, USI, UDA, UIR, plugin, scheduler, model, provider, route or productive source mutation",
           "parallel truth, dual write, fallback, mirror, automatic import or mixed-query activation",
           "migration, backfill, delete, rename, adapter registration or private-data access",
-          "commit, push, deploy or live action"
+          "worker-side commit, push, deploy or live action before Root acceptance"
         ],
+        "verified": [
+          "three-path claim scope, immutable-input rehash and zero cross-lane overlap",
+          "canonical content-free contract check and 12 focused tests passed",
+          "Charlie independently passed 22 focused and 200 combined Wave-2 tests with zero findings",
+          "exact ownership, operation gates, legacy plugin identifiers and migration-evidence tuples",
+          "static import boundary and scoped diff checks"
+        ],
+        "accepted_commit": "8a5e9c0f",
         "not_verified": [
-          "implementation, validator or focused tests",
-          "worker handoff, Root deep review or independent QA",
-          "productive memory runtime behavior",
+          "productive Native Knowledge runtime behavior, migration or activation",
+          "full repository suite or external CI",
           "push, deploy or live action"
         ]
       },
@@ -17873,7 +17882,7 @@
     "OWM-12 Privacy-Safe Tool Usage Analytics: after TAX1, start the disjoint privacy/store baseline; wait for TAX5/TAX7/TAX10 at shared integration points and keep capture/backfill disabled until the single final activation decision.",
     "OWM-13 Gemma3 Maintenance Runtime Isolation: preserve the accepted repository packet but revalidate it against UIR-13 native shared observability; the historical GRO live gate cannot satisfy or authorize GMI activation.",
     "OWM-14 GraphRAG/RAPTOR Memory Performance And Observability: preserve GRO-00 through GRO-15 as historical plugin evidence only; do not open GRO slices or GRO-LIVE-ACTIVATION, and route native performance evidence through NMG-04A/04B, UIR-13 and USI-15.",
-    "OWM-15 Unified Source Index Foundation: USI-00 through USI-14 and NMG-00 are accepted; NMG-01 is registered and claimable in the second bounded parallel wave. Keep NMG-02 onward dependency-blocked, Obsidian excluded, Personal Docs authoritative and every productive source disabled.",
+    "OWM-15 Unified Source Index Foundation: USI-00 through USI-14 and NMG-00/NMG-01 are accepted; evaluate and register NMG-02 only after exact path and dependency review. Keep NMG-03 onward dependency-blocked, Obsidian excluded, Personal Docs authoritative and every productive source disabled.",
     "OWM-19 USI Runtime And Consumer Integration: start at UIR-03 after exact composition-hotfile handoff; bind query_knowledge natively, serialize app/Chat/Agent/runtime hotfiles and execute UIR-12 classification, NMG-07 retirement and UIR-12A verification in order.",
     "OWM-20 USI Domain Adapter Rollout: UDA-00 is registered; build Personal Memory and Personal Docs first, select UDA-05 only after NMG-02 for an explicit native Knowledge scope, and never register Obsidian/ORCA vault as a source or fallback.",
     "OWM-21 USI Data Lifecycle And Operations: ULO-00 is registered; use synthetic owners and temporary databases, exclude legacy plugin artifacts from lifecycle authority, serialize Auth/backup/wipe hotfiles and retain every action-specific authorization.",
@@ -17881,7 +17890,7 @@
     "OWM-17 Code Lineage And Timeline: after USI identity, start CLT-00 with synthetic Git fixtures; keep Git read-only, label time first-observable and stop before real history backfill until one final activation decision.",
     "OWM-18 Lens Code Graph: after the bounded CBM graph API, start LCG-00 and fixture/backend work with one UI owner; preserve the visually strong Code Planet mode but keep production placement and real project graphs disabled until one independent UI-live decision.",
     "OWM-1 Version 1.0 Release Gate: do not claim 1.0 until UI live.",
-    "OWM-25 Coding Loop Planning, Memory And Gate Consolidation: CAO-08A through CAO-08D are accepted; CAO-08E and NMG-01 are registered and claimable in the second bounded parallel wave. CAO-08C1 is deferred to a later reclaim. Planning is authoritative, RAPTOR/GraphRAG is advisory at four checkpoints, routine engineering gates are autonomous, and only live actions remain user-gated for this run.",
+    "OWM-25 Coding Loop Planning, Memory And Gate Consolidation: CAO-08A through CAO-08E and NMG-00/NMG-01 are accepted. Evaluate CAO-08F, NMG-02 and the separately deferred CAO-08C1 for the next exact disjoint claims. Planning is authoritative, RAPTOR/GraphRAG is advisory at four checkpoints, routine engineering gates are autonomous, and only live actions remain user-gated for this run.",
     "OWM-26 Subagent Context And Delegation: CAO-08J, ACPR-17 authoring and H1-39 authoring are accepted. After CAO-08A/08B, implement CAO-08B1 role capsules, CAO-08C controller and CAO-08C1 bounded delegation; ACPR-17 verifies VCL-7 only after its exact prerequisites, and H1-39 remains a later read-only projection. Adapter activation and external dispatch are user-gated, while subsequent routine in-policy internal children are machine/agent automatic and quiet.",
     "OWM-27 Live Contextual Layer: LCL-00 roadmap authoring, deep review and router registration are accepted. LCL-01 is the first future frontier only after CAO-08B acceptance; later fake runtime, candidate ledger, canonical promotion, project projection, UI, local process, soak and production slices follow exact dependencies and five separate user/live gates. Hypotheses remain advisory and never override Planning, domain truth, USI, Memory/Causal review, claims or gates.",
     "OWM-3 Autonomous Coding runtime control: follow OWM-25's dependency order; no runtime, worker dispatch, publication or live authority was granted by the roadmap-authoring run.",
