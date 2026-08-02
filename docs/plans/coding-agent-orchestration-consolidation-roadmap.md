@@ -440,7 +440,8 @@ by CAO-08C/08D. The absence of a real production LLM/tool loop is CAO-08C; the
 existing fake subagent surface is insufficient until CAO-08B1/CAO-08C1 supply
 role capsules and bounded/fenced delegation, and CAO-08G supplies
 independent-review identity and evidence gates. Missing transactional edits are
-CAO-08E. Real code intelligence remains off until CAO-08F validates it.
+CAO-08E. CAO-08F validates the content-free intelligence/failure-retrieval
+boundary; real provider/engine activation remains off and separately gated.
 Browser, static-analysis and model/tool reliability gates remain absent until
 CAO-08G/08H; their future evidence must not be backdated into CAO1-CAO7.
 
@@ -462,10 +463,13 @@ no implementation evidence was manufactured. CAO-08D was accepted on
 `a3630fb1` after one bounded Root fix cycle, 10 focused tests, a 155-test Root
 CAO A-E dependency lane and Charlie's independent 200-test combined Wave-2 QA
 lane. CAO-08F passed three-way dependency/path review and is registered as the
-exact five-file coding lane for Wave 3; implementation still requires its
-registration commit and durable claim. CAO-08C1 remains a separate deferred
-fresh reclaim. The historical CAO1-CAO7 evidence remains accepted and is not
-reinterpreted as evidence for the new production-loop behaviors.
+exact five-file coding lane for Wave 3. It was accepted on 2026-08-02 at local
+commit `e3aaaa0b` after fail-closed baseline correction/rebaseline, one bounded
+Root path-hardening cycle, a 182-test CAO A-F dependency lane, Root's 204-test
+combined lane and Charlie's independent 218-test Wave-3 regression. CAO-08C1
+remains a separate deferred fresh reclaim. The historical CAO1-CAO7 evidence
+remains accepted and is not reinterpreted as evidence for the new
+production-loop behaviors.
 
 ## Gate Queue
 

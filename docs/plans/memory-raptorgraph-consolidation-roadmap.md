@@ -253,9 +253,12 @@ first. No live data import, reindex, delete or deploy is authorized here.
   `8a5e9c0f` after one bounded Root hardening cycle, 12 focused tests and
   Charlie's independent 200-test combined Wave-2 QA lane. NMG-02 passed
   three-way dependency/path review and is registered as the exact two-file
-  Memory lane for Wave 3; implementation still requires its registration
-  commit and durable claim. NMG-03 through NMG-08 remain dependency-blocked,
-  and no migration or activation was authorized.
+  Memory lane for Wave 3. It was accepted on 2026-08-02 at local commit
+  `a7ae1461` after fail-closed baseline correction/rebaseline, one bounded Root
+  tombstone/version/identifier hardening cycle, 10 focused tests, Root's
+  204-test combined lane and Charlie's independent 218-test Wave-3 regression.
+  NMG-03 remains blocked by UDA-05, NMG-04 onward retains its exact dependency
+  chain, and no migration or activation was authorized.
 
 ## Historical Gate Queue (preserved snapshot)
 
