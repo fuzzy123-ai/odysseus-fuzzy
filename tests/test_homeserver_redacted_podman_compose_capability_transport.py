@@ -122,7 +122,7 @@ def test_exact_git_and_ssh_argv_and_verified_published_bytes_are_the_only_inputs
     assert git_kwargs["timeout"] == 5 and git_kwargs["stderr"] is subprocess.DEVNULL and git_kwargs["shell"] is False
     assert ssh_kwargs["timeout"] == 20 and ssh_kwargs["input"] == b"verified-observer" and ssh_kwargs["stderr"] is subprocess.DEVNULL and ssh_kwargs["shell"] is False
     assert transport.EXPECTED_VERSION == "1.6.0"
-    assert transport.PUBLISHED_OBSERVER_SHA256 == "4e79425f42d23ef22cc91c98da528446a608dfd863d8dae2e59828800788d666"
+    assert transport.PUBLISHED_OBSERVER_SHA256 == "01c6eaacb3a4936dcb7d5b0c566a64688c2a68848183482c43ae9114297c8007"
     assert transport.REMOTE_OBSERVER_INTERPRETER == "/home/homebase/.local/share/odysseus-compose-1.6.0/bin/python"
     assert transport.REMOTE_COMMAND == (
         "cd /opt/odysseus && exec /usr/bin/timeout --signal=KILL 15s "

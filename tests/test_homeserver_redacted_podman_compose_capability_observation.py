@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import hashlib
-import inspect
 import json
 import os
 import subprocess
 import sys
-import types
 
 from ops.homeserver import redacted_podman_compose_capability_observation as observation
 
@@ -138,6 +136,8 @@ def test_structurally_proven_success_has_exact_schema_digest_and_only_fixed_read
         observation._VERSION_PROGRAM,
     )
     assert "metadata.distribution('podman-compose')" in observation._VERSION_PROGRAM
+    assert "util.find_spec('podman_compose')" in observation._VERSION_PROGRAM
+    assert "import podman_compose" not in observation._VERSION_PROGRAM
     assert "distribution.locate_file('')" in observation._VERSION_PROGRAM
     assert "root in module.parents" in observation._VERSION_PROGRAM
     assert "distribution_root in module.parents" in observation._VERSION_PROGRAM
@@ -151,6 +151,13 @@ def test_all_observation_commands_share_the_running_interpreter_without_executin
     assert os.path.dirname(observation.VERSION_COMMAND[0]) == os.path.dirname(observation.SOURCE_AUDIT_COMMAND[0])
     assert "python3" not in observation.SOURCE_AUDIT_COMMAND[:3]
     assert "podman_compose.main()" not in observation._SOURCE_AUDIT_PROGRAM
+    assert "import podman_compose" not in observation._SOURCE_AUDIT_PRELUDE
+    assert 'util.find_spec("podman_compose")' in observation._SOURCE_AUDIT_PRELUDE
+    assert "origin.read_bytes()" in observation._SOURCE_AUDIT_PRELUDE
+    assert "inspect.getsource" not in observation._SOURCE_AUDIT_PROGRAM
+    assert observation.OFFICIAL_SOURCE_SHA256 == (
+        "10df1662477a673dc803c03e89c1bc1fba6c8c091e716fb6c7dd09c0081e1255"
+    )
     assert not any(name.endswith("HELP_COMMAND") or name == "_COMPOSE_MAIN_PROGRAM" for name in vars(observation))
 
 
@@ -284,11 +291,20 @@ def main():
     assert version_adverse["retry_permitted"] is False and "1.3.0" not in json.dumps(version_adverse)
 
 
-def _run_source_audit_program(monkeypatch, capsys, source):
-    fake_package = types.ModuleType("podman_compose")
-    monkeypatch.setitem(sys.modules, "podman_compose", fake_package)
-    monkeypatch.setattr(inspect, "getsource", lambda module: source)
-    exec(observation._SOURCE_AUDIT_PROGRAM, {})
+def _run_source_audit_program(
+    monkeypatch, capsys, source, *, bind_official=False, require_official=False
+):
+    del monkeypatch
+    program = observation._SOURCE_AUDIT_LOGIC
+    if bind_official:
+        fixture_sha256 = hashlib.sha256(source.encode("utf-8")).hexdigest()
+        program = program.replace(observation.OFFICIAL_SOURCE_SHA256, fixture_sha256)
+    elif not require_official:
+        program = program.replace(
+            "REQUIRE_OFFICIAL_SOURCE = True",
+            "REQUIRE_OFFICIAL_SOURCE = False",
+        )
+    exec(program, {"source": source})
     lines = capsys.readouterr().out.splitlines()
     assert len(lines) == 1
     return json.loads(lines[0])
@@ -391,6 +407,105 @@ def main():
     ))
     assert near_miss_result["global_env_file_parser_present"] is False
     assert near_miss_result["up_no_deps_parser_present"] is False
+
+
+def test_official_v1_6_architecture_is_exact_hash_bound_and_decoys_fail_closed(monkeypatch, capsys):
+    official = """
+class PodmanCompose:
+    def _parse_args(self, argv):
+        parser = argparse.ArgumentParser()
+        self._init_global_parser(parser)
+        subparsers = parser.add_subparsers()
+        for cmd_name, cmd in self.commands.items():
+            subparser = subparsers.add_parser(cmd_name)
+            for cmd_parser in cmd._parse_args:
+                cmd_parser(subparser)
+        self.global_args = parser.parse_args(argv)
+    @staticmethod
+    def _init_global_parser(parser):
+        parser.add_argument("--env-file")
+        parser.add_argument("--project-name")
+def compose_build(compose, args):
+    for service in args.services:
+        pass
+def get_excluded(compose, args, dep_field=DependField.DEPENDENCIES):
+    excluded = set()
+    if args.services:
+        excluded = set(compose.services)
+        for service in args.services:
+            if service in compose.services and not getattr(args, "no_deps", False):
+                excluded -= set(x.name for x in compose.services[service].get(dep_field, set()))
+            excluded.discard(service)
+    return excluded
+async def compose_up(compose, args):
+    excluded = get_excluded(compose, args)
+    for cnt in compose.containers:
+        if cnt["_service"] in excluded or cnt["name"] in existing:
+            continue
+    if args.force_recreate:
+        pass
+@cmd_parse(podman_compose, ["build", "up"])
+def compose_build_parse(parser):
+    parser.add_argument("services")
+@cmd_parse(podman_compose, "up")
+def compose_up_parse(parser):
+    parser.add_argument("--no-deps")
+    parser.add_argument("--no-build")
+    parser.add_argument("--force-recreate")
+"""
+    proven = _run_source_audit_program(
+        monkeypatch, capsys, official, bind_official=True
+    )
+    proof_keys = (
+        "global_env_file_parser_present", "global_project_name_parser_present",
+        "build_service_argument_present", "up_service_argument_present",
+        "up_no_deps_parser_present", "up_no_build_parser_present",
+        "up_force_recreate_parser_present",
+        "build_service_selection_handler_local",
+        "up_service_selection_handler_local",
+        "up_no_deps_guard_controls_dependency_expansion",
+        "rollback_force_recreate_consumed_in_up",
+    )
+    assert all(proven[key] is True for key in proof_keys)
+
+    unbound = _run_source_audit_program(
+        monkeypatch, capsys, official, require_official=True
+    )
+    wrong_dispatch = _run_source_audit_program(
+        monkeypatch,
+        capsys,
+        official.replace("cmd_parser(subparser)", "cmd_parser(other_parser)"),
+        bind_official=True,
+    )
+    wrong_decorator = _run_source_audit_program(
+        monkeypatch,
+        capsys,
+        official.replace('["build", "up"]', '["build", "down"]'),
+        bind_official=True,
+    )
+    wrong_no_deps = _run_source_audit_program(
+        monkeypatch,
+        capsys,
+        official.replace(
+            'not getattr(args, "no_deps", False)',
+            'getattr(args, "no_deps", False)',
+        ),
+        bind_official=True,
+    )
+    wrong_guard = _run_source_audit_program(
+        monkeypatch,
+        capsys,
+        official.replace('cnt["_service"] in excluded', 'other["_service"] in excluded'),
+        bind_official=True,
+    )
+    assert all(unbound[key] is False for key in proof_keys)
+    assert all(wrong_dispatch[key] is False for key in (
+        "global_env_file_parser_present", "build_service_argument_present",
+        "up_no_deps_parser_present",
+    ))
+    assert wrong_decorator["up_service_argument_present"] is False
+    assert wrong_no_deps["up_no_deps_guard_controls_dependency_expansion"] is False
+    assert wrong_guard["up_service_selection_handler_local"] is False
 
 
 def test_source_audit_rejects_complete_parser_contract_in_unused_decoy_helper(monkeypatch, capsys):

@@ -22,6 +22,7 @@ SCHEMA_ID = "odysseus.redacted_podman_compose_capability_observation.v1"
 SOURCE_AUDIT_SCHEMA_ID = "odysseus.podman_compose_source_audit.v1"
 # Bound to the selected official-provenance result for this Gate-B observer.
 EXPECTED_VERSION = "1.6.0"
+OFFICIAL_SOURCE_SHA256 = "10df1662477a673dc803c03e89c1bc1fba6c8c091e716fb6c7dd09c0081e1255"
 COMMAND_TIMEOUT_SECONDS = 1
 OUTER_TIMEOUT_SECONDS = 10
 MAX_OUTPUT_CHARS = 32_768
@@ -30,29 +31,54 @@ MAX_SOURCE_CHARS = 1_000_000
 # Keep command and source-audit identity in the running interpreter's
 # environment; neither executable path is serialized into the evidence record.
 _VERSION_PROGRAM = (
-    "import importlib.metadata as metadata,pathlib,sys,podman_compose;"
+    "import importlib.metadata as metadata,importlib.util as util,pathlib,sys;"
     "root=pathlib.Path(sys.prefix).resolve();"
-    "module=pathlib.Path(podman_compose.__file__).resolve();"
+    "spec=util.find_spec('podman_compose');"
+    "origin_path=pathlib.Path(spec.origin) if spec is not None and isinstance(spec.origin,str) else None;"
+    "module=origin_path.resolve() if origin_path is not None else None;"
     "distribution=metadata.distribution('podman-compose');"
     "distribution_root=pathlib.Path(distribution.locate_file('')).resolve();"
-    "print(distribution.version if root in module.parents and "
-    "root in distribution_root.parents and distribution_root in module.parents "
+    "print(distribution.version if module is not None and origin_path.is_file() and not origin_path.is_symlink() "
+    "and root in module.parents and root in distribution_root.parents and distribution_root in module.parents "
     "else 'identity-mismatch')"
 )
 VERSION_COMMAND = (sys.executable, "-I", "-c", _VERSION_PROGRAM)
-# This fixed isolated program reads only the installed package's public source
-# structure and emits a bounded boolean projection; it never emits source,
-# paths, environment, exceptions, or package metadata.
-_SOURCE_AUDIT_PROGRAM = """
+# This fixed isolated program locates but never imports the installed module.
+# It reads one provenance-bound file and emits only a bounded boolean projection;
+# source, paths, environment, exceptions and package metadata are never emitted.
+_SOURCE_AUDIT_PRELUDE = """
+import importlib.metadata as metadata
+import importlib.util as util
+import pathlib
+import sys
+
+root = pathlib.Path(sys.prefix).resolve()
+spec = util.find_spec("podman_compose")
+origin_path = pathlib.Path(spec.origin) if spec is not None and isinstance(spec.origin, str) else None
+if origin_path is None or not origin_path.is_file() or origin_path.is_symlink():
+    raise RuntimeError("bounded source unavailable")
+origin = origin_path.resolve()
+distribution = metadata.distribution("podman-compose")
+distribution_root = pathlib.Path(distribution.locate_file("")).resolve()
+if not (
+    root in origin.parents
+    and root in distribution_root.parents
+    and distribution_root in origin.parents
+):
+    raise RuntimeError("bounded source unavailable")
+source_bytes = origin.read_bytes()
+if not source_bytes or len(source_bytes) > 1000000:
+    raise RuntimeError("bounded source unavailable")
+source = source_bytes.decode("utf-8", errors="strict")
+"""
+_SOURCE_AUDIT_LOGIC = """
 import ast
 import hashlib
-import inspect
 import json
-import podman_compose as module
 
-source = inspect.getsource(module)
-if not isinstance(source, str) or len(source) > 1000000:
-    raise RuntimeError("bounded source unavailable")
+OFFICIAL_SOURCE_SHA256 = "10df1662477a673dc803c03e89c1bc1fba6c8c091e716fb6c7dd09c0081e1255"
+REQUIRE_OFFICIAL_SOURCE = True
+source_exact = hashlib.sha256(source.encode("utf-8")).hexdigest() == OFFICIAL_SOURCE_SHA256
 tree = ast.parse(source)
 handlers = {node.name: node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
 
@@ -139,12 +165,66 @@ def is_compose_services_set(node):
             and node.args[0].value.id == "compose" and node.args[0].attr == "services")
 
 def is_dependency_lookup(node, service_name):
-    return (isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant)
-            and node.slice.value == "_deps" and isinstance(node.value, ast.Subscript)
-            and isinstance(node.value.slice, ast.Name) and node.value.slice.id == service_name
-            and isinstance(node.value.value, ast.Attribute)
-            and isinstance(node.value.value.value, ast.Name)
-            and node.value.value.value.id == "compose" and node.value.value.attr == "services")
+    legacy = (
+        isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant)
+        and node.slice.value == "_deps" and isinstance(node.value, ast.Subscript)
+        and isinstance(node.value.slice, ast.Name) and node.value.slice.id == service_name
+        and isinstance(node.value.value, ast.Attribute)
+        and isinstance(node.value.value.value, ast.Name)
+        and node.value.value.value.id == "compose" and node.value.value.attr == "services"
+    )
+    official = (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "get"
+        and isinstance(node.func.value, ast.Subscript)
+        and isinstance(node.func.value.slice, ast.Name)
+        and node.func.value.slice.id == service_name
+        and isinstance(node.func.value.value, ast.Attribute)
+        and isinstance(node.func.value.value.value, ast.Name)
+        and node.func.value.value.value.id == "compose"
+        and node.func.value.value.attr == "services"
+        and len(node.args) == 2
+        and isinstance(node.args[0], ast.Name)
+        and node.args[0].id == "dep_field"
+        and is_empty_set(node.args[1])
+        and not node.keywords
+    )
+    return legacy or official
+
+def is_no_deps_dependency_guard(node, service_name):
+    if not isinstance(node, ast.If):
+        return False
+    has_service_membership = any(
+        isinstance(item, ast.Compare)
+        and isinstance(item.left, ast.Name)
+        and item.left.id == service_name
+        and any(isinstance(operator, ast.In) for operator in item.ops)
+        and any(
+            isinstance(comparator, ast.Attribute)
+            and isinstance(comparator.value, ast.Name)
+            and comparator.value.id == "compose"
+            and comparator.attr == "services"
+            for comparator in item.comparators
+        )
+        for item in ast.walk(node.test)
+    )
+    has_negated_no_deps_getattr = any(
+        isinstance(item, ast.UnaryOp)
+        and isinstance(item.op, ast.Not)
+        and isinstance(item.operand, ast.Call)
+        and isinstance(item.operand.func, ast.Name)
+        and item.operand.func.id == "getattr"
+        and len(item.operand.args) == 3
+        and isinstance(item.operand.args[0], ast.Name)
+        and item.operand.args[0].id == "args"
+        and isinstance(item.operand.args[1], ast.Constant)
+        and item.operand.args[1].value == "no_deps"
+        and isinstance(item.operand.args[2], ast.Constant)
+        and item.operand.args[2].value is False
+        for item in ast.walk(node.test)
+    )
+    return has_service_membership and has_negated_no_deps_getattr and not node.orelse
 
 def is_dependency_subtraction(node, service_name):
     if not (isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Name) and node.target.id == "excluded"
@@ -180,7 +260,17 @@ def helper_runtime_shape(handler):
     }
     if handler is None:
         return shape
-    shape["exact_signature"] = [argument.arg for argument in handler.args.args] == ["compose", "args"]
+    signature = [argument.arg for argument in handler.args.args]
+    legacy_signature = signature == ["compose", "args"] and not handler.args.defaults
+    official_signature = (
+        signature == ["compose", "args", "dep_field"]
+        and len(handler.args.defaults) == 1
+        and isinstance(handler.args.defaults[0], ast.Attribute)
+        and isinstance(handler.args.defaults[0].value, ast.Name)
+        and handler.args.defaults[0].value.id == "DependField"
+        and handler.args.defaults[0].attr == "DEPENDENCIES"
+    )
+    shape["exact_signature"] = legacy_signature or official_signature
     statements = handler.body
     if statements:
         shape["empty_set_initialization"] = is_excluded_assignment(statements[0], is_empty_set)
@@ -204,8 +294,24 @@ def helper_runtime_shape(handler):
     if not shape["requested_service_loop"] or len(loop.body) < 2:
         return shape
     service_name = loop.target.id
-    shape["dependency_lookup_subtraction"] = is_dependency_subtraction(loop.body[0], service_name)
-    shape["selected_service_discard"] = is_selected_service_discard(loop.body[1], service_name)
+    dependency_nodes = [
+        item
+        for item in loop.body
+        if is_dependency_subtraction(item, service_name)
+    ]
+    guarded_dependency_nodes = [
+        item
+        for statement in loop.body
+        if is_no_deps_dependency_guard(statement, service_name)
+        for item in statement.body
+        if is_dependency_subtraction(item, service_name)
+    ]
+    shape["dependency_lookup_subtraction"] = bool(
+        guarded_dependency_nodes if official_signature else dependency_nodes
+    )
+    shape["selected_service_discard"] = any(
+        is_selected_service_discard(item, service_name) for item in loop.body
+    )
     return shape
 
 def helper_constructs_service_exclusion(handler):
@@ -222,17 +328,31 @@ def loop_has_excluded_service_continue_guard(loop):
         return False
     guard = loop.body[0]
     if not (isinstance(guard, ast.If) and not guard.orelse and guard.body
-            and isinstance(guard.body[-1], ast.Continue) and isinstance(guard.test, ast.Compare)
-            and len(guard.test.ops) == 1 and isinstance(guard.test.ops[0], ast.In)
-            and len(guard.test.comparators) == 1):
+            and isinstance(guard.body[-1], ast.Continue)):
         return False
     if any(not is_non_control_expression(statement) for statement in guard.body[:-1]):
         return False
     container_name = loop.target.id
-    left, right = guard.test.left, guard.test.comparators[0]
-    return (isinstance(left, ast.Subscript) and isinstance(left.value, ast.Name) and left.value.id == container_name
-            and isinstance(left.slice, ast.Constant) and left.slice.value == "_service"
-            and isinstance(right, ast.Name) and right.id == "excluded")
+    for comparison in ast.walk(guard.test):
+        if not (
+            isinstance(comparison, ast.Compare)
+            and len(comparison.ops) == 1
+            and isinstance(comparison.ops[0], ast.In)
+            and len(comparison.comparators) == 1
+        ):
+            continue
+        left, right = comparison.left, comparison.comparators[0]
+        if (
+            isinstance(left, ast.Subscript)
+            and isinstance(left.value, ast.Name)
+            and left.value.id == container_name
+            and isinstance(left.slice, ast.Constant)
+            and left.slice.value == "_service"
+            and isinstance(right, ast.Name)
+            and right.id == "excluded"
+        ):
+            return True
+    return False
 
 def compose_up_runtime_shape(handler):
     shape = {
@@ -274,7 +394,7 @@ def no_deps_controls_expansion(nodes):
             return True
     return False
 
-def parser_argument_contract(main_handler):
+def legacy_parser_argument_contract(main_handler):
     empty = {
         "global_env_file_parser_present": False,
         "global_project_name_parser_present": False,
@@ -449,20 +569,167 @@ def parser_argument_contract(main_handler):
         "up_force_recreate_parser_present": "--force-recreate" in arguments["up"],
     }
 
+def class_methods(name):
+    node = next((item for item in tree.body if isinstance(item, ast.ClassDef) and item.name == name), None)
+    if node is None:
+        return {}
+    return {
+        item.name: item
+        for item in node.body
+        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+
+def literal_arguments(handler, receiver_name):
+    result = set()
+    if handler is None:
+        return result
+    for node in ast.walk(handler):
+        if not (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "add_argument"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == receiver_name
+        ):
+            continue
+        for argument in node.args:
+            if isinstance(argument, ast.Constant) and isinstance(argument.value, str):
+                result.add(argument.value)
+    return result
+
+def decorator_commands(handler):
+    commands = set()
+    if handler is None:
+        return commands
+    for decorator in handler.decorator_list:
+        if not (
+            isinstance(decorator, ast.Call)
+            and isinstance(decorator.func, ast.Name)
+            and decorator.func.id == "cmd_parse"
+            and len(decorator.args) >= 2
+        ):
+            continue
+        selected = decorator.args[1]
+        if isinstance(selected, ast.Constant) and isinstance(selected.value, str):
+            commands.add(selected.value)
+        elif isinstance(selected, (ast.List, ast.Tuple, ast.Set)):
+            commands.update(
+                item.value
+                for item in selected.elts
+                if isinstance(item, ast.Constant) and isinstance(item.value, str)
+            )
+    return commands
+
+def official_dispatch_proven(parse_handler, init_handler):
+    if parse_handler is None or init_handler is None:
+        return False
+    parse_args = [argument.arg for argument in parse_handler.args.args]
+    init_args = [argument.arg for argument in init_handler.args.args]
+    if parse_args != ["self", "argv"] or init_args != ["parser"]:
+        return False
+    calls = [node for node in ast.walk(parse_handler) if isinstance(node, ast.Call)]
+    has_constructor = any(
+        isinstance(call.func, ast.Attribute) and call.func.attr == "ArgumentParser"
+        for call in calls
+    )
+    has_init = any(
+        isinstance(call.func, ast.Attribute)
+        and call.func.attr == "_init_global_parser"
+        and len(call.args) == 1
+        and isinstance(call.args[0], ast.Name)
+        and call.args[0].id == "parser"
+        for call in calls
+    )
+    has_subparsers = any(
+        isinstance(call.func, ast.Attribute)
+        and call.func.attr == "add_subparsers"
+        and isinstance(call.func.value, ast.Name)
+        and call.func.value.id == "parser"
+        for call in calls
+    )
+    has_dynamic_command_parser = any(
+        isinstance(call.func, ast.Attribute)
+        and call.func.attr == "add_parser"
+        and call.args
+        and isinstance(call.args[0], ast.Name)
+        and call.args[0].id == "cmd_name"
+        for call in calls
+    )
+    has_parser_callback = any(
+        isinstance(call.func, ast.Name)
+        and call.func.id == "cmd_parser"
+        and len(call.args) == 1
+        and isinstance(call.args[0], ast.Name)
+        and call.args[0].id == "subparser"
+        for call in calls
+    )
+    has_parse = any(
+        isinstance(call.func, ast.Attribute)
+        and call.func.attr == "parse_args"
+        and isinstance(call.func.value, ast.Name)
+        and call.func.value.id == "parser"
+        for call in calls
+    )
+    return all((
+        has_constructor, has_init, has_subparsers, has_dynamic_command_parser,
+        has_parser_callback, has_parse,
+    ))
+
+def official_parser_argument_contract():
+    empty = {
+        "global_env_file_parser_present": False,
+        "global_project_name_parser_present": False,
+        "build_service_argument_present": False,
+        "up_service_argument_present": False,
+        "up_no_deps_parser_present": False,
+        "up_no_build_parser_present": False,
+        "up_force_recreate_parser_present": False,
+    }
+    methods = class_methods("PodmanCompose")
+    parse_handler = methods.get("_parse_args")
+    init_handler = methods.get("_init_global_parser")
+    if not official_dispatch_proven(parse_handler, init_handler):
+        return empty
+    global_arguments = literal_arguments(init_handler, "parser")
+    command_arguments = {"build": set(), "up": set()}
+    for handler in handlers.values():
+        commands = decorator_commands(handler)
+        arguments = literal_arguments(handler, "parser")
+        for command in command_arguments:
+            if command in commands:
+                command_arguments[command].update(arguments)
+    service_names = {"service", "services", "SERVICE"}
+    return {
+        "global_env_file_parser_present": "--env-file" in global_arguments,
+        "global_project_name_parser_present": "--project-name" in global_arguments,
+        "build_service_argument_present": bool(command_arguments["build"] & service_names),
+        "up_service_argument_present": bool(command_arguments["up"] & service_names),
+        "up_no_deps_parser_present": "--no-deps" in command_arguments["up"],
+        "up_no_build_parser_present": "--no-build" in command_arguments["up"],
+        "up_force_recreate_parser_present": "--force-recreate" in command_arguments["up"],
+    }
+
 build, up, exclusion_helper = handlers.get("compose_build"), handlers.get("compose_up"), handlers.get("get_excluded")
-parser_contract = parser_argument_contract(handlers.get("main"))
+parser_contract = (
+    official_parser_argument_contract()
+    if source_exact
+    else legacy_parser_argument_contract(handlers.get("main"))
+)
 build_nodes = local_nodes(build) if build is not None else []
 up_nodes = local_nodes(up) if up is not None else []
 helper_shape = helper_runtime_shape(exclusion_helper)
 up_shape = compose_up_runtime_shape(up)
 helper_proven = all(helper_shape.values())
+if source_exact:
+    up_shape["no_deps_dependency_control_branch"] = helper_proven
+source_authorized = source_exact or not REQUIRE_OFFICIAL_SOURCE
 payload = {
     "schema_id": "odysseus.podman_compose_source_audit.v1",
-    "build_service_selection_handler_local": contains_attr(build_nodes, "services") or (assigns_fixed_exclusion_helper(build_nodes) and helper_proven),
-    "up_service_selection_handler_local": up_uses_fixed_exclusion_handler(up, helper_proven),
-    "up_no_deps_guard_controls_dependency_expansion": up_shape["no_deps_dependency_control_branch"],
-    "rollback_force_recreate_consumed_in_up": contains_attr(up_nodes, "force_recreate"),
-    **parser_contract,
+    "build_service_selection_handler_local": source_authorized and (contains_attr(build_nodes, "services") or (assigns_fixed_exclusion_helper(build_nodes) and helper_proven)),
+    "up_service_selection_handler_local": source_authorized and up_uses_fixed_exclusion_handler(up, helper_proven),
+    "up_no_deps_guard_controls_dependency_expansion": source_authorized and up_shape["no_deps_dependency_control_branch"],
+    "rollback_force_recreate_consumed_in_up": source_authorized and contains_attr(up_nodes, "force_recreate"),
+    **{key: source_authorized and value for key, value in parser_contract.items()},
     "runtime_shape_profile": {
         "source_ast": {
             "compose_build_handler_present": build is not None,
@@ -477,6 +744,7 @@ encoded = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(","
 payload["evidence_sha256"] = hashlib.sha256(encoded).hexdigest()
 print(json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":")))
 """
+_SOURCE_AUDIT_PROGRAM = _SOURCE_AUDIT_PRELUDE + _SOURCE_AUDIT_LOGIC
 SOURCE_AUDIT_COMMAND = (sys.executable, "-I", "-c", _SOURCE_AUDIT_PROGRAM)
 
 _VERSION = re.compile(r"^1\.6\.0$")
