@@ -10,7 +10,9 @@
 # without sending audio to an external endpoint.
 # Optional extra: install `torch` too if you have a CUDA GPU and want
 # GPU-accelerated transcription — it's auto-detected, CPU is used otherwise.
-faster-whisper
+# Local speech-to-text uses the separately pinned, local-only
+# requirements-stt.txt lock. The OCI image build installs it only through INSTALL_STT; it
+# is intentionally not coupled to INSTALL_OPTIONAL.
 
 # DuckDuckGo as a search provider option.
 # Install if you want DDG in the search-provider dropdown.

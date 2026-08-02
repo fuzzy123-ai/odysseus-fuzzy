@@ -1,0 +1,751 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.faster_whisper_transcription_protocol_roadmap",
+  "id": "TRP",
+  "title": "Local Faster-Whisper Transcription And Evidence-Backed Protocols",
+  "updated_at": "2026-07-27T13:20:00+02:00",
+  "status": "deferred_by_operator_priority_2026-07-27_preserved_dirty_diff",
+  "goal": "Deliver a backend-first, local-only transcription pipeline that cannot acknowledge an audio upload before durable primary storage, preserves immutable source evidence, uses faster-whisper for timestamped ASR, constrains Gemma to review and protocol synthesis, and reaches one bounded consent-safe Debian live test with backup and rollback evidence.",
+  "scope": {
+    "included": [
+      "streamed and bounded audio-file ingestion",
+      "owner-scoped immutable audio artifacts with SHA-256 integrity",
+      "durable SQLite job state, idempotency, lease and restart recovery",
+      "local faster-whisper CPU INT8 adapter with segment evidence",
+      "constrained local Gemma correction and protocol synthesis",
+      "decision, action and correction provenance back to transcript segments",
+      "backend API authorization, status, export and explicit deletion planning",
+      "Podman packaging, Debian deployment packet, backup receipt and one bounded live test"
+    ],
+    "excluded": [
+      "UI implementation or design",
+      "browser Web Speech API",
+      "external or OpenAI-compatible STT providers",
+      "cloud LLM correction",
+      "biometric speaker recognition or voiceprints",
+      "silent participant identity inference",
+      "productive private meeting rollout before a retention and legal-basis policy is selected",
+      "unbounded audio, parallel CPU-heavy jobs or realtime guarantees"
+    ]
+  },
+  "frozen_decisions": {
+    "asr_authority": "faster-whisper local CPU INT8; raw ASR segments remain immutable",
+    "asr_runtime_profile": "faster-whisper 1.2.1 with a fully pinned Python 3.14 STT lock; Systran/faster-whisper-small revision 536b0662742c02347bc0e980a01041f333bce120 is preloaded explicitly and runtime receives only its resolved local directory",
+    "review_authority": "local Gemma may propose corrections and protocols but may not overwrite raw ASR evidence",
+    "review_execution": "a dedicated local-only Gemma execution path must acquire the shared foreground-aware single-model lease; generic model calls and API fallback are forbidden",
+    "provider_boundary": "local-only; endpoint and browser providers are forbidden in this track",
+    "audio_acknowledgement": "an upload is acknowledged only after bounded streaming, checksum, file fsync, atomic publish, directory fsync and durable job commit",
+    "protection_truth": "stored and backup_protected are separate states; only a verified backup receipt may produce backup_protected",
+    "speaker_boundary": "speaker turns may be unknown or pseudonymous; no biometric identity",
+    "retention_boundary": "source, raw transcript, correction and protocol retention are explicit policy references; the generic upload cleanup scheduler never owns transcription artifacts",
+    "failure_boundary": "processing failure never deletes or overwrites the original audio or raw transcript",
+    "resource_boundary": "one CPU-heavy transcription/correction job at a time with foreground-aware admission on Debian",
+    "ui_boundary": "all UI work is deferred"
+  },
+  "state_machine": [
+    "receiving",
+    "stored",
+    "backup_pending",
+    "backup_protected",
+    "transcribing",
+    "transcribed",
+    "correcting",
+    "corrected",
+    "protocol_ready",
+    "needs_review",
+    "failed",
+    "deletion_pending",
+    "deleted"
+  ],
+  "hard_invariants": [
+    "No successful upload response exists without a durable owner-scoped artifact and matching database record.",
+    "No path is derived from an upload filename, owner name or untrusted media metadata.",
+    "No retry creates a second artifact or a second logical job for the same owner and idempotency key.",
+    "No transition skips stored or rewrites immutable source digests.",
+    "No correction or protocol statement is accepted without segment references.",
+    "Names, numbers, dates, decisions and assignees are preserved or marked uncertain; unsupported invention is rejected.",
+    "No private audio, transcript, prompt, model output, host path or owner identity is written to routine logs or roadmap evidence.",
+    "No external model or transcription endpoint is reachable from the productive pipeline.",
+    "No productive private-audio run occurs without a documented legal basis, participant notice/consent contract and retention policy.",
+    "No host change, model download, backup, deploy, deletion or live smoke occurs without its matching action-specific live-go entry."
+  ],
+  "quality_policy": {
+    "raw_transcript": "immutable segment text, start/end timestamps, ASR confidence fields and language evidence",
+    "correction": "structured proposals with before, after, reason, confidence and exact segment refs",
+    "protocol": "summary, decisions, action items, risks and unresolved questions with segment refs",
+    "automatic_finalization": "allowed only when every decision and action has evidence, no critical uncertainty remains and deterministic diff validation passes",
+    "fallback": "needs_review; never fabricate a clean final protocol"
+  },
+  "privacy_policy": {
+    "baseline": "local processing and owner-scoped access reduce disclosure risk but do not by themselves establish GDPR compliance",
+    "required_before_productive_use": [
+      "Article 6 legal basis",
+      "Article 9 assessment for special-category content",
+      "active and documented recording authorization for non-public speech",
+      "purpose and participant notice",
+      "retention and deletion schedule",
+      "authorized roles and access review",
+      "incident and data-subject-rights procedures",
+      "DPIA decision"
+    ],
+    "live_test_input": "synthetic or explicitly consent-cleared German speech, maximum five minutes, no secrets and no intentional special-category data",
+    "logs": "content-free identifiers, states, byte counts, durations, model ids and bounded error codes only"
+  },
+  "live_test_contract": {
+    "target": "configured Debian Odysseus homeserver using rootless Podman",
+    "input_limit": {
+      "count": 1,
+      "duration_seconds_max": 300,
+      "bytes_max": 10485760,
+      "language": "de",
+      "classification": "synthetic_or_consent_cleared_no_secrets"
+    },
+    "required_positive_evidence": [
+      "exact deployed Git revision and green required CI",
+      "INSTALL_STT-enabled production-base image",
+      "pinned faster-whisper dependency and pinned model identity",
+      "durable upload and matching SHA-256 readback",
+      "restart-safe job and immutable raw segment readback",
+      "local-only provider evidence",
+      "structured correction diff and protocol segment citations",
+      "manual Restic snapshot completion and backup receipt",
+      "post-restart artifact, job, transcript and protocol readback",
+      "app and Chroma health",
+      "redacted runtime probe"
+    ],
+    "forbidden": [
+      "real meeting without participant authorization",
+      "external STT or LLM request",
+      "raw content in terminal, logs or evidence",
+      "more than one live job",
+      "automatic source deletion",
+      "claiming realtime performance from a single offline run"
+    ],
+    "rollback": "restore the previously verified Git revision and Podman deployment; preserve the newly stored test artifact and backup evidence unless a separately approved deletion action applies"
+  },
+  "slice_queue": [
+    {
+      "id": "TRP-00-roadmap-contract-and-authority-freeze",
+      "class": "safe_offline",
+      "owner": "root/Sol",
+      "status": "accepted_2026-07-26",
+      "claimable": false,
+      "depends_on": [],
+      "allowed_paths": [
+        "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json"
+      ],
+      "acceptance": [
+        "valid JSON",
+        "dependency DAG has no cycles or missing ids",
+        "Open Work and guidance registration",
+        "explicit privacy, durability, AI-authority, resource and live-go boundaries"
+      ],
+      "done_when": "The named roadmap is registered, dependency-valid and deep-reviewed with one claimable repo-only frontier."
+    },
+    {
+      "id": "TRP-01-durable-artifact-and-job-contracts",
+      "class": "repo_only",
+      "owner": "Bob/Terra; root/Sol deep review",
+      "status": "accepted_2026-07-26",
+      "claimable": false,
+      "depends_on": [
+        "TRP-00-roadmap-contract-and-authority-freeze"
+      ],
+      "allowed_paths": [
+        "src/transcription_contracts.py",
+        "tests/test_transcription_contracts.py"
+      ],
+      "acceptance": [
+        "typed owner-scoped artifact, segment, correction, protocol, job and backup-receipt records",
+        "typed consent/recording-authorization and retention-policy references without participant content",
+        "strict state transitions and immutable digest fields",
+        "bounded text and metadata",
+        "no raw owner identity in storage locators",
+        "deterministic serialization and negative-path tests"
+      ],
+      "done_when": "Strict immutable contracts reject invalid states, unsupported protocol claims, cross-owner references and fabricated backup protection."
+    },
+    {
+      "id": "TRP-02-atomic-owner-scoped-audio-store",
+      "class": "repo_only",
+      "owner": "Bob/Terra; root/Sol deep review",
+      "status": "accepted_2026-07-26",
+      "claimable": false,
+      "depends_on": [
+        "TRP-01-durable-artifact-and-job-contracts"
+      ],
+      "allowed_paths": [
+        "src/transcription_store.py",
+        "tests/test_transcription_store.py"
+      ],
+      "acceptance": [
+        "bounded chunked ingest without whole-file buffering",
+        "atomic no-overwrite publish with file and directory fsync",
+        "SHA-256 and byte-count verification",
+        "SQLite WAL job and idempotency ledger",
+        "owner isolation, restart recovery and fenced single-worker leases",
+        "stored versus backup_protected truth separation"
+      ],
+      "done_when": "Crash, retry, duplicate key, truncated input, checksum mismatch and cross-owner tests cannot lose, overwrite, duplicate or disclose an accepted artifact."
+    },
+    {
+      "id": "TRP-03-local-faster-whisper-adapter",
+      "class": "repo_only",
+      "owner": "Bob/Terra; root/Sol deep review",
+      "status": "accepted",
+      "claimable": false,
+      "depends_on": [
+        "TRP-01-durable-artifact-and-job-contracts",
+        "TRP-02-atomic-owner-scoped-audio-store"
+      ],
+      "allowed_paths": [
+        "services/transcription/__init__.py",
+        "services/transcription/faster_whisper_adapter.py",
+        "tests/test_faster_whisper_transcription_adapter.py",
+        "requirements-optional.txt",
+        "requirements-stt.txt",
+        "Dockerfile"
+      ],
+      "acceptance": [
+        "lazy local faster-whisper import",
+        "CPU INT8 default and explicit allowed model ids",
+        "timestamped immutable segments with bounded finite ASR evidence fields",
+        "one pinned faster-whisper install path with pinned Python 3.14 runtime-critical wheels and no duplicate unpinned Docker install",
+        "preinstalled absolute local model path with the pinned revision manifest only at runtime; local_files_only is mandatory and model aliases, URLs, branches and implicit first-use download are rejected",
+        "no endpoint, browser or network-provider fallback",
+        "content-free errors and no temporary-file leak",
+        "fixture adapter tests without model download"
+      ],
+      "done_when": "Injected fixture models produce validated segment evidence while missing packages, invalid models and transcription failures remain local, bounded and non-destructive."
+    },
+    {
+      "id": "TRP-04-resumable-single-worker-pipeline",
+      "class": "repo_only",
+      "owner": "Bob/Terra; root/Sol deep review",
+      "status": "accepted",
+      "claimable": false,
+      "claim_blocker": null,
+      "depends_on": [
+        "TRP-02-atomic-owner-scoped-audio-store",
+        "TRP-03-local-faster-whisper-adapter"
+      ],
+      "allowed_paths": [
+        "src/transcription_pipeline.py",
+        "src/transcription_store.py",
+        "src/local_model_scheduler.py",
+        "tests/test_transcription_pipeline.py",
+        "tests/test_transcription_store.py"
+      ],
+      "acceptance": [
+        "one fenced CPU-heavy worker",
+        "atomic oldest-runnable job discovery without relying on an in-memory queue",
+        "idempotent checkpointed transitions",
+        "restart recovery from every nonterminal state",
+        "foreground-aware admission before heavy work plus lease heartbeat during blocking ASR",
+        "source preservation on all failures",
+        "content-free receipts and metrics"
+      ],
+      "done_when": "Injected crashes and retries converge to one immutable transcript and one job result without parallel heavy execution or source loss."
+    },
+    {
+      "id": "TRP-05-gemma-correction-and-protocol-provenance",
+      "class": "repo_only",
+      "owner": "Bob/Terra; root/Sol deep review",
+      "status": "deferred_by_operator_priority_2026-07-27",
+      "claimable": false,
+      "claim_blocker": "Requires explicit TRP reprioritization, a fresh path-scoped claim, collision check and deep review of the preserved dirty diff before any continuation.",
+      "depends_on": [
+        "TRP-04-resumable-single-worker-pipeline"
+      ],
+      "allowed_paths": [
+        "src/transcription_review.py",
+        "src/transcription_local_model.py",
+        "src/transcription_pipeline.py",
+        "src/transcription_contracts.py",
+        "src/transcription_store.py",
+        "src/llm_async_call.py",
+        "src/llm_sync_call.py",
+        "src/llm_core.py",
+        "src/local_model_scheduler.py",
+        "tests/test_transcription_review.py",
+        "tests/test_transcription_pipeline.py",
+        "tests/test_transcription_contracts.py",
+        "tests/test_transcription_store.py",
+        "tests/test_local_model_scheduler.py",
+        "tests/test_llm_core_ollama.py",
+        "tests/test_maintenance_llm_runtime.py"
+      ],
+      "hotfiles": [
+        "src/transcription_pipeline.py",
+        "src/transcription_contracts.py",
+        "src/transcription_store.py",
+        "src/llm_core.py",
+        "src/local_model_scheduler.py"
+      ],
+      "acceptance": [
+        "local-model-only injected reviewer boundary",
+        "explicit foreground-aware local-model lease with no generic API fallback",
+        "one shared heavy-model admission path proven across transcription review and existing local-model callers",
+        "structured correction proposals",
+        "one canonical state-transition authority permits the atomic correcting to protocol_ready review commit",
+        "deterministic before/after diff validation",
+        "segment-backed decisions and action items",
+        "unsupported names, numbers, dates and assignments rejected",
+        "needs_review fallback for critical uncertainty"
+      ],
+      "done_when": "Adversarial reviewer outputs cannot alter raw evidence or create an uncited protocol claim, and valid local fixture output produces a deterministic evidence-backed protocol."
+    },
+    {
+      "id": "TRP-06-owner-scoped-backend-api",
+      "class": "repo_only",
+      "owner": "Bob/Terra; root/Sol deep review",
+      "status": "planned",
+      "claimable": false,
+      "claim_blocker": "TRP-04 and TRP-05 not accepted",
+      "depends_on": [
+        "TRP-04-resumable-single-worker-pipeline",
+        "TRP-05-gemma-correction-and-protocol-provenance"
+      ],
+      "allowed_paths": [
+        "core/auth.py",
+        "src/transcription_runtime.py",
+        "routes/transcription_routes.py",
+        "app.py",
+        "docker-compose.yml",
+        "tests/test_auth_subject_identity.py",
+        "tests/test_transcription_runtime.py",
+        "tests/test_transcription_routes.py",
+        "tests/test_app_transcription_wiring.py"
+      ],
+      "hotfiles": [
+        "core/auth.py",
+        "app.py",
+        "docker-compose.yml"
+      ],
+      "acceptance": [
+        "authenticated owner-scoped upload, status and result routes",
+        "application/octet-stream request streaming with mandatory idempotency key, exact Content-Length, source SHA-256 and allowlisted audio media-type headers, fixed maximum bytes and an end-to-end request timeout strictly below the durable reservation TTL",
+        "bounded async-to-sync streaming bridge with no whole-body buffering and deterministic abort wakeup",
+        "server-owned authorization and retention references; request data cannot mint policy authority",
+        "session/cookie owner binding with same-origin CSRF protection; bearer upload is closed in v1",
+        "immutable per-account subject ids survive rename, are never exposed, change on delete and username recreation, and migrate legacy accounts atomically with invalid or duplicate ids failing closed",
+        "one exact default-off runtime worker lifecycle with startup recovery and bounded shutdown; no generic FastAPI background task",
+        "new privacy pipeline cannot be enabled alongside the legacy generic /api/stt route, and legacy Telegram STT remains disabled for the canary",
+        "no arbitrary path or filename input",
+        "no source bytes or transcript in status logs",
+        "deletion remains explicit and separately confirmed",
+        "feature default off and local-only"
+      ],
+      "done_when": "Authorization, cross-owner, oversize, retry, failure and success route tests pass without UI or external provider behavior."
+    },
+    {
+      "id": "TRP-07-offline-integration-backup-and-live-packet",
+      "class": "repo_only",
+      "owner": "Charlie/Terra; root/Sol deep review",
+      "status": "planned",
+      "claimable": false,
+      "claim_blocker": "TRP-06 not accepted",
+      "depends_on": [
+        "TRP-06-owner-scoped-backend-api"
+      ],
+      "allowed_paths": [
+        "services/transcription/faster_whisper_adapter.py",
+        "services/transcription/faster_whisper_model_manifest.json",
+        "src/transcription_backup_receipts.py",
+        "src/transcription_store.py",
+        "src/transcription_runtime.py",
+        "scripts/preload_faster_whisper_model.py",
+        "scripts/transcription_backup_control.py",
+        "scripts/transcription_live_smoke.py",
+        "ops/homeserver/transcription-live-test-readback.py",
+        "ops/homeserver/run-transcription-live-canary.sh",
+        "ops/homeserver/restore-transcription-audio-proof.sh",
+        "ops/homeserver/backup-homeserver.sh",
+        "ops/homeserver/run-backup-gate-evidence.sh",
+        "ops/homeserver/restore-backup-smoke.sh",
+        "ops/homeserver/transcription-live-activation/activation-plan.json",
+        "ops/homeserver/transcription-live-activation/preflight.py",
+        "ops/homeserver/transcription-live-activation/validate_packet.py",
+        "ops/homeserver/transcription-live-activation/templates/live-evidence.template.json",
+        "docker-compose.yml",
+        "docs/backup-restore.md",
+        "tests/test_transcription_integration.py",
+        "tests/test_faster_whisper_transcription_adapter.py",
+        "tests/test_faster_whisper_model_preloader.py",
+        "tests/test_transcription_backup_receipts.py",
+        "tests/test_transcription_backup_control.py",
+        "tests/test_transcription_store.py",
+        "tests/test_transcription_runtime.py",
+        "tests/test_transcription_live_smoke_contract.py",
+        "tests/test_homeserver_backup_contract.py",
+        "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+        "docs/plans/open-work-completion-master-roadmap.json"
+      ],
+      "acceptance": [
+        "synthetic restart and recovery integration",
+        "production-base build arguments and persistent model-cache parity",
+        "fixed-schema redacted live smoke and readback",
+        "backup receipt is host-originated, snapshot-bound and read-only to the app",
+        "strict host receipt inbox reconciliation is replay-safe, startup-convergent and cannot be written by the productive app; no public receipt route or host-side SQLite mutation exists",
+        "restore proof covers the exact synthetic audio SHA-256 rather than only a compose file",
+        "model is pinned and preloaded before the live input; no hidden first-use download",
+        "a versioned exact-revision manifest freezes SHA-256 and size for every runtime model file; the runtime never trusts a self-attested replacement receipt",
+        "preloader resolves the exact model revision, bounds-checks cache targets, materializes exactly the four runtime files into an atomic dedicated directory and emits the strict receipt expected by runtime",
+        "exact live-go and rollback packet"
+      ],
+      "done_when": "Offline integration is green and one exact commit-bound Debian deploy, model preparation, backup and live-test packet is ready for operator GO."
+    },
+    {
+      "id": "TRP-08-debian-live-test",
+      "class": "needs_live_go",
+      "owner": "root/Sol",
+      "status": "gated",
+      "claimable": false,
+      "depends_on": [
+        "TRP-07-offline-integration-backup-and-live-packet"
+      ],
+      "allowed_paths": [],
+      "acceptance": [
+        "exact action-specific GO entries are present and current",
+        "exact CI-green revision deployed with Podman",
+        "one bounded synthetic or consent-cleared German audio input",
+        "durable artifact, transcript, correction and protocol readback",
+        "manual Restic snapshot and backup receipt",
+        "post-restart integrity and health readback",
+        "rollback exercised only on No-Go"
+      ],
+      "done_when": "The exact live-test contract passes on Debian with redacted evidence bound to one Git revision and the original audio remains intact and backup-protected."
+    }
+  ],
+  "gate_queue": [
+    {
+      "id": "TRP-MODEL-MANIFEST-METADATA",
+      "class": "needs_live_go",
+      "status": "gated",
+      "blocks": [
+        "TRP-07 exact model manifest finalization"
+      ],
+      "required_live_go_entries": [
+        "read only the four runtime files or their authoritative exact-revision metadata from Systran/faster-whisper-small@536b0662742c02347bc0e980a01041f333bce120 to freeze independent SHA-256 and size constants; no Debian action or productive model preload"
+      ],
+      "safe_default": "stop with the preloader and runtime manifest contract implemented but unfinalized; never trust a self-attested tree receipt"
+    },
+    {
+      "id": "TRP-LIVE-DEPLOY-MODEL-BACKUP-SMOKE",
+      "class": "needs_live_go",
+      "status": "gated",
+      "blocks": [
+        "TRP-08-debian-live-test"
+      ],
+      "required_live_go_entries": [
+        "deploy exact CI-green revision with INSTALL_STT=true and rollback revision",
+        "download one pinned faster-whisper model into the persistent local cache",
+        "run one bounded synthetic or consent-cleared transcription job",
+        "create one manual Restic snapshot and verify a fixed-schema backup receipt"
+      ],
+      "safe_default": "stop after the verified live packet; do not mutate Debian"
+    },
+    {
+      "id": "TRP-PRODUCTIVE-PRIVATE-AUDIO",
+      "class": "needs_live_go",
+      "status": "gated",
+      "blocks": [
+        "productive private meeting use"
+      ],
+      "required_before_go": [
+        "legal basis and recording authorization",
+        "retention and deletion policy",
+        "participant notice",
+        "role/access review",
+        "DPIA decision",
+        "restore rehearsal"
+      ],
+      "safe_default": "synthetic or consent-cleared bounded test audio only"
+    }
+  ],
+  "claims": [
+    {
+      "run_id": "ABC-TRP-20260726",
+      "thread_id": "019f8625-35f5-7d90-9b5c-8b0724bc5f50",
+      "slice_id": "TRP-00-roadmap-contract-and-authority-freeze",
+      "owner": "root",
+      "allowed_paths": [
+        "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json"
+      ],
+      "hotfiles": [
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json"
+      ],
+      "acquired_at": "2026-07-26T19:04:42+02:00",
+      "lease_expires_at": "2026-07-26T21:04:42+02:00",
+      "handoff_required": false,
+      "released_at": "2026-07-26T19:09:29+02:00",
+      "review": "deep_pass",
+      "state": "released"
+    },
+    {
+      "run_id": "ABC-TRP-20260726",
+      "thread_id": "/root/trp01_contracts",
+      "slice_id": "TRP-01-durable-artifact-and-job-contracts",
+      "owner": "Bob",
+      "allowed_paths": [
+        "src/transcription_contracts.py",
+        "tests/test_transcription_contracts.py"
+      ],
+      "hotfiles": [],
+      "acquired_at": "2026-07-26T19:09:29+02:00",
+      "lease_expires_at": "2026-07-26T21:09:29+02:00",
+      "handoff_required": true,
+      "released_at": "2026-07-26T19:32:16+02:00",
+      "review": "deep_pass_after_two_fix_cycles",
+      "evidence": {
+        "py_compile": "pass",
+        "focused_pytest": "11 passed",
+        "diff_check": "pass",
+        "root_independent_rerun": "pass"
+      },
+      "state": "released"
+    },
+    {
+      "run_id": "ABC-TRP-20260726",
+      "thread_id": "/root/trp02_atomic_store",
+      "slice_id": "TRP-02-atomic-owner-scoped-audio-store",
+      "owner": "Bob",
+      "allowed_paths": [
+        "src/transcription_store.py",
+        "tests/test_transcription_store.py"
+      ],
+      "hotfiles": [],
+      "state": "released",
+      "acquired_at": "2026-07-26T19:32:16+02:00",
+      "lease_expires_at": "2026-07-26T21:32:16+02:00",
+      "handoff_required": true,
+      "released_at": "2026-07-26T20:04:19+02:00",
+      "review": "deep_pass_after_three_fix_cycles",
+      "evidence": {
+        "py_compile": "pass",
+        "focused_pytest": "21 passed",
+        "root_independent_rerun": "21 passed",
+        "first_root_rerun": "infrastructure_error_only_locked_c_tmp_not_counted",
+        "trailing_whitespace": "none"
+      }
+    },
+    {
+      "run_id": "ABC-TRP-20260726",
+      "thread_id": "/root/trp03_faster_whisper",
+      "slice_id": "TRP-03-local-faster-whisper-adapter",
+      "owner": "Bob",
+      "allowed_paths": [
+        "services/transcription/__init__.py",
+        "services/transcription/faster_whisper_adapter.py",
+        "tests/test_faster_whisper_transcription_adapter.py",
+        "requirements-optional.txt",
+        "requirements-stt.txt",
+        "Dockerfile"
+      ],
+      "hotfiles": [
+        "Dockerfile"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-26T20:04:19+02:00",
+      "lease_expires_at": "2026-07-26T22:04:19+02:00",
+      "handoff_required": true,
+      "released_at": "2026-07-26T20:27:13+02:00",
+      "review": "deep_pass_after_one_fix_cycle",
+      "evidence": {
+        "py_compile": "pass",
+        "focused_pytest": "21 passed, 1 symlink fixture skipped",
+        "root_independent_rerun": "21 passed, 1 skipped",
+        "diff_check": "pass",
+        "not_verified": [
+          "Python 3.14 Linux wheel resolution and OCI image build",
+          "real model preload, receipt and inference",
+          "Debian rootless-Podman runtime"
+        ]
+      }
+    },
+    {
+      "run_id": "ABC-TRP-20260726",
+      "thread_id": "/root/trp04_pipeline_recon",
+      "slice_id": "TRP-04-resumable-single-worker-pipeline",
+      "owner": "Bob",
+      "allowed_paths": [
+        "src/transcription_pipeline.py",
+        "src/transcription_store.py",
+        "src/local_model_scheduler.py",
+        "tests/test_transcription_pipeline.py",
+        "tests/test_transcription_store.py"
+      ],
+      "hotfiles": [
+        "src/local_model_scheduler.py"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-26T20:29:25+02:00",
+      "lease_expires_at": "2026-07-26T22:29:25+02:00",
+      "handoff_required": true,
+      "runtime_scope": "repository-only durable discovery, fenced retry/recovery and heartbeat pipeline fixtures",
+      "live_actions": false,
+      "released_at": "2026-07-26T20:59:47+02:00",
+      "review": "deep_pass_after_two_fix_cycles",
+      "evidence": {
+        "py_compile": "pass",
+        "focused_pytest": "42 passed, 1 symlink fixture skipped",
+        "root_independent_rerun": "42 passed, 1 skipped",
+        "not_verified": [
+          "actual SIGKILL or power loss",
+          "real Faster-Whisper CPU heartbeat timing",
+          "Debian rootless-Podman runtime"
+        ]
+      }
+    },
+    {
+      "run_id": "ABC-TRP-20260726",
+      "thread_id": "/root",
+      "slice_id": "TRP-05-gemma-correction-and-protocol-provenance",
+      "owner": "root/Sol fallback",
+      "allowed_paths": [
+        "src/transcription_review.py",
+        "src/transcription_local_model.py",
+        "src/transcription_pipeline.py",
+        "src/transcription_contracts.py",
+        "src/transcription_store.py",
+        "src/llm_async_call.py",
+        "src/llm_sync_call.py",
+        "src/llm_core.py",
+        "src/local_model_scheduler.py",
+        "tests/test_transcription_review.py",
+        "tests/test_transcription_pipeline.py",
+        "tests/test_transcription_contracts.py",
+        "tests/test_transcription_store.py",
+        "tests/test_local_model_scheduler.py",
+        "tests/test_llm_core_ollama.py",
+        "tests/test_maintenance_llm_runtime.py"
+      ],
+      "hotfiles": [
+        "src/transcription_pipeline.py",
+        "src/transcription_contracts.py",
+        "src/transcription_store.py",
+        "src/llm_core.py",
+        "src/local_model_scheduler.py"
+      ],
+      "state": "released",
+      "acquired_at": "2026-07-26T21:22:15+02:00",
+      "lease_expires_at": "2026-07-26T23:22:15+02:00",
+      "released_at": "2026-07-27T13:20:00+02:00",
+      "release_reason": "superseded_by_SIRP_operator_priority_preserved_dirty_diff",
+      "resumed_from": {
+        "thread_id": "/root/trp05_review_recon and /root/trp05_review_finish",
+        "released_at": "2026-07-26T21:22:15+02:00",
+        "reason": "two_worker_requests_blocked_after_partial_repo_only_implementation",
+        "preserved_paths": "all claimed worktree changes",
+        "review_status": "pending"
+      },
+      "handoff_required": true,
+      "runtime_scope": "repository-only strict local Gemma review, semantic provenance and shared heavy-model admission fixtures",
+      "live_actions": false
+    }
+  ],
+  "route": {
+    "entrypoint": "/abc",
+    "recommended": {
+      "skills": [
+        {
+          "id": "abc",
+          "purpose": "orchestration, claims, gates, evidence and publishing"
+        }
+      ],
+      "master": {
+        "model": "gpt-5.6-sol",
+        "effort": "high",
+        "reason": "durability, privacy, AI authority and live milestone"
+      },
+      "worker": {
+        "model": "gpt-5.6-terra",
+        "effort": "high",
+        "reason": "bounded backend implementation with failure and concurrency invariants"
+      },
+      "review": {
+        "required": true,
+        "depth": "deep",
+        "model": "gpt-5.6-sol"
+      }
+    },
+    "selected": {
+      "skills": [
+        {
+          "id": "abc",
+          "purpose": "sole orchestrator"
+        }
+      ],
+      "master": {
+        "model": "surface_default",
+        "effort": "high"
+      },
+      "worker": {
+        "model": "gpt-5.6-terra",
+        "effort": "high"
+      },
+      "review": {
+        "depth": "deep",
+        "reviewer": "root"
+      }
+    },
+    "actual": {
+      "skills": [
+        {
+          "id": "abc",
+          "status": "loaded_used"
+        }
+      ],
+      "master": {
+        "model": "surface_default",
+        "evidence": "root task surface"
+      },
+      "worker": {
+        "model": "requested_gpt-5.6-terra_actual_unobservable",
+        "evidence": "TRP-01 through TRP-04 workers completed with requested Terra high and unobservable runtime model ids; after two runtime-blocked TRP-05 workers, root/Sol took the native fallback claim without overlapping writers"
+      },
+      "review": {
+        "model": "surface_default",
+        "depth": "deep",
+        "result": "trp01_trp02_trp03_trp04_deep_pass_trp05_pending"
+      }
+    },
+    "fallback": "native_tools"
+  },
+  "evidence": {
+    "target_environment": "local repository fixtures, then configured Debian rootless-Podman runtime",
+    "observed_at": "2026-07-26T21:22:15+02:00",
+    "authority": "repo_then_runtime_operator",
+    "mutation_class": "repo_only_then_needs_live_go",
+    "required": [
+      "static",
+      "focused_test",
+      "integration",
+      "exact_required_ci",
+      "live",
+      "post_restart_readback",
+      "backup_receipt"
+    ],
+    "temporal_window": "one restart and bounded post-restart readback",
+    "positive_path_required": true
+  },
+  "completion": {
+    "implemented": "partial_trp01_trp02_trp03_trp04",
+    "tested": "trp01_11_passed_trp02_21_passed_trp03_21_passed_1_skipped_trp04_42_passed_1_skipped",
+    "sol_reviewed": "trp01_trp02_trp03_trp04_deep",
+    "committed": "no",
+    "pushed": "no",
+    "deployed": "no",
+    "live_validated": "no",
+    "visual_validated": "na",
+    "temporal_validated": "no",
+    "updater_or_resume_clean": "no",
+    "product_complete": "no"
+  },
+  "next_frontier": "frozen_deferred_TRP-05_requires_explicit_reprioritization_fresh_claim_collision_check_and_deep_review_of_preserved_dirty_diff"
+}
