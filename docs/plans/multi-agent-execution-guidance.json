@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-08-02T10:11:03+02:00",
+  "updated_at": "2026-08-02T14:41:20+02:00",
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
@@ -353,8 +353,8 @@
     {
       "path": "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
       "profile": "active_parallel",
-      "state": "cao08a_through_d_accepted_c1_later_reclaim_e_claimable",
-      "ai_hint": "CAO-08D is accepted at local commit 744debea after Root deep review and Charlie independent QA. CAO-08E is now registered and claimable on five new exact-read/transaction contract and test paths; CAO-08C1 remains a later exact-scope reclaim. Never overlap lifecycle, controller, backend, app, model, scheduler, OPS-Alert, security, homeserver or UI hotfiles; keep real worktree mutation, sandbox execution, push, deploy and every live action disabled."
+      "state": "cao08a_through_f_accepted_c1_fresh_reclaim_registered",
+      "ai_hint": "CAO-08A through CAO-08F are accepted after Root deep review and independent QA. CAO-08C1 is registered as a fresh reclaim on five exact new local/fake delegation contract, reducer and test paths; its earlier released_waiting_on_peer claim is historical and must not be revived. Do not activate a real adapter, dispatch a real worker or thread, cross workspace boundaries, mutate productive state, push, deploy or perform any live action."
     },
     {
       "path": "docs/plans/context-budget-dynamic-abc-roadmap.md",
@@ -521,8 +521,8 @@
     {
       "path": "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
       "profile": "active_parallel",
-      "state": "mem1_mem6_historical_nmg00_accepted_nmg01_claimable",
-      "ai_hint": "Do not reopen MEM1-MEM6. NMG-00 is accepted at local commit 1487c732 after a bounded review fix, Root deep review and Charlie independent QA. NMG-01 is now registered and claimable on three new contract/audit/test paths; keep NMG-02 through NMG-08 plus USI-C successors dependency-blocked. Do not touch Personal Docs runtime, USI/UDA/UIR hotfiles, llm_core, llm_async_call, local_model_scheduler, productive sources, private data, Obsidian, providers or live activation."
+      "state": "mem1_mem6_historical_nmg00_through_nmg02_accepted_nmg05_contract_registered",
+      "ai_hint": "Do not reopen MEM1-MEM6. NMG-00 through NMG-02 are accepted after Root deep review and independent QA. NMG-05 is registered on three exact new causal-domain contract, audit and test paths; NMG-03 remains dependency-blocked until UDA-05 is separately registered and accepted. Do not touch Personal Docs runtime, USI/UDA/UIR hotfiles, llm_core, llm_async_call, local_model_scheduler, productive sources, private data, Obsidian, providers or live activation."
     },
     {
       "path": "docs/plans/memory-scale-foundation-roadmap.md",
@@ -587,8 +587,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "parallel_development_wave2_cao08e_nmg01_claimable",
-      "ai_hint": "This remains the current gate and claim authority. CAO-08E and NMG-01 are registered as disjoint five-path and three-path repo-only lanes after independent frontier audit; acquire their exact durable claims before dispatch and reserve a third worker for read-only QA. Evaluate CAO-08C1 only as its separate deferred reclaim. SIRP deploy/delivery, productive memory sources, real worktree editing, external dispatch and every live action remain disabled behind their exact gates."
+      "state": "parallel_development_wave4_cao08c1_nmg05_registered_pending_claims",
+      "ai_hint": "This remains the current gate and claim authority. Commit the Wave 4 registration, then acquire fresh exact-path claims for CAO-08C1 and NMG-05 before dispatch and reserve a third worker for independent read-only QA. Preserve the earlier CAO-08C1 released_waiting_on_peer claim as history. Real adapters and dispatch, productive sources, push, deploy, provider or host writes, sends and every live action remain disabled behind their exact gates."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
