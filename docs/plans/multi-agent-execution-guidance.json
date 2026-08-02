@@ -587,8 +587,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "parallel_development_wave5_rejected_recovery_required_next_frontier_audit",
-      "ai_hint": "This remains the current gate and claim authority. Wave 5 UDA-00 and ULO-00 were rejected after two material attempts; both claims are released rejected and no writer may continue. Remove only the six hash-recorded untracked drafts after the rejection commit, then require a fresh read-only architecture handoff and new claims. ACPR-11 remains a separate existing-hotfile reconciliation. Productive sources, adapters, lifecycle actions, push, deploy, provider or host writes, sends and every live action remain disabled behind their exact gates."
+      "state": "parallel_development_wave5_recovery_contract_registered_claims_pending",
+      "ai_hint": "This remains the current gate and claim authority. The rejected UDA-00 and ULO-00 drafts are absent and their old claims remain released. The fresh read-only recovery contract at docs/plans/unified-source-index-owner-inventory-recovery-contract.json is the exact tuple authority for new claims, together with the separate one-path UIR-00R runtime inventory refresh. Do not write before a new durable claim. ACPR-11 remains a separate existing-hotfile reconciliation. Productive sources, adapters, lifecycle actions, push, deploy, provider or host writes, sends and every live action remain disabled behind their exact gates."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
@@ -857,14 +857,14 @@
     {
       "path": "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md",
       "profile": "active_parallel",
-      "state": "uda00_rejected_after_two_attempts_architecture_recovery_required",
-      "ai_hint": "UDA-00 has no active claim after two rejected material drafts. The older domain-inventory filenames remain stale and forbidden. Restore the clean baseline, freeze exact current/future domain owners and the accepted Native Knowledge no-current-truth boundary in a read-only recovery handoff, then register a fresh exact claim. Keep every adapter, source read and productive source blocked/default-off."
+      "state": "uda00_recovery_contract_registered_new_claim_pending",
+      "ai_hint": "UDA-00 has no active claim; its two rejected drafts remain historical evidence only. A fresh exact claim must implement only the three canonical owner-inventory paths from docs/plans/unified-source-index-owner-inventory-recovery-contract.json. The older domain-inventory filenames remain stale and forbidden. Keep Native Knowledge future-only/not-selected, and keep every adapter, source read and productive source blocked/default-off."
     },
     {
       "path": "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md",
       "profile": "active_serial",
-      "state": "ulo00_rejected_after_two_attempts_architecture_recovery_required",
-      "ai_hint": "ULO-00 has no active claim after two rejected material drafts. The older lifecycle-inventory filenames remain stale and forbidden. Restore the clean baseline, map every action to its existing auth/domain/export/system-backup/admin-wipe/USI-13 owner and every artifact to one lifecycle policy in a read-only recovery handoff, then register a fresh exact claim. Perform no lifecycle, destructive, backup, restore, provider or live action."
+      "state": "ulo00_recovery_contract_registered_new_claim_pending",
+      "ai_hint": "ULO-00 has no active claim; its two rejected drafts remain historical evidence only. A fresh exact claim must implement only the three canonical lifecycle-owner paths from docs/plans/unified-source-index-owner-inventory-recovery-contract.json, preserving every existing action owner and all eight artifact policies. The older lifecycle-inventory filenames remain stale and forbidden. Perform no lifecycle, destructive, backup, restore, provider or live action."
     },
     {
       "path": "docs/plans/unified-feature-completion-roadmap.md",

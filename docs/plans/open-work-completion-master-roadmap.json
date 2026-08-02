@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-02T15:46:00+02:00",
-  "status": "parallel_development_wave5_uda00_ulo00_rejected_recovery_required / waves1_to4_accepted / ops_alert_live_gates_preserved",
+  "updated_at": "2026-08-02T16:08:23+02:00",
+  "status": "parallel_development_wave5_recovery_contract_registered_claims_pending / waves1_to4_accepted / ops_alert_live_gates_preserved",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -24,7 +24,7 @@
     "unique_live_gates": 61,
     "unique_design_gates": 29,
     "other_open_json_items": 155,
-    "queue_status": "parallel_wave5_rejected_recovery_required_next_safe_frontier_audit",
+    "queue_status": "parallel_wave5_recovery_contract_registered_claims_pending",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "live_contextual_layer": "lcl00_roadmap_deep_reviewed_registered_lcl01_waiting_cao08b",
@@ -39,8 +39,8 @@
       "memory_observability": "gro00_through_gro15_historical_nmg00_through_nmg02_and_nmg05_accepted_productive_sources_off",
       "unified_source_index": "usi00_through_usi14_accepted_usi15_blocked_by_child_closure_productive_sources_off",
       "usi_runtime_consumer_integration": "uir00_through_uir02_accepted_uir03_dependency_ready_runtime_default_off",
-      "usi_domain_adapters": "uda00_rejected_after_two_attempts_architecture_recovery_required_default_off",
-      "usi_data_lifecycle_operations": "ulo00_rejected_after_two_attempts_architecture_recovery_required_live_actions_default_off",
+      "usi_domain_adapters": "uda00_recovery_contract_registered_new_claim_pending_default_off",
+      "usi_data_lifecycle_operations": "ulo00_recovery_contract_registered_new_claim_pending_live_actions_default_off",
       "codebase_memory_projection": "cbm00_through_cbm08_accepted_cbm09_dependency_ready_not_selected_engine_disabled",
       "code_lineage_timeline": "clt00_through_clt02_accepted_clt03_ready_repo_only_live_default_off",
       "lens_code_graph": "planned_after_code_graph_api_ui_live_gated",
@@ -113,7 +113,11 @@
       "queue_exhausted": false,
       "raw_safe_queue_exhausted": true,
       "guidance_normalization": {
-        "selected_parallel_lanes": [],
+        "selected_parallel_lanes": [
+          "UDA-00-domain-truth-and-mutation-inventory-recovery",
+          "ULO-00-lifecycle-owner-and-runtime-inventory-recovery",
+          "UIR-00R-runtime-caller-inventory-refresh"
+        ],
         "completed_parallel_lanes": [
           "CAO-08D-scoped-execution-plane-consolidation",
           "NMG-00-legacy-boundary-audit",
@@ -128,7 +132,7 @@
           "ACPR-11 pending stale cross-roadmap reconciliation",
           "LCL-01 pending its own explicit registration",
           "UIR-03 pending exact app/initializer single-writer handoff",
-          "UDA-00 and ULO-00 rejected after two material attempts; fresh read-only architecture handoff and new durable claims required",
+          "UDA-00, ULO-00 and UIR-00R recovery contract registered; new durable claims not yet opened",
           "UDA-05 pending separate registration before NMG-03"
         ],
         "qa_lane": "Charlie read-only collision, focused-test and combined-regression evidence",
@@ -138,7 +142,7 @@
           "mode": "read_only",
           "writer_claim": false,
           "allowed_write_paths": [],
-          "state": "wave5_rejected_read_only_qa_released_recovery_packet_required",
+          "state": "wave5_recovery_registered_waiting_for_implementation_handoffs",
           "evidence_required": [
             "path collision readback",
             "focused test readback",
@@ -152,7 +156,7 @@
         "focused_tests": "Wave 4: Root CAO A-F+C1 plus NMG-05 combined lane 241 passed; Charlie focused C1+NMG-05 56 passed and the same 241-test combined regression passed; one existing SQLAlchemy deprecation warning",
         "master_route": "surface_default/root; exact runtime model identifier not exposed",
         "worktree_policy": "Exactly one clean canonical Git worktree; parallel lanes use disjoint exact-path claims and shared router/hotfiles stay root-only.",
-        "implementation_gate": "Closed after Root deep review rejected both UDA-00 and ULO-00 drafts across two material attempts. Claims are released rejected; the six untracked drafts are hash-recorded cleanup targets and no implementation or live authority remains."
+        "implementation_gate": "Recovery architecture is registered, but implementation authority remains false until fresh disjoint UDA-00, ULO-00 and UIR-00R claims are committed. No live authority is implied."
       },
       "repo_cleanup_one_worktree_gate": {
         "id": "REPO-CLEANUP-ONE-WORKTREE",
@@ -593,13 +597,15 @@
       "live_actions": false
     },
     "next_parallel_wave_registration": {
-      "state": "rejected_released_recovery_required",
+      "state": "recovery_contract_registered_claims_pending",
       "rejected_at": "2026-08-02T15:46:00+02:00",
+      "recovery_registered_at": "2026-08-02T16:08:23+02:00",
       "registered_at": "2026-08-02T15:32:37+02:00",
-      "base_revision": "36aadb720629d7f5d927cbe88c5926d1fba0757c",
+      "base_revision": "034a16c09f17c757055196ad27dcbbf2cb3ed7d9",
       "selected_lanes": [
-        "UDA-00-domain-truth-and-mutation-inventory",
-        "ULO-00-lifecycle-owner-and-runtime-inventory"
+        "UDA-00-domain-truth-and-mutation-inventory-recovery",
+        "ULO-00-lifecycle-owner-and-runtime-inventory-recovery",
+        "UIR-00R-runtime-caller-inventory-refresh"
       ],
       "deferred": [
         "ACPR-11 pending separate stale cross-roadmap reconciliation and existing-hotfile claim",
@@ -617,22 +623,36 @@
           "docs/plans/unified-source-index-lifecycle-owner-inventory.json",
           "scripts/audit_unified_source_index_lifecycle_owners.py",
           "tests/test_audit_unified_source_index_lifecycle_owners.py"
+        ],
+        "UIR-00R": [
+          "docs/plans/unified-source-index-runtime-caller-inventory.json"
         ]
       },
       "target_path_digests_sha256": {
         "UDA-00": "b8cccb619e8eb4a09ee7e07fe9f0c70aef7fb02e83cc8f88a42daebc24205ac8",
-        "ULO-00": "b22e2c20590c3570a754b699dd2dbc9e77c096a64d3e7383e0af701172b58f85"
+        "ULO-00": "b22e2c20590c3570a754b699dd2dbc9e77c096a64d3e7383e0af701172b58f85",
+        "UIR-00R": "40e2aa745f782505db7a73840b8a75e4d26a3eaf035bd0d7f9a42a79a4ea9793"
       },
       "preflight": {
-        "baseline_status": "passed_clean_registration_preflight",
+        "baseline_status": "passed_recovery_registration_preflight",
         "all_six_targets_absent": true,
         "cross_lane_overlap_count": 0,
         "unavoidable_hotfile_count": 0,
         "worktree_count": 1,
-        "working_tree_clean": true,
-        "dependencies": "UDA-00 has accepted USI-04 and the active Open Work goal; ULO-00 has accepted USI-03/USI-13 and the active Open Work goal.",
+        "working_tree_clean_except_root_owned_recovery_registration": true,
+        "dependencies": "UDA-00 has accepted USI-04 and the active Open Work goal; ULO-00 has accepted USI-03/USI-13 and the active Open Work goal; UIR-00R is a one-path deterministic evidence refresh for the already accepted runtime audit.",
         "path_reconciliation": "The canonical Open Work owner-inventory filenames are authoritative. The older source-roadmap filenames unified-source-index-domain-inventory.json/audit_unified_source_index_domains.py and unified-source-index-lifecycle-inventory.json/audit_unified_source_index_lifecycle.py are stale prose inputs, are not registered, and remain immutable.",
-        "independent_frontier_audit": "Alice independently verified both dependency frontiers, exact absent canonical path sets and zero overlap; Charlie independently verified ACPR-11 remains separate and does not collide with either inventory lane.",
+        "independent_frontier_audit": "Fresh read-only Terra architecture fixed the exact UDA/ULO tuples and negative matrices. Root verified all six new targets absent, the UIR-00R path disjoint, exactly one worktree and no overlap with ACPR-11.",
+        "recovery_contract": {
+          "path": "docs/plans/unified-source-index-owner-inventory-recovery-contract.json",
+          "sha256": "5ce494adb1b8a6c79ab3c82f04361024bcd33146920510c2787f2cf8e500a64c",
+          "status": "accepted_read_only_architecture_handoff_pending_implementation",
+          "current_domain_ids": ["personal_memory", "personal_docs"],
+          "future_native_knowledge_state": "not_selected_no_current_truth",
+          "lifecycle_action_count": 12,
+          "artifact_family_count": 8,
+          "effect_authority": "none"
+        },
         "audit_input_object_ids": {
           "docs/plans/open-work-completion-master-roadmap.json": "aafd831ac5381d42414f1575c6773af20230a801",
           "docs/plans/multi-agent-execution-guidance.json": "55c2a3555601bbb0feccc75da2e8f6d0434ce53f",
@@ -665,7 +685,7 @@
         },
         "cleanup": "After this durable rejection commit, the two original claim owners must remove exactly their three untracked rejected drafts; Root then verifies the clean single worktree before any recovery registration."
       },
-      "next_action": "Restore the clean baseline, create one fresh read-only architecture recovery packet for the exact UDA-00 and ULO-00 canonical tuples, repair the unrelated runtime-inventory regression in a separate exact claim, and only then register new implementation claims. Continue other dependency-ready repo-only work meanwhile.",
+      "next_action": "Commit this Root-owned recovery registration, then open fresh disjoint exact-path claims for UDA-00, ULO-00 and UIR-00R. Workers may write only after the claim commit; independent QA remains read-only and every live action remains closed.",
       "live_actions": false
     },
     "latest_parallel_wave_preflight_handoff": {
@@ -16105,12 +16125,52 @@
       "live_actions": false
     },
     {
+      "id": "UIR-00R-runtime-caller-inventory-refresh",
+      "class": "safe_offline",
+      "owner": "Charlie/Terra-requested mechanical refresh; root surface_default standard review explicitly user-authorized",
+      "status": "recovery_registered_claim_pending",
+      "claimable": false,
+      "claim_blocker": "A fresh exact one-path durable claim must be committed before the deterministic inventory refresh.",
+      "depends_on": [
+        "UIR-00 accepted runtime inventory audit",
+        "explicit Open Work goal"
+      ],
+      "allowed_paths": [
+        "docs/plans/unified-source-index-runtime-caller-inventory.json"
+      ],
+      "allowed_paths_digest_sha256": "40e2aa745f782505db7a73840b8a75e4d26a3eaf035bd0d7f9a42a79a4ea9793",
+      "source_roadmap": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
+      "recovery_contract": "docs/plans/unified-source-index-owner-inventory-recovery-contract.json#/UIR-00R",
+      "route": {
+        "entrypoint": "/abc + goal",
+        "worker": "gpt-5.6-terra/low requested after durable claim",
+        "review": "surface_default/root standard plus subsequent independent read-only USI QA",
+        "live_authority": false
+      },
+      "acceptance": "Replace only the committed runtime caller inventory with the deterministic canonical generator output; candidate_count remains 55 and unclassified_count remains zero.",
+      "done_when": "The runtime inventory audit --check and its focused tests pass without edits to app.py, the generator or tests and without runtime imports, providers, private data, network or live effects.",
+      "evidence": {
+        "target_environment": "local",
+        "authority": "repo",
+        "mutation_class": "safe_offline",
+        "required": ["static", "canonical_inventory_check", "focused_test", "independent_review"],
+        "forbidden": [
+          "edits outside the one inventory path",
+          "app.py, generator or test edits",
+          "runtime imports, provider/private-data access, network or live actions",
+          "commit, push or deploy by the worker"
+        ]
+      },
+      "next_action": "Wait for the fresh durable UIR-00R claim commit.",
+      "live_actions": false
+    },
+    {
       "id": "UDA-00-domain-truth-and-mutation-inventory",
       "class": "safe_offline",
       "owner": "Alice/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
-      "status": "blocked_after_two_failed_attempts_pending_architecture_handoff",
+      "status": "recovery_contract_registered_new_claim_pending",
       "claimable": false,
-      "claim_blocker": "Two material drafts failed Root deep review. A fresh read-only architecture handoff, clean baseline and new durable claim are required before more writes.",
+      "claim_blocker": "The fresh read-only recovery handoff is registered; a new exact three-path durable claim is required before more writes.",
       "depends_on": [
         "USI-04 accepted",
         "explicit Open Work goal"
@@ -16142,6 +16202,7 @@
         "blocker": null
       },
       "source_roadmap": "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md",
+      "recovery_contract": "docs/plans/unified-source-index-owner-inventory-recovery-contract.json#/UDA-00",
       "path_reconciliation": "Open Work canonical owner-inventory paths replace the stale source-roadmap domain-inventory names for this slice; the source roadmap itself is an immutable input and outside the claim.",
       "route": {
         "entrypoint": "/abc + goal",
@@ -16177,16 +16238,16 @@
           "commit, push, deploy or live action by the worker"
         ]
       },
-      "next_action": "Do not edit. Remove the three hash-recorded untracked rejected drafts after the durable rejection commit, then wait for a fresh read-only architecture handoff and new claim.",
+      "next_action": "Wait for the fresh durable recovery claim; implement only the exact recovery-contract tuples and negative matrix after that claim commit.",
       "live_actions": false
     },
     {
       "id": "ULO-00-lifecycle-owner-and-runtime-inventory",
       "class": "safe_offline",
       "owner": "Bob/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
-      "status": "blocked_after_two_failed_attempts_pending_architecture_handoff",
+      "status": "recovery_contract_registered_new_claim_pending",
       "claimable": false,
-      "claim_blocker": "Two material drafts failed Root deep review. A fresh read-only architecture handoff, clean baseline and new durable claim are required before more writes.",
+      "claim_blocker": "The fresh read-only recovery handoff is registered; a new exact three-path durable claim is required before more writes.",
       "depends_on": [
         "USI-03 and USI-13 accepted",
         "explicit Open Work goal"
@@ -16218,6 +16279,7 @@
         "blocker": null
       },
       "source_roadmap": "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md",
+      "recovery_contract": "docs/plans/unified-source-index-owner-inventory-recovery-contract.json#/ULO-00",
       "path_reconciliation": "Open Work canonical lifecycle-owner paths replace the stale source-roadmap lifecycle-inventory names for this slice; the source roadmap itself is an immutable input and outside the claim.",
       "route": {
         "entrypoint": "/abc + goal",
@@ -16253,7 +16315,7 @@
           "commit, push, deploy or live action by the worker"
         ]
       },
-      "next_action": "Do not edit. Remove the three hash-recorded untracked rejected drafts after the durable rejection commit, then wait for a fresh read-only architecture handoff and new claim.",
+      "next_action": "Wait for the fresh durable recovery claim; implement only the exact recovery-contract actions, artifact families and negative matrix after that claim commit.",
       "live_actions": false
     },
     {
