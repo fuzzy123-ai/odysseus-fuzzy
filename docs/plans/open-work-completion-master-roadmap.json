@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-02T17:57:53+02:00",
-  "status": "parallel_development_wave5r_fresh_independent_readonly_qa_running / cleanup_handoff_local_merge_committed_one_worktree_clean / waves1_to4_accepted / ops_alert_live_gates_preserved",
+  "updated_at": "2026-08-02T18:04:06+02:00",
+  "status": "parallel_wave5r_readonly_qa_and_acpr11_repo_only_implementation_running / cleanup_handoff_local_merge_committed_one_worktree_clean / waves1_to4_accepted / ops_alert_live_gates_preserved",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -20,15 +20,15 @@
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 0,
+    "safe_open_json_slices": 1,
     "unique_live_gates": 61,
     "unique_design_gates": 29,
     "other_open_json_items": 155,
-    "queue_status": "parallel_wave5r_fresh_independent_readonly_qa_running",
+    "queue_status": "parallel_wave5r_readonly_qa_and_acpr11_repo_only_implementation_running",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "live_contextual_layer": "lcl00_roadmap_deep_reviewed_registered_lcl01_waiting_cao08b",
-      "autonomous_coding_loop": "cao08a_through_f_and_c1_accepted_local_fake_adapter_activation_off",
+      "autonomous_coding_loop": "cao08a_through_f_and_c1_accepted_acpr11_dependency_reconciled_claimed_local_fake_adapter_activation_off",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated_pmcp9_stale_detail_normalized",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
@@ -50,8 +50,8 @@
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 0,
-      "raw_audit_safe_open_count": 0,
+      "safe_open_count": 1,
+      "raw_audit_safe_open_count": 1,
       "raw_audit_stale_item": null,
       "raw_audit_duplicate_frontier": "SIRP-11 is accepted in both canonical and detailed SIRP state; no SIRP safe-offline slice remains open.",
       "other_open_count": 155,
@@ -111,7 +111,7 @@
         "safe_default": "stop at deploy-live-go; keep production issuer uncomposed, deployment disabled and OPS-ALERT-DELIVERY-GO not_go"
       },
       "queue_exhausted": false,
-      "raw_safe_queue_exhausted": true,
+      "raw_safe_queue_exhausted": false,
       "guidance_normalization": {
         "selected_parallel_lanes": [
           "UDA-00-domain-truth-and-mutation-inventory-recovery",
@@ -129,7 +129,6 @@
           "NMG-05-causal-domain-contract"
         ],
         "deferred_current_wave": [
-          "ACPR-11 pending stale cross-roadmap reconciliation",
           "LCL-01 pending its own explicit registration",
           "UIR-03 pending exact app/initializer single-writer handoff",
           "UDA-00, ULO-00 and UIR-00R recovery contract registered; new durable claims not yet opened",
@@ -514,7 +513,38 @@
         "remaining_work": "OPS Alert integration and publication remain owned by their existing handoffs and are not absorbed by this roadmap-authoring slice."
       }
     ],
-    "active_claimed_slices": [],
+    "active_claimed_slices": [
+      {
+        "claim_id": "ABC-ACPR-11-20260802T180406+0200",
+        "slice_id": "ACPR-11-planning-authority-and-memory-checkpoints",
+        "roadmap": "docs/plans/autonomous-coding-production-readiness-roadmap.json",
+        "owner": "/root/acpr11_planning_memory",
+        "class": "repo_only",
+        "state": "claimed",
+        "acquired_at": "2026-08-02T18:04:06+02:00",
+        "lease_expires_at": "2026-08-02T20:04:06+02:00",
+        "base_revision": "352e4966409ce4a53d071b2b4e3c1508de55a82d",
+        "allowed_paths": [
+          "src/coding_project_scope.py",
+          "src/coding_agent_runner_state.py",
+          "src/coding_agent_memory_bridge.py",
+          "tests/test_coding_project_scope.py",
+          "tests/test_coding_agent_runner_state.py",
+          "tests/test_coding_agent_memory_bridge.py"
+        ],
+        "router_write_paths": [],
+        "writer_count": 1,
+        "independent_qa_required": true,
+        "live_actions": false,
+        "collision_check": "pass: exact ACPR-11 paths are disjoint from the read-only Wave-5R QA and TRP-05 read-only reclaim audit; the canonical roadmap files remain Root-only",
+        "forbidden_actions": [
+          "editing either canonical roadmap authority from the worker",
+          "paths outside the exact allowed_paths",
+          "push, deploy, provider, network, host, send or other live action",
+          "treating RAPTOR/GraphRAG memory as Planning, claim or gate authority"
+        ]
+      }
+    ],
     "latest_parallel_development_p0_handoff": {
       "roadmap_path": "docs/plans/open-work-completion-master-roadmap.json",
       "run_id": "goal-parallel-roadmaps-20260802-p0",
@@ -608,7 +638,6 @@
         "UIR-00R-runtime-caller-inventory-refresh"
       ],
       "deferred": [
-        "ACPR-11 pending separate stale cross-roadmap reconciliation and existing-hotfile claim",
         "LCL-01 pending its own explicit registration",
         "UIR-03 pending exact app/initializer single-writer handoff",
         "UDA-05 pending separate registration before NMG-03"

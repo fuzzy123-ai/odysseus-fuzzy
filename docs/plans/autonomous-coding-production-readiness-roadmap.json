@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.autonomous_coding_production_readiness_roadmap",
-  "updated_at": "2026-08-01",
-  "status": "acpr_0_through_10_accepted_subagent_readiness_authored_waiting_for_cao_08a_08b",
+  "updated_at": "2026-08-02T18:04:06+02:00",
+  "status": "acpr_0_through_10_accepted_acpr_11_dependency_ready_claimed_for_repo_only_implementation",
   "mode": "backend_logic_first",
   "title": "Autonomous Coding Production Readiness Roadmap",
   "goal": "Move the autonomous coding foundation from proven backend pieces to a reliable workstation-first project-runner workflow that can be monitored and controlled remotely through Telegram.",
@@ -37,8 +37,8 @@
     "memory_bridge": "src/coding_agent_memory_bridge.py"
   },
   "current_state_audit": {
-    "status": "acpr_0_through_10_accepted_next_readiness_slice_dependency_blocked",
-    "updated_at": "2026-08-01",
+    "status": "acpr_0_through_10_accepted_acpr_11_dependency_reconciled_and_claimed",
+    "updated_at": "2026-08-02T18:04:06+02:00",
     "implemented_foundation": [
       "routes/coding_agent_routes.py exposes task-plan, quality-gate, worktree-quality-gate, sandbox-checks, done-gate, patch-set, publish-plan and subagents-plan endpoints.",
       "src/coding_agent_backend.py already provides task plans, worktree creation gates, patch-set application gates, quality/done gates, publish plans and subagent contracts.",
@@ -75,12 +75,12 @@
     "raw_content_visible": false
   },
   "current_frontier": {
-    "status": "ACPR-10 is accepted; ACPR-11 remains blocked until CAO-08A and CAO-08B contracts are accepted, so no ACPR-11 through ACPR-16 implementation slice is currently claimable.",
-    "claimable_slices": [],
-    "blocked_by": [
-      "CAO-08A and CAO-08B accepted lifecycle/controller and graph-boundary contracts"
+    "status": "ACPR-10, CAO-08A and CAO-08B are accepted; ACPR-11 is the dependency-ready repo-only frontier and has one exact active Terra writer claim.",
+    "claimable_slices": [
+      "ACPR-11-planning-authority-and-memory-checkpoints"
     ],
-    "next_after_acceptance": "CAO-08A and CAO-08B acceptance, then ACPR-11 readiness binding/conformance",
+    "blocked_by": [],
+    "next_after_acceptance": "After ACPR-11 independent QA and Root acceptance, ACPR-12 becomes dependency-ready because CAO-08D and CAO-08E are already accepted.",
     "later_bundle_constraints": "ACPR-17 is deliberately later: it requires accepted CAO-08B1/C1 subagent contracts and ACPR readiness prerequisites, then supplies VCL-7 before CAO-08G can consume readiness lanes."
   },
   "cross_roadmap_ownership": {
@@ -673,7 +673,23 @@
       "id": "ACPR-11-planning-authority-and-memory-checkpoints",
       "class": "repo_only",
       "owner": "Bob/Terra implementation; root/Sol deep review",
-      "status": "planned_not_claimable_until_ACPR-10_review_and_CAO-08A-B_acceptance",
+      "status": "claimed_2026-08-02_dependency_reconciled_repo_only_implementation",
+      "claim": {
+        "claim_id": "ABC-ACPR-11-20260802T180406+0200",
+        "owner": "/root/acpr11_planning_memory",
+        "state": "claimed",
+        "acquired_at": "2026-08-02T18:04:06+02:00",
+        "lease_expires_at": "2026-08-02T20:04:06+02:00",
+        "base_revision": "352e4966409ce4a53d071b2b4e3c1508de55a82d",
+        "writer_count": 1,
+        "live_actions": false,
+        "forbidden": [
+          "paths outside allowed_paths",
+          "push, deploy, provider, network, host, send or other live action",
+          "Planning, claim or gate authority changes derived from RAPTOR/GraphRAG memory",
+          "independent reviewer self-approval"
+        ]
+      },
       "depends_on": [
         "ACPR-10 accepted",
         "CAO-08A accepted",
