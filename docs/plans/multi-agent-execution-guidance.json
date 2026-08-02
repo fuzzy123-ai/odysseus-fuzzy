@@ -587,8 +587,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "parallel_development_wave5_recovery_claims_active",
-      "ai_hint": "This remains the current gate and claim authority. Fresh disjoint claims are active for UDA-00, ULO-00 and UIR-00R against recovery registration commit 3d1d788d53e3454d4f05d73e903a1aab113acc8c and recovery-contract blob e6fef886a80b29b330c431039a0a12ac4cb30851. Each worker may change only its exact claim paths. ACPR-11 remains separate. Productive sources, adapters, lifecycle actions, push, deploy, provider or host writes, sends and every live action remain disabled behind their exact gates."
+      "state": "parallel_development_wave5_implementations_committed_independent_qa_channel_gate",
+      "ai_hint": "This remains the current gate and claim authority. UIR-00R, UDA-00 and ULO-00 are locally committed and passed Root review plus 251 bounded USI tests, but independent read-only QA did not return after one bounded replacement turn. Writer authority is closed and claims are released pending QA. Do not mark the wave accepted until a fresh independent read-only QA handoff passes. ACPR-11 remains separate. Productive sources, adapters, lifecycle actions, push, deploy, provider or host writes, sends and every live action remain disabled behind their exact gates."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
@@ -857,14 +857,14 @@
     {
       "path": "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md",
       "profile": "active_parallel",
-      "state": "uda00_recovery_claim_active_alice_terra_xhigh",
-      "ai_hint": "UDA-00 has one fresh active three-path claim against the committed recovery contract. Its two rejected drafts remain historical evidence only. The owner may implement only the canonical owner-inventory JSON, audit and focused test. The older domain-inventory filenames remain stale and forbidden. Keep Native Knowledge future-only/not-selected, and keep every adapter, source read and productive source blocked/default-off."
+      "state": "uda00_recovery_implementation_committed_root_deep_review_pass_qa_pending",
+      "ai_hint": "UDA-00 is locally committed at 35026ae7 and passed Root deep review plus the focused/combined tests. Its writer claim is released pending a fresh independent read-only QA handoff. The older domain-inventory filenames remain stale and forbidden. Keep Native Knowledge future-only/not-selected, and keep every adapter, source read and productive source blocked/default-off."
     },
     {
       "path": "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md",
       "profile": "active_serial",
-      "state": "ulo00_recovery_claim_active_bob_terra_xhigh",
-      "ai_hint": "ULO-00 has one fresh active three-path claim against the committed recovery contract. Its two rejected drafts remain historical evidence only. The owner may implement only the canonical lifecycle-owner JSON, audit and focused test, preserving every existing action owner and all eight artifact policies. The older lifecycle-inventory filenames remain stale and forbidden. Perform no lifecycle, destructive, backup, restore, provider or live action."
+      "state": "ulo00_recovery_implementation_committed_root_deep_review_pass_qa_pending",
+      "ai_hint": "ULO-00 is locally committed at 397f0c6d and passed Root deep review plus the focused/combined tests. Its writer claim is released pending a fresh independent read-only QA handoff. The older lifecycle-inventory filenames remain stale and forbidden. Perform no lifecycle, destructive, backup, restore, provider or live action."
     },
     {
       "path": "docs/plans/unified-feature-completion-roadmap.md",
