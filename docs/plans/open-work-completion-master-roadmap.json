@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-02T13:24:01+02:00",
-  "status": "parallel_development_p0_cao08d_nmg00_accepted / next_repo_frontier_requires_exact_registration / ops_alert_live_gates_preserved",
+  "updated_at": "2026-08-02T13:34:13+02:00",
+  "status": "parallel_development_wave2_cao08e_nmg01_claimable / prior_wave_accepted / ops_alert_live_gates_preserved",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -20,15 +20,15 @@
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 0,
+    "safe_open_json_slices": 2,
     "unique_live_gates": 61,
     "unique_design_gates": 29,
     "other_open_json_items": 155,
-    "queue_status": "parallel_wave_cao08d_nmg00_accepted_next_frontier_registration_required",
+    "queue_status": "parallel_wave2_cao08e_nmg01_dependency_ready_claimable",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "live_contextual_layer": "lcl00_roadmap_deep_reviewed_registered_lcl01_waiting_cao08b",
-      "autonomous_coding_loop": "cao08a_through_d_accepted_c1_later_reclaim_cao08e_next_after_exact_registration",
+      "autonomous_coding_loop": "cao08a_through_d_accepted_c1_later_reclaim_cao08e_registered_claimable",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_complete_live_operations_gated_pmcp9_stale_detail_normalized",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
@@ -36,7 +36,7 @@
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
-      "memory_observability": "gro00_through_gro15_historical_nmg00_accepted_nmg01_next_after_exact_registration_productive_sources_off",
+      "memory_observability": "gro00_through_gro15_historical_nmg00_accepted_nmg01_registered_claimable_productive_sources_off",
       "unified_source_index": "usi00_through_usi14_accepted_usi15_blocked_by_child_closure_productive_sources_off",
       "usi_runtime_consumer_integration": "uir00_through_uir02_accepted_uir03_dependency_ready_runtime_default_off",
       "usi_domain_adapters": "planned_child_source_waves_default_off_private_domains_deferred",
@@ -50,8 +50,8 @@
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 0,
-      "raw_audit_safe_open_count": 0,
+      "safe_open_count": 2,
+      "raw_audit_safe_open_count": 2,
       "raw_audit_stale_item": null,
       "raw_audit_duplicate_frontier": "SIRP-11 is accepted in both canonical and detailed SIRP state; no SIRP safe-offline slice remains open.",
       "other_open_count": 155,
@@ -111,8 +111,12 @@
         "safe_default": "stop at deploy-live-go; keep production issuer uncomposed, deployment disabled and OPS-ALERT-DELIVERY-GO not_go"
       },
       "queue_exhausted": false,
-      "raw_safe_queue_exhausted": true,
+      "raw_safe_queue_exhausted": false,
       "guidance_normalization": {
+        "selected_parallel_lanes": [
+          "CAO-08E-transactional-worktree-edit-and-exact-read-receipts",
+          "NMG-01-native-knowledge-contract"
+        ],
         "completed_parallel_lanes": [
           "CAO-08D-scoped-execution-plane-consolidation",
           "NMG-00-legacy-boundary-audit"
@@ -127,7 +131,7 @@
           "mode": "read_only",
           "writer_claim": false,
           "allowed_write_paths": [],
-          "state": "completed_pass",
+          "state": "reserved_wave2_not_started",
           "evidence_required": [
             "path collision readback",
             "focused test readback",
@@ -141,7 +145,7 @@
         "focused_tests": "25 passed; combined independent regression 186 passed; Root CAO regression 178 passed; one existing SQLAlchemy deprecation warning",
         "master_route": "surface_default/root; exact runtime model identifier not exposed",
         "worktree_policy": "Exactly one clean canonical Git worktree; parallel lanes use disjoint exact-path claims and shared router/hotfiles stay root-only.",
-        "implementation_gate": "Satisfied for the exact CAO-08D and NMG-00 repo-only wave by verified one-worktree cleanup plus the 2026-08-02 explicit surface_default/root authorization; no live authority is implied."
+        "implementation_gate": "Satisfied for the exact CAO-08E and NMG-01 repo-only wave by the preserved one-worktree evidence plus the 2026-08-02 explicit surface_default/root authorization; durable claims are still required and no live authority is implied."
       },
       "repo_cleanup_one_worktree_gate": {
         "id": "REPO-CLEANUP-ONE-WORKTREE",
@@ -579,6 +583,50 @@
         "exact runtime model identity"
       ],
       "next_frontier": "Register exact disjoint claims for CAO-08E and NMG-01 before implementation; evaluate the separately deferred CAO-08C1 reclaim without widening either slice.",
+      "live_actions": false
+    },
+    "next_parallel_wave_registration": {
+      "registered_at": "2026-08-02T13:34:13+02:00",
+      "base_revision": "80ade50eccc025782728d8009b171d80d925bde4",
+      "selected_lanes": [
+        "CAO-08E-transactional-worktree-edit-and-exact-read-receipts",
+        "NMG-01-native-knowledge-contract"
+      ],
+      "deferred": [
+        "CAO-08C1-bounded-delegation-runtime",
+        "ACPR-11 pending stale cross-roadmap reconciliation",
+        "LCL-01 pending its own explicit registration",
+        "UIR-03 pending exact app/initializer single-writer handoff",
+        "UDA-00 and ULO-00 pending path-set reconciliation and explicit registration"
+      ],
+      "target_paths": {
+        "CAO-08E": [
+          "src/coding_edit_contracts.py",
+          "src/coding_edit_transaction.py",
+          "tests/test_coding_edit_contracts.py",
+          "tests/test_coding_edit_transaction.py",
+          "tests/test_coding_edit_transaction_integration.py"
+        ],
+        "NMG-01": [
+          "docs/plans/native-knowledge-personal-docs-boundary-contract.md",
+          "scripts/audit_native_knowledge_contract.py",
+          "tests/test_audit_native_knowledge_contract.py"
+        ]
+      },
+      "target_path_digests_sha256": {
+        "CAO-08E": "b46abe88cee417374d1d0307448c20130893f2a319071ed768c340dd57d6ae4c",
+        "NMG-01": "e8099a5f6701bbc5322a21ebd148df2e59a926b28d2451b899f488f13b8c0a2f"
+      },
+      "preflight": {
+        "all_eight_targets_absent": true,
+        "cross_lane_overlap_count": 0,
+        "unavoidable_hotfile_count": 0,
+        "worktree_count": 1,
+        "working_tree_clean": true,
+        "independent_frontier_audit": "Charlie PASS; source-grounded recommendation selects CAO-08E plus NMG-01 and preserves all other candidate fronts as deferred or registration-blocked"
+      },
+      "implementation_authority": false,
+      "next_action": "Commit this registration, then acquire two exact durable claims before dispatching disjoint Terra workers and read-only QA.",
       "live_actions": false
     },
     "latest_parallel_wave_preflight_handoff": {
@@ -17587,6 +17635,191 @@
       },
       "next_frontier_on_acceptance": "Register the exact NMG-01-native-knowledge-contract claim; all later NMG and USI-C slices remain blocked by their exact detail-roadmap dependencies.",
       "live_actions": false
+    },
+    {
+      "id": "CAO-08E-transactional-worktree-edit-and-exact-read-receipts",
+      "class": "repo_only",
+      "owner": "Bob/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
+      "status": "planned",
+      "claimable": true,
+      "depends_on": [
+        "CAO-08B accepted",
+        "CAO-08C accepted",
+        "CAO-08D accepted at 744debea"
+      ],
+      "source_roadmap": "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+      "allowed_paths": [
+        "src/coding_edit_contracts.py",
+        "src/coding_edit_transaction.py",
+        "tests/test_coding_edit_contracts.py",
+        "tests/test_coding_edit_transaction.py",
+        "tests/test_coding_edit_transaction_integration.py"
+      ],
+      "allowed_paths_digest_sha256": "b46abe88cee417374d1d0307448c20130893f2a319071ed768c340dd57d6ae4c",
+      "excluded_paths": [
+        "docs/plans/**",
+        "src/coding_agent_backend.py",
+        "src/coding_agent_sandbox_bridge.py",
+        "src/agent_sandbox_contract.py",
+        "src/workspace_policy.py",
+        "src/coding_lifecycle_authority.py",
+        "src/coding_loop_controller.py",
+        "src/coding_execution_contracts.py",
+        "src/coding_execution_plane.py",
+        "routes/**",
+        "plugins/**",
+        "ops/**",
+        "static/**",
+        "private_data/**"
+      ],
+      "route": {
+        "entrypoint": "/abc + goal",
+        "worker": "gpt-5.6-terra/high requested after durable claim",
+        "review": "surface_default/root deep plus Charlie independent read-only QA",
+        "live_authority": false
+      },
+      "acceptance": "A pure content-free transactional edit reducer consumes exactly one CAO-08C propose_scoped_patch intent in an acting controller plus a ready implementer capsule, binds every proposed edit to a fresh exact-read receipt and returns only deterministic all-or-nothing in-memory transaction descriptors.",
+      "done_when": "Focused and dependency integration tests prove controller, Planning revision, claim owner/scope, input revision, implementer capsule, exact graph ref, repository-relative path, source digest, bounded anchor and reader bindings; stale or foreign receipts, blocked/out-of-scope paths, ambiguous anchors, duplicate operations, semantic collisions or any partial failure reject the entire transaction without filesystem/Git/subprocess/sandbox/route/graph/memory/live mutation or raw source, patch, diff, prompt, log or private-path output.",
+      "evidence": {
+        "target_environment": "local",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "focused_test",
+          "CAO_A_through_D_dependency_integration",
+          "atomic_failure_and_replay_tests",
+          "independent_deep_review"
+        ],
+        "preclaim_verified": {
+          "all_five_targets_absent": true,
+          "cross_lane_overlap": "zero with NMG-01",
+          "unavoidable_hotfiles": [],
+          "CAO-08C1_precedence": "not required; separately deferred reclaim",
+          "ACPR_non_duplication": "CAO owns exact-read-to-edit transaction semantics; ACPR retains verification/readiness engines and evidence policy",
+          "immutable_inputs": {
+            "docs/plans/coding-agent-orchestration-consolidation-roadmap.md": "54ce6ff5edd13cb08c6ea6babe808c90d163b84e",
+            "docs/plans/open-work-completion-master-roadmap.json": "67586d33f391a8fced97a2289c85cf52979eb731",
+            "docs/plans/multi-agent-execution-guidance.json": "32c8a0c2bd3e6365a8e3cbc612ada0b4c932a8be",
+            "src/coding_lifecycle_authority.py": "4aa95a826b7d27c5f6640d523fb53ef6691fefcf",
+            "src/coding_context_envelope.py": "c6ca5a4dd5a8c6b6b30ed6795882f86d6ae1880e",
+            "src/coding_graph_boundary.py": "70450f43d5544ed6bb2f481b4b80820b707f4ca5",
+            "src/coding_subagent_capsule.py": "92c7f0076b7268a0682511551c0cad4a11b27f4a",
+            "src/coding_subagent_context_broker.py": "a04331ddb4bc2414b503e07525933a6071982c23",
+            "src/coding_loop_contracts.py": "8b182a8cb4595126fa34f4bd5f1304ce55ec0113",
+            "src/coding_loop_controller.py": "5bc2482db826d982aead4d1f804dd60f46decdf5",
+            "src/coding_execution_contracts.py": "241c57ce3dc8bf431f9e952d52f002fa40ba2a1b",
+            "src/coding_execution_plane.py": "99324bb23a32dc0bb4ccd8de78e9f750a482069e",
+            "src/coding_agent_backend.py": "d4d03f6536e9f19971348eadb28d51fc0eb30cb8",
+            "src/coding_agent_sandbox_bridge.py": "eda5156ad2132a4dc54219852a194e329397c6eb"
+          }
+        },
+        "forbidden": [
+          "edits outside the five new claimed files",
+          "filesystem or Git worktree mutation, real patch application or rollback",
+          "subprocess, shell, SandboxWorker, generic tool executor or route integration",
+          "ACPR verification-engine duplication",
+          "raw source, patch, diff, stdout, stderr, prompt, objective or private path in durable output",
+          "commit, push, deploy or live action"
+        ],
+        "not_verified": [
+          "implementation or focused tests",
+          "worker handoff, Root deep review or independent QA",
+          "real worktree editing or sandbox execution",
+          "push, deploy or live action"
+        ]
+      },
+      "next_frontier_on_acceptance": "CAO-08F after exact dependency evaluation; CAO-08C1 remains a separate later reclaim and CAO-08G remains blocked by C1 plus ACPR lanes.",
+      "live_actions": false
+    },
+    {
+      "id": "NMG-01-native-knowledge-contract",
+      "class": "repo_only",
+      "owner": "Alice/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
+      "status": "planned",
+      "claimable": true,
+      "depends_on": [
+        "NMG-00 accepted at 1487c732",
+        "USI-01 accepted 2026-07-13",
+        "USI-02 accepted 2026-07-17"
+      ],
+      "source_roadmap": "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
+      "allowed_paths": [
+        "docs/plans/native-knowledge-personal-docs-boundary-contract.md",
+        "scripts/audit_native_knowledge_contract.py",
+        "tests/test_audit_native_knowledge_contract.py"
+      ],
+      "allowed_paths_digest_sha256": "e8099a5f6701bbc5322a21ebd148df2e59a926b28d2451b899f488f13b8c0a2f",
+      "excluded_paths": [
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json",
+        "src/personal_docs.py",
+        "src/memory.py",
+        "src/unified_source_index_core.py",
+        "src/unified_source_index_store.py",
+        "src/unified_source_index_sources/**",
+        "routes/**",
+        "plugins/**",
+        "ops/**",
+        "static/**",
+        "private_data/**",
+        "src/llm_core.py",
+        "src/llm_async_call.py",
+        "src/local_model_scheduler.py"
+      ],
+      "route": {
+        "entrypoint": "/abc + goal",
+        "worker": "gpt-5.6-terra/medium requested after durable claim",
+        "review": "surface_default/root deep plus Charlie independent read-only QA",
+        "live_authority": false
+      },
+      "acceptance": "Freeze a deterministic content-free Personal Docs versus Native Knowledge ownership and future cutover contract: Personal Docs remains current truth and sole current write/exact-read owner, while Native Knowledge cannot become a mirror, fallback, parallel truth, dual-write target, automatic import target or mixed-query peer before a separately selected migration.",
+      "done_when": "A canonical validator and focused tests enforce exact owner, truth, writer, exact-reader, fallback, adapter, migration, USI index-only and plugin-exclusion tuples; Native Knowledge exact reads remain blocked until NMG-02, UDA-05 remains the sole future adapter after NMG-02 and an explicit activation scope, and no source/runtime/provider/private-data access, migration, import, backfill, delete, rename, productive indexing, adapter registration or live effect occurs.",
+      "evidence": {
+        "target_environment": "local",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "deterministic_contract",
+          "focused_test",
+          "canonical_check",
+          "independent_deep_review"
+        ],
+        "preclaim_verified": {
+          "all_three_targets_absent": true,
+          "cross_lane_overlap": "zero with CAO-08E",
+          "unavoidable_hotfiles": [],
+          "material_decision": "none; no migration is selected and any later migration/cutover remains separately gated",
+          "immutable_inputs": {
+            "docs/plans/open-work-completion-master-roadmap.json": "67586d33f391a8fced97a2289c85cf52979eb731",
+            "docs/plans/multi-agent-execution-guidance.json": "32c8a0c2bd3e6365a8e3cbc612ada0b4c932a8be",
+            "docs/plans/native-knowledge-runtime-legacy-boundary-inventory.json": "c6679665fe5f5332826740667051e67c15f21b3c",
+            "docs/plans/memory-raptorgraph-consolidation-roadmap.md": "51197fa3c6673abe9615686ab0c964e2cf6c0398",
+            "docs/plans/unified-source-index-architecture-contract.md": "8a71ec4da68f0dbedc6214423f2b7a1fd45fded5",
+            "docs/plans/unified-source-index-implementation-roadmap.md": "8b7d41d085fc895272e27f3e7e317718120ce1c3",
+            "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md": "b508a07133d0c3d39f97104b6836834c4699d2ef",
+            "docs/plans/unified-source-index-runtime-integration-roadmap.md": "99a362d1d2ca681c14604bb2ac2c7d35feb70983",
+            "src/memory_store_interfaces.py": "ad933c8d741dc47890509800cbfef57eedc60800",
+            "docs/plans/memory-storage-roles-contract.md": "a9906bc8bf5e75d037e09a52b8a9177bee71cd03"
+          }
+        },
+        "forbidden": [
+          "edits outside the three new claimed files",
+          "Personal Docs, Knowledge, USI, UDA, UIR, plugin, scheduler, model, provider, route or productive source mutation",
+          "parallel truth, dual write, fallback, mirror, automatic import or mixed-query activation",
+          "migration, backfill, delete, rename, adapter registration or private-data access",
+          "commit, push, deploy or live action"
+        ],
+        "not_verified": [
+          "implementation, validator or focused tests",
+          "worker handoff, Root deep review or independent QA",
+          "productive memory runtime behavior",
+          "push, deploy or live action"
+        ]
+      },
+      "next_frontier_on_acceptance": "NMG-02-native-knowledge-store; NMG-03 and UDA-05 remain dependency-blocked and no migration or activation is authorized.",
+      "live_actions": false
     }
   ],
   "recommended_execution_order": [
@@ -17598,7 +17831,7 @@
     "OWM-12 Privacy-Safe Tool Usage Analytics: after TAX1, start the disjoint privacy/store baseline; wait for TAX5/TAX7/TAX10 at shared integration points and keep capture/backfill disabled until the single final activation decision.",
     "OWM-13 Gemma3 Maintenance Runtime Isolation: preserve the accepted repository packet but revalidate it against UIR-13 native shared observability; the historical GRO live gate cannot satisfy or authorize GMI activation.",
     "OWM-14 GraphRAG/RAPTOR Memory Performance And Observability: preserve GRO-00 through GRO-15 as historical plugin evidence only; do not open GRO slices or GRO-LIVE-ACTIVATION, and route native performance evidence through NMG-04A/04B, UIR-13 and USI-15.",
-    "OWM-15 Unified Source Index Foundation: USI-00 through USI-14 are accepted; NMG-00 is dependency-ready and claimable in the first bounded parallel wave after the satisfied cleanup and master-route gates. Other registered frontiers remain unselected; keep successors dependency-blocked, Obsidian excluded and every productive source disabled.",
+    "OWM-15 Unified Source Index Foundation: USI-00 through USI-14 and NMG-00 are accepted; NMG-01 is registered and claimable in the second bounded parallel wave. Keep NMG-02 onward dependency-blocked, Obsidian excluded, Personal Docs authoritative and every productive source disabled.",
     "OWM-19 USI Runtime And Consumer Integration: start at UIR-03 after exact composition-hotfile handoff; bind query_knowledge natively, serialize app/Chat/Agent/runtime hotfiles and execute UIR-12 classification, NMG-07 retirement and UIR-12A verification in order.",
     "OWM-20 USI Domain Adapter Rollout: UDA-00 is registered; build Personal Memory and Personal Docs first, select UDA-05 only after NMG-02 for an explicit native Knowledge scope, and never register Obsidian/ORCA vault as a source or fallback.",
     "OWM-21 USI Data Lifecycle And Operations: ULO-00 is registered; use synthetic owners and temporary databases, exclude legacy plugin artifacts from lifecycle authority, serialize Auth/backup/wipe hotfiles and retain every action-specific authorization.",
@@ -17606,7 +17839,7 @@
     "OWM-17 Code Lineage And Timeline: after USI identity, start CLT-00 with synthetic Git fixtures; keep Git read-only, label time first-observable and stop before real history backfill until one final activation decision.",
     "OWM-18 Lens Code Graph: after the bounded CBM graph API, start LCG-00 and fixture/backend work with one UI owner; preserve the visually strong Code Planet mode but keep production placement and real project graphs disabled until one independent UI-live decision.",
     "OWM-1 Version 1.0 Release Gate: do not claim 1.0 until UI live.",
-    "OWM-25 Coding Loop Planning, Memory And Gate Consolidation: CAO-08A through CAO-08C are accepted; CAO-08D and NMG-00 are dependency-ready and claimable in the first bounded parallel wave after the satisfied cleanup and master-route gates. CAO-08C1 is deferred to a later reclaim. Planning is authoritative, RAPTOR/GraphRAG is advisory at four checkpoints, routine engineering gates are autonomous, and only live actions remain user-gated for this run.",
+    "OWM-25 Coding Loop Planning, Memory And Gate Consolidation: CAO-08A through CAO-08D are accepted; CAO-08E and NMG-01 are registered and claimable in the second bounded parallel wave. CAO-08C1 is deferred to a later reclaim. Planning is authoritative, RAPTOR/GraphRAG is advisory at four checkpoints, routine engineering gates are autonomous, and only live actions remain user-gated for this run.",
     "OWM-26 Subagent Context And Delegation: CAO-08J, ACPR-17 authoring and H1-39 authoring are accepted. After CAO-08A/08B, implement CAO-08B1 role capsules, CAO-08C controller and CAO-08C1 bounded delegation; ACPR-17 verifies VCL-7 only after its exact prerequisites, and H1-39 remains a later read-only projection. Adapter activation and external dispatch are user-gated, while subsequent routine in-policy internal children are machine/agent automatic and quiet.",
     "OWM-27 Live Contextual Layer: LCL-00 roadmap authoring, deep review and router registration are accepted. LCL-01 is the first future frontier only after CAO-08B acceptance; later fake runtime, candidate ledger, canonical promotion, project projection, UI, local process, soak and production slices follow exact dependencies and five separate user/live gates. Hypotheses remain advisory and never override Planning, domain truth, USI, Memory/Causal review, claims or gates.",
     "OWM-3 Autonomous Coding runtime control: follow OWM-25's dependency order; no runtime, worker dispatch, publication or live authority was granted by the roadmap-authoring run.",
