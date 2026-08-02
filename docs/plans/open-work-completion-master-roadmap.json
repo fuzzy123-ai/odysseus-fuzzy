@@ -137,7 +137,7 @@
           "mode": "read_only",
           "writer_claim": false,
           "allowed_write_paths": [],
-          "state": "wave3_rebaselined_with_preserved_same_owner_partial",
+          "state": "active_wave3_rebaseline_committed",
           "evidence_required": [
             "path collision readback",
             "focused test readback",
@@ -151,7 +151,7 @@
         "focused_tests": "Wave 2: Root CAO A-E lane 155 passed and NMG-01 focused 12 passed; Charlie focused 22 passed and combined independent regression 200 passed; one existing SQLAlchemy deprecation warning",
         "master_route": "surface_default/root; exact runtime model identifier not exposed",
         "worktree_policy": "Exactly one clean canonical Git worktree; parallel lanes use disjoint exact-path claims and shared router/hotfiles stay root-only.",
-        "implementation_gate": "Revalidated after fail-closed freeze: correction commit d9b5c39e binds all 16 immutable inputs, Root reviewed and hashed the exact two same-owner CAO partials created before freeze, the other five targets remain absent, and Charlie confirmed zero foreign paths/overlap. Resume still requires this preserved-partial rebaseline commit; no live authority is implied."
+        "implementation_gate": "Satisfied after fail-closed recovery: correction commit d9b5c39e binds all 16 immutable inputs and rebaseline commit e1065aae preserves the exact two Root-reviewed same-owner CAO partials; the other five targets remained absent and Charlie confirmed zero foreign paths/overlap. No live authority is implied."
       },
       "repo_cleanup_one_worktree_gate": {
         "id": "REPO-CLEANUP-ONE-WORKTREE",
@@ -637,9 +637,10 @@
         "NMG-02": "73114d810fa3cb317c2e471e71ab526388f89d387f8c995dd9c126304e30e528"
       },
       "preflight": {
-        "baseline_status": "revalidated_with_preserved_same_owner_partial_pending_commit",
+        "baseline_status": "passed_revalidated_with_preserved_same_owner_partial",
         "baseline_failure": "Registration commit ccb2b2af changed both source roadmaps after their pre-registration blob OIDs were recorded; all seven targets remained absent and workers froze before edits.",
         "baseline_correction_commit": "d9b5c39edaeddf64df40589602fb46f4e8d7ecb6",
+        "rebaseline_commit": "e1065aae61ef7e64eee80bb037ca5d930790f8cf",
         "corrected_immutable_oid_check": "16_of_16_passed",
         "preserved_same_owner_partial": {
           "owner": "Bob/Terra-requested",
@@ -17940,8 +17941,9 @@
         "registration_commit": "ccb2b2af99d61ff06d9b6efc1ee869610fbf8262",
         "target_paths_absent_at_claim": true,
         "cross_lane_overlap_count": 0,
-        "baseline_state": "revalidated_preserved_same_owner_partial_pending_rebaseline_commit",
+        "baseline_state": "valid_committed_with_preserved_same_owner_partial",
         "baseline_correction_commit": "d9b5c39edaeddf64df40589602fb46f4e8d7ecb6",
+        "rebaseline_commit": "e1065aae61ef7e64eee80bb037ca5d930790f8cf",
         "preserved_partial_path_count": 2,
         "handoff_required": true,
         "blocker": null
@@ -18047,8 +18049,9 @@
         "registration_commit": "ccb2b2af99d61ff06d9b6efc1ee869610fbf8262",
         "target_paths_absent_at_claim": true,
         "cross_lane_overlap_count": 0,
-        "baseline_state": "revalidated_clean_pending_rebaseline_commit",
+        "baseline_state": "valid_committed_clean",
         "baseline_correction_commit": "d9b5c39edaeddf64df40589602fb46f4e8d7ecb6",
+        "rebaseline_commit": "e1065aae61ef7e64eee80bb037ca5d930790f8cf",
         "preserved_partial_path_count": 0,
         "handoff_required": true,
         "blocker": null
