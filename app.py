@@ -661,6 +661,75 @@ from services.tts import get_tts_service
 tts_service = get_tts_service()
 logger.info("TTS service initialized (provider managed via admin settings)")
 
+# Privacy transcription is a separate, default-off local pipeline.  Enabling
+# it requires explicitly disabling every legacy STT ingress first.
+from src.transcription_runtime import TranscriptionRuntime, TranscriptionRuntimeConfig
+
+_transcription_config_values = {
+    key: os.getenv(key)
+    for key in (
+        "ODYSSEUS_TRANSCRIPTION_ENABLED",
+        "ODYSSEUS_TRANSCRIPTION_LOCAL_ONLY",
+        "ODYSSEUS_TRANSCRIPTION_RECORDING_AUTHORIZED",
+        "ODYSSEUS_TRANSCRIPTION_MAX_BYTES",
+        "ODYSSEUS_TRANSCRIPTION_MAX_CHUNK_BYTES",
+        "ODYSSEUS_TRANSCRIPTION_RESERVATION_TTL_SECONDS",
+        "ODYSSEUS_TRANSCRIPTION_REQUEST_TIMEOUT_SECONDS",
+        "ODYSSEUS_TRANSCRIPTION_BRIDGE_DEPTH",
+        "ODYSSEUS_TRANSCRIPTION_WORKER_POLL_SECONDS",
+        "ODYSSEUS_TRANSCRIPTION_SHUTDOWN_TIMEOUT_SECONDS",
+        "ODYSSEUS_TRANSCRIPTION_RETENTION_DAYS",
+    )
+    if os.getenv(key) is not None
+}
+transcription_config = TranscriptionRuntimeConfig.from_mapping(_transcription_config_values)
+
+def _exact_runtime_flag(name: str, default: str) -> bool:
+    value = os.getenv(name, default).strip().lower()
+    if value not in {"true", "false"}:
+        raise RuntimeError("invalid runtime feature configuration")
+    return value == "true"
+
+legacy_stt_enabled = _exact_runtime_flag("ODYSSEUS_LEGACY_STT_ENABLED", "true")
+legacy_telegram_stt_enabled = any(
+    _exact_runtime_flag(key, "false")
+    for key in ("TELEGRAM_STT_ENABLED", "TELEGRAM_VOICE_STT_ENABLED")
+)
+if transcription_config.enabled and (legacy_stt_enabled or legacy_telegram_stt_enabled):
+    raise RuntimeError("privacy transcription requires legacy STT to be disabled")
+if transcription_config.enabled:
+    from services.transcription.faster_whisper_adapter import LocalFasterWhisperAdapter
+    from src.maintenance_model_policy import MaintenanceModelProfile
+    from src.transcription_local_model import Gemma3LocalReviewTransport
+    from src.transcription_pipeline import TranscriptionPipeline
+    from src.transcription_review import TranscriptionReviewer
+    from src.transcription_store import TranscriptionStore
+
+    _transcription_store = TranscriptionStore(
+        os.path.abspath(os.getenv("ODYSSEUS_TRANSCRIPTION_ROOT", os.path.join(DATA_DIR, "transcriptions"))),
+        max_bytes=transcription_config.max_bytes,
+        max_chunk_bytes=transcription_config.max_chunk_bytes,
+        reservation_ttl_seconds=transcription_config.reservation_ttl_seconds,
+    )
+    _transcription_adapter = LocalFasterWhisperAdapter(
+        os.path.abspath(os.environ["ODYSSEUS_TRANSCRIPTION_MODEL_DIR"])
+    )
+    _transcription_reviewer = TranscriptionReviewer(
+        Gemma3LocalReviewTransport(
+            os.getenv("OLLAMA_BASE_URL", "http://ollama:11434"),
+            MaintenanceModelProfile.create(runtime_enabled=True),
+        )
+    )
+    _transcription_pipeline = TranscriptionPipeline(
+        _transcription_store, _transcription_adapter, reviewer=_transcription_reviewer
+    )
+    transcription_runtime = TranscriptionRuntime(
+        transcription_config, store=_transcription_store, pipeline=_transcription_pipeline
+    )
+else:
+    transcription_runtime = TranscriptionRuntime(transcription_config)
+app.state.transcription_runtime = transcription_runtime
+
 # ========= EXCEPTION HANDLERS =========
 @app.exception_handler(SessionNotFoundError)
 async def session_not_found_handler(request: Request, exc: SessionNotFoundError):
@@ -848,12 +917,15 @@ app.include_router(setup_chatgpt_subscription_routes())
 from routes.tts_routes import setup_tts_routes
 app.include_router(setup_tts_routes(tts_service))
 
-# STT
-from services.stt import get_stt_service
-stt_service = get_stt_service()
-from routes.stt_routes import setup_stt_routes
-app.include_router(setup_stt_routes(stt_service))
-logger.info("STT service initialized (provider managed via settings)")
+# Owner-scoped privacy transcription, and the mutually exclusive legacy STT.
+from routes.transcription_routes import setup_transcription_routes
+app.include_router(setup_transcription_routes(transcription_runtime))
+if legacy_stt_enabled:
+    from services.stt import get_stt_service
+    stt_service = get_stt_service()
+    from routes.stt_routes import setup_stt_routes
+    app.include_router(setup_stt_routes(stt_service))
+    logger.info("Legacy STT service initialized")
 
 # Documents (artifacts/canvas)
 from routes.document_routes import setup_document_routes
@@ -1771,6 +1843,9 @@ app.router.lifespan_context = _lifespan
 async def _startup_event():
     global upload_cleanup_task
     logger.info("Application starting up...")
+    # This is the sole privacy-transcription worker lifecycle.  It performs
+    # durable recovery before the application begins serving traffic.
+    await asyncio.to_thread(transcription_runtime.start)
     webhook_manager.set_loop(asyncio.get_running_loop())
     try:
         from src.plugin_system import load_plugins
@@ -2064,6 +2139,9 @@ async def _startup_event():
 
 async def _shutdown_event():
     logger.info("Application shutting down...")
+    # Bound shutdown before tearing down the rest of the application; no
+    # generic FastAPI background task owns this worker.
+    await asyncio.to_thread(transcription_runtime.stop)
     delivery_task = getattr(app.state, "_security_access_alert_delivery_task", None)
     if delivery_task is not None and not delivery_task.done():
         delivery_task.cancel()
