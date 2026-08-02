@@ -1,6 +1,6 @@
 # Gemma3 Maintenance Runtime Isolation Roadmap
 
-Stand: 2026-07-18
+Stand: 2026-08-02
 
 Status: `GMI-00_through_GMI-15_repo_complete / packet_ready / two_live_gates_closed`
 
@@ -8,6 +8,14 @@ Queue of Record: Diese Datei ist der einzige aktive Gemma-Maintenance-Plan.
 `gemma3-chunk-graphrag-abc-roadmap.md` und
 `gemma3-local-model-priority-process.md` bleiben historische Evidence bzw.
 Operator-Kontext, erzeugen aber keine zweite aktive Slice-Queue.
+
+Entscheidungsnachtrag 2026-08-02: Die lokale Memory-/RAPTOR-Aufbereitung wird
+als Zwei-Lane-Architektur weitergeplant. Ein Embedding-/Similarity-Modell
+uebernimmt Retrieval, Clustering und Dedupe-Kandidaten; das generative
+Maintenance-Modell bleibt fuer Evidenz-Zusammenfassungen, Cluster-Labels und
+Entity-/Edge-Kandidaten verantwortlich. Dieser Nachtrag ist Roadmap-Autoritaet,
+aber keine Runtime-, Download-, Re-Embedding-, Fine-Tuning- oder Live-Go-
+Freigabe.
 
 ## 1. Ziel
 
@@ -40,7 +48,10 @@ Diese Entscheidungen gelten bis zu spaeteren Modellvergleichstests:
 
 | Feld | Entscheidung |
 | --- | --- |
-| Modell | exakt `gemma3:4b` |
+| Generatives Maintenance-Modell | exakt `gemma3:4b`; bleibt fuer Summary, Labeling und strukturierte Entity-/Edge-Kandidaten bestehen |
+| Semantische Lane | separates Embedding-Modell fuer Retrieval, Clustering, Similarity und Dedupe; kein Generator und keine Truth-Write-Autoritaet |
+| Erster Vergleichskandidat | `embeddinggemma:300m-qat-q4_0`; nur nach Offline-Vergleich und migration-safe Re-Embedding waehlbar |
+| Vergleichsbaselines | bestehendes `all-MiniLM-L6-v2`; `paraphrase-multilingual-MiniLM-L12-v2` als kleine mehrsprachige Baseline; `BAAI/bge-m3` nur als optionale Quality-Ceiling-Messung |
 | Rolle | ausschliesslich `maintenance` |
 | Provider | lokales Ollama; kein API-/Cloud-Fallback |
 | Agent-/Chat-Einsatz | technisch abgelehnt, nicht nur dokumentarisch untersagt |
@@ -51,8 +62,9 @@ Diese Entscheidungen gelten bis zu spaeteren Modellvergleichstests:
 | Maximale Eingabe | `6.144` Tokens inklusive Instruktion, Evidenz, Schema und Reserveberechnung |
 | Maximale Ausgabe | zunaechst `512` Tokens |
 | Retrieval-Budget | hoechstens `4` Chunks und `4` Source-Referenzen |
+| Pre-Chunk Token Inventory | vor Chunking nur der abgenommene RMT8/RMT9-Report mit gepinntem lokalem Tokenizer; `content_tokens` und task-spezifische `effective_input_tokens` getrennt, kein Modell-/Provider-Aufruf und keine stille Trunkierung |
 | Context-Cache | Fresh TTL `300 s`, Negative TTL `30 s`, Stale Grace `3.600 s` |
-| Modellwechsel | deferred; erst nach separater Vergleichssuite |
+| Modellwechsel | kein pauschaler Ersatz von Gemma; nur getrennte Lane-Entscheidungen nach der Vergleichssuite |
 
 `6.144` Tokens sind ein operativer Input-Cap, keine Behauptung ueber das
 theoretische Modellfenster. Prompt, Output und Sicherheitsreserve muessen
@@ -60,8 +72,56 @@ zusammen innerhalb des `8.192`-Caps bleiben.
 
 Die persistierte globale Einstellung `agent_input_token_hard_max` wird in
 diesem Track nicht veraendert. Cloud- und Agent-Modelle behalten ihr bisheriges
-Verhalten. Spaetere per-Modell-Tests erhalten eine eigene Roadmap und koennen
-dann explizite Overrides fuer groessere oder kleinere Fenster begruenden.
+Verhalten. Spaetere per-Modell-Tests werden im NMG-04-Track der nativen
+Memory-/RAPTOR-Roadmap spezifiziert und koennen dort explizite Overrides fuer
+groessere oder kleinere Fenster begruenden.
+
+### 2.1 Zwei-Lane-Entscheidungsvertrag
+
+- Original-Chunks bleiben unveraenderliche Evidence. Paraphrasen,
+  Zusammenfassungen, Cluster-Labels und Graph-Kandidaten sind rebuildable
+  Derived Artifacts mit Source-Referenzen und ersetzen niemals den Quelltext.
+- Die semantische Lane darf Kandidaten ranken, clustern und fuer Dedupe
+  vorschlagen. Sie darf weder Text generieren noch Entitaeten/Relationen als
+  Wahrheit persistieren.
+- Die generative Lane erhaelt nur das bounded Evidence-Paket der Retrieval-
+  Lane und bleibt hinter Schema-Validator, Provenance und Review-Gate.
+- Vor jeder Chunk- oder Vergleichsplanung wird der normalisierte Quellumfang
+  ueber den abgenommenen RMT8/RMT9-Vertrag gezaehlt. Eine Schaetzung darf
+  Kapazitaetsplanung unterstuetzen, aber niemals als modellgenauer Count oder
+  als Grundlage fuer unbemerkte Trunkierung dienen.
+- `embeddinggemma:300m-qat-q4_0` ist der bevorzugte erste CPU-local Kandidat,
+  nicht vorab der Gewinner. Ein Wechsel setzt reproduzierbare Offline-Evidence
+  gegen die bestehende Lane voraus.
+- Ein Dimensions- oder Modellwechsel erzeugt eine parallele Collection-
+  Generation und re-embedded den vollstaendigen Corpus. In-place-Mischung alter
+  und neuer Vektoren, unvollstaendiges Re-Embedding und Loeschen der alten
+  Generation vor Readback sind No-Go.
+
+### 2.2 Vergleichs- und Fine-Tuning-Gates
+
+Die spaetere NMG-04-Arbeit muss vor einer Provider-Auswahl mindestens folgende
+Messungen auf einem eingefrorenen, source-/zeitgetrennten Corpus liefern:
+
+- Retrieval: `Recall@4`, `nDCG@10`, relevante/irrelevante Chunks und Budget-
+  Waste unter dem bestehenden Vier-Chunk-Budget;
+- Memory-Qualitaet: Duplicate-F1, Negations-/Zeit-/Entity-Hard-Negatives und
+  Clusterqualitaet;
+- generative Folgequalitaet: Summary-Faithfulness, Entity-/Edge-Praezision,
+  JSON-Schema-Passrate und korrekte Evidence-Referenzen;
+- Betrieb: CPU-p95, Peak-RAM, Embedding-Durchsatz, Vektorspeicher und
+  Rebuild-/Rollback-Dauer.
+- Umfang/Kosten: exakte `content_tokens` des einmaligen normalisierten Corpus
+  sowie tatsaechlich verarbeitete Tokens inklusive Task-Prompts, Special Tokens
+  und Chunk-Overlap. Beide Werte werden getrennt berichtet, damit Overlap keine
+  scheinbare Corpusgroesse erzeugt.
+
+Fine-Tuning beginnt erst, wenn ein nicht getuntes Modell eine dokumentierte
+Qualitaetsluecke zeigt. Embedding-Tuning nutzt gepruefte
+`anchor/positive/hard-negative`-Paare und einen unangetasteten Holdout;
+generatives QLoRA/SFT wird separat fuer Schema, Evidence-Zitation und
+Unsicherheitsverhalten bewertet. Kein Adapter darf Modellrollen
+zusammenlegen, Review umgehen oder neue Truth-Write-Autoritaet erhalten.
 
 ## 3. Modus und Gate-Policy
 
@@ -1340,8 +1400,12 @@ No-Go:
 
 Deferred:
 
-- Modellvergleich, Wechsel von Gemma3, GPU-Provisioning, globale Kontextpolicy,
-  UI-Redesign und produktive Gross-Rebuilds.
+- Ausfuehrung des in Abschnitt 2 beschriebenen Modellvergleichs und jedes
+  Re-Embedding/Fine-Tuning bleiben bis zum dependency-ready NMG-04-Claim
+  deferred; Wechsel von Gemma3, GPU-Provisioning, globale Kontextpolicy,
+  UI-Redesign und produktive Gross-Rebuilds bleiben ebenfalls deferred. Die
+  Implementierung des exakten Pre-Chunk-Counts gehoert in RMT8/RMT9 und darf
+  nicht nebenbei in diesem Track entstehen.
 
 ## 12. Stop-Regeln
 
@@ -1389,4 +1453,6 @@ Deferred:
 - Alle Repo-Slices, Acceptance und Rollback-Paket sind gruen.
 - Genau ein finales Live-Gate existiert; ohne dieses bleibt die neue Runtime
   default-off.
-- Vergleichstests und ein moeglicher Modellwechsel sind explizit deferred.
+- Die Zwei-Lane-Entscheidung und ihre Vergleichsmetriken sind dokumentiert;
+  Vergleichsausfuehrung, Re-Embedding, Fine-Tuning und jeder Modellwechsel
+  bleiben bis zum dependency-ready NMG-04-Claim explizit deferred.

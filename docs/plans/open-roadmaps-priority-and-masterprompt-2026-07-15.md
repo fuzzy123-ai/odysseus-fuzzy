@@ -4,6 +4,14 @@ Stand: 2026-07-15
 
 Status: Ausfuehrungsreihenfolge festgelegt; keine Implementierung durch dieses Dokument
 
+Ausfuehrungshinweis 2026-08-02: Die damalige Empfehlung eines separaten
+Integrationsworktrees ist durch die neuere Nutzerentscheidung
+`REPO-CLEANUP-ONE-WORKTREE` ersetzt. Aktuelle Arbeit verwendet genau einen
+kanonischen, sauberen Worktree mit disjunkten Exact-Path-Claims. Dieses
+historische Prioritaetsdokument bleibt Entscheidungsherkunft; die aktuelle
+Claim- und Gate-Wahrheit liegt in
+`docs/plans/open-work-completion-master-roadmap.json`.
+
 ## Ziel
 
 Dieses Dokument legt die Reihenfolge fuer die noch offenen Roadmap-Arbeiten fest

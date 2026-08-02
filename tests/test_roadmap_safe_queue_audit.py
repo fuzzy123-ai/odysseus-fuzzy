@@ -251,6 +251,47 @@ def test_audit_classifies_non_ui_backend_gate_families(tmp_path):
     assert [item["family"] for item in report["excluded_design_decision_packets"]] == ["ui_design"]
 
 
+def test_audit_routes_sirp_live_slices_and_alert_delivery_out_of_other_gate(tmp_path):
+    plans = tmp_path / "plans"
+    plans.mkdir()
+    _write_json(
+        plans / "security.json",
+        {
+            "slice_queue": [
+                {
+                    "id": "SIRP-12-live-observe-and-delivery",
+                    "class": "needs_live_go",
+                    "status": "blocked_by_operator_go",
+                    "claimable": False,
+                },
+                {
+                    "id": "SIRP-14-session-invalidation-canary",
+                    "class": "needs_live_go",
+                    "status": "blocked_by_operator_go",
+                    "claimable": False,
+                },
+            ],
+            "gate_queue": [
+                {
+                    "id": "OPS-ALERT-DELIVERY-GO",
+                    "class": "needs_live_go",
+                    "status": "open",
+                }
+            ],
+        },
+    )
+
+    report = audit_plan_dir(plans, mvp_state_path=plans / "missing-mvp.json")
+    packets = {item["family"]: item for item in report["decision_packets"]}
+
+    assert packets["security_ops"]["gate_ids"] == [
+        "SIRP-12-live-observe-and-delivery",
+        "SIRP-14-session-invalidation-canary",
+    ]
+    assert packets["observability_ops"]["gate_ids"] == ["OPS-ALERT-DELIVERY-GO"]
+    assert "other_gate" not in packets
+
+
 def test_audit_classifies_harbor_v2_handoff_gates_as_ui_design(tmp_path):
     plans = tmp_path / "plans"
     plans.mkdir()

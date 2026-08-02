@@ -24,6 +24,45 @@ versioned sources, bounded retrieval, rebuildable graph/RAPTOR projections,
 reviewable causal claims, native runtime/query integration and verified legacy
 retirement.
 
+## Dual-Lane Model Amendment 2026-08-02
+
+Native RAPTOR trennt die semantische und die generative Modellrolle:
+
+```text
+immutable source -> extraction + normalization -> exact token preflight
+  -> immutable source chunks
+  -> semantic lane: retrieval / clustering / similarity / dedupe candidates
+  -> generative lane: evidence summaries / cluster labels / entity-edge JSON
+  -> schema + provenance + review gates
+  -> rebuildable derived artifacts, never source replacement
+```
+
+Der erste Offline-Vergleichskandidat fuer die semantische Lane ist
+`embeddinggemma:300m-qat-q4_0`. Das bestehende `all-MiniLM-L6-v2` bleibt
+Baseline; `paraphrase-multilingual-MiniLM-L12-v2` dient als kleine
+mehrsprachige Vergleichsbasis und `BAAI/bge-m3` optional als Quality Ceiling.
+Das exakte `gemma3:4b`-Maintenance-Profil bleibt zunaechst die generative Lane.
+Keines dieser Modelle ist durch diese Roadmap produktiv ausgewaehlt oder fuer
+Download, Re-Embedding, Fine-Tuning oder Live-Aktivierung freigegeben.
+
+NMG-04 konsumiert den abgenommenen RMT8/RMT9-Preflight-Vertrag. Er zaehlt den
+normalisierten Inhalt mit einem revisions- und digest-gepinnten lokalen
+Tokenizer vor dem Chunking, getrennt von task-spezifischem Prompt-/Special-
+Token-Overhead. Projekte werden als Summe einzeln gezaehlter Dateien berichtet;
+Rohinhalt und Klartextpfade duerfen den inhaltsfreien Report nicht verlassen.
+Fehlende Assets oder Sicherheitsgrenzen blockieren den exakten Count, statt
+eine Schaetzung als exakt auszugeben.
+
+NMG-04 muss die Auswahl anhand eines eingefrorenen, source-/zeitgetrennten
+Corpus entscheiden. Pflichtmetriken sind `Recall@4`, `nDCG@10`, Duplicate-F1,
+Negations-/Zeit-/Entity-Hard-Negatives, Clusterqualitaet, Summary-Faithfulness,
+Entity-/Edge-Praezision, JSON-Schema-Passrate, CPU-p95, Peak-RAM,
+Vektorspeicher sowie Rebuild-/Rollback-Dauer. Fine-Tuning ist ein nachgelagerter
+Schritt und nur bei belegter Baseline-Luecke zulaessig: contrastive
+`anchor/positive/hard-negative`-Daten fuer die semantische Lane, separates
+QLoRA/SFT fuer generatives Schema- und Evidence-Verhalten, jeweils mit
+unangetastetem Holdout und ohne neue Truth-Write-Autoritaet.
+
 ## Historical Goal
 
 Make Memory, RAG, RaptorGraph, ORCA/Lens and Universal Inbox writes follow one
@@ -78,6 +117,11 @@ gets a bounded operator Go.
   plan.
 - Do not remove legacy ORCA/Obsidian compatibility in the first pass.
 - Do not persist raw source text in graph, memory, ledger or evidence.
+- Do not replace canonical source chunks with paraphrases, summaries, labels or
+  embeddings; all model outputs remain derived and rebuildable.
+- Do not mix embedding models or dimensions inside one collection generation.
+- Do not call a model/provider, download tokenizer assets at runtime, silently
+  truncate input or label an estimated token count as exact.
 
 ## What Must Be Done
 
@@ -110,13 +154,13 @@ plugin direction and are not claimable by the current system.
 
 | Slice | Class | Dependencies | Outcome |
 | --- | --- | --- | --- |
-| `NMG-00-legacy-boundary-audit` | safe_offline | explicit goal | Inventory every remaining core/app/plugin coupling and freeze `retire/excluded` decisions without deleting code. |
+| `NMG-00-legacy-boundary-audit` | safe_offline | explicit goal, `REPO-CLEANUP-ONE-WORKTREE`, `CAO-MASTER-ROUTE-VERIFICATION` | Inventory every remaining core/app/plugin coupling and freeze `retire/excluded` decisions without deleting code. The three-file claim remains unclaimable until both gates pass. |
 | `NMG-01-native-knowledge-contract` | repo_only | `NMG-00-legacy-boundary-audit`, USI-01, USI-02 | Freeze the Personal Docs/Knowledge boundary and cutover rule: Personal Docs remains current truth until an explicitly selected migration; Knowledge must not create parallel truth or dual writes. |
 | `NMG-02-native-knowledge-store` | repo_only | `NMG-01-native-knowledge-contract` | Implement the native domain store and exact reader with owner, policy, version, tombstone and export contracts. |
 | `NMG-03-native-adapter-acceptance` | repo_only | `NMG-02-native-knowledge-store`, UDA-05 | Accept the single UDA-05 adapter against exact-read, version, deletion and no-fallback fixtures; NMG does not implement a second adapter. |
-| `NMG-04-native-RAPTOR-worker-contract` | safe_offline | `NMG-03-native-adapter-acceptance`, USI-10 | Define provider-neutral clustering, summarization, model/algorithm injection, artifact ownership, bounded execution and failure isolation over immutable USI snapshots. |
-| `NMG-04A-native-RAPTOR-worker` | repo_only | `NMG-04-native-RAPTOR-worker-contract` | Implement deterministic/injected clustering and summarization workers plus a rebuildable derived-artifact store without source writes. |
-| `NMG-04B-native-RAPTOR-runtime-projection` | repo_only | `NMG-04A-native-RAPTOR-worker`, USI-10, UIR-03 | Compose native RAPTOR runs and project their manifests into USI; the existing adapter alone is not treated as a worker. |
+| `NMG-04-native-RAPTOR-worker-contract` | safe_offline | `NMG-03-native-adapter-acceptance`, USI-10, accepted RMT8 contract | Define separate provider-neutral semantic and generative lanes, immutable-source/derived-artifact ownership, consumption of the exact pre-chunk token report, model/algorithm injection, frozen-corpus comparison, bounded execution, migration-safe collection generations and failure isolation over immutable USI snapshots. |
+| `NMG-04A-native-RAPTOR-worker` | repo_only | `NMG-04-native-RAPTOR-worker-contract`, accepted RMT9 preflight | Implement deterministic/injected clustering and summarization workers, the dual-lane offline comparison harness with separate source-token and processed-token accounting, and a rebuildable derived-artifact store without source writes; fine-tuning remains gated behind measured baseline gaps. |
+| `NMG-04B-native-RAPTOR-runtime-projection` | repo_only | `NMG-04A-native-RAPTOR-worker`, USI-10, UIR-03 | Compose native RAPTOR runs only with the accepted semantic/generative pair, project generation-pinned manifests into USI and preserve rollback to the prior embedding generation; the existing adapter alone is not treated as a worker. |
 | `NMG-05-causal-domain-contract` | safe_offline | `NMG-01-native-knowledge-contract` | Define `CausalClaimStore` as sole causal truth/review owner, with epistemic states, evidence, conflicts, retractions and forbidden automatic inference. |
 | `NMG-05A-causal-store-and-review` | repo_only | `NMG-05-causal-domain-contract` | Persist evidence-bound claims and append-only review transitions with exact owner scope and no USI dual writes. |
 | `NMG-05B-causal-candidate-generation` | repo_only | `NMG-05A-causal-store-and-review`, selected accepted UDA adapters | Generate bounded candidates for review; correlation, co-occurrence and model suggestions never become `supported` automatically. |
@@ -250,4 +294,5 @@ Charlie path:
 - Go: canonical lifecycle and adapters exist, with no raw content persistence.
 - Partial: native runtime composition or legacy caller retirement remains open.
 - Deferred: live reindex and storage migration require operator Go.
-- No-Go: raw source text or private paths enter memory/graph evidence.
+- No-Go: raw source text or private paths enter memory/graph evidence; an
+  estimated, truncated or tokenizer-unpinned count is accepted as exact.

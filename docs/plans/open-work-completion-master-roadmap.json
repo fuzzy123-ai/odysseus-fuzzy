@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-02T08:25:00+02:00",
-  "status": "live_contextual_layer_roadmap_registered / native_knowledge_graph_causality_master_registered / ops_alert_publication_preserved_in_existing_handoffs",
+  "updated_at": "2026-08-02T10:55:00+02:00",
+  "status": "parallel_development_p0_cleanup_waiting_on_user / implementation_waiting_cleanup_and_master_route / ops_alert_live_gates_preserved",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -10,31 +10,33 @@
     "required_before_claim": true,
     "rules": [
       "This file remains the current authority for open-work and gate state.",
+      "REPO-CLEANUP-ONE-WORKTREE must pass before CAO-08D or NMG-00 can be claimed; exactly one canonical Git worktree remains and every retained path has explicit ownership or evidence.",
       "Execute only the dependency-ready SIRP frontier from the registered production-completion roadmap; do not invent work outside its detailed slices or treat one live gate as authority for another.",
       "Keep broad UI and design work outside the non-UI execution ledger; TAX7/TUA9 may make only the explicitly scoped existing Admin metadata/aggregate projections after their backend contracts are complete."
     ]
   },
-  "goal_command": "/goal Implementiere nach UIX-ABC24 die SIRP-Roadmap dependency-first bis zur produktiven operator-gestuetzten Security-Response-Kette; halte jede externe Aktion, jeden Deploy und jeden Live-Test hinter seinem exakten separaten Gate.",
-  "goal": "Deliver the SIRP assisted-security-response track from redacted evidence and durable incident/action state through exact explanation, fresh-auth operator approval, default-disabled typed executors, independent post-action readback, rollback and action-specific temporal live closure.",
+  "goal_command": "/goal Bereinige die neun Repository-, Roadmap-, Claim-, Gate- und Multitasking-Inkonsistenzen verlustfrei; stelle genau einen kanonischen Worktree her und oeffne CAO-08D plus NMG-00 erst nach Cleanup- und Master-Route-Gates.",
+  "goal": "Die neun identifizierten Inkonsistenzen verlustfrei bereinigen, einen eindeutigen Ein-Worktree-Ausgangszustand herstellen und danach sichere parallele CAO-08D/NMG-00-Ausfuehrung mit unabhaengiger QA ermoeglichen.",
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
     "safe_open_json_slices": 0,
-    "unique_live_gates": 56,
-    "unique_design_gates": 28,
-    "other_open_json_items": 108,
-    "queue_status": "ops_alert_c2_required_ci_green_d_transactional_executor_repo_implementation_claimed",
+    "unique_live_gates": 61,
+    "unique_design_gates": 29,
+    "other_open_json_items": 155,
+    "queue_status": "parallel_wave_cao08d_nmg00_selected_blocked_after_three_goal_turns_waiting_user_cleanup_authorities",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "live_contextual_layer": "lcl00_roadmap_deep_reviewed_registered_lcl01_waiting_cao08b",
+      "autonomous_coding_loop": "cao08a_through_c_accepted_c1_deferred_current_wave_cao08d_selected_waiting_cleanup_and_master_route",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
-      "planning_mcp": "repo_slices_done_live_gated",
+      "planning_mcp": "repo_complete_live_operations_gated_pmcp9_stale_detail_normalized",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
       "telegram_todo_truth": "ttd07a5_accepted_fd2340a6_a6_dependency_ready_live_default_off",
       "tool_taxonomy_registry": "active_repo_execution_live_default_off",
       "tool_usage_analytics": "planned_after_tax1_live_default_off",
       "gemma3_memory_ops": "gmi00_through_gmi15_repo_complete_packet_ready_two_live_gates_closed",
-      "memory_observability": "gro00_through_gro15_offline_go_live_gate_eligible_not_authorized",
+      "memory_observability": "gro00_through_gro15_historical_nmg00_selected_waiting_cleanup_and_master_route_productive_sources_off",
       "unified_source_index": "usi00_through_usi14_accepted_usi15_blocked_by_child_closure_productive_sources_off",
       "usi_runtime_consumer_integration": "uir00_through_uir02_accepted_uir03_dependency_ready_runtime_default_off",
       "usi_domain_adapters": "planned_child_source_waves_default_off_private_domains_deferred",
@@ -49,12 +51,12 @@
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
       "safe_open_count": 0,
-      "raw_audit_safe_open_count": 1,
-      "raw_audit_stale_item": "PMCP-9-definition-runtime-separation is completed in canonical Open-Work evidence but remains planned in its older detail roadmap; it is not the current frontier.",
-      "raw_audit_duplicate_frontier": "SIRP-11 is accepted in both canonical and detailed SIRP state. Historical PMCP-9 remains the only unrelated stale safe item; no SIRP safe-offline slice remains open.",
-      "other_open_count": 117,
-      "unique_live_gate_count": 56,
-      "unique_design_gate_count": 28,
+      "raw_audit_safe_open_count": 0,
+      "raw_audit_stale_item": null,
+      "raw_audit_duplicate_frontier": "SIRP-11 is accepted in both canonical and detailed SIRP state; no SIRP safe-offline slice remains open.",
+      "other_open_count": 155,
+      "unique_live_gate_count": 61,
+      "unique_design_gate_count": 29,
       "decision_packet_families": [
         "version_release",
         "calendar_reminders",
@@ -109,7 +111,285 @@
         "safe_default": "stop at deploy-live-go; keep production issuer uncomposed, deployment disabled and OPS-ALERT-DELIVERY-GO not_go"
       },
       "queue_exhausted": false,
-      "verified_at": "2026-07-27"
+      "raw_safe_queue_exhausted": true,
+      "guidance_normalization": {
+        "selected_parallel_lanes": [
+          "CAO-08D-scoped-execution-plane-consolidation",
+          "NMG-00-legacy-boundary-audit"
+        ],
+        "deferred_current_wave": [
+          "CAO-08C1-bounded-delegation-runtime"
+        ],
+        "qa_lane": "Charlie read-only collision, focused-test and combined-regression evidence",
+        "router_writer": "root only",
+        "focused_tests": "21 passed, 1 existing SQLAlchemy deprecation warning",
+        "master_route": "surface_default/root; exact runtime model identifier not exposed",
+        "worktree_policy": "Exactly one clean canonical Git worktree; parallel lanes use disjoint exact-path claims and shared router/hotfiles stay root-only.",
+        "implementation_gate": "No implementation claim or integration until REPO-CLEANUP-ONE-WORKTREE passes and the master is observably gpt-5.6-sol or the user explicitly authorizes surface_default/root for this bounded goal run."
+      },
+      "repo_cleanup_one_worktree_gate": {
+        "id": "REPO-CLEANUP-ONE-WORKTREE",
+        "class": "repo_only",
+        "owner": "root with explicit preservation handoffs",
+        "status": "waiting_on_user_lossless_preservation_and_master_route_authority",
+        "claimable": false,
+        "requested_by_user": "2026-08-02 cleanup steering",
+        "observed_worktree_count": 13,
+        "observed_pytest_artifact_directory_count": 233,
+        "readable_pytest_artifact_directory_count": 188,
+        "acl_blocked_pytest_artifact_directory_count": 45,
+        "acceptance": [
+          "git worktree list reports exactly one canonical worktree",
+          "every retained staged, unstaged and untracked path has explicit owner, claim or accepted evidence",
+          "unique UIX and OPS-Alert work is committed, integrated, archived or explicitly waived before its worktree is removed",
+          "generated pytest artifacts and the zero-byte %ln shell artifact are removed where filesystem authority permits",
+          "PMCP-9 no longer appears as a safe-open slice",
+          "all CAO immutable input object IDs are rehashed after cleanup"
+        ],
+        "known_preservation_blocks": [
+          "the canonical dev worktree contains 32 modified tracked paths and 31 meaningful untracked paths; 58 working blobs are not identical to any currently reachable local commit and require lossless preservation",
+          "abc-open-roadmaps contains four staged UIX paths and six locally unique commits",
+          "ops-alert-final contains two commits not in local fuzzy/dev plus at least one untracked receipt and unreadable receipt/test directories",
+          "ops-alert-sec163 contains an unreadable test-artifact directory",
+          "the completed cleanup task released its active work, but ref creation, the four-path local archive commit, filesystem preservation moves and non-force worktree removal still require explicit authority"
+        ],
+        "prepared_cleanup": {
+          "latest_cleanup_task_handoff": {
+            "thread_id": "019f9fe1-36f9-7d11-a2f0-9b65c8edccd3",
+            "task_complete_observed_at": "2026-08-02T09:49:08.675Z",
+            "handoff_reverified_at": "2026-08-02T10:05:17.7027306Z",
+            "raw_provider_output_persisted": false,
+            "active_claimed_slices_after_handoff": [],
+            "worktree_count_after_handoff": 13,
+            "result": "handoff_received_but_one_worktree_acceptance_not_met"
+          },
+          "local_comparison_refs": {
+            "primary_head": "8723fb7858f05d62541f1f1ae10e503438cc6858",
+            "fuzzy_dev": "d691cebc0b850e13b7087ab3866d7902940ead67",
+            "network_fetch_performed": false
+          },
+          "canonical_worktree_retained_change_inventory": {
+            "modified_tracked_paths": 32,
+            "meaningful_untracked_paths": 31,
+            "generated_pytest_untracked_files": 3886,
+            "zero_byte_shell_artifact_count": 1,
+            "working_blobs_not_identical_to_any_local_commit": 58,
+            "cao08d_allowed_path_overlap": 0,
+            "nmg00_allowed_path_overlap": 0,
+            "disposition": "preserve by logical path-scoped packets before cleanup; no broad staging, cleaning or discard"
+          },
+          "archive_plan": {
+            "commit_ref_namespace": "refs/archive/worktree-consolidation/20260802/",
+            "filesystem_preservation_root": "C:/tmp/odysseus-worktree-consolidation-20260802-preserve/",
+            "archive_refs_currently_present": 0,
+            "worktree_head_refs_required": 12,
+            "uix_staged_commit_ref_required": true,
+            "normal_non_force_worktree_removal_only": true,
+            "branch_or_archive_ref_deletion_allowed": false,
+            "authority": "waiting_on_user"
+          },
+          "clean_contained_worktree_removal_candidates": [
+            "C:/tmp/odysseus-abc-autonomous-ai-lens-20260716",
+            "C:/tmp/odysseus-abc-ttd-20260722",
+            "C:/tmp/odysseus-abc-usi09-20260723",
+            "C:/tmp/odysseus-deploy-accepted-20260724",
+            "C:/tmp/odysseus-deploy-integration-20260715"
+          ],
+          "detached_patch_equivalent_candidates_requiring_safety_refs": [
+            "C:/tmp/odysseus-ops-alert-c3-egress-20260731 at c6be0bc52e64627caebe0db70611723378ddb048",
+            "C:/tmp/odysseus-ops-alert-c4-bridge-20260731 at fede710bac8046caaf8f8267e92aa1655da8e8fb"
+          ],
+          "preserve_until_authorized_consolidation": [
+            "C:/tmp/odysseus-abc-open-roadmaps-20260715",
+            "C:/tmp/odysseus-merge-all-20260802",
+            "C:/tmp/odysseus-ops-alert-c3-egress-20260731",
+            "C:/tmp/odysseus-ops-alert-c4-bridge-20260731",
+            "C:/tmp/odysseus-ops-alert-c6-activation-20260731",
+            "C:/tmp/odysseus-ops-alert-final-20260731",
+            "C:/tmp/odysseus-sec163-publish-20260730"
+          ],
+          "uix_staged_packet": {
+            "paths": [
+              "static/frontpage-v3/inbox-workbench.css",
+              "static/frontpage-v3/inbox-workbench.js",
+              "static/frontpage-v3/index.html",
+              "tests/frontend/harbor-one-inbox-workbench.spec.js"
+            ],
+            "insertions": 1178,
+            "git_diff_check": "pass",
+            "javascript_syntax": "pass",
+            "bounded_secret_pattern_findings": 0,
+            "publication": "not authorized; exact local archive commit awaiting user permission"
+          },
+          "ops_alert_final_packet": {
+            "unique_commits_vs_local_fuzzy_dev": [
+              "011e8c6eb1c8db11c637f9709a2139d3666360c4 docs(ops): grant root helper authority probe",
+              "68b024831b3e73998a4ab1aeba8c324ac148e397 docs(ops): record successful root helper probe"
+            ],
+            "changed_tracked_path": "docs/plans/open-work-completion-master-roadmap.json",
+            "untracked_receipt_count": 1,
+            "receipt_schema_keys_only": [
+              "receipt_sha256",
+              "schema_id",
+              "source_envelope",
+              "source_envelope_kind"
+            ],
+            "disposition": "preserve; this is structured OPS evidence, not generic pytest noise"
+          },
+          "generated_artifacts": {
+            "pytest_directories_total": 233,
+            "readable_and_prepared_for_removal": 188,
+            "acl_blocked_requires_elevated_owner_cleanup": 45,
+            "zero_byte_shell_artifact": "%ln"
+          }
+        },
+        "blocked_audit": {
+          "consecutive_goal_turns": 3,
+          "same_blocking_condition": "Repository/Git cleanup mutations cannot start while surface_default/root has not been explicitly authorized for this bounded ABC run; exact archive-ref creation, the four-path UIX archive commit, filesystem preservation moves and non-force worktree removal are also not authorized.",
+          "meaningful_safe_progress_exhausted": [
+            "all thirteen registered worktrees inventoried and classified",
+            "the target cleanup task completion was observed and its handoff was reverified without persisting raw provider output",
+            "63 canonical-worktree retained paths were grouped into lossless path-scoped packets and confirmed disjoint from CAO-08D and NMG-00",
+            "a collision-safe archive-ref, filesystem-preservation and non-force removal sequence was derived",
+            "UIX staged packet statically validated without reading or emitting secrets",
+            "OPS unique commits and structured receipt preservation boundary classified",
+            "188 readable and 45 ACL-blocked pytest artifact directories identified",
+            "all nine roadmap, claim, gate and count inconsistencies normalized and tested"
+          ],
+          "resume_inputs_required": [
+            "Explicitly authorize surface_default/root as ABC master for this bounded cleanup/roadmap run.",
+            "Explicitly authorize creation of the twelve immutable local archive refs and the additional post-commit UIX archive ref.",
+            "Explicitly authorize a local no-push archive commit containing only the four declared staged UIX paths.",
+            "Explicitly authorize the bounded filesystem preservation moves and subsequent normal non-force removal of the twelve auxiliary worktrees; no branch or archive-ref deletion."
+          ],
+          "safe_default": "Preserve every worktree, staged path, OPS receipt, branch and live gate unchanged; keep CAO-08D and NMG-00 claimable false."
+        },
+        "blocks": [
+          "CAO-08D-scoped-execution-plane-consolidation",
+          "NMG-00-legacy-boundary-audit",
+          "CAO-08C1-bounded-delegation-runtime",
+          "all later CAO-08 and NMG successors"
+        ],
+        "live_actions": false
+      },
+      "roadmap_normalization_claim": {
+        "run_id": "goal-repo-cleanup-roadmap-normalization-20260802",
+        "thread_id": "/root",
+        "slice_id": "REPO-CLEANUP-ROADMAP-NORMALIZATION",
+        "owner": "root",
+        "allowed_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json",
+          "docs/plans/multi-agent-execution-guidance.json",
+          "docs/plans/planning-mcp-roadmap.json",
+          "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+          "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
+          "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md"
+        ],
+        "hotfiles": [
+          "docs/plans/open-work-completion-master-roadmap.json",
+          "docs/plans/multi-agent-execution-guidance.json"
+        ],
+        "state": "released_waiting_on_user_master_route_for_repo_cleanup_mutations",
+        "acquired_at": "2026-08-02T10:41:41+02:00",
+        "lease_expires_at": "2026-08-02T14:41:41+02:00",
+        "released_at": "2026-08-02T10:48:00+02:00",
+        "release_reason": "The bounded roadmap-authoring normalization is complete and verified. Repository cleanup, Git ref/worktree mutation and implementation remain gated on explicit master-route authorization plus preservation handoffs for unique UIX and active OPS-Alert work.",
+        "changed_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json",
+          "docs/plans/multi-agent-execution-guidance.json",
+          "docs/plans/planning-mcp-roadmap.json",
+          "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+          "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
+          "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md"
+        ],
+        "tests_and_results": [
+          "31 focused roadmap, guidance, Planning-boundary and Open-Work tests passed with one existing SQLAlchemy deprecation warning",
+          "Open Work, Guidance and Planning MCP JSON parse passed",
+          "roadmap_multi_agent_guidance query passed",
+          "roadmap_safe_queue_audit reports safe_open_count 0, other_open_count 155, 61 unique live gates and 29 unique design gates",
+          "all ten CAO immutable prerequisite blob IDs match git hash-object",
+          "scoped git diff --check passed"
+        ],
+        "evidence_refs": [
+          "PMCP-9 completion commits 8a61cc16 and 5f973257",
+          "read-only Alice/Bob/Charlie worktree and roadmap audits from 2026-08-02",
+          "current local fuzzy/dev reference d691cebc0b85"
+        ],
+        "remaining_gate_or_blocker": "REPO-CLEANUP-ONE-WORKTREE remains open; CAO-MASTER-ROUTE-VERIFICATION remains waiting on explicit user authorization; unique UIX and active OPS-Alert work prevent lossless immediate reduction to one worktree.",
+        "collision_check": "pass; this authoring slice changed only the six declared planning files and did not touch OPS-Alert, product code, UI implementation, worktrees or Git refs.",
+        "recommended_next_action": "Obtain explicit surface_default/root authorization for this bounded cleanup run, preserve the exact four staged UIX paths in a local archive commit, remove only clean/contained worktrees first, and leave active OPS-Alert worktrees untouched until their owner handoff.",
+        "handoff_required": true
+      },
+      "parallel_wave_immutable_input_preflight": {
+        "observed_at": "2026-08-02T10:19:54+02:00",
+        "base_revision": "8723fb7858f05d62541f1f1ae10e503438cc6858",
+        "input_contract": "Workers must exact-read these files and verify the recorded Git blob object IDs immediately before implementation. Any mismatch invalidates the packet and returns the slice to waiting_on_peer without widening its claim.",
+        "cao_prerequisite_inputs": [
+          {
+            "path": "src/coding_lifecycle.py",
+            "git_blob_oid": "4e534c1219b42c7566f802448c2fe3181ef2afee",
+            "worktree_state": "tracked_modified"
+          },
+          {
+            "path": "src/coding_lifecycle_authority.py",
+            "git_blob_oid": "4aa95a826b7d27c5f6640d523fb53ef6691fefcf",
+            "worktree_state": "untracked"
+          },
+          {
+            "path": "src/coding_lifecycle_adapters.py",
+            "git_blob_oid": "b56bf17e23c7d7e3aa4d69c661e869330b05ce17",
+            "worktree_state": "tracked_modified"
+          },
+          {
+            "path": "src/coding_context_envelope.py",
+            "git_blob_oid": "c6ca5a4dd5a8c6b6b30ed6795882f86d6ae1880e",
+            "worktree_state": "untracked"
+          },
+          {
+            "path": "src/coding_graph_boundary.py",
+            "git_blob_oid": "70450f43d5544ed6bb2f481b4b80820b707f4ca5",
+            "worktree_state": "untracked"
+          },
+          {
+            "path": "src/coding_subagent_capsule.py",
+            "git_blob_oid": "92c7f0076b7268a0682511551c0cad4a11b27f4a",
+            "worktree_state": "untracked"
+          },
+          {
+            "path": "src/coding_subagent_context_broker.py",
+            "git_blob_oid": "a04331ddb4bc2414b503e07525933a6071982c23",
+            "worktree_state": "untracked"
+          },
+          {
+            "path": "src/coding_loop_contracts.py",
+            "git_blob_oid": "8b182a8cb4595126fa34f4bd5f1304ce55ec0113",
+            "worktree_state": "untracked"
+          },
+          {
+            "path": "src/coding_loop_controller.py",
+            "git_blob_oid": "5bc2482db826d982aead4d1f804dd60f46decdf5",
+            "worktree_state": "untracked"
+          },
+          {
+            "path": "src/coding_loop_model_adapter.py",
+            "git_blob_oid": "3dca6c3b097c7065d34b3bc272dd4b676c012935",
+            "worktree_state": "untracked"
+          }
+        ],
+        "selected_targets": {
+          "cao08d": "five declared target paths absent",
+          "nmg00": "three declared target paths absent",
+          "cross_lane_overlap_count": 0
+        },
+        "baseline_tests": "161 CAO lifecycle/context/capsule/controller tests passed with one existing SQLAlchemy deprecation warning in 8.58 seconds.",
+        "memory_runtime_tests": "not required for the content-free NMG-00 inventory preflight; run the NMG focused test after implementation and preserve dirty LLM/scheduler hotfiles as excluded",
+        "implementation_authority": false,
+        "remaining_gates": [
+          "REPO-CLEANUP-ONE-WORKTREE",
+          "CAO-MASTER-ROUTE-VERIFICATION"
+        ]
+      },
+      "verified_at": "2026-08-02"
     },
     "recovered_expired_claims": [
       {
@@ -194,6 +474,80 @@
       }
     ],
     "active_claimed_slices": [],
+    "latest_parallel_development_p0_handoff": {
+      "roadmap_path": "docs/plans/open-work-completion-master-roadmap.json",
+      "run_id": "goal-parallel-roadmaps-20260802-p0",
+      "thread_id": "/root",
+      "slice_id": "OWM-P0-parallel-roadmap-route-normalization",
+      "owner": "root",
+      "status": "accepted_roadmap_authoring_only",
+      "claim": "released",
+      "acquired_at": "2026-08-02T10:11:03+02:00",
+      "released_at": "2026-08-02T10:16:16+02:00",
+      "changed_paths": [
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json"
+      ],
+      "tests_and_results": [
+        "JSON parse passed for both changed planning authorities.",
+        "Guidance declared profile counts equal actual counts.",
+        "21 focused roadmap/guidance/open-work tests passed with one existing SQLAlchemy deprecation warning.",
+        "Scoped git diff --check passed with line-ending warnings only."
+      ],
+      "evidence_refs": {
+        "scoped_dirty_diff_digest": "2ddfe9edc78bb3decbe676ee8c2797b336d2edb9",
+        "selected_path_overlap_count": 0,
+        "selected_existing_target_path_count": 0,
+        "staged_path_count": 0
+      },
+      "route": {
+        "entrypoint": "/abc + goal",
+        "master": "surface_default/root; exact runtime model identifier not exposed",
+        "workers": "three gpt-5.6-terra explorers requested; spawn surface accepted the requested route, worker runtime self-report remained unavailable",
+        "review": "root deep review passed for roadmap_authoring only"
+      },
+      "collision_check": "CAO-08D and NMG-00 have disjoint five-file and three-file new targets; shared router files remain root-only; dirty lifecycle, model, scheduler, app, security and homeserver hotfiles remain excluded.",
+      "recommended_next_action": "Verify the root as gpt-5.6-sol or obtain explicit user authorization for surface_default/root for this bounded goal run; then claim CAO-08D and NMG-00 separately and reserve Charlie for independent QA.",
+      "remaining_gate_or_blocker": "CAO-MASTER-ROUTE-VERIFICATION remains open. Accepted CAO prerequisites are uncommitted, so CAO-08D additionally needs immutable exact-read/hash evidence before isolated implementation or integration.",
+      "completion_limits": [
+        "No implementation worker was dispatched.",
+        "No feature file was changed.",
+        "No commit, push, merge, deploy, provider call, host change or live action was performed.",
+        "Full repository regression and Memory runtime regression were not run."
+      ]
+    },
+    "latest_parallel_wave_preflight_handoff": {
+      "roadmap_path": "docs/plans/open-work-completion-master-roadmap.json",
+      "run_id": "goal-parallel-roadmaps-20260802-preflight",
+      "thread_id": "/root",
+      "slice_id": "OWM-P0A-parallel-wave-immutable-input-preflight",
+      "owner": "root",
+      "status": "accepted_roadmap_authoring_only",
+      "claim": "released",
+      "acquired_at": "2026-08-02T10:18:27+02:00",
+      "released_at": "2026-08-02T10:19:54+02:00",
+      "changed_paths": [
+        "docs/plans/open-work-completion-master-roadmap.json"
+      ],
+      "tests_and_results": [
+        "All ten accepted CAO production prerequisite inputs were present and assigned Git blob object IDs.",
+        "161 CAO lifecycle/context/capsule/controller tests passed with one existing SQLAlchemy deprecation warning.",
+        "All eight selected CAO-08D and NMG-00 target paths were absent and the cross-lane overlap count was zero."
+      ],
+      "evidence_refs": {
+        "base_revision": "8723fb7858f05d62541f1f1ae10e503438cc6858",
+        "pre_packet_scoped_planning_diff_digest": "45c001fd4e8a9eee00d158bdda8aed63c8267135",
+        "canonical_packet": "/current_position/verification/parallel_wave_immutable_input_preflight"
+      },
+      "collision_check": "No selected target existed; no target overlaps the other lane or the ten hash-bound CAO prerequisite inputs.",
+      "recommended_next_action": "After master-route authorization, rehash the ten inputs and start CAO-08D plus NMG-00 only if every object ID still matches; Charlie then runs the declared independent QA lane.",
+      "remaining_gate_or_blocker": "Exact root model identity remains unavailable and surface_default/root is not yet explicitly authorized for implementation delegation or integration.",
+      "completion_limits": [
+        "Roadmap/evidence preparation only; no implementation claim was opened.",
+        "No feature, test or runtime file was modified by this slice.",
+        "No commit, push, merge, deploy or live action was performed."
+      ]
+    },
     "latest_native_knowledge_master_handoff": {
       "run_id": "ABC-NATIVE-KNOWLEDGE-MASTER-20260801",
       "thread_id": "/root",
@@ -3260,9 +3614,14 @@
         "future_goal_command": "/goal Implementiere OWM-15 nativ ab der dependency-ready Frontier UIR-03, UDA-00, ULO-00 und NMG-00; halte NMG/USI-C Nachfolger blocked_by_dependency, Obsidian ausgeschlossen und alle produktiven Quellen aus."
       },
       "native_memory_graph_causality_extension": {
+        "model_decision_recorded_at": "2026-08-02T09:21:54+02:00",
+        "token_preflight_decision_recorded_at": "2026-08-02T09:46:19+02:00",
         "source_roadmap": "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
+        "token_preflight_source_roadmap": "docs/plans/rag-memory-tokenization-roadmap.md",
         "knowledge_boundary": "Personal Docs remains current truth until an explicit cutover; native Knowledge must not create parallel truth or dual writes.",
-        "raptor_boundary": "NMG-04 defines and implements a native clustering/summarization worker before USI projection or runtime composition.",
+        "raptor_boundary": "NMG-04 defines and implements separate provider-neutral semantic and generative lanes before USI projection or runtime composition; immutable source chunks remain truth and every model output remains a rebuildable derived artifact.",
+        "model_selection_boundary": "Benchmark embeddinggemma:300m-qat-q4_0 first against all-MiniLM-L6-v2 and the declared multilingual/quality baselines for retrieval, clustering and dedupe while exact gemma3:4b remains the generative maintenance lane; no download, re-embedding, fine-tuning, provider selection or live action is authorized before a dependency-ready NMG-04 claim and its recorded offline evidence.",
+        "token_preflight_boundary": "RMT8 freezes and RMT9 implements an exact offline token inventory after extraction/normalization and before chunking, using revision- and digest-pinned local tokenizer assets. Reports separate content tokens from task-specific effective input tokens, sum projects from individually counted files, expose only hashed/content-free evidence and never call a model/provider, download assets at runtime, silently truncate or present an estimate as exact. NMG-04 consumes only the accepted contract/report.",
         "causality_boundary": "CausalClaimStore is sole causal domain truth and review owner; USI contains only evidence-bound rebuildable CausalClaimIndexRecord projections.",
         "registered_frontier": "NMG-00-legacy-boundary-audit",
         "blocked_successor_ranges": [
@@ -15634,6 +15993,1219 @@
       "live_actions": false
     },
     {
+      "id": "CAO-08-planning-memory-gated-coding-loop-roadmap-authoring",
+      "class": "repo_only",
+      "owner": "alice_coding_core/Terra authoring; root/Sol deep review",
+      "status": "accepted_2026-08-01",
+      "claimable": false,
+      "depends_on": [
+        "CAO-07 accepted",
+        "OWM-15 native memory roadmaps registered"
+      ],
+      "allowed_paths": [
+        "docs/plans/coding-agent-orchestration-consolidation-roadmap.md"
+      ],
+      "source_roadmap": "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+      "claim": {
+        "run_id": "abc-coding-loop-roadmaps-20260801",
+        "thread_id": "/root/alice_coding_core",
+        "slice_id": "CAO-08-planning-memory-gated-coding-loop-roadmap-authoring",
+        "owner": "alice_coding_core",
+        "state": "released",
+        "acquired_at": "2026-08-01T21:25:00+02:00",
+        "lease_expires_at": "2026-08-02T01:25:00+02:00",
+        "released_at": "2026-08-01T22:05:00+02:00"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "worker": "gpt-5.6-terra/high",
+          "review": "gpt-5.6-sol/deep"
+        }
+      },
+      "acceptance": "The canonical coding lifecycle incorporates Planning authority, four RAPTOR/GraphRAG checkpoints, exact-code reads, three gate owners, repair limits and resumable evidence-bound transitions.",
+      "live_actions": false
+    },
+    {
+      "id": "ACPR-10-gate-ownership-and-memory-loop-roadmap-authoring",
+      "class": "repo_only",
+      "owner": "bob_quality_loop/Terra authoring; root/Sol deep review",
+      "status": "accepted_2026-08-01",
+      "claimable": false,
+      "depends_on": [
+        "ACPR-0 through ACPR-9 accepted",
+        "CAO-07 accepted"
+      ],
+      "allowed_paths": [
+        "docs/plans/autonomous-coding-production-readiness-roadmap.json"
+      ],
+      "source_roadmap": "docs/plans/autonomous-coding-production-readiness-roadmap.json",
+      "claim": {
+        "run_id": "abc-coding-loop-roadmaps-20260801",
+        "thread_id": "/root/bob_quality_loop",
+        "slice_id": "ACPR-10-gate-ownership-and-memory-loop-roadmap-authoring",
+        "owner": "bob_quality_loop",
+        "state": "released",
+        "acquired_at": "2026-08-01T21:25:00+02:00",
+        "lease_expires_at": "2026-08-02T01:25:00+02:00",
+        "released_at": "2026-08-01T22:05:00+02:00"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "worker": "gpt-5.6-terra/high",
+          "review": "gpt-5.6-sol/deep"
+        }
+      },
+      "acceptance": "Machine-auto, independent-agent and user-acceptance gates have explicit evidence, escalation and non-self-approval rules across implementation, verification, publishing and live effects.",
+      "live_actions": false
+    },
+    {
+      "id": "H1-28-user-acceptance-gate-experience-roadmap-authoring",
+      "class": "repo_only",
+      "owner": "charlie_orchestration_dx/Terra authoring; root/Sol deep review",
+      "status": "accepted_2026-08-01",
+      "claimable": false,
+      "depends_on": [
+        "Harbor One autonomous workspace backend roadmap",
+        "ACPR-7 publish and deploy gates accepted"
+      ],
+      "allowed_paths": [
+        "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md"
+      ],
+      "source_roadmap": "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md",
+      "claim": {
+        "run_id": "abc-coding-loop-roadmaps-20260801",
+        "thread_id": "/root/charlie_orchestration_dx",
+        "slice_id": "H1-28-user-acceptance-gate-experience-roadmap-authoring",
+        "owner": "charlie_orchestration_dx",
+        "state": "released",
+        "acquired_at": "2026-08-01T21:25:00+02:00",
+        "lease_expires_at": "2026-08-02T01:25:00+02:00",
+        "released_at": "2026-08-01T22:05:00+02:00"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "worker": "gpt-5.6-terra/high",
+          "review": "gpt-5.6-sol/deep"
+        }
+      },
+      "acceptance": "Harbor One presents actionable acceptance cards for user-only UI, product, security/privacy and external-effect gates while routine engineering gates continue autonomously.",
+      "live_actions": false
+    },
+    {
+      "id": "OWM-25-coding-loop-roadmap-consolidation",
+      "class": "repo_only",
+      "owner": "root/Sol orchestrator",
+      "status": "accepted_2026-08-01",
+      "claimable": false,
+      "depends_on": [
+        "CAO-08 roadmap authoring handoff",
+        "ACPR-10 roadmap authoring handoff",
+        "H1-28 roadmap authoring handoff"
+      ],
+      "allowed_paths": [
+        "docs/plans/open-work-completion-master-roadmap.json"
+      ],
+      "source_roadmap": "docs/plans/open-work-completion-master-roadmap.json",
+      "claim": {
+        "run_id": "abc-coding-loop-roadmaps-20260801",
+        "thread_id": "/root",
+        "slice_id": "OWM-25-coding-loop-roadmap-consolidation",
+        "owner": "root",
+        "state": "released",
+        "acquired_at": "2026-08-01T21:25:00+02:00",
+        "lease_expires_at": "2026-08-02T01:25:00+02:00",
+        "released_at": "2026-08-01T22:05:00+02:00"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "master": "gpt-5.6-sol/high",
+          "workers": "three disjoint gpt-5.6-terra/high",
+          "review": "gpt-5.6-sol/deep"
+        },
+        "actual": {
+          "skill": "abc loaded and used with roadmap_authoring/open_work/repo_only axes",
+          "master": "root Sol orchestration and deep review",
+          "workers": "alice_coding_core, bob_quality_loop and charlie_orchestration_dx completed disjoint handoffs; exact runtime deployment identifiers were not exposed to workers",
+          "review": "deep accepted after three bounded correction rounds",
+          "fallback": "none"
+        }
+      },
+      "acceptance": "The Open-Work master registers one dependency-ordered coding-capability frontier without duplicating Planning, code, knowledge or causality truth.",
+      "consolidation": {
+        "authority_order": [
+          "user",
+          "Planning roadmap, gates and accepted decisions",
+          "durable claim and scoped context envelope",
+          "current code, git and test evidence",
+          "accepted Knowledge/Causal records",
+          "RAPTOR/GraphRAG projections",
+          "model assumption"
+        ],
+        "track_ownership": {
+          "CAO": "canonical coding lifecycle, controller, graph boundaries and exact-edit integration",
+          "ACPR": "verification/readiness lanes, deterministic receipts and evidence/quality policy",
+          "Harbor One": "read-only Planning projection, Gate Inbox and user-decision UX"
+        },
+        "gate_owners": {
+          "machine_auto": "deterministic mechanical checks may close only their named receipt-bound gate",
+          "agent_auto": "an independent reviewer distinct from the implementer may close only the named review gate",
+          "user_acceptance": "only the user closes UI/UX, material product/architecture/scope, auth/security/privacy, destructive/external/live and action-specific publication gates"
+        },
+        "next_frontier": "CAO-08A, followed by CAO-08B; ACPR-11 remains dependency-blocked until both are accepted; Harbor One H1-29 additionally waits for ACPR-11.",
+        "review_result": "deep Sol accepted after correcting Harbor One UX dependency, aligning failure retrieval and post-acceptance writeback, and eliminating competing cross-roadmap ownership"
+      },
+      "completion": {
+        "implemented": "roadmaps_only",
+        "tested": "16_focused_roadmap_contract_tests_plus_json_audit_and_scoped_diff_checks",
+        "sol_reviewed": "deep_accepted_after_bounded_fixes",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "not_run_user_gate_only",
+        "product_complete": "no"
+      },
+      "tests": [
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider tests\\test_open_work_status.py tests\\test_roadmap_safe_queue_audit.py",
+        "C:\\Users\\nkatz\\odysseus\\venv\\Scripts\\python.exe scripts\\roadmap_safe_queue_audit.py --format json",
+        "git diff --check -- docs/plans/open-work-completion-master-roadmap.json docs/plans/coding-agent-orchestration-consolidation-roadmap.md docs/plans/autonomous-coding-production-readiness-roadmap.json docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md"
+      ],
+      "evidence": {
+        "focused_roadmap_contracts": "16 passed with one existing SQLAlchemy deprecation warning",
+        "safe_queue_audit": "exit 0; raw safe_open_count 1 is the already-recorded historical PMCP-9 status drift, not a new coding-loop frontier",
+        "gate_counts": "55 unique live gates and 27 unique design gates after adding explicit coding-loop authority",
+        "deep_review_fixes": [
+          "corrected Harbor One visual-packet dependency and pre-wiring decision path",
+          "replaced generic post-verification memory checkpoint with bounded failure retrieval",
+          "made post-acceptance writeback conditional on every applicable gate",
+          "separated CAO lifecycle, ACPR readiness and Harbor One UX ownership to avoid competing truth"
+        ],
+        "not_verified": [
+          "runtime implementation",
+          "browser or semantic UI acceptance",
+          "commit, push, PR, deploy or live action"
+        ]
+      },
+      "live_actions": false
+    },
+    {
+      "id": "CAO-08J-subagent-context-and-delegation-roadmap-authoring",
+      "class": "repo_only",
+      "owner": "alice_coding_core/Terra authoring; root/Sol deep review",
+      "status": "accepted_2026-08-01",
+      "claimable": false,
+      "depends_on": [
+        "CAO-08 roadmap authoring accepted",
+        "OWM-25 accepted"
+      ],
+      "allowed_paths": [
+        "docs/plans/coding-agent-orchestration-consolidation-roadmap.md"
+      ],
+      "excluded_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "ops/homeserver/**",
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "claim": {
+        "run_id": "abc-subagent-roadmaps-20260801",
+        "thread_id": "/root/alice_coding_core",
+        "slice_id": "CAO-08J-subagent-context-and-delegation-roadmap-authoring",
+        "owner": "alice_coding_core",
+        "state": "released",
+        "acquired_at": "2026-08-01T22:25:00+02:00",
+        "lease_expires_at": "2026-08-02T02:25:00+02:00",
+        "released_at": "2026-08-01T23:00:00+02:00"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "worker": "gpt-5.6-terra/high requested; runtime identifier must be reported",
+          "review": "gpt-5.6-sol/deep"
+        }
+      },
+      "acceptance": "CAO explicitly models a role-scoped RAPTOR/GraphRAG subagent context broker, parent/child delegation lifecycle, independent reviewer retrieval and provenance-bound handoff/writeback without granting memory authority.",
+      "live_actions": false
+    },
+    {
+      "id": "ACPR-17-subagent-context-isolation-roadmap-authoring",
+      "class": "repo_only",
+      "owner": "bob_quality_loop/Terra authoring; root/Sol deep review",
+      "status": "accepted_2026-08-01",
+      "claimable": false,
+      "depends_on": [
+        "ACPR-10 accepted",
+        "CAO-08J authoring handoff"
+      ],
+      "allowed_paths": [
+        "docs/plans/autonomous-coding-production-readiness-roadmap.json"
+      ],
+      "excluded_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "ops/homeserver/**",
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "claim": {
+        "run_id": "abc-subagent-roadmaps-20260801",
+        "thread_id": "/root/bob_quality_loop",
+        "slice_id": "ACPR-17-subagent-context-isolation-roadmap-authoring",
+        "owner": "bob_quality_loop",
+        "state": "released",
+        "acquired_at": "2026-08-01T22:25:00+02:00",
+        "lease_expires_at": "2026-08-02T02:25:00+02:00",
+        "released_at": "2026-08-01T23:00:00+02:00"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "worker": "gpt-5.6-terra/high requested; runtime identifier must be reported",
+          "review": "gpt-5.6-sol/deep"
+        }
+      },
+      "acceptance": "ACPR defines deterministic isolation, freshness, scope-leak, reviewer-independence, token-budget, cancellation, resume and post-acceptance writeback evidence for subagent context capsules.",
+      "live_actions": false
+    },
+    {
+      "id": "H1-39-subagent-delegation-visibility-roadmap-authoring",
+      "class": "repo_only",
+      "owner": "charlie_orchestration_dx/Terra authoring; root/Sol deep review",
+      "status": "accepted_2026-08-01",
+      "claimable": false,
+      "depends_on": [
+        "H1-28 accepted",
+        "CAO-08J and ACPR-17 authoring handoffs"
+      ],
+      "allowed_paths": [
+        "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md"
+      ],
+      "excluded_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "ops/homeserver/**",
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "claim": {
+        "run_id": "abc-subagent-roadmaps-20260801",
+        "thread_id": "/root/charlie_orchestration_dx",
+        "slice_id": "H1-39-subagent-delegation-visibility-roadmap-authoring",
+        "owner": "charlie_orchestration_dx",
+        "state": "released",
+        "acquired_at": "2026-08-01T22:25:00+02:00",
+        "lease_expires_at": "2026-08-02T02:25:00+02:00",
+        "released_at": "2026-08-01T23:00:00+02:00"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "worker": "gpt-5.6-terra/high requested; runtime identifier must be reported",
+          "review": "gpt-5.6-sol/deep"
+        }
+      },
+      "acceptance": "Harbor One projects subagent role, parent slice, context freshness/scope, state, evidence limits and escalation without exposing raw retrieved context or becoming a dispatch authority.",
+      "live_actions": false
+    },
+    {
+      "id": "OWM-26-subagent-context-roadmap-consolidation",
+      "class": "repo_only",
+      "owner": "root/Sol orchestrator",
+      "status": "accepted_2026-08-01",
+      "claimable": false,
+      "depends_on": [
+        "CAO-08J handoff",
+        "ACPR-17 handoff",
+        "H1-39 handoff"
+      ],
+      "allowed_paths": [
+        "docs/plans/open-work-completion-master-roadmap.json"
+      ],
+      "excluded_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "ops/homeserver/**",
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "claim": {
+        "run_id": "abc-subagent-roadmaps-20260801",
+        "thread_id": "/root",
+        "slice_id": "OWM-26-subagent-context-roadmap-consolidation",
+        "owner": "root",
+        "state": "released",
+        "acquired_at": "2026-08-01T22:25:00+02:00",
+        "lease_expires_at": "2026-08-02T02:25:00+02:00",
+        "released_at": "2026-08-01T23:00:00+02:00"
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "selected": {
+          "master": "gpt-5.6-sol/high",
+          "workers": "three disjoint gpt-5.6-terra/high requested",
+          "review": "gpt-5.6-sol/deep"
+        },
+        "actual": {
+          "skill": "abc loaded and used for roadmap_authoring/open_work/repo_only",
+          "master": "root Sol orchestration and deep review",
+          "workers": "three disjoint roadmap handoffs completed; exact runtime model identifiers were not exposed",
+          "review": "deep accepted after dependency and delegation-authority fixes",
+          "fallback": "none"
+        }
+      },
+      "acceptance": "Open Work records one acyclic subagent-context extension across CAO lifecycle, ACPR evidence and Harbor projection while the active OPS-Alert path set remains untouched.",
+      "consolidation": {
+        "CAO": "CAO-08B1 owns role-scoped RAPTOR/GraphRAG capsules; CAO-08C1 owns bounded parent/child delegation lifecycle",
+        "ACPR": "VCL-7 and ACPR-17 own capsule isolation, freshness, leakage, budget, fencing, cancellation, reviewer-independence and writeback-order evidence",
+        "Harbor One": "H1-39 owns only the redacted read-only delegation projection and conditional semantic UX gate",
+        "automatic_boundary": "after separately accepted bounded adapter activation, ordinary in-policy internal child dispatch is machine_auto/agent_auto and does not interrupt the user per child",
+        "user_boundary": "activation, external/cross-workspace dispatch, expanded fanout/depth/scope, material product/architecture/security/privacy decisions and destructive/live effects remain user-owned",
+        "next_frontier": "CAO-08A remains first; CAO-08B then CAO-08B1, CAO-08C and CAO-08C1 establish subagent context/delegation before ACPR-17 and H1-39 become dependency-ready"
+      },
+      "completion": {
+        "implemented": "roadmaps_only",
+        "tested": "json_structure_semantic_assertions_and_scoped_diff_checks",
+        "sol_reviewed": "deep_accepted_after_two_bounded_fixes",
+        "committed": "no",
+        "pushed": "no",
+        "deployed": "no",
+        "live_validated": "na",
+        "visual_validated": "not_run_conditional_user_gate",
+        "product_complete": "no"
+      },
+      "evidence": {
+        "vcl7_negative_cases": 16,
+        "review_fixes": [
+          "H1-39 now precedes H1-37 and consumes the accepted H1-35 semantic baseline",
+          "one-time activation is separated from quiet automatic in-policy child dispatch"
+        ],
+        "ops_alert_paths_changed_by_this_run": false,
+        "not_verified": [
+          "runtime capsule broker or delegation adapter",
+          "real subagent dispatch/cancel/resume",
+          "browser or semantic UI acceptance",
+          "commit, push, PR, deploy or live action"
+        ]
+      },
+      "live_actions": false
+    },
+    {
+      "id": "CAO-08A-planning-authority-lifecycle-contract",
+      "class": "repo_only",
+      "owner": "bob_quality_loop/Terra implementation; root/Sol deep review",
+      "status": "accepted_2026-08-02_after_root_sol_deep_review",
+      "claimable": false,
+      "depends_on": [
+        "CAO-08 and CAO-08J roadmap authoring accepted",
+        "OWM-25 and OWM-26 accepted"
+      ],
+      "allowed_paths": [
+        "src/coding_lifecycle.py",
+        "src/coding_lifecycle_authority.py",
+        "src/coding_lifecycle_adapters.py",
+        "tests/test_coding_lifecycle.py",
+        "tests/test_coding_lifecycle_authority.py",
+        "tests/test_coding_lifecycle_adapters.py"
+      ],
+      "excluded_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "ops/**",
+        "ops/homeserver/**",
+        "tests/test_security_incident_response_production_completion_roadmap.py",
+        "docs/plans/multi-agent-execution-guidance.json",
+        "docs/plans/coding-agent-orchestration-consolidation-roadmap.md"
+      ],
+      "hotfiles": [
+        "src/coding_lifecycle.py",
+        "src/coding_lifecycle_adapters.py"
+      ],
+      "claim": {
+        "run_id": "goal-coding-loop-20260802-cao08a",
+        "thread_id": "/root/bob_quality_loop",
+        "slice_id": "CAO-08A-planning-authority-lifecycle-contract",
+        "owner": "bob_quality_loop",
+        "state": "released_accepted",
+        "acquired_at": "2026-08-02T00:05:00+02:00",
+        "lease_expires_at": "2026-08-02T11:40:00+02:00",
+        "renewed_at": "2026-08-02T07:40:00+02:00",
+        "renewal_reason": "Root deep review resumed after the original lease expired; exact path scope and owner remain unchanged.",
+        "released_at": "2026-08-02T07:45:00+02:00",
+        "review": "root_sol_deep_pass_after_one_bounded_fix_cycle",
+        "handoff_required": true
+      },
+      "roadmap_integration_claim": {
+        "run_id": "goal-coding-loop-20260802-cao08a-roadmap-integration",
+        "thread_id": "/root",
+        "owner": "root",
+        "state": "released_accepted",
+        "acquired_at": "2026-08-02T07:45:00+02:00",
+        "lease_expires_at": "2026-08-02T08:45:00+02:00",
+        "released_at": "2026-08-02T07:47:00+02:00",
+        "review": "json_parse_and_scoped_diff_check_pass",
+        "allowed_paths": [
+          "docs/plans/coding-agent-orchestration-consolidation-roadmap.md"
+        ],
+        "purpose": "Reflect the already reviewed CAO-08A implementation acceptance without changing implementation scope."
+      },
+      "route": {
+        "entrypoint": "/abc + goal",
+        "recommended": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "claim, dependency, evidence and review orchestration"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "selected": {
+          "master": "surface_default/root; exact runtime identifier not exposed",
+          "worker": "gpt-5.6-terra/high requested",
+          "review": "root deep"
+        },
+        "actual": {
+          "skill": "abc loaded and used",
+          "master": "root Sol orchestration and deep review; exact runtime identifier not exposed",
+          "worker": "bob_quality_loop; requested gpt-5.6-terra/high, exact runtime identifier not exposed",
+          "review": "root deep review with one bounded worker fix return"
+        }
+      },
+      "evidence": {
+        "target_environment": "local",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "focused_test",
+          "integration"
+        ],
+        "positive_path_required": true,
+        "forbidden": [
+          "route or tool execution",
+          "graph or memory writes",
+          "commit, push, deploy or live action",
+          "OPS-Alert/security/homeserver edits"
+        ],
+        "verified": {
+          "base_revision": "738a91a8bf716321bfd8b773ba3c538ebb603efe",
+          "changed_path_blob_ids_in_allowed_path_order": [
+            "4e534c1219b42c7566f802448c2fe3181ef2afee",
+            "4aa95a826b7d27c5f6640d523fb53ef6691fefcf",
+            "b56bf17e23c7d7e3aa4d69c661e869330b05ce17",
+            "0c32cdf114836f0f8dc54de362b08cbe9e1ce9ec",
+            "fc981e2c6222c2475167cc0de9f05ed9e93f49da",
+            "61d9dca5a855219b237291101c89f5fc085c4e7d"
+          ],
+          "worker_focused_lane": "51 passed with one pre-existing SQLAlchemy deprecation warning",
+          "root_integration_lane": "92 passed with one pre-existing SQLAlchemy deprecation warning",
+          "root_initial_integration_attempt": "80 passed and 12 fixture setup errors caused only by denied C:/tmp basetemp creation; rerun in an explicit workspace temp path passed 92/92",
+          "syntax": "pass",
+          "scoped_diff_check": "pass",
+          "ops_alert_paths_changed_by_this_slice": false
+        },
+        "not_verified": [
+          "repository-wide suite",
+          "browser or semantic UI acceptance",
+          "real RAPTOR/GraphRAG retrieval or memory write",
+          "commit, push, PR, deploy or any live action"
+        ]
+      },
+      "acceptance": "A side-effect-free authority layer binds Planning item/revision, exact claim/scope, acceptance and evidence identity to the canonical resumable lifecycle; missing authority waits, invalid or stale transitions fail closed, legacy lifecycle payloads remain compatible and no live permission is created.",
+      "done_when": "Focused and integration tests prove transition ordering, waiting/blocked resume semantics, stale revision/claim/evidence rejection, redaction, compatibility and zero side effects.",
+      "next_action": "Claim CAO-08B as the dependency-ready bounded context-envelope and graph-boundary slice.",
+      "live_actions": false
+    },
+    {
+      "id": "CAO-08B-context-envelope-and-graph-boundary-adapter",
+      "class": "repo_only",
+      "owner": "bob_quality_loop/Terra replacement implementation; root/Sol deep review",
+      "status": "accepted_2026-08-02_after_root_deep_review_and_router_registration",
+      "claimable": false,
+      "claim_blocker": "LCL-01 remains dependency-blocked until CAO-08B is accepted; this roadmap-authoring acceptance grants no implementation or live authority.",
+      "depends_on": [
+        "CAO-08A accepted_2026-08-02_after_root_sol_deep_review"
+      ],
+      "source_roadmap": "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+      "allowed_paths": [
+        "src/coding_context_envelope.py",
+        "src/coding_graph_boundary.py",
+        "tests/test_coding_context_envelope.py",
+        "tests/test_coding_graph_boundary.py"
+      ],
+      "excluded_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "ops/**",
+        "ops/homeserver/**",
+        "tests/test_security_incident_response_production_completion_roadmap.py",
+        "docs/plans/multi-agent-execution-guidance.json",
+        "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+        "src/context_capsule.py",
+        "src/coding_agent_memory_bridge.py"
+      ],
+      "claim": {
+        "run_id": "goal-coding-loop-20260802-cao08b",
+        "thread_id": "/root/bob_quality_loop",
+        "slice_id": "CAO-08B-context-envelope-and-graph-boundary-adapter",
+        "owner": "bob_quality_loop",
+        "state": "released_accepted",
+        "acquired_at": "2026-08-02T07:50:00+02:00",
+        "lease_expires_at": "2026-08-02T11:50:00+02:00",
+        "transferred_at": "2026-08-02T07:56:00+02:00",
+        "previous_owner": "alice_coding_core",
+        "transfer_reason": "Original writer and one bounded finalization turn stalled before creating any claimed path; ownership transferred once without changing scope.",
+        "released_at": "2026-08-02T08:25:00+02:00",
+        "review": "root_sol_deep_pass_after_two_bounded_fix_cycles",
+        "handoff_required": true
+      },
+      "roadmap_integration_claim": {
+        "run_id": "goal-coding-loop-20260802-cao08b-roadmap-integration",
+        "thread_id": "/root",
+        "owner": "root",
+        "state": "released_accepted",
+        "acquired_at": "2026-08-02T08:25:00+02:00",
+        "lease_expires_at": "2026-08-02T09:25:00+02:00",
+        "released_at": "2026-08-02T08:27:00+02:00",
+        "review": "json_parse_and_scoped_diff_check_pass",
+        "allowed_paths": [
+          "docs/plans/coding-agent-orchestration-consolidation-roadmap.md"
+        ],
+        "purpose": "Reflect evidence-backed CAO-08B acceptance and advance the source-roadmap frontier to CAO-08B1 without altering foreign roadmap work."
+      },
+      "route": {
+        "entrypoint": "/abc + goal",
+        "selected": {
+          "master": "surface_default/root; exact runtime identifier not exposed",
+          "worker": "gpt-5.6-terra/high requested",
+          "review": "root deep"
+        },
+        "actual": {
+          "skill": "abc loaded and used",
+          "master": "root Sol orchestration and deep review; exact runtime identifier not exposed",
+          "original_writer": "alice_coding_core stalled before path creation and was interrupted after one bounded finalization turn",
+          "replacement_worker": "bob_quality_loop; requested gpt-5.6-terra/high, exact runtime identifier not exposed",
+          "review": "root deep review with two bounded fix cycles"
+        }
+      },
+      "acceptance": "A side-effect-free coding context boundary emits bounded, redacted, Planning- and source-revision-bound envelopes for the four coding-loop memory checkpoints; RAPTOR, GraphRAG and causal retrieval remain advisory, stale/unavailable/conflicted mandatory retrieval fails safe, exact source reads remain mandatory before edit, and no envelope can widen scope, close a gate, dispatch a subagent or authorize graph/memory writes.",
+      "done_when": "Focused tests prove checkpoint typing, deterministic bounds, provenance/freshness/conflict handling, exact-scope containment, authority non-escalation, content-free serialization and compatibility with the accepted CAO-08A authority binding.",
+      "evidence": {
+        "target_environment": "local",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "focused_test",
+          "integration"
+        ],
+        "forbidden": [
+          "real retrieval, graph or memory write",
+          "subagent dispatch",
+          "route or tool execution",
+          "commit, push, deploy or live action",
+          "OPS-Alert/security/homeserver edits"
+        ],
+        "verified": {
+          "base_revision": "738a91a8bf716321bfd8b773ba3c538ebb603efe",
+          "changed_path_blob_ids_in_allowed_path_order": [
+            "c6ca5a4dd5a8c6b6b30ed6795882f86d6ae1880e",
+            "70450f43d5544ed6bb2f481b4b80820b707f4ca5",
+            "0e5726cfb3ac7e4e8d91f14432a4db4ebc1ef155",
+            "73921405e0b1903f8eaee44a0c4743219d2aab6b"
+          ],
+          "worker_final_focused_lane": "43 passed with one pre-existing SQLAlchemy deprecation warning",
+          "worker_cao_compatibility_lane": "94 passed with one pre-existing SQLAlchemy deprecation warning",
+          "root_final_integration_lane": "115 passed with one pre-existing SQLAlchemy deprecation warning",
+          "json_parse": "pass",
+          "whitespace_audit": "pass",
+          "ops_alert_paths_changed_by_this_slice": false
+        },
+        "not_verified": [
+          "repository-wide suite",
+          "real RAPTOR, GraphRAG, USI or memory retrieval/write integration",
+          "subagent dispatch or role-capsule runtime",
+          "browser or semantic UI acceptance",
+          "commit, push, PR, deploy or any live action"
+        ]
+      },
+      "next_action": "Claim CAO-08B1 as the dependency-ready role-scoped RAPTOR/GraphRAG subagent context broker slice.",
+      "live_actions": false
+    },
+    {
+      "id": "CAO-08B1-role-scoped-subagent-context-broker",
+      "class": "repo_only",
+      "owner": "bob_quality_loop/Terra replacement implementation; root/Sol deep review",
+      "status": "accepted_2026-08-02_after_root_deep_review",
+      "claimable": false,
+      "depends_on": [
+        "CAO-08A accepted_2026-08-02_after_root_sol_deep_review",
+        "CAO-08B accepted_2026-08-02_after_root_deep_review_and_router_registration",
+        "CAO-08J subagent context roadmap authoring accepted"
+      ],
+      "source_roadmap": "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+      "allowed_paths": [
+        "src/coding_subagent_capsule.py",
+        "src/coding_subagent_context_broker.py",
+        "tests/test_coding_subagent_capsule.py",
+        "tests/test_coding_subagent_context_broker.py"
+      ],
+      "excluded_paths": [
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "ops/**",
+        "ops/homeserver/**",
+        "tests/test_security_incident_response_production_completion_roadmap.py",
+        "docs/plans/multi-agent-execution-guidance.json",
+        "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+        "src/context_capsule.py",
+        "src/subagent_runtime.py",
+        "src/coding_context_envelope.py",
+        "src/coding_graph_boundary.py"
+      ],
+      "claim": {
+        "run_id": "goal-coding-loop-20260802-cao08b1",
+        "thread_id": "/root/bob_quality_loop",
+        "slice_id": "CAO-08B1-role-scoped-subagent-context-broker",
+        "owner": "bob_quality_loop",
+        "state": "released_accepted",
+        "acquired_at": "2026-08-02T08:30:00+02:00",
+        "lease_expires_at": "2026-08-02T12:30:00+02:00",
+        "transferred_at": "2026-08-02T08:35:00+02:00",
+        "released_at": "2026-08-02T08:54:00+02:00",
+        "previous_owner": "charlie_orchestration_dx",
+        "transfer_reason": "Original writer and one bounded finalization turn stalled before creating any claimed path; ownership transferred once without changing scope.",
+        "review": "root_deep_pass_after_one_bounded_fix_cycle",
+        "handoff_required": true
+      },
+      "integration_claim": {
+        "run_id": "goal-coding-loop-20260802-cao08b1-integration",
+        "thread_id": "/root",
+        "slice_id": "CAO-08B1-role-scoped-subagent-context-broker-integration",
+        "owner": "root",
+        "state": "released_accepted",
+        "acquired_at": "2026-08-02T08:50:00+02:00",
+        "lease_expires_at": "2026-08-02T10:50:00+02:00",
+        "released_at": "2026-08-02T08:54:00+02:00",
+        "review": "root_deep_pass",
+        "allowed_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json",
+          "docs/plans/coding-agent-orchestration-consolidation-roadmap.md"
+        ],
+        "excluded_paths": [
+          "docs/plans/security-incident-response-production-completion-roadmap.json",
+          "ops/**",
+          "ops/homeserver/**",
+          "tests/test_security_incident_response_production_completion_roadmap.py",
+          "docs/plans/multi-agent-execution-guidance.json"
+        ]
+      },
+      "route": {
+        "entrypoint": "/abc + goal",
+        "selected": {
+          "master": "surface_default/root; exact runtime identifier not exposed",
+          "worker": "gpt-5.6-terra/high requested",
+          "review": "root deep"
+        },
+        "actual": {
+          "worker": "bob_quality_loop on surface-default runtime; exact model identifier not exposed",
+          "review": "root/Sol deep review"
+        }
+      },
+      "acceptance": "A pure role-scoped broker converts one accepted CAO-08B parent envelope into immutable implementer, tester and independent-reviewer context capsules bound to the same Planning item/revision, claim/scope, input revision, parent envelope and bounded RAPTOR/GraphRAG provenance; each role receives only declared context/tool/budget/stop refs, reviewer retrieval is fresh and independent from implementer context, mandatory missing/conflicted context fails safe, and no capsule grants edit, dispatch, gate, graph/memory-write or live authority.",
+      "done_when": "Focused tests prove role isolation, parent binding, deterministic capsule identity, scope/freshness/provenance bounds, reviewer independence, exact-read requirements, token/context budgets, cancellation/expiry descriptors, raw/private rejection and zero side effects without calling any subagent runtime.",
+      "evidence": {
+        "target_environment": "local",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "focused_test",
+          "integration"
+        ],
+        "forbidden": [
+          "subagent dispatch, cancellation or runtime mutation",
+          "real retrieval, graph or memory write",
+          "route or tool execution",
+          "commit, push, deploy or live action",
+          "OPS-Alert/security/homeserver edits"
+        ],
+        "verified": {
+          "base_revision": "8723fb7858f05d62541f1f1ae10e503438cc6858",
+          "changed_path_blob_ids_in_allowed_path_order": [
+            "92c7f0076b7268a0682511551c0cad4a11b27f4a",
+            "a04331ddb4bc2414b503e07525933a6071982c23",
+            "e0374343c8354e7bb156d7102efa1962e32ea4cd",
+            "f0235b4c3ee36304446a20b76f152cc1095ff70b"
+          ],
+          "worker_final_focused_lane": "39 passed",
+          "worker_cao_compatibility_lane": "122 passed with one pre-existing SQLAlchemy deprecation warning",
+          "root_final_integration_lane": "122 passed with one pre-existing SQLAlchemy deprecation warning",
+          "parent_run_and_slice_alias_attack_regression": "pass",
+          "json_parse": "pass",
+          "ops_alert_paths_changed_by_this_slice": false
+        },
+        "not_verified": [
+          "repository-wide suite",
+          "actual subagent dispatch, cancellation, expiry or resume runtime",
+          "real RAPTOR, GraphRAG, USI or memory retrieval/write integration",
+          "browser or semantic UI acceptance",
+          "commit, push, PR, deploy or any live action"
+        ]
+      },
+      "next_action": "Claim CAO-08C as the dependency-ready production coding-loop controller slice; keep dispatch local/fake and all OPS-Alert/security/homeserver paths excluded.",
+      "live_actions": false
+    },
+    {
+      "id": "CAO-08C-production-coding-loop-controller",
+      "class": "repo_only",
+      "owner": "charlie_orchestration_dx/Terra replacement implementation; root/Sol deep review",
+      "status": "accepted_2026-08-02_after_root_deep_review",
+      "claimable": false,
+      "depends_on": [
+        "CAO-08A accepted_2026-08-02_after_root_sol_deep_review",
+        "CAO-08B accepted_2026-08-02_after_root_deep_review_and_router_registration",
+        "CAO-08B1 accepted_2026-08-02_after_root_deep_review"
+      ],
+      "source_roadmap": "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+      "allowed_paths": [
+        "src/coding_loop_contracts.py",
+        "src/coding_loop_controller.py",
+        "src/coding_loop_model_adapter.py",
+        "tests/test_coding_loop_contracts.py",
+        "tests/test_coding_loop_controller.py",
+        "tests/test_coding_loop_controller_integration.py"
+      ],
+      "excluded_paths": [
+        "docs/plans/**",
+        "ops/**",
+        "ops/homeserver/**",
+        "routes/**",
+        "static/**",
+        "src/agent_loop.py",
+        "src/agent_loop_orchestration.py",
+        "src/tool_execution.py",
+        "src/tool_schema_definitions.py",
+        "src/subagent_runtime.py",
+        "src/coding_lifecycle_authority.py",
+        "src/coding_context_envelope.py",
+        "src/coding_subagent_capsule.py",
+        "src/coding_subagent_context_broker.py",
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "claim": {
+        "run_id": "goal-coding-loop-20260802-cao08c",
+        "thread_id": "/root/charlie_orchestration_dx",
+        "slice_id": "CAO-08C-production-coding-loop-controller",
+        "owner": "charlie_orchestration_dx",
+        "state": "released_accepted",
+        "acquired_at": "2026-08-02T08:55:00+02:00",
+        "lease_expires_at": "2026-08-02T12:55:00+02:00",
+        "transferred_at": "2026-08-02T08:59:00+02:00",
+        "released_at": "2026-08-02T09:31:00+02:00",
+        "previous_owner": "bob_quality_loop",
+        "transfer_reason": "Original writer and one bounded finalization turn stalled before creating any claimed path; ownership transferred once without changing scope.",
+        "review": "root_deep_pass_after_two_bounded_fix_cycles",
+        "handoff_required": true
+      },
+      "integration_claim": {
+        "run_id": "goal-coding-loop-20260802-cao08c-integration",
+        "thread_id": "/root",
+        "slice_id": "CAO-08C-production-coding-loop-controller-integration",
+        "owner": "root",
+        "state": "released_accepted",
+        "acquired_at": "2026-08-02T09:28:00+02:00",
+        "lease_expires_at": "2026-08-02T11:28:00+02:00",
+        "released_at": "2026-08-02T09:31:00+02:00",
+        "review": "root_deep_pass",
+        "allowed_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json",
+          "docs/plans/coding-agent-orchestration-consolidation-roadmap.md"
+        ],
+        "excluded_paths": [
+          "docs/plans/security-incident-response-production-completion-roadmap.json",
+          "ops/**",
+          "ops/homeserver/**",
+          "tests/test_security_incident_response_production_completion_roadmap.py",
+          "docs/plans/multi-agent-execution-guidance.json"
+        ]
+      },
+      "route": {
+        "entrypoint": "/abc + goal",
+        "selected": {
+          "master": "surface_default/root; exact runtime identifier not exposed",
+          "worker": "gpt-5.6-terra/high requested",
+          "review": "root deep"
+        },
+        "actual": {
+          "worker": "charlie_orchestration_dx on surface-default runtime; exact model identifier not exposed",
+          "review": "root/Sol deep review with two bounded fix cycles"
+        }
+      },
+      "acceptance": "A pure typed controller consumes CAO-08A Planning lifecycle authority, one READY CAO-08B pre-slice envelope and the CAO-08B1 implementer/tester/independent-reviewer capsules; a fake model may advance only the canonical clarifying-through-review_ready sequence, every mutation-like request becomes one immutable scope/exact-read/revision-bound controller intent, routine machine_auto and independent agent_auto gates are explicit, user_acceptance decisions stop at waiting_on_user, and unscoped/prohibited/unknown tool requests fail closed without fallback.",
+      "done_when": "Focused and dependency integration tests prove typed authority/envelope/capsule binding, role ordering and independent review, deterministic intent identity/deduplication, bounded budgets and repair escalation, exact-read-before-mutation, default denial of raw or unscoped requests, waiting_on_user for user-owned gates, review_ready as the terminal state for this slice, and zero imports or calls to generic agent_loop, app_api, shell/subprocess, tool execution, subagent runtime, graph/memory writers or dispatch services.",
+      "evidence": {
+        "target_environment": "local",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "focused_test",
+          "integration",
+          "independent_review"
+        ],
+        "forbidden": [
+          "filesystem, runtime or route mutation outside the six claimed files",
+          "generic agent-loop, shell, Python, app-api, MCP or tool-executor fallback",
+          "subagent dispatch, cancellation or runtime mutation",
+          "real retrieval, graph or memory write",
+          "commit, push, deploy or live action",
+          "OPS-Alert/security/homeserver/UI edits"
+        ],
+        "verified": {
+          "base_revision": "8723fb7858f05d62541f1f1ae10e503438cc6858",
+          "changed_path_blob_ids_in_allowed_path_order": [
+            "8b182a8cb4595126fa34f4bd5f1304ce55ec0113",
+            "5bc2482db826d982aead4d1f804dd60f46decdf5",
+            "3dca6c3b097c7065d34b3bc272dd4b676c012935",
+            "ff35894fba782c03d40a5b58964a09da327eede8",
+            "a7209740645a2626a90f291772946edc7fde2b0e",
+            "8c3055c988e95e20aa0a269b0c56dfafe90ed750"
+          ],
+          "worker_final_focused_lane": "28 passed with one pre-existing SQLAlchemy deprecation warning",
+          "worker_cao_dependency_lane": "150 passed with one pre-existing SQLAlchemy deprecation warning",
+          "root_final_cao_integration_lane": "150 passed with one pre-existing SQLAlchemy deprecation warning",
+          "root_adjacent_route_and_agent_loop_compatibility_lane": "9 passed with one pre-existing SQLAlchemy deprecation warning",
+          "syntax": "pass",
+          "whitespace_audit": "pass",
+          "planning_bound_user_gate_resume": "pass",
+          "exact_code_metadata_boundary": "pass",
+          "ops_alert_paths_changed_by_this_slice": false
+        },
+        "not_verified": [
+          "repository-wide suite",
+          "real immediate exact-read receipt, transactional worktree edit or tool execution integration",
+          "real model, route, generic agent-loop or activated worker-adapter integration",
+          "actual subagent dispatch, cancellation, expiry or resume runtime",
+          "real RAPTOR, GraphRAG, graph or memory retrieval/write integration",
+          "browser, semantic UI or user visual acceptance",
+          "commit, push, PR, deploy or any live action"
+        ]
+      },
+      "next_action": "Claim CAO-08C1 as the next dependency-ready local/fake bounded delegation runtime; keep worker-adapter activation and all real/external dispatch behind their separate user/live gates.",
+      "live_actions": false
+    },
+    {
+      "id": "CAO-08C1-bounded-delegation-runtime",
+      "class": "repo_only",
+      "owner": "bob_quality_loop/Terra replacement implementation; root/Sol deep review",
+      "status": "deferred_current_parallel_wave_after_prior_channel_recovery_exhaustion",
+      "claimable": false,
+      "claim_blocker": "The current selected coding lane is CAO-08D. Reclaim CAO-08C1 only in a later wave after master-route verification and an immutable exact-read handoff for the accepted uncommitted CAO prerequisites.",
+      "depends_on": [
+        "CAO-08B1 accepted_2026-08-02_after_root_deep_review",
+        "CAO-08C accepted_2026-08-02_after_root_deep_review"
+      ],
+      "source_roadmap": "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+      "allowed_paths": [
+        "src/coding_subagent_delegation_contracts.py",
+        "src/coding_subagent_delegation_runtime.py",
+        "tests/test_coding_subagent_delegation_contracts.py",
+        "tests/test_coding_subagent_delegation_runtime.py",
+        "tests/test_coding_subagent_delegation_integration.py"
+      ],
+      "excluded_paths": [
+        "docs/plans/**",
+        "ops/**",
+        "ops/homeserver/**",
+        "routes/**",
+        "static/**",
+        "src/subagent_runtime.py",
+        "src/subagent_plan_binding.py",
+        "src/thread_registry.py",
+        "src/agent_loop.py",
+        "src/tool_execution.py",
+        "src/coding_subagent_capsule.py",
+        "src/coding_subagent_context_broker.py",
+        "src/coding_loop_contracts.py",
+        "src/coding_loop_controller.py",
+        "src/coding_loop_model_adapter.py",
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "claim": {
+        "run_id": "goal-coding-loop-20260802-cao08c1",
+        "thread_id": "/root/bob_quality_loop",
+        "slice_id": "CAO-08C1-bounded-delegation-runtime",
+        "owner": "bob_quality_loop",
+        "state": "released_waiting_on_peer",
+        "acquired_at": "2026-08-02T09:37:00+02:00",
+        "lease_expires_at": "2026-08-02T13:37:00+02:00",
+        "transferred_at": "2026-08-02T09:42:00+02:00",
+        "released_at": "2026-08-02T09:48:00+02:00",
+        "previous_owner": "alice_coding_core",
+        "transfer_reason": "Original writer and one bounded finalization turn stalled before creating any claimed path; ownership transferred once without changing scope.",
+        "release_reason": "Replacement writer also stalled after one nudge and bounded finalization without creating any claimed path; ABC agent-channel recovery is exhausted for this turn.",
+        "handoff_required": true
+      },
+      "route": {
+        "entrypoint": "/abc + goal",
+        "selected": {
+          "master": "surface_default/root; exact runtime identifier not exposed",
+          "worker": "gpt-5.6-terra/high requested",
+          "review": "root deep"
+        },
+        "actual": {}
+      },
+      "acceptance": "A pure local/fake parent-child reducer consumes one accepted CAO-08C controller state and READY CAO-08B1 role capsules, derives every child identity from authoritative Planning/claim/scope/input facts, enforces fanout at most two and depth exactly one, binds every attempt/event/handoff/cancel/decision to deterministic idempotency and a monotonic fence token, expires or cancels leases fail-closed, resumes only as a fresh fenced attempt with current policy/budget/exact-read refs, preserves independent review and parent-only acceptance, and never activates or calls a real worker, thread, tool, route, graph/memory writer or live adapter.",
+      "done_when": "Focused and dependency integration tests prove the canonical planned-through-accepted/rejected child lifecycle, local fake dispatch descriptors with dispatch_performed false, exact parent/capsule bindings, two-child fanout/depth-one limits, idempotent replay and collision rejection, stale/future/duplicate fence rejection, lease-bound expiry, parent/child cancellation receipts, fresh-attempt resume, bounded content-free handoffs, reviewer independence, sequential third-role behavior after a terminal child, and zero execution/edit/write/dispatch/recursive/gate-close/network/live authority.",
+      "evidence": {
+        "target_environment": "local",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "focused_test",
+          "integration",
+          "independent_review"
+        ],
+        "forbidden": [
+          "edits outside the five claimed new files",
+          "legacy subagent runtime, thread registry, collaboration client or tool-executor import/call",
+          "real worker adapter activation or dispatch",
+          "filesystem, repository, route, network, graph or memory mutation",
+          "recursive, external, cross-workspace or live delegation",
+          "commit, push, deploy or live action",
+          "OPS-Alert/security/homeserver/UI edits"
+        ]
+      },
+      "next_action": "After the selected CAO-08D plus NMG-00 wave is accepted, reclaim the exact same five-file slice with a later available Terra worker; do not widen scope or activate any worker adapter.",
+      "live_actions": false
+    },
+    {
+      "id": "CAO-MASTER-ROUTE-VERIFICATION",
+      "class": "roadmap_authoring",
+      "owner": "root/operator decision",
+      "status": "waiting_on_user_2026-08-02_master_model_identity_not_observable",
+      "claimable": false,
+      "depends_on": [
+        "CAO-08C accepted_2026-08-02_after_root_deep_review"
+      ],
+      "source_roadmap": "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+      "allowed_paths": [
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/coding-agent-orchestration-consolidation-roadmap.md"
+      ],
+      "excluded_paths": [
+        "src/**",
+        "routes/**",
+        "tests/**",
+        "static/**",
+        "ops/**",
+        "ops/homeserver/**",
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json"
+      ],
+      "claim": {
+        "run_id": "goal-coding-loop-20260802-master-route",
+        "thread_id": "/root",
+        "slice_id": "CAO-MASTER-ROUTE-VERIFICATION",
+        "owner": "root",
+        "state": "released_waiting_on_user",
+        "acquired_at": "2026-08-02T09:56:55+02:00",
+        "released_at": "2026-08-02T09:56:55+02:00",
+        "release_reason": "The app surface exposes the root thread but no verifiable runtime model identity. Current ABC policy permits roadmap authoring but stops implementation delegation and integration until the Sol master route is verified or the user explicitly authorizes a different master route.",
+        "handoff_required": true
+      },
+      "route": {
+        "entrypoint": "/abc + goal",
+        "required": {
+          "master": "gpt-5.6-sol",
+          "worker": "gpt-5.6-terra",
+          "review": "gpt-5.6-sol deep"
+        },
+        "observed": {
+          "master": "surface_default/root; exact runtime model identifier not exposed",
+          "worker": "not dispatched while route gate is open",
+          "review": "not started"
+        },
+        "verification_attempts": [
+          "No callable tool in the active surface exposes the current root runtime model identity.",
+          "The discovered desktop thread-list capability has no registered handler in this surface."
+        ]
+      },
+      "acceptance": "Either the current root is observably verified as gpt-5.6-sol before implementation delegation/integration, or the user explicitly authorizes surface_default/root as the master route for this bounded parallel-development goal run.",
+      "done_when": "The selected master route and its evidence or explicit user authorization are recorded here before CAO-08D, NMG-00 or any other implementation slice is claimed.",
+      "evidence": {
+        "target_environment": "local",
+        "authority": "repo",
+        "mutation_class": "roadmap_authoring",
+        "required": [
+          "observable_master_model_identity_or_explicit_user_override",
+          "durable_route_record",
+          "scoped_diff_check"
+        ],
+        "not_verified": [
+          "current root runtime model identity",
+          "CAO-08D implementation",
+          "worker dispatch",
+          "commit, push, deploy or live action"
+        ]
+      },
+      "next_action": "Prefer switching or verifying this task as gpt-5.6-sol. Otherwise obtain an explicit user authorization to use surface_default/root as the master for this bounded goal run. Route satisfaction alone does not make CAO-08D or NMG-00 claimable; REPO-CLEANUP-ONE-WORKTREE must also pass before their disjoint exact-path claims are acquired.",
+      "live_actions": false
+    },
+    {
+      "id": "CAO-08D-scoped-execution-plane-consolidation",
+      "class": "repo_only",
+      "owner": "bob_quality_loop/Terra implementation after cleanup and route gates; root/Sol deep review",
+      "status": "waiting_on_user_2026-08-02_repo_cleanup_and_master_route_verification",
+      "claimable": false,
+      "depends_on": [
+        "CAO-08C accepted_2026-08-02_after_root_deep_review",
+        "REPO-CLEANUP-ONE-WORKTREE satisfied before claim",
+        "CAO-MASTER-ROUTE-VERIFICATION satisfied before claim"
+      ],
+      "source_roadmap": "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+      "allowed_paths": [
+        "src/coding_execution_contracts.py",
+        "src/coding_execution_plane.py",
+        "tests/test_coding_execution_contracts.py",
+        "tests/test_coding_execution_plane.py",
+        "tests/test_coding_execution_plane_integration.py"
+      ],
+      "excluded_paths": [
+        "docs/plans/**",
+        "ops/**",
+        "ops/homeserver/**",
+        "routes/**",
+        "static/**",
+        "src/coding_agent_backend.py",
+        "src/coding_agent_sandbox_bridge.py",
+        "src/agent_sandbox_worker.py",
+        "src/agent_sandbox_worker_api.py",
+        "src/tool_execution.py",
+        "src/tool_policy.py",
+        "src/shell_policy.py",
+        "src/coding_loop_contracts.py",
+        "src/coding_loop_controller.py",
+        "src/coding_loop_model_adapter.py",
+        "src/coding_lifecycle_authority.py",
+        "src/coding_subagent_capsule.py",
+        "src/coding_subagent_context_broker.py",
+        "tests/test_security_incident_response_production_completion_roadmap.py",
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json"
+      ],
+      "claim": {
+        "run_id": "goal-coding-loop-20260802-cao08d",
+        "thread_id": "unassigned",
+        "slice_id": "CAO-08D-scoped-execution-plane-consolidation",
+        "owner": "unassigned",
+        "state": "unclaimed_waiting_on_user",
+        "recorded_at": "2026-08-02T10:01:32+02:00",
+        "lease_expires_at": null,
+        "blocker": "REPO-CLEANUP-ONE-WORKTREE and CAO-MASTER-ROUTE-VERIFICATION are not satisfied.",
+        "handoff_required": true
+      },
+      "route": {
+        "entrypoint": "/abc + goal",
+        "recommended": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "claims, dependency ordering, route gate, evidence and deep review"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "selected": {
+          "master": "pending CAO-MASTER-ROUTE-VERIFICATION",
+          "worker": "gpt-5.6-terra/high after gate",
+          "review": "gpt-5.6-sol deep after handoff"
+        },
+        "actual": {
+          "master": "surface_default/root; exact runtime model identifier not exposed",
+          "worker": "not dispatched",
+          "review": "not started"
+        },
+        "fallback": "blocked_missing_capability"
+      },
+      "acceptance": "A pure Planning-bound execution reducer consumes exactly one CAO-08C request_bounded_check intent already stored in a verifying controller state plus a tester-capsule-authorized bounded argv request, revalidates all Planning/revision/claim/scope/input/capsule/check/capability bindings, and renders only deterministic SandboxJobRequest plans with read-only claim-scope mounts, network none, no secrets, bounded resources, minimal trusted capabilities and dispatch_allowed/execution_performed/live_effect_allowed all false.",
+      "done_when": "Focused and dependency integration tests prove controller-state and tester-role binding, non-empty repository-relative claim scope, blocked-scope exclusion, canonical check-command allowlisting, capsule acceptance-check/capability/time-budget enforcement, deterministic idempotent replay and semantic collision rejection, fixed trusted runtime-profile mapping, argv-only job rendering, read-only mounts, network none, no secrets, bounded content-free fake status reduction, and zero imports or calls to subprocess, generic tool execution, host shell helpers, SandboxWorker, routes, graph/memory writers, real dispatch or live adapters.",
+      "evidence": {
+        "target_environment": "local",
+        "authority": "repo",
+        "mutation_class": "repo_only",
+        "required": [
+          "static",
+          "focused_test",
+          "CAO-08C_dependency_integration",
+          "sandbox_contract_integration",
+          "independent_deep_review"
+        ],
+        "positive_path_required": true,
+        "forbidden": [
+          "edits outside the five new claimed files",
+          "host subprocess, shell, generic tool-executor or route integration",
+          "SandboxWorker import, construction, submit or dispatch",
+          "writable mounts, network access, secrets or arbitrary images/profiles",
+          "patch application, exact-read receipt implementation or repository mutation",
+          "raw stdout, stderr, logs, prompts, objectives, diffs or private paths in durable output",
+          "graph, memory, Planning or gate mutation",
+          "commit, push, deploy or live action",
+          "OPS-Alert/security/homeserver/UI edits"
+        ],
+        "preclaim_verified": {
+          "source_contract_review": "pass; CAO-08C emits content-free bounded-check intents and current lifecycle authority carries normalized claim scope",
+          "legacy_boundary_review": "pass; existing backend contains a direct subprocess runner and existing sandbox bridge can submit a real worker, so both remain excluded rather than silently reused",
+          "proposed_path_collision_check": "pass; all five proposed CAO-08D files are absent",
+          "open_work_json_parse": "pass",
+          "safe_queue_audit": "pass; CAO-08D is categorized other_open with claimable false, not safe-open",
+          "scoped_diff_check": "pass",
+          "protected_path_boundary": "pass; OPS-Alert, security, homeserver, UI, routes and multi-agent guidance paths are explicitly excluded"
+        },
+        "not_verified": [
+          "implementation",
+          "focused or integration tests",
+          "Terra handoff or Sol deep review",
+          "real sandbox execution",
+          "commit, push, deploy or live action"
+        ]
+      },
+      "post_acceptance_checkpoint": {
+        "pause_required": false,
+        "requested_by_user": "2026-08-02 cleanup steering",
+        "cleanup_order": "REPO-CLEANUP-ONE-WORKTREE is a pre-claim gate for this slice; no second cleanup decision is inferred after acceptance.",
+        "state_after_acceptance": "accepted_reported_to_user",
+        "report_required": "Notify the user that CAO-08D is accepted and provide the exact focused/integration/deep-review evidence plus remaining unverified layers.",
+        "successor_claims_blocked": [
+          "CAO-08E until CAO-08D acceptance is recorded",
+          "all later CAO-08 successors until their exact dependencies pass"
+        ],
+        "resume_condition": "Normal dependency and gate evaluation after the mandatory CAO-08D completion report."
+      },
+      "next_action": "After REPO-CLEANUP-ONE-WORKTREE and CAO-MASTER-ROUTE-VERIFICATION are both satisfied, atomically set claimable true, assign the exact five paths to one Terra/high worker with a bounded lease, and require root/Sol deep review before acceptance. Do not modify or activate the legacy backend, bridge, worker, routes or generic tool execution. After acceptance, report the exact evidence to the user before any successor is considered.",
+      "live_actions": false
+    },
+    {
       "id": "LCL-00-live-contextual-layer-roadmap-authoring",
       "class": "roadmap_authoring",
       "owner": "Alice/Terra authoring; root deep review and registry integration",
@@ -15795,21 +17367,117 @@
       "id": "NMG-00-legacy-boundary-audit",
       "class": "safe_offline",
       "owner": "Alice/Terra implementation; root/Sol deep review",
-      "status": "registered_waiting_goal_and_guidance_registration",
+      "status": "goal_active_guidance_registered_waiting_repo_cleanup_and_master_route_verification",
       "claimable": false,
-      "claim_blocker": "An explicit implementation goal and a clean multi-agent guidance registration are required; the current guidance file contains foreign working-tree changes.",
+      "claim_blocker": "The explicit Open Work goal and guidance registration are satisfied. Implementation remains gated until REPO-CLEANUP-ONE-WORKTREE passes and the master route is observably gpt-5.6-sol or the user explicitly authorizes surface_default/root for this bounded goal run.",
       "depends_on": [
         "OWM-15 native-system amendment committed as a1f5b00e1a47f99114683515a25060f1616ce145",
-        "explicit Open Work goal",
-        "clean guidance registration"
+        "explicit Open Work goal satisfied 2026-08-02",
+        "clean guidance registration satisfied 2026-08-02",
+        "REPO-CLEANUP-ONE-WORKTREE satisfied before implementation delegation",
+        "CAO-MASTER-ROUTE-VERIFICATION satisfied before implementation delegation"
       ],
       "allowed_paths": [
         "docs/plans/native-knowledge-runtime-legacy-boundary-inventory.json",
         "scripts/audit_native_knowledge_legacy_boundary.py",
         "tests/test_audit_native_knowledge_legacy_boundary.py"
       ],
+      "excluded_paths": [
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json",
+        "docs/plans/security-incident-response-production-completion-roadmap.json",
+        "src/llm_core.py",
+        "src/llm_async_call.py",
+        "src/local_model_scheduler.py",
+        "plugins/**",
+        "routes/**",
+        "static/**",
+        "ops/**",
+        "ops/homeserver/**",
+        "private_data/**"
+      ],
+      "claim": {
+        "run_id": "goal-cleanup-parallel-wave-20260802-nmg00",
+        "thread_id": "unassigned",
+        "slice_id": "NMG-00-legacy-boundary-audit",
+        "owner": "unassigned",
+        "state": "unclaimed_waiting_on_user",
+        "recorded_at": "2026-08-02T10:41:41+02:00",
+        "lease_expires_at": null,
+        "blocker": "REPO-CLEANUP-ONE-WORKTREE and CAO-MASTER-ROUTE-VERIFICATION are not satisfied.",
+        "handoff_required": true
+      },
+      "route": {
+        "entrypoint": "/abc + goal",
+        "recommended": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "claim isolation, dependency ordering, evidence and deep review"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "medium"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "selected": {
+          "master": "pending CAO-MASTER-ROUTE-VERIFICATION",
+          "worker": "gpt-5.6-terra/medium after cleanup and route gates",
+          "review": "gpt-5.6-sol deep after handoff"
+        },
+        "actual": {
+          "master": "surface_default/root; exact runtime model identifier not exposed",
+          "worker": "not dispatched",
+          "review": "not started"
+        },
+        "fallback": "blocked_missing_capability"
+      },
       "source_roadmap": "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
       "acceptance": "Inventory every remaining core/app/plugin coupling and record retire/excluded decisions without deletion, migration, runtime import or live action.",
+      "done_when": "The deterministic audit and committed content-free inventory enumerate every remaining native-memory legacy boundary with explicit retire or excluded disposition, stable source identifiers and no productive source, provider, private-data, runtime, migration, deletion, graph write or live effect; the focused test and independent deep review pass.",
+      "evidence": {
+        "target_environment": "local",
+        "authority": "repo",
+        "mutation_class": "safe_offline",
+        "required": [
+          "static",
+          "deterministic_inventory",
+          "focused_test",
+          "independent_deep_review"
+        ],
+        "positive_path_required": true,
+        "preclaim_verified": {
+          "proposed_path_collision_check": "pass; all three proposed NMG-00 target files are absent",
+          "cross_lane_overlap": "pass; zero overlap with the five CAO-08D target files",
+          "productive_source_boundary": "pass; LLM, scheduler, plugin, provider, private-data, routes, OPS-Alert and live paths are excluded",
+          "guidance_registration": "pass; NMG-00 is the only selected native-memory slice"
+        },
+        "forbidden": [
+          "edits outside the three claimed new files",
+          "legacy deletion, rename, migration or runtime import",
+          "productive source, model, provider, private-data, Obsidian or scheduler access",
+          "memory, graph, Planning, repository or live mutation",
+          "commit, push, deploy or external action",
+          "OPS-Alert/security/homeserver/UI edits"
+        ],
+        "not_verified": [
+          "implementation or generated inventory",
+          "focused test",
+          "Terra handoff or Sol deep review",
+          "productive memory runtime behavior",
+          "commit, push, deploy or live action"
+        ]
+      },
       "next_frontier_on_acceptance": "NMG-01-native-knowledge-contract; all later NMG and USI-C slices remain blocked by their exact detail-roadmap dependencies.",
       "live_actions": false
     }
@@ -15823,7 +17491,7 @@
     "OWM-12 Privacy-Safe Tool Usage Analytics: after TAX1, start the disjoint privacy/store baseline; wait for TAX5/TAX7/TAX10 at shared integration points and keep capture/backfill disabled until the single final activation decision.",
     "OWM-13 Gemma3 Maintenance Runtime Isolation: preserve the accepted repository packet but revalidate it against UIR-13 native shared observability; the historical GRO live gate cannot satisfy or authorize GMI activation.",
     "OWM-14 GraphRAG/RAPTOR Memory Performance And Observability: preserve GRO-00 through GRO-15 as historical plugin evidence only; do not open GRO slices or GRO-LIVE-ACTIVATION, and route native performance evidence through NMG-04A/04B, UIR-13 and USI-15.",
-    "OWM-15 Unified Source Index Foundation: USI-00 through USI-14 are accepted; after explicit reprioritization use the registered frontier UIR-03 after hotfile handoff, UDA-00, ULO-00 and NMG-00 after clean guidance registration; keep successors dependency-blocked, Obsidian excluded and every productive source disabled.",
+    "OWM-15 Unified Source Index Foundation: USI-00 through USI-14 are accepted; NMG-00 is selected for the first bounded parallel wave but remains unclaimable until REPO-CLEANUP-ONE-WORKTREE and CAO-MASTER-ROUTE-VERIFICATION pass. Other registered frontiers remain unselected; keep successors dependency-blocked, Obsidian excluded and every productive source disabled.",
     "OWM-19 USI Runtime And Consumer Integration: start at UIR-03 after exact composition-hotfile handoff; bind query_knowledge natively, serialize app/Chat/Agent/runtime hotfiles and execute UIR-12 classification, NMG-07 retirement and UIR-12A verification in order.",
     "OWM-20 USI Domain Adapter Rollout: UDA-00 is registered; build Personal Memory and Personal Docs first, select UDA-05 only after NMG-02 for an explicit native Knowledge scope, and never register Obsidian/ORCA vault as a source or fallback.",
     "OWM-21 USI Data Lifecycle And Operations: ULO-00 is registered; use synthetic owners and temporary databases, exclude legacy plugin artifacts from lifecycle authority, serialize Auth/backup/wipe hotfiles and retain every action-specific authorization.",
@@ -15831,8 +17499,10 @@
     "OWM-17 Code Lineage And Timeline: after USI identity, start CLT-00 with synthetic Git fixtures; keep Git read-only, label time first-observable and stop before real history backfill until one final activation decision.",
     "OWM-18 Lens Code Graph: after the bounded CBM graph API, start LCG-00 and fixture/backend work with one UI owner; preserve the visually strong Code Planet mode but keep production placement and real project graphs disabled until one independent UI-live decision.",
     "OWM-1 Version 1.0 Release Gate: do not claim 1.0 until UI live.",
+    "OWM-25 Coding Loop Planning, Memory And Gate Consolidation: CAO-08A through CAO-08C are accepted; CAO-08D is selected with NMG-00 for the first bounded parallel wave after REPO-CLEANUP-ONE-WORKTREE and CAO-MASTER-ROUTE-VERIFICATION. CAO-08C1 is deferred to a later reclaim. Planning is authoritative, RAPTOR/GraphRAG is advisory at four checkpoints, routine engineering gates remain autonomous, and UI/product/security/live acceptance remains user-owned.",
+    "OWM-26 Subagent Context And Delegation: CAO-08J, ACPR-17 authoring and H1-39 authoring are accepted. After CAO-08A/08B, implement CAO-08B1 role capsules, CAO-08C controller and CAO-08C1 bounded delegation; ACPR-17 verifies VCL-7 only after its exact prerequisites, and H1-39 remains a later read-only projection. Adapter activation and external dispatch are user-gated, while subsequent routine in-policy internal children are machine/agent automatic and quiet.",
     "OWM-27 Live Contextual Layer: LCL-00 roadmap authoring, deep review and router registration are accepted. LCL-01 is the first future frontier only after CAO-08B acceptance; later fake runtime, candidate ledger, canonical promotion, project projection, UI, local process, soak and production slices follow exact dependencies and five separate user/live gates. Hypotheses remain advisory and never override Planning, domain truth, USI, Memory/Causal review, claims or gates.",
-    "OWM-3 Autonomous Coding runtime control: resume only after the active TAX/TUA repo queue or explicit reprioritization.",
+    "OWM-3 Autonomous Coding runtime control: follow OWM-25's dependency order; no runtime, worker dispatch, publication or live authority was granted by the roadmap-authoring run.",
     "OWM-3A AI GUI Tooling: consolidate browser/DevTools/no-GPU observation into safe agent tools, including project screenshots and Telegram delivery, before broad autonomous GUI operation.",
     "OWM-4 MCP Workbench activation: install/test services when available, then use them as verification aids.",
     "OWM-5 Nextcloud local-only pilot: only after subset/policy decision.",

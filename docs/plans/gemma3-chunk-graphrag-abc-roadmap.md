@@ -1,5 +1,17 @@
 # Gemma3 Chunk GraphRAG ABC Roadmap
 
+Status: `historical_evidence_only / model_selection_superseded_2026-08-02`
+
+Authority note: Diese Roadmap bewahrt die historischen Gemma3-Retrieval- und
+CPU-Latenzbefunde. Sie entscheidet keinen kuenftigen Modellwechsel. Die
+Zwei-Lane-Entscheidung mit separatem Embedding-Modell fuer Retrieval,
+Clustering und Dedupe sowie `gemma3:4b` fuer generative Maintenance steht in
+`gemma3-memory-ops-optimization-roadmap.md`; die native Umsetzung und der
+eingefrorene Vergleichscorpus gehoeren zu NMG-04 in
+`memory-raptorgraph-consolidation-roadmap.md`. Aus dieser historischen Evidence
+folgt weder ein Paraphrase-als-Generator-Ersatz noch Download-, Re-Embedding-,
+Fine-Tuning-, Runtime- oder Live-Go-Autoritaet.
+
 ## Goal
 
 Gemma3 can reliably perform local document and memory triage over complex chunk graphs because retrieval selects a small, high-signal evidence packet before the model is called, and every live/server action remains gated.

@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.autonomous_coding_production_readiness_roadmap",
-  "updated_at": "2026-07-03",
-  "status": "remote_control_live_smoke_done_deploy_gated",
+  "updated_at": "2026-08-01",
+  "status": "acpr_0_through_10_accepted_subagent_readiness_authored_waiting_for_cao_08a_08b",
   "mode": "backend_logic_first",
   "title": "Autonomous Coding Production Readiness Roadmap",
   "goal": "Move the autonomous coding foundation from proven backend pieces to a reliable workstation-first project-runner workflow that can be monitored and controlled remotely through Telegram.",
@@ -37,8 +37,8 @@
     "memory_bridge": "src/coding_agent_memory_bridge.py"
   },
   "current_state_audit": {
-    "status": "remote_control_live_smoke_done",
-    "updated_at": "2026-07-04",
+    "status": "acpr_0_through_10_accepted_next_readiness_slice_dependency_blocked",
+    "updated_at": "2026-08-01",
     "implemented_foundation": [
       "routes/coding_agent_routes.py exposes task-plan, quality-gate, worktree-quality-gate, sandbox-checks, done-gate, patch-set, publish-plan and subagents-plan endpoints.",
       "src/coding_agent_backend.py already provides task plans, worktree creation gates, patch-set application gates, quality/done gates, publish plans and subagent contracts.",
@@ -55,18 +55,403 @@
       "Debian live evidence on commit eb43519d proves host_ssh sandbox terminal execution and a scoped rw mount write with network none, no secrets and redacted durable evidence."
     ],
     "missing_or_not_yet_durable": [
-      "Real deploy/Cloudflare exposure remains gated until explicit operator Go."
+      "Real deploy/Cloudflare exposure remains gated until explicit operator Go.",
+      "The implemented ACPR-0 through ACPR-9 foundation is not yet bound for readiness conformance to the CAO-owned canonical Planning-first coding lifecycle/controller and graph boundary, independently owned agent-review closure, executable UI receipts, a bounded repair/escalation loop, or role-capsule isolation and parent/child handoff verification."
     ],
     "recommended_sequence": [
-      "ACPR-2-runner-state-machine",
-      "ACPR-3-project-scope-resolver",
-      "ACPR-4-sandbox-check-orchestration",
-      "ACPR-6-telegram-remote-control-consumption",
-      "ACPR-7-publish-and-deploy-gates",
-      "ACPR-8-memory-and-tool-knowledge-refresh"
+      "ACPR-10-gate-ownership-and-memory-loop-roadmap-authoring accepted after root/Sol deep review",
+      "CAO-08A and CAO-08B lifecycle/controller and graph-boundary contracts accepted",
+      "ACPR-11-planning-authority-and-memory-checkpoints as readiness binding/conformance",
+      "CAO-08D and CAO-08E execution-plane contracts accepted",
+      "ACPR-12-transactional-worktree-and-safe-tool-capsules as readiness conformance",
+      "ACPR-13-diff-aware-quality-ratchets",
+      "ACPR-14-executable-ui-accessibility-and-visual-receipts",
+      "ACPR-15-offline-agent-evaluation-and-redacted-failure-intake",
+      "CAO-08B1 and CAO-08C1 subagent context/delegation contracts accepted",
+      "ACPR-17-subagent-context-isolation-and-handoff-verification",
+      "CAO-08G and CAO-08H review/writeback lifecycle contracts accepted",
+      "ACPR-16-bounded-repair-escalation-and-independent-closure"
     ],
     "raw_content_visible": false
   },
+  "current_frontier": {
+    "status": "ACPR-10 is accepted; ACPR-11 remains blocked until CAO-08A and CAO-08B contracts are accepted, so no ACPR-11 through ACPR-16 implementation slice is currently claimable.",
+    "claimable_slices": [],
+    "blocked_by": [
+      "CAO-08A and CAO-08B accepted lifecycle/controller and graph-boundary contracts"
+    ],
+    "next_after_acceptance": "CAO-08A and CAO-08B acceptance, then ACPR-11 readiness binding/conformance",
+    "later_bundle_constraints": "ACPR-17 is deliberately later: it requires accepted CAO-08B1/C1 subagent contracts and ACPR readiness prerequisites, then supplies VCL-7 before CAO-08G can consume readiness lanes."
+  },
+  "cross_roadmap_ownership": {
+    "cao": {
+      "track": "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+      "owns": [
+        "canonical coding lifecycle and controller",
+        "graph-boundary and context-envelope adapters",
+        "exact-edit integration and execution-plane lifecycle contracts",
+        "subagent lifecycle/controller and declared delegation fanout/depth contracts",
+        "lifecycle consumption of accepted ACPR readiness evidence"
+      ],
+      "does_not_own": [
+        "duplicate ACPR verification/readiness engines",
+        "Harbor One read-only Gate Inbox or user-decision UX"
+      ]
+    },
+    "acpr": {
+      "track": "docs/plans/autonomous-coding-production-readiness-roadmap.json",
+      "owns": [
+        "verification and readiness lane implementations",
+        "deterministic evidence contracts and quality policy",
+        "role-capsule isolation and parent/child handoff verification evidence",
+        "readiness conformance bindings to accepted CAO lifecycle contracts"
+      ],
+      "does_not_own": [
+        "a competing coding lifecycle or controller",
+        "a graph execution authority or exact-edit lifecycle integration",
+        "Harbor One read-only projection or user-decision UX"
+      ]
+    },
+    "harbor_one": {
+      "track": "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md",
+      "owns": [
+        "read-only projection",
+        "Gate Inbox",
+        "user-decision UX"
+      ],
+      "does_not_own": [
+        "coding lifecycle/controller execution",
+        "verification/readiness engines",
+        "a separate Planning, claim, gate or memory truth"
+      ]
+    },
+    "shared_non_duplication_rule": "No track may create another Planning authority, claim authority, gate truth or memory truth. Planning remains canonical, CAO owns the lifecycle/controller, ACPR supplies readiness evidence, Harbor One projects read-only state and user decisions, and RAPTOR/GraphRAG remains advisory only.",
+    "bundle_order": [
+      "CAO-08A and CAO-08B accepted contracts",
+      "ACPR-11 readiness binding/conformance",
+      "CAO-08C, CAO-08D and CAO-08E accepted execution-plane contracts",
+      "ACPR-12 through ACPR-15 accepted readiness lanes",
+      "CAO-08B1 and CAO-08C1 accepted subagent context/delegation contracts",
+      "ACPR-17 accepted VCL-7 role-capsule and handoff readiness lane",
+      "CAO-08F may complete from its CAO contracts without consuming ACPR lanes; CAO-08G and CAO-08H may then consume the accepted ACPR lanes including VCL-7",
+      "ACPR-16 consumes accepted CAO-08G and CAO-08H review/writeback lifecycle contracts"
+    ],
+    "anti_cycle_rule": "CAO may reference ACPR VCL/readiness lanes only after the applicable ACPR readiness slices are accepted; ACPR consumes CAO contracts only at the explicit dependency points below and never creates a controller replacement. In particular, ACPR-17 consumes accepted CAO-08B1/C1 contracts before CAO-08G consumes VCL-7."
+  },
+  "coding_loop_authority_contract": {
+    "canonical_planning_authority": {
+      "system": "Planning",
+      "rule": "A validated Planning item is the sole authority for slice identity, dependency order, allowed paths, acceptance, gate requirements and current status.",
+      "must_be_bound_before_edit": [
+        "planning_item_id",
+        "canonical_plan_revision",
+        "allowed_paths",
+        "acceptance_contract",
+        "gate_requirements"
+      ],
+      "rejection_rule": "Chat memory, agent summaries, retrieved graph context, a prior receipt or a task prompt cannot widen, replace or close the Planning item. Missing, stale or ambiguous Planning data blocks the slice."
+    },
+    "raptor_graphrag_checkpoints": [
+      {
+        "id": "memory_checkpoint_1_planning_intake",
+        "stage": "before scope resolution",
+        "purpose": "Retrieve bounded candidate context and prior evidence references for the exact Planning item.",
+        "allowed_effect": "advisory context only",
+        "required_receipt": "planning_item_id, canonical_plan_revision, memory_query_class, bounded_reference_ids, retrieval_status and raw_content_visible=false",
+        "truth_boundary": "Planning remains authoritative; a missing or conflicting memory result blocks for Planning clarification rather than changing scope."
+      },
+      {
+        "id": "memory_checkpoint_2_pre_edit",
+        "stage": "after scope resolution and before an edit capsule",
+        "purpose": "Offer bounded code, test and dependency references within Planning-authorized paths.",
+        "allowed_effect": "candidate read list only",
+        "required_receipt": "scope_digest, allowed_path_count, candidate_reference_ids, unresolved_reference_count and raw_content_visible=false",
+        "truth_boundary": "Retrieved references cannot authorize a path, tool, shell command, dependency or product decision."
+      },
+      {
+        "id": "memory_checkpoint_3_failure_retrieval",
+        "stage": "after each failed deterministic verification or rejected patch and before repair planning",
+        "purpose": "Retrieve bounded failure, regression and prior-resolution references within the active Planning envelope so a repair plan can be evaluated without replaying raw logs.",
+        "allowed_effect": "advisory failure retrieval only",
+        "required_receipt": "planning_item_id, canonical_plan_revision, active_planning_envelope_digest, revision_binding, dirty_diff_digest, failed_lane_receipt_ids, rejected_patch_digest_or_none, bounded_failure_reference_ids, retrieval_status and raw_content_visible=false",
+        "truth_boundary": "Failure retrieval never contains raw logs, source content or provider output; it cannot authorize, select or execute a repair, waive a failed lane, widen scope or determine acceptance."
+      },
+      {
+        "id": "memory_checkpoint_4_post_acceptance_writeback",
+        "stage": "only after all required machine_auto and independent agent_auto gates, plus any applicable user_acceptance gate, are closed",
+        "purpose": "Persist provenance-linked Code, Causal and Memory write intents for an already accepted Planning outcome and the next approved Planning item.",
+        "allowed_effect": "bounded post-acceptance write-intent persistence and handoff continuity only",
+        "required_receipt": "planning_item_id, canonical_plan_revision, revision_binding, required_machine_auto_receipt_ids, independent_agent_auto_receipt_id, applicable_user_acceptance_state, code_write_intent_id, causal_write_intent_id, memory_write_intent_id, provenance_reference_ids and raw_content_visible=false",
+        "truth_boundary": "Writeback is never evidence of acceptance and cannot mark a Planning item done, waive a gate, infer user acceptance or authorize commit, push, deploy or another live action."
+      }
+    ],
+    "memory_failure_rule": "Unavailable, stale, conflicting or low-confidence RAPTOR/GraphRAG output is recorded as a bounded non-authoritative limit; the runner continues only when the canonical Planning item remains complete and unambiguous."
+  },
+  "subagent_context_and_delegation_contract": {
+    "authority_boundary": "CAO owns the lifecycle/controller, dispatch and declared fanout/depth mechanics. ACPR verifies conformance through VCL-7 and does not create another controller, Planning authority, claim authority, gate truth or memory truth.",
+    "role_capsules": [
+      {
+        "role": "parent_controller",
+        "may_receive": "validated Planning identity/revision, declared child role, bounded scope digest, capsule policy and child lifecycle metadata",
+        "must_not_receive_or_forward": "raw private source, secrets, raw logs, undeclared foreign paths or authority to close child review/user gates"
+      },
+      {
+        "role": "implementer_child",
+        "may_receive": "fresh Planning-bound task capsule, exact allowed paths, declared tool budget, time/token budget, bounded advisory reference ids and exact-read requirements",
+        "must_not_receive_or_forward": "parent private context not required by scope, reviewer authority, cross-scope/foreign-path data, secrets, raw logs or recursive delegation authority beyond its declared fanout/depth"
+      },
+      {
+        "role": "independent_reviewer",
+        "may_receive": "a reviewer-fresh retrieval capsule built from current Planning revision, current diff binding, exact source reads and verified code/test/lane evidence",
+        "must_not_receive_or_forward": "a copied implementer context capsule or summary as its evidence source, implementer identity authority, secrets, raw private content or authority to close user_acceptance"
+      },
+      {
+        "role": "memory_advisor",
+        "may_receive": "bounded query class, active Planning envelope digest and provenance requirements",
+        "must_not_receive_or_forward": "execution authority, mutable claim/gate state, raw source/logs, secret/private content or permission to select a repair"
+      }
+    ],
+    "evidence_precedence": "Current validated Planning, exact source reads and current code/test evidence win. RAPTOR/GraphRAG retrieval is advisory only and must be fresh, provenance-bound and scoped before use.",
+    "delegation_limits": {
+      "identity_rule": "parent identity, child identity, role, Planning item/revision, capsule id, dispatch nonce, lease/fence and current diff binding must be distinct and recorded in every handoff receipt",
+      "fanout_depth_rule": "A child may dispatch only when the parent Planning item declares the exact fanout and depth; duplicate child dispatch or recursion beyond those limits fails closed.",
+      "lifecycle_rule": "Cancellation, expiry and resume require the current lease/fence and Planning revision; a resumed child receives a fresh capsule rather than inheriting stale retrieved context.",
+      "writeback_rule": "No Code/Causal/Memory writeback is allowed before all applicable machine_auto, independent agent_auto and user_acceptance gates are closed; writeback remains a provenance-linked intent, never acceptance evidence."
+    }
+  },
+  "gate_taxonomy": {
+    "machine_auto": {
+      "purpose": "Deterministic mechanical checks with an exact revision or dirty-diff binding.",
+      "may_close": "The machine verifier may close only the named machine_auto check after every required receipt validates.",
+      "must_not_close": [
+        "agent_auto review",
+        "user_acceptance",
+        "Planning item completion",
+        "commit, push, deploy, provider write or any live action"
+      ],
+      "minimum_evidence": [
+        "canonical command or internal check identity",
+        "exact revision and dirty-diff digest before and after execution",
+        "bounded duration and result code",
+        "redacted receipt schema validation",
+        "explicit verification limits"
+      ]
+    },
+    "agent_auto": {
+      "purpose": "Independent agent review of a bounded implementation and its machine receipts.",
+      "may_close": "A designated independent reviewer agent, recorded with a distinct implementation identity, may close the named agent_auto review gate after Planning scope, diff, receipts, rollback state and escalation rules are checked.",
+      "implementer_may_close": false,
+      "must_not_close": [
+        "user_acceptance",
+        "auth/security/privacy policy decisions",
+        "material architecture, product or scope decisions",
+        "commit, push, deploy, destructive or external/live actions"
+      ],
+      "minimum_evidence": [
+        "implementer_identity and reviewer_identity are distinct",
+        "Planning revision and allowed-path comparison",
+        "exact revision and dirty-diff binding",
+        "all required machine_auto receipt ids",
+        "review findings or explicit no-findings record",
+        "remaining limits and next gate owner"
+      ]
+    },
+    "user_acceptance": {
+      "purpose": "Human product and risk authority; only the user may close this gate.",
+      "may_close": "user only",
+      "required_for": [
+        "UI or UX acceptance",
+        "material product, architecture or scope decisions",
+        "authentication, security or privacy policy",
+        "destructive actions",
+        "external or live actions",
+        "commit, push, publish, deploy, provider write, host change, backup or restore"
+      ],
+      "minimum_evidence": [
+        "specific decision requested",
+        "bounded alternatives and impact",
+        "revision or artifact binding where applicable",
+        "rollback or recovery plan for an effectful action",
+        "recorded explicit user decision"
+      ]
+    },
+    "ambiguous_acceptance_rule": "When acceptance is ambiguous, incomplete, stale or conflicting, no gate advances. The runner records waiting_on_user with the exact Planning field or decision needed."
+  },
+  "repair_and_escalation_policy": {
+    "automatic_repair": {
+      "maximum_failed_approaches": 2,
+      "eligible_only_when": [
+        "the Planning item is complete and unambiguous",
+        "the proposed edit remains within allowed paths and declared acceptance",
+        "the safe shell/tool capsule allows the exact action",
+        "no auth, security, privacy, destructive, external or live risk is involved",
+        "foreign work does not overlap",
+        "the attempted repair can be reverted transactionally"
+      ],
+      "required_each_attempt": [
+        "new transactional worktree or clean rollback boundary",
+        "diff and receipt binding before verification",
+        "focused deterministic machine lanes",
+        "checkpoint_3 failure-retrieval receipt before repair planning",
+        "independent agent review after a passing repair"
+      ]
+    },
+    "mandatory_escalation": [
+      "ambiguous acceptance or incomplete Planning authority",
+      "scope expansion or an undeclared path/tool/dependency",
+      "material architecture or product decision",
+      "authentication, security or privacy risk",
+      "overlapping foreign work or unresolved ownership",
+      "two failed repair approaches",
+      "unavailable, conflicting or unbound verification evidence"
+    ],
+    "escalation_result": "Stop edits, preserve the current worktree, attach only redacted revision-bound receipts, and create a Planning-linked waiting_on_user or waiting_on_peer decision; no third automatic repair is attempted."
+  },
+  "verification_lanes": [
+    {
+      "id": "VCL-1-transactional-worktree-edit-review-rollback",
+      "purpose": "Create an isolated worktree, bind the authorized diff, permit a reversible edit, obtain independent review and retain a rollback descriptor without touching foreign work.",
+      "gate_class": "machine_auto then agent_auto",
+      "closers": {
+        "machine_auto": "transaction verifier",
+        "agent_auto": "independent reviewer agent, never the implementer"
+      },
+      "deterministic_evidence": [
+        "Planning revision and scope digest",
+        "base revision, worktree id and pre/post dirty-diff digests",
+        "changed-path subset result",
+        "rollback descriptor and rollback-readiness result",
+        "independent-review receipt id"
+      ],
+      "limits": "A passing rollback-readiness check does not authorize discard, commit, push or external mutation."
+    },
+    {
+      "id": "VCL-2-safe-shell-tool-capsule",
+      "purpose": "Run only explicitly allowlisted argv/tool calls in the sandbox with no host shell, default network, secrets or unbounded filesystem access.",
+      "gate_class": "machine_auto",
+      "closers": {
+        "machine_auto": "capsule verifier",
+        "agent_auto": "not applicable unless a repair follows"
+      },
+      "deterministic_evidence": [
+        "capsule policy version and command/tool identity",
+        "scope digest, sandbox profile and bounded timeout",
+        "network/secrets/host-shell denied assertions",
+        "exit classification and redacted output digest",
+        "exact revision and dirty-diff binding"
+      ],
+      "limits": "A denied action escalates; the capsule never falls back to arbitrary shell or another tool."
+    },
+    {
+      "id": "VCL-3-diff-aware-tests-and-quality-ratchets",
+      "purpose": "Select focused tests from a reviewed path-to-test map, widen for shared contracts, then enforce lint, type and coverage ratchets without claiming complete coverage from a narrow lane.",
+      "gate_class": "machine_auto",
+      "closers": {
+        "machine_auto": "quality verifier",
+        "agent_auto": "independent reviewer when a repair or scope-sensitive exception is proposed"
+      },
+      "deterministic_evidence": [
+        "pre/post revision and dirty-diff digests",
+        "changed paths and explainable selected-test reasons",
+        "focused and required widened test receipts",
+        "lint and type diagnostic counts by stable rule id",
+        "coverage baseline, observed value and ratchet decision"
+      ],
+      "limits": "Missing mapping, unavailable runtime or a ratchet exception fails closed to a broader declared lane or escalation."
+    },
+    {
+      "id": "VCL-4-executable-playwright-accessibility-visual-receipts",
+      "purpose": "Execute hermetic Playwright UI flows, accessibility assertions and visual comparisons rather than accepting an unattested image file.",
+      "gate_class": "machine_auto plus user_acceptance for UI/UX acceptance",
+      "closers": {
+        "machine_auto": "UI receipt verifier",
+        "agent_auto": "independent reviewer for implementation evidence",
+        "user_acceptance": "user only for UI/UX acceptance"
+      },
+      "deterministic_evidence": [
+        "revision and dirty-diff binding",
+        "browser/runtime version and hermetic fixture id",
+        "test, accessibility and visual-comparison results",
+        "bounded screenshot/trace hashes and viewport metadata",
+        "known visual limits and explicit user-acceptance state"
+      ],
+      "limits": "A visual artifact proves availability only until the executable checks and any required user acceptance are recorded."
+    },
+    {
+      "id": "VCL-5-real-offline-agent-eval-and-redacted-failure-intake",
+      "purpose": "Run a content-free, egress-denied agent evaluation and transform failures into bounded, deduplicated redacted intake records.",
+      "gate_class": "machine_auto then agent_auto",
+      "closers": {
+        "machine_auto": "offline eval and intake verifier",
+        "agent_auto": "independent reviewer agent for classification; never the failing implementer"
+      },
+      "deterministic_evidence": [
+        "approved fixture and evaluator version ids",
+        "model, prompt, tool-budget and configuration fingerprints",
+        "egress-denied and allowed-root assertions",
+        "quality/latency/cost threshold results and exact revision binding",
+        "redacted normalized failure signature, deduplication key and ownership proposal"
+      ],
+      "limits": "The intake record diagnoses neither root cause nor repair authority; raw prompts, source text, provider output and host paths are forbidden."
+    },
+    {
+      "id": "VCL-6-independent-closure-and-publication-separation",
+      "purpose": "Prove that passing implementation lanes advance only to independent review or user acceptance, while publication and live effects remain separate actions.",
+      "gate_class": "agent_auto plus user_acceptance where applicable",
+      "closers": {
+        "agent_auto": "independent reviewer agent, never the implementer",
+        "user_acceptance": "user only for every publication or live-effect authorization"
+      },
+      "deterministic_evidence": [
+        "implementer/reviewer identity distinction",
+        "Planning status proposal rather than self-completion",
+        "all prerequisite lane receipt ids with exact revision binding",
+        "separate commit/push/publish/deploy/live-go decision state",
+        "remaining verification and recovery limits"
+      ],
+      "limits": "No successful review implicitly authorizes staging, commit, push, publish, deploy, provider write or host action."
+    },
+    {
+      "id": "VCL-7-role-capsule-isolation-and-parent-child-handoff",
+      "purpose": "Verify that CAO-declared subagent role capsules, parent/child dispatch and independent review remain Planning-bound, scope-confined, fresh, budgeted, cancellable and provenance-verifiable.",
+      "gate_class": "machine_auto then agent_auto; user_acceptance only when an applicable user-owned gate exists",
+      "closers": {
+        "machine_auto": "role-capsule and handoff verifier",
+        "agent_auto": "independent reviewer agent using a fresh reviewer retrieval capsule, never the implementer or parent controller",
+        "user_acceptance": "user only for any UI/UX, material product/architecture/scope, auth/security/privacy, destructive/external/live or publication decision"
+      },
+      "deterministic_evidence": [
+        "current Planning item id, canonical revision, active envelope digest and exact allowed-path digest",
+        "parent/child identities, roles, capsule ids, dispatch nonce, lease/fence, declared fanout/depth and duplicate-dispatch result",
+        "retrieval freshness, provenance chain, advisory-memory status and exact source/code/test evidence references",
+        "current revision and dirty-diff binding for every child input and child result",
+        "token/time budget limits and observed bounded counters",
+        "allowlisted tools/sandbox profile plus denied network/unauthorized-tool assertions",
+        "cancellation, expiry and resume transition receipts with fresh-capsule proof",
+        "reviewer-fresh retrieval capsule id, reviewer identity distinctness and no implementer-context-copy assertion",
+        "applicable gate states and provenance-linked Code/Causal/Memory write-intent state"
+      ],
+      "required_negative_cases": [
+        "wrong Planning revision",
+        "stale retrieval",
+        "unproven provenance",
+        "cross-scope or foreign-path leakage",
+        "secret/private/raw-log leakage",
+        "over-token or over-time budget",
+        "unauthorized tools or network",
+        "duplicate child dispatch",
+        "stale fencing or lease",
+        "wrong parent/child identity",
+        "recursive delegation beyond declared fanout or depth",
+        "cancellation, expiry and resume without a fresh valid capsule",
+        "child result not bound to current diff",
+        "implementer masquerading as reviewer",
+        "reviewer context copied from implementer",
+        "memory writeback before all applicable gates"
+      ],
+      "limits": "RAPTOR/GraphRAG is advisory only. Current Planning plus exact source reads and current code/test/lane evidence win; no VCL-7 result creates a competing controller, Planning/claim/gate/memory truth, authorizes a repair or treats writeback as acceptance."
+    }
+  ],
   "target_user_stories": [
     {
       "id": "workstation-roadmap-run",
@@ -264,6 +649,286 @@
       "gate_required": "autonomous-coding-live-remote-control-go",
       "done_when": "The server records a workstation-started task, Telegram reports it, pause/resume is consumed, and evidence is stored redacted.",
       "evidence": "Debian live-container smoke on 2026-07-04 used ops/homeserver/run-autonomous-coding-remote-control-smoke.sh. It recorded workstation task acpr9_remote_control_1783179355, parsed Telegram /task status, /task pause and /task weiter commands, wrote pause_requested and resume_requested control events, consumed them through CodingRunnerStateStore, moved the runner from scoped to blocked with telegram_pause_requested and back to scoped, and wrote data/reports/autonomous_coding_production/workstation-telegram-control-live-smoke.json with status=succeeded, telegram_network_delivery=false, deploy_performed=false, raw_content_visible=false, tokens_visible=false, chat_ids_visible=false and host_paths_visible=false."
+    },
+    {
+      "id": "ACPR-10-gate-ownership-and-memory-loop-roadmap-authoring",
+      "class": "repo_only",
+      "owner": "Bob/Terra authoring; root/Sol deep review",
+      "status": "accepted_2026-08-01_after_root_sol_deep_review",
+      "depends_on": [
+        "ACPR-0 through ACPR-9 accepted",
+        "CAO-07 accepted"
+      ],
+      "allowed_paths": [
+        "docs/plans/autonomous-coding-production-readiness-roadmap.json"
+      ],
+      "tests": [
+        "JSON parse of this roadmap",
+        "git diff --check -- docs/plans/autonomous-coding-production-readiness-roadmap.json"
+      ],
+      "done_when": "This roadmap names Planning as canonical authority, four non-authoritative RAPTOR/GraphRAG checkpoints, three explicit gate owners, bounded repair escalation, revision-bound verification lanes and separate publication/live authority.",
+      "evidence": "Roadmap authoring on 2026-08-01 added the coding_loop_authority_contract, gate_taxonomy, repair_and_escalation_policy, verification_lanes and ACPR-11 through ACPR-16 planning entries. Root/Sol deep review accepted the slice after aligning failure retrieval and post-acceptance writeback checkpoints and separating CAO lifecycle, ACPR readiness and Harbor One UX ownership. JSON structure and scoped diff checks passed; no implementation, runtime test, commit, push, deploy or live action is claimed."
+    },
+    {
+      "id": "ACPR-11-planning-authority-and-memory-checkpoints",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "planned_not_claimable_until_ACPR-10_review_and_CAO-08A-B_acceptance",
+      "depends_on": [
+        "ACPR-10 accepted",
+        "CAO-08A accepted",
+        "CAO-08B accepted"
+      ],
+      "allowed_paths": [
+        "src/coding_project_scope.py",
+        "src/coding_agent_runner_state.py",
+        "src/coding_agent_memory_bridge.py",
+        "tests/test_coding_project_scope.py",
+        "tests/test_coding_agent_runner_state.py",
+        "tests/test_coding_agent_memory_bridge.py"
+      ],
+      "tests": [
+        "focused Planning authority, stale/ambiguous scope and memory-checkpoint tests",
+        "revision-bound receipt schema tests"
+      ],
+      "done_when": "Every editable coding slice conforms to the accepted CAO-08A/B canonical lifecycle/controller and graph-boundary contracts by binding a validated Planning item and revision before scope resolution; all four memory checkpoints emit bounded receipts and cannot widen scope, close gates or substitute for Planning.",
+      "gate_requirements": [
+        "machine_auto Planning-binding validation",
+        "agent_auto independent review",
+        "user_acceptance for any material Planning product, architecture or scope decision"
+      ],
+      "escalates_when": [
+        "Planning data is missing, stale or ambiguous",
+        "memory conflicts with Planning",
+        "a retrieved reference proposes an undeclared path, tool or dependency",
+        "the requested readiness binding would create a competing lifecycle, claim, gate or memory truth"
+      ]
+    },
+    {
+      "id": "ACPR-12-transactional-worktree-and-safe-tool-capsules",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "planned_not_claimable_until_ACPR-11_and_CAO-08D-E_acceptance",
+      "depends_on": [
+        "ACPR-11 accepted",
+        "CAO-08D accepted",
+        "CAO-08E accepted"
+      ],
+      "allowed_paths": [
+        "src/coding_agent_backend.py",
+        "src/coding_agent_runner_state.py",
+        "src/coding_agent_sandbox_bridge.py",
+        "src/server_project_runner.py",
+        "tests/test_coding_agent_backend.py",
+        "tests/test_coding_agent_runner_state.py",
+        "tests/test_coding_agent_sandbox_bridge.py",
+        "tests/test_server_project_runner.py"
+      ],
+      "tests": [
+        "transactional worktree creation, changed-path subset, review handoff and rollback-readiness tests",
+        "safe shell/tool capsule allowlist, denied network/secrets/host-shell and timeout tests",
+        "exact revision and dirty-diff receipt-binding tests"
+      ],
+      "done_when": "The readiness lanes consume the accepted CAO-08D/E execution-plane and exact-edit contracts: an authorized edit is isolated in a transactional worktree, reversible at a recorded boundary, reviewable by an identity distinct from the implementer, and executed only through an allowlisted sandbox tool capsule without replacing the CAO controller.",
+      "gate_requirements": [
+        "machine_auto VCL-1 and VCL-2",
+        "agent_auto independent review; implementer cannot close it",
+        "user_acceptance for destructive, external or live action only"
+      ],
+      "escalates_when": [
+        "foreign work overlaps",
+        "rollback boundary is unavailable",
+        "a command/tool is not declared by the capsule",
+        "any auth, security or privacy risk appears",
+        "a readiness implementation would duplicate or override CAO execution-plane authority"
+      ]
+    },
+    {
+      "id": "ACPR-13-diff-aware-quality-ratchets",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "planned_not_claimable_until_ACPR-12_acceptance",
+      "depends_on": [
+        "ACPR-12 accepted"
+      ],
+      "allowed_paths": [
+        "scripts/verify.py",
+        "tests/run_focus.py",
+        "tests/_taxonomy.py",
+        "pyproject.toml",
+        "package.json",
+        ".github/workflows/quality-gate.yml",
+        "tests/test_verify_entrypoint.py",
+        "tests/test_ci_release_workflow_contract.py"
+      ],
+      "tests": [
+        "diff-to-test mapping and shared-contract widening tests",
+        "lint, type and coverage ratchet contract tests",
+        "fail-closed unavailable/missing-mapping and exact binding tests"
+      ],
+      "done_when": "The verifier explains selected focused tests from the bound diff, widens for shared contracts, falls closed to a declared broader lane when mapping is incomplete, and records lint/type/coverage ratchets without hiding baseline debt.",
+      "gate_requirements": [
+        "machine_auto VCL-3",
+        "agent_auto independent review for an exception or repair",
+        "user_acceptance for a material quality-policy threshold decision"
+      ],
+      "escalates_when": [
+        "test impact cannot be mapped",
+        "coverage/lint/type policy needs an exception",
+        "a proposed ratchet changes product, architecture or scope"
+      ]
+    },
+    {
+      "id": "ACPR-14-executable-ui-accessibility-and-visual-receipts",
+      "class": "repo_only",
+      "owner": "UI-capable Terra implementation; root/Sol deep review",
+      "status": "planned_not_claimable_until_ACPR-13_acceptance",
+      "depends_on": [
+        "ACPR-13 accepted"
+      ],
+      "allowed_paths": [
+        "package.json",
+        "playwright.config.*",
+        "scripts/verify.py",
+        "tests/frontend/**",
+        "tests/test_verify_entrypoint.py",
+        ".github/workflows/quality-gate.yml"
+      ],
+      "tests": [
+        "hermetic Playwright execution and trace/screenshot receipt tests",
+        "accessibility assertion tests",
+        "visual baseline/diff receipt and invalid-artifact rejection tests"
+      ],
+      "done_when": "UI-affecting work can execute a hermetic browser, accessibility and visual-comparison lane with revision-bound hashes; UI/UX acceptance remains visibly pending until the user closes it.",
+      "gate_requirements": [
+        "machine_auto VCL-4 executable browser/a11y/visual receipts",
+        "agent_auto independent review",
+        "user_acceptance for every UI/UX acceptance decision"
+      ],
+      "escalates_when": [
+        "visual expectations are ambiguous",
+        "a UI change requires a material product or architecture decision",
+        "browser execution needs external credentials, network or live state"
+      ]
+    },
+    {
+      "id": "ACPR-15-offline-agent-evaluation-and-redacted-failure-intake",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "planned_not_claimable_until_ACPR-14_acceptance",
+      "depends_on": [
+        "ACPR-14 accepted"
+      ],
+      "allowed_paths": [
+        "scripts/benchmark_code_intelligence.py",
+        "scripts/verify.py",
+        "src/agent_verification_receipt.py",
+        "docs/plans/regression-queue.json",
+        "tests/fixtures/code_intelligence/**",
+        "tests/test_benchmark_code_intelligence.py",
+        "tests/test_agent_verification_receipt.py",
+        "tests/test_verify_entrypoint.py"
+      ],
+      "tests": [
+        "egress-denied and allowed-root evaluator contract tests",
+        "deterministic threshold and revision-binding tests",
+        "redacted failure normalization, deduplication and ownership-proposal tests",
+        "raw prompt/source/provider-output/host-path rejection tests"
+      ],
+      "done_when": "A real offline, approval-scoped agent-evaluation lane can run only against a content-free/public fixture with egress denied, and every failure produces a bounded redacted intake record that proposes but never performs diagnosis or repair.",
+      "gate_requirements": [
+        "machine_auto VCL-5",
+        "agent_auto independent classification review",
+        "user_acceptance for any evaluation policy, model, security/privacy or scope decision outside the approved contract"
+      ],
+      "escalates_when": [
+        "the evaluation requires network, secrets, private source or host access",
+        "thresholds or fixture meaning are ambiguous",
+        "failure classification suggests security/privacy or material architecture risk"
+      ]
+    },
+    {
+      "id": "ACPR-17-subagent-context-isolation-and-handoff-verification",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "planned_not_claimable_until_CAO-08B1-C1_and_readiness_prerequisites_acceptance",
+      "depends_on": [
+        "ACPR-11 accepted",
+        "ACPR-12 accepted",
+        "ACPR-13 accepted",
+        "ACPR-15 accepted",
+        "CAO-08B1 accepted",
+        "CAO-08C1 accepted"
+      ],
+      "allowed_paths": [
+        "src/subagent_readiness_verification.py",
+        "src/agent_verification_receipt.py",
+        "scripts/verify.py",
+        "tests/test_subagent_readiness_verification.py",
+        "tests/test_agent_verification_receipt.py",
+        "tests/test_verify_entrypoint.py"
+      ],
+      "tests": [
+        "VCL-7 deterministic negative matrix for Planning revision, freshness, provenance, scope, private-content, budget, tool/network, identity, lease/fence, fanout/depth, lifecycle and diff-binding failures",
+        "parent/child handoff receipt and cancellation/expiry/resume fresh-capsule tests",
+        "independent reviewer fresh-retrieval and implementer-context-copy rejection tests",
+        "post-acceptance writeback ordering and provenance-intent tests"
+      ],
+      "done_when": "The ACPR readiness verifier consumes accepted CAO-08B1/C1 role-capsule and delegation contracts, executes VCL-7's deterministic negative matrix, proves parent/child and reviewer independence, and produces only revision-bound redacted evidence without replacing the CAO controller or treating RAPTOR/GraphRAG as truth.",
+      "gate_requirements": [
+        "machine_auto VCL-7 role-capsule isolation and handoff verification",
+        "agent_auto independent reviewer retrieval with identity distinct from implementer and parent controller",
+        "user_acceptance only for applicable user-owned UI/UX, material product/architecture/scope, auth/security/privacy, destructive/external/live or publication decisions"
+      ],
+      "escalates_when": [
+        "wrong Planning revision, stale retrieval or unproven provenance",
+        "cross-scope/foreign-path or secret/private/raw-log leakage",
+        "token/time budget, unauthorized-tool/network, duplicate-dispatch or stale-lease/fence violation",
+        "wrong parent/child identity or recursive delegation beyond declared fanout/depth",
+        "cancellation/expiry/resume without fresh valid capsule or child result unbound from current diff",
+        "implementer masquerades as reviewer or reviewer context is copied from implementer",
+        "memory writeback is attempted before all applicable gates",
+        "a proposed implementation creates a competing Planning, claim, gate, memory truth or CAO controller"
+      ]
+    },
+    {
+      "id": "ACPR-16-bounded-repair-escalation-and-independent-closure",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "planned_not_claimable_until_ACPR-15_and_CAO-08G-H_acceptance",
+      "depends_on": [
+        "ACPR-15 accepted",
+        "ACPR-17 accepted",
+        "CAO-08G accepted",
+        "CAO-08H accepted"
+      ],
+      "allowed_paths": [
+        "src/coding_agent_runner_state.py",
+        "src/coding_agent_backend.py",
+        "src/agent_task_ledger.py",
+        "tests/test_coding_agent_runner_state.py",
+        "tests/test_coding_agent_backend.py",
+        "tests/test_agent_task_ledger.py"
+      ],
+      "tests": [
+        "one- and two-attempt repair boundary tests",
+        "mandatory escalation tests for ambiguity, scope, architecture/product, security/privacy and foreign-work overlap",
+        "implementer/reviewer identity separation and publication/live-action non-authorization tests"
+      ],
+      "done_when": "The readiness closure consumes accepted CAO-08G/H review/writeback lifecycle contracts: the runner permits at most two eligible reversible repairs, stops on every mandatory escalation condition, records a Planning-linked decision request, and requires an independent agent review before any completion proposal while keeping writeback, publication and live effects separately gated.",
+      "gate_requirements": [
+        "machine_auto VCL-6 prerequisites",
+        "agent_auto VCL-6 independent closure; implementer cannot close it",
+        "user_acceptance for UI/UX, material product/architecture/scope, auth/security/privacy, destructive/external/live and every publication action"
+      ],
+      "escalates_when": [
+        "two repair approaches fail",
+        "acceptance is ambiguous",
+        "scope expands",
+        "a material decision, security/privacy risk or foreign-work overlap appears",
+        "evidence is unbound, unavailable or contradictory",
+        "the proposed closure would create a competing lifecycle, gate or memory truth"
+      ]
     }
   ],
   "gate_queue": [
@@ -290,6 +955,67 @@
       "blocks": ["MCP workbench live usage"],
       "decision_needed": "Install/enable corresponding MCP services in Codex/Odysseus when available, then run bounded smoke tests.",
       "risk_if_bypassed": "The runner may rely on unverified MCP tools or overly broad control surfaces."
+    },
+    {
+      "id": "acpr-10-root-sol-deep-review",
+      "class": "repo_only",
+      "status": "accepted_2026-08-01",
+      "blocks": [
+        "ACPR-11 through ACPR-16 implementation claims"
+      ],
+      "decision_needed": "Resolved: root/Sol deep-reviewed the ACPR-10 roadmap diff, gate ownership, Planning authority, memory truth boundaries, repair limits, cross-roadmap ownership and verification contracts.",
+      "may_close": "root/Sol independent reviewer only",
+      "risk_if_bypassed": "Subsequent coding-loop implementation could inherit ambiguous authority, allow self-approval or silently broaden publication/live actions."
+    },
+    {
+      "id": "coding-loop-user-acceptance",
+      "class": "user_acceptance",
+      "status": "open_by_design",
+      "blocks": [
+        "UI/UX acceptance",
+        "material product, architecture or scope decisions",
+        "authentication, security or privacy policy decisions"
+      ],
+      "decision_needed": "Only the user may close each specific acceptance request after receiving a bounded decision packet and applicable revision/artifact evidence.",
+      "may_close": "user only",
+      "risk_if_bypassed": "An agent could manufacture product or risk acceptance from tests, memory or review prose."
+    },
+    {
+      "id": "coding-loop-publication-and-live-go",
+      "class": "needs_live_go",
+      "status": "open_by_design",
+      "blocks": [
+        "staging, commit, push, publish, deploy, provider write, host change, backup, restore and every destructive/external/live action"
+      ],
+      "decision_needed": "The user must grant a separate action-specific authorization with exact target, scope, rollback/recovery plan and post-action readback for each effectful action.",
+      "may_close": "user only",
+      "risk_if_bypassed": "A green local coding loop could be misread as authority to mutate repositories, providers, hosts or production."
+    },
+    {
+      "id": "coding-loop-repair-escalation",
+      "class": "agent_auto",
+      "status": "open_by_design",
+      "blocks": [
+        "a third automatic repair",
+        "repair after ambiguity, scope expansion, material decision, security/privacy risk or foreign-work overlap"
+      ],
+      "decision_needed": "After any mandatory escalation, preserve evidence and ask the independent reviewer or user for the exact next bounded decision; the implementer cannot clear this gate.",
+      "may_close": "independent reviewer for a purely mechanical re-scope; user only when user_acceptance categories apply",
+      "user_acceptance_required_when": "The escalation concerns UI/UX, material product/architecture/scope, authentication/security/privacy policy, destructive action or external/live action.",
+      "risk_if_bypassed": "The runner could loop on unbounded repairs or absorb foreign/risky work."
+    },
+    {
+      "id": "subagent-context-delegation-readiness",
+      "class": "repo_only",
+      "status": "open_by_design",
+      "blocks": [
+        "ACPR-17 implementation claim",
+        "CAO-08G consumption of VCL-7 subagent readiness evidence",
+        "ACPR-16 independent closure"
+      ],
+      "decision_needed": "Accept CAO-08B1/C1 contracts and ACPR-11/12/13/15 prerequisites, then verify VCL-7's bounded role-capsule, parent/child handoff and independent-review evidence before downstream lifecycle consumption.",
+      "may_close": "machine verifier for VCL-7 only, followed by an independent agent_auto reviewer; user only for any applicable user_acceptance category",
+      "risk_if_bypassed": "A child could receive stale, over-broad or private context, evade budget/lease limits, self-review, recurse beyond declared authority or write memory before acceptance."
     }
   ],
   "success_metrics": [
@@ -298,6 +1024,13 @@
     "Runner state is durable and resumable after restart.",
     "Sandbox evidence feeds quality gates.",
     "Commit, push and deploy are explicit gated phases.",
-    "Odysseus can refresh its tool/capability self-knowledge after updates."
+    "Odysseus can refresh its tool/capability self-knowledge after updates.",
+    "Every coding edit binds a canonical Planning item and revision; RAPTOR/GraphRAG context is recorded at four checkpoints but never acts as truth or authorization.",
+    "Every machine_auto result has a deterministic exact revision/dirty-diff receipt, and every agent_auto closure records reviewer identity distinct from the implementer.",
+    "Diff-aware tests, lint, type and coverage ratchets fail closed or widen verification rather than claiming broad coverage from a narrow lane.",
+    "Executable Playwright, accessibility and visual receipts distinguish automated UI evidence from user-only UI/UX acceptance.",
+    "Offline agent evaluation and redacted failure intake preserve deterministic evidence while prohibiting raw private content and automatic root-cause repair.",
+    "Subagent parent/child handoffs use role-isolated, Planning-bound capsules with fresh provenance, bounded fanout/depth, lease/fence, budget, cancellation/resume and current-diff receipts; reviewers retrieve independently rather than copying implementer context.",
+    "No coding-loop outcome implicitly authorizes commit, push, publish, deploy or a destructive/external/live action."
   ]
 }

@@ -1,13 +1,21 @@
 # Odysseus Harbor One Autonomous Workspace Roadmap
 
-Status: repo-only/safe-offline queue complete; design/live gates remain
+Status: historical OAW repo-only/safe-offline foundation complete; H1-28
+autonomy-and-gate-DX extension complete in this roadmap; H1-29 canonical
+Planning projection/reconciliation is the first H1 frontier, blocked until
+its accepted CAO-08A/B and ACPR-11 prerequisite contracts exist.
+User-owned UI, product, security and live-effect decisions remain gated.
 Mode: Standard ABC
 Created: 2026-07-11
-Last updated: 2026-07-12 - all currently ungated repo-only/safe-offline slices through OAW-19 and OAW-ASK-13 completed
+Last updated: 2026-08-01 - H1-28 added the autonomous-versus-user-owned gate
+model and Gate Inbox contract; H1-39 added bounded subagent-delegation
+visibility as a read-only, dependency-gated projection.
 
 ## Multi-Agent Execution Guidance
 
-Execution profile: `active_parallel`, with serial UI hot files and explicit
+Execution profile: `active_parallel` only for dependency-ready, disjoint
+repo-only slices; UI hot files, canonical Planning projection, claims/leases,
+receipt generation and effect/outbox paths are serial lanes with explicit
 design/live gates.
 
 ```powershell
@@ -191,6 +199,234 @@ Collision check: `static/frontpage-v2/` and `static/frontpage-v3/` implementatio
 Remaining gate/blocker: `VERSION-1-UI-LIVE`, `CLARIFICATION-UX-ACCEPTANCE`, `UI-DESIGN-LIVE`, `LIVE-SANDBOX-GO`, `GEMMA-LIVE-RERUN-GO`, `GODOT-LIVE-WRITE-GO` and live preview/cutover gates remain open. This run does not claim UI-live or Version 1.0.
 
 Recommended next action: no remaining ungated repo-only/safe-offline slice is open in this roadmap. The next human decision is `CLARIFICATION-UX-ACCEPTANCE` for the Agent-screen clarification UI, followed by bounded live preview/cutover Go when the design surface is accepted.
+
+## H1-28 Autonomous And User-Owned Gate Extension
+
+H1-28 is a roadmap-authoring and reconciliation slice only. It does not grant
+a worker start, thread send, commit, push, PR, merge, deployment, plugin
+enablement, scheduler activation or UI cutover. The source of truth for active
+goals, claims, gate state, clarifications and owner decisions remains Planning
+and its registered Open Work authorities. Harbor One is a bounded projection
+and action surface; it must never become a second planning, claim or approval
+store. RAPTOR/GraphRAG may supply redacted checkpoint context and evidence
+references, but may not decide, persist or override execution truth.
+
+Cross-roadmap ownership is fixed. CAO owns the coding lifecycle/controller and
+its lifecycle-to-evidence adapters. ACPR owns verification/readiness receipts
+and the independent-closure contract. Harbor One owns only read-only
+projection, Gate Inbox presentation and user-decision UX. Harbor One consumes
+accepted CAO/ACPR contracts through Planning; it does not implement a second
+Planning, claim, gate, verifier, review engine or memory truth. A missing,
+stale or incompatible upstream contract blocks the Harbor projection rather
+than triggering a fallback ledger or inferred state.
+
+### Gate Ownership And Non-Interruption Policy
+
+| Gate family | Owner and decision | Default behavior | User interruption |
+| --- | --- | --- | --- |
+| Deterministic machine gate | verifier only: schema, dependency, claim, scope, receipt, test and artifact-integrity result | auto-pass or auto-block from a current, receipt-bound result | never for an ordinary pass/fail; surface the bounded result in the Gate Inbox |
+| Independent agent review | reviewer distinct from the implementer; it may approve/reject a review recommendation, never impersonate the user | block promotion when the reviewer, current receipt or exact changed scope is missing | notify only if it uncovers a user-owned decision or an escalation trigger |
+| Routine repo-only implementation | assigned worker under an active, disjoint claim | continue through deterministic checks and independent review without progress prompts | never merely because implementation or tests completed |
+| Semantic UI/UX approval | user only | preview and evidence may be prepared, but semantic acceptance cannot be inferred from passing checks or artifact existence | one Gate Inbox card when the complete visual packet is ready |
+| Material product, architecture or scope decision | user only | stop the affected slice and record `waiting_on_user`; agents may offer bounded alternatives | one decision card; no inferred default that changes material behavior |
+| Auth, security or privacy policy | user only | fail closed; preserve redacted evidence and request the narrow policy decision | immediate bounded escalation card |
+| Destructive, external or live action | user only, action-specific and time-bounded | do not dispatch, publish, send, merge, deploy, enable or mutate until the exact Go is recorded | one action-specific Go/No-Go card; a broad continuation request is not authority |
+
+An implementer cannot self-approve an independent-review gate, a user-owned
+gate, or a release/effect promotion. A green test suite proves only the
+declared deterministic checks; it does not prove semantic usability, product
+fit, security acceptance or publication authority.
+
+### Gate Inbox And Acceptance Card
+
+Harbor One shall expose a versioned, read-only-first Gate Inbox card for every
+blocked, review-ready, stale or user-owned decision. The card is a projection
+of Planning, claim/lease, verification and review/outbox evidence, not mutable
+runtime truth. It must contain only bounded/redacted fields:
+
+- gate ID, gate family, owner, current state, expiry/timeout and the exact
+  decision requested;
+- claimed slice, plan revision, worktree/branch reference, changed surfaces
+  (files/routes/components) and scope/foreign-overlap state;
+- machine receipt summary: exact revision or dirty-diff digest, checks run,
+  pass/fail/unavailable/not-verified states and evidence references;
+- independent reviewer identity/role, recommendation and unresolved findings;
+- screenshots and visual-diff references where UI is involved, plus the
+  desktop, mobile and accessibility/zoom scenarios covered;
+- bounded risks, rollback/hold instruction, next action, and any live-action
+  limits (target, attempt count, expiry and stop condition).
+
+Only the authenticated user can select **Accept**, **Changes requested**, or
+**Defer** on a user-owned card. Each action must be version-bound,
+idempotent, auditable and written through the existing Planning decision path.
+`Accept` authorizes only the named decision; `Changes requested` creates a
+new bounded revision and returns the affected slice to review; `Defer` pauses
+that slice without cancelling unrelated disjoint work. The card must never
+offer an agent-controlled auto-accept, a generic "continue" button, or an
+implicit live-action approval.
+
+Semantic visual approval is explicitly different from artifact existence. A
+valid screenshot, successful Playwright run, rendered component or zero visual
+diff only proves that an artifact was produced and the declared scenarios ran.
+Semantic UI approval remains user-only: the user must judge hierarchy,
+comprehension, decision clarity, risk visibility, responsive behavior and
+whether the proposed workflow matches intent. The Gate Inbox must label these
+two evidence levels separately.
+
+### Subagent Delegation Visibility
+
+Harbor One may show delegation only as a bounded, read-only projection of the
+parent Planning item and accepted CAO/ACPR evidence. It is neither a dispatcher
+nor a subagent, claim, capsule, run, memory or gate store. Each visible child
+row/card may contain:
+
+- parent slice and run reference; child role and trusted identity;
+- capsule revision, freshness state and scope digest; an allowed-surface count
+  rather than private prompt/context/capsule content;
+- lifecycle state, declared budget/remaining-budget summary, latest bounded
+  receipt reference, reviewer-independence state, blockers/escalation reason,
+  and cancel/expiry/resume status;
+- concise rationale and evidence references sufficient to explain a status,
+  with all values redacted and bounded.
+
+It must never reveal raw RAPTOR/GraphRAG memory, prompts, source payloads,
+capsule bodies, credentials, private identifiers, raw tool/provider output or
+unbounded logs. Missing, stale or contradictory child evidence is rendered as
+unavailable/stale and blocks dependent promotion; Harbor One must not invent a
+child state or infer a successful dispatch.
+
+For routine autonomous work, the user sees a quiet progress row in the normal
+workspace view: parent/child identity, safe state, budget summary and latest
+bounded receipt/blocker. It does not create a modal, notification or decision
+request. For a user-owned gate, the same projection is promoted into the
+existing H1-34 Gate Inbox card with changed surfaces, bounded evidence, risks,
+reviewer status and the relevant user-only decision. A visible cancel affordance
+is status-only until the exact live Go applies; it cannot dispatch or cancel a
+worker from Harbor One.
+
+H1-39 supplies the projection/fixture contract that H1-37 must consume before
+integrating a real worker/thread adapter; H1-38 consumes it transitively
+through H1-37 for notification, timeout and resume semantics. H1-39 waits for
+the accepted H1-35 semantic baseline but does not start or duplicate either
+live slice, so this relationship is acyclic.
+
+### Escalation, Timeout And Resume
+
+Routine backend work continues silently only while the active claim, allowed
+paths, dependency frontier and deterministic receipts remain current. It must
+pause and create one deduplicated `waiting_on_user` Gate Inbox item when any
+of the following occurs:
+
+- ambiguous identity, contradictory Planning projection, stale revision or an
+  unresolved dependency;
+- material scope expansion, architecture/product choice, or an unknown
+  acceptance criterion;
+- auth, security, privacy or secret-safe-diagnostic concern;
+- foreign staged/dirty overlap, active claim/lease collision, branch/worktree
+  ambiguity or an out-of-scope changed surface;
+- two independently reviewed focused approaches fail to reach the declared
+  acceptance result; or
+- a destructive, provider, network, thread, PR, merge, deploy, scheduler or
+  other live effect is required.
+
+Notifications are emitted only when a new user-owned decision packet is ready,
+an existing packet materially changes, or a lease/approval is about to expire.
+They are deduplicated by plan revision, gate ID and decision version and carry
+no raw logs, secret material, private content or unbounded model output.
+Timeout never becomes consent: an expired user gate transitions to `deferred`
+or `stale`, stops affected dispatch, and re-reconciles Planning before resume.
+Resume requires a current claim/lease, current receipt, unchanged or
+re-reviewed scope, and the same still-valid user decision; otherwise it
+returns to the Gate Inbox. A worker restart, missed heartbeat or notification
+failure is a recoverable status, not evidence that an effect completed.
+
+### H1 Dependency-Ordered Slice Queue
+
+| ID | Class | Owner | Depends on | Objective and boundary | Acceptance evidence |
+| --- | --- | --- | --- | --- | --- |
+| H1-28 | done_in_this_artifact | Charlie | registered roadmap-authoring claim | Extend this existing roadmap with the ownership model, Gate Inbox contract, escalation semantics and ordered frontier; do not create a parallel roadmap or runtime. | This roadmap names Planning as authority, distinguishes machine/reviewer/user gates, preserves historical OAW sections, and exposes H1-29 as the next frontier. |
+| H1-29 | repo_only | Bob, Charlie integration | H1-28; accepted CAO-08A/CAO-08B; accepted ACPR-11 | Build one bounded canonical Planning projection/reconciler for goals, slices, canonical claims, gate queue, clarifications, receipts and owner decisions. It consumes the CAO lifecycle/controller and ACPR Planning/memory checkpoint contracts; no shadow state or agent start. | Fixture tests reject stale/contradictory authorities, show one next frontier and one owner question, and prove RAPTOR/GraphRAG context cannot alter Planning truth. |
+| H1-30 | repo_only | Bob | H1-29; accepted CAO-08E; accepted ACPR-12/VCL-1 | Project the existing canonical owner-scoped claim/lease and transactional-worktree authority, including fencing and worktree-aware collision status. Harbor creates no claim store, lease renewal service or cleanup/takeover path. | Restart, concurrent-claim, stale-fence, lease-expiry, nested-path, cross-worktree and foreign-overlap fixtures are consumed as bounded Planning/CAO/ACPR evidence; Harbor remains read-only. |
+| H1-31 | repo_only | Bob | H1-29; accepted ACPR-12/VCL-1 and VCL-2; accepted ACPR-13/VCL-3 | Project receipt-safe verification from accepted ACPR lanes: revision/dirty-diff binding, named lane strength, redacted structured evidence and explicit unavailable/not-verified results. Harbor does not add or run a competing verifier. | ACPR synthetic secret/error/subprocess canaries, stale/weaker receipt and post-check-edit negatives remain the acceptance source; Harbor contract tests prove exact, bounded, read-only receipt rendering. |
+| H1-32 | repo_only | Charlie, independent reviewer | H1-30, H1-31; accepted CAO-08G; accepted ACPR-16/VCL-6 | Project the accepted implementer-distinct review/closure contract against exact changed paths and current receipts; it never grants user-owned acceptance or an effect. | Contract tests reject self-review, missing reviewer, mismatched paths, stale receipts and foreign work; a green reviewer recommendation remains distinct from promotion authority. |
+| H1-33 | repo_only | Bob, Charlie independent review | H1-32 | Add a durable PR/review outbox projection that can prepare reviewed commit/PR intents and readback envelopes, never commit, push, create a PR, merge or deploy. | Tests reject duplicate outbox intent, stale review, changed scope after review and effect dispatch without the separately recorded user Go. |
+| H1-34 | repo_only | Alice/Bob, one UI writer | H1-29, H1-31, H1-32, H1-33; accepted ACPR-14/VCL-4 | Implement a read-only Gate Inbox projection and deterministic fixture states in Harbor One. It may render the three action affordances but cannot persist a decision or start work. | Contract/UI tests render accepted ACPR executable browser/a11y/visual receipt references for blocked, review-ready, stale, deferred, machine-pass, failed-review and user-owned states; fixture data is visibly non-authoritative. |
+| H1-35 | needs_design | user only; Alice prepares packet | H1-34 | Perform semantic Gate Inbox UI/UX approval. The user evaluates decision clarity, changed-surface visibility, receipt limits, risk wording and desktop/mobile/200% zoom behavior. | User-recorded Accept/Changes requested/Defer through the existing canonical Planning gate/decision path, not the not-yet-wired UI affordances; screenshots and visual diffs are evidence inputs, never semantic approval by themselves. |
+| H1-36 | repo_only | Bob, Charlie independent review | H1-35 | Wire user actions through the canonical Planning decision adapter with authenticated user-only authorization, versioning, audit and defer/resume rules. No actor may accept its own work. | Tests prove agents/implementers cannot accept, stale cards cannot mutate, duplicate actions are idempotent, Changes requested revises scope, and Defer preserves unrelated lanes. |
+| H1-37 | needs_live_go | Charlie | H1-30, H1-31, H1-33, H1-36; accepted H1-39; accepted CAO-08C/CAO-08D | Integrate a CAO-owned real bounded worker/thread adapter behind one exact operator Go. Harbor projects trusted identity, idempotency/fencing, pause/kill and redacted receipts; it does not implement a second controller. | Fake/live adapter parity, wrong-target rejection, duplicate-send suppression, pause/no-send, lease-loss stop and bounded redacted readback; no broad scheduler activation. |
+| H1-38 | repo_only_then_needs_live_go | Charlie | H1-30, H1-31, H1-36, H1-37 | Add notification, timeout and restart/resume coordination with a dry-run model first. Real cadence or delivery is separately action-gated. | Deterministic tests for dedupe, expiry-without-consent, restart recovery, two-failed-approaches escalation and no notification for routine green work; live proof requires an exact cadence/delivery Go. |
+| H1-39 | repo_only | Alice/Bob, Charlie integration | accepted H1-35; accepted CAO-08B1/CAO-08C1; accepted ACPR-17 evidence | Add the bounded subagent-delegation projection and deterministic Gate Inbox/workspace fixtures. It consumes trusted parent/child, capsule and receipt facts only; it never creates dispatches, claims, capsules, memory, gates or notification truth. Explicitly exclude `ops/**`, `ops/homeserver/**`, OPS-Alert, security-incident and production-host paths. | Contract/UI fixtures prove parent/child identity, revision/freshness/scope-digest, allowed-surface count, state/budget, receipt/reviewer/blocker and cancel/expiry/resume rendering; no raw private context/log can render. Any new visual surface beyond the accepted H1-35 semantics requires the user-only H1-39 semantic gate below. |
+
+H1-29 is the first H1 frontier but is not claimable until CAO-08A/08B and
+ACPR-11 are accepted. After H1-29, H1-30 and H1-31 may run in parallel only
+after their exact CAO/ACPR prerequisite contracts are accepted and a collision
+check confirms disjoint paths; H1-32 onward must follow their declared
+dependencies. H1-34 serializes Harbor One UI hot files. H1-35 is the first
+user-owned semantic UI gate; H1-37 and the live part of H1-38 are separate
+action-specific live gates, not consequences of UI approval or a successful
+offline run. H1-39 is repo-only and may run after accepted H1-35 plus its
+exact accepted CAO-08B1/CAO-08C1 and ACPR-17 contracts. H1-37 consumes
+accepted H1-39, and H1-38 consumes that projection transitively through
+H1-37; the sequence creates no dependency cycle.
+
+### H1 Gate Queue
+
+Gate: `H1-GATE-INBOX-SEMANTIC-UX-ACCEPTANCE`
+Class: `needs_design`, user-only
+Blocks: H1-36 user-decision wiring and any claim that Gate Inbox UX is
+accepted
+Decision needed: Accept, request changes, or defer the exact versioned visual
+packet after reviewing changed surfaces, bounded evidence, tests,
+screenshots/visual diff, risks and responsive states.
+Safe preparation: H1-34 read-only visual fixture and screenshot packet.
+Risk if bypassed: an artifact could be mistaken for user comprehension or
+consent.
+
+Gate: `H1-WORKER-THREAD-LIVE-GO`
+Class: `needs_live_go`, user-only
+Blocks: H1-37 real thread/worker dispatch and any real subagent cancel action
+exposed after H1-39
+Decision needed: approve exact target, message envelope, duration, maximum
+dispatches/cancellations, pause/kill owner, redaction, rollback/hold behavior
+and receipt readback.
+Safe preparation: fake adapter and deterministic stop-control evidence.
+Risk if bypassed: unintended autonomous work or external message delivery.
+An accepted activation is not a per-child approval loop. Routine internal child
+dispatch within the current Planning claim, fanout/depth, tool/network and
+budget policy remains machine_auto/agent_auto and quiet in Harbor One. A user
+gate recurs only for external or cross-workspace dispatch, limit expansion,
+material decisions or live effects.
+
+Gate: `H1-NOTIFICATION-AND-RESUME-LIVE-GO`
+Class: `needs_live_go`, user-only
+Blocks: live notification cadence/delivery and unattended resume behavior in
+H1-38
+Decision needed: approve exact channel, cadence, expiry behavior, owner,
+silencing/kill control and bounded observation window.
+Safe preparation: deterministic dry-run notification and recovery evidence.
+Risk if bypassed: noisy, stale or unattended automation can outlive intent.
+
+Gate: `H1-PR-REVIEW-EFFECT-GO`
+Class: `needs_live_go`, user-only
+Blocks: PR creation, provider writes, merge and deploy after H1-33
+Decision needed: approve the exact repository, branch, remote/provider,
+reviewers, action, rollback/hold plan and one-use expiry.
+Safe preparation: durable outbox intent and independent review packet.
+Risk if bypassed: foreign work, unreviewed publication or irreversible effect.
+
+Gate: `H1-SUBAGENT-DELEGATION-SEMANTIC-UX-ACCEPTANCE`
+Class: `needs_design`, user-only, conditional
+Blocks: only a new H1-39 delegation surface that materially extends the
+accepted H1-35 Gate Inbox semantics
+Decision needed: accept, request changes, or defer the bounded parent/child
+delegation presentation after visual/a11y receipt review.
+Safe preparation: H1-39 deterministic read-only fixture plus accepted
+ACPR-17 evidence references.
+Risk if bypassed: a rendered delegation artifact could be mistaken for a
+clear, consent-preserving operator experience.
+This gate is not opened when H1-39 only reuses the already accepted H1-35
+Gate Inbox surface; automated screenshots, visual diffs and artifact existence
+never close it.
 
 ## Main Deficiencies
 

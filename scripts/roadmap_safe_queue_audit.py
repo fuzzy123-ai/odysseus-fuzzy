@@ -118,6 +118,7 @@ DECISION_FAMILIES = (
             "grafana",
             "log-retention",
             "mcp-debug-server",
+            "ops-alert-delivery",
             "ulog",
             "obs-",
         ),
@@ -131,6 +132,7 @@ DECISION_FAMILIES = (
             "lockdown",
             "remediation",
             "sir-",
+            "sirp-",
         ),
     ),
     (

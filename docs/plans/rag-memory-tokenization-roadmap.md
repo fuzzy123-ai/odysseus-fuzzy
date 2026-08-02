@@ -1,8 +1,10 @@
 # Roadmap: RAG Memory Tokenization und Semantic Chunking
 
-Stand: 2026-07-01
+Stand: 2026-08-02
 
-Status: Post-MVP Detailroadmap, nicht Teil der abgeschlossenen Backend-MVP-Gates.
+Status: RMT0-RMT7 repo-seitig abgeschlossen; RMT8-RMT9 als neuer exakter
+Pre-Chunk-Token-Preflight geplant. Live-Reindex und Runtime-Umschaltung bleiben
+separat gegated.
 
 ## Progress
 
@@ -16,10 +18,14 @@ Status: Post-MVP Detailroadmap, nicht Teil der abgeschlossenen Backend-MVP-Gates
 | RMT5 Retrieval Quality Gates | done | Offline Quality-Gates fuer synthetischen Recall, Duplicate-Tails, Boundary-Coherence und Budget-Overflow sind getestet. |
 | RMT6 Runtime Integration | done | Chat-RAG nutzt Budget-Einheiten und Source-Spans; Kontextinflation ist getestet. |
 | RMT7 Brownian Graph Retrieval Research | done | Offline Research-Decision-Gate existiert; Runtime-Umschaltung bleibt explizit verboten. |
+| RMT8 Exact Pre-Chunk Token Inventory Contract | planned | Dokument-/Projekt-Semantik, Datenschutz, Fehlerfaelle und content/effective token counts werden als providerneutraler Vertrag eingefroren. |
+| RMT9 Pinned Offline Tokenizer Preflight | planned | Gepinnte lokale Tokenizer-Assets liefern nach Extraktion/Normalisierung und vor Chunking exakte, inhaltsfreie Reports; Schaetzer bleiben nur gekennzeichneter Fallback. |
 
-Roadmap status: abgeschlossen fuer repo-only Backend/Logik. Live-Reindex und
+Roadmap status: Der urspruengliche RMT0-RMT7-Track ist fuer repo-only
+Backend/Logik abgeschlossen. RMT8 ist der naechste neue `safe_offline`-Slice;
+RMT9 bleibt bis zur Vertragsabnahme dependency-blocked. Live-Reindex und
 Runtime-Umschaltung echter Collections bleiben ueber `RMT-LIVE-REINDEX`
-operator-gated.
+operator-gated und werden durch den Preflight nicht autorisiert.
 
 ## Ziel
 
@@ -42,6 +48,12 @@ Aktueller Ist-Stand aus Repo-Audit:
 - Nextcloud chunked extraction persistiert Hash-/Offset-Refs, keine Rohtexte.
 - Core-Abhaengigkeiten enthalten `chromadb` und `fastembed`, aber keinen echten
   Modell-Tokenizer fuer RAG-Chunking.
+- `src/token_budget.py` und `src/token_estimator.py` liefern derzeit
+  Budget-Schaetzungen. Ohne gepinnte Provider-Tokenizer-Assets ist das kein
+  modellgenauer Token-Count und darf nicht als solcher ausgegeben werden.
+- `src/nextcloud_chunked_extraction.py` meldet heute
+  `total_budget_units_est`; diese bestehende Schaetzung bleibt kompatibel, ist
+  aber kein Ersatz fuer den neuen exakten Preflight.
 - ChromaDB ist fuer Live-Counts separat erforderlich; lokale Persistenz kann
   vorhanden sein, waehrend der HTTP-Dienst nicht erreichbar ist.
 
@@ -58,6 +70,64 @@ Brownian/Random-Walk-Retrieval ist kein Ersatz fuer saubere Chunk-Grenzen. Es
 wird erst bewertet, wenn Chunks, Provenance, Budgets und Baseline-Metriken
 stabil sind.
 
+## Exact Pre-Chunk Token Preflight Amendment 2026-08-02
+
+Der neue Preflight sitzt eindeutig zwischen normalisierter Extraktion und
+Chunking:
+
+```text
+source -> extraction + normalization -> exact token preflight
+       -> content-free report -> chunk plan -> chunking -> embeddings/RAPTOR
+```
+
+Er ruft weder ein Sprach- noch ein Embedding-Modell auf. Fuer einen exakten
+Count werden nur die exakt zum Zielmodell passende Tokenizer-Konfiguration und
+ihre gepinnten Assets benoetigt; das Kontextfenster des Modells begrenzt den
+Count nicht. Ein Dokument darf deshalb vollstaendig gezaehlt werden, auch wenn
+es spaeter in viele Modellfenster zerlegt werden muss.
+
+Verbindliche Zaehllogik:
+
+- `content_tokens` zaehlt den normalisierten Dokumentinhalt ohne Task-Prompt
+  und ohne modellseitige Special Tokens.
+- `effective_input_tokens` zaehlt denselben Inhalt fuer einen benannten
+  Ziel-Task inklusive des eingefrorenen Task-Prompts und aller Special Tokens.
+  Das ist besonders fuer EmbeddingGemma relevant, weil Retrieval-Dokument,
+  Retrieval-Query, Clustering und Similarity unterschiedliche Prompt-Vertraege
+  haben koennen. Fuer die generative Lane wird der exakte `gemma3:4b`-
+  Prompt-/Template-Vertrag separat referenziert.
+- Ein Dokument wird nach erfolgreicher Extraktion und deterministischer
+  Normalisierung genau einmal vollstaendig tokenisiert, bevor Chunk-Grenzen
+  entstehen. Es gibt keine stille Trunkierung.
+- Ein Projekt wird nicht als mehrdeutiger zusammengeklebter String gezaehlt.
+  Jede eingeschlossene Datei wird einzeln normalisiert und tokenisiert; der
+  Projektwert ist die Summe der Dateiwerte. Der Report weist Datei-/Sprach-/
+  Typ-Aggregate sowie uebersprungene Dateien und feste Reason-Codes aus.
+- Private Inhalte und Klartextpfade duerfen den Report nicht verlassen.
+  Datei-Referenzen sind stabil gehasht; Snippets, Token-IDs und decodierbare
+  Tokenfolgen gehoeren nicht in Evidence oder Telemetrie.
+
+Pflichtfelder des versionierten Reports:
+
+- `schema`, `source_type`, `source_digest`, `extraction_profile_ref`
+- `tokenizer_ref`, `tokenizer_revision`, `tokenizer_digest`, `tokenizer_mode`
+  (`exact` oder explizit `estimated_fallback`)
+- `characters`, `utf8_bytes`, `content_tokens`
+- je Ziel-Task: `task_ref`, `prompt_contract_ref`, `special_tokens_included`,
+  `effective_input_tokens`, `model_context_tokens`
+- `chunk_budget_tokens`, `chunk_overlap_tokens`, `minimum_chunk_count`,
+  `projected_chunk_count`
+- `truncated` muss fuer einen erfolgreichen exakten Count `false` sein
+- fuer Projekte: `included_file_count`, `skipped_file_count`, aggregierte
+  Datei-/Sprach-/Typ-Werte und feste `skipped_reason_counts`
+
+Tokenizer-Assets muessen lokal, lizenzgeprueft, revisions- und digest-gepinnt
+sein. Runtime-Download, Provider-Call oder automatisches Nachladen sind
+verboten. Fehlt das Asset oder ueberschreitet die Extraktion eine explizit
+konfigurierte Sicherheitsgrenze, lautet das Ergebnis `exact_count_blocked` mit
+einem festen Reason-Code. Eine Schaetzung darf separat geliefert werden, aber
+niemals als exakt erscheinen.
+
 ## Non-Goals
 
 - Keine neue Vector-Datenbank einfuehren.
@@ -66,6 +136,10 @@ stabil sind.
 - Keine UI bauen.
 - Keine echten Nextcloud-/Corpus-Analysen ohne Operator-Go.
 - Kein Brownian/Random-Walk als erster Schritt.
+- Kein Modell-Inference-, Embedding- oder Provider-Aufruf fuer den Token-Count.
+- Kein Runtime-Download von Tokenizer-Assets.
+- Keine stille Trunkierung und keine als exakt bezeichnete Schaetzung.
+- Kein Rohinhalt, Klartextpfad, Snippet oder Token-ID-Stream im Report.
 
 ## Slice Queue
 
@@ -79,6 +153,8 @@ stabil sind.
 | RMT5 Retrieval Quality Gates | safe_offline | Bob | Synthetische Query-Sets fuer Chunk-Qualitaet, Recall, Duplicate-Tails, Boundary-Coherence und Kosten bauen. | `tests/`, optional `src/memory_perf_suite_*` | Focused quality-gate Tests |
 | RMT6 Runtime Integration | repo_only | Charlie | ChatProcessor/RAG Retrieval nutzt token budgets und erklaerbare Scores ohne Kontextinflation. | `src/chat_processor.py`, `src/context_orchestrator.py`, Tests | Memory/RAG/Context budget Tests |
 | RMT7 Brownian Graph Retrieval Research | safe_offline | Alice/Bob | Nur offline pruefen, ob Random-Walk/Brownian Bridge ueber Chunk-/Memory-Graphen Recall verbessert. | neue Research-Doc/Tests, keine Runtime-Umschaltung | Synthetic evaluation only |
+| RMT8 Exact Pre-Chunk Token Inventory Contract | safe_offline | Alice | Providerneutralen Dokument-/Projekt-Vertrag, Normalisierungsgrenze, exact/fallback Semantik, Privacy und Acceptance Fixtures einfrieren. Abhaengig von RMT1 und einem expliziten Claim. | `docs/plans/rag-memory-tokenization-roadmap.md`, neuer Contract/Schema, `tests/test_document_token_preflight.py` | Schema-, deterministische Fixture-, Projekt-Summen-, Privacy- und Blocked-Reason-Tests |
+| RMT9 Pinned Offline Tokenizer Preflight | repo_only | Bob | Gepinnte lokale Tokenizer-Adapter und Preflight fuer Dokumente/Projekte implementieren; bestehende Schaetzer nur als gekennzeichneten Fallback erhalten. Abhaengig von abgenommenem RMT8. | `src/token_estimator.py`, neuer `src/document_token_preflight.py`, notwendige Extraction-Adapter, gepinnte/manifestierte Assets, fokussierte Tests | `tests/test_document_token_preflight.py`, `tests/test_token_estimator_exact_assets.py`, bestehende Chunking-/Extraction-Regressionen |
 
 ## Phase Plan
 
@@ -209,6 +285,62 @@ Done:
 - Research-Bericht mit Go/No-Go.
 - Keine Produktivierung ohne klare Recall-/Qualitaetsverbesserung.
 
+### RMT8: Exact Pre-Chunk Token Inventory Contract
+
+Ziel: Vor Implementierung die Bedeutung eines exakten Counts fuer ein
+Dokument und fuer ein Projekt eindeutig, datenschutzkonform und testbar
+festlegen.
+
+Start:
+
+- RMT1 ist abgeschlossen.
+- Ein frischer, pfadbegrenzter Claim bestaetigt, dass keine parallele
+  Tokenizer-/Extraction-Arbeit dieselben Pfade besitzt.
+- Nur synthetische Fixtures; kein produktiver Corpus und kein Provider-Zugriff.
+
+Done:
+
+- Versioniertes Schema trennt `content_tokens`, task-spezifische
+  `effective_input_tokens` und `estimated_fallback` eindeutig.
+- Dokumentgrenze ist exakt nach Extraktion/Normalisierung und vor Chunking
+  festgelegt.
+- Projektaggregation ist als Summe individuell gezaehlter Dateien definiert;
+  Einschluss, Ausschluss, Binaries, Vendor-/Generated-Dateien und Fehler haben
+  feste Reason-Codes.
+- Tokenizer-Revision, Digest, Prompt-Vertrag, Special-Token-Regel und
+  Extraktionsprofil sind reproduzierbar referenziert.
+- Privacy-Vertrag verbietet Rohinhalt, Klartextpfade, Snippets und Token-IDs.
+- Acceptance Fixtures decken Unicode, Markdown, Quellcode, Tabellen,
+  PDF-Extrakt, leere Dateien, Binaries und gemischte Projekte ab.
+
+### RMT9: Pinned Offline Tokenizer Preflight
+
+Ziel: Den abgenommenen RMT8-Vertrag mit lokalen, gepinnten Tokenizer-Assets
+umsetzen, ohne Modellaufruf, Netzwerk oder implizite Trunkierung.
+
+Start:
+
+- RMT8 ist abgenommen und sein Schema unveraendert implementierbar.
+- Lizenz, Revision und Digest jedes aufgenommenen Tokenizer-Assets sind
+  dokumentiert.
+- Der Claim benennt die exakten Extraction-Adapter und vermeidet fremde
+  Dirty-Worktree-Pfade.
+
+Done:
+
+- Gleicher normalisierter Input plus gleicher Tokenizer-/Prompt-Ref erzeugt
+  plattformuebergreifend denselben Count und denselben inhaltsfreien Report.
+- Dokumente werden vollstaendig gezaehlt oder mit `exact_count_blocked` und
+  festem Reason-Code abgewiesen; es gibt keine Teilzaehlung als Erfolg.
+- Projekt-Summen entsprechen exakt der Summe der eingeschlossenen
+  Datei-Reports; Parallelisierung veraendert das Ergebnis nicht.
+- EmbeddingGemma-Task-Varianten und der `gemma3:4b`-Inputvertrag koennen als
+  getrennte `effective_input_tokens` ausgewiesen werden, ohne Modelle zu laden.
+- Der bestehende Schaetzer bleibt kompatibel und meldet immer
+  `estimated_fallback`; Downstream-Code darf ihn nicht als exact akzeptieren.
+- Chunk-Projektion nutzt den exakten Count, weist Overlap-/Prompt-Overhead
+  separat aus und nimmt keine Reindex- oder Collection-Writes vor.
+
 ## Gate Queue
 
 Gate: RMT-LIVE-REINDEX
@@ -219,7 +351,7 @@ aufgebaut werden?
 Safe preparation done: Splitter, Metadata, Tests und dry-run Plan.
 Risk if bypassed: Falsche Chunk-Generation koennte Retrieval verschlechtern
 oder privaten Content in falsche Collections schreiben.
-Next safe slice: RMT5
+Next safe slice: RMT8; dieser Slice autorisiert keinen Live-Reindex.
 
 Gate: RMT-BROWNIAN-PRODUCTIZE
 Class: needs_design
@@ -241,6 +373,8 @@ C:\Users\nkatz\odysseus\venv\Scripts\python.exe -m pytest tests\test_rag_text_ch
 
 Expected extended tests as implementation grows:
 
+- `tests/test_document_token_preflight.py`
+- `tests/test_token_estimator_exact_assets.py`
 - `tests/test_rag_vector_id_stability.py`
 - `tests/test_rag_manager_owner_compat.py`
 - `tests/test_memory_provider.py`
@@ -251,14 +385,21 @@ Expected extended tests as implementation grows:
 ## Go Language
 
 - Go: deterministic token-/structure-aware chunking, metadata versioning,
-  rollback path and quality gates are green.
+  rollback path and quality gates are green; fuer den neuen Preflight zusaetzlich
+  exakte gepinnte Tokenizer-Counts, deterministische Projekt-Summen und
+  content-free Reports.
 - Partial: splitter exists but only one source type is covered.
-- Deferred: Brownian/Random-Walk remains research-only.
+- Deferred: Brownian/Random-Walk remains research-only; RMT9 bleibt bis zur
+  Abnahme von RMT8 dependency-blocked.
 - No-Go: new chunking worsens retrieval quality, leaks metadata, or lacks
-  rollback.
+  rollback; Token-Counts werden ohne passenden gepinnten Tokenizer als exact
+  bezeichnet oder Inhalte/Pfade verlassen den Preflight.
 - Blocked: Chroma/reindex/live corpus action is needed without operator Go.
 
 ## Master-Roadmap Placement
 
-This roadmap is Post-MVP priority 13. It follows the completed backend MVP and
-the Memory Scale Foundation direction. It should not reopen MVP roadmaps 1-10.
+This roadmap is Post-MVP priority 13. RMT0-RMT7 remain completed evidence;
+RMT8 is the next new safe-offline contract slice and RMT9 follows only after
+acceptance. NMG-04 consumes the accepted preflight contract for RAPTOR model
+comparisons. This must not reopen MVP roadmaps 1-10 or authorize live corpus,
+reindex, provider or model-download actions.
