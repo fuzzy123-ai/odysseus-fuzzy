@@ -1,0 +1,423 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.live_contextual_layer_roadmap",
+  "roadmap_id": "live-contextual-layer",
+  "title": "Harbor One Live Contextual Layer Roadmap",
+  "created_at": "2026-08-02",
+  "updated_at": "2026-08-02",
+  "status": "roadmap_authored_deep_reviewed_and_registered_LCL_01_waiting_CAO_08B",
+  "abc_mode": "Standard ABC",
+  "authoring_run": "abc-live-contextual-roadmap-20260802",
+  "parent_roadmaps": [
+    "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md",
+    "docs/plans/harbor-planning-integration-master-roadmap.json",
+    "docs/plans/agent-context-transparency-roadmap.json",
+    "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+    "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
+    "docs/plans/temporal-light-agent-execution-roadmap.json"
+  ],
+  "goal": "Provide a bounded, asynchronous advisory layer parallel to active chat: detect supported structure and trends, emit confidence-labelled hypotheses, and project a redacted global project-status view without creating a second truth, gate, scheduler or write authority.",
+  "handout_alignment": {
+    "system_overview": "Harbor One (H1) is the product surface; CAO owns the coding lifecycle/controller, ACPR supplies readiness evidence, TLR owns durable execution/replay, and the existing Nextcloud/Universal Inbox integration remains a bounded source/ingest path.",
+    "memory_layer": "NMG, USI and the Memory lifecycle own native truth, source/version/provenance and rebuildable RAPTOR/GraphRAG-derived artifacts respectively; LCL only consumes bounded projections and emits reviewed candidates through their owners.",
+    "code_indexing": "CBM owns repository-scoped code projections and hybrid code retrieval; LCL does not create a second code index or cross-repository memory layer.",
+    "live_contextual_layer": "This roadmap owns the advisory, bounded asynchronous meta-analysis layer and its read-only Harbor/ACT projection.",
+    "non_duplication_and_model_policy": "LCL does not duplicate H1, CAO, ACPR, TLR, Nextcloud/Universal Inbox, NMG, USI, Memory lifecycle or CBM ownership. Embedding provider and model selection remain configurable under their owning runtime policy; this roadmap hardcodes no MiniLM or other model."
+  },
+  "ownership_boundaries": {
+    "planning_and_domain_truth": "Planning and their named domain owners remain the sole canonical truth for roadmap definitions, project facts, decisions, gates and completion.",
+    "usi": "USI remains the source identity, version and provenance plane; it is not replaced or dual-written by LCL.",
+    "memory_and_raptor": "Native Memory and RAPTOR/GraphRAG own their contracts and rebuildable derived artifacts. LCL may consume bounded, redacted projections and emit reviewed candidates only through their canonical intake adapters.",
+    "causal": "The native CausalClaimStore and its review lifecycle remain the only causal truth owner. LCL suggestions are candidates, never supported claims.",
+    "cao_and_temporal": "CAO owns lifecycle/controller semantics and Temporal Light owns durable execution/replay. LCL neither dispatches work nor creates a scheduler, lease, claim, fence or run state.",
+    "harbor_one_and_act": "Harbor One is a read-only projection and explicit action surface. ACT owns context-transparency payload semantics and UI language; LCL supplies only a bounded advisory projection.",
+    "universal_inbox": "Universal Inbox is a source and review entry point, not a global truth layer or a required foreground-chat dependency."
+  },
+  "target_architecture": {
+    "event_flow": [
+      "Versioned, policy-classified source or runtime-trace event",
+      "USI/domain reference plus redacted observation envelope",
+      "Bounded LCL analysis job using immutable input snapshot",
+      "Observation record with source refs, freshness, scope and redaction",
+      "Confidence-labelled hypothesis or approximation in the append-only candidate ledger",
+      "Read-only project-status projection and optional ACT/Harbor advisory card",
+      "Explicit review route",
+      "Canonical Memory or Causal candidate adapter only after review approval"
+    ],
+    "hard_rules": [
+      "No LCL output may close, open, waive, satisfy or mutate a Planning, quality, release or user gate.",
+      "No LCL hypothesis becomes a project fact, Memory entry, causal claim, task status or user decision automatically.",
+      "Every output is scoped to owner/project/source versions and carries provenance, confidence, freshness and redaction state.",
+      "Foreground chat remains responsive: LCL work is best-effort, cancellable and may be omitted without changing a chat answer's authority.",
+      "RAPTOR/GraphRAG retrieval is advisory and rebuildable; unavailable, stale or contradictory retrieval yields an explicit limited/unknown result, never a fabricated summary."
+    ],
+    "global_project_status_projection": {
+      "meaning": "A read-only, bounded aggregation of canonical source references, observed changes, open uncertainty and advisory hypotheses for one explicitly scoped project set.",
+      "permitted_fields": [
+        "project_ref",
+        "source_version_refs",
+        "observed_at",
+        "freshness_state",
+        "canonical_status_reference",
+        "advisory_trends",
+        "hypothesis_refs",
+        "contradiction_refs",
+        "coverage_and_omission_summary",
+        "classification",
+        "redaction_state"
+      ],
+      "forbidden_fields": [
+        "authoritative completion state",
+        "gate decision",
+        "new task or claim state",
+        "raw source body",
+        "hidden model reasoning",
+        "unreviewed causal conclusion"
+      ]
+    }
+  },
+  "observation_hypothesis_review_promotion_lifecycle": [
+    {
+      "state": "observed",
+      "requirements": ["immutable input snapshot id", "exact source/version refs", "classification and redaction", "event time and observed time", "owner/project scope"],
+      "may_do": ["support a bounded analysis job"],
+      "may_not_do": ["assert semantic truth or trigger a write"]
+    },
+    {
+      "state": "hypothesis",
+      "requirements": ["hypothesis id", "statement summary", "confidence band and method", "supporting and contradicting evidence refs", "freshness deadline", "scope", "review state=pending"],
+      "may_do": ["appear as advisory Needs review context", "be superseded or retracted"],
+      "may_not_do": ["alter canonical project status or be retrieved as a fact"]
+    },
+    {
+      "state": "reviewed",
+      "requirements": ["named review route", "reviewer/actor ref", "decision", "reason", "decision time", "immutable linkage to reviewed version"],
+      "may_do": ["create one typed canonical write candidate"],
+      "may_not_do": ["write directly to Memory, CausalClaimStore or Planning"]
+    },
+    {
+      "state": "promoted_or_rejected",
+      "requirements": ["canonical adapter receipt or rejection receipt", "target canonical ref when accepted", "supersession/retraction linkage when applicable"],
+      "may_do": ["project a redacted outcome to Harbor/ACT"],
+      "may_not_do": ["reinterpret adapter acceptance as a gate or broad project completion"]
+    }
+  ],
+  "privacy_and_raw_content_boundary": {
+    "classification_rule": "The strictest input classification wins. Unknown, malformed or unavailable policy classification fails closed to blocked/review.",
+    "default_input": "Metadata, source/version references and redacted summaries only. Raw source bodies are excluded unless a separately accepted, capability-scoped contract permits the exact class and consumer.",
+    "output_rule": "Cards, ledgers, traces, metrics and handoffs expose only redacted summaries and stable references; they never serialize secrets, private source bodies, model prompts, hidden reasoning or unredacted provider errors.",
+    "retention_rule": "Candidate records retain only the minimum redacted evidence reference and expiry needed for review. Expired or retracted candidates are excluded from active retrieval and remain auditable by reference under the owning retention policy.",
+    "negative_default": "No cloud/provider call, external send, secret access, host inspection, inbox write, Planning write or Memory/Causal write is authorized by this roadmap."
+  },
+  "resource_and_foreground_policy": {
+    "execution": "Local-first, CPU-bounded and provider-neutral. Any model is an injected implementation detail, not an authority source.",
+    "foreground_priority": "Chat, user actions, safety checks and canonical reads always pre-empt or cancel LCL jobs. LCL never reserves foreground tokens, threads or model capacity.",
+    "initial_limits": {
+      "max_concurrent_jobs": 1,
+      "max_pending_jobs_per_project": 1,
+      "max_analysis_input_items": 32,
+      "max_redacted_input_characters": 24000,
+      "max_cpu_seconds_per_job": 20,
+      "max_wall_seconds_per_job": 45,
+      "max_retry_attempts": 1,
+      "max_hypotheses_per_project_per_day": 12
+    },
+    "overload_behavior": "Coalesce by project and input-snapshot digest; drop lowest-priority stale work first; record bounded omission telemetry; never backfill by blocking foreground work."
+  },
+  "trigger_cadence_idempotency_staleness_and_contradiction": {
+    "allowed_triggers": [
+      "explicit user request for an advisory project overview",
+      "new versioned Planning/domain/USI observation within an allowed project scope",
+      "bounded post-chat idle window",
+      "reviewer request for evidence refresh"
+    ],
+    "forbidden_triggers": [
+      "every keystroke",
+      "unbounded polling",
+      "gate transition",
+      "automatic writeback retry",
+      "background activity in an unscoped project"
+    ],
+    "cadence": "At most one coalesced automatic analysis per project per 15 minutes and one global sweep per explicitly enabled workspace per 6 hours; explicit user requests may bypass cadence but not resource, policy or scope limits.",
+    "idempotency": "Job key is project scope plus sorted immutable input version refs plus policy version plus analyzer version. Replays return the existing candidate set or a no-op receipt; changed inputs create a new revision linked to the prior set.",
+    "staleness": "A hypothesis expires when any mandatory source version changes, its stated freshness deadline elapses, its project scope is revoked, or the policy/analyzer version becomes unsupported. Expired items are visibly stale and cannot enter promotion.",
+    "contradiction": "Conflicting observations create a contradiction record referencing both sides, lower confidence to unresolved, suppress affirmative wording and require review. Contradictions never auto-resolve by recency, count, model preference or retrieval rank."
+  },
+  "dependency_dag": {
+    "external_prerequisites": [
+      "CAO-08B accepted: bounded context-envelope and graph-boundary adapter",
+      "LCL roadmap registration in the canonical shared router by its single writer",
+      "NMG-03 and NMG-05A for combined native Memory/Causal promotion targets",
+      "H1-29 and USI-08 for the global project-status projection",
+      "ACT-2 for the Harbor/ACT advisory surface",
+      "TLR-09 and TLR-11 for temporal soak and production activation boundaries"
+    ],
+    "nodes_in_dependency_order": [
+      "LCL-00-live-contextual-layer-roadmap-authoring",
+      "LCL-01-observation-and-hypothesis-contract",
+      "LCL-02-fake-runtime-and-scheduler-boundary",
+      "LCL-03-candidate-ledger-and-contradiction-state",
+      "LCL-03A-local-background-worker-activation",
+      "LCL-04-reviewed-promotion-adapters",
+      "LCL-05-global-project-status-projection",
+      "LCL-06-harbor-and-act-advisory-surfaces",
+      "LCL-07-security-privacy-and-evaluation",
+      "LCL-08-temporal-soak",
+      "LCL-09-production-activation"
+    ],
+    "anti_cycle_rule": "LCL consumes accepted CAO-08B, NMG-03, NMG-05A, H1-29, USI-08, ACT-2, TLR-09 and TLR-11 contracts only at the explicit downstream points below. It emits advisory projections or typed candidates only. No owner roadmap may depend on an LCL implementation slice to establish canonical truth, gate, execution or review authority."
+  },
+  "path_scope_policy": {
+    "per_slice_rule": "Each implementation slice may write only its exact allowed_paths. Every path not listed by that slice is excluded, including all other roadmap files and every canonical owner implementation outside the listed adapter/test/UI seam.",
+    "always_excluded_without_a_separate_claim": [
+      "docs/plans/open-work-completion-master-roadmap.json",
+      "docs/plans/multi-agent-execution-guidance.json",
+      "docs/plans/harbor-planning-integration-master-roadmap.json",
+      "src/planning_*",
+      "src/memory_*",
+      "src/causal_*",
+      "src/unified_source_index*",
+      "src/coding_lifecycle*",
+      "src/temporal_*",
+      "routes/**",
+      "ops/** except an exact path named by LCL-03A, LCL-08 or LCL-09",
+      "all provider, deployment, credential and production configuration"
+    ]
+  },
+  "slice_queue": [
+    {
+      "id": "LCL-00-live-contextual-layer-roadmap-authoring",
+      "class": "roadmap_authoring",
+      "owner": "Alice/Terra authoring; root/Sol deep review and registry integration",
+      "status": "done_in_this_artifact",
+      "depends_on": ["explicit user direction", "active durable claim abc-live-contextual-roadmap-20260802"],
+      "allowed_paths": ["docs/plans/live-contextual-layer-roadmap.json"],
+      "tests": ["python -m json.tool docs/plans/live-contextual-layer-roadmap.json", "scoped diff review", "acyclic dependency and authority-boundary self-review"],
+      "done_when": "This roadmap is valid JSON, records the advisory-only architecture, and is handed to root for deep review and shared-router registration without changing any other file.",
+      "non_goals": ["No implementation, runtime process, registry mutation, commit, push, deployment or live action."]
+    },
+    {
+      "id": "LCL-01-observation-and-hypothesis-contract",
+      "class": "safe_offline",
+      "owner": "Alice/Terra contract authoring; root/Sol deep review",
+      "status": "planned_not_claimable_until_CAO_08B_accepted_and_LCL_registered",
+      "claimable": false,
+      "claim_blocker": "CAO-08B acceptance and a new explicit implementation goal are required.",
+      "depends_on": ["CAO-08B accepted", "LCL-00 root review accepted", "canonical router registration"],
+      "allowed_paths": ["docs/plans/live-contextual-layer-contract.md", "docs/plans/agent-context-transparency-contract.md", "tests/test_live_contextual_layer_contract.py"],
+      "tests": ["python -m pytest tests/test_live_contextual_layer_contract.py", "privacy and prohibited-authority contract cases"],
+      "done_when": "Versioned observation, hypothesis, contradiction, expiry, review and projection schemas require exact refs, redaction, confidence and scope; contracts reject gate/status/write authority fields.",
+      "non_goals": ["No persistent runtime, model call, Planning/Memory/Causal write or UI implementation."]
+    },
+    {
+      "id": "LCL-02-fake-runtime-and-scheduler-boundary",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "planned_not_claimable_until_dependencies_accepted",
+      "claimable": false,
+      "claim_blocker": "LCL-01 is not accepted.",
+      "depends_on": ["LCL-01 accepted"],
+      "allowed_paths": ["src/live_contextual_layer/contracts.py", "src/live_contextual_layer/fake_runtime.py", "src/live_contextual_layer/budget.py", "tests/test_live_contextual_layer_fake_runtime.py", "tests/test_live_contextual_layer_budget.py"],
+      "tests": ["python -m pytest tests/test_live_contextual_layer_fake_runtime.py tests/test_live_contextual_layer_budget.py"],
+      "done_when": "Deterministic fake-clock jobs consume immutable redacted fixtures, coalesce idempotently, respect foreground cancellation and emit no network, file, Planning, Memory, Causal or UI side effect.",
+      "non_goals": ["No daemon, thread/service activation, Temporal workflow, provider model, live source subscription or writeback."]
+    },
+    {
+      "id": "LCL-03-candidate-ledger-and-contradiction-state",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation; root/Sol deep review",
+      "status": "planned_not_claimable_until_dependencies_accepted",
+      "claimable": false,
+      "claim_blocker": "LCL-01 and LCL-02 are not accepted.",
+      "depends_on": ["LCL-01 accepted", "LCL-02 accepted"],
+      "allowed_paths": ["src/live_contextual_layer/candidate_ledger.py", "src/live_contextual_layer/contradictions.py", "tests/test_live_contextual_layer_candidate_ledger.py", "tests/test_live_contextual_layer_contradictions.py"],
+      "tests": ["python -m pytest tests/test_live_contextual_layer_candidate_ledger.py tests/test_live_contextual_layer_contradictions.py"],
+      "done_when": "An append-only, revision-linked proposal ledger stores only redacted candidate metadata, expires/supersedes deterministically, and suppresses affirmation when supporting evidence conflicts. It is not queryable as canonical Memory, causal or Planning truth.",
+      "non_goals": ["No automatic local background launch, canonical-store write, claim/gate state, or raw evidence cache."]
+    },
+    {
+      "id": "LCL-03A-local-background-worker-activation",
+      "class": "needs_live_go",
+      "owner": "Charlie/Terra implementation; root/Sol review",
+      "status": "gated",
+      "claimable": false,
+      "claim_blocker": "LCL-02, LCL-03, product-policy and local-process gates are not accepted.",
+      "depends_on": ["LCL-02 accepted", "LCL-03 accepted", "LCL-PRODUCT-POLICY-ACCEPTANCE accepted", "LCL-LOCAL-BACKGROUND-PROCESS-GO accepted"],
+      "allowed_paths": ["src/live_contextual_layer/worker.py", "src/live_contextual_layer/worker_lifecycle.py", "tests/test_live_contextual_layer_worker.py", "ops/local/live-contextual-layer.example.json"],
+      "tests": ["focused worker cancellation, restart, coalescing and disabled-by-default tests", "redacted local process observation"],
+      "done_when": "One disabled-by-default local worker starts only in its accepted envelope, stays within CPU/cadence limits, yields to foreground work, survives a bounded restart without duplicate candidates, and exposes only redacted health counters.",
+      "non_goals": ["No unattended service install, production activation, cloud model or nonlocal process."]
+    },
+    {
+      "id": "LCL-04-reviewed-promotion-adapters",
+      "class": "repo_only",
+      "owner": "Bob/Terra implementation with native Memory/Causal owner handoff; root/Sol deep review",
+      "status": "planned_not_claimable_until_dependencies_accepted",
+      "claimable": false,
+      "claim_blocker": "LCL-03, NMG-03, NMG-05A and product-policy acceptance are required.",
+      "depends_on": ["LCL-03 accepted", "NMG-03 accepted", "NMG-05A accepted", "LCL-PRODUCT-POLICY-ACCEPTANCE accepted"],
+      "allowed_paths": ["src/live_contextual_layer/promotion_adapters.py", "src/live_contextual_layer/review_intake.py", "tests/test_live_contextual_layer_promotion_adapters.py", "tests/test_live_contextual_layer_review_intake.py"],
+      "tests": ["python -m pytest tests/test_live_contextual_layer_promotion_adapters.py tests/test_live_contextual_layer_review_intake.py", "no-direct-write and rejection-receipt tests"],
+      "done_when": "Only an explicitly reviewed, nonstale candidate can create a typed canonical candidate through the target owner's intake adapter; accepted/rejected receipts preserve provenance and LCL cannot issue direct canonical writes.",
+      "non_goals": ["No dual Memory/Causal store, automatic promotion, Planning write, or promotion of correlation as causal support."]
+    },
+    {
+      "id": "LCL-05-global-project-status-projection",
+      "class": "repo_only",
+      "owner": "Charlie/Terra implementation; root/Sol deep review",
+      "status": "planned_not_claimable_until_dependencies_accepted",
+      "claimable": false,
+      "claim_blocker": "LCL-03, H1-29, USI-08 and product-policy acceptance are required.",
+      "depends_on": ["LCL-03 accepted", "H1-29 accepted", "USI-08 accepted", "LCL-PRODUCT-POLICY-ACCEPTANCE accepted"],
+      "allowed_paths": ["src/live_contextual_layer/project_status_projection.py", "src/live_contextual_layer/read_adapters.py", "tests/test_live_contextual_layer_project_status_projection.py", "tests/test_live_contextual_layer_read_adapters.py"],
+      "tests": ["python -m pytest tests/test_live_contextual_layer_project_status_projection.py tests/test_live_contextual_layer_read_adapters.py", "source-version, omission and stale-projection cases"],
+      "done_when": "A bounded, redacted project projection cites canonical status refs separately from advisory trends, hypotheses, contradictions and omissions; no API can write status, task, gate or decision state.",
+      "non_goals": ["No project dashboard truth cache, broad workspace scan, or inferred completion state."]
+    },
+    {
+      "id": "LCL-06-harbor-and-act-advisory-surfaces",
+      "class": "needs_design",
+      "owner": "Alice/Terra UI implementation; user-only semantic approval; root/Sol technical/deep review",
+      "status": "gated",
+      "claimable": false,
+      "claim_blocker": "LCL-05, ACT-2 and the user-only UI-semantics gate are not accepted.",
+      "depends_on": ["LCL-05 accepted", "ACT-2 accepted", "LCL-UI-SEMANTICS-ACCEPTANCE accepted"],
+      "allowed_paths": ["static/frontpage-v3/index.html", "static/frontpage-v3/v3-fixed.css", "static/frontpage-v3/app.js", "static/frontpage-v3/live-contextual-layer.js", "static/frontpage-v3/live-contextual-layer.css", "tests/frontend/live-contextual-layer.spec.js"],
+      "tests": ["node --check static/frontpage-v3/app.js", "browser: advisory card distinguishes canonical status, hypothesis, confidence, freshness and review action", "browser: no raw private body or gate action is rendered"],
+      "done_when": "Harbor/ACT shows quiet, plain-language advisory cards with source, confidence, freshness, contradiction and Needs review cues; users may inspect, hide or request review but cannot mistake advice for canonical state.",
+      "non_goals": ["No autonomous action button, live status control, hidden-reasoning display, or separate LCL dashboard."]
+    },
+    {
+      "id": "LCL-07-security-privacy-and-evaluation",
+      "class": "repo_only",
+      "owner": "Charlie/Terra evaluation; root/Sol deep review",
+      "status": "planned_not_claimable_until_dependencies_accepted",
+      "claimable": false,
+      "claim_blocker": "LCL-04 and LCL-05 are not accepted.",
+      "depends_on": ["LCL-04 accepted", "LCL-05 accepted"],
+      "allowed_paths": ["tests/test_live_contextual_layer_security.py", "tests/test_live_contextual_layer_evaluation.py", "tests/fixtures/live_contextual_layer/*", "docs/plans/live-contextual-layer-evaluation-protocol.md"],
+      "tests": ["privacy/redaction adversarial suite", "contradiction, stale, duplicate and overload evaluation", "false-promotion, no-gate-write and foreground-priority negatives"],
+      "done_when": "Synthetic, labelled evaluation proves bounded precision/recall reporting, safe abstention, deterministic replay, redaction monotonicity, no authority escalation and no materially degraded foreground path.",
+      "non_goals": ["No claim of global understanding, production model selection or live evaluation from fixtures."]
+    },
+    {
+      "id": "LCL-08-temporal-soak",
+      "class": "needs_live_go",
+      "owner": "Bob/Terra execution; root/Sol live review",
+      "status": "gated",
+      "claimable": false,
+      "claim_blocker": "LCL-03A, LCL-07, TLR-09 and the temporal-soak gate are not accepted.",
+      "depends_on": ["LCL-03A accepted", "LCL-07 accepted", "TLR-09 accepted", "LCL-TEMPORAL-SOAK-GO accepted"],
+      "allowed_paths": ["tests/frontend/live-contextual-layer.spec.js", "ops/local/live-contextual-layer-soak-runbook.md", "docs/plans/live-contextual-layer-soak-evidence.json"],
+      "tests": ["exact approved temporal/local soak with interruption, restart, foreground pre-emption, expiry and duplicate-delivery scenarios"],
+      "done_when": "The approved synthetic soak produces revision-bound, redacted evidence that the worker remains bounded, idempotent, cancellable, safe under restart and unable to mutate canonical truth or gates.",
+      "non_goals": ["No production traffic, real customer content, cloud provider, deploy or automatic promotion."]
+    },
+    {
+      "id": "LCL-09-production-activation",
+      "class": "needs_live_go",
+      "owner": "root/Sol with named operator and rollback owner",
+      "status": "gated",
+      "claimable": false,
+      "claim_blocker": "LCL-08, TLR-11 and the production-activation gate are not accepted.",
+      "depends_on": ["LCL-08 accepted", "TLR-11 accepted", "LCL-PRODUCTION-ACTIVATION-GO accepted"],
+      "allowed_paths": ["ops/production/live-contextual-layer/*", "docs/plans/live-contextual-layer-production-handoff.md"],
+      "tests": ["approved canary, redacted health observation, rollback drill and post-activation readback"],
+      "done_when": "A named, bounded production canary is enabled only under the exact approved envelope, has a tested rollback, produces redacted observability, and preserves all no-authority rules.",
+      "non_goals": ["No blanket workspace activation, model-provider expansion, or inference of success from deployment alone."]
+    }
+  ],
+  "gate_queue": [
+    {
+      "id": "LCL-PRODUCT-POLICY-ACCEPTANCE",
+      "class": "needs_design",
+      "gate_kind": "product_policy",
+      "status": "not_satisfied",
+      "blocks": ["LCL-03A-local-background-worker-activation", "LCL-04-reviewed-promotion-adapters", "LCL-05-global-project-status-projection"],
+      "decision_needed": "Approve the first permitted scopes, source classes, confidence wording, review routes, retention/expiry defaults and explicit non-authority policy.",
+      "safe_default": "Keep LCL limited to synthetic/fake runtime work and do not expose or promote candidates."
+    },
+    {
+      "id": "LCL-UI-SEMANTICS-ACCEPTANCE",
+      "class": "user_only",
+      "gate_kind": "ui_semantics",
+      "status": "not_satisfied",
+      "blocks": ["LCL-06-harbor-and-act-advisory-surfaces"],
+      "decision_needed": "User-only approval of plain-language labels, confidence/freshness presentation, contradiction treatment, review affordances and the visual separation of canonical status from advisory hypotheses. Root performs technical/deep review only.",
+      "safe_default": "No UI implementation; existing ACT surfaces remain unchanged."
+    },
+    {
+      "id": "LCL-LOCAL-BACKGROUND-PROCESS-GO",
+      "class": "needs_live_go",
+      "gate_kind": "local_process",
+      "status": "not_satisfied",
+      "blocks": ["LCL-03A-local-background-worker-activation"],
+      "decision_needed": "Authorize one named local machine, process lifecycle, CPU/memory/queue bounds, observation interval, stop command and rollback owner for a disabled-by-default worker.",
+      "safe_default": "Fake runtime only; no daemon, task scheduler, service or automatic process start."
+    },
+    {
+      "id": "LCL-TEMPORAL-SOAK-GO",
+      "class": "needs_live_go",
+      "gate_kind": "temporal_soak",
+      "status": "not_satisfied",
+      "blocks": ["LCL-08-temporal-soak"],
+      "decision_needed": "Authorize the exact synthetic workload, duration, local/Temporal target, CPU cap, interruption plan, evidence schema, operator, stop condition and rollback for the soak.",
+      "safe_default": "No soak or duration claim beyond focused repository tests."
+    },
+    {
+      "id": "LCL-PRODUCTION-ACTIVATION-GO",
+      "class": "needs_live_go",
+      "gate_kind": "production_activation",
+      "status": "not_satisfied",
+      "blocks": ["LCL-09-production-activation"],
+      "decision_needed": "Authorize the exact deployment/canary target, data classes, rate/cost/resource limits, monitoring, rollback, owner and post-activation readback.",
+      "safe_default": "Disabled by default; no deploy, provider call, unattended service or production claim."
+    }
+  ],
+  "metrics": {
+    "safety": ["zero direct Planning/Memory/Causal/gate writes", "zero redaction monotonicity violations", "zero stale or contradicted candidates promoted"],
+    "quality": ["labelled candidate precision/recall and abstention rate by scope", "contradiction detection rate", "review acceptance/rejection/supersession rate", "source coverage and explicit omission rate"],
+    "operational": ["job queue depth", "coalescing rate", "duplicate suppression rate", "cancellation/pre-emption latency", "CPU and wall-time distribution", "expiry and restart-replay outcomes"],
+    "foreground": ["chat latency delta under LCL load", "foreground cancellation success", "foreground capacity reservation by LCL must remain zero"]
+  },
+  "required_negative_tests": [
+    "Unknown classification, missing provenance, scope mismatch or raw-content request fails closed.",
+    "A high-confidence hypothesis cannot close a gate, mutate project status, create a task, alter a claim or invoke execution.",
+    "Correlation, co-occurrence, retrieval rank and model suggestion cannot become a causal claim or Memory fact without review and canonical intake.",
+    "Changed source version, expired candidate or contradiction blocks promotion and appears stale/unresolved.",
+    "Duplicate/reordered deliveries and restart replay do not create duplicate candidate revisions or promotion attempts.",
+    "Overload or foreground work cancels/coalesces LCL without delaying or changing foreground chat authority.",
+    "Harbor/ACT cannot render a hypothesis as canonical status, hidden reasoning or raw private source content."
+  ],
+  "completion_matrix": [
+    {"layer": "contract", "requires": "LCL-01 accepted and no-authority/privacy contract tests green"},
+    {"layer": "repository_runtime", "requires": "LCL-02 through LCL-05 accepted with focused tests and fake/deterministic evidence"},
+    {"layer": "user_interface", "requires": "LCL-06 accepted after UI semantics gate and browser evidence"},
+    {"layer": "security_evaluation", "requires": "LCL-07 accepted with labelled fixtures, adversarial negatives and explicit limits"},
+    {"layer": "local_temporal", "requires": "LCL-03A and LCL-08 accepted under exact local-process and soak gates"},
+    {"layer": "production", "requires": "LCL-09 accepted under a named production gate, canary and rollback evidence"}
+  ],
+  "non_goals": [
+    "No autonomous 24-hour decision maker or unbounded global observer.",
+    "No second Planning, project-status, Memory, causal, gate, claim, run-state or review truth store.",
+    "No automatic fact creation, task creation, gate completion, decision, Memory write or causal support assertion.",
+    "No replacement for CAO controller, Temporal Light, USI, RAPTOR worker, Native Memory, CausalClaimStore, Universal Inbox or ACT.",
+    "No chain-of-thought, hidden-model-causality, raw source-body, secret, provider-response or broad debug-log display.",
+    "No production enablement, live process, cloud call, external send, deployment or retention change without its exact gate."
+  ],
+  "durable_handoff_template": {
+    "required_fields": ["roadmap", "slice_id", "owner", "claim_id", "run_id", "changed_paths", "base_revision_or_dirty_diff_digest", "tests_run_and_results", "evidence_reference", "next_dependency_ready_action", "blockers_or_owner_questions", "remaining_verification_limits", "live_actions=false_or_exact_gate_reference"],
+    "handoff_rule": "A roadmap checkbox, agent statement or test name is not evidence. Handoff must distinguish repository, UI, local-process, temporal and production verification."
+  },
+  "authoring_handoff": {
+    "status": "accepted_after_root_deep_review_and_router_registration",
+    "slice_id": "LCL-00-live-contextual-layer-roadmap-authoring",
+    "owner": "alice_live_context",
+    "claim_id": "abc-live-contextual-roadmap-20260802:LCL-00-live-contextual-layer-roadmap-authoring",
+    "changed_paths": ["docs/plans/live-contextual-layer-roadmap.json"],
+    "tests_run": ["python -m json.tool docs/plans/live-contextual-layer-roadmap.json"],
+    "next_action": "LCL-01 may be claimed only after CAO-08B acceptance and a new explicit implementation goal; deep review and shared-router registration are complete.",
+    "remaining_limits": ["No implementation, UI, local process, soak, production action or live authority was exercised by LCL-00."]
+  },
+  "recommended_next_step": "LCL-01 is the first future frontier only after CAO-08B is accepted and a new explicit implementation goal is created."
+}
