@@ -3,8 +3,8 @@
   "kind": "odysseus.faster_whisper_transcription_protocol_roadmap",
   "id": "TRP",
   "title": "Local Faster-Whisper Transcription And Evidence-Backed Protocols",
-  "updated_at": "2026-08-02T18:25:35+02:00",
-  "status": "trp01_through_trp05_accepted_trp06_repo_only_claimed_trp08_live_gated",
+  "updated_at": "2026-08-02T18:54:06+02:00",
+  "status": "trp01_through_trp06_accepted_trp07_dependency_ready_unclaimed_round5_handoff_trp08_live_gated",
   "goal": "Deliver a backend-first, local-only transcription pipeline that cannot acknowledge an audio upload before durable primary storage, preserves immutable source evidence, uses faster-whisper for timestamped ASR, constrains Gemma to review and protocol synthesis, and reaches one bounded consent-safe Debian live test with backup and rollback evidence.",
   "scope": {
     "included": [
@@ -301,9 +301,9 @@
       "id": "TRP-06-owner-scoped-backend-api",
       "class": "repo_only",
       "owner": "Bob/Terra; root/Sol deep review",
-      "status": "claimed_2026-08-02_dependency_ready_exact_hotfile_handoff",
+      "status": "accepted_released_2026-08-02_root_and_independent_qa_pass",
       "claimable": false,
-      "claim_blocker": "One exact TRP-06 writer claim is active; app.py, core/auth.py and docker-compose.yml are serialized against UIR-03 and every other composition lane.",
+      "claim_blocker": "Accepted and released; no writer remains.",
       "depends_on": [
         "TRP-04-resumable-single-worker-pipeline",
         "TRP-05-gemma-correction-and-protocol-provenance"
@@ -338,15 +338,24 @@
         "deletion remains explicit and separately confirmed",
         "feature default off and local-only"
       ],
-      "done_when": "Authorization, cross-owner, oversize, retry, failure and success route tests pass without UI or external provider behavior."
+      "done_when": "Authorization, cross-owner, oversize, retry, failure and success route tests pass without UI or external provider behavior.",
+      "acceptance_evidence": {
+        "implementation_commit": "871ffe646c80463c19f46861f946a95f4eb2a2df",
+        "implementation_diff_sha256": "53169e3b162e3cf843d1d888b2ac78f31eccaca1af3fb8b9ca99f953d5e03275",
+        "root_regression": "206 passed, 2 skipped",
+        "independent_qa": "PASS; 10 focused tests plus AST, YAML, imports and diff-check",
+        "root_review": "deep pass across the exact nine claimed paths",
+        "known_limit": "one existing Windows atomic-write concurrency test emitted a PermissionError thread warning without an assertion failure; full app lifecycle, real model/provider/host/audio and live behavior remain unverified",
+        "live_actions": false
+      }
     },
     {
       "id": "TRP-07-offline-integration-backup-and-live-packet",
       "class": "repo_only",
       "owner": "Charlie/Terra; root/Sol deep review",
-      "status": "planned",
+      "status": "dependency_ready_unclaimed_round5_handoff",
       "claimable": false,
-      "claim_blocker": "TRP-06 not accepted",
+      "claim_blocker": "Deliberately unclaimed for the post-Round-5 normalization task; no new claim may start in this round.",
       "depends_on": [
         "TRP-06-owner-scoped-backend-api"
       ],
@@ -720,7 +729,7 @@
         "app.py",
         "docker-compose.yml"
       ],
-      "state": "claimed",
+      "state": "released_accepted",
       "acquired_at": "2026-08-02T18:25:35+02:00",
       "lease_expires_at": "2026-08-02T20:25:35+02:00",
       "base_revision": "0297e457db032c1edc1e259ecfd07ff802d90caa",
@@ -732,7 +741,16 @@
         "writes outside the nine exact paths",
         "claiming TRP-08 or any live evidence"
       ],
-      "live_actions": false
+      "live_actions": false,
+      "released_at": "2026-08-02T18:54:06+02:00",
+      "release_reason": "accepted_after_exact_scope_implementation_root_deep_review_independent_read_only_qa_and_root_regression",
+      "implementation_commit": "871ffe646c80463c19f46861f946a95f4eb2a2df",
+      "acceptance_evidence": {
+        "root_regression": "206 passed, 2 skipped",
+        "independent_qa": "PASS; exact nine-path scope unchanged and 10 focused tests passed",
+        "static": "AST, YAML, imports and git diff --check passed",
+        "known_limit": "full app lifecycle and all model/provider/host/audio/live behavior not verified"
+      }
     }
   ],
   "route": {
@@ -798,7 +816,7 @@
       "review": {
         "model": "surface_default",
         "depth": "deep",
-        "result": "trp01_trp02_trp03_trp04_deep_pass_trp05_pending"
+        "result": "trp01_through_trp06_deep_pass"
       }
     },
     "fallback": "native_tools"
@@ -821,10 +839,10 @@
     "positive_path_required": true
   },
   "completion": {
-    "implemented": "partial_trp01_trp02_trp03_trp04",
-    "tested": "trp01_11_passed_trp02_21_passed_trp03_21_passed_1_skipped_trp04_42_passed_1_skipped",
-    "sol_reviewed": "trp01_trp02_trp03_trp04_deep",
-    "committed": "no",
+    "implemented": "trp01_through_trp06_repo_only",
+    "tested": "trp01_through_trp06_focused_and_integration_green_trp06_root_206_passed_2_skipped",
+    "sol_reviewed": "trp01_through_trp06_deep",
+    "committed": "local_through_trp06",
     "pushed": "no",
     "deployed": "no",
     "live_validated": "no",
@@ -851,5 +869,29 @@
     ],
     "next_action": "Implement and independently review TRP-06 under its exact default-off repo-only claim; TRP-08 remains live-gated."
   },
-  "next_frontier": "TRP-06 owner-scoped backend API is claimed repo-only with exact composition-hotfile serialization; after acceptance run TRP-07, then stop at TRP-08 live gates"
+  "latest_trp06_acceptance": {
+    "accepted_at": "2026-08-02T18:54:06+02:00",
+    "claim_id": "ABC-TRP06-20260802T182535+0200",
+    "implementation_owner": "/root/bob_trp05_reclaim_audit",
+    "independent_qa_owner": "/root/trp06_independent_qa",
+    "implementation_commit": "871ffe646c80463c19f46861f946a95f4eb2a2df",
+    "changed_paths": [
+      "core/auth.py",
+      "src/transcription_runtime.py",
+      "routes/transcription_routes.py",
+      "app.py",
+      "docker-compose.yml",
+      "tests/test_auth_subject_identity.py",
+      "tests/test_transcription_runtime.py",
+      "tests/test_transcription_routes.py",
+      "tests/test_app_transcription_wiring.py"
+    ],
+    "tests": "Root 206 passed, 2 skipped; independent QA 10 passed plus static checks",
+    "not_verified": [
+      "full repository suite or external CI",
+      "full app lifecycle, real Faster-Whisper/Gemma execution, productive audio, host, backup, deploy or live activation"
+    ],
+    "next_action": "Leave TRP-07 dependency-ready but unclaimed for the post-Round-5 normalization task; TRP-08 and all live gates remain closed."
+  },
+  "next_frontier": "TRP-07 is dependency-ready but deliberately unclaimed for the post-Round-5 normalization task; stop at TRP-08 live gates"
 }

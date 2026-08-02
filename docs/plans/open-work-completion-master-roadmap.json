@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-02T18:41:46+02:00",
-  "status": "wave5r_independent_qa_pass_pending_current_inventory_refresh / acpr11_accepted_released / trp06_repo_only_claimed / cleanup_one_worktree_clean / live_gates_preserved",
+  "updated_at": "2026-08-02T18:54:06+02:00",
+  "status": "wave5r_independent_qa_pass_pending_current_inventory_refresh / acpr11_accepted_released / trp06_accepted_released / cleanup_one_worktree_clean / live_gates_preserved",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -20,11 +20,11 @@
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 1,
+    "safe_open_json_slices": 0,
     "unique_live_gates": 61,
     "unique_design_gates": 29,
     "other_open_json_items": 155,
-    "queue_status": "wave5r_qa_pass_pending_inventory_refresh_and_trp06_implementation_running",
+    "queue_status": "wave5r_qa_pass_pending_current_inventory_refresh_no_active_writer_claims",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "live_contextual_layer": "lcl00_roadmap_deep_reviewed_registered_lcl01_waiting_cao08b",
@@ -45,7 +45,7 @@
       "code_lineage_timeline": "clt00_through_clt02_accepted_clt03_ready_repo_only_live_default_off",
       "lens_code_graph": "planned_after_code_graph_api_ui_live_gated",
       "agent_maintenance_safety_harness": "roadmap_registered_goal_not_started_repo_only",
-      "local_transcription_protocol": "trp01_through_trp05_accepted_trp06_repo_only_claimed_trp08_live_gated",
+      "local_transcription_protocol": "trp01_through_trp06_accepted_trp07_dependency_ready_unclaimed_round5_handoff_trp08_live_gated",
       "security_incident_response_production": "sirp00_through_sirp11_offline_accepted_sirp12_sec184_required_ci_green_sec176_host_change_completed_sec190_observation_ok_C2_next_D_deploy_not_go_E_delivery_not_go"
     },
     "verification": {
@@ -513,46 +513,7 @@
         "remaining_work": "OPS Alert integration and publication remain owned by their existing handoffs and are not absorbed by this roadmap-authoring slice."
       }
     ],
-    "active_claimed_slices": [
-      {
-        "claim_id": "ABC-TRP06-20260802T182535+0200",
-        "slice_id": "TRP-06-owner-scoped-backend-api",
-        "roadmap": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
-        "owner": "/root/bob_trp05_reclaim_audit",
-        "class": "repo_only",
-        "state": "claimed",
-        "acquired_at": "2026-08-02T18:25:35+02:00",
-        "lease_expires_at": "2026-08-02T20:25:35+02:00",
-        "base_revision": "0297e457db032c1edc1e259ecfd07ff802d90caa",
-        "allowed_paths": [
-          "core/auth.py",
-          "src/transcription_runtime.py",
-          "routes/transcription_routes.py",
-          "app.py",
-          "docker-compose.yml",
-          "tests/test_auth_subject_identity.py",
-          "tests/test_transcription_runtime.py",
-          "tests/test_transcription_routes.py",
-          "tests/test_app_transcription_wiring.py"
-        ],
-        "router_write_paths": [
-          "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
-          "docs/plans/open-work-completion-master-roadmap.json",
-          "docs/plans/multi-agent-execution-guidance.json",
-          "tests/test_security_incident_response_production_completion_roadmap.py"
-        ],
-        "writer_count": 1,
-        "independent_qa_required": true,
-        "live_actions": false,
-        "collision_check": "pass: nine TRP-06 paths are clean and disjoint from ACPR-11/Wave-5R; app.py, core/auth.py and docker-compose.yml are exclusively serialized here and UIR-03 remains unclaimed",
-        "forbidden_actions": [
-          "editing canonical roadmap authorities from the worker",
-          "UI implementation, legacy route activation, productive/private audio, provider/model/network/host/backup/restore/push/deploy/live action",
-          "writes outside the nine exact paths",
-          "claiming TRP-08 or any live evidence"
-        ]
-      }
-    ],
+    "active_claimed_slices": [],
     "latest_acpr11_acceptance": {
       "accepted_at": "2026-08-02T18:41:46+02:00",
       "roadmap": "docs/plans/autonomous-coding-production-readiness-roadmap.json",
@@ -606,6 +567,40 @@
       "not_verified": [
         "full repository suite or external CI",
         "live Gemma/Ollama, productive audio, host, deployment or runtime activation"
+      ],
+      "live_actions": false
+    },
+    "latest_trp06_acceptance": {
+      "accepted_at": "2026-08-02T18:54:06+02:00",
+      "roadmap": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+      "slice_id": "TRP-06-owner-scoped-backend-api",
+      "claim_id": "ABC-TRP06-20260802T182535+0200",
+      "implementation_owner": "/root/bob_trp05_reclaim_audit",
+      "independent_qa_owner": "/root/trp06_independent_qa",
+      "implementation_commit": "871ffe646c80463c19f46861f946a95f4eb2a2df",
+      "changed_paths": [
+        "core/auth.py",
+        "src/transcription_runtime.py",
+        "routes/transcription_routes.py",
+        "app.py",
+        "docker-compose.yml",
+        "tests/test_auth_subject_identity.py",
+        "tests/test_transcription_runtime.py",
+        "tests/test_transcription_routes.py",
+        "tests/test_app_transcription_wiring.py"
+      ],
+      "tests_and_results": [
+        "Root focused integration: 206 passed, 2 skipped",
+        "independent read-only QA: PASS with 10 focused tests",
+        "AST, YAML, import and diff checks: pass",
+        "Root deep review: pass"
+      ],
+      "evidence_ref": "sha256:53169e3b162e3cf843d1d888b2ac78f31eccaca1af3fb8b9ca99f953d5e03275",
+      "known_limit": "one existing Windows atomic-write concurrency test emitted a PermissionError thread warning without an assertion failure",
+      "next_action": "Leave TRP-07 dependency-ready but unclaimed for the post-Round-5 normalization task; TRP-08 remains live-gated.",
+      "not_verified": [
+        "full repository suite or external CI",
+        "full app lifecycle, real model/provider/host/audio, backup, deploy or live activation"
       ],
       "live_actions": false
     },
@@ -15840,9 +15835,9 @@
       "id": "TRP-06-owner-scoped-backend-api",
       "class": "repo_only",
       "owner": "Bob/Terra implementation; root/Sol deep review",
-      "status": "claimed_2026-08-02_dependency_ready_exact_hotfile_handoff",
+      "status": "accepted_released_2026-08-02_root_and_independent_qa_pass",
       "claimable": false,
-      "claim_blocker": "One exact TRP-06 writer claim is active; app.py, core/auth.py and docker-compose.yml are serialized against UIR-03 and every other composition lane.",
+      "claim_blocker": "Accepted and released; no writer remains.",
       "claim": {
         "run_id": "ABC-TRP06-20260802T182535+0200",
         "thread_id": "/root/bob_trp05_reclaim_audit",
@@ -15864,14 +15859,16 @@
           "app.py",
           "docker-compose.yml"
         ],
-        "state": "claimed",
+        "state": "released_accepted",
         "acquired_at": "2026-08-02T18:25:35+02:00",
         "lease_expires_at": "2026-08-02T20:25:35+02:00",
         "base_revision": "0297e457db032c1edc1e259ecfd07ff802d90caa",
         "handoff_required": true,
         "runtime_scope": "repository-only default-off owner-scoped API, fake/injected worker lifecycle and synthetic audio fixtures",
         "collision_check": "pass: exact nine paths clean, UIR-03 unclaimed, all composition hotfiles serialized",
-        "live_actions": false
+        "live_actions": false,
+        "released_at": "2026-08-02T18:54:06+02:00",
+        "implementation_commit": "871ffe646c80463c19f46861f946a95f4eb2a2df"
       },
       "depends_on": [
         "TRP-04-resumable-single-worker-pipeline accepted",
@@ -15887,10 +15884,10 @@
         "no arbitrary paths, filenames, source bytes or transcript in status logs"
       ],
       "completion": {
-        "implemented": "in_progress",
-        "tested": "pending",
-        "sol_reviewed": "pending",
-        "committed": "no",
+        "implemented": "yes_default_off_repo_only",
+        "tested": "root_206_passed_2_skipped_independent_qa_10_passed",
+        "sol_reviewed": "deep_pass",
+        "committed": "871ffe646c80463c19f46861f946a95f4eb2a2df",
         "pushed": "no",
         "deployed": "no",
         "live_validated": "no",

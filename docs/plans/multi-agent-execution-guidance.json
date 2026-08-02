@@ -803,8 +803,8 @@
     {
       "path": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
       "profile": "active_serial",
-      "state": "trp05_accepted_trp06_repo_only_claimed_exact_composition_hotfiles",
-      "ai_hint": "TRP-05 is accepted after test-first integration evidence, 146 passed/1 skipped worker and independent-QA corridors, and Root deep review. TRP-06 now exclusively owns its nine default-off API/runtime/composition paths including app.py, core/auth.py and docker-compose.yml; UIR-03 must remain unclaimed until that handoff releases. Continue serially to TRP-07 after independent QA and stop at TRP-08 live gates. No productive/private audio, provider/model/network/host/push/deploy/live authority exists."
+      "state": "trp01_through_06_accepted_trp07_dependency_ready_unclaimed_round5_handoff",
+      "ai_hint": "TRP-06 is accepted at local commit 871ffe64 after exact-scope implementation, Root deep review, 206 passed/2 skipped and independent read-only QA PASS. TRP-07 is dependency-ready but deliberately unclaimed for the post-Round-5 normalization task; do not start it in this round. Stop at TRP-08 live gates. No productive/private audio, provider/model/network/host/backup/restore/push/deploy/live authority exists."
     },
     {
       "path": "docs/plans/telegram-web-research-memory-roadmap.json",

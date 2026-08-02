@@ -984,7 +984,7 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
     )
 
     assert trp["status"] == (
-        "trp01_through_trp05_accepted_trp06_repo_only_claimed_trp08_live_gated"
+        "trp01_through_trp06_accepted_trp07_dependency_ready_unclaimed_round5_handoff_trp08_live_gated"
     )
     trp_05 = next(item for item in trp["slice_queue"] if item["id"].startswith("TRP-05-"))
     assert trp_05["claimable"] is False
@@ -1017,14 +1017,14 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
     ]
     trp_06 = next(item for item in trp["slice_queue"] if item["id"].startswith("TRP-06-"))
     assert trp_06["status"] == (
-        "claimed_2026-08-02_dependency_ready_exact_hotfile_handoff"
+        "accepted_released_2026-08-02_root_and_independent_qa_pass"
     )
     trp_06_claim = next(
         item
         for item in trp["claims"]
         if item["run_id"] == "ABC-TRP06-20260802T182535+0200"
     )
-    assert trp_06_claim["state"] == "claimed"
+    assert trp_06_claim["state"] == "released_accepted"
     assert trp_06_claim["slice_id"] == trp_06["id"]
     assert trp_06_claim["live_actions"] is False
 
