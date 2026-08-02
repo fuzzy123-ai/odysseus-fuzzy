@@ -169,3 +169,15 @@ def test_identifier_adapter_redacts_host_paths_and_secret_material():
     assert r"C:\Users\nkatz" not in dumped
     assert "token=abc123" not in dumped
     assert "sha256:" in dumped
+
+
+def test_identifier_adapter_hashes_parent_path_components_without_false_positives():
+    unsafe = identifiers_from_coding_agent(
+        coding_plan=SimpleNamespace(repo_id="repo/../private", task_id="task-alpha", checks=[])
+    )
+    safe = identifiers_from_coding_agent(
+        coding_plan=SimpleNamespace(repo_id="repo..safe", task_id="task-alpha", checks=[])
+    )
+
+    assert unsafe.repo_id.startswith("sha256:")
+    assert safe.repo_id == "repo..safe"

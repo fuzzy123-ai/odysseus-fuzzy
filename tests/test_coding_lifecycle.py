@@ -90,7 +90,7 @@ def test_coding_lifecycle_surfaces_blocking_quality_gate():
     assert "changed path outside allowed scope" in payload["blockers"]
 
 
-def test_coding_lifecycle_done_can_come_from_runner_phase():
+def test_coding_lifecycle_runner_done_does_not_manufacture_verified_completion():
     state = build_coding_lifecycle_state(
         coding_plan=_plan(),
         runner_state={"task_id": "task-alpha", "repo_id": "demo", "phase": "done", "progress_percent": 100},
@@ -99,11 +99,12 @@ def test_coding_lifecycle_done_can_come_from_runner_phase():
 
     payload = state.to_dict()
 
-    assert payload["status"] == "done"
-    assert payload["next_action"] == "none"
+    assert payload["schema"] == CODING_LIFECYCLE_SCHEMA
+    assert payload["status"] != "done"
+    assert payload["next_action"] != "none"
     assert payload["stages"][-1]["stage"] == "verified_done"
-    assert payload["stages"][-1]["status"] == "done"
-    assert payload["runtime_event"]["status"] == "success"
+    assert payload["stages"][-1]["status"] == "pending"
+    assert payload["runtime_event"]["status"] != "success"
 
 
 def test_coding_lifecycle_redacts_raw_output_secrets_and_host_paths():
