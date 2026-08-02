@@ -1,14 +1,14 @@
-# ---- builder: patch + build wheels for Real-ESRGAN's broken-on-3.14 deps ----
+# ---- builder: patch + build wheels for Real-ESRGAN dependencies ----
 # basicsr/gfpgan/facexlib read their version via exec()+locals()['__version__'],
-# which raises KeyError on Python 3.13+ (PEP 667). Build patched wheels here so
-# Cookbook can install Real-ESRGAN on the Python 3.14 image.
-FROM python:3.14-slim AS realesrgan-wheels
+# which raises KeyError under affected interpreter semantics. Build patched
+# wheels here so Cookbook can install Real-ESRGAN in the Python image.
+FROM python:3.11-slim AS realesrgan-wheels
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 COPY docker/build-realesrgan-wheels.sh /usr/local/bin/build-realesrgan-wheels.sh
 RUN bash /usr/local/bin/build-realesrgan-wheels.sh /wheels
 
-FROM python:3.14-slim
+FROM python:3.11-slim
 
 # System deps. tmux is required by Cookbook for background downloads/serves.
 # openssh-client is required for Cookbook remote server tests, setup, probes,

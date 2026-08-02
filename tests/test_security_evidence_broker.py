@@ -1,6 +1,8 @@
 from __future__ import annotations
+import hashlib
+import json
 import pytest
-from src.security_evidence_broker import SecurityEvidenceBroker, SecurityEvidenceError, build_security_evidence_envelope, is_opaque_digest_ref
+from src.security_evidence_broker import SecurityEvidenceBroker, SecurityEvidenceError, _digest, build_security_evidence_envelope, is_opaque_digest_ref
 from src.security_evidence_sources import SecurityEvidenceSourceError, auth_outcome_projection, crowdsec_decision_projection, reverse_proxy_projection
 from src.security_incident_service import SecurityIncidentService
 from src.security_incident_store import SecurityIncidentStore
@@ -14,6 +16,11 @@ def test_auth_envelope_is_deterministic_and_strictly_opaque():
     first=build_security_evidence_envelope(_auth()); second=build_security_evidence_envelope(_auth())
     assert first==second and all(is_opaque_digest_ref(v) for v in (first.evidence_ref,first.correlation_ref,first.dedupe_ref))
     assert first.to_dict()["raw_content_visible"] is False
+
+def test_digest_uses_the_existing_canonical_json_encoding():
+    value={"z":"é","a":[2,1]}
+    expected="evidence:sha256:"+hashlib.sha256(json.dumps(value,sort_keys=True,separators=(",",":"),ensure_ascii=True).encode()).hexdigest()
+    assert _digest("evidence",value)==expected
 
 def test_correlation_omits_status_and_counts_but_includes_stable_refs():
     broker=SecurityEvidenceBroker()

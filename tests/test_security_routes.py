@@ -228,7 +228,7 @@ def test_security_action_prepare_is_incident_bound_versioned_and_no_execute(tmp_
     assert prepared.json()["action"]["state"] == "prepared"
     assert prepared.json()["approved"] is False and prepared.json()["executed"] is False
     assert stale.status_code == 409
-    assert not any(route.path.endswith("/execute") for route in client.app.routes)
+    assert not any(getattr(route, "path", "").endswith("/execute") for route in client.app.routes)
 
 
 def test_security_action_prepare_unknown_and_expired_fail_closed(tmp_path):

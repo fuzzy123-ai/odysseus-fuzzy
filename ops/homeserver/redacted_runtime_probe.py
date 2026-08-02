@@ -87,6 +87,7 @@ target_configured = bool(
     else fallback_target
 )
 agent_reply_enabled = os.environ.get("TELEGRAM_AGENT_REPLY_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
+bot_token_configured = bool((os.environ.get("TELEGRAM_BOT_TOKEN") or "").strip())
 payload = {
     "schema_id": %r,
     "environment_entry_count": len(keys),
@@ -99,7 +100,7 @@ payload = {
     "telegram_delivery_readiness": {
         "opaque_target_configured": target_configured,
         "agent_reply_enabled": agent_reply_enabled,
-        "send_ready": target_configured and agent_reply_enabled,
+        "send_ready": target_configured and agent_reply_enabled and bot_token_configured,
         "raw_target_visible": False,
         "secret_values_visible": False,
     },
@@ -169,7 +170,10 @@ def parse_container_projection(raw: str, *, container: str) -> dict[str, Any]:
         raise ValueError("invalid_probe_payload")
     if any(type(raw_presence[name]) is not bool for name in EXPECTED_CREDENTIAL_KEYS):
         raise ValueError("invalid_probe_payload")
-    readiness = _telegram_readiness(payload.get("telegram_delivery_readiness"))
+    readiness = _telegram_readiness(
+        payload.get("telegram_delivery_readiness"),
+        bot_token_configured=raw_presence["TELEGRAM_BOT_TOKEN"],
+    )
 
     return {
         "schema_id": HOST_SCHEMA_ID,
@@ -191,15 +195,25 @@ def parse_container_projection(raw: str, *, container: str) -> dict[str, Any]:
     }
 
 
-def _telegram_readiness(value: Any) -> dict[str, bool]:
-    if not isinstance(value, dict) or set(value) != set(_TELEGRAM_READINESS_KEYS):
+def _telegram_readiness(
+    value: Any,
+    *,
+    bot_token_configured: bool,
+) -> dict[str, bool]:
+    if (
+        not isinstance(value, dict)
+        or set(value) != set(_TELEGRAM_READINESS_KEYS)
+        or type(bot_token_configured) is not bool
+    ):
         raise ValueError("invalid_probe_payload")
     if any(type(value[key]) is not bool for key in _TELEGRAM_READINESS_KEYS):
         raise ValueError("invalid_probe_payload")
     if value["raw_target_visible"] is not False or value["secret_values_visible"] is not False:
         raise ValueError("invalid_probe_payload")
     if value["send_ready"] != (
-        value["opaque_target_configured"] and value["agent_reply_enabled"]
+        value["opaque_target_configured"]
+        and value["agent_reply_enabled"]
+        and bot_token_configured
     ):
         raise ValueError("invalid_probe_payload")
     return {key: value[key] for key in _TELEGRAM_READINESS_KEYS}

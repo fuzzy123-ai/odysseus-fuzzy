@@ -21,12 +21,52 @@ SCOPE = "scope:sha256:" + "a" * 64
 POLICY = "policy:sha256:" + "b" * 64
 
 
+def test_pending_operator_notification_query_is_bounded_and_excludes_terminal_states(tmp_path):
+    store = SecurityIncidentStore(tmp_path / "pending.sqlite", clock=lambda: 100)
+    incident = store.create_incident(
+        incident_id="incident-pending", incident_ref="incident:sha256:" + "a" * 64,
+        audit_ref="audit:sha256:" + "b" * 64,
+    )
+    action = store.create_action(
+        action_id="action-pending", incident_id=incident.incident_id,
+        action_type="operator_notification", scope_fingerprint=SCOPE,
+        policy_revision=POLICY, idempotency_key="idempotency-pending",
+        ttl_seconds=60, audit_ref="audit:sha256:" + "c" * 64,
+    )
+    assert store.pending_operator_notification_actions(limit=1) == (action,)
+    prepared = store.transition(
+        action_id=action.action_id, expected_version=action.version,
+        target_state="prepared", audit_ref="audit:sha256:" + "d" * 64,
+    )
+    denied = store.transition(
+        action_id=prepared.action_id, expected_version=prepared.version,
+        target_state="denied", audit_ref="audit:sha256:" + "e" * 64,
+    )
+    assert denied.state == "denied"
+    assert store.pending_operator_notification_actions() == ()
+    with pytest.raises(Exception):
+        store.pending_operator_notification_actions(limit=65)
+
+
 def _ref(kind: str, char: str = "c") -> str:
     return f"{kind}:sha256:{char * 64}"
 
 
 def _store(tmp_path: Path, clock=lambda: 100.0) -> SecurityIncidentStore:
     return SecurityIncidentStore(tmp_path / "incidents.sqlite3", clock=clock)
+
+
+def test_v1_store_migrates_to_private_context_schema_without_rewriting_existing_tables(tmp_path: Path) -> None:
+    path = tmp_path / "v1.sqlite"
+    db = sqlite3.connect(path)
+    migrations._migration_1(db)
+    db.execute("PRAGMA user_version=1")
+    db.execute(f"PRAGMA application_id={SQLITE_APPLICATION_ID}")
+    db.commit(); db.close()
+    store = SecurityIncidentStore(path)
+    with store._read() as migrated:
+        assert int(migrated.execute("PRAGMA user_version").fetchone()[0]) == SCHEMA_VERSION
+        assert migrated.execute("SELECT 1 FROM sqlite_master WHERE name='incident_contexts'").fetchone() is not None
 
 
 def _prepared(store: SecurityIncidentStore, *, ttl: int = 60):

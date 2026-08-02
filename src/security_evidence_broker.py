@@ -53,7 +53,9 @@ def build_security_evidence_envelope(projection: Mapping[str, Any]) -> SecurityE
     return SecurityEvidenceEnvelope(source, event_type, status, severity, dimensions, references, measurements, _digest("evidence", full), _digest("correlation", stable), _digest("dedupe", full))
 
 def is_opaque_digest_ref(value: Any) -> bool: return isinstance(value, str) and bool(_REF.fullmatch(value))
-def _digest(kind: str, value: Mapping[str, Any]) -> str: return f"{kind}:sha256:{hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()).hexdigest()}"
+def _digest(kind: str, value: Mapping[str, Any]) -> str:
+    canonical_json = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return f"{kind}:sha256:{hashlib.sha256(canonical_json.encode()).hexdigest()}"
 def _safe_token(value: Any, field: str) -> str:
     if not isinstance(value, str) or not _TOKEN.fullmatch(value.strip().lower()) or _bad_name(value.strip().lower()): raise SecurityEvidenceError(f"invalid {field}")
     return value.strip().lower()

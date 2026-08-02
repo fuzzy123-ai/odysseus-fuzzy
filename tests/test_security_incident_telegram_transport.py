@@ -1,6 +1,10 @@
+from types import SimpleNamespace
+
 import pytest
 
 from src.security_incident_notifications import (
+    canonical_access_alert_body,
+    canonical_access_alert_body_ref,
     canonical_operator_notification_body_ref,
     canonical_operator_notification_target_class_ref,
 )
@@ -96,3 +100,35 @@ def test_receipt_binds_validated_message_id_without_exposing_it(monkeypatch):
     monkeypatch.setattr("plugins.telegram.outbound.send_telegram_text", lambda *_args: _ack(18))
     second = build_production_security_incident_telegram_transport(enabled=True).invoke(_request())
     assert first["receipt_ref"] != second["receipt_ref"] and "17" not in str(first) and "18" not in str(second)
+
+
+def test_dynamic_access_alert_body_is_resolved_from_store_and_body_ref_verified(monkeypatch):
+    context = SimpleNamespace(
+        event_class="authentication_failure", accessing_ip="2606:4700:4700::1111",
+        suppression_decision="notify",
+    )
+    store = SimpleNamespace(get_incident_context_for_action=lambda action_id: context)
+    body_ref = canonical_access_alert_body_ref(
+        event_class=context.event_class, accessing_ip=context.accessing_ip,
+    )
+    sent = []
+    monkeypatch.setattr("src.user_notification_delivery._configured_telegram_target", lambda: "server-target")
+    monkeypatch.setattr("plugins.telegram.plugin._chat_allowed", lambda _target: True)
+    monkeypatch.setattr(
+        "plugins.telegram.outbound.send_telegram_text",
+        lambda target, body: sent.append((target, body)) or _ack(),
+    )
+    result = build_production_security_incident_telegram_transport(
+        enabled=True, store=store,
+    ).invoke(_request(body_ref=body_ref))
+    assert result["status"] == "acknowledged"
+    assert sent == [(
+        "server-target",
+        canonical_access_alert_body(
+            event_class=context.event_class, accessing_ip=context.accessing_ip,
+        ),
+    )]
+    with pytest.raises(SecurityIncidentTelegramTransportError):
+        build_production_security_incident_telegram_transport(
+            enabled=True, store=store,
+        ).invoke(_request(body_ref="body:sha256:" + "a" * 64))

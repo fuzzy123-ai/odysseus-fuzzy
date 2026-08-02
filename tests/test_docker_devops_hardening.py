@@ -190,3 +190,8 @@ def test_testing_docs_use_project_venv_for_python_validation():
         text = path.read_text(encoding="utf-8")
         for stale in stale_patterns:
             assert stale not in text, f"{path.name} still contains {stale!r}"
+def test_security_incident_automatic_delivery_is_compose_default_off():
+    compose = Path("docker-compose.yml").read_text(encoding="utf-8")
+    assert compose.count(
+        "ODYSSEUS_SECURITY_INCIDENT_DELIVERY_ENABLED=${ODYSSEUS_SECURITY_INCIDENT_DELIVERY_ENABLED:-false}"
+    ) == 1

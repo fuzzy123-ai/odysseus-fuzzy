@@ -1,0 +1,4 @@
+# Exact argv-free backup trigger; no command arguments or environment preservation.
+Cmnd_Alias ODYSSEUS_PREDEPLOY_BACKUP = /usr/bin/systemctl start --wait odysseus-predeploy-backup-root-helper.service
+Cmnd_Alias ODYSSEUS_PREDEPLOY_READBACK = /usr/bin/python3 -I /usr/local/libexec/odysseus-predeploy-backup-root-helper-readback.py
+homebase ALL=(root) NOSETENV: ODYSSEUS_PREDEPLOY_BACKUP, ODYSSEUS_PREDEPLOY_READBACK

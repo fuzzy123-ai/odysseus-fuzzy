@@ -8,7 +8,7 @@ import re
 from typing import Final
 
 
-SCHEMA_VERSION: Final = 1
+SCHEMA_VERSION: Final = 2
 SQLITE_APPLICATION_ID: Final = 0x4F534952  # "OSIR"
 
 
@@ -32,6 +32,7 @@ _TABLE_COLUMNS: dict[str, frozenset[str]] = {
         "sequence", "incident_id", "action_id", "action_version", "event_type",
         "reference", "occurred_at",
     }),
+    "incident_contexts": frozenset({"incident_id", "event_class", "accessing_ip", "provenance", "is_public", "reason_code", "suppression_decision", "suppression_reason", "notification_binding_ref", "created_at"}),
 }
 _TABLE_INFO: Final = {
     "incidents": {"incident_id": (0, 1), "incident_ref": (1, 0), "version": (1, 0), "created_at": (1, 0)},
@@ -49,6 +50,7 @@ _TABLE_INFO: Final = {
         "sequence": (0, 1), "incident_id": (1, 0), "action_id": (0, 0), "action_version": (1, 0),
         "event_type": (1, 0), "reference": (1, 0), "occurred_at": (1, 0),
     },
+    "incident_contexts": {"incident_id": (0, 1), "event_class": (1, 0), "accessing_ip": (1, 0), "provenance": (1, 0), "is_public": (1, 0), "reason_code": (1, 0), "suppression_decision": (1, 0), "suppression_reason": (1, 0), "notification_binding_ref": (1, 0), "created_at": (1, 0)},
 }
 _FOREIGN_KEYS: Final = {
     "actions": frozenset({("incident_id", "incidents", "incident_id", "RESTRICT", "RESTRICT")}),
@@ -57,10 +59,12 @@ _FOREIGN_KEYS: Final = {
         ("incident_id", "incidents", "incident_id", "RESTRICT", "RESTRICT"),
         ("action_id", "actions", "action_id", "RESTRICT", "RESTRICT"),
     }),
+    "incident_contexts": frozenset({("incident_id", "incidents", "incident_id", "RESTRICT", "RESTRICT")}),
 }
 _INDEXES: Final = {
     "actions_incident_idx": ("actions", ("incident_id", "created_at"), False),
     "audit_action_idx": ("audit_references", ("action_id", "sequence"), False),
+    "incident_contexts_created_idx": ("incident_contexts", ("created_at",), False),
 }
 _TABLE_SQL: Final = {
     "incidents": """CREATE TABLE incidents (
@@ -116,10 +120,25 @@ _TABLE_SQL: Final = {
                 ON UPDATE RESTRICT ON DELETE RESTRICT,
             CHECK((action_id IS NULL AND action_version = 0) OR (action_id IS NOT NULL AND action_version >= 1))
         )""",
+    "incident_contexts": """CREATE TABLE incident_contexts (
+            incident_id TEXT PRIMARY KEY,
+            event_class TEXT NOT NULL,
+            accessing_ip TEXT NOT NULL,
+            provenance TEXT NOT NULL,
+            is_public INTEGER NOT NULL CHECK(is_public IN (0,1)),
+            reason_code TEXT NOT NULL,
+            suppression_decision TEXT NOT NULL CHECK(suppression_decision IN ('notify','suppress_notification')),
+            suppression_reason TEXT NOT NULL,
+            notification_binding_ref TEXT NOT NULL,
+            created_at REAL NOT NULL,
+            FOREIGN KEY(incident_id) REFERENCES incidents(incident_id)
+                ON UPDATE RESTRICT ON DELETE RESTRICT
+        )""",
 }
 _INDEX_SQL: Final = {
     "actions_incident_idx": "CREATE INDEX actions_incident_idx ON actions(incident_id, created_at)",
     "audit_action_idx": "CREATE INDEX audit_action_idx ON audit_references(action_id, sequence)",
+    "incident_contexts_created_idx": "CREATE INDEX incident_contexts_created_idx ON incident_contexts(created_at)",
 }
 _TRIGGER_SQL: Final = {
     "security_incident_audit_no_update": """CREATE TRIGGER security_incident_audit_no_update
@@ -130,22 +149,38 @@ _TRIGGER_SQL: Final = {
         BEFORE DELETE ON audit_references BEGIN
             SELECT RAISE(ABORT, 'incident audit is append-only');
         END""",
+    "security_incident_context_no_update": """CREATE TRIGGER security_incident_context_no_update
+        BEFORE UPDATE ON incident_contexts BEGIN
+            SELECT RAISE(ABORT, 'incident context is immutable');
+        END""",
+    "security_incident_context_no_delete": """CREATE TRIGGER security_incident_context_no_delete
+        BEFORE DELETE ON incident_contexts BEGIN
+            SELECT RAISE(ABORT, 'incident context is immutable');
+        END""",
 }
 _REQUIRED_TRIGGERS: Final = frozenset({
     "security_incident_audit_no_update", "security_incident_audit_no_delete",
+    "security_incident_context_no_update", "security_incident_context_no_delete",
 })
 
 
 def _migration_1(db: sqlite3.Connection) -> None:
-    for statement in _TABLE_SQL.values():
-        db.execute(statement)
-    for statement in _INDEX_SQL.values():
-        db.execute(statement)
-    for statement in _TRIGGER_SQL.values():
-        db.execute(statement)
+    for name in ("incidents", "actions", "approvals", "audit_references"):
+        db.execute(_TABLE_SQL[name])
+    for name in ("actions_incident_idx", "audit_action_idx"):
+        db.execute(_INDEX_SQL[name])
+    for name in ("security_incident_audit_no_update", "security_incident_audit_no_delete"):
+        db.execute(_TRIGGER_SQL[name])
 
 
-_MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (_migration_1,)
+def _migration_2(db: sqlite3.Connection) -> None:
+    db.execute(_TABLE_SQL["incident_contexts"])
+    db.execute(_INDEX_SQL["incident_contexts_created_idx"])
+    for name in ("security_incident_context_no_update", "security_incident_context_no_delete"):
+        db.execute(_TRIGGER_SQL[name])
+
+
+_MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (_migration_1, _migration_2)
 
 
 def apply_migrations(db: sqlite3.Connection) -> int:
@@ -160,16 +195,17 @@ def apply_migrations(db: sqlite3.Connection) -> int:
     if current == SCHEMA_VERSION:
         validate_schema(db)
         return current
-    if current != 0 or application_id != 0:
-        raise SecurityIncidentMigrationError("SQLite database is not an empty incident store")
-    existing = db.execute(
-        "SELECT 1 FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' LIMIT 1"
-    ).fetchone()
-    if existing is not None:
-        raise SecurityIncidentMigrationError("SQLite database is not empty for incident-store migration")
+    if current == 0:
+        if application_id != 0:
+            raise SecurityIncidentMigrationError("SQLite database is not an empty incident store")
+        existing = db.execute("SELECT 1 FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' LIMIT 1").fetchone()
+        if existing is not None:
+            raise SecurityIncidentMigrationError("SQLite database is not empty for incident-store migration")
+    elif application_id != SQLITE_APPLICATION_ID:
+        raise SecurityIncidentMigrationError("SQLite database has the wrong incident-store identity")
     try:
         db.execute("BEGIN IMMEDIATE")
-        for version in range(1, SCHEMA_VERSION + 1):
+        for version in range(current + 1, SCHEMA_VERSION + 1):
             _MIGRATIONS[version - 1](db)
             db.execute(f"PRAGMA user_version={version}")
         db.execute(f"PRAGMA application_id={SQLITE_APPLICATION_ID}")
