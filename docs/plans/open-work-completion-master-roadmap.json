@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-02T16:08:23+02:00",
-  "status": "parallel_development_wave5_recovery_contract_registered_claims_pending / waves1_to4_accepted / ops_alert_live_gates_preserved",
+  "updated_at": "2026-08-02T16:11:41+02:00",
+  "status": "parallel_development_wave5_recovery_claims_active / waves1_to4_accepted / ops_alert_live_gates_preserved",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -24,7 +24,7 @@
     "unique_live_gates": 61,
     "unique_design_gates": 29,
     "other_open_json_items": 155,
-    "queue_status": "parallel_wave5_recovery_contract_registered_claims_pending",
+    "queue_status": "parallel_wave5_recovery_claims_active",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "live_contextual_layer": "lcl00_roadmap_deep_reviewed_registered_lcl01_waiting_cao08b",
@@ -39,8 +39,8 @@
       "memory_observability": "gro00_through_gro15_historical_nmg00_through_nmg02_and_nmg05_accepted_productive_sources_off",
       "unified_source_index": "usi00_through_usi14_accepted_usi15_blocked_by_child_closure_productive_sources_off",
       "usi_runtime_consumer_integration": "uir00_through_uir02_accepted_uir03_dependency_ready_runtime_default_off",
-      "usi_domain_adapters": "uda00_recovery_contract_registered_new_claim_pending_default_off",
-      "usi_data_lifecycle_operations": "ulo00_recovery_contract_registered_new_claim_pending_live_actions_default_off",
+      "usi_domain_adapters": "uda00_recovery_claim_active_default_off",
+      "usi_data_lifecycle_operations": "ulo00_recovery_claim_active_live_actions_default_off",
       "codebase_memory_projection": "cbm00_through_cbm08_accepted_cbm09_dependency_ready_not_selected_engine_disabled",
       "code_lineage_timeline": "clt00_through_clt02_accepted_clt03_ready_repo_only_live_default_off",
       "lens_code_graph": "planned_after_code_graph_api_ui_live_gated",
@@ -142,7 +142,7 @@
           "mode": "read_only",
           "writer_claim": false,
           "allowed_write_paths": [],
-          "state": "wave5_recovery_registered_waiting_for_implementation_handoffs",
+          "state": "wave5_recovery_claims_active_waiting_for_implementation_handoffs",
           "evidence_required": [
             "path collision readback",
             "focused test readback",
@@ -156,7 +156,7 @@
         "focused_tests": "Wave 4: Root CAO A-F+C1 plus NMG-05 combined lane 241 passed; Charlie focused C1+NMG-05 56 passed and the same 241-test combined regression passed; one existing SQLAlchemy deprecation warning",
         "master_route": "surface_default/root; exact runtime model identifier not exposed",
         "worktree_policy": "Exactly one clean canonical Git worktree; parallel lanes use disjoint exact-path claims and shared router/hotfiles stay root-only.",
-        "implementation_gate": "Recovery architecture is registered, but implementation authority remains false until fresh disjoint UDA-00, ULO-00 and UIR-00R claims are committed. No live authority is implied."
+        "implementation_gate": "Open only for the three exact committed recovery claims. No path expansion, productive source access, provider action, push, deploy or live authority is implied."
       },
       "repo_cleanup_one_worktree_gate": {
         "id": "REPO-CLEANUP-ONE-WORKTREE",
@@ -597,7 +597,7 @@
       "live_actions": false
     },
     "next_parallel_wave_registration": {
-      "state": "recovery_contract_registered_claims_pending",
+      "state": "recovery_claims_active",
       "rejected_at": "2026-08-02T15:46:00+02:00",
       "recovery_registered_at": "2026-08-02T16:08:23+02:00",
       "registered_at": "2026-08-02T15:32:37+02:00",
@@ -666,7 +666,57 @@
         }
       },
       "registration_commit": "fcbd31bee0145a64fc530e43aa9efc378c8bb229",
-      "implementation_authority": false,
+      "recovery_registration_commit": "3d1d788d53e3454d4f05d73e903a1aab113acc8c",
+      "recovery_contract_blob_oid": "e6fef886a80b29b330c431039a0a12ac4cb30851",
+      "implementation_authority": true,
+      "active_claims": [
+        {
+          "run_id": "goal-open-work-roadmaps-20260802-wave5r",
+          "thread_id": "/root/alice_uda00_recovery_impl",
+          "slice_id": "UDA-00-domain-truth-and-mutation-inventory",
+          "owner": "Alice/gpt-5.6-terra/xhigh",
+          "allowed_paths": [
+            "docs/plans/unified-source-index-domain-owner-inventory.json",
+            "scripts/audit_unified_source_index_domain_owners.py",
+            "tests/test_audit_unified_source_index_domain_owners.py"
+          ],
+          "allowed_paths_digest_sha256": "b8cccb619e8eb4a09ee7e07fe9f0c70aef7fb02e83cc8f88a42daebc24205ac8",
+          "state": "claimed",
+          "acquired_at": "2026-08-02T16:11:41+02:00",
+          "lease_expires_at": "2026-08-02T20:11:41+02:00",
+          "handoff_required": true
+        },
+        {
+          "run_id": "goal-open-work-roadmaps-20260802-wave5r",
+          "thread_id": "/root/bob_ulo00_recovery_impl",
+          "slice_id": "ULO-00-lifecycle-owner-and-runtime-inventory",
+          "owner": "Bob/gpt-5.6-terra/xhigh",
+          "allowed_paths": [
+            "docs/plans/unified-source-index-lifecycle-owner-inventory.json",
+            "scripts/audit_unified_source_index_lifecycle_owners.py",
+            "tests/test_audit_unified_source_index_lifecycle_owners.py"
+          ],
+          "allowed_paths_digest_sha256": "b22e2c20590c3570a754b699dd2dbc9e77c096a64d3e7383e0af701172b58f85",
+          "state": "claimed",
+          "acquired_at": "2026-08-02T16:11:41+02:00",
+          "lease_expires_at": "2026-08-02T20:11:41+02:00",
+          "handoff_required": true
+        },
+        {
+          "run_id": "goal-open-work-roadmaps-20260802-wave5r",
+          "thread_id": "/root/charlie_uir00r_refresh_impl",
+          "slice_id": "UIR-00R-runtime-caller-inventory-refresh",
+          "owner": "Charlie/gpt-5.6-terra/low",
+          "allowed_paths": [
+            "docs/plans/unified-source-index-runtime-caller-inventory.json"
+          ],
+          "allowed_paths_digest_sha256": "40e2aa745f782505db7a73840b8a75e4d26a3eaf035bd0d7f9a42a79a4ea9793",
+          "state": "claimed",
+          "acquired_at": "2026-08-02T16:11:41+02:00",
+          "lease_expires_at": "2026-08-02T20:11:41+02:00",
+          "handoff_required": true
+        }
+      ],
       "rejection": {
         "attempts_per_lane": 2,
         "worker_route": "gpt-5.6-terra/medium requested; exact runtime model identity not exposed",
@@ -685,7 +735,7 @@
         },
         "cleanup": "After this durable rejection commit, the two original claim owners must remove exactly their three untracked rejected drafts; Root then verifies the clean single worktree before any recovery registration."
       },
-      "next_action": "Commit this Root-owned recovery registration, then open fresh disjoint exact-path claims for UDA-00, ULO-00 and UIR-00R. Workers may write only after the claim commit; independent QA remains read-only and every live action remains closed.",
+      "next_action": "After this claim commit, dispatch the three exact Terra workers. Root reviews every handoff before any implementation commit; independent QA remains read-only and every live action remains closed.",
       "live_actions": false
     },
     "latest_parallel_wave_preflight_handoff": {
@@ -16128,9 +16178,9 @@
       "id": "UIR-00R-runtime-caller-inventory-refresh",
       "class": "safe_offline",
       "owner": "Charlie/Terra-requested mechanical refresh; root surface_default standard review explicitly user-authorized",
-      "status": "recovery_registered_claim_pending",
+      "status": "recovery_claimed_implementation_pending",
       "claimable": false,
-      "claim_blocker": "A fresh exact one-path durable claim must be committed before the deterministic inventory refresh.",
+      "claim_blocker": null,
       "depends_on": [
         "UIR-00 accepted runtime inventory audit",
         "explicit Open Work goal"
@@ -16139,6 +16189,20 @@
         "docs/plans/unified-source-index-runtime-caller-inventory.json"
       ],
       "allowed_paths_digest_sha256": "40e2aa745f782505db7a73840b8a75e4d26a3eaf035bd0d7f9a42a79a4ea9793",
+      "claim": {
+        "run_id": "goal-open-work-roadmaps-20260802-wave5r",
+        "thread_id": "/root/charlie_uir00r_refresh_impl",
+        "slice_id": "UIR-00R-runtime-caller-inventory-refresh",
+        "owner": "Charlie/gpt-5.6-terra/low",
+        "state": "claimed",
+        "acquired_at": "2026-08-02T16:11:41+02:00",
+        "lease_expires_at": "2026-08-02T20:11:41+02:00",
+        "allowed_paths_digest_sha256": "40e2aa745f782505db7a73840b8a75e4d26a3eaf035bd0d7f9a42a79a4ea9793",
+        "registration_commit": "3d1d788d53e3454d4f05d73e903a1aab113acc8c",
+        "target_path_exists_at_claim": true,
+        "cross_lane_overlap_count": 0,
+        "handoff_required": true
+      },
       "source_roadmap": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
       "recovery_contract": "docs/plans/unified-source-index-owner-inventory-recovery-contract.json#/UIR-00R",
       "route": {
@@ -16161,16 +16225,16 @@
           "commit, push or deploy by the worker"
         ]
       },
-      "next_action": "Wait for the fresh durable UIR-00R claim commit.",
+      "next_action": "After the claim commit, refresh only the deterministic runtime inventory and return focused evidence.",
       "live_actions": false
     },
     {
       "id": "UDA-00-domain-truth-and-mutation-inventory",
       "class": "safe_offline",
       "owner": "Alice/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
-      "status": "recovery_contract_registered_new_claim_pending",
+      "status": "recovery_claimed_implementation_pending",
       "claimable": false,
-      "claim_blocker": "The fresh read-only recovery handoff is registered; a new exact three-path durable claim is required before more writes.",
+      "claim_blocker": null,
       "depends_on": [
         "USI-04 accepted",
         "explicit Open Work goal"
@@ -16200,6 +16264,21 @@
         "baseline_state": "valid_committed_clean",
         "handoff_required": true,
         "blocker": null
+      },
+      "recovery_claim": {
+        "run_id": "goal-open-work-roadmaps-20260802-wave5r",
+        "thread_id": "/root/alice_uda00_recovery_impl",
+        "slice_id": "UDA-00-domain-truth-and-mutation-inventory",
+        "owner": "Alice/gpt-5.6-terra/xhigh",
+        "state": "claimed",
+        "acquired_at": "2026-08-02T16:11:41+02:00",
+        "lease_expires_at": "2026-08-02T20:11:41+02:00",
+        "allowed_paths_digest_sha256": "b8cccb619e8eb4a09ee7e07fe9f0c70aef7fb02e83cc8f88a42daebc24205ac8",
+        "registration_commit": "3d1d788d53e3454d4f05d73e903a1aab113acc8c",
+        "recovery_contract_blob_oid": "e6fef886a80b29b330c431039a0a12ac4cb30851",
+        "target_paths_absent_at_claim": true,
+        "cross_lane_overlap_count": 0,
+        "handoff_required": true
       },
       "source_roadmap": "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md",
       "recovery_contract": "docs/plans/unified-source-index-owner-inventory-recovery-contract.json#/UDA-00",
@@ -16245,9 +16324,9 @@
       "id": "ULO-00-lifecycle-owner-and-runtime-inventory",
       "class": "safe_offline",
       "owner": "Bob/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
-      "status": "recovery_contract_registered_new_claim_pending",
+      "status": "recovery_claimed_implementation_pending",
       "claimable": false,
-      "claim_blocker": "The fresh read-only recovery handoff is registered; a new exact three-path durable claim is required before more writes.",
+      "claim_blocker": null,
       "depends_on": [
         "USI-03 and USI-13 accepted",
         "explicit Open Work goal"
@@ -16277,6 +16356,21 @@
         "baseline_state": "valid_committed_clean",
         "handoff_required": true,
         "blocker": null
+      },
+      "recovery_claim": {
+        "run_id": "goal-open-work-roadmaps-20260802-wave5r",
+        "thread_id": "/root/bob_ulo00_recovery_impl",
+        "slice_id": "ULO-00-lifecycle-owner-and-runtime-inventory",
+        "owner": "Bob/gpt-5.6-terra/xhigh",
+        "state": "claimed",
+        "acquired_at": "2026-08-02T16:11:41+02:00",
+        "lease_expires_at": "2026-08-02T20:11:41+02:00",
+        "allowed_paths_digest_sha256": "b22e2c20590c3570a754b699dd2dbc9e77c096a64d3e7383e0af701172b58f85",
+        "registration_commit": "3d1d788d53e3454d4f05d73e903a1aab113acc8c",
+        "recovery_contract_blob_oid": "e6fef886a80b29b330c431039a0a12ac4cb30851",
+        "target_paths_absent_at_claim": true,
+        "cross_lane_overlap_count": 0,
+        "handoff_required": true
       },
       "source_roadmap": "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md",
       "recovery_contract": "docs/plans/unified-source-index-owner-inventory-recovery-contract.json#/ULO-00",
