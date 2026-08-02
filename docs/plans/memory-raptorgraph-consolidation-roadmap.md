@@ -257,8 +257,15 @@ first. No live data import, reindex, delete or deploy is authorized here.
   `a7ae1461` after fail-closed baseline correction/rebaseline, one bounded Root
   tombstone/version/identifier hardening cycle, 10 focused tests, Root's
   204-test combined lane and Charlie's independent 218-test Wave-3 regression.
-  NMG-03 remains blocked by UDA-05, NMG-04 onward retains its exact dependency
-  chain, and no migration or activation was authorized.
+  NMG-05 was accepted on 2026-08-02 at local commit `4cb0a7b8` after one Root
+  tuple-hardening cycle, 11 focused tests, a canonical validator and the
+  independent 241-test Wave-4 combined lane. The content-free contract fixes
+  CausalClaimStore as sole truth/review owner and freezes epistemic transitions,
+  evidence, conflict, alternative-cause, retraction, supersession and
+  no-automatic-promotion rules. NMG-05A is dependency-ready only after its own
+  exact registration. NMG-03 remains blocked by UDA-05, NMG-04 onward retains
+  its exact dependency chain, and no persistence, migration or activation was
+  authorized.
 
 ## Historical Gate Queue (preserved snapshot)
 

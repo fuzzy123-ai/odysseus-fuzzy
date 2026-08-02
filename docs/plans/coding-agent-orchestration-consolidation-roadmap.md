@@ -1,6 +1,6 @@
 # Coding Agent Orchestration Consolidation Roadmap
 
-Status: CAO1-CAO7 plus CAO-08/CAO-08J roadmap authoring and CAO-08A/CAO-08B/CAO-08B1/CAO-08C implementation accepted; CAO-08C1 is waiting on a later Terra writer, while CAO-08D is selected but implementation-gated on REPO-CLEANUP-ONE-WORKTREE and CAO-MASTER-ROUTE-VERIFICATION under Standard ABC
+Status: CAO1-CAO7 plus CAO-08/CAO-08J roadmap authoring and CAO-08A through CAO-08F plus CAO-08B1/CAO-08C1 implementation accepted under Standard ABC; real adapter activation, worker/thread dispatch, publication and every live effect remain separately gated
 
 ABC mode: Standard ABC
 
@@ -54,13 +54,12 @@ patch, test, review, handoff, publish plan and verified done.
   and CAO-08B1 provides accepted immutable role-scoped implementer, tester and
   independent-reviewer subagent capsules. CAO-08C provides the accepted pure
   Planning-bound controller, canonical user-gate resume and local/fake model
-  intent boundary. CAO-08C1 remains the fully specified fenced bounded
-  delegation slice but is `waiting_on_peer` after the permitted agent-channel
-  recovery was exhausted without any claimed file being created. CAO-08D is
-  independently dependency-ready, but implementation must wait for a verified
-  Sol master route or an explicit user authorization of the observed
-  `surface_default/root` route. Even after that gate closes, CAO-08D may not
-  activate a real worker adapter or external dispatch.
+  intent boundary. CAO-08C1 now provides the accepted pure local/fake fenced
+  delegation reducer with two-child active fanout, depth one, deterministic
+  receipts, fresh resume, independent reviewer isolation and parent-only
+  decisions. CAO-08D through CAO-08F are also accepted. No accepted slice
+  activates a real worker adapter, external/cross-workspace/thread dispatch,
+  repository publication or live effect.
 
 ## Mode
 
@@ -455,9 +454,8 @@ lane. CAO-08B1 was accepted after one bounded root fix cycle and a final
 122-test lifecycle/context/subagent-capsule integration lane. CAO-08C was
 accepted after a documented writer transfer, two bounded root fix cycles, a
 final 150-test CAO integration lane and a 9-test adjacent compatibility lane.
-CAO-08C1 remains dependency-ready but deferred to a later exact-scope reclaim;
-no implementation evidence was manufactured. CAO-08D was accepted on
-2026-08-02 at local commit `744debea` after one bounded Root review cycle,
+CAO-08D was accepted on 2026-08-02 at local commit `744debea` after one bounded
+Root review cycle,
 17 claimed tests, a 178-test Root dependency lane and Charlie's independent
 186-test combined QA lane. CAO-08E was accepted on 2026-08-02 at local commit
 `a3630fb1` after one bounded Root fix cycle, 10 focused tests, a 155-test Root
@@ -467,9 +465,15 @@ exact five-file coding lane for Wave 3. It was accepted on 2026-08-02 at local
 commit `e3aaaa0b` after fail-closed baseline correction/rebaseline, one bounded
 Root path-hardening cycle, a 182-test CAO A-F dependency lane, Root's 204-test
 combined lane and Charlie's independent 218-test Wave-3 regression. CAO-08C1
-remains a separate deferred fresh reclaim. The historical CAO1-CAO7 evidence
-remains accepted and is not reinterpreted as evidence for the new
-production-loop behaviors.
+was accepted on 2026-08-02 at local commit `958b776c` after two rejected worker
+drafts and a Root receipt/reducer hardening pass. Its 45 focused tests and the
+241-test Root and independent QA lane prove deterministic Planning/claim/scope
+identity, two-active/third-sequential role behavior, lease/fence/idempotency,
+parent/child cancellation, fresh current-policy resume, reviewer isolation and
+parent-only decisions with every dispatch/write/network/live flag false. The
+historical released `waiting_on_peer` claim remains evidence only. The
+historical CAO1-CAO7 evidence remains accepted and is not reinterpreted as
+evidence for the new production-loop behaviors.
 
 ## Gate Queue
 

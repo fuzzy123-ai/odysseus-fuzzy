@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-08-02T14:41:20+02:00",
+  "updated_at": "2026-08-02T15:22:54+02:00",
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
@@ -353,8 +353,8 @@
     {
       "path": "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
       "profile": "active_parallel",
-      "state": "cao08a_through_f_accepted_c1_fresh_reclaim_registered",
-      "ai_hint": "CAO-08A through CAO-08F are accepted after Root deep review and independent QA. CAO-08C1 is registered as a fresh reclaim on five exact new local/fake delegation contract, reducer and test paths; its earlier released_waiting_on_peer claim is historical and must not be revived. Do not activate a real adapter, dispatch a real worker or thread, cross workspace boundaries, mutate productive state, push, deploy or perform any live action."
+      "state": "cao08a_through_f_and_c1_accepted_local_fake_adapter_activation_off",
+      "ai_hint": "CAO-08A through CAO-08F plus CAO-08C1 are accepted after Root deep review and independent QA. C1 is a pure local/fake bounded delegation and receipt reducer; its earlier released_waiting_on_peer claim remains historical. Reconcile ACPR-11 through ACPR-17 before CAO-08G. Do not activate a real adapter, dispatch a real worker or thread, cross workspace boundaries, mutate productive state, push, deploy or perform any live action."
     },
     {
       "path": "docs/plans/context-budget-dynamic-abc-roadmap.md",
@@ -521,8 +521,8 @@
     {
       "path": "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
       "profile": "active_parallel",
-      "state": "mem1_mem6_historical_nmg00_through_nmg02_accepted_nmg05_contract_registered",
-      "ai_hint": "Do not reopen MEM1-MEM6. NMG-00 through NMG-02 are accepted after Root deep review and independent QA. NMG-05 is registered on three exact new causal-domain contract, audit and test paths; NMG-03 remains dependency-blocked until UDA-05 is separately registered and accepted. Do not touch Personal Docs runtime, USI/UDA/UIR hotfiles, llm_core, llm_async_call, local_model_scheduler, productive sources, private data, Obsidian, providers or live activation."
+      "state": "mem1_mem6_historical_nmg00_through_nmg02_and_nmg05_accepted",
+      "ai_hint": "Do not reopen MEM1-MEM6. NMG-00 through NMG-02 plus NMG-05 are accepted after Root deep review and independent QA. UDA-00 and ULO-00 are the independently audited canonical Wave-5 inventory candidates; NMG-03 remains dependency-blocked until UDA-05 is separately registered and accepted. Do not touch Personal Docs runtime, USI/UDA/UIR hotfiles, llm_core, llm_async_call, local_model_scheduler, productive sources, private data, Obsidian, providers or live activation."
     },
     {
       "path": "docs/plans/memory-scale-foundation-roadmap.md",
@@ -587,8 +587,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "parallel_development_wave4_cao08c1_nmg05_registered_pending_claims",
-      "ai_hint": "This remains the current gate and claim authority. Commit the Wave 4 registration, then acquire fresh exact-path claims for CAO-08C1 and NMG-05 before dispatch and reserve a third worker for independent read-only QA. Preserve the earlier CAO-08C1 released_waiting_on_peer claim as history. Real adapters and dispatch, productive sources, push, deploy, provider or host writes, sends and every live action remain disabled behind their exact gates."
+      "state": "parallel_development_wave4_accepted_wave5_uda00_ulo00_audited_pending_registration",
+      "ai_hint": "This remains the current gate and claim authority. Wave 4 CAO-08C1 plus NMG-05 is accepted and released. Register only the canonical three-new-path UDA-00 and ULO-00 inventories as Wave 5 before claims, then reserve independent read-only QA. ACPR-11 requires a separate stale-frontier reconciliation and existing-hotfile claim. Productive sources, adapters, dispatch, push, deploy, provider or host writes, sends and every live action remain disabled behind their exact gates."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
