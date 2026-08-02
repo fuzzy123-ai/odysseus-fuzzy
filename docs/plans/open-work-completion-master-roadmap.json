@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-02T14:41:20+02:00",
-  "status": "parallel_development_wave4_cao08c1_nmg05_registered_pending_claims / waves1_to3_accepted / ops_alert_live_gates_preserved",
+  "updated_at": "2026-08-02T14:48:42+02:00",
+  "status": "parallel_development_wave4_cao08c1_nmg05_claimed_running / waves1_to3_accepted / ops_alert_live_gates_preserved",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -24,7 +24,7 @@
     "unique_live_gates": 61,
     "unique_design_gates": 29,
     "other_open_json_items": 155,
-    "queue_status": "parallel_wave4_cao08c1_nmg05_registered_pending_claims",
+    "queue_status": "parallel_wave4_cao08c1_nmg05_claimed_running",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "live_contextual_layer": "lcl00_roadmap_deep_reviewed_registered_lcl01_waiting_cao08b",
@@ -139,7 +139,7 @@
           "mode": "read_only",
           "writer_claim": false,
           "allowed_write_paths": [],
-          "state": "reserved_for_wave4_baseline_and_final_qa",
+          "state": "active_wave4_claim_baseline_and_final_qa",
           "evidence_required": [
             "path collision readback",
             "focused test readback",
@@ -153,7 +153,7 @@
         "focused_tests": "Wave 3: Root CAO A-F plus NMG-01/02 combined lane 204 passed; Charlie focused 18 passed and combined independent regression 218 passed; one existing SQLAlchemy deprecation warning",
         "master_route": "surface_default/root; exact runtime model identifier not exposed",
         "worktree_policy": "Exactly one clean canonical Git worktree; parallel lanes use disjoint exact-path claims and shared router/hotfiles stay root-only.",
-        "implementation_gate": "CAO-08C1 and NMG-05 passed three-way read-only dependency/path review and are registered as the exact disjoint Wave-4 frontier; implementation still requires the registration commit plus two fresh durable claims, and no live authority is implied."
+        "implementation_gate": "Satisfied for repo-only Wave 4 at registration commit 1eb3d331d614029b32eceb4e50b4bd66f4f4f75c: fresh exact-path CAO-08C1 and NMG-05 claims are acquired, Charlie remains read-only, and no live authority is implied."
       },
       "repo_cleanup_one_worktree_gate": {
         "id": "REPO-CLEANUP-ONE-WORKTREE",
@@ -511,7 +511,20 @@
         "remaining_work": "OPS Alert integration and publication remain owned by their existing handoffs and are not absorbed by this roadmap-authoring slice."
       }
     ],
-    "active_claimed_slices": [],
+    "active_claimed_slices": [
+      {
+        "slice_id": "CAO-08C1-bounded-delegation-runtime",
+        "owner": "Bob/Terra-requested",
+        "thread_id": "/root/bob_cao08d_impl",
+        "allowed_paths_digest_sha256": "8934634a1d799a2b220f1b7749e1ac548d218f492292e487e22a7d9678e33864"
+      },
+      {
+        "slice_id": "NMG-05-causal-domain-contract",
+        "owner": "Alice/Terra-requested",
+        "thread_id": "/root/alice_nmg00_impl",
+        "allowed_paths_digest_sha256": "1ecf8df1f394870f2188db39926bf94a66399cb8d7f43b35decd8b9a0d214acc"
+      }
+    ],
     "latest_parallel_development_p0_handoff": {
       "roadmap_path": "docs/plans/open-work-completion-master-roadmap.json",
       "run_id": "goal-parallel-roadmaps-20260802-p0",
@@ -594,7 +607,7 @@
       "live_actions": false
     },
     "next_parallel_wave_registration": {
-      "state": "registered_pending_commit_and_claims",
+      "state": "claims_acquired",
       "registered_at": "2026-08-02T14:41:20+02:00",
       "base_revision": "a647ff28a50107918abcbd754bf9cb8117eb5cee",
       "selected_lanes": [
@@ -627,7 +640,7 @@
         "NMG-05": "1ecf8df1f394870f2188db39926bf94a66399cb8d7f43b35decd8b9a0d214acc"
       },
       "preflight": {
-        "baseline_status": "pending_registration_commit_and_independent_claim_baseline",
+        "baseline_status": "passed_registration_commit_clean_exact_claims",
         "all_eight_targets_absent": true,
         "cross_lane_overlap_count": 0,
         "unavoidable_hotfile_count": 0,
@@ -636,9 +649,9 @@
         "historical_CAO-08C1_claim": "preserved as released_waiting_on_peer; fresh claim required and no prior target path existed",
         "independent_frontier_audit": "Alice, Bob and Charlie independently selected the CAO-08C1 fresh reclaim plus NMG-05 as dependency-ready, exact new and disjoint; UDA-05/NMG-03 and all other candidates retain their explicit blockers"
       },
-      "registration_commit": null,
-      "implementation_authority": false,
-      "next_action": "Commit this registration, then acquire one fresh CAO-08C1 claim and one NMG-05 claim and reserve Charlie for read-only QA. No live authority is implied.",
+      "registration_commit": "1eb3d331d614029b32eceb4e50b4bd66f4f4f75c",
+      "implementation_authority": true,
+      "next_action": "Dispatch only the exact fresh CAO-08C1 and NMG-05 claims to the existing Terra-requested workers and reserve Charlie for read-only baseline/final QA. No live authority is implied.",
       "live_actions": false
     },
     "latest_parallel_wave_preflight_handoff": {
@@ -17030,8 +17043,8 @@
       "id": "CAO-08C1-bounded-delegation-runtime",
       "class": "repo_only",
       "owner": "Bob/Terra-requested fresh implementation; root surface_default deep review explicitly user-authorized",
-      "status": "registered_claimable_fresh_reclaim_after_registration_commit",
-      "claimable": true,
+      "status": "claimed_running",
+      "claimable": false,
       "claim_blocker": null,
       "depends_on": [
         "CAO-08B1 accepted_2026-08-02_after_root_deep_review",
@@ -17046,6 +17059,23 @@
         "tests/test_coding_subagent_delegation_integration.py"
       ],
       "allowed_paths_digest_sha256": "8934634a1d799a2b220f1b7749e1ac548d218f492292e487e22a7d9678e33864",
+      "claim": {
+        "run_id": "goal-open-work-roadmaps-20260802-cao08c1-reclaim",
+        "thread_id": "/root/bob_cao08d_impl",
+        "slice_id": "CAO-08C1-bounded-delegation-runtime",
+        "owner": "Bob/Terra-requested",
+        "state": "claimed",
+        "recorded_at": "2026-08-02T14:48:42+02:00",
+        "acquired_at": "2026-08-02T14:48:42+02:00",
+        "lease_expires_at": "2026-08-02T18:48:42+02:00",
+        "allowed_paths_digest_sha256": "8934634a1d799a2b220f1b7749e1ac548d218f492292e487e22a7d9678e33864",
+        "registration_commit": "1eb3d331d614029b32eceb4e50b4bd66f4f4f75c",
+        "target_paths_absent_at_claim": true,
+        "cross_lane_overlap_count": 0,
+        "baseline_state": "valid_committed_clean",
+        "handoff_required": true,
+        "blocker": null
+      },
       "excluded_paths": [
         "docs/plans/**",
         "ops/**",
@@ -18136,8 +18166,8 @@
       "id": "NMG-05-causal-domain-contract",
       "class": "safe_offline",
       "owner": "Alice/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
-      "status": "registered_claimable_after_registration_commit",
-      "claimable": true,
+      "status": "claimed_running",
+      "claimable": false,
       "depends_on": [
         "NMG-01 accepted at 8a5e9c0f"
       ],
@@ -18148,6 +18178,23 @@
         "tests/test_audit_causal_claim_store_contract.py"
       ],
       "allowed_paths_digest_sha256": "1ecf8df1f394870f2188db39926bf94a66399cb8d7f43b35decd8b9a0d214acc",
+      "claim": {
+        "run_id": "goal-open-work-roadmaps-20260802-nmg05",
+        "thread_id": "/root/alice_nmg00_impl",
+        "slice_id": "NMG-05-causal-domain-contract",
+        "owner": "Alice/Terra-requested",
+        "state": "claimed",
+        "recorded_at": "2026-08-02T14:48:42+02:00",
+        "acquired_at": "2026-08-02T14:48:42+02:00",
+        "lease_expires_at": "2026-08-02T18:48:42+02:00",
+        "allowed_paths_digest_sha256": "1ecf8df1f394870f2188db39926bf94a66399cb8d7f43b35decd8b9a0d214acc",
+        "registration_commit": "1eb3d331d614029b32eceb4e50b4bd66f4f4f75c",
+        "target_paths_absent_at_claim": true,
+        "cross_lane_overlap_count": 0,
+        "baseline_state": "valid_committed_clean",
+        "handoff_required": true,
+        "blocker": null
+      },
       "excluded_paths": [
         "docs/plans/open-work-completion-master-roadmap.json",
         "docs/plans/multi-agent-execution-guidance.json",
