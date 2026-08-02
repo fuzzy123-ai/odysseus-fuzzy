@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-07-24T10:31:21+02:00",
+  "updated_at": "2026-08-02T08:20:00+02:00",
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
-    "docs_plans_count": 123,
+    "docs_plans_count": 124,
     "structured_specs_discovery": "All JSON files directly under specs/roadmaps.",
     "structured_specs_count": 7,
-    "total_count": 130,
+    "total_count": 131,
     "excluded": [
       "specs/roadmaps/odysseus-multiagent-start-2026-06-22.prompt.txt",
       "docs/plans/multi-agent-execution-guidance.json"
@@ -26,7 +26,7 @@
   "analysis_summary": {
     "profile_counts": {
       "active_parallel": 8,
-      "active_serial": 15,
+      "active_serial": 16,
       "canonical_router": 9,
       "gate_only": 56,
       "historical_done": 35,
@@ -50,6 +50,7 @@
       "docs/plans/codebase-memory-integration-roadmap.md",
       "docs/plans/headless-write-agent-orchestration-roadmap.md",
       "docs/plans/lens-code-graph-roadmap.md",
+      "docs/plans/live-contextual-layer-roadmap.json",
       "docs/plans/planning-definition-editor-roadmap.json",
       "docs/plans/project-versioning-forge-provider-roadmap.md",
       "docs/plans/product-planning-skills-integration-roadmap.md",
@@ -79,6 +80,7 @@
       "The normalized USI/CBM/Lineage/Lens roadmaps are planned follow-ups and do not replace the current TAX/TUA queue. On a future goal, only each roadmap's first declared slice becomes claimable. Productive CBM, Lineage and Lens activation remains independently gated; the UIR/UDA/ULO child closures share the parent USI gate.",
       "USI core is not activation-complete without its three child closures: UIR owns composition and consumers, UDA owns policy-aware domain adapters and best-effort change signals, and ULO owns index participation in existing owner/data lifecycle operations. None may absorb domain truth, existing operations, TAX/TUA, GRO/GMI, CBM/Lineage or Lens ownership.",
       "Clarification is a planning precondition for the Harbor One autonomous workspace; missing product decisions must be asked, not inferred.",
+      "The Live Contextual Layer is an active-serial advisory track: it may produce redacted observations, hypotheses and project-status projections, but Planning/domain truth, USI provenance, Memory/Causal review, CAO execution, ACT semantics and user-owned gates remain authoritative. LCL-01 stays blocked until CAO-08B and its router registration are accepted.",
       "The operator reprioritized OWM-7 to the SIRP production-completion track on 2026-07-27. Only the dependency-ready SIRP slice may be claimed; diagnosis/preparation and every delivery, effectful tool, CrowdSec/session mutation, deploy, temporal canary and optional lockdown boundary remain distinct."
     ]
   },
@@ -214,6 +216,12 @@
       "profile": "gate_only",
       "state": "backend_ready_ui_gated",
       "ai_hint": "Backend contracts are ready. Limit parallel work to redacted evidence review; UI context-rail or memory-influence presentation requires the explicit design gate."
+    },
+    {
+      "path": "docs/plans/live-contextual-layer-roadmap.json",
+      "profile": "active_serial",
+      "state": "roadmap_authored_dependencies_and_user_gates_open",
+      "ai_hint": "Use LCL only as a bounded advisory observation/hypothesis track. After accepted LCL-00 registration and CAO-08B, claim LCL-01 first; serialize context, candidate-ledger and UI seams, keep hypotheses non-authoritative, and stop at every product, UI, local-process, soak or production gate."
     },
     {
       "path": "docs/plans/agent-extension-browser-devtools-roadmap.json",

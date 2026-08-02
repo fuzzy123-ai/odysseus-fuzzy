@@ -487,5 +487,12 @@
     "The system can show memory influence without exposing unnecessary raw content.",
     "The Agent screen remains minimal by default."
   ],
+  "live_contextual_layer_extension": {
+    "path": "docs/plans/live-contextual-layer-roadmap.json",
+    "status": "roadmap_authored_deep_reviewed_and_registered_2026-08-02",
+    "relationship": "ACT continues to own user-facing context transparency and correction semantics. The LCL child track owns only bounded asynchronous observation, hypothesis-candidate lifecycle and the read-only global project-status projection.",
+    "authority_boundary": "LCL may explain observations and offer confidence-labelled hypotheses, but it cannot override Planning, domain truth, USI provenance, Memory write policy, claims, gates or user decisions.",
+    "first_future_frontier": "LCL-01 after LCL-00 registration and accepted CAO-08B context-envelope/graph-boundary evidence; ACT design gates remain independently user-owned."
+  },
   "recommended_next_step": "Design ACT-2 in V3: make the left context rail interactive with Using now, Why this, Pin/Remove and a compact answer-pack entry point."
 }

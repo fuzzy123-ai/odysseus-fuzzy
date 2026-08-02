@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-01T21:10:50.2963779+02:00",
-  "status": "native_knowledge_graph_causality_master_registered / ops_alert_publication_preserved_in_existing_handoffs",
+  "updated_at": "2026-08-02T08:25:00+02:00",
+  "status": "live_contextual_layer_roadmap_registered / native_knowledge_graph_causality_master_registered / ops_alert_publication_preserved_in_existing_handoffs",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -20,12 +20,13 @@
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
     "safe_open_json_slices": 0,
-    "unique_live_gates": 53,
-    "unique_design_gates": 27,
+    "unique_live_gates": 56,
+    "unique_design_gates": 28,
     "other_open_json_items": 108,
     "queue_status": "ops_alert_c2_required_ci_green_d_transactional_executor_repo_implementation_claimed",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
+      "live_contextual_layer": "lcl00_roadmap_deep_reviewed_registered_lcl01_waiting_cao08b",
       "ai_lens": "backend_contracts_ready_ui_live_gated",
       "planning_mcp": "repo_slices_done_live_gated",
       "harbor_planning_integration": "backend_contracts_ready_ui_live_gated",
@@ -52,8 +53,8 @@
       "raw_audit_stale_item": "PMCP-9-definition-runtime-separation is completed in canonical Open-Work evidence but remains planned in its older detail roadmap; it is not the current frontier.",
       "raw_audit_duplicate_frontier": "SIRP-11 is accepted in both canonical and detailed SIRP state. Historical PMCP-9 remains the only unrelated stale safe item; no SIRP safe-offline slice remains open.",
       "other_open_count": 117,
-      "unique_live_gate_count": 53,
-      "unique_design_gate_count": 27,
+      "unique_live_gate_count": 56,
+      "unique_design_gate_count": 28,
       "decision_packet_families": [
         "version_release",
         "calendar_reminders",
@@ -15633,6 +15634,164 @@
       "live_actions": false
     },
     {
+      "id": "LCL-00-live-contextual-layer-roadmap-authoring",
+      "class": "roadmap_authoring",
+      "owner": "Alice/Terra authoring; root deep review and registry integration",
+      "status": "accepted_2026-08-02_after_root_deep_review_and_router_registration",
+      "claimable": false,
+      "depends_on": [
+        "explicit user request to create or extend the Harbor One roadmap",
+        "ACT-1/4/7/8/9 backend context-transparency contracts accepted",
+        "CAO-08A planning-authority lifecycle contract accepted"
+      ],
+      "allowed_paths": [
+        "docs/plans/live-contextual-layer-roadmap.json"
+      ],
+      "excluded_paths": [
+        "src/**",
+        "routes/**",
+        "tests/**",
+        "ops/**",
+        "ops/homeserver/**",
+        "static/**",
+        "docs/plans/security-incident-response-production-completion-roadmap.json"
+      ],
+      "claim": {
+        "run_id": "abc-live-contextual-roadmap-20260802",
+        "thread_id": "/root/alice_live_context",
+        "slice_id": "LCL-00-live-contextual-layer-roadmap-authoring",
+        "owner": "alice_live_context",
+        "state": "released_accepted",
+        "acquired_at": "2026-08-02T08:10:00+02:00",
+        "lease_expires_at": "2026-08-02T10:10:00+02:00",
+        "released_at": "2026-08-02T08:25:00+02:00",
+        "review": "root_deep_pass_after_two_bounded_fix_cycles",
+        "handoff_required": true
+      },
+      "integration_claim": {
+        "run_id": "abc-live-contextual-roadmap-20260802-integration",
+        "thread_id": "/root",
+        "slice_id": "LCL-00-live-contextual-layer-roadmap-integration",
+        "owner": "root",
+        "state": "released_accepted",
+        "acquired_at": "2026-08-02T08:10:00+02:00",
+        "lease_expires_at": "2026-08-02T11:10:00+02:00",
+        "released_at": "2026-08-02T08:25:00+02:00",
+        "allowed_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json",
+          "docs/plans/multi-agent-execution-guidance.json",
+          "docs/plans/agent-context-transparency-roadmap.json"
+        ],
+        "handoff_required": false
+      },
+      "route": {
+        "entrypoint": "/abc",
+        "recommended": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "roadmap authority, claims, dependency ordering and evidence"
+            }
+          ],
+          "master": {
+            "model": "gpt-5.6-sol",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "required": true,
+            "depth": "deep",
+            "model": "gpt-5.6-sol"
+          }
+        },
+        "selected": {
+          "skills": [
+            {
+              "id": "abc",
+              "purpose": "roadmap authoring and Open Work registration"
+            }
+          ],
+          "master": {
+            "model": "surface_default/root",
+            "effort": "high"
+          },
+          "worker": {
+            "model": "gpt-5.6-terra",
+            "effort": "high"
+          },
+          "review": {
+            "depth": "deep",
+            "reviewer": "root"
+          }
+        },
+        "actual": {
+          "skills": [
+            {
+              "id": "abc",
+              "status": "loaded_used"
+            }
+          ],
+          "master": {
+            "model": "surface_default/root",
+            "evidence": "root thread identity exposed; exact runtime model identifier not exposed"
+          },
+          "worker": {
+            "model": "unknown",
+            "evidence": "worker identity /root/alice_live_context exposed; requested Terra/high but exact runtime model identifier not exposed"
+          },
+          "review": {
+            "model": "surface_default/root",
+            "depth": "deep",
+            "result": "pass_after_two_bounded_fix_cycles"
+          },
+          "fallback": "none"
+        }
+      },
+      "acceptance": "One dependency-ordered roadmap defines a bounded asynchronous Live Contextual Layer whose hypotheses remain advisory, provenance-bound, confidence-labelled, staleable and incapable of overriding Planning, domain truth, Memory policy, claims, gates or user decisions.",
+      "evidence": {
+        "target_environment": "local",
+        "authority": "repo",
+        "mutation_class": "roadmap_authoring",
+        "required": [
+          "json_parse",
+          "dependency_review",
+          "open_work_registration",
+          "guidance_registration",
+          "scoped_diff_check"
+        ],
+        "positive_path_required": true,
+        "forbidden": [
+          "runtime implementation",
+          "real asynchronous analysis",
+          "memory or graph writes",
+          "Planning mutation outside this registration",
+          "subagent dispatch beyond this authoring worker",
+          "commit, push, deploy or live action"
+        ],
+        "verified": {
+          "roadmap_json_parse": "pass",
+          "authority_and_non_duplication_review": "pass",
+          "dependency_and_gate_review": "pass_after_exact_dependency_and_claimability_fixes",
+          "safe_queue_audit": "pass; zero LCL slices classified safe-open; the sole repository-wide safe-open result is the pre-existing PMCP-9 stale-registration finding",
+          "multi_agent_guidance_registration": "pass",
+          "agent_context_extension_json_parse": "pass",
+          "changed_path_scope": "pass; worker changed only the new roadmap and root changed only claimed shared planning files"
+        },
+        "not_verified": [
+          "runtime implementation or real asynchronous analysis",
+          "browser, UI or semantic user acceptance",
+          "local background process or Temporal soak",
+          "Memory, Causal, Graph or Planning write adapter",
+          "commit, push, deploy or production activation"
+        ]
+      },
+      "next_action": "After CAO-08B is accepted, a new explicit goal may claim LCL-01 only; all later slices remain dependency- and gate-blocked.",
+      "live_actions": false
+    },
+    {
       "id": "NMG-00-legacy-boundary-audit",
       "class": "safe_offline",
       "owner": "Alice/Terra implementation; root/Sol deep review",
@@ -15672,6 +15831,7 @@
     "OWM-17 Code Lineage And Timeline: after USI identity, start CLT-00 with synthetic Git fixtures; keep Git read-only, label time first-observable and stop before real history backfill until one final activation decision.",
     "OWM-18 Lens Code Graph: after the bounded CBM graph API, start LCG-00 and fixture/backend work with one UI owner; preserve the visually strong Code Planet mode but keep production placement and real project graphs disabled until one independent UI-live decision.",
     "OWM-1 Version 1.0 Release Gate: do not claim 1.0 until UI live.",
+    "OWM-27 Live Contextual Layer: LCL-00 roadmap authoring, deep review and router registration are accepted. LCL-01 is the first future frontier only after CAO-08B acceptance; later fake runtime, candidate ledger, canonical promotion, project projection, UI, local process, soak and production slices follow exact dependencies and five separate user/live gates. Hypotheses remain advisory and never override Planning, domain truth, USI, Memory/Causal review, claims or gates.",
     "OWM-3 Autonomous Coding runtime control: resume only after the active TAX/TUA repo queue or explicit reprioritization.",
     "OWM-3A AI GUI Tooling: consolidate browser/DevTools/no-GPU observation into safe agent tools, including project screenshots and Telegram delivery, before broad autonomous GUI operation.",
     "OWM-4 MCP Workbench activation: install/test services when available, then use them as verification aids.",
@@ -15747,6 +15907,13 @@
       "open_gate_count": 4,
       "next_decision": "Choose one non-UI answer-pack, memory-influence or workline-provenance evidence target",
       "safe_default": "keep_agent_context_contracts_backend_only"
+    },
+    {
+      "family": "live_contextual_layer",
+      "priority": 38,
+      "open_gate_count": 5,
+      "next_decision": "None during roadmap authoring; after CAO-08B and LCL-01 through LCL-03 evidence, review the bounded product-policy packet before any projection, promotion or local process.",
+      "safe_default": "keep_lcl_advisory_fake_runtime_only_and_dependency_blocked"
     },
     {
       "family": "observability_ops",
