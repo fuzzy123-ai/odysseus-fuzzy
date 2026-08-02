@@ -137,7 +137,7 @@
           "mode": "read_only",
           "writer_claim": false,
           "allowed_write_paths": [],
-          "state": "reserved_for_wave3_baseline_and_final_qa",
+          "state": "active_wave3",
           "evidence_required": [
             "path collision readback",
             "focused test readback",
@@ -151,7 +151,7 @@
         "focused_tests": "Wave 2: Root CAO A-E lane 155 passed and NMG-01 focused 12 passed; Charlie focused 22 passed and combined independent regression 200 passed; one existing SQLAlchemy deprecation warning",
         "master_route": "surface_default/root; exact runtime model identifier not exposed",
         "worktree_policy": "Exactly one clean canonical Git worktree; parallel lanes use disjoint exact-path claims and shared router/hotfiles stay root-only.",
-        "implementation_gate": "CAO-08F and NMG-02 passed three-way read-only dependency/path review and are registered as the exact disjoint Wave-3 frontier; implementation still requires the registration commit plus two durable claims, and no live authority is implied."
+        "implementation_gate": "Satisfied for the exact CAO-08F and NMG-02 repo-only Wave-3 claims by registration commit ccb2b2af, the one-worktree preflight and the existing explicit surface_default/root authorization; no live authority is implied."
       },
       "repo_cleanup_one_worktree_gate": {
         "id": "REPO-CLEANUP-ONE-WORKTREE",
@@ -509,7 +509,20 @@
         "remaining_work": "OPS Alert integration and publication remain owned by their existing handoffs and are not absorbed by this roadmap-authoring slice."
       }
     ],
-    "active_claimed_slices": [],
+    "active_claimed_slices": [
+      {
+        "slice_id": "CAO-08F-code-intelligence-and-failure-retrieval-plane",
+        "owner": "Bob/Terra-requested",
+        "thread_id": "/root/bob_cao08d_impl",
+        "allowed_paths_digest_sha256": "634772c71983f7b51e259489f8e0e27085c160cc561529e408ad1d3d12604f76"
+      },
+      {
+        "slice_id": "NMG-02-native-knowledge-store",
+        "owner": "Alice/Terra-requested",
+        "thread_id": "/root/alice_nmg00_impl",
+        "allowed_paths_digest_sha256": "73114d810fa3cb317c2e471e71ab526388f89d387f8c995dd9c126304e30e528"
+      }
+    ],
     "latest_parallel_development_p0_handoff": {
       "roadmap_path": "docs/plans/open-work-completion-master-roadmap.json",
       "run_id": "goal-parallel-roadmaps-20260802-p0",
@@ -592,7 +605,7 @@
       "live_actions": false
     },
     "next_parallel_wave_registration": {
-      "state": "registered_pending_commit_and_claims",
+      "state": "claims_acquired",
       "registered_at": "2026-08-02T14:09:00+02:00",
       "base_revision": "26d9fd1b35f39f75474e52801af9734115a9cd13",
       "selected_lanes": [
@@ -631,9 +644,9 @@
         "working_tree_clean": true,
         "independent_frontier_audit": "Alice, Bob and Charlie independently found CAO-08F plus NMG-02 dependency-ready with exact new disjoint paths; CAO-08C1 remains a fresh-reclaim candidate for a later wave and all other candidates retain their explicit blockers"
       },
-      "registration_commit": null,
-      "implementation_authority": false,
-      "next_action": "Commit this registration, then acquire exactly the CAO-08F and NMG-02 durable claims and reserve Charlie for read-only QA. No live authority is implied.",
+      "registration_commit": "ccb2b2af99d61ff06d9b6efc1ee869610fbf8262",
+      "implementation_authority": true,
+      "next_action": "Dispatch only the exact CAO-08F and NMG-02 claims to the existing Terra-requested workers and reserve Charlie for read-only baseline/final QA. No live authority is implied.",
       "live_actions": false
     },
     "latest_parallel_wave_preflight_handoff": {
@@ -17878,8 +17891,8 @@
       "id": "CAO-08F-code-intelligence-and-failure-retrieval-plane",
       "class": "repo_only",
       "owner": "Bob/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
-      "status": "registered_claimable_after_registration_commit",
-      "claimable": true,
+      "status": "claimed_running",
+      "claimable": false,
       "depends_on": [
         "CAO-08B accepted",
         "CAO-08E accepted at a3630fb1"
@@ -17893,6 +17906,22 @@
         "tests/test_coding_code_intelligence_integration.py"
       ],
       "allowed_paths_digest_sha256": "634772c71983f7b51e259489f8e0e27085c160cc561529e408ad1d3d12604f76",
+      "claim": {
+        "run_id": "goal-open-work-roadmaps-20260802-cao08f",
+        "thread_id": "/root/bob_cao08d_impl",
+        "slice_id": "CAO-08F-code-intelligence-and-failure-retrieval-plane",
+        "owner": "Bob/Terra-requested",
+        "state": "claimed",
+        "recorded_at": "2026-08-02T14:13:24+02:00",
+        "acquired_at": "2026-08-02T14:13:24+02:00",
+        "lease_expires_at": "2026-08-02T18:13:24+02:00",
+        "allowed_paths_digest_sha256": "634772c71983f7b51e259489f8e0e27085c160cc561529e408ad1d3d12604f76",
+        "registration_commit": "ccb2b2af99d61ff06d9b6efc1ee869610fbf8262",
+        "target_paths_absent_at_claim": true,
+        "cross_lane_overlap_count": 0,
+        "handoff_required": true,
+        "blocker": null
+      },
       "excluded_paths": [
         "docs/plans/**",
         "src/coding_context_envelope.py",
@@ -17970,8 +17999,8 @@
       "id": "NMG-02-native-knowledge-store",
       "class": "repo_only",
       "owner": "Alice/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
-      "status": "registered_claimable_after_registration_commit",
-      "claimable": true,
+      "status": "claimed_running",
+      "claimable": false,
       "depends_on": [
         "NMG-01 accepted at 8a5e9c0f"
       ],
@@ -17981,6 +18010,22 @@
         "tests/test_native_knowledge_store.py"
       ],
       "allowed_paths_digest_sha256": "73114d810fa3cb317c2e471e71ab526388f89d387f8c995dd9c126304e30e528",
+      "claim": {
+        "run_id": "goal-open-work-roadmaps-20260802-nmg02",
+        "thread_id": "/root/alice_nmg00_impl",
+        "slice_id": "NMG-02-native-knowledge-store",
+        "owner": "Alice/Terra-requested",
+        "state": "claimed",
+        "recorded_at": "2026-08-02T14:13:24+02:00",
+        "acquired_at": "2026-08-02T14:13:24+02:00",
+        "lease_expires_at": "2026-08-02T18:13:24+02:00",
+        "allowed_paths_digest_sha256": "73114d810fa3cb317c2e471e71ab526388f89d387f8c995dd9c126304e30e528",
+        "registration_commit": "ccb2b2af99d61ff06d9b6efc1ee869610fbf8262",
+        "target_paths_absent_at_claim": true,
+        "cross_lane_overlap_count": 0,
+        "handoff_required": true,
+        "blocker": null
+      },
       "excluded_paths": [
         "docs/plans/**",
         "src/personal_docs.py",
