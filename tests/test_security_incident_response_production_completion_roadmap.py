@@ -983,15 +983,38 @@ def test_sirp_is_registered_once_with_exact_next_frontier_and_trp_is_released() 
         guidance["roadmaps"]
     )
 
-    assert trp["status"].startswith("deferred_by_operator_priority_2026-07-27")
+    assert trp["status"] == (
+        "trp01_through_trp04_accepted_trp05_reprioritized_test_first_reclaim_claimed"
+    )
     trp_05 = next(item for item in trp["slice_queue"] if item["id"].startswith("TRP-05-"))
     assert trp_05["claimable"] is False
-    assert trp_05["status"] == "deferred_by_operator_priority_2026-07-27"
-    trp_claim = next(item for item in trp["claims"] if item["slice_id"] == trp_05["id"])
-    assert trp_claim["state"] == "released"
-    assert trp_claim["release_reason"] == (
+    assert trp_05["status"] == (
+        "claimed_2026-08-02_test_first_integration_evidence_reclaim"
+    )
+    historical_claim = next(
+        item
+        for item in trp["claims"]
+        if item["run_id"] == "ABC-TRP-20260726"
+        and item["slice_id"] == trp_05["id"]
+    )
+    assert historical_claim["state"] == "released"
+    assert historical_claim["release_reason"] == (
         "superseded_by_SIRP_operator_priority_preserved_dirty_diff"
     )
+    active_claim = next(
+        item
+        for item in trp["claims"]
+        if item["run_id"] == "ABC-TRP05-RECLAIM-20260802T180728+0200"
+    )
+    assert active_claim["state"] == "claimed"
+    assert active_claim["slice_id"] == trp_05["id"]
+    assert active_claim["live_actions"] is False
+    assert active_claim["allowed_paths"] == [
+        "tests/test_transcription_pipeline.py",
+        "tests/test_transcription_store.py",
+        "tests/test_transcription_review.py",
+        "tests/test_maintenance_llm_runtime.py",
+    ]
 
 
 def test_sirp11_packets_are_bounded_non_authorizing_and_secret_safe() -> None:

@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-02T18:04:06+02:00",
-  "status": "parallel_wave5r_readonly_qa_and_acpr11_repo_only_implementation_running / cleanup_handoff_local_merge_committed_one_worktree_clean / waves1_to4_accepted / ops_alert_live_gates_preserved",
+  "updated_at": "2026-08-02T18:07:28+02:00",
+  "status": "parallel_wave5r_readonly_qa_acpr11_implementation_and_trp05_test_first_reclaim_running / cleanup_one_worktree_clean / ops_alert_live_gates_preserved",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -20,11 +20,11 @@
   "current_position": {
     "mvp_backend_roadmaps_1_to_10": "100%",
     "version_1_0_gate": "blocked_until_new_ui_live",
-    "safe_open_json_slices": 1,
+    "safe_open_json_slices": 2,
     "unique_live_gates": 61,
     "unique_design_gates": 29,
     "other_open_json_items": 155,
-    "queue_status": "parallel_wave5r_readonly_qa_and_acpr11_repo_only_implementation_running",
+    "queue_status": "parallel_wave5r_readonly_qa_acpr11_implementation_and_trp05_test_first_reclaim_running",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "live_contextual_layer": "lcl00_roadmap_deep_reviewed_registered_lcl01_waiting_cao08b",
@@ -45,13 +45,13 @@
       "code_lineage_timeline": "clt00_through_clt02_accepted_clt03_ready_repo_only_live_default_off",
       "lens_code_graph": "planned_after_code_graph_api_ui_live_gated",
       "agent_maintenance_safety_harness": "roadmap_registered_goal_not_started_repo_only",
-      "local_transcription_protocol": "trp01_through_trp04_accepted_trp05_deferred_by_operator_priority_preserved_dirty_diff",
+      "local_transcription_protocol": "trp01_through_trp04_accepted_trp05_user_reprioritized_test_first_reclaim_claimed",
       "security_incident_response_production": "sirp00_through_sirp11_offline_accepted_sirp12_sec184_required_ci_green_sec176_host_change_completed_sec190_observation_ok_C2_next_D_deploy_not_go_E_delivery_not_go"
     },
     "verification": {
       "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
-      "safe_open_count": 1,
-      "raw_audit_safe_open_count": 1,
+      "safe_open_count": 2,
+      "raw_audit_safe_open_count": 2,
       "raw_audit_stale_item": null,
       "raw_audit_duplicate_frontier": "SIRP-11 is accepted in both canonical and detailed SIRP state; no SIRP safe-offline slice remains open.",
       "other_open_count": 155,
@@ -542,6 +542,39 @@
           "paths outside the exact allowed_paths",
           "push, deploy, provider, network, host, send or other live action",
           "treating RAPTOR/GraphRAG memory as Planning, claim or gate authority"
+        ]
+      },
+      {
+        "claim_id": "ABC-TRP05-RECLAIM-20260802T180728+0200",
+        "slice_id": "TRP-05-gemma-correction-and-protocol-provenance",
+        "roadmap": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+        "owner": "/root/bob_trp05_reclaim_audit",
+        "class": "repo_only",
+        "state": "claimed",
+        "acquired_at": "2026-08-02T18:07:28+02:00",
+        "lease_expires_at": "2026-08-02T20:07:28+02:00",
+        "base_revision": "49456aa2",
+        "allowed_paths": [
+          "tests/test_transcription_pipeline.py",
+          "tests/test_transcription_store.py",
+          "tests/test_transcription_review.py",
+          "tests/test_maintenance_llm_runtime.py"
+        ],
+        "router_write_paths": [
+          "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+          "docs/plans/open-work-completion-master-roadmap.json",
+          "docs/plans/multi-agent-execution-guidance.json",
+          "tests/test_security_incident_response_production_completion_roadmap.py"
+        ],
+        "writer_count": 1,
+        "independent_qa_required": true,
+        "live_actions": false,
+        "collision_check": "pass: exact test-only TRP-05 paths are disjoint from ACPR-11 and read-only Wave-5R QA; one clean worktree at claim base",
+        "forbidden_actions": [
+          "source edits without a reproduced defect and fresh Root claim widening",
+          "editing canonical roadmap authorities from the worker",
+          "provider/model calls, downloads, productive/private audio, runtime composition, network, host, backup, restore, push, deploy or live action",
+          "writes outside the four exact test paths"
         ]
       }
     ],
@@ -15657,9 +15690,9 @@
       "id": "TRP-05-gemma-correction-and-protocol-provenance",
       "class": "repo_only",
       "owner": "Bob/Terra implementation; root/Sol deep review",
-      "status": "deferred_by_operator_priority_2026-07-27",
+      "status": "claimed_2026-08-02_test_first_integration_evidence_reclaim",
       "claimable": false,
-      "claim_blocker": "Requires explicit TRP reprioritization, a fresh path-scoped claim, collision check and deep review of the preserved dirty diff before continuation.",
+      "claim_blocker": "One exact test-first writer claim is active; source widening requires a separate Root decision after a reproduced defect.",
       "claim": {
         "run_id": "ABC-TRP-20260726",
         "thread_id": "/root",

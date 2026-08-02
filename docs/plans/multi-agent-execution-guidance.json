@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-08-02T15:46:00+02:00",
+  "updated_at": "2026-08-02T18:07:28+02:00",
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
@@ -803,8 +803,8 @@
     {
       "path": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
       "profile": "active_serial",
-      "state": "trp04_accepted_trp05_deferred_by_operator_priority_preserved_dirty_diff",
-      "ai_hint": "Do not continue or absorb the preserved TRP-05 dirty diff while SIRP has operator priority. Resume only after explicit TRP reprioritization, a fresh path-scoped claim, collision check and deep review; all prior live and external gates remain unchanged."
+      "state": "trp04_accepted_trp05_user_reprioritized_test_first_reclaim_claimed",
+      "ai_hint": "TRP-05 is explicitly reprioritized by the active user goal and has one four-test-path Terra claim after a clean one-worktree collision check. Prove pipeline-to-store protocol_ready and needs_review persistence plus shared-scheduler contention without provider/model/live access; any source widening requires a fresh Root claim. After independent QA and Root deep review, continue serially to TRP-06/07 and stop at TRP-08 live gates."
     },
     {
       "path": "docs/plans/telegram-web-research-memory-roadmap.json",

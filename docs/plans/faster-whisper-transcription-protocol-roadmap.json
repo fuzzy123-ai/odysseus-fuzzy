@@ -3,8 +3,8 @@
   "kind": "odysseus.faster_whisper_transcription_protocol_roadmap",
   "id": "TRP",
   "title": "Local Faster-Whisper Transcription And Evidence-Backed Protocols",
-  "updated_at": "2026-07-27T13:20:00+02:00",
-  "status": "deferred_by_operator_priority_2026-07-27_preserved_dirty_diff",
+  "updated_at": "2026-08-02T18:07:28+02:00",
+  "status": "trp01_through_trp04_accepted_trp05_reprioritized_test_first_reclaim_claimed",
   "goal": "Deliver a backend-first, local-only transcription pipeline that cannot acknowledge an audio upload before durable primary storage, preserves immutable source evidence, uses faster-whisper for timestamped ASR, constrains Gemma to review and protocol synthesis, and reaches one bounded consent-safe Debian live test with backup and rollback evidence.",
   "scope": {
     "included": [
@@ -253,9 +253,9 @@
       "id": "TRP-05-gemma-correction-and-protocol-provenance",
       "class": "repo_only",
       "owner": "Bob/Terra; root/Sol deep review",
-      "status": "deferred_by_operator_priority_2026-07-27",
+      "status": "claimed_2026-08-02_test_first_integration_evidence_reclaim",
       "claimable": false,
-      "claim_blocker": "Requires explicit TRP reprioritization, a fresh path-scoped claim, collision check and deep review of the preserved dirty diff before any continuation.",
+      "claim_blocker": "One exact test-first writer claim is active; source widening requires a separate Root decision after a reproduced defect.",
       "depends_on": [
         "TRP-04-resumable-single-worker-pipeline"
       ],
@@ -647,6 +647,43 @@
       "handoff_required": true,
       "runtime_scope": "repository-only strict local Gemma review, semantic provenance and shared heavy-model admission fixtures",
       "live_actions": false
+    },
+    {
+      "run_id": "ABC-TRP05-RECLAIM-20260802T180728+0200",
+      "thread_id": "/root/bob_trp05_reclaim_audit",
+      "slice_id": "TRP-05-gemma-correction-and-protocol-provenance",
+      "owner": "Bob/Terra test-first implementation; root/Sol deep review",
+      "allowed_paths": [
+        "tests/test_transcription_pipeline.py",
+        "tests/test_transcription_store.py",
+        "tests/test_transcription_review.py",
+        "tests/test_maintenance_llm_runtime.py"
+      ],
+      "root_only_authority_paths": [
+        "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+        "docs/plans/open-work-completion-master-roadmap.json",
+        "docs/plans/multi-agent-execution-guidance.json",
+        "tests/test_security_incident_response_production_completion_roadmap.py"
+      ],
+      "hotfiles": [],
+      "state": "claimed",
+      "acquired_at": "2026-08-02T18:07:28+02:00",
+      "lease_expires_at": "2026-08-02T20:07:28+02:00",
+      "base_revision": "49456aa2",
+      "resumed_from": {
+        "run_id": "ABC-TRP-20260726",
+        "preserved_implementation_commit": "64037e5690d5e9de6a437776d53836a2da2cfabd",
+        "preflight": "142 passed, 1 skipped; implementation present; four missing integration evidence cases"
+      },
+      "handoff_required": true,
+      "runtime_scope": "repository-only injected local reviewer, in-memory or temporary-store fixtures and shared process-local scheduler tests",
+      "forbidden": [
+        "source edits without a reproduced defect and fresh Root claim widening",
+        "provider or model calls, downloads, productive/private audio, runtime composition, network, host, backup, restore, push, deploy or live action",
+        "writes outside the four exact test paths"
+      ],
+      "collision_check": "pass: four test paths are disjoint from ACPR-11 and Wave-5R QA; exactly one worktree is clean at base revision",
+      "live_actions": false
     }
   ],
   "route": {
@@ -747,5 +784,5 @@
     "updater_or_resume_clean": "no",
     "product_complete": "no"
   },
-  "next_frontier": "frozen_deferred_TRP-05_requires_explicit_reprioritization_fresh_claim_collision_check_and_deep_review_of_preserved_dirty_diff"
+  "next_frontier": "TRP-05 test-first reclaim is active; after focused integration evidence, independent QA and Root deep review, TRP-06 becomes the next repo-only frontier while TRP-08 remains live-gated"
 }
