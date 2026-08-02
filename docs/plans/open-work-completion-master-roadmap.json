@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-02T15:22:54+02:00",
-  "status": "parallel_development_wave4_cao08c1_nmg05_accepted_released / waves1_to4_accepted / wave5_uda00_ulo00_audited_pending_registration / ops_alert_live_gates_preserved",
+  "updated_at": "2026-08-02T15:32:37+02:00",
+  "status": "parallel_development_wave5_uda00_ulo00_registered_pending_claims / waves1_to4_accepted / ops_alert_live_gates_preserved",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -24,7 +24,7 @@
     "unique_live_gates": 61,
     "unique_design_gates": 29,
     "other_open_json_items": 155,
-    "queue_status": "parallel_wave4_accepted_wave5_uda00_ulo00_audited_pending_registration",
+    "queue_status": "parallel_wave5_uda00_ulo00_registered_pending_claims",
     "extended_backend_tracks": {
       "agent_context_transparency": "backend_ready_ui_gated",
       "live_contextual_layer": "lcl00_roadmap_deep_reviewed_registered_lcl01_waiting_cao08b",
@@ -39,8 +39,8 @@
       "memory_observability": "gro00_through_gro15_historical_nmg00_through_nmg02_and_nmg05_accepted_productive_sources_off",
       "unified_source_index": "usi00_through_usi14_accepted_usi15_blocked_by_child_closure_productive_sources_off",
       "usi_runtime_consumer_integration": "uir00_through_uir02_accepted_uir03_dependency_ready_runtime_default_off",
-      "usi_domain_adapters": "planned_child_source_waves_default_off_private_domains_deferred",
-      "usi_data_lifecycle_operations": "planned_child_live_actions_default_off",
+      "usi_domain_adapters": "uda00_registered_wave5_pending_claim_default_off_private_domains_deferred",
+      "usi_data_lifecycle_operations": "ulo00_registered_wave5_pending_claim_live_actions_default_off",
       "codebase_memory_projection": "cbm00_through_cbm08_accepted_cbm09_dependency_ready_not_selected_engine_disabled",
       "code_lineage_timeline": "clt00_through_clt02_accepted_clt03_ready_repo_only_live_default_off",
       "lens_code_graph": "planned_after_code_graph_api_ui_live_gated",
@@ -113,7 +113,10 @@
       "queue_exhausted": false,
       "raw_safe_queue_exhausted": true,
       "guidance_normalization": {
-        "selected_parallel_lanes": [],
+        "selected_parallel_lanes": [
+          "UDA-00-domain-truth-and-mutation-inventory",
+          "ULO-00-lifecycle-owner-and-runtime-inventory"
+        ],
         "completed_parallel_lanes": [
           "CAO-08D-scoped-execution-plane-consolidation",
           "NMG-00-legacy-boundary-audit",
@@ -128,7 +131,6 @@
           "ACPR-11 pending stale cross-roadmap reconciliation",
           "LCL-01 pending its own explicit registration",
           "UIR-03 pending exact app/initializer single-writer handoff",
-          "UDA-00 and ULO-00 independently audited with canonical path reconciliation; pending Wave-5 registration",
           "UDA-05 pending separate registration before NMG-03"
         ],
         "qa_lane": "Charlie read-only collision, focused-test and combined-regression evidence",
@@ -138,7 +140,7 @@
           "mode": "read_only",
           "writer_claim": false,
           "allowed_write_paths": [],
-          "state": "wave4_accepted_released_wave5_registration_qa_pending",
+          "state": "wave5_registered_pending_claims_and_read_only_baseline",
           "evidence_required": [
             "path collision readback",
             "focused test readback",
@@ -152,7 +154,7 @@
         "focused_tests": "Wave 4: Root CAO A-F+C1 plus NMG-05 combined lane 241 passed; Charlie focused C1+NMG-05 56 passed and the same 241-test combined regression passed; one existing SQLAlchemy deprecation warning",
         "master_route": "surface_default/root; exact runtime model identifier not exposed",
         "worktree_policy": "Exactly one clean canonical Git worktree; parallel lanes use disjoint exact-path claims and shared router/hotfiles stay root-only.",
-        "implementation_gate": "Wave 4 accepted and both claims released after Root deep review and Charlie independent QA. UDA-00 and ULO-00 are the audited disjoint Wave-5 candidate lanes but require their own registration commit and fresh claims; no live authority is implied."
+        "implementation_gate": "Wave 5 UDA-00 and ULO-00 is registered on six exact absent and disjoint canonical paths. Implementation remains false until fresh exact-path claims are committed; the source-roadmap legacy filenames are excluded and no live authority is implied."
       },
       "repo_cleanup_one_worktree_gate": {
         "id": "REPO-CLEANUP-ONE-WORKTREE",
@@ -593,56 +595,60 @@
       "live_actions": false
     },
     "next_parallel_wave_registration": {
-      "state": "accepted_released",
-      "accepted_at": "2026-08-02T15:22:54+02:00",
-      "registered_at": "2026-08-02T14:41:20+02:00",
-      "base_revision": "a647ff28a50107918abcbd754bf9cb8117eb5cee",
+      "state": "registered_pending_claims",
+      "registered_at": "2026-08-02T15:32:37+02:00",
+      "base_revision": "36aadb720629d7f5d927cbe88c5926d1fba0757c",
       "selected_lanes": [
-        "CAO-08C1-bounded-delegation-runtime",
-        "NMG-05-causal-domain-contract"
+        "UDA-00-domain-truth-and-mutation-inventory",
+        "ULO-00-lifecycle-owner-and-runtime-inventory"
       ],
       "deferred": [
-        "ACPR-11 pending stale cross-roadmap reconciliation",
+        "ACPR-11 pending separate stale cross-roadmap reconciliation and existing-hotfile claim",
         "LCL-01 pending its own explicit registration",
         "UIR-03 pending exact app/initializer single-writer handoff",
-        "UDA-00 and ULO-00 pending path-set reconciliation and explicit registration",
         "UDA-05 pending separate registration before NMG-03"
       ],
       "target_paths": {
-        "CAO-08C1": [
-          "src/coding_subagent_delegation_contracts.py",
-          "src/coding_subagent_delegation_runtime.py",
-          "tests/test_coding_subagent_delegation_contracts.py",
-          "tests/test_coding_subagent_delegation_runtime.py",
-          "tests/test_coding_subagent_delegation_integration.py"
+        "UDA-00": [
+          "docs/plans/unified-source-index-domain-owner-inventory.json",
+          "scripts/audit_unified_source_index_domain_owners.py",
+          "tests/test_audit_unified_source_index_domain_owners.py"
         ],
-        "NMG-05": [
-          "docs/plans/causal-claim-store-contract.md",
-          "scripts/audit_causal_claim_store_contract.py",
-          "tests/test_audit_causal_claim_store_contract.py"
+        "ULO-00": [
+          "docs/plans/unified-source-index-lifecycle-owner-inventory.json",
+          "scripts/audit_unified_source_index_lifecycle_owners.py",
+          "tests/test_audit_unified_source_index_lifecycle_owners.py"
         ]
       },
       "target_path_digests_sha256": {
-        "CAO-08C1": "8934634a1d799a2b220f1b7749e1ac548d218f492292e487e22a7d9678e33864",
-        "NMG-05": "1ecf8df1f394870f2188db39926bf94a66399cb8d7f43b35decd8b9a0d214acc"
+        "UDA-00": "b8cccb619e8eb4a09ee7e07fe9f0c70aef7fb02e83cc8f88a42daebc24205ac8",
+        "ULO-00": "b22e2c20590c3570a754b699dd2dbc9e77c096a64d3e7383e0af701172b58f85"
       },
       "preflight": {
-        "baseline_status": "passed_registration_commit_clean_exact_claims",
-        "all_eight_targets_absent": true,
+        "baseline_status": "passed_clean_registration_preflight",
+        "all_six_targets_absent": true,
         "cross_lane_overlap_count": 0,
         "unavoidable_hotfile_count": 0,
         "worktree_count": 1,
         "working_tree_clean": true,
-        "historical_CAO-08C1_claim": "preserved as released_waiting_on_peer; fresh claim required and no prior target path existed",
-        "independent_frontier_audit": "Alice, Bob and Charlie independently selected the CAO-08C1 fresh reclaim plus NMG-05 as dependency-ready, exact new and disjoint; UDA-05/NMG-03 and all other candidates retain their explicit blockers"
+        "dependencies": "UDA-00 has accepted USI-04 and the active Open Work goal; ULO-00 has accepted USI-03/USI-13 and the active Open Work goal.",
+        "path_reconciliation": "The canonical Open Work owner-inventory filenames are authoritative. The older source-roadmap filenames unified-source-index-domain-inventory.json/audit_unified_source_index_domains.py and unified-source-index-lifecycle-inventory.json/audit_unified_source_index_lifecycle.py are stale prose inputs, are not registered, and remain immutable.",
+        "independent_frontier_audit": "Alice independently verified both dependency frontiers, exact absent canonical path sets and zero overlap; Charlie independently verified ACPR-11 remains separate and does not collide with either inventory lane.",
+        "audit_input_object_ids": {
+          "docs/plans/open-work-completion-master-roadmap.json": "aafd831ac5381d42414f1575c6773af20230a801",
+          "docs/plans/multi-agent-execution-guidance.json": "55c2a3555601bbb0feccc75da2e8f6d0434ce53f",
+          "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md": "b508a07133d0c3d39f97104b6836834c4699d2ef",
+          "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md": "71307606d42bd38b4eb1865ee4e59d2e263c2a92",
+          "docs/plans/unified-source-index-architecture-contract.md": "8a71ec4da68f0dbedc6214423f2b7a1fd45fded5",
+          "docs/plans/unified-source-index-implementation-roadmap.md": "8b7d41d085fc895272e27f3e7e317718120ce1c3",
+          "docs/plans/unified-source-index-integration-impact-map.md": "4e2817c220429826d445b43475ce6e54ed6d6610",
+          "docs/plans/unified-source-index-runtime-inventory.json": "9749553f30cef0dc0681aba60d07488f777ecf5f",
+          "src/unified_source_index_stores.py": "1e15a952dc911b02b6031e361f08fb13a93a7425"
+        }
       },
-      "registration_commit": "1eb3d331d614029b32eceb4e50b4bd66f4f4f75c",
+      "registration_commit": null,
       "implementation_authority": false,
-      "implementation_commits": {
-        "CAO-08C1": "958b776c1e031a62bec613acbb83135434aebc63",
-        "NMG-05": "4cb0a7b8ab8ff67cd3ef83937bd97d2dbc763515"
-      },
-      "next_action": "Wave 4 is accepted and released. Register UDA-00 and ULO-00 as the exact canonical Wave-5 inventory lanes, then acquire fresh claims and reserve independent QA. No live authority is implied.",
+      "next_action": "Commit this registration, then acquire one exact UDA-00 claim and one exact ULO-00 claim and reserve Charlie for independent read-only baseline/final QA. No source adapter, runtime, destructive lifecycle operation or live authority is implied.",
       "live_actions": false
     },
     "latest_parallel_wave_preflight_handoff": {
@@ -3887,7 +3893,7 @@
       "id": "OWM-20",
       "name": "USI Domain Adapter Rollout",
       "priority": 9,
-      "status": "planned_native_child_source_waves_obsidian_excluded",
+      "status": "uda00_registered_wave5_pending_claim_obsidian_excluded",
       "why_open": "A source-neutral core needs native domain readers and deletion/change observations, but adapters must preserve each domain's truth, policy, exact-reader and provider boundaries. Obsidian/ORCA vault is legacy and excluded; UDA-05 is the sole conditional native Knowledge adapter after NMG-02.",
       "source_roadmap": "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md",
       "source_gate_family": "unified_source_index",
@@ -3912,7 +3918,7 @@
       "id": "OWM-21",
       "name": "USI Data Lifecycle And Operations",
       "priority": 9,
-      "status": "planned_native_child_after_usi_store_contract_legacy_artifacts_excluded",
+      "status": "ulo00_registered_wave5_pending_claim_legacy_artifacts_excluded",
       "why_open": "USI adds persistent owner-scoped records and rebuildable native projections that must participate correctly in lifecycle operations. Obsidian vaults, plugin databases, caches and plugin-derived artifacts are outside current backup, restore, portability, erasure and rollback authority.",
       "source_roadmap": "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md",
       "source_gate_family": "unified_source_index",
@@ -16084,10 +16090,10 @@
     {
       "id": "UDA-00-domain-truth-and-mutation-inventory",
       "class": "safe_offline",
-      "owner": "Alice/Terra implementation; root/Sol deep review",
-      "status": "registered_waiting_explicit_goal",
-      "claimable": false,
-      "claim_blocker": "No implementation goal is active for this roadmap-authoring run.",
+      "owner": "Alice/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
+      "status": "registered_wave5_pending_claim",
+      "claimable": true,
+      "claim_blocker": null,
       "depends_on": [
         "USI-04 accepted",
         "explicit Open Work goal"
@@ -16097,17 +16103,53 @@
         "scripts/audit_unified_source_index_domain_owners.py",
         "tests/test_audit_unified_source_index_domain_owners.py"
       ],
+      "allowed_paths_digest_sha256": "b8cccb619e8eb4a09ee7e07fe9f0c70aef7fb02e83cc8f88a42daebc24205ac8",
       "source_roadmap": "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md",
-      "acceptance": "Freeze native domain truth, exact readers and mutation boundaries; Obsidian/ORCA vault is excluded and no adapter is implemented.",
+      "path_reconciliation": "Open Work canonical owner-inventory paths replace the stale source-roadmap domain-inventory names for this slice; the source roadmap itself is an immutable input and outside the claim.",
+      "route": {
+        "entrypoint": "/abc + goal",
+        "worker": "gpt-5.6-terra/medium requested after durable claim",
+        "review": "surface_default/root deep plus Charlie independent read-only QA",
+        "live_authority": false
+      },
+      "acceptance": "Freeze every selected native domain's truth owner, exact reader and mutation/delete/provider/review boundary in one deterministic content-free inventory; Obsidian/ORCA vault is excluded and no adapter is implemented.",
+      "done_when": "The canonical inventory and fail-closed audit prove exactly one truth owner and reader boundary per declared domain, explicit rollout or deferred status, stable owner/source/version/tombstone semantics and no provider, private-data, adapter, scan, index, write or live effect.",
+      "evidence": {
+        "target_environment": "local",
+        "authority": "repo",
+        "mutation_class": "safe_offline",
+        "required": ["static", "canonical_inventory_check", "focused_negative_tests", "independent_deep_review"],
+        "preclaim_verified": {
+          "all_three_targets_absent": true,
+          "cross_lane_overlap": "zero with ULO-00",
+          "unavoidable_hotfiles": [],
+          "immutable_inputs": {
+            "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md": "b508a07133d0c3d39f97104b6836834c4699d2ef",
+            "docs/plans/unified-source-index-architecture-contract.md": "8a71ec4da68f0dbedc6214423f2b7a1fd45fded5",
+            "docs/plans/unified-source-index-implementation-roadmap.md": "8b7d41d085fc895272e27f3e7e317718120ce1c3",
+            "docs/plans/unified-source-index-integration-impact-map.md": "4e2817c220429826d445b43475ce6e54ed6d6610",
+            "docs/plans/unified-source-index-runtime-inventory.json": "9749553f30cef0dc0681aba60d07488f777ecf5f",
+            "src/unified_source_index_stores.py": "1e15a952dc911b02b6031e361f08fb13a93a7425"
+          }
+        },
+        "forbidden": [
+          "edits outside the three canonical new claim paths",
+          "the stale source-roadmap filenames or the source roadmap itself",
+          "source, provider, private-data, adapter, scan, index, store or domain mutation",
+          "Obsidian/ORCA vault registration, fallback or ingestion",
+          "commit, push, deploy or live action by the worker"
+        ]
+      },
+      "next_action": "After the Wave-5 registration commit, acquire one fresh exact-path claim and keep every adapter and productive source disabled.",
       "live_actions": false
     },
     {
       "id": "ULO-00-lifecycle-owner-and-runtime-inventory",
       "class": "safe_offline",
-      "owner": "Alice/Terra implementation; root/Sol deep review",
-      "status": "registered_waiting_explicit_goal",
-      "claimable": false,
-      "claim_blocker": "No implementation goal is active for this roadmap-authoring run.",
+      "owner": "Bob/Terra-requested implementation; root surface_default deep review explicitly user-authorized",
+      "status": "registered_wave5_pending_claim",
+      "claimable": true,
+      "claim_blocker": null,
       "depends_on": [
         "USI-03 and USI-13 accepted",
         "explicit Open Work goal"
@@ -16117,8 +16159,44 @@
         "scripts/audit_unified_source_index_lifecycle_owners.py",
         "tests/test_audit_unified_source_index_lifecycle_owners.py"
       ],
+      "allowed_paths_digest_sha256": "b22e2c20590c3570a754b699dd2dbc9e77c096a64d3e7383e0af701172b58f85",
       "source_roadmap": "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md",
-      "acceptance": "Freeze native lifecycle owners and exact effects while excluding plugin vault, database, cache and derived artifacts from current backup/restore/erasure authority.",
+      "path_reconciliation": "Open Work canonical lifecycle-owner paths replace the stale source-roadmap lifecycle-inventory names for this slice; the source roadmap itself is an immutable input and outside the claim.",
+      "route": {
+        "entrypoint": "/abc + goal",
+        "worker": "gpt-5.6-terra/medium requested after durable claim",
+        "review": "surface_default/root deep plus Charlie independent read-only QA",
+        "live_authority": false
+      },
+      "acceptance": "Freeze native account/domain/system lifecycle owners, exact effect classes and stable owner-scope boundaries while excluding plugin vault, database, cache and derived artifacts from current backup/restore/erasure authority.",
+      "done_when": "The canonical inventory and fail-closed audit prove one owner per lifecycle effect, synthetic-only evidence, stable opaque owner scope, generation-safe eligibility/purge/rebuild boundaries and no real rename, delete, export, backup, restore, wipe, provider or live action.",
+      "evidence": {
+        "target_environment": "local",
+        "authority": "repo",
+        "mutation_class": "safe_offline",
+        "required": ["static", "canonical_inventory_check", "focused_negative_tests", "independent_deep_review"],
+        "preclaim_verified": {
+          "all_three_targets_absent": true,
+          "cross_lane_overlap": "zero with UDA-00",
+          "unavoidable_hotfiles": [],
+          "immutable_inputs": {
+            "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md": "71307606d42bd38b4eb1865ee4e59d2e263c2a92",
+            "docs/plans/unified-source-index-architecture-contract.md": "8a71ec4da68f0dbedc6214423f2b7a1fd45fded5",
+            "docs/plans/unified-source-index-implementation-roadmap.md": "8b7d41d085fc895272e27f3e7e317718120ce1c3",
+            "docs/plans/unified-source-index-integration-impact-map.md": "4e2817c220429826d445b43475ce6e54ed6d6610",
+            "docs/plans/unified-source-index-runtime-inventory.json": "9749553f30cef0dc0681aba60d07488f777ecf5f",
+            "src/unified_source_index_stores.py": "1e15a952dc911b02b6031e361f08fb13a93a7425"
+          }
+        },
+        "forbidden": [
+          "edits outside the three canonical new claim paths",
+          "the stale source-roadmap filenames or the source roadmap itself",
+          "real account, domain, system, provider, backup, restore, erasure, wipe or migration action",
+          "plugin vault/database/cache/derived artifacts as lifecycle authority",
+          "commit, push, deploy or live action by the worker"
+        ]
+      },
+      "next_action": "After the Wave-5 registration commit, acquire one fresh exact-path claim and use only synthetic owners and temporary data semantics.",
       "live_actions": false
     },
     {
@@ -18260,10 +18338,10 @@
     "OWM-12 Privacy-Safe Tool Usage Analytics: after TAX1, start the disjoint privacy/store baseline; wait for TAX5/TAX7/TAX10 at shared integration points and keep capture/backfill disabled until the single final activation decision.",
     "OWM-13 Gemma3 Maintenance Runtime Isolation: preserve the accepted repository packet but revalidate it against UIR-13 native shared observability; the historical GRO live gate cannot satisfy or authorize GMI activation.",
     "OWM-14 GraphRAG/RAPTOR Memory Performance And Observability: preserve GRO-00 through GRO-15 as historical plugin evidence only; do not open GRO slices or GRO-LIVE-ACTIVATION, and route native performance evidence through NMG-04A/04B, UIR-13 and USI-15.",
-    "OWM-15 Unified Source Index Foundation: USI-00 through USI-14 and NMG-00 through NMG-02 plus NMG-05 are accepted; UDA-00 and ULO-00 are independently audited as the canonical Wave-5 candidates. Reconcile/register UDA-05 before NMG-03; keep Obsidian excluded, Personal Docs authoritative and every productive source disabled.",
+    "OWM-15 Unified Source Index Foundation: USI-00 through USI-14 and NMG-00 through NMG-02 plus NMG-05 are accepted; UDA-00 and ULO-00 are registered as the canonical Wave-5 inventory lanes and await fresh claims. Reconcile/register UDA-05 before NMG-03; keep Obsidian excluded, Personal Docs authoritative and every productive source disabled.",
     "OWM-19 USI Runtime And Consumer Integration: start at UIR-03 after exact composition-hotfile handoff; bind query_knowledge natively, serialize app/Chat/Agent/runtime hotfiles and execute UIR-12 classification, NMG-07 retirement and UIR-12A verification in order.",
-    "OWM-20 USI Domain Adapter Rollout: UDA-00 is independently audited on its canonical three-new-path inventory and awaits explicit Wave-5 registration; build Personal Memory and Personal Docs first, select UDA-05 only after NMG-02 for an explicit native Knowledge scope, and never register Obsidian/ORCA vault as a source or fallback.",
-    "OWM-21 USI Data Lifecycle And Operations: ULO-00 is independently audited on its canonical three-new-path inventory and awaits explicit Wave-5 registration; use synthetic owners and temporary databases, exclude legacy plugin artifacts from lifecycle authority, serialize Auth/backup/wipe hotfiles and retain every action-specific authorization.",
+    "OWM-20 USI Domain Adapter Rollout: UDA-00 is registered on its canonical three-new-path owner inventory and awaits a fresh claim; build Personal Memory and Personal Docs first, select UDA-05 only after NMG-02 for an explicit native Knowledge scope, and never register Obsidian/ORCA vault as a source or fallback.",
+    "OWM-21 USI Data Lifecycle And Operations: ULO-00 is registered on its canonical three-new-path lifecycle-owner inventory and awaits a fresh claim; use synthetic owners and temporary databases, exclude legacy plugin artifacts from lifecycle authority, serialize Auth/backup/wipe hotfiles and retain every action-specific authorization.",
     "OWM-16 Codebase Memory Code Intelligence: prepare CBM-00/CBM-01 as a pinned vendor and hybrid benchmark lane, but wait for USI identity before persistent projection; keep engine, hooks, auto-config and direct upstream tools disabled until one final activation decision.",
     "OWM-17 Code Lineage And Timeline: after USI identity, start CLT-00 with synthetic Git fixtures; keep Git read-only, label time first-observable and stop before real history backfill until one final activation decision.",
     "OWM-18 Lens Code Graph: after the bounded CBM graph API, start LCG-00 and fixture/backend work with one UI owner; preserve the visually strong Code Planet mode but keep production placement and real project graphs disabled until one independent UI-live decision.",

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-08-02T15:22:54+02:00",
+  "updated_at": "2026-08-02T15:32:37+02:00",
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
@@ -587,8 +587,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "parallel_development_wave4_accepted_wave5_uda00_ulo00_audited_pending_registration",
-      "ai_hint": "This remains the current gate and claim authority. Wave 4 CAO-08C1 plus NMG-05 is accepted and released. Register only the canonical three-new-path UDA-00 and ULO-00 inventories as Wave 5 before claims, then reserve independent read-only QA. ACPR-11 requires a separate stale-frontier reconciliation and existing-hotfile claim. Productive sources, adapters, dispatch, push, deploy, provider or host writes, sends and every live action remain disabled behind their exact gates."
+      "state": "parallel_development_wave5_uda00_ulo00_registered_pending_claims",
+      "ai_hint": "This remains the current gate and claim authority. Wave 5 UDA-00 and ULO-00 is registered on two disjoint canonical three-new-path inventories; commit fresh exact claims before worker dispatch and reserve independent read-only QA. The older source-roadmap filenames are stale inputs and must not be created. ACPR-11 remains a separate existing-hotfile reconciliation. Productive sources, adapters, lifecycle actions, push, deploy, provider or host writes, sends and every live action remain disabled behind their exact gates."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
@@ -857,14 +857,14 @@
     {
       "path": "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md",
       "profile": "active_parallel",
-      "state": "planned_source_waves_private_domains_deferred",
-      "ai_hint": "On a future parent goal claim UDA-00 only; after UDA-01, parallelize at most three disjoint new adapter files. Preserve each domain's truth, write, provider, review and exact-reader boundaries; change signals are content-free/best-effort and cannot fail domain commits. Keep Email, Calendar, Todos, Contacts and raw Session content blocked/default-off until explicit reprioritization, and contribute selected-wave UDA-18 evidence to the parent USI gate only."
+      "state": "uda00_registered_wave5_pending_exact_claim_private_domains_deferred",
+      "ai_hint": "UDA-00 is registered on the canonical owner-inventory JSON, audit and test paths; the older domain-inventory filenames in this source roadmap are stale and forbidden. After a durable exact claim, freeze truth/read/write/delete/provider/review boundaries without implementing adapters or reading source content. After UDA-01, at most three disjoint adapter files may run in parallel. Keep Email, Calendar, Todos, Contacts, raw Session content and every productive source blocked/default-off."
     },
     {
       "path": "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md",
       "profile": "active_serial",
-      "state": "planned_owner_lifecycle_backup_restore_default_off",
-      "ai_hint": "On a future parent goal claim ULO-00 only using synthetic owners and temporary databases. Serialize Auth rename, backup/restore, Admin Wipe, constants and provider lifecycle hotfiles. Keep account/domain/system actions canonical, reuse USI-13 backup primitives, require stable owner scope plus eligibility/purge/rebuild verification, perform no real destructive or backup action, and contribute ULO-14 to USI-LIVE-ACTIVATION without replacing action-specific authorization."
+      "state": "ulo00_registered_wave5_pending_exact_claim_backup_restore_default_off",
+      "ai_hint": "ULO-00 is registered on the canonical lifecycle-owner inventory JSON, audit and test paths; the older lifecycle-inventory filenames in this source roadmap are stale and forbidden. After a durable exact claim, use synthetic owners and content-free semantics only. Serialize later Auth rename, backup/restore, Admin Wipe, constants and provider hotfiles; perform no real lifecycle, destructive, backup, restore, provider or live action."
     },
     {
       "path": "docs/plans/unified-feature-completion-roadmap.md",
