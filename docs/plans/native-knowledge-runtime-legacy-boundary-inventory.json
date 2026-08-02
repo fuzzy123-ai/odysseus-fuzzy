@@ -1,0 +1,77 @@
+{
+  "boundaries": [
+    {
+      "boundary_kind": "app",
+      "disposition": "retire",
+      "legacy_family": "lens_projection",
+      "retirement_gate": "NMG-07-native-runtime-retirement",
+      "source_identifier": "app.ai_lens"
+    },
+    {
+      "boundary_kind": "app",
+      "disposition": "retire",
+      "legacy_family": "memory_route",
+      "retirement_gate": "NMG-07-native-runtime-retirement",
+      "source_identifier": "app.memory_routes"
+    },
+    {
+      "boundary_kind": "core",
+      "disposition": "retire",
+      "legacy_family": "memory_lifecycle",
+      "retirement_gate": "NMG-07-native-runtime-retirement",
+      "source_identifier": "core.memory_lifecycle"
+    },
+    {
+      "boundary_kind": "core",
+      "disposition": "retire",
+      "legacy_family": "memory_store",
+      "retirement_gate": "NMG-07-native-runtime-retirement",
+      "source_identifier": "core.memory_store"
+    },
+    {
+      "boundary_kind": "core",
+      "disposition": "retire",
+      "legacy_family": "graph_query",
+      "retirement_gate": "NMG-07-native-runtime-retirement",
+      "source_identifier": "core.progressive_graph"
+    },
+    {
+      "boundary_kind": "core",
+      "disposition": "retire",
+      "legacy_family": "rag_pipeline",
+      "retirement_gate": "NMG-07-native-runtime-retirement",
+      "source_identifier": "core.rag_pipeline"
+    },
+    {
+      "boundary_kind": "core",
+      "disposition": "retire",
+      "legacy_family": "raptorgraph_projection",
+      "retirement_gate": "NMG-07-native-runtime-retirement",
+      "source_identifier": "core.raptorgraph_candidate_mapping"
+    },
+    {
+      "boundary_kind": "plugin",
+      "disposition": "excluded",
+      "legacy_family": "memory_runtime",
+      "retirement_gate": "not_current_product_runtime",
+      "source_identifier": "plugin.obsidian.memory"
+    },
+    {
+      "boundary_kind": "plugin",
+      "disposition": "excluded",
+      "legacy_family": "orca_compatibility",
+      "retirement_gate": "not_current_product_runtime",
+      "source_identifier": "plugin.obsidian.orca"
+    },
+    {
+      "boundary_kind": "plugin",
+      "disposition": "excluded",
+      "legacy_family": "raptor_runtime",
+      "retirement_gate": "not_current_product_runtime",
+      "source_identifier": "plugin.obsidian.raptor"
+    }
+  ],
+  "content_policy": "identifiers_only_no_source_content_or_runtime_data",
+  "live_effect": false,
+  "schema_version": "odysseus.native_knowledge_legacy_boundary_inventory.v1"
+}
