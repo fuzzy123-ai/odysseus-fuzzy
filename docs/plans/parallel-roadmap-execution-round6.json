@@ -2,8 +2,8 @@
   "schema_version": 1,
   "kind": "odysseus.parallel_roadmap_execution_round",
   "round_id": "round6",
-  "updated_at": "2026-08-11T20:55:00+02:00",
-  "status": "round6_authority_revision208_nmg05a_writer_task_transferred_running",
+  "updated_at": "2026-08-11T21:10:00+02:00",
+  "status": "round6_authority_revision210_nmg05a_running_fca03a_claimed_tests_first",
   "goal": "After accepted Round 5, expose disjoint Coding, Memory/Data and App Integration frontiers with independent QA while keeping every central router master-only.",
   "prerequisite": {
     "round5_state": "accepted_released",
@@ -825,6 +825,112 @@
       }
     },
     {
+      "roadmap_path": "docs/plans/forge-usi-code-source-adapter-roadmap.md",
+      "lane": "memory_data",
+      "slice": {
+        "id": "FCA-03A-revision-bound-resumable-forge-content-reader",
+        "state": "claimed_tests_first",
+        "claimable": false,
+        "depends_on": [
+          "FCA-00-forge-source-inventory",
+          "FCA-02-coverage-manifest-and-no-gap-verifier",
+          "FCA-POL-00-content-policy"
+        ],
+        "dependency_evidence": [
+          {
+            "id": "FCA-00-forge-source-inventory",
+            "state": "accepted_commit_75f8f8f3"
+          },
+          {
+            "id": "FCA-02-coverage-manifest-and-no-gap-verifier",
+            "state": "accepted_released_round6"
+          },
+          {
+            "id": "FCA-POL-00-content-policy",
+            "state": "accepted_released"
+          }
+        ],
+        "allowed_paths": [
+          "src/repo_git_adapter.py",
+          "tests/test_repo_git_adapter.py"
+        ],
+        "hotfiles": [
+          "src/repo_git_adapter.py",
+          "tests/test_repo_git_adapter.py"
+        ],
+        "master_only_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json",
+          "docs/plans/multi-agent-execution-guidance.json"
+        ],
+        "owner": "Bob/Terra high judgment_required",
+        "independent_qa_reviewer": "Charlie/Terra fresh-context",
+        "root_review_depth": "deep",
+        "automatic_gates": [
+          {
+            "id": "FCA-03A-focused",
+            "command": "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider tests\\test_repo_git_adapter.py --basetemp .abc-test-tmp\\ABC-FCA03A-REV210\\focused",
+            "pass_condition": "all inherited twelve exact tests-first nodes pass"
+          },
+          {
+            "id": "FCA-03A-dependency",
+            "command": "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider tests\\test_repo_git_adapter.py tests\\test_unified_source_index_forge_code_source.py tests\\test_unified_source_index_code_coverage.py tests\\test_unified_source_index_code_policy.py tests\\test_repo_registry.py --basetemp .abc-test-tmp\\ABC-FCA03A-REV210\\dependency",
+            "pass_condition": "FCA-00 and accepted FCA-02 dependencies pass"
+          },
+          {
+            "id": "FCA-03A-static",
+            "command": "venv\\Scripts\\python.exe -B -m py_compile src\\repo_git_adapter.py tests\\test_repo_git_adapter.py",
+            "pass_condition": "both writer paths compile and exact diff has zero forbidden effects"
+          },
+          {
+            "id": "FCA-03A-integration",
+            "command": "venv\\Scripts\\python.exe -B scripts\\validate_integration_spine_convergence.py --format json",
+            "pass_condition": "Integration Spine passes"
+          },
+          {
+            "id": "FCA-03A-round6",
+            "command": "venv\\Scripts\\python.exe -B scripts\\validate_parallel_roadmap_execution.py --format json",
+            "pass_condition": "Round6 passes"
+          },
+          {
+            "id": "FCA-03A-guidance",
+            "command": "venv\\Scripts\\python.exe -B scripts\\roadmap_multi_agent_guidance.py --format json",
+            "pass_condition": "Guidance passes"
+          }
+        ],
+        "remaining_user_gates": [],
+        "normalization_blockers": [],
+        "claim_id": "ABC-FCA03A-REV210",
+        "authority_revision": 210,
+        "architecture_binding": {
+          "path": "docs/plans/abc-fca03a-revision-bound-resumable-forge-content-reader-architecture-v2.json",
+          "raw_blob": "5000621ed45d2c6ff2a9f478286f7379896feb8e",
+          "semantic_digest_sha256": "sha256:5b74506d92f6b4db3e072be1e333cb576f070e6aee31a4f8cf2a2dac46bb0533",
+          "inherited_v1_raw_blob": "2ca38eafa20eaf3e1c586f27d18797f331c21457"
+        },
+        "correction_budget": {
+          "failure_class": "fca03a_revision_bound_resumable_page_cursor_object_binding_and_fca00_compatibility",
+          "limit": 1,
+          "used": 0
+        },
+        "required_nodes": [
+          "tests/test_repo_git_adapter.py::test_fca03a_v2_public_api_schemas_budgets_and_v1_exports_are_exact",
+          "tests/test_repo_git_adapter.py::test_fca03a_empty_file_returns_one_empty_terminal_page",
+          "tests/test_repo_git_adapter.py::test_fca03a_one_million_and_one_bytes_resume_without_gap_or_retention",
+          "tests/test_repo_git_adapter.py::test_fca03a_max_file_completes_in_exactly_seventeen_bounded_pages",
+          "tests/test_repo_git_adapter.py::test_fca03a_file_and_page_max_plus_one_fail_closed",
+          "tests/test_repo_git_adapter.py::test_fca03a_cursor_hash_binds_every_identity_offset_and_page_field",
+          "tests/test_repo_git_adapter.py::test_fca03a_cursor_cannot_rebind_owner_repo_revision_snapshot_path_digest_or_authority",
+          "tests/test_repo_git_adapter.py::test_fca03a_short_zero_progress_overlong_shifted_and_nonbytes_ranges_fail_closed",
+          "tests/test_repo_git_adapter.py::test_fca03a_exact_builtin_capture_rejects_subclasses_without_callbacks",
+          "tests/test_repo_git_adapter.py::test_fca03a_callback_mutation_and_post_validation_tamper_are_detached",
+          "tests/test_repo_git_adapter.py::test_fca03a_errors_are_fresh_bounded_content_free_and_suppress_context",
+          "tests/test_repo_git_adapter.py::test_fca03a_static_diff_has_zero_effects_and_cursor_projection_has_zero_content"
+        ]
+      },
+      "source_evidence": "Rev209 compact rebind packet inherits the exact sealed FCA-03A v1 contract against Rev208 router pins; baselines and all thirteen pins re-read exactly."
+    }
+    ,
+    {
       "roadmap_path": "docs/plans/rag-memory-tokenization-roadmap.md",
       "lane": "memory_data",
       "slice": {
@@ -1183,51 +1289,6 @@
         "normalization_blockers": []
       },
       "source_evidence": "Wave-5 ULO-00 acceptance plus accepted USI identity contracts supersede stale ULO-00 ready_after_goal_start text"
-    },
-    {
-      "roadmap_path": "docs/plans/forge-usi-code-source-adapter-roadmap.md",
-      "lane": "memory_data",
-      "slice": {
-        "id": "FCA-02-coverage-manifest-and-no-gap-verifier",
-        "state": "dependency_ready_unclaimed_default_off",
-        "claimable": false,
-        "depends_on": [
-          "FCA-01"
-        ],
-        "dependency_evidence": [
-          {
-            "id": "FCA-01",
-            "state": "accepted_released_round7"
-          }
-        ],
-        "allowed_paths": [
-          "src/unified_source_index_code_coverage.py",
-          "tests/test_unified_source_index_code_coverage.py"
-        ],
-        "hotfiles": [],
-        "master_only_paths": [],
-        "owner": "unassigned pending fresh FCA-02 claim",
-        "independent_qa_reviewer": "unassigned independent reviewer pending fresh FCA-02 claim",
-        "root_review_depth": "deep",
-        "automatic_gates": [
-          {
-            "id": "FCA-02-focused",
-            "command": "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider tests\\test_unified_source_index_code_coverage.py tests\\test_unified_source_index_forge_code_source.py",
-            "pass_condition": "coverage/no-gap and Forge source regressions pass under a future exact FCA-02 claim"
-          }
-        ],
-        "remaining_user_gates": [
-          {
-            "id": "USI-LIVE-ACTIVATION",
-            "blocks_current_slice": false,
-            "reason": "Productive indexing and every provider, runtime or live activation remain separately gated."
-          }
-        ],
-        "normalization_blockers": [
-          "Fresh exact owner/reviewer assignment, pins and path-collision audit are required before a future FCA-02 writer claim."
-        ]
-      },
-      "source_evidence": "FCA current registration handoff: FCA-00 and FCA-01 accepted/released; FCA-02 is the sole dependency-ready FCA frontier and remains unclaimed/default-off."
     },
     {
       "roadmap_path": "docs/plans/abc-frontpage-v2-build-plan.md",
@@ -2109,6 +2170,41 @@
         "state": "accepted_owner_handoff_preserving_scope_lease_candidate_and_worktree",
         "worktree_unchanged": "C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone"
       }
+    },
+    {
+      "claim_id": "ABC-FCA03A-REV210",
+      "slice_id": "FCA-03A-revision-bound-resumable-forge-content-reader",
+      "owner": "Bob/Terra high judgment_required",
+      "thread_id": "/root/fca03a_writer_rev210",
+      "state": "running",
+      "claim_state": "claimed_tests_first",
+      "authority_revision": 210,
+      "claimed_at": "2026-08-11T21:10:00+02:00",
+      "lease_expires_at": "2026-08-12T09:10:00+02:00",
+      "mutation_authority": "repo_only",
+      "worktree": "C:\\Users\\nkatz\\odysseus",
+      "allowed_paths": [
+        "src/repo_git_adapter.py",
+        "tests/test_repo_git_adapter.py"
+      ],
+      "hotfiles": [
+        "src/repo_git_adapter.py",
+        "tests/test_repo_git_adapter.py"
+      ],
+      "baseline_blobs": {
+        "src/repo_git_adapter.py": "c8c1b7f904dbc9f0175bfe0d56c2343b2c462bdc",
+        "tests/test_repo_git_adapter.py": "5583fafedb487e36e45323bd6c7eaf3a914368ce"
+      },
+      "architecture_path": "docs/plans/abc-fca03a-revision-bound-resumable-forge-content-reader-architecture-v2.json",
+      "architecture_raw_blob": "5000621ed45d2c6ff2a9f478286f7379896feb8e",
+      "architecture_semantic_digest_sha256": "sha256:5b74506d92f6b4db3e072be1e333cb576f070e6aee31a4f8cf2a2dac46bb0533",
+      "candidate_state": "not_frozen",
+      "correction_budget": {
+        "failure_class": "fca03a_revision_bound_resumable_page_cursor_object_binding_and_fca00_compatibility",
+        "limit": 1,
+        "used": 0
+      },
+      "live_actions": false
     }
   ],
   "waves": [

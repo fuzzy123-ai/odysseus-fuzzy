@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-11T20:55:00+02:00",
-  "status": "round5_accepted_released / long_run_active / denominator_unknown / 153_known_accepted / nmg05a_writer_task_transferred_running_authority_revision208",
+  "updated_at": "2026-08-11T21:10:00+02:00",
+  "status": "round5_accepted_released / long_run_active / denominator_unknown / 153_known_accepted / nmg05a_running / fca03a_claimed_tests_first_authority_revision210",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -1293,6 +1293,156 @@
             "allowed_paths_unchanged": true,
             "candidate_state": "recoverable_two_path_untracked_candidate"
           }
+        },
+        {
+          "claim_id": "ABC-FCA03A-REV210",
+          "slice_id": "FCA-03A-revision-bound-resumable-forge-content-reader",
+          "owner": "Bob/Terra high judgment_required",
+          "thread_id": "/root/fca03a_writer_rev210",
+          "state": "claimed_tests_first",
+          "execution_state": "running",
+          "authority_revision": 210,
+          "claimed_at": "2026-08-11T21:10:00+02:00",
+          "lease_expires_at": "2026-08-12T09:10:00+02:00",
+          "mutation_authority": "repo_only",
+          "worktree": "C:\\Users\\nkatz\\odysseus",
+          "allowed_paths": [
+            "src/repo_git_adapter.py",
+            "tests/test_repo_git_adapter.py"
+          ],
+          "hotfiles": [
+            "src/repo_git_adapter.py",
+            "tests/test_repo_git_adapter.py"
+          ],
+          "baseline_blobs": {
+            "src/repo_git_adapter.py": "c8c1b7f904dbc9f0175bfe0d56c2343b2c462bdc",
+            "tests/test_repo_git_adapter.py": "5583fafedb487e36e45323bd6c7eaf3a914368ce"
+          },
+          "baseline_readback": "materialized_exact_binary_readback_pass_and_scoped_diff_empty",
+          "architecture": {
+            "id": "FCA-03A-REVISION-BOUND-RESUMABLE-FORGE-CONTENT-READER-SOL-ARCH-v2",
+            "path": "docs/plans/abc-fca03a-revision-bound-resumable-forge-content-reader-architecture-v2.json",
+            "raw_blob": "5000621ed45d2c6ff2a9f478286f7379896feb8e",
+            "semantic_seal_bytes": 3699,
+            "semantic_digest_sha256": "sha256:5b74506d92f6b4db3e072be1e333cb576f070e6aee31a4f8cf2a2dac46bb0533",
+            "inherited_v1_path": "docs/plans/abc-fca03a-revision-bound-resumable-forge-content-reader-architecture.json",
+            "inherited_v1_raw_blob": "2ca38eafa20eaf3e1c586f27d18797f331c21457",
+            "inherited_v1_semantic_digest_sha256": "sha256:8232bb5b6e15b78b42a85619923a00c83e83f630f37a7a5f6c44d316071856f2"
+          },
+          "read_only_pins": {
+            "docs/plans/forge-usi-code-source-adapter-roadmap.md": "42cdecd6c2a62582d6e8b12aa1d588e230ee9c56",
+            "docs/plans/multi-agent-execution-guidance.json": "4bddbb2bb36a3391469f6f61cc1ac53dfe1a90bf",
+            "docs/plans/open-work-completion-master-roadmap.json": "e1b96582fb8b6ccbce5b9ca921be27e321434dcb",
+            "docs/plans/parallel-roadmap-execution-round6.json": "60db2e929ea0c460182675e102941a9520cb349e",
+            "docs/plans/parallel-roadmap-execution-round7.json": "2b8e2a60eeb6bda341904ab417e557ada5d17a67",
+            "src/repo_registry.py": "6eb2067dfbbbb2ad1538d8adadfb448d040a6adc",
+            "src/unified_source_index_code_coverage.py": "92a43ff51951134c68290d5e156bffd811c23539",
+            "src/unified_source_index_code_policy.py": "84b32e0508f162cf70441d4a090b502c58660445",
+            "src/unified_source_index_sources/forge_code.py": "6ecb59fd944cd7b33158e964eff88f4de915a6df",
+            "tests/test_repo_registry.py": "2a6e7c91c6b4f5d0fc88005b729e7bea45945da5",
+            "tests/test_unified_source_index_code_coverage.py": "21a648061cd311128e69d6862e69a440ba5ba394",
+            "tests/test_unified_source_index_code_policy.py": "4db2931edbaf16f30576e8ec53e6e36b08f85b4a",
+            "tests/test_unified_source_index_forge_code_source.py": "38f86696cd657dbc28da458a6e18b331e5001b4d"
+          },
+          "tests_first": {
+            "required_nodes": [
+              "tests/test_repo_git_adapter.py::test_fca03a_v2_public_api_schemas_budgets_and_v1_exports_are_exact",
+              "tests/test_repo_git_adapter.py::test_fca03a_empty_file_returns_one_empty_terminal_page",
+              "tests/test_repo_git_adapter.py::test_fca03a_one_million_and_one_bytes_resume_without_gap_or_retention",
+              "tests/test_repo_git_adapter.py::test_fca03a_max_file_completes_in_exactly_seventeen_bounded_pages",
+              "tests/test_repo_git_adapter.py::test_fca03a_file_and_page_max_plus_one_fail_closed",
+              "tests/test_repo_git_adapter.py::test_fca03a_cursor_hash_binds_every_identity_offset_and_page_field",
+              "tests/test_repo_git_adapter.py::test_fca03a_cursor_cannot_rebind_owner_repo_revision_snapshot_path_digest_or_authority",
+              "tests/test_repo_git_adapter.py::test_fca03a_short_zero_progress_overlong_shifted_and_nonbytes_ranges_fail_closed",
+              "tests/test_repo_git_adapter.py::test_fca03a_exact_builtin_capture_rejects_subclasses_without_callbacks",
+              "tests/test_repo_git_adapter.py::test_fca03a_callback_mutation_and_post_validation_tamper_are_detached",
+              "tests/test_repo_git_adapter.py::test_fca03a_errors_are_fresh_bounded_content_free_and_suppress_context",
+              "tests/test_repo_git_adapter.py::test_fca03a_static_diff_has_zero_effects_and_cursor_projection_has_zero_content"
+            ],
+            "red_requirement": "all twelve nodes collect and fail only on absent v2 exports or declared missing v2 behavior before the source edit",
+            "workspaces": {
+              "focused": ".abc-test-tmp\\ABC-FCA03A-REV210\\focused",
+              "dependency": ".abc-test-tmp\\ABC-FCA03A-REV210\\dependency",
+              "qa": ".abc-test-tmp\\ABC-FCA03A-REV210\\qa"
+            }
+          },
+          "regression_tests": [
+            "tests/test_unified_source_index_forge_code_source.py",
+            "tests/test_unified_source_index_code_coverage.py",
+            "tests/test_unified_source_index_code_policy.py",
+            "tests/test_repo_registry.py"
+          ],
+          "verification_commands": {
+            "focused": [
+              "venv\\Scripts\\python.exe",
+              "-B",
+              "-m",
+              "pytest",
+              "-q",
+              "-p",
+              "no:cacheprovider",
+              "tests\\test_repo_git_adapter.py",
+              "--basetemp",
+              ".abc-test-tmp\\ABC-FCA03A-REV210\\focused"
+            ],
+            "dependency": [
+              "venv\\Scripts\\python.exe",
+              "-B",
+              "-m",
+              "pytest",
+              "-q",
+              "-p",
+              "no:cacheprovider",
+              "tests\\test_repo_git_adapter.py",
+              "tests\\test_unified_source_index_forge_code_source.py",
+              "tests\\test_unified_source_index_code_coverage.py",
+              "tests\\test_unified_source_index_code_policy.py",
+              "tests\\test_repo_registry.py",
+              "--basetemp",
+              ".abc-test-tmp\\ABC-FCA03A-REV210\\dependency"
+            ],
+            "central": [
+              [
+                "venv\\Scripts\\python.exe",
+                "-B",
+                "scripts\\validate_integration_spine_convergence.py",
+                "--format",
+                "json"
+              ],
+              [
+                "venv\\Scripts\\python.exe",
+                "-B",
+                "scripts\\validate_parallel_roadmap_execution.py",
+                "--format",
+                "json"
+              ],
+              [
+                "venv\\Scripts\\python.exe",
+                "-B",
+                "scripts\\roadmap_multi_agent_guidance.py",
+                "--format",
+                "json"
+              ]
+            ]
+          },
+          "acceptance_contract": "exact inherited v1 architecture acceptance and hostile matrix, plus fresh independent QA and Root/Sol deep review on one frozen two-blob candidate",
+          "correction_budget": {
+            "failure_class": "fca03a_revision_bound_resumable_page_cursor_object_binding_and_fca00_compatibility",
+            "limit": 1,
+            "used": 0,
+            "on_repeat": "release_blocked and require fresh Root/Sol architecture"
+          },
+          "candidate_state": "not_frozen",
+          "candidate_blobs": {},
+          "independent_qa_reviewer": "Charlie/Terra fresh-context",
+          "root_review_depth": "deep",
+          "live_actions": false,
+          "forbidden": [
+            "third writer path",
+            "router or guidance edit by worker",
+            "filesystem Git subprocess provider network persistence runtime or live effect",
+            "stage commit push deploy or publication"
+          ]
         }
       ],
       "authority_snapshot": {
@@ -1489,7 +1639,7 @@
         "The Round7 2/2 FCA-02 plus UIR-03A snapshot is local and must not be presented as global Open Work completion.",
         "UIR-04C, UIR-05A and UIR-05B are accepted Round7 overlays absent from the 132-row abc_execution_queue and must be reconciled before the accepted set is frozen."
       ],
-      "next_action": "Transferred task 019ff221-b9c1-7533-b239-8a117cc46ec2 resumes only the recoverable two-path NMG-05A candidate in the unchanged standalone worktree after exact authority and detached-HEAD readback; no third path, commit, push, deploy or live action is authorized.",
+      "next_action": "Run NMG-05A only in its transferred unchanged standalone worktree and FCA-03A only under ABC-FCA03A-REV210 on its exact two clean paths; freeze and independently review each candidate before acceptance, with no push, deploy or live action.",
       "baseline_generation_correction_budget": {
         "failure_class": "global_goal_baseline_scope_acceptance_and_router_snapshot_binding",
         "limit": 1,
