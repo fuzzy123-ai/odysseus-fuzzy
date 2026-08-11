@@ -1,0 +1,96 @@
+{
+  "architect": "root/Sol FCA-03A Rev208 authority rebind",
+  "architecture_id": "FCA-03A-REVISION-BOUND-RESUMABLE-FORGE-CONTENT-READER-SOL-ARCH-v2",
+  "architecture_seal": {
+    "authority": {
+      "architecture_only_revision": 209,
+      "current_router_revision": 208,
+      "mutation_authority": "repo_only",
+      "queue": "open_work_named_predecessor",
+      "source_commit": "a54c3b97 Transfer NMG-05A writer claim",
+      "standing_user_authority": "/go authorizes dependency-ready disjoint repo_only registration, tests, QA, Root/Sol review and clean local commits"
+    },
+    "claim_registration": {
+      "allowed_paths": [
+        "src/repo_git_adapter.py",
+        "tests/test_repo_git_adapter.py"
+      ],
+      "claim_id": "ABC-FCA03A-REV210",
+      "claim_state": "claimed_tests_first",
+      "hotfiles": [
+        "src/repo_git_adapter.py",
+        "tests/test_repo_git_adapter.py"
+      ],
+      "independent_qa": "Charlie/Terra fresh-context",
+      "lease_hours": 12,
+      "owner": "Bob/Terra high judgment_required",
+      "reviewer": "Root/Sol deep"
+    },
+    "collision_readback": {
+      "active_disjoint_claim": "ABC-NMG05A-REV203 owns only src/causal_claim_store.py and tests/test_causal_claim_store.py",
+      "baseline_blobs": {
+        "src/repo_git_adapter.py": "c8c1b7f904dbc9f0175bfe0d56c2343b2c462bdc",
+        "tests/test_repo_git_adapter.py": "5583fafedb487e36e45323bd6c7eaf3a914368ce"
+      },
+      "candidate_paths_clean": true,
+      "index_empty": true
+    },
+    "inherited_product_contract": {
+      "inherit_exact_sections": [
+        "acceptance",
+        "allowed_paths",
+        "baseline_blobs",
+        "baseline_readback",
+        "budgets",
+        "collision_rules",
+        "control_plane",
+        "correction_budget",
+        "cursor_and_page_algorithms",
+        "error_boundary",
+        "forbidden",
+        "hostile_matrix",
+        "invariants",
+        "public_api",
+        "representation",
+        "route",
+        "schemas",
+        "stop_rule",
+        "target",
+        "tests_first",
+        "verification"
+      ],
+      "path": "docs/plans/abc-fca03a-revision-bound-resumable-forge-content-reader-architecture.json",
+      "raw_blob": "2ca38eafa20eaf3e1c586f27d18797f331c21457",
+      "raw_sha256": "sha256:9367dafb008b64686ff2fcf76a041ed1be443b20ea26708f8d4860bd90391e18",
+      "rule": "The inherited sealed v1 product contract is authoritative without semantic relaxation or expansion; this v2 packet only rebinds current router authority and the future claim revision.",
+      "semantic_digest_sha256": "sha256:8232bb5b6e15b78b42a85619923a00c83e83f630f37a7a5f6c44d316071856f2",
+      "semantic_seal_bytes": 19461
+    },
+    "read_only_pins": {
+      "docs/plans/forge-usi-code-source-adapter-roadmap.md": "42cdecd6c2a62582d6e8b12aa1d588e230ee9c56",
+      "docs/plans/multi-agent-execution-guidance.json": "4bddbb2bb36a3391469f6f61cc1ac53dfe1a90bf",
+      "docs/plans/open-work-completion-master-roadmap.json": "e1b96582fb8b6ccbce5b9ca921be27e321434dcb",
+      "docs/plans/parallel-roadmap-execution-round6.json": "60db2e929ea0c460182675e102941a9520cb349e",
+      "docs/plans/parallel-roadmap-execution-round7.json": "2b8e2a60eeb6bda341904ab417e557ada5d17a67",
+      "src/repo_registry.py": "6eb2067dfbbbb2ad1538d8adadfb448d040a6adc",
+      "src/unified_source_index_code_coverage.py": "92a43ff51951134c68290d5e156bffd811c23539",
+      "src/unified_source_index_code_policy.py": "84b32e0508f162cf70441d4a090b502c58660445",
+      "src/unified_source_index_sources/forge_code.py": "6ecb59fd944cd7b33158e964eff88f4de915a6df",
+      "tests/test_repo_registry.py": "2a6e7c91c6b4f5d0fc88005b729e7bea45945da5",
+      "tests/test_unified_source_index_code_coverage.py": "21a648061cd311128e69d6862e69a440ba5ba394",
+      "tests/test_unified_source_index_code_policy.py": "4db2931edbaf16f30576e8ec53e6e36b08f85b4a",
+      "tests/test_unified_source_index_forge_code_source.py": "38f86696cd657dbc28da458a6e18b331e5001b4d"
+    },
+    "stop_rule": "Stop before registration on any baseline, pin, claim, hotfile or index drift. After dispatch preserve inherited one-correction stop rule and release_blocked on same-class recurrence.",
+    "transactions": {
+      "revision_209": "Persist and freeze only this compact authority-rebind architecture packet; no router, product, stage, commit, push, deploy or live mutation.",
+      "revision_210": "Root atomically registers ABC-FCA03A-REV210 after fresh compare-before readback, preserving the active disjoint NMG claim."
+    }
+  },
+  "authority_revision": 209,
+  "schema": "odysseus.sol_architecture_rebind",
+  "semantic_digest_framing": "SHA256(compact sorted-key UTF-8 architecture_seal JSON)",
+  "semantic_digest_sha256": "sha256:5b74506d92f6b4db3e072be1e333cb576f070e6aee31a4f8cf2a2dac46bb0533",
+  "semantic_seal_bytes": 3699,
+  "state": "frozen_standalone_rebind_proposed_rev209"
+}
