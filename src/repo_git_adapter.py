@@ -6,9 +6,10 @@ import os
 import re
 import subprocess
 import time
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Mapping, Protocol, runtime_checkable
 
 from src.constants import MAX_OUTPUT_CHARS
 from src.repo_registry import RepoRecord, RepoRegistry, RepoRegistryError, redact_remote_url
@@ -21,10 +22,235 @@ _LOG_PRETTY = "format:%H%x09%ad%x09%an%x09%s"
 _SECRET_RE = re.compile(r"(?i)\b(token|secret|password|passwd|api[_-]?key|bearer)\b\s*[:=]\s*\S+")
 _WINDOWS_PATH_RE = re.compile(r"[A-Za-z]:[\\/][^\s\t]+")
 _ABSOLUTE_PATH_RE = re.compile(r"(?<![A-Za-z0-9._-])/(?:[^\s/]+/)*[^\s]+")
+_FORGE_SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+_FORGE_COMMIT_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
+_FORGE_VERSION_RE = re.compile(r"^pv_[0-9a-f]{32}$")
+_FORGE_TOKEN_RE = re.compile(r"^[a-z][a-z0-9_.:-]{0,127}$")
+_FORGE_OWNER_SCOPE_RE = re.compile(r"^[a-z][a-z0-9_.-]{0,63}:[a-z0-9][a-z0-9_.-]{0,127}$")
+_FORGE_WINDOWS_INVALID_PATH_CHARS = frozenset('<>:"|?*')
+_FORGE_WINDOWS_RESERVED_NAMES = frozenset(
+    {"con", "prn", "aux", "nul"}
+    | {f"com{index}" for index in range(1, 10)}
+    | {f"lpt{index}" for index in range(1, 10)}
+)
+
+MAX_FORGE_SNAPSHOT_FILES = 512
+MAX_FORGE_FILE_BYTES = 16 * 1024 * 1024
+MAX_FORGE_EXACT_READ_BYTES = 1_000_000
 
 
 class RepoGitAdapterError(ValueError):
     """Raised when read-only repo Git access is unsafe or fails."""
+
+
+class ForgeSnapshotError(RepoGitAdapterError):
+    """Raised when immutable Forge snapshot evidence is incomplete or unsafe."""
+
+
+@dataclass(frozen=True, slots=True)
+class ForgeSnapshotAuthorityBinding:
+    """Versioned adapter and admission authority bound to every Forge fact."""
+
+    adapter_id: str
+    adapter_version: str
+    adapter_generation: str
+    admission_policy_generation: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "adapter_id", _forge_token(self.adapter_id, "adapter_id"))
+        object.__setattr__(self, "adapter_version", _forge_token(self.adapter_version, "adapter_version"))
+        object.__setattr__(self, "adapter_generation", _forge_token(self.adapter_generation, "adapter_generation"))
+        object.__setattr__(
+            self,
+            "admission_policy_generation",
+            _forge_token(self.admission_policy_generation, "admission_policy_generation"),
+        )
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "adapter_id": self.adapter_id,
+            "adapter_version": self.adapter_version,
+            "adapter_generation": self.adapter_generation,
+            "admission_policy_generation": self.admission_policy_generation,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ForgeSnapshotRequest:
+    """An authenticated, version-bound request for content-free Forge facts.
+
+    ``authorization_ref`` is an opaque reference resolved only by the supplied
+    Forge boundary.  It is deliberately not a credential and is never returned
+    in a snapshot or reader reference.
+    """
+
+    owner_scope: str
+    authorization_ref: str
+    repo_id: str
+    version_id: str
+    commit_sha: str
+    authority_binding: ForgeSnapshotAuthorityBinding
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "owner_scope", _forge_owner_scope(self.owner_scope))
+        object.__setattr__(self, "authorization_ref", _forge_token(self.authorization_ref, "authorization_ref"))
+        object.__setattr__(self, "repo_id", _forge_token(self.repo_id, "repo_id"))
+        object.__setattr__(self, "version_id", _forge_version_id(self.version_id))
+        object.__setattr__(self, "commit_sha", _forge_commit_sha(self.commit_sha))
+        if type(self.authority_binding) is not ForgeSnapshotAuthorityBinding:
+            raise ForgeSnapshotError("authority_binding must be a typed Forge authority binding")
+
+
+@dataclass(frozen=True, slots=True)
+class ForgeSnapshotFile:
+    """One source-free file descriptor from an immutable Forge snapshot."""
+
+    path: str
+    content_sha256: str
+    byte_count: int
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "path", _forge_relative_path(self.path))
+        object.__setattr__(self, "content_sha256", _forge_sha256(self.content_sha256, "content_sha256"))
+        if type(self.byte_count) is not int or not 0 <= self.byte_count <= MAX_FORGE_FILE_BYTES:
+            raise ForgeSnapshotError("byte_count is invalid or exceeds the Forge file bound")
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "path": self.path,
+            "content_sha256": self.content_sha256,
+            "byte_count": self.byte_count,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ForgeSnapshotInventory:
+    """Immutable, content-free inventory for one retained Forge version."""
+
+    owner_scope: str
+    repo_id: str
+    version_id: str
+    commit_sha: str
+    manifest_sha256: str
+    authority_binding: ForgeSnapshotAuthorityBinding
+    files: tuple[ForgeSnapshotFile, ...]
+    snapshot_digest: str = ""
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "owner_scope", _forge_owner_scope(self.owner_scope))
+        object.__setattr__(self, "repo_id", _forge_token(self.repo_id, "repo_id"))
+        object.__setattr__(self, "version_id", _forge_version_id(self.version_id))
+        object.__setattr__(self, "commit_sha", _forge_commit_sha(self.commit_sha))
+        object.__setattr__(self, "manifest_sha256", _forge_sha256(self.manifest_sha256, "manifest_sha256"))
+        if type(self.authority_binding) is not ForgeSnapshotAuthorityBinding:
+            raise ForgeSnapshotError("authority_binding must be a typed Forge authority binding")
+        if type(self.files) is not tuple or len(self.files) > MAX_FORGE_SNAPSHOT_FILES:
+            raise ForgeSnapshotError("Forge snapshot files must be a bounded tuple")
+        if not all(type(item) is ForgeSnapshotFile for item in self.files):
+            raise ForgeSnapshotError("Forge snapshot files must be typed descriptors")
+        files = tuple(sorted(self.files, key=lambda item: item.path))
+        if len({_forge_locator_key(item.path) for item in files}) != len(files):
+            raise ForgeSnapshotError("Forge snapshot contains case-insensitive duplicate file paths")
+        object.__setattr__(self, "files", files)
+        expected = self._digest()
+        supplied = self.snapshot_digest
+        if supplied and _forge_sha256(supplied, "snapshot_digest") != expected:
+            raise ForgeSnapshotError("Forge snapshot digest does not match immutable inventory")
+        object.__setattr__(self, "snapshot_digest", expected)
+
+    def _digest(self) -> str:
+        import hashlib
+        import json
+
+        payload = {
+            "schema": "odysseus.forge_snapshot_inventory.v1",
+            "owner_scope": self.owner_scope,
+            "repo_id": self.repo_id,
+            "version_id": self.version_id,
+            "commit_sha": self.commit_sha,
+            "manifest_sha256": self.manifest_sha256,
+            "authority_binding": self.authority_binding.to_dict(),
+            "files": [item.to_dict() for item in self.files],
+        }
+        encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+    def file(self, path: object) -> ForgeSnapshotFile:
+        locator_key = _forge_locator_key(path)
+        for item in self.files:
+            if _forge_locator_key(item.path) == locator_key:
+                return item
+        raise ForgeSnapshotError("file is not present in the immutable Forge snapshot")
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "schema": "odysseus.forge_snapshot_inventory.v1",
+            "owner_scope": self.owner_scope,
+            "repo_id": self.repo_id,
+            "version_id": self.version_id,
+            "commit_sha": self.commit_sha,
+            "manifest_sha256": self.manifest_sha256,
+            "authority_binding": self.authority_binding.to_dict(),
+            "files": [item.to_dict() for item in self.files],
+            "snapshot_digest": self.snapshot_digest,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ForgeExactReaderReference:
+    """A bounded locator for a future exact reader, never file content."""
+
+    owner_scope: str
+    repo_id: str
+    version_id: str
+    commit_sha: str
+    snapshot_digest: str
+    path: str
+    content_sha256: str
+    max_bytes: int
+    authority_binding: ForgeSnapshotAuthorityBinding
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "owner_scope", _forge_owner_scope(self.owner_scope))
+        object.__setattr__(self, "repo_id", _forge_token(self.repo_id, "repo_id"))
+        object.__setattr__(self, "version_id", _forge_version_id(self.version_id))
+        object.__setattr__(self, "commit_sha", _forge_commit_sha(self.commit_sha))
+        object.__setattr__(self, "snapshot_digest", _forge_sha256(self.snapshot_digest, "snapshot_digest"))
+        object.__setattr__(self, "path", _forge_relative_path(self.path, require_canonical=True))
+        object.__setattr__(self, "content_sha256", _forge_sha256(self.content_sha256, "content_sha256"))
+        if type(self.authority_binding) is not ForgeSnapshotAuthorityBinding:
+            raise ForgeSnapshotError("authority_binding must be a typed Forge authority binding")
+        if type(self.max_bytes) is not int or not 1 <= self.max_bytes <= MAX_FORGE_EXACT_READ_BYTES:
+            raise ForgeSnapshotError("max_bytes is invalid or exceeds the exact-reader bound")
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "schema": "odysseus.forge_exact_reader_reference.v1",
+            "owner_scope": self.owner_scope,
+            "repo_id": self.repo_id,
+            "version_id": self.version_id,
+            "commit_sha": self.commit_sha,
+            "snapshot_digest": self.snapshot_digest,
+            "path": self.path,
+            "content_sha256": self.content_sha256,
+            "max_bytes": self.max_bytes,
+            "authority_binding": self.authority_binding.to_dict(),
+        }
+
+
+@runtime_checkable
+class ForgeSnapshotReader(Protocol):
+    """Injected authenticated Forge boundary; it must not be a worktree scanner."""
+
+    def inventory(self, request: ForgeSnapshotRequest) -> ForgeSnapshotInventory: ...
+
+    def exact_reader_reference(
+        self,
+        request: ForgeSnapshotRequest,
+        *,
+        path: str,
+        max_bytes: int,
+    ) -> ForgeExactReaderReference: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -398,3 +624,67 @@ def _merge_env(extra: Mapping[str, str]) -> dict[str, str]:
     merged["GIT_TERMINAL_PROMPT"] = "0"
     merged["GIT_OPTIONAL_LOCKS"] = "0"
     return merged
+
+
+def _forge_token(value: object, field_name: str) -> str:
+    if type(value) is not str or not _FORGE_TOKEN_RE.fullmatch(value):
+        raise ForgeSnapshotError(f"{field_name} must be a bounded Forge token")
+    return value
+
+
+def _forge_owner_scope(value: object) -> str:
+    if type(value) is not str or not _FORGE_OWNER_SCOPE_RE.fullmatch(value):
+        raise ForgeSnapshotError("owner_scope must be an authenticated explicit scope")
+    return value
+
+
+def _forge_version_id(value: object) -> str:
+    if type(value) is not str or not _FORGE_VERSION_RE.fullmatch(value):
+        raise ForgeSnapshotError("version_id must be an immutable Forge version")
+    return value
+
+
+def _forge_commit_sha(value: object) -> str:
+    if type(value) is not str or not _FORGE_COMMIT_RE.fullmatch(value):
+        raise ForgeSnapshotError("commit_sha must be an immutable Forge commit")
+    return value
+
+
+def _forge_sha256(value: object, field_name: str) -> str:
+    if type(value) is not str:
+        raise ForgeSnapshotError(f"{field_name} must be a SHA-256 digest")
+    normalized = value.lower()
+    if not normalized.startswith("sha256:"):
+        normalized = "sha256:" + normalized
+    if not _FORGE_SHA256_RE.fullmatch(normalized):
+        raise ForgeSnapshotError(f"{field_name} must be a SHA-256 digest")
+    return normalized
+
+
+def _forge_relative_path(value: object, *, require_canonical: bool = False) -> str:
+    if type(value) is not str or not value or len(value) > 1024:
+        raise ForgeSnapshotError("Forge file path is invalid or unbounded")
+    normalized = unicodedata.normalize("NFC", value)
+    if require_canonical and normalized != value:
+        raise ForgeSnapshotError("Forge file path must use its canonical NFC locator")
+    if any(ord(character) < 32 for character in normalized):
+        raise ForgeSnapshotError("Forge file path contains control characters")
+    if "\\" in normalized or normalized.startswith(("/", "~")) or re.match(r"^[A-Za-z]:", normalized):
+        raise ForgeSnapshotError("Forge file path must be relative and use forward slashes")
+    parts = normalized.split("/")
+    if any(part in ("", ".", "..") for part in parts):
+        raise ForgeSnapshotError("Forge file path contains invalid segments")
+    for part in parts:
+        if any(character in _FORGE_WINDOWS_INVALID_PATH_CHARS for character in part):
+            raise ForgeSnapshotError("Forge file path contains Windows-ambiguous characters")
+        if part.endswith((".", " ")):
+            raise ForgeSnapshotError("Forge file path contains a Windows-ambiguous trailing character")
+        if part.split(".", 1)[0].casefold() in _FORGE_WINDOWS_RESERVED_NAMES:
+            raise ForgeSnapshotError("Forge file path contains a reserved Windows device name")
+    return normalized
+
+
+def _forge_locator_key(value: object) -> str:
+    """Return the NFC and Windows-case-insensitive identity for one locator."""
+
+    return _forge_relative_path(value).casefold()
