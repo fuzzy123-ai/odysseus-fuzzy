@@ -1,0 +1,96 @@
+{
+  "authority_revision": {
+    "claimed_against_round7_revision": 136,
+    "registered_round7_revision": 137
+  },
+  "baseline_blobs": {
+    "src/unified_source_index_runtime.py": "a0b2d2cff7bc41fd4551ba729f258cb5cf01790e",
+    "tests/test_unified_source_index_runtime_composition.py": "2f3fe13d70b42b5e031514f138d5e38a9347d029"
+  },
+  "baseline_readback": "materialized_exact_binary_readback_pass",
+  "candidate_blobs": {
+    "src/unified_source_index_runtime.py": "e1074efecbfabd3b23460ee65c318a50e2791df3",
+    "tests/test_unified_source_index_runtime_composition.py": "01849068e88e45a0ae2a73d7a186759048593ac3"
+  },
+  "candidate_command_manifest_digest_sha256": "sha256:483d5c57101600b171725cc77a23e64d6c959f65759e7a397385e1b4f8c79b7a",
+  "candidate_frozen_at": "2026-08-09T23:45:00+02:00",
+  "candidate_pytest_node_ids": [
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_admitted_execute_may_finish_but_no_execute_starts_after_close",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_bind_and_unbind_failures_are_fresh_content_free_and_terminal",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_binder_retains_token_then_raises_and_retained_token_is_revoked",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_cold_source_exec_has_zero_additional_open_environment_network_or_product_import_effects",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_concurrent_close_after_bind_revokes_before_one_unbind_and_never_retries",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_concurrent_close_during_bind_is_nonblocking_revocation_and_unbinds_once",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_disabled_and_uncomposed_modes_bind_inert_without_planner_access",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_import_build_snapshot_bind_execute_and_close_trip_no_effect_boundary_bombs",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_planner_capture_ignores_hostile_descriptors_metaclasses_and_inheritance",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_planner_execute_replacement_after_build_is_inert",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_planner_failure_is_content_free_planner_failed",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_primitive_config_is_exact_bounded_copied_once_and_content_free",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_public_api_signatures_all_and_fresh_errors_are_exact",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_read_only_token_is_inactive_inside_binder_then_active_after_commit",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_reentrant_close_during_bind_projects_closed_and_unbinds_once_before_bind_returns",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_repeat_reentrant_and_concurrent_bind_install_exactly_once",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_runtime_direct_subclass_object_new_and_attribute_tamper_cannot_mint_registry_identity",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_snapshot_is_fresh_six_field_derived_and_never_live_authorizing",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_token_before_commit_after_failed_bind_and_after_close_is_inactive",
+    "tests/test_unified_source_index_runtime_composition.py::test_uir03a_a2_token_clone_object_new_and_attribute_tamper_never_mint_execution"
+  ],
+  "candidate_pytest_node_manifest_digest_sha256": "sha256:01e6208cfd6673482aa42dda40ff82239cc966a12b7eb51787450ceb71f591bc",
+  "candidate_set_digest_sha256": "sha256:dc6a3c7d0256d754d62f59ce8cbd19d14892c1c5ecb6c3d396345ff437d65e84",
+  "candidate_state": "frozen_for_independent_qa",
+  "candidate_writer_paths": [
+    "src/unified_source_index_runtime.py",
+    "tests/test_unified_source_index_runtime_composition.py"
+  ],
+  "claim_id": "ABC-UIR03A-GO-A-R2-REV137",
+  "correction_budget": {
+    "after_repeat": "stop_and_rearchitect",
+    "failure_class": "uir03a_go_a_a2_exported_boundary_contract",
+    "limit_per_invariant": 1,
+    "used": 0
+  },
+  "inventory_receipt": {
+    "inventory_mode": "rolling_projection",
+    "member_count": 30,
+    "member_set_digest": "sha256:0f3bf8d41306facf635edd86a6c481cba702292994ab6c2e78937f86f9ec3bcf",
+    "scheduled_slice_count_unchanged": 7,
+    "terminal_waves_unchanged": true
+  },
+  "kind": "odysseus.abc_claim_evidence",
+  "live_actions": false,
+  "read_only_pins": {
+    "docs/plans/multi-agent-execution-guidance.json": "65935c6f2676d63c9d4175768d96795feeb4d288",
+    "docs/plans/parallel-roadmap-execution-round6.json": "a6cae9fd07f809ef4aec06b84a9b818f6166df05",
+    "docs/plans/unified-source-index-runtime-caller-inventory.json": "9e87609d00691f1e4b0ca1a5c7b7c2ed2bcca244",
+    "docs/plans/unified-source-index-runtime-integration-roadmap.md": "7f3ac92371570c3926dc21af43ead4c48133657c",
+    "scripts/audit_unified_source_index_runtime.py": "22a27cd0a912d66f91bf08804d97502258101ad3",
+    "scripts/roadmap_multi_agent_guidance.py": "8973fbdcb9b7cb7eec5ae9f03dd8f9acffdd544c",
+    "scripts/validate_integration_spine_convergence.py": "2800ef8b838dc59a72e2be3f59813c2df83d19bd",
+    "scripts/validate_parallel_roadmap_execution.py": "22d5be1db6f58906d9fa5132c46a5f358daae300",
+    "src/unified_source_index_query.py": "acc17b0686535b45daef618f642f211fa6782600",
+    "src/unified_source_index_runtime_config.py": "04ec82722f905a3b7e1d272f7e95cdb4be367f4a",
+    "src/unified_source_index_runtime_contract.py": "5133d76f1e93c41933535e4d60e7b3ec4b4c1e1d",
+    "tests/test_parallel_roadmap_execution.py": "1504f56759b71c69157dcfdadc5ca172d8cae9f1",
+    "tests/test_roadmap_multi_agent_guidance.py": "a81c6b4695eb8cfa74c9fcd18bdea8aaf61eeb61",
+    "tests/test_unified_source_index_query.py": "d83f29b5d99443bef2486b06b586c0de8341237d",
+    "tests/test_unified_source_index_runtime_config.py": "320b1540b79eff36c04b2a4b39ab636e59ea5f4b",
+    "tests/test_unified_source_index_runtime_contract.py": "e27fa18e06f0f99ce4338b5b78db2e6b46d48706"
+  },
+  "schema_version": 1,
+  "stale_invalidation": [
+    "authority_or_projection_revision_drift",
+    "candidate_writer_blob_drift",
+    "claim_lease_or_transfer_drift",
+    "command_contract_or_basetemp_drift",
+    "read_only_pin_drift",
+    "rolling_inventory_member_count_digest_or_denominator_drift"
+  ],
+  "thread_id": "/root/uir03a_go_a_r2_writer",
+  "verification_tiers": {
+    "central": "real Round7 Round6 and Guidance validators",
+    "dependency": "runtime config contract query corridor, compile and caller inventory",
+    "expensive_live": "not_run_user_gated",
+    "focused": "collect exact twenty A2 nodes, exact twenty and full composition file"
+  }
+}
