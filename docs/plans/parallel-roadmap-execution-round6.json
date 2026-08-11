@@ -2,8 +2,8 @@
   "schema_version": 1,
   "kind": "odysseus.parallel_roadmap_execution_round",
   "round_id": "round6",
-  "updated_at": "2026-08-11T21:55:00+02:00",
-  "status": "round6_authority_revision213_nmg05a_running_infrastructure_blocked_fca03a_r2_claimed_tests_first",
+  "updated_at": "2026-08-11T22:20:00+02:00",
+  "status": "round6_authority_revision214_nmg05a_running_infrastructure_blocked_fca03a_r2_frozen_for_independent_qa",
   "goal": "After accepted Round 5, expose disjoint Coding, Memory/Data and App Integration frontiers with independent QA while keeping every central router master-only.",
   "prerequisite": {
     "round5_state": "accepted_released",
@@ -829,7 +829,7 @@
       "lane": "memory_data",
       "slice": {
         "id": "FCA-03A-R2-public-page-value-object-validation",
-        "state": "claimed_tests_first",
+        "state": "candidate_frozen_for_independent_qa",
         "claimable": false,
         "depends_on": [
           "FCA-00-forge-source-inventory",
@@ -900,7 +900,7 @@
         "remaining_user_gates": [],
         "normalization_blockers": [],
         "claim_id": "ABC-FCA03A-R2-REV213",
-        "authority_revision": 213,
+        "authority_revision": 214,
         "architecture_binding": {
           "id": "FCA-03A-R2-PUBLIC-PAGE-VALUE-OBJECT-SOL-ARCH-v1",
           "path": "docs/plans/abc-fca03a-r2-public-page-value-object-architecture.json",
@@ -920,7 +920,17 @@
           "tests/test_repo_git_adapter.py::test_fca03a_r2_page_rejects_each_invalid_field_with_fixed_content_free_error",
           "tests/test_repo_git_adapter.py::test_fca03a_r2_terminal_and_nonterminal_page_cursor_hash_matrix_is_exact",
           "tests/test_repo_git_adapter.py::test_fca03a_r2_page_constructor_rejects_hostile_subclasses_and_forgery_without_callbacks"
-        ]
+        ],
+        "candidate_state": "frozen_for_independent_qa",
+        "candidate_blobs": {
+          "src/repo_git_adapter.py": "889364e0b88feebdbdd9c687fc6614ed7a430deb",
+          "tests/test_repo_git_adapter.py": "458c948badd685d279c117a208ea4d075d56ea1b"
+        },
+        "frozen_at": "2026-08-11T22:20:00+02:00",
+        "candidate_set_digest_sha256": "sha256:2d3a3e4ce53f850ed321cad6d4d0e39b03838cd8c9d11113d0f1101dc7b5e1a1",
+        "node_manifest_digest_sha256": "sha256:67ba3c01015b14de016a581b1885bdfe53b8453f65fcf52f2b765ee6080d3336",
+        "command_manifest_digest_sha256": "sha256:62f7a9524c6e2f7286ff1436575ed6d5177b56d3bf9ccabf43bb8c75e6efade6",
+        "dirty_diff_digest_sha256": "sha256:7abcf4c64768e7e05ea9badd492f39a57ff8b4b6b4c72529b037a58ef09d475c"
       },
       "source_evidence": "Rev209 compact rebind packet inherits the exact sealed FCA-03A v1 contract against Rev208 router pins; baselines and all thirteen pins re-read exactly."
     },
@@ -2170,9 +2180,9 @@
       "slice_id": "FCA-03A-R2-public-page-value-object-validation",
       "owner": "Bob/Terra high root-supervised local writer",
       "thread_id": "/root",
-      "state": "running",
-      "claim_state": "claimed_tests_first",
-      "authority_revision": 213,
+      "state": "frozen_for_independent_qa",
+      "claim_state": "frozen_for_independent_qa",
+      "authority_revision": 214,
       "claimed_at": "2026-08-11T21:55:00+02:00",
       "lease_expires_at": "2026-08-12T09:55:00+02:00",
       "mutation_authority": "repo_only",
@@ -2203,9 +2213,26 @@
         "used": 0,
         "on_repeat": "release_blocked without second product patch and require a different fresh Root/Sol architecture"
       },
-      "candidate_state": "not_frozen",
-      "candidate_blobs": {},
-      "live_actions": false
+      "candidate_state": "frozen_for_independent_qa",
+      "candidate_blobs": {
+        "src/repo_git_adapter.py": "889364e0b88feebdbdd9c687fc6614ed7a430deb",
+        "tests/test_repo_git_adapter.py": "458c948badd685d279c117a208ea4d075d56ea1b"
+      },
+      "live_actions": false,
+      "frozen_at": "2026-08-11T22:20:00+02:00",
+      "candidate_set_digest_sha256": "sha256:2d3a3e4ce53f850ed321cad6d4d0e39b03838cd8c9d11113d0f1101dc7b5e1a1",
+      "node_manifest_digest_sha256": "sha256:67ba3c01015b14de016a581b1885bdfe53b8453f65fcf52f2b765ee6080d3336",
+      "command_manifest_digest_sha256": "sha256:62f7a9524c6e2f7286ff1436575ed6d5177b56d3bf9ccabf43bb8c75e6efade6",
+      "dirty_diff_digest_sha256": "sha256:7abcf4c64768e7e05ea9badd492f39a57ff8b4b6b4c72529b037a58ef09d475c",
+      "dirty_diff_serialization": "sorted path UTF-8 length u64be + path + baseline byte length u64be + raw baseline bytes + candidate byte length u64be + raw candidate bytes",
+      "verification_summary": {
+        "tests_first": "four exact nodes collected; RED 4 failed against unchanged baseline only on missing public page validation; GREEN 4 passed",
+        "focused": "full tests/test_repo_git_adapter.py 41 passed",
+        "dependency": "declared five-file corridor 180 passed",
+        "static": "two-path py_compile, diff-check and no-loop/forbidden-effect AST passed",
+        "central": "Integration Spine, Round6 and Guidance passed",
+        "workspace_note": "first parallel full/dependency attempt had only missing claim-parent tmp_path setup errors after 36/174 passes; exact parent was created and serial reruns passed 41/180"
+      }
     }
   ],
   "waves": [
