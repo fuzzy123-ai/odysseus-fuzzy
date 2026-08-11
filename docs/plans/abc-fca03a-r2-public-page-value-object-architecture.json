@@ -1,0 +1,180 @@
+{
+  "acceptance": [
+    "The four R2 nodes, the full repository-adapter file and the declared 176-test dependency corridor pass on one frozen two-blob candidate.",
+    "Every ForgeContentPage public construction path enforces the exact closed value-object and terminal-transition matrix before retention.",
+    "All inherited FCA-03A v2 nodes remain green and FCA-00 exports/behavior remain unchanged.",
+    "Independent QA and Root/Sol deep review reproduce hashes and hostile boundaries before release."
+  ],
+  "allowed_paths": [
+    "src/repo_git_adapter.py",
+    "tests/test_repo_git_adapter.py"
+  ],
+  "architecture_revision": "FCA-03A-R2-PUBLIC-PAGE-VALUE-OBJECT-SOL-ARCH-v1",
+  "correction": {
+    "failure_class": "fca03a_r2_public_page_value_object_constructor_hash_and_terminal_transition_validation",
+    "limit": 1,
+    "on_repeat": "release_blocked without second product patch and require a different fresh Root/Sol architecture",
+    "used": 0
+  },
+  "dependencies": {
+    "FCA-00-forge-source-inventory": "accepted_commit_75f8f8f3",
+    "FCA-02-coverage-manifest-and-no-gap-verifier": "accepted_released_round6",
+    "FCA-03A-v2": "rejected_candidate_reused_only_as_exact_materialized_baseline",
+    "FCA-POL-00-content-policy": "accepted_released"
+  },
+  "forbidden": [
+    "new product/helper/route/store/provider path",
+    "v1/v2 API or schema change",
+    "Git or filesystem read in page construction",
+    "runtime/provider/network/private/live action",
+    "stage/commit/push/deploy before accepted release"
+  ],
+  "hostile_matrix": [
+    "wrong, subclassed and object.__new__ forged cursor/page dependencies; hostile __class__, property, hash, equality, bool, int, bytes, str, repr and exception callbacks",
+    "each page field missing-equivalent, wrong type, subclass, negative, max+1, mismatched or mutated; complete and next-cursor terminal matrix",
+    "source cursor at zero, final byte and exact empty-file terminal boundary; short/overlong content and shifted offsets",
+    "content digest and page hash uppercase, nonhex, wrong domain, wrong length and one-field replay",
+    "cursor identity mismatch for owner, repo, version, commit, snapshot, path, file digest, file size, page size, offset and authority binding",
+    "private-marker Exception and BaseException at every reconstruction/hash boundary must become a fresh fixed content_range_mismatch from None without cause, context or input text",
+    "construction and to_dict cause zero file, Git, registry, provider, network, process, thread, task, clock, environment, store or live effects"
+  ],
+  "hotfiles": [
+    "src/repo_git_adapter.py",
+    "tests/test_repo_git_adapter.py"
+  ],
+  "inherited_contract": {
+    "architecture_path": "docs/plans/abc-fca03a-revision-bound-resumable-forge-content-reader-architecture-v2.json",
+    "raw_blob": "5000621ed45d2c6ff2a9f478286f7379896feb8e",
+    "rule": "All v1/v2 exports, cursor/range validation, reader protocol, page budget, identity binding, one-page retention, content-free errors, zero-effect and FCA-00 compatibility remain exact. R2 changes only ForgeContentPage public construction validation and tests."
+  },
+  "kind": "odysseus.sol_architecture",
+  "live_actions_authorized": false,
+  "not_verified": [
+    "provider/live/private/host/network behavior",
+    "productive Forge reads",
+    "full repository CI",
+    "visual or temporal behavior"
+  ],
+  "origin": {
+    "baseline_blobs": {
+      "src/repo_git_adapter.py": "c2aeb6a796b8f5023f3ce957809c53039a4138e9",
+      "tests/test_repo_git_adapter.py": "148e7566f7cdf42158013860e3c0ba305692a048"
+    },
+    "baseline_readback": "materialized_exact_binary_readback_pass",
+    "mode": "materialized_rejected_candidate_successor",
+    "source_claim_id": "ABC-FCA03A-REV210",
+    "source_release_outcome": "released_blocked_same_class_recurrence_after_correction_1_of_1"
+  },
+  "page_invariants": [
+    "schema is exact built-in str equal to FORGE_CONTENT_PAGE_SCHEMA_V2.",
+    "source_cursor is exact ForgeContentCursor and is reconstructed once so its existing exact cursor validation and authority binding run before any page field is retained.",
+    "offset is exact built-in int equal to source_cursor.next_offset.",
+    "content is exact built-in bytes and len(content) equals min(source_cursor.page_bytes, source_cursor.file_byte_count-source_cursor.next_offset); empty bytes are valid only for the exact empty terminal file.",
+    "page_content_sha256 is exact lowercase sha256 digest of content.",
+    "complete is exact built-in bool and equals offset+len(content)==source_cursor.file_byte_count.",
+    "next_cursor is None exactly when complete; otherwise it is exact ForgeContentCursor with the same owner, repo, version, commit, snapshot, path, content digest, file size, page size and authority binding, and next_offset equals offset+len(content).",
+    "page_hash is exact lowercase sha256 over the existing odysseus.forge.content_page.v2 domain and closed payload schema, source_cursor_hash, offset, content_byte_count, page_content_sha256, complete and next_cursor_hash.",
+    "The frozen value stores only reconstructed cursors, exact immutable bytes and validated built-ins; to_dict returns a fresh content-free detached mapping with content_byte_count but no bytes."
+  ],
+  "public_delta": {
+    "changed_signatures": [],
+    "constructor": "ForgeContentPage(schema, source_cursor, offset, content, page_content_sha256, complete, next_cursor, page_hash)",
+    "error": "fresh ForgeSnapshotError(content_range_mismatch) from None for any invalid public page value or hostile callback",
+    "new_exports": []
+  },
+  "read_only_pins": {
+    "docs/plans/forge-usi-code-source-adapter-roadmap.md": "42cdecd6c2a62582d6e8b12aa1d588e230ee9c56",
+    "docs/plans/multi-agent-execution-guidance.json": "4bddbb2bb36a3391469f6f61cc1ac53dfe1a90bf",
+    "docs/plans/open-work-completion-master-roadmap.json": "a08b9ae945f6242196c8d395241a73be857a2a52",
+    "docs/plans/parallel-roadmap-execution-round6.json": "bc1064127d18de1c04ee01c4053334890e4903d4",
+    "docs/plans/parallel-roadmap-execution-round7.json": "bc66aefbfe866e022575fd477c4f0f94aaf5e6b3",
+    "src/repo_registry.py": "6eb2067dfbbbb2ad1538d8adadfb448d040a6adc",
+    "src/unified_source_index_code_coverage.py": "92a43ff51951134c68290d5e156bffd811c23539",
+    "src/unified_source_index_code_policy.py": "84b32e0508f162cf70441d4a090b502c58660445",
+    "src/unified_source_index_sources/forge_code.py": "6ecb59fd944cd7b33158e964eff88f4de915a6df",
+    "tests/test_repo_registry.py": "2a6e7c91c6b4f5d0fc88005b729e7bea45945da5",
+    "tests/test_unified_source_index_code_coverage.py": "21a648061cd311128e69d6862e69a440ba5ba394",
+    "tests/test_unified_source_index_code_policy.py": "4db2931edbaf16f30576e8ec53e6e36b08f85b4a",
+    "tests/test_unified_source_index_forge_code_source.py": "38f86696cd657dbc28da458a6e18b331e5001b4d"
+  },
+  "red_requirement": "All four new exact nodes collect and fail against the unchanged materialized rejected candidate solely because ForgeContentPage lacks exact public construction validation.",
+  "route": {
+    "phase": "implementation",
+    "qa": "Charlie/Terra fresh-context",
+    "root_review": "Deep-Sol",
+    "supervision": "interactive",
+    "writer": "Bob/Terra high judgment_required"
+  },
+  "schema_version": 1,
+  "semantic_digest_sha256": "sha256:e1c384a3919172f8de7dba637e95639dc284559c456fd3a49301033f5d8c435e",
+  "semantic_seal_bytes": 8356,
+  "slice_id": "FCA-03A-R2-public-page-value-object-validation",
+  "state": "frozen_for_registration",
+  "tests_first": [
+    "tests/test_repo_git_adapter.py::test_fca03a_r2_public_page_constructor_revalidates_exact_valid_output",
+    "tests/test_repo_git_adapter.py::test_fca03a_r2_page_rejects_each_invalid_field_with_fixed_content_free_error",
+    "tests/test_repo_git_adapter.py::test_fca03a_r2_terminal_and_nonterminal_page_cursor_hash_matrix_is_exact",
+    "tests/test_repo_git_adapter.py::test_fca03a_r2_page_constructor_rejects_hostile_subclasses_and_forgery_without_callbacks"
+  ],
+  "verification": {
+    "central": [
+      [
+        "venv\\Scripts\\python.exe",
+        "-B",
+        "scripts\\validate_integration_spine_convergence.py",
+        "--format",
+        "json"
+      ],
+      [
+        "venv\\Scripts\\python.exe",
+        "-B",
+        "scripts\\validate_parallel_roadmap_execution.py",
+        "--format",
+        "json"
+      ],
+      [
+        "venv\\Scripts\\python.exe",
+        "-B",
+        "scripts\\roadmap_multi_agent_guidance.py",
+        "--format",
+        "json"
+      ]
+    ],
+    "dependency": [
+      "venv\\Scripts\\python.exe",
+      "-B",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "tests\\test_repo_git_adapter.py",
+      "tests\\test_unified_source_index_forge_code_source.py",
+      "tests\\test_unified_source_index_code_coverage.py",
+      "tests\\test_unified_source_index_code_policy.py",
+      "tests\\test_repo_registry.py",
+      "--basetemp",
+      ".abc-test-tmp\\ABC-FCA03A-R2-REV213\\dependency"
+    ],
+    "focused": [
+      "venv\\Scripts\\python.exe",
+      "-B",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "tests\\test_repo_git_adapter.py",
+      "--basetemp",
+      ".abc-test-tmp\\ABC-FCA03A-R2-REV213\\focused"
+    ],
+    "static": [
+      "venv\\Scripts\\python.exe",
+      "-B",
+      "-m",
+      "py_compile",
+      "src\\repo_git_adapter.py",
+      "tests\\test_repo_git_adapter.py"
+    ]
+  }
+}
