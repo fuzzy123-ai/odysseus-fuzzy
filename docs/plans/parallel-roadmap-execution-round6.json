@@ -1,0 +1,948 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.parallel_roadmap_execution_round",
+  "round_id": "round6",
+  "updated_at": "2026-08-11T16:35:00+02:00",
+  "status": "round6_authority_revision203_nmg05a_claimed_tests_first_detached_writer_running",
+  "goal": "After accepted Round 5, expose disjoint Coding, Memory/Data and App Integration frontiers with independent QA while keeping every central router master-only.",
+  "prerequisite": {
+    "round5_state": "accepted_released",
+    "handoff_commit": "c27583fccd0fea331aef91a8f27dfb49ab1479b1",
+    "accepted_slices": ["ACPR-11", "TRP-06", "UIR-00R", "UDA-00", "ULO-00"],
+    "evidence": "Open Work reports Wave-5R integrated with current inventory, zero Round-5 claims and released router/hotfiles."
+  },
+  "authority": {
+    "queue": "open_work",
+    "phase": "implementation",
+    "mutation_authority": "repo_only",
+    "central_router_paths": [
+      "docs/plans/open-work-completion-master-roadmap.json",
+      "docs/plans/multi-agent-execution-guidance.json"
+    ],
+    "router_writer": "root/Sol master",
+    "worker_router_writes_allowed": false,
+    "worker_max_concurrency": 3,
+    "claim_rule": "Only dependency-satisfied slices in waves may receive one exact path-scoped claim; source-roadmap and central-router updates are separate root integration steps.",
+    "qa_rule": "Independent QA is read-only, uses a fresh context, differs from the implementer and cannot accept a slice; root/Sol reviews every handoff.",
+    "ui_acceptance_rule": "Approved UI implementation may be coded and automatically verified repo-locally, but final visual and functional acceptance remains an explicit user gate and cannot be satisfied by worker, QA or root prose."
+  },
+  "lanes": [
+    {
+      "id": "coding",
+      "default_owner": "Bob/Terra",
+      "scope": "coding orchestration, transactional edits, sandbox/tool capsules and runtime safety",
+      "write_mode": "one_path_scoped_writer"
+    },
+    {
+      "id": "memory_data",
+      "default_owner": "Bob/Terra; Alice/Terra may own contract-only slices",
+      "scope": "Memory, RAPTOR/GraphRAG, Unified Source Index, lineage and lifecycle contracts",
+      "write_mode": "one_path_scoped_writer"
+    },
+    {
+      "id": "app_integration",
+      "default_owner": "Charlie/Terra integration; Alice/Bob retain declared domain ownership",
+      "scope": "composition roots, routes, UI catalog surfaces, transcription and cross-app wiring",
+      "write_mode": "one_path_scoped_writer"
+    },
+    {
+      "id": "independent_qa",
+      "default_owner": "Charlie/Terra fresh-context; Alice/Terra when Charlie implemented the target",
+      "scope": "read-only collision, focused-test, regression, negative-path and handoff verification",
+      "write_mode": "read_only"
+    }
+  ],
+  "global_automatic_gates": [
+    {
+      "id": "R6-SCHEMA-DAG-COLLISION",
+      "command": "venv\\Scripts\\python.exe scripts\\validate_parallel_roadmap_execution.py --format json",
+      "pass_condition": "valid=true; active-roadmap coverage exact; no unresolved dependency evidence, self-review or same-wave path collision"
+    },
+    {
+      "id": "R6-GUIDANCE-COVERAGE",
+      "command": "venv\\Scripts\\python.exe scripts\\roadmap_multi_agent_guidance.py --format json",
+      "pass_condition": "valid=true and every discovered roadmap has exactly one guidance entry"
+    },
+    {
+      "id": "R6-SAFE-QUEUE-AUDIT",
+      "command": "venv\\Scripts\\python.exe scripts\\roadmap_safe_queue_audit.py --format json",
+      "pass_condition": "audit exits zero; scheduled claims are independently reconciled with depends_on and current claims"
+    }
+  ],
+  "roadmap_frontiers": [
+    {
+      "roadmap_path": "docs/plans/agent-maintenance-safety-harness-roadmap.json",
+      "lane": "coding",
+      "slice": {
+        "id": "AMH-01-root-policy-and-runbook",
+        "state": "waiting_on_user",
+        "claimable": false,
+        "depends_on": ["AMH-00-roadmap-contract-and-registration"],
+        "dependency_evidence": [{"id": "AMH-00-roadmap-contract-and-registration", "state": "done_in_this_artifact"}],
+        "allowed_paths": ["AGENTS.md", "docs/agent-maintenance-runbook.md", "CONTRIBUTING.md", "tests/test_agent_maintenance_policy.py"],
+        "hotfiles": ["CONTRIBUTING.md"],
+        "master_only_paths": [],
+        "owner": "Alice/Terra",
+        "independent_qa_reviewer": "Charlie/Terra fresh-context",
+        "root_review_depth": "deep",
+        "automatic_gates": [{"id": "AMH-01-policy", "command": "venv\\Scripts\\python.exe -m pytest -q tests\\test_agent_maintenance_policy.py", "pass_condition": "policy suite passes and scoped git diff --check is clean"}],
+        "remaining_user_gates": [{"id": "AMH-GATE-EXPLICIT-GOAL-OR-REPRIORITIZATION", "blocks_current_slice": true, "reason": "The roadmap requires an explicit AMH goal or Open Work reprioritization."}],
+        "normalization_blockers": []
+      },
+      "source_evidence": "slice_queue AMH-01 and gate_queue AMH-GATE-EXPLICIT-GOAL-OR-REPRIORITIZATION"
+    },
+    {
+      "roadmap_path": "docs/plans/autonomous-coding-production-readiness-roadmap.json",
+      "lane": "coding",
+      "slice": {
+        "id": "ACPR-12-transactional-worktree-and-safe-tool-capsules",
+        "state": "accepted_released_round6_a",
+        "claimable": false,
+        "depends_on": ["ACPR-11", "CAO-08D", "CAO-08E"],
+        "dependency_evidence": [
+          {"id": "ACPR-11", "state": "accepted_released_round5"},
+          {"id": "CAO-08D", "state": "accepted"},
+          {"id": "CAO-08E", "state": "accepted"}
+        ],
+        "allowed_paths": ["src/coding_agent_backend.py", "src/coding_agent_runner_state.py", "src/coding_agent_sandbox_bridge.py", "src/server_project_runner.py", "tests/test_coding_agent_backend.py", "tests/test_coding_agent_runner_state.py", "tests/test_coding_agent_sandbox_bridge.py", "tests/test_server_project_runner.py"],
+        "hotfiles": ["src/coding_agent_backend.py", "src/coding_agent_runner_state.py", "src/coding_agent_sandbox_bridge.py", "src/server_project_runner.py"],
+        "master_only_paths": [],
+        "owner": "Bob/Terra coding",
+        "owner_authority": "Source roadmap ACPR-12 assigns implementation to Bob; no ownership transfer is introduced by Round 6.",
+        "independent_qa_reviewer": "Charlie/Terra fresh-context",
+        "root_review_depth": "deep",
+        "automatic_gates": [
+          {"id": "ACPR-12-focused", "command": "venv\\Scripts\\python.exe -m pytest -q tests\\test_coding_agent_backend.py tests\\test_coding_agent_runner_state.py tests\\test_coding_agent_sandbox_bridge.py tests\\test_server_project_runner.py", "pass_condition": "transaction, allowlist, denied-effect, rollback and receipt-binding tests pass"},
+          {"id": "ACPR-12-diff", "command": "git diff --check -- src/coding_agent_backend.py src/coding_agent_runner_state.py src/coding_agent_sandbox_bridge.py src/server_project_runner.py tests/test_coding_agent_backend.py tests/test_coding_agent_runner_state.py tests/test_coding_agent_sandbox_bridge.py tests/test_server_project_runner.py", "pass_condition": "scoped diff is clean and changed paths remain inside the claim"}
+        ],
+        "remaining_user_gates": [{"id": "coding-loop-publication-and-live-go", "blocks_current_slice": false, "reason": "Only later destructive, external, publication or live action requires user Go."}],
+        "normalization_blockers": []
+      },
+      "source_evidence": "current_frontier plus slice_queue ACPR-12; stale embedded status is superseded by accepted Round-5 dependencies in this master normalization"
+    },
+    {
+      "roadmap_path": "docs/plans/coding-agent-orchestration-consolidation-roadmap.md",
+      "lane": "coding",
+      "slice": {
+        "id": "CAO-08G-verification-repair-independent-review",
+        "state": "blocked_by_dependency_and_normalization",
+        "claimable": false,
+        "depends_on": ["CAO-08C1", "CAO-08D", "CAO-08E", "CAO-08F", "ACPR-12"],
+        "dependency_evidence": [
+          {"id": "CAO-08C1", "state": "accepted"}, {"id": "CAO-08D", "state": "accepted"},
+          {"id": "CAO-08E", "state": "accepted"}, {"id": "CAO-08F", "state": "accepted"},
+          {"id": "ACPR-12", "state": "not_accepted"}
+        ],
+        "allowed_paths": [], "hotfiles": [], "master_only_paths": [],
+        "owner": "Bob/Terra coding", "independent_qa_reviewer": "Charlie/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "CAO-08G-normalization", "command": "venv\\Scripts\\python.exe scripts\\validate_parallel_roadmap_execution.py --format json", "pass_condition": "ACPR-12 is accepted and exact CAO-08G paths/hotfiles/tests are registered"}],
+        "remaining_user_gates": [{"id": "coding-loop-user-acceptance", "blocks_current_slice": false, "reason": "Only material product, architecture, security or privacy changes escalate."}],
+        "normalization_blockers": ["Exact allowed paths, hotfiles and slice-specific test commands are absent from the source roadmap."]
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/diagnostics-legacy-fix-roadmap.md",
+      "lane": "coding",
+      "slice": {
+        "id": "DLF1B-telegram-history-redaction-fix",
+        "state": "normalization_blocked",
+        "claimable": false,
+        "depends_on": [], "dependency_evidence": [],
+        "allowed_paths": ["plugins/telegram/plugin.py", "tests/test_telegram_plugin.py"],
+        "hotfiles": ["plugins/telegram/plugin.py"], "master_only_paths": [],
+        "owner": "Bob/Terra coding", "independent_qa_reviewer": "Charlie/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "DLF-audit", "command": "venv\\Scripts\\python.exe -m pytest -q tests\\test_telegram_plugin.py tests\\test_tool_registry.py tests\\test_plugin_local_audit.py tests\\test_release_readiness_pipeline.py tests\\test_plugin_system.py tests\\test_plugin_manifest_policy.py", "pass_condition": "current audit reproduces a still-valid DLF1B gap before any writer claim"}],
+        "remaining_user_gates": [],
+        "normalization_blockers": ["A fresh audit, dated status, explicit dependency IDs and exact optional-helper path are missing."]
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/headless-write-agent-orchestration-roadmap.md",
+      "lane": "coding",
+      "slice": {
+        "id": "HWA2-canonical-subagent-commit-bridge",
+        "state": "normalization_blocked",
+        "claimable": false,
+        "depends_on": ["HWA3A", "HWA3B"],
+        "dependency_evidence": [{"id": "HWA3A", "state": "accepted_in_run_state_but_stale_in_roadmap"}, {"id": "HWA3B", "state": "accepted_in_run_state_but_stale_in_roadmap"}],
+        "allowed_paths": ["src/headless_write_agent_pipeline.py", "src/agent_tools/project_commit_tools.py", "src/tool_execution.py", "tests/test_headless_write_agent_pipeline.py", "tests/test_commit_project_tool.py"],
+        "hotfiles": ["src/tool_execution.py"], "master_only_paths": [],
+        "owner": "Bob/Terra coding", "independent_qa_reviewer": "Charlie/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "HWA-baseline", "command": "venv\\Scripts\\python.exe -m pytest -q tests\\test_subagent_runtime.py tests\\test_agent_pool_scaling.py tests\\test_claim_lease_store.py tests\\test_heartbeat_coordinator.py tests\\test_orchestration_runtime_loop.py tests\\test_commit_project_tool.py tests\\test_project_forge_outbox.py tests\\test_project_forge_sync.py", "pass_condition": "baseline passes and exact HWA2 focused command is registered"}],
+        "remaining_user_gates": [{"id": "HWA-LOCAL-COMMIT-LIVE-GO", "blocks_current_slice": false, "reason": "Required only for an actual non-fake commit."}],
+        "normalization_blockers": ["Source roadmap and durable run state disagree; HWA2 hotfile/test contract requires atomic reconciliation."]
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/system-assurance-runtime-hardening-roadmap.json",
+      "lane": "coding",
+      "slice": {
+        "id": "SAR-02-fresh-release-evidence",
+        "state": "blocked_environment",
+        "claimable": false,
+        "depends_on": ["SAR-01-binding-ci-and-publish-provenance"],
+        "dependency_evidence": [{"id": "SAR-01-binding-ci-and-publish-provenance", "state": "blocked_environment"}],
+        "allowed_paths": [], "hotfiles": [], "master_only_paths": [],
+        "owner": "Bob/Terra coding", "independent_qa_reviewer": "Charlie/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "SAR-01-environment", "command": "venv\\Scripts\\python.exe scripts\\validate_parallel_roadmap_execution.py --format json", "pass_condition": "SAR remains parked until the unchanged required suite can run in a symlink-capable environment"}],
+        "remaining_user_gates": [],
+        "normalization_blockers": ["Execution environment lacks the required symlink-capable full-suite lane; the durable run state forbids rerunning or expanding SAR meanwhile."]
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/temporal-light-agent-execution-roadmap.json",
+      "lane": "coding",
+      "slice": {
+        "id": "TLR-10-12h-wall-clock-soak",
+        "state": "waiting_on_user",
+        "claimable": false,
+        "depends_on": ["TLR-09-24h-time-skipping-acceptance"],
+        "dependency_evidence": [{"id": "TLR-09-24h-time-skipping-acceptance", "state": "done"}],
+        "allowed_paths": [], "hotfiles": [], "master_only_paths": [],
+        "owner": "Charlie/Terra operator lane", "independent_qa_reviewer": "Bob/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "TLR-10-contract", "command": "venv\\Scripts\\python.exe scripts\\validate_parallel_roadmap_execution.py --format json", "pass_condition": "soak stays unscheduled until exact workload, 12-hour window, resource limits, restart injection and evidence path are approved"}],
+        "remaining_user_gates": [{"id": "AGENT-12H-LIVE-GO", "blocks_current_slice": true, "reason": "The 12-hour local runtime soak needs exact operator scope and observation authority."}, {"id": "TEMPORAL-PRODUCTION-ACTIVATION-GO", "blocks_current_slice": false, "reason": "Separate later production activation gate."}],
+        "normalization_blockers": []
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/anti-hallucination-evidence-roadmap.md",
+      "lane": "coding",
+      "slice": {
+        "id": "ANTI-HALLUCINATION-next-domain-audit",
+        "state": "normalization_blocked_readonly_audit_first",
+        "claimable": false,
+        "depends_on": [], "dependency_evidence": [], "allowed_paths": [], "hotfiles": [], "master_only_paths": [],
+        "owner": "Charlie/Terra read-only explorer", "independent_qa_reviewer": "Alice/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "AHE-domain-selection", "command": "venv\\Scripts\\python.exe scripts\\validate_parallel_roadmap_execution.py --format json", "pass_condition": "one unsupported claim domain is selected with exact IDs, paths, owner, QA and tests before a writer claim"}],
+        "remaining_user_gates": [],
+        "normalization_blockers": ["The source contains priority prose but no executable slice contract for the next unsupported claim domain."]
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/live-contextual-layer-roadmap.json",
+      "lane": "memory_data",
+      "slice": {
+        "id": "LCL-01-observation-and-hypothesis-contract",
+        "state": "waiting_on_explicit_implementation_goal",
+        "claimable": false,
+        "depends_on": ["CAO-08B", "LCL-00", "canonical-router-registration"],
+        "dependency_evidence": [{"id": "CAO-08B", "state": "accepted_in_open_work"}, {"id": "LCL-00", "state": "root_review_accepted"}, {"id": "canonical-router-registration", "state": "accepted"}],
+        "allowed_paths": ["docs/plans/live-contextual-layer-contract.md", "docs/plans/agent-context-transparency-contract.md", "tests/test_live_contextual_layer_contract.py"],
+        "hotfiles": ["docs/plans/agent-context-transparency-contract.md"], "master_only_paths": [],
+        "owner": "Alice/Terra memory contract", "independent_qa_reviewer": "Charlie/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "LCL-01-contract", "command": "venv\\Scripts\\python.exe -m pytest -q tests\\test_live_contextual_layer_contract.py", "pass_condition": "schema, privacy, contradiction, expiry and prohibited-authority negatives pass"}],
+        "remaining_user_gates": [{"id": "LCL-EXPLICIT-IMPLEMENTATION-GOAL", "blocks_current_slice": true, "reason": "The current user request authorizes roadmap normalization, not LCL implementation."}, {"id": "LCL-PRODUCT-POLICY-ACCEPTANCE", "blocks_current_slice": false, "reason": "Later product policy gate."}, {"id": "LCL-LOCAL-BACKGROUND-PROCESS-GO", "blocks_current_slice": false, "reason": "Later runtime process gate."}, {"id": "LCL-TEMPORAL-SOAK-GO", "blocks_current_slice": false, "reason": "Later soak gate."}, {"id": "LCL-PRODUCTION-ACTIVATION-GO", "blocks_current_slice": false, "reason": "Later production activation gate."}],
+        "normalization_blockers": []
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/gemma3-memory-ops-optimization-roadmap.md",
+      "lane": "memory_data",
+      "slice": {
+        "id": "GMI-LIVE-ACTIVATION", "state": "waiting_on_user_live_gate", "claimable": false,
+        "depends_on": ["GMI-15"], "dependency_evidence": [{"id": "GMI-15", "state": "repo_complete_packet_ready"}],
+        "allowed_paths": [], "hotfiles": [], "master_only_paths": [],
+        "owner": "Charlie/Terra live preparation", "independent_qa_reviewer": "Alice/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "GMI-live-packet", "command": "venv\\Scripts\\python.exe scripts\\validate_parallel_roadmap_execution.py --format json", "pass_condition": "no host/model/service/timer/productive-data action is scheduled without the exact live packet"}],
+        "remaining_user_gates": [{"id": "GMI-LIVE-ACTIVATION", "blocks_current_slice": true, "reason": "Host, model, service/timer and productive data actions need exact Go."}],
+        "normalization_blockers": []
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/graphrag-raptor-observability-prometheus-grafana-roadmap.md",
+      "lane": "memory_data",
+      "slice": {
+        "id": "GRO-native-successor-routing", "state": "superseded_no_repo_slice", "claimable": false,
+        "depends_on": ["UIR-03", "NMG-04A", "NMG-04B", "UIR-13", "USI-15"],
+        "dependency_evidence": [{"id": "UIR-03", "state": "not_accepted"}, {"id": "NMG-04A", "state": "not_accepted"}, {"id": "NMG-04B", "state": "not_accepted"}, {"id": "UIR-13", "state": "not_accepted"}, {"id": "USI-15", "state": "blocked"}],
+        "allowed_paths": [], "hotfiles": [], "master_only_paths": [],
+        "owner": "root/Sol router", "independent_qa_reviewer": "Charlie/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "GRO-no-reactivation", "command": "venv\\Scripts\\python.exe scripts\\validate_parallel_roadmap_execution.py --format json", "pass_condition": "historical GRO plugin work stays closed and native successor IDs remain authoritative"}],
+        "remaining_user_gates": [],
+        "normalization_blockers": ["The guidance profile must be downgraded after this normalization because GRO-00 through GRO-15 are historical evidence, not an executable frontier."]
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
+      "lane": "memory_data",
+      "slice": {
+        "id": "NMG-05A-causal-store-and-review",
+        "state": "claimed_tests_first",
+        "claimable": false,
+        "depends_on": [
+          "NMG-05"
+        ],
+        "dependency_evidence": [
+          {
+            "id": "NMG-05",
+            "state": "accepted_4cb0a7b8"
+          }
+        ],
+        "allowed_paths": [
+          "src/causal_claim_store.py",
+          "tests/test_causal_claim_store.py"
+        ],
+        "hotfiles": [
+          "src/causal_claim_store.py",
+          "tests/test_causal_claim_store.py"
+        ],
+        "master_only_paths": [
+          "docs/plans/open-work-completion-master-roadmap.json",
+          "docs/plans/multi-agent-execution-guidance.json"
+        ],
+        "owner": "Bob/Terra high detached-worktree writer",
+        "independent_qa_reviewer": "Charlie/Terra fresh-context",
+        "root_review_depth": "deep",
+        "automatic_gates": [
+          {
+            "id": "NMG-05A-focused",
+            "command": "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider tests\\test_causal_claim_store.py --basetemp .abc-test-tmp\\ABC-NMG05A-REV203\\qa\\focused",
+            "pass_condition": "all twelve exact tests-first nodes pass on one frozen candidate"
+          },
+          {
+            "id": "NMG-05A-dependency",
+            "command": "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider tests\\test_causal_claim_store.py tests\\test_audit_causal_claim_store_contract.py tests\\test_native_knowledge_store.py tests\\test_memory_store_interfaces.py --basetemp .abc-test-tmp\\ABC-NMG05A-REV203\\qa\\dependency",
+            "pass_condition": "focused and three declared regression files pass"
+          },
+          {
+            "id": "NMG-05A-static",
+            "command": "venv\\Scripts\\python.exe -B -c \"compile exact two candidate paths in memory\"",
+            "pass_condition": "exact two candidate paths compile in memory"
+          },
+          {
+            "id": "NMG-05A-integration",
+            "command": "venv\\Scripts\\python.exe -B scripts\\validate_integration_spine_convergence.py --format json",
+            "pass_condition": "Integration Spine validator passes on authority revision 203"
+          },
+          {
+            "id": "NMG-05A-round6",
+            "command": "venv\\Scripts\\python.exe -B scripts\\validate_parallel_roadmap_execution.py --format json",
+            "pass_condition": "Round6 validator passes on authority revision 203"
+          },
+          {
+            "id": "NMG-05A-guidance",
+            "command": "venv\\Scripts\\python.exe -B scripts\\roadmap_multi_agent_guidance.py --format json",
+            "pass_condition": "Guidance validator passes on authority revision 203"
+          }
+        ],
+        "regression_tests": [
+          "tests/test_audit_causal_claim_store_contract.py",
+          "tests/test_native_knowledge_store.py",
+          "tests/test_memory_store_interfaces.py"
+        ],
+        "required_nodes": [
+          "tests/test_causal_claim_store.py::test_nmg05a_public_exports_signatures_schemas_and_exact_field_sets",
+          "tests/test_causal_claim_store.py::test_nmg05a_adopts_exact_connection_initializes_only_empty_schema_and_closes",
+          "tests/test_causal_claim_store.py::test_nmg05a_reopen_rejects_wrong_extra_or_mutated_schema_objects",
+          "tests/test_causal_claim_store.py::test_nmg05a_create_is_owner_version_evidence_bound_idempotent_and_detached",
+          "tests/test_causal_claim_store.py::test_nmg05a_exact_owner_read_and_bounded_history_never_enumerate_other_owners",
+          "tests/test_causal_claim_store.py::test_nmg05a_transition_matrix_requires_independent_reviewer_and_evidence",
+          "tests/test_causal_claim_store.py::test_nmg05a_conflict_alternative_retraction_and_supersession_bind_exact_related_claims",
+          "tests/test_causal_claim_store.py::test_nmg05a_terminal_replay_duplicate_event_and_stale_head_fail_closed",
+          "tests/test_causal_claim_store.py::test_nmg05a_append_only_triggers_hash_chain_schema_and_reopen_detect_tampering",
+          "tests/test_causal_claim_store.py::test_nmg05a_two_connection_race_rollback_and_reopen_are_atomic",
+          "tests/test_causal_claim_store.py::test_nmg05a_hostile_exact_types_colliding_keys_baseexception_and_mutation_do_not_escape",
+          "tests/test_causal_claim_store.py::test_nmg05a_max_max_plus_one_overflow_and_zero_effect_boundaries"
+        ],
+        "workspaces": {
+          "detached_worktree": "C:\\Users\\nkatz\\odysseus-abc-019ff11a",
+          "writer": ".abc-test-tmp\\ABC-NMG05A-REV203\\writer",
+          "qa": ".abc-test-tmp\\ABC-NMG05A-REV203\\qa"
+        },
+        "remaining_user_gates": [],
+        "normalization_blockers": [],
+        "claim_id": "ABC-NMG05A-REV203",
+        "authority_revision": 203,
+        "architecture_binding": {
+          "architecture_id": "NMG-05A-CAUSAL-STORE-AND-REVIEW-SOL-ARCH-v1",
+          "logical_authority_revision": 202,
+          "router_mutation_in_packet_step": false,
+          "path": "docs/plans/abc-nmg05a-causal-store-and-review-architecture.json",
+          "raw_blob": "21b884fdbd56a9cb0083ae9145f8bee3dcbb8b64",
+          "raw_sha256": "sha256:645bd8c91025c4bf75dbd3ad7d9a445378e71a189fb17837d5f85c8cd5c02b62",
+          "semantic_seal_bytes": 19339,
+          "semantic_digest_sha256": "sha256:89ebd675bc66cea560e421580417539816f525cff35d6852bd0a37719343c64c"
+        },
+        "correction_budget": {
+          "failure_class": "nmg05a_causal_store_review_authority_append_only_object_binding",
+          "limit": 1,
+          "on_repeat": "release_blocked and require a fresh Root/Sol architecture; no second product patch",
+          "used": 0
+        },
+        "verification_commands": {
+          "central": [
+            [
+              "venv\\Scripts\\python.exe",
+              "-B",
+              "scripts\\validate_integration_spine_convergence.py",
+              "--format",
+              "json"
+            ],
+            [
+              "venv\\Scripts\\python.exe",
+              "-B",
+              "scripts\\validate_parallel_roadmap_execution.py",
+              "--format",
+              "json"
+            ],
+            [
+              "venv\\Scripts\\python.exe",
+              "-B",
+              "scripts\\roadmap_multi_agent_guidance.py",
+              "--format",
+              "json"
+            ]
+          ],
+          "dependency": [
+            "venv\\Scripts\\python.exe",
+            "-B",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "tests\\test_causal_claim_store.py",
+            "tests\\test_audit_causal_claim_store_contract.py",
+            "tests\\test_native_knowledge_store.py",
+            "tests\\test_memory_store_interfaces.py",
+            "--basetemp",
+            ".abc-test-tmp\\ABC-NMG05A-REV203\\qa\\dependency"
+          ],
+          "focused": [
+            "venv\\Scripts\\python.exe",
+            "-B",
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "tests\\test_causal_claim_store.py",
+            "--basetemp",
+            ".abc-test-tmp\\ABC-NMG05A-REV203\\qa\\focused"
+          ],
+          "static": [
+            "venv\\Scripts\\python.exe",
+            "-B",
+            "-c",
+            "compile exact two candidate paths in memory"
+          ]
+        }
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/rag-memory-tokenization-roadmap.md",
+      "lane": "memory_data",
+      "slice": {
+        "id": "RMT9-P0A-offline-tokenizer-asset-manifest-contract", "state": "normalization_blocked_fresh_architecture_required", "claimable": false,
+        "depends_on": ["RMT1"], "dependency_evidence": [{"id": "RMT1", "state": "done"}],
+        "allowed_paths": ["src/offline_tokenizer_asset_contract.py", "tests/test_offline_tokenizer_asset_contract.py"], "hotfiles": ["src/offline_tokenizer_asset_contract.py", "tests/test_offline_tokenizer_asset_contract.py"], "master_only_paths": ["docs/plans/open-work-completion-master-roadmap.json", "docs/plans/multi-agent-execution-guidance.json"],
+        "owner": "Bob/Terra memory", "independent_qa_reviewer": "Charlie/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "RMT9-P0A-focused", "command": "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider tests\\test_offline_tokenizer_asset_contract.py --basetemp .abc-test-tmp\\ABC-RMT9-P0A-REV198\\writer\\focused", "pass_condition": "twelve exact manifest contract nodes pass on the frozen two-path candidate"}],
+        "remaining_user_gates": [{"id": "RMT9-TOKENIZER-PROVENANCE-IMPORT-GO", "blocks_current_slice": false, "reason": "Required only for later real asset import and exact-tokenizer execution; P0A grants no approval."}, {"id": "RMT-LIVE-REINDEX", "blocks_current_slice": false, "reason": "Later productive reindex gate."}],
+        "normalization_blockers": ["Same-class publicness recurrence after frozen correction 1/1; fresh Root/Sol architecture required."], "released_claim_id": "ABC-RMT9-P0A-REV198", "release_outcome": "released_blocked_same_class_recurrence_after_correction_1_of_1", "authority_revision": 201, "required_recovery": "fresh_root_sol_architecture"
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/codebase-memory-integration-roadmap.md",
+      "lane": "memory_data",
+      "slice": {
+        "id": "CBM-09-canonical-tool-and-agent-routing", "state": "normalization_blocked_dependency_reconciliation", "claimable": false,
+        "depends_on": ["CBM-06", "USI-09", "TAX1", "TAX5", "TAX8", "TAX10", "TAX-serialized-handoff"],
+        "dependency_evidence": [{"id": "CBM-06", "state": "accepted"}, {"id": "USI-09", "state": "accepted_in_open_work_source_conflicts"}, {"id": "TAX1", "state": "accepted_in_open_work_source_conflicts"}, {"id": "TAX5", "state": "accepted_in_open_work_source_conflicts"}, {"id": "TAX8", "state": "accepted_in_open_work_source_conflicts"}, {"id": "TAX10", "state": "accepted_in_open_work_source_conflicts"}, {"id": "TAX-serialized-handoff", "state": "not_recorded"}],
+        "allowed_paths": ["src/code_intelligence_tool_provider.py", "tests/test_code_intelligence_tool_routing.py"], "hotfiles": [], "master_only_paths": [],
+        "owner": "Bob/Terra memory", "independent_qa_reviewer": "Charlie/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "CBM-09-routing", "command": "venv\\Scripts\\python.exe -m pytest -q tests\\test_code_intelligence_tool_routing.py", "pass_condition": "routing test passes after exact TAX dependency and handoff reconciliation"}],
+        "remaining_user_gates": [{"id": "CBM-LIVE-ACTIVATION", "blocks_current_slice": false, "reason": "Later engine/live activation remains disabled."}],
+        "normalization_blockers": ["Source and Open Work disagree on TAX/USI acceptance and no serialized TAX handoff is recorded."]
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/code-lineage-timeline-roadmap.md",
+      "lane": "memory_data",
+      "slice": {
+        "id": "CLT-03-file-introduction-rename-and-move-lineage", "state": "accepted_released_round6_c_recovery", "claimable": false,
+        "depends_on": ["CLT-02", "USI-03"],
+        "dependency_evidence": [{"id": "CLT-02", "state": "accepted"}, {"id": "USI-03", "state": "accepted"}],
+        "allowed_paths": ["src/code_file_lineage.py", "src/code_lineage_contract.py", "tests/test_code_file_lineage.py", "tests/test_code_lineage_contract.py"], "hotfiles": ["src/code_file_lineage.py", "src/code_lineage_contract.py"], "master_only_paths": [],
+        "owner": "Bob/Terra memory-data", "owner_authority": "Source roadmap CLT-03 assigns implementation to Bob; no ownership transfer is introduced by Round 6.", "independent_qa_reviewer": "Alice/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "CLT-03-focused", "command": "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider tests\\test_code_file_lineage.py tests\\test_code_lineage_contract.py tests\\test_code_lineage_git_adapter.py tests\\test_unified_source_index_contract.py tests\\test_unified_source_index_owner_scope.py", "pass_condition": "rename/move/introduction fixtures pass; every after-image has exactly one canonical commit/path/blob/source-version binding; foreign, duplicate and unused evidence fails closed"}],
+        "remaining_user_gates": [{"id": "CLT-LIVE-ACTIVATION", "blocks_current_slice": false, "reason": "Real history backfill/activation remains later and default-off."}],
+        "normalization_blockers": [],
+        "recovery_architecture": "Fresh read-only Terra architecture plus explicit Sol deep review PASS at 2026-08-02T22:15:18+02:00. Replace the mapping API, derive commit/path/blob from GitHistorySlice, require exactly one matching CodeRangeLocator and SourceVersionRecord per after-image, persist bijective GitBlobEvidenceRef/SourceVersionEvidenceBinding records, and include them in canonical bundle identity."
+      },
+      "source_evidence": "CLT-02 and USI-03 accepted; this plan supersedes stale guidance that still points to CLT-00"
+    },
+    {
+      "roadmap_path": "docs/plans/unified-source-index-implementation-roadmap.md",
+      "lane": "memory_data",
+      "slice": {
+        "id": "USI-15-synthetic-staging-and-activation-packet", "state": "blocked_by_dependency_root_only", "claimable": false,
+        "depends_on": ["UIR-14", "ULO-14", "UDA-18"],
+        "dependency_evidence": [{"id": "UIR-14", "state": "not_accepted"}, {"id": "ULO-14", "state": "not_accepted"}, {"id": "UDA-18", "state": "not_accepted"}],
+        "allowed_paths": [], "hotfiles": [], "master_only_paths": ["docs/plans/open-work-completion-master-roadmap.json"],
+        "owner": "root/Sol master", "independent_qa_reviewer": "Charlie/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "USI-15-dependency", "command": "venv\\Scripts\\python.exe scripts\\validate_parallel_roadmap_execution.py --format json", "pass_condition": "UIR-14, ULO-14 and UDA-18 are accepted before root-only activation-packet integration"}],
+        "remaining_user_gates": [{"id": "USI-LIVE-ACTIVATION", "blocks_current_slice": false, "reason": "Separate later productive activation gate."}],
+        "normalization_blockers": ["All three child closure dependencies remain incomplete."]
+      },
+      "root_integration_paths": ["docs/plans/unified-source-index-activation-packet.md", "docs/plans/open-work-completion-master-roadmap.json"]
+    },
+    {
+      "roadmap_path": "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md",
+      "lane": "memory_data",
+      "slice": {
+        "id": "UDA-01-adapter-registry-and-capability-manifest", "state": "accepted_released_round6_b", "claimable": false,
+        "depends_on": ["UDA-00", "USI-01", "USI-02", "USI-04"],
+        "dependency_evidence": [{"id": "UDA-00", "state": "accepted_released_round5"}, {"id": "USI-01", "state": "accepted"}, {"id": "USI-02", "state": "accepted"}, {"id": "USI-04", "state": "accepted"}],
+        "allowed_paths": ["src/unified_source_index_sources/__init__.py", "src/unified_source_index_source_registry.py", "src/unified_source_index_source_capability.py", "tests/test_unified_source_index_source_registry.py"],
+        "hotfiles": [], "master_only_paths": [],
+        "owner": "Bob/Terra memory-data", "owner_authority": "Source roadmap UDA-01 assigns implementation to Bob; no ownership transfer is introduced by Round 6.", "independent_qa_reviewer": "Charlie/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "UDA-01-focused", "command": "venv\\Scripts\\python.exe -m pytest -q tests\\test_unified_source_index_source_registry.py", "pass_condition": "duplicate IDs fail closed and enumeration loads no source content/provider"}],
+        "remaining_user_gates": [{"id": "USI-LIVE-ACTIVATION", "blocks_current_slice": false, "reason": "Productive source reads/scans remain parent-gated."}],
+        "normalization_blockers": []
+      },
+      "source_evidence": "Wave-5 UDA-00 acceptance plus accepted USI identity/store contracts supersede stale UDA-00 ready_after_goal_start text"
+    },
+    {
+      "roadmap_path": "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md",
+      "lane": "memory_data",
+      "slice": {
+        "id": "ULO-01-stable-owner-scope-and-alias-contract", "state": "accepted_released_round6_a", "claimable": false,
+        "depends_on": ["ULO-00", "USI-01", "USI-02"],
+        "dependency_evidence": [{"id": "ULO-00", "state": "accepted_released_round5"}, {"id": "USI-01", "state": "accepted"}, {"id": "USI-02", "state": "accepted"}],
+        "allowed_paths": ["src/unified_source_index_owner_scope.py", "tests/test_unified_source_index_owner_scope.py"], "hotfiles": [], "master_only_paths": [],
+        "owner": "Bob/Terra memory-data", "owner_authority": "Source roadmap ULO-01 assigns implementation to Bob; no ownership transfer is introduced by Round 6.", "independent_qa_reviewer": "Charlie/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "ULO-01-focused", "command": "venv\\Scripts\\python.exe -m pytest -q tests\\test_unified_source_index_owner_scope.py", "pass_condition": "rename chains preserve opaque owner IDs and collisions/stale aliases fail closed"}],
+        "remaining_user_gates": [{"id": "USI-LIVE-ACTIVATION", "blocks_current_slice": false, "reason": "Productive lifecycle activation remains later and separate."}],
+        "normalization_blockers": []
+      },
+      "source_evidence": "Wave-5 ULO-00 acceptance plus accepted USI identity contracts supersede stale ULO-00 ready_after_goal_start text"
+    },
+    {
+      "roadmap_path": "docs/plans/forge-usi-code-source-adapter-roadmap.md",
+      "lane": "memory_data",
+      "slice": {
+        "id": "FCA-02-coverage-manifest-and-no-gap-verifier",
+        "state": "dependency_ready_unclaimed_default_off",
+        "claimable": false,
+        "depends_on": ["FCA-01"],
+        "dependency_evidence": [{"id": "FCA-01", "state": "accepted_released_round7"}],
+        "allowed_paths": [
+          "src/unified_source_index_code_coverage.py",
+          "tests/test_unified_source_index_code_coverage.py"
+        ],
+        "hotfiles": [],
+        "master_only_paths": [],
+        "owner": "unassigned pending fresh FCA-02 claim",
+        "independent_qa_reviewer": "unassigned independent reviewer pending fresh FCA-02 claim",
+        "root_review_depth": "deep",
+        "automatic_gates": [
+          {
+            "id": "FCA-02-focused",
+            "command": "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider tests\\test_unified_source_index_code_coverage.py tests\\test_unified_source_index_forge_code_source.py",
+            "pass_condition": "coverage/no-gap and Forge source regressions pass under a future exact FCA-02 claim"
+          }
+        ],
+        "remaining_user_gates": [
+          {
+            "id": "USI-LIVE-ACTIVATION",
+            "blocks_current_slice": false,
+            "reason": "Productive indexing and every provider, runtime or live activation remain separately gated."
+          }
+        ],
+        "normalization_blockers": ["Fresh exact owner/reviewer assignment, pins and path-collision audit are required before a future FCA-02 writer claim."]
+      },
+      "source_evidence": "FCA current registration handoff: FCA-00 and FCA-01 accepted/released; FCA-02 is the sole dependency-ready FCA frontier and remains unclaimed/default-off."
+    },
+    {
+      "roadmap_path": "docs/plans/abc-frontpage-v2-build-plan.md",
+      "lane": "app_integration",
+      "slice": {
+        "id": "FRONTPAGE-V2-structured-slice-normalization", "state": "needs_design_and_normalization", "claimable": false,
+        "depends_on": [], "dependency_evidence": [], "allowed_paths": [], "hotfiles": [], "master_only_paths": [],
+        "owner": "Alice/Terra design contract", "independent_qa_reviewer": "Charlie/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "FRONTPAGE-normalization", "command": "venv\\Scripts\\python.exe scripts\\validate_parallel_roadmap_execution.py --format json", "pass_condition": "prose items become exact IDs, dependencies, paths, owner, reviewer and tests after approved design"}],
+        "remaining_user_gates": [{"id": "FRONTPAGE-V2-DESIGN-ACCEPTANCE", "blocks_current_slice": true, "reason": "No approved structured UI/design slice exists."}],
+        "normalization_blockers": ["The source has prose items only and delegates structured Planning work to another roadmap."]
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/ai-lens-design-roadmap.json",
+      "lane": "app_integration",
+      "slice": {
+        "id": "AIL-DESIGN-1-visual-system", "state": "needs_design", "claimable": false,
+        "depends_on": [], "dependency_evidence": [], "allowed_paths": [], "hotfiles": [], "master_only_paths": [],
+        "owner": "Alice/Terra design", "independent_qa_reviewer": "Charlie/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "AIL-design-contract", "command": "venv\\Scripts\\python.exe scripts\\validate_parallel_roadmap_execution.py --format json", "pass_condition": "placement, visual intensity, exact files and independent QA are approved before implementation"}],
+        "remaining_user_gates": [{"id": "AIL-DESIGN-GATE-placement", "blocks_current_slice": true, "reason": "Placement is undecided."}, {"id": "AIL-DESIGN-GATE-visual-intensity", "blocks_current_slice": true, "reason": "Visual intensity is undecided."}, {"id": "AIL-DESIGN-GATE-live-data-wiring", "blocks_current_slice": false, "reason": "Later live data wiring gate."}],
+        "normalization_blockers": ["Wildcard UI paths and a distinct QA reviewer are not yet fixed by the source slice."]
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md",
+      "lane": "app_integration",
+      "slice": {
+        "id": "H1-29-canonical-planning-projection", "state": "normalization_blocked", "claimable": false,
+        "depends_on": ["H1-28", "CAO-08A", "CAO-08B", "ACPR-11"],
+        "dependency_evidence": [{"id": "H1-28", "state": "done"}, {"id": "CAO-08A", "state": "accepted_central_not_bound_in_source"}, {"id": "CAO-08B", "state": "accepted_central_not_bound_in_source"}, {"id": "ACPR-11", "state": "accepted_round5_not_bound_in_source"}],
+        "allowed_paths": [], "hotfiles": [], "master_only_paths": [],
+        "owner": "Bob/Terra planning integration", "independent_qa_reviewer": "Charlie/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "H1-29-normalization", "command": "venv\\Scripts\\python.exe scripts\\validate_parallel_roadmap_execution.py --format json", "pass_condition": "exact fixture paths, hotfiles and test command are registered against current accepted dependencies"}],
+        "remaining_user_gates": [{"id": "H1-GATE-INBOX-SEMANTIC-UX-ACCEPTANCE", "blocks_current_slice": false, "reason": "Later semantic UX gate."}],
+        "normalization_blockers": ["The source lacks exact allowed paths, hotfiles and a test command for H1-29."]
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/planning-definition-editor-roadmap.json",
+      "lane": "app_integration",
+      "slice": {
+        "id": "PDE-08-real-save-undo-smoke", "state": "waiting_on_user", "claimable": false,
+        "depends_on": ["PDE-07-boundary-browser-acceptance"], "dependency_evidence": [{"id": "PDE-07-boundary-browser-acceptance", "state": "implemented_green"}],
+        "allowed_paths": [], "hotfiles": [], "master_only_paths": [],
+        "owner": "Charlie/Terra operator integration", "independent_qa_reviewer": "Alice/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "PDE-08-contract", "command": "venv\\Scripts\\python.exe scripts\\validate_parallel_roadmap_execution.py --format json", "pass_condition": "exact roadmap target, base revision/hash, preview diff, undo target and window are present"}],
+        "remaining_user_gates": [{"id": "PLANNING-WRITE-GO", "blocks_current_slice": true, "reason": "Real save/undo is an external planning mutation."}],
+        "normalization_blockers": []
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/product-planning-skills-integration-roadmap.md",
+      "lane": "app_integration",
+      "slice": {
+        "id": "PPS-1-skill-import-compatibility", "state": "waiting_on_user", "claimable": false,
+        "depends_on": ["PPS-0"], "dependency_evidence": [{"id": "PPS-0", "state": "done"}],
+        "allowed_paths": ["services/memory/skill_format.py", "services/memory/skill_importer.py", "services/memory/skills.py", "tests/test_skill_format.py", "tests/test_skill_importer.py", "tests/test_skills_manager_owner_isolation.py"],
+        "hotfiles": [], "master_only_paths": [],
+        "owner": "Bob/Terra app integration", "independent_qa_reviewer": "Charlie/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "PPS-1-focused", "command": "venv\\Scripts\\python.exe -m pytest -q tests\\test_skill_format.py tests\\test_skill_importer.py tests\\test_skills_manager_owner_isolation.py", "pass_condition": "format/import/owner-isolation tests pass"}],
+        "remaining_user_gates": [{"id": "PPS-G0", "blocks_current_slice": true, "reason": "Exact phrase GO PPS repo-only implementation is required by the roadmap."}],
+        "normalization_blockers": []
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/privacy-safe-tool-analytics-roadmap.md",
+      "lane": "app_integration",
+      "slice": {
+        "id": "TUA4R-agent-streaming-regression-guard", "state": "accepted_released_round6_b", "claimable": false,
+        "depends_on": ["TUA4"], "dependency_evidence": [{"id": "TUA4", "state": "accepted"}],
+        "allowed_paths": ["routes/chat_routes.py", "tests/test_chat_route_tool_policy.py", "tests/test_tool_usage_context.py"],
+        "hotfiles": ["routes/chat_routes.py"], "master_only_paths": [],
+        "owner": "Bob/Terra app integration", "owner_authority": "Source roadmap TUA4R assigns the focused repair to Bob; Charlie retains only the separate later deploy packet.", "independent_qa_reviewer": "Alice/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [
+          {"id": "TUA4R-focused", "command": "venv\\Scripts\\python.exe -m pytest -q tests\\test_chat_route_tool_policy.py tests\\test_tool_usage_context.py tests\\test_tool_usage_incognito.py", "pass_condition": "Agent streaming reaches terminal SSE; disabled/incognito instrumentation remains no-op"},
+          {"id": "TUA4R-diff", "command": "git diff --check -- routes/chat_routes.py tests/test_chat_route_tool_policy.py tests/test_tool_usage_context.py", "pass_condition": "scoped diff is clean and content-free"}
+        ],
+        "remaining_user_gates": [{"id": "TUA4R-DEPLOY-AND-AUTHENTICATED-SMOKE-GO", "blocks_current_slice": false, "reason": "Normalized name for the source-required later explicit Debian deploy/recreate and authenticated smoke Go."}],
+        "normalization_blockers": []
+      },
+      "root_integration_paths": ["docs/plans/privacy-safe-tool-analytics-roadmap.md"]
+    },
+    {
+      "roadmap_path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
+      "lane": "app_integration",
+      "slice": {
+        "id": "TTD-07A5-poll-webhook-sweep-and-turn-lease", "state": "blocked_after_two_attempts", "claimable": false,
+        "depends_on": ["TTD-07A0", "TTD-07A1", "TTD-07A2", "TTD-07A3", "TTD-07A4", "fresh-readonly-architecture-handoff"],
+        "dependency_evidence": [{"id": "TTD-07A0", "state": "accepted"}, {"id": "TTD-07A1", "state": "accepted"}, {"id": "TTD-07A2", "state": "accepted"}, {"id": "TTD-07A3", "state": "accepted"}, {"id": "TTD-07A4", "state": "accepted"}, {"id": "fresh-readonly-architecture-handoff", "state": "missing"}],
+        "allowed_paths": [], "hotfiles": [], "master_only_paths": [],
+        "owner": "Bob/Terra app integration", "independent_qa_reviewer": "Charlie/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "TTD-07A5-reclaim", "command": "venv\\Scripts\\python.exe scripts\\validate_parallel_roadmap_execution.py --format json", "pass_condition": "fresh architecture handoff defines exact transport/DB/fencing/offset/owner paths and tests before a third claim"}],
+        "remaining_user_gates": [],
+        "normalization_blockers": ["Two attempts were rejected; exact new claim fields and independent reviewer must come from a fresh read-only architecture handoff."]
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
+      "lane": "app_integration",
+      "slice": {
+        "id": "TRP-07-offline-integration-backup-and-live-packet", "state": "blocked_after_fresh_architecture_and_two_recovery_corrections_not_accepted", "claimable": false,
+        "depends_on": ["TRP-06-owner-scoped-backend-api"], "dependency_evidence": [{"id": "TRP-06-owner-scoped-backend-api", "state": "accepted_released_round5"}],
+        "allowed_paths": [
+          "app.py", "docker-compose.yml", "src/transcription_backup_receipts.py", "src/transcription_runtime.py", "src/transcription_store.py", "services/transcription/faster_whisper_adapter.py", "services/transcription/faster_whisper_model_manifest.json", "scripts/preload_faster_whisper_model.py", "scripts/transcription_backup_control.py", "scripts/transcription_live_smoke.py", "ops/homeserver/transcription-live-activation/activation-plan.json", "ops/homeserver/transcription-live-activation/preflight.py", "ops/homeserver/transcription-live-activation/validate_packet.py", "ops/homeserver/transcription-live-activation/templates/live-evidence.template.json", "ops/homeserver/transcription-live-activation/execute_packet.py", "ops/homeserver/transcription-live-activation/host_receipt.py", "ops/homeserver/transcription-live-activation/packet_contract.py", "ops/homeserver/run-transcription-live-canary.sh", "ops/homeserver/restore-transcription-audio-proof.sh", "ops/homeserver/transcription-live-test-readback.py", "ops/homeserver/backup-homeserver.sh", "ops/homeserver/run-backup-gate-evidence.sh", "ops/homeserver/restore-backup-smoke.sh", "docs/backup-restore.md", "tests/test_app_transcription_wiring.py", "tests/test_transcription_backup_receipts.py", "tests/test_transcription_runtime.py", "tests/test_transcription_store.py", "tests/test_transcription_integration.py", "tests/test_faster_whisper_transcription_adapter.py", "tests/test_faster_whisper_model_preloader.py", "tests/test_transcription_backup_control.py", "tests/test_transcription_live_smoke_contract.py", "tests/test_homeserver_backup_contract.py", "tests/test_transcription_recovery_packet.py"
+        ],
+        "hotfiles": ["app.py", "docker-compose.yml", "src/transcription_backup_receipts.py", "src/transcription_store.py", "src/transcription_runtime.py", "services/transcription/faster_whisper_adapter.py", "ops/homeserver/transcription-live-activation/activation-plan.json", "ops/homeserver/backup-homeserver.sh", "ops/homeserver/restore-backup-smoke.sh", "docs/backup-restore.md"],
+        "master_only_paths": ["docs/plans/open-work-completion-master-roadmap.json"],
+        "owner": "Charlie/Terra app integration", "owner_authority": "Source roadmap TRP-07 assigns the offline integration and packet slice to Charlie; no ownership transfer is introduced by Round 6.", "independent_qa_reviewer": "Alice/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [
+          {"id": "TRP-07-focused", "command": "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider tests\\test_app_transcription_wiring.py tests\\test_transcription_backup_receipts.py tests\\test_transcription_runtime.py tests\\test_transcription_store.py tests\\test_transcription_integration.py tests\\test_faster_whisper_transcription_adapter.py tests\\test_faster_whisper_model_preloader.py tests\\test_transcription_backup_control.py tests\\test_transcription_live_smoke_contract.py tests\\test_homeserver_backup_contract.py tests\\test_transcription_recovery_packet.py", "pass_condition": "productive startup wiring, signed host receipt replay, strict manifest/preloader, exact snapshot/restore/readback packet and every default-refusing path pass without a live action"},
+          {"id": "TRP-07-diff", "command": "git diff --check -- services/transcription src/transcription_backup_receipts.py src/transcription_store.py src/transcription_runtime.py scripts/preload_faster_whisper_model.py scripts/transcription_backup_control.py scripts/transcription_live_smoke.py ops/homeserver docker-compose.yml docs/backup-restore.md tests/test_transcription_integration.py tests/test_faster_whisper_transcription_adapter.py tests/test_faster_whisper_model_preloader.py tests/test_transcription_backup_receipts.py tests/test_transcription_backup_control.py tests/test_transcription_store.py tests/test_transcription_runtime.py tests/test_transcription_live_smoke_contract.py tests/test_homeserver_backup_contract.py", "pass_condition": "scoped diff is clean; no provider/model/host/backup/restore/live action was executed"}
+        ],
+        "remaining_user_gates": [{"id": "TRP-MODEL-MANIFEST-METADATA", "blocks_current_slice": false, "reason": "Exact productive model manifest metadata decision remains separate."}, {"id": "TRP-LIVE-DEPLOY-MODEL-BACKUP-SMOKE", "blocks_current_slice": false, "reason": "Later exact Debian deploy/model/backup/live smoke Go."}, {"id": "TRP-PRODUCTIVE-PRIVATE-AUDIO", "blocks_current_slice": false, "reason": "Productive private audio remains separately forbidden."}],
+        "normalization_blockers": ["Final fresh Terra QA and explicit Sol deep review both rejected the stabilized recovery after two correction cycles: the store can still reach backup_protected without mandatory signed-envelope proof; adapter/preloader file access is not fully anchored, short-write-safe and staging-rehashed; activation plan/snapshot semantics and hashes are not guaranteed to bind the same opened objects. No third repair may start without a new architecture generation and claim."],
+        "recovery_architecture": "Fresh read-only Terra architecture plus explicit Sol deep review PASS at 2026-08-02T22:15:18+02:00 defined the corrected 35-path claim. The implementation consumed two bounded correction cycles and remained materially incomplete at final QA; the architecture handoff remains evidence, not acceptance."
+      },
+      "root_integration_paths": ["docs/plans/faster-whisper-transcription-protocol-roadmap.json", "docs/plans/open-work-completion-master-roadmap.json"]
+    },
+    {
+      "roadmap_path": "docs/plans/tool-taxonomy-registration-roadmap.md",
+      "lane": "app_integration",
+      "slice": {
+        "id": "TAX7-existing-admin-ui-consumes-the-catalog", "state": "repo_implemented_automated_gates_pass_user_ui_acceptance_open", "claimable": false,
+        "depends_on": ["TAX6"], "dependency_evidence": [{"id": "TAX6", "state": "accepted"}],
+        "allowed_paths": ["static/js/admin.js", "tests/test_admin_tool_catalog_ui.py", "tests/test_admin_plugin_tools_ui.py"],
+        "hotfiles": ["static/js/admin.js"], "master_only_paths": [],
+        "owner": "Alice/Terra app integration", "owner_authority": "Source roadmap TAX7 assigns the slice to Alice; Charlie retains hotfile integration coordination without replacing the source owner.", "independent_qa_reviewer": "Bob/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "TAX7-focused", "command": "venv\\Scripts\\python.exe -m pytest -q tests\\test_admin_tool_catalog_ui.py tests\\test_admin_plugin_tools_ui.py", "pass_condition": "catalog projection, escaping and enable/disable compatibility tests pass"}, {"id": "TAX7-js", "command": "node --check static\\js\\admin.js", "pass_condition": "Admin JavaScript syntax is valid"}],
+        "remaining_user_gates": [{"id": "TAX7-UI-ACCEPTANCE", "blocks_current_slice": false, "reason": "Does not block repo-local implementation or automated verification, but blocks final TAX7 and Round-6 acceptance until the user personally approves the UI."}, {"id": "TAX-LIVE-ACTIVATION", "blocks_current_slice": false, "reason": "No live gate is requested until the fully verified activation packet exists."}],
+        "normalization_blockers": []
+      },
+      "source_evidence": "TAX6 accepted; this plan supersedes stale guidance that still says start TAX0/TAX1"
+    },
+    {
+      "roadmap_path": "docs/plans/lens-code-graph-roadmap.md",
+      "lane": "app_integration",
+      "slice": {
+        "id": "LCG-00-ux-truth-and-navigation-contract", "state": "waiting_on_explicit_goal_and_ui_owner", "claimable": false,
+        "depends_on": [], "dependency_evidence": [],
+        "allowed_paths": ["docs/plans/lens-code-graph-roadmap.md", "docs/plans/lens-code-graph-ux-contract.md", "tests/test_lens_code_graph_contract.py"], "hotfiles": [], "master_only_paths": [],
+        "owner": "Alice/Terra app contract", "independent_qa_reviewer": "Charlie/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "LCG-00-contract", "command": "venv\\Scripts\\python.exe -m pytest -q tests\\test_lens_code_graph_contract.py", "pass_condition": "truth/navigation contract passes after Frontpage/Lens owner is identified"}],
+        "remaining_user_gates": [{"id": "LCG-EXPLICIT-GOAL", "blocks_current_slice": true, "reason": "The source requires a future explicit goal and selected UI owner."}, {"id": "LCG-UI-LIVE", "blocks_current_slice": false, "reason": "Later visual/live gate."}],
+        "normalization_blockers": []
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
+      "lane": "app_integration",
+      "slice": {
+        "id": "UIR-03-composition-root-and-dependency-injection", "state": "blocked_pending_exact_active_file_handoff", "claimable": false,
+        "depends_on": ["UIR-02", "USI-03", "USI-04", "active-file-handoff"],
+        "dependency_evidence": [{"id": "UIR-02", "state": "accepted"}, {"id": "USI-03", "state": "accepted"}, {"id": "USI-04", "state": "accepted"}, {"id": "active-file-handoff", "state": "not_accepted_pending_exact_app_initializer_single_writer_handoff"}],
+        "allowed_paths": ["src/unified_source_index_runtime.py", "src/app_initializer.py", "app.py", "tests/test_unified_source_index_runtime_wiring.py", "tests/test_app_router_initialization_order.py"],
+        "hotfiles": ["src/app_initializer.py", "app.py"], "master_only_paths": [],
+        "owner": "Charlie/Terra app integration", "independent_qa_reviewer": "Alice/Terra fresh-context", "root_review_depth": "deep",
+        "automatic_gates": [{"id": "UIR-03-focused", "command": "venv\\Scripts\\python.exe -m pytest -q tests\\test_unified_source_index_runtime_wiring.py tests\\test_app_router_initialization_order.py", "pass_condition": "disabled/read-only startup is deterministic, import failures are controlled and exactly one runtime exists"}],
+        "remaining_user_gates": [{"id": "USI-LIVE-ACTIVATION", "blocks_current_slice": false, "reason": "Productive sources/workers/providers remain later and default-off."}],
+        "normalization_blockers": ["Open Work requires an exact app.py/src/app_initializer.py active-file collision and single-writer handoff before UIR-03 can be claimed or scheduled."]
+      }
+    },
+    {
+      "roadmap_path": "docs/plans/telegram-windows-pc-control-roadmap.json",
+      "lane": "coding",
+      "slice": {
+        "id": "TWP-01-repo-control-plane",
+        "state": "running_existing_same_checkout_root_claim",
+        "claimable": false,
+        "depends_on": [],
+        "dependency_evidence": [],
+        "allowed_paths": [
+          "docs/plans/telegram-windows-pc-control-roadmap.json",
+          "plugins/telegram/parsing.py",
+          "plugins/telegram/plugin.py",
+          "plugins/telegram/pc_control.py",
+          "plugins/telegram/routes_pc_control.py",
+          "tests/test_telegram_pc_control.py",
+          "tests/test_telegram_pc_control_routes.py",
+          "tests/test_telegram_plugin.py",
+          "ops/windows/telegram-pc-control/README.md",
+          "ops/windows/telegram-pc-control/pc-agent.ps1",
+          "ops/windows/telegram-pc-control/install-pc-agent.ps1",
+          "ops/homeserver/telegram-pc-control/README.md",
+          "ops/homeserver/redacted_runtime_probe.py",
+          "tests/test_homeserver_redacted_runtime_probe.py"
+        ],
+        "hotfiles": [
+          "plugins/telegram/parsing.py",
+          "plugins/telegram/plugin.py",
+          "ops/homeserver/redacted_runtime_probe.py"
+        ],
+        "master_only_paths": [],
+        "owner": "root existing same-checkout claim",
+        "independent_qa_reviewer": "Charlie/Terra fresh-context",
+        "root_review_depth": "deep",
+        "automatic_gates": [
+          {
+            "id": "TWP-01-focused",
+            "command": "venv\\Scripts\\python.exe -m pytest -q tests\\test_telegram_pc_control.py tests\\test_telegram_pc_control_routes.py tests\\test_telegram_plugin.py -k pc_control tests\\test_homeserver_redacted_runtime_probe.py",
+            "pass_condition": "offline parser, store, HMAC, replay, confirmation, route, redaction and PowerShell contract checks pass"
+          }
+        ],
+        "remaining_user_gates": [
+          {"id": "windows-pc-agent-install-go", "blocks_current_slice": false, "reason": "Separate Windows task and DPAPI secret installation action."},
+          {"id": "windows-wake-settings-go", "blocks_current_slice": false, "reason": "Separate administrative NIC and power-setting action."},
+          {"id": "debian-pc-control-deploy-go", "blocks_current_slice": false, "reason": "Separate Debian deployment and service-restart action."},
+          {"id": "telegram-pc-control-live-smoke-go", "blocks_current_slice": false, "reason": "Separate bounded real Telegram/PC live smoke."}
+        ],
+        "normalization_blockers": [
+          "An existing same-checkout root claim owns all fourteen writer paths; this long run must not duplicate or overlap it."
+        ]
+      },
+      "source_evidence": "current_claim TWP-01-repo-control-plane plus slice_queue and gate_queue in the registered roadmap"
+    }
+  ],
+  "accepted_wave_handoffs": [
+    {
+      "wave_id": "ROUND6-A",
+      "accepted_at": "2026-08-02T20:48:23+02:00",
+      "status": "repo_accepted_user_ui_gate_open",
+      "released_claim_ids": ["ABC-R6A-ACPR12-20260802T201420+0200", "ABC-R6A-ULO01-20260802T201420+0200", "ABC-R6A-TAX7-20260802T201420+0200"],
+      "evidence": [
+        "ACPR-12 final Root and independent QA PASS after two bounded Root correction cycles: 79 focused tests, py_compile and scoped diff check PASS",
+        "ULO-01 Root integration PASS: 44 tests; independent read-only QA PASS",
+        "TAX7 existing catalog UI repo checks PASS: 6 tests and node syntax; no TAX7 path change required",
+        "Round-6 normalization and guidance validators remained green before Wave-A implementation"
+      ],
+      "remaining_gates": ["TAX7-UI-ACCEPTANCE user-owned visual and functional acceptance", "all live, provider, host, push, deploy and publication gates"],
+      "live_actions": false
+    },
+    {
+      "wave_id": "ROUND6-B",
+      "accepted_at": "2026-08-02T21:12:17+02:00",
+      "status": "repo_accepted",
+      "released_claim_ids": ["ABC-R6B-UDA01-20260802T204823+0200", "ABC-R6B-TUA4R-20260802T204823+0200"],
+      "evidence": [
+        "UDA-01 Root integration PASS: 77 tests; independent read-only QA PASS with 91 broader USI tests",
+        "TUA4R final Root PASS: 52 focused and adjacent tests after two bounded test-coverage correction cycles",
+        "TUA4R closure independent QA PASS: 35 focused and 61 adjacent real-agent-loop tests",
+        "Wave-B changed paths remain disjoint and scoped; no production provider, source, network, deploy or live action occurred"
+      ],
+      "remaining_gates": ["TUA4R-DEPLOY-AND-AUTHENTICATED-SMOKE-GO", "all parent USI/live/publication gates"],
+      "live_actions": false
+    },
+    {
+      "wave_id": "ROUND6-C",
+      "closed_at": "2026-08-02T21:53:41+02:00",
+      "status": "blocked_after_two_correction_cycles_not_accepted",
+      "released_rejected_claim_ids": ["ABC-R6C-CLT03-20260802T211217+0200", "ABC-R6C-TRP07-20260802T211217+0200"],
+      "evidence": [
+        "CLT-03 automatic corridors passed up to 82 tests, but final independent QA reproduced acceptance of a foreign/reused USI EvidenceRef under another commit/path; exact revision evidence is structurally unbound",
+        "TRP-07 automatic corridor passed 74 tests with 2 expected skips, but final independent QA proved productive app startup wiring is unreachable, packet tampering remains accepted, preload containment is incomplete, and canary/backup facts are not exact readback-bound",
+        "Both slices consumed two material correction cycles; ABC forbids a third implementation attempt without a fresh architecture handoff and new claim",
+        "Root diff, single-worktree and no-live checks remained clean; no external or live action occurred",
+        "Final integrated Round-6 repository corridor passed 254 tests with 2 expected skips; green automation does not override the two final semantic QA rejections"
+      ],
+      "required_recovery": [
+        "CLT-03: replace caller-trusted EvidenceRef mapping with an inspectable path and source-revision binding, then register a fresh exact two-path or explicitly expanded claim",
+        "TRP-07: register a fresh architecture handoff and expanded path claim including app.py, productive receipt verifier/mount wiring, strict packet semantics, bounded preload roots and commit/manifest/snapshot readback"
+      ],
+      "remaining_gates": ["TAX7-UI-ACCEPTANCE", "CLT-LIVE-ACTIVATION", "TRP-MODEL-MANIFEST-METADATA", "TRP-LIVE-DEPLOY-MODEL-BACKUP-SMOKE", "TRP-PRODUCTIVE-PRIVATE-AUDIO", "all commit, push, deploy, provider, host and publication actions"],
+      "live_actions": false
+    },
+    {
+      "wave_id": "ROUND6-C-RECOVERY",
+      "closed_at": "2026-08-02T23:03:34+02:00",
+      "status": "clt03_accepted_trp07_blocked_after_fresh_architecture_and_two_corrections",
+      "released_accepted_claim_ids": ["ABC-R6C-R-CLT03-20260802T221518+0200"],
+      "released_rejected_claim_ids": ["ABC-R6C-R-TRP07-20260802T221518+0200"],
+      "evidence": [
+        "CLT-03 final implementer 52 focused / 98 integrated PASS; independent fresh Terra QA 52 / 98 PASS; Root 98 PASS; explicit Sol re-review 98 PASS",
+        "CLT-03 rejects foreign canonical repo/source identity, foreign locator/revision, reused mapping, stale full evidence/version payloads and duplicate commit records; canonical bundle identity retains exact commit/path/blob/source-version evidence",
+        "TRP-07 final automatic corridor passed 82 tests with 2 expected skips; static JSON/YAML/AST, Bash syntax and scoped diff checks passed",
+        "TRP-07 final independent Terra QA and explicit Sol deep review both FAIL on mandatory signed-envelope store proof, fully anchored and rehashed model IO, and same-open-object activation-plan/snapshot packet binding",
+        "No third recovery correction is permitted; both fresh claims are released and no live, host, model, backup, restore, private-audio, stage, commit, push or deploy action occurred"
+      ],
+      "remaining_gates": ["TAX7-UI-ACCEPTANCE", "CLT-LIVE-ACTIVATION", "TRP-NEW-ARCHITECTURE-REQUIRED", "TRP-MODEL-MANIFEST-METADATA", "TRP-LIVE-DEPLOY-MODEL-BACKUP-SMOKE", "TRP-PRODUCTIVE-PRIVATE-AUDIO", "all commit, push, deploy, provider, host and publication actions"],
+      "live_actions": false
+    }
+  ],
+  "released_rmt9_p0a_claims": [
+    {
+      "claim_id": "ABC-RMT9-P0A-REV198",
+      "slice_id": "RMT9-P0A-offline-tokenizer-asset-manifest-contract",
+      "owner": "Bob/Terra offline tokenizer asset manifest contract writer",
+      "state": "released_blocked",
+      "authority_revision": 201,
+      "lease_expires_at": "2026-08-12T02:00:00+02:00",
+      "candidate_blobs": {"src/offline_tokenizer_asset_contract.py": "ebff77b19db9b215b71ab071cf5ca6d23053b294", "tests/test_offline_tokenizer_asset_contract.py": "b6597df5bec1fb13b9a4d9cb86b1b74db7b42279"},
+      "candidate_set_digest_sha256": "sha256:358d235b6b4720e89e55edbf4c41109fe1c7a92ab08eebe11a86c9fe0179dc9b",
+      "candidate_node_manifest_digest_sha256": "sha256:9c508b23ab35bfb935842922b206e91ec4a2bc1267fe0bbb03eae6ecd97a8f97",
+      "candidate_command_manifest_digest_sha256": "sha256:44133cc2c31cd3d3fd1ce9ed3c422aa78833ae864d0578505f623669cf995ecd",
+      "candidate_dirty_diff_digest_sha256": "sha256:b4ef6b2978b740c476bc389d7be50a192c47363f265fb42edafcc920d09a7038",
+      "architecture_correction_digest_sha256": "sha256:4b163772af5f26ad11371c969b18be7f1d5aa0c8916402105e5e14ea0b21434b",
+      "correction_budget": {"limit": 1, "used": 1},
+      "candidate_state": "frozen_for_independent_qa",
+      "released_at": "2026-08-11T16:10:00+02:00",
+      "release_outcome": "released_blocked_same_class_recurrence_after_correction_1_of_1",
+      "failure_evidence": "Root/Sol terminal hostile publicness probe after frozen correction 1/1 accepted all five forbidden special-use or reserved publicness counterexamples: https://example.com/tokenizer/v1; https://assets.example.org/tokenizer/v1; https://assets.example.net/tokenizer/v1; https://assets.home.arpa/tokenizer/v1; https://localhost.localdomain/tokenizer/v1. This recurs in failure class rmt9_p0a_external_pin_exact_bytes_digest_and_hostile_asset_manifest_boundary after correction 1/1; no second product patch is permitted.",
+      "required_recovery": "fresh_root_sol_architecture"
+    }
+  ],
+  "active_claims": [
+    {
+      "claim_id": "ABC-NMG05A-REV203",
+      "slice_id": "NMG-05A-causal-store-and-review",
+      "owner": "Bob/Terra high detached-worktree writer",
+      "codex_task_id": "019ff11a-c684-7232-893c-34b136ea2853",
+      "thread_id": "019ff11a-c684-7232-893c-34b136ea2853",
+      "state": "running",
+      "claim_state": "claimed_tests_first",
+      "authority_revision": 203,
+      "claimed_at": "2026-08-11T16:35:00+02:00",
+      "lease_expires_at": "2026-08-12T04:35:00+02:00",
+      "mutation_authority": "repo_only",
+      "worktree": "C:\\Users\\nkatz\\odysseus-abc-019ff11a",
+      "allowed_paths": [
+        "src/causal_claim_store.py",
+        "tests/test_causal_claim_store.py"
+      ],
+      "hotfiles": [
+        "src/causal_claim_store.py",
+        "tests/test_causal_claim_store.py"
+      ],
+      "baseline_blobs": {
+        "src/causal_claim_store.py": "absent",
+        "tests/test_causal_claim_store.py": "absent"
+      },
+      "architecture_path": "docs/plans/abc-nmg05a-causal-store-and-review-architecture.json",
+      "architecture_raw_blob": "21b884fdbd56a9cb0083ae9145f8bee3dcbb8b64",
+      "architecture_semantic_digest_sha256": "sha256:89ebd675bc66cea560e421580417539816f525cff35d6852bd0a37719343c64c",
+      "correction_budget": {
+        "failure_class": "nmg05a_causal_store_review_authority_append_only_object_binding",
+        "limit": 1,
+        "used": 0
+      },
+      "live_actions": false
+    }
+  ],
+  "waves": [
+    {
+      "id": "ROUND6-A",
+      "implementation_slice_ids": ["ACPR-12-transactional-worktree-and-safe-tool-capsules", "ULO-01-stable-owner-scope-and-alias-contract", "TAX7-existing-admin-ui-consumes-the-catalog"],
+      "qa_lane": "independent_qa",
+      "qa_assignments": {"ACPR-12-transactional-worktree-and-safe-tool-capsules": "Charlie/Terra fresh-context", "ULO-01-stable-owner-scope-and-alias-contract": "Charlie/Terra fresh-context", "TAX7-existing-admin-ui-consumes-the-catalog": "Bob/Terra fresh-context"},
+      "start_gate": "All three exact allowed-path sets are unclaimed and R6-SCHEMA-DAG-COLLISION passes.",
+      "acceptance_gate": "Every implementation handoff passes independent QA and root/Sol deep review before its claim is released; TAX7 remains provisionally implemented until the user personally approves the UI.",
+      "state": "repo_accepted_user_ui_gate_open"
+    },
+    {
+      "id": "ROUND6-B",
+      "depends_on_wave_ids": ["ROUND6-A"],
+      "implementation_slice_ids": ["UDA-01-adapter-registry-and-capability-manifest", "TUA4R-agent-streaming-regression-guard"],
+      "qa_lane": "independent_qa",
+      "qa_assignments": {"UDA-01-adapter-registry-and-capability-manifest": "Charlie/Terra fresh-context", "TUA4R-agent-streaming-regression-guard": "Alice/Terra fresh-context"},
+      "start_gate": "ROUND6-A accepted; selected paths remain disjoint and current.",
+      "acceptance_gate": "Focused gates, negative privacy/effect paths, independent QA and root/Sol deep review pass.",
+      "state": "repo_accepted"
+    },
+    {
+      "id": "ROUND6-C",
+      "depends_on_wave_ids": ["ROUND6-B"],
+      "implementation_slice_ids": ["CLT-03-file-introduction-rename-and-move-lineage", "TRP-07-offline-integration-backup-and-live-packet"],
+      "qa_lane": "independent_qa",
+      "qa_assignments": {"CLT-03-file-introduction-rename-and-move-lineage": "Alice/Terra fresh-context", "TRP-07-offline-integration-backup-and-live-packet": "Alice/Terra fresh-context"},
+      "start_gate": "ROUND6-B accepted; TRP hotfiles remain exclusively claimed and all live gates remain closed.",
+      "acceptance_gate": "Synthetic/history tests, no-live proof, independent QA and root/Sol deep review pass.",
+      "state": "blocked_trp07_recovery_terminally_not_accepted_clt03_recovery_accepted"
+    }
+  ],
+  "completion": {
+    "implemented": "round6_a_b_repo_accepted_round6_c_clt03_recovery_accepted_trp07_recovery_terminally_blocked",
+    "tested": "integrated_round6_corridor_316_passed_2_skipped_before_fca_router_registration_final_revalidation_278_passed_2_skipped_plus_12_planning_tests_and_guidance_parallel_static_node_bash_diff_checks_pass",
+    "independent_qa": "round6_a_b_pass_clt03_recovery_final_pass_trp07_recovery_final_fail_tax7_user_ui_acceptance_open",
+    "sol_reviewed": "round6_a_b_deep_pass_clt03_recovery_final_pass_trp07_recovery_final_fail",
+    "committed": "no",
+    "pushed": "no",
+    "deployed": "na",
+    "live_validated": "na",
+    "visual_validated": "na",
+    "temporal_validated": "na",
+    "product_complete": "no"
+  },
+  "not_verified": [
+    "TRP-07 recovery is not accepted after fresh architecture and two bounded correction cycles; retained drafts remain rejected evidence and require a new architecture generation before another claim.",
+    "TRP-07 mandatory signed-envelope store proof, fully anchored/short-write-safe model IO and same-open-object packet binding remain unverified.",
+    "No external CI, push, deploy, provider, host, send, private-data, visual, live or temporal evidence was collected.",
+    "Blocked roadmaps remain blocked until their recorded dependency, design, environment, normalization or user gate changes."
+  ]
+}

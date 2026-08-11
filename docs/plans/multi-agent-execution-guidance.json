@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-08-02T19:00:49+02:00",
-  "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files.",
+  "updated_at": "2026-08-10T21:18:00+02:00",
+  "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files; preserve terminal Round 6 and route Harbor One convergence through the current Round-7 integration spine.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
-    "docs_plans_count": 126,
+    "docs_plans_count": 132,
     "structured_specs_discovery": "All JSON files directly under specs/roadmaps.",
     "structured_specs_count": 7,
-    "total_count": 133,
+    "total_count": 139,
     "excluded": [
       "specs/roadmaps/odysseus-multiagent-start-2026-06-22.prompt.txt",
       "docs/plans/multi-agent-execution-guidance.json"
@@ -17,20 +17,34 @@
   "authority": {
     "structure_and_claimability": "specs/roadmaps/odysseus-multiagent-roadmap.v1.json",
     "current_open_work_and_gate_state": "docs/plans/open-work-completion-master-roadmap.json",
+    "post_round5_parallel_execution": "docs/plans/parallel-roadmap-execution-round6.json",
+    "post_round5_parallel_execution_validator": "scripts/validate_parallel_roadmap_execution.py",
+    "harbor_one_integration_spine": "docs/plans/parallel-roadmap-execution-round7.json",
+    "harbor_one_integration_spine_validator": "scripts/validate_integration_spine_convergence.py",
     "mvp_completion_state": "docs/plans/mvp-roadmap-runner-state.json",
     "integration_priority": "docs/plans/central-abc-masterplan-2026-06-29.md",
     "product_direction": "docs/plans/unified-odysseus-roadmap.md",
     "domain_contract": "The selected domain roadmap after reconciliation with the authorities above.",
     "conflict_rule": "Current dated completion and gate evidence wins over stale queue prose. A recommendation in the June structured seed is not claimable until reconciled with the July open-work and runner state. Never infer that an old unchecked or next-slice line reopens completed work."
   },
+  "abc_claim_protocol": {
+    "authority": "docs/plans/parallel-roadmap-execution-round7.json $.change_policy.abc_claim_protocol",
+    "claim_manifest": "Keep allowed_paths, read_only_pins, regression_tests and hotfiles separate; record materialized/readback baseline blobs, authority revision, verification tiers and one bounded correction per invariant.",
+    "hostile_acceptance": "Before implementation freeze exact-type and hostile Mapping/Sequence/__class__/property/iterator, TOCTOU, mutation-after-validation, raw-exception, Unicode/path-alias and budget rows.",
+    "qa_freeze": "Bind independent QA to exact candidate blobs, authority/router revision, read-only pins and dirty-diff digest; any drift is stale and requires a new candidate.",
+    "router_transaction": "Root performs central router claim transfer and compare-before-update as one logical transaction; no overlapping router writer is permitted.",
+    "inventory_modes": ["frozen_snapshot", "rolling_projection"],
+    "claim_transfer": "A worker or channel replacement may write only after an explicit durable transfer of the exact path claim.",
+    "windows_pytest": "Use a deterministic claim-scoped .abc-test-tmp descendant, no ACL manipulation, and verify exact cleanup.",
+    "verification_order": ["focused", "dependency", "central", "expensive_or_live_user_gated"]
+  },
   "analysis_summary": {
     "profile_counts": {
-      "active_parallel": 10,
-      "active_serial": 19,
-      "canonical_router": 9,
-      "gate_only": 54,
-      "historical_done": 35,
-      "needs_normalization": 6
+      "active_parallel": 11,
+      "active_serial": 20,
+      "canonical_router": 13,
+      "gate_only": 60,
+      "historical_done": 35
     },
     "parallel_write_candidates": [
       "docs/plans/code-lineage-timeline-roadmap.md",
@@ -64,14 +78,41 @@
       "docs/plans/unified-source-index-runtime-integration-roadmap.md",
       "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md"
     ],
-    "normalization_queue": [
-      "docs/plans/development-orchestration-foundation-roadmap.md",
-      "docs/plans/remaining-features-roadmap-2026-06-20.md",
-      "docs/plans/telegram-plugin-rich-streaming-roadmap.md",
-      "docs/plans/universal-inbox-abc-roadmap.md",
-      "docs/plans/updates-backups-ui-roadmap.md",
-      "specs/roadmaps/private-data-memory-ingestion-roadmap.v1.json"
-    ],
+    "normalization_queue": [],
+    "round6_parallel_execution": {
+      "round5_prerequisite": "accepted_released_at_c27583fccd0fea331aef91a8f27dfb49ab1479b1",
+      "inventory_mode": "rolling_projection",
+      "inventory_source_blob": "b64fb4524a98327a3c2c9e17990cb9f0440f7472",
+      "inventory_member_query": "Sort unique entry.path values from $.roadmaps where entry.profile starts with active_",
+      "inventory_member_count": 30,
+      "inventory_member_set_digest": "sha256:0f3bf8d41306facf635edd86a6c481cba702292994ab6c2e78937f86f9ec3bcf",
+      "inventory_denominator_change": {
+        "old_count": 29,
+        "new_count": 30,
+        "old_digest": "sha256:17cf68c5320ccb9aed72dce26f90404823e001db6f2d64e58f58a53da1145181",
+        "new_digest": "sha256:0f3bf8d41306facf635edd86a6c481cba702292994ab6c2e78937f86f9ec3bcf",
+        "old_round6_blob": "4b459ae502246df6a35aa42cb36db2d8337ed838",
+        "new_round6_blob": "a6cae9fd07f809ef4aec06b84a9b818f6166df05",
+        "added": ["docs/plans/forge-usi-code-source-adapter-roadmap.md"],
+        "removed": [],
+        "scope": "inventory_membership_only_terminal_waves_and_seven_scheduled_slices_unchanged"
+      },
+      "active_roadmap_count": 30,
+      "normalized_frontier_count": 30,
+      "scheduled_repo_slice_count": 7,
+      "current_claimable_frontier_count": 0,
+      "wave_count": 3,
+      "validation": "pass_30_of_30_coverage_7_scheduled_terminal_slices_3_dependency_ordered_waves_zero_claims",
+      "lanes": [
+        "coding",
+        "memory_data",
+        "app_integration",
+        "independent_qa"
+      ],
+      "router_writer": "root/Sol master only",
+      "worker_router_writes_allowed": false,
+      "required_before_claim": "python scripts/validate_parallel_roadmap_execution.py --format json"
+    },
     "findings": [
       "The previous safe repository queue was exhausted, but the operator opened normalized TAX/TUA post-MVP roadmaps on 2026-07-13. Their scoped repo-only slices are now the current safe queue and do not reopen the fixed ten-roadmap MVP runner.",
       "Several old roadmaps retain active or in-progress wording after their slices were completed or superseded. Current evidence must outrank old queue prose.",
@@ -82,7 +123,10 @@
       "USI core is not activation-complete without its three child closures: UIR owns composition and consumers, UDA owns policy-aware domain adapters and best-effort change signals, and ULO owns index participation in existing owner/data lifecycle operations. None may absorb domain truth, existing operations, TAX/TUA, GRO/GMI, CBM/Lineage or Lens ownership.",
       "Clarification is a planning precondition for the Harbor One autonomous workspace; missing product decisions must be asked, not inferred.",
       "The Live Contextual Layer is an active-serial advisory track: it may produce redacted observations, hypotheses and project-status projections, but Planning/domain truth, USI provenance, Memory/Causal review, CAO execution, ACT semantics and user-owned gates remain authoritative. CAO-08B is accepted; LCL-01 remains unselected until its own explicit implementation goal and exact claim exist.",
-      "The 2026-08-02 operator goal prioritizes safe parallel development. REPO-CLEANUP-ONE-WORKTREE must first reduce the repository to one canonical worktree with explained retained changes. After cleanup and master-route verification, the first bounded wave pairs CAO-08D coding execution-plane work with NMG-00 native-memory boundary inventory on disjoint new paths, while CAO-08C1 remains a later reclaim and SIRP deploy/delivery stays behind its independent live gates. Root alone writes canonical router and guidance artifacts; Charlie prepares independent QA evidence."
+      "The 2026-08-02 operator goal prioritizes safe parallel development. REPO-CLEANUP-ONE-WORKTREE must first reduce the repository to one canonical worktree with explained retained changes. After cleanup and master-route verification, the first bounded wave pairs CAO-08D coding execution-plane work with NMG-00 native-memory boundary inventory on disjoint new paths, while CAO-08C1 remains a later reclaim and SIRP deploy/delivery stays behind its independent live gates. Central routers remain Root-only; guidance changes require an exact Root-registered authoring claim.",
+      "The earlier Root edit to this guidance and the UDA detail roadmap outside its then-active central-router claim remains recorded as a scope deviation in Open Work; no claim was fabricated or backdated. Claim ABC-R7-FCA-UDA-ROUTER-NORM-20260803T160100+0200 is the later exact authority for inherited-diff review and bounded status normalization only.",
+      "Round 5 is accepted and released. Round 6A and 6B are repo-locally accepted. CLT-03 recovery is accepted and released after final Terra QA, Root and explicit Sol re-review. TRP-07 recovery is terminally not accepted after fresh architecture and two correction cycles; no claim remains active and no third repair may start. TAX7 UI acceptance and every live gate remain open.",
+      "The Forge-USI Code Source Adapter child roadmap is centrally registered. FCA-00, FCA-01, FCA-POL-00 R2 and FCA-02 R6 are accepted/released repo-only. FCA-02 R6 passed fresh independent QA and Deep-Sol on exact source 92a43ff51951134c68290d5e156bffd811c23539 and corrected test 21a648061cd311128e69d6862e69a440ba5ba394 after 4/4 exact, 36/36 focused, 243/243 dependency, compile and all applicable central gates. Earlier FCA-02 R2 through R5 remain terminal released_blocked evidence. No FCA writer claim remains active. Productive indexing, provider/runtime activation and live actions remain closed."
     ]
   },
   "profiles": {
@@ -181,6 +225,18 @@
       "profile": "historical_done",
       "state": "repository_offline_closure_complete",
       "ai_hint": "This records the closed offline ABC sequence. Cite its evidence only; use the current open-work master for new decisions."
+    },
+    {
+      "path": "docs/plans/abc-r7-a2-execution-authority-r2-architecture.json",
+      "profile": "canonical_router",
+      "state": "frozen_r7a2_r2_trust_derived_execution_authority",
+      "ai_hint": "Use only as the exact immutable R7-A2 R2 product contract. Revision 154 freezes a four-path tests-first rewrite that consumes accepted A1 and A2T pins, derives claim-scoped authority by bounded genesis replay and keeps compare-only zero-authority; workers must not edit this packet or central routers."
+    },
+    {
+      "path": "docs/plans/abc-r7-a2t-execution-trust-authority-r3-architecture.json",
+      "profile": "canonical_router",
+      "state": "frozen_r7a2t_r3_exact_builtin_boundary_authority",
+      "ai_hint": "Use only as the exact immutable R7-A2T R3 product contract. Do not execute or edit it from the worker; Revision 151 owns exactly the trust-authority source and focused test paths under tests-first, one-correction semantics."
     },
     {
       "path": "docs/plans/abc-roadmap-completion-handoff.md",
@@ -323,8 +379,8 @@
     {
       "path": "docs/plans/autonomous-coding-production-readiness-roadmap.json",
       "profile": "active_serial",
-      "state": "acpr00_through_11_accepted_acpr12_dependency_ready_unclaimed_round5_handoff",
-      "ai_hint": "ACPR-11 is accepted after Root deep review, two bounded QA fix cycles and independent PASS. Planning remains canonical; RAPTOR/GraphRAG is advisory at four checkpoints and the persistence boundary validates scope, acceptance, gates, receipt hash and current CAO authority digest. ACPR-12 is dependency-ready but deliberately unclaimed for the post-Round-5 normalization task; no real adapter, dispatch, graph/writeback, push, deploy or live authority exists."
+      "state": "acpr00_through_12_repo_accepted_round6_a_handoff",
+      "ai_hint": "ACPR-12 is repo-locally accepted in Round 6A after two bounded Root correction cycles, 79 focused tests and final independent QA. Transaction receipts, exact-read byte binding, duplicate-path rejection, partial-write rollback coverage, independent review and scoped argv-only capsules are verified. Planning remains canonical and RAPTOR/GraphRAG advisory; no real adapter, external dispatch, graph/writeback, commit, push, deploy or live authority exists."
     },
     {
       "path": "docs/plans/autonomy-calendar-coding-master-roadmap.json",
@@ -376,9 +432,9 @@
     },
     {
       "path": "docs/plans/development-orchestration-foundation-roadmap.md",
-      "profile": "needs_normalization",
-      "state": "stale_active_label_foundation_later_reported_complete",
-      "ai_hint": "Compare this old next-build sequence with the completed 0.12 foundation and current PlanRuntime before deciding whether any slice remains. No implementation write before reconciliation."
+      "profile": "gate_only",
+      "state": "foundation_repo_work_historical_complete_real_runtime_actions_gated",
+      "ai_hint": "Treat O0-O6 and the source-local A/B work packages as historical or superseded by the completed 0.12/L13 foundation. Retain only the exact real-thread, command-execution, scheduler-activation and UI/API-live gates; do not reopen repo implementation."
     },
     {
       "path": "docs/plans/diagnostics-legacy-fix-roadmap.md",
@@ -522,7 +578,7 @@
       "path": "docs/plans/memory-raptorgraph-consolidation-roadmap.md",
       "profile": "active_parallel",
       "state": "mem1_mem6_historical_nmg00_through_nmg02_and_nmg05_accepted",
-      "ai_hint": "Do not reopen MEM1-MEM6. NMG-00 through NMG-02 plus NMG-05 are accepted after Root deep review and independent QA. UDA-00 and ULO-00 are the independently audited canonical Wave-5 inventory candidates; NMG-03 remains dependency-blocked until UDA-05 is separately registered and accepted. Do not touch Personal Docs runtime, USI/UDA/UIR hotfiles, llm_core, llm_async_call, local_model_scheduler, productive sources, private data, Obsidian, providers or live activation."
+      "ai_hint": "Do not reopen MEM1-MEM6. NMG-00 through NMG-02 plus NMG-05 are accepted after Root deep review and independent QA. UDA-00 and ULO-00 are the independently audited canonical Wave-5R inventories and are accepted/released, not pending candidates. NMG-03 remains dependency-blocked until UDA-05 is separately registered and accepted. Do not touch Personal Docs runtime, USI/UDA/UIR hotfiles, llm_core, llm_async_call, local_model_scheduler, productive sources, private data, Obsidian, providers or live activation."
     },
     {
       "path": "docs/plans/memory-scale-foundation-roadmap.md",
@@ -587,8 +643,8 @@
     {
       "path": "docs/plans/open-work-completion-master-roadmap.json",
       "profile": "canonical_router",
-      "state": "round5_accepted_released_zero_claims_central_router_handoff",
-      "ai_hint": "Round 5 is accepted and released: UIR-00R, UDA-00, ULO-00, ACPR-11 and TRP-06 have current Root evidence, independent QA where required, and zero active claims. The integrated runtime inventory is current with 55 candidates and 0 unclassified; the full USI family is 251 passed. Do not start another Round-5 or central-router writer. ACPR-12, TRP-07, UIR-03 and LCL-01 remain unclaimed for the post-Round-5 normalization task. Productive sources, adapters, lifecycle actions, push, deploy, provider or host writes, sends and every live action remain disabled behind their exact gates."
+      "state": "round7_revision179_uir05b_admin_runtime_status_app_route_accepted_released",
+      "ai_hint": "UIR-05B has one frozen ordinary-v2 three-blob App-route candidate awaiting independent QA and Deep-Sol. Service health, metrics and productive activation remain separate successors."
     },
     {
       "path": "docs/plans/open-roadmaps-priority-and-masterprompt-2026-07-15.md",
@@ -682,9 +738,9 @@
     },
     {
       "path": "docs/plans/remaining-features-roadmap-2026-06-20.md",
-      "profile": "needs_normalization",
-      "state": "older_operator_queue_most_tracks_superseded_or_completed",
-      "ai_hint": "Reconcile every P0-P9 item with newer domain roadmaps and open-work status before selecting anything. Do not execute its old order directly."
+      "profile": "gate_only",
+      "state": "p2_p9_historical_p0_p1_source_local_current_gates",
+      "ai_hint": "Do not execute the June order. P2-P9 are historical; only RFR20260620-P0-UPDATER-RUNTIME-CLOSURE and RFR20260620-P1-UPDATES-BACKUPS-UI-LIVE-SMOKE remain, both unaccepted and action-gated."
     },
     {
       "path": "docs/plans/privacy-safe-tool-analytics-roadmap.md",
@@ -784,9 +840,9 @@
     },
     {
       "path": "docs/plans/telegram-plugin-rich-streaming-roadmap.md",
-      "profile": "needs_normalization",
-      "state": "broad_design_without_current_status_or_slice_ledger",
-      "ai_hint": "Audit current Telegram code and tests, then split rich rendering, async flow, and delivery into dependency-ordered slices. Keep all plugin writes serial and live drafts gated."
+      "profile": "gate_only",
+      "state": "trs_source_ids_current_formatting_historical_remaining_units_unaccepted",
+      "ai_hint": "Section 2 is historical. TRS-01 is a future repo-only unit requiring fresh architecture; TRS-03/04 are tool-policy and lifecycle decisions; TRS-05 remains blocked behind them and a separate rich-target live gate."
     },
     {
       "path": "docs/plans/telegram-project-intake-completion-roadmap.md",
@@ -801,10 +857,22 @@
       "ai_hint": "Voice backend is complete. Any real download, STT, or reply must be one bounded live action with privacy and provider/local-model policy."
     },
     {
+      "path": "docs/plans/telegram-windows-pc-control-roadmap.json",
+      "profile": "active_serial",
+      "state": "twp01_repo_claim_active_twp02_twp03_and_four_action_specific_live_gates_open_autologon_optional_deferred",
+      "ai_hint": "Treat TWP-01 as an existing same-checkout root claim and do not duplicate or overlap its fourteen writer paths. TWP-02/TWP-03 plus Windows install/wake and Debian deploy/Telegram smoke remain action-specific live gates. windows-autologon-go is deferred_not_recommended and outside the required default-safe goal unless the operator explicitly expands scope."
+    },
+    {
       "path": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
       "profile": "active_serial",
-      "state": "trp01_through_06_accepted_trp07_dependency_ready_unclaimed_round5_handoff",
-      "ai_hint": "TRP-06 is accepted at local commit 871ffe64 after exact-scope implementation, Root deep review, 206 passed/2 skipped and independent read-only QA PASS. TRP-07 is dependency-ready but deliberately unclaimed for the post-Round-5 normalization task; do not start it in this round. Stop at TRP-08 live gates. No productive/private audio, provider/model/network/host/backup/restore/push/deploy/live authority exists."
+      "state": "trp01_through_06_accepted_trp07_recovery_terminally_blocked_no_claim",
+      "ai_hint": "TRP-06 is accepted at local commit 871ffe64. TRP-07 recovery claim ABC-R6C-R-TRP07-20260802T221518+0200 is released rejected after fresh architecture and two corrections: signed-envelope proof is not store-mandatory, model IO is not fully anchored/rehashed/short-write-safe, and packet semantics/hash binding is not same-object. Start no third repair; require a new architecture generation. Stop at TRP-08. No trust-anchor/key provisioning, productive/private audio, provider/model/network/host/backup/restore/push/deploy/live authority exists."
+    },
+    {
+      "path": "docs/plans/forge-usi-code-source-adapter-roadmap.md",
+      "profile": "active_parallel",
+      "state": "fca00_fca01_fca_policy_r2_and_fca02_r6_accepted_released_fca03_preclaim_blocked",
+      "ai_hint": "FCA-00, FCA-01, typed immutable FCA-POL-00 R2 and FCA-02 R6 are accepted/released. FCA-03 remains a read-only architecture blocker because policy issuer authority, revision-bound read input, parser behavior and text-classification contracts are not closed. Do not reopen FCA-02 or dispatch FCA-03 from its historical broad scope."
     },
     {
       "path": "docs/plans/telegram-web-research-memory-roadmap.json",
@@ -833,8 +901,8 @@
     {
       "path": "docs/plans/code-lineage-timeline-roadmap.md",
       "profile": "active_parallel",
-      "state": "planned_after_usi_identity_real_history_default_off",
-      "ai_hint": "On a future goal claim CLT-00 only. Use synthetic Git repositories until the final gate, preserve Repo Registry/Git Adapter/Project Version Store as history truth, label time first-observable, and represent rename/copy/split/merge uncertainty with methods and confidence. Parallelize only disjoint contract/fixture work and stop before real history backfill or identity export."
+      "state": "clt00_through_03_accepted_after_recovery",
+      "ai_hint": "CLT-03 recovery is accepted and released after fresh Terra architecture, two bounded correction cycles, final independent QA, Root reproduction and explicit Sol re-review. Its exact Git/USI bindings are repository evidence; do not reopen the claim. Use synthetic history only and stop before real history backfill or CLT-LIVE-ACTIVATION."
     },
     {
       "path": "docs/plans/lens-code-graph-roadmap.md",
@@ -851,14 +919,14 @@
     {
       "path": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
       "profile": "active_serial",
-      "state": "uir00r_inventory_accepted_current_uir03_unclaimed_round5_handoff",
-      "ai_hint": "The UIR-00R inventory is accepted and current on the integrated tree: 55 candidates, 0 unclassified and canonical --check PASS. UIR-03 remains deliberately unclaimed for post-Round-5 normalization. When later claimed, serialize app.py, app_initializer.py, Personal Docs/RAG, Chat, Agent and runtime-route hotfiles; keep runtime and productive sources default-off."
+      "state": "uir03a_uir03b_uir00r_uir04a_uir04b_uir04c_uir05a_uir05b_app_route_accepted_revision179",
+      "ai_hint": "UIR-05B freezes one admin-gated GET status endpoint on the exact accepted App scope; service-health aggregation, provider, I/O and live authority remain forbidden."
     },
     {
       "path": "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md",
       "profile": "active_parallel",
-      "state": "uda00_wave5r_accepted_released",
-      "ai_hint": "UDA-00 is accepted and released at 35026ae7 after Root deep review, fresh independent read-only QA and the integrated 251-test USI regression. The older domain-inventory filenames remain stale and forbidden. Keep Native Knowledge future-only/not-selected, and keep every adapter, source read and productive source blocked/default-off."
+      "state": "uda00_through_uda02_and_mem_elig00_accepted_released_uda03_released_blocked_one_bounded_constructor_boundary_correction_allowed",
+      "ai_hint": "UDA-00 through UDA-02 and MEM-ELIG-00 are accepted/released. UDA-03 is released_blocked after 28 focused and 165 dependency PASS because independent hostile QA found two raw AssertionError leaks in exported Value-Object constructors. One bounded detached-constructor and content-free error-boundary correction may be claimed after the central process claim closes, followed by fresh independent QA. Keep every productive/private source read, migration, writer adoption and activation gated/default-off."
     },
     {
       "path": "docs/plans/unified-source-index-data-lifecycle-operations-roadmap.md",
@@ -892,9 +960,9 @@
     },
     {
       "path": "docs/plans/universal-inbox-abc-roadmap.md",
-      "profile": "needs_normalization",
-      "state": "older_execution_and_live_readiness_sections_without_final_status",
-      "ai_hint": "Reconcile UIX0-UIX11 with newer Nextcloud preparation and flow-rework completion before dispatch. Do not reuse embedded old delegation prompts as current claims."
+      "profile": "gate_only",
+      "state": "uix_abc0_24_historical_accepted_current_safe_area_nextcloud_memory_gates_only",
+      "ai_hint": "Treat UIX-ABC0 through UIX-ABC24 and workbench-only gates as historical/superseded. Retain only UIX-SAFE-AREA-RULES, UIX-NEXTCLOUD-LIVE-WRITE and UIX-MEMORY-WRITE-GO through their exact newer-flow IDs; do not reuse embedded delegation prompts."
     },
     {
       "path": "docs/plans/universal-inbox-nextcloud-flow-rework-roadmap.md",
@@ -904,9 +972,9 @@
     },
     {
       "path": "docs/plans/updates-backups-ui-roadmap.md",
-      "profile": "needs_normalization",
-      "state": "implementation_plan_without_current_completion_ledger",
-      "ai_hint": "Audit routes, UI, and newer remaining-feature evidence before editing. If work remains, separate backend status, UI design, safe actions, and host verification; serialize UI and host-action writers."
+      "profile": "gate_only",
+      "state": "ubu_source_ids_current_contract_and_backend_historical_design_and_live_gated",
+      "ai_hint": "UBU-01/02 are historical evidence; UBU-03 is an unaccepted design gate and UBU-04/05 require the existing updater runtime evidence and live-smoke gates. No host action is implied."
     },
     {
       "path": "docs/plans/upstream-hardening-backport-roadmap.md",
@@ -919,6 +987,18 @@
       "profile": "historical_done",
       "state": "implemented",
       "ai_hint": "Workflow skills are implemented. Use the current Universal Inbox and Memory Ops gates for live behavior or maintenance."
+    },
+    {
+      "path": "docs/plans/parallel-roadmap-execution-round6.json",
+      "profile": "canonical_router",
+      "state": "round6_a_b_repo_accepted_clt03_recovery_accepted_trp07_recovery_terminally_blocked_no_claims",
+      "ai_hint": "Round 6A and 6B have durable acceptance evidence; CLT-03 recovery is accepted and released; TAX7 final UI acceptance remains user-owned. TRP-07 recovery is terminally not accepted after final Terra QA and Sol review; its 35-path draft is rejected evidence and has no active claim. Require a new architecture generation before future work. Keep every model, backup, restore, host, trust-anchor, private-audio, deploy and live action closed."
+    },
+    {
+      "path": "docs/plans/parallel-roadmap-execution-round7.json",
+      "profile": "canonical_router",
+      "state": "integration_spine_revision179_uir05b_admin_runtime_status_app_route_accepted_released",
+      "ai_hint": "Use Revision 178 as the durable frozen authority. QA and Deep-Sol must bind the exact three candidate blobs; service health and productive runtime authority remain outside it."
     },
     {
       "path": "specs/roadmaps/abc-roadmap-continuation-runtime.v1.json",
@@ -952,9 +1032,9 @@
     },
     {
       "path": "specs/roadmaps/private-data-memory-ingestion-roadmap.v1.json",
-      "profile": "needs_normalization",
-      "state": "draft_canonical_with_june_evidence_and_large_live_scope",
-      "ai_hint": "Reconcile this 100GB plan with current Universal Inbox and Memory implementations. Keep scouts read-only until target paths, disk budget, privacy policy, checkpoint store, and live gates are current."
+      "profile": "gate_only",
+      "state": "pdm_exact_node_ids_current_june_completion_unaccepted_repo_design_and_live_gated",
+      "ai_hint": "Use the twelve exact current_normalization IDs. June completion is historical only; do not claim repo units before fresh architecture or run private, host, transfer, extraction, Memory/RaptorGraph, dashboard or network actions without their exact current gates."
     },
     {
       "path": "specs/roadmaps/roadmap-reconciliation-report-reduction.v1.json",

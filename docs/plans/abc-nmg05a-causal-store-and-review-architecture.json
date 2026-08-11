@@ -1,0 +1,454 @@
+{
+  "architect": "root/Sol",
+  "architecture_id": "NMG-05A-CAUSAL-STORE-AND-REVIEW-SOL-ARCH-v1",
+  "architecture_seal": {
+    "acceptance": [
+      "The module is the only causal truth and review persistence boundary and adds no USI, Memory, graph, provider, runtime, route, scheduler, migration, or activation integration.",
+      "An exact sqlite3.Connection is adopted by the store; the caller must stop using its alias until close, and no filesystem path enters the public boundary.",
+      "A new store initializes only an empty SQLite database with the exact application identity, version, tables, indexes, foreign keys, and no-update/no-delete triggers; reopening validates the exact schema and never migrates.",
+      "Claim identity is owner-, policy-, source-version-, claim-version-, candidate-actor-, and evidence-bound; initial state is candidate and records contain identifiers only.",
+      "Every review transition is one BEGIN IMMEDIATE transaction, compares the expected head digest and from-state, appends one hash-chained immutable event, and exposes no partial success.",
+      "Only the eight accepted NMG-05 transitions are possible; retracted and superseded are terminal, and supported can never be reached from candidate or from an automatic source.",
+      "Every reviewer differs from both candidate_actor and owner; NMG-05A enforces separation but does not authenticate principals or mint review authority.",
+      "Conflict, alternative-cause, retraction, and supersession payloads satisfy their exact conditional bindings; supersession resolves an existing same-owner claim with a strictly greater claim_version.",
+      "Reads are exact-owner, exact-claim, exact-version and bounded; every read and append replays and verifies that claim's complete bounded hash chain before returning.",
+      "All public failures are fresh code-only errors from None; SQLite, callback, path, SQL, input, repr, and private content never escapes.",
+      "Focused, dependency, static, independent hostile QA, and final Root/Sol deep review pass on one frozen two-path candidate before release."
+    ],
+    "allowed_paths": [
+      "src/causal_claim_store.py",
+      "tests/test_causal_claim_store.py"
+    ],
+    "baseline_blobs": {
+      "src/causal_claim_store.py": "absent",
+      "tests/test_causal_claim_store.py": "absent"
+    },
+    "baseline_readback": {
+      "head_paths_absent": true,
+      "index_paths_absent": true,
+      "method": "Test-Path false; git ls-files --error-unmatch miss; git cat-file -e HEAD:path miss",
+      "worktree_paths_absent": true
+    },
+    "budgets": {
+      "identifier_ascii_bytes": 128,
+      "max_claim_version": 9223372036854775807,
+      "max_events_per_claim": 64,
+      "max_evidence_refs": 16,
+      "max_history_limit": 64,
+      "max_policy_ascii_bytes": 128,
+      "max_reason_code_ascii_bytes": 64
+    },
+    "canonical_binding": {
+      "claim_digest": "SHA256(odysseus.causal_claim.v1 NUL || u64be(len(compact sorted-key finite ASCII JSON)) || canonical claim JSON)",
+      "event_digest": "SHA256(odysseus.causal_review_event.v1 NUL || u64be(len(compact sorted-key finite ASCII JSON)) || canonical event JSON including prior_digest)",
+      "initial_head": "claim_digest",
+      "review_head": "latest verified event_digest"
+    },
+    "claim_registration": {
+      "claim_id": "ABC-NMG05A-REV203",
+      "claim_state_on_registration": "claimed_tests_first",
+      "correction_budget": {
+        "failure_class": "nmg05a_causal_store_review_authority_append_only_object_binding",
+        "limit": 1,
+        "used": 0
+      },
+      "hotfiles": [
+        "src/causal_claim_store.py",
+        "tests/test_causal_claim_store.py"
+      ],
+      "mutation_authority": "repo_only",
+      "prerequisites": [
+        "Revision 202 packet path, raw blob, semantic digest, seal bytes, and current source pins read back exactly",
+        "Open Work, Round6, Round7, and Guidance compare-before inputs still match the Revision 201 tuple or are recomputed as one fresh snapshot",
+        "zero active claim or hotfile overlap and both writer paths remain absent in HEAD, index, and worktree",
+        "architecture and claim are registered in one Root-owned compare-before transaction if Revision 202 did not mutate routers"
+      ],
+      "regression_tests": [
+        "tests/test_audit_causal_claim_store_contract.py",
+        "tests/test_native_knowledge_store.py",
+        "tests/test_memory_store_interfaces.py"
+      ]
+    },
+    "collision_rules": {
+      "current_active_claim_count": 0,
+      "current_result": "no overlap; proposed writer paths are exact absent new paths",
+      "invalidate_on": [
+        "either writer path appears or changes before claim registration",
+        "any active claim owns either writer path or either hotfile",
+        "any read-only pin or central compare-before blob changes",
+        "NMG-05 acceptance or source-roadmap next-frontier status changes",
+        "implementation requires a migration, router, runtime, adapter, USI, Memory, graph, or third writer path"
+      ],
+      "registration_check": "repeat raw --no-filters hashes, HEAD/index/worktree absence, git status, and active-claim/hotfile intersection immediately before Revision 203"
+    },
+    "control_plane": {
+      "custom_harness_required": false,
+      "decision_enabled": "whether the exact two-new-path NMG-05A writer claim may be registered",
+      "existing_checks_reused": [
+        "scripts/audit_causal_claim_store_contract.py --check",
+        "scripts/validate_integration_spine_convergence.py --format json",
+        "scripts/validate_parallel_roadmap_execution.py --format json",
+        "scripts/roadmap_multi_agent_guidance.py --format json"
+      ],
+      "failure_action": "block claim registration and return to Root/Sol; do not expand the packet or add a validator"
+    },
+    "correction_budget": {
+      "failure_class": "nmg05a_causal_store_review_authority_append_only_object_binding",
+      "limit": 1,
+      "on_repeat": "release_blocked and require a fresh Root/Sol architecture; no second product patch",
+      "used": 0
+    },
+    "database_representation": {
+      "adoption": "type(connection) is sqlite3.Connection, not in a transaction; constructor clears trace, progress, and authorizer callbacks, enables foreign keys, and retains no caller object except the adopted connection",
+      "application_id": 1329876533,
+      "close": "idempotent close; every later public operation fails closed with closed",
+      "connection_alias_rule": "caller use after adoption is outside authority and forbidden; retained-alias tampering must be detected by exact schema, append-only triggers, and hash-chain verification",
+      "initialization": "initialize=True requires application_id 0, user_version 0, and zero sqlite_master objects before one atomic exact-schema creation",
+      "open": "initialize=False requires exact application_id, user_version, tables, columns, indexes, triggers, foreign keys, and no extra schema objects",
+      "schema_objects": [
+        "causal_claims immutable table",
+        "causal_review_events immutable append-only table",
+        "exact owner/claim/version and event-order indexes",
+        "no-update and no-delete triggers for both tables"
+      ],
+      "transactions": "BEGIN IMMEDIATE; exact reload; bounded chain verification; compare expected head and state; append; re-read; COMMIT; rollback on BaseException",
+      "user_version": 1
+    },
+    "error_boundary": {
+      "codes": [
+        "invalid_input",
+        "invalid_connection",
+        "invalid_schema",
+        "closed",
+        "not_found",
+        "owner_mismatch",
+        "conflict",
+        "invalid_transition",
+        "independent_review_required",
+        "evidence_required",
+        "relation_required",
+        "terminal_claim",
+        "budget_exceeded",
+        "storage_failed",
+        "integrity_failed"
+      ],
+      "public_error": "CausalClaimStoreError(code) normalizes non-exact or non-allowlisted codes to integrity_failed",
+      "rule": "private exact internal failures preserve allowlisted codes; every other Exception or BaseException becomes a fresh storage_failed or integrity_failed from None with no cause, context, args, SQL, path, callback, or input text"
+    },
+    "forbidden": [
+      "third writer path, database migration module, core database edit, route, facade export, registry, adapter, USI projection, Memory or graph integration",
+      "raw source content, claim prose, explanation text, filesystem path, URL, provider response, model output, secret, token, credential, or private identifier persistence",
+      "candidate generation, automatic promotion, reviewer minting, authentication, authorization, principal lookup, runtime query, Lens, plugin, scheduler, thread, task, process, network, provider, model, download, reindex, migration, import, backfill, delete, deploy, or live action",
+      "UPDATE or DELETE of claim or event rows, unbounded list/export, cross-owner enumeration, silent repair, schema upgrade, partial report, or caller-supplied SQL"
+    ],
+    "hostile_matrix": [
+      "exact dict/list/str/int/bool and sqlite3.Connection identity; reject subclasses, hostile __class__, Mapping/Sequence, one-shot iterators, getters, colliding keys, and protocol callbacks before behavior",
+      "mutate input dicts/lists and retained output after each call; persisted canonical bytes, projections, and later reads remain detached and unchanged",
+      "Exception and BaseException from comparison, hashing, JSON, SQLite callbacks, row access, transactions, rollback, and close never escape raw",
+      "wrong or extra application identity, schema object, table, column, index, trigger, foreign key, user_version, open transaction, row type, stored scalar type, JSON shape, or digest fails closed",
+      "duplicate claim/event exact replay is idempotent only when every canonical field matches; collision or stale head is conflict",
+      "all eight transition edges, every forbidden edge, direct candidate-to-supported, self review, owner review, candidate-actor review, empty evidence, and terminal replay",
+      "conflict and alternative-cause related refs, retraction prior version/reason, supersession same-owner target and strictly monotonic claim version",
+      "two connections race on one head; one append wins and the stale writer fails with no partial row; rollback and reopen preserve one valid chain",
+      "max, max+1, zero, negative, bool-as-int, 2^63-1, and overflow for identifiers, evidence counts, versions, event counts, and history limits",
+      "direct retained-connection UPDATE/DELETE is trigger-rejected; row insertion/replacement, digest corruption, sequence gaps, prior-digest substitution, cross-owner related refs, and extra schema objects are detected",
+      "static import and public operations add no USI, Memory, graph, plugin, provider, model, network, subprocess, thread, task, runtime, route, registry, or live effect"
+    ],
+    "invariants": {
+      "append_only": "claim identity rows and review events are immutable; current epistemic state is derived only by verified ordered replay",
+      "authority": "CausalClaimStore is sole causal truth/review persistence owner; USI may later consume only a rebuildable read projection",
+      "content": "all persisted and returned values are bounded public identifiers, positive integers, fixed enums, booleans, or sha256 refs; no free text",
+      "evidence": "claim creation and every transition require 1..16 exact sorted unique sha256 evidence refs",
+      "identity": "claim_ref is derived from exact owner, claim_id, and positive claim_version; source_version and every evidence/head/event ref use lowercase sha256",
+      "owner_scope": "all primary, foreign-key, read, transition, relation, replay, and uniqueness operations include owner; no owner fallback or global lookup",
+      "review": "reviewer is an externally authenticated identifier supplied by a future caller; this slice only enforces exact identity and separation and never mints authority",
+      "terminal": "retracted and superseded have no outgoing transition",
+      "truth_separation": "no graph, Memory, USI, adapter, candidate generator, or model can write or promote causal truth"
+    },
+    "public_api": [
+      "CausalClaimStore(connection: object, /, *, initialize: object = False) -> None",
+      "CausalClaimStore.create_claim(claim: object, /) -> dict[str, object]",
+      "CausalClaimStore.append_review_transition(transition: object, /) -> dict[str, object]",
+      "CausalClaimStore.read_claim(owner: object, claim_id: object, claim_version: object, /) -> dict[str, object]",
+      "CausalClaimStore.review_history(owner: object, claim_id: object, claim_version: object, /, *, limit: object) -> tuple[dict[str, object], ...]",
+      "CausalClaimStore.close() -> None",
+      "CausalClaimStore.__enter__() -> CausalClaimStore",
+      "CausalClaimStore.__exit__(exc_type: object, exc: object, traceback: object) -> None"
+    ],
+    "public_exports": [
+      "CAUSAL_CLAIM_SCHEMA",
+      "CAUSAL_REVIEW_TRANSITION_SCHEMA",
+      "CAUSAL_CLAIM_INPUT_FIELDS",
+      "CAUSAL_CLAIM_REPORT_FIELDS",
+      "CAUSAL_REVIEW_TRANSITION_FIELDS",
+      "CAUSAL_REVIEW_EVENT_FIELDS",
+      "CAUSAL_EPISTEMIC_STATES",
+      "CAUSAL_EPISTEMIC_TRANSITIONS",
+      "CAUSAL_RELATION_KINDS",
+      "CAUSAL_CLAIM_STORE_ERROR_CODES",
+      "MAX_CAUSAL_EVIDENCE_REFS",
+      "MAX_CAUSAL_EVENTS_PER_CLAIM",
+      "CausalClaimStoreError",
+      "CausalClaimStore"
+    ],
+    "read_only_pins": {
+      "docs/plans/causal-claim-store-contract.md": "cf5055ee60a3cdbecfba9befda9024ed01390ff5",
+      "docs/plans/memory-raptorgraph-consolidation-roadmap.md": "6cfd29a5e676bed1665f6254e5db3920a0f85489",
+      "docs/plans/multi-agent-execution-guidance.json": "4bddbb2bb36a3391469f6f61cc1ac53dfe1a90bf",
+      "docs/plans/open-work-completion-master-roadmap.json": "d5a66986d465e5845210a9c49ec4a1d921075372",
+      "docs/plans/parallel-roadmap-execution-round6.json": "ed228beff584601614f6bfed0aeaf6abc9873500",
+      "docs/plans/parallel-roadmap-execution-round7.json": "67e9b34fe0f912dd8719eaee4ec13b77c5da1887",
+      "docs/plans/unified-source-index-architecture-contract.md": "8a71ec4da68f0dbedc6214423f2b7a1fd45fded5",
+      "scripts/audit_causal_claim_store_contract.py": "bf4a4469de03d5af3c8460369df339e5b232f9cb",
+      "src/memory_store_interfaces.py": "ad933c8d741dc47890509800cbfef57eedc60800",
+      "src/native_knowledge_store.py": "df7822649f14e0f724adc457fabb017ff42fe5f5",
+      "tests/test_audit_causal_claim_store_contract.py": "21c3787572129c37aa0c1654c67716be2ba74a31",
+      "tests/test_memory_store_interfaces.py": "78dc5255fc40d7ffc8de480cda4f5450b6e7ba90",
+      "tests/test_native_knowledge_store.py": "98c39fd2d85001641fd0432dff3643f148fe75a6"
+    },
+    "representation": {
+      "claim_input_fields": [
+        "schema",
+        "claim_id",
+        "owner",
+        "policy",
+        "source_version",
+        "claim_version",
+        "candidate_actor",
+        "evidence_refs"
+      ],
+      "claim_report_fields": [
+        "schema",
+        "claim_ref",
+        "claim_id",
+        "owner",
+        "policy",
+        "source_version",
+        "claim_version",
+        "candidate_actor",
+        "evidence_refs",
+        "state",
+        "head_sequence",
+        "head_digest"
+      ],
+      "claim_schema": "odysseus.causal_claim.v1",
+      "epistemic_states": [
+        "candidate",
+        "under_review",
+        "supported",
+        "contested",
+        "retracted",
+        "superseded"
+      ],
+      "epistemic_transitions": [
+        [
+          "candidate",
+          "under_review"
+        ],
+        [
+          "under_review",
+          "supported"
+        ],
+        [
+          "under_review",
+          "contested"
+        ],
+        [
+          "under_review",
+          "retracted"
+        ],
+        [
+          "supported",
+          "retracted"
+        ],
+        [
+          "supported",
+          "superseded"
+        ],
+        [
+          "contested",
+          "retracted"
+        ],
+        [
+          "contested",
+          "superseded"
+        ]
+      ],
+      "relation_kinds": [
+        "none",
+        "conflict",
+        "alternative_cause",
+        "retraction",
+        "supersession"
+      ],
+      "review_event_fields": [
+        "schema",
+        "sequence",
+        "event_id",
+        "claim_ref",
+        "from_state",
+        "to_state",
+        "reviewer",
+        "evidence_refs",
+        "relation_kind",
+        "related_claim_ref",
+        "prior_claim_version",
+        "reason_code",
+        "prior_digest",
+        "event_digest"
+      ],
+      "review_transition_fields": [
+        "schema",
+        "event_id",
+        "claim_ref",
+        "expected_head_digest",
+        "from_state",
+        "to_state",
+        "reviewer",
+        "evidence_refs",
+        "relation_kind",
+        "related_claim_ref",
+        "prior_claim_version",
+        "reason_code"
+      ],
+      "review_transition_schema": "odysseus.causal_review_transition.v1"
+    },
+    "route": {
+      "architect": "root/Sol",
+      "independent_qa": "Charlie/Terra fresh-context",
+      "review": "Root/Sol deep",
+      "worker": "Bob/Terra high judgment_required for SQLite lifecycle, concurrency, recovery, hostile boundary, and append-only object binding"
+    },
+    "source_authority": {
+      "dependency": "NMG-05-causal-domain-contract accepted at 4cb0a7b8ab8ff67cd3ef83937bd97d2dbc763515",
+      "next_frontier": "NMG-05A-causal-store-and-review",
+      "source_class": "repo_only",
+      "source_outcome": "Persist evidence-bound claims and append-only review transitions with exact owner scope and no USI dual writes"
+    },
+    "stop_rule": "Any missing exact path/pin/baseline/test, schema or trust-boundary change, raw-content field, principal-minting requirement, migration/integration need, or same-class recurrence blocks or releases the claim; one bounded product correction total.",
+    "target": {
+      "allowed_paths": [
+        "src/causal_claim_store.py",
+        "tests/test_causal_claim_store.py"
+      ],
+      "outcome": "A standalone default-unregistered SQLite CausalClaimStore that persists identifiers-only claims and append-only independent-review transitions"
+    },
+    "tests_first": {
+      "red_requirement": "all twelve exact nodes collect and fail only because src/causal_claim_store.py is absent before the first source edit",
+      "required_nodes": [
+        "tests/test_causal_claim_store.py::test_nmg05a_public_exports_signatures_schemas_and_exact_field_sets",
+        "tests/test_causal_claim_store.py::test_nmg05a_adopts_exact_connection_initializes_only_empty_schema_and_closes",
+        "tests/test_causal_claim_store.py::test_nmg05a_reopen_rejects_wrong_extra_or_mutated_schema_objects",
+        "tests/test_causal_claim_store.py::test_nmg05a_create_is_owner_version_evidence_bound_idempotent_and_detached",
+        "tests/test_causal_claim_store.py::test_nmg05a_exact_owner_read_and_bounded_history_never_enumerate_other_owners",
+        "tests/test_causal_claim_store.py::test_nmg05a_transition_matrix_requires_independent_reviewer_and_evidence",
+        "tests/test_causal_claim_store.py::test_nmg05a_conflict_alternative_retraction_and_supersession_bind_exact_related_claims",
+        "tests/test_causal_claim_store.py::test_nmg05a_terminal_replay_duplicate_event_and_stale_head_fail_closed",
+        "tests/test_causal_claim_store.py::test_nmg05a_append_only_triggers_hash_chain_schema_and_reopen_detect_tampering",
+        "tests/test_causal_claim_store.py::test_nmg05a_two_connection_race_rollback_and_reopen_are_atomic",
+        "tests/test_causal_claim_store.py::test_nmg05a_hostile_exact_types_colliding_keys_baseexception_and_mutation_do_not_escape",
+        "tests/test_causal_claim_store.py::test_nmg05a_max_max_plus_one_overflow_and_zero_effect_boundaries"
+      ]
+    },
+    "transactions": {
+      "proposed_rev202_packet": {
+        "architecture_path": "docs/plans/abc-nmg05a-causal-store-and-review-architecture.json",
+        "compare_before_authority": {
+          "guidance": "4bddbb2bb36a3391469f6f61cc1ac53dfe1a90bf",
+          "open_work": "d5a66986d465e5845210a9c49ec4a1d921075372",
+          "round6": "ed228beff584601614f6bfed0aeaf6abc9873500",
+          "round7": "67e9b34fe0f912dd8719eaee4ec13b77c5da1887"
+        },
+        "router_mutation_in_this_step": false,
+        "state": "standalone_frozen_packet_only"
+      },
+      "proposed_rev203_claim_registration": {
+        "allowed_paths": [
+          "src/causal_claim_store.py",
+          "tests/test_causal_claim_store.py"
+        ],
+        "architecture_binding": "exact Revision 202 architecture raw blob plus semantic digest and seal bytes",
+        "baseline_blobs": {
+          "src/causal_claim_store.py": "absent",
+          "tests/test_causal_claim_store.py": "absent"
+        },
+        "claim_id": "ABC-NMG05A-REV203",
+        "required_router_outputs": "fresh exact Open Work, Round6, Round7, and Guidance blobs produced by the one Root-owned registration transaction",
+        "state": "proposed_not_registered"
+      },
+      "two_step_reason": "The user authorized only the new standalone packet path now; Revision 203 must consume its materialized raw blob/digest and is a separately forbidden router mutation in this step."
+    },
+    "verification_commands": {
+      "central": [
+        [
+          "venv\\Scripts\\python.exe",
+          "-B",
+          "scripts\\validate_integration_spine_convergence.py",
+          "--format",
+          "json"
+        ],
+        [
+          "venv\\Scripts\\python.exe",
+          "-B",
+          "scripts\\validate_parallel_roadmap_execution.py",
+          "--format",
+          "json"
+        ],
+        [
+          "venv\\Scripts\\python.exe",
+          "-B",
+          "scripts\\roadmap_multi_agent_guidance.py",
+          "--format",
+          "json"
+        ]
+      ],
+      "dependency": [
+        "venv\\Scripts\\python.exe",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests\\test_causal_claim_store.py",
+        "tests\\test_audit_causal_claim_store_contract.py",
+        "tests\\test_native_knowledge_store.py",
+        "tests\\test_memory_store_interfaces.py",
+        "--basetemp",
+        ".abc-test-tmp\\ABC-NMG05A-REV203\\qa\\dependency"
+      ],
+      "focused": [
+        "venv\\Scripts\\python.exe",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests\\test_causal_claim_store.py",
+        "--basetemp",
+        ".abc-test-tmp\\ABC-NMG05A-REV203\\qa\\focused"
+      ],
+      "static": [
+        "venv\\Scripts\\python.exe",
+        "-B",
+        "-c",
+        "compile exact two candidate paths in memory"
+      ]
+    },
+    "verification_tiers": [
+      "focused",
+      "dependency_and_hostile",
+      "static",
+      "central",
+      "independent_qa",
+      "root_sol_deep_review"
+    ]
+  },
+  "authority_revision": 201,
+  "schema": "odysseus.abc.sol_architecture_packet.v1",
+  "semantic_digest_framing": "SHA256(odysseus.abc.architecture_packet.v1 NUL || u64be(seal_bytes) || compact sorted-key finite UTF-8 architecture_seal)",
+  "semantic_digest_sha256": "sha256:89ebd675bc66cea560e421580417539816f525cff35d6852bd0a37719343c64c",
+  "semantic_seal_bytes": 19339,
+  "state": "frozen_standalone_proposed_rev202"
+}
