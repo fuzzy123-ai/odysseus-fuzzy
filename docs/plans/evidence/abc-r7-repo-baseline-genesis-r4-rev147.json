@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.abc_claim_evidence",
+  "claim_id": "ABC-R7-REPO-BASELINE-GENESIS-R4-REV147",
+  "thread_id": "/root/materialized_repo_genesis_r4_writer",
+  "authority_revision": {
+    "claimed_against_round7_revision": 146,
+    "registered_round7_revision": 147
+  },
+  "candidate_writer_paths": [
+    "scripts/validate_integration_spine_convergence.py",
+    "tests/test_integration_spine_convergence.py"
+  ],
+  "baseline_blobs": {
+    "scripts/validate_integration_spine_convergence.py": "619f2cc2066752b3f717983ffb50fb51af13df1e",
+    "tests/test_integration_spine_convergence.py": "c7601c5b605859bed16935f8adff1abfcef348d3"
+  },
+  "baseline_readback": "materialized_exact_binary_readback_pass",
+  "candidate_blobs": {
+    "scripts/validate_integration_spine_convergence.py": "0fb408cb7db3159a4bd484f036d70dabdc861ccb",
+    "tests/test_integration_spine_convergence.py": "94aa1b1f05004d4f4eab4f45f5bef210cf5e93aa"
+  },
+  "candidate_state": "frozen_for_independent_qa",
+  "candidate_frozen_at": "2026-08-10T11:55:37+02:00",
+  "candidate_set_digest_sha256": "sha256:74ed7a1677317812aab908a5aec78b7d0d4b02e1b1417e78befb8ec78c403d7c",
+  "candidate_command_manifest_digest_sha256": "sha256:f50c5016121f10610c6d23dcd680b255467d6f581c665d9c6f5bd891e373a9c4",
+  "candidate_pytest_node_manifest_digest_sha256": "sha256:f768d31f12df454919961dd94498096cce22b6c628b3fc2c8932ab8cc4a26aeb",
+  "candidate_pytest_node_ids": [
+    "tests/test_integration_spine_convergence.py::test_hostile_matrix_current_running_fixture_uses_no_productive_reads",
+    "tests/test_integration_spine_convergence.py::test_r4_standard_v2_rejects_packet_delete_digest_path_blob_and_semantic_drift",
+    "tests/test_integration_spine_convergence.py::test_r4_standard_v2_requires_stable_packet_authority",
+    "tests/test_integration_spine_convergence.py::test_r4_standard_v2_requires_terminal_r3_candidate_baseline_continuity",
+    "tests/test_integration_spine_convergence.py::test_r4_standard_v2_stable_packet_survives_standard_active_freeze"
+  ],
+  "read_only_pins": {
+    "docs/plans/abc-r7-repo-baseline-genesis-r4-architecture.json": "4e13a679ce033c93ecac3e8b14f7b5afc0b1d8de",
+    "docs/plans/multi-agent-execution-guidance.json": "2fa11258600e004d6e89f863ba9e04e4c01e6438",
+    "docs/plans/parallel-roadmap-execution-round6.json": "a6cae9fd07f809ef4aec06b84a9b818f6166df05",
+    "scripts/roadmap_multi_agent_guidance.py": "8973fbdcb9b7cb7eec5ae9f03dd8f9acffdd544c",
+    "scripts/validate_parallel_roadmap_execution.py": "22d5be1db6f58906d9fa5132c46a5f358daae300",
+    "tests/test_parallel_roadmap_execution.py": "1504f56759b71c69157dcfdadc5ca172d8cae9f1",
+    "tests/test_roadmap_multi_agent_guidance.py": "a81c6b4695eb8cfa74c9fcd18bdea8aaf61eeb61"
+  },
+  "stale_invalidation": [
+    "authority_or_projection_revision_drift",
+    "candidate_writer_blob_drift",
+    "claim_lease_or_transfer_drift",
+    "command_contract_or_basetemp_drift",
+    "read_only_pin_drift",
+    "rolling_inventory_member_count_digest_or_denominator_drift"
+  ],
+  "verification_tiers": {
+    "focused": "five exact R4 packet predecessor-baseline active-freeze and zero-read nodes followed by full integration-spine file",
+    "dependency": "real integration-spine CLI and two-path pycompile",
+    "central": "integration-spine parallel-roadmap and guidance suites",
+    "expensive_live": "not_run_user_gated"
+  },
+  "correction_budget": {
+    "limit_per_invariant": 1,
+    "used": 1,
+    "failure_class": "r4_standard_v2_slice_packet_binding_and_terminal_baseline_continuity",
+    "after_repeat": "stop_and_rearchitect"
+  },
+  "inventory_receipt": {
+    "inventory_mode": "rolling_projection",
+    "member_count": 30,
+    "member_set_digest": "sha256:0f3bf8d41306facf635edd86a6c481cba702292994ab6c2e78937f86f9ec3bcf",
+    "terminal_waves_unchanged": true,
+    "scheduled_slice_count_unchanged": 7
+  },
+  "live_actions": false
+}
