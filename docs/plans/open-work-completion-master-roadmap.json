@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-11T23:05:00+02:00",
-  "status": "round5_accepted_released / long_run_active / denominator_unknown / 153_known_accepted / nmg05a_running_infrastructure_blocked / fca03a_r2_released_blocked_authority_revision217",
+  "updated_at": "2026-08-11T23:15:00+02:00",
+  "status": "round5_accepted_released / long_run_paused_true_safe_queue_exhaustion / denominator_unknown / 153_known_accepted / nmg05a_waiting_on_platform_authority_revision218",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -1161,9 +1161,9 @@
           "owner": "Bob/Terra high transferred detached-worktree writer",
           "codex_task_id": "019ff221-b9c1-7533-b239-8a117cc46ec2",
           "thread_id": "019ff221-b9c1-7533-b239-8a117cc46ec2",
-          "state": "claimed_tests_first",
-          "execution_state": "running",
-          "authority_revision": 208,
+          "state": "waiting_on_platform",
+          "execution_state": "blocked_infrastructure_apply_patch_acl",
+          "authority_revision": 218,
           "claimed_at": "2026-08-11T16:35:00+02:00",
           "lease_expires_at": "2026-08-12T04:35:00+02:00",
           "mutation_authority": "repo_only",
@@ -1395,6 +1395,14 @@
             "worktree_unchanged": "C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone",
             "allowed_paths_unchanged": true,
             "candidate_state": "recoverable_two_path_untracked_candidate"
+          },
+          "infrastructure_blocker": {
+            "code": "windows_apply_patch_deny_read_acl",
+            "status": "waiting_on_platform",
+            "scope": "all tested old, linked and standalone worktrees plus original, Root and fresh replacement writer contexts",
+            "evidence": "Every normal Codex apply_patch Update File attempt failed before write with windows sandbox helper_unknown_error: apply deny-read ACLs; no mechanic workaround, ACL change, third path or product correction was used.",
+            "candidate": "recoverable exact two-untracked-path candidate remains in the bound standalone worktree",
+            "resume_condition": "Platform/thread sandbox can read and update the bound claimed files through normal Codex apply_patch."
           }
         }
       ],
@@ -1592,7 +1600,7 @@
         "The Round7 2/2 FCA-02 plus UIR-03A snapshot is local and must not be presented as global Open Work completion.",
         "UIR-04C, UIR-05A and UIR-05B are accepted Round7 overlays absent from the 132-row abc_execution_queue and must be reconciled before the accepted set is frozen."
       ],
-      "next_action": "Keep NMG-05A active but infrastructure-blocked; FCA-03A-R2 is terminally released_blocked after correction 1/1. Reflect one disjoint dependency-ready repo-only frontier; no push, deploy or live action.",
+      "next_action": "Pause at true safe queue exhaustion. Resume NMG-05A automatically after the normal Codex apply_patch sandbox is repaired; otherwise require action-specific authority only for a selected UI/live/provider/host/operator action. Standing /go already authorizes future dependency-ready repo_only work without phrase gates.",
       "baseline_generation_correction_budget": {
         "failure_class": "global_goal_baseline_scope_acceptance_and_router_snapshot_binding",
         "limit": 1,
@@ -7520,7 +7528,7 @@
         ]
       },
       "long_run_checkpoint": {
-        "state": "running_disjoint_repo_frontier",
+        "state": "paused_true_safe_queue_exhaustion_waiting_platform",
         "run_id": "ABC-OPEN-WORK-GO-20260811T1124+0200",
         "started_at": "2026-08-11T11:24:16+02:00",
         "deadline_at": "2026-08-12T02:24:16+02:00",
@@ -7537,6 +7545,15 @@
         "snapshot_blob": "d86394763f5d0bc7547ca10645e835fffc1c74e3",
         "observed_post_snapshot_blob": "77f5f88feb3193caf50126f16f2a5edf88e0e441",
         "live_actions_authorized": false
+      },
+      "latest_safe_queue_audit": {
+        "audited_at": "2026-08-11T23:15:00+02:00",
+        "safe_open_count": 0,
+        "unclaimable_open_count": 0,
+        "queue_exhausted": true,
+        "unique_design_gate_count": 29,
+        "unique_live_gate_count": 64,
+        "meaning": "No dependency-ready repo_only or safe_offline slice remains in the canonical safe queue. Remaining decisions are UI, live, provider, host or operator actions; standing /go does not cross them."
       }
     },
     "cbm09_preclaim_handoff": {

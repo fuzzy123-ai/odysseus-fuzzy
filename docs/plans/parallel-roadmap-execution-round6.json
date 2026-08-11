@@ -2,8 +2,8 @@
   "schema_version": 1,
   "kind": "odysseus.parallel_roadmap_execution_round",
   "round_id": "round6",
-  "updated_at": "2026-08-11T23:05:00+02:00",
-  "status": "round6_authority_revision217_nmg05a_running_infrastructure_blocked_fca03a_r2_released_blocked_fresh_architecture_required",
+  "updated_at": "2026-08-11T23:15:00+02:00",
+  "status": "round6_authority_revision218_true_safe_queue_exhausted_nmg05a_waiting_on_platform",
   "goal": "After accepted Round 5, expose disjoint Coding, Memory/Data and App Integration frontiers with independent QA while keeping every central router master-only.",
   "prerequisite": {
     "round5_state": "accepted_released",
@@ -622,7 +622,7 @@
       "lane": "memory_data",
       "slice": {
         "id": "NMG-05A-causal-store-and-review",
-        "state": "claimed_tests_first",
+        "state": "blocked_infrastructure_apply_patch_acl",
         "claimable": false,
         "depends_on": [
           "NMG-05"
@@ -705,9 +705,11 @@
           "qa": ".abc-test-tmp\\ABC-NMG05A-REV203\\qa"
         },
         "remaining_user_gates": [],
-        "normalization_blockers": [],
+        "normalization_blockers": [
+          "Normal Codex apply_patch cannot read/update the two claimed files in any tested writer context because the Windows sandbox deny-read ACL helper fails before write; wait for platform repair."
+        ],
         "claim_id": "ABC-NMG05A-REV203",
-        "authority_revision": 208,
+        "authority_revision": 218,
         "architecture_binding": {
           "architecture_id": "NMG-05A-CAUSAL-STORE-AND-REVIEW-SOL-ARCH-v1",
           "logical_authority_revision": 202,
@@ -821,6 +823,14 @@
           "authority_revision": 208,
           "state": "accepted_owner_handoff_preserving_scope_lease_candidate_and_worktree",
           "worktree_unchanged": "C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone"
+        },
+        "infrastructure_blocker": {
+          "code": "windows_apply_patch_deny_read_acl",
+          "status": "waiting_on_platform",
+          "scope": "all tested old, linked and standalone worktrees plus original, Root and fresh replacement writer contexts",
+          "evidence": "Every normal Codex apply_patch Update File attempt failed before write with windows sandbox helper_unknown_error: apply deny-read ACLs; no mechanic workaround, ACL change, third path or product correction was used.",
+          "candidate": "recoverable exact two-untracked-path candidate remains in the bound standalone worktree",
+          "resume_condition": "Platform/thread sandbox can read and update the bound claimed files through normal Codex apply_patch."
         }
       }
     },
@@ -2116,9 +2126,9 @@
       "owner": "Bob/Terra high transferred detached-worktree writer",
       "codex_task_id": "019ff221-b9c1-7533-b239-8a117cc46ec2",
       "thread_id": "019ff221-b9c1-7533-b239-8a117cc46ec2",
-      "state": "running",
-      "claim_state": "claimed_tests_first",
-      "authority_revision": 208,
+      "state": "waiting_on_platform",
+      "claim_state": "waiting_on_platform",
+      "authority_revision": 218,
       "claimed_at": "2026-08-11T16:35:00+02:00",
       "lease_expires_at": "2026-08-12T04:35:00+02:00",
       "mutation_authority": "repo_only",
@@ -2183,6 +2193,14 @@
         "authority_revision": 208,
         "state": "accepted_owner_handoff_preserving_scope_lease_candidate_and_worktree",
         "worktree_unchanged": "C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone"
+      },
+      "infrastructure_blocker": {
+        "code": "windows_apply_patch_deny_read_acl",
+        "status": "waiting_on_platform",
+        "scope": "all tested old, linked and standalone worktrees plus original, Root and fresh replacement writer contexts",
+        "evidence": "Every normal Codex apply_patch Update File attempt failed before write with windows sandbox helper_unknown_error: apply deny-read ACLs; no mechanic workaround, ACL change, third path or product correction was used.",
+        "candidate": "recoverable exact two-untracked-path candidate remains in the bound standalone worktree",
+        "resume_condition": "Platform/thread sandbox can read and update the bound claimed files through normal Codex apply_patch."
       }
     }
   ],
