@@ -64,7 +64,7 @@ from core.constants import (
     REQUEST_TIMEOUT, OPENAI_API_KEY, AUTH_FILE,
 )
 from core.database import SessionLocal, ApiToken
-from core.middleware import SecurityHeadersMiddleware, is_cors_preflight
+from core.middleware import SecurityHeadersMiddleware, is_cors_preflight, require_admin
 from core.auth import AuthManager, normalize_known_username
 from core.exceptions import (
     SessionNotFoundError, InvalidFileUploadError,
@@ -628,7 +628,59 @@ from src.config import config
 # ========= COMPONENT INITIALIZATION =========
 from src.app_initializer import initialize_managers
 
+try:
+    from src.agent_tools import set_mcp_manager
+    from src.agent_tools.knowledge_tools import set_query_knowledge_planner
+    from src.unified_source_index_runtime import (
+        KnowledgeRuntime,
+        bind_knowledge_runtime,
+        close_knowledge_runtime,
+    )
+    from src.unified_source_index_job_runner import CooperativeIndexJobPump
+    from src.unified_source_index_runtime_status import (
+        UnifiedSourceIndexRuntimeStatusError,
+        project_unified_source_index_runtime_status,
+    )
+except Exception:
+    logger.warning("Knowledge runtime lifecycle import failed")
+    raise RuntimeError("knowledge_runtime_lifecycle_import_failed") from None
+
 components = initialize_managers(BASE_DIR, rag_manager)
+
+try:
+    knowledge_runtime = components["knowledge_runtime"]
+    if type(knowledge_runtime) is not KnowledgeRuntime:
+        raise TypeError("invalid knowledge runtime component")
+except Exception:
+    logger.warning("Knowledge runtime component invalid")
+    raise RuntimeError("knowledge_runtime_component_invalid") from None
+
+try:
+    index_job_pump = components["index_job_pump"]
+    if type(index_job_pump) is not CooperativeIndexJobPump:
+        raise TypeError("invalid index job pump component")
+except Exception:
+    logger.warning("Index job pump component invalid")
+    raise RuntimeError("index_job_pump_component_invalid") from None
+
+app.state.knowledge_runtime = knowledge_runtime
+app.state.index_job_pump = index_job_pump
+
+
+@app.get("/api/diagnostics/unified-source-index/runtime-status")
+async def unified_source_index_runtime_status(request: Request) -> Dict[str, object]:
+    require_admin(request)
+    try:
+        projection = project_unified_source_index_runtime_status(
+            knowledge_runtime,
+            index_job_pump,
+        )
+    except UnifiedSourceIndexRuntimeStatusError:
+        raise HTTPException(
+            503,
+            "unified_source_index_runtime_status_unavailable",
+        ) from None
+    return projection
 
 session_manager   = components["session_manager"]
 from src.assistant_log import set_session_manager as _set_asst_sm
@@ -1001,7 +1053,6 @@ app.include_router(setup_font_routes())
 
 # MCP (Model Context Protocol)
 from src.mcp_manager import McpManager
-from src.agent_tools import set_mcp_manager
 from routes.mcp_routes import setup_mcp_routes
 
 mcp_manager = McpManager()
@@ -2135,10 +2186,22 @@ async def _startup_event():
     from src.cookbook_serve_lifecycle import cookbook_serve_lifecycle_loop
     _startup_tasks.append(asyncio.create_task(cookbook_serve_lifecycle_loop()))
 
+    try:
+        bind_knowledge_runtime(knowledge_runtime, set_query_knowledge_planner)
+    except Exception:
+        logger.warning("Knowledge runtime bind failed; query_knowledge remains unavailable")
     logger.info("Application startup complete")
 
 async def _shutdown_event():
     logger.info("Application shutting down...")
+    try:
+        close_knowledge_runtime(knowledge_runtime)
+    except Exception:
+        logger.warning("Knowledge runtime close failed; query_knowledge remains unavailable")
+    try:
+        index_job_pump.close()
+    except Exception:
+        logger.warning("Index job pump close failed; no index job work was started")
     # Bound shutdown before tearing down the rest of the application; no
     # generic FastAPI background task owns this worker.
     await asyncio.to_thread(transcription_runtime.stop)

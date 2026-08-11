@@ -1,0 +1,186 @@
+{
+  "acceptance": [
+    "The exact released UIR-04C three-path writer scope is transferred ordinary-v2 without adding a route module or a new-product path; src/app_initializer.py remains byte-identical.",
+    "App registers exactly one GET /api/diagnostics/unified-source-index/runtime-status handler after both accepted component identities have been validated and stored.",
+    "The existing require_admin gate runs before either component snapshot; no owner-specific or new authorization rule is introduced.",
+    "An authorized request calls the accepted UIR-05A projector once with the exact existing knowledge_runtime and index_job_pump identities and returns its exact projection without a route wrapper or derived health field.",
+    "UnifiedSourceIndexRuntimeStatusError maps to one fixed content-free HTTP 503 detail from None; raw callback, exception, identifier, path, owner and configuration content never crosses the route.",
+    "Repeated requests remain fresh, detached and explicitly non-atomic; the route retains no input, snapshot, projection, cache or producer.",
+    "The route adds no startup or shutdown action, wakeup, productive runtime, store, provider, adapter, metric, file, network, thread, task, process, mutation or live authority.",
+    "All eight tests-first nodes, accepted UIR-03B/04C/05A corridors, static checks, central validators, independent QA and Deep-Sol pass on one frozen three-blob candidate."
+  ],
+  "allowed_paths": [
+    "app.py",
+    "src/app_initializer.py",
+    "tests/test_app_transcription_wiring.py"
+  ],
+  "architect": "root/Sol UIR-05B admin runtime status App route architecture",
+  "architecture_revision": "UIR-05B-ADMIN-RUNTIME-STATUS-APP-ROUTE-SOL-ARCH-v1",
+  "authority_revision": 176,
+  "baseline_blobs": {
+    "app.py": "6d3d00716ada02ef27cd83cdc186cdb868691fce",
+    "src/app_initializer.py": "1ad66bda9fbdd9ab05ff2964660f226bc52140d7",
+    "tests/test_app_transcription_wiring.py": "897fd1a94b5f356f6eb3b252311bebdc4e7a3535"
+  },
+  "baseline_readback": "materialized_exact_binary_readback_pass",
+  "claim_origin_reference": {
+    "allowed_paths": [
+      "app.py",
+      "src/app_initializer.py",
+      "tests/test_app_transcription_wiring.py"
+    ],
+    "architect": "root/Sol UIR-05B admin runtime status App route architecture",
+    "architecture_digest_sha256": "sha256:090bd088d8f53652cef5a8b2135f59cccc7a1bf7bf55e94696561110be0898e0",
+    "architecture_revision": "UIR-05B-ADMIN-RUNTIME-STATUS-APP-ROUTE-SOL-ARCH-v1",
+    "baseline_blobs": {
+      "app.py": "6d3d00716ada02ef27cd83cdc186cdb868691fce",
+      "src/app_initializer.py": "1ad66bda9fbdd9ab05ff2964660f226bc52140d7",
+      "tests/test_app_transcription_wiring.py": "897fd1a94b5f356f6eb3b252311bebdc4e7a3535"
+    },
+    "handoff_id": "UIR05B_ADMIN_RUNTIME_STATUS_APP_ROUTE_V1",
+    "kind": "odysseus.abc_claim_origin_architecture",
+    "new_product_writer_paths": [],
+    "origin_mode": "v2",
+    "schema_version": 1,
+    "slice_id": "UIR-05B-admin-runtime-status-app-route",
+    "source_claim_id": "ABC-UIR04C-REV170",
+    "state": "frozen"
+  },
+  "control_plane": {
+    "custom_harnesses": 0,
+    "generated_program_layers": 0,
+    "packet_only_revision": 177,
+    "root_only_router_transaction": true,
+    "runtime_layers": 0,
+    "writer_claim_revision": 178
+  },
+  "correction_budget": {
+    "failure_class": "uir05b_admin_gate_exact_projection_and_no_authority_route",
+    "limit": 1,
+    "on_repeat": "release_blocked_reflect_and_continue another dependency-ready product slice without a second route, status producer, helper or control-plane expansion",
+    "used": 0
+  },
+  "forbidden": [
+    "fourth writer path, new route module, new test file, app_initializer change, facade export, helper, provider, status producer, cache, sampler, registry or lifecycle layer",
+    "owner-scoped claim, owner field, new role or permission, auth bypass, replacement auth policy or any gate other than the existing require_admin semantics",
+    "route wrapper schema, aggregate health, ready, degraded or consistency verdict, atomic-snapshot claim, activation decision or HTTP status derived from component state",
+    "second projector call, snapshot retry, private attribute access, retained component or projection, mutation, wakeup, bind, close, register or worker construction",
+    "raw exception text, repr, args, traceback, owner, source, path, query, content, provider response, config value or private marker",
+    "metric, service-health, broad diagnostics, file, Path, SQLite, provider, adapter, socket, subprocess, thread, task, process, network or live effect",
+    "live, provider, host, private-data, network, expensive test, stage, commit, push or deploy"
+  ],
+  "hostile_matrix": [
+    "Non-admin, missing user and malformed auth state must be rejected by existing require_admin before either public snapshot is touched; the existing auth-disabled and internal-tool behavior is neither broadened nor reimplemented.",
+    "Exact accepted component identities are passed to the projector once; subclasses, forgeries and malformed component mappings remain rejected by the already accepted App and UIR-05A boundaries.",
+    "Projector fixed invalid_component, invalid_snapshot and snapshot_failed errors, including Exception and BaseException private-marker bombs, become one fixed HTTP 503 detail from None.",
+    "Disabled, read_only, closing and independently changing component snapshots remain exact unwrapped UIR-05A observations with snapshot_atomic false and no route-derived verdict.",
+    "Repeated requests, post-response mutation and one-shot snapshot disagreement cannot alter retained or later output because the route owns no cache, producer or stored projection.",
+    "Import package, module and missing UIR-05A symbol bombs remain inside the existing fixed content-free guarded runtime import boundary.",
+    "Response inspection finds no owner, health, ready, authorization, raw content, path, URL, provider, generation or configuration value outside the accepted UIR-05A schema.",
+    "Bomb store, provider, diagnostics, metrics, environment, open, Path, SQLite, socket, subprocess, Thread, multiprocessing and asyncio task creation attribute only the UIR-05B route delta."
+  ],
+  "hotfiles": [
+    "app.py",
+    "tests/test_app_transcription_wiring.py"
+  ],
+  "invariants": [
+    "Ordinary-v2 transfer preserves the exact UIR-04C allowed-path set because the validator requires source and target scopes to match; a mixed App plus absent route-module claim is not representable by the closed claim-origin contract.",
+    "The existing guarded agent-tools, knowledge-runtime and pump import sequence gains exactly UnifiedSourceIndexRuntimeStatusError and project_unified_source_index_runtime_status from src.unified_source_index_runtime_status before initialize_managers; its fixed warning and RuntimeError from None remain unchanged.",
+    "core.middleware.require_admin is reused as the sole request authorization authority and executes before the projector; the route neither accepts nor derives an owner and does not inspect app auth state itself.",
+    "The handler is exactly one direct App GET route at /api/diagnostics/unified-source-index/runtime-status and passes the already validated local knowledge_runtime and index_job_pump identities positionally to the projector once per authorized request.",
+    "Successful responses are the projector's exact fresh dictionary with schema odysseus.unified_source_index.runtime_status.v1; no response wrapper, timestamp, status, health, ready, owner or authorization field is added.",
+    "Only UnifiedSourceIndexRuntimeStatusError is caught and converted to HTTPException 503 with detail unified_source_index_runtime_status_unavailable from None; require_admin HTTPException is not intercepted.",
+    "Component state never changes the HTTP 200 success status and never authorizes activity; snapshot_atomic and live_activation_authorized remain exactly false as owned by UIR-05A.",
+    "src/app_initializer.py remains byte-identical and the UIR-04C component construction, App identity, startup-zero and shutdown-order contracts remain unchanged.",
+    "The slice introduces no App-owned producer, app.state status field, provider callback, route module, background sampler, status cache, metrics adapter or service-health integration."
+  ],
+  "kind": "odysseus.sol_v2_product_architecture",
+  "named_tests": [
+    "tests/test_app_transcription_wiring.py::test_uir05b_guarded_runtime_import_adds_exact_status_symbols_and_content_free_bombs",
+    "tests/test_app_transcription_wiring.py::test_uir05b_app_registers_one_admin_status_route_after_exact_component_storage",
+    "tests/test_app_transcription_wiring.py::test_uir05b_non_admin_is_rejected_before_either_component_snapshot",
+    "tests/test_app_transcription_wiring.py::test_uir05b_admin_status_route_returns_exact_unwrapped_uir05a_projection",
+    "tests/test_app_transcription_wiring.py::test_uir05b_projection_failure_maps_to_fixed_content_free_503_from_none",
+    "tests/test_app_transcription_wiring.py::test_uir05b_repeated_requests_are_fresh_one_read_nonatomic_and_retain_nothing",
+    "tests/test_app_transcription_wiring.py::test_uir05b_status_route_exposes_no_owner_health_readiness_or_activation_authority",
+    "tests/test_app_transcription_wiring.py::test_uir05b_route_delta_adds_no_store_provider_metrics_file_network_thread_task_process_or_mutation_effect"
+  ],
+  "origin_mode": "v2",
+  "public_contract": {
+    "auth": "Call existing core.middleware.require_admin(request) before projector access; no new owner or role semantics",
+    "error": "HTTPException(503, 'unified_source_index_runtime_status_unavailable') from None only for UnifiedSourceIndexRuntimeStatusError",
+    "handler": "async def unified_source_index_runtime_status(request: Request) -> Dict[str, object]",
+    "method": "GET",
+    "path": "/api/diagnostics/unified-source-index/runtime-status",
+    "projector_call": "project_unified_source_index_runtime_status(knowledge_runtime, index_job_pump)",
+    "response": "exact unwrapped odysseus.unified_source_index.runtime_status.v1 projection",
+    "success_status": 200
+  },
+  "read_only_pins": {
+    "core/middleware.py": "6590569e7829b69d2c09d528e003ecfb049ecf35",
+    "docs/plans/abc-r7-uir04c-default-off-app-pump-lifecycle-architecture.json": "caab3651af51121e6a4c69f76325ea5595b05bff",
+    "docs/plans/abc-r7-uir05a-content-free-runtime-status-projection-architecture.json": "828d3a157601dbefc8180a7e596dc84eb1d84670",
+    "docs/plans/evidence/abc-uir04c-rev170.json": "0db01f86c6ad4e9c7a5d8ac9881e486f286968d9",
+    "docs/plans/evidence/abc-uir05a-rev173.json": "facc180c4ddf7ca9e1a1ddc87b2a1e32eb848514",
+    "docs/plans/multi-agent-execution-guidance.json": "45430a1ec9f618e1eaa0ad4011e9c25d97dc3529",
+    "docs/plans/open-work-completion-master-roadmap.json": "91c79727968c6d330d0137f35b26b998a3b7be34",
+    "docs/plans/parallel-roadmap-execution-round6.json": "a6cae9fd07f809ef4aec06b84a9b818f6166df05",
+    "docs/plans/parallel-roadmap-execution-round7.json": "0c15594d24c0ff6adf0a48b0e542fc10ad5f35c6",
+    "docs/plans/unified-source-index-runtime-integration-roadmap.md": "fd8e8170c6b9d4a0c2f1d230ad6f6ea1dd716397",
+    "scripts/roadmap_multi_agent_guidance.py": "8973fbdcb9b7cb7eec5ae9f03dd8f9acffdd544c",
+    "scripts/validate_integration_spine_convergence.py": "0fb408cb7db3159a4bd484f036d70dabdc861ccb",
+    "scripts/validate_parallel_roadmap_execution.py": "22d5be1db6f58906d9fa5132c46a5f358daae300",
+    "src/unified_source_index_job_runner.py": "3aa3eca7d3db197c778be6ca9541cf73706b1f0d",
+    "src/unified_source_index_runtime.py": "e1074efecbfabd3b23460ee65c318a50e2791df3",
+    "src/unified_source_index_runtime_status.py": "21b90aec63755b66b79fb41d8304e3ed13a5df17",
+    "tests/test_parallel_roadmap_execution.py": "1504f56759b71c69157dcfdadc5ca172d8cae9f1",
+    "tests/test_roadmap_multi_agent_guidance.py": "a81c6b4695eb8cfa74c9fcd18bdea8aaf61eeb61",
+    "tests/test_unified_source_index_job_runner.py": "78470918693af65451be359558c05bc5ad897506",
+    "tests/test_unified_source_index_runtime_composition.py": "01849068e88e45a0ae2a73d7a186759048593ac3",
+    "tests/test_unified_source_index_runtime_status.py": "56ce7a3d2bccdacdd97050ef9eecc419bdf4eceb"
+  },
+  "representation": {
+    "app_wiring": "Extend the accepted guarded runtime import boundary with the exact UIR-05A error and projector symbols, add require_admin to the existing core.middleware import, and declare one direct App GET handler after component identities are stored.",
+    "auth_order": "Invoke require_admin(request) as the first handler statement. Only after it returns, call the projector with the accepted exact local identities.",
+    "error_boundary": "Catch only UnifiedSourceIndexRuntimeStatusError around the one projector call and raise the fixed 503 HTTPException from None. Never serialize the caught object.",
+    "response": "Return the projector result directly. UIR-05A owns validation, fresh detachment, content-free fields, one-read order, non-atomic labeling and false activation authority.",
+    "scope": "Do not change src/app_initializer.py. Do not add a route module, provider, app.state field, response adapter, health integration or lifecycle action."
+  },
+  "route": {
+    "mutation_authority": "repo_only",
+    "phase": "implementation",
+    "queue": "open_work",
+    "review": "independent QA plus Deep-Sol",
+    "secondary_skills": [
+      "abc",
+      "reflect"
+    ],
+    "worker": "closed_packet Luna medium"
+  },
+  "schema_version": 1,
+  "slice_id": "UIR-05B-admin-runtime-status-app-route",
+  "source_claim": {
+    "claim_id": "ABC-UIR04C-REV170",
+    "released_at": "2026-08-10T18:15:00+02:00",
+    "state": "released_accepted"
+  },
+  "state": "frozen",
+  "stop_rule": "One bounded correction is allowed only for uir05b_admin_gate_exact_projection_and_no_authority_route; recurrence releases blocked, triggers reflect and continues another dependency-ready product slice without a second route, producer, helper or control-plane expansion.",
+  "target": {
+    "mutation_authority": "repo_only read-only request projection; no productive runtime, owner scope, provider or live execution",
+    "outcome": "An existing administrator can read one current content-free non-atomic UIR-05A projection of the App-owned inert knowledge runtime and cooperative pump without a new producer or authority."
+  },
+  "tests_first": {
+    "correction": "One correction only for uir05b_admin_gate_exact_projection_and_no_authority_route; rerun all eight nodes, accepted UIR-03B/04C/05A nodes and every stronger tier.",
+    "red": "Edit only tests/test_app_transcription_wiring.py first, collect all eight exact UIR-05B nodes and require import, route, auth order, projection, fixed error, freshness, no-authority and zero-effect assertions to fail before app.py is edited."
+  },
+  "threat_model": "The accepted App component identities, existing require_admin boundary and UIR-05A projector are pinned trusted product boundaries. Requests, auth state, component snapshot timing, projector failures, repeated calls and response mutation are hostile. The direct route must expose only the accepted fresh non-authorizing projection after existing admin authorization, without inventing owner, health or live semantics.",
+  "verification_tiers": {
+    "central": "Integration Spine, Round6 and Guidance validators; Root verifies packet-only Revision 177 and ordinary-v2 claim Revision 178 mirrors.",
+    "dependency": "Full App wiring and UIR-05A status files plus accepted runtime composition and job runner tests; three-path parse and compile with src/app_initializer.py byte-identical.",
+    "expensive_live": "not_run_not_required_not_authorized",
+    "focused": "Collect the eight exact nodes red first, then green; run the full App wiring file in one claim-scoped basetemp.",
+    "independent_qa": "One frozen three-blob candidate: exact route and component identity, auth-before-snapshot, fixed failure, fresh non-atomic response, no authority and zero-effect tripwires.",
+    "sol_review": "Fresh Deep-Sol re-derives the complete ordinary-v2 three-path diff, unchanged initializer, route registration, guarded imports, auth and projector ordering, public response, fixed error and all pins."
+  }
+}

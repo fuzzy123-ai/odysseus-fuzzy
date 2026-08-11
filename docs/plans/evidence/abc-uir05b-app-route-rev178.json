@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.abc_claim_evidence",
+  "claim_id": "ABC-UIR05B-APP-ROUTE-REV178",
+  "thread_id": "/root/uir00r_semantic_writer",
+  "authority_revision": {
+    "claimed_against_round7_revision": 177,
+    "registered_round7_revision": 178
+  },
+  "candidate_writer_paths": [
+    "app.py",
+    "src/app_initializer.py",
+    "tests/test_app_transcription_wiring.py"
+  ],
+  "baseline_blobs": {
+    "app.py": "6d3d00716ada02ef27cd83cdc186cdb868691fce",
+    "src/app_initializer.py": "1ad66bda9fbdd9ab05ff2964660f226bc52140d7",
+    "tests/test_app_transcription_wiring.py": "897fd1a94b5f356f6eb3b252311bebdc4e7a3535"
+  },
+  "baseline_readback": "materialized_exact_binary_readback_pass",
+  "candidate_blobs": {
+    "app.py": "8206445d3140bc0b15c84511baf9e5b8b4ec9db1",
+    "src/app_initializer.py": "1ad66bda9fbdd9ab05ff2964660f226bc52140d7",
+    "tests/test_app_transcription_wiring.py": "30a37c7d4e6438340df9da92fdb1e5467f36e12a"
+  },
+  "candidate_state": "frozen_for_independent_qa",
+  "candidate_frozen_at": "2026-08-10T19:27:00+02:00",
+  "candidate_set_digest_sha256": "sha256:be43f42707d12f092778c8222afe0f0aceb554ea04413ed8287d9c739cbfa199",
+  "candidate_command_manifest_digest_sha256": "sha256:7e78c14470ed4969a23dc232cb00f4e6dfa96af8c79c464a50da64fc53b46402",
+  "candidate_pytest_node_manifest_digest_sha256": "sha256:79fca37fc998ed8414043b5bd22d88163fdb8c0eb7bedf7ebd2dbeb629640410",
+  "candidate_pytest_node_ids": [
+    "tests/test_app_transcription_wiring.py::test_uir05b_admin_status_route_returns_exact_unwrapped_uir05a_projection",
+    "tests/test_app_transcription_wiring.py::test_uir05b_app_registers_one_admin_status_route_after_exact_component_storage",
+    "tests/test_app_transcription_wiring.py::test_uir05b_guarded_runtime_import_adds_exact_status_symbols_and_content_free_bombs",
+    "tests/test_app_transcription_wiring.py::test_uir05b_non_admin_is_rejected_before_either_component_snapshot",
+    "tests/test_app_transcription_wiring.py::test_uir05b_projection_failure_maps_to_fixed_content_free_503_from_none",
+    "tests/test_app_transcription_wiring.py::test_uir05b_repeated_requests_are_fresh_one_read_nonatomic_and_retain_nothing",
+    "tests/test_app_transcription_wiring.py::test_uir05b_route_delta_adds_no_store_provider_metrics_file_network_thread_task_process_or_mutation_effect",
+    "tests/test_app_transcription_wiring.py::test_uir05b_status_route_exposes_no_owner_health_readiness_or_activation_authority"
+  ],
+  "read_only_pins": {
+    "core/middleware.py": "6590569e7829b69d2c09d528e003ecfb049ecf35",
+    "docs/plans/abc-r7-uir04c-default-off-app-pump-lifecycle-architecture.json": "caab3651af51121e6a4c69f76325ea5595b05bff",
+    "docs/plans/abc-r7-uir05a-content-free-runtime-status-projection-architecture.json": "828d3a157601dbefc8180a7e596dc84eb1d84670",
+    "docs/plans/abc-r7-uir05b-admin-runtime-status-app-route-architecture.json": "f24474dd6e00dadc47a72d6e34f63e1be8693609",
+    "docs/plans/multi-agent-execution-guidance.json": "5923a3f45d4c5f8ee44b0eaebf1b8a2618303c96",
+    "docs/plans/parallel-roadmap-execution-round6.json": "a6cae9fd07f809ef4aec06b84a9b818f6166df05",
+    "docs/plans/unified-source-index-runtime-integration-roadmap.md": "fd8e8170c6b9d4a0c2f1d230ad6f6ea1dd716397",
+    "scripts/roadmap_multi_agent_guidance.py": "8973fbdcb9b7cb7eec5ae9f03dd8f9acffdd544c",
+    "scripts/validate_integration_spine_convergence.py": "0fb408cb7db3159a4bd484f036d70dabdc861ccb",
+    "scripts/validate_parallel_roadmap_execution.py": "22d5be1db6f58906d9fa5132c46a5f358daae300",
+    "src/unified_source_index_job_runner.py": "3aa3eca7d3db197c778be6ca9541cf73706b1f0d",
+    "src/unified_source_index_runtime.py": "e1074efecbfabd3b23460ee65c318a50e2791df3",
+    "src/unified_source_index_runtime_status.py": "21b90aec63755b66b79fb41d8304e3ed13a5df17",
+    "tests/test_parallel_roadmap_execution.py": "1504f56759b71c69157dcfdadc5ca172d8cae9f1",
+    "tests/test_roadmap_multi_agent_guidance.py": "a81c6b4695eb8cfa74c9fcd18bdea8aaf61eeb61",
+    "tests/test_unified_source_index_job_runner.py": "78470918693af65451be359558c05bc5ad897506",
+    "tests/test_unified_source_index_runtime_composition.py": "01849068e88e45a0ae2a73d7a186759048593ac3",
+    "tests/test_unified_source_index_runtime_status.py": "56ce7a3d2bccdacdd97050ef9eecc419bdf4eceb"
+  },
+  "stale_invalidation": [
+    "authority_or_projection_revision_drift",
+    "candidate_writer_blob_drift",
+    "claim_lease_or_transfer_drift",
+    "command_contract_or_basetemp_drift",
+    "read_only_pin_drift",
+    "rolling_inventory_member_count_digest_or_denominator_drift"
+  ],
+  "verification_tiers": {
+    "focused": "collect eight exact UIR-05B App-route nodes red then green and run the full App wiring file",
+    "dependency": "App wiring plus accepted status runtime composition pump and admin-gate patterns plus three-path pycompile",
+    "central": "real Integration Spine Round6 and Guidance validators",
+    "expensive_live": "not_run_user_gated"
+  },
+  "correction_budget": {
+    "limit_per_invariant": 1,
+    "used": 0,
+    "failure_class": "uir05b_admin_gate_exact_projection_and_no_authority_route",
+    "after_repeat": "stop_and_rearchitect"
+  },
+  "inventory_receipt": {
+    "inventory_mode": "rolling_projection",
+    "member_count": 30,
+    "member_set_digest": "sha256:0f3bf8d41306facf635edd86a6c481cba702292994ab6c2e78937f86f9ec3bcf",
+    "terminal_waves_unchanged": true,
+    "scheduled_slice_count_unchanged": 7
+  },
+  "live_actions": false
+}

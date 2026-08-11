@@ -120,6 +120,29 @@ def initialize_managers(base_dir: str, rag_manager=None) -> Dict[str, Any]:
     if "brave" in saved_keys:
         update_search_config(api_key=saved_keys["brave"])
         logger.info("Loaded Brave API key from saved configuration")
+
+    try:
+        from src.unified_source_index_runtime_config import UnifiedSourceIndexRuntimeConfig
+        from src.unified_source_index_runtime import build_knowledge_runtime
+
+        knowledge_runtime_config = UnifiedSourceIndexRuntimeConfig.from_environment()
+        knowledge_runtime = build_knowledge_runtime(
+            (knowledge_runtime_config.mode.value, knowledge_runtime_config.runtime_enabled),
+            planner=None,
+        )
+    except Exception:
+        logger.warning("Knowledge runtime initialization failed")
+        raise RuntimeError("knowledge_runtime_initialization_failed") from None
+
+    try:
+        from src.unified_source_index_job_runner import (
+            build_inert_cooperative_index_job_pump,
+        )
+
+        index_job_pump = build_inert_cooperative_index_job_pump(knowledge_runtime_config)
+    except Exception:
+        logger.warning("Index job pump initialization failed")
+        raise RuntimeError("index_job_pump_initialization_failed") from None
     
     return {
         "memory_manager": memory_manager,
@@ -136,5 +159,7 @@ def initialize_managers(base_dir: str, rag_manager=None) -> Dict[str, Any]:
         "chat_handler": chat_handler,
         "model_discovery": model_discovery,
         "current_presets": preset_manager.presets,
-        "PERSONAL_INDEX": personal_docs_manager.index
+        "PERSONAL_INDEX": personal_docs_manager.index,
+        "knowledge_runtime": knowledge_runtime,
+        "index_job_pump": index_job_pump,
     }

@@ -1,0 +1,205 @@
+{
+  "acceptance": [
+    "The three released UIR-03B R2 paths are the only writes and their Revision 159 baselines remain exact before dispatch.",
+    "initialize_managers reads one exact UnifiedSourceIndexRuntimeConfig, builds the accepted knowledge runtime, then builds exactly one inert cooperative index job pump from that same config object and returns both exact identities without a partial component mapping.",
+    "App extends the existing single guarded lifecycle import boundary with the exact pump type, validates both component identities before storing either, and stores the initializer pump unchanged on app.state.index_job_pump.",
+    "Startup performs no pump wakeup, registration, worker-runtime construction or other pump action; disabled and read_only composition remain inert and storeless.",
+    "Shutdown attempts knowledge close first, pump close second and transcription teardown later; each fixed content-free failure is isolated so later teardown continues.",
+    "Shadow, canary, active, degraded and rollback composition fail closed before a component mapping or App state is published and without productive runtime, store, provider, adapter or background authority.",
+    "All ten UIR-04C tests-first nodes, the accepted UIR-03B and UIR-04B nodes, focused and dependency corridors, static checks, central validators, independent QA and Deep-Sol pass on one frozen candidate."
+  ],
+  "allowed_paths": [
+    "app.py",
+    "src/app_initializer.py",
+    "tests/test_app_transcription_wiring.py"
+  ],
+  "architect": "root/Sol UIR-04C default-off App pump lifecycle architecture",
+  "architecture_revision": "UIR-04C-DEFAULT-OFF-APP-PUMP-LIFECYCLE-SOL-ARCH-v1",
+  "authority_revision": 168,
+  "baseline_blobs": {
+    "app.py": "bea3c32bbbb6c911cbb0b9193e48922d3045332b",
+    "src/app_initializer.py": "0a8ec078d89a94e700dfb3e0b279749232f88f74",
+    "tests/test_app_transcription_wiring.py": "a16c88f663cd1b73372b241171a9fdbda7a6157f"
+  },
+  "baseline_readback": "materialized_exact_binary_readback_pass",
+  "claim_origin_reference": {
+    "allowed_paths": [
+      "app.py",
+      "src/app_initializer.py",
+      "tests/test_app_transcription_wiring.py"
+    ],
+    "architect": "root/Sol UIR-04C default-off App pump lifecycle architecture",
+    "architecture_digest_sha256": "sha256:98a81e85bfb5351f55e45db0f070a367423cb145bd2b25b02516ac4ee80996db",
+    "architecture_revision": "UIR-04C-DEFAULT-OFF-APP-PUMP-LIFECYCLE-SOL-ARCH-v1",
+    "baseline_blobs": {
+      "app.py": "bea3c32bbbb6c911cbb0b9193e48922d3045332b",
+      "src/app_initializer.py": "0a8ec078d89a94e700dfb3e0b279749232f88f74",
+      "tests/test_app_transcription_wiring.py": "a16c88f663cd1b73372b241171a9fdbda7a6157f"
+    },
+    "handoff_id": "UIR04C_DEFAULT_OFF_APP_PUMP_LIFECYCLE_V1",
+    "kind": "odysseus.abc_claim_origin_architecture",
+    "new_product_writer_paths": [],
+    "origin_mode": "v2",
+    "schema_version": 1,
+    "slice_id": "UIR-04C-default-off-app-pump-lifecycle",
+    "source_claim_id": "ABC-UIR03B-R2-REV158",
+    "state": "frozen"
+  },
+  "control_plane": {
+    "custom_harnesses": 0,
+    "generated_program_layers": 0,
+    "packet_only_revision": 169,
+    "root_only_router_transaction": true,
+    "runtime_layers": 0,
+    "writer_claim_revision": 170
+  },
+  "correction_budget": {
+    "failure_class": "uir04c_default_off_app_pump_identity_and_shutdown_order",
+    "limit": 1,
+    "on_repeat": "release_blocked_reflect_and_continue_another_dependency_ready product route without helper, fourth path, runtime construction or control-plane expansion",
+    "used": 0
+  },
+  "forbidden": [
+    "fourth writer path, runner edit, caller-inventory edit, facade re-export, new helper, adapter, component container, lifecycle layer or public API",
+    "second config read, copied config, second pump, productive runtime, JobStore, SQLite store, provider, adapter, generation scope or live authority",
+    "startup pump wakeup, register, queue, loop, retry, scheduler, thread, task, process, lease acquisition or worker-runtime construction",
+    "pump close before knowledge close, transcription stop before pump close, hard cancellation, lease release or teardown abort after a close failure",
+    "raw exception text, repr, args, traceback, path, module name, symbol name, config value, identifier or exc_info",
+    "environment mutation, file, Path, SQLite, provider, adapter, socket, subprocess or network effect introduced by this composition",
+    "live, provider, host, private-data, network, expensive test, stage, commit, push or deploy"
+  ],
+  "hostile_matrix": [
+    "Exact versus subclassed pump, knowledge runtime and component mapping values; missing or raising keys; validation must complete before either app.state identity is assigned.",
+    "Pump module, module execution and missing CooperativeIndexJobPump symbol bombs remain inside the one content-free guarded lifecycle import boundary.",
+    "Pump builder Exception and private-marker bombs after successful knowledge construction raise one fresh fixed initializer failure from None and return no partial mapping.",
+    "Disabled and read_only exact config identity is observed by both builders; post-read mutation, duplicate reads or copied config cannot authorize work.",
+    "Shadow, canary, active, degraded, rollback, incoherent and subclassed config fail before component publication with no productive runtime, store or provider.",
+    "Startup tripwires for wakeup, register, runtime, store, provider, adapter, thread, task and process creation remain untouched.",
+    "Knowledge close Exception followed by pump close; pump close Exception followed by transcription and later teardown; repeated and concurrent shutdown remain bounded and content-free.",
+    "Bomb environment, open, Path, SQLite, provider, adapter, socket, subprocess, Thread, multiprocessing and asyncio task creation attribute only the UIR-04C composition delta."
+  ],
+  "hotfiles": [
+    "app.py",
+    "src/app_initializer.py",
+    "tests/test_app_transcription_wiring.py"
+  ],
+  "invariants": [
+    "The accepted knowledge-runtime initialization block remains one strict config read and one planner-free build; the pump builder is called immediately afterward with the identical config object.",
+    "Pump construction uses only build_inert_cooperative_index_job_pump, so exact disabled and read_only are the only admitted modes and no UnifiedSourceIndexJobRuntime or JobStore is constructed.",
+    "Initializer failure boundaries are separate: accepted knowledge failure stays knowledge_runtime_initialization_failed; pump failure is index_job_pump_initialization_failed; neither returns partial components.",
+    "The existing guarded lifecycle boundary retains its first three ordered imports and adds CooperativeIndexJobPump from src.unified_source_index_job_runner before initialize_managers.",
+    "App extracts and exact-type validates knowledge_runtime and index_job_pump before assigning either state attribute; each stored object is the exact initializer identity.",
+    "The existing final knowledge bind remains the final startup action; there is no startup reference to the pump except its inert state storage.",
+    "Shutdown uses independent ordered attempts: close_knowledge_runtime, index_job_pump.close, then transcription stop and later teardown; failures never reorder or retry a pump operation.",
+    "This slice adds zero pump, unified-source-index runtime, store, provider, adapter, filesystem, network or background effects; it does not claim that unrelated pre-existing App initialization is globally effect-free.",
+    "Accepted UIR-03B lifecycle identity, revocation and no-retry semantics and all eleven UIR-04A plus nine UIR-04B pump semantics remain unchanged."
+  ],
+  "kind": "odysseus.sol_v2_product_architecture",
+  "named_tests": [
+    "tests/test_app_transcription_wiring.py::test_uir04c_initializer_builds_one_inert_pump_from_the_same_exact_config",
+    "tests/test_app_transcription_wiring.py::test_uir04c_initializer_pump_failure_is_fixed_content_free_and_returns_no_partial_components",
+    "tests/test_app_transcription_wiring.py::test_uir04c_guarded_lifecycle_import_includes_exact_pump_type_and_content_free_bombs",
+    "tests/test_app_transcription_wiring.py::test_uir04c_app_stores_exact_initializer_pump_by_identity_and_rejects_subclasses",
+    "tests/test_app_transcription_wiring.py::test_uir04c_startup_never_wakes_registers_or_constructs_a_worker_runtime",
+    "tests/test_app_transcription_wiring.py::test_uir04c_shutdown_keeps_knowledge_close_first_then_pump_close_before_transcription",
+    "tests/test_app_transcription_wiring.py::test_uir04c_shutdown_continues_pump_close_after_knowledge_close_failure_and_continues_teardown_after_pump_failure",
+    "tests/test_app_transcription_wiring.py::test_uir04c_disabled_and_read_only_composition_are_inert_and_storeless",
+    "tests/test_app_transcription_wiring.py::test_uir04c_noninert_modes_fail_closed_without_partial_component_or_effect",
+    "tests/test_app_transcription_wiring.py::test_uir04c_composition_adds_no_sqlite_store_provider_adapter_filesystem_network_thread_task_or_process_effect"
+  ],
+  "origin_mode": "v2",
+  "public_contract": {
+    "app_state": "app.state.index_job_pump is the exact initializer CooperativeIndexJobPump identity",
+    "component_key": "index_job_pump",
+    "component_validation_error": "Index job pump component invalid; RuntimeError index_job_pump_component_invalid from None",
+    "guarded_import_error": "Knowledge runtime lifecycle import failed; RuntimeError knowledge_runtime_lifecycle_import_failed from None",
+    "guarded_import_order": [
+      "set_mcp_manager from src.agent_tools",
+      "set_query_knowledge_planner from src.agent_tools.knowledge_tools",
+      "KnowledgeRuntime, bind_knowledge_runtime and close_knowledge_runtime from src.unified_source_index_runtime",
+      "CooperativeIndexJobPump from src.unified_source_index_job_runner"
+    ],
+    "initializer_error": "Index job pump initialization failed; RuntimeError index_job_pump_initialization_failed from None",
+    "initializer_return": "dict adds index_job_pump with the exact build_inert_cooperative_index_job_pump result",
+    "new_exports": [],
+    "pump_builder": "build_inert_cooperative_index_job_pump(knowledge_runtime_config)",
+    "shutdown_warning": "Index job pump close failed; no index job work was started"
+  },
+  "read_only_pins": {
+    "docs/plans/abc-r7-uir03b-application-wiring-r2-architecture.json": "853c8809df7b2a2c224c769019da369d3f3ff35f",
+    "docs/plans/abc-r7-uir04b-default-off-inert-pump-composition-architecture.json": "0484b480a440bcb0c7961cf7b002dea3957bdb06",
+    "docs/plans/evidence/abc-uir03b-r2-rev158.json": "b02fd898f7cb3320cc5950592c31ab863dc6442a",
+    "docs/plans/evidence/abc-uir04b-rev167.json": "a38c3b4717f07048628cf92e7bcadc82f4df4cdc",
+    "docs/plans/multi-agent-execution-guidance.json": "5ee8b9ca96e53549bb807c5886cab36005f5b128",
+    "docs/plans/open-work-completion-master-roadmap.json": "da8716be42f571750c6cd39360313e65760f5668",
+    "docs/plans/parallel-roadmap-execution-round6.json": "a6cae9fd07f809ef4aec06b84a9b818f6166df05",
+    "docs/plans/parallel-roadmap-execution-round7.json": "001000af80552e94eb4aef736ea60df320cdfa67",
+    "docs/plans/unified-source-index-runtime-integration-roadmap.md": "fd8e8170c6b9d4a0c2f1d230ad6f6ea1dd716397",
+    "scripts/roadmap_multi_agent_guidance.py": "8973fbdcb9b7cb7eec5ae9f03dd8f9acffdd544c",
+    "scripts/validate_integration_spine_convergence.py": "0fb408cb7db3159a4bd484f036d70dabdc861ccb",
+    "scripts/validate_parallel_roadmap_execution.py": "22d5be1db6f58906d9fa5132c46a5f358daae300",
+    "src/agent_tools/__init__.py": "bd54ee724175f868536c8b4b165432a3fc73df64",
+    "src/agent_tools/knowledge_tools.py": "2dfabb6cacb48e8fb292bd1702e4c572169a78c6",
+    "src/unified_source_index_job_runner.py": "3aa3eca7d3db197c778be6ca9541cf73706b1f0d",
+    "src/unified_source_index_jobs.py": "5a23a198644a5bdc8c328eceadd2efb52bb1d1b0",
+    "src/unified_source_index_runtime.py": "e1074efecbfabd3b23460ee65c318a50e2791df3",
+    "src/unified_source_index_runtime_config.py": "04ec82722f905a3b7e1d272f7e95cdb4be367f4a",
+    "src/unified_source_index_runtime_contract.py": "5133d76f1e93c41933535e4d60e7b3ec4b4c1e1d",
+    "src/unified_source_index_sqlite.py": "28de8a45424fead0eab133d42d2449303982997f",
+    "src/unified_source_index_stores.py": "b675ddf202b085204fdcb834e5ba1d45d1b9394e",
+    "tests/test_app_transcription_wiring.py": "a16c88f663cd1b73372b241171a9fdbda7a6157f",
+    "tests/test_parallel_roadmap_execution.py": "1504f56759b71c69157dcfdadc5ca172d8cae9f1",
+    "tests/test_roadmap_multi_agent_guidance.py": "a81c6b4695eb8cfa74c9fcd18bdea8aaf61eeb61",
+    "tests/test_unified_source_index_job_runner.py": "78470918693af65451be359558c05bc5ad897506",
+    "tests/test_unified_source_index_jobs.py": "0ef64a6715b84dfc48c5a49d6ee02008a3f71a6a",
+    "tests/test_unified_source_index_runtime_composition.py": "01849068e88e45a0ae2a73d7a186759048593ac3",
+    "tests/test_unified_source_index_runtime_config.py": "320b1540b79eff36c04b2a4b39ab636e59ea5f4b",
+    "tests/test_unified_source_index_runtime_contract.py": "e27fa18e06f0f99ce4338b5b78db2e6b46d48706",
+    "tests/test_unified_source_index_sqlite.py": "7800d979e22a81371d604696fb7b8911f246f29b",
+    "tests/test_unified_source_index_stores.py": "91daaeacd42e0b2b9e97b5326e13c5978ae55220"
+  },
+  "representation": {
+    "app_components": "Read knowledge_runtime and index_job_pump once, exact-type validate both into locals before state assignment, then assign the unchanged identities to app.state. No fallback, coercion or reconstruction.",
+    "guarded_import": "Extend the accepted contiguous content-free lifecycle import try with one explicit CooperativeIndexJobPump import after the accepted agent-tools, knowledge-tools and runtime imports; initialize_managers remains after the catch.",
+    "initializer": "After the accepted one-config knowledge build succeeds, import and call build_inert_cooperative_index_job_pump once with the exact same config object. Catch Exception as the fixed pump initializer warning and RuntimeError from None; add one index_job_pump return key only after success.",
+    "shutdown": "Keep knowledge close in its own first try. Immediately call the exact stored pump close in a second try. Log only the fixed pump warning on Exception, then continue to transcription stop and existing teardown.",
+    "startup": "Store the exact pump identity during composition and otherwise never touch it. Preserve bind_knowledge_runtime as the final startup action and add no wakeup, registration, callback or worker construction."
+  },
+  "route": {
+    "mutation_authority": "repo_only",
+    "phase": "implementation",
+    "queue": "open_work",
+    "review": "independent QA plus Deep-Sol",
+    "secondary_skills": [
+      "abc",
+      "reflect"
+    ],
+    "worker": "closed_packet Luna medium"
+  },
+  "schema_version": 1,
+  "slice_id": "UIR-04C-default-off-app-pump-lifecycle",
+  "source_claim": {
+    "claim_id": "ABC-UIR03B-R2-REV158",
+    "released_at": "2026-08-10T15:20:00+02:00",
+    "state": "released_accepted"
+  },
+  "state": "frozen",
+  "stop_rule": "One bounded correction is allowed only for uir04c_default_off_app_pump_identity_and_shutdown_order; recurrence releases blocked, triggers reflect and continues another dependency-ready route without a second patch, helper, fourth path, productive runtime or control-plane expansion.",
+  "target": {
+    "mutation_authority": "repo_only synthetic verification; no productive unified-source-index runtime, store, provider, adapter or live execution",
+    "outcome": "The default-off App composition owns one exact inert cooperative index job pump, takes no startup pump action and closes it between knowledge runtime and transcription teardown."
+  },
+  "tests_first": {
+    "correction": "One correction only for uir04c_default_off_app_pump_identity_and_shutdown_order; rerun all ten nodes, every accepted UIR-03B node, all twenty accepted UIR-04A/B nodes and every stronger tier.",
+    "red": "Edit only tests/test_app_transcription_wiring.py first, collect the ten exact UIR-04C nodes and require the initializer, import, identity, startup, shutdown and inert-composition assertions to fail before either source path is edited."
+  },
+  "threat_model": "The accepted UIR-03B App lifecycle and UIR-04B inert builder are pinned trusted boundaries. Initializer mappings, import execution, config identity, App component types, startup callbacks, shutdown exceptions and unrelated pre-existing App effects are hostile. Closure adds one exact inert identity and ordered close without broadening authority or falsely claiming the whole App is effect-free.",
+  "verification_tiers": {
+    "central": "Integration Spine, Round6 and Guidance validators; Root verifies Revision 169 packet and Revision 170 claim, Evidence and mirror readbacks.",
+    "dependency": "Full App wiring file plus pinned UIR-04B runner, jobs, stores, SQLite, runtime composition, runtime config and runtime contract tests; three-path parse and compile.",
+    "expensive_live": "not_run_not_required_not_authorized",
+    "focused": "Collect and run the ten exact UIR-04C nodes red first, then green; run all accepted UIR-03B nodes and the full App wiring file in one claim-scoped basetemp.",
+    "independent_qa": "One frozen three-blob candidate: exact config and component identities, import bombs, disabled/read_only and non-inert modes, zero startup action, close order, continuation and composition-delta effect tripwires.",
+    "sol_review": "Fresh Deep-Sol re-derives the complete three-path baseline diff, ordinary-v2 transfer, exact same-config construction, public surface, state identity, lifecycle ordering, fixed boundaries and absence of new authority."
+  }
+}
