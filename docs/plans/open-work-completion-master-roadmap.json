@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-11T17:25:00+02:00",
-  "status": "round5_accepted_released / long_run_active / denominator_unknown / 153_known_accepted / nmg05a_writer_standalone_workspace_rebound_running_authority_revision206",
+  "updated_at": "2026-08-11T20:55:00+02:00",
+  "status": "round5_accepted_released / long_run_active / denominator_unknown / 153_known_accepted / nmg05a_writer_task_transferred_running_authority_revision208",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -1055,12 +1055,12 @@
         {
           "claim_id": "ABC-NMG05A-REV203",
           "slice_id": "NMG-05A-causal-store-and-review",
-          "owner": "Bob/Terra high detached-worktree writer",
-          "codex_task_id": "019ff11a-c684-7232-893c-34b136ea2853",
-          "thread_id": "019ff11a-c684-7232-893c-34b136ea2853",
+          "owner": "Bob/Terra high transferred detached-worktree writer",
+          "codex_task_id": "019ff221-b9c1-7533-b239-8a117cc46ec2",
+          "thread_id": "019ff221-b9c1-7533-b239-8a117cc46ec2",
           "state": "claimed_tests_first",
           "execution_state": "running",
-          "authority_revision": 206,
+          "authority_revision": 208,
           "claimed_at": "2026-08-11T16:35:00+02:00",
           "lease_expires_at": "2026-08-12T04:35:00+02:00",
           "mutation_authority": "repo_only",
@@ -1259,8 +1259,8 @@
             "checkout_method": "git -C C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone rev-parse HEAD",
             "required_precondition": "standalone_git_directory_detached_head_clean_and_claim_paths_absent",
             "pin_semantics": "architecture seal router blobs remain materialized preclaim authority objects; executable current router paths come from the detached baseline commit and are rebound by authority revision 206; checkout EOL projection is verified through Git object identity",
-            "codex_task_id": "019ff11a-c684-7232-893c-34b136ea2853",
-            "thread_id": "019ff11a-c684-7232-893c-34b136ea2853",
+            "codex_task_id": "019ff221-b9c1-7533-b239-8a117cc46ec2",
+            "thread_id": "019ff221-b9c1-7533-b239-8a117cc46ec2",
             "standalone_readback": {
               "git_admin_kind": "directory",
               "detached_head": "6c2ce20fea9e143d8386f1861385266d1a033c82",
@@ -1282,6 +1282,16 @@
             "old_workspace_state": "preserved_unmodified_by_revision206_authority_transaction",
             "materialization": "standalone local clone at exact detached baseline commit; no product write; no ACL change; no old-worktree mutation",
             "authority_revision": 206
+          },
+          "task_transfer": {
+            "from_codex_task_id": "019ff11a-c684-7232-893c-34b136ea2853",
+            "to_codex_task_id": "019ff221-b9c1-7533-b239-8a117cc46ec2",
+            "transferred_at": "2026-08-11T20:55:00+02:00",
+            "authority_revision": 208,
+            "state": "accepted_owner_handoff_preserving_scope_lease_candidate_and_worktree",
+            "worktree_unchanged": "C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone",
+            "allowed_paths_unchanged": true,
+            "candidate_state": "recoverable_two_path_untracked_candidate"
           }
         }
       ],
@@ -1479,7 +1489,7 @@
         "The Round7 2/2 FCA-02 plus UIR-03A snapshot is local and must not be presented as global Open Work completion.",
         "UIR-04C, UIR-05A and UIR-05B are accepted Round7 overlays absent from the 132-row abc_execution_queue and must be reconciled before the accepted set is frozen."
       ],
-      "next_action": "Detached task 019ff11a-c684-7232-893c-34b136ea2853 uses the fully standalone local Git checkout, re-reads exact detached HEAD, then materializes only the exact two NMG-05A candidate paths via apply_patch; no shell write, ACL change, third path, commit, push, deploy or live action is authorized.",
+      "next_action": "Transferred task 019ff221-b9c1-7533-b239-8a117cc46ec2 resumes only the recoverable two-path NMG-05A candidate in the unchanged standalone worktree after exact authority and detached-HEAD readback; no third path, commit, push, deploy or live action is authorized.",
       "baseline_generation_correction_budget": {
         "failure_class": "global_goal_baseline_scope_acceptance_and_router_snapshot_binding",
         "limit": 1,
