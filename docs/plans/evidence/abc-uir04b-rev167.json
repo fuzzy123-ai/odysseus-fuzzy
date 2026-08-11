@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.abc_claim_evidence",
+  "claim_id": "ABC-UIR04B-REV167",
+  "thread_id": "/root/uir00r_semantic_writer",
+  "authority_revision": {
+    "claimed_against_round7_revision": 166,
+    "registered_round7_revision": 167
+  },
+  "candidate_writer_paths": [
+    "src/unified_source_index_job_runner.py",
+    "tests/test_unified_source_index_job_runner.py"
+  ],
+  "baseline_blobs": {
+    "src/unified_source_index_job_runner.py": "f9351e488eae7fdb27c3e3462acaeb20a6542046",
+    "tests/test_unified_source_index_job_runner.py": "3eb01d564a815ec89493ad32dbd5039489ca9ebe"
+  },
+  "baseline_readback": "materialized_exact_binary_readback_pass",
+  "candidate_blobs": {
+    "src/unified_source_index_job_runner.py": "3aa3eca7d3db197c778be6ca9541cf73706b1f0d",
+    "tests/test_unified_source_index_job_runner.py": "78470918693af65451be359558c05bc5ad897506"
+  },
+  "candidate_state": "frozen_for_independent_qa",
+  "candidate_frozen_at": "2026-08-10T17:25:00+02:00",
+  "candidate_set_digest_sha256": "sha256:d617c9d01696a3fceb272e6973b24521eb9b9f5b902f6d238a86430952e1adb9",
+  "candidate_command_manifest_digest_sha256": "sha256:d73ad9e8122bdb2ec2d093d38e639ad0ce02e88a6d6f6b9efd621f63abb4fc0e",
+  "candidate_pytest_node_manifest_digest_sha256": "sha256:427686c96540bf3161a49789237aa45a59fe45993b8b1defa773ce8430b5c739",
+  "candidate_pytest_node_ids": [
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_close_is_idempotent_prevents_new_work_and_never_calls_cancel",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_constructor_captures_exact_coherent_gate_without_effects",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_disabled_read_only_degraded_rollback_and_nonrunning_policy_execute_zero_steps",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_duplicate_and_concurrent_wakeups_reject_busy_with_one_active_step",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_import_and_construction_spawn_nothing_and_perform_no_io",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_jobstore_lease_cursor_retry_and_restart_remain_sole_durable_authority",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_mutation_after_gate_capture_cannot_enable_or_redirect_work",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_one_wakeup_performs_one_acquire_and_one_run_next_without_queue_or_loop",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_public_contract_is_exact_and_snapshots_are_fresh_content_free",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_reentrant_wakeup_rejects_and_reentrant_close_marks_draining_without_deadlock",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_step_failures_are_fresh_fixed_content_free_and_never_retried",
+    "tests/test_unified_source_index_job_runner.py::test_uir04b_builder_creates_exact_disabled_stopped_nonauthorizing_state",
+    "tests/test_unified_source_index_job_runner.py::test_uir04b_builder_creates_exact_read_only_stopped_nonauthorizing_state",
+    "tests/test_unified_source_index_job_runner.py::test_uir04b_builder_rejects_shadow_canary_active_degraded_and_rollback",
+    "tests/test_unified_source_index_job_runner.py::test_uir04b_constructor_runtime_admission_is_exact_for_executable_and_inert_gates",
+    "tests/test_unified_source_index_job_runner.py::test_uir04b_import_builder_constructor_and_inert_wakeup_have_zero_effects",
+    "tests/test_unified_source_index_job_runner.py::test_uir04b_inert_constructor_variants_require_none_and_execute_zero_dependencies",
+    "tests/test_unified_source_index_job_runner.py::test_uir04b_inert_wakeup_rejects_before_runtime_lookup_and_preserves_close_precedence",
+    "tests/test_unified_source_index_job_runner.py::test_uir04b_mutation_and_baseexception_boundaries_are_fixed_fresh_and_fail_closed",
+    "tests/test_unified_source_index_job_runner.py::test_uir04b_public_api_adds_only_exact_inert_builder_and_preserves_schema_errors"
+  ],
+  "read_only_pins": {
+    "docs/plans/abc-r7-uir04b-default-off-inert-pump-composition-architecture.json": "0484b480a440bcb0c7961cf7b002dea3957bdb06",
+    "docs/plans/multi-agent-execution-guidance.json": "0d5aac780f2d4de7fc8869c9cfb06bd8518230e5",
+    "docs/plans/parallel-roadmap-execution-round6.json": "a6cae9fd07f809ef4aec06b84a9b818f6166df05",
+    "docs/plans/unified-source-index-runtime-integration-roadmap.md": "fd8e8170c6b9d4a0c2f1d230ad6f6ea1dd716397",
+    "scripts/roadmap_multi_agent_guidance.py": "8973fbdcb9b7cb7eec5ae9f03dd8f9acffdd544c",
+    "scripts/validate_integration_spine_convergence.py": "0fb408cb7db3159a4bd484f036d70dabdc861ccb",
+    "scripts/validate_parallel_roadmap_execution.py": "22d5be1db6f58906d9fa5132c46a5f358daae300",
+    "src/unified_source_index_adapters.py": "38a22e3a1048eca9a321d9b0b4a5f42f7676ceb1",
+    "src/unified_source_index_jobs.py": "5a23a198644a5bdc8c328eceadd2efb52bb1d1b0",
+    "src/unified_source_index_runtime_config.py": "04ec82722f905a3b7e1d272f7e95cdb4be367f4a",
+    "src/unified_source_index_runtime_contract.py": "5133d76f1e93c41933535e4d60e7b3ec4b4c1e1d",
+    "src/unified_source_index_sqlite.py": "28de8a45424fead0eab133d42d2449303982997f",
+    "src/unified_source_index_stores.py": "b675ddf202b085204fdcb834e5ba1d45d1b9394e",
+    "tests/test_parallel_roadmap_execution.py": "1504f56759b71c69157dcfdadc5ca172d8cae9f1",
+    "tests/test_roadmap_multi_agent_guidance.py": "a81c6b4695eb8cfa74c9fcd18bdea8aaf61eeb61",
+    "tests/test_unified_source_index_adapters.py": "f1507faaa8b8a3f2fa18d7f9a9f0ee1010c37448",
+    "tests/test_unified_source_index_jobs.py": "0ef64a6715b84dfc48c5a49d6ee02008a3f71a6a",
+    "tests/test_unified_source_index_runtime_composition.py": "01849068e88e45a0ae2a73d7a186759048593ac3",
+    "tests/test_unified_source_index_runtime_config.py": "320b1540b79eff36c04b2a4b39ab636e59ea5f4b",
+    "tests/test_unified_source_index_runtime_contract.py": "e27fa18e06f0f99ce4338b5b78db2e6b46d48706",
+    "tests/test_unified_source_index_sqlite.py": "7800d979e22a81371d604696fb7b8911f246f29b",
+    "tests/test_unified_source_index_stores.py": "91daaeacd42e0b2b9e97b5326e13c5978ae55220"
+  },
+  "stale_invalidation": [
+    "authority_or_projection_revision_drift",
+    "candidate_writer_blob_drift",
+    "claim_lease_or_transfer_drift",
+    "command_contract_or_basetemp_drift",
+    "read_only_pin_drift",
+    "rolling_inventory_member_count_digest_or_denominator_drift"
+  ],
+  "verification_tiers": {
+    "focused": "collect and run twenty exact UIR-04A and UIR-04B nodes then the full runner file",
+    "dependency": "job adapter store sqlite runtime config contract and composition corridor plus two-path pycompile",
+    "central": "real Integration Spine Round6 and Guidance validators",
+    "expensive_live": "not_run_user_gated"
+  },
+  "correction_budget": {
+    "limit_per_invariant": 1,
+    "used": 1,
+    "failure_class": "uir04b_default_off_inert_pump_composition_and_runtime_admission",
+    "after_repeat": "stop_and_rearchitect"
+  },
+  "inventory_receipt": {
+    "inventory_mode": "rolling_projection",
+    "member_count": 30,
+    "member_set_digest": "sha256:0f3bf8d41306facf635edd86a6c481cba702292994ab6c2e78937f86f9ec3bcf",
+    "terminal_waves_unchanged": true,
+    "scheduled_slice_count_unchanged": 7
+  },
+  "live_actions": false
+}

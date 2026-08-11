@@ -1,0 +1,220 @@
+{
+  "acceptance": [
+    "The two accepted UIR-04A paths are the only writes and their Revision 165 baselines remain exact before dispatch.",
+    "An exact executable gate requires one exact UnifiedSourceIndexJobRuntime; every coherent inert gate requires runtime None and retains no runtime authority.",
+    "build_inert_cooperative_index_job_pump accepts only exact disabled or read_only config and returns a stopped content-free pump without constructing a store, provider, scope or live capability.",
+    "Inert wakeup rejects before runtime lookup or dependency use; executable wakeup preserves the accepted one-acquire one-run_next bound, concurrency, draining and JobStore authority.",
+    "The original eleven UIR-04A semantic nodes plus nine UIR-04B tests, focused and dependency corridors, static checks, central validators, independent QA and Deep-Sol pass on one frozen candidate."
+  ],
+  "allowed_paths": [
+    "src/unified_source_index_job_runner.py",
+    "tests/test_unified_source_index_job_runner.py"
+  ],
+  "architect": "root/Sol UIR-04B default-off inert pump composition architecture",
+  "architecture_revision": "UIR-04B-DEFAULT-OFF-INERT-PUMP-COMPOSITION-SOL-ARCH-v1",
+  "authority_revision": 165,
+  "baseline_blobs": {
+    "src/unified_source_index_job_runner.py": "f9351e488eae7fdb27c3e3462acaeb20a6542046",
+    "tests/test_unified_source_index_job_runner.py": "3eb01d564a815ec89493ad32dbd5039489ca9ebe"
+  },
+  "baseline_readback": "materialized_exact_binary_readback_pass",
+  "claim_origin_reference": {
+    "allowed_paths": [
+      "src/unified_source_index_job_runner.py",
+      "tests/test_unified_source_index_job_runner.py"
+    ],
+    "architect": "root/Sol UIR-04B default-off inert pump composition architecture",
+    "architecture_digest_sha256": "sha256:f80a9ab66aab46f0ee505b02aab289d9cff6f2b67bc6df5dd6d5a3d6b6e5ec31",
+    "architecture_revision": "UIR-04B-DEFAULT-OFF-INERT-PUMP-COMPOSITION-SOL-ARCH-v1",
+    "baseline_blobs": {
+      "src/unified_source_index_job_runner.py": "f9351e488eae7fdb27c3e3462acaeb20a6542046",
+      "tests/test_unified_source_index_job_runner.py": "3eb01d564a815ec89493ad32dbd5039489ca9ebe"
+    },
+    "handoff_id": "UIR04B_DEFAULT_OFF_INERT_PUMP_COMPOSITION_V1",
+    "kind": "odysseus.abc_claim_origin_architecture",
+    "new_product_writer_paths": [],
+    "origin_mode": "v2",
+    "schema_version": 1,
+    "slice_id": "UIR-04B-default-off-inert-pump-composition",
+    "source_claim_id": "ABC-UIR04A-REV164",
+    "state": "frozen"
+  },
+  "control_plane": {
+    "custom_harnesses": 0,
+    "generated_program_layers": 0,
+    "packet_only_revision": 166,
+    "root_only_router_transaction": true,
+    "runtime_layers": 0,
+    "writer_claim_revision": 167
+  },
+  "correction_budget": {
+    "failure_class": "uir04b_default_off_inert_pump_composition_and_runtime_admission",
+    "limit": 1,
+    "on_repeat": "release_blocked_reflect_and_continue_another_dependency_ready_product route without helper, third path, App binding or control-plane expansion",
+    "used": 0
+  },
+  "forbidden": [
+    "third writer path, App edit, caller inventory edit, new helper layer, queue, scheduler, registry, store or durable authority",
+    "inert pump retaining or receiving a runtime, provider, store, scope, request, lease, cursor or live capability",
+    "builder acceptance of shadow, canary, active, degraded or rollback config",
+    "environment, file, Path, SQLite, provider, adapter, JobStore, socket, subprocess, thread, task, process or network action on import, construction or inert wakeup",
+    "loop, retry, pending wakeup, run_to_completion, register, cancel, lease release or hard-cancellation claim",
+    "raw exception, identifier, path, config value or dependency content; live, expensive test, stage, commit, push or deploy"
+  ],
+  "hostile_matrix": [
+    "Exact and subclassed runtime, config and state; executable gate plus None; inert gate plus supplied runtime; incoherent mode, enabled, generation and policy.",
+    "Direct constructor with disabled, read_only, degraded, rollback and non-running shadow, canary or active gates uses None and executes zero dependency steps.",
+    "Builder accepts exact disabled and read_only only; shadow, canary, active, degraded, rollback, wrong types and subclasses fail fixed content-free.",
+    "Disabled output has no generation, scope or provider; read_only output has only the captured generation, empty scopes/providers, stopped policy and no prompt or live authority.",
+    "Mutation before, during and after capture cannot turn an inert pump executable or redirect generation; failed construction returns no partially usable pump.",
+    "Private-marker Exception and BaseException from config access or typed-state construction become fresh allowlisted errors from None.",
+    "Duplicate and reentrant wakeup, concurrent close and dependency failures preserve the UIR-04A one-step and draining state machine.",
+    "Bomb environment, open, Path, SQLite, provider, store, adapter, socket, subprocess, Thread, multiprocessing and asyncio task creation on import, builder, constructor and inert wakeup."
+  ],
+  "hotfiles": [
+    "src/unified_source_index_job_runner.py",
+    "tests/test_unified_source_index_job_runner.py"
+  ],
+  "invariants": [
+    "Constructor validates and captures one coherent config/state gate before runtime admission; it retains neither config nor state.",
+    "Enabled means coherent shadow, canary or active plus WorkerPolicy.RUNNING; only that case accepts exact UnifiedSourceIndexJobRuntime.",
+    "Every coherent non-enabled gate accepts only None; supplying a runtime to an inert gate or None to an executable gate fails before a pump is returned.",
+    "The public inert builder accepts only exact disabled or read_only config and synthesizes one exact stopped RuntimeStateRecord with empty scopes and providers and live_activation_authorized false.",
+    "Disabled state uses no generation and disabled core health; read_only uses the exact selected generation and ready core health without provider capability.",
+    "Lifecycle rejection precedence remains closed then busy then inert; inert is decided before any runtime lookup or method call.",
+    "Executable wakeup, error, snapshot, close and draining semantics remain byte-for-contract compatible with accepted UIR-04A except for the intentional runtime admission and builder export changes.",
+    "JobStore remains the sole durable lease, cursor, attempt, retry, terminal and restart authority; no App or live activation is introduced."
+  ],
+  "kind": "odysseus.sol_v2_product_architecture",
+  "named_tests": [
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_public_contract_is_exact_and_snapshots_are_fresh_content_free",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_constructor_captures_exact_coherent_gate_without_effects",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_disabled_read_only_degraded_rollback_and_nonrunning_policy_execute_zero_steps",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_one_wakeup_performs_one_acquire_and_one_run_next_without_queue_or_loop",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_duplicate_and_concurrent_wakeups_reject_busy_with_one_active_step",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_reentrant_wakeup_rejects_and_reentrant_close_marks_draining_without_deadlock",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_close_is_idempotent_prevents_new_work_and_never_calls_cancel",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_step_failures_are_fresh_fixed_content_free_and_never_retried",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_mutation_after_gate_capture_cannot_enable_or_redirect_work",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_jobstore_lease_cursor_retry_and_restart_remain_sole_durable_authority",
+    "tests/test_unified_source_index_job_runner.py::test_uir04a_import_and_construction_spawn_nothing_and_perform_no_io",
+    "tests/test_unified_source_index_job_runner.py::test_uir04b_public_api_adds_only_exact_inert_builder_and_preserves_schema_errors",
+    "tests/test_unified_source_index_job_runner.py::test_uir04b_constructor_runtime_admission_is_exact_for_executable_and_inert_gates",
+    "tests/test_unified_source_index_job_runner.py::test_uir04b_inert_constructor_variants_require_none_and_execute_zero_dependencies",
+    "tests/test_unified_source_index_job_runner.py::test_uir04b_builder_creates_exact_disabled_stopped_nonauthorizing_state",
+    "tests/test_unified_source_index_job_runner.py::test_uir04b_builder_creates_exact_read_only_stopped_nonauthorizing_state",
+    "tests/test_unified_source_index_job_runner.py::test_uir04b_builder_rejects_shadow_canary_active_degraded_and_rollback",
+    "tests/test_unified_source_index_job_runner.py::test_uir04b_inert_wakeup_rejects_before_runtime_lookup_and_preserves_close_precedence",
+    "tests/test_unified_source_index_job_runner.py::test_uir04b_mutation_and_baseexception_boundaries_are_fixed_fresh_and_fail_closed",
+    "tests/test_unified_source_index_job_runner.py::test_uir04b_import_builder_constructor_and_inert_wakeup_have_zero_effects"
+  ],
+  "origin_mode": "v2",
+  "public_contract": {
+    "constructor": "CooperativeIndexJobPump(runtime: UnifiedSourceIndexJobRuntime | None, config: UnifiedSourceIndexRuntimeConfig, state: RuntimeStateRecord)",
+    "error_codes": [
+      "busy",
+      "closed",
+      "inert",
+      "invalid_gate",
+      "invalid_runtime",
+      "step_failed"
+    ],
+    "exports": [
+      "COOPERATIVE_JOB_PUMP_SNAPSHOT_SCHEMA",
+      "CooperativeIndexJobPump",
+      "CooperativeIndexJobPumpError",
+      "build_inert_cooperative_index_job_pump"
+    ],
+    "inert_builder": "build_inert_cooperative_index_job_pump(config: UnifiedSourceIndexRuntimeConfig, /) -> CooperativeIndexJobPump",
+    "runtime_admission_errors": "invalid_gate for malformed or incoherent config/state and unsupported builder mode; invalid_runtime for runtime/type versus captured executable/inert gate mismatch",
+    "snapshot_fields": [
+      "schema",
+      "state",
+      "enabled",
+      "step_active",
+      "close_requested"
+    ],
+    "snapshot_schema": "odysseus.unified_source_index.cooperative_job_pump.v1",
+    "unchanged_methods": [
+      "CooperativeIndexJobPump.snapshot(self, /) -> dict[str, object]",
+      "CooperativeIndexJobPump.wakeup(self, job_id: str, /, *, owner_scope: str, worker_id: str, adapter: SourceAdapter, now: str, projection: ProjectionSink | None = None, lease_seconds: int = 60) -> JobStepResult",
+      "CooperativeIndexJobPump.close(self, /) -> None"
+    ]
+  },
+  "read_only_pins": {
+    "docs/plans/multi-agent-execution-guidance.json": "8a1ebed71bf4f2f689c2e324fb9d8e731319ea5a",
+    "docs/plans/open-work-completion-master-roadmap.json": "4ed1b43b2d527c951ca6f47cb2886fe20f5773e5",
+    "docs/plans/parallel-roadmap-execution-round6.json": "a6cae9fd07f809ef4aec06b84a9b818f6166df05",
+    "docs/plans/parallel-roadmap-execution-round7.json": "231508597092b2387a7fbc7de8a47ccfcf3b385b",
+    "docs/plans/unified-source-index-runtime-integration-roadmap.md": "fd8e8170c6b9d4a0c2f1d230ad6f6ea1dd716397",
+    "scripts/roadmap_multi_agent_guidance.py": "8973fbdcb9b7cb7eec5ae9f03dd8f9acffdd544c",
+    "scripts/validate_integration_spine_convergence.py": "0fb408cb7db3159a4bd484f036d70dabdc861ccb",
+    "scripts/validate_parallel_roadmap_execution.py": "22d5be1db6f58906d9fa5132c46a5f358daae300",
+    "src/unified_source_index_adapters.py": "38a22e3a1048eca9a321d9b0b4a5f42f7676ceb1",
+    "src/unified_source_index_jobs.py": "5a23a198644a5bdc8c328eceadd2efb52bb1d1b0",
+    "src/unified_source_index_runtime_config.py": "04ec82722f905a3b7e1d272f7e95cdb4be367f4a",
+    "src/unified_source_index_runtime_contract.py": "5133d76f1e93c41933535e4d60e7b3ec4b4c1e1d",
+    "src/unified_source_index_sqlite.py": "28de8a45424fead0eab133d42d2449303982997f",
+    "src/unified_source_index_stores.py": "b675ddf202b085204fdcb834e5ba1d45d1b9394e",
+    "tests/test_parallel_roadmap_execution.py": "1504f56759b71c69157dcfdadc5ca172d8cae9f1",
+    "tests/test_roadmap_multi_agent_guidance.py": "a81c6b4695eb8cfa74c9fcd18bdea8aaf61eeb61",
+    "tests/test_unified_source_index_adapters.py": "f1507faaa8b8a3f2fa18d7f9a9f0ee1010c37448",
+    "tests/test_unified_source_index_jobs.py": "0ef64a6715b84dfc48c5a49d6ee02008a3f71a6a",
+    "tests/test_unified_source_index_runtime_composition.py": "01849068e88e45a0ae2a73d7a186759048593ac3",
+    "tests/test_unified_source_index_runtime_config.py": "320b1540b79eff36c04b2a4b39ab636e59ea5f4b",
+    "tests/test_unified_source_index_runtime_contract.py": "e27fa18e06f0f99ce4338b5b78db2e6b46d48706",
+    "tests/test_unified_source_index_sqlite.py": "7800d979e22a81371d604696fb7b8911f246f29b",
+    "tests/test_unified_source_index_stores.py": "91daaeacd42e0b2b9e97b5326e13c5978ae55220"
+  },
+  "representation": {
+    "builder": "Capture exact config mode, runtime_enabled and selected_generation. Disabled builds RuntimeStateRecord(DISABLED, None, (), RuntimeHealth(DISABLED, ()), STOPPED, true, false, true, false). Read_only builds RuntimeStateRecord(READ_ONLY, RuntimeGeneration(selected_generation), (), RuntimeHealth(READY, ()), STOPPED, true, false, true, false). Catch every BaseException as fresh invalid_gate from None, then call the constructor with runtime None.",
+    "constructor": "After exact config/state capture and coherence validation, derive enabled once. Enabled requires exact runtime; non-enabled requires runtime is None. Retain only runtime-or-None, enabled, one lock and lifecycle scalars.",
+    "inert_wakeup": "After closed and busy lifecycle checks, reject inert before reading or calling runtime. Do not validate request values, acquire a lease or invoke adapter/projection for an inert pump.",
+    "preserved_step": "For an executable pump preserve exactly one acquire then one run_next outside the lock, exact JobStepResult identity, fixed step_failed boundary, no retry and no retained request or lease.",
+    "state_machine": [
+      "idle+wakeup=stepping_or_inert",
+      "stepping+wakeup=busy",
+      "stepping+close=draining",
+      "stepping+finish=idle",
+      "draining+finish=closed",
+      "idle+close=closed",
+      "closed+close=closed",
+      "draining_or_closed+wakeup=closed"
+    ]
+  },
+  "route": {
+    "mutation_authority": "repo_only",
+    "phase": "implementation",
+    "queue": "open_work",
+    "review": "independent QA plus Deep-Sol",
+    "secondary_skills": [
+      "abc"
+    ],
+    "worker": "closed_packet Luna medium"
+  },
+  "schema_version": 1,
+  "slice_id": "UIR-04B-default-off-inert-pump-composition",
+  "source_claim": {
+    "claim_id": "ABC-UIR04A-REV164",
+    "released_at": "2026-08-10T16:55:00+02:00",
+    "state": "released_accepted"
+  },
+  "state": "frozen",
+  "stop_rule": "One bounded correction is allowed only for uir04b_default_off_inert_pump_composition_and_runtime_admission; recurrence releases blocked, triggers reflect and continues another dependency-ready route without a second patch, helper, App path or control-plane expansion.",
+  "target": {
+    "mutation_authority": "repo_only synthetic verification; no App binding or live adapter execution",
+    "outcome": "Default-off and read-only composition can create an inert cooperative pump without first constructing a durable runtime, while executable modes preserve the accepted UIR-04A step contract."
+  },
+  "tests_first": {
+    "correction": "One correction only for uir04b_default_off_inert_pump_composition_and_runtime_admission; rerun all twenty nodes and every stronger tier.",
+    "red": "Edit only the test path first, collect the nine exact UIR-04B nodes plus all eleven accepted UIR-04A nodes, and require the new builder/runtime-admission assertions to fail before source edit."
+  },
+  "verification_tiers": {
+    "central": "Integration Spine, Round6 and Guidance validators; Root verifies Revision 166 packet and Revision 167 claim mirrors.",
+    "dependency": "Full runner tests plus pinned jobs, adapters, stores, SQLite, runtime config, runtime contract and runtime composition tests; two-path parse and compile.",
+    "expensive_live": "not_run_not_required_not_authorized",
+    "focused": "Collect and run the nine new tests first, then all twenty exact nodes and the full runner test file in one claim-scoped basetemp.",
+    "independent_qa": "One frozen two-blob candidate: exact API, all inert and executable gates, mutation, BaseException, concurrency, restart and zero-effect probes.",
+    "sol_review": "Fresh Deep-Sol re-derives the full two-path baseline diff, ordinary-v2 transfer, constructor and builder state construction, public surface, no-authority proof and all preserved UIR-04A semantics."
+  }
+}
