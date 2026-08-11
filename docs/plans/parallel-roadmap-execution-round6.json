@@ -2,8 +2,8 @@
   "schema_version": 1,
   "kind": "odysseus.parallel_roadmap_execution_round",
   "round_id": "round6",
-  "updated_at": "2026-08-11T23:16:00+02:00",
-  "status": "round6_authority_revision219_true_safe_queue_exhausted_nmg05a_candidate_unified_main_worktree",
+  "updated_at": "2026-08-11T23:30:00+02:00",
+  "status": "round6_authority_revision220_true_safe_queue_exhausted_nmg05a_candidate_paused_outside_active_release_set",
   "goal": "After accepted Round 5, expose disjoint Coding, Memory/Data and App Integration frontiers with independent QA while keeping every central router master-only.",
   "prerequisite": {
     "round5_state": "accepted_released",
@@ -2115,7 +2115,7 @@
       "required_recovery": "fresh_root_sol_architecture"
     }
   ],
-  "active_claims": [
+  "paused_claims": [
     {
       "claim_id": "ABC-NMG05A-REV203",
       "slice_id": "NMG-05A-causal-store-and-review",
@@ -2195,6 +2195,7 @@
       }
     }
   ],
+  "active_claims": [],
   "waves": [
     {
       "id": "ROUND6-A",

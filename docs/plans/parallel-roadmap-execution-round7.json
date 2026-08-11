@@ -2,8 +2,8 @@
   "schema_version": 1,
   "kind": "odysseus.integration_spine_execution_round",
   "round_id": "ROUND7-HARBOR-ONE-INTEGRATION-CONVERGENCE",
-  "updated_at": "2026-08-11T23:16:00+02:00",
-  "status": "round7_authority_revision219_true_safe_queue_exhausted_nmg05a_candidate_unified_main_worktree",
+  "updated_at": "2026-08-11T23:30:00+02:00",
+  "status": "round7_authority_revision220_true_safe_queue_exhausted_nmg05a_candidate_paused_outside_active_release_set",
   "goal": "Converge the already designed Harbor One coding, Planning, USI/Memory, worker and lifecycle capabilities into one evidence-bound local agent loop without reopening accepted domain architecture and without crossing a live gate.",
   "change_policy": {
     "mode": "correct_and_integrate_not_fundamentally_replan",
@@ -3911,7 +3911,7 @@
           "live_actions": false
         }
       ],
-      "active_repo_claims": [
+      "paused_repo_claims": [
         {
           "claim_id": "ABC-NMG05A-REV203",
           "slice_id": "NMG-05A-causal-store-and-review",
@@ -3934,7 +3934,7 @@
             "tests/test_causal_claim_store.py"
           ],
           "baseline_state": "both_paths_absent_in_primary_and_detached_head_index_worktree",
-          "open_work_claim_pointer": "$.current_position.full_goal_progress.active_repo_claims[0]",
+          "open_work_claim_pointer": "$.current_position.full_goal_progress.paused_repo_claims[0]",
           "architecture_id": "NMG-05A-CAUSAL-STORE-AND-REVIEW-SOL-ARCH-v1",
           "architecture_path": "docs/plans/abc-nmg05a-causal-store-and-review-architecture.json",
           "architecture_raw_blob": "21b884fdbd56a9cb0083ae9145f8bee3dcbb8b64",
@@ -3995,6 +3995,7 @@
           }
         }
       ],
+      "active_repo_claims": [],
       "canonical_baseline_reference": {
         "state": "invalidated_after_persistence_due_post_snapshot_active_source_drift",
         "baseline_path": "docs/plans/open-work-completion-master-roadmap.json",

@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "kind": "odysseus.open_work_completion_master_roadmap",
-  "updated_at": "2026-08-11T23:16:00+02:00",
-  "status": "round5_accepted_released / long_run_paused_true_safe_queue_exhaustion / denominator_unknown / 153_known_accepted / nmg05a_candidate_unified_main_worktree_authority_revision219",
+  "updated_at": "2026-08-11T23:30:00+02:00",
+  "status": "round5_accepted_released / long_run_paused_true_safe_queue_exhaustion / denominator_unknown / 153_known_accepted / nmg05a_candidate_paused_outside_active_release_set_authority_revision220",
   "abc_mode": "Standard ABC",
   "multi_agent_execution_guidance": {
     "path": "docs/plans/multi-agent-execution-guidance.json",
@@ -1154,7 +1154,7 @@
           "live_actions": false
         }
       ],
-      "active_repo_claims": [
+      "paused_repo_claims": [
         {
           "claim_id": "ABC-NMG05A-REV203",
           "slice_id": "NMG-05A-causal-store-and-review",
@@ -1399,6 +1399,7 @@
           }
         }
       ],
+      "active_repo_claims": [],
       "authority_snapshot": {
         "round7_blob": "9f6e5793562f81b8b4d56c91f487ab645f8f6fa1",
         "open_work_blob": "9f038488163da79e7f0d7869c3315ffa56a09c2b",
