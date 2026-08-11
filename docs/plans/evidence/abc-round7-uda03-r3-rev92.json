@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.abc_claim_evidence",
+  "claim_id": "ABC-UDA03-R3-REV92",
+  "thread_id": "/root/claim_origin_compat_writer",
+  "authority_revision": {"claimed_against_round7_revision": 91, "registered_round7_revision": 92},
+  "candidate_writer_paths": ["src/unified_source_index_sources/memory.py", "tests/test_unified_source_index_memory_source.py"],
+  "baseline_blobs": {
+    "src/unified_source_index_sources/memory.py": "b38da0c8a1bac8c90221674ddc1e26a99e4429ff",
+    "tests/test_unified_source_index_memory_source.py": "b6bea9d74e021566366e6438b8e95618d1785771"
+  },
+  "baseline_readback": "materialized_exact_binary_readback_pass",
+  "candidate_blobs": {"src/unified_source_index_sources/memory.py": "3edd0706e6579ed5878e449fb0dcf632c87f36aa", "tests/test_unified_source_index_memory_source.py": "b2e4de08f40597281e07e289785e3066f3e5c20c"},
+  "candidate_state": "frozen_for_independent_qa",
+  "candidate_frozen_at": "2026-08-08T19:51:57+02:00",
+  "candidate_set_digest_sha256": "sha256:79926126f5d12a24545002f4e12056c0c2f530ad769955f699820ebc35725639",
+  "candidate_command_manifest_digest_sha256": "sha256:65e74d51d911ce9d0619aabd4cbe07ae0b9219db6cae3a28f0eae877849879c6",
+  "candidate_pytest_node_manifest_digest_sha256": "sha256:3b300496661e7b52a919bd7166c5b8dd15bd35a391fc22d7001d8bf47acff45b",
+  "candidate_pytest_node_ids": ["tests/test_unified_source_index_memory_source.py::test_exported_value_object_constructors_detach_nested_inputs", "tests/test_unified_source_index_memory_source.py::test_exported_value_object_constructors_reserialize_hostile_nested_failures", "tests/test_unified_source_index_memory_source.py::test_static_import_boundary_has_no_memory_manager_provider_fs_network_or_runtime"],
+  "read_only_pins": {
+    "docs/plans/multi-agent-execution-guidance.json": "3625974fc32b9e1c484ff66d63d30ed8ab3cd28b",
+    "docs/plans/parallel-roadmap-execution-round6.json": "a6cae9fd07f809ef4aec06b84a9b818f6166df05",
+    "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md": "fb5cfb3075193f8b9de7da642e3ed43e567fc82a",
+    "scripts/roadmap_multi_agent_guidance.py": "8973fbdcb9b7cb7eec5ae9f03dd8f9acffdd544c",
+    "scripts/validate_integration_spine_convergence.py": "78ac6f22b9c21a1b0bc6fe8c4376b5726b760467",
+    "scripts/validate_parallel_roadmap_execution.py": "22d5be1db6f58906d9fa5132c46a5f358daae300",
+    "src/memory_owner_eligibility.py": "65fe96272993cb8b9a2f7f0ae9f8337ce2a6e089",
+    "src/unified_source_index_contract.py": "1b125db0ff19a76ab601d423a28ba1dd975a6fc8",
+    "src/unified_source_index_owner_scope.py": "ddacb2a3833b1a61d031fc06d9a8b2ae9bb89f12",
+    "src/unified_source_index_source_capability.py": "02ba1caa508e378b609342e7f5e5c4e6578d70ad",
+    "src/unified_source_index_source_registry.py": "a078fed6c8250110728c8df7ca627f160a8d2516",
+    "src/unified_source_index_sources/__init__.py": "9b8f4057cd9ca8a2cb55df7623c4adad412138ac",
+    "tests/test_integration_spine_convergence.py": "0652bc1efbebd602690e5d5eaca7a54c8e0fa87d",
+    "tests/test_memory_owner_eligibility.py": "6c94473446742dc147b61d87e998390cc01e7b65",
+    "tests/test_parallel_roadmap_execution.py": "1504f56759b71c69157dcfdadc5ca172d8cae9f1",
+    "tests/test_roadmap_multi_agent_guidance.py": "a81c6b4695eb8cfa74c9fcd18bdea8aaf61eeb61",
+    "tests/test_unified_source_index_contract.py": "3e277eb3271d72cc2a682cc323d0304640a28329",
+    "tests/test_unified_source_index_owner_scope.py": "befc9ccc087d9a9e74f975faa46239461621d82a",
+    "tests/test_unified_source_index_source_registry.py": "dc2692850aa2753b91907f769a698ec4d8f96128"
+  },
+  "stale_invalidation": ["authority_or_projection_revision_drift", "candidate_writer_blob_drift", "claim_lease_or_transfer_drift", "command_contract_or_basetemp_drift", "read_only_pin_drift", "rolling_inventory_member_count_digest_or_denominator_drift"],
+  "verification_tiers": {
+    "focused": "exact detached-constructor hostile regressions and full Memory source suite",
+    "dependency": "exact 167-node Memory eligibility contract owner-scope registry corridor and pycompile",
+    "central": "Round7 Round6 Guidance and integration-spine validation",
+    "expensive_live": "not_run_user_gated"
+  },
+  "correction_budget": {
+    "limit_per_invariant": 1,
+    "used": 1,
+    "failure_class": "exported_memory_value_object_detachment_and_content_free_exception_boundary",
+    "after_repeat": "stop_and_rearchitect"
+  },
+  "inventory_receipt": {"inventory_mode": "rolling_projection", "member_count": 30, "member_set_digest": "sha256:0f3bf8d41306facf635edd86a6c481cba702292994ab6c2e78937f86f9ec3bcf", "terminal_waves_unchanged": true, "scheduled_slice_count_unchanged": 7},
+  "live_actions": false
+}
