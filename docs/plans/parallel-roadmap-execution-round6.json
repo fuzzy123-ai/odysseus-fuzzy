@@ -2,8 +2,8 @@
   "schema_version": 1,
   "kind": "odysseus.parallel_roadmap_execution_round",
   "round_id": "round6",
-  "updated_at": "2026-08-11T23:15:00+02:00",
-  "status": "round6_authority_revision218_true_safe_queue_exhausted_nmg05a_waiting_on_platform",
+  "updated_at": "2026-08-11T23:16:00+02:00",
+  "status": "round6_authority_revision219_true_safe_queue_exhausted_nmg05a_candidate_unified_main_worktree",
   "goal": "After accepted Round 5, expose disjoint Coding, Memory/Data and App Integration frontiers with independent QA while keeping every central router master-only.",
   "prerequisite": {
     "round5_state": "accepted_released",
@@ -622,7 +622,7 @@
       "lane": "memory_data",
       "slice": {
         "id": "NMG-05A-causal-store-and-review",
-        "state": "blocked_infrastructure_apply_patch_acl",
+        "state": "paused_recoverable_candidate_main_worktree",
         "claimable": false,
         "depends_on": [
           "NMG-05"
@@ -645,7 +645,7 @@
           "docs/plans/open-work-completion-master-roadmap.json",
           "docs/plans/multi-agent-execution-guidance.json"
         ],
-        "owner": "Bob/Terra high transferred detached-worktree writer",
+        "owner": "root/Sol unified-main-worktree steward",
         "independent_qa_reviewer": "Charlie/Terra fresh-context",
         "root_review_depth": "deep",
         "automatic_gates": [
@@ -700,16 +700,16 @@
           "tests/test_causal_claim_store.py::test_nmg05a_max_max_plus_one_overflow_and_zero_effect_boundaries"
         ],
         "workspaces": {
-          "detached_worktree": "C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone",
+          "detached_worktree": "C:\\Users\\nkatz\\odysseus",
           "writer": ".abc-test-tmp\\ABC-NMG05A-REV203\\writer",
           "qa": ".abc-test-tmp\\ABC-NMG05A-REV203\\qa"
         },
         "remaining_user_gates": [],
         "normalization_blockers": [
-          "Normal Codex apply_patch cannot read/update the two claimed files in any tested writer context because the Windows sandbox deny-read ACL helper fails before write; wait for platform repair."
+          "Candidate is unfrozen and 11 of 12 focused tests remain red; one bounded correction and full QA are still required before acceptance."
         ],
         "claim_id": "ABC-NMG05A-REV203",
-        "authority_revision": 218,
+        "authority_revision": 219,
         "architecture_binding": {
           "architecture_id": "NMG-05A-CAUSAL-STORE-AND-REVIEW-SOL-ARCH-v1",
           "logical_authority_revision": 202,
@@ -785,36 +785,26 @@
           ]
         },
         "execution_baseline": {
-          "kind": "detached_clean_commit",
-          "commit_sha": "6c2ce20fea9e143d8386f1861385266d1a033c82",
+          "kind": "main_worktree_path_scoped_candidate",
+          "base_commit_sha": "4191796791ad0aedf0ccf42703734c1b82be9725",
           "branch": "codex/implemenetaion",
-          "worktree": "C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone",
-          "checkout_method": "git -C C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone rev-parse HEAD",
-          "required_precondition": "standalone_git_directory_detached_head_clean_and_claim_paths_absent",
-          "pin_semantics": "architecture seal router blobs remain materialized preclaim authority objects; executable current router paths come from the detached baseline commit and are rebound by authority revision 206; checkout EOL projection is verified through Git object identity",
-          "codex_task_id": "019ff221-b9c1-7533-b239-8a117cc46ec2",
-          "thread_id": "019ff221-b9c1-7533-b239-8a117cc46ec2",
-          "standalone_readback": {
-            "git_admin_kind": "directory",
-            "detached_head": "6c2ce20fea9e143d8386f1861385266d1a033c82",
-            "status_empty": true,
-            "index_empty": true,
-            "packet_non_router_pins_exact": "10_of_10_commit_object_bindings_pass",
-            "baseline_router_pins_exact": "3_of_3_commit_object_bindings_pass",
-            "working_tree_filtered_hash_matches_commit_tree": "13_of_13",
-            "claim_paths_absent": [
-              "src/causal_claim_store.py",
-              "tests/test_causal_claim_store.py"
-            ]
+          "worktree": "C:\\Users\\nkatz\\odysseus",
+          "required_precondition": "preserve all foreign dirty work; edit, stage and test only the two NMG-05A claim paths",
+          "candidate_readback": {
+            "status": "two exact untracked claim paths only",
+            "source_blob": "5beb5f71d7109cd9b4a8d8d8be82c2fb49fd143c",
+            "test_blob": "889f68100b6395054363090962c0674e40579b1c",
+            "git_objects_materialized": true,
+            "candidate_frozen": false
           }
         },
         "workspace_rebind": {
-          "from": "C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-worktree",
-          "to": "C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone",
-          "reason": "linked worktree replaced by a fully standalone local Git checkout with a .git directory",
-          "old_workspace_state": "preserved_unmodified_by_revision206_authority_transaction",
-          "materialization": "standalone local clone at exact detached baseline commit; no product write; no ACL change; no old-worktree mutation",
-          "authority_revision": 206
+          "from": "C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone",
+          "to": "C:\\Users\\nkatz\\odysseus",
+          "reason": "User requested worktree cleanup and unification; canonical recoverable candidate was materialized byte-exact in the main worktree before redundant workspace removal.",
+          "old_workspace_state": "candidate preserved as materialized Git blobs before cleanup",
+          "materialization": "Codex apply_patch engine; source and test no-filter blobs match the canonical standalone candidate",
+          "authority_revision": 219
         },
         "task_transfer": {
           "from_codex_task_id": "019ff11a-c684-7232-893c-34b136ea2853",
@@ -826,12 +816,18 @@
         },
         "infrastructure_blocker": {
           "code": "windows_apply_patch_deny_read_acl",
-          "status": "waiting_on_platform",
-          "scope": "all tested old, linked and standalone worktrees plus original, Root and fresh replacement writer contexts",
-          "evidence": "Every normal Codex apply_patch Update File attempt failed before write with windows sandbox helper_unknown_error: apply deny-read ACLs; no mechanic workaround, ACL change, third path or product correction was used.",
-          "candidate": "recoverable exact two-untracked-path candidate remains in the bound standalone worktree",
-          "resume_condition": "Platform/thread sandbox can read and update the bound claimed files through normal Codex apply_patch."
-        }
+          "status": "root_main_worktree_patch_engine_available",
+          "scope": "normal Update File helper remains unreliable; no further worktree rebind is allowed",
+          "evidence": "Canonical two-path candidate transferred byte-exact into the main worktree through the Codex apply_patch engine and both blobs were materialized in Git object storage.",
+          "candidate": "recoverable exact two-untracked-path candidate is now in C:\\Users\\nkatz\\odysseus",
+          "resume_condition": "Root performs at most the remaining bounded product correction, then focused/dependency/independent QA and Deep-Sol review."
+        },
+        "candidate_state": "recoverable_unfrozen",
+        "candidate_blobs": {
+          "src/causal_claim_store.py": "5beb5f71d7109cd9b4a8d8d8be82c2fb49fd143c",
+          "tests/test_causal_claim_store.py": "889f68100b6395054363090962c0674e40579b1c"
+        },
+        "worktree": "C:\\Users\\nkatz\\odysseus"
       }
     },
     {
@@ -2123,16 +2119,16 @@
     {
       "claim_id": "ABC-NMG05A-REV203",
       "slice_id": "NMG-05A-causal-store-and-review",
-      "owner": "Bob/Terra high transferred detached-worktree writer",
-      "codex_task_id": "019ff221-b9c1-7533-b239-8a117cc46ec2",
-      "thread_id": "019ff221-b9c1-7533-b239-8a117cc46ec2",
-      "state": "waiting_on_platform",
-      "claim_state": "waiting_on_platform",
-      "authority_revision": 218,
+      "owner": "root/Sol unified-main-worktree steward",
+      "codex_task_id": "/root",
+      "thread_id": "/root",
+      "state": "paused_recoverable_candidate_main_worktree",
+      "claim_state": "paused_recoverable_candidate_main_worktree",
+      "authority_revision": 219,
       "claimed_at": "2026-08-11T16:35:00+02:00",
       "lease_expires_at": "2026-08-12T04:35:00+02:00",
       "mutation_authority": "repo_only",
-      "worktree": "C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone",
+      "worktree": "C:\\Users\\nkatz\\odysseus",
       "allowed_paths": [
         "src/causal_claim_store.py",
         "tests/test_causal_claim_store.py"
@@ -2155,36 +2151,26 @@
       },
       "live_actions": false,
       "execution_baseline": {
-        "kind": "detached_clean_commit",
-        "commit_sha": "6c2ce20fea9e143d8386f1861385266d1a033c82",
+        "kind": "main_worktree_path_scoped_candidate",
+        "base_commit_sha": "4191796791ad0aedf0ccf42703734c1b82be9725",
         "branch": "codex/implemenetaion",
-        "worktree": "C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone",
-        "checkout_method": "git -C C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone rev-parse HEAD",
-        "required_precondition": "standalone_git_directory_detached_head_clean_and_claim_paths_absent",
-        "pin_semantics": "architecture seal router blobs remain materialized preclaim authority objects; executable current router paths come from the detached baseline commit and are rebound by authority revision 206; checkout EOL projection is verified through Git object identity",
-        "codex_task_id": "019ff221-b9c1-7533-b239-8a117cc46ec2",
-        "thread_id": "019ff221-b9c1-7533-b239-8a117cc46ec2",
-        "standalone_readback": {
-          "git_admin_kind": "directory",
-          "detached_head": "6c2ce20fea9e143d8386f1861385266d1a033c82",
-          "status_empty": true,
-          "index_empty": true,
-          "packet_non_router_pins_exact": "10_of_10_commit_object_bindings_pass",
-          "baseline_router_pins_exact": "3_of_3_commit_object_bindings_pass",
-          "working_tree_filtered_hash_matches_commit_tree": "13_of_13",
-          "claim_paths_absent": [
-            "src/causal_claim_store.py",
-            "tests/test_causal_claim_store.py"
-          ]
+        "worktree": "C:\\Users\\nkatz\\odysseus",
+        "required_precondition": "preserve all foreign dirty work; edit, stage and test only the two NMG-05A claim paths",
+        "candidate_readback": {
+          "status": "two exact untracked claim paths only",
+          "source_blob": "5beb5f71d7109cd9b4a8d8d8be82c2fb49fd143c",
+          "test_blob": "889f68100b6395054363090962c0674e40579b1c",
+          "git_objects_materialized": true,
+          "candidate_frozen": false
         }
       },
       "workspace_rebind": {
-        "from": "C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-worktree",
-        "to": "C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone",
-        "reason": "linked worktree replaced by a fully standalone local Git checkout with a .git directory",
-        "old_workspace_state": "preserved_unmodified_by_revision206_authority_transaction",
-        "materialization": "standalone local clone at exact detached baseline commit; no product write; no ACL change; no old-worktree mutation",
-        "authority_revision": 206
+        "from": "C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone",
+        "to": "C:\\Users\\nkatz\\odysseus",
+        "reason": "User requested worktree cleanup and unification; canonical recoverable candidate was materialized byte-exact in the main worktree before redundant workspace removal.",
+        "old_workspace_state": "candidate preserved as materialized Git blobs before cleanup",
+        "materialization": "Codex apply_patch engine; source and test no-filter blobs match the canonical standalone candidate",
+        "authority_revision": 219
       },
       "task_transfer": {
         "from_codex_task_id": "019ff11a-c684-7232-893c-34b136ea2853",
@@ -2196,11 +2182,16 @@
       },
       "infrastructure_blocker": {
         "code": "windows_apply_patch_deny_read_acl",
-        "status": "waiting_on_platform",
-        "scope": "all tested old, linked and standalone worktrees plus original, Root and fresh replacement writer contexts",
-        "evidence": "Every normal Codex apply_patch Update File attempt failed before write with windows sandbox helper_unknown_error: apply deny-read ACLs; no mechanic workaround, ACL change, third path or product correction was used.",
-        "candidate": "recoverable exact two-untracked-path candidate remains in the bound standalone worktree",
-        "resume_condition": "Platform/thread sandbox can read and update the bound claimed files through normal Codex apply_patch."
+        "status": "root_main_worktree_patch_engine_available",
+        "scope": "normal Update File helper remains unreliable; no further worktree rebind is allowed",
+        "evidence": "Canonical two-path candidate transferred byte-exact into the main worktree through the Codex apply_patch engine and both blobs were materialized in Git object storage.",
+        "candidate": "recoverable exact two-untracked-path candidate is now in C:\\Users\\nkatz\\odysseus",
+        "resume_condition": "Root performs at most the remaining bounded product correction, then focused/dependency/independent QA and Deep-Sol review."
+      },
+      "candidate_state": "recoverable_unfrozen",
+      "candidate_blobs": {
+        "src/causal_claim_store.py": "5beb5f71d7109cd9b4a8d8d8be82c2fb49fd143c",
+        "tests/test_causal_claim_store.py": "889f68100b6395054363090962c0674e40579b1c"
       }
     }
   ],
