@@ -2,8 +2,8 @@
   "schema_version": 1,
   "kind": "odysseus.parallel_roadmap_execution_round",
   "round_id": "round6",
-  "updated_at": "2026-08-11T22:30:00+02:00",
-  "status": "round6_authority_revision215_nmg05a_running_infrastructure_blocked_fca03a_r2_correction_1_of_1",
+  "updated_at": "2026-08-11T22:55:00+02:00",
+  "status": "round6_authority_revision216_nmg05a_running_infrastructure_blocked_fca03a_r2_corrected_frozen_for_independent_qa",
   "goal": "After accepted Round 5, expose disjoint Coding, Memory/Data and App Integration frontiers with independent QA while keeping every central router master-only.",
   "prerequisite": {
     "round5_state": "accepted_released",
@@ -829,7 +829,7 @@
       "lane": "memory_data",
       "slice": {
         "id": "FCA-03A-R2-public-page-value-object-validation",
-        "state": "correction_in_progress",
+        "state": "candidate_frozen_for_independent_qa",
         "claimable": false,
         "depends_on": [
           "FCA-00-forge-source-inventory",
@@ -900,7 +900,7 @@
         "remaining_user_gates": [],
         "normalization_blockers": [],
         "claim_id": "ABC-FCA03A-R2-REV213",
-        "authority_revision": 215,
+        "authority_revision": 216,
         "architecture_binding": {
           "id": "FCA-03A-R2-PUBLIC-PAGE-VALUE-OBJECT-SOL-ARCH-v1",
           "path": "docs/plans/abc-fca03a-r2-public-page-value-object-architecture.json",
@@ -919,15 +919,24 @@
           "tests/test_repo_git_adapter.py::test_fca03a_r2_public_page_constructor_revalidates_exact_valid_output",
           "tests/test_repo_git_adapter.py::test_fca03a_r2_page_rejects_each_invalid_field_with_fixed_content_free_error",
           "tests/test_repo_git_adapter.py::test_fca03a_r2_terminal_and_nonterminal_page_cursor_hash_matrix_is_exact",
-          "tests/test_repo_git_adapter.py::test_fca03a_r2_page_constructor_rejects_hostile_subclasses_and_forgery_without_callbacks"
+          "tests/test_repo_git_adapter.py::test_fca03a_r2_page_constructor_rejects_hostile_subclasses_and_forgery_without_callbacks",
+          "tests/test_repo_git_adapter.py::test_fca03a_r2_page_projection_rejects_post_construction_tamper"
         ],
-        "candidate_state": "not_frozen_correction_in_progress",
-        "candidate_blobs": {},
+        "candidate_state": "frozen_for_independent_qa",
+        "candidate_blobs": {
+          "src/repo_git_adapter.py": "2637d89e66b5c70f7e940a2456326e0b1f83ce1b",
+          "tests/test_repo_git_adapter.py": "1daf60c5a540c72c005dd5ecbb0a8fa6d32752c9"
+        },
         "rejected_candidate_blobs": {
           "src/repo_git_adapter.py": "889364e0b88feebdbdd9c687fc6614ed7a430deb",
           "tests/test_repo_git_adapter.py": "458c948badd685d279c117a208ea4d075d56ea1b"
         },
-        "correction_finding": "A valid frozen ForgeContentPage mutated via object.__setattr__(schema=bad) was projected by to_dict with schema=bad; public projection must revalidate the full value object before returning a detached mapping."
+        "correction_finding": "A valid frozen ForgeContentPage mutated via object.__setattr__(schema=bad) was projected by to_dict with schema=bad; public projection must revalidate the full value object before returning a detached mapping.",
+        "frozen_at": "2026-08-11T22:55:00+02:00",
+        "candidate_set_digest_sha256": "sha256:baccdcbe23a9653263fde0bfb60f9440a999c6050a86f52eb4da5ce8935b3a4d",
+        "node_manifest_digest_sha256": "sha256:2a5d10051cc32d247b505b2538c84dc5839f5f7810f75e8f87b2f85652e85a88",
+        "command_manifest_digest_sha256": "sha256:62f7a9524c6e2f7286ff1436575ed6d5177b56d3bf9ccabf43bb8c75e6efade6",
+        "dirty_diff_digest_sha256": "sha256:17f1abfc2720ef2c3d5855a98fb7aa4b757bd29f9f8896a15a38428d44b0e76e"
       },
       "source_evidence": "Rev209 compact rebind packet inherits the exact sealed FCA-03A v1 contract against Rev208 router pins; baselines and all thirteen pins re-read exactly."
     },
@@ -2177,9 +2186,9 @@
       "slice_id": "FCA-03A-R2-public-page-value-object-validation",
       "owner": "Bob/Terra high root-supervised local writer",
       "thread_id": "/root",
-      "state": "correction_in_progress",
-      "claim_state": "correction_in_progress",
-      "authority_revision": 215,
+      "state": "frozen_for_independent_qa",
+      "claim_state": "frozen_for_independent_qa",
+      "authority_revision": 216,
       "claimed_at": "2026-08-11T21:55:00+02:00",
       "lease_expires_at": "2026-08-12T09:55:00+02:00",
       "mutation_authority": "repo_only",
@@ -2210,15 +2219,32 @@
         "used": 1,
         "on_repeat": "release_blocked without second product patch and require a different fresh Root/Sol architecture"
       },
-      "candidate_state": "not_frozen_correction_in_progress",
-      "candidate_blobs": {},
+      "candidate_state": "frozen_for_independent_qa",
+      "candidate_blobs": {
+        "src/repo_git_adapter.py": "2637d89e66b5c70f7e940a2456326e0b1f83ce1b",
+        "tests/test_repo_git_adapter.py": "1daf60c5a540c72c005dd5ecbb0a8fa6d32752c9"
+      },
       "live_actions": false,
       "rejected_candidate_blobs": {
         "src/repo_git_adapter.py": "889364e0b88feebdbdd9c687fc6614ed7a430deb",
         "tests/test_repo_git_adapter.py": "458c948badd685d279c117a208ea4d075d56ea1b"
       },
       "correction_finding": "A valid frozen ForgeContentPage mutated via object.__setattr__(schema=bad) was projected by to_dict with schema=bad; public projection must revalidate the full value object before returning a detached mapping.",
-      "correction_started_at": "2026-08-11T22:30:00+02:00"
+      "frozen_at": "2026-08-11T22:55:00+02:00",
+      "candidate_set_digest_sha256": "sha256:baccdcbe23a9653263fde0bfb60f9440a999c6050a86f52eb4da5ce8935b3a4d",
+      "node_manifest_digest_sha256": "sha256:2a5d10051cc32d247b505b2538c84dc5839f5f7810f75e8f87b2f85652e85a88",
+      "command_manifest_digest_sha256": "sha256:62f7a9524c6e2f7286ff1436575ed6d5177b56d3bf9ccabf43bb8c75e6efade6",
+      "dirty_diff_digest_sha256": "sha256:17f1abfc2720ef2c3d5855a98fb7aa4b757bd29f9f8896a15a38428d44b0e76e",
+      "dirty_diff_serialization": "sorted path UTF-8 length u64be + path + baseline byte length u64be + raw baseline bytes + candidate byte length u64be + raw candidate bytes",
+      "verification_summary": {
+        "tests_first": "initial four nodes RED 4 against baseline then GREEN 4; correction tamper node RED 1 against first frozen source then GREEN; final exact five passed",
+        "focused": "full tests/test_repo_git_adapter.py 42 passed",
+        "dependency": "declared five-file corridor 181 passed",
+        "static": "two-path py_compile, diff-check and no-loop/forbidden-effect AST passed",
+        "central": "Integration Spine, Round6 and Guidance passed",
+        "correction": "1/1 consumed only to make ForgeContentPage.to_dict reconstruct and revalidate before detached projection; no recurrence in final lanes",
+        "workspace_note": "pre-correction parallel full/dependency attempt had only missing claim-parent setup errors; serial claimed-workspace reruns passed"
+      }
     }
   ],
   "waves": [
