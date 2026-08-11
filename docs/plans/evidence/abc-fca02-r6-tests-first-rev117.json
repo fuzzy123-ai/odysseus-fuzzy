@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.abc_claim_evidence",
+  "claim_id": "ABC-FCA02-R6-REV117",
+  "thread_id": "/root/fca02_r6_tests_first_writer",
+  "authority_revision": {
+    "claimed_against_round7_revision": 123,
+    "registered_round7_revision": 124
+  },
+  "candidate_writer_paths": [
+    "src/unified_source_index_code_coverage.py",
+    "tests/test_unified_source_index_code_coverage.py"
+  ],
+  "baseline_blobs": {
+    "src/unified_source_index_code_coverage.py": "92a43ff51951134c68290d5e156bffd811c23539",
+    "tests/test_unified_source_index_code_coverage.py": "b33da1a0f5947ebe8150926df11701d790c2b9f2"
+  },
+  "baseline_readback": "materialized_exact_binary_readback_pass",
+  "candidate_blobs": {
+    "src/unified_source_index_code_coverage.py": "92a43ff51951134c68290d5e156bffd811c23539",
+    "tests/test_unified_source_index_code_coverage.py": "21a648061cd311128e69d6862e69a440ba5ba394"
+  },
+  "candidate_state": "frozen_for_independent_qa",
+  "candidate_frozen_at": "2026-08-09T15:36:00+02:00",
+  "candidate_set_digest_sha256": "sha256:951169eab559573efdb86d61b5cec8fa0ec99eecdc23fe71885957902c4d3663",
+  "candidate_command_manifest_digest_sha256": "sha256:73dbdc7fb6d2c8a6ab2a3fa6b9ccde9052f95a82f3d7db51b5bd8951eb55fb8f",
+  "candidate_pytest_node_manifest_digest_sha256": "sha256:e56fcff2f82cdb451978b95b71df51a9d0790672d49b26288f3838c893b7e4bb",
+  "candidate_pytest_node_ids": [
+    "tests/test_unified_source_index_code_coverage.py::test_fca02_r6_builder_capture_is_toctou_detached_and_hostile_private_snapshots_fail_closed",
+    "tests/test_unified_source_index_code_coverage.py::test_fca02_r6_builder_preserves_r4_manifest_bytes_errors_and_zero_effects",
+    "tests/test_unified_source_index_code_coverage.py::test_fca02_r6_builder_reads_each_private_observation_snapshot_once_and_zero_public_properties",
+    "tests/test_unified_source_index_code_coverage.py::test_fca02_r6_builder_uses_primitive_occurrences_without_reconstruction_or_domain_projection"
+  ],
+  "read_only_pins": {
+    "docs/plans/forge-usi-code-source-adapter-roadmap.md": "42cdecd6c2a62582d6e8b12aa1d588e230ee9c56",
+    "docs/plans/multi-agent-execution-guidance.json": "80bb32bb148406212f203073e29117b51cd6a928",
+    "docs/plans/parallel-roadmap-execution-round6.json": "a6cae9fd07f809ef4aec06b84a9b818f6166df05",
+    "scripts/roadmap_multi_agent_guidance.py": "8973fbdcb9b7cb7eec5ae9f03dd8f9acffdd544c",
+    "scripts/validate_integration_spine_convergence.py": "2800ef8b838dc59a72e2be3f59813c2df83d19bd",
+    "scripts/validate_parallel_roadmap_execution.py": "22d5be1db6f58906d9fa5132c46a5f358daae300",
+    "src/project_version_store.py": "0c7ced8f962228d98ca40d692f28ed8625c052d4",
+    "src/repo_git_adapter.py": "c8c1b7f904dbc9f0175bfe0d56c2343b2c462bdc",
+    "src/repo_registry.py": "6eb2067dfbbbb2ad1538d8adadfb448d040a6adc",
+    "src/unified_source_index_code_policy.py": "84b32e0508f162cf70441d4a090b502c58660445",
+    "src/unified_source_index_contract.py": "1b125db0ff19a76ab601d423a28ba1dd975a6fc8",
+    "src/unified_source_index_owner_scope.py": "ddacb2a3833b1a61d031fc06d9a8b2ae9bb89f12",
+    "src/unified_source_index_source_capability.py": "02ba1caa508e378b609342e7f5e5c4e6578d70ad",
+    "src/unified_source_index_source_registry.py": "a078fed6c8250110728c8df7ca627f160a8d2516",
+    "src/unified_source_index_sources/__init__.py": "9b8f4057cd9ca8a2cb55df7623c4adad412138ac",
+    "src/unified_source_index_sources/forge_code.py": "6ecb59fd944cd7b33158e964eff88f4de915a6df",
+    "src/unified_source_index_stores.py": "b675ddf202b085204fdcb834e5ba1d45d1b9394e",
+    "tests/test_integration_spine_convergence.py": "5454900e9acc336609f7e732fdeda962f5f43afd",
+    "tests/test_parallel_roadmap_execution.py": "1504f56759b71c69157dcfdadc5ca172d8cae9f1",
+    "tests/test_project_version_store.py": "2c47c44708e45e7838e26c77f29af1b882b39a87",
+    "tests/test_repo_git_adapter.py": "5583fafedb487e36e45323bd6c7eaf3a914368ce",
+    "tests/test_roadmap_multi_agent_guidance.py": "a81c6b4695eb8cfa74c9fcd18bdea8aaf61eeb61",
+    "tests/test_unified_source_index_code_policy.py": "4db2931edbaf16f30576e8ec53e6e36b08f85b4a",
+    "tests/test_unified_source_index_contract.py": "3e277eb3271d72cc2a682cc323d0304640a28329",
+    "tests/test_unified_source_index_forge_code_source.py": "38f86696cd657dbc28da458a6e18b331e5001b4d",
+    "tests/test_unified_source_index_owner_scope.py": "befc9ccc087d9a9e74f975faa46239461621d82a",
+    "tests/test_unified_source_index_source_registry.py": "dc2692850aa2753b91907f769a698ec4d8f96128",
+    "tests/test_unified_source_index_stores.py": "91daaeacd42e0b2b9e97b5326e13c5978ae55220"
+  },
+  "stale_invalidation": [
+    "authority_or_projection_revision_drift",
+    "candidate_writer_blob_drift",
+    "claim_lease_or_transfer_drift",
+    "command_contract_or_basetemp_drift",
+    "read_only_pin_drift",
+    "rolling_inventory_member_count_digest_or_denominator_drift"
+  ],
+  "verification_tiers": {
+    "focused": "materialize and collect exact four FCA-02-R6 tests before execution; then exact four and full coverage file exactly 36 passed",
+    "dependency": "coverage policy project-version Forge USI contract store owner-scope registry corridor and two-path pycompile",
+    "central": "real integration-spine Round7 Round6 and Guidance validators",
+    "expensive_live": "not_run_user_gated"
+  },
+  "correction_budget": {
+    "limit_per_invariant": 1,
+    "used": 1,
+    "failure_class": "coverage_r6_tests_first_private_snapshot_single_capture_and_primitive_builder_authority",
+    "after_repeat": "stop_and_rearchitect"
+  },
+  "inventory_receipt": {
+    "inventory_mode": "rolling_projection",
+    "member_count": 30,
+    "member_set_digest": "sha256:0f3bf8d41306facf635edd86a6c481cba702292994ab6c2e78937f86f9ec3bcf",
+    "terminal_waves_unchanged": true,
+    "scheduled_slice_count_unchanged": 7
+  },
+  "live_actions": false
+}
