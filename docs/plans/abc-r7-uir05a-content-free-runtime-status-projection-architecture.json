@@ -1,0 +1,208 @@
+{
+  "acceptance": [
+    "Both product writer paths are absent, collision-free and captured as absent immediately before the packet-only transaction and claim registration.",
+    "One exact KnowledgeRuntime and one exact CooperativeIndexJobPump are the only inputs; each public snapshot is called exactly once and no private attribute is inspected.",
+    "The projection contains only closed schema, state, mode, boolean and fixed error-code fields; it exposes no owner, source, path, query, content, provider response, generation or configuration value.",
+    "Every projection is a fresh detached exact built-in dictionary and explicitly states snapshot_atomic false and live_activation_authorized false.",
+    "Component snapshots are validated independently; the projector never invents cross-component health or rejects a legal shutdown transition observed between the two non-atomic reads.",
+    "Import, construction and projection perform no metric write, App access, environment read, file or SQLite operation, provider call, network action, thread, task, process or live effect.",
+    "All nine tests-first nodes, focused and dependency corridors, static checks, central validators, independent QA and Deep-Sol pass on one frozen candidate."
+  ],
+  "allowed_paths": [
+    "src/unified_source_index_runtime_status.py",
+    "tests/test_unified_source_index_runtime_status.py"
+  ],
+  "architect": "root/Sol UIR-05A content-free runtime status projection architecture",
+  "architecture_revision": "UIR-05A-CONTENT-FREE-RUNTIME-STATUS-PROJECTION-SOL-ARCH-v1",
+  "authority_revision": 171,
+  "baseline_blobs": {
+    "src/unified_source_index_runtime_status.py": "absent",
+    "tests/test_unified_source_index_runtime_status.py": "absent"
+  },
+  "baseline_readback": "captured_absent_paths_readback_pass",
+  "claim_origin_reference": {
+    "allowed_paths": [
+      "src/unified_source_index_runtime_status.py",
+      "tests/test_unified_source_index_runtime_status.py"
+    ],
+    "architect": "root/Sol UIR-05A content-free runtime status projection architecture",
+    "architecture_digest_sha256": "sha256:bb227be318839eff1bc7d3da350e6435dfc8d80d75adbfb31a35938e992a7111",
+    "architecture_revision": "UIR-05A-CONTENT-FREE-RUNTIME-STATUS-PROJECTION-SOL-ARCH-v1",
+    "baseline_blobs": {
+      "src/unified_source_index_runtime_status.py": "absent",
+      "tests/test_unified_source_index_runtime_status.py": "absent"
+    },
+    "handoff_id": "UIR05A_CONTENT_FREE_RUNTIME_STATUS_PROJECTION_V1",
+    "kind": "odysseus.abc_claim_origin_architecture",
+    "new_product_writer_paths": [
+      "src/unified_source_index_runtime_status.py",
+      "tests/test_unified_source_index_runtime_status.py"
+    ],
+    "origin_mode": "new_product_paths",
+    "schema_version": 1,
+    "slice_id": "UIR-05A-content-free-runtime-status-projection",
+    "source_claim_id": null,
+    "state": "frozen"
+  },
+  "control_plane": {
+    "custom_harnesses": 0,
+    "generated_program_layers": 0,
+    "packet_only_revision": 172,
+    "root_only_router_transaction": true,
+    "runtime_layers": 0,
+    "writer_claim_revision": 173
+  },
+  "correction_budget": {
+    "failure_class": "uir05a_content_free_nonatomic_runtime_status_projection",
+    "limit": 1,
+    "on_repeat": "release_blocked_reflect_and_continue another dependency-ready product route without route, App, metrics or control-plane expansion",
+    "used": 0
+  },
+  "forbidden": [
+    "third writer path, app.py, app_initializer, route, service-health, diagnostics, metric registry, runtime, runner or accepted test edit",
+    "new background sampler, cache, singleton, registry, event ledger, helper layer, status store, exporter or health authority",
+    "atomic or mutually coherent combined-snapshot claim, overall-ready derivation, activation decision, wakeup, register, close or lifecycle mutation",
+    "private runtime or pump attribute access, config or environment read, source owner generation provider path query content or raw exception projection",
+    "metric write, file, Path, SQLite, provider, socket, subprocess, thread, task, process, network or live action on import, construction or projection",
+    "live, provider, host, private-data, network, expensive test, stage, commit, push or deploy"
+  ],
+  "hostile_matrix": [
+    "Runtime and pump subclasses, wrong types and hostile callback-bearing lookalikes are rejected before snapshot access; exact object.__new__ forgeries pass exact-type admission but may be touched only through the one public snapshot call and must fail as fixed snapshot_failed without retry or private inspection.",
+    "Knowledge snapshot and pump snapshot missing, extra, duplicate-semantic, wrong-schema, wrong exact scalar type, bool-as-int, subclassed scalar and unknown enum values.",
+    "Snapshot methods raising Exception or BaseException with private markers become one fresh fixed content-free status error from None.",
+    "One-shot snapshot objects, repeated-read disagreement, post-return source mutation and returned projection mutation cannot alter retained or later output.",
+    "Knowledge disabled, ready, degraded and closed states with pump idle, stepping, draining and closed states remain component-local observations.",
+    "A close transition between the knowledge and pump snapshot reads remains representable without a fabricated inconsistency or retry.",
+    "Planner-bound, pump-enabled, step-active and close-requested combinations are exact booleans; live activation is always false regardless of inputs.",
+    "Bomb App state, environment, open, Path, SQLite, metrics, provider, socket, subprocess, Thread, multiprocessing and asyncio task creation."
+  ],
+  "hotfiles": [
+    "src/unified_source_index_runtime_status.py",
+    "tests/test_unified_source_index_runtime_status.py"
+  ],
+  "invariants": [
+    "The module imports only accepted KnowledgeRuntime and CooperativeIndexJobPump types, the pump public snapshot schema constant and standard-library primitives; the KnowledgeRuntime snapshot schema is the packet-owned exact literal odysseus.knowledge_runtime.composition_snapshot.v1 because the accepted runtime intentionally keeps that value closure-local.",
+    "project_unified_source_index_runtime_status performs exact type admission before invoking either object and retains neither object nor snapshot.",
+    "KnowledgeRuntime.snapshot is called once before CooperativeIndexJobPump.snapshot is called once; neither call occurs while a projector-owned lock is held and neither is retried.",
+    "Each returned snapshot must be an exact dict with its accepted exact field set, schema, enum values, booleans and allowlisted nullable error code.",
+    "The fresh output has exactly schema, knowledge, index_job_pump, snapshot_atomic and live_activation_authorized; both nested values are fresh exact dictionaries.",
+    "snapshot_atomic is always false because the accepted components own separate locks; no derived aggregate health, ready, degraded or shutdown verdict is exposed.",
+    "live_activation_authorized is always false and no output field can authorize queries, workers, stores, adapters, routes or live activation.",
+    "Existing unified_source_index_diagnostics remains the sole metrics adapter and is neither imported nor modified."
+  ],
+  "kind": "odysseus.sol_new_product_paths_architecture",
+  "named_tests": [
+    "tests/test_unified_source_index_runtime_status.py::test_uir05a_public_api_schema_exports_signature_and_exact_field_sets",
+    "tests/test_unified_source_index_runtime_status.py::test_uir05a_exact_types_reject_subclasses_before_callbacks_and_forgeries_fail_on_snapshot",
+    "tests/test_unified_source_index_runtime_status.py::test_uir05a_calls_each_public_snapshot_once_in_order_and_retains_no_input",
+    "tests/test_unified_source_index_runtime_status.py::test_uir05a_disabled_and_read_only_app_components_project_content_free_status",
+    "tests/test_unified_source_index_runtime_status.py::test_uir05a_component_state_matrix_is_preserved_without_aggregate_health_claim",
+    "tests/test_unified_source_index_runtime_status.py::test_uir05a_nonatomic_shutdown_transition_is_labeled_and_never_retried_or_rejected",
+    "tests/test_unified_source_index_runtime_status.py::test_uir05a_malformed_and_raising_snapshots_fail_fresh_fixed_content_free_from_none",
+    "tests/test_unified_source_index_runtime_status.py::test_uir05a_projections_are_fresh_detached_exact_builtins_and_never_authorizing",
+    "tests/test_unified_source_index_runtime_status.py::test_uir05a_import_construction_and_projection_have_zero_metrics_app_io_provider_network_or_spawn_effects"
+  ],
+  "origin_mode": "new_product_paths",
+  "public_contract": {
+    "error": {
+      "class": "UnifiedSourceIndexRuntimeStatusError(RuntimeError)",
+      "codes": [
+        "invalid_component",
+        "invalid_snapshot",
+        "snapshot_failed"
+      ],
+      "semantics": "fresh exact code-only instance from None; no input, callback or raw exception content"
+    },
+    "exports": [
+      "RUNTIME_STATUS_SCHEMA",
+      "UnifiedSourceIndexRuntimeStatusError",
+      "project_unified_source_index_runtime_status"
+    ],
+    "function": "project_unified_source_index_runtime_status(knowledge_runtime: KnowledgeRuntime, index_job_pump: CooperativeIndexJobPump, /) -> dict[str, object]",
+    "knowledge_fields": [
+      "state",
+      "mode",
+      "planner_bound",
+      "error_code"
+    ],
+    "output_fields": [
+      "schema",
+      "knowledge",
+      "index_job_pump",
+      "snapshot_atomic",
+      "live_activation_authorized"
+    ],
+    "pump_fields": [
+      "state",
+      "enabled",
+      "step_active",
+      "close_requested"
+    ],
+    "schema": "odysseus.unified_source_index.runtime_status.v1"
+  },
+  "read_only_pins": {
+    "docs/plans/abc-r7-uir04b-default-off-inert-pump-composition-architecture.json": "0484b480a440bcb0c7961cf7b002dea3957bdb06",
+    "docs/plans/abc-r7-uir04c-default-off-app-pump-lifecycle-architecture.json": "caab3651af51121e6a4c69f76325ea5595b05bff",
+    "docs/plans/evidence/abc-uir04c-rev170.json": "0db01f86c6ad4e9c7a5d8ac9881e486f286968d9",
+    "docs/plans/multi-agent-execution-guidance.json": "0924ef265d699c17b7312432fb9154ee45d2fa5f",
+    "docs/plans/open-work-completion-master-roadmap.json": "50284ca3f85c689661860476a4779a540af3d4fc",
+    "docs/plans/parallel-roadmap-execution-round6.json": "a6cae9fd07f809ef4aec06b84a9b818f6166df05",
+    "docs/plans/parallel-roadmap-execution-round7.json": "b2e1acd0985754e93b92b7fe430345e79a8c72c7",
+    "docs/plans/unified-source-index-runtime-integration-roadmap.md": "fd8e8170c6b9d4a0c2f1d230ad6f6ea1dd716397",
+    "scripts/roadmap_multi_agent_guidance.py": "8973fbdcb9b7cb7eec5ae9f03dd8f9acffdd544c",
+    "scripts/validate_integration_spine_convergence.py": "0fb408cb7db3159a4bd484f036d70dabdc861ccb",
+    "scripts/validate_parallel_roadmap_execution.py": "22d5be1db6f58906d9fa5132c46a5f358daae300",
+    "src/unified_source_index_diagnostics.py": "837fd5a9833cf0b74a2f3b08eb9f0b2fa917f3fd",
+    "src/unified_source_index_job_runner.py": "3aa3eca7d3db197c778be6ca9541cf73706b1f0d",
+    "src/unified_source_index_runtime.py": "e1074efecbfabd3b23460ee65c318a50e2791df3",
+    "tests/test_parallel_roadmap_execution.py": "1504f56759b71c69157dcfdadc5ca172d8cae9f1",
+    "tests/test_roadmap_multi_agent_guidance.py": "a81c6b4695eb8cfa74c9fcd18bdea8aaf61eeb61",
+    "tests/test_unified_source_index_diagnostics.py": "bfdab3db4a75a6b5296c60f191220af5772e39bc",
+    "tests/test_unified_source_index_job_runner.py": "78470918693af65451be359558c05bc5ad897506",
+    "tests/test_unified_source_index_runtime_composition.py": "01849068e88e45a0ae2a73d7a186759048593ac3"
+  },
+  "representation": {
+    "capture": "After exact component type checks, call knowledge_runtime.snapshot once and index_job_pump.snapshot once. Catch any BaseException as snapshot_failed from None. Do not retry, retain or inspect private state.",
+    "knowledge_validation": "Require exact dict, exact accepted six-field KnowledgeRuntime snapshot and schema equal to the packet-owned literal odysseus.knowledge_runtime.composition_snapshot.v1, then copy only state, mode, planner_bound and error_code after exact primitive and closed-enum validation; require live_activation_authorized is false.",
+    "non_atomicity": "The two accepted components use independent locks. Preserve both component-local snapshots without cross-pair consistency checks and emit snapshot_atomic false.",
+    "output": "Construct new exact nested dictionaries from captured primitives only; omit both input schemas from nested data, emit the new top-level schema and force live_activation_authorized false.",
+    "pump_validation": "Require exact dict and exact accepted five-field pump snapshot, then copy state, enabled, step_active and close_requested after exact primitive and closed-enum validation."
+  },
+  "route": {
+    "mutation_authority": "repo_only",
+    "phase": "implementation",
+    "queue": "open_work",
+    "review": "independent QA plus Deep-Sol",
+    "secondary_skills": [
+      "abc",
+      "reflect"
+    ],
+    "worker": "closed_packet Luna medium"
+  },
+  "schema_version": 1,
+  "slice_id": "UIR-05A-content-free-runtime-status-projection",
+  "source_claim": {
+    "claim_id": null,
+    "released_at": null,
+    "state": "new_product_paths"
+  },
+  "state": "frozen",
+  "stop_rule": "One bounded correction is allowed only for uir05a_content_free_nonatomic_runtime_status_projection; recurrence releases blocked, triggers reflect and continues another dependency-ready route without a second patch, route, App, metrics or control-plane expansion.",
+  "target": {
+    "mutation_authority": "repo_only in-memory status projection only",
+    "outcome": "A future authorized read-only route can serialize one bounded content-free view of the accepted knowledge runtime and cooperative pump without metrics duplication, lifecycle mutation or false atomicity."
+  },
+  "tests_first": {
+    "correction": "One correction only for uir05a_content_free_nonatomic_runtime_status_projection; rerun all nine nodes and every stronger tier.",
+    "red": "Create only the absent test path first, collect all nine exact nodes and require API, snapshot, content, non-atomicity and zero-effect assertions to fail before the source path is created."
+  },
+  "threat_model": "Runtime and pump objects are accepted trusted product types, but supplied object identity, public snapshot calls, returned dictionaries, scalar subclasses, exceptions and timing between the two independent locks are hostile. The projector must resynthesize a bounded non-authorizing status view without claiming atomic coherence or touching App, metrics, persistence, providers or live authority.",
+  "verification_tiers": {
+    "central": "Integration Spine, Round6 and Guidance validators; Root verifies packet-only Revision 172 and new-product claim Revision 173 mirrors.",
+    "dependency": "Full new status file plus accepted runtime composition, job runner and diagnostics tests; two-path parse and compile.",
+    "expensive_live": "not_run_not_required_not_authorized",
+    "focused": "Collect the nine exact nodes red, run them green, then run the full new test file in one claim-scoped basetemp.",
+    "independent_qa": "One frozen two-blob candidate: exact API, hostile types and snapshots, component matrix, shutdown interleaving, detachment, content-free errors and zero-effect tripwires.",
+    "sol_review": "Fresh Deep-Sol re-derives the full two-new-path diff, claim origin, snapshot schemas, one-read semantics, non-atomicity, public surface, no-authority proof and all pins."
+  }
+}

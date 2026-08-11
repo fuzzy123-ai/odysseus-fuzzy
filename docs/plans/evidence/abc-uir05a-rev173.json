@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.abc_claim_evidence",
+  "claim_id": "ABC-UIR05A-REV173",
+  "thread_id": "/root/uir00r_semantic_writer",
+  "authority_revision": {
+    "claimed_against_round7_revision": 173,
+    "registered_round7_revision": 174
+  },
+  "candidate_writer_paths": [
+    "src/unified_source_index_runtime_status.py",
+    "tests/test_unified_source_index_runtime_status.py"
+  ],
+  "baseline_blobs": {
+    "src/unified_source_index_runtime_status.py": "absent",
+    "tests/test_unified_source_index_runtime_status.py": "absent"
+  },
+  "baseline_readback": "captured_absent_paths_exact_readback_pass",
+  "candidate_blobs": {
+    "src/unified_source_index_runtime_status.py": "21b90aec63755b66b79fb41d8304e3ed13a5df17",
+    "tests/test_unified_source_index_runtime_status.py": "56ce7a3d2bccdacdd97050ef9eecc419bdf4eceb"
+  },
+  "candidate_state": "frozen_for_independent_qa",
+  "candidate_frozen_at": "2026-08-10T18:41:00+02:00",
+  "candidate_set_digest_sha256": "sha256:c60a0de7f2e6d05e51445cffdae841166300de4552c2c9d31c8b5ef7cbf6a73b",
+  "candidate_command_manifest_digest_sha256": "sha256:d830a9c62069e35406a924def620a1b89030b499f80a1831ca542fae1de9f679",
+  "candidate_pytest_node_manifest_digest_sha256": "sha256:d895eaf5e96066f3f0f4972baec1e9d473a732843725a02b34633a6d3666e1ed",
+  "candidate_pytest_node_ids": [
+    "tests/test_unified_source_index_runtime_status.py::test_uir05a_calls_each_public_snapshot_once_in_order_and_retains_no_input",
+    "tests/test_unified_source_index_runtime_status.py::test_uir05a_component_state_matrix_is_preserved_without_aggregate_health_claim",
+    "tests/test_unified_source_index_runtime_status.py::test_uir05a_disabled_and_read_only_app_components_project_content_free_status",
+    "tests/test_unified_source_index_runtime_status.py::test_uir05a_exact_types_reject_subclasses_before_callbacks_and_forgeries_fail_on_snapshot",
+    "tests/test_unified_source_index_runtime_status.py::test_uir05a_import_construction_and_projection_have_zero_metrics_app_io_provider_network_or_spawn_effects",
+    "tests/test_unified_source_index_runtime_status.py::test_uir05a_malformed_and_raising_snapshots_fail_fresh_fixed_content_free_from_none",
+    "tests/test_unified_source_index_runtime_status.py::test_uir05a_nonatomic_shutdown_transition_is_labeled_and_never_retried_or_rejected",
+    "tests/test_unified_source_index_runtime_status.py::test_uir05a_projections_are_fresh_detached_exact_builtins_and_never_authorizing",
+    "tests/test_unified_source_index_runtime_status.py::test_uir05a_public_api_schema_exports_signature_and_exact_field_sets"
+  ],
+  "read_only_pins": {
+    "docs/plans/abc-r7-uir05a-content-free-runtime-status-projection-architecture.json": "828d3a157601dbefc8180a7e596dc84eb1d84670",
+    "docs/plans/abc-r7-uir04c-default-off-app-pump-lifecycle-architecture.json": "caab3651af51121e6a4c69f76325ea5595b05bff",
+    "docs/plans/multi-agent-execution-guidance.json": "91e28bdb0fd5e97183f6fbe4c239c9a2a621828a",
+    "docs/plans/parallel-roadmap-execution-round6.json": "a6cae9fd07f809ef4aec06b84a9b818f6166df05",
+    "docs/plans/unified-source-index-runtime-integration-roadmap.md": "fd8e8170c6b9d4a0c2f1d230ad6f6ea1dd716397",
+    "scripts/roadmap_multi_agent_guidance.py": "8973fbdcb9b7cb7eec5ae9f03dd8f9acffdd544c",
+    "scripts/validate_integration_spine_convergence.py": "0fb408cb7db3159a4bd484f036d70dabdc861ccb",
+    "scripts/validate_parallel_roadmap_execution.py": "22d5be1db6f58906d9fa5132c46a5f358daae300",
+    "src/unified_source_index_diagnostics.py": "837fd5a9833cf0b74a2f3b08eb9f0b2fa917f3fd",
+    "src/unified_source_index_job_runner.py": "3aa3eca7d3db197c778be6ca9541cf73706b1f0d",
+    "src/unified_source_index_runtime.py": "e1074efecbfabd3b23460ee65c318a50e2791df3",
+    "tests/test_parallel_roadmap_execution.py": "1504f56759b71c69157dcfdadc5ca172d8cae9f1",
+    "tests/test_roadmap_multi_agent_guidance.py": "a81c6b4695eb8cfa74c9fcd18bdea8aaf61eeb61",
+    "tests/test_unified_source_index_diagnostics.py": "bfdab3db4a75a6b5296c60f191220af5772e39bc",
+    "tests/test_unified_source_index_job_runner.py": "78470918693af65451be359558c05bc5ad897506",
+    "tests/test_unified_source_index_runtime_composition.py": "01849068e88e45a0ae2a73d7a186759048593ac3"
+  },
+  "stale_invalidation": [
+    "authority_or_projection_revision_drift",
+    "candidate_writer_blob_drift",
+    "claim_lease_or_transfer_drift",
+    "command_contract_or_basetemp_drift",
+    "read_only_pin_drift",
+    "rolling_inventory_member_count_digest_or_denominator_drift"
+  ],
+  "verification_tiers": {
+    "focused": "collect nine exact UIR-05A nodes red then green and run the full new status file",
+    "dependency": "new status file plus accepted runtime composition job runner and diagnostics tests plus two-path pycompile",
+    "central": "real Integration Spine Round6 and Guidance validators",
+    "expensive_live": "not_run_user_gated"
+  },
+  "correction_budget": {
+    "limit_per_invariant": 1,
+    "used": 0,
+    "failure_class": "uir05a_content_free_nonatomic_runtime_status_projection",
+    "after_repeat": "stop_and_rearchitect"
+  },
+  "inventory_receipt": {
+    "inventory_mode": "rolling_projection",
+    "member_count": 30,
+    "member_set_digest": "sha256:0f3bf8d41306facf635edd86a6c481cba702292994ab6c2e78937f86f9ec3bcf",
+    "terminal_waves_unchanged": true,
+    "scheduled_slice_count_unchanged": 7
+  },
+  "live_actions": false
+}
