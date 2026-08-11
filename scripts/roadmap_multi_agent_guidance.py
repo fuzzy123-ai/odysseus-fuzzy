@@ -17,6 +17,41 @@ ROADMAP_NAME_PATTERN = re.compile(
     re.IGNORECASE,
 )
 SUPPORTED_SUFFIXES = {".md", ".json"}
+MAX_GUIDANCE_BYTES = 2 * 1024 * 1024
+
+
+class GuidanceLoadError(Exception):
+    """A fixed, content-free guidance parser failure."""
+
+    _MESSAGES = {
+        "read_failure": "guidance index could not be read",
+        "size_limit": "guidance index exceeds the parser size limit",
+        "invalid_utf8": "guidance index is not valid UTF-8",
+        "duplicate_key": "guidance index contains duplicate JSON keys",
+        "malformed_json": "guidance index contains malformed JSON",
+        "non_object_root": "guidance index root must be an object",
+    }
+
+    def __init__(self, code: str) -> None:
+        self.code = code
+        super().__init__(self._MESSAGES[code])
+
+
+class _DuplicateJsonKeyError(Exception):
+    pass
+
+
+def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise _DuplicateJsonKeyError
+        result[key] = value
+    return result
+
+
+def _reject_nonfinite_json(_: str) -> None:
+    raise ValueError
 
 
 def _repo_path(path: Path, root: Path) -> str:
@@ -24,10 +59,47 @@ def _repo_path(path: Path, root: Path) -> str:
 
 
 def load_guidance(path: Path = DEFAULT_INDEX_PATH) -> dict[str, Any]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        with path.open("rb") as handle:
+            raw = handle.read(MAX_GUIDANCE_BYTES + 1)
+    except OSError:
+        raise GuidanceLoadError("read_failure") from None
+    if len(raw) > MAX_GUIDANCE_BYTES:
+        raise GuidanceLoadError("size_limit") from None
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeError:
+        raise GuidanceLoadError("invalid_utf8") from None
+    try:
+        payload = json.loads(
+            text,
+            object_pairs_hook=_reject_duplicate_json_keys,
+            parse_constant=_reject_nonfinite_json,
+        )
+    except _DuplicateJsonKeyError:
+        raise GuidanceLoadError("duplicate_key") from None
+    except (json.JSONDecodeError, RecursionError, ValueError):
+        raise GuidanceLoadError("malformed_json") from None
     if not isinstance(payload, dict):
-        raise ValueError("guidance index must contain a JSON object")
+        raise GuidanceLoadError("non_object_root") from None
     return payload
+
+
+def guidance_load_error_report(error: GuidanceLoadError) -> dict[str, Any]:
+    return {
+        "valid": False,
+        "index_kind": None,
+        "updated_at": None,
+        "discovered_count": 0,
+        "docs_plans_count": 0,
+        "structured_specs_count": 0,
+        "listed_count": 0,
+        "profile_counts": {},
+        "missing_paths": [],
+        "unknown_paths": [],
+        "duplicate_paths": [],
+        "errors": [str(error)],
+    }
 
 
 def discover_roadmaps(
@@ -284,7 +356,15 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
-    payload = load_guidance(args.index)
+    try:
+        payload = load_guidance(args.index)
+    except GuidanceLoadError as exc:
+        validation = guidance_load_error_report(exc)
+        if args.format == "markdown":
+            print(render_validation_markdown(validation), end="")
+        else:
+            print(json.dumps(validation, indent=2, ensure_ascii=True))
+        return 1
     validation = validate_guidance(payload, root=args.root)
     if args.roadmap:
         if not validation["valid"]:

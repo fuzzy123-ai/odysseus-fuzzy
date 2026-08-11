@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.abc_claim_evidence",
+  "claim_id": "ABC-R7-CENTRAL-PROCESS-R1-20260803T173500+0200",
+  "thread_id": "019fbe7a-5f08-7b22-8ba8-fcf0b02a3ac6",
+  "authority_revision": {
+    "round7_long_run_revision": 42,
+    "claim_transfer_at": "2026-08-03T17:35:00+02:00"
+  },
+  "candidate_writer_paths": [
+    "docs/plans/multi-agent-execution-guidance.json",
+    "docs/plans/open-work-completion-master-roadmap.json",
+    "docs/plans/parallel-roadmap-execution-round7.json"
+  ],
+  "baseline_blobs": {
+    "docs/plans/multi-agent-execution-guidance.json": "b64fb4524a98327a3c2c9e17990cb9f0440f7472",
+    "docs/plans/open-work-completion-master-roadmap.json": "d295c0c17c040f068b1e7b4a33af56121b104877",
+    "docs/plans/parallel-roadmap-execution-round7.json": "77d3eeefcf7e4fe552002aeb01dfb24b3a4a83ee"
+  },
+  "baseline_readback": "materialized_exact_binary_readback_pass",
+  "candidate_blobs": {
+    "docs/plans/multi-agent-execution-guidance.json": "3036eeddd47aed2fe403dc1e007afe20568d759d",
+    "docs/plans/open-work-completion-master-roadmap.json": "e2f3cf436f41fbca3b4abba80afafcc7a973c54b",
+    "docs/plans/parallel-roadmap-execution-round7.json": "b06d516d90c461b17b8f26793cd700c2cf59a641"
+  },
+  "candidate_state": "frozen_for_independent_qa",
+  "candidate_frozen_at": "2026-08-03T17:44:00+02:00",
+  "dirty_diff_digest_sha256": "sha256:d89bb3c38b1f3acf3eba3675ca6c5d8a913138feeb7103ae546414585e5ef155",
+  "read_only_pins": {
+    "docs/plans/parallel-roadmap-execution-round6.json": "a6cae9fd07f809ef4aec06b84a9b818f6166df05",
+    "scripts/roadmap_multi_agent_guidance.py": "a9d58cbe6685aa532aa81847f2ef8972be689d25",
+    "scripts/validate_integration_spine_convergence.py": "0bf16a894be00ca84cb817f96791ed3501cdd75e",
+    "scripts/validate_parallel_roadmap_execution.py": "bef4d66aaeefc1576e6ef47919239ad874e447a6",
+    "tests/test_integration_spine_convergence.py": "0c9e4ba3450d8b666492ec646fb14a18743f3dab",
+    "tests/test_parallel_roadmap_execution.py": "96907879ae0ab95acb12addc86860957b19b44dc",
+    "tests/test_roadmap_multi_agent_guidance.py": "26e0f609beec3ed6ce3bddba4648a3dca02b2cdd"
+  },
+  "stale_invalidation": [
+    "candidate writer blob drift",
+    "read-only pin drift",
+    "authority revision or external claim projection drift",
+    "Round6 rolling inventory member, count or digest drift"
+  ],
+  "verification_tiers": {
+    "focused": "pending",
+    "dependency": "pending",
+    "central": "pending",
+    "expensive_live": "not_run_user_gated"
+  },
+  "correction_budget": {
+    "limit_per_invariant": 1,
+    "used": 0,
+    "after_repeat": "stop_and_rearchitect"
+  },
+  "inventory_receipt": {
+    "inventory_mode": "rolling_projection",
+    "member_query": "Sort unique entry.path values from guidance $.roadmaps where entry.profile starts with active_",
+    "member_count": 30,
+    "member_set_digest": "sha256:0f3bf8d41306facf635edd86a6c481cba702292994ab6c2e78937f86f9ec3bcf",
+    "denominator_change": "29_to_30_added_forge_usi_code_source_adapter_no_removals",
+    "terminal_waves_unchanged": true,
+    "scheduled_slice_count_unchanged": 7
+  },
+  "live_actions": false
+}
