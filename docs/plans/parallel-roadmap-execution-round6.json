@@ -2,8 +2,8 @@
   "schema_version": 1,
   "kind": "odysseus.parallel_roadmap_execution_round",
   "round_id": "round6",
-  "updated_at": "2026-08-11T22:55:00+02:00",
-  "status": "round6_authority_revision216_nmg05a_running_infrastructure_blocked_fca03a_r2_corrected_frozen_for_independent_qa",
+  "updated_at": "2026-08-11T23:05:00+02:00",
+  "status": "round6_authority_revision217_nmg05a_running_infrastructure_blocked_fca03a_r2_released_blocked_fresh_architecture_required",
   "goal": "After accepted Round 5, expose disjoint Coding, Memory/Data and App Integration frontiers with independent QA while keeping every central router master-only.",
   "prerequisite": {
     "round5_state": "accepted_released",
@@ -829,7 +829,7 @@
       "lane": "memory_data",
       "slice": {
         "id": "FCA-03A-R2-public-page-value-object-validation",
-        "state": "candidate_frozen_for_independent_qa",
+        "state": "normalization_blocked_fresh_architecture_required",
         "claimable": false,
         "depends_on": [
           "FCA-00-forge-source-inventory",
@@ -898,9 +898,11 @@
           }
         ],
         "remaining_user_gates": [],
-        "normalization_blockers": [],
+        "normalization_blockers": [
+          "Terminal exact ForgeContentPage subclass admission recurrence after correction 1/1; a materially different fresh Root/Sol architecture is required before another writer claim."
+        ],
         "claim_id": "ABC-FCA03A-R2-REV213",
-        "authority_revision": 216,
+        "authority_revision": 217,
         "architecture_binding": {
           "id": "FCA-03A-R2-PUBLIC-PAGE-VALUE-OBJECT-SOL-ARCH-v1",
           "path": "docs/plans/abc-fca03a-r2-public-page-value-object-architecture.json",
@@ -922,7 +924,7 @@
           "tests/test_repo_git_adapter.py::test_fca03a_r2_page_constructor_rejects_hostile_subclasses_and_forgery_without_callbacks",
           "tests/test_repo_git_adapter.py::test_fca03a_r2_page_projection_rejects_post_construction_tamper"
         ],
-        "candidate_state": "frozen_for_independent_qa",
+        "candidate_state": "rejected_frozen_candidate",
         "candidate_blobs": {
           "src/repo_git_adapter.py": "2637d89e66b5c70f7e940a2456326e0b1f83ce1b",
           "tests/test_repo_git_adapter.py": "1daf60c5a540c72c005dd5ecbb0a8fa6d32752c9"
@@ -936,7 +938,9 @@
         "candidate_set_digest_sha256": "sha256:baccdcbe23a9653263fde0bfb60f9440a999c6050a86f52eb4da5ce8935b3a4d",
         "node_manifest_digest_sha256": "sha256:2a5d10051cc32d247b505b2538c84dc5839f5f7810f75e8f87b2f85652e85a88",
         "command_manifest_digest_sha256": "sha256:62f7a9524c6e2f7286ff1436575ed6d5177b56d3bf9ccabf43bb8c75e6efade6",
-        "dirty_diff_digest_sha256": "sha256:17f1abfc2720ef2c3d5855a98fb7aa4b757bd29f9f8896a15a38428d44b0e76e"
+        "dirty_diff_digest_sha256": "sha256:17f1abfc2720ef2c3d5855a98fb7aa4b757bd29f9f8896a15a38428d44b0e76e",
+        "release_outcome": "released_blocked_same_class_recurrence_after_correction_1_of_1",
+        "release_finding": "Root/Sol hostile probe defined class PageSub(ForgeContentPage) and constructed it from an exact valid page field set. Construction succeeded and PageSub.to_dict returned the accepted schema, so the public page boundary does not enforce exact ForgeContentPage type. This recurs in the consumed public value-object validation failure class."
       },
       "source_evidence": "Rev209 compact rebind packet inherits the exact sealed FCA-03A v1 contract against Rev208 router pins; baselines and all thirteen pins re-read exactly."
     },
@@ -2179,71 +2183,6 @@
         "authority_revision": 208,
         "state": "accepted_owner_handoff_preserving_scope_lease_candidate_and_worktree",
         "worktree_unchanged": "C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone"
-      }
-    },
-    {
-      "claim_id": "ABC-FCA03A-R2-REV213",
-      "slice_id": "FCA-03A-R2-public-page-value-object-validation",
-      "owner": "Bob/Terra high root-supervised local writer",
-      "thread_id": "/root",
-      "state": "frozen_for_independent_qa",
-      "claim_state": "frozen_for_independent_qa",
-      "authority_revision": 216,
-      "claimed_at": "2026-08-11T21:55:00+02:00",
-      "lease_expires_at": "2026-08-12T09:55:00+02:00",
-      "mutation_authority": "repo_only",
-      "allowed_paths": [
-        "src/repo_git_adapter.py",
-        "tests/test_repo_git_adapter.py"
-      ],
-      "hotfiles": [
-        "src/repo_git_adapter.py",
-        "tests/test_repo_git_adapter.py"
-      ],
-      "baseline_blobs": {
-        "src/repo_git_adapter.py": "c2aeb6a796b8f5023f3ce957809c53039a4138e9",
-        "tests/test_repo_git_adapter.py": "148e7566f7cdf42158013860e3c0ba305692a048"
-      },
-      "architecture": {
-        "id": "FCA-03A-R2-PUBLIC-PAGE-VALUE-OBJECT-SOL-ARCH-v1",
-        "path": "docs/plans/abc-fca03a-r2-public-page-value-object-architecture.json",
-        "raw_blob": "7bf40f7a887eb1be0e2f8ff6491806889588579c",
-        "semantic_seal_bytes": 8356,
-        "semantic_digest_sha256": "sha256:e1c384a3919172f8de7dba637e95639dc284559c456fd3a49301033f5d8c435e",
-        "source_claim_id": "ABC-FCA03A-REV210",
-        "origin": "materialized_rejected_candidate_successor"
-      },
-      "correction_budget": {
-        "failure_class": "fca03a_r2_public_page_value_object_constructor_hash_and_terminal_transition_validation",
-        "limit": 1,
-        "used": 1,
-        "on_repeat": "release_blocked without second product patch and require a different fresh Root/Sol architecture"
-      },
-      "candidate_state": "frozen_for_independent_qa",
-      "candidate_blobs": {
-        "src/repo_git_adapter.py": "2637d89e66b5c70f7e940a2456326e0b1f83ce1b",
-        "tests/test_repo_git_adapter.py": "1daf60c5a540c72c005dd5ecbb0a8fa6d32752c9"
-      },
-      "live_actions": false,
-      "rejected_candidate_blobs": {
-        "src/repo_git_adapter.py": "889364e0b88feebdbdd9c687fc6614ed7a430deb",
-        "tests/test_repo_git_adapter.py": "458c948badd685d279c117a208ea4d075d56ea1b"
-      },
-      "correction_finding": "A valid frozen ForgeContentPage mutated via object.__setattr__(schema=bad) was projected by to_dict with schema=bad; public projection must revalidate the full value object before returning a detached mapping.",
-      "frozen_at": "2026-08-11T22:55:00+02:00",
-      "candidate_set_digest_sha256": "sha256:baccdcbe23a9653263fde0bfb60f9440a999c6050a86f52eb4da5ce8935b3a4d",
-      "node_manifest_digest_sha256": "sha256:2a5d10051cc32d247b505b2538c84dc5839f5f7810f75e8f87b2f85652e85a88",
-      "command_manifest_digest_sha256": "sha256:62f7a9524c6e2f7286ff1436575ed6d5177b56d3bf9ccabf43bb8c75e6efade6",
-      "dirty_diff_digest_sha256": "sha256:17f1abfc2720ef2c3d5855a98fb7aa4b757bd29f9f8896a15a38428d44b0e76e",
-      "dirty_diff_serialization": "sorted path UTF-8 length u64be + path + baseline byte length u64be + raw baseline bytes + candidate byte length u64be + raw candidate bytes",
-      "verification_summary": {
-        "tests_first": "initial four nodes RED 4 against baseline then GREEN 4; correction tamper node RED 1 against first frozen source then GREEN; final exact five passed",
-        "focused": "full tests/test_repo_git_adapter.py 42 passed",
-        "dependency": "declared five-file corridor 181 passed",
-        "static": "two-path py_compile, diff-check and no-loop/forbidden-effect AST passed",
-        "central": "Integration Spine, Round6 and Guidance passed",
-        "correction": "1/1 consumed only to make ForgeContentPage.to_dict reconstruct and revalidate before detached projection; no recurrence in final lanes",
-        "workspace_note": "pre-correction parallel full/dependency attempt had only missing claim-parent setup errors; serial claimed-workspace reruns passed"
       }
     }
   ],
