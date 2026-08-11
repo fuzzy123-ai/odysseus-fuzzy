@@ -8,18 +8,23 @@ depends on a running service or an optional SDK.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 import hashlib
 import json
+import math
 import re
-from typing import Any
+import unicodedata
+from typing import Any, Callable
 
 
 PLANNING_DEFINITION_SCHEMA_ID = "odysseus.planning.definition.v2"
 CONTENT_HASH_PREFIX = "sha256:"
+APPROVAL_SCHEMA_MAX_DEPTH = 64
+APPROVAL_SCHEMA_MAX_VISITED_NODES = 1024
+APPROVAL_SCHEMA_MAX_COMBINATOR_ITEMS = 256
 
 REVISION_STATES = frozenset(
     {"draft", "in_review", "approved", "superseded", "archived", "tombstoned"}
@@ -101,6 +106,117 @@ _ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _HASH_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _STATEISH_KEYS = frozenset({"state", "status", "execution_state", "run_state", "runtime_state"})
 _BLOCKED_PATH_PARTS = frozenset({".git", ".env", ".ssh", "id_rsa", "id_dsa", "id_ed25519"})
+_APPROVAL_SCOPE_RESERVED_FIELD_NAMES = (
+    RUNTIME_FIELD_DENYLIST
+    | GATE_RUNTIME_FIELD_DENYLIST
+    | frozenset({"operator_decision", "claim_owner", "temporal_state"})
+)
+_APPROVAL_SCOPE_SCHEMA_KEYWORDS = frozenset(
+    {
+        "$anchor",
+        "$comment",
+        "$defs",
+        "$dynamicAnchor",
+        "$dynamicRef",
+        "$id",
+        "$ref",
+        "$schema",
+        "additionalProperties",
+        "allOf",
+        "anyOf",
+        "const",
+        "contains",
+        "contentEncoding",
+        "contentMediaType",
+        "contentSchema",
+        "default",
+        "definitions",
+        "dependentRequired",
+        "dependentSchemas",
+        "deprecated",
+        "description",
+        "else",
+        "enum",
+        "examples",
+        "exclusiveMaximum",
+        "exclusiveMinimum",
+        "format",
+        "if",
+        "items",
+        "maxContains",
+        "maxItems",
+        "maxLength",
+        "maxProperties",
+        "maximum",
+        "minContains",
+        "minItems",
+        "minLength",
+        "minProperties",
+        "minimum",
+        "multipleOf",
+        "not",
+        "oneOf",
+        "pattern",
+        "patternProperties",
+        "prefixItems",
+        "properties",
+        "propertyNames",
+        "readOnly",
+        "required",
+        "then",
+        "title",
+        "type",
+        "unevaluatedItems",
+        "unevaluatedProperties",
+        "uniqueItems",
+        "writeOnly",
+    }
+)
+_APPROVAL_SCOPE_SINGLE_SCHEMA_KEYWORDS = frozenset(
+    {
+        "additionalProperties",
+        "contains",
+        "contentSchema",
+        "else",
+        "if",
+        "items",
+        "not",
+        "propertyNames",
+        "then",
+        "unevaluatedItems",
+        "unevaluatedProperties",
+    }
+)
+_APPROVAL_SCOPE_SCHEMA_ARRAY_KEYWORDS = frozenset({"allOf", "anyOf", "oneOf", "prefixItems"})
+_APPROVAL_SCOPE_LITERAL_KEYWORDS = frozenset({"const", "default", "enum", "examples"})
+_APPROVAL_SCOPE_UNSUPPORTED_GENERAL_APPLICATORS = frozenset(
+    {
+        "$defs",
+        "$dynamicRef",
+        "$ref",
+        "allOf",
+        "anyOf",
+        "definitions",
+        "dependentSchemas",
+        "else",
+        "if",
+        "not",
+        "oneOf",
+        "then",
+    }
+)
+_APPROVAL_SCOPE_TYPES = frozenset(
+    {"array", "boolean", "integer", "null", "number", "object", "string"}
+)
+_PROPERTY_NAME_SELECTOR_KEYS = frozenset(
+    {"const", "enum", "pattern", "allOf", "anyOf", "oneOf", "not"}
+)
+_PROPERTY_NAME_SELECTOR_ANNOTATIONS = frozenset(
+    {"$comment", "title", "description", "default", "examples", "deprecated", "readOnly", "writeOnly"}
+)
+_MAX_PROPERTY_NAME_PATTERN_LENGTH = 128
+_MAX_PROPERTY_NAME_REPEAT = 128
+_PropertyNameSelector = Callable[[str], bool]
 
 
 class PlanningDefinitionContractError(ValueError):
@@ -111,6 +227,24 @@ class PlanningDefinitionContractError(ValueError):
         self.path = path
         self.detail = detail
         super().__init__(f"{reason_code} at {path}: {detail}")
+
+
+@dataclass(slots=True)
+class _ApprovalSchemaBudget:
+    visited_nodes: int = 0
+    combinator_items: int = 0
+
+    def visit(self, *, path: str, depth: int) -> None:
+        if depth > APPROVAL_SCHEMA_MAX_DEPTH:
+            _fail("approval_schema_budget_exceeded", path, "approval schema depth limit exceeded")
+        self.visited_nodes += 1
+        if self.visited_nodes > APPROVAL_SCHEMA_MAX_VISITED_NODES:
+            _fail("approval_schema_budget_exceeded", path, "approval schema node limit exceeded")
+
+    def add_combinator_items(self, count: int, *, path: str) -> None:
+        self.combinator_items += count
+        if self.combinator_items > APPROVAL_SCHEMA_MAX_COMBINATOR_ITEMS:
+            _fail("approval_schema_budget_exceeded", path, "approval schema branch limit exceeded")
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,6 +290,132 @@ def compute_roadmap_content_hash(roadmap: Mapping[str, Any]) -> str:
             "non_canonical_value", "$", "roadmap contains a non-JSON value"
         ) from exc
     return CONTENT_HASH_PREFIX + hashlib.sha256(encoded).hexdigest()
+
+
+def validate_planning_text(value: Any, *, path: str, maximum: int) -> str:
+    """Validate Planning-v2 prose without treating newlines as runtime data.
+
+    Planning fields deliberately permit ordinary multiline prose and tabs.  A
+    snapshot must preserve that text exactly; only non-printable controls and
+    unbounded values are rejected.
+    """
+
+    if not isinstance(value, str) or not value.strip():
+        _fail("invalid_type", path, "expected non-empty string")
+    if len(value) > maximum or any(ord(character) < 32 and character not in "\n\t" for character in value):
+        _fail("invalid_value", path, f"string must be at most {maximum} safe characters")
+    return value
+
+
+def validate_repository_path(value: Any, *, path: str) -> str:
+    """Return one canonical, repository-relative Planning path.
+
+    Paths are authority data.  Rejecting, rather than repairing, backslashes,
+    repeated separators, private segments, and traversal prevents a rehashed
+    persisted snapshot from widening the intended repository scope.
+    """
+
+    if isinstance(value, str) and any(
+        unicodedata.category(character) == "Cc" for character in value
+    ):
+        _fail("invalid_repo_path", path, "path contains a control character")
+    text = validate_planning_text(value, path=path, maximum=240)
+    if "\\" in text or text.startswith(("/", "~")) or re.match(r"^[A-Za-z]:", text):
+        _fail("invalid_repo_path", path, "path must be repository-relative with forward slashes")
+    parts = text.split("/")
+    if any(part in {"", ".", ".."} or part.casefold() in _BLOCKED_PATH_PARTS for part in parts):
+        _fail("invalid_repo_path", path, "path contains an empty, traversal or private segment")
+    return text
+
+
+def collect_repository_paths(value: Any, *, path: str, unique: bool) -> tuple[str, ...]:
+    """Validate a path array and return its sorted canonical collection."""
+
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
+        _fail("invalid_type", path, "expected array")
+    items = list(value)
+    collected: list[str] = []
+    for index, item in enumerate(items):
+        candidate = validate_repository_path(item, path=f"{path}[{index}]")
+        if unique and candidate in collected:
+            _fail("duplicate_id", f"{path}[{index}]", "path is duplicated")
+        collected.append(candidate)
+    return tuple(sorted(set(collected)))
+
+
+def validate_approval_scope_schema(value: Any, *, path: str) -> dict[str, Any]:
+    """Validate a bounded JSON-Schema approval contract without runtime bleed.
+
+    Runtime-reserved names are rejected only when they are definition fields or
+    instance property names.  JSON-Schema keywords and literals are interpreted
+    in their own contexts, so e.g. ``properties.status.enum = [\"running\"]``
+    remains a valid description of an operator input rather than runtime state.
+    """
+
+    try:
+        schema = _mapping(value, path)
+        budget = _ApprovalSchemaBudget()
+        _validate_approval_scope_schema_node(
+            schema,
+            path,
+            budget=budget,
+            depth=0,
+            root=True,
+        )
+        raw_encoded = json.dumps(
+            dict(schema),
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    except PlanningDefinitionContractError:
+        raise
+    except Exception:
+        _fail(
+            "approval_schema_capture_failed",
+            path,
+            "approval schema could not be validated and canonically captured",
+        )
+    try:
+        captured = deepcopy(dict(schema))
+        encoded = json.dumps(
+            captured,
+            ensure_ascii=False,
+            allow_nan=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        isolated = json.loads(encoded)
+    except PlanningDefinitionContractError:
+        raise
+    except Exception:
+        _fail(
+            "approval_schema_capture_failed",
+            path,
+            "validated approval schema could not be isolated",
+        )
+    if type(isolated) is not dict:
+        _fail(
+            "approval_schema_capture_failed",
+            path,
+            "validated approval schema capture is not an object",
+        )
+    checked_budget = _ApprovalSchemaBudget()
+    _validate_approval_scope_schema_node(
+        isolated,
+        path,
+        budget=checked_budget,
+        depth=0,
+        root=True,
+    )
+    if encoded != raw_encoded:
+        _fail(
+            "approval_schema_capture_failed",
+            path,
+            "isolated approval schema differs from the validated input",
+        )
+    return isolated
 
 
 def validate_planning_definition(
@@ -376,7 +636,7 @@ def _validate_gate(value: Any, path: str) -> None:
     _unique_identifiers(gate["blocks"], f"{path}.blocks", minimum=1)
     _text(gate["decision_needed"], f"{path}.decision_needed", maximum=4_000)
     _text(gate["safe_default"], f"{path}.safe_default", maximum=4_000)
-    _mapping(gate["approval_scope_schema"], f"{path}.approval_scope_schema")
+    validate_approval_scope_schema(gate["approval_scope_schema"], path=f"{path}.approval_scope_schema")
     _unique_identifiers(
         gate["required_verification_rule_ids"],
         f"{path}.required_verification_rule_ids",
@@ -545,6 +805,11 @@ def _reject_runtime_state(value: Any, path: str, *, state_context: bool = False)
             child_path = f"{path}.{key}"
             if normalized in RUNTIME_FIELD_DENYLIST:
                 _fail("runtime_field_forbidden", child_path, f"field {key} belongs to Agent runtime")
+            # JSON-Schema literals describe an eventual approval payload; they
+            # are not execution state.  The gate validator handles this subtree
+            # using its schema/property/literal contexts.
+            if normalized == "approval_scope_schema":
+                continue
             _reject_runtime_state(
                 nested,
                 child_path,
@@ -565,10 +830,575 @@ def _reject_gate_runtime_fields(value: Any, path: str) -> None:
             child_path = f"{path}.{key}"
             if str(key).lower() in GATE_RUNTIME_FIELD_DENYLIST:
                 _fail("runtime_field_forbidden", child_path, "gate runtime decision fields are forbidden")
+            if key == "approval_scope_schema":
+                continue
             _reject_gate_runtime_fields(nested, child_path)
     elif isinstance(value, list):
         for index, nested in enumerate(value):
             _reject_gate_runtime_fields(nested, f"{path}[{index}]")
+
+
+def _validate_approval_scope_schema_node(
+    value: Any,
+    path: str,
+    *,
+    budget: _ApprovalSchemaBudget,
+    depth: int,
+    root: bool = False,
+) -> None:
+    budget.visit(path=path, depth=depth)
+    if isinstance(value, bool):
+        if root:
+            _fail("invalid_type", path, "approval scope root must be an object")
+        if value:
+            _fail(
+                "approval_scope_not_closed",
+                path,
+                "true schema permits an unbounded object scope",
+            )
+        return
+    schema = _mapping(value, path)
+    unsupported = sorted(set(schema) & _APPROVAL_SCOPE_UNSUPPORTED_GENERAL_APPLICATORS)
+    if unsupported:
+        _fail(
+            "approval_scope_not_closed",
+            f"{path}.{unsupported[0]}",
+            "general schema applicators and references are outside the closed approval profile",
+        )
+    if "type" in schema:
+        _validate_approval_schema_type(schema["type"], f"{path}.type")
+    if root and schema.get("type") != "object":
+        _fail(
+            "approval_scope_not_closed",
+            f"{path}.type",
+            "approval scope root must explicitly declare type object",
+        )
+    if _approval_schema_can_accept_object(schema):
+        if schema.get("additionalProperties") is not False:
+            _fail(
+                "approval_scope_not_closed",
+                f"{path}.additionalProperties",
+                "every object-capable approval schema must set additionalProperties to false",
+            )
+        if "unevaluatedProperties" in schema and schema["unevaluatedProperties"] is not False:
+            _fail(
+                "approval_scope_not_closed",
+                f"{path}.unevaluatedProperties",
+                "unevaluatedProperties must be false when present",
+            )
+    for key, nested in schema.items():
+        if not isinstance(key, str) or not key:
+            _fail("invalid_schema_keyword", path, "schema keyword must be a non-empty string")
+        keyword_path = f"{path}.{key}"
+        if key.casefold() in _APPROVAL_SCOPE_RESERVED_FIELD_NAMES:
+            _fail("runtime_field_forbidden", keyword_path, "runtime field is forbidden in an approval scope")
+        if key not in _APPROVAL_SCOPE_SCHEMA_KEYWORDS:
+            _fail("unknown_schema_keyword", keyword_path, "field is not a supported JSON-Schema keyword")
+        if key == "propertyNames":
+            _validate_property_name_selector(
+                nested,
+                keyword_path,
+                budget=budget,
+                depth=depth + 1,
+            )
+        elif key in _APPROVAL_SCOPE_SINGLE_SCHEMA_KEYWORDS:
+            _validate_approval_scope_schema_node(
+                nested,
+                keyword_path,
+                budget=budget,
+                depth=depth + 1,
+            )
+        elif key in _APPROVAL_SCOPE_SCHEMA_ARRAY_KEYWORDS:
+            _validate_schema_array(
+                nested,
+                keyword_path,
+                budget=budget,
+                depth=depth + 1,
+            )
+        elif key == "properties":
+            _validate_schema_properties(
+                nested,
+                keyword_path,
+                budget=budget,
+                depth=depth + 1,
+            )
+        elif key == "patternProperties":
+            _validate_schema_mapping_values(
+                nested,
+                keyword_path,
+                property_names=False,
+                patterns=True,
+                budget=budget,
+                depth=depth + 1,
+            )
+        elif key == "dependentSchemas":
+            _validate_schema_mapping_values(
+                nested,
+                keyword_path,
+                property_names=True,
+                budget=budget,
+                depth=depth + 1,
+            )
+        elif key in {"$defs", "definitions"}:
+            _validate_schema_mapping_values(
+                nested,
+                keyword_path,
+                property_names=False,
+                budget=budget,
+                depth=depth + 1,
+            )
+        elif key == "dependentRequired":
+            _validate_dependent_required(
+                nested,
+                keyword_path,
+                budget=budget,
+                depth=depth + 1,
+            )
+        elif key == "required":
+            _validate_approval_property_names(
+                nested,
+                keyword_path,
+                budget=budget,
+                depth=depth + 1,
+            )
+        elif key in _APPROVAL_SCOPE_LITERAL_KEYWORDS:
+            _validate_schema_literal(
+                nested,
+                keyword_path,
+                budget=budget,
+                depth=depth + 1,
+            )
+        else:
+            _validate_schema_keyword_value(
+                nested,
+                keyword_path,
+                budget=budget,
+                depth=depth + 1,
+            )
+
+
+def _validate_approval_schema_type(value: Any, path: str) -> None:
+    if isinstance(value, str):
+        if value not in _APPROVAL_SCOPE_TYPES:
+            _fail("invalid_schema_keyword", path, "schema type is not supported")
+        return
+    if isinstance(value, list) and value:
+        if any(type(item) is not str or item not in _APPROVAL_SCOPE_TYPES for item in value):
+            _fail("invalid_schema_keyword", path, "schema type array contains an unsupported type")
+        if len(set(value)) != len(value):
+            _fail("invalid_schema_keyword", path, "schema type array contains duplicates")
+        return
+    _fail("invalid_schema_keyword", path, "schema type must be a supported string or non-empty array")
+
+
+def _approval_schema_can_accept_object(schema: Mapping[str, Any]) -> bool:
+    type_value = schema.get("type")
+    if isinstance(type_value, str):
+        return type_value == "object"
+    if isinstance(type_value, list):
+        return "object" in type_value
+    if "const" in schema:
+        return isinstance(schema["const"], Mapping)
+    if "enum" in schema and isinstance(schema["enum"], list):
+        return any(isinstance(item, Mapping) for item in schema["enum"])
+    return True
+
+
+def _validate_schema_array(
+    value: Any,
+    path: str,
+    *,
+    budget: _ApprovalSchemaBudget,
+    depth: int,
+) -> None:
+    budget.visit(path=path, depth=depth)
+    values = _list(value, path)
+    budget.add_combinator_items(len(values), path=path)
+    for index, item in enumerate(values):
+        _validate_approval_scope_schema_node(
+            item,
+            f"{path}[{index}]",
+            budget=budget,
+            depth=depth,
+        )
+
+
+def _validate_schema_properties(
+    value: Any,
+    path: str,
+    *,
+    budget: _ApprovalSchemaBudget,
+    depth: int,
+) -> None:
+    budget.visit(path=path, depth=depth)
+    properties = _mapping(value, path)
+    for name, nested in properties.items():
+        _validate_approval_property_name(name, f"{path}.{name}")
+        _validate_approval_scope_schema_node(
+            nested,
+            f"{path}.{name}",
+            budget=budget,
+            depth=depth,
+        )
+
+
+def _validate_schema_mapping_values(
+    value: Any,
+    path: str,
+    *,
+    property_names: bool,
+    patterns: bool = False,
+    budget: _ApprovalSchemaBudget,
+    depth: int,
+) -> None:
+    budget.visit(path=path, depth=depth)
+    mapping = _mapping(value, path)
+    for name, nested in mapping.items():
+        if not isinstance(name, str) or not name:
+            _fail("invalid_schema_keyword", path, "schema mapping key must be a non-empty string")
+        if property_names:
+            _validate_approval_property_name(name, f"{path}.{name}")
+        if patterns:
+            _validate_approval_property_pattern(name, f"{path}.{name}")
+        _validate_approval_scope_schema_node(
+            nested,
+            f"{path}.{name}",
+            budget=budget,
+            depth=depth,
+        )
+
+
+def _validate_dependent_required(
+    value: Any,
+    path: str,
+    *,
+    budget: _ApprovalSchemaBudget,
+    depth: int,
+) -> None:
+    budget.visit(path=path, depth=depth)
+    mapping = _mapping(value, path)
+    for name, nested in mapping.items():
+        _validate_approval_property_name(name, f"{path}.{name}")
+        _validate_approval_property_names(
+            nested,
+            f"{path}.{name}",
+            budget=budget,
+            depth=depth,
+        )
+
+
+def _validate_approval_property_names(
+    value: Any,
+    path: str,
+    *,
+    budget: _ApprovalSchemaBudget,
+    depth: int,
+) -> None:
+    budget.visit(path=path, depth=depth)
+    values = _list(value, path)
+    seen: set[str] = set()
+    for index, name in enumerate(values):
+        budget.visit(path=f"{path}[{index}]", depth=depth)
+        resolved = _validate_approval_property_name(name, f"{path}[{index}]")
+        if resolved in seen:
+            _fail("duplicate_id", f"{path}[{index}]", "approval property name is duplicated")
+        seen.add(resolved)
+
+
+def _validate_approval_property_name(value: Any, path: str) -> str:
+    if not isinstance(value, str) or not value:
+        _fail("invalid_schema_keyword", path, "approval property name must be a non-empty string")
+    if value.casefold() in _APPROVAL_SCOPE_RESERVED_FIELD_NAMES:
+        _fail("runtime_field_forbidden", path, "runtime field is forbidden in an approval scope")
+    return value
+
+
+def _validate_approval_property_pattern(value: Any, path: str) -> str:
+    compiled = _compile_bounded_property_name_pattern(value, path)
+    for reserved in sorted(_APPROVAL_SCOPE_RESERVED_FIELD_NAMES):
+        if compiled.search(reserved):
+            _fail("runtime_field_forbidden", path, "runtime field is exposed by a property-name pattern")
+    return value
+
+
+def _compile_bounded_property_name_pattern(value: Any, path: str) -> re.Pattern[str]:
+    if (
+        not isinstance(value, str)
+        or not value
+        or len(value) > _MAX_PROPERTY_NAME_PATTERN_LENGTH
+        or any(ord(character) > 127 or unicodedata.category(character) == "Cc" for character in value)
+    ):
+        _fail("invalid_property_name_pattern", path, "property-name pattern must be bounded ASCII")
+    _validate_bounded_property_name_pattern_syntax(value, path)
+    try:
+        return re.compile(value, re.ASCII | re.IGNORECASE)
+    except re.error as exc:
+        raise PlanningDefinitionContractError(
+            "invalid_property_name_pattern",
+            path,
+            "property-name pattern does not compile",
+        ) from exc
+
+
+def _validate_bounded_property_name_pattern_syntax(value: str, path: str) -> None:
+    index = 0
+    quantifiers = 0
+    if value.startswith("^"):
+        index = 1
+    while index < len(value):
+        character = value[index]
+        if character == "$":
+            if index != len(value) - 1:
+                _fail("invalid_property_name_pattern", path, "end anchor is only allowed at the end")
+            index += 1
+            continue
+        if character == "[":
+            end = value.find("]", index + 1)
+            if end < 0:
+                _fail("invalid_property_name_pattern", path, "character class is not closed")
+            _validate_simple_property_name_class(value[index + 1 : end], path)
+            index = end + 1
+        elif character == ".":
+            index += 1
+        elif character.isascii() and (character.isalnum() or character in "_-/: "):
+            index += 1
+        else:
+            _fail(
+                "invalid_property_name_pattern",
+                path,
+                "flags, groups, alternation, escapes and unbounded regex syntax are forbidden",
+            )
+
+        if index >= len(value):
+            continue
+        if value[index] == "?":
+            quantifiers += 1
+            index += 1
+        elif value[index] == "{":
+            end = value.find("}", index + 1)
+            if end < 0:
+                _fail("invalid_property_name_pattern", path, "bounded repeat is not closed")
+            _validate_bounded_property_name_repeat(value[index + 1 : end], path)
+            quantifiers += 1
+            index = end + 1
+        elif value[index] in "*+":
+            _fail("invalid_property_name_pattern", path, "unbounded quantifiers are forbidden")
+        if quantifiers > 1:
+            _fail("invalid_property_name_pattern", path, "at most one bounded quantifier is allowed")
+
+
+def _validate_simple_property_name_class(value: str, path: str) -> None:
+    if not value or value.startswith("^"):
+        _fail("invalid_property_name_pattern", path, "character class must be finite and non-negated")
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if not (character.isascii() and (character.isalnum() or character in "_.-")):
+            _fail("invalid_property_name_pattern", path, "character class contains unsupported syntax")
+        if character == "-" and 0 < index < len(value) - 1:
+            start = value[index - 1]
+            end = value[index + 1]
+            if not (start.isalnum() and end.isalnum() and ord(start) <= ord(end)):
+                _fail("invalid_property_name_pattern", path, "character class range is invalid")
+        index += 1
+
+
+def _validate_bounded_property_name_repeat(value: str, path: str) -> None:
+    parts = value.split(",")
+    if len(parts) not in {1, 2} or any(not part.isdigit() for part in parts):
+        _fail("invalid_property_name_pattern", path, "repeat must be {n} or {n,m}")
+    minimum = int(parts[0])
+    maximum = int(parts[-1])
+    if minimum > maximum or maximum > _MAX_PROPERTY_NAME_REPEAT:
+        _fail("invalid_property_name_pattern", path, "repeat exceeds the bounded limit")
+
+
+def _validate_property_name_selector(
+    value: Any,
+    path: str,
+    *,
+    budget: _ApprovalSchemaBudget,
+    depth: int,
+) -> None:
+    selector = _compile_property_name_selector(
+        value,
+        path,
+        budget=budget,
+        depth=depth,
+    )
+    for reserved in sorted(_APPROVAL_SCOPE_RESERVED_FIELD_NAMES):
+        if selector(reserved):
+            _fail("runtime_field_forbidden", path, "property-name selector permits a runtime field")
+
+
+def _compile_property_name_selector(
+    value: Any,
+    path: str,
+    *,
+    budget: _ApprovalSchemaBudget,
+    depth: int,
+) -> _PropertyNameSelector:
+    budget.visit(path=path, depth=depth)
+    if value is False:
+        return lambda _name: False
+    if value is True:
+        _fail("invalid_property_name_selector", path, "true is an ambiguous property-name selector")
+    schema = _mapping(value, path)
+    if any(not isinstance(key, str) for key in schema):
+        _fail("invalid_property_name_selector", path, "selector keys must be strings")
+    unknown = sorted(set(schema) - _PROPERTY_NAME_SELECTOR_KEYS - _PROPERTY_NAME_SELECTOR_ANNOTATIONS)
+    if unknown:
+        _fail(
+            "invalid_property_name_selector",
+            f"{path}.{unknown[0]}",
+            "property-name selector uses unsupported or indeterminate syntax",
+        )
+    for annotation in sorted(set(schema) & _PROPERTY_NAME_SELECTOR_ANNOTATIONS):
+        annotation_path = f"{path}.{annotation}"
+        _validate_schema_literal(
+            schema[annotation],
+            annotation_path,
+            budget=budget,
+            depth=depth + 1,
+        )
+        if annotation in {"default", "examples"}:
+            _reject_reserved_property_name_literal(schema[annotation], annotation_path)
+
+    predicates: list[_PropertyNameSelector] = []
+    if "const" in schema:
+        constant = schema["const"]
+        _validate_schema_literal(
+            constant,
+            f"{path}.const",
+            budget=budget,
+            depth=depth + 1,
+        )
+        predicates.append(
+            lambda name, constant=constant: isinstance(constant, str)
+            and name.casefold() == constant.casefold()
+        )
+    if "enum" in schema:
+        enum_values = _list(schema["enum"], f"{path}.enum", minimum=1)
+        _validate_schema_literal(
+            enum_values,
+            f"{path}.enum",
+            budget=budget,
+            depth=depth + 1,
+        )
+        finite_names = frozenset(
+            item.casefold() for item in enum_values if isinstance(item, str)
+        )
+        predicates.append(lambda name, finite_names=finite_names: name.casefold() in finite_names)
+    if "pattern" in schema:
+        budget.visit(path=f"{path}.pattern", depth=depth + 1)
+        compiled = _compile_bounded_property_name_pattern(schema["pattern"], f"{path}.pattern")
+        predicates.append(lambda name, compiled=compiled: compiled.search(name) is not None)
+    for keyword, combinator in (
+        ("allOf", all),
+        ("anyOf", any),
+        ("oneOf", None),
+    ):
+        if keyword not in schema:
+            continue
+        entries = _list(schema[keyword], f"{path}.{keyword}", minimum=1)
+        budget.visit(path=f"{path}.{keyword}", depth=depth + 1)
+        budget.add_combinator_items(len(entries), path=f"{path}.{keyword}")
+        children = tuple(
+            _compile_property_name_selector(
+                item,
+                f"{path}.{keyword}[{index}]",
+                budget=budget,
+                depth=depth + 1,
+            )
+            for index, item in enumerate(entries)
+        )
+        if keyword == "oneOf":
+            predicates.append(
+                lambda name, children=children: sum(child(name) for child in children) == 1
+            )
+        else:
+            predicates.append(
+                lambda name, children=children, combinator=combinator: combinator(
+                    child(name) for child in children
+                )
+            )
+    if "not" in schema:
+        child = _compile_property_name_selector(
+            schema["not"],
+            f"{path}.not",
+            budget=budget,
+            depth=depth + 1,
+        )
+        predicates.append(lambda name, child=child: not child(name))
+    if not predicates:
+        _fail("invalid_property_name_selector", path, "selector has no bounded name constraint")
+    return lambda name, predicates=tuple(predicates): all(predicate(name) for predicate in predicates)
+
+
+def _reject_reserved_property_name_literal(value: Any, path: str) -> None:
+    if isinstance(value, str):
+        if value.casefold() in _APPROVAL_SCOPE_RESERVED_FIELD_NAMES:
+            _fail("runtime_field_forbidden", path, "annotation exposes a runtime field name")
+        return
+    if isinstance(value, Mapping):
+        for key, nested in value.items():
+            if isinstance(key, str) and key.casefold() in _APPROVAL_SCOPE_RESERVED_FIELD_NAMES:
+                _fail("runtime_field_forbidden", f"{path}.{key}", "annotation exposes a runtime field name")
+            _reject_reserved_property_name_literal(nested, f"{path}.{key}")
+        return
+    if isinstance(value, list):
+        for index, nested in enumerate(value):
+            _reject_reserved_property_name_literal(nested, f"{path}[{index}]")
+
+
+def _validate_schema_literal(
+    value: Any,
+    path: str,
+    *,
+    budget: _ApprovalSchemaBudget,
+    depth: int,
+) -> None:
+    budget.visit(path=path, depth=depth)
+    if value is None or isinstance(value, (bool, int, str)):
+        return
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            _fail("invalid_json_value", path, "schema literal numbers must be finite")
+        return
+    if isinstance(value, Mapping):
+        for key, nested in value.items():
+            if not isinstance(key, str):
+                _fail("invalid_json_value", path, "schema literal object keys must be strings")
+            _validate_schema_literal(
+                nested,
+                f"{path}.{key}",
+                budget=budget,
+                depth=depth + 1,
+            )
+        return
+    if isinstance(value, list):
+        for index, nested in enumerate(value):
+            _validate_schema_literal(
+                nested,
+                f"{path}[{index}]",
+                budget=budget,
+                depth=depth + 1,
+            )
+        return
+    _fail("invalid_json_value", path, "schema literal must be JSON")
+
+
+def _validate_schema_keyword_value(
+    value: Any,
+    path: str,
+    *,
+    budget: _ApprovalSchemaBudget,
+    depth: int,
+) -> None:
+    # The remaining standardized keywords carry literal annotations or scalar
+    # constraints.  Validate deterministic JSON but never reinterpret a
+    # literal such as an enum member as runtime state.
+    _validate_schema_literal(value, path, budget=budget, depth=depth)
 
 
 def _strict_fields(
@@ -601,11 +1431,7 @@ def _list(value: Any, path: str, *, minimum: int = 0) -> list[Any]:
 
 
 def _text(value: Any, path: str, *, maximum: int) -> str:
-    if not isinstance(value, str) or not value.strip():
-        _fail("invalid_type", path, "expected non-empty string")
-    if len(value) > maximum or any(ord(character) < 32 and character not in "\n\t" for character in value):
-        _fail("invalid_value", path, f"string must be at most {maximum} safe characters")
-    return value
+    return validate_planning_text(value, path=path, maximum=maximum)
 
 
 def _text_list(value: Any, path: str) -> list[str]:
@@ -629,20 +1455,11 @@ def _unique_identifiers(value: Any, path: str, *, minimum: int = 0) -> list[str]
 
 
 def _repo_path_list(value: Any, path: str) -> list[str]:
-    items = _list(value, path)
-    paths = [_repo_path(item, f"{path}[{index}]") for index, item in enumerate(items)]
-    _ensure_unique(paths, path, "path")
-    return paths
+    return list(collect_repository_paths(value, path=path, unique=True))
 
 
 def _repo_path(value: Any, path: str) -> str:
-    text = _text(value, path, maximum=240)
-    if "\\" in text or text.startswith(("/", "~")) or re.match(r"^[A-Za-z]:", text):
-        _fail("invalid_repo_path", path, "path must be repository-relative with forward slashes")
-    parts = text.split("/")
-    if any(part in {"", ".", ".."} or part.lower() in _BLOCKED_PATH_PARTS for part in parts):
-        _fail("invalid_repo_path", path, "path contains an empty, traversal or private segment")
-    return text
+    return validate_repository_path(value, path=path)
 
 
 def _positive_int(value: Any, path: str) -> int:
@@ -687,6 +1504,9 @@ def _fail(reason_code: str, path: str, detail: str) -> None:
 
 
 __all__ = [
+    "APPROVAL_SCHEMA_MAX_COMBINATOR_ITEMS",
+    "APPROVAL_SCHEMA_MAX_DEPTH",
+    "APPROVAL_SCHEMA_MAX_VISITED_NODES",
     "CONTENT_HASH_PREFIX",
     "FORBIDDEN_EXECUTION_STATES",
     "GATE_RUNTIME_FIELD_DENYLIST",
@@ -696,5 +1516,9 @@ __all__ = [
     "PlanningDefinitionContractError",
     "PlanningDefinitionValidationResult",
     "compute_roadmap_content_hash",
+    "collect_repository_paths",
+    "validate_approval_scope_schema",
     "validate_planning_definition",
+    "validate_planning_text",
+    "validate_repository_path",
 ]
