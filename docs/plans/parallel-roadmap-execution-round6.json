@@ -2,8 +2,8 @@
   "schema_version": 1,
   "kind": "odysseus.parallel_roadmap_execution_round",
   "round_id": "round6",
-  "updated_at": "2026-08-11T16:35:00+02:00",
-  "status": "round6_authority_revision203_nmg05a_claimed_tests_first_detached_writer_running",
+  "updated_at": "2026-08-11T16:55:00+02:00",
+  "status": "round6_authority_revision204_nmg05a_execution_baseline_rebound_detached_writer_running",
   "goal": "After accepted Round 5, expose disjoint Coding, Memory/Data and App Integration frontiers with independent QA while keeping every central router master-only.",
   "prerequisite": {
     "round5_state": "accepted_released",
@@ -353,7 +353,7 @@
         "remaining_user_gates": [],
         "normalization_blockers": [],
         "claim_id": "ABC-NMG05A-REV203",
-        "authority_revision": 203,
+        "authority_revision": 204,
         "architecture_binding": {
           "architecture_id": "NMG-05A-CAUSAL-STORE-AND-REVIEW-SOL-ARCH-v1",
           "logical_authority_revision": 202,
@@ -427,6 +427,17 @@
             "-c",
             "compile exact two candidate paths in memory"
           ]
+        },
+        "execution_baseline": {
+          "kind": "detached_clean_commit",
+          "commit_sha": "6c2ce20fea9e143d8386f1861385266d1a033c82",
+          "branch": "codex/implemenetaion",
+          "worktree": "C:\\Users\\nkatz\\odysseus-abc-019ff11a",
+          "checkout_method": "git -C C:\\Users\\nkatz\\odysseus-abc-019ff11a switch --detach 6c2ce20fea9e143d8386f1861385266d1a033c82",
+          "required_precondition": "detached_worktree_clean_and_claim_paths_absent",
+          "pin_semantics": "architecture seal router blobs are materialized preclaim authority objects; executable current router paths come from this baseline commit and are rebound by authority revision 204",
+          "codex_task_id": "019ff11a-c684-7232-893c-34b136ea2853",
+          "thread_id": "019ff11a-c684-7232-893c-34b136ea2853"
         }
       }
     },
@@ -867,7 +878,7 @@
       "thread_id": "019ff11a-c684-7232-893c-34b136ea2853",
       "state": "running",
       "claim_state": "claimed_tests_first",
-      "authority_revision": 203,
+      "authority_revision": 204,
       "claimed_at": "2026-08-11T16:35:00+02:00",
       "lease_expires_at": "2026-08-12T04:35:00+02:00",
       "mutation_authority": "repo_only",
@@ -892,7 +903,18 @@
         "limit": 1,
         "used": 0
       },
-      "live_actions": false
+      "live_actions": false,
+      "execution_baseline": {
+        "kind": "detached_clean_commit",
+        "commit_sha": "6c2ce20fea9e143d8386f1861385266d1a033c82",
+        "branch": "codex/implemenetaion",
+        "worktree": "C:\\Users\\nkatz\\odysseus-abc-019ff11a",
+        "checkout_method": "git -C C:\\Users\\nkatz\\odysseus-abc-019ff11a switch --detach 6c2ce20fea9e143d8386f1861385266d1a033c82",
+        "required_precondition": "detached_worktree_clean_and_claim_paths_absent",
+        "pin_semantics": "architecture seal router blobs are materialized preclaim authority objects; executable current router paths come from this baseline commit and are rebound by authority revision 204",
+        "codex_task_id": "019ff11a-c684-7232-893c-34b136ea2853",
+        "thread_id": "019ff11a-c684-7232-893c-34b136ea2853"
+      }
     }
   ],
   "waves": [
