@@ -1,0 +1,329 @@
+{
+  "architect": "root/Sol",
+  "architecture_id": "ABC-FCA03A-RESUMABLE-FORGE-CONTENT-READER-SOL-ARCH-v1",
+  "architecture_seal": {
+    "acceptance": [
+      "The unchanged FCA-00 v1 snapshot inventory and exact-reader-reference API remains content-free, runtime-compatible and byte-for-byte semantically unchanged.",
+      "An authorized immutable Forge snapshot file from zero through 16777216 bytes can be fetched as deterministic pages of at most 1000000 bytes, including the 1000001-byte counterexample and the exact maximum.",
+      "Every page is bound to one owner, repository, immutable version, commit, snapshot digest, canonical path, file digest, file byte count, authority binding, cursor offset and page size.",
+      "Cursor resume never scans a worktree, stores prior content, mints authority or treats a cursor hash as authorization.",
+      "Short, zero-progress, overlong, shifted, stale, foreign, mutated or callback-failing range results fail closed with a fresh content-free ForgeSnapshotError.",
+      "The implementation changes exactly two paths and passes tests-first, the full FCA-00 suite, the accepted FCA-02 dependency corridor, static zero-effect checks, fresh independent hostile QA and Root/Sol deep review."
+    ],
+    "allowed_paths": [
+      "src/repo_git_adapter.py",
+      "tests/test_repo_git_adapter.py"
+    ],
+    "authority": {
+      "accepted_fca00_commit": "75f8f8f3f2ba3a17b9f081959197070d296ebf42",
+      "architecture_only_revision": 207,
+      "current_router_revision": 206,
+      "mutation_authority": "repo_only",
+      "phase": "decision_record_then_tests_first_implementation_claim",
+      "queue": "open_work_named_predecessor",
+      "source_decision": "Root/Sol ownership correction explicitly authorizes one fresh FCA-03A two-path architecture packet; it does not itself register a claim."
+    },
+    "baseline_blobs": {
+      "src/repo_git_adapter.py": "c8c1b7f904dbc9f0175bfe0d56c2343b2c462bdc",
+      "tests/test_repo_git_adapter.py": "5583fafedb487e36e45323bd6c7eaf3a914368ce"
+    },
+    "baseline_readback": {
+      "commit_tree_matches": true,
+      "materialized_with": "git hash-object -w --no-filters -- <path>",
+      "raw_worktree_equals_blob": true,
+      "scoped_diff_empty": true,
+      "scoped_status_clean": true
+    },
+    "budgets": {
+      "cursor_canonical_bytes_max": 4096,
+      "cursor_depth_max": 4,
+      "cursor_nodes_max": 48,
+      "file_bytes_max": 16777216,
+      "page_bytes_max": 1000000,
+      "page_bytes_min": 1,
+      "pages_per_max_file_max": 17,
+      "path_chars_max": 1024,
+      "reader_calls_per_page": 1,
+      "retained_prior_content_bytes": 0,
+      "token_hash": "sha256: plus 64 lowercase hexadecimal characters"
+    },
+    "claim_registration": {
+      "allowed_paths": [
+        "src/repo_git_adapter.py",
+        "tests/test_repo_git_adapter.py"
+      ],
+      "claim_id": "ABC-FCA03A-REV208",
+      "claim_state": "claimed_tests_first",
+      "hotfiles": [
+        "src/repo_git_adapter.py",
+        "tests/test_repo_git_adapter.py"
+      ],
+      "independent_qa": "Charlie/Terra fresh-context",
+      "owner": "Bob/Terra high judgment_required",
+      "prerequisites": [
+        "Revision 207 architecture packet raw blob, semantic digest and all listed pins read back exactly",
+        "both baseline blobs still equal worktree and HEAD and both scoped diffs remain empty",
+        "zero active writer or hotfile collision; ABC-NMG05A-REV203 remains disjoint",
+        "architecture and claim registered by Root in one compare-before transaction"
+      ],
+      "reviewer": "Root/Sol deep"
+    },
+    "collision_rules": [
+      "Any staged, unstaged, untracked or claimed change on either writer path blocks registration; never absorb or rebase foreign work.",
+      "Any change to a read-only pin invalidates the packet and requires a fresh same-snapshot architecture readback.",
+      "No FCA-03 six-path writer is opened by this predecessor packet.",
+      "The active NMG claim is disjoint and neither its paths nor its temp workspace may be read, written or reused."
+    ],
+    "control_plane": {
+      "budget": {
+        "custom_harnesses": 0,
+        "generated_program_layers": 0,
+        "helper_corrections": 0,
+        "runtime_layers": 0
+      },
+      "custom_harness_required": false,
+      "decision_enabled": "register one exact two-path tests-first FCA-03A writer claim",
+      "existing_checks_reused": [
+        "pytest exact nodes and full suites",
+        "py_compile",
+        "git diff and raw blob comparisons",
+        "existing Round6 and Guidance validators"
+      ],
+      "failure_action": "stop on preflight drift; after dispatch allow one target correction, then release_blocked on recurrence"
+    },
+    "correction_budget": {
+      "failure_class": "fca03a_revision_bound_resumable_page_cursor_object_binding_and_fca00_compatibility",
+      "limit": 1,
+      "on_repeat": "release_blocked and require a fresh Root/Sol architecture; no second product patch, scope widening or model reroute",
+      "used": 0
+    },
+    "cursor_and_page_algorithms": {
+      "cursor_hash": "SHA256(domain odysseus.forge.content_cursor.v2 NUL || u64be(canonical_metadata_bytes_length) || compact sorted-key finite UTF-8 metadata excluding cursor_hash)",
+      "empty_file": "Open emits offset zero; the one read requests zero bytes only for the exact zero-byte file, returns an empty terminal page and no next cursor.",
+      "normal_page": "expected_length=min(page_bytes,file_byte_count-next_offset); invoke the injected reader exactly once; require exact range identity, exact offset and exact bytes length; derive complete and next cursor locally.",
+      "page_hash": "SHA256(domain odysseus.forge.content_page.v2 NUL || u64be(metadata_length) || compact sorted-key finite UTF-8 metadata containing source cursor hash, offset, byte length, page-content SHA256, complete and next-cursor hash)",
+      "resume": "A cursor is a content-free immutable checkpoint. It binds the next offset and page size but is non-authorizing and does not prove prior pages were consumed, decoded, retained or hashed.",
+      "terminal": "complete is true iff offset+len(content)==file_byte_count; terminal pages expose next_cursor=None; every nonterminal page advances by exactly len(content)."
+    },
+    "error_boundary": {
+      "allowlisted_codes": [
+        "invalid_content_request",
+        "invalid_content_cursor",
+        "content_read_failed",
+        "content_range_mismatch",
+        "content_short_read"
+      ],
+      "exception": "ForgeSnapshotError(RepoGitAdapterError)",
+      "rules": [
+        "Every new public boundary raises a fresh exception with args equal one fixed allowlisted code and uses raise from None.",
+        "No path, content, authorization reference, callback text, exception text, repr, private marker or provider response crosses the error boundary.",
+        "Existing FCA-00 and ordinary RepoGitAdapter errors and messages remain unchanged."
+      ]
+    },
+    "forbidden": [
+      "changing ForgeSnapshotRequest, ForgeSnapshotInventory, ForgeExactReaderReference, ForgeSnapshotReader, MAX_FORGE_EXACT_READ_BYTES or any v1 schema/behavior",
+      "adding a read method to runtime-checkable ForgeSnapshotReader because that would invalidate accepted structural readers",
+      "content bytes, authorization_ref, provider response or private path in cursor serialization, repr, hash metadata, errors, logs, metrics or receipts",
+      "retaining prior page content, building a full-file buffer, caching pages, persistence, files, temporary files or module-global session state",
+      "filesystem or worktree reads, Git commands, subprocess, provider SDK, network, registry lookup, background job, watcher, runtime activation or import-time effects",
+      "decoding, text classification, chunking, line accounting, policy exclusion, coverage mutation or USI writes",
+      "treating cursor_hash, page_hash or caller-provided identity fields as authentication, authorization or cryptographic proof of source possession",
+      "third writer path, router/guidance edits, custom validator, live action, stage, commit, push, deploy or publication"
+    ],
+    "hostile_matrix": [
+      "zero-byte file; one byte; page_bytes-1; page_bytes; 1000001 bytes over two pages; 16777216 bytes over exactly 17 pages; file max-plus-one and page max-plus-one",
+      "cursor offset negative, bool, file max-plus-one, noncanonical integer, page-size substitution, cursor-hash mutation and terminal-cursor reuse",
+      "cursor replay across owner, repo, version, commit, snapshot, authority generation, canonical path, file digest or byte-count",
+      "provider range with foreign identity, wrong offset, short bytes, zero progress, overlong bytes, bytes beyond EOF, non-bytes content or changed full-file digest",
+      "NFC/NFD and casefold locator aliases resolve once through the inventory, while slash, drive, dot, ancestry, control, trailing-dot/space and reserved-device paths preserve FCA-00 rejection",
+      "exact dataclass and scalar subclasses, hostile __class__, attribute, equality, hashing, iteration, encoding, serialization, str and repr callbacks",
+      "mutation after validation, object.__setattr__ tamper, retained alias replacement and repeated-read disagreement for request, inventory, cursor and provider range",
+      "reader method lookup/call raises, returns wrong exact type, mutates caller objects or leaks private text; public error remains fresh, fixed and context-suppressed",
+      "cursor and page hashes collide only by supplied digest substitution attempts; every semantic field change changes the recomputed hash",
+      "page repr/projection and cursor to_dict contain no content or authorization_ref; cursor contains no bytes from prior pages",
+      "existing 75-case FCA-00 behavior and accepted FCA-02 dependency behavior remain unchanged",
+      "static diff adds zero filesystem, Git, subprocess, provider, network, persistence, worktree-scan, store, job, coverage or runtime calls"
+    ],
+    "invariants": [
+      "FCA-00 v1 remains a content-free inventory/reference contract; v2 is additive and uses a separate non-runtime-checkable ForgeResumableContentReader protocol.",
+      "Trusted orchestration supplies an authenticated ForgeSnapshotRequest, a matching exact immutable ForgeSnapshotInventory and an injected reader that repeats Forge authorization. This module authenticates none of them.",
+      "Open reconstructs exact request, authority, inventory file and cursor values once; read reconstructs them again before the callback and never rereads caller-owned mutable objects afterward.",
+      "The cursor path is the inventory's canonical exact path, never the caller alias. Request and inventory owner/repo/version/commit/authority fields must be exactly equal.",
+      "The reader receives only the detached request, canonical path, exact next offset and exact bounded expected length. No caller path, branch, HEAD, arbitrary range or worktree flag is forwarded.",
+      "A provider range is untrusted until exact-type captured and reconstructed; every identity field must equal the detached request, inventory file and cursor.",
+      "Except for the exact empty file, every successful page has positive exact expected length. No short page can advance or terminate the cursor.",
+      "The adapter holds only the current immutable bytes page while returning it and stores no session, prior content or cumulative buffer.",
+      "Cursor/page hashes bind metadata and current-page digest, not authority or proof of prior-page processing. FCA-03 must independently require every page and surface any read/decode/budget failure as partial or failed.",
+      "No page may authorize policy exclusion, coverage completion, indexing, repository selection, provider access or productive activation."
+    ],
+    "public_api": {
+      "additive_exports": [
+        "FORGE_CONTENT_CURSOR_SCHEMA_V2",
+        "FORGE_CONTENT_RANGE_SCHEMA_V2",
+        "FORGE_CONTENT_PAGE_SCHEMA_V2",
+        "MAX_FORGE_CONTENT_PAGE_BYTES",
+        "ForgeContentCursor",
+        "ForgeContentRange",
+        "ForgeContentPage",
+        "ForgeResumableContentReader",
+        "open_forge_content_cursor",
+        "read_forge_content_page"
+      ],
+      "exact_signatures": {
+        "ForgeResumableContentReader.read_exact_range": "(request: ForgeSnapshotRequest, *, path: str, offset: int, max_bytes: int) -> ForgeContentRange",
+        "open_forge_content_cursor": "(request: ForgeSnapshotRequest, inventory: ForgeSnapshotInventory, *, path: str, page_bytes: int = MAX_FORGE_CONTENT_PAGE_BYTES) -> ForgeContentCursor",
+        "read_forge_content_page": "(reader: ForgeResumableContentReader, request: ForgeSnapshotRequest, inventory: ForgeSnapshotInventory, cursor: ForgeContentCursor) -> ForgeContentPage"
+      },
+      "unchanged_exports": [
+        "ForgeSnapshotRequest",
+        "ForgeSnapshotInventory",
+        "ForgeExactReaderReference",
+        "ForgeSnapshotReader",
+        "MAX_FORGE_FILE_BYTES",
+        "MAX_FORGE_EXACT_READ_BYTES"
+      ]
+    },
+    "read_only_pins": {
+      "docs/plans/forge-usi-code-source-adapter-roadmap.md": "42cdecd6c2a62582d6e8b12aa1d588e230ee9c56",
+      "docs/plans/multi-agent-execution-guidance.json": "4bddbb2bb36a3391469f6f61cc1ac53dfe1a90bf",
+      "docs/plans/open-work-completion-master-roadmap.json": "4d5d786776b75585df81cafa6186eae5f21a5bce",
+      "docs/plans/parallel-roadmap-execution-round6.json": "9be0f7db204b738aa0394bf9def1e1775d767e38",
+      "docs/plans/parallel-roadmap-execution-round7.json": "ef510e921fdd6b32e94429543ef07895c71b0e44",
+      "src/repo_registry.py": "6eb2067dfbbbb2ad1538d8adadfb448d040a6adc",
+      "src/unified_source_index_code_coverage.py": "92a43ff51951134c68290d5e156bffd811c23539",
+      "src/unified_source_index_code_policy.py": "84b32e0508f162cf70441d4a090b502c58660445",
+      "src/unified_source_index_sources/forge_code.py": "6ecb59fd944cd7b33158e964eff88f4de915a6df",
+      "tests/test_repo_registry.py": "2a6e7c91c6b4f5d0fc88005b729e7bea45945da5",
+      "tests/test_unified_source_index_code_coverage.py": "21a648061cd311128e69d6862e69a440ba5ba394",
+      "tests/test_unified_source_index_code_policy.py": "4db2931edbaf16f30576e8ec53e6e36b08f85b4a",
+      "tests/test_unified_source_index_forge_code_source.py": "38f86696cd657dbc28da458a6e18b331e5001b4d"
+    },
+    "representation": {
+      "capture": "Exact built-in dataclass/scalar gate, single capture into fresh immutable local objects before any reader callback; no Mapping/Sequence protocols or caller object retention.",
+      "content": "Exact bytes only, one current page, repr-hidden, no to_dict/content projection and no internal retention after return.",
+      "cursor": "Frozen slotted exact dataclass with content-free to_dict, deterministic hash, canonical file identity, fixed page size and next offset; it contains no authorization reference.",
+      "page": "Frozen slotted exact dataclass with repr-hidden bytes, source cursor, derived completion, optional next cursor, current-page SHA256 and deterministic page hash.",
+      "protocol": "New separate ForgeResumableContentReader Protocol; do not modify the accepted runtime-checkable ForgeSnapshotReader protocol.",
+      "provider_range": "Frozen slotted exact dataclass returned by the injected reader; all identity and range fields are reconstructed and compared before a page is emitted."
+    },
+    "route": {
+      "architect": "root/Sol",
+      "independent_qa": "Charlie/Terra fresh-context",
+      "review": "Root/Sol deep",
+      "skills": [
+        "abc"
+      ],
+      "worker": "Bob/Terra high judgment_required because legacy compatibility, callback hostility and cursor/object binding require in-flight judgment"
+    },
+    "schemas": {
+      "cursor_v2": {
+        "fields": [
+          "schema",
+          "owner_scope",
+          "repo_id",
+          "version_id",
+          "commit_sha",
+          "snapshot_digest",
+          "path",
+          "file_content_sha256",
+          "file_byte_count",
+          "page_bytes",
+          "next_offset",
+          "authority_binding",
+          "cursor_hash"
+        ],
+        "schema": "odysseus.forge_content_cursor.v2"
+      },
+      "page_v2": {
+        "fields": [
+          "schema",
+          "source_cursor",
+          "offset",
+          "content",
+          "page_content_sha256",
+          "complete",
+          "next_cursor",
+          "page_hash"
+        ],
+        "schema": "odysseus.forge_content_page.v2"
+      },
+      "range_v2": {
+        "fields": [
+          "schema",
+          "owner_scope",
+          "repo_id",
+          "version_id",
+          "commit_sha",
+          "snapshot_digest",
+          "path",
+          "file_content_sha256",
+          "file_byte_count",
+          "offset",
+          "content",
+          "authority_binding"
+        ],
+        "schema": "odysseus.forge_content_range.v2"
+      }
+    },
+    "stop_rule": "Before dispatch stop on path/pin/baseline/claim drift, a need to modify ForgeSnapshotReader v1, a third writer path, inability to make the 1000001-byte and 16777216-byte nodes red for only declared missing behavior, or any need for persistence/provider/network/worktree access. After dispatch allow one correction for the declared failure class; recurrence releases blocked.",
+    "target": {
+      "outcome": "One additive ordinary-v2 stateless page boundary lets a future FCA-03 consumer read every byte of one authenticated immutable Forge snapshot file through bounded resumable calls without changing FCA-00 v1 semantics.",
+      "residual_limit": "The cursor is not proof that earlier pages were processed and page hashes are not Merkle proofs of the full file. A consumer that requires an independently recomputed whole-file digest must stream all pages, or restart at offset zero after losing its trusted hashing state.",
+      "trust_boundary": "Forge authenticates the request and supplies the injected exact range reader. This module only detaches, bounds and object-binds its response; it does not authenticate, authorize, access a repository or verify provider attestations."
+    },
+    "tests_first": {
+      "order": "Edit only tests/test_repo_git_adapter.py, materialize its candidate blob, collect all exact nodes, run them red with only missing v2 symbols/behavior, then edit src/repo_git_adapter.py.",
+      "red_precondition": "All twelve exact nodes collect; failures are limited to absent v2 exports and declared behavior. Any v1 regression, import error, fixture contradiction or unrelated failure blocks source editing.",
+      "required_nodes": [
+        "tests/test_repo_git_adapter.py::test_fca03a_v2_public_api_schemas_budgets_and_v1_exports_are_exact",
+        "tests/test_repo_git_adapter.py::test_fca03a_empty_file_returns_one_empty_terminal_page",
+        "tests/test_repo_git_adapter.py::test_fca03a_one_million_and_one_bytes_resume_without_gap_or_retention",
+        "tests/test_repo_git_adapter.py::test_fca03a_max_file_completes_in_exactly_seventeen_bounded_pages",
+        "tests/test_repo_git_adapter.py::test_fca03a_file_and_page_max_plus_one_fail_closed",
+        "tests/test_repo_git_adapter.py::test_fca03a_cursor_hash_binds_every_identity_offset_and_page_field",
+        "tests/test_repo_git_adapter.py::test_fca03a_cursor_cannot_rebind_owner_repo_revision_snapshot_path_digest_or_authority",
+        "tests/test_repo_git_adapter.py::test_fca03a_short_zero_progress_overlong_shifted_and_nonbytes_ranges_fail_closed",
+        "tests/test_repo_git_adapter.py::test_fca03a_exact_builtin_capture_rejects_subclasses_without_callbacks",
+        "tests/test_repo_git_adapter.py::test_fca03a_callback_mutation_and_post_validation_tamper_are_detached",
+        "tests/test_repo_git_adapter.py::test_fca03a_errors_are_fresh_bounded_content_free_and_suppress_context",
+        "tests/test_repo_git_adapter.py::test_fca03a_static_diff_has_zero_effects_and_cursor_projection_has_zero_content"
+      ]
+    },
+    "transactions": {
+      "revision_207": "Persist and freeze only this architecture path with exact raw blob, semantic digest, seal bytes and current pins; no router or claim mutation.",
+      "revision_208": "Root atomically registers claim ABC-FCA03A-REV208 against the identical packet/baselines/pins after a fresh collision check; writer then starts tests-first."
+    },
+    "verification": {
+      "central": [
+        "venv\\Scripts\\python.exe -B scripts\\validate_parallel_roadmap_execution.py --roadmap docs\\plans\\parallel-roadmap-execution-round6.json --format json",
+        "venv\\Scripts\\python.exe -B scripts\\roadmap_multi_agent_guidance.py --roadmap docs\\plans\\open-work-completion-master-roadmap.json --format json"
+      ],
+      "dependency": "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider tests\\test_repo_git_adapter.py tests\\test_unified_source_index_forge_code_source.py tests\\test_unified_source_index_code_coverage.py tests\\test_unified_source_index_code_policy.py tests\\test_repo_registry.py --basetemp .abc-test-tmp\\ABC-FCA03A-REV208\\dependency",
+      "focused": "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider tests\\test_repo_git_adapter.py --basetemp .abc-test-tmp\\ABC-FCA03A-REV208\\focused",
+      "independent": "Freeze the two candidate blobs, packet blob/digest, all pins and router snapshot; fresh QA reruns exact12, full focused, dependency, static and hostile matrices on the identical candidate.",
+      "not_authorized": [
+        "provider",
+        "network",
+        "private data",
+        "live runtime",
+        "stage",
+        "commit",
+        "push",
+        "deploy"
+      ],
+      "static": [
+        "py_compile src/repo_git_adapter.py tests/test_repo_git_adapter.py",
+        "exact two-path diff and zero staged paths",
+        "all baselines and pins exact",
+        "new-code AST/import scan proves zero filesystem, Git, subprocess, provider, network, store, job or runtime effects",
+        "v1 schema/constants/signatures and all historical FCA-00 nodes unchanged"
+      ]
+    }
+  },
+  "authority_revision": 206,
+  "schema": "odysseus.abc.sol_architecture_packet.v1",
+  "semantic_digest_framing": "SHA256(odysseus.abc.architecture_packet.v1 NUL || u64be(seal_bytes) || compact sorted-key finite UTF-8 architecture_seal)",
+  "semantic_digest_sha256": "sha256:8232bb5b6e15b78b42a85619923a00c83e83f630f37a7a5f6c44d316071856f2",
+  "semantic_seal_bytes": 19461,
+  "state": "frozen_standalone_proposed_rev207"
+}
