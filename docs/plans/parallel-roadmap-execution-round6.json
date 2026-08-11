@@ -2,8 +2,8 @@
   "schema_version": 1,
   "kind": "odysseus.parallel_roadmap_execution_round",
   "round_id": "round6",
-  "updated_at": "2026-08-11T21:10:00+02:00",
-  "status": "round6_authority_revision210_nmg05a_running_fca03a_claimed_tests_first",
+  "updated_at": "2026-08-11T21:45:00+02:00",
+  "status": "round6_authority_revision211_nmg05a_running_fca03a_released_blocked_fresh_architecture_required",
   "goal": "After accepted Round 5, expose disjoint Coding, Memory/Data and App Integration frontiers with independent QA while keeping every central router master-only.",
   "prerequisite": {
     "round5_state": "accepted_released",
@@ -829,7 +829,7 @@
       "lane": "memory_data",
       "slice": {
         "id": "FCA-03A-revision-bound-resumable-forge-content-reader",
-        "state": "claimed_tests_first",
+        "state": "normalization_blocked_fresh_architecture_required",
         "claimable": false,
         "depends_on": [
           "FCA-00-forge-source-inventory",
@@ -898,9 +898,11 @@
           }
         ],
         "remaining_user_gates": [],
-        "normalization_blockers": [],
+        "normalization_blockers": [
+          "Terminal same-class public ForgeContentPage validation recurrence after correction 1/1; fresh Root/Sol architecture is required before another writer claim."
+        ],
         "claim_id": "ABC-FCA03A-REV210",
-        "authority_revision": 210,
+        "authority_revision": 211,
         "architecture_binding": {
           "path": "docs/plans/abc-fca03a-revision-bound-resumable-forge-content-reader-architecture-v2.json",
           "raw_blob": "5000621ed45d2c6ff2a9f478286f7379896feb8e",
@@ -910,7 +912,7 @@
         "correction_budget": {
           "failure_class": "fca03a_revision_bound_resumable_page_cursor_object_binding_and_fca00_compatibility",
           "limit": 1,
-          "used": 0
+          "used": 1
         },
         "required_nodes": [
           "tests/test_repo_git_adapter.py::test_fca03a_v2_public_api_schemas_budgets_and_v1_exports_are_exact",
@@ -925,11 +927,17 @@
           "tests/test_repo_git_adapter.py::test_fca03a_callback_mutation_and_post_validation_tamper_are_detached",
           "tests/test_repo_git_adapter.py::test_fca03a_errors_are_fresh_bounded_content_free_and_suppress_context",
           "tests/test_repo_git_adapter.py::test_fca03a_static_diff_has_zero_effects_and_cursor_projection_has_zero_content"
-        ]
+        ],
+        "candidate_state": "rejected_unfrozen",
+        "candidate_blobs": {
+          "src/repo_git_adapter.py": "c2aeb6a796b8f5023f3ce957809c53039a4138e9",
+          "tests/test_repo_git_adapter.py": "148e7566f7cdf42158013860e3c0ba305692a048"
+        },
+        "release_outcome": "released_blocked_same_class_recurrence_after_correction_1_of_1",
+        "release_finding": "Public ForgeContentPage accepted and preserved invalid schema, cursor, offset, hashes, completion and next-cursor fields."
       },
       "source_evidence": "Rev209 compact rebind packet inherits the exact sealed FCA-03A v1 contract against Rev208 router pins; baselines and all thirteen pins re-read exactly."
-    }
-    ,
+    },
     {
       "roadmap_path": "docs/plans/rag-memory-tokenization-roadmap.md",
       "lane": "memory_data",
@@ -2170,41 +2178,6 @@
         "state": "accepted_owner_handoff_preserving_scope_lease_candidate_and_worktree",
         "worktree_unchanged": "C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone"
       }
-    },
-    {
-      "claim_id": "ABC-FCA03A-REV210",
-      "slice_id": "FCA-03A-revision-bound-resumable-forge-content-reader",
-      "owner": "Bob/Terra high judgment_required",
-      "thread_id": "/root/fca03a_writer_rev210",
-      "state": "running",
-      "claim_state": "claimed_tests_first",
-      "authority_revision": 210,
-      "claimed_at": "2026-08-11T21:10:00+02:00",
-      "lease_expires_at": "2026-08-12T09:10:00+02:00",
-      "mutation_authority": "repo_only",
-      "worktree": "C:\\Users\\nkatz\\odysseus",
-      "allowed_paths": [
-        "src/repo_git_adapter.py",
-        "tests/test_repo_git_adapter.py"
-      ],
-      "hotfiles": [
-        "src/repo_git_adapter.py",
-        "tests/test_repo_git_adapter.py"
-      ],
-      "baseline_blobs": {
-        "src/repo_git_adapter.py": "c8c1b7f904dbc9f0175bfe0d56c2343b2c462bdc",
-        "tests/test_repo_git_adapter.py": "5583fafedb487e36e45323bd6c7eaf3a914368ce"
-      },
-      "architecture_path": "docs/plans/abc-fca03a-revision-bound-resumable-forge-content-reader-architecture-v2.json",
-      "architecture_raw_blob": "5000621ed45d2c6ff2a9f478286f7379896feb8e",
-      "architecture_semantic_digest_sha256": "sha256:5b74506d92f6b4db3e072be1e333cb576f070e6aee31a4f8cf2a2dac46bb0533",
-      "candidate_state": "not_frozen",
-      "correction_budget": {
-        "failure_class": "fca03a_revision_bound_resumable_page_cursor_object_binding_and_fca00_compatibility",
-        "limit": 1,
-        "used": 0
-      },
-      "live_actions": false
     }
   ],
   "waves": [

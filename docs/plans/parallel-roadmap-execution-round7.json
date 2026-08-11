@@ -2,8 +2,8 @@
   "schema_version": 1,
   "kind": "odysseus.integration_spine_execution_round",
   "round_id": "ROUND7-HARBOR-ONE-INTEGRATION-CONVERGENCE",
-  "updated_at": "2026-08-11T21:10:00+02:00",
-  "status": "round7_authority_revision210_nmg05a_running_fca03a_claimed_tests_first",
+  "updated_at": "2026-08-11T21:45:00+02:00",
+  "status": "round7_authority_revision211_nmg05a_running_fca03a_released_blocked_fresh_architecture_required",
   "goal": "Converge the already designed Harbor One coding, Planning, USI/Memory, worker and lifecycle capabilities into one evidence-bound local agent loop without reopening accepted domain architecture and without crossing a live gate.",
   "change_policy": {
     "mode": "correct_and_integrate_not_fundamentally_replan",
@@ -3695,6 +3695,44 @@
           "release_outcome": "released_blocked_required_dependency_race",
           "released_at": "2026-08-11T13:05:00+02:00",
           "live_actions": false
+        },
+        {
+          "claim_id": "ABC-FCA03A-REV210",
+          "slice_id": "FCA-03A-revision-bound-resumable-forge-content-reader",
+          "owner": "Bob/Terra high judgment_required",
+          "thread_id": "/root/fca03a_writer_rev210",
+          "state": "released_blocked_same_class_recurrence",
+          "authority_revision": 211,
+          "claimed_at": "2026-08-11T21:10:00+02:00",
+          "released_at": "2026-08-11T21:45:00+02:00",
+          "mutation_authority": "repo_only",
+          "allowed_paths": [
+            "src/repo_git_adapter.py",
+            "tests/test_repo_git_adapter.py"
+          ],
+          "candidate_state": "rejected_unfrozen",
+          "candidate_blobs": {
+            "src/repo_git_adapter.py": "c2aeb6a796b8f5023f3ce957809c53039a4138e9",
+            "tests/test_repo_git_adapter.py": "148e7566f7cdf42158013860e3c0ba305692a048"
+          },
+          "correction_budget": {
+            "failure_class": "fca03a_revision_bound_resumable_page_cursor_object_binding_and_fca00_compatibility",
+            "limit": 1,
+            "used": 1,
+            "on_repeat": "release_blocked and require fresh Root/Sol architecture"
+          },
+          "release_finding": "Root/Sol public-boundary probe constructed ForgeContentPage with schema=bad, source_cursor=None, offset=-1, invalid hashes, complete=1 and next_cursor=bad; construction succeeded and preserved invalid fields, so the public dataclass boundary is not exact or fail-closed.",
+          "verification_summary": {
+            "tests_first_red": "12 failed only on missing v2 contract before source implementation",
+            "focused": "12 passed; full repo_git_adapter file 37 passed",
+            "dependency": "176 passed",
+            "static": "py_compile, diff scope and zero-effect AST passed",
+            "central": "Integration Spine, Round6 and Guidance passed",
+            "independent_qa": "not run because Root/Sol found terminal same-class recurrence before freeze"
+          },
+          "release_outcome": "released_blocked_same_class_recurrence_after_correction_1_of_1",
+          "next_action": "Do not patch or freeze this candidate. A fresh Root/Sol architecture is required before any new FCA-03A writer claim.",
+          "live_actions": false
         }
       ],
       "released_twp_repair_claims": [
@@ -3915,41 +3953,6 @@
             "state": "accepted_owner_handoff_preserving_scope_lease_candidate_and_worktree",
             "worktree_unchanged": "C:\\Users\\nkatz\\.codex\\visualizations\\2026\\08\\11\\019ff11a-c684-7232-893c-34b136ea2853\\nmg05a-standalone"
           }
-        },
-        {
-          "claim_id": "ABC-FCA03A-REV210",
-          "slice_id": "FCA-03A-revision-bound-resumable-forge-content-reader",
-          "owner": "Bob/Terra high judgment_required",
-          "thread_id": "/root/fca03a_writer_rev210",
-          "state": "claimed_tests_first",
-          "execution_state": "running",
-          "authority_revision": 210,
-          "claimed_at": "2026-08-11T21:10:00+02:00",
-          "lease_expires_at": "2026-08-12T09:10:00+02:00",
-          "mutation_authority": "repo_only",
-          "worktree": "C:\\Users\\nkatz\\odysseus",
-          "allowed_paths": [
-            "src/repo_git_adapter.py",
-            "tests/test_repo_git_adapter.py"
-          ],
-          "hotfiles": [
-            "src/repo_git_adapter.py",
-            "tests/test_repo_git_adapter.py"
-          ],
-          "baseline_blobs": {
-            "src/repo_git_adapter.py": "c8c1b7f904dbc9f0175bfe0d56c2343b2c462bdc",
-            "tests/test_repo_git_adapter.py": "5583fafedb487e36e45323bd6c7eaf3a914368ce"
-          },
-          "open_work_claim_pointer": "$.current_position.full_goal_progress.active_repo_claims[1]",
-          "architecture_id": "FCA-03A-REVISION-BOUND-RESUMABLE-FORGE-CONTENT-READER-SOL-ARCH-v2",
-          "architecture_path": "docs/plans/abc-fca03a-revision-bound-resumable-forge-content-reader-architecture-v2.json",
-          "architecture_raw_blob": "5000621ed45d2c6ff2a9f478286f7379896feb8e",
-          "architecture_semantic_digest_sha256": "sha256:5b74506d92f6b4db3e072be1e333cb576f070e6aee31a4f8cf2a2dac46bb0533",
-          "inherited_v1_raw_blob": "2ca38eafa20eaf3e1c586f27d18797f331c21457",
-          "candidate_state": "not_frozen",
-          "correction_used": 0,
-          "correction_limit": 1,
-          "live_actions": false
         }
       ],
       "canonical_baseline_reference": {
@@ -3984,7 +3987,7 @@
         "observed_post_snapshot_blob": "77f5f88feb3193caf50126f16f2a5edf88e0e441",
         "live_actions_authorized": false
       },
-      "next_action": "Run NMG-05A only in its transferred unchanged standalone worktree and FCA-03A only under ABC-FCA03A-REV210 on its exact two clean paths; freeze and independently review each candidate before acceptance, with no push, deploy or live action.",
+      "next_action": "Continue NMG-05A only under its unchanged transferred claim; FCA-03A is released_blocked after same-class recurrence and requires fresh Root/Sol architecture. Reflect one disjoint dependency-ready repo-only frontier; no push, deploy or live action.",
       "live_actions_authorized": false
     }
   },
