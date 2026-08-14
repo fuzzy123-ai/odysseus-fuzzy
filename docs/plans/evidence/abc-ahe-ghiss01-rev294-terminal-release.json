@@ -1,0 +1,55 @@
+{
+  "architecture_digest_sha256": "sha256:58ab90191f20fbafd60de505c4b8709b7dd409f2722fb42fd03a0d0489c1cc7f",
+  "architecture_path": "docs/plans/abc-ahe-ghiss01-local-duplicate-search-evidence-architecture.json",
+  "architecture_raw_blob": "7925944f25a5764158f233312ab9ed4c273272a0",
+  "authority_revision": 294,
+  "baseline_blobs": {
+    "src/agent_loop.py": "f05964f03c1280f51493300911cf0adbe434976d",
+    "src/claim_evidence_gate.py": "bc082142f8ac6dfe284f656f1392fd6219dca7b9",
+    "src/tool_domains/github_issues.py": "263ca48c8898133bed2515d85911938ba0fed68e",
+    "tests/test_claim_evidence_gate.py": "978f3907161f819ef353a8a17dcd253cfb391c4a"
+  },
+  "candidate_blobs": {
+    "src/agent_loop.py": "a0883f67b2ff3f98498d5d03316a7b4189f0f0ab",
+    "src/claim_evidence_gate.py": "69b3f1f43e0cb8f153e99437ce8bed54408e2c8e",
+    "src/tool_domains/github_issues.py": "049ebfc51cc02743f8b9f07b8d00719eafe6702d",
+    "tests/test_claim_evidence_gate.py": "a3b81508251e6e635060d1d6225078257ce3a4de"
+  },
+  "candidate_dirty_diff_bytes": 31837,
+  "candidate_dirty_diff_digest_sha256": "sha256:aef26a618f06e5267cbc0014da1b3130affeaec232b5d60261f507341d415792",
+  "candidate_git_objects_materialized": true,
+  "candidate_state": "rejected_unfrozen",
+  "claim_id": "ABC-AHE-GHISS01-REV293",
+  "correction_budget": {
+    "after_repeat": "stop_and_rearchitect",
+    "failure_class": "ahe_ghiss01_exact_local_duplicate_search_receipt_and_claim_boundary",
+    "limit_per_invariant": 1,
+    "used": 1
+  },
+  "execution_commit": "79e52bbcf92dd6860cc1334e8926b9b0a8e52c60",
+  "kind": "odysseus.abc_terminal_claim_evidence",
+  "live_actions": false,
+  "release_finding": "After the one allowed single-snapshot receipt correction, the exact positive-claim grammar still accepts the explicitly negated sentence 'I checked no GitHub issue duplicates locally.' as supported because the nonpositive scan inspects only text before the completion verb. This recurs in the exact local duplicate receipt and claim-language boundary class.",
+  "release_outcome": "released_blocked_same_class_negated_claim_language_recurrence_after_correction_1_of_1",
+  "released_at": "2026-08-15T00:31:18+02:00",
+  "schema_version": 1,
+  "slice_id": "AHE-GHISS-01-local-duplicate-search-evidence",
+  "state": "released_blocked",
+  "verification": {
+    "central": "Integration, Round6 and Guidance PASS on Revision293 authority",
+    "dependency": "173 passed",
+    "diff_check": "pass",
+    "focused": "95 passed",
+    "independent_qa_preparation": "identified and drove the single-snapshot receipt binding correction; final acceptance QA not started after terminal recurrence",
+    "root_counterexample": "content-free public probe reproduced supported for an explicitly negated duplicate-check sentence",
+    "static": "py_compile exact four paths pass",
+    "tests_first": "exact six-node valid RED before source; first full GREEN preceded the single-snapshot binding RED/correction",
+    "target_nodes": "6 passed after correction"
+  },
+  "writer_paths": [
+    "src/agent_loop.py",
+    "src/claim_evidence_gate.py",
+    "src/tool_domains/github_issues.py",
+    "tests/test_claim_evidence_gate.py"
+  ]
+}
