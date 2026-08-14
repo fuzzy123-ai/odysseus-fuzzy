@@ -1,0 +1,315 @@
+{
+  "schema_version": 1,
+  "roadmap_id": "telegram-windows-pc-control-2026-08-11",
+  "title": "Telegram-gesteuerte Windows-Energie- und Codex-Steuerung",
+  "status": "repo_verified_waiting_live_activation",
+  "intent": {
+    "source": "explicit_user_request",
+    "requested_at": "2026-08-11",
+    "objective": "Den Windows-PC ueber den bestehenden Debian-Telegram-Kanal aufwecken, seinen redigierten Status lesen, Codex in einer interaktiven Sitzung starten und nach Bestaetigung sperren, in den Ruhezustand versetzen oder herunterfahren.",
+    "safe_default": "Repo-seitig default-off implementieren; keine Live-Aktivierung, Systemaenderung, Credential-Erzeugung oder automatische Windows-Anmeldung ohne separates aktionsspezifisches GO."
+  },
+  "released_claim": {
+    "claim_id": "TWP-01-repo-control-plane",
+    "owner": "root",
+    "status": "verified_complete_with_dependency_repair_required",
+    "released_at": "2026-08-11T13:08:00+02:00",
+    "write_path_count": 15,
+    "finding": "A later deterministic audit proved an in-process lost-update race in TelegramInboxStore and an offline webhook-test typing transport escape; the live gates remain unchanged and closed."
+  },
+  "current_claim": {
+    "claim_id": "ABC-TWP01R1-REV191",
+    "slice_id": "TWP-01R1-history-serialization-and-offline-test-boundary",
+    "owner": "Bob/Terra Telegram history concurrency repair writer",
+    "thread_id": "/root/twp_history_repair_writer",
+    "status": "released_accepted",
+    "claimed_at": "2026-08-11T13:09:00+02:00",
+    "lease_expires_at": "2026-08-12T01:09:00+02:00",
+    "authority_revision": 192,
+    "authority_rebind_reason": "An independently user-authorized Windows agent-install live receipt changed only TWP gate/evidence fields while this repo-only candidate was still unfrozen; writer paths, baselines, architecture and dependency pins remained exact.",
+    "external_live_authority_blob_before_rebind": "0f2f0447e6d2e384c08fd24d87c255c900d84b6e",
+    "dependency_ready": true,
+    "mutation_authority": "repo_only",
+    "allowed_paths": [
+      "plugins/telegram/stores.py",
+      "tests/test_telegram_plugin.py"
+    ],
+    "baseline_blobs": {
+      "plugins/telegram/stores.py": "335fed5dab642aedca29ca424f860147d6e3f4fe",
+      "tests/test_telegram_plugin.py": "6f578d997dda1df0514716cb8e47ed4ae4e29324"
+    },
+    "baseline_readback": "materialized_exact_binary_readback_pass",
+    "read_only_pins": {
+      "plugins/telegram/plugin.py": "a81772ea7087e49079450dcfb08f4a575cdf25ae",
+      "plugins/telegram/webhook_service.py": "bad208c9efed43a35f353aa4b9895c4f72e9ed89",
+      "plugins/telegram/polling.py": "3fd6615010cd186527692d1a2684a0c8aee51d19",
+      "plugins/telegram/audit_store.py": "18c231310ba78be591c2ad1b44379ae7784ac4d4",
+      "plugins/telegram/outbound.py": "4c18c85bfecb6b7d834d7d0caaecdd060acf2aaa",
+      "plugins/telegram/history_privacy.py": "32d1bb8eeab1d3e94b3b21385719154c24994e5d",
+      "plugins/telegram/pc_control.py": "722ca59b0d3677bf74ac8d41fe942765af3d395c",
+      "plugins/telegram/routes_pc_control.py": "5697b2199ec1dce90def5855e63cd4456636fe47",
+      "tests/test_telegram_pc_control.py": "d5dcc3e5bb790db11e2d706fa197e8489fda0e41",
+      "tests/test_telegram_pc_control_routes.py": "6c472ff3a372230a46b2b463dc22ea57c01aa2db",
+      "plugins/telegram/turn_observability.py": "55102fda085fecb1b1924fd726dfa64c211ee805",
+      "tests/test_telegram_turn_observability.py": "6f2282e73795383eeef2539c237d7ac1b0c26a9b"
+    },
+    "preclaim_authority": {
+      "twp_roadmap_blob": "cd072af0fcfa6ab230d89bba16d3423669f396a1",
+      "open_work_blob": "f45bd147bf79957d6b07a9040018234f04d8dcd4",
+      "round7_blob": "7da61fddec53b07a1c285b94f7a9b41979389d37",
+      "hash_identity": "git_hash_object_no_filters"
+    },
+    "architecture": {
+      "architect": "root/Sol",
+      "architecture_revision": "TWP-01R1-HISTORY-SERIALIZATION-OFFLINE-BOUNDARY-SOL-ARCH-v1",
+      "route": "judgment_required_gpt-5.6-terra_high",
+      "failure_class": "twp01r1_in_process_history_serialization_and_offline_typing_boundary",
+      "correction_limit": 1,
+      "correction_used": 0,
+      "contract": [
+        "Add one module-level threading.RLock shared by every TelegramInboxStore instance; an instance-local lock is forbidden because multiple instances address the same history file.",
+        "Serialize every complete Telegram history read-modify-write transaction, including nested duplicate and blocked or unsupported event appends; acquire before the first history read and release only after the corresponding history write or bounded failure.",
+        "Serialize history projections against concurrent writes and return detached records; preserve the existing JSON schema, file path, public signatures and best-effort audit behavior.",
+        "Reentrancy must not deadlock, exceptions must release the lock, and the contract is explicitly in-process only; do not invent cross-process locking, migration, retries or a new store layer.",
+        "The webhook agent-turn test must fake both text and typing transports and install a failing low-level transport sentinel so the offline lane cannot call Telegram or another provider.",
+        "The repair does not activate Telegram, alter tokens, send messages, change PC-control semantics or accept any live gate."
+      ],
+      "forbidden": [
+        "third writer path or edit to plugin, webhook, polling, outbound, PC-control, routes, roadmap or central routers by the worker",
+        "cross-process lock, lock file, persistence migration, queue, retry worker or new public API",
+        "raw token, chat id, provider response or exception content",
+        "network, provider, live, stage, commit, push or deploy action"
+      ],
+      "stop_rule": "One bounded correction for the declared race/offline-boundary class; recurrence releases blocked and requires fresh Root/Sol architecture."
+    },
+    "tests_first": {
+      "workspace": {
+        "writer": ".abc-test-tmp/ABC-TWP01R1-REV191/writer",
+        "writer_retry": ".abc-test-tmp/ABC-TWP01R1-REV191/writer-retry",
+        "qa": ".abc-test-tmp/ABC-TWP01R1-REV191/qa"
+      },
+      "workspace_correction": {
+        "used": 1,
+        "limit": 1,
+        "reason": "The first exact writer basetemp became non-reusable after a successful tests-first RED session because pytest encountered WinError 5 during its own cleanup; no recursive deletion, ACL change, QA-workspace reuse or product correction is authorized.",
+        "rule": "Use writer_retry once for remaining writer lanes. Any recurrence triggers the control-plane circuit breaker and returns the candidate without further workspace machinery."
+      },
+      "required_nodes": [
+        "tests/test_telegram_plugin.py::test_telegram_inbox_store_serializes_cross_instance_append_transactions",
+        "tests/test_telegram_plugin.py::test_telegram_inbox_store_concurrent_typing_failure_preserves_terminal_history",
+        "tests/test_telegram_plugin.py::test_telegram_inbox_store_nested_duplicate_append_is_reentrant_and_exception_safe",
+        "tests/test_telegram_plugin.py::test_webhook_invokes_agent_turn_handler_and_gated_reply"
+      ],
+      "focused": "all four exact nodes and full tests/test_telegram_plugin.py",
+      "dependency": [
+        "tests/test_telegram_status.py",
+        "tests/test_telegram_history_privacy.py",
+        "tests/test_telegram_webhook_service.py",
+        "tests/test_telegram_pc_control.py",
+        "tests/test_telegram_pc_control_routes.py",
+        "tests/test_telegram_turn_observability.py"
+      ],
+      "central": [
+        "integration spine validator",
+        "Round6 validator",
+        "Guidance validator"
+      ]
+    },
+    "candidate_state": "accepted",
+    "candidate_frozen_at": "2026-08-11T13:22:00+02:00",
+    "candidate_blobs": {
+      "plugins/telegram/stores.py": "246c2196413f7d201007a57ee5f39daa9d789b30",
+      "tests/test_telegram_plugin.py": "efdbc24df199f047871aeb6d18806707e2d2a58f"
+    },
+    "candidate_set_digest_sha256": "sha256:036951163de72cce6a3e0ccf75045c748132f332e40ac8181ece0cd9112ae773",
+    "candidate_dirty_diff_digest_sha256": "sha256:33a2594cd585f623c660c110c8e20a0649475ff71f42d5385ef69d31e06cd6a3",
+    "candidate_dirty_diff_byte_length": 16996,
+    "candidate_command_manifest_digest_sha256": "sha256:2b3533e1c0af1ca53ffe9c62fe0c24efcf8ffb24250660b91c5c50a7c9bdfb40",
+    "candidate_command_manifest": [
+      "venv\\Scripts\\python.exe -B -m pytest -q -p no:cacheprovider tests/test_telegram_plugin.py tests/test_telegram_status.py tests/test_telegram_history_privacy.py tests/test_telegram_webhook_service.py tests/test_telegram_pc_control.py tests/test_telegram_pc_control_routes.py tests/test_telegram_turn_observability.py --basetemp .abc-test-tmp/ABC-TWP01R1-REV191/qa",
+      "venv\\Scripts\\python.exe -B -m py_compile plugins/telegram/stores.py tests/test_telegram_plugin.py",
+      "venv\\Scripts\\python.exe -B scripts/validate_integration_spine_convergence.py --format json",
+      "venv\\Scripts\\python.exe -B scripts/validate_parallel_roadmap_execution.py --format json",
+      "venv\\Scripts\\python.exe -B scripts/roadmap_multi_agent_guidance.py --format json"
+    ],
+    "candidate_pytest_node_digest_sha256": "sha256:18a8b818a6752eb4468e516521dec885f75b57f990c463ad5e1bf5e2cee28a79",
+    "candidate_pytest_node_ids": [
+      "tests/test_telegram_plugin.py::test_telegram_inbox_store_concurrent_typing_failure_preserves_terminal_history",
+      "tests/test_telegram_plugin.py::test_telegram_inbox_store_nested_duplicate_append_is_reentrant_and_exception_safe",
+      "tests/test_telegram_plugin.py::test_telegram_inbox_store_serializes_cross_instance_append_transactions",
+      "tests/test_telegram_plugin.py::test_webhook_invokes_agent_turn_handler_and_gated_reply"
+    ],
+    "freeze_authority_snapshot": {
+      "twp_roadmap_blob": "31e4359c30d60192b1010476f2b8fb1dd274136f",
+      "open_work_blob": "1c9f72a51da289257c67f6b9813f09ef7eed2a68",
+      "round7_blob": "ee36ee34d313e7407b4496c72a5476aa17bc590e",
+      "kind": "exact_pre_freeze_transaction_inputs"
+    },
+    "acceptance_evidence": {
+      "focused": "4 passed",
+      "full_plugin": "125 passed",
+      "declared_dependency": "65 passed",
+      "independent_combined": "190 passed",
+      "hostile_matrix": "cross-instance serialization, terminal-history retention, reentrancy, exception release, detached projection and offline transport boundary passed",
+      "static": "public method set and signatures unchanged; all history read/write methods serialized; py_compile and diff-check passed",
+      "central": "Integration Spine, Round6 and Guidance passed",
+      "sol_review": "deep_pass"
+    },
+    "released_at": "2026-08-11T13:28:00+02:00",
+    "release_outcome": "accepted_in_process_history_serialization_and_offline_test_boundary",
+    "live_actions": []
+  },
+  "acceptance": [
+    "Nur allowlist-gepruefte Telegram-Chats erreichen die PC-Kommandos.",
+    "Wake-on-LAN ist separat gegated und akzeptiert ausschliesslich eine streng validierte MAC-Adresse und IPv4-Broadcastadresse.",
+    "Shutdown und Ruhezustand benoetigen eine kurzlebige, chatgebundene Zweischritt-Bestaetigung.",
+    "Der Windows-Agent pollt ausgehend und akzeptiert nur HMAC-signierte, zeitgebundene, replay-geschuetzte Antworten; kein Windows-Listener wird exponiert.",
+    "Persistierte Zustandsdaten enthalten weder rohe Chat-/Sender-IDs noch MAC-Adresse, Agent-Secret, Telegram-Token, private Pfade oder Rohinhalte.",
+    "Der Windows-Agent startet Codex nur in einer interaktiven Benutzersitzung, dedupliziert Aktions-IDs und speichert das Agent-Secret DPAPI-geschuetzt.",
+    "Alle Live-Funktionen bleiben ohne explizite Umgebungs-Gates inert und sind offline mit Fakes testbar.",
+    "Fokussierte Parser-, Store-, HMAC-, Replay-, Confirmation-, Route- und PowerShell-Vertragstests bestehen."
+  ],
+  "slice_queue": [
+    {
+      "id": "TWP-01-repo-control-plane",
+      "status": "implemented_focused_verified_dependency_repaired",
+      "class": "repo_only",
+      "owner": "root"
+    },
+    {
+      "id": "TWP-02-windows-live-activation",
+      "status": "agent_installed_wake_blocked_on_driver_and_manual_uefi",
+      "class": "live_system_change",
+      "gate_ids": [
+        "windows-pc-agent-install-go",
+        "windows-wake-settings-go",
+        "windows-realtek-driver-install-go"
+      ]
+    },
+    {
+      "id": "TWP-03-debian-live-activation",
+      "status": "waiting_on_user",
+      "class": "live_deploy",
+      "gate_ids": [
+        "debian-pc-control-deploy-go",
+        "telegram-pc-control-live-smoke-go"
+      ]
+    }
+  ],
+  "gate_queue": [
+    {
+      "id": "windows-pc-agent-install-go",
+      "status": "completed",
+      "accepted_at": "2026-08-11",
+      "completed_at": "2026-08-11",
+      "requires": "Exactes GO fuer DPAPI-Secretablage und Registrierung einer benutzerbezogenen Windows-Aufgabe samt Rollback."
+    },
+    {
+      "id": "windows-wake-settings-go",
+      "status": "accepted_blocked_driver_capability_absent",
+      "accepted_at": "2026-08-11",
+      "requires": "Exactes GO fuer administrative Netzwerkkarten-/Energieeinstellungen; BIOS/UEFI bleibt eine manuelle Betreiberaktion."
+    },
+    {
+      "id": "windows-realtek-driver-install-go",
+      "status": "open",
+      "requires": "Separates GO fuer Download, Signaturpruefung und Installation eines offiziellen Realtek-RTL8111H-Treibers; die Ethernet-Verbindung kann dabei kurz ausfallen und ein Neustart kann erforderlich werden."
+    },
+    {
+      "id": "debian-pc-control-deploy-go",
+      "status": "open",
+      "requires": "Exactes Deploy-GO mit Backup, Rollback, redigierter Env-Bereitschaft und Versionsreadback."
+    },
+    {
+      "id": "telegram-pc-control-live-smoke-go",
+      "status": "open",
+      "requires": "Exactes GO fuer einen Wake-/Status-/Ruhezustand-Smoke; echtes Herunterfahren bleibt ein separates bestaetigtes Telegram-Kommando."
+    },
+    {
+      "id": "windows-autologon-go",
+      "status": "deferred_not_recommended",
+      "requires": "Separate Risikoentscheidung und Credential-Rollback; nicht Teil der sicheren Standardvariante mit bestehender Sitzung plus Ruhezustand."
+    }
+  ],
+  "live_receipts": [
+    {
+      "id": "windows-pc-agent-install-2026-08-11",
+      "gate_id": "windows-pc-agent-install-go",
+      "status": "completed",
+      "authority": "explicit_user_GO_windows-pc-agent-install",
+      "changes": [
+        "Generated a new agent credential without emitting its value and stored it with current-user DPAPI protection.",
+        "Installed the verified outbound-only PC agent in the current user's LocalAppData.",
+        "Registered the limited, interactive-logon scheduled task Odysseus Telegram PC Agent with a five-second polling interval.",
+        "Corrected the agent nonce generator for Windows PowerShell 5.1 compatibility before installation."
+      ],
+      "rollback": "Run install-pc-agent.ps1 -Uninstall; it unregisters the task and archives the agent directory instead of deleting it.",
+      "readback": [
+        "Task is Ready, limited, interactive-logon scoped and bound to the expected PowerShell agent and config arguments.",
+        "Task principal canonically matches the active interactive Windows session and the credential encryption context.",
+        "Configuration is HTTPS-only, targets the expected endpoint, uses five-second polling and keeps raw-content and secret-value visibility disabled.",
+        "DPAPI credential decryptability and minimum validity passed without revealing the credential.",
+        "Installed agent hash matches the focused-tested source."
+      ],
+      "not_executed": [
+        "Scheduled task start or agent network poll",
+        "Codex launch",
+        "Wake-on-LAN settings or wake attempt",
+        "Debian credential installation, deploy or restart",
+        "Telegram live smoke"
+      ]
+    },
+    {
+      "id": "windows-wake-settings-assessment-2026-08-11",
+      "gate_id": "windows-wake-settings-go",
+      "status": "blocked_without_mutation",
+      "authority": "explicit_user_GO_windows-wake-settings",
+      "observations": [
+        "The active wired adapter uses the signed Microsoft inbox driver 9.1.410.2015 dated 2015-10-04 for Realtek hardware.",
+        "The driver exposes no Wake-on-LAN or Magic Packet advanced property.",
+        "Windows reports no D0, D1, D2 or D3 wake capability, no WMI wake-enable object and no wake-programmable or wake-armed entry.",
+        "The local Driver Store contains no newer compatible driver for this adapter."
+      ],
+      "changes": [],
+      "rollback": "No Windows wake setting was mutated, so no rollback is required.",
+      "next_action": "Obtain a separate driver-install GO, install and verify an official signed Realtek RTL8111H driver, then enable Magic Packet wake and powercfg device wake if the new driver exposes them. The operator must also enable Advanced > ACPI Configuration > PCIE Devices Power On in UEFI."
+    }
+  ],
+  "verification": {
+    "evidence_date": "2026-08-11",
+    "passed": [
+      "171 passed: Telegram plugin, control service, route contract, PC-control routes and service, and redacted homeserver probe focused suite",
+      "Python bytecode compilation passed for every touched Python module and test",
+      "PowerShell AST parser validation passed for both Windows agent scripts",
+      "redacted_runtime_probe.py --self-check passed",
+      "docker-compose.yml static YAML parse passed",
+      "git diff --check found no whitespace errors in the tracked claimed paths",
+      "Read-only live metadata confirmed the Debian service and Telegram poll timer are active",
+      "Redacted public endpoint check confirmed the configured HTTPS tunnel is reachable with HTTP 200 and a valid JSON response shape"
+      ,"Windows PowerShell 5.1 AST and compatibility validation passed after replacing the unavailable static RNG Fill API with Create().GetBytes()."
+      ,"9 passed: focused Telegram PC-control suite after the Windows agent compatibility correction."
+      ,"Redacted Windows installation readback passed for task, principal, configuration, DPAPI credential and installed-source identity."
+      ,"Redacted Windows wake inventory proved the current driver exposes no wake properties or PnP/WMI wake capability."
+      ,"Redacted Driver Store compatibility inventory found no newer compatible local driver."
+    ],
+    "observed_blockers": [
+      "Wake-on-LAN is blocked by the 2015 Microsoft inbox Ethernet driver, which exposes no wake capability; an official Realtek RTL8111H driver installation requires a separate live GO.",
+      "The ASRock UEFI Advanced > ACPI Configuration > PCIE Devices Power On option still requires manual operator verification and enablement.",
+      "The Debian PC-control environment, deployment and live smoke have not been activated."
+    ],
+    "not_verified": [
+      "Wake-on-LAN from the Debian host to this PC",
+      "Codex launch after a real wake/resume cycle",
+      "Telegram status, lock, hibernate or shutdown against a live Windows agent",
+      "Recovery after a full shutdown without manual Windows sign-in"
+    ],
+    "not_authorized": [
+      "Live Telegram send",
+      "Ethernet driver download or installation",
+      "UEFI/BIOS mutation",
+      "Debian deploy or service restart",
+      "Debian credential installation or migration",
+      "Git stage, commit, push or deploy"
+    ]
+  }
+}
