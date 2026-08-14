@@ -319,10 +319,20 @@ Current external blockers:
   big-data ledger contract, TWP-01 repair, ACPR-13D, FCA-03A v3, NMG-02A,
   UDA-05 v4, NMG-03 native-adapter acceptance, and RMT8-v2 effective-input
   state-matrix recovery.
-- Independent context-free continuity review: PASS after correcting checkout
-  discovery, the newer TRP-05/TRP-06 acceptance precedence, TAX0/TAX1/TAX7
-  status, and the terminal TRP-07 stop rule. Independent privacy review of this
-  handoff also passes.
+- Independent context-free continuity review of this handoff itself passes for
+  checkout discovery, newer TRP-05/TRP-06 acceptance precedence,
+  TAX0/TAX1/TAX7 status, and the terminal TRP-07 stop rule. The separate
+  72-record continuation inventory still needs a post-claim enrichment before
+  final continuity can pass: 62 records use `not_declared` next actions, 40
+  lack a closed stop rule, 22 lack a concrete verification route, 16 expose a
+  list instead of a scalar status, and six HWA locators misuse JSON Pointer
+  syntax on Markdown. A complete Rev288 enrichment candidate was generated
+  and validated, but was not persisted because the current HWA2A-v4 claim
+  pins the inventory at raw blob
+  `3237c7311481a0c1d7d165c323c1d880326ccbe5`. Preserve that pin until the
+  claim freezes/releases; then publish the enriched inventory, update its
+  authority tuple and rerun an independent context-free audit. Independent
+  privacy review of this handoff passes.
 - Fresh native-Python readback on the current Revision 288 bytes passes all
   three central validators: Integration Spine `ok:true`, Round 6 `valid:true`
   with 30/30 rows and zero claimable frontiers, and Guidance `valid:true` with
@@ -834,6 +844,12 @@ answer all of the following from repository files alone:
 - What exact redacted deployment, backup, rollback, and health route applies?
 - Which single external action, if any, is still awaiting platform approval?
 
+Current checklist status: **pending**. The Master Handoff answers these
+questions globally, but the 72-record continuation inventory still has the
+field-level gaps recorded in section 6. Do not claim context-free completion
+until its post-HWA enrichment is durably materialized and independently
+re-audited.
+
 When this snapshot changes, update the snapshot date, revision, workspace
 identities, release evidence, open-lane rows, immediate sequence, and
 `Not verified` statements. Do not copy raw private diagnostics into this file.
@@ -850,6 +866,11 @@ identities, release evidence, open-lane rows, immediate sequence, and
 - Debian access recovery through the approved SSH identity path, deployment,
   health/revision readback, or live STT/runtime smoke.
 - UI-live readiness and Version 1.0 release.
+- Field-complete context-free enrichment of all 72 continuation records. It is
+  serialized behind the active HWA2A-v4 read-only pin on the current inventory
+  blob; after claim release every record must have a scalar status, concrete
+  safe next action, stop rule, verification route, dependencies, valid source
+  locator and current authority source, followed by fresh independent review.
 - HWA2A-v4 tests-first candidate, freeze, independent QA, Deep-Sol and
   acceptance/release. Claim-origin/source projection, Evidence, clean detached
   baseline and central Rev288 registration are verified; only the exact two
