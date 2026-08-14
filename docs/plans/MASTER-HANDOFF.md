@@ -2,7 +2,7 @@
 
 Snapshot: 2026-08-14, Europe/Berlin
 Continuity deadline: 2026-08-16 00:00 Europe/Berlin
-Canonical authority at snapshot: Open Work / Round 7 Revision 288
+Canonical authority at snapshot: Open Work / Round 7 Revision 289
 Verified progress: 173 accepted of 245 canonical units
 Open units: 72 (19 repo, 19 design, 30 live, 4 operator)
 
@@ -62,15 +62,16 @@ Newer accepted/released records override stale earlier `planned`, `blocked`, or
 - Purpose: complete structured authority, accepted product work, foreign work,
   and historical evidence.
 - Branch at snapshot: `codex/implemenetaion`.
-- HEAD after the Rev288 registration-Evidence commit:
-  `ec9a0052c3be7b638805c5c8a5c09a68ca136bdf`
-  (`docs: register HWA2A v4 tests-first claim`), parent
-  `54ce034607f7d495819c7724f3e2559226c4e708`. Never use a handoff commit
+- Latest committed continuity artifacts before this Master Handoff update:
+  context-free inventory commit
+  `e8292e77388bab06389f18e6d31bbbfcc5b06d0c` and HWA2A-v5 architecture
+  commit `59c5f76aa2532ec120e91cd111480f4a690ed068`; their predecessor is
+  `d15cdd7b1cf01a5be1ced846f26abb9fe9404cf7`. Never use a handoff commit
   itself as product authority; use the exact accepted claim tuples instead.
-- State after that exact commit: 211 dirty paths (53 tracked-modified, 158
+- Current diagnostic state: 212 dirty paths (54 tracked-modified, 158
   untracked), index empty. This count is diagnostic only and may change as
   disjoint accepted work lands; exact path-scoped claims remain authoritative.
-- Planning subtree: 0 staged entries, 22 tracked-modified entries, and 126
+- Planning subtree: 0 staged entries, 21 tracked-modified entries, and 125
   untracked entries. The central authorities
   are intentionally modified; the terminal R7-A2 packet and freeze Evidence
   are untracked but exactly hash-pinned by durable authority. Untrackedness
@@ -240,7 +241,7 @@ Current external blockers:
 
 ## 6. Global roadmap state
 
-- Open Work and Round 7 are at authority Revision 288.
+- Open Work and Round 7 are at authority Revision 289.
 - The canonical denominator is verified and published: 173 accepted of 245
   unique units, leaving 72 open (19 repo, 19 design, 30 live, 4 operator).
 - The published snapshot binds all 30 active source-roadmap blobs, the exact
@@ -248,18 +249,16 @@ Current external blockers:
   reviewed deterministic candidate. Do not recompute or replace the
   denominator from stale prose; re-open denominator work only if a current
   source or authority byte changes and the routers explicitly invalidate it.
-- Exactly one central repo claim and lease is active:
-  `ABC-HWA2A-V4-REV287`, state `running`, candidate `not_frozen`, lease through
-  `2026-08-15T09:15:00+02:00`. It owns exactly
-  `src/headless_write_agent_state.py` and
-  `tests/test_headless_write_agent_state.py` in the clean detached checkout at
-  commit `de85a8a952e75ede54a75bc20292e02cc3e94c75`. The registered baselines are
+- No central repo claim or lease is active. `ABC-HWA2A-V4-REV287` was released
+  blocked before freeze at Revision 289 with candidate `{}`, no tests/product
+  write, and its correction budget still 0/1. The clean baselines
   `7ee17276551b09336d2166b058a67c2dbcb87d18` and
-  `7558562705f6dfc648bcc287985b240964aa7d51`; correction budget is 0/1 and
-  no live action is authorized. Registration Evidence is
+  `7558562705f6dfc648bcc287985b240964aa7d51` contain neither the claimed
+  existing `CommitAuthoritySnapshot`/`load_commit_authority` API nor the twelve
+  claimed existing nodes, while v4 forbids adding them. Never resume v4.
+  Registration Evidence remains
   `docs/plans/evidence/abc-hwa2a-v4-rev287-registration.json`, blob
-  `0326c67bbd644d0144c2b1d8db1b0c28db9a67bb`. A Sol tests-first writer has
-  received the exact durable Rev288 tuple; no candidate is frozen yet.
+  `0326c67bbd644d0144c2b1d8db1b0c28db9a67bb`, as terminal provenance only.
   `ABC-R7A2-R3R1-REV280` was
   terminally released blocked at Revision 283 after correction 1/1. Freeze
   Evidence remains `docs/plans/evidence/abc-r7a2-r3r1-rev282-freeze.json`
@@ -291,13 +290,14 @@ Current external blockers:
   the full persisted dependency corridor, static checks, all three central
   validators, independent hostile QA, and Deep-Sol passed on the unchanged
   frozen tuple.
-- Revision 288 post-claim-registration raw `git hash-object
+- Revision 289 post-v4-release raw `git hash-object
   --no-filters` readback: Open Work
-  `97424b6a25746a0aa8b46b698519eedd5914515f`, Round 6
+  `b8c2bc9ad957856c20428aec77da2d2b4b635f20`, Round 6
   `284dbe55bf6efac90fc606c29ce40a437875a9f8`, Round 7
-  `a2481ea7445c1f17952422f505c36e13e374ffeb`, Guidance
-  `71dcf844bba2778b5f7c0376759a8a2ec91d0b9f`, HWA2A-v4 packet
-  `63fb75c6edbbc7ec72f357ce661370dd5074441a`, registration Evidence
+  `06748e9a9b8320573a5ef16729399085428781a0`, Guidance
+  `71dcf844bba2778b5f7c0376759a8a2ec91d0b9f`, continuation inventory
+  `bbedd01cb70deeea7209031e5557abef508f194e`, HWA2A-v4 packet
+  `63fb75c6edbbc7ec72f357ce661370dd5074441a`, terminal registration Evidence
   `0326c67bbd644d0144c2b1d8db1b0c28db9a67bb`, R7-A2 packet
   `c4d2974f7cef38c636c960b5e641a26202cf4345`, and freeze Evidence
   `a86820f61d9a952a42f6082c382287cd11b212ad`. Do not compare authority
@@ -319,21 +319,16 @@ Current external blockers:
   big-data ledger contract, TWP-01 repair, ACPR-13D, FCA-03A v3, NMG-02A,
   UDA-05 v4, NMG-03 native-adapter acceptance, and RMT8-v2 effective-input
   state-matrix recovery.
-- Independent context-free continuity review of this handoff itself passes for
-  checkout discovery, newer TRP-05/TRP-06 acceptance precedence,
-  TAX0/TAX1/TAX7 status, and the terminal TRP-07 stop rule. The separate
-  72-record continuation inventory still needs a post-claim enrichment before
-  final continuity can pass: 62 records use `not_declared` next actions, 40
-  lack a closed stop rule, 22 lack a concrete verification route, 16 expose a
-  list instead of a scalar status, and six HWA locators misuse JSON Pointer
-  syntax on Markdown. A complete Rev288 enrichment candidate was generated
-  and validated, but was not persisted because the current HWA2A-v4 claim
-  pins the inventory at raw blob
-  `3237c7311481a0c1d7d165c323c1d880326ccbe5`. Preserve that pin until the
-  claim freezes/releases; then publish the enriched inventory, update its
-  authority tuple and rerun an independent context-free audit. Independent
-  privacy review of this handoff passes.
-- Fresh native-Python readback on the current Revision 288 bytes passes all
+- The 72-record continuation inventory is now fully enriched at raw blob
+  `bbedd01cb70deeea7209031e5557abef508f194e`: 72/72 unique records have a
+  scalar status, dependencies, concrete safe next action, closed stop rule,
+  verification route and source authority; Markdown sources use real heading
+  anchors. It explicitly preserves terminal v4 and links the exact v5 packet.
+  The first independent audit found and drove the Rev289/HWA/anchor corrections;
+  a fresh independent readback of the final triad passes all 72 records, 33
+  Markdown anchors, 82 JSON pointers and two claim predicates. Independent
+  privacy review of this handoff also passes.
+- Fresh native-Python readback on the current Revision 289 bytes passes all
   three central validators: Integration Spine `ok:true`, Round 6 `valid:true`
   with 30/30 rows and zero claimable frontiers, and Guidance `valid:true` with
   139/139 inventory entries. The exact dependency corridor also ran through
@@ -347,19 +342,19 @@ Current external blockers:
   progress unit or an evidence-backed no-op, invokes `$reflect` on ordinary
   blockers, forbids identical retries, and keeps external-action approval
   blockers from stopping disjoint safe work.
-- The next repo-only predecessor was closed at Revision 287 and became the
-  single durable tests-first repo claim at Revision 288:
-  `docs/plans/abc-hwa2a-typed-commit-authority-reconstruction-v4-architecture.json`,
-  raw blob `63fb75c6edbbc7ec72f357ce661370dd5074441a`, raw SHA-256
-  `1f15b03f5785fb609391dc4ef40599f348ebefcffe79c51c0ec14da4ca9a7c97`,
+- The next repo-only architecture predecessor is
+  `docs/plans/abc-hwa2a-typed-commit-authority-reconstruction-v5-architecture.json`,
+  raw blob `03cb39a51f8212b6f0581d0254b38ed804e7b00b`, raw SHA-256
+  `4deae4b3fd7b445f1bafb22f3dfc83a86cb78a51f6fdf86e5ef6642bd15a5779`,
   semantic digest
-  `sha256:962fc39313d317d4c5657fddb73c4a2f94f2a3bf1d09465f5630da4c6aae1144`.
-  It is 23,032 bytes, canonical JSON+LF, binds 12 sorted test nodes, 22 exact
-  primary authority/history pins and 11 exact detached execution pins. Fresh
-  independent Sol review passes after closing the derived owner/repo/run
-  `control_key` BLOB census and canonical multiplicity semantics. Its state is
-  product authority remains limited to the active claim above; no commit,
-  push, deploy or live authority exists. Its two writer paths remain
+  `sha256:62674fe9741f7820caaf8baf1fa6aec1bb024e3b66b356b75a4b8360b4ec2996`.
+  It is 22,301 bytes, canonical JSON+LF, binds 12 new tests and 23 exact
+  read-only pins. V5 expressly permits only frozen-slots
+  `CommitAuthoritySnapshot(capability, evidence, capability_status)` and
+  `HeadlessWriteAgentStateStore.load_commit_authority(scope, *, claim_id,
+  fence, capability_id, evidence_ref)`. No other public API, schema, commit,
+  push, deploy or live authority exists. Independent Sol review passes on the
+  exact final raw blob. Its two future writer paths remain
   `src/headless_write_agent_state.py` and
   `tests/test_headless_write_agent_state.py`; the canonical dirty worktree
   versions are rejected historical v3r1 bytes and must not be edited.
@@ -400,7 +395,7 @@ a snapshot.
 | OWM-25 Coding loop consolidation | Many CAO/NMG slices accepted | Do not blindly follow stale `ACPR-11 next` prose: current history already contains later ACPR-13D acceptance. Re-run the current frontier audit and claim only the first genuinely unaccepted disjoint predecessor. |
 | OWM-26 Subagent context/delegation | Bounded local/fake contracts accepted | Continue only after current ACPR dependency readback. Real adapter activation and external dispatch remain separately gated. |
 | OWM-27 Live contextual layer | LCL-00 accepted; LCL-01 future frontier | Fresh Root/Sol architecture and exact disjoint claim are required for LCL-01. Hypotheses remain advisory and cannot override Planning/domain/USI/claim authority. |
-| OWM-28 Harbor integration | R7-A2 R3R1 terminally released blocked at Rev283 after correction 1/1; RMT8-v2 and the HWA/Temporal source normalization remain accepted; Rev286 denominator verified; HWA2A-v4 architecture registered at Rev287 and exact two-path claim active at Rev288 | Preserve rejected tuples. Let only the registered clean Detached Sol writer execute tests-first; Root then freezes one exact candidate for independent QA and Deep-Sol. |
+| OWM-28 Harbor integration | R7-A2 R3R1 terminally released blocked at Rev283 after correction 1/1; RMT8-v2 and HWA/Temporal source normalization accepted; Rev286 denominator verified; HWA2A-v4 released blocked before write at Rev289; v5 architecture materialized | Preserve all rejected tuples. Independently review the exact v5 packet, then register a fresh exact two-path claim only if the packet, baselines, pins, twelve new nodes and central validators remain exact. |
 
 `OWM-24` through `OWM-28` above are continuation overlays derived from later
 structured acceptance and Round 7 state; the current Open Work
@@ -729,8 +724,8 @@ Round 6 row, Open Work history, and any newer accepted record.
   `$.current_position.full_goal_progress.long_run_checkpoint` and Round 7
   `$.long_run_state.global_goal_progress.long_run_checkpoint` were normalized
   at Revision 286 to `173/245`, the current deadline, and the verified
-  denominator state. Current Rev288 authority has exactly the HWA2A-v4 claim
-  and lease described above; its terminal history includes the accepted RMT8-v2 claim from
+  denominator state. Current Rev289 authority has no active claim or lease;
+  its terminal history includes the blocked pre-write HWA2A-v4 claim and the accepted RMT8-v2 claim from
   Revision 279 and the blocked R7-A2 R3R1 claim from Revision 283.
 
 ## 9. Candidates that must not be revived
@@ -759,19 +754,18 @@ baseline for a new claim without a materially fresh architecture transaction.
 1. Read newest user steering, `AGENTS.md`, Open Work, Round 7, and this file.
 2. Read `git status --short` and the path-scoped staged/unstaged diff in every
    checkout before any write.
-3. Recompute Open Work/Round 6/Round 7 raw blobs and confirm that exactly the
-   HWA2A-v4 claim and lease above are active. Verify the packet-local HWA normalization is released on
-   the exact packet/source blobs recorded in section 6. Rebind the 72-record
-   continuation ledger before using any of its authority locators.
+3. Recompute Open Work/Round 6/Round 7 raw blobs and confirm that no central
+   claim or lease is active. Verify terminal HWA2A-v4 and the packet-local HWA
+   normalization on the exact packet/source blobs in section 6. Rebind the
+   enriched 72-record continuation ledger before using any locator.
 4. Preserve accepted `ABC-RMT8-V2-REV278` exactly as frozen and released at
    Revision 279. Do not reopen its exhausted correction budget or reconstruct
    its product bytes from prose.
-5. Preserve terminal R7-A2 R3R1 evidence without another patch. Preserve the
-   accepted source and identity normalizations and the verified Rev286
-   denominator. HWA2A-v4 is now registered and centrally green at Rev288.
-   Supervise only its exact clean Detached Sol writer; on handoff compare all
-   pins/lease/two paths, freeze one immutable pair, run independent hostile QA
-   and Deep-Sol, then accept or terminally release according to correction 0/1.
+5. Preserve terminal R7-A2 R3R1 and HWA2A-v4 evidence without another patch.
+   Preserve accepted source/identity normalizations and the Rev286 denominator.
+   Independent review of the exact HWA2A-v5 packet passes. Root may now
+   atomically publish its architecture reference and register the fresh clean
+   two-path tests-first claim in Revision 290; v4 can never be resumed.
 6. The public independent scope review and one-parent/one-commit ancestry are
    complete. The exact remaining platform request is:
    `Push commit ea181f52e72a24d91480757c55a298fbb77249b1 nach fuzzy/dev.`
@@ -844,11 +838,9 @@ answer all of the following from repository files alone:
 - What exact redacted deployment, backup, rollback, and health route applies?
 - Which single external action, if any, is still awaiting platform approval?
 
-Current checklist status: **pending**. The Master Handoff answers these
-questions globally, but the 72-record continuation inventory still has the
-field-level gaps recorded in section 6. Do not claim context-free completion
-until its post-HWA enrichment is durably materialized and independently
-re-audited.
+Current checklist status: **PASS**. The Master Handoff and enriched 72-record
+inventory contain every required field, and a fresh independent context-free
+audit passed on the exact final inventory, packet and handoff triad.
 
 When this snapshot changes, update the snapshot date, revision, workspace
 identities, release evidence, open-lane rows, immediate sequence, and
@@ -866,12 +858,7 @@ identities, release evidence, open-lane rows, immediate sequence, and
 - Debian access recovery through the approved SSH identity path, deployment,
   health/revision readback, or live STT/runtime smoke.
 - UI-live readiness and Version 1.0 release.
-- Field-complete context-free enrichment of all 72 continuation records. It is
-  serialized behind the active HWA2A-v4 read-only pin on the current inventory
-  blob; after claim release every record must have a scalar status, concrete
-  safe next action, stop rule, verification route, dependencies, valid source
-  locator and current authority source, followed by fresh independent review.
-- HWA2A-v4 tests-first candidate, freeze, independent QA, Deep-Sol and
-  acceptance/release. Claim-origin/source projection, Evidence, clean detached
-  baseline and central Rev288 registration are verified; only the exact two
-  writer paths are authorized and no candidate has yet been frozen.
+- HWA2A-v5 Revision 290 architecture reference/claim Evidence, fresh clean
+  two-path tests-first claim, freeze, independent QA, Deep-Sol and
+  acceptance/release. The final architecture review passes; v4 is terminal
+  before write and grants no authority.
