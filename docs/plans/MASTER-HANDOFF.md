@@ -62,10 +62,10 @@ Newer accepted/released records override stale earlier `planned`, `blocked`, or
 - Purpose: complete structured authority, accepted product work, foreign work,
   and historical evidence.
 - Branch at snapshot: `codex/implemenetaion`.
-- HEAD before the next documentation-only handoff commit:
-  `4a0619d2af8ad83e7dec770bdb9cef42a1f83eed`
-  (`docs: finalize roadmap continuation handoff`), parent
-  `3f84d422b1c645cbe6cff0042fee6645cec88d58`. Never use a handoff commit
+- HEAD before the next architecture/handoff commit:
+  `de85a8a952e75ede54a75bc20292e02cc3e94c75`
+  (`docs: publish verified roadmap denominator handoff`), parent
+  `4a0619d2af8ad83e7dec770bdb9cef42a1f83eed`. Never use a handoff commit
   itself as product authority; use the exact accepted claim tuples instead.
 - State before the next documentation-only handoff commit: 214 dirty paths
   (55 tracked-modified, 159 untracked), index empty.
@@ -321,6 +321,21 @@ Current external blockers:
   progress unit or an evidence-backed no-op, invokes `$reflect` on ordinary
   blockers, forbids identical retries, and keeps external-action approval
   blockers from stopping disjoint safe work.
+- The next repo-only predecessor is now closed as architecture-only:
+  `docs/plans/abc-hwa2a-typed-commit-authority-reconstruction-v4-architecture.json`,
+  raw blob `63fb75c6edbbc7ec72f357ce661370dd5074441a`, raw SHA-256
+  `1f15b03f5785fb609391dc4ef40599f348ebefcffe79c51c0ec14da4ca9a7c97`,
+  semantic digest
+  `sha256:962fc39313d317d4c5657fddb73c4a2f94f2a3bf1d09465f5630da4c6aae1144`.
+  It is 23,032 bytes, canonical JSON+LF, binds 12 sorted test nodes, 22 exact
+  primary authority/history pins and 11 exact detached execution pins. Fresh
+  independent Sol review passes after closing the derived owner/repo/run
+  `control_key` BLOB census and canonical multiplicity semantics. Its state is
+  architecture-only: no claim, lease, writer dispatch, product or live
+  authority exists yet. The two future writer paths remain
+  `src/headless_write_agent_state.py` and
+  `tests/test_headless_write_agent_state.py`; the canonical dirty worktree
+  versions are rejected historical v3r1 bytes and must not be edited.
 
 ## 7. Open roadmap lanes
 
@@ -619,7 +634,9 @@ Round 6 row, Open Work history, and any newer accepted record.
 - `RMT9-P0A`: correction budget exhausted and provenance/import action remains
   separately gated.
 - `HWA2` / HWA2A historical candidates: exact raw SQLite prerequisite and
-  identity handling failed after bounded corrections. Fresh architecture only.
+  identity handling failed after bounded corrections. The fresh v4 architecture
+  above is closed, but still requires a serialized Root registration and a new
+  clean detached writer claim; never revive the old candidates.
 - `UIR-03`: use the accepted Go-A R2 lineage and normalize stale projections
   before any new runtime claim.
 - `DLF1B`, `TAX-serialized-handoff`, and mixed-genesis normalization work:
@@ -724,9 +741,11 @@ baseline for a new claim without a materially fresh architecture transaction.
    its product bytes from prose.
 5. Preserve terminal R7-A2 R3R1 evidence without another patch. Preserve the
    accepted source and identity normalizations and the verified Rev286
-   denominator. Run `$reflect` over the 19 repo-open units, select the smallest
-   dependency-ready architecture/recovery predecessor, and register a writer
-   only after exact paths, pins, tests, lease, and central readback exist.
+   denominator. The completed `$reflect` selected HWA2A-v4 and its architecture
+   is independently closed at the exact blob above. Next, register it through
+   one serialized Root transaction only after exact origin/provenance,
+   registration Evidence, clean detached baseline, paths, pins, tests, owner,
+   lease, and central readback exist; then dispatch tests-first on two paths.
 6. The public independent scope review and one-parent/one-commit ancestry are
    complete. The exact remaining platform request is:
    `Push commit ea181f52e72a24d91480757c55a298fbb77249b1 nach fuzzy/dev.`
@@ -815,3 +834,7 @@ identities, release evidence, open-lane rows, immediate sequence, and
 - Debian access recovery through the approved SSH identity path, deployment,
   health/revision readback, or live STT/runtime smoke.
 - UI-live readiness and Version 1.0 release.
+- Durable HWA2A-v4 architecture registration, claim Evidence, clean detached
+  writer checkout, tests-first candidate, freeze, independent QA, Deep-Sol and
+  acceptance/release. The architecture packet itself is verified; product work
+  is not yet authorized.
