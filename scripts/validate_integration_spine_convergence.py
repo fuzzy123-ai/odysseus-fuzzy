@@ -79,6 +79,7 @@ WINDOWS_RESERVED_COMPONENTS = {
     *(f"com{index}" for index in range(1, 10)),
     *(f"lpt{index}" for index in range(1, 10)),
 }
+WINDOWS_LATIN1_SUPERSCRIPT_DEVICE_DIGITS = {"\u00b9", "\u00b2", "\u00b3"}
 
 HISTORICAL_R1_EVIDENCE_PATH = "docs/plans/evidence/abc-round7-central-claim.json"
 GUIDANCE_PATH = "docs/plans/multi-agent-execution-guidance.json"
@@ -184,6 +185,17 @@ LEGACY_TERMINAL_UPGRADE_MODE = "legacy_terminal_upgrade"
 LEGACY_OPEN_WORK_SOURCE_REGISTRY = "open_work.current_position.external_lane_claims"
 NEW_PRODUCT_PATHS_MODE = "new_product_paths"
 MATERIALIZED_REPO_GENESIS_MODE = "materialized_repo_genesis"
+MATERIALIZED_REPO_GENESIS_PARTITION_MODE = (
+    "materialized_repo_genesis_partition_v1"
+)
+MATERIALIZED_REPO_GENESIS_PARTITION_READBACK_FIELDS = {
+    "schema_version",
+    "mode",
+    "materialized_paths",
+    "materialized_readback",
+    "genesis_paths",
+    "genesis_readback",
+}
 R4_PACKET_BOUND_V2_SLICE = "R7-materialized-repo-genesis-direct-r4"
 MATERIALIZED_REPO_GENESIS_PACKET_FIELDS = {
     "schema_version",
@@ -524,6 +536,16 @@ class AuthoritySnapshotBundle:
         return self.documents.get(path)
 
 
+def _is_windows_latin1_superscript_device_alias(stem: str) -> bool:
+    prefix = stem[:3]
+    return (
+        len(stem) == 4
+        and all(ord(character) < 128 for character in prefix)
+        and prefix.casefold() in {"com", "lpt"}
+        and stem[3] in WINDOWS_LATIN1_SUPERSCRIPT_DEVICE_DIGITS
+    )
+
+
 def _repository_path_key(value: Any) -> PathKey | None:
     """Return one exact safe identity, never raising on hostile Unicode."""
 
@@ -534,18 +556,22 @@ def _repository_path_key(value: Any) -> PathKey | None:
             return None
         if value != unicodedata.normalize("NFC", value):
             return None
+        if any(ord(character) < 32 or ord(character) == 127 for character in value):
+            return None
         if len(value.encode("utf-8", errors="strict")) > MAX_REPOSITORY_PATH_BYTES:
             return None
-        if value.startswith(("/", "~", ".")) or ":" in value or "\x00" in value:
+        if value.startswith(("/", "~")) or ":" in value:
             return None
         parts = value.split("/")
         if any(
             part in {"", ".", ".."}
+            or (part.startswith(".") and not (index == 0 and part == ".github"))
             or part.endswith((".", " "))
             or len(part.encode("utf-8", errors="strict"))
             > MAX_REPOSITORY_COMPONENT_BYTES
             or part.split(".", 1)[0].casefold() in WINDOWS_RESERVED_COMPONENTS
-            for part in parts
+            or _is_windows_latin1_superscript_device_alias(part.split(".", 1)[0])
+            for index, part in enumerate(parts)
         ):
             return None
         return tuple(part.casefold() for part in parts)
@@ -978,6 +1004,74 @@ def _valid_abc_baseline_readback(value: Any) -> bool:
     )
 
 
+def _materialized_repo_genesis_partition_readback(
+    claim: Mapping[str, Any],
+) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
+    """Return one exact baseline partition only for materialized genesis."""
+
+    if _claim_origin_variant(claim) != MATERIALIZED_REPO_GENESIS_MODE:
+        return None
+    allowed = claim.get("allowed_paths")
+    baselines = claim.get("baseline_blobs")
+    transfer = claim.get("claim_transfer")
+    readback = claim.get("baseline_readback")
+    if not (
+        type(allowed) is list
+        and allowed == sorted(allowed)
+        and _valid_string_list(allowed, nonempty=True)
+        and type(baselines) is dict
+        and set(baselines) == set(allowed)
+        and type(transfer) is dict
+        and type(readback) is dict
+        and set(readback) == MATERIALIZED_REPO_GENESIS_PARTITION_READBACK_FIELDS
+        and type(readback.get("schema_version")) is int
+        and readback.get("schema_version") == 1
+        and readback.get("mode") == MATERIALIZED_REPO_GENESIS_PARTITION_MODE
+        and readback.get("materialized_readback")
+        == "materialized_exact_binary_readback_pass"
+        and readback.get("genesis_readback")
+        == CAPTURED_ABSENT_PATHS_READBACK_PASS
+    ):
+        return None
+    materialized = readback.get("materialized_paths")
+    genesis = readback.get("genesis_paths")
+    if not (
+        _valid_string_list(materialized)
+        and _valid_string_list(genesis)
+        and materialized == sorted(materialized)
+        and genesis == sorted(genesis)
+        and not set(materialized) & set(genesis)
+        and set(materialized) | set(genesis) == set(allowed)
+        and len(materialized) + len(genesis) == len(allowed)
+        and all(
+            type(baselines.get(path)) is str
+            and GIT_BLOB_ID.fullmatch(baselines[path])
+            for path in materialized
+        )
+        and all(baselines.get(path) == "absent" for path in genesis)
+        and transfer.get("new_product_writer_paths") == genesis
+    ):
+        return None
+    return tuple(materialized), tuple(genesis)
+
+
+def _materialized_repo_genesis_product_paths_are_allowed(paths: Any) -> bool:
+    """Admit canonical source, test or non-authority docs/plans genesis paths."""
+
+    if type(paths) is not list:
+        return False
+    for path in paths:
+        key = _repository_path_key(path)
+        if key is None:
+            return False
+        if key[0] in {"src", "tests"}:
+            continue
+        if key[:2] == ("docs", "plans") and not _protected_writer_scope((path,)):
+            continue
+        return False
+    return True
+
+
 def _protected_writer_scope(paths: tuple[str, ...]) -> bool:
     protected = {
         _repository_path_key(path) for path in ROOT_PROTECTED_WRITER_PATHS
@@ -992,6 +1086,20 @@ def _protected_writer_scope(paths: tuple[str, ...]) -> bool:
         ):
             return True
     return False
+
+
+def _is_evidence_json_path(path: Any) -> bool:
+    """Classify Evidence receipts through the canonical path key."""
+
+    key = _repository_path_key(path)
+    prefix = _repository_path_key("docs/plans/evidence")
+    return bool(
+        key is not None
+        and prefix is not None
+        and len(key) > len(prefix)
+        and key[: len(prefix)] == prefix
+        and key[-1].endswith(".json")
+    )
 
 
 def _command_spec(
@@ -1440,7 +1548,6 @@ def _claim_origin_variant(
         and transfer.get("source_registry") is None
         and transfer.get("from_claim_id") is None
         and transfer.get("source_released_at") is None
-        and transfer.get("new_product_writer_paths") == []
     ):
         return MATERIALIZED_REPO_GENESIS_MODE
     return None
@@ -1534,9 +1641,7 @@ def _validate_abc_claim_v2(
     evidence_pin_paths = {
         path
         for path in pins
-        if isinstance(path, str)
-        and path.startswith("docs/plans/evidence/")
-        and path.endswith(".json")
+        if _is_evidence_json_path(path)
     }
     if len(evidence_pin_paths) != 1 or not ABC_V2_REQUIRED_PIN_PATHS.issubset(pins):
         errors.append(
@@ -1560,7 +1665,12 @@ def _validate_abc_claim_v2(
         new_evidence_paths
     )
     transfer_variant = _claim_origin_variant(claim)
-    if transfer_variant == NEW_PRODUCT_PATHS_MODE:
+    materialized_partition = (
+        _materialized_repo_genesis_partition_readback(claim)
+        if transfer_variant == MATERIALIZED_REPO_GENESIS_MODE
+        else None
+    )
+    if transfer_variant in {NEW_PRODUCT_PATHS_MODE, MATERIALIZED_REPO_GENESIS_MODE}:
         transfer = claim.get("claim_transfer")
         product_paths = transfer.get("new_product_writer_paths") if type(transfer) is dict else None
         product_keys, product_valid = _collect_repository_paths(product_paths)
@@ -1574,7 +1684,12 @@ def _validate_abc_claim_v2(
         )
         frozen_current_is_exact = bool(
             candidate_state == "frozen_for_independent_qa"
-            and _frozen_new_product_capture_paths(claim) == allowed
+            and _frozen_new_product_capture_paths(claim)
+            == (
+                allowed
+                if transfer_variant == NEW_PRODUCT_PATHS_MODE
+                else tuple(sorted(absent_paths))
+            )
             and set(product_paths or ()).issubset(set(authority.blob_ids))
             and set(product_paths or ()).issubset(set(authority.raw_bytes))
             and not set(product_paths or ()) & set(authority.absent_paths)
@@ -1591,13 +1706,19 @@ def _validate_abc_claim_v2(
             new_evidence_valid
             and new_evidence_paths == []
             and product_valid
-            and product_paths == list(allowed)
-            and set(product_paths) == absent_paths
-            and all(
-                key and key[0] in {"src", "tests"}
-                for key in product_keys
+            and product_paths == sorted(product_paths)
+            and (
+                product_paths == list(allowed)
+                if transfer_variant == NEW_PRODUCT_PATHS_MODE
+                else set(product_paths) == absent_paths
             )
-            and (unfrozen_absence_is_exact or frozen_current_is_exact)
+            and set(product_paths) == absent_paths
+            and (
+                _materialized_repo_genesis_product_paths_are_allowed(product_paths)
+                if transfer_variant == MATERIALIZED_REPO_GENESIS_MODE
+                else all(key and key[0] in {"src", "tests"} for key in product_keys)
+            )
+            and (not absent_paths or unfrozen_absence_is_exact or frozen_current_is_exact)
             and _new_product_paths_are_unclaimed(
                 allowed,
                 run_id=run_id,
@@ -1627,8 +1748,10 @@ def _validate_abc_claim_v2(
         != CAPTURED_ABSENT_PATHS_READBACK_PASS
     ):
         errors.append(f"{label} new-product baseline readback is not exact")
+    elif transfer_variant == MATERIALIZED_REPO_GENESIS_MODE and materialized_partition is None:
+        errors.append(f"{label} baseline readback evidence is invalid")
     elif (
-        transfer_variant != NEW_PRODUCT_PATHS_MODE
+        transfer_variant not in {NEW_PRODUCT_PATHS_MODE, MATERIALIZED_REPO_GENESIS_MODE}
         and not _valid_abc_baseline_readback(claim.get("baseline_readback"))
     ):
         errors.append(f"{label} baseline readback evidence is invalid")
@@ -1754,25 +1877,59 @@ def _validate_abc_claim_v2(
     elif transfer_variant == MATERIALIZED_REPO_GENESIS_MODE and type(transfer) is dict:
         transferred = _parse_iso_timestamp(transfer.get("transferred_at"))
         acquired = _parse_iso_timestamp(claim.get("acquired_at"))
+        product_paths = transfer.get("new_product_writer_paths")
+        product_keys, product_valid = _collect_repository_paths(product_paths)
+        unfrozen_absence_is_exact = bool(
+            claim.get("candidate_state") == "not_frozen"
+            and authority.absent_paths_readback
+            == CAPTURED_ABSENT_PATHS_READBACK_PASS
+            and set(product_paths or ()).issubset(set(authority.absent_paths))
+            and all(path not in authority.blob_ids for path in product_paths or ())
+        )
+        frozen_current_is_exact = bool(
+            claim.get("candidate_state") == "frozen_for_independent_qa"
+            and _frozen_new_product_capture_paths(claim)
+            == tuple(sorted(absent_paths))
+            and set(product_paths or ()).issubset(set(authority.blob_ids))
+            and set(product_paths or ()).issubset(set(authority.raw_bytes))
+            and not set(product_paths or ()) & set(authority.absent_paths)
+            and all(
+                type(authority.raw_bytes.get(path)) is bytes
+                and authority.blob_ids.get(path)
+                == _git_blob_id(authority.raw_bytes[path])
+                and authority.blob_ids.get(path)
+                == claim.get("candidate_blobs", {}).get(path)
+                for path in product_paths or ()
+            )
+        )
+        materialized_paths = (
+            materialized_partition[0] if materialized_partition is not None else ()
+        )
         registration_bytes_are_exact = bool(
             claim.get("candidate_state") == "frozen_for_independent_qa"
             or (
                 claim.get("candidate_state") == "not_frozen"
+                and materialized_partition is not None
                 and all(
                     type(authority.raw_bytes.get(path)) is bytes
                     and authority.blob_ids.get(path) == baselines.get(path)
                     and authority.blob_ids.get(path)
                     == _git_blob_id(authority.raw_bytes[path])
-                    for path in allowed
+                    for path in materialized_paths
                 )
             )
         )
         transfer_valid = bool(
-            not absent_paths
-            and transfer.get("source_registry") is None
+            transfer.get("source_registry") is None
             and transfer.get("from_claim_id") is None
             and transfer.get("source_released_at") is None
-            and transfer.get("new_product_writer_paths") == []
+            and product_valid
+            and product_paths == sorted(product_paths)
+            and set(product_paths) == absent_paths
+            and materialized_partition is not None
+            and tuple(product_paths) == materialized_partition[1]
+            and _materialized_repo_genesis_product_paths_are_allowed(product_paths)
+            and (not absent_paths or unfrozen_absence_is_exact or frozen_current_is_exact)
             and transfer.get("gap_preserved_no_writer") is True
             and type(transfer.get("architecture_handoff")) is str
             and bool(transfer.get("architecture_handoff"))
@@ -2356,7 +2513,8 @@ def _validate_active_freeze_binding(
         and tuple(writer_paths or ()) == typed.allowed_paths
         and isinstance(evidence.get("baseline_blobs"), Mapping)
         and dict(evidence.get("baseline_blobs", {})) == dict(typed.baselines)
-        and evidence.get("baseline_readback") == claim.get("baseline_readback")
+        and _thaw_json(evidence.get("baseline_readback"))
+        == claim.get("baseline_readback")
         and isinstance(evidence_blobs, Mapping)
         and dict(evidence_blobs) == candidate_blobs
         and evidence.get("candidate_set_digest_sha256") == digest
@@ -3163,34 +3321,114 @@ def _validate_rolling_projection(
     ):
         errors.append("active v2 claims do not pin Guidance and Round-6 projection authority")
         return
-    evidence_paths = {
-        path
-        for pins in pin_maps
-        for path in pins
-        if path.startswith("docs/plans/evidence/") and path.endswith(".json")
-    }
-    if len(evidence_paths) != 1:
-        errors.append("active v2 claims do not share one current Evidence receipt")
+    evidence_by_claim: dict[str, str] = {}
+    canonical_evidence_paths: dict[PathKey, str] = {}
+    for (_raw, typed), pins in zip(typed_claims, pin_maps, strict=True):
+        evidence_paths = [
+            path
+            for path in pins
+            if _is_evidence_json_path(path)
+        ]
+        if len(evidence_paths) != 1:
+            errors.append(
+                "active v2 claim does not bind exactly one Evidence receipt"
+            )
+            return
+        evidence_path = evidence_paths[0]
+        evidence_key = _repository_path_key(evidence_path)
+        if (
+            evidence_key is None
+            or evidence_key in canonical_evidence_paths
+            or typed.run_id in evidence_by_claim
+        ):
+            errors.append(
+                "active v2 claims do not bind one-to-one canonical Evidence receipts"
+            )
+            return
+        canonical_evidence_paths[evidence_key] = evidence_path
+        evidence_by_claim[typed.run_id] = evidence_path
+    if (
+        len(evidence_by_claim) != len(typed_claims)
+        or len(canonical_evidence_paths) != len(typed_claims)
+        or _has_internal_path_scope_overlap(canonical_evidence_paths)
+    ):
+        errors.append(
+            "active v2 claims do not bind one-to-one canonical Evidence receipts"
+        )
         return
-    evidence_path = next(iter(evidence_paths))
-    evidence = authority.get(evidence_path)
+    evidence_documents = [
+        authority.get(evidence_by_claim[typed.run_id])
+        for _raw, typed in typed_claims
+    ]
     guidance = authority.get(GUIDANCE_PATH)
     round6 = authority.get(ROUND6_PATH)
-    if not all(isinstance(item, Mapping) for item in (evidence, guidance, round6)):
+    if not all(
+        isinstance(item, Mapping)
+        for item in (*evidence_documents, guidance, round6)
+    ):
         errors.append("rolling projection snapshots are unavailable")
         return
-    assert isinstance(evidence, Mapping)
     assert isinstance(guidance, Mapping)
     assert isinstance(round6, Mapping)
     summary = guidance.get("analysis_summary", {}).get("round6_parallel_execution")
-    receipt = evidence.get("inventory_receipt")
+    receipt_fields = {
+        "inventory_mode",
+        "member_count",
+        "member_set_digest",
+        "terminal_waves_unchanged",
+        "scheduled_slice_count_unchanged",
+    }
+    receipts: list[dict[str, Any]] = []
+    receipt_bytes: list[bytes] = []
+    try:
+        for evidence in evidence_documents:
+            frozen_receipt = evidence.get("inventory_receipt")
+            receipt = (
+                _thaw_json(frozen_receipt)
+                if isinstance(frozen_receipt, Mapping)
+                else None
+            )
+            _validate_json_tree(receipt)
+            if not (
+                type(receipt) is dict
+                and set(receipt) == receipt_fields
+                and type(receipt.get("inventory_mode")) is str
+                and type(receipt.get("member_count")) is int
+                and type(receipt.get("member_set_digest")) is str
+                and type(receipt.get("terminal_waves_unchanged")) is bool
+                and type(receipt.get("scheduled_slice_count_unchanged")) is int
+            ):
+                raise _JsonDocumentError("invalid_shape")
+            receipts.append(receipt)
+            receipt_bytes.append(
+                json.dumps(
+                    receipt,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                    allow_nan=False,
+                ).encode("utf-8")
+            )
+    except (
+        TypeError,
+        ValueError,
+        UnicodeError,
+        RecursionError,
+        _JsonDocumentError,
+    ):
+        errors.append("active v2 Evidence receipts do not share one exact inventory")
+        return
+    if not receipts or any(raw != receipt_bytes[0] for raw in receipt_bytes[1:]):
+        errors.append("active v2 Evidence receipts do not share one exact inventory")
+        return
+    receipt = receipts[0]
+    assert isinstance(receipt, Mapping)
     roadmaps = guidance.get("roadmaps")
     frontiers = round6.get("roadmap_frontiers")
     waves = round6.get("waves")
     if not all(
         (
             isinstance(summary, Mapping),
-            isinstance(receipt, Mapping),
             isinstance(roadmaps, tuple),
             isinstance(frontiers, tuple),
             isinstance(waves, tuple),
@@ -3497,11 +3735,18 @@ def _capture_v2_authority_documents(
 def _frozen_new_product_capture_paths(raw: Any) -> tuple[str, ...] | None:
     """Select only one exact frozen new-product writer capture."""
 
+    variant = _claim_origin_variant(raw)
+    partition = (
+        _materialized_repo_genesis_partition_readback(raw)
+        if variant == MATERIALIZED_REPO_GENESIS_MODE
+        else None
+    )
     if not (
         type(raw) is dict
         and raw.get("state") == "running"
         and raw.get("candidate_state") == "frozen_for_independent_qa"
-        and _claim_origin_variant(raw) == NEW_PRODUCT_PATHS_MODE
+        and _claim_origin_variant(raw)
+        in {NEW_PRODUCT_PATHS_MODE, MATERIALIZED_REPO_GENESIS_MODE}
     ):
         return None
     allowed = raw.get("allowed_paths")
@@ -3516,7 +3761,11 @@ def _frozen_new_product_capture_paths(raw: Any) -> tuple[str, ...] | None:
         and len(allowed_keys) == len(allowed)
         and type(baselines) is dict
         and set(baselines) == set(allowed)
-        and all(blob_id == "absent" for blob_id in baselines.values())
+        and all(
+            blob_id == "absent"
+            or (type(blob_id) is str and GIT_BLOB_ID.fullmatch(blob_id))
+            for blob_id in baselines.values()
+        )
         and type(candidates) is dict
         and set(candidates) == set(allowed)
         and all(
@@ -3524,12 +3773,26 @@ def _frozen_new_product_capture_paths(raw: Any) -> tuple[str, ...] | None:
             for blob_id in candidates.values()
         )
         and type(transfer) is dict
-        and transfer.get("new_product_writer_paths") == allowed
+        and type(transfer.get("new_product_writer_paths")) is list
+        and transfer.get("new_product_writer_paths")
+        == sorted(transfer["new_product_writer_paths"])
+        and set(transfer["new_product_writer_paths"])
+        == {path for path, blob_id in baselines.items() if blob_id == "absent"}
         and raw.get("new_evidence_writer_paths", []) == []
-        and raw.get("baseline_readback") == CAPTURED_ABSENT_PATHS_READBACK_PASS
+        and (
+            raw.get("baseline_readback") == CAPTURED_ABSENT_PATHS_READBACK_PASS
+            if variant == NEW_PRODUCT_PATHS_MODE
+            else partition is not None
+        )
     ):
         return None
-    return tuple(allowed)
+    return (
+        partition[1]
+        if partition is not None
+        else tuple(sorted(
+            path for path, blob_id in baselines.items() if blob_id == "absent"
+        ))
+    )
 
 
 def _r7_is_validator_claim(claim: Any) -> bool:

@@ -313,6 +313,226 @@ def _rolling_projection_fixture_documents() -> tuple[dict[str, dict[str, Any]], 
     return documents, materialized
 
 
+def _parallel_evidence_projection_errors(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    evidence_paths: tuple[tuple[str, ...], tuple[str, ...]],
+    receipt_mutation: tuple[int, str, Any] | None = None,
+) -> list[str]:
+    """Exercise two parsed v2 claims against explicit per-claim receipts."""
+
+    factory = _current_authority_factory()
+    data = {
+        "external_lane_claims": [],
+        "long_run_state": {
+            "revision": 17,
+            "active_claims": [],
+            "agent_leases": [],
+        },
+    }
+    claims = factory.parallel_running_v2(
+        data,
+        [
+            ("fixture-parallel-evidence-a", ["src/parallel_evidence_a.py"]),
+            ("fixture-parallel-evidence-b", ["src/parallel_evidence_b.py"]),
+        ],
+    )
+    control_documents, materialized = _rolling_projection_fixture_documents()
+    base_receipt = SyntheticAuthorityWorld._copy_json(
+        control_documents[factory.evidence_path]
+    )
+    documents = {
+        validator.GUIDANCE_PATH: control_documents[validator.GUIDANCE_PATH],
+        validator.ROUND6_PATH: control_documents[validator.ROUND6_PATH],
+    }
+    additional_blob_ids: dict[str, str] = {}
+    receipt_blob_ids: dict[str, str] = {}
+    for index, (claim, paths) in enumerate(zip(claims, evidence_paths, strict=True)):
+        claim["read_only_pins"].pop(factory.evidence_path)
+        for path_index, path in enumerate(paths):
+            blob_id = receipt_blob_ids.setdefault(
+                path, f"{len(receipt_blob_ids) + 1:02x}" + "d" * 38
+            )
+            claim["read_only_pins"][path] = blob_id
+            additional_blob_ids[path] = blob_id
+            receipt = SyntheticAuthorityWorld._copy_json(base_receipt)
+            if receipt_mutation is not None and receipt_mutation[0] == index:
+                receipt["inventory_receipt"][receipt_mutation[1]] = receipt_mutation[2]
+            documents[path] = receipt
+
+    authority = _explicit_active_fixture_authority(
+        data,
+        factory,
+        documents=documents,
+        additional_blob_ids=additional_blob_ids,
+    )
+    monkeypatch.setattr(validator, "_materialized_git_blob", lambda *_args: True)
+    monkeypatch.setattr(
+        validator,
+        "_materialized_json_blob",
+        lambda _root, blob_id: materialized.get(blob_id),
+    )
+    claims_by_id = {
+        item["run_id"]: item
+        for item in data["external_lane_claims"]
+        if type(item) is dict and type(item.get("run_id")) is str
+    }
+    leases = {
+        item["claim_id"]: [item]
+        for item in data["long_run_state"]["agent_leases"]
+    }
+    errors: list[str] = []
+    typed_claims: list[tuple[dict[str, Any], validator.AbcClaimV2]] = []
+    for index, claim in enumerate(claims):
+        typed = validator._validate_abc_claim_v2(
+            claim,
+            index=index,
+            repo_root=REPO_ROOT,
+            authority=authority,
+            authority_revision=17,
+            claims_by_run_id=claims_by_id,
+            active_run_ids=set(data["long_run_state"]["active_claims"]),
+            leases_by_claim=leases,
+            errors=errors,
+        )
+        if typed is not None:
+            typed_claims.append((claim, typed))
+    validator._validate_rolling_projection(
+        typed_claims,
+        repo_root=REPO_ROOT,
+        authority=authority,
+        errors=errors,
+    )
+    return errors
+
+
+def test_validator_accepts_parallel_v2_claims_with_distinct_evidence_receipts(
+    monkeypatch,
+) -> None:
+    errors = _parallel_evidence_projection_errors(
+        monkeypatch,
+        evidence_paths=(
+            ("docs/plans/evidence/parallel-a.json",),
+            ("docs/plans/evidence/parallel-b.json",),
+        ),
+    )
+
+    assert errors == []
+
+
+def test_validator_preserves_single_claim_evidence_receipt_compatibility(
+    monkeypatch,
+) -> None:
+    factory = _current_authority_factory()
+    documents, materialized = _rolling_projection_fixture_documents()
+    data = _current_running_fixture(factory, "fixture-single-evidence")
+    authority = _explicit_active_fixture_authority(
+        data,
+        factory,
+        documents=documents,
+    )
+    monkeypatch.setattr(validator, "_materialized_git_blob", lambda *_args: True)
+    monkeypatch.setattr(
+        validator,
+        "_materialized_json_blob",
+        lambda _root, blob_id: materialized.get(blob_id),
+    )
+    claim = next(item for item in data["external_lane_claims"] if item["state"] == "running")
+    errors: list[str] = []
+    typed = validator._validate_abc_claim_v2(
+        claim,
+        index=0,
+        repo_root=REPO_ROOT,
+        authority=authority,
+        authority_revision=17,
+        claims_by_run_id={item["run_id"]: item for item in data["external_lane_claims"]},
+        active_run_ids={claim["run_id"]},
+        leases_by_claim={claim["run_id"]: data["long_run_state"]["agent_leases"]},
+        errors=errors,
+    )
+    assert typed is not None
+    validator._validate_rolling_projection(
+        [(claim, typed)], repo_root=REPO_ROOT, authority=authority, errors=errors
+    )
+
+    assert errors == []
+
+
+def test_validator_rejects_parallel_v2_evidence_path_alias(monkeypatch) -> None:
+    for paths in (
+        (
+            ("docs/plans/evidence/Parallel-A.json",),
+            ("docs/plans/evidence/parallel-a.json",),
+        ),
+        (
+            ("docs/plans/evidence/parallel-a.json",),
+            ("docs/plans/evidence/parallel-a.json/child.json",),
+        ),
+        (
+            (
+                "docs/plans/evidence/parallel-a.json",
+                "docs/plans/Evidence/parallel-extra.json",
+            ),
+            ("docs/plans/evidence/parallel-b.json",),
+        ),
+    ):
+        errors = _parallel_evidence_projection_errors(
+            monkeypatch,
+            evidence_paths=paths,
+        )
+        assert any("Evidence receipt" in error for error in errors), errors
+
+
+def test_validator_rejects_parallel_v2_evidence_paths_not_one_to_one(
+    monkeypatch,
+) -> None:
+    errors = _parallel_evidence_projection_errors(
+        monkeypatch,
+        evidence_paths=(
+            (
+                "docs/plans/evidence/parallel-a.json",
+                "docs/plans/evidence/parallel-extra.json",
+            ),
+            (),
+        ),
+    )
+
+    assert errors
+
+
+def test_validator_rejects_parallel_v2_claims_sharing_one_evidence_receipt(
+    monkeypatch,
+) -> None:
+    errors = _parallel_evidence_projection_errors(
+        monkeypatch,
+        evidence_paths=(
+            ("docs/plans/evidence/shared.json",),
+            ("docs/plans/evidence/shared.json",),
+        ),
+    )
+
+    assert any("Evidence receipt" in error for error in errors), errors
+
+
+def test_validator_rejects_parallel_v2_claims_with_divergent_inventory_receipts(
+    monkeypatch,
+) -> None:
+    for field, value in (
+        ("terminal_waves_unchanged", False),
+        ("terminal_waves_unchanged", 1),
+        ("member_count", 30.0),
+    ):
+        errors = _parallel_evidence_projection_errors(
+            monkeypatch,
+            evidence_paths=(
+                ("docs/plans/evidence/parallel-a.json",),
+                ("docs/plans/evidence/parallel-b.json",),
+            ),
+            receipt_mutation=(1, field, value),
+        )
+        assert any("Evidence receipt" in error for error in errors), errors
+
+
 def _current_running_fixture(
     factory: SyntheticAuthorityWorld, run_id: str
 ) -> dict[str, Any]:
@@ -690,7 +910,14 @@ def _materialized_repo_genesis_fixture(
             "registered_round7_revision": 17,
         },
         "baseline_blobs": dict(baselines),
-        "baseline_readback": "materialized_exact_binary_readback_pass",
+        "baseline_readback": {
+            "schema_version": 1,
+            "mode": "materialized_repo_genesis_partition_v1",
+            "materialized_paths": list(allowed),
+            "materialized_readback": "materialized_exact_binary_readback_pass",
+            "genesis_paths": [],
+            "genesis_readback": validator.CAPTURED_ABSENT_PATHS_READBACK_PASS,
+        },
         "new_evidence_writer_paths": [],
         "architecture_revision": "fixture-materialized-repo-genesis-v1",
         "claim_transfer": {
@@ -841,6 +1068,221 @@ def _materialized_repo_genesis_fixture(
         paths=tuple(sorted(blob_ids)),
         raw_bytes=MappingProxyType(
             {**payloads, packet_path: packet_raw, factory.evidence_path: evidence_raw}
+        ),
+    )
+    return claim, authority, data
+
+
+def _mixed_materialized_repo_genesis_fixture(
+    *, frozen: bool = False
+) -> tuple[dict[str, Any], validator.AuthoritySnapshotBundle, dict[str, Any]]:
+    """Build the one closed mixed-baseline materialized-genesis world."""
+
+    factory = _current_authority_factory()
+    data = {
+        "external_lane_claims": [],
+        "long_run_state": {"revision": 17, "active_claims": [], "agent_leases": []},
+        "architecture_packets": {},
+    }
+    allowed = [
+        "docs/plans/agent-context-transparency-contract.md",
+        "docs/plans/live-contextual-layer-contract.md",
+        "tests/test_live_contextual_layer_contract.py",
+    ]
+    absent = allowed[1:]
+    baseline_payloads = {
+        "docs/plans/agent-context-transparency-contract.md": (
+            b"agent context transparency contract fixture\n"
+        )
+    }
+    baselines = {
+        "docs/plans/agent-context-transparency-contract.md": validator._git_blob_id(
+            baseline_payloads["docs/plans/agent-context-transparency-contract.md"]
+        ),
+        **{path: "absent" for path in absent},
+    }
+    claim = factory.running_v2(data, "fixture-mixed-materialized-repo-genesis", allowed)
+    data["external_lane_claims"] = [claim]
+    claim.update({
+        "slice_id": "fixture-mixed-materialized-repo-genesis",
+        "authority_revision": {
+            "claimed_against_round7_revision": 16,
+            "registered_round7_revision": 17,
+        },
+        "baseline_blobs": dict(baselines),
+        "baseline_readback": {
+            "schema_version": 1,
+            "mode": "materialized_repo_genesis_partition_v1",
+            "materialized_paths": [
+                "docs/plans/agent-context-transparency-contract.md"
+            ],
+            "materialized_readback": "materialized_exact_binary_readback_pass",
+            "genesis_paths": list(absent),
+            "genesis_readback": validator.CAPTURED_ABSENT_PATHS_READBACK_PASS,
+        },
+        "new_evidence_writer_paths": [],
+        "architecture_revision": "fixture-mixed-materialized-repo-genesis-v1",
+        "claim_transfer": {
+            "origin_mode": validator.MATERIALIZED_REPO_GENESIS_MODE,
+            "source_registry": None,
+            "from_claim_id": None,
+            "source_released_at": None,
+            "transferred_at": "2026-08-03T11:20:00+02:00",
+            "gap_preserved_no_writer": True,
+            "architecture_handoff": "fixture_mixed_materialized_repo_genesis",
+            "new_product_writer_paths": list(absent),
+        },
+    })
+    packet_path = "docs/plans/fixture-mixed-materialized-repo-genesis-architecture.json"
+    correction_budget = {
+        "failure_class": "fixture_mixed_baseline",
+        "limit": 1,
+        "on_repeat": "release_blocked",
+        "used": 0,
+    }
+    packet = {
+        "acceptance": ["mixed materialized and absent baselines remain separate"],
+        "allowed_paths": list(allowed),
+        "architect": "root/Sol fixture",
+        "architecture_revision": claim["architecture_revision"],
+        "baseline_blobs": dict(baselines),
+        "baseline_readback": claim["baseline_readback"],
+        "correction_budget": correction_budget,
+        "forbidden": ["productive discovery"],
+        "hostile_matrix": ["mixed absence and capture aliases"],
+        "kind": "odysseus.sol_materialized_repo_genesis_architecture",
+        "named_tests": [
+            "tests/test_integration_spine_convergence.py::fixture-mixed-freeze",
+            "tests/test_integration_spine_convergence.py::fixture-mixed-binding",
+        ],
+        "origin_mode": validator.MATERIALIZED_REPO_GENESIS_MODE,
+        "published_round7_revision": 16,
+        "schema_version": 1,
+        "slice_id": claim["slice_id"],
+        "state": "frozen",
+        "stop_rule": "release on repeated fixture failure",
+        "threat_model": "mixed genesis cannot reclassify existing writer bytes",
+        "verification_tiers": {
+            "focused": "fixture",
+            "dependency": "fixture",
+            "central": "fixture",
+            "expensive_live": "not required",
+            "independent_qa": "fixture",
+            "sol_review": "fixture",
+        },
+    }
+    packet_raw = json.dumps(
+        packet,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    ).encode("utf-8")
+    packet_blob = validator._git_blob_id(packet_raw)
+    digest = validator._materialized_repo_genesis_packet_digest(packet)
+    assert digest is not None
+    claim["architecture_digest_sha256"] = digest
+    claim["candidate_evidence_path"] = factory.evidence_path
+    claim["candidate_evidence_manifest_blob"] = claim["read_only_pins"][
+        factory.evidence_path
+    ]
+    claim["read_only_pins"][packet_path] = packet_blob
+    data["architecture_packets"][claim["slice_id"]] = {
+        "schema_version": 1,
+        "kind": "odysseus.sol_architecture_reference",
+        "state": "frozen",
+        "architect": "root/Sol fixture",
+        "slice_id": claim["slice_id"],
+        "architecture_revision": claim["architecture_revision"],
+        "architecture_digest_sha256": digest,
+        "packet_path": packet_path,
+        "packet_blob": packet_blob,
+        "allowed_paths": list(allowed),
+        "threat_model": packet["threat_model"],
+        "correction_budget": correction_budget,
+        "stop_rule": packet["stop_rule"],
+    }
+    evidence: dict[str, Any] = {"inventory_receipt": {"inventory_mode": "rolling_projection"}}
+    payloads = dict(baseline_payloads)
+    absent_paths = tuple(absent)
+    if frozen:
+        payloads.update({
+            "docs/plans/live-contextual-layer-contract.md": b"new contract fixture\n",
+            "tests/test_live_contextual_layer_contract.py": b"new test fixture\n",
+        })
+        candidates = {
+            path: validator._git_blob_id(payload) for path, payload in payloads.items()
+        }
+        _freeze_origin_claim(claim, candidates)
+        claim["candidate_frozen_at"] = "2026-08-03T18:50:00+02:00"
+        claim["candidate_set_digest_sha256"] = validator._candidate_set_digest(candidates)
+        evidence = {
+            "schema_version": 1,
+            "kind": "odysseus.abc_claim_evidence",
+            "claim_id": claim["claim_id"],
+            "thread_id": claim["thread_id"],
+            "authority_revision": claim["authority_revision"],
+            "candidate_writer_paths": claim["allowed_paths"],
+            "baseline_blobs": claim["baseline_blobs"],
+            "baseline_readback": claim["baseline_readback"],
+            "candidate_blobs": claim["candidate_blobs"],
+            "candidate_state": claim["candidate_state"],
+            "candidate_frozen_at": claim["candidate_frozen_at"],
+            "candidate_set_digest_sha256": claim["candidate_set_digest_sha256"],
+            "candidate_command_manifest_digest_sha256": claim[
+                "candidate_command_manifest_digest_sha256"
+            ],
+            "candidate_pytest_node_manifest_digest_sha256": claim[
+                "candidate_pytest_node_manifest_digest_sha256"
+            ],
+            "candidate_pytest_node_ids": claim["candidate_pytest_node_ids"],
+            "read_only_pins": {
+                path: blob_id
+                for path, blob_id in claim["read_only_pins"].items()
+                if path != factory.evidence_path
+            },
+            "stale_invalidation": claim["stale_invalidation"],
+            "verification_tiers": claim["verification_tiers"],
+            "correction_budget": claim["correction_budget"],
+            "inventory_receipt": {"inventory_mode": "rolling_projection"},
+            "live_actions": False,
+        }
+        evidence_raw = json.dumps(
+            evidence,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+        evidence_blob = validator._git_blob_id(evidence_raw)
+        claim["read_only_pins"][factory.evidence_path] = evidence_blob
+        claim["candidate_evidence_manifest_blob"] = evidence_blob
+        absent_paths = ()
+    else:
+        evidence_raw = json.dumps(evidence, sort_keys=True).encode("utf-8")
+    blob_ids = {**claim["read_only_pins"], **{
+        path: validator._git_blob_id(payload) for path, payload in payloads.items()
+    }}
+    authority = validator.AuthoritySnapshotBundle(
+        documents=MappingProxyType({
+            validator.OPEN_WORK_PATH: validator._freeze_json(
+                {"current_position": {"external_lane_claims": [claim]}}
+            ),
+            factory.evidence_path: validator._freeze_json(evidence),
+            packet_path: validator._freeze_json(packet),
+        }),
+        blob_ids=MappingProxyType(blob_ids),
+        paths=tuple(sorted(blob_ids)),
+        raw_bytes=MappingProxyType({
+            **payloads,
+            packet_path: packet_raw,
+            factory.evidence_path: evidence_raw,
+        }),
+        absent_paths=absent_paths,
+        absent_paths_readback=(
+            validator.CAPTURED_ABSENT_PATHS_READBACK_PASS
+            if absent_paths
+            else "not_applicable"
         ),
     )
     return claim, authority, data
@@ -1143,6 +1585,236 @@ def test_materialized_repo_genesis_stable_packet_survives_standard_freeze(
     claim, authority, roadmap = _materialized_repo_genesis_fixture()
     assert _validate_claim_origin_fixture(
         claim, {}, authority, roadmap, monkeypatch
+    ) == []
+
+
+def test_materialized_repo_genesis_mixed_baseline_accepts_lcl_fixture(
+    monkeypatch,
+) -> None:
+    claim, authority, roadmap = _mixed_materialized_repo_genesis_fixture()
+
+    assert _validate_claim_origin_fixture(
+        claim, {}, authority, roadmap, monkeypatch
+    ) == []
+
+
+def test_materialized_repo_genesis_mixed_baseline_rejects_absent_not_declared(
+    monkeypatch,
+) -> None:
+    claim, authority, roadmap = _mixed_materialized_repo_genesis_fixture()
+    claim["claim_transfer"]["new_product_writer_paths"] = [
+        claim["allowed_paths"][1]
+    ]
+
+    errors = _validate_claim_origin_fixture(claim, {}, authority, roadmap, monkeypatch)
+
+    assert any("new-product absent baseline is not explicit and captured" in error for error in errors)
+
+
+def test_materialized_repo_genesis_mixed_baseline_rejects_declared_but_materialized(
+    monkeypatch,
+) -> None:
+    claim, authority, roadmap = _mixed_materialized_repo_genesis_fixture()
+    materialized = dict(authority.blob_ids)
+    path = claim["claim_transfer"]["new_product_writer_paths"][0]
+    materialized[path] = "d" * 40
+    authority = validator.AuthoritySnapshotBundle(
+        documents=authority.documents,
+        blob_ids=MappingProxyType(materialized),
+        paths=tuple(sorted(materialized)),
+        raw_bytes=authority.raw_bytes,
+        absent_paths=authority.absent_paths,
+        absent_paths_readback=authority.absent_paths_readback,
+    )
+
+    errors = _validate_claim_origin_fixture(claim, {}, authority, roadmap, monkeypatch)
+
+    assert any("new-product absent baseline is not explicit and captured" in error for error in errors)
+
+
+def test_materialized_repo_genesis_mixed_baseline_rejects_uncaptured_absence(
+    monkeypatch,
+) -> None:
+    claim, authority, roadmap = _mixed_materialized_repo_genesis_fixture()
+    authority = validator.AuthoritySnapshotBundle(
+        documents=authority.documents,
+        blob_ids=authority.blob_ids,
+        paths=authority.paths,
+        raw_bytes=authority.raw_bytes,
+        absent_paths=(),
+        absent_paths_readback="not_applicable",
+    )
+
+    errors = _validate_claim_origin_fixture(claim, {}, authority, roadmap, monkeypatch)
+
+    assert any("new-product absent baseline is not explicit and captured" in error for error in errors)
+
+
+def test_materialized_repo_genesis_mixed_baseline_rejects_extra_or_missing_new_product_paths(
+    monkeypatch,
+) -> None:
+    for paths in (
+        ["src/live_contextual_layer.py"],
+        [
+            "src/live_contextual_layer.py",
+            "tests/test_live_contextual_layer.py",
+            "tests/extra.py",
+        ],
+    ):
+        claim, authority, roadmap = _mixed_materialized_repo_genesis_fixture()
+        claim["claim_transfer"]["new_product_writer_paths"] = paths
+
+        errors = _validate_claim_origin_fixture(
+            claim, {}, authority, roadmap, monkeypatch
+        )
+
+        assert any(
+            "new-product absent baseline is not explicit and captured" in error
+            for error in errors
+        )
+
+
+def test_materialized_repo_genesis_mixed_baseline_rejects_docs_plan_evidence_router_ops_and_private_paths(
+    monkeypatch,
+) -> None:
+    for path in (
+        "docs/plans/evidence/forbidden.json",
+        "docs/plans/parallel-roadmap-execution-round7.json",
+        "ops/forbidden.py",
+        "private/forbidden.py",
+    ):
+        claim, authority, roadmap = _mixed_materialized_repo_genesis_fixture()
+        old = claim["claim_transfer"]["new_product_writer_paths"][-1]
+        claim["allowed_paths"][-1] = path
+        claim["baseline_blobs"].pop(old)
+        claim["baseline_blobs"][path] = "absent"
+        claim["claim_transfer"]["new_product_writer_paths"][-1] = path
+        roadmap["architecture_packets"][claim["slice_id"]]["allowed_paths"] = list(
+            claim["allowed_paths"]
+        )
+
+        errors = _validate_claim_origin_fixture(
+            claim, {}, authority, roadmap, monkeypatch
+        )
+
+        assert any(
+            "writer paths or hotfiles are not canonical and exact" in error
+            or "new-product absent baseline is not explicit and captured" in error
+            or "claim transfer is not exact, terminal and revision-bound" in error
+            for error in errors
+        )
+
+
+def test_materialized_repo_genesis_mixed_baseline_rejects_materialized_byte_or_blob_drift(
+    monkeypatch,
+) -> None:
+    for drift in ("raw_bytes", "blob_ids"):
+        claim, authority, roadmap = _mixed_materialized_repo_genesis_fixture()
+        materialized_path = claim["baseline_readback"]["materialized_paths"][0]
+        blob_ids = dict(authority.blob_ids)
+        raw_bytes = dict(authority.raw_bytes)
+        if drift == "raw_bytes":
+            raw_bytes[materialized_path] = b"drifted materialized bytes\n"
+        else:
+            blob_ids[materialized_path] = "d" * 40
+        authority = validator.AuthoritySnapshotBundle(
+            documents=authority.documents,
+            blob_ids=MappingProxyType(blob_ids),
+            paths=tuple(sorted(blob_ids)),
+            raw_bytes=MappingProxyType(raw_bytes),
+            absent_paths=authority.absent_paths,
+            absent_paths_readback=authority.absent_paths_readback,
+        )
+
+        errors = _validate_claim_origin_fixture(
+            claim, {}, authority, roadmap, monkeypatch
+        )
+
+        assert any(
+            "claim transfer is not exact, terminal and revision-bound" in error
+            for error in errors
+        )
+
+
+def test_materialized_repo_genesis_mixed_baseline_requires_closed_partition_readback(
+    monkeypatch,
+) -> None:
+    mutations = (
+        lambda value: value.pop("genesis_readback"),
+        lambda value: value.__setitem__("extra", True),
+        lambda value: value.__setitem__("mode", "materialized_repo_genesis_partition_v2"),
+        lambda value: value.__setitem__(
+            "genesis_paths", list(reversed(value["genesis_paths"]))
+        ),
+        lambda value: value.__setitem__(
+            "genesis_paths", value["genesis_paths"] + value["materialized_paths"]
+        ),
+    )
+    for mutate in mutations:
+        claim, authority, roadmap = _mixed_materialized_repo_genesis_fixture()
+        mutate(claim["baseline_readback"])
+
+        errors = _validate_claim_origin_fixture(
+            claim, {}, authority, roadmap, monkeypatch
+        )
+
+        assert any(
+            "baseline readback evidence is invalid" in error
+            or "claim transfer is not exact, terminal and revision-bound" in error
+            for error in errors
+        )
+
+
+def test_materialized_repo_genesis_partition_is_origin_mode_isolated(
+    monkeypatch,
+) -> None:
+    claim, authority, roadmap = _mixed_materialized_repo_genesis_fixture()
+    assert validator._materialized_repo_genesis_partition_readback(claim) == (
+        ("docs/plans/agent-context-transparency-contract.md",),
+        (
+            "docs/plans/live-contextual-layer-contract.md",
+            "tests/test_live_contextual_layer_contract.py",
+        ),
+    )
+
+    claim["claim_transfer"]["origin_mode"] = validator.NEW_PRODUCT_PATHS_MODE
+    assert validator._materialized_repo_genesis_partition_readback(claim) is None
+
+
+def test_materialized_repo_genesis_mixed_baseline_rejects_foreign_released_or_running_overlap(
+    monkeypatch,
+) -> None:
+    claim, authority, roadmap = _mixed_materialized_repo_genesis_fixture()
+    for state in ("released_accepted", "running"):
+        overlap = {
+            "run_id": f"foreign-{state}",
+            "state": state,
+            "allowed_paths": [
+                claim["claim_transfer"]["new_product_writer_paths"][0]
+            ],
+        }
+        errors = _validate_claim_origin_fixture(
+            claim, {overlap["run_id"]: overlap}, authority, roadmap, monkeypatch
+        )
+
+        assert any(
+            "new-product absent baseline is not explicit and captured" in error
+            for error in errors
+        )
+
+
+def test_materialized_repo_genesis_mixed_baseline_binds_freeze_capture(
+    monkeypatch,
+) -> None:
+    claim, authority, roadmap = _mixed_materialized_repo_genesis_fixture(frozen=True)
+
+    assert _validate_claim_origin_fixture(
+        claim,
+        {},
+        authority,
+        roadmap,
+        monkeypatch,
+        validate_active_freeze=True,
     ) == []
 
     frozen, frozen_authority, frozen_roadmap = _materialized_repo_genesis_fixture(
@@ -3563,6 +4235,94 @@ def test_r4_paths_reject_unicode_windows_and_hostile_aliases() -> None:
     paths, valid = validator._collect_repository_paths(HostileList(["src/a.py"]))
     assert paths == {}
     assert valid is False
+
+
+def test_repository_path_key_allows_only_exact_github_metadata_root() -> None:
+    path = ".github/workflows/quality-gate.yml"
+
+    assert validator._repository_path_key(path) == (
+        ".github",
+        "workflows",
+        "quality-gate.yml",
+    )
+    paths, valid = validator._collect_repository_paths([path])
+    assert valid is True
+    assert paths == {
+        (".github", "workflows", "quality-gate.yml"): path,
+    }
+
+
+def test_repository_path_key_github_exception_rejects_nested_dot_alias_traversal_and_windows_devices() -> None:
+    for alias in (
+        ".git/config",
+        ".GiT/objects/object",
+        ".GitHub/workflows/quality-gate.yml",
+        ".GITHUB/workflows/quality-gate.yml",
+        ".github./workflows/quality-gate.yml",
+        ".github /workflows/quality-gate.yml",
+        ".gitignore",
+        ".env",
+        "src/.github/workflows/quality-gate.yml",
+        ".github/.hidden/config",
+        ".github/.github/workflows/quality-gate.yml",
+        ".github/../private.yml",
+        ".github/workflows/CON.yml",
+        ".github/workflows/evil\x1f.yml",
+        "src/evil\x7f.py",
+        ".github/workflows/invalid\ud800.yml",
+    ):
+        assert validator._repository_path_key(alias) is None
+
+
+def test_repository_path_key_rejects_windows_latin1_superscript_device_aliases_at_any_depth() -> None:
+    for alias in (
+        "COM\u00b9",
+        "COM\u00b2.py",
+        "src/COM\u00b3.py",
+        "tests/LPT\u00b9.txt",
+        ".github/workflows/LPT\u00b2.yml",
+        ".github/workflows/LPT\u00b3",
+    ):
+        assert validator._repository_path_key(alias) is None
+
+
+def test_repository_path_key_rejects_superscript_device_aliases_with_extensions_and_ascii_case_variants() -> None:
+    for prefix in ("COM", "com", "CoM", "LPT", "lpt", "LpT"):
+        for superscript in ("\u00b9", "\u00b2", "\u00b3"):
+            for extension in ("", ".yml", ".tar.gz"):
+                alias = f".github/workflows/{prefix}{superscript}{extension}"
+                assert validator._repository_path_key(alias) is None
+
+
+def test_repository_path_key_does_not_apply_nfkc_numeric_or_generic_superscript_folding() -> None:
+    for path in (
+        ".github/workflows/COM\u2070.yml",
+        ".github/workflows/COM\u2074.yml",
+        ".github/workflows/COM\u2081.yml",
+        ".github/workflows/COM\uff11.yml",
+        ".github/workflows/C\uff2fM\u00b9.yml",
+        ".github/workflows/COMM\u00b9.yml",
+        ".github/workflows/COM\u00b9x.yml",
+        ".github/workflows/XCOM\u00b9.yml",
+        ".github/workflows/COM\u00b9\u00b2.yml",
+        ".github/workflows/caf\u00e9\u00b9.yml",
+    ):
+        assert validator._repository_path_key(path) == tuple(
+            part.casefold() for part in path.split("/")
+        )
+
+
+def test_repository_path_key_superscript_device_fix_preserves_mixed_genesis_and_exact_github_controls() -> None:
+    assert validator._repository_path_key(
+        ".github/workflows/quality-gate.yml"
+    ) == (".github", "workflows", "quality-gate.yml")
+    assert validator._repository_path_key("docs/plans/live-contextual-layer-contract.md") == (
+        "docs",
+        "plans",
+        "live-contextual-layer-contract.md",
+    )
+    for alias in ("CON", "PRN.txt", "src/AUX.py", "src/nul", "COM1", "LPT9.log"):
+        assert validator._repository_path_key(alias) is None
 
 
 def test_r4_byte_capture_is_immutable_after_writer_drift(tmp_path) -> None:
