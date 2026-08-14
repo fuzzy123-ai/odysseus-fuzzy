@@ -2,9 +2,9 @@
 
 Snapshot: 2026-08-14, Europe/Berlin
 Continuity deadline: 2026-08-16 00:00 Europe/Berlin
-Canonical authority at snapshot: Open Work / Round 7 Revision 284
-Known accepted units: 159
-Denominator: unknown (`unknown_revision2_invalidated_by_active_source_drift`)
+Canonical authority at snapshot: Open Work / Round 7 Revision 286
+Verified progress: 173 accepted of 245 canonical units
+Open units: 72 (19 repo, 19 design, 30 live, 4 operator)
 
 This file is a redacted continuation snapshot for an agent that has no chat or
 thread history. It is descriptive evidence, not mutation authority. If this
@@ -62,16 +62,15 @@ Newer accepted/released records override stale earlier `planned`, `blocked`, or
 - Purpose: complete structured authority, accepted product work, foreign work,
   and historical evidence.
 - Branch at snapshot: `codex/implemenetaion`.
-- Documentation parent immediately before this snapshot:
-  `3f84d422b1c645cbe6cff0042fee6645cec88d58` (`docs: refresh master
-  continuation handoff`), whose parent is
-  `749919267437adc23f2cded540dbd6281a424042`. A later documentation-only
-  handoff commit may sit above it. Never use a handoff commit itself as product
-  authority; use the exact accepted claim tuples instead.
-- State immediately before the documentation-only handoff commit: 212 dirty
-  paths, index empty.
-- Planning subtree immediately before that commit: 0 staged entries, 20
-  tracked-modified entries, and 126 untracked entries. The central authorities
+- HEAD before the next documentation-only handoff commit:
+  `4a0619d2af8ad83e7dec770bdb9cef42a1f83eed`
+  (`docs: finalize roadmap continuation handoff`), parent
+  `3f84d422b1c645cbe6cff0042fee6645cec88d58`. Never use a handoff commit
+  itself as product authority; use the exact accepted claim tuples instead.
+- State before the next documentation-only handoff commit: 214 dirty paths
+  (55 tracked-modified, 159 untracked), index empty.
+- Planning subtree: 0 staged entries, 22 tracked-modified entries, and 126
+  untracked entries. The central authorities
   are intentionally modified; the terminal R7-A2 packet and freeze Evidence
   are untracked but exactly hash-pinned by durable authority. Untrackedness
   alone does not invalidate a registered artifact.
@@ -240,16 +239,14 @@ Current external blockers:
 
 ## 6. Global roadmap state
 
-- Open Work and Round 7 are at authority Revision 284.
-- Known accepted count is 159; the denominator is deliberately unknown until a
-  fresh canonical scope snapshot resolves source drift.
-- Canonical denominator recovery is read-only first: capture every active
-  source-roadmap blob and disposition from one stable authority snapshot,
-  recompute the member set/unit/accepted/open counts, compare again before the
-  single Root-owned persistence transaction, and abort on any intervening
-  source or router drift. Validate the resulting snapshot with Integration
-  Spine, Round 6, and Guidance; never infer the denominator from the previous
-  invalidated revision-2 baseline.
+- Open Work and Round 7 are at authority Revision 286.
+- The canonical denominator is verified and published: 173 accepted of 245
+  unique units, leaving 72 open (19 repo, 19 design, 30 live, 4 operator).
+- The published snapshot binds all 30 active source-roadmap blobs, the exact
+  alias/exclusion rules, the current authority tuple, and the independently
+  reviewed deterministic candidate. Do not recompute or replace the
+  denominator from stale prose; re-open denominator work only if a current
+  source or authority byte changes and the routers explicitly invalidate it.
 - No central repo claim or lease is active. `ABC-R7A2-R3R1-REV280` was
   terminally released blocked at Revision 283 after correction 1/1. Freeze
   Evidence remains `docs/plans/evidence/abc-r7a2-r3r1-rev282-freeze.json`
@@ -271,8 +268,8 @@ Current external blockers:
   JSON, Guidance, `diff --check`, isolated planning-boundary pytest (10/10),
   Root review, and independent Sol review pass. It grants no router, Evidence,
   product, stage, commit, push, deploy, provider, host, UI, or live authority.
-  Root/Sol persisted its accepted release mirror at Revision 284. Root/Sol
-  alone may perform the later denominator transaction.
+  Root/Sol persisted its accepted release mirror at Revision 284 and later
+  consumed it as one input to the completed Rev286 denominator transaction.
 - `ABC-RMT8-V2-REV278` remains
   `released_accepted` at authority Revision 279 on frozen source/test blobs
   `df90fa7203d1a0c94b23ee194647cd5ca1779be7` and
@@ -281,11 +278,11 @@ Current external blockers:
   the full persisted dependency corridor, static checks, all three central
   validators, independent hostile QA, and Deep-Sol passed on the unchanged
   frozen tuple.
-- Revision 284 raw `git hash-object --no-filters` readback: Open Work
-  `e43d79bec9f7045510466fc724031ba18333755b`, Round 6
-  `b37635a8f314a8adadb042323af963a7690695c5`, Round 7
-  `bdca17e5dafef2f9b82ddd989bbdf1b1a489bf35`, Guidance
-  `53c64713872b5c462f8e8bd3c5b540cb0ab4e4f3`, R7-A2 packet
+- Revision 286 post-publication raw `git hash-object --no-filters` readback:
+  Open Work `8cff54b199c2005fd5cb45394400ed3977168950`, Round 6
+  `696af4ae82f33582ae4dd68a3edc9c93b1367296`, Round 7
+  `eb4c865fe725e81b8b4c120597da205d4ed11c88`, Guidance
+  `7d4b43dc7f91c1f9cfc9837d3b7bb425f50fc3f7`, R7-A2 packet
   `c4d2974f7cef38c636c960b5e641a26202cf4345`, and freeze Evidence
   `a86820f61d9a952a42f6082c382287cd11b212ad`. Do not compare authority
   pins with filtered `git hash-object` output: `text:auto` normalizes Round 6
@@ -310,7 +307,7 @@ Current external blockers:
   discovery, the newer TRP-05/TRP-06 acceptance precedence, TAX0/TAX1/TAX7
   status, and the terminal TRP-07 stop rule. Independent privacy review of this
   handoff also passes.
-- Fresh native-Python readback on the current Revision 284 bytes passes all
+- Fresh native-Python readback on the current Revision 286 bytes passes all
   three central validators: Integration Spine `ok:true`, Round 6 `valid:true`
   with 30/30 rows and zero claimable frontiers, and Guidance `valid:true` with
   139/139 inventory entries. The exact dependency corridor also ran through
@@ -361,7 +358,7 @@ a snapshot.
 | OWM-25 Coding loop consolidation | Many CAO/NMG slices accepted | Do not blindly follow stale `ACPR-11 next` prose: current history already contains later ACPR-13D acceptance. Re-run the current frontier audit and claim only the first genuinely unaccepted disjoint predecessor. |
 | OWM-26 Subagent context/delegation | Bounded local/fake contracts accepted | Continue only after current ACPR dependency readback. Real adapter activation and external dispatch remain separately gated. |
 | OWM-27 Live contextual layer | LCL-00 accepted; LCL-01 future frontier | Fresh Root/Sol architecture and exact disjoint claim are required for LCL-01. Hypotheses remain advisory and cannot override Planning/domain/USI/claim authority. |
-| OWM-28 Harbor integration | R7-A2 R3R1 terminally released blocked at Rev283 after correction 1/1; RMT8-v2 and the HWA/Temporal source normalization remain accepted | Preserve the rejected four-blob tuple. Do not patch it or open A3. Resolve the five denominator contradictions read-only or continue another disjoint architecture/recovery predecessor. |
+| OWM-28 Harbor integration | R7-A2 R3R1 terminally released blocked at Rev283 after correction 1/1; RMT8-v2 and the HWA/Temporal source normalization remain accepted; Rev286 denominator verified | Preserve the rejected four-blob tuple. Do not patch it or open A3. Reflect against the 72 published open units and select only a fresh disjoint repo-only architecture/recovery predecessor. |
 
 `OWM-24` through `OWM-28` above are continuation overlays derived from later
 structured acceptance and Round 7 state; the current Open Work
@@ -381,7 +378,7 @@ structured authority can open a writer claim.
 | `autonomous-coding-production-readiness-roadmap.json` | `[1]` / `ACPR-12-transactional-worktree-and-safe-tool-capsules` | OWM-25 | `accepted_released_round6_a` | Preserve; do not reclaim. |
 | `coding-agent-orchestration-consolidation-roadmap.md` | `[2]` / `CAO-08G-verification-repair-independent-review` | OWM-25 | `blocked_by_dependency_and_normalization` | Reconcile exact paths, hotfiles, and tests read-only. |
 | `diagnostics-legacy-fix-roadmap.md` | `[3]` / `DLF1B-telegram-history-redaction-fix` | Diagnostics | `normalization_blocked` | Perform only its fresh read-only audit. |
-| `headless-write-agent-orchestration-roadmap.md` | `[4]` / `HWA2-canonical-subagent-commit-bridge` | OWM-3 support | `normalization_blocked_fresh_architecture_required` | Source reconciliation is complete. Resolve only the exact `HWA2` versus `HWA-2` identity conflict read-only; any product recovery needs materially fresh architecture and must not revive HWA2A v2. |
+| `headless-write-agent-orchestration-roadmap.md` | `[4]` / `HWA-2-canonical-subagent-commit-bridge` | OWM-3 support | `normalization_blocked_fresh_architecture_required` | `HWA2-...` is the non-counting historical spelling of this one unit. Any product recovery needs materially fresh architecture and must not revive HWA2A v2. |
 | `system-assurance-runtime-hardening-roadmap.json` | `[5]` / `SAR-02-fresh-release-evidence` | Assurance gate | `blocked_environment` | Wait for the required symlink-capable environment. |
 | `temporal-light-agent-execution-roadmap.json` | `[6]` / `TLR-10-12h-wall-clock-soak` | Temporal gate | `waiting_on_user` | Wait for exact workload, window, limits, and restart injection. |
 | `anti-hallucination-evidence-roadmap.md` | `[7]` / `ANTI-HALLUCINATION-next-domain-audit` | Evidence audit | `normalization_blocked_readonly_audit_first` | Run only the required unsupported-domain audit. |
@@ -398,40 +395,43 @@ structured authority can open a writer claim.
 | `unified-source-index-data-lifecycle-operations-roadmap.md` | `[18]` / `ULO-01-stable-owner-scope-and-alias-contract` | OWM-21 | `accepted_released_round6_a` | Preserve; continue only through its dependency chain. |
 | `abc-frontpage-v2-build-plan.md` | `[19]` / `FRONTPAGE-V2-structured-slice-normalization` | OWM-8 | `needs_design_and_normalization` | Wait for approved UI/design structure. |
 | `ai-lens-design-roadmap.json` | `[20]` / `AIL-DESIGN-1-visual-system` | OWM-8 | `needs_design` | Wait for fixed UI paths and independent reviewer. |
-| `odysseus-harbor-one-autonomous-workspace-roadmap.md` | `[21]` / `H1-29-canonical-planning-projection` | OWM-28 | `normalization_blocked` | Do not claim H1-29; the HWA source normalization is complete, but Root/Sol must resolve the five listed denominator contradictions and persist one stable canonical snapshot first. |
+| `odysseus-harbor-one-autonomous-workspace-roadmap.md` | `[21]` / `H1-29-canonical-planning-projection` | OWM-28 | `normalization_blocked` | The denominator predecessor is complete at Rev286. H1-29 still lacks exact allowed paths, hotfiles, and tests; close those read-only before any claim. |
 | `planning-definition-editor-roadmap.json` | `[22]` / `PDE-08-real-save-undo-smoke` | Planning UI | `waiting_on_user` | Wait for user authorization. |
 | `product-planning-skills-integration-roadmap.md` | `[23]` / `PPS-1-skill-import-compatibility` | Planning skills | `waiting_on_user` | Wait for user authorization. |
 | `privacy-safe-tool-analytics-roadmap.md` | `[24]` / `TUA4R-agent-streaming-regression-guard` | OWM-12 | `accepted_released_round6_b` | Preserve; keep capture/backfill disabled. |
-| `telegram-todo-domain-truth-roadmap.md` | `[25]` / `TTD-07A5-poll-webhook-sweep-and-turn-lease` | OWM-22 | `blocked_after_two_attempts` | No third repair; require fresh architecture and claim. |
+| `telegram-todo-domain-truth-roadmap.md` | `[25]` / `TTD-07A5-poll-webhook-sweep-and-turn-lease` | OWM-22 | `accepted_released_fd2340a6_live_default_off` | Preserve the one accepted parent and its five child-release evidence records; TTD-07A6 is dependency-ready but unselected. |
 | `faster-whisper-transcription-protocol-roadmap.json` | `[26]` / `TRP-07-offline-integration-backup-and-live-packet` | OWM-24 | `blocked_after_fresh_architecture_and_two_recovery_corrections_not_accepted` | Preserve TRP-03..06; do not revive TRP-07 without fresh architecture. |
 | `tool-taxonomy-registration-roadmap.md` | `[27]` / `TAX7-existing-admin-ui-consumes-the-catalog` | OWM-11 | `repo_implemented_automated_gates_pass_user_ui_acceptance_open` | Wait for user/UI acceptance; keep activation off. |
 | `lens-code-graph-roadmap.md` | `[28]` / `LCG-00-ux-truth-and-navigation-contract` | OWM-18 | `waiting_on_explicit_goal_and_ui_owner` | Wait for explicit goal and UI owner. |
-| `unified-source-index-runtime-integration-roadmap.md` | `[29]` / `UIR-03-composition-root-and-dependency-injection` | OWM-19 | `blocked_pending_exact_active_file_handoff` | Reconcile the app/initializer single-writer handoff read-only. |
+| `unified-source-index-runtime-integration-roadmap.md` | `[29]` / `UIR-03-composition-root-and-dependency-injection` | OWM-19 | `accepted_released_superseded_aggregate` | Count only accepted UIR-03A Go-A R2 and UIR-03B R2; the generic aggregate and recovery suffixes are non-counting aliases. |
 
 All paths above are under `docs/plans/`. Count proof: Guidance active-profile
 sources = 30; Round 6 frontier rows = 30; both unique path sets are identical.
 
-### Canonical open-unit candidate inventory (76 IDs; denominator not published)
+### Canonical open-unit inventory (72 IDs; denominator published at Rev286)
 
-This is the context-free, lexically sorted open-unit candidate reconstructed
-from all 30 active sources after the accepted HWA/Temporal normalization. It is
-not yet the verified global denominator because the authority contradictions
-below remain unresolved. Do not delete blocked, design, live, or operator units
-to make the count close.
+This is the context-free, lexically sorted open-unit inventory reconstructed
+from all 30 active sources after the accepted HWA/Temporal normalization. It
+is the open remainder of the verified Rev286 global denominator. Do not delete
+blocked, design, live, or operator units to make the count close.
 
 The per-ID continuation ledger is
 `docs/plans/open-work-continuation-inventory.json`, raw Git blob
-`ed14b52ed857a3d2d5508da356ec3ea2aa7caea0`, raw SHA-256
-`4619074842d35d31a05758ef7b647607b877beb843e9cf0ff04d052932755992`,
-35,227 bytes. It accounts for all 76 IDs exactly once and gives each ID its
+`3237c7311481a0c1d7d165c323c1d880326ccbe5`, raw SHA-256
+`942602eb9386bbacb39425cb13c351c968b412cb9039feeb4b054e9f2a5a37d3`,
+34,055 bytes. It accounts for all 72 IDs exactly once and gives each ID its
 class, authority locator, current status, immediate action or literal
 `not_declared`, hard stop, verification route, and dependencies. Its state is
-`candidate_unverified_not_execution_authority`: use it to find the current
-source, never to manufacture a claim, gate approval, live authority, or global
-denominator. The five unresolved records in that file are mandatory stops, not
-fields to infer from feature similarity.
+`verified_revision286_reference_not_claim_or_live_authority`: use it to find
+the current source, never to manufacture a claim, gate approval, or live
+authority. Its one unresolved record is the explicit baseline-only
+`not_declared` metadata limitation; do not infer missing actions or gates from
+feature similarity. The independently reviewed pre-transaction inventory blob
+was `30561b1c22165f4cbc27d4981039fecd7e0cb283`; the current blob above records
+the successful Rev286 publication without self-pinning post-transaction router
+bytes.
 
-Repo-local or repo-recovery candidates (23):
+Repo-local or repo-recovery candidates (19):
 
 ```text
 AMH-01-root-policy-and-runbook
@@ -446,16 +446,12 @@ HWA-6-provider-delivery-worker
 HWA-7-merge-promotion-queue
 HWA-8-deploy-promotion-queue
 HWA-9B-delivery-merge-deploy-projection
-HWA2-canonical-subagent-commit-bridge
 LCG-00-ux-truth-and-navigation-contract
 LCL-01-observation-and-hypothesis-contract
 NMG-05A-causal-store-and-review
 PPS-1-skill-import-compatibility
 SAR-02-fresh-release-evidence
 TAX7-existing-admin-ui-consumes-the-catalog
-TTD-07A5-poll-webhook-sweep-and-turn-lease
-UIR-03-composition-root-and-dependency-injection
-UIR-03A-default-off-knowledge-runtime-composition
 USI-15-synthetic-staging-and-activation-packet
 ```
 
@@ -539,41 +535,58 @@ HWA-9A-agent-status-projection -> TLR-06-history-agent-projection-api
 The HWA record expressly forbids merging HWA-2, HWA-6/7/8, HWA-9B, or
 HWA-10 into Temporal units. HWA-10 is not an alias for TLR-08/09.
 
-Unresolved denominator contradictions:
+Revision 285 identity resolutions imported into Rev286:
 
-1. Open Work reports accepted count 159, but its overlay lists eight additions
-   while the accepted RMT8-v2 record is described as the ninth addition.
-2. Round 6 uses `HWA2-canonical-subagent-commit-bridge`; the normalized HWA
-   source uses `HWA-2-canonical-subagent-commit-bridge`. No explicit alias or
-   supersession currently joins them.
-3. TTD-07A5 remains blocked in current Round 6/source authority, while later
-   handoff prose describes an accepted A5C3 lineage without an exact canonical
-   replacement mapping.
-4. UIR has unresolved exact-ID overlap: generic UIR-03/UIR-03A and the accepted
-   Go-A R2 identity, plus old UIR-03B and accepted R2 identity.
-5. The other 28 active source roadmaps still rely on the prior normalized
-   membership snapshot rather than fresh self-reconciliation records.
+1. Open Work lists the accepted RMT8-v2 recovery as the exact ninth overlay
+   addition; the completed full rebaseline counts it inside Rev286's 173
+   accepted units.
+2. `HWA2-canonical-subagent-commit-bridge` is the non-counting historical
+   spelling of the one canonical open unit
+   `HWA-2-canonical-subagent-commit-bridge`.
+3. `TTD-07A5-poll-webhook-sweep-and-turn-lease` is one accepted default-off
+   unit at `fd2340a6`; R0 and A5A through A5C3 are architecture/execution
+   evidence, not additional denominator units.
+4. The generic UIR-03 aggregate is superseded by exactly two accepted units:
+   UIR-03A Go-A R2 and UIR-03B R2. Recovery suffixes remain historical claim
+   identities, not separate units.
+5. Exact raw comparison against the invalidated revision-2 source map found 26
+   unchanged active sources and four intentionally changed sources: accepted
+   HWA/Temporal normalization plus the TTD/UIR projection normalization above.
 
-Until Root/Sol resolves these from current structured authority, report
-progress as `159/?`, not as a guessed percentage. The deterministic candidate
+The `mcp-service-availability` provenance is resolved to the exact current
+source path `docs/plans/autonomous-coding-production-readiness-roadmap.json`.
+The deterministic candidate
 format is `odysseus.open_work_denominator_candidate`: sorted 30 source paths and
 raw blobs, authority blobs, sorted alias/exclusion records, sorted unit objects
 with class/accepted/source/authority refs, and sorted contradiction records;
 hash compact recursively sorted-key UTF-8 JSON with the digest field omitted.
 
+The current deterministic candidate is
+`docs/plans/open-work-denominator-candidate-rev285.json`, raw Git blob
+`a678fd2290acf032ed5747e4fe424d5874bfc30b`, raw SHA-256
+`1721cf5c70967e27f667d6c7dd984a1e17692dfc0a74e1154915cce31f1f5fc4`,
+semantic digest
+`sha256:5c921e5297fd5b7b3e852770094dbf04b4db92f67a264bb07b56137d120f3eee`.
+It contains 245 unique candidate units: 173 accepted and 72 open
+(19 repo, 19 design, 30 live, 4 operator). Its derivation is 150 accepted
+baseline IDs after the count-neutral UIR replacement, plus nine accepted
+overlay IDs, plus 14 unique accepted HWA/Temporal source-normalization IDs.
+Independent reviewer `Banach` verified this exact blob, all 30 source blobs,
+the 245 unique IDs, 173 accepted dispositions, 72 open dispositions, aliases,
+and the compare-before authority tuple. Root/Sol then imported it atomically at
+Rev286. The candidate remains historical pre-transaction evidence; Open Work
+and Round 7 are the current denominator authority.
+
 Reproducible open-inventory checksum for this snapshot:
 
 ```json
-{"authority_blobs_git_no_filters":{"guidance":"53c64713872b5c462f8e8bd3c5b540cb0ab4e4f3","hwa_packet":"c0075c15f86a53642ebccd8cd00e4734a126958d","hwa_source":"77318983c9dcc5b124b1c1ac9408f27ce08c09d1","open_work":"e43d79bec9f7045510466fc724031ba18333755b","round6":"b37635a8f314a8adadb042323af963a7690695c5","round7":"bdca17e5dafef2f9b82ddd989bbdf1b1a489bf35","temporal_source":"441d2f335b1aebd1876b015846e39057bd5bc89b"},"class_order":["repo","design","live","operator"],"kind":"odysseus.open_work_open_unit_inventory","schema_version":1,"semantic_digest_sha256":"sha256:c0bdffcf0c5d226f3aed4e940ce08f225e879956a9ebcfca0aded6b221bc6475","source_blobs_sha256":"sha256:c88eb0e7fa8d3af29ddcb2f46a233ccc66ab02df99269d98ef65d2cc2c0ed845","source_paths_sha256":"sha256:0f3bf8d41306facf635edd86a6c481cba702292994ab6c2e78937f86f9ec3bcf","verification_state":"candidate_unverified"}
+{"authority_blobs_git_no_filters":{"guidance":"7d4b43dc7f91c1f9cfc9837d3b7bb425f50fc3f7","hwa_packet":"c0075c15f86a53642ebccd8cd00e4734a126958d","hwa_source":"77318983c9dcc5b124b1c1ac9408f27ce08c09d1","open_work":"a08e49b97dcb1eb9749bfd8aa561c0c6011933c8","round6":"0cb4c79ca47c1302038e4c9f0849c0284cf327f0","round7":"8126a645155c57e4ddbf98203725938249310694","temporal_source":"441d2f335b1aebd1876b015846e39057bd5bc89b"},"authority_revision":286,"current_inventory_blob_git_no_filters":"3237c7311481a0c1d7d165c323c1d880326ccbe5","open_counts":{"design":19,"live":30,"operator":4,"repo":19,"total":72},"published_progress":"173/245","verification_state":"verified_revision286_reference_not_claim_or_live_authority"}
 ```
 
-To reconstruct its digest preimage, remove `semantic_digest_sha256`, add the
-key `open_unit_ids_by_class`, whose object keys are the four `class_order`
-values and whose values are the corresponding lexically sorted lists above,
-then encode the complete object as recursively sorted-key compact ASCII JSON
-without a terminal newline. The checksum makes the candidate reproducible;
-`candidate_unverified` is intentional and does not override the unresolved
-denominator contradictions.
+The authority blobs in this compact receipt are the independently reviewed
+Rev285 compare-before tuple. The current post-transaction router blobs are the
+Rev286 tuple recorded in section 6. This avoids an impossible self-pin while
+making the publication transition auditable.
 
 ### Overlay authority anchors
 
@@ -666,13 +679,13 @@ Round 6 row, Open Work history, and any newer accepted record.
   cancellable query execution and owner decisions; USI-07A needs owner and
   lifecycle contracts; CBM-09 needs the runtime and generation contracts.
   Reconcile these read-only and never invent a parallel API or authority.
-- `queue_status` still carries an older `r276` label and
+- Historical `queue_status` fields may still carry older labels and
   `next_parallel_wave_registration.active_claims` contains terminal historical
   entries. The older checkpoint copies at Open Work
   `$.current_position.full_goal_progress.long_run_checkpoint` and Round 7
   `$.long_run_state.global_goal_progress.long_run_checkpoint` were normalized
-  at Revision 284 to `159/?`, the current deadline, and the denominator
-  reconciliation state. Current Rev284 authority has empty active-claim and
+  at Revision 286 to `173/245`, the current deadline, and the verified
+  denominator state. Current Rev286 authority has empty active-claim and
   lease arrays; its terminal history includes the accepted RMT8-v2 claim from
   Revision 279 and the blocked R7-A2 R3R1 claim from Revision 283.
 
@@ -704,14 +717,16 @@ baseline for a new claim without a materially fresh architecture transaction.
    checkout before any write.
 3. Recompute Open Work/Round 6/Round 7 raw blobs and confirm no central claim or
    lease is active. Verify the packet-local HWA normalization is released on
-   the exact packet/source blobs recorded in section 6. Rebind the 76-record
+   the exact packet/source blobs recorded in section 6. Rebind the 72-record
    continuation ledger before using any of its authority locators.
 4. Preserve accepted `ABC-RMT8-V2-REV278` exactly as frozen and released at
    Revision 279. Do not reopen its exhausted correction budget or reconstruct
    its product bytes from prose.
 5. Preserve terminal R7-A2 R3R1 evidence without another patch. Preserve the
-   accepted two-source HWA normalization, then Root/Sol must recompute and
-   persist the canonical denominator from one stable snapshot.
+   accepted source and identity normalizations and the verified Rev286
+   denominator. Run `$reflect` over the 19 repo-open units, select the smallest
+   dependency-ready architecture/recovery predecessor, and register a writer
+   only after exact paths, pins, tests, lease, and central readback exist.
 6. The public independent scope review and one-parent/one-commit ancestry are
    complete. The exact remaining platform request is:
    `Push commit ea181f52e72a24d91480757c55a298fbb77249b1 nach fuzzy/dev.`
@@ -728,8 +743,8 @@ raw blob `c0075c15f86a53642ebccd8cd00e4734a126958d`, semantic digest
 `sha256:ccf05a15010df328d10f18a141d177239b82001704c211c69cad6e02d7cf3e23`.
 Its accepted source blobs are HWA `77318983c9dcc5b124b1c1ac9408f27ce08c09d1`
 and Temporal `441d2f335b1aebd1876b015846e39057bd5bc89b`.
-The slice cannot infer or persist the denominator; that remains a later atomic
-Root/Sol transaction.
+The slice itself did not infer or persist the denominator. Root/Sol completed
+that separate atomic transaction at Rev286 after independent review.
 
 ## 11. Verification commands
 
