@@ -16,6 +16,7 @@ from src.model_context import (
     get_context_snapshot_async,
 )
 from src.maintenance_model_policy import DEFAULT_MAINTENANCE_MODEL
+from src.local_model_scheduler import local_model_async_slot
 from src.llm_response_cache import LLMResponseCache
 
 logger = logging.getLogger(__name__)
@@ -837,48 +838,57 @@ async def _stream_llm_impl(url: str, model: str, messages: List[Dict], temperatu
         _harmony_router = _HarmonyStreamRouter()
         try:
             client = _get_http_client()
-            async with client.stream('POST', target_url, json=payload, headers=h, timeout=stream_timeout) as r:
-                _clear_host_dead(target_url)
-                if r.status_code != 200:
-                    raw = (await r.aread()).decode(errors="replace")
-                    friendly = _format_upstream_error(r.status_code, raw, target_url)
-                    yield f'event: error\ndata: {json.dumps({"status": r.status_code, "text": friendly, "raw": raw[:500]})}\n\n'
-                    return
-                async for line in r.aiter_lines():
-                    if not line:
-                        continue
-                    try:
-                        j = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    message = j.get("message") or {}
-                    thinking = message.get("thinking") or ""
-                    if thinking:
-                        yield _stream_delta_event(thinking, thinking=True)
-                    content = message.get("content") or ""
-                    if content:
-                        for part, is_thinking in _harmony_router.feed(content):
-                            yield _stream_delta_event(part, thinking=is_thinking)
-                    for tc in message.get("tool_calls") or []:
-                        fn = tc.get("function") or {}
-                        if fn.get("name"):
-                            _ollama_tool_calls.append({
-                                "id": tc.get("id") or f"call_{len(_ollama_tool_calls)}",
-                                "name": fn.get("name") or "",
-                                "arguments": json.dumps(fn.get("arguments") or {}),
-                            })
-                    if j.get("done"):
-                        for part, is_thinking in _harmony_router.flush():
-                            yield _stream_delta_event(part, thinking=is_thinking)
-                        if _ollama_tool_calls:
-                            yield f'data: {json.dumps({"type": "tool_calls", "calls": _ollama_tool_calls})}\n\n'
-                        if j.get("prompt_eval_count") is not None or j.get("eval_count") is not None:
-                            yield f'data: {json.dumps({"type": "usage", "data": {"input_tokens": j.get("prompt_eval_count", 0), "output_tokens": j.get("eval_count", 0)}})}\n\n'
-                        yield "data: [DONE]\n\n"
+            # The single shared lease spans the complete native stream
+            # lifetime and is released by EOF, error, cancellation, or
+            # explicit async-generator close.
+            async with local_model_async_slot(
+                target_url,
+                model,
+                provider=provider,
+                prompt_type=prompt_type,
+            ):
+                async with client.stream('POST', target_url, json=payload, headers=h, timeout=stream_timeout) as r:
+                    _clear_host_dead(target_url)
+                    if r.status_code != 200:
+                        raw = (await r.aread()).decode(errors="replace")
+                        friendly = _format_upstream_error(r.status_code, raw, target_url)
+                        yield f'event: error\ndata: {json.dumps({"status": r.status_code, "text": friendly, "raw": raw[:500]})}\n\n'
                         return
-                for part, is_thinking in _harmony_router.flush():
-                    yield _stream_delta_event(part, thinking=is_thinking)
-                yield "data: [DONE]\n\n"
+                    async for line in r.aiter_lines():
+                        if not line:
+                            continue
+                        try:
+                            j = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+                        message = j.get("message") or {}
+                        thinking = message.get("thinking") or ""
+                        if thinking:
+                            yield _stream_delta_event(thinking, thinking=True)
+                        content = message.get("content") or ""
+                        if content:
+                            for part, is_thinking in _harmony_router.feed(content):
+                                yield _stream_delta_event(part, thinking=is_thinking)
+                        for tc in message.get("tool_calls") or []:
+                            fn = tc.get("function") or {}
+                            if fn.get("name"):
+                                _ollama_tool_calls.append({
+                                    "id": tc.get("id") or f"call_{len(_ollama_tool_calls)}",
+                                    "name": fn.get("name") or "",
+                                    "arguments": json.dumps(fn.get("arguments") or {}),
+                                })
+                        if j.get("done"):
+                            for part, is_thinking in _harmony_router.flush():
+                                yield _stream_delta_event(part, thinking=is_thinking)
+                            if _ollama_tool_calls:
+                                yield f'data: {json.dumps({"type": "tool_calls", "calls": _ollama_tool_calls})}\n\n'
+                            if j.get("prompt_eval_count") is not None or j.get("eval_count") is not None:
+                                yield f'data: {json.dumps({"type": "usage", "data": {"input_tokens": j.get("prompt_eval_count", 0), "output_tokens": j.get("eval_count", 0)}})}\n\n'
+                            yield "data: [DONE]\n\n"
+                            return
+                    for part, is_thinking in _harmony_router.flush():
+                        yield _stream_delta_event(part, thinking=is_thinking)
+                    yield "data: [DONE]\n\n"
         except (httpx.ConnectError, httpx.ConnectTimeout) as e:
             _cooled = _mark_host_dead(target_url)
             _tail = f" — host cooled for {DEAD_HOST_COOLDOWN:.0f}s" if _cooled else " — transient, will retry"
@@ -1041,7 +1051,15 @@ async def _stream_llm_impl(url: str, model: str, messages: List[Dict], temperatu
     h = apply_kimi_code_headers(h, target_url)
     try:
         client = _get_http_client()
-        async with client.stream('POST', target_url, json=payload, headers=h, timeout=stream_timeout) as r:
+        # This includes local OpenAI-compatible /v1 servers.  Their provider
+        # label is intentionally still ``openai``; the scheduler recognizes
+        # only bounded local endpoints and leaves all cloud streams untouched.
+        async with local_model_async_slot(
+            target_url,
+            model,
+            provider=provider,
+            prompt_type=prompt_type,
+        ), client.stream('POST', target_url, json=payload, headers=h, timeout=stream_timeout) as r:
             _clear_host_dead(target_url)
             if r.status_code != 200:
                 raw = (await r.aread()).decode(errors="replace")

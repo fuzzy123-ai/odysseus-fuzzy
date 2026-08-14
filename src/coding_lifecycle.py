@@ -490,7 +490,10 @@ def _publish_status(publish: Mapping[str, Any], runner_phase: str) -> str:
 
 
 def _verified_done_status(done_gate: Mapping[str, Any], runner_phase: str, quality: Mapping[str, Any]) -> str:
-    if runner_phase == "done" or done_gate.get("done") is True or done_gate.get("status") == "done":
+    # Runner phase is progress narration, not independent completion evidence.
+    # Keep the v1 projection shape stable while refusing to manufacture a
+    # verified terminal state from ``phase=done`` alone.
+    if done_gate.get("done") is True or done_gate.get("status") == "done":
         return "done"
     if runner_phase in {"blocked", "failed"}:
         return _RUNNER_PHASE_TO_STATUS[runner_phase]

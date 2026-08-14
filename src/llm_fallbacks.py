@@ -19,21 +19,57 @@ def _dedupe_candidates(candidates):
     return out
 
 
-def _summarize_stream_error(err_chunk: Optional[str]) -> str:
-    """Pull a short human reason out of an ``event: error`` SSE chunk."""
-    if not err_chunk:
-        return "primary model failed"
+def _closed_stream_error(err_chunk: Optional[str]) -> dict:
+    status = 0
+    error_class = "provider_error"
     try:
-        for line in err_chunk.split("\n"):
+        for line in str(err_chunk or "").split("\n"):
             if line.startswith("data: "):
                 parsed = json.loads(line[6:])
-                text = parsed.get("text") or parsed.get("error") or ""
-                status = parsed.get("status")
-                msg = (f"HTTP {status}: " if status else "") + str(text)
-                return msg[:200].strip() or "primary model failed"
+                status = int(parsed.get("status") or 0)
+                if status in {401, 403}:
+                    error_class = "auth"
+                elif status == 400:
+                    error_class = "invalid_request"
+                elif status == 413:
+                    error_class = "request_too_large"
+                elif status == 429:
+                    error_class = "rate_limit"
+                elif status in {408, 504}:
+                    error_class = "timeout"
+                elif 500 <= status <= 599:
+                    error_class = "provider_unavailable"
+                break
     except Exception:
-        pass
+        status = 0
+        error_class = "provider_error"
+    if not 100 <= status <= 599:
+        status = 0
+    return {
+        "schema": "odysseus.provider_failure.v1",
+        "type": "provider_error",
+        "status": status,
+        "error_class": error_class,
+        "retryable": error_class
+        in {"provider_unavailable", "rate_limit", "timeout"},
+    }
+
+
+def _summarize_stream_error(err_chunk: Optional[str]) -> str:
+    """Return a closed status summary without forwarding provider text."""
+    if not err_chunk:
+        return "primary model failed"
+    failure = _closed_stream_error(err_chunk)
+    if failure["status"]:
+        return f"HTTP {failure['status']}: {failure['error_class']}"
     return "primary model failed"
+
+
+def _redacted_stream_error_event(err_chunk: Optional[str]) -> str:
+    return (
+        "event: error\n"
+        f"data: {json.dumps(_closed_stream_error(err_chunk), sort_keys=True)}\n\n"
+    )
 
 
 def _no_model_endpoint_event() -> str:
@@ -135,7 +171,7 @@ async def stream_llm_with_fallback(
                     else:
                         logger.warning(f"[fallback] candidate {model} failed; trying next")
                     break
-                yield chunk
+                yield _redacted_stream_error_event(chunk)
                 continue
             if chunk.startswith("data: ") and not chunk.startswith("data: [DONE]"):
                 try:
@@ -152,4 +188,4 @@ async def stream_llm_with_fallback(
         if not retried:
             return
     if last_error:
-        yield last_error
+        yield _redacted_stream_error_event(last_error)

@@ -468,11 +468,15 @@ def _safe_label(value: Any, *, field: str) -> str:
     text = str(value or "").strip()
     if not text:
         return ""
-    if _SECRET_RE.search(text) or _HOST_PATH_RE.search(text):
+    if _SECRET_RE.search(text) or _HOST_PATH_RE.search(text) or _has_parent_component(text):
         return stable_payload_hash(text)
     if len(text) > 180 or not _SAFE_LABEL_RE.fullmatch(text):
         return stable_payload_hash(text)
     return text
+
+
+def _has_parent_component(value: str) -> bool:
+    return any(component == ".." for component in value.replace("\\", "/").split("/"))
 
 
 def _safe_metadata(metadata: Mapping[str, Any]) -> dict[str, Any]:

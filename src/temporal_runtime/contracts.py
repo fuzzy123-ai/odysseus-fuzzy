@@ -203,6 +203,26 @@ class NormalizedDag:
 
 
 @dataclass(frozen=True)
+class DefinitionSnapshotReference:
+    schema_id: str
+    project_id: str
+    roadmap_id: str
+    planning_revision: int
+    planning_content_hash: str
+    snapshot_hash: str
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "schema_id": self.schema_id,
+            "project_id": self.project_id,
+            "roadmap_id": self.roadmap_id,
+            "planning_revision": self.planning_revision,
+            "planning_content_hash": self.planning_content_hash,
+            "snapshot_hash": self.snapshot_hash,
+        }
+
+
+@dataclass(frozen=True)
 class ExecutionManifest:
     agent_run_id: str
     owner_scope_ref: str
@@ -210,6 +230,7 @@ class ExecutionManifest:
     roadmap_id: str
     planning_revision: int
     planning_content_hash: str
+    definition_snapshot_ref: DefinitionSnapshotReference
     normalized_dag: NormalizedDag
     done_contract: FrozenObject
     queue_scope: str
@@ -234,6 +255,7 @@ class ExecutionManifest:
             "roadmap_id": self.roadmap_id,
             "planning_revision": self.planning_revision,
             "planning_content_hash": self.planning_content_hash,
+            "definition_snapshot_ref": self.definition_snapshot_ref.to_payload(),
             "normalized_dag": self.normalized_dag.to_payload(),
             "done_contract": self.done_contract.to_value(),
             "queue_scope": self.queue_scope,

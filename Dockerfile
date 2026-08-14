@@ -66,11 +66,16 @@ ENV ODYSSEUS_RELEASE_REVISION=${ODYSSEUS_RELEASE_REVISION} \
 ARG INSTALL_OPTIONAL=false
 ARG INSTALL_OFFICE=false
 ARG INSTALL_STT=false
-COPY requirements.txt requirements-optional.txt requirements-office.txt ./
+COPY requirements.txt requirements-optional.txt requirements-office.txt requirements-stt.txt ./
 RUN pip install --no-cache-dir -r requirements.txt \
     && if [ "$INSTALL_OPTIONAL" = "true" ]; then pip install --no-cache-dir -r requirements-optional.txt; fi \
     && if [ "$INSTALL_OFFICE" = "true" ] && [ "$INSTALL_OPTIONAL" != "true" ]; then pip install --no-cache-dir -r requirements-office.txt; fi \
-    && if [ "$INSTALL_STT" = "true" ] && [ "$INSTALL_OPTIONAL" != "true" ]; then pip install --no-cache-dir faster-whisper; fi
+    && if [ "$INSTALL_STT" = "true" ]; then \
+         python -c "import importlib.util; assert importlib.util.find_spec('faster_whisper') is None" \
+         && pip install --no-cache-dir --only-binary=:all: -r requirements-stt.txt \
+         && python -m pip check \
+         && python -c "import sys; from importlib.metadata import version; import faster_whisper, ctranslate2, av, onnxruntime; expected={'faster-whisper':'1.2.1','ctranslate2':'4.8.1','av':'18.0.0','onnxruntime':'1.27.0'}; assert sys.version_info[:2] == (3, 11); assert all(version(name) == wanted for name, wanted in expected.items())"; \
+       fi
 
 COPY --from=realesrgan-wheels /wheels/ /tmp/odysseus-wheels/
 RUN pip install --no-cache-dir --no-deps /tmp/odysseus-wheels/*.whl \

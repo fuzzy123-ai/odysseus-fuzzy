@@ -398,8 +398,9 @@ def test_coding_agent_routes_create_plan_and_quality_gate(tmp_path: Path, monkey
     assert plan.status_code == 200
     assert plan.json()["success"] is True
     assert plan.json()["coding_task"]["worktree_ref"] == "coding-worktrees/demo/add-route"
-    assert plan.json()["runner_state"]["phase"] == "scoped"
-    assert plan.json()["runner_state"]["progress_percent"] == 20
+    assert plan.json()["runner_state"]["phase"] == "blocked"
+    assert plan.json()["runner_state"]["progress_percent"] == 0
+    assert plan.json()["runner_state"]["gates_waiting"] == ["planning_authority"]
     assert plan.json()["agent_task"]["surface"] == "workstation"
     assert plan.json()["agent_task"]["target_ref"] == "repo:demo"
     assert plan.json()["agent_task"]["status"] == "planned"
@@ -409,7 +410,8 @@ def test_coding_agent_routes_create_plan_and_quality_gate(tmp_path: Path, monkey
     assert tasks.json()["records"][0]["task_type"] == "coding_agent_task"
     state = client.get("/api/coding-agent/runner-state/add-route")
     assert state.status_code == 200
-    assert state.json()["runner_state"]["phase"] == "scoped"
+    assert state.json()["runner_state"]["phase"] == "blocked"
+    assert state.json()["runner_state"]["gates_waiting"] == ["planning_authority"]
     assert gate.status_code == 200
     assert gate.json()["success"] is True
     dumped = json.dumps({"plan": plan.json(), "gate": gate.json()})

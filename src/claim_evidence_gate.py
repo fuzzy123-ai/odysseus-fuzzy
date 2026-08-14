@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 import re
 from typing import Any, Iterable, Mapping
@@ -203,6 +203,9 @@ class ClaimEvidenceFinding:
     status: str
     reason: str
     evidence: tuple[str, ...] = ()
+    # Current-turn display aid only. Deliberately omitted from ``to_dict`` so
+    # diagnostics and persisted metrics never gain raw assistant text.
+    assertion: str = field(default="", repr=False, compare=False)
 
     @property
     def supported(self) -> bool:
@@ -236,6 +239,24 @@ class ClaimEvidenceReport:
             "findings": tuple(item.to_dict() for item in self.findings),
             "unsupported_count": len(self.unsupported),
         }
+
+
+def _bounded_claim_assertion(
+    text: str,
+    pattern: re.Pattern[str],
+    *,
+    limit: int = 240,
+) -> str:
+    """Return one current-response sentence for user-facing correction only."""
+
+    for sentence in re.split(r"(?<=[.!?])\s+|\n+", str(text or "")):
+        if not pattern.search(sentence):
+            continue
+        normalized = " ".join(sentence.split()).strip(" \t\r\n-*")
+        if len(normalized) > limit:
+            return normalized[: limit - 1].rstrip() + "\u2026"
+        return normalized
+    return ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -368,6 +389,11 @@ def evaluate_response_claims(
                 "supported" if evidence else "unsupported",
                 "test claim has a successful test command" if evidence else "test claim has no successful test command evidence",
                 evidence,
+                assertion=(
+                    ""
+                    if evidence
+                    else _bounded_claim_assertion(text, _TEST_ACTION_RE)
+                ),
             )
         )
 
@@ -461,11 +487,23 @@ def evaluate_response_claims(
 def build_claim_evidence_correction(report: ClaimEvidenceReport) -> str:
     if report.ok:
         return ""
-    claim_types = ", ".join(dict.fromkeys(item.claim_type for item in report.unsupported))
-    return (
-        "\n\nHinweis: Einige Erfolgsclaims sind noch nicht maschinenlesbar belegt "
-        f"({claim_types}). Behandle diese Punkte als nicht verifiziert, bis passende Evidence vorliegt."
-    )
+    exact_lines = []
+    generic_types = []
+    for item in report.unsupported:
+        if item.claim_type == "command_passed" and item.assertion:
+            exact_lines.append(
+                f"Nicht verifiziert: \u201e{item.assertion}\u201c \u2013 "
+                "in diesem Turn fehlt ein erfolgreicher Testlauf."
+            )
+        else:
+            generic_types.append(item.claim_type)
+    if generic_types:
+        claim_types = ", ".join(dict.fromkeys(generic_types))
+        exact_lines.append(
+            "Erfolgsclaim nicht verifiziert: ohne passende maschinenlesbare "
+            f"Evidence ({claim_types})."
+        )
+    return "\n\nHinweis:\n" + "\n".join(exact_lines)
 
 
 def _todo_claim_findings(

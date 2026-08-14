@@ -1,4 +1,5 @@
 from src.chat_agent_tool_discovery_map import keyword_hint_pairs
+from src.agent_loop_intent import _classify_agent_request
 from src.todo_intent import (
     is_clear_todo_intent,
     is_todo_memory_payload,
@@ -18,6 +19,11 @@ def test_clear_english_and_german_todo_intents_are_detected():
         "Add a tdoo: prepare the release",
         "Complete the complte todo list item",
         "Neue Aufgane:\n- Alpha\n- Beta",
+        "Todo für Freitag: Videos speichern und Tobi schicken.",
+        "Todos für Freitag: Videos speichern und Tobi schicken.",
+        "Aufgabe für Freitag: Videos speichern und Tobi schicken.",
+        "Aufgaben für Freitag: Videos speichern und Tobi schicken.",
+        "Zu erledigen bis Freitag: Videos speichern und Tobi schicken.",
     ):
         assert is_clear_todo_intent(text), text
 
@@ -57,6 +63,20 @@ def test_todo_memory_payload_gate_catches_explicit_domain_payloads_only():
 def test_discovery_backstop_maps_todo_keywords_to_manage_todos():
     pairs = list(keyword_hint_pairs())
     assert any("neue aufgabe" in keywords and tools == {"manage_todos"} for keywords, tools in pairs)
+
+
+def test_flexible_german_todo_labels_select_the_todo_domain():
+    for text in (
+        "Todo: Videos speichern",
+        "Todos für morgen: Tobi schreiben",
+        "Aufgabe: Paket abholen",
+        "Aufgaben bis Freitag: Bericht senden",
+        "Zu erledigen: Rechnung bezahlen",
+    ):
+        assert "todos" in _classify_agent_request([], text)["domains"], text
+        assert route_todo_toolset({"manage_memory", "manage_notes"}, text) == {
+            "manage_todos"
+        }
 
 
 def test_real_keyword_fallback_advertises_only_the_todo_persistence_facade():

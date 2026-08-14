@@ -157,15 +157,27 @@ def test_identifier_maps_merge_and_reject_conflicts():
 def test_identifier_adapter_redacts_host_paths_and_secret_material():
     identifiers = identifiers_from_coding_agent(
         coding_plan=SimpleNamespace(
-            repo_id=r"C:\Users\nkatz\private",
+            repo_id=r"C:\Users\example\private",
             task_id="token=abc123",
-            objective=r"C:\Users\nkatz\private token=abc123",
+            objective=r"C:\Users\example\private token=abc123",
             checks=[{"argv": ["python", "-m", "pytest"]}],
         )
     )
 
     dumped = json.dumps(identifiers.to_dict(), default=str)
 
-    assert r"C:\Users\nkatz" not in dumped
+    assert r"C:\Users\example" not in dumped
     assert "token=abc123" not in dumped
     assert "sha256:" in dumped
+
+
+def test_identifier_adapter_hashes_parent_path_components_without_false_positives():
+    unsafe = identifiers_from_coding_agent(
+        coding_plan=SimpleNamespace(repo_id="repo/../private", task_id="task-alpha", checks=[])
+    )
+    safe = identifiers_from_coding_agent(
+        coding_plan=SimpleNamespace(repo_id="repo..safe", task_id="task-alpha", checks=[])
+    )
+
+    assert unsafe.repo_id.startswith("sha256:")
+    assert safe.repo_id == "repo..safe"

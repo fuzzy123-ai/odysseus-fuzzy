@@ -16,7 +16,7 @@ from plugins.telegram.stores import TelegramInboxStore, TelegramSessionBridgeSto
 
 _PROJECT_REGISTRY_FILE = "server_project_registry.json"
 _PROJECT_INTAKE_HINT_RE = re.compile(
-    r"(#project:|#projekt:|project:|projekt:|\broadmap\b|\bmvp\b|\btodo\b|\baufgabe\b|\bplan\b|\bslice\b)",
+    r"(#project:|#projekt:|project:|projekt:|\broadmap\b|\bmvp\b|\bslice\b)",
     re.IGNORECASE,
 )
 
@@ -29,7 +29,7 @@ def _looks_like_project_intake(text: str) -> bool:
         return False
     if re.search(r"(mach|mache|wandle|konvertier|export|schick).{0,40}\b(pdf|png|jpg|docx|mp3|wav)\b", prompt, re.IGNORECASE):
         return False
-    return bool(re.search(r"(#project:|#projekt:|project:|projekt:|\broadmap\b|\bmvp\b|\btodo\b|\baufgabe\b|\bslice\b)", prompt, re.IGNORECASE))
+    return True
 
 
 def build_telegram_project_intake_preview(

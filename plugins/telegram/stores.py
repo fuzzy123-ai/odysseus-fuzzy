@@ -12,8 +12,10 @@ import json
 import os
 import re
 import tempfile
+import threading
 import time
 from errno import EACCES, EINVAL, ENOTSUP, EOPNOTSUPP, EPERM
+from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
@@ -38,6 +40,18 @@ _PINNED_PRIVACY_FILE = "telegram_privacy_pin_state.json"
 _SAFE_EVENT_VALUE_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.:@/-")
 _LEGACY_STABLE_CHAT_HANDLE_RE = re.compile(r"^chat_[0-9a-f]{12}$")
 _LEGACY_RAW_CHAT_KEY_RE = re.compile(r"^-?[1-9][0-9]{0,19}$")
+_TELEGRAM_HISTORY_LOCK = threading.RLock()
+
+
+def _serialize_telegram_history_operation(method: Callable[..., Any]) -> Callable[..., Any]:
+    """Serialize in-process Telegram history reads and complete write transactions."""
+
+    @wraps(method)
+    def _serialized(*args: Any, **kwargs: Any) -> Any:
+        with _TELEGRAM_HISTORY_LOCK:
+            return method(*args, **kwargs)
+
+    return _serialized
 
 
 def _stable_handle(prefix: str, value: Any) -> str:
@@ -275,6 +289,7 @@ class TelegramInboxStore:
         except Exception:
             pass
 
+    @_serialize_telegram_history_operation
     def append_event(self, *, kind: str, status: str, chat_id: str = "", **extra: Any) -> dict[str, Any]:
         data = self._read()
         chat_handle = _chat_handle(chat_id)
@@ -311,6 +326,7 @@ class TelegramInboxStore:
         self._append_audit(event)
         return event
 
+    @_serialize_telegram_history_operation
     def append_inbound(self, message: dict[str, Any]) -> dict[str, Any]:
         data = self._read()
         messages = data["messages"]
@@ -383,6 +399,7 @@ class TelegramInboxStore:
             )
         return {"stored": True, "message": stored, "retry_pending_voice": False}
 
+    @_serialize_telegram_history_operation
     def update_inbound_status(
         self,
         message: dict[str, Any],
@@ -418,6 +435,7 @@ class TelegramInboxStore:
             return dict(existing)
         return None
 
+    @_serialize_telegram_history_operation
     def append_outbound(
         self,
         chat_id: str,
@@ -477,6 +495,7 @@ class TelegramInboxStore:
         self._append_audit(message)
         return message
 
+    @_serialize_telegram_history_operation
     def history(self, *, chat_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
         """Return internal mixed records for Telegram runtime consumers only."""
 
@@ -488,14 +507,16 @@ class TelegramInboxStore:
                 m for m in messages
                 if str(m.get("chat_handle") or "") == chat_handle or str(m.get("chat_id") or "") == str(chat_id)
             ]
-        return list(reversed(messages[-limit:]))
+        return [dict(message) for message in reversed(messages[-limit:])]
 
+    @_serialize_telegram_history_operation
     def audit_history(self, *, chat_id: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
         """Return closed content-free receipts for admin/diagnostic consumers."""
 
         scope_ref = _chat_handle(chat_id) if chat_id else None
         return self.audit_store.history(scope_ref=scope_ref, limit=limit)
 
+    @_serialize_telegram_history_operation
     def counts(self) -> dict[str, int]:
         messages = self._read()["messages"]
         return {
@@ -512,6 +533,7 @@ class TelegramInboxStore:
             "pending_universal_inbox": sum(1 for m in messages if m.get("universal_inbox_status") == "pending_universal_inbox"),
         }
 
+    @_serialize_telegram_history_operation
     def last_delivery_summary(self) -> dict[str, Any]:
         for message in reversed(self._read()["messages"]):
             if message.get("direction") == "outbound":
@@ -528,6 +550,7 @@ class TelegramInboxStore:
             "raw_rich_payload_visible": False,
         }
 
+    @_serialize_telegram_history_operation
     def latest_universal_inbox_review(self, *, chat_id: str | None = None) -> dict[str, Any] | None:
         chat_handle = _chat_handle(chat_id) if chat_id else ""
         for message in reversed(self._read()["messages"]):
@@ -541,6 +564,7 @@ class TelegramInboxStore:
                 return dict(message)
         return None
 
+    @_serialize_telegram_history_operation
     def latest_universal_inbox_attachment(self, *, chat_id: str | None = None, max_age_seconds: int | None = None) -> dict[str, Any] | None:
         chat_handle = _chat_handle(chat_id) if chat_id else ""
         now = int(time.time())
@@ -555,6 +579,7 @@ class TelegramInboxStore:
             return dict(message)
         return None
 
+    @_serialize_telegram_history_operation
     def latest_universal_inbox_nextcloud_transfer(
         self,
         *,
@@ -572,6 +597,7 @@ class TelegramInboxStore:
             return dict(message)
         return None
 
+    @_serialize_telegram_history_operation
     def latest_universal_inbox_memory_review(self, *, chat_id: str | None = None) -> dict[str, Any] | None:
         chat_handle = _chat_handle(chat_id) if chat_id else ""
         for message in reversed(self._read()["messages"]):
@@ -584,6 +610,7 @@ class TelegramInboxStore:
                 return dict(message)
         return None
 
+    @_serialize_telegram_history_operation
     def latest_project_intake_review(self, *, chat_id: str | None = None) -> dict[str, Any] | None:
         chat_handle = _chat_handle(chat_id) if chat_id else ""
         for message in reversed(self._read()["messages"]):

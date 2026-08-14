@@ -51,6 +51,23 @@ def _registry(path: Path | None = None) -> RepoRegistry:
     return registry
 
 
+def _planning_binding(
+    *,
+    item_id: str = "roadmap-1",
+    revision: str = "plan-rev-1",
+    allowed_paths: list[str] | None = None,
+    status: str = "validated",
+) -> dict[str, object]:
+    return {
+        "status": status,
+        "planning_item_id": item_id,
+        "canonical_plan_revision": revision,
+        "acceptance_contract": "acceptance-contract-1",
+        "allowed_paths": allowed_paths or ["src", "tests"],
+        "gate_requirements": ["machine_auto", "agent_auto"],
+    }
+
+
 def test_resolves_exact_repo_id_to_bounded_owner_safe_scope():
     check = CodingCheckCommand.create(argv=["python", "-m", "pytest", "tests/test_api.py", "-q"])
     resolution = resolve_coding_project_scope(
@@ -59,6 +76,7 @@ def test_resolves_exact_repo_id_to_bounded_owner_safe_scope():
         slice_id="roadmap-1",
         allowed_paths=["src", "tests"],
         checks=[check],
+        planning_binding=_planning_binding(),
     )
 
     assert resolution.resolved is True
@@ -69,11 +87,15 @@ def test_resolves_exact_repo_id_to_bounded_owner_safe_scope():
     assert resolution.sandbox_policy["network_allowed"] is False
     assert resolution.sandbox_policy["operator_go_required"] is True
     assert resolution.to_dict()["raw_content_visible"] is False
+    assert resolution.to_dict()["planning"]["canonical_plan_revision"] == "plan-rev-1"
+    assert resolution.scope_digest.startswith("sha256:")
     assert "project_query" not in resolution.to_dict()
 
 
 def test_ambiguous_project_name_blocks_with_candidate_decision():
-    resolution = resolve_coding_project_scope(registry=_registry(), project="Demo App", owner="fuzzy123-ai")
+    resolution = resolve_coding_project_scope(
+        registry=_registry(), project="Demo App", owner="fuzzy123-ai", planning_binding=_planning_binding()
+    )
 
     assert resolution.resolved is False
     assert resolution.status == "blocked"
@@ -90,7 +112,8 @@ def test_scope_rejects_absolute_or_blocked_paths():
         resolve_coding_project_scope(
             registry=_registry(),
             project="demo-api",
-            allowed_paths=["C:/Users/nkatz/odysseus/src"],
+            allowed_paths=["X:/fixtures/odysseus/src"],
+            planning_binding=_planning_binding(),
         )
 
     with pytest.raises(CodingProjectScopeError):
@@ -98,18 +121,21 @@ def test_scope_rejects_absolute_or_blocked_paths():
             registry=_registry(),
             project="demo-api",
             allowed_paths=[".git"],
+            planning_binding=_planning_binding(),
         )
 
 
 def test_branch_policy_blocks_when_repo_registry_disallows_branch_action():
-    resolution = resolve_coding_project_scope(registry=_registry(), project="billing")
+    resolution = resolve_coding_project_scope(
+        registry=_registry(), project="billing", planning_binding=_planning_binding()
+    )
 
     assert resolution.resolved is False
     assert "repo registry does not allow branch/worktree actions" in resolution.blockers
     assert resolution.branch_policy["branch_action_allowed"] is False
 
 
-def test_project_scope_route_returns_redacted_resolution(tmp_path: Path, monkeypatch):
+def test_project_scope_route_without_planning_binding_fails_closed(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("AUTH_ENABLED", "false")
     registry_path = tmp_path / "repos.json"
     _registry(registry_path)
@@ -135,9 +161,10 @@ def test_project_scope_route_returns_redacted_resolution(tmp_path: Path, monkeyp
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["success"] is True
-    assert payload["project_scope"]["target_ref"] == "repo:demo-api"
-    assert payload["project_scope"]["allowed_paths"] == ["src", "tests"]
+    assert payload["success"] is False
+    assert payload["project_scope"]["status"] == "blocked"
+    assert payload["project_scope"]["blockers"] == ["Planning authority blocked scope: planning_data_missing"]
+    assert payload["project_scope"]["planning"]["authoritative"] is False
     assert str(tmp_path) not in json.dumps(payload)
 
 
@@ -159,3 +186,38 @@ def test_project_scope_route_rejects_unsafe_check(tmp_path: Path, monkeypatch):
 
     assert response.status_code == 400
     assert "check command is not allowed" in response.json()["detail"]
+
+
+@pytest.mark.parametrize("status", ["missing", "stale", "ambiguous", "conflicting"])
+def test_scope_blocks_missing_stale_or_ambiguous_planning(status: str):
+    resolution = resolve_coding_project_scope(
+        registry=_registry(),
+        project="demo-api",
+        planning_binding=_planning_binding(status=status),
+    )
+
+    assert resolution.status == "blocked"
+    assert resolution.resolved is False
+    assert resolution.planning_binding is None
+    assert "Planning authority blocked scope" in resolution.blockers[0]
+
+
+def test_scope_rejects_requested_path_or_revision_conflicting_with_planning():
+    binding = _planning_binding(item_id="acpr-11", allowed_paths=["src", "tests"])
+    path_conflict = resolve_coding_project_scope(
+        registry=_registry(),
+        project="demo-api",
+        slice_id="acpr-11",
+        allowed_paths=["src", "routes"],
+        planning_binding=binding,
+    )
+    revision_conflict = resolve_coding_project_scope(
+        registry=_registry(),
+        project="demo-api",
+        planning_binding={**binding, "planning_revision": "plan-rev-foreign"},
+    )
+
+    assert path_conflict.status == "blocked"
+    assert "conflict" in path_conflict.blockers[0]
+    assert revision_conflict.status == "blocked"
+    assert "planning_data_ambiguous" in revision_conflict.blockers[0]

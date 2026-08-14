@@ -10,6 +10,14 @@
 entrypoint.sh text eol=lf
 docker/entrypoint.sh text eol=lf
 
+# These publication assets are hashed byte-for-byte by the backup transport.
+# Keep their checked-out bytes identical to the committed LF blobs on Windows.
+ops/homeserver/redacted_predeploy_backup_*.py text eol=lf
+
+# These inventories are validated byte-for-byte and must remain canonical LF.
+docs/plans/unified-source-index-domain-owner-inventory.json text eol=lf
+docs/plans/unified-source-index-runtime-caller-inventory.json text eol=lf
+
 # Windows-native scripts stay CRLF.
 *.ps1 text eol=crlf
 *.cmd text eol=crlf

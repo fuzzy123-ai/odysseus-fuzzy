@@ -5,6 +5,7 @@ import pytest
 from src.unified_source_index_contract import (
     ChunkRecord,
     Classification,
+    CodeOccurrenceRecords,
     CodeRangeLocator,
     ContentPolicy,
     DerivedRunKind,
@@ -106,6 +107,29 @@ def test_occurrence_ids_distinguish_identical_content_by_source_and_position():
     recreated = _chunk(version_a, TextRangeLocator(0, 9))
     assert recreated.chunk_id == first.chunk_id
     assert first.chunk_id.startswith("usi_chunk_")
+
+
+def test_code_occurrence_aggregate_rejects_foreign_parent_chains_and_locator_kinds():
+    source_a = _source("repo:alpha/src/a.py")
+    source_b = _source("repo:alpha/src/b.py")
+    version_a = _version(source_a)
+    other_version_a = _version(source_a, revision="git:def456", body="other body")
+    code_chunk = _chunk(
+        version_a,
+        CodeRangeLocator("src/a.py", 1, 0, 2, 0),
+    )
+
+    assert CodeOccurrenceRecords(source_a, version_a, code_chunk).chunk == code_chunk
+    with pytest.raises(UnifiedSourceIndexContractError, match="foreign source parent"):
+        CodeOccurrenceRecords(source_b, version_a, code_chunk)
+    with pytest.raises(UnifiedSourceIndexContractError, match="foreign version parent"):
+        CodeOccurrenceRecords(source_a, other_version_a, code_chunk)
+    with pytest.raises(UnifiedSourceIndexContractError, match="CodeRangeLocator"):
+        CodeOccurrenceRecords(
+            source_a,
+            version_a,
+            _chunk(version_a, TextRangeLocator(0, 4), "same body"),
+        )
 
 
 @pytest.mark.parametrize(

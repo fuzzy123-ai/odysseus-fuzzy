@@ -90,7 +90,7 @@ def test_coding_lifecycle_surfaces_blocking_quality_gate():
     assert "changed path outside allowed scope" in payload["blockers"]
 
 
-def test_coding_lifecycle_done_can_come_from_runner_phase():
+def test_coding_lifecycle_runner_done_does_not_manufacture_verified_completion():
     state = build_coding_lifecycle_state(
         coding_plan=_plan(),
         runner_state={"task_id": "task-alpha", "repo_id": "demo", "phase": "done", "progress_percent": 100},
@@ -99,27 +99,28 @@ def test_coding_lifecycle_done_can_come_from_runner_phase():
 
     payload = state.to_dict()
 
-    assert payload["status"] == "done"
-    assert payload["next_action"] == "none"
+    assert payload["schema"] == CODING_LIFECYCLE_SCHEMA
+    assert payload["status"] != "done"
+    assert payload["next_action"] != "none"
     assert payload["stages"][-1]["stage"] == "verified_done"
-    assert payload["stages"][-1]["status"] == "done"
-    assert payload["runtime_event"]["status"] == "success"
+    assert payload["stages"][-1]["status"] == "pending"
+    assert payload["runtime_event"]["status"] != "success"
 
 
 def test_coding_lifecycle_redacts_raw_output_secrets_and_host_paths():
     state = build_coding_lifecycle_state(
-        task_id=r"C:\Users\nkatz\private\task",
+        task_id=r"C:\Users\example\private\task",
         repo_id="demo",
-        coding_plan=_plan(blockers=["token=abc123", r"C:\Users\nkatz\private\repo"]),
+        coding_plan=_plan(blockers=["token=abc123", r"C:\Users\example\private\repo"]),
         sandbox_dispatch={
             "task_id": "task-alpha",
             "quality_gate": {"verified": False, "blockers": ["token=abc123"]},
             "evidence_bundle": {
                 "artifacts": [
                     {
-                        "artifact_ref": r"C:\Users\nkatz\private\sandbox.log",
+                        "artifact_ref": r"C:\Users\example\private\sandbox.log",
                         "stdout": "token=abc123",
-                        "stderr_preview": "C:\\Users\\nkatz\\private\\repo",
+                        "stderr_preview": "X:\\fixtures\\private\\repo",
                     },
                 ],
             },
@@ -128,7 +129,7 @@ def test_coding_lifecycle_redacts_raw_output_secrets_and_host_paths():
 
     dumped = json.dumps(state.to_dict(), default=str)
 
-    assert r"C:\Users\nkatz" not in dumped
+    assert r"C:\Users\example" not in dumped
     assert "token=abc123" not in dumped
     assert "sha256:" in dumped
 

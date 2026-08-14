@@ -4,8 +4,10 @@ Config stored in data/auth.json. Uses bcrypt directly.
 """
 
 import enum
+import copy
 import json
 import os
+import re
 import secrets
 import threading
 import time
@@ -67,6 +69,15 @@ TOKEN_TTL = 60 * 60 * 24 * 7  # 7 days
 # Refuse to create or rename into any of them so the sentinels can't be
 # impersonated. (Keep this in sync with that synthetic-owner set.)
 RESERVED_USERNAMES = frozenset({INTERNAL_TOOL_USER, "api", "demo", "system"})
+SUBJECT_ID_PATTERN = re.compile(r"^owner_[a-z0-9]{32}$")
+
+
+class AuthSubjectIdentityError(RuntimeError):
+    """The durable account-to-owner identity mapping is unsafe to use."""
+
+
+def _new_subject_id() -> str:
+    return "owner_" + secrets.token_hex(16)
 
 
 def normalize_known_username(users: Dict[str, Any], username: str | None) -> Optional[str]:
@@ -120,6 +131,7 @@ class AuthManager:
         self._load()
         self._load_sessions()
         self._migrate_single_user()
+        self._migrate_subject_identities()
         self._drop_reserved_loaded_users()
         self._migrate_legacy_admin_role()
 
@@ -128,19 +140,32 @@ class AuthManager:
             if os.path.exists(self.auth_path):
                 with open(self.auth_path, "r", encoding="utf-8") as f:
                     self._config = json.load(f)
+                if not isinstance(self._config, dict):
+                    raise AuthSubjectIdentityError("invalid account identity registry")
                 # Normalize all stored usernames to lowercase so they match
                 # the .strip().lower() applied at login/verify time. Fixes
                 # "Invalid credentials" when auth.json was written with
                 # mixed-case keys (e.g. via manual edit or a future migration).
                 if "users" in self._config:
-                    self._config["users"] = {
-                        k.strip().lower(): v
-                        for k, v in self._config["users"].items()
-                    }
+                    users = self._config["users"]
+                    if not isinstance(users, dict):
+                        raise AuthSubjectIdentityError("invalid account identity registry")
+                    normalized_users: Dict[str, Any] = {}
+                    for raw_username, row in users.items():
+                        if not isinstance(raw_username, str):
+                            raise AuthSubjectIdentityError("invalid account identity registry")
+                        username = raw_username.strip().lower()
+                        if username in normalized_users:
+                            raise AuthSubjectIdentityError("duplicate account identity")
+                        normalized_users[username] = row
+                    self._config["users"] = normalized_users
                 logger.info("Auth config loaded")
             else:
                 self._config = {}
                 logger.info("No auth config found — first-run setup required")
+        except AuthSubjectIdentityError:
+            logger.error("Failed to load auth config: invalid account identity registry")
+            raise
         except Exception as e:
             logger.error(f"Failed to load auth config: {e}")
             self._config = {}
@@ -187,11 +212,55 @@ class AuthManager:
                         "password_hash": old_hash,
                         "created": time.time(),
                         "is_admin": True,
+                        "subject_id": _new_subject_id(),
                     }
                 }
             }
             self._save()
             logger.info(f"Migrated single-user auth to multi-user (admin: {old_user})")
+
+    def _migrate_subject_identities(self) -> None:
+        """Atomically add immutable opaque owner IDs and reject ambiguity.
+
+        Usernames remain mutable display/login keys.  Transcription ownership
+        is instead bound to this server-only identifier, which is moved with a
+        rename and discarded with an account deletion.
+        """
+        users = self._config.get("users")
+        if users is None:
+            return
+        if not isinstance(users, dict):
+            raise AuthSubjectIdentityError("invalid account identity registry")
+
+        seen: set[str] = set()
+        missing: list[str] = []
+        for username, row in users.items():
+            if not isinstance(username, str) or not isinstance(row, dict):
+                raise AuthSubjectIdentityError("invalid account identity registry")
+            subject_id = row.get("subject_id")
+            if subject_id is None:
+                missing.append(username)
+                continue
+            if not isinstance(subject_id, str) or not SUBJECT_ID_PATTERN.fullmatch(subject_id):
+                raise AuthSubjectIdentityError("invalid account identity registry")
+            if subject_id in seen:
+                raise AuthSubjectIdentityError("duplicate account identity")
+            seen.add(subject_id)
+
+        if not missing:
+            return
+        candidate = copy.deepcopy(self._config)
+        for username in missing:
+            subject_id = _new_subject_id()
+            while subject_id in seen:
+                subject_id = _new_subject_id()
+            candidate["users"][username]["subject_id"] = subject_id
+            seen.add(subject_id)
+        # Publish the complete migration in one replace, and only then expose
+        # it to lock-free readers in this process.
+        _atomic_write_json(self.auth_path, candidate, indent=2)
+        self._config = candidate
+        logger.info("Migrated %d account identity record(s)", len(missing))
 
     def _drop_reserved_loaded_users(self):
         """Fail closed for legacy/manual auth rows that collide with sentinels."""
@@ -249,6 +318,16 @@ class AuthManager:
     def is_configured(self) -> bool:
         return len(self.users) > 0
 
+    def subject_id_for_username(self, username: str | None) -> Optional[str]:
+        """Resolve a login name to its immutable, non-public owner ID."""
+        normalized = normalize_known_username(self.users, username)
+        if normalized is None:
+            return None
+        subject_id = self.users[normalized].get("subject_id")
+        if not isinstance(subject_id, str) or not SUBJECT_ID_PATTERN.fullmatch(subject_id):
+            raise AuthSubjectIdentityError("invalid account identity registry")
+        return subject_id
+
     def policy(self) -> dict:
         """Return public auth policy constants for the frontend."""
         return {
@@ -286,6 +365,7 @@ class AuthManager:
                 "password_hash": _hash_password(password),
                 "created": time.time(),
                 "is_admin": is_admin,
+                "subject_id": _new_subject_id(),
                 "privileges": dict(ADMIN_PRIVILEGES if is_admin else DEFAULT_PRIVILEGES),
             }
             self._save()

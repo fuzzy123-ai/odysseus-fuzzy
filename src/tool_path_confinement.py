@@ -2,6 +2,7 @@
 
 import contextvars
 import os
+import tempfile
 from typing import Optional
 
 from src.constants import DATA_DIR
@@ -98,10 +99,16 @@ def _tool_path_roots() -> list[str]:
     except OSError:
         pass
 
-    # $TMPDIR — per-user temp root on macOS (e.g. /var/folders/.../T/).
-    tmpdir = os.environ.get("TMPDIR")
-    if tmpdir:
-        roots.append(tmpdir)
+    # The platform's actual temporary directory.  On Windows this is normally
+    # %TEMP%, not /tmp, so relying on the POSIX spelling rejects legitimate
+    # temporary files.  Never accept a filesystem root here: a broken runtime
+    # configuration must not widen confinement to an entire drive or share.
+    try:
+        system_tmp = os.path.realpath(tempfile.gettempdir())
+        if os.path.isdir(system_tmp) and os.path.dirname(system_tmp) != system_tmp:
+            roots.append(system_tmp)
+    except (OSError, TypeError):
+        pass
 
     # Opt-in extra roots from settings.
     try:

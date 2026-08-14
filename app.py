@@ -64,7 +64,7 @@ from core.constants import (
     REQUEST_TIMEOUT, OPENAI_API_KEY, AUTH_FILE,
 )
 from core.database import SessionLocal, ApiToken
-from core.middleware import SecurityHeadersMiddleware, is_cors_preflight
+from core.middleware import SecurityHeadersMiddleware, is_cors_preflight, require_admin
 from core.auth import AuthManager, normalize_known_username
 from core.exceptions import (
     SessionNotFoundError, InvalidFileUploadError,
@@ -628,7 +628,59 @@ from src.config import config
 # ========= COMPONENT INITIALIZATION =========
 from src.app_initializer import initialize_managers
 
+try:
+    from src.agent_tools import set_mcp_manager
+    from src.agent_tools.knowledge_tools import set_query_knowledge_planner
+    from src.unified_source_index_runtime import (
+        KnowledgeRuntime,
+        bind_knowledge_runtime,
+        close_knowledge_runtime,
+    )
+    from src.unified_source_index_job_runner import CooperativeIndexJobPump
+    from src.unified_source_index_runtime_status import (
+        UnifiedSourceIndexRuntimeStatusError,
+        project_unified_source_index_runtime_status,
+    )
+except Exception:
+    logger.warning("Knowledge runtime lifecycle import failed")
+    raise RuntimeError("knowledge_runtime_lifecycle_import_failed") from None
+
 components = initialize_managers(BASE_DIR, rag_manager)
+
+try:
+    knowledge_runtime = components["knowledge_runtime"]
+    if type(knowledge_runtime) is not KnowledgeRuntime:
+        raise TypeError("invalid knowledge runtime component")
+except Exception:
+    logger.warning("Knowledge runtime component invalid")
+    raise RuntimeError("knowledge_runtime_component_invalid") from None
+
+try:
+    index_job_pump = components["index_job_pump"]
+    if type(index_job_pump) is not CooperativeIndexJobPump:
+        raise TypeError("invalid index job pump component")
+except Exception:
+    logger.warning("Index job pump component invalid")
+    raise RuntimeError("index_job_pump_component_invalid") from None
+
+app.state.knowledge_runtime = knowledge_runtime
+app.state.index_job_pump = index_job_pump
+
+
+@app.get("/api/diagnostics/unified-source-index/runtime-status")
+async def unified_source_index_runtime_status(request: Request) -> Dict[str, object]:
+    require_admin(request)
+    try:
+        projection = project_unified_source_index_runtime_status(
+            knowledge_runtime,
+            index_job_pump,
+        )
+    except UnifiedSourceIndexRuntimeStatusError:
+        raise HTTPException(
+            503,
+            "unified_source_index_runtime_status_unavailable",
+        ) from None
+    return projection
 
 session_manager   = components["session_manager"]
 from src.assistant_log import set_session_manager as _set_asst_sm
@@ -660,6 +712,75 @@ from services.tts import get_tts_service
 
 tts_service = get_tts_service()
 logger.info("TTS service initialized (provider managed via admin settings)")
+
+# Privacy transcription is a separate, default-off local pipeline.  Enabling
+# it requires explicitly disabling every legacy STT ingress first.
+from src.transcription_runtime import TranscriptionRuntime, TranscriptionRuntimeConfig
+
+_transcription_config_values = {
+    key: os.getenv(key)
+    for key in (
+        "ODYSSEUS_TRANSCRIPTION_ENABLED",
+        "ODYSSEUS_TRANSCRIPTION_LOCAL_ONLY",
+        "ODYSSEUS_TRANSCRIPTION_RECORDING_AUTHORIZED",
+        "ODYSSEUS_TRANSCRIPTION_MAX_BYTES",
+        "ODYSSEUS_TRANSCRIPTION_MAX_CHUNK_BYTES",
+        "ODYSSEUS_TRANSCRIPTION_RESERVATION_TTL_SECONDS",
+        "ODYSSEUS_TRANSCRIPTION_REQUEST_TIMEOUT_SECONDS",
+        "ODYSSEUS_TRANSCRIPTION_BRIDGE_DEPTH",
+        "ODYSSEUS_TRANSCRIPTION_WORKER_POLL_SECONDS",
+        "ODYSSEUS_TRANSCRIPTION_SHUTDOWN_TIMEOUT_SECONDS",
+        "ODYSSEUS_TRANSCRIPTION_RETENTION_DAYS",
+    )
+    if os.getenv(key) is not None
+}
+transcription_config = TranscriptionRuntimeConfig.from_mapping(_transcription_config_values)
+
+def _exact_runtime_flag(name: str, default: str) -> bool:
+    value = os.getenv(name, default).strip().lower()
+    if value not in {"true", "false"}:
+        raise RuntimeError("invalid runtime feature configuration")
+    return value == "true"
+
+legacy_stt_enabled = _exact_runtime_flag("ODYSSEUS_LEGACY_STT_ENABLED", "true")
+legacy_telegram_stt_enabled = any(
+    _exact_runtime_flag(key, "false")
+    for key in ("TELEGRAM_STT_ENABLED", "TELEGRAM_VOICE_STT_ENABLED")
+)
+if transcription_config.enabled and (legacy_stt_enabled or legacy_telegram_stt_enabled):
+    raise RuntimeError("privacy transcription requires legacy STT to be disabled")
+if transcription_config.enabled:
+    from services.transcription.faster_whisper_adapter import LocalFasterWhisperAdapter
+    from src.maintenance_model_policy import MaintenanceModelProfile
+    from src.transcription_local_model import Gemma3LocalReviewTransport
+    from src.transcription_pipeline import TranscriptionPipeline
+    from src.transcription_review import TranscriptionReviewer
+    from src.transcription_store import TranscriptionStore
+
+    _transcription_store = TranscriptionStore(
+        os.path.abspath(os.getenv("ODYSSEUS_TRANSCRIPTION_ROOT", os.path.join(DATA_DIR, "transcriptions"))),
+        max_bytes=transcription_config.max_bytes,
+        max_chunk_bytes=transcription_config.max_chunk_bytes,
+        reservation_ttl_seconds=transcription_config.reservation_ttl_seconds,
+    )
+    _transcription_adapter = LocalFasterWhisperAdapter(
+        os.path.abspath(os.environ["ODYSSEUS_TRANSCRIPTION_MODEL_DIR"])
+    )
+    _transcription_reviewer = TranscriptionReviewer(
+        Gemma3LocalReviewTransport(
+            os.getenv("OLLAMA_BASE_URL", "http://ollama:11434"),
+            MaintenanceModelProfile.create(runtime_enabled=True),
+        )
+    )
+    _transcription_pipeline = TranscriptionPipeline(
+        _transcription_store, _transcription_adapter, reviewer=_transcription_reviewer
+    )
+    transcription_runtime = TranscriptionRuntime(
+        transcription_config, store=_transcription_store, pipeline=_transcription_pipeline
+    )
+else:
+    transcription_runtime = TranscriptionRuntime(transcription_config)
+app.state.transcription_runtime = transcription_runtime
 
 # ========= EXCEPTION HANDLERS =========
 @app.exception_handler(SessionNotFoundError)
@@ -848,12 +969,15 @@ app.include_router(setup_chatgpt_subscription_routes())
 from routes.tts_routes import setup_tts_routes
 app.include_router(setup_tts_routes(tts_service))
 
-# STT
-from services.stt import get_stt_service
-stt_service = get_stt_service()
-from routes.stt_routes import setup_stt_routes
-app.include_router(setup_stt_routes(stt_service))
-logger.info("STT service initialized (provider managed via settings)")
+# Owner-scoped privacy transcription, and the mutually exclusive legacy STT.
+from routes.transcription_routes import setup_transcription_routes
+app.include_router(setup_transcription_routes(transcription_runtime))
+if legacy_stt_enabled:
+    from services.stt import get_stt_service
+    stt_service = get_stt_service()
+    from routes.stt_routes import setup_stt_routes
+    app.include_router(setup_stt_routes(stt_service))
+    logger.info("Legacy STT service initialized")
 
 # Documents (artifacts/canvas)
 from routes.document_routes import setup_document_routes
@@ -929,7 +1053,6 @@ app.include_router(setup_font_routes())
 
 # MCP (Model Context Protocol)
 from src.mcp_manager import McpManager
-from src.agent_tools import set_mcp_manager
 from routes.mcp_routes import setup_mcp_routes
 
 mcp_manager = McpManager()
@@ -1264,6 +1387,12 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
     from src.agent_loop import stream_agent_loop
     from src.telegram_context_policy import build_telegram_turn_context
     from src.telegram_todo_truth import build_telegram_todo_truth_envelope
+    from src.telegram_turn_diagnostics import (
+        build_telegram_turn_diagnostic,
+        filter_telegram_fallback_candidates,
+        parse_terminal_provider_error_sse,
+        telegram_provider_error_reply,
+    )
     from src.telegram_truth_gate import project_telegram_todo_transactions
     from src.workflow_skills import WorkflowSkillError, resolve_workflow_skills
 
@@ -1280,6 +1409,13 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
     try:
         owner = _telegram_owner()
         local_rebind_notice = ""
+        telegram_local_only_required = bool(
+            bridge.get("local_only_required")
+            or (
+                isinstance(bridge.get("sensitivity_delegation"), dict)
+                and bridge["sensitivity_delegation"].get("local_worker_required")
+            )
+        )
         try:
             from src.privacy_runtime import is_dsgvo_mode_enabled
             from src.secure_provider_runtime import (
@@ -1293,10 +1429,11 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                 else {}
             )
             dsgvo_enforced = bool(is_dsgvo_mode_enabled() and not bridge.get("telegram_voice_dsgvo_exempt"))
+            telegram_local_only_required = bool(
+                telegram_local_only_required or dsgvo_enforced
+            )
             if (
-                dsgvo_enforced
-                or bool(bridge.get("local_only_required"))
-                or bool(sensitivity_delegation.get("local_worker_required"))
+                telegram_local_only_required
             ):
                 try:
                     enforce_session_provider_runtime_gate(
@@ -1451,10 +1588,28 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                     ),
                 }
 
-        async def _run_agent_turn() -> tuple[str, tuple[dict, ...], dict | None]:
+        try:
+            from src.endpoint_resolver import resolve_chat_fallback_candidates
+
+            fallback_candidates = filter_telegram_fallback_candidates(
+                resolve_chat_fallback_candidates(owner=owner),
+                local_only_required=telegram_local_only_required,
+            )
+        except Exception:
+            fallback_candidates = []
+
+        async def _run_agent_turn() -> tuple[
+            str,
+            tuple[dict, ...],
+            dict | None,
+            dict | None,
+            dict,
+        ]:
             reply_parts: list[str] = []
             todo_transactions: tuple[dict, ...] = ()
             todo_truth_envelope: dict | None = None
+            terminal_provider_error: dict | None = None
+            turn_metrics: dict = {}
             async for chunk in stream_agent_loop(
                 session.endpoint_url,
                 session.model,
@@ -1462,8 +1617,12 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                 headers=headers,
                 session_id=session_id,
                 owner=owner,
+                fallbacks=fallback_candidates,
                 workflow_skill_resolution=workflow_skill_resolution,
             ):
+                if chunk.startswith("event: error"):
+                    terminal_provider_error = parse_terminal_provider_error_sse(chunk)
+                    continue
                 if not chunk.startswith("data: ") or chunk.startswith("data: [DONE]"):
                     continue
                 try:
@@ -1473,6 +1632,9 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                 if "delta" in event and not event.get("thinking"):
                     reply_parts.append(str(event.get("delta") or ""))
                 if event.get("type") == "metrics" and isinstance(event.get("data"), dict):
+                    candidate_metrics = event["data"].get("telegram_turn")
+                    if isinstance(candidate_metrics, dict):
+                        turn_metrics = candidate_metrics
                     todo_transactions = project_telegram_todo_transactions(
                         event["data"].get("tool_transactions")
                     )
@@ -1481,11 +1643,55 @@ def _telegram_agent_turn_handler(bridge: Dict) -> Dict:
                         candidate = build_telegram_todo_truth_envelope(metric_events)
                         if candidate.get("counts", {}).get("postconditions", 0) > 0:
                             todo_truth_envelope = candidate
-            return "".join(reply_parts).strip(), todo_transactions, todo_truth_envelope
+            return (
+                "".join(reply_parts).strip(),
+                todo_transactions,
+                todo_truth_envelope,
+                terminal_provider_error,
+                turn_metrics,
+            )
 
-        response, todo_transactions, todo_truth_envelope = _run_async_bridge(_run_agent_turn())
+        (
+            response,
+            todo_transactions,
+            todo_truth_envelope,
+            terminal_provider_error,
+            turn_metrics,
+        ) = _run_async_bridge(_run_agent_turn())
+        if terminal_provider_error:
+            turn_metrics = dict(turn_metrics)
+            turn_metrics.setdefault(
+                "provider_failure",
+                terminal_provider_error,
+            )
+            provider_failure_reply = telegram_provider_error_reply(
+                terminal_provider_error
+            )
+            response = (
+                f"{response}\n\n{provider_failure_reply}".strip()
+                if response
+                else provider_failure_reply
+            )
         if not response:
             response = "Ich habe deine Nachricht verarbeitet, aber keine Textantwort erhalten."
+        turn_diagnostic = build_telegram_turn_diagnostic(
+            context_evidence={
+                "retained_history_message_count": context_window.evidence[
+                    "retained_history_message_count"
+                ],
+                "retained_history_character_count": context_window.evidence[
+                    "retained_history_character_count"
+                ],
+                "omitted_history_message_count": context_window.evidence[
+                    "omitted_history_message_count"
+                ],
+            },
+            agent_metrics=turn_metrics,
+        )
+        logger.info(
+            "Telegram turn diagnostic: %s",
+            json.dumps(turn_diagnostic, ensure_ascii=True, sort_keys=True),
+        )
         if local_rebind_notice:
             response = f"{local_rebind_notice}{response}"
         durable_turn_ref = str(bridge.get("durable_turn_ref") or "").strip()
@@ -1688,6 +1894,9 @@ app.router.lifespan_context = _lifespan
 async def _startup_event():
     global upload_cleanup_task
     logger.info("Application starting up...")
+    # This is the sole privacy-transcription worker lifecycle.  It performs
+    # durable recovery before the application begins serving traffic.
+    await asyncio.to_thread(transcription_runtime.start)
     webhook_manager.set_loop(asyncio.get_running_loop())
     try:
         from src.plugin_system import load_plugins
@@ -1977,10 +2186,25 @@ async def _startup_event():
     from src.cookbook_serve_lifecycle import cookbook_serve_lifecycle_loop
     _startup_tasks.append(asyncio.create_task(cookbook_serve_lifecycle_loop()))
 
+    try:
+        bind_knowledge_runtime(knowledge_runtime, set_query_knowledge_planner)
+    except Exception:
+        logger.warning("Knowledge runtime bind failed; query_knowledge remains unavailable")
     logger.info("Application startup complete")
 
 async def _shutdown_event():
     logger.info("Application shutting down...")
+    try:
+        close_knowledge_runtime(knowledge_runtime)
+    except Exception:
+        logger.warning("Knowledge runtime close failed; query_knowledge remains unavailable")
+    try:
+        index_job_pump.close()
+    except Exception:
+        logger.warning("Index job pump close failed; no index job work was started")
+    # Bound shutdown before tearing down the rest of the application; no
+    # generic FastAPI background task owns this worker.
+    await asyncio.to_thread(transcription_runtime.stop)
     delivery_task = getattr(app.state, "_security_access_alert_delivery_task", None)
     if delivery_task is not None and not delivery_task.done():
         delivery_task.cancel()

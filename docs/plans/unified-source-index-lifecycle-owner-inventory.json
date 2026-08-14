@@ -1,0 +1,352 @@
+{
+  "action_fields": [
+    "action_id",
+    "canonical_action_owner",
+    "authorization_boundary",
+    "scope",
+    "usi_participation",
+    "rollback_failure",
+    "execution_authorized",
+    "synthetic_only",
+    "evidence_refs"
+  ],
+  "actions": [
+    {
+      "action_id": "auth_user_rename",
+      "authorization_boundary": "require_admin and existing auth policy",
+      "canonical_action_owner": "routes.auth_routes.rename_user to AuthManager.rename_user to migrate_renamed_user_references",
+      "evidence_refs": [
+        "routes/auth_routes.py:rename_user",
+        "routes/auth_user_rename.py:migrate_renamed_user_references"
+      ],
+      "execution_authorized": false,
+      "rollback_failure": "SQL-owner failure attempts auth rollback; later helper failures are non-atomic and must report degraded/compensated state",
+      "scope": "auth identity plus existing owner-reference migrations",
+      "synthetic_only": true,
+      "usi_participation": "future ULO-04 stable owner-scope alias integration only"
+    },
+    {
+      "action_id": "auth_user_delete",
+      "authorization_boundary": "require_admin and no self-delete",
+      "canonical_action_owner": "routes.auth_routes.admin_delete_user to AuthManager.delete_user",
+      "evidence_refs": [
+        "routes/auth_routes.py:admin_delete_user",
+        "core/auth.py:AuthManager.delete_user"
+      ],
+      "execution_authorized": false,
+      "rollback_failure": "token-store failure fails closed before auth removal; no complete cross-domain rollback exists",
+      "scope": "auth entry, API tokens and sessions only; not domain erasure or USI cleanup",
+      "synthetic_only": true,
+      "usi_participation": "future ULO-05 after exact owner/domain erasure contract"
+    },
+    {
+      "action_id": "personal_memory_record_delete",
+      "authorization_boundary": "caller-provided owner scope",
+      "canonical_action_owner": "src.memory_provider.NativeMemoryProvider.delete",
+      "evidence_refs": [
+        "src/memory_provider.py:NativeMemoryProvider.delete"
+      ],
+      "execution_authorized": false,
+      "rollback_failure": "Memory truth is saved before vector removal, so projection failure is degraded and non-transactional",
+      "scope": "one Personal Memory record plus best-effort vector projection removal",
+      "synthetic_only": true,
+      "usi_participation": "observe committed unavailability only; never delete Memory truth"
+    },
+    {
+      "action_id": "personal_docs_exclude_file",
+      "authorization_boundary": "not enforced by this class",
+      "canonical_action_owner": "src.personal_docs.PersonalDocsManager.exclude_file",
+      "evidence_refs": [
+        "src/personal_docs.py:PersonalDocsManager.exclude_file"
+      ],
+      "execution_authorized": false,
+      "rollback_failure": "no transactional rollback exists",
+      "scope": "exclusion registry and in-memory index only; not source deletion",
+      "synthetic_only": true,
+      "usi_participation": "future UDA/ULO access-loss observation after owner handoff"
+    },
+    {
+      "action_id": "personal_docs_remove_directory",
+      "authorization_boundary": "not enforced by this class",
+      "canonical_action_owner": "src.personal_docs.PersonalDocsManager.remove_directory",
+      "evidence_refs": [
+        "src/personal_docs.py:PersonalDocsManager.remove_directory"
+      ],
+      "execution_authorized": false,
+      "rollback_failure": "RAG failure is logged/swallowed and no compensation exists",
+      "scope": "registered directory and best-effort legacy RAG chunk removal; not physical owner-file deletion",
+      "synthetic_only": true,
+      "usi_participation": "future deletion/access observation after owner handoff"
+    },
+    {
+      "action_id": "user_portability_export",
+      "authorization_boundary": "require_admin and current-user scope",
+      "canonical_action_owner": "routes.backup_routes.export_data",
+      "evidence_refs": [
+        "routes/backup_routes.py:export_data"
+      ],
+      "execution_authorized": false,
+      "rollback_failure": "read-only output has no rollback",
+      "scope": "selected domain data and shared settings; never raw shared USI/Chroma database",
+      "synthetic_only": true,
+      "usi_participation": "future ULO-07 redacted coverage manifest only"
+    },
+    {
+      "action_id": "user_portability_import",
+      "authorization_boundary": "require_admin and current-user merge scope",
+      "canonical_action_owner": "routes.backup_routes.import_data",
+      "evidence_refs": [
+        "routes/backup_routes.py:import_data"
+      ],
+      "execution_authorized": false,
+      "rollback_failure": "no global transaction/rollback across imported domains",
+      "scope": "domain truth merge; never shared USI database import",
+      "synthetic_only": true,
+      "usi_participation": "future ULO-07 rediscovery after domain restore"
+    },
+    {
+      "action_id": "system_backup_now",
+      "authorization_boundary": "require_admin plus existing service/capability gate",
+      "canonical_action_owner": "routes.system_update_routes.backup_now to start_system_update_action(backup_now)",
+      "evidence_refs": [
+        "routes/system_update_routes.py:backup_now",
+        "src/system_update_status.py:start_system_update_action"
+      ],
+      "execution_authorized": false,
+      "rollback_failure": "existing action reports blocked, failed or started",
+      "scope": "existing system backup workflow; no current USI participation",
+      "synthetic_only": true,
+      "usi_participation": "future ULO-08 handoff to USI-13 primitives"
+    },
+    {
+      "action_id": "admin_category_wipe",
+      "authorization_boundary": "require_admin and explicit supported category",
+      "canonical_action_owner": "routes.admin_wipe_routes.wipe",
+      "evidence_refs": [
+        "routes/admin_wipe_routes.py:wipe"
+      ],
+      "execution_authorized": false,
+      "rollback_failure": "no current cross-store rollback exists",
+      "scope": "named category only; existing direct DB/file/projection actions",
+      "synthetic_only": true,
+      "usi_participation": "future ULO-06 exact category scope and USI fence"
+    },
+    {
+      "action_id": "usi13_sqlite_backup",
+      "authorization_boundary": "explicit USI SQLite store and fresh contained temporary target only",
+      "canonical_action_owner": "src.unified_source_index_backup.backup_sqlite_store",
+      "evidence_refs": [
+        "src/unified_source_index_backup.py:backup_sqlite_store"
+      ],
+      "execution_authorized": false,
+      "rollback_failure": "fresh target child is removed on failure",
+      "scope": "self-contained snapshot/WAL verified SQLite copy; not system backup integration",
+      "synthetic_only": true,
+      "usi_participation": "USI-13 primitive"
+    },
+    {
+      "action_id": "usi13_sqlite_restore",
+      "authorization_boundary": "typed receipt plus fresh contained temporary target only",
+      "canonical_action_owner": "src.unified_source_index_backup.restore_sqlite_backup",
+      "evidence_refs": [
+        "src/unified_source_index_backup.py:restore_sqlite_backup"
+      ],
+      "execution_authorized": false,
+      "rollback_failure": "fresh target child is removed on failure; no generation swap is claimed",
+      "scope": "validated isolated restored store; not production selection or system restore endpoint",
+      "synthetic_only": true,
+      "usi_participation": "USI-13 primitive"
+    },
+    {
+      "action_id": "usi13_projection_rebuild",
+      "authorization_boundary": "explicit SQLite store plus injected rebuilders",
+      "canonical_action_owner": "src.unified_source_index_backup.rebuild_projections",
+      "evidence_refs": [
+        "src/unified_source_index_backup.py:rebuild_projections"
+      ],
+      "execution_authorized": false,
+      "rollback_failure": "missing/failed external rebuilders yield incomplete, never success or core-truth mutation",
+      "scope": "FTS at one stable snapshot plus explicitly injected external rebuilders",
+      "synthetic_only": true,
+      "usi_participation": "USI-13 primitive"
+    }
+  ],
+  "artifact_fields": [
+    "artifact_id",
+    "artifact_class",
+    "persistent_members",
+    "lifecycle_policy_owner",
+    "owner_scope",
+    "current_eligibility",
+    "retain_purge_rebuild",
+    "generation_tombstone_semantics",
+    "rollback_failure",
+    "evidence_refs"
+  ],
+  "artifacts": [
+    {
+      "artifact_class": "truth",
+      "artifact_id": "usi_store_state_and_snapshots",
+      "current_eligibility": "snapshot fence and committed store state",
+      "evidence_refs": [
+        "src/unified_source_index_migrations.py",
+        "src/unified_source_index_sqlite.py"
+      ],
+      "generation_tombstone_semantics": "monotonic snapshot revision and state hash",
+      "lifecycle_policy_owner": "USI core SQLite store",
+      "owner_scope": "all selected USI owner scopes",
+      "persistent_members": [
+        "usi_store_state",
+        "usi_snapshots"
+      ],
+      "retain_purge_rebuild": "retain as store/snapshot fence; never purge from a source-domain action",
+      "rollback_failure": "USI-13 backup/restore only; stale or missing snapshot fails closed"
+    },
+    {
+      "artifact_class": "truth",
+      "artifact_id": "usi_index_truth_records",
+      "current_eligibility": "source policy and owner eligibility",
+      "evidence_refs": [
+        "src/unified_source_index_contract.py:RecordKind",
+        "src/unified_source_index_stores.py"
+      ],
+      "generation_tombstone_semantics": "source/version/chunk identity is stable; typed tombstone reserves identity and explicit restore is required",
+      "lifecycle_policy_owner": "USI core transactional record store",
+      "owner_scope": "record owner_scope plus selected source policy",
+      "persistent_members": [
+        "usi_sources",
+        "usi_source_versions",
+        "usi_chunks",
+        "usi_entities",
+        "usi_relations",
+        "usi_lineage"
+      ],
+      "retain_purge_rebuild": "retain until explicit lifecycle tombstone/retention policy; never rebuild domain truth",
+      "rollback_failure": "failed cleanup remains pending/degraded; no domain mutation"
+    },
+    {
+      "artifact_class": "truth",
+      "artifact_id": "usi_jobs",
+      "current_eligibility": "accepted domain/source policy only",
+      "evidence_refs": [
+        "src/unified_source_index_contract.py:IndexJobRecord",
+        "src/unified_source_index_stores.py:JobStore"
+      ],
+      "generation_tombstone_semantics": "lease/retry/completion state remains canonical job evidence",
+      "lifecycle_policy_owner": "USI JobStore",
+      "owner_scope": "job owner_scope and selected UDA domain scope",
+      "persistent_members": [
+        "usi_jobs"
+      ],
+      "retain_purge_rebuild": "future ULO-10 retention/retry; never silently discard pending cleanup",
+      "rollback_failure": "failed cleanup remains pending/degraded rather than complete"
+    },
+    {
+      "artifact_class": "truth",
+      "artifact_id": "usi_tombstones_and_record_history",
+      "current_eligibility": "content-free convergence and audit evidence only",
+      "evidence_refs": [
+        "src/unified_source_index_stores.py:TombstoneRecord",
+        "src/unified_source_index_migrations.py"
+      ],
+      "generation_tombstone_semantics": "tombstone reserves record identity with previous/current revision and typed restore",
+      "lifecycle_policy_owner": "USI core transactional store",
+      "owner_scope": "record owner_scope",
+      "persistent_members": [
+        "usi_tombstones",
+        "usi_record_history"
+      ],
+      "retain_purge_rebuild": "retention follows source/domain erasure policy; never reconstruct erased content",
+      "rollback_failure": "erasure is never reversed from derived data"
+    },
+    {
+      "artifact_class": "truth",
+      "artifact_id": "usi_projection_manifest_records",
+      "current_eligibility": "accepted provider/policy evidence only",
+      "evidence_refs": [
+        "src/unified_source_index_contract.py:ProjectionManifest"
+      ],
+      "generation_tombstone_semantics": "manifest binds projection kind, generation and input snapshot",
+      "lifecycle_policy_owner": "USI core record store",
+      "owner_scope": "manifest owner_scope and input snapshot",
+      "persistent_members": [
+        "usi_projection_manifests"
+      ],
+      "retain_purge_rebuild": "retain with corresponding generation/evidence; output itself remains rebuildable",
+      "rollback_failure": "manifest never implies provider selection or successful external rebuild"
+    },
+    {
+      "artifact_class": "truth",
+      "artifact_id": "usi_derived_run_records",
+      "current_eligibility": "accepted bounded derived-run evidence",
+      "evidence_refs": [
+        "src/unified_source_index_contract.py:DerivedRunRecord"
+      ],
+      "generation_tombstone_semantics": "run kind/version/input snapshot and evidence refs are immutable",
+      "lifecycle_policy_owner": "USI/RAPTOR DerivedRun record store",
+      "owner_scope": "derived-run owner_scope and input snapshot",
+      "persistent_members": [
+        "usi_derived_runs"
+      ],
+      "retain_purge_rebuild": "retain input/evidence identity; derived output may be deleted/rebuilt without source truth drift",
+      "rollback_failure": "failed/incomplete run cannot become accepted projection evidence"
+    },
+    {
+      "artifact_class": "rebuildable",
+      "artifact_id": "usi_chunk_fts",
+      "current_eligibility": "fixed core snapshot only",
+      "evidence_refs": [
+        "src/unified_source_index_migrations.py",
+        "src/unified_source_index_backup.py:rebuild_projections"
+      ],
+      "generation_tombstone_semantics": "no independent source/version identity",
+      "lifecycle_policy_owner": "USI-13 projection rebuild primitive",
+      "owner_scope": "same owner/source eligibility as core chunk records",
+      "persistent_members": [
+        "usi_chunk_fts",
+        "usi_chunks_ai",
+        "usi_chunks_ad",
+        "usi_chunks_au"
+      ],
+      "retain_purge_rebuild": "rebuild only from one stable core snapshot",
+      "rollback_failure": "failed rebuild is failed/incomplete and cannot alter core truth"
+    },
+    {
+      "artifact_class": "truth",
+      "artifact_id": "usi_sqlite_backup_copy",
+      "current_eligibility": "fresh contained temporary target only",
+      "evidence_refs": [
+        "src/unified_source_index_backup.py:backup_sqlite_store/restore_sqlite_backup"
+      ],
+      "generation_tombstone_semantics": "receipt binds store snapshot, schema and contained artifact hash",
+      "lifecycle_policy_owner": "USI-13 backup/restore primitive",
+      "owner_scope": "database snapshot with selected owner/source coverage",
+      "persistent_members": [
+        "source-index.sqlite3",
+        "USIBackupReceipt",
+        "USIBackupProof"
+      ],
+      "retain_purge_rebuild": "external system-backup retention applies only after ULO-08 integration",
+      "rollback_failure": "self-contained/WAL or snapshot mismatch fails closed and removes fresh target child"
+    }
+  ],
+  "effect_flags": {
+    "adapter_registration": false,
+    "domain_mutation": false,
+    "execution_authorized": false,
+    "index_write": false,
+    "live_action": false,
+    "productive_source_access": false,
+    "provider_access": false,
+    "synthetic_only": true
+  },
+  "kind": "odysseus.unified_source_index.lifecycle_owner_inventory",
+  "schema_version": 1,
+  "unimplemented_requirement_ids": [
+    "account_domain_erasure_usi_integration",
+    "personal_docs_physical_delete_or_access_revocation",
+    "system_restore_endpoint_and_generation_swap",
+    "factory_reset_mapping",
+    "usi_retention_and_gc"
+  ]
+}

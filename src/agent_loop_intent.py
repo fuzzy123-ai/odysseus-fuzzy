@@ -130,6 +130,9 @@ _EXPLICIT_CONTINUATION_RE = re.compile(
     r"yes|y|yeah|yep|ok|okay|sure|do it|go ahead|continue|carry on|"
     r"run it|launch it|start it|use that|that one|same|the same|"
     r"first|second|third|the first one|the second one|the third one|"
+    r"ja|klar|mach(?:e)?\s+(?:das|weiter)|weiter|zeig(?:e)?(?:\s+mir)?\s+das|"
+    r"welche\s+punkte(?:\s+sind\s+das)?|was\s+davon|was\s+meinst\s+du\s+damit|"
+    r"(?:und\s+)?(?:das|dazu|darauf)|"
     r"[123]|[abc]"
     r")\s*[.!?]*\s*$",
     re.IGNORECASE,
@@ -167,7 +170,10 @@ def _assistant_requested_followup(messages: List[Dict]) -> bool:
         return bool(re.search(
             r"\b(what would you like|what should|what do you want|which one|which model|"
             r"what.+(?:todo|to-do|list|document|email|model|server|item)|"
-            r"any specific|give me|tell me)\b",
+            r"any specific|give me|tell me|"
+            r"was m[öo]chtest du|was soll|welche[snr]?|welches modell|"
+            r"was.+(?:todo|to-do|liste|dokument|e-?mail|modell|server|punkt)|"
+            r"etwas bestimmtes|soll ich.+(?:zeigen|nennen|auflisten))\b",
             text,
         ))
     return False
@@ -206,6 +212,7 @@ def _classify_agent_request(messages: List[Dict], last_user: str) -> Dict[str, o
     if has(
         r"\b(todo|todos|to-do|to-dos|todolist|todo list|task list|checklist|checklists|cheklist|toodo)\b",
         r"\b(aufgabe|aufgaben|checkliste|checklisten)\b",
+        r"\bzu\s+erledigen\b",
     ):
         domains.add("todos")
     if has(r"\b(note|remind me|reminder|buy|pickup|pick up)\b"):

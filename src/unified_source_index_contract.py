@@ -28,6 +28,8 @@ _TOKEN_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._:@/+~-]{0,255}$")
 _SHA256_RE = re.compile(r"^(?:sha256:)?([0-9a-fA-F]{64})$")
 _ID_RE = re.compile(r"^usi_(source|version|chunk|entity|relation|lineage|projection|run|job|scope|policy)_[0-9a-f]{64}$")
 _CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
+_FORGE_COMMIT_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
+_FORGE_VERSION_RE = re.compile(r"^pv_[0-9a-f]{32}$")
 
 
 class UnifiedSourceIndexContractError(ValueError):
@@ -318,6 +320,19 @@ def content_hash(content: str | bytes) -> str:
     return f"sha256:{hashlib.sha256(data).hexdigest()}"
 
 
+def _forge_code_identity_ref(kind: str, payload: Mapping[str, Any]) -> str:
+    digest = hashlib.sha256(
+        canonical_json(
+            {
+                "schema": "odysseus.usi.forge_code_occurrence.v1",
+                "kind": kind,
+                "payload": payload,
+            }
+        ).encode("utf-8")
+    ).hexdigest()
+    return f"forge-code-{kind}:sha256:{digest}"
+
+
 def _integer(value: Any, field_name: str, *, minimum: int = 0, maximum: int = _MAX_POSITION) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or not minimum <= value <= maximum:
         raise UnifiedSourceIndexContractError(f"{field_name} must be between {minimum} and {maximum}")
@@ -478,6 +493,18 @@ class CodeRangeLocator:
     kind: ClassVar[LocatorKind] = LocatorKind.CODE_RANGE
 
     def __post_init__(self) -> None:
+        if type(self.path) is not str or any(
+            type(value) is not int
+            for value in (
+                self.start_line,
+                self.start_column,
+                self.end_line,
+                self.end_column,
+            )
+        ):
+            raise UnifiedSourceIndexContractError(
+                "code range locator must use exact string and integer scalar types"
+            )
         path = _path(self.path)
         start_line = _integer(self.start_line, "start_line", minimum=1, maximum=10_000_000)
         end_line = _integer(self.end_line, "end_line", minimum=1, maximum=10_000_000)
@@ -500,6 +527,124 @@ class CodeRangeLocator:
             "end_line": self.end_line,
             "end_column": self.end_column,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class ForgeCodeOccurrenceEvidence(_CanonicalRecord):
+    """Inspectable immutable Forge tuple carried with a persisted code occurrence."""
+
+    owner_scope: str
+    repo_id: str
+    version_id: str
+    commit_sha: str
+    snapshot_digest: str
+    authority_binding: tuple[str, str, str, str]
+    path: str
+    file_content_sha256: str
+    locator: CodeRangeLocator
+    SCHEMA: ClassVar[str] = f"{USI_CONTRACT_SCHEMA}.forge_code_occurrence_evidence"
+
+    def __post_init__(self) -> None:
+        if any(
+            type(value) is not str
+            for value in (
+                self.owner_scope,
+                self.repo_id,
+                self.version_id,
+                self.commit_sha,
+                self.snapshot_digest,
+                self.path,
+                self.file_content_sha256,
+            )
+        ):
+            raise UnifiedSourceIndexContractError("Forge occurrence evidence requires exact string scalars")
+        owner = _owner_scope(self.owner_scope)
+        repo_id = _token(self.repo_id, "repo_id")
+        if not _FORGE_VERSION_RE.fullmatch(self.version_id):
+            raise UnifiedSourceIndexContractError("version_id is not an immutable Forge version")
+        if not _FORGE_COMMIT_RE.fullmatch(self.commit_sha):
+            raise UnifiedSourceIndexContractError("commit_sha is not an immutable Forge commit")
+        snapshot_digest = _sha256(self.snapshot_digest, "snapshot_digest")
+        file_digest = _sha256(self.file_content_sha256, "file_content_sha256")
+        if type(self.authority_binding) is not tuple or len(self.authority_binding) != 4 or any(
+            type(value) is not str for value in self.authority_binding
+        ):
+            raise UnifiedSourceIndexContractError(
+                "authority_binding must be four exact bounded string primitives"
+            )
+        authority = tuple(
+            _token(value, f"authority_binding[{index}]")
+            for index, value in enumerate(self.authority_binding)
+        )
+        path = _path(self.path)
+        if type(self.locator) is not CodeRangeLocator or self.locator.path != path:
+            raise UnifiedSourceIndexContractError(
+                "Forge occurrence locator must use the exact canonical evidence path"
+            )
+        locator = CodeRangeLocator(
+            path,
+            self.locator.start_line,
+            self.locator.start_column,
+            self.locator.end_line,
+            self.locator.end_column,
+        )
+        object.__setattr__(self, "owner_scope", owner)
+        object.__setattr__(self, "repo_id", repo_id)
+        object.__setattr__(self, "snapshot_digest", snapshot_digest)
+        object.__setattr__(self, "authority_binding", authority)
+        object.__setattr__(self, "path", path)
+        object.__setattr__(self, "file_content_sha256", file_digest)
+        object.__setattr__(self, "locator", locator)
+
+    def source_ref(self) -> str:
+        return _forge_code_identity_ref(
+            "source",
+            {"repo_id": self.repo_id, "path": self.path},
+        )
+
+    def revision_ref(self) -> str:
+        return _forge_code_identity_ref(
+            "version",
+            {
+                "repo_id": self.repo_id,
+                "version_id": self.version_id,
+                "commit_sha": self.commit_sha,
+                "snapshot_digest": self.snapshot_digest,
+                "authority_binding": self.authority_binding,
+                "path": self.path,
+                "file_content_sha256": self.file_content_sha256,
+            },
+        )
+
+    def occurrence_ref(self, extractor_profile_ref: str) -> str:
+        return _forge_code_identity_ref(
+            "occurrence",
+            {
+                "owner_scope": self.owner_scope,
+                "repo_id": self.repo_id,
+                "version_id": self.version_id,
+                "commit_sha": self.commit_sha,
+                "snapshot_digest": self.snapshot_digest,
+                "authority_binding": self.authority_binding,
+                "path": self.path,
+                "file_content_sha256": self.file_content_sha256,
+                "locator": normalized_locator(self.locator),
+                "extractor_profile_ref": _token(
+                    extractor_profile_ref,
+                    "extractor_profile_ref",
+                ),
+            },
+        )
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "ForgeCodeOccurrenceEvidence":
+        names = {item.name for item in fields(cls)}
+        data = _payload(value, schema=cls.SCHEMA, allowed=names, required=names)
+        if not isinstance(data["authority_binding"], list):
+            raise UnifiedSourceIndexContractError("authority_binding must be a canonical JSON array")
+        data["authority_binding"] = tuple(data["authority_binding"])
+        data["locator"] = locator_from_dict(data["locator"])
+        return cls(**data)
 
 
 Locator = TextRangeLocator | PageRangeLocator | RowRangeLocator | MessageRangeLocator | CodeRangeLocator
@@ -1020,6 +1165,145 @@ class ChunkRecord(_CanonicalRecord):
         data["locator"] = locator_from_dict(data["locator"])
         data["policy_evidence"] = PolicyEvidence.from_dict(data["policy_evidence"])
         return cls(**data)
+
+
+@dataclass(frozen=True, slots=True)
+class CodeOccurrenceRecords:
+    """One exact code source -> version -> chunk occurrence chain.
+
+    This small aggregate is deliberately not another persisted record.  It is
+    the typed boundary used by source adapters and stores when three existing
+    USI records must be handled as one occurrence without accepting a foreign
+    owner, parent version, locator kind, or policy-evidence alias.
+    """
+
+    source: SourceRecord
+    source_version: SourceVersionRecord
+    chunk: ChunkRecord
+    forge_evidence: ForgeCodeOccurrenceEvidence | None = None
+
+    def __post_init__(self) -> None:
+        if type(self.source) is not SourceRecord:
+            raise UnifiedSourceIndexContractError("code occurrence source must use the exact SourceRecord type")
+        if type(self.source_version) is not SourceVersionRecord:
+            raise UnifiedSourceIndexContractError(
+                "code occurrence version must use the exact SourceVersionRecord type"
+            )
+        if type(self.chunk) is not ChunkRecord:
+            raise UnifiedSourceIndexContractError("code occurrence chunk must use the exact ChunkRecord type")
+        if self.forge_evidence is not None and type(self.forge_evidence) is not ForgeCodeOccurrenceEvidence:
+            raise UnifiedSourceIndexContractError(
+                "Forge occurrence evidence must use the exact typed contract"
+            )
+        try:
+            source = SourceRecord.from_json(self.source.to_json())
+            source_version = SourceVersionRecord.from_json(self.source_version.to_json())
+            chunk = ChunkRecord.from_json(self.chunk.to_json())
+            forge_evidence = (
+                None
+                if self.forge_evidence is None
+                else ForgeCodeOccurrenceEvidence.from_json(self.forge_evidence.to_json())
+            )
+        except (TypeError, ValueError):
+            raise UnifiedSourceIndexContractError(
+                "code occurrence records contain noncanonical values"
+            ) from None
+        object.__setattr__(self, "source", source)
+        object.__setattr__(self, "source_version", source_version)
+        object.__setattr__(self, "chunk", chunk)
+        object.__setattr__(self, "forge_evidence", forge_evidence)
+        if source.source_kind is not SourceKind.CODE:
+            raise UnifiedSourceIndexContractError("code occurrence source must have code source_kind")
+        if type(chunk.locator) is not CodeRangeLocator:
+            raise UnifiedSourceIndexContractError("code occurrence requires an exact CodeRangeLocator")
+        if source_version.source_id != source.source_id:
+            raise UnifiedSourceIndexContractError("code occurrence version has a foreign source parent")
+        if chunk.source_id != source.source_id:
+            raise UnifiedSourceIndexContractError("code occurrence chunk has a foreign source parent")
+        if chunk.source_version_id != source_version.source_version_id:
+            raise UnifiedSourceIndexContractError("code occurrence chunk has a foreign version parent")
+        if source_version.policy_evidence != source.policy_evidence():
+            raise UnifiedSourceIndexContractError("code occurrence version has aliased source policy evidence")
+        if chunk.policy_evidence != source_version.policy_evidence_ref():
+            raise UnifiedSourceIndexContractError("code occurrence chunk has aliased version policy evidence")
+        if not (
+            source.owner_scope
+            == source_version.owner_scope
+            == chunk.owner_scope
+        ):
+            raise UnifiedSourceIndexContractError("code occurrence crosses owner scope")
+        forge_bound = (
+            source.provider_ref == "forge.code"
+            or source.canonical_ref.startswith("forge-code-source:")
+            or source_version.provider_ref == "forge.code"
+            or source_version.revision_ref.startswith("forge-code-version:")
+            or chunk.extractor_profile_ref.startswith("forge-code-")
+        )
+        if forge_evidence is None:
+            if forge_bound:
+                raise UnifiedSourceIndexContractError(
+                    "Forge-bound code occurrence requires inspectable Forge evidence"
+                )
+            return
+        if not forge_bound:
+            raise UnifiedSourceIndexContractError(
+                "Forge occurrence evidence cannot be attached to an unmarked code chain"
+            )
+        if not chunk.extractor_profile_ref.startswith("forge-code-"):
+            raise UnifiedSourceIndexContractError(
+                "Forge occurrence extractor profile must carry the forge-code marker"
+            )
+        expected_source, expected_version, expected_chunk = _forge_code_expected_records(
+            forge_evidence,
+            extractor_profile_ref=chunk.extractor_profile_ref,
+            version_observed_at=source_version.version_observed_at,
+            indexed_at=chunk.indexed_at,
+        )
+        if (
+            source.to_json(),
+            source_version.to_json(),
+            chunk.to_json(),
+        ) != (
+            expected_source.to_json(),
+            expected_version.to_json(),
+            expected_chunk.to_json(),
+        ):
+            raise UnifiedSourceIndexContractError(
+                "Forge occurrence records do not match canonical evidence and parent identities"
+            )
+
+
+def _forge_code_expected_records(
+    evidence: ForgeCodeOccurrenceEvidence,
+    *,
+    extractor_profile_ref: str,
+    version_observed_at: str,
+    indexed_at: str,
+) -> tuple[SourceRecord, SourceVersionRecord, ChunkRecord]:
+    source = SourceRecord(
+        owner_scope=evidence.owner_scope,
+        source_kind=SourceKind.CODE,
+        canonical_ref=evidence.source_ref(),
+        classification=Classification.SENSITIVE,
+        content_policy=ContentPolicy.REFERENCE_ONLY,
+        provider_ref="forge.code",
+    )
+    source_version = SourceVersionRecord.create(
+        source,
+        revision_ref=evidence.revision_ref(),
+        content_hash=evidence.file_content_sha256,
+        version_observed_at=version_observed_at,
+        indexed_at=indexed_at,
+    )
+    chunk = ChunkRecord.create(
+        source_version,
+        locator=evidence.locator,
+        extractor_profile_ref=extractor_profile_ref,
+        content_hash=evidence.file_content_sha256,
+        content=None,
+        indexed_at=indexed_at,
+    )
+    return source, source_version, chunk
 
 
 @dataclass(frozen=True, slots=True)

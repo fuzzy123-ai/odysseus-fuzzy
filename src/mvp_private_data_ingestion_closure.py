@@ -59,7 +59,7 @@ class PrivateDataIngestionGate:
 
     @property
     def complete(self) -> bool:
-        return self.status in {"go", "deferred"}
+        return self.status == "go"
 
     def to_dict(self) -> dict[str, str]:
         return {
@@ -113,14 +113,14 @@ def _first_incomplete(gates: Iterable[PrivateDataIngestionGate]) -> PrivateDataI
 def build_private_data_ingestion_report(
     *,
     planning_sources_inventory_go: bool = True,
-    planning_sources_ingest_go: bool = True,
+    planning_sources_ingest_go: bool = False,
     bigdata_ledger_contract_go: bool = True,
-    nextcloud_transfer_readiness_go: bool = True,
-    resumable_transfer_tooling_go: bool = True,
-    resumable_scanner_dry_run_go: bool = True,
-    live_small_batch_transfer_go: bool = True,
-    chunked_extraction_lanes_go: bool = True,
-    memory_abstraction_ingest_live_go: bool = True,
+    nextcloud_transfer_readiness_go: bool = False,
+    resumable_transfer_tooling_go: bool = False,
+    resumable_scanner_dry_run_go: bool = False,
+    live_small_batch_transfer_go: bool = False,
+    chunked_extraction_lanes_go: bool = False,
+    memory_abstraction_ingest_live_go: bool = False,
     full_transfer_live_go: bool = False,
     full_transfer_deferred: bool = True,
     full_corpus_analysis_live_go: bool = False,
@@ -128,9 +128,29 @@ def build_private_data_ingestion_report(
     ingestion_dashboard_live_go: bool = False,
     ingestion_dashboard_deferred: bool = True,
 ) -> PrivateDataIngestionReport:
+    controls = (
+        planning_sources_inventory_go,
+        planning_sources_ingest_go,
+        bigdata_ledger_contract_go,
+        nextcloud_transfer_readiness_go,
+        resumable_transfer_tooling_go,
+        resumable_scanner_dry_run_go,
+        live_small_batch_transfer_go,
+        chunked_extraction_lanes_go,
+        memory_abstraction_ingest_live_go,
+        full_transfer_live_go,
+        full_transfer_deferred,
+        full_corpus_analysis_live_go,
+        full_corpus_analysis_deferred,
+        ingestion_dashboard_live_go,
+        ingestion_dashboard_deferred,
+    )
+    if any(type(value) is not bool for value in controls):
+        raise ValueError("private data ingestion controls must be exact booleans") from None
+
     gates = (
         PrivateDataIngestionGate.create(
-            gate_id="planning_sources_inventory",
+            gate_id="planning-sources-memory-inventory",
             title="Planning sources memory inventory",
             status="go" if planning_sources_inventory_go else "blocked",
             slice_class="repo_only",
@@ -141,18 +161,18 @@ def build_private_data_ingestion_report(
             ),
         ),
         PrivateDataIngestionGate.create(
-            gate_id="planning_sources_ingest",
+            gate_id="planning-sources-memory-ingest-live",
             title="Planning sources memory ingest live",
-            status="go" if planning_sources_ingest_go else "blocked",
+            status="go" if planning_sources_ingest_go else "repo_open",
             slice_class="repo_only",
             reason=(
                 "planning documents can be ingested as bounded memory capsules"
                 if planning_sources_ingest_go
-                else "planning source memory ingest is missing or blocked"
+                else "planning-source memory ingest needs current offline acceptance"
             ),
         ),
         PrivateDataIngestionGate.create(
-            gate_id="bigdata_ledger_contract",
+            gate_id="bigdata-ledger-contract",
             title="Big Data ledger contract",
             status="go" if bigdata_ledger_contract_go else "blocked",
             slice_class="repo_only",
@@ -163,7 +183,7 @@ def build_private_data_ingestion_report(
             ),
         ),
         PrivateDataIngestionGate.create(
-            gate_id="nextcloud_transfer_readiness",
+            gate_id="nextcloud-transfer-readiness",
             title="Nextcloud transfer readiness",
             status="go" if nextcloud_transfer_readiness_go else "repo_open",
             slice_class="repo_only",
@@ -174,7 +194,7 @@ def build_private_data_ingestion_report(
             ),
         ),
         PrivateDataIngestionGate.create(
-            gate_id="resumable_transfer_tooling",
+            gate_id="resumable-transfer-tooling",
             title="Resumable transfer tooling",
             status="go" if resumable_transfer_tooling_go else "repo_open",
             slice_class="repo_only",
@@ -185,7 +205,7 @@ def build_private_data_ingestion_report(
             ),
         ),
         PrivateDataIngestionGate.create(
-            gate_id="resumable_scanner_dry_run",
+            gate_id="resumable-scanner-dry-run",
             title="Resumable scanner dry-run",
             status="go" if resumable_scanner_dry_run_go else "repo_open",
             slice_class="repo_only",
@@ -196,7 +216,7 @@ def build_private_data_ingestion_report(
             ),
         ),
         PrivateDataIngestionGate.create(
-            gate_id="live_small_batch_transfer",
+            gate_id="live-small-batch-transfer",
             title="Live small-batch transfer",
             status="go" if live_small_batch_transfer_go else "needs_live_go",
             slice_class="needs_live_go",
@@ -207,7 +227,7 @@ def build_private_data_ingestion_report(
             ),
         ),
         PrivateDataIngestionGate.create(
-            gate_id="chunked_extraction_lanes",
+            gate_id="chunked-extraction-lanes",
             title="Chunked extraction lanes",
             status="go" if chunked_extraction_lanes_go else "repo_open",
             slice_class="repo_only",
@@ -218,7 +238,7 @@ def build_private_data_ingestion_report(
             ),
         ),
         PrivateDataIngestionGate.create(
-            gate_id="memory_abstraction_ingest_live",
+            gate_id="memory-abstraction-ingest-live",
             title="Memory abstraction ingest live",
             status="go" if memory_abstraction_ingest_live_go else "needs_live_go",
             slice_class="needs_live_go",
@@ -229,7 +249,7 @@ def build_private_data_ingestion_report(
             ),
         ),
         PrivateDataIngestionGate.create(
-            gate_id="full_transfer_live",
+            gate_id="full-transfer-live",
             title="Full 100GB+ transfer live",
             status="go" if full_transfer_live_go else ("deferred" if full_transfer_deferred else "needs_live_go"),
             slice_class="needs_live_go",
@@ -242,7 +262,7 @@ def build_private_data_ingestion_report(
             ),
         ),
         PrivateDataIngestionGate.create(
-            gate_id="full_corpus_analysis_live",
+            gate_id="full-corpus-analysis-live",
             title="Full corpus analysis live",
             status=(
                 "go"
@@ -259,7 +279,7 @@ def build_private_data_ingestion_report(
             ),
         ),
         PrivateDataIngestionGate.create(
-            gate_id="ingestion_dashboard_live",
+            gate_id="ingestion-dashboard-live",
             title="Ingestion dashboard live",
             status=(
                 "go"
@@ -282,7 +302,7 @@ def build_private_data_ingestion_report(
     else:
         why_not_100 = f"{first_incomplete.title}: {first_incomplete.reason}"
         if first_incomplete.status == "repo_open":
-            next_decision = "Continue backend-safe private-data ingestion work, starting with Nextcloud transfer readiness."
+            next_decision = "Continue backend-safe private-data ingestion work, starting with planning-source memory ingest."
         elif first_incomplete.slice_class == "needs_live_go":
             next_decision = "Grant or defer the next private-data live gate before claiming live ingestion closure."
         else:

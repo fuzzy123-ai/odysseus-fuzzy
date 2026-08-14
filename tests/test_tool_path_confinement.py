@@ -158,12 +158,26 @@ def test_allows_project_data(tmp_path):
 
 
 def test_allows_tmp(tmp_path):
-    """Paths under /tmp (or its realpath) must resolve cleanly."""
+    """Paths under the platform's system temp directory must resolve cleanly."""
     from src.tool_execution import _resolve_tool_path
     f = tmp_path / "confinement-test.txt"
     f.write_text("ok")
     resolved = _resolve_tool_path(str(f))
     assert resolved == os.path.realpath(str(f))
+
+
+def test_system_temp_root_cannot_expand_to_filesystem_root():
+    """A malformed temp configuration must not allow an entire filesystem."""
+    from src.tool_execution import _tool_path_roots
+
+    filesystem_root = os.path.abspath(os.sep)
+    with (
+        patch.dict(os.environ, {"TMPDIR": filesystem_root}),
+        patch("src.tool_path_confinement.tempfile.gettempdir", return_value=filesystem_root),
+    ):
+        roots = _tool_path_roots()
+
+    assert os.path.realpath(filesystem_root) not in roots
 
 
 def test_rejects_empty_path():

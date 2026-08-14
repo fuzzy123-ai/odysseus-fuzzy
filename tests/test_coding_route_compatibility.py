@@ -83,7 +83,8 @@ def test_coding_task_plan_route_adds_lifecycle_and_identifiers_without_removing_
 
     assert response.status_code == 200
     assert payload["coding_task"]["task_id"] == "route-compat"
-    assert payload["runner_state"]["phase"] == "scoped"
+    assert payload["runner_state"]["phase"] == "blocked"
+    assert payload["runner_state"]["gates_waiting"] == ["planning_authority"]
     assert payload["coding_lifecycle"]["schema"] == "odysseus.coding_lifecycle.v1"
     assert payload["coding_lifecycle"]["coding_task_id"] == "route-compat"
     assert payload["coding_lifecycle_identifiers"]["schema"] == "odysseus.coding_lifecycle.identifier_map.v1"

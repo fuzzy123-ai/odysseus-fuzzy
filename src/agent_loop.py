@@ -35,6 +35,10 @@ from src.tool_security import (
 )
 from src.tool_policy import CLARIFICATION_OPEN_DIRECTIVE, GUIDE_ONLY_DIRECTIVE, ToolPolicy
 from src.tool_utils import _truncate, get_mcp_manager
+from src.telegram_turn_diagnostics import (
+    parse_terminal_provider_error_sse,
+    provider_error_sse,
+)
 from src.agent_tools import (
     strip_tool_blocks,
     execute_tool_block,
@@ -870,6 +874,10 @@ async def stream_agent_loop(
     # using tools — i.e. it was cut off, not finished. Drives a "Continue" event
     # so the user can resume instead of the turn silently stalling.
     _exhausted_rounds = False
+    terminal_provider_error: Optional[Dict[str, Any]] = None
+    fallback_attempted = False
+    fallback_succeeded = False
+    selected_tool_count = 0
 
     for round_num in range(1, max_rounds + 1):
         round_response = ""
@@ -934,6 +942,7 @@ async def stream_agent_loop(
         agent_stream_timeout = int(get_setting("agent_stream_timeout_seconds", 300) or 300)
 
         _tool_names_sent = [t.get("function", {}).get("name") for t in (all_tool_schemas or []) if t.get("function")]
+        selected_tool_count = max(selected_tool_count, len(_tool_names_sent))
         logger.info(f"[agent-debug] round={round_num} model={model} _is_api_model={_is_api_model} tools_sent={len(_tool_names_sent)} tool_names={_tool_names_sent[:15]} relevant_tools={sorted(_relevant_tools)[:15] if _relevant_tools else 'ALL'}")
 
         # Primary target + any configured fallback models. stream_llm_with_fallback
@@ -965,8 +974,16 @@ async def stream_agent_loop(
                 break
             # Forward error events from stream_llm to the frontend
             if chunk.startswith("event: error"):
-                yield chunk
-                continue
+                terminal_provider_error = parse_terminal_provider_error_sse(chunk) or {
+                    "schema": "odysseus.provider_failure.v1",
+                    "type": "provider_error",
+                    "status": 0,
+                    "error_class": "provider_error",
+                    "retryable": False,
+                }
+                fallback_attempted = bool(fallbacks) and not first_token_received
+                yield provider_error_sse(terminal_provider_error)
+                break
             if chunk.startswith("data: ") and not chunk.startswith("data: [DONE]"):
                 try:
                     data = json.loads(chunk[6:])
@@ -1033,6 +1050,8 @@ async def stream_agent_loop(
                         # The selected model failed and another answered; surface
                         # the notice so a misconfigured provider isn't masked.
                         actual_model = data.get("answered_by") or actual_model
+                        fallback_attempted = True
+                        fallback_succeeded = True
                         logger.warning(f"[agent] round {round_num} fell back: "
                                        f"{data.get('selected_model')} -> {data.get('answered_by')}")
                         yield chunk
@@ -1112,6 +1131,9 @@ async def stream_agent_loop(
                 # Forward error events to frontend as visible text
                 yield chunk
             # Intercept [DONE] — don't forward until all rounds finish
+
+        if terminal_provider_error:
+            break
 
         tool_blocks, used_native = _resolve_tool_blocks(round_response, native_tool_calls, round_num, is_api_model=_is_api_model)
 
@@ -1838,7 +1860,10 @@ async def stream_agent_loop(
     # If the response is completely empty and no tools were executed,
     # yield a fallback message so the user is not left hanging.
     full_response, _fallback_chunk = _empty_response_fallback(
-        full_response, round_reasoning, tool_events
+        full_response,
+        round_reasoning,
+        tool_events,
+        terminal_provider_error=terminal_provider_error,
     )
     if _fallback_chunk:
         yield _fallback_chunk
@@ -1874,6 +1899,18 @@ async def stream_agent_loop(
     )
     metrics["requested_model"] = requested_model
     metrics["claim_evidence_gate"] = claim_evidence_gate
+    metrics["telegram_turn"] = {
+        "continuation": bool(_intent.get("continuation")),
+        "inherited_domain_count": (
+            len(_intent.get("domains") or ())
+            if bool(_intent.get("continuation"))
+            else 0
+        ),
+        "selected_tool_count": selected_tool_count,
+        "provider_failure": terminal_provider_error or {},
+        "fallback_attempted": fallback_attempted,
+        "fallback_succeeded": fallback_succeeded,
+    }
     if _interactive_deliverable_decision is not None:
         metrics["interactive_deliverable_policy"] = _interactive_deliverable_decision.audit_summary()
     if assistant_attachments:
@@ -1887,7 +1924,7 @@ async def stream_agent_loop(
     # gets a turn (with its own tool calls forwarded to the user) and
     # a skill is saved ONLY if the teacher actually succeeds. Skipped
     # when we ARE the teacher to avoid recursion.
-    if not _is_teacher_run and not guide_only:
+    if not _is_teacher_run and not guide_only and not terminal_provider_error:
         try:
             from src.teacher_escalation import run_teacher_inline
             async for evt in run_teacher_inline(

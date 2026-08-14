@@ -7,14 +7,13 @@ from pathlib import PurePosixPath
 import re
 from typing import Any, Mapping, Sequence
 
-from src.planning_definition_contract import (
-    PLANNING_DEFINITION_SCHEMA_ID,
-    PlanningDefinitionContractError,
-    compute_roadmap_content_hash,
-    validate_planning_definition,
+from src.definition_authority_snapshot import (
+    DefinitionAuthoritySnapshotError,
+    build_definition_authority_snapshot,
 )
 from src.temporal_runtime.contracts import (
     MAX_MANIFEST_BYTES,
+    DefinitionSnapshotReference,
     ExecutionContractError,
     ExecutionManifest,
     ExecutionPolicy,
@@ -25,7 +24,6 @@ from src.temporal_runtime.contracts import (
     NormalizedNode,
     canonical_json,
     freeze_json,
-    validate_hash,
     validate_identifier,
 )
 
@@ -58,38 +56,22 @@ def build_execution_manifest(
     if not isinstance(project, Mapping) or not isinstance(roadmap, Mapping):
         _fail("invalid_read_model", "$", "Planning project and roadmap are required")
     try:
-        validate_planning_definition(
-            {
-                "schema_id": PLANNING_DEFINITION_SCHEMA_ID,
-                "project": dict(project),
-                "roadmaps": [dict(roadmap)],
-            }
-        )
-    except PlanningDefinitionContractError as exc:
-        _fail("invalid_planning_definition", exc.path, exc.detail)
+        snapshot = build_definition_authority_snapshot(read_model)
+    except DefinitionAuthoritySnapshotError as exc:
+        _fail(exc.code, exc.path, exc.detail)
+    snapshot_payload = snapshot.to_payload()
+    reference_payload = snapshot.reference_payload()
 
-    project_id = validate_identifier(project.get("project_id"), "$.project.project_id")
-    roadmap_id = validate_identifier(roadmap.get("roadmap_id"), "$.roadmap.roadmap_id")
-    if roadmap.get("project_id") != project_id:
-        _fail("planning_reference_mismatch", "$.roadmap.project_id", "project does not match")
-    revision = roadmap.get("revision")
-    if isinstance(revision, bool) or not isinstance(revision, int) or revision < 1:
-        _fail("invalid_revision", "$.roadmap.revision", "revision must be positive")
-    content_hash = validate_hash(roadmap.get("content_hash"), "$.roadmap.content_hash")
-    if roadmap.get("revision_state") != "approved":
-        _fail("planning_revision_not_approved", "$.roadmap.revision_state", "revision is not approved")
-    latest = project.get("latest_approved_revision", {}).get(roadmap_id)
-    if not isinstance(latest, Mapping) or latest.get("revision") != revision or latest.get("content_hash") != content_hash:
-        _fail("plan_revision_conflict", "$.project.latest_approved_revision", "approved head changed")
-    if compute_roadmap_content_hash(roadmap) != content_hash:
-        _fail("plan_revision_conflict", "$.roadmap.content_hash", "roadmap content changed after hashing")
-
-    normalized_dag = normalize_execution_dag(roadmap)
-    done_contract = freeze_json(roadmap["done_contract"], path="$.roadmap.done_contract")
+    project_id = snapshot.project_id
+    roadmap_id = snapshot.roadmap_id
+    revision = snapshot.planning_revision
+    content_hash = snapshot.planning_content_hash
+    normalized_dag = normalize_execution_dag(snapshot_payload["normalized_dag"])
+    done_contract = freeze_json(snapshot_payload["done_contract"], path="$.roadmap.done_contract")
     if not isinstance(done_contract, FrozenObject):
         _fail("invalid_done_contract", "$.roadmap.done_contract", "done contract must be an object")
-    allowed_paths = _paths_from_nodes(roadmap["nodes"], "allowed_paths")
-    blocked_paths = _paths_from_nodes(roadmap["nodes"], "blocked_paths")
+    allowed_paths = tuple(snapshot_payload["allowed_paths"])
+    blocked_paths = tuple(snapshot_payload["blocked_paths"])
     if set(allowed_paths) & set(blocked_paths):
         _fail("path_scope_conflict", "$.roadmap.nodes", "one path is both allowed and blocked")
     hotfiles = _normalize_paths(policy.hotfiles, "$.policy.hotfiles")
@@ -104,6 +86,7 @@ def build_execution_manifest(
         roadmap_id=roadmap_id,
         planning_revision=revision,
         planning_content_hash=content_hash,
+        definition_snapshot_ref=DefinitionSnapshotReference(**reference_payload),
         normalized_dag=normalized_dag,
         done_contract=done_contract,
         queue_scope=policy.queue_scope,

@@ -11,6 +11,7 @@ from typing import Any, Callable
 
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
+import pytest
 
 from plugins.telegram.plugin import (
     PLUGIN,
@@ -929,6 +930,154 @@ def test_inbox_store_deduplicates_and_returns_history(tmp_path):
     assert raw_chat_id not in persisted_text
 
 
+def test_telegram_inbox_store_serializes_cross_instance_append_transactions(tmp_path):
+    first = TelegramInboxStore(tmp_path)
+    second = TelegramInboxStore(tmp_path)
+    first_write_entered = threading.Event()
+    release_first_write = threading.Event()
+    second_read_entered = threading.Event()
+    errors: list[BaseException] = []
+    original_first_write = first._write
+    original_second_read = second._read
+
+    def _paused_first_write(data):
+        first_write_entered.set()
+        assert release_first_write.wait(timeout=2)
+        original_first_write(data)
+
+    def _tracked_second_read():
+        second_read_entered.set()
+        return original_second_read()
+
+    def _record_error(callback):
+        try:
+            callback()
+        except BaseException as exc:  # pragma: no cover - assertion diagnostics
+            errors.append(exc)
+
+    first._write = _paused_first_write
+    second._read = _tracked_second_read
+    writer_a = threading.Thread(
+        target=lambda: _record_error(lambda: first.append_event(kind="writer_a", status="accepted", chat_id="123")),
+    )
+    writer_b = threading.Thread(
+        target=lambda: _record_error(lambda: second.append_event(kind="writer_b", status="accepted", chat_id="123")),
+    )
+    writer_a.start()
+    assert first_write_entered.wait(timeout=2)
+    writer_b.start()
+    try:
+        assert not second_read_entered.wait(timeout=0.2)
+    finally:
+        release_first_write.set()
+        writer_a.join(timeout=2)
+        writer_b.join(timeout=2)
+
+    assert not writer_a.is_alive()
+    assert not writer_b.is_alive()
+    assert errors == []
+    assert {record["kind"] for record in TelegramInboxStore(tmp_path).history(limit=10)} == {"writer_a", "writer_b"}
+
+
+def test_telegram_inbox_store_concurrent_typing_failure_preserves_terminal_history(tmp_path):
+    first = TelegramInboxStore(tmp_path)
+    second = TelegramInboxStore(tmp_path)
+    first_write_entered = threading.Event()
+    release_first_write = threading.Event()
+    second_read_entered = threading.Event()
+    errors: list[BaseException] = []
+    original_first_write = first._write
+    original_second_read = second._read
+
+    def _paused_first_write(data):
+        first_write_entered.set()
+        assert release_first_write.wait(timeout=2)
+        original_first_write(data)
+
+    def _tracked_second_read():
+        second_read_entered.set()
+        return original_second_read()
+
+    def _record_error(callback):
+        try:
+            callback()
+        except BaseException as exc:  # pragma: no cover - assertion diagnostics
+            errors.append(exc)
+
+    first._write = _paused_first_write
+    second._read = _tracked_second_read
+    writer_a = threading.Thread(
+        target=lambda: _record_error(lambda: first.append_event(kind="agent_turn", status="accepted", chat_id="123")),
+    )
+    writer_b = threading.Thread(
+        target=lambda: _record_error(
+            lambda: (
+                second.append_event(kind="typing", status="failed", chat_id="123"),
+                second.append_outbound("123", "Antwort", source_message_id=55, delivery_status="failed"),
+            )
+        ),
+    )
+    writer_a.start()
+    assert first_write_entered.wait(timeout=2)
+    writer_b.start()
+    try:
+        assert not second_read_entered.wait(timeout=0.2)
+    finally:
+        release_first_write.set()
+        writer_a.join(timeout=2)
+        writer_b.join(timeout=2)
+
+    assert not writer_a.is_alive()
+    assert not writer_b.is_alive()
+    assert errors == []
+    records = TelegramInboxStore(tmp_path).history(limit=10)
+    assert {record["kind"] for record in records} == {"agent_turn", "typing", "text"}
+    assert any(record.get("kind") == "typing" and record.get("status") == "failed" for record in records)
+    assert any(record.get("direction") == "outbound" and record.get("delivery_status") == "failed" for record in records)
+
+
+def test_telegram_inbox_store_nested_duplicate_append_is_reentrant_and_exception_safe(tmp_path):
+    from plugins.telegram import stores as telegram_stores
+
+    assert hasattr(telegram_stores, "_TELEGRAM_HISTORY_LOCK")
+    store = TelegramInboxStore(tmp_path)
+    message = {
+        "direction": "inbound",
+        "kind": "text",
+        "update_id": 17,
+        "message_id": 18,
+        "chat_id": "123",
+        "text": "duplicate me",
+    }
+    store.append_inbound(message)
+    original_write = store._write
+
+    def _failing_duplicate_write(data):
+        if any(item.get("kind") == "duplicate" for item in data["messages"]):
+            raise RuntimeError("test duplicate write failure")
+        original_write(data)
+
+    store._write = _failing_duplicate_write
+    with pytest.raises(RuntimeError, match="test duplicate write failure"):
+        store.append_inbound(message)
+    store._write = original_write
+
+    errors: list[BaseException] = []
+
+    def _append_after_failure():
+        try:
+            TelegramInboxStore(tmp_path).append_event(kind="after_failure", status="accepted", chat_id="123")
+        except BaseException as exc:  # pragma: no cover - assertion diagnostics
+            errors.append(exc)
+
+    writer = threading.Thread(target=_append_after_failure)
+    writer.start()
+    writer.join(timeout=2)
+    assert not writer.is_alive()
+    assert errors == []
+    assert any(record.get("kind") == "after_failure" for record in TelegramInboxStore(tmp_path).history(limit=10))
+
+
 def test_webhook_route_stores_inbound_and_returns_agent_bridge(tmp_path, monkeypatch):
     monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "123")
     monkeypatch.setenv("TELEGRAM_AGENT_CHAT_ENABLED", "true")
@@ -1028,6 +1177,8 @@ def test_webhook_invokes_agent_turn_handler_and_gated_reply(tmp_path, monkeypatc
     monkeypatch.setenv("TELEGRAM_AGENT_CHAT_ENABLED", "true")
     monkeypatch.setenv("TELEGRAM_AGENT_REPLY_ENABLED", "true")
     turns = []
+    sent_text = []
+    sent_actions = []
 
     def _session_bridge(**_kwargs):
         return {"session_id": "sess-telegram"}
@@ -1036,11 +1187,22 @@ def test_webhook_invokes_agent_turn_handler_and_gated_reply(tmp_path, monkeypatc
         turns.append(bridge)
         return {"status": "accepted", "reply_text": "Antwort vom Agenten"}
 
-    monkeypatch.setattr("plugins.telegram.plugin.send_telegram_text", lambda chat_id, text: {
-        "ok": True,
-        "telegram_message_id": 88,
-        "token_value_visible": False,
-    })
+    def _fail_transport(*_args, **_kwargs):
+        raise AssertionError("offline webhook test must not invoke a low-level transport")
+
+    monkeypatch.setattr("plugins.telegram.outbound.urllib.request.urlopen", _fail_transport)
+    monkeypatch.setattr(
+        "plugins.telegram.plugin.send_telegram_text",
+        lambda chat_id, text: sent_text.append((chat_id, text)) or {
+            "ok": True,
+            "telegram_message_id": 88,
+            "token_value_visible": False,
+        },
+    )
+    monkeypatch.setattr(
+        "plugins.telegram.plugin.send_telegram_chat_action",
+        lambda chat_id, action: sent_actions.append((chat_id, action)) or {"ok": True},
+    )
     app = FastAPI()
     ctx = _PluginContext(app=app, data_dir=tmp_path, telegram_agent_turn_handler=_agent_turn)
     ctx.telegram_session_bridge = _session_bridge
@@ -1063,6 +1225,8 @@ def test_webhook_invokes_agent_turn_handler_and_gated_reply(tmp_path, monkeypatc
     assert turns[0]["prompt"] == "Bitte antworte"
     assert payload["receipt"]["kind"] == "text"
     assert "Antwort vom Agenten" not in response.text
+    assert sent_actions == [("123", "typing")]
+    assert sent_text == [("123", "Antwort vom Agenten")]
     history = TelegramInboxStore(tmp_path).history(chat_id="123", limit=20)
     assert any(item.get("kind") == "agent_turn" for item in history)
     assert any(item.get("direction") == "outbound" and item.get("delivery_status") == "sent" for item in history)
@@ -3648,6 +3812,36 @@ def test_polling_cycle_project_intake_preview_for_mobile_plan(tmp_path, monkeypa
     assert "project-chat-1" not in persisted_text
     assert '"chat_id":' not in persisted_text
     assert "TOKEN=" not in persisted_text
+
+
+def test_polling_cycle_personal_todo_bypasses_project_intake(tmp_path, monkeypatch):
+    monkeypatch.setenv("TELEGRAM_POLLING_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_ALLOWED_CHAT_IDS", "todo-chat-1")
+    turns = []
+
+    result = run_telegram_polling_cycle(
+        data_dir=tmp_path,
+        fetch_updates=lambda _offset: [{
+            "update_id": 61,
+            "message": {
+                "message_id": 71,
+                "chat": {"id": "todo-chat-1"},
+                "text": "Todo für Freitag: Videos speichern und Tobi schicken.",
+            },
+        }],
+        session_creator=lambda **_kwargs: {"session_id": "todo-session"},
+        agent_turn_handler=lambda bridge: turns.append(bridge) or {
+            "status": "accepted",
+            "reply_text": "",
+        },
+    )
+
+    assert result["status"] == "poll_ok"
+    assert result["processed"] == 1
+    assert result["agent_turns"] == 1
+    assert turns[0]["prompt"] == "Todo für Freitag: Videos speichern und Tobi schicken."
+    history = TelegramInboxStore(tmp_path).history(limit=30)
+    assert not any(item.get("kind") == "project_intake_review" for item in history)
 
 
 def test_project_commands_report_and_confirm_latest_intake_review(tmp_path, monkeypatch):
