@@ -1,0 +1,242 @@
+{
+  "acceptance": [
+    "A local manage_github_issues duplicate_search with persist=false, exit_code=0 and a bounded local-only report emits one exact content-free receipt.",
+    "The agent event forwards a detached copy of that receipt only for the exact manage_github_issues tool result; later mutation of tool output cannot mutate retained evidence.",
+    "ClaimEvidenceGate supports only github_issue_duplicates_checked from the exact receipt and rejects generic exit_code=0, blocked or live-gated packets, hostile mappings, wrong types, extra fields, mutation, negated language, hypothetical language and quoted examples.",
+    "create_triaged, set_fields and sync remain unsupported for completion claims regardless of exit_code until separate action-specific live evidence contracts exist.",
+    "Receipts and findings contain no title, body, owner, repository, issue identifier, URL, provider response or private path.",
+    "All six exact tests are added tests-first, collect exactly once, and fail for the frozen missing behavior before the first source write.",
+    "Focused, dependency, static, central, independent hostile QA and Deep-Sol review pass on one frozen four-blob candidate before acceptance.",
+    "This packet grants no writer, provider, GitHub, push, deploy, send, host, private-data, UI or live authority."
+  ],
+  "allowed_paths": [
+    "src/agent_loop.py",
+    "src/claim_evidence_gate.py",
+    "src/tool_domains/github_issues.py",
+    "tests/test_claim_evidence_gate.py"
+  ],
+  "architect": "root/Sol anti-hallucination GitHub duplicate-search evidence closure",
+  "architecture_revision": "AHE-GHISS-01-LOCAL-DUPLICATE-SEARCH-EVIDENCE-SOL-ARCH-v1",
+  "authority_observation": {
+    "active_claims": [],
+    "agent_leases": [],
+    "authority_revision": 292,
+    "observed_at": "2026-08-14T23:44:30+02:00",
+    "progress": "173/245",
+    "raw_no_filter_blobs": {
+      "docs/plans/multi-agent-execution-guidance.json": "71dcf844bba2778b5f7c0376759a8a2ec91d0b9f",
+      "docs/plans/open-work-completion-master-roadmap.json": "2f6da14ffff9359c1330d1d83bd1eb93097533c4",
+      "docs/plans/parallel-roadmap-execution-round6.json": "284dbe55bf6efac90fc606c29ce40a437875a9f8",
+      "docs/plans/parallel-roadmap-execution-round7.json": "7b490066a7fed5adbe37efdbc5677be686106b6a"
+    },
+    "writer_dispatch_authorized": false
+  },
+  "baseline_blobs": {
+    "src/agent_loop.py": "f05964f03c1280f51493300911cf0adbe434976d",
+    "src/claim_evidence_gate.py": "bc082142f8ac6dfe284f656f1392fd6219dca7b9",
+    "src/tool_domains/github_issues.py": "263ca48c8898133bed2515d85911938ba0fed68e",
+    "tests/test_claim_evidence_gate.py": "978f3907161f819ef353a8a17dcd253cfb391c4a"
+  },
+  "baseline_readback": "canonical_git_blob_identity_from_clean_HEAD_paths_plus_materialized_raw_no_filter_compare_before",
+  "correction_budget": {
+    "failure_class": "ahe_ghiss01_exact_local_duplicate_search_receipt_and_claim_boundary",
+    "limit": 1,
+    "on_repeat": "release_blocked_and_require_materially_fresh_root_sol_architecture_without_second_product_patch",
+    "used": 0
+  },
+  "dependencies": [
+    "ANTI-HALLUCINATION-next-domain-audit selected one unsupported claim domain under Revision 292",
+    "GHISS0 through GHISS8 are repository-complete and local_and_readonly is the safe default",
+    "manage_github_issues duplicate_search already executes locally without provider persistence",
+    "ClaimEvidenceGate and agent event propagation exist on the exact clean baselines",
+    "HWA2A-v5 is terminally released_blocked and no central claim or lease remains"
+  ],
+  "execution_baseline": {
+    "branch": "codex/implemenetaion",
+    "canonical_commit": "4efda592376080e8afd11709ab38e04db29a5ba5",
+    "canonical_commit_blobs": {
+      "src/agent_loop.py": "f05964f03c1280f51493300911cf0adbe434976d",
+      "src/claim_evidence_gate.py": "bc082142f8ac6dfe284f656f1392fd6219dca7b9",
+      "src/tool_domains/github_issues.py": "263ca48c8898133bed2515d85911938ba0fed68e",
+      "tests/test_claim_evidence_gate.py": "978f3907161f819ef353a8a17dcd253cfb391c4a"
+    },
+    "primary_checkout_materialized_raw_no_filter_blobs": {
+      "src/agent_loop.py": "e6391ca2dd2b95e25023e0b1b0334a8294460978",
+      "src/claim_evidence_gate.py": "28432561a0b1489fff17f9a9b2e0316fb24b3d8e",
+      "src/tool_domains/github_issues.py": "263ca48c8898133bed2515d85911938ba0fed68e",
+      "tests/test_claim_evidence_gate.py": "be1255e7fb41e8a85d8bee55a20013d2f114c7f1"
+    },
+    "required_writer_checkout": "fresh clean detached worktree at canonical_commit with empty index and exact canonical_commit_blobs",
+    "semantics": "The primary checkout contains line-ending-projected clean bytes for three text paths. Writer authority binds the clean detached commit blobs; compare-before also records the primary raw no-filter bytes so line-ending projection cannot be mistaken for product drift."
+  },
+  "forbidden": [
+    "fifth writer path, router edit by the product writer, validator edit, ledger schema change or new persisted store",
+    "GitHub provider read or write, token access, sync, create, set_fields, persist=true or external network call",
+    "receipt field containing repository, owner, title, body, issue id, candidate id, URL, provider output, path, exception text or raw report",
+    "generic exit_code=0, tool success, confirmation_required, needs_live_go or blocked_by_duplicate_candidate as completion evidence",
+    "support for github issue creation, field mutation, provider sync or any broader issue claim",
+    "caller-owned mutable mapping retained without exact reconstruction and detachment",
+    "stage, commit, push, deploy, send, provider, host, private-data, UI or live action"
+  ],
+  "hostile_matrix": [
+    "duplicate_search persist=false exit_code=0 with exact bounded status and count-only projection",
+    "duplicate_search with persist=true, missing action, wrong action, wrong status, bool-as-int, negative or oversized count, missing field, extra field and mapping subclasses",
+    "needs_live_go, confirmation_required and blocked_by_duplicate_candidate packets carrying exit_code=0",
+    "create_triaged, set_fields and sync results with every success-looking status and exit_code",
+    "tool name aliases, wrong tool name, non-mapping event content, hostile get/items/iter/bool/repr/hash callbacks and post-forward mutation",
+    "negated, hypothetical, future, requested, quoted and third-party github issue claim language",
+    "two distinct receipts remain detached and do not share nested mutable state",
+    "receipt and finding serialization contains no source content, identity, path or provider field"
+  ],
+  "hotfiles": [
+    "src/agent_loop.py",
+    "src/claim_evidence_gate.py",
+    "src/tool_domains/github_issues.py",
+    "tests/test_claim_evidence_gate.py"
+  ],
+  "implementation_contract": {
+    "claim": {
+      "supported_claim_type": "github_issue_duplicates_checked",
+      "unsupported_claim_types": [
+        "github_issue_created",
+        "github_issue_fields_set",
+        "github_issue_synced"
+      ],
+      "wording": "Only a concrete positive assertion that local duplicate checking completed may request the receipt. Negated, hypothetical, future, requested, quoted and attributed wording remains unsupported or ignored according to the existing gate grammar."
+    },
+    "event_forwarding": {
+      "source_tool": "manage_github_issues",
+      "source_action": "duplicate_search",
+      "copy": "reconstruct an exact built-in immutable/content-free receipt; never retain caller mapping or report",
+      "wrong_tool_or_action": "emit no GitHub duplicate receipt"
+    },
+    "receipt": {
+      "allowed_fields_in_order": [
+        "schema",
+        "action",
+        "status",
+        "persisted",
+        "candidate_count",
+        "blocks_auto_create",
+        "exit_code"
+      ],
+      "candidate_count": "exact built-in int, not bool, bounded 0 through 1000",
+      "exact_values": {
+        "action": "duplicate_search",
+        "exit_code": 0,
+        "persisted": false,
+        "schema": "odysseus.github_issue_duplicate_search_receipt.v1",
+        "status": "duplicates_checked_local"
+      },
+      "privacy": "content-free count and boolean only; no issue or repository identity"
+    },
+    "tests_first_red": "Add the six exact named tests only in tests/test_claim_evidence_gate.py. They must collect exactly six and fail in test bodies solely because the GitHub duplicate receipt/claim boundary is absent."
+  },
+  "kind": "odysseus.sol_closed_architecture",
+  "live_actions_authorized": false,
+  "named_tests": [
+    "tests/test_claim_evidence_gate.py::test_github_issue_claim_language_ignores_negated_hypothetical_and_quoted_text",
+    "tests/test_claim_evidence_gate.py::test_github_issue_create_set_fields_and_sync_claims_remain_unsupported",
+    "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_rejects_generic_exit_zero_and_live_gate_packets",
+    "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_requires_exact_verified_receipt",
+    "tests/test_claim_evidence_gate.py::test_github_issue_event_forward_is_content_free_and_detached",
+    "tests/test_claim_evidence_gate.py::test_github_issue_receipt_rejects_hostile_mapping_wrong_types_extra_fields_and_mutation"
+  ],
+  "node_manifest_digest_sha256": "sha256:5a0727d622aadc9cd5f1186365c8c190e85a60b72dd8d2be2ac575367ced2f3a",
+  "origin_mode": "fresh_architecture_after_readonly_unsupported_claim_domain_selection",
+  "packet_budget_bytes": 25600,
+  "packet_path": "docs/plans/abc-ahe-ghiss01-local-duplicate-search-evidence-architecture.json",
+  "phase": "closed_architecture_waiting_for_atomic_registration",
+  "read_only_pins": {
+    "docs/plans/anti-hallucination-evidence-roadmap.md": "139d86394f16a6010bfa4f5c3a997d5fa3abf913",
+    "docs/plans/evidence/abc-hwa2a-v5-rev292-terminal-release.json": "7f72ea51e5bcf6019b7cd4c026db7be53d1d83fe",
+    "docs/plans/github-issue-intelligence-roadmap.md": "e98a8d01adae0d864cc18c4659a39901f6e6589d",
+    "docs/plans/multi-agent-execution-guidance.json": "71dcf844bba2778b5f7c0376759a8a2ec91d0b9f",
+    "docs/plans/open-work-completion-master-roadmap.json": "2f6da14ffff9359c1330d1d83bd1eb93097533c4",
+    "docs/plans/parallel-roadmap-execution-round6.json": "284dbe55bf6efac90fc606c29ce40a437875a9f8",
+    "docs/plans/parallel-roadmap-execution-round7.json": "7b490066a7fed5adbe37efdbc5677be686106b6a",
+    "scripts/roadmap_multi_agent_guidance.py": "8973fbdcb9b7cb7eec5ae9f03dd8f9acffdd544c",
+    "scripts/validate_integration_spine_convergence.py": "b7633219b137bd24bce4cc993e9b5db6bbda2b48",
+    "scripts/validate_parallel_roadmap_execution.py": "22d5be1db6f58906d9fa5132c46a5f358daae300",
+    "src/tool_execution.py": "e3da7b5fcfa45d225f58815703de59ead48e043c",
+    "src/tool_transaction_ledger.py": "02d8b879f3500aabd8a1276654343d027c3fd35f",
+    "tests/test_agent_loop.py": "6c168f7c140037a8b646b6f0b681d1679339a479",
+    "tests/test_github_issue_tools.py": "0217fbfb41c8dd31f95d5556f73fdf6fd4ad9eec",
+    "tests/test_tool_transaction_ledger.py": "e695f8447d432d394076b42d5955c519f25b8a35"
+  },
+  "registration_requirements": [
+    "fresh independent review of the exact architecture packet blob and semantic digest",
+    "fresh clean detached writer checkout at execution_baseline.canonical_commit with exact four canonical baseline blobs and empty index/status",
+    "one atomic serialized Root authority transaction that replaces the Round6 normalization blocker with this exact closed scope and registers one unexpired repo-only claim",
+    "claim-scoped registration Evidence with exact packet blob, pins, nodes, commands, lease, owner, reviewer and stale invalidation triggers",
+    "all central validators green before writer starts"
+  ],
+  "semantic_digest_sha256": "sha256:58ab90191f20fbafd60de505c4b8709b7dd409f2722fb42fd03a0d0489c1cc7f",
+  "semantic_seal": "local_duplicate_search_only;persist_false;bounded_content_free_receipt;exact_manage_github_issues_event;detached_copy;github_issue_duplicates_checked_only;create_set_fields_sync_unsupported;no_provider_live_or_raw_data;four_writer_paths;one_correction_then_terminal",
+  "semantic_seal_bytes": 265,
+  "slice_id": "AHE-GHISS-01-local-duplicate-search-evidence",
+  "state": "frozen_for_registration",
+  "stop_rule": "Stop before writer dispatch on authority, packet, baseline, raw materialization, pin, command, node, lease, reviewer, path or collision drift. Stop during implementation on a fifth path, router/validator/ledger edit, persist=true, provider or live behavior, raw content in evidence, generic exit_code support or broadened GitHub claims. After one correction, recurrence in the exact local duplicate receipt/claim boundary releases blocked and requires fresh Root/Sol architecture.",
+  "verification": {
+    "central": [
+      [
+        "venv\\Scripts\\python.exe",
+        "-B",
+        "scripts\\validate_integration_spine_convergence.py",
+        "--format",
+        "json"
+      ],
+      [
+        "venv\\Scripts\\python.exe",
+        "-B",
+        "scripts\\validate_parallel_roadmap_execution.py",
+        "--format",
+        "json"
+      ],
+      [
+        "venv\\Scripts\\python.exe",
+        "-B",
+        "scripts\\roadmap_multi_agent_guidance.py",
+        "--format",
+        "json"
+      ]
+    ],
+    "dependency": [
+      "venv\\Scripts\\python.exe",
+      "-B",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "tests\\test_claim_evidence_gate.py",
+      "tests\\test_github_issue_tools.py",
+      "tests\\test_agent_loop.py",
+      "tests\\test_tool_transaction_ledger.py",
+      "--basetemp",
+      ".abc-test-tmp\\ABC-AHE-GHISS01-REV293\\dependency"
+    ],
+    "focused": [
+      "venv\\Scripts\\python.exe",
+      "-B",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "tests\\test_claim_evidence_gate.py",
+      "--basetemp",
+      ".abc-test-tmp\\ABC-AHE-GHISS01-REV293\\focused"
+    ],
+    "static": [
+      "venv\\Scripts\\python.exe",
+      "-B",
+      "-m",
+      "py_compile",
+      "src\\tool_domains\\github_issues.py",
+      "src\\agent_loop.py",
+      "src\\claim_evidence_gate.py",
+      "tests\\test_claim_evidence_gate.py"
+    ]
+  }
+}
