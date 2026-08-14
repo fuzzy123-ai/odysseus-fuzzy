@@ -2,8 +2,8 @@
 
 Snapshot: 2026-08-14, Europe/Berlin
 Continuity deadline: 2026-08-16 00:00 Europe/Berlin
-Canonical authority at snapshot: Open Work / Round 7 Revision 277
-Known accepted units: 158
+Canonical authority at snapshot: Open Work / Round 7 Revision 279
+Known accepted units: 159
 Denominator: unknown (`unknown_revision2_invalidated_by_active_source_drift`)
 
 This file is a redacted continuation snapshot for an agent that has no chat or
@@ -62,7 +62,11 @@ Newer accepted/released records override stale earlier `planned`, `blocked`, or
 - Purpose: complete structured authority, accepted product work, foreign work,
   and historical evidence.
 - Branch at snapshot: `codex/implemenetaion`.
-- HEAD at snapshot: `30fdce90afe27a7d2cb90ad0e3643b53fea8d1d0`.
+- HEAD immediately before this handoff update:
+  `749919267437adc23f2cded540dbd6281a424042` (`docs: add master
+  continuation handoff`). This file's next documentation-only commit has that
+  commit as its parent; never use the self-referential handoff commit as
+  product authority.
 - State at snapshot: about 205 dirty paths, index expected empty.
 - Rule: never clean, reset, broadly stage, or absorb this tree. Select exact
   accepted tuples only.
@@ -159,25 +163,28 @@ Historical clean-release evidence only (do not attribute it to a changed
 projection): 12,827 tests passed, 149 skipped, 17 subtests passed on the earlier
 `94b2eb27` release state.
 
-Still required on the exact final staged projection:
+Completed before the local public commit:
 
-1. Prove the STT projection contains only the newer accepted TRP-03..06 lineage
+1. The STT projection contains only the newer accepted TRP-03..06 lineage
    and the reviewed Python 3.11 container/lock repair. The older 2026-07-27
    OWM-24 deferral sentence is superseded by the structured 2026-08-02 TRP-05
    and TRP-06 acceptance records. Exclude every TRP-07-only backup/deploy/live
    packet path because TRP-07 is terminally unaccepted.
-2. Preserve the green exact 73-file changed-test lane and the final frozen
+2. The green exact 73-file changed-test lane and the final frozen
    staged digest. A fresh full-suite rerun is optional strengthening, not a
    substitute for the recorded Windows/Linux platform classification.
-3. Re-run compile/static/product audits and all three central validators if any
-   byte changes.
-4. Re-run staged-diff privacy scan and `git diff --cached --check`.
-5. Confirm exactly 161 intended paths (or document and re-audit any deliberate
-   delta), no unstaged diff, and no accidental source remote target.
-6. Push exact commit `ea181f52e72a24d91480757c55a298fbb77249b1`
+3. Compile/static/product audits, all three central validators, staged-diff
+   privacy scan, and `git diff --cached --check` passed on the frozen tuple.
+4. The local commit has exactly 161 intended paths, no unstaged or staged diff,
+   one parent, and no private control-plane history.
+
+Still required externally:
+
+5. Push exact commit `ea181f52e72a24d91480757c55a298fbb77249b1`
    only to `fuzzy/dev`, then require exact terminal CI.
 
-Do not call the release public or live before step 6 is complete.
+Do not call the release public or live before step 5 has both pushed the exact
+commit and produced a terminal Required CI result bound to that SHA.
 
 ## 5. Publication and Debian deployment route
 
@@ -226,15 +233,37 @@ Current external blockers:
 
 ## 6. Global roadmap state
 
-- Open Work and Round 7 are at authority Revision 277.
-- Known accepted count is 158; the denominator is deliberately unknown until a
+- Open Work and Round 7 are at authority Revision 279.
+- Known accepted count is 159; the denominator is deliberately unknown until a
   fresh canonical scope snapshot resolves source drift.
-- Active repo claims and agent leases are empty at this snapshot.
+- Canonical denominator recovery is read-only first: capture every active
+  source-roadmap blob and disposition from one stable authority snapshot,
+  recompute the member set/unit/accepted/open counts, compare again before the
+  single Root-owned persistence transaction, and abort on any intervening
+  source or router drift. Validate the resulting snapshot with Integration
+  Spine, Round 6, and Guidance; never infer the denominator from the previous
+  invalidated revision-2 baseline.
+- There are no active repo claims or leases. `ABC-RMT8-V2-REV278` is
+  `released_accepted` at authority Revision 279 on frozen source/test blobs
+  `df90fa7203d1a0c94b23ee194647cd5ca1779be7` and
+  `3e013ec247b335b4debb5f9ba20e9fd6d6f773b1`, Evidence blob
+  `935ee9486fa85dc20684fd6074b6cc06998322ed`, and correction 1/1. Exact13,
+  the full persisted dependency corridor, static checks, all three central
+  validators, independent hostile QA, and Deep-Sol passed on the unchanged
+  frozen tuple.
+- Revision 279 raw `git hash-object --no-filters` readback: Open Work
+  `0a31d144f36797eaea23ed6be3ce0825a7416baf`, Round 6
+  `11b4a788a33711ce404248abcad3e8056dbf7f77`, Round 7
+  `af38641c8538b39bf9c21996ab281d4a4785e85d`, Guidance
+  `53c64713872b5c462f8e8bd3c5b540cb0ab4e4f3`, and RMT8-v2 Evidence
+  `935ee9486fa85dc20684fd6074b6cc06998322ed`. Do not compare these authority
+  pins with filtered `git hash-object` output: `text:auto` normalizes Round 6
+  CRLF bytes to a different LF-only blob even though the parsed JSON is equal.
 - A filename or untracked Evidence receipt that contains a larger revision
-  number does not advance authority. In particular, untracked Rev278-named
-  evidence exists while the current Open Work and Round 7 routers still declare
-  Revision 277; treat it as non-authoritative until one valid Root-owned router
-  transaction and readback says otherwise.
+  number does not advance authority. The exact RMT8-v2 packet/evidence pair is
+  now authoritative only through the durable Rev279 terminal claim; other
+  higher-numbered untracked receipts remain descriptive until their own valid
+  Root-owned router transaction and readback.
 - The broad discovery audit currently reports `safe_open_count=1`, but its sole
   member is `/target` inside the unregistered
   `abc-lcl01-observation-hypothesis-contract-v5-architecture.json` artifact.
@@ -244,17 +273,25 @@ Current external blockers:
   live action, or dependency transition.
 - The last accepted overlay additions include planning-source memory inventory,
   big-data ledger contract, TWP-01 repair, ACPR-13D, FCA-03A v3, NMG-02A,
-  UDA-05 v4, and NMG-03 native-adapter acceptance.
+  UDA-05 v4, NMG-03 native-adapter acceptance, and RMT8-v2 effective-input
+  state-matrix recovery.
 - Independent context-free continuity review: PASS after correcting checkout
   discovery, the newer TRP-05/TRP-06 acceptance precedence, TAX0/TAX1/TAX7
   status, and the terminal TRP-07 stop rule. Independent privacy review of this
   handoff also passes.
-- Fresh native-Python readback on the current Revision 277 bytes passes all
+- Fresh native-Python readback on the current Revision 279 bytes passes all
   three central validators: Integration Spine `ok:true`, Round 6 `valid:true`
   with 30/30 rows and zero claimable frontiers, and Guidance `valid:true` with
-  139/139 inventory entries. The Windows venv launcher itself was unavailable
-  from WSL due a local bridge error; this is an interpreter-launch limitation,
-  not a validator failure.
+  139/139 inventory entries. The exact dependency corridor also ran through
+  the Windows venv with exit 0. Direct Windows launch from the sandboxed WSL
+  path can still hit a local Vsock bridge error; this is an interpreter-launch
+  limitation, not a product or validator failure.
+- Heartbeat automation `odysseus-open-work-continuous-abc-run` is ACTIVE every
+  minute until `2026-08-16T00:00:00+02:00`. It names the canonical checkout and
+  `C:\Users\nkatz\Documents\odysseus-public-release`, requires one bounded
+  progress unit or an evidence-backed no-op, invokes `$reflect` on ordinary
+  blockers, forbids identical retries, and keeps external-action approval
+  blockers from stopping disjoint safe work.
 
 ## 7. Open roadmap lanes
 
@@ -292,7 +329,13 @@ a snapshot.
 | OWM-25 Coding loop consolidation | Many CAO/NMG slices accepted | Do not blindly follow stale `ACPR-11 next` prose: current history already contains later ACPR-13D acceptance. Re-run the current frontier audit and claim only the first genuinely unaccepted disjoint predecessor. |
 | OWM-26 Subagent context/delegation | Bounded local/fake contracts accepted | Continue only after current ACPR dependency readback. Real adapter activation and external dispatch remain separately gated. |
 | OWM-27 Live contextual layer | LCL-00 accepted; LCL-01 future frontier | Fresh Root/Sol architecture and exact disjoint claim are required for LCL-01. Hypotheses remain advisory and cannot override Planning/domain/USI/claim authority. |
-| OWM-28 Harbor integration | Round 7 convergence active, no current claim | Use current Round 7 after Revision 277, run a fresh safe-frontier/collision audit, and register one exact disjoint repo-only predecessor. Keep UI/live effects separate. |
+| OWM-28 Harbor integration | Round 7 convergence active; RMT8-v2 accepted at Rev279 | Preserve the accepted RMT8-v2 tuple, then select only the next disjoint dependency-ready repo-only or architecture/normalization predecessor. Keep UI/live effects separate. |
+
+`OWM-24` through `OWM-28` above are continuation overlays derived from later
+structured acceptance and Round 7 state; the current Open Work
+`completion_lanes` array contains only OWM-1 through OWM-23. The overlay rows
+are descriptive and cannot themselves authorize a claim. A future agent must
+use their cited newer structured records or register an explicit roadmap row.
 
 ## 8. Normalized blocked/recovery precursors
 
@@ -328,13 +371,53 @@ Round 6 row, Open Work history, and any newer accepted record.
 - Old Round 6 rows saying `TTD-07A5` or `FCA-02` are unclaimed are stale; later
   accepted records win.
 
+### Current Round 7 planned dependency chain
+
+- `R7-A2-execution-authority-ledger-and-snapshot` is blocked after its R2
+  correction budget was exhausted. Never patch or revive R2; a materially new
+  Root/Sol architecture and slice-specific tests are required.
+- `R7-A3` depends on A2; `R7-A4` depends on A3.
+- Runtime wave: B1 depends on A4, UIR-03, UIR-06, FCA-01; B2 on B1, UIR-06,
+  UIR-09, CBM-07A, LCG-03A; B3 on B2; B4 on B2 plus UIR-09/10 and
+  FCA-00/01/02/05/06/06A.
+- Worker/gate wave: C1 depends on A2, B4, CAO-08C1; C2 on C1; C3 on C2; C4
+  on A2, B4, ACPR-12; C5 on C3 and C4.
+- Lifecycle wave: D1 depends on ULO-02; D2 on D1/ULO-03; D3 on D2 and
+  ULO-04/05; D4 on D3 and ULO-08/09; D5 on D4 and ULO-10..14.
+- Golden wave E1/E2 remains planned and nonclaimable until the preceding
+  authority/runtime/worker/lifecycle waves supply the exact flow contracts;
+  E3 depends on E1/E2 and E4 on E3. Central router validators do not substitute
+  for future claim-specific tests.
+
+### Special Round 6 and preclaim stops
+
+- `AMH-01` waits on `AMH-GATE-EXPLICIT-GOAL-OR-REPRIORITIZATION`; after
+  selection its focused gate is `tests/test_agent_maintenance_policy.py`.
+- `CAO-08G` needs exact paths, hotfiles, and slice tests registered after
+  ACPR-12. `ANTI-HALLUCINATION-next-domain-audit` first needs one unsupported
+  claim domain with exact IDs, owner, paths, QA, and tests.
+- `SAR-02` remains parked until a symlink-capable environment can run its
+  unchanged required suite. `TLR-10` remains unscheduled until workload,
+  12-hour window, limits, restart injection, and evidence path are exact.
+- Open Work preclaim boundaries: FCA-03 needs an accepted resumable,
+  revision-bound Forge content reader; UIR-06 needs generation-fenced
+  cancellable query execution and owner decisions; USI-07A needs owner and
+  lifecycle contracts; CBM-09 needs the runtime and generation contracts.
+  Reconcile these read-only and never invent a parallel API or authority.
+- `queue_status` still carries an older `r276` label and
+  `next_parallel_wave_registration.active_claims` contains terminal historical
+  entries. These are stale projections. Current Rev279 authority has empty
+  active-claim and lease arrays and one exact terminal RMT8-v2 external claim.
+
 ## 9. Candidates that must not be revived
 
 - TRS-01A rejected observability candidates.
 - FCA-03A Rev210 and R2 rejected candidates.
 - HWA2A Rev227, v2, and later rejected/frozen candidates.
 - NMG-05A v2 through v6 rejected candidates.
-- RMT8 token-inventory rejected candidate.
+- RMT8 v1 token-inventory rejected candidate. Rev279 accepts only the
+  materially different v2 effective-input state-matrix recovery from the exact
+  two frozen candidate blobs; it does not revive or patch v1.
 - RMT9-P0A rejected candidate.
 - Historical TRP-07 drafts and rejected checkout/stash variants. The final
   stabilized recovery was also rejected after fresh architecture and two
@@ -352,20 +435,20 @@ baseline for a new claim without a materially fresh architecture transaction.
    checkout before any write.
 3. Recompute Open Work/Round 6/Round 7 raw blobs and confirm active claims and
    leases are still empty or exactly understood.
-4. Verify the STT projection contains no TRP-07-only path and preserve the
-   exact green changed-test, portability, privacy and static evidence without
-   changing its bytes mid-run.
-5. The independent final scope review and one-parent/one-commit ancestry are
-   complete. Request the exact push of `ea181f52...` to `fuzzy/dev` and monitor
-   exact CI after platform approval.
-7. In parallel with non-mutating CI wait, run a fresh repository safe-frontier
-   audit. If no writer is directly claimable, prepare the smallest permitted
-   Root/Sol architecture or normalization predecessor; do not manufacture a
-   claim.
-8. After CI, use only the redacted Debian probe. Repair backup readiness through
+4. Preserve accepted `ABC-RMT8-V2-REV278` exactly as frozen and released at
+   Revision 279. Do not reopen its exhausted correction budget or reconstruct
+   its product bytes from prose.
+5. Run a fresh safe-frontier audit. Register only one
+   disjoint dependency-ready repo-only claim or permitted architecture/
+   normalization predecessor; do not manufacture authority from overlay prose.
+6. The public independent scope review and one-parent/one-commit ancestry are
+   complete. The exact remaining platform request is:
+   `Push commit ea181f52e72a24d91480757c55a298fbb77249b1 nach fuzzy/dev.`
+   After that exact approval, push only this commit and monitor exact CI.
+7. After CI, use only the redacted Debian probe. Repair backup readiness through
    the repository's bounded route, obtain backup/restore evidence, then deploy
    the exact revision transactionally if platform action review permits it.
-9. Update this file after every acceptance/release, authority revision,
+8. Update this file after every acceptance/release, authority revision,
    commit/push/CI result, deployment/readback, or materially changed blocker.
 
 ## 11. Verification commands
@@ -427,9 +510,9 @@ identities, release evidence, open-lane rows, immediate sequence, and
 
 ## 14. Not verified at this snapshot
 
-- A fresh uninterrupted full Python suite on the exact final projection. The
-  exact 73-file changed-test lane is green; the prior near-final full run and
-  Linux rerun are recorded in section 4.
+- A single uninterrupted all-repository Windows run on the exact final public
+  commit. The exact final 73-file lane is green with 1671 passed; the near-final
+  full run and classified Linux rerun are recorded in section 4.
 - Push to `fuzzy/dev` and exact automatic Required CI result. Optional manual
   OCI publication was not requested and is not a Debian deploy prerequisite.
 - Local OCI build (local Docker engine unavailable).
