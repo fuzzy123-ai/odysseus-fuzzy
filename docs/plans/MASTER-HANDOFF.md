@@ -2,7 +2,7 @@
 
 Snapshot: 2026-08-14, Europe/Berlin
 Continuity deadline: 2026-08-16 00:00 Europe/Berlin
-Canonical authority at snapshot: Open Work / Round 7 Revision 287
+Canonical authority at snapshot: Open Work / Round 7 Revision 288
 Verified progress: 173 accepted of 245 canonical units
 Open units: 72 (19 repo, 19 design, 30 live, 4 operator)
 
@@ -62,13 +62,14 @@ Newer accepted/released records override stale earlier `planned`, `blocked`, or
 - Purpose: complete structured authority, accepted product work, foreign work,
   and historical evidence.
 - Branch at snapshot: `codex/implemenetaion`.
-- HEAD before the next authority/handoff commit:
-  `c0cd00c26edf0cc2ac3487bd2a8035b66325b024`
-  (`docs: close HWA2A v4 recovery architecture`), parent
-  `de85a8a952e75ede54a75bc20292e02cc3e94c75`. Never use a handoff commit
+- HEAD after the Rev288 registration-Evidence commit:
+  `ec9a0052c3be7b638805c5c8a5c09a68ca136bdf`
+  (`docs: register HWA2A v4 tests-first claim`), parent
+  `54ce034607f7d495819c7724f3e2559226c4e708`. Never use a handoff commit
   itself as product authority; use the exact accepted claim tuples instead.
-- State before the next documentation-only handoff commit: 214 dirty paths
-  (55 tracked-modified, 159 untracked), index empty.
+- State after that exact commit: 211 dirty paths (53 tracked-modified, 158
+  untracked), index empty. This count is diagnostic only and may change as
+  disjoint accepted work lands; exact path-scoped claims remain authoritative.
 - Planning subtree: 0 staged entries, 22 tracked-modified entries, and 126
   untracked entries. The central authorities
   are intentionally modified; the terminal R7-A2 packet and freeze Evidence
@@ -239,7 +240,7 @@ Current external blockers:
 
 ## 6. Global roadmap state
 
-- Open Work and Round 7 are at authority Revision 287.
+- Open Work and Round 7 are at authority Revision 288.
 - The canonical denominator is verified and published: 173 accepted of 245
   unique units, leaving 72 open (19 repo, 19 design, 30 live, 4 operator).
 - The published snapshot binds all 30 active source-roadmap blobs, the exact
@@ -247,7 +248,19 @@ Current external blockers:
   reviewed deterministic candidate. Do not recompute or replace the
   denominator from stale prose; re-open denominator work only if a current
   source or authority byte changes and the routers explicitly invalidate it.
-- No central repo claim or lease is active. `ABC-R7A2-R3R1-REV280` was
+- Exactly one central repo claim and lease is active:
+  `ABC-HWA2A-V4-REV287`, state `running`, candidate `not_frozen`, lease through
+  `2026-08-15T09:15:00+02:00`. It owns exactly
+  `src/headless_write_agent_state.py` and
+  `tests/test_headless_write_agent_state.py` in the clean detached checkout at
+  commit `de85a8a952e75ede54a75bc20292e02cc3e94c75`. The registered baselines are
+  `7ee17276551b09336d2166b058a67c2dbcb87d18` and
+  `7558562705f6dfc648bcc287985b240964aa7d51`; correction budget is 0/1 and
+  no live action is authorized. Registration Evidence is
+  `docs/plans/evidence/abc-hwa2a-v4-rev287-registration.json`, blob
+  `0326c67bbd644d0144c2b1d8db1b0c28db9a67bb`. A Sol tests-first writer has
+  received the exact durable Rev288 tuple; no candidate is frozen yet.
+  `ABC-R7A2-R3R1-REV280` was
   terminally released blocked at Revision 283 after correction 1/1. Freeze
   Evidence remains `docs/plans/evidence/abc-r7a2-r3r1-rev282-freeze.json`
   blob `a86820f61d9a952a42f6082c382287cd11b212ad` and binds the exact four
@@ -278,12 +291,14 @@ Current external blockers:
   the full persisted dependency corridor, static checks, all three central
   validators, independent hostile QA, and Deep-Sol passed on the unchanged
   frozen tuple.
-- Revision 287 post-architecture-registration raw `git hash-object
+- Revision 288 post-claim-registration raw `git hash-object
   --no-filters` readback: Open Work
-  `ce32ce9b19d4c432cecc16a2852f1ff7f3c205b3`, Round 6
+  `97424b6a25746a0aa8b46b698519eedd5914515f`, Round 6
   `284dbe55bf6efac90fc606c29ce40a437875a9f8`, Round 7
-  `985520b210e121fc9fa99d88802b379db3f28e34`, Guidance
-  `7d4b43dc7f91c1f9cfc9837d3b7bb425f50fc3f7`, R7-A2 packet
+  `a2481ea7445c1f17952422f505c36e13e374ffeb`, Guidance
+  `71dcf844bba2778b5f7c0376759a8a2ec91d0b9f`, HWA2A-v4 packet
+  `63fb75c6edbbc7ec72f357ce661370dd5074441a`, registration Evidence
+  `0326c67bbd644d0144c2b1d8db1b0c28db9a67bb`, R7-A2 packet
   `c4d2974f7cef38c636c960b5e641a26202cf4345`, and freeze Evidence
   `a86820f61d9a952a42f6082c382287cd11b212ad`. Do not compare authority
   pins with filtered `git hash-object` output: `text:auto` normalizes Round 6
@@ -308,7 +323,7 @@ Current external blockers:
   discovery, the newer TRP-05/TRP-06 acceptance precedence, TAX0/TAX1/TAX7
   status, and the terminal TRP-07 stop rule. Independent privacy review of this
   handoff also passes.
-- Fresh native-Python readback on the current Revision 287 bytes passes all
+- Fresh native-Python readback on the current Revision 288 bytes passes all
   three central validators: Integration Spine `ok:true`, Round 6 `valid:true`
   with 30/30 rows and zero claimable frontiers, and Guidance `valid:true` with
   139/139 inventory entries. The exact dependency corridor also ran through
@@ -322,8 +337,8 @@ Current external blockers:
   progress unit or an evidence-backed no-op, invokes `$reflect` on ordinary
   blockers, forbids identical retries, and keeps external-action approval
   blockers from stopping disjoint safe work.
-- The next repo-only predecessor is closed and durably registered as an
-  architecture-only reference at Revision 287:
+- The next repo-only predecessor was closed at Revision 287 and became the
+  single durable tests-first repo claim at Revision 288:
   `docs/plans/abc-hwa2a-typed-commit-authority-reconstruction-v4-architecture.json`,
   raw blob `63fb75c6edbbc7ec72f357ce661370dd5074441a`, raw SHA-256
   `1f15b03f5785fb609391dc4ef40599f348ebefcffe79c51c0ec14da4ca9a7c97`,
@@ -333,8 +348,8 @@ Current external blockers:
   primary authority/history pins and 11 exact detached execution pins. Fresh
   independent Sol review passes after closing the derived owner/repo/run
   `control_key` BLOB census and canonical multiplicity semantics. Its state is
-  architecture-only: no claim, lease, writer dispatch, product or live
-  authority exists. The two future writer paths remain
+  product authority remains limited to the active claim above; no commit,
+  push, deploy or live authority exists. Its two writer paths remain
   `src/headless_write_agent_state.py` and
   `tests/test_headless_write_agent_state.py`; the canonical dirty worktree
   versions are rejected historical v3r1 bytes and must not be edited.
@@ -375,7 +390,7 @@ a snapshot.
 | OWM-25 Coding loop consolidation | Many CAO/NMG slices accepted | Do not blindly follow stale `ACPR-11 next` prose: current history already contains later ACPR-13D acceptance. Re-run the current frontier audit and claim only the first genuinely unaccepted disjoint predecessor. |
 | OWM-26 Subagent context/delegation | Bounded local/fake contracts accepted | Continue only after current ACPR dependency readback. Real adapter activation and external dispatch remain separately gated. |
 | OWM-27 Live contextual layer | LCL-00 accepted; LCL-01 future frontier | Fresh Root/Sol architecture and exact disjoint claim are required for LCL-01. Hypotheses remain advisory and cannot override Planning/domain/USI/claim authority. |
-| OWM-28 Harbor integration | R7-A2 R3R1 terminally released blocked at Rev283 after correction 1/1; RMT8-v2 and the HWA/Temporal source normalization remain accepted; Rev286 denominator verified; HWA2A-v4 architecture registered at Rev287 | Preserve rejected tuples. The selected next predecessor is HWA2A-v4; reconcile its exact accepted HWA3A source projection and claim-origin route before any writer. |
+| OWM-28 Harbor integration | R7-A2 R3R1 terminally released blocked at Rev283 after correction 1/1; RMT8-v2 and the HWA/Temporal source normalization remain accepted; Rev286 denominator verified; HWA2A-v4 architecture registered at Rev287 and exact two-path claim active at Rev288 | Preserve rejected tuples. Let only the registered clean Detached Sol writer execute tests-first; Root then freezes one exact candidate for independent QA and Deep-Sol. |
 
 `OWM-24` through `OWM-28` above are continuation overlays derived from later
 structured acceptance and Round 7 state; the current Open Work
@@ -704,8 +719,8 @@ Round 6 row, Open Work history, and any newer accepted record.
   `$.current_position.full_goal_progress.long_run_checkpoint` and Round 7
   `$.long_run_state.global_goal_progress.long_run_checkpoint` were normalized
   at Revision 286 to `173/245`, the current deadline, and the verified
-  denominator state. Current Rev287 authority has empty active-claim and
-  lease arrays; its terminal history includes the accepted RMT8-v2 claim from
+  denominator state. Current Rev288 authority has exactly the HWA2A-v4 claim
+  and lease described above; its terminal history includes the accepted RMT8-v2 claim from
   Revision 279 and the blocked R7-A2 R3R1 claim from Revision 283.
 
 ## 9. Candidates that must not be revived
@@ -734,8 +749,8 @@ baseline for a new claim without a materially fresh architecture transaction.
 1. Read newest user steering, `AGENTS.md`, Open Work, Round 7, and this file.
 2. Read `git status --short` and the path-scoped staged/unstaged diff in every
    checkout before any write.
-3. Recompute Open Work/Round 6/Round 7 raw blobs and confirm no central claim or
-   lease is active. Verify the packet-local HWA normalization is released on
+3. Recompute Open Work/Round 6/Round 7 raw blobs and confirm that exactly the
+   HWA2A-v4 claim and lease above are active. Verify the packet-local HWA normalization is released on
    the exact packet/source blobs recorded in section 6. Rebind the 72-record
    continuation ledger before using any of its authority locators.
 4. Preserve accepted `ABC-RMT8-V2-REV278` exactly as frozen and released at
@@ -743,11 +758,10 @@ baseline for a new claim without a materially fresh architecture transaction.
    its product bytes from prose.
 5. Preserve terminal R7-A2 R3R1 evidence without another patch. Preserve the
    accepted source and identity normalizations and the verified Rev286
-   denominator. The completed `$reflect` selected HWA2A-v4 and its architecture
-   is independently closed at the exact blob above. Next, register it through
-   one serialized Root transaction only after exact origin/provenance,
-   registration Evidence, clean detached baseline, paths, pins, tests, owner,
-   lease, and central readback exist; then dispatch tests-first on two paths.
+   denominator. HWA2A-v4 is now registered and centrally green at Rev288.
+   Supervise only its exact clean Detached Sol writer; on handoff compare all
+   pins/lease/two paths, freeze one immutable pair, run independent hostile QA
+   and Deep-Sol, then accept or terminally release according to correction 0/1.
 6. The public independent scope review and one-parent/one-commit ancestry are
    complete. The exact remaining platform request is:
    `Push commit ea181f52e72a24d91480757c55a298fbb77249b1 nach fuzzy/dev.`
@@ -836,7 +850,7 @@ identities, release evidence, open-lane rows, immediate sequence, and
 - Debian access recovery through the approved SSH identity path, deployment,
   health/revision readback, or live STT/runtime smoke.
 - UI-live readiness and Version 1.0 release.
-- HWA2A-v4 claim-origin/source-projection reconciliation, claim Evidence, clean
-  detached writer checkout, tests-first candidate, freeze, independent QA,
-  Deep-Sol and acceptance/release. The architecture packet and its Rev287
-  reference are verified; product work is not yet authorized.
+- HWA2A-v4 tests-first candidate, freeze, independent QA, Deep-Sol and
+  acceptance/release. Claim-origin/source projection, Evidence, clean detached
+  baseline and central Rev288 registration are verified; only the exact two
+  writer paths are authorized and no candidate has yet been frozen.
