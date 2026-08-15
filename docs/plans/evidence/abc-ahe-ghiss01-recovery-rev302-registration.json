@@ -1,0 +1,61 @@
+{
+  "architecture_digest_sha256": "sha256:e2e3d22e3bce3a5fbff8e38980f0b32ba4416e009b5aecfac1647793e28f29d7",
+  "architecture_path": "docs/plans/abc-ahe-ghiss01-negated-evidence-attribution-recovery-architecture.json",
+  "architecture_raw_blob": "7164d0317f6bd2d280412af3513d9f52d21a9c44",
+  "architecture_review": {
+    "authority_raw_pins": "5/5_pass",
+    "canonical_baselines": "4/4_pass",
+    "command_manifest_digest_sha256": "sha256:e68ab9fa5efee321a382d396b0f52a4b628b9f1b43c014c6080e8f001e15c8ba",
+    "independent_deep_sol": "pass",
+    "node_manifest_digest_sha256": "sha256:c7b0a720f0715a601f22f4dbd1c118ae60d57d06b46def03061bdb4db9e004ce",
+    "read_only_pins": "17/17_pass"
+  },
+  "authority_revision": 302,
+  "baseline_blobs": {
+    "src/agent_loop.py": "f05964f03c1280f51493300911cf0adbe434976d",
+    "src/claim_evidence_gate.py": "bc082142f8ac6dfe284f656f1392fd6219dca7b9",
+    "src/tool_domains/github_issues.py": "263ca48c8898133bed2515d85911938ba0fed68e",
+    "tests/test_claim_evidence_gate.py": "978f3907161f819ef353a8a17dcd253cfb391c4a"
+  },
+  "baseline_readback": "standalone_detached_commit_4efda592376080e8afd11709ab38e04db29a5ba5_exact_four_blobs_status_and_index_empty",
+  "claim_id": "ABC-AHE-GHISS01-RECOVERY-REV302",
+  "continuation_inventory_blob": "42fec8b766a55a5e8851667ec6b37082f19f8869",
+  "correction_budget": {
+    "after_repeat": "stop_and_rearchitect",
+    "failure_class": "ahe_ghiss01_affirmative_self_performed_full_clause_attribution_and_receipt_binding",
+    "limit_per_invariant": 1,
+    "used": 0
+  },
+  "execution_commit": "4efda592376080e8afd11709ab38e04db29a5ba5",
+  "execution_workspace": "/mnt/c/Users/nkatz/Documents/odysseus-ahe-ghiss01-rev302",
+  "inventory_receipt": {
+    "inventory_mode": "rolling_projection",
+    "member_count": 30,
+    "member_set_digest": "sha256:0f3bf8d41306facf635edd86a6c481cba702292994ab6c2e78937f86f9ec3bcf",
+    "scheduled_slice_count_unchanged": 7,
+    "terminal_waves_unchanged": true
+  },
+  "kind": "odysseus.abc_claim_evidence",
+  "live_actions": false,
+  "owner": "Sol AHE-GHISS01 recovery critical closed-packet writer",
+  "schema_version": 1,
+  "slice_id": "AHE-GHISS-01-negated-evidence-attribution-recovery",
+  "state": "registered_tests_first_candidate_not_frozen",
+  "tests_first_nodes": [
+    "tests/test_claim_evidence_gate.py::test_github_issue_claim_language_ignores_negated_hypothetical_and_quoted_text",
+    "tests/test_claim_evidence_gate.py::test_github_issue_create_set_fields_and_sync_claims_remain_unsupported",
+    "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_does_not_borrow_authority_across_mixed_clauses",
+    "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_rejects_generic_exit_zero_and_live_gate_packets",
+    "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_requires_affirmative_self_performed_full_clause",
+    "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_requires_exact_verified_receipt",
+    "tests/test_claim_evidence_gate.py::test_github_issue_event_forward_is_content_free_and_detached",
+    "tests/test_claim_evidence_gate.py::test_github_issue_receipt_rejects_hostile_mapping_wrong_types_extra_fields_and_mutation"
+  ],
+  "thread_id": "01a003a9-515a-7d72-ba04-5d5bd1ca0a17",
+  "writer_paths": [
+    "src/agent_loop.py",
+    "src/claim_evidence_gate.py",
+    "src/tool_domains/github_issues.py",
+    "tests/test_claim_evidence_gate.py"
+  ]
+}
