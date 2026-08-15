@@ -3766,6 +3766,29 @@
    "state": "frozen",
    "stop_rule": "Stop before registration or verification on authority, packet, baseline, path, overlap, command, node, lease or explicit-start evidence drift. Stop on a fifth path, mutable state, private detail, raw diagnostic, parallel authority, weaker verification disclosure or external-action grant. After one same-class correction, release blocked and require fresh Root/Sol architecture.",
    "threat_model": "A fresh or overconfident agent may treat prose, automation or a passing weak test as authority, overwrite foreign work, expose diagnostic secrets, use destructive Git, invent mutable state, omit verification limits or publish externally without a separate grant. Bind the exact stable policy, runbook, contribution disclosure and policy tests while preserving structured Planning and claim state as the only mutable authority."
+  },
+  "R7-PYRUN-01-current-virtualenv-command-boundary-recovery": {
+   "allowed_paths": [
+    "scripts/validate_integration_spine_convergence.py",
+    "tests/test_integration_spine_convergence.py"
+   ],
+   "architect": "root/Sol",
+   "architecture_digest_sha256": "sha256:1584c7f5bce8971a6a513eece9e6fc7a0c8350c297d496725d8deed7d9383f94",
+   "architecture_revision": "R7-PYRUN-01-CURRENT-VIRTUALENV-COMMAND-BOUNDARY-RECOVERY-SOL-ARCH-v1",
+   "correction_budget": {
+    "failure_class": "r7_current_virtualenv_command_identity_and_legacy_compatibility",
+    "limit": 1,
+    "on_repeat": "release_blocked_and_require_fresh_root_sol_architecture",
+    "used": 0
+   },
+   "kind": "odysseus.sol_architecture_reference",
+   "packet_blob": "30f980c3f7e5b89b4486067597f27d9a631c11e9",
+   "packet_path": "docs/plans/abc-r7-current-virtualenv-command-boundary-recovery-architecture.json",
+   "schema_version": 1,
+   "slice_id": "R7-PYRUN-01-current-virtualenv-command-boundary-recovery",
+   "state": "frozen",
+   "stop_rule": "Stop before claim registration or any writer edit on target collision; authority, architecture, baseline or Rev299 pin drift; overlapping paths; active-claim or lease conflict; a third path; unavailable tests-first lane; nonexact or mutable runtime capture; missing before-command or post-final comparison; shell, URL, artifact, basetemp or digest broadening; or any implied writer/live authority. After one correction in r7_current_virtualenv_command_identity_and_legacy_compatibility, release blocked and require fresh Root/Sol architecture.",
+   "threat_model": "A platform-specific historical Windows launcher can make valid local verification impossible, while an overbroad recovery could trust a PATH-controlled, environment-selected, symlink-substituted or arbitrary interpreter and could weaken command, artifact, basetemp or digest authority. Capture one validation-time runtime identity per complete claim parse, reuse it immutably across all command parsing, detect only post-capture drift through the final comparison, preserve the historical literal and admit the current absolute virtualenv executable only by exact identity. This architecture intentionally grants no implementation, publication or live authority and promises no execution-time interpreter integrity after validation returns."
   }
  },
  "authoring_claim": {
@@ -4830,6 +4853,198 @@
    "review_result": "released_blocked_before_freeze_dependency_or_runner_failure",
    "terminal_evidence_blob": "487f90171ac6c884cb84616ad833d9883f0f6eea",
    "terminal_evidence_path": "docs/plans/evidence/abc-amh01-rev299-terminal-release.json"
+  },
+  {
+   "acceptance": [
+    "The five exact tests are authored tests-first and fail only on the absent current-virtualenv launcher boundary before the source write.",
+    "The historical venv\\Scripts\\python.exe launcher remains accepted and exact current absolute virtualenv sys.executable is accepted only through one immutable per-claim validation-time identity capture.",
+    "Runtime identity is checked before every command and after the final command; pre-capture mutation and post-return execution-time identity are explicitly outside the guarantee.",
+    "All existing shell, URL, forbidden-tool, command grammar, basetemp, artifact scope and digest constraints remain unchanged.",
+    "The exact frozen two-blob candidate passes focused, dependency, static, all three central validators, independent hostile QA and final Deep-Sol review before release."
+   ],
+   "acquired_at": "2026-08-15T03:31:32+02:00",
+   "allowed_paths": [
+    "scripts/validate_integration_spine_convergence.py",
+    "tests/test_integration_spine_convergence.py"
+   ],
+   "architecture_digest_sha256": "sha256:1584c7f5bce8971a6a513eece9e6fc7a0c8350c297d496725d8deed7d9383f94",
+   "architecture_revision": "R7-PYRUN-01-CURRENT-VIRTUALENV-COMMAND-BOUNDARY-RECOVERY-SOL-ARCH-v1",
+   "authority_revision": {
+    "claimed_against_round7_revision": 299,
+    "registered_round7_revision": 300
+   },
+   "baseline_blobs": {
+    "scripts/validate_integration_spine_convergence.py": "b7633219b137bd24bce4cc993e9b5db6bbda2b48",
+    "tests/test_integration_spine_convergence.py": "651e8be5492714a92ded48f457055861f9c5e244"
+   },
+   "baseline_readback": {
+    "schema_version": 1,
+    "mode": "materialized_repo_genesis_partition_v1",
+    "materialized_paths": [
+     "scripts/validate_integration_spine_convergence.py",
+     "tests/test_integration_spine_convergence.py"
+    ],
+    "materialized_readback": "materialized_exact_binary_readback_pass",
+    "genesis_paths": [],
+    "genesis_readback": "captured_absent_paths_exact_readback_pass"
+   },
+   "candidate_blobs": {},
+   "candidate_evidence_manifest_blob": "bdf718c3a4292a4bbdfb8d07661ac27c38d2022a",
+   "candidate_evidence_path": "docs/plans/evidence/abc-r7-pyrun01-rev300-registration.json",
+   "candidate_pytest_node_ids": [
+    "tests/test_integration_spine_convergence.py::test_command_spec_accepts_legacy_and_exact_current_virtualenv_executable",
+    "tests/test_integration_spine_convergence.py::test_command_spec_preserves_shell_url_artifact_basetemp_and_digest_guards",
+    "tests/test_integration_spine_convergence.py::test_command_spec_rejects_path_alias_env_and_arbitrary_absolute_interpreters",
+    "tests/test_integration_spine_convergence.py::test_command_spec_rejects_relative_or_non_virtualenv_current_executable",
+    "tests/test_integration_spine_convergence.py::test_command_spec_rejects_symlink_realpath_and_runtime_identity_drift"
+   ],
+   "candidate_state": "not_frozen",
+   "claim_class": "repo_claim_v2",
+   "claim_id": "ABC-R7-PYRUN01-REV300",
+   "claim_transfer": {
+    "origin_mode": "materialized_repo_genesis",
+    "source_registry": null,
+    "from_claim_id": null,
+    "source_released_at": null,
+    "transferred_at": "2026-08-15T03:31:32+02:00",
+    "gap_preserved_no_writer": true,
+    "architecture_handoff": "R7_PYRUN01_MATERIALIZED_GENESIS_REV300",
+    "new_product_writer_paths": []
+   },
+   "correction_budget": {
+    "after_repeat": "stop_and_rearchitect",
+    "failure_class": "r7_current_virtualenv_command_identity_and_legacy_compatibility",
+    "limit_per_invariant": 1,
+    "used": 0
+   },
+   "dependencies": [
+    "Rev299 zero active claims and leases",
+    "AMH-01 terminally released_blocked before freeze at authority_revision299",
+    "R7-PYRUN-01 architecture packet independently reviewed PASS at blob 30f980c3f7e5b89b4486067597f27d9a631c11e9"
+   ],
+   "forbidden": [
+    "A third writer path, router or Evidence mutation by the implementation writer.",
+    "Per-command runtime recapture, PATH or env lookup, arbitrary interpreter acceptance, command rewriting or execution-time guarantee.",
+    "Weakening shell, URL, forbidden-tool, command grammar, basetemp, artifact-scope or digest constraints.",
+    "Stage, commit, push, deploy, network, provider, host, private-data, send, UI or live action."
+   ],
+   "hostile_matrix": [
+    "Historical literal and exact current virtualenv launcher controls.",
+    "PATH aliases, env wrappers, arbitrary absolute interpreters, relative or non-virtualenv state.",
+    "Pre-capture limitation, between-command drift, post-final drift and post-return limitation.",
+    "Symlink, realpath, raw executable, prefix and base-prefix drift.",
+    "Shell, URL, forbidden-tool, malformed command, basetemp and artifact escape.",
+    "Original argv and command-manifest digest sensitivity to launcher identity."
+   ],
+   "hotfiles": [
+    "scripts/validate_integration_spine_convergence.py",
+    "tests/test_integration_spine_convergence.py"
+   ],
+   "lease_expires_at": "2026-08-15T23:45:00+02:00",
+   "live_actions": false,
+   "new_evidence_writer_paths": [],
+   "owner": "root/Sol R7-PYRUN-01 tests-first writer",
+   "pytest_basetemp": {
+    "dependency": ".abc-test-tmp/ABC-R7-PYRUN01-REV300/dependency",
+    "focused": ".abc-test-tmp/ABC-R7-PYRUN01-REV300/focused"
+   },
+   "read_only_pins": {
+    "docs/plans/abc-r7-current-virtualenv-command-boundary-recovery-architecture.json": "30f980c3f7e5b89b4486067597f27d9a631c11e9",
+    "docs/plans/evidence/abc-r7-pyrun01-rev300-registration.json": "bdf718c3a4292a4bbdfb8d07661ac27c38d2022a",
+    "docs/plans/multi-agent-execution-guidance.json": "71dcf844bba2778b5f7c0376759a8a2ec91d0b9f",
+    "docs/plans/parallel-roadmap-execution-round6.json": "284dbe55bf6efac90fc606c29ce40a437875a9f8",
+    "scripts/roadmap_multi_agent_guidance.py": "8973fbdcb9b7cb7eec5ae9f03dd8f9acffdd544c",
+    "scripts/validate_parallel_roadmap_execution.py": "22d5be1db6f58906d9fa5132c46a5f358daae300",
+    "tests/test_parallel_roadmap_execution.py": "1504f56759b71c69157dcfdadc5ca172d8cae9f1",
+    "tests/test_roadmap_multi_agent_guidance.py": "584c7a5635e0996e06b2c149f378239a3273ca7d"
+   },
+   "regression_tests": [
+    {
+     "argv": [
+      "venv\\Scripts\\python.exe",
+      "-B",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "tests\\test_integration_spine_convergence.py",
+      "--basetemp",
+      ".abc-test-tmp/ABC-R7-PYRUN01-REV300/focused"
+     ],
+     "id": "r7-pyrun01-focused",
+     "tier": "focused"
+    },
+    {
+     "argv": [
+      "venv\\Scripts\\python.exe",
+      "-B",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "tests\\test_integration_spine_convergence.py",
+      "tests\\test_parallel_roadmap_execution.py",
+      "tests\\test_roadmap_multi_agent_guidance.py",
+      "--basetemp",
+      ".abc-test-tmp/ABC-R7-PYRUN01-REV300/dependency"
+     ],
+     "id": "r7-pyrun01-dependency",
+     "tier": "dependency"
+    },
+    {
+     "argv": [
+      "venv\\Scripts\\python.exe",
+      "-B",
+      "scripts\\validate_integration_spine_convergence.py",
+      "--format",
+      "json"
+     ],
+     "id": "r7-pyrun01-integration",
+     "tier": "central"
+    },
+    {
+     "argv": [
+      "venv\\Scripts\\python.exe",
+      "-B",
+      "scripts\\validate_parallel_roadmap_execution.py",
+      "--format",
+      "json"
+     ],
+     "id": "r7-pyrun01-round6",
+     "tier": "central"
+    },
+    {
+     "argv": [
+      "venv\\Scripts\\python.exe",
+      "-B",
+      "scripts\\roadmap_multi_agent_guidance.py",
+      "--format",
+      "json"
+     ],
+     "id": "r7-pyrun01-guidance",
+     "tier": "central"
+    }
+   ],
+   "run_id": "ABC-R7-PYRUN01-REV300",
+   "slice_id": "R7-PYRUN-01-current-virtualenv-command-boundary-recovery",
+   "stale_invalidation": [
+    "authority_or_projection_revision_drift",
+    "candidate_writer_blob_drift",
+    "claim_lease_or_transfer_drift",
+    "command_contract_or_basetemp_drift",
+    "read_only_pin_drift",
+    "rolling_inventory_member_count_digest_or_denominator_drift"
+   ],
+   "state": "running",
+   "thread_id": "01a00308-ab0c-7393-acfd-b83c4c291819",
+   "verification_tiers": {
+    "central": "Integration Spine, Round6 and Guidance validators",
+    "dependency": "integration-spine, Round6 and Guidance compatibility suites",
+    "expensive_live": "not_run_user_gated",
+    "focused": "five exact R7-PYRUN-01 nodes and the full integration-spine suite"
+   }
   }
  ],
  "external_lane_validator_claim": {
@@ -4913,8 +5128,16 @@
  "goal": "Converge the already designed Harbor One coding, Planning, USI/Memory, worker and lifecycle capabilities into one evidence-bound local agent loop without reopening accepted domain architecture and without crossing a live gate.",
  "kind": "odysseus.integration_spine_execution_round",
  "long_run_state": {
-  "active_claims": [],
-  "agent_leases": [],
+  "active_claims": [
+   "ABC-R7-PYRUN01-REV300"
+  ],
+  "agent_leases": [
+   {
+    "claim_id": "ABC-R7-PYRUN01-REV300",
+    "expires_at": "2026-08-15T23:45:00+02:00",
+    "owner": "root/Sol R7-PYRUN-01 tests-first writer"
+   }
+  ],
   "completed_slices": [
    "R7-P0-accepted-rejected-checkout-separation",
    "R7-P1-status-and-router-drift-normalization",
@@ -5783,9 +6006,9 @@
    "verified_complete": 2
   },
   "heartbeat_automation_id": "abc-round-7-open-work-10h",
-  "last_durable_progress_at": "2026-08-15T03:01:00+02:00",
+  "last_durable_progress_at": "2026-08-15T03:31:32+02:00",
   "last_heartbeat_at": "2026-08-15T02:28:28+02:00",
-  "last_reported_revision": 299,
+  "last_reported_revision": 300,
   "live_go_ledger": [],
   "master_route": {
    "actual": "surface_root_role_user_approved_alternate_architect",
@@ -5794,15 +6017,15 @@
   },
   "max_parallel_workers": 3,
   "next_runnable_slices": [
-   "ABC-AMH01-REV298 is released_blocked before freeze: its exact Windows runner did not start and its pinned broader dependency lane has one foreign Round6-test failure, while the five policy tests pass and no writer path changed. Preserve the architecture and terminal Evidence; do not manufacture acceptance. Run a fresh evidence-based reflect and continue one disjoint dependency-ready repo-only slice or permitted architecture/recovery predecessor."
+   "ABC-R7-PYRUN01-REV300 is the sole repo-only tests-first claim. The bound root/Sol writer must rebind the exact two materialized baselines and Rev300 tuple, add only the five named tests first, collect exact RED attributable to the launcher boundary, then implement only the two claimed paths. Stop on path, pin, lease, command, runtime-identity or authority drift; no stage, commit, push, deploy, provider, host, private-data or live action."
   ],
   "pending_sol_reviews": [],
   "pending_user_requests": [],
   "predecessor_run_id": "ABC-R7-6H-20260808T171626+0200",
   "queue_path": "docs/plans/open-work-completion-master-roadmap.json",
   "queue_scope": "open_work",
-  "resume_cursor": "reflect_next_disjoint_dependency_ready_repo_only_frontier",
-  "revision": 299,
+  "resume_cursor": "ABC-R7-PYRUN01-REV300-tests-first",
+  "revision": 300,
   "run_id": "ABC-R7-12H-20260809T084440+0200",
   "sol_review_results": [
    {
@@ -5927,7 +6150,7 @@
    }
   ],
   "started_at": "2026-08-09T08:44:40+02:00",
-  "state": "verified_denominator_published_amh01_released_blocked_no_active_claim",
+  "state": "verified_denominator_published_r7_pyrun01_claimed_tests_first",
   "worker_route": {
    "actuals": [
     {
@@ -6403,8 +6626,8 @@
   "docs/plans/project-versioning-forge-provider-roadmap.md",
   "docs/plans/code-intelligence-evaluation-protocol.md"
  ],
- "status": "round7_authority_revision299_verified_global_denominator_173_of_245_amh01_released_blocked_before_freeze",
- "updated_at": "2026-08-15T03:01:00+02:00",
+ "status": "round7_authority_revision300_verified_global_denominator_173_of_245_r7_pyrun01_claimed_tests_first",
+ "updated_at": "2026-08-15T03:31:32+02:00",
  "waves": [
   {
    "depends_on": [
