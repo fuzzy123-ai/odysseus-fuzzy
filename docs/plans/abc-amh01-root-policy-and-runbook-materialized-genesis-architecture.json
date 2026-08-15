@@ -1,0 +1,83 @@
+{
+  "acceptance": [
+    "The tracked root AGENTS.md remains a short stable repository policy that binds safe start, path-scoped ownership, foreign-work preservation, secret-safe diagnostics, destructive-Git prohibitions, verification limits and complete handoff requirements without mutable run state.",
+    "The maintenance runbook uses only versioned roadmaps, the gate queue, durable claims and clarification records as mutable authority; it introduces no STATE.md, OWNER_QUEUE.md or second orchestration store.",
+    "CONTRIBUTING.md links the root policy and runbook and requires explicit Verification and Not verified disclosure while stating that automation does not imply action authority.",
+    "No policy or runbook text grants commit, push, deploy, provider, host, private-data, send or live authority; every such action remains separately action-specific.",
+    "The exact four materialized baseline blobs pass all five named policy nodes, the full focused policy suite, deterministic dependency verification, static checks, all three central validators, independent hostile review and Root/Sol review on one frozen candidate tuple.",
+    "The user's standing full-roadmap /go instruction satisfies only the roadmap's explicit AMH-01 start and reprioritization condition; it does not waive claims, verification, publication, deployment, private-data or live gates."
+  ],
+  "allowed_paths": [
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "docs/agent-maintenance-runbook.md",
+    "tests/test_agent_maintenance_policy.py"
+  ],
+  "architect": "root/Sol",
+  "architecture_revision": "AMH-01-ROOT-POLICY-AND-RUNBOOK-MATERIALIZED-GENESIS-SOL-ARCH-v1",
+  "baseline_blobs": {
+    "AGENTS.md": "2b9458cc29501c95121fc342739df3563b6e63c0",
+    "CONTRIBUTING.md": "bbe8942d3c4f1af975693bdb4bfa77d895058aa2",
+    "docs/agent-maintenance-runbook.md": "2acc1eb2420b90bf5f1d609921ee09e78a15db74",
+    "tests/test_agent_maintenance_policy.py": "953be01dec324f2b0af97071570154bf42ead114"
+  },
+  "baseline_readback": {
+    "genesis_paths": [],
+    "genesis_readback": "captured_absent_paths_exact_readback_pass",
+    "materialized_paths": [
+      "AGENTS.md",
+      "CONTRIBUTING.md",
+      "docs/agent-maintenance-runbook.md",
+      "tests/test_agent_maintenance_policy.py"
+    ],
+    "materialized_readback": "materialized_exact_binary_readback_pass",
+    "mode": "materialized_repo_genesis_partition_v1",
+    "schema_version": 1
+  },
+  "correction_budget": {
+    "failure_class": "amh01_root_policy_runbook_and_non_authority_disclosure",
+    "limit": 1,
+    "on_repeat": "release_blocked_and_require_fresh_root_sol_architecture",
+    "used": 0
+  },
+  "forbidden": [
+    "A fifth writer path, vendor-specific agent template, mutable task state, token, credential, private path, raw diagnostic, provider response or current claim data in stable policy or runbook text.",
+    "A second planning, owner-question, claim, evidence, scheduler, heartbeat or orchestration authority.",
+    "Weakening foreign-work preservation, path-scoped claims, destructive-Git prohibitions, secret-safe diagnostic boundaries or explicit verification limits.",
+    "Treating automation, implementation, a passing weak lane, policy prose or this packet as commit, push, deploy, provider, host, private-data, send or live authority.",
+    "Router or Evidence edits by the verification writer, stage, commit, push, deploy, network, UI, provider, host, private-data or live action."
+  ],
+  "hostile_matrix": [
+    "Mutable run identifiers, active-claim fields, heartbeat cursors, current task narration, credentials, private paths and raw diagnostics inserted into stable policy.",
+    "Credential value, prefix, suffix, length or hash disclosure; env, printenv, .env, container environment or unredacted compose output presented as diagnostic evidence.",
+    "Reset --hard, clean, checkout rewrite, force push, history rewrite, broad cleanup, foreign staged absorption or automatic conflict resolution presented as routine maintenance.",
+    "A weak, old, prose-only, revision-mismatched or agent-authored result presented as stronger machine verification.",
+    "Automation, a roadmap goal or an implementation claim presented as implicit commit, push, deployment, provider, host, send or live authority.",
+    "STATE.md, OWNER_QUEUE.md or another mutable maintenance store presented as the canonical continuation mechanism.",
+    "A handoff that omits goal, slice, claim, changed paths, tests, evidence, next action, blockers, Not verified or publication authority.",
+    "Foreign changes to CONTRIBUTING.md, baseline drift, path overlap, stale authority, expired lease or a fifth path before freeze."
+  ],
+  "kind": "odysseus.sol_materialized_repo_genesis_architecture",
+  "named_tests": [
+    "tests/test_agent_maintenance_policy.py::test_contributing_links_policy_and_requires_verification_limits",
+    "tests/test_agent_maintenance_policy.py::test_root_policy_is_bounded_stable_and_actionable",
+    "tests/test_agent_maintenance_policy.py::test_root_policy_keeps_diagnostics_secret_safe_before_consumers",
+    "tests/test_agent_maintenance_policy.py::test_runbook_never_grants_publication_or_live_authority",
+    "tests/test_agent_maintenance_policy.py::test_runbook_uses_existing_authorities_and_has_a_complete_handoff"
+  ],
+  "origin_mode": "materialized_repo_genesis",
+  "published_round7_revision": 297,
+  "schema_version": 1,
+  "slice_id": "AMH-01-root-policy-and-runbook",
+  "state": "frozen",
+  "stop_rule": "Stop before registration or verification on authority, packet, baseline, path, overlap, command, node, lease or explicit-start evidence drift. Stop on a fifth path, mutable state, private detail, raw diagnostic, parallel authority, weaker verification disclosure or external-action grant. After one same-class correction, release blocked and require fresh Root/Sol architecture.",
+  "threat_model": "A fresh or overconfident agent may treat prose, automation or a passing weak test as authority, overwrite foreign work, expose diagnostic secrets, use destructive Git, invent mutable state, omit verification limits or publish externally without a separate grant. Bind the exact stable policy, runbook, contribution disclosure and policy tests while preserving structured Planning and claim state as the only mutable authority.",
+  "verification_tiers": {
+    "central": "Integration Spine, Round6 and Guidance validators after durable registration and after candidate freeze.",
+    "dependency": "The complete tests/test_agent_maintenance_policy.py suite plus JSON validation of the AMH source roadmap under a deterministic claim basetemp where applicable.",
+    "expensive_live": "not_run_not_required_not_authorized",
+    "focused": "The exact five named policy nodes and the complete policy test module against the four materialized baseline blobs.",
+    "independent_qa": "Fresh hostile review for mutable-state leakage, secret disclosure, destructive Git, authority confusion, incomplete handoff and baseline drift on the frozen tuple.",
+    "sol_review": "Deep Root/Sol re-derivation of stable-versus-mutable authority, verification disclosure, foreign-work preservation and zero publication or live authority."
+  }
+}
