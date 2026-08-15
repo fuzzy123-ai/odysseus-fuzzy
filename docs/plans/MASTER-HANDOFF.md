@@ -1,8 +1,8 @@
 # Odysseus Master Handoff
 
-Snapshot: 2026-08-15T02:28:28+02:00, Europe/Berlin
+Snapshot: 2026-08-15T03:01:00+02:00, Europe/Berlin
 Continuity deadline: 2026-08-16 00:00 Europe/Berlin
-Canonical authority at snapshot: Open Work / Round 7 Revision 297
+Canonical authority at snapshot: Open Work / Round 7 Revision 299
 Verified progress: 173 accepted of 245 canonical units
 Open units: 72 (19 repo, 19 design, 30 live, 4 operator)
 
@@ -62,6 +62,12 @@ Newer accepted/released records override stale earlier `planned`, `blocked`, or
 - Purpose: complete structured authority, accepted product work, foreign work,
   and historical evidence.
 - Branch at snapshot: `codex/implemenetaion`.
+- Authority snapshot parent HEAD before this handoff refresh:
+  `c9d6f6010096728bcc6168b043072e6ab61370a5`. The handoff refresh commit is
+  expected to be newer; always run `git rev-parse HEAD` before mutation.
+- Latest AMH-01 lifecycle commits: Rev299 terminal router `c9d6f601`, terminal
+  Evidence `2e68ebf7`, Rev298 claim registration `06f65fb4`, registration
+  Evidence `7e91d2e5`, and closed materialized-genesis architecture `07715e94`.
 - Latest committed continuity artifacts before this Master Handoff update:
   H1-29 Rev297 terminal-router commit `b9d8012c`, terminal-Evidence commit
   `38b612b8`, Rev296 freeze-router commit `997edad7`, freeze-Evidence commit
@@ -89,6 +95,20 @@ Newer accepted/released records override stale earlier `planned`, `blocked`, or
   alone does not invalidate a registered artifact.
 - Rule: never clean, reset, broadly stage, or absorb this tree. Select exact
   accepted tuples only.
+
+### Preserved dirty auxiliary worktrees
+
+- `Documents/odysseus-abc-workspaces/AHE-GHISS01-REV293`: four modified
+  rejected candidate paths plus test-temporary remnants. Preserve for forensic
+  recovery only; do not clean, merge, publish, or resume without fresh
+  architecture and claim.
+- `Documents/odysseus-release-dev`: two foreign roadmap modifications. Keep
+  isolated from the clean accepted/public release clones.
+- `/tmp/odysseus-hwa2a-v5-rev290`: one modified rejected HWA test path. Preserve
+  only while the local session exists; it is not accepted product evidence.
+- These entries are descriptive locators relative to their workspace roots,
+  not claim or cleanup authority. Re-read `git worktree list --porcelain` and
+  each status before any consolidation.
 
 ### Clean accepted release clone
 
@@ -252,7 +272,7 @@ Current external blockers:
 
 ## 6. Global roadmap state
 
-- Open Work and Round 7 are at authority Revision 297.
+- Open Work and Round 7 are at authority Revision 299.
 - The canonical denominator is verified and published: 173 accepted of 245
   unique units, leaving 72 open (19 repo, 19 design, 30 live, 4 operator).
 - The published snapshot binds all 30 active source-roadmap blobs, the exact
@@ -260,7 +280,20 @@ Current external blockers:
   reviewed deterministic candidate. Do not recompute or replace the
   denominator from stale prose; re-open denominator work only if a current
   source or authority byte changes and the routers explicitly invalidate it.
-- There are zero active repo claims and zero leases at Revision 297.
+- There are zero active repo claims and zero leases at Revision 299.
+  `ABC-AMH01-REV298` was verification-first and released blocked before freeze.
+  Its four materialized policy baselines remained byte-identical and no writer
+  path changed. The exact policy suite passes 5/5 through the existing Linux
+  Python 3.11 environment, JSON/pycompile/diff-check and all three central
+  validators pass, but the persisted Windows pytest process did not start from
+  the WSL context and the pinned broader dependency lane produced 50 PASS / 1
+  FAIL in the foreign current Round6 validator test. Candidate bytes remained
+  `{}`, correction stayed 0/1, and no independent acceptance QA was claimed.
+  Terminal Evidence is
+  `docs/plans/evidence/abc-amh01-rev299-terminal-release.json`, blob
+  `487f90171ac6c884cb84616ad833d9883f0f6eea`. Do not call AMH-01 accepted;
+  repair/reselect its executable command/dependency contract through fresh
+  authority before another verification claim.
   `ABC-H1-29-REV295` was terminally released blocked; its former scope was only
   `src/harbor_planning_projection.py` and
   `tests/test_harbor_planning_projection.py`, both absent at registration.
@@ -345,10 +378,10 @@ Current external blockers:
   the full persisted dependency corridor, static checks, all three central
   validators, independent hostile QA, and Deep-Sol passed on the unchanged
   frozen tuple.
-- Revision 297 terminal-release raw `git hash-object --no-filters` readback:
-  Open Work `2c9cb948b3696d47f0011bcaa9b92917dad5df15`, Round 6
+- Revision 299 terminal-release raw `git hash-object --no-filters` readback:
+  Open Work `3709e470a777da97943d3d00f95a6ac7219e8294`, Round 6
   `284dbe55bf6efac90fc606c29ce40a437875a9f8`, Round 7
-  `e4c54f427d566d482e8597968275411f0302190a`, Guidance
+  `93e1ca5129a07a2539a3ca1cf7f191c0a305d0f3`, Guidance
   `71dcf844bba2778b5f7c0376759a8a2ec91d0b9f`, continuation inventory
   `b6ddc3b05263c7ab3b7d0ae0e87823a92755fa1f`, HWA2A-v5 packet
   `03cb39a51f8212b6f0581d0254b38ed804e7b00b`, Rev292 terminal Evidence
@@ -374,6 +407,19 @@ Current external blockers:
   big-data ledger contract, TWP-01 repair, ACPR-13D, FCA-03A v3, NMG-02A,
   UDA-05 v4, NMG-03 native-adapter acceptance, and RMT8-v2 effective-input
   state-matrix recovery.
+- Two derived accepted clean baselines are explicit current dependency
+  evidence, not writer claims. `HWA3A-TLR04-accepted-clean-baseline` binds
+  `src/headless_write_agent_state.py` `7ee17276551b09336d2166b058a67c2dbcb87d18`
+  and `tests/test_headless_write_agent_state.py`
+  `7558562705f6dfc648bcc287985b240964aa7d51`.
+  `AHE-GHISS01-accepted-clean-baseline` binds `src/agent_loop.py`
+  `f05964f03c1280f51493300911cf0adbe434976d`,
+  `src/claim_evidence_gate.py` `bc082142f8ac6dfe284f656f1392fd6219dca7b9`,
+  `src/tool_domains/github_issues.py`
+  `263ca48c8898133bed2515d85911938ba0fed68e`, and
+  `tests/test_claim_evidence_gate.py`
+  `978f3907161f819ef353a8a17dcd253cfb391c4a`. Their later failed candidates
+  remain rejected and must not replace these clean baselines.
 - The 72-record continuation inventory is now fully enriched at raw blob
   `b6ddc3b05263c7ab3b7d0ae0e87823a92755fa1f`: 72/72 unique records have a
   scalar status, dependencies, concrete safe next action, closed stop rule,
@@ -500,7 +546,7 @@ a snapshot.
 | OWM-20 Domain adapters | UDA-05 v4 and NMG-03 accepted; productive adapters off | Re-audit selected-scope adapter dependencies and continue only an exact fresh claim. Deferred communication domains and Obsidian remain excluded. |
 | OWM-21 Lifecycle/operations | ULO-00/01 accepted; later chain open | Continue the existing ULO dependency chain with synthetic owners and temporary databases. Serialize Auth/backup/wipe hotfiles; every productive lifecycle effect has its own gate. |
 | OWM-22 Telegram Todo truth | Through A5 accepted; A6 unselected | Preserve Notes as Todo truth. Do not use rejected/divergent candidates. A6 may be selected after fresh collision/authority readback; productive send/repair/rollover stay disabled. |
-| OWM-23 Maintenance harness | Roadmap registered, goal not started | After explicit Open Work reprioritization, open only disjoint AMH-01..03 claims. Extend existing policy/gate/Planning authorities; no parallel state store. |
+| OWM-23 Maintenance harness | AMH-01 verification claim terminally released blocked at Rev299; AMH-02/03 unselected | Do not repeat the old explicit-goal gate: the standing full-roadmap goal selected AMH-01. Before another AMH claim, fresh authority must repair or narrow the executable command/dependency contract that failed before freeze. Extend existing policy/gate/Planning authorities; no parallel state store. |
 | OWM-24 Local transcription | TRP-03..06 accepted; TRP-07 terminal; live off | Newer structured records accept TRP-05 (2026-08-02, independent QA and Deep-Sol) and TRP-06 (`released_accepted`, commit `871ffe64`), overriding the older deferral sentence. Publish only that accepted/default-off lineage plus the reviewed Python 3.11 repair. TRP-07 remained unaccepted after fresh architecture plus two recovery corrections; no third recovery without a new architecture and claim, and no live audio/deploy claim without exact evidence. |
 | OWM-25 Coding loop consolidation | Many CAO/NMG slices accepted | Do not blindly follow stale `ACPR-11 next` prose: current history already contains later ACPR-13D acceptance. Re-run the current frontier audit and claim only the first genuinely unaccepted disjoint predecessor. |
 | OWM-26 Subagent context/delegation | Bounded local/fake contracts accepted | Continue only after current ACPR dependency readback. Real adapter activation and external dispatch remain separately gated. |
@@ -521,7 +567,7 @@ structured authority can open a writer claim.
 
 | Source roadmap | Round 6 frontier / ID | Lane | Disposition | Safe next action |
 |---|---|---|---|---|
-| `agent-maintenance-safety-harness-roadmap.json` | `[0]` / `AMH-01-root-policy-and-runbook` | OWM-23 | `waiting_on_user` | Wait for explicit goal or Open Work reprioritization. |
+| `agent-maintenance-safety-harness-roadmap.json` | `[0]` / `AMH-01-root-policy-and-runbook` | OWM-23 | `released_blocked_before_freeze_rev299` | The standing goal satisfied selection. Policy 5/5 and central validators pass, but the persisted Windows runner was unavailable in WSL and the pinned broader dependency lane was 50 PASS / 1 foreign Round6-test FAIL. Require fresh executable/dependency authority; do not reuse Rev298. |
 | `autonomous-coding-production-readiness-roadmap.json` | `[1]` / `ACPR-12-transactional-worktree-and-safe-tool-capsules` | OWM-25 | `accepted_released_round6_a` | Preserve; do not reclaim. |
 | `coding-agent-orchestration-consolidation-roadmap.md` | `[2]` / `CAO-08G-verification-repair-independent-review` | OWM-25 | `blocked_by_dependency_and_normalization` | Reconcile exact paths, hotfiles, and tests read-only. |
 | `diagnostics-legacy-fix-roadmap.md` | `[3]` / `DLF1B-telegram-history-redaction-fix` | Diagnostics | `normalization_blocked` | Perform only its fresh read-only audit. |
@@ -577,7 +623,7 @@ from feature similarity. The current blob also contains the context-free
 continuation locators reviewed after Rev289.
 Its top-level `authority_revision: 294` is the descriptive continuation epoch,
 not mutation authority. Always re-read Open Work and Round 7 first; the current
-structured authority is Revision 297 and wins if its bytes later drift.
+structured authority is Revision 299 and wins if its bytes later drift.
 
 Repo-local or repo-recovery candidates (19):
 
@@ -733,7 +779,7 @@ Historical Rev286 denominator-publication checksum (not current authority):
 
 The authority blobs in this compact receipt are the independently reviewed
 Rev285 compare-before tuple. The block is historical publication evidence only;
-the current Rev294 router tuple is recorded in section 6. This avoids an
+the current Rev299 router tuple is recorded in section 6. This avoids an
 impossible self-pin without mixing authority epochs.
 
 ### Overlay authority anchors
@@ -763,8 +809,15 @@ Round 6 row, Open Work history, and any newer accepted record.
 ### Fresh architecture or explicit normalization required
 
 - `NMG-05A`: prior causal-store candidates are terminal/rejected. A fresh
-  architecture must close the full stored-row lookup/error boundary. No clean,
-  disjoint NMG writer is selectable while its worktree contains rejected v6 bytes.
+  architecture must close the full stored-row lookup/error boundary. The
+  recoverable paused candidate is descriptive evidence only: R6 authority 219,
+  state `paused_recoverable_candidate_main_worktree`, source blob
+  `5beb5f71d7109cd9b4a8d8d8be82c2fb49fd143c`, test blob
+  `889f68100b6395054363090962c0674e40579b1c`, and exactly the two untracked
+  paths `src/causal_claim_store.py` and `tests/test_causal_claim_store.py`.
+  Preserve those bytes; do not resume the old claim or treat them as accepted.
+  No clean, disjoint NMG writer is selectable while the old worktree contains
+  rejected lineage bytes.
 - `FCA-03A-R2`: old R2 candidates are terminal. The later FCA-03A v3 accepted
   record is authoritative; do not reopen R2.
 - `RMT9-P0A`: correction budget exhausted and provenance/import action remains
@@ -780,7 +833,7 @@ Round 6 row, Open Work history, and any newer accepted record.
 
 ### Dependency-blocked or unselected
 
-- `AMH-01`, `CAO-08G`, `SAR-01`, `SAR-02`, `TLR-10-12h`,
+- `CAO-08G`, `SAR-01`, `SAR-02`, `TLR-10-12h`,
   `ANTI-HALLUCINATION`, `LCL-01`, `USI-15`, `CBM-09`, `TTD-07A5` successor
   work, and `LCG-00` require their declared predecessors or fresh selection.
 - `TAX7` is not a repo dependency frontier: implementation and automated gates
@@ -819,8 +872,13 @@ Round 6 row, Open Work history, and any newer accepted record.
 
 ### Special Round 6 and preclaim stops
 
-- `AMH-01` waits on `AMH-GATE-EXPLICIT-GOAL-OR-REPRIORITIZATION`; after
-  selection its focused gate is `tests/test_agent_maintenance_policy.py`.
+- `AMH-01` no longer waits on `AMH-GATE-EXPLICIT-GOAL-OR-REPRIORITIZATION`:
+  the standing full-roadmap goal selected it. Rev299 released its verification
+  claim blocked before freeze with no product diff and correction 0/1 because
+  the persisted Windows runner was unavailable from WSL and the pinned broader
+  dependency lane had one foreign Round6-test failure. Any retry needs fresh
+  executable/dependency authority; its focused policy gate remains
+  `tests/test_agent_maintenance_policy.py`.
 - `CAO-08G` needs exact paths, hotfiles, and slice tests registered after
   ACPR-12. `ANTI-HALLUCINATION-next-domain-audit` first needs one unsupported
   claim domain with exact IDs, owner, paths, QA, and tests.
@@ -838,8 +896,9 @@ Round 6 row, Open Work history, and any newer accepted record.
   `$.current_position.full_goal_progress.long_run_checkpoint` and Round 7
   `$.long_run_state.global_goal_progress.long_run_checkpoint` were normalized
   at Revision 286 to `173/245`, the current deadline, and the verified
-  denominator state. Current Rev297 authority has zero claims and leases. Its
-  terminal history includes the blocked H1-29 frozen candidate, the blocked
+  denominator state. Current Rev299 authority has zero claims and leases. Its
+  terminal history includes the blocked-before-freeze AMH-01 verification
+  claim, the blocked H1-29 frozen candidate, the blocked
   AHE-GHISS01 candidate from Rev294,
   the blocked pre-write HWA2A-v4 claim, the
   blocked-before-freeze HWA2A-v5 claim, and the accepted RMT8-v2 claim from
@@ -872,13 +931,14 @@ baseline for a new claim without a materially fresh architecture transaction.
 2. Read `git status --short` and the path-scoped staged/unstaged diff in every
    checkout before any write.
 3. Recompute Open Work/Round 6/Round 7 raw blobs with `--no-filters`; filtered
-   Round 6 hashes are invalid because of CRLF projection. Confirm Revision 297,
-   zero active claims/leases, terminal H1-29, AHE-GHISS01 and HWA2A-v5 claims,
-   and all current packet/Evidence identities from section 6 before worker work.
+   Round 6 hashes are invalid because of CRLF projection. Confirm Revision 299,
+   zero active claims/leases, terminal AMH-01, H1-29, AHE-GHISS01 and HWA2A-v5
+   claims, and all current packet/Evidence identities from section 6 before
+   worker work.
 4. Preserve accepted `ABC-RMT8-V2-REV278` exactly as frozen and released at
    Revision 279. Do not reopen its exhausted correction budget or reconstruct
    its product bytes from prose.
-5. Preserve terminal R7-A2 R3R1, HWA2A-v4/v5, AHE-GHISS01 and H1-29 evidence
+5. Preserve terminal R7-A2 R3R1, HWA2A-v4/v5, AHE-GHISS01, H1-29 and AMH-01 evidence
    without another patch. Run `$reflect`, select only one disjoint current
    dependency-ready repo-only claim or permitted architecture predecessor, and
    register it through a fresh compare-before transaction. Never revive an
@@ -956,7 +1016,7 @@ answer all of the following from repository files alone:
 - Which single external action, if any, is still awaiting platform approval?
 
 Current checklist status: **PASS for context-free continuity — read back after
-the Rev297 H1-29 terminal release and bounded privacy/staleness corrections**.
+the Rev299 AMH-01 terminal release and bounded privacy/staleness corrections**.
 There is no active candidate or lease. The
 72-record inventory has complete continuation fields, 144/144 valid locators,
 and no private local-path or task/thread-identifier match. This PASS is
@@ -990,3 +1050,9 @@ identities, release evidence, open-lane rows, immediate sequence, and
   candidate after valid RED, focused 8/8, dependency 311/311, static and central
   PASS because Deep-Sol proved same-class hostile callback execution with
   correction 1/1. No product commit, publication or live result exists.
+- AMH-01 product acceptance. Rev299 released the verification-first claim
+  blocked before freeze with unchanged four-path baselines and correction 0/1.
+  Policy 5/5 and central validators pass, but the persisted Windows command did
+  not start from WSL and its pinned broader dependency lane ended 50 PASS / 1
+  foreign Round6-validator-test FAIL. No candidate, independent acceptance QA,
+  product commit, publication, or live result exists.
