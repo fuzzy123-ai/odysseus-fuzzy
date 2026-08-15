@@ -15355,7 +15355,7 @@
      "scripts/validate_integration_spine_convergence.py": "b7633219b137bd24bce4cc993e9b5db6bbda2b48",
      "tests/test_integration_spine_convergence.py": "651e8be5492714a92ded48f457055861f9c5e244"
     },
-    "candidate_state": "not_frozen",
+    "candidate_state": "frozen_for_independent_qa",
     "claim_id": "ABC-R7-PYRUN01-REV300",
     "correction_limit": 1,
     "correction_used": 0,
@@ -15363,7 +15363,7 @@
     "live_actions": false,
     "owner": "root/Sol R7-PYRUN-01 tests-first writer",
     "slice_id": "R7-PYRUN-01-current-virtualenv-command-boundary-recovery",
-    "state": "running_tests_first",
+    "state": "frozen_for_independent_qa",
     "thread_id": "01a00308-ab0c-7393-acfd-b83c4c291819"
    }
   ],
@@ -16381,8 +16381,11 @@
      "genesis_paths": [],
      "genesis_readback": "captured_absent_paths_exact_readback_pass"
     },
-    "candidate_blobs": {},
-    "candidate_evidence_manifest_blob": "bdf718c3a4292a4bbdfb8d07661ac27c38d2022a",
+    "candidate_blobs": {
+     "scripts/validate_integration_spine_convergence.py": "b997cb1203e752d41721fc1aef442ac15f579bf4",
+     "tests/test_integration_spine_convergence.py": "33646ace370944bf53e21d2e7479483ab0f85073"
+    },
+    "candidate_evidence_manifest_blob": "c860126588314b6a2d6c19d45be2dd0d9eab153d",
     "candidate_evidence_path": "docs/plans/evidence/abc-r7-pyrun01-rev300-registration.json",
     "candidate_pytest_node_ids": [
      "tests/test_integration_spine_convergence.py::test_command_spec_accepts_legacy_and_exact_current_virtualenv_executable",
@@ -16391,7 +16394,7 @@
      "tests/test_integration_spine_convergence.py::test_command_spec_rejects_relative_or_non_virtualenv_current_executable",
      "tests/test_integration_spine_convergence.py::test_command_spec_rejects_symlink_realpath_and_runtime_identity_drift"
     ],
-    "candidate_state": "not_frozen",
+    "candidate_state": "frozen_for_independent_qa",
     "claim_class": "repo_claim_v2",
     "claim_id": "ABC-R7-PYRUN01-REV300",
     "claim_transfer": {
@@ -16443,7 +16446,7 @@
     },
     "read_only_pins": {
      "docs/plans/abc-r7-current-virtualenv-command-boundary-recovery-architecture.json": "30f980c3f7e5b89b4486067597f27d9a631c11e9",
-     "docs/plans/evidence/abc-r7-pyrun01-rev300-registration.json": "bdf718c3a4292a4bbdfb8d07661ac27c38d2022a",
+     "docs/plans/evidence/abc-r7-pyrun01-rev300-registration.json": "c860126588314b6a2d6c19d45be2dd0d9eab153d",
      "docs/plans/multi-agent-execution-guidance.json": "71dcf844bba2778b5f7c0376759a8a2ec91d0b9f",
      "docs/plans/parallel-roadmap-execution-round6.json": "284dbe55bf6efac90fc606c29ce40a437875a9f8",
      "scripts/roadmap_multi_agent_guidance.py": "8973fbdcb9b7cb7eec5ae9f03dd8f9acffdd544c",
@@ -16537,7 +16540,11 @@
      "dependency": "integration-spine, Round6 and Guidance compatibility suites",
      "expensive_live": "not_run_user_gated",
      "focused": "five exact R7-PYRUN-01 nodes and the full integration-spine suite"
-    }
+    },
+    "candidate_frozen_at": "2026-08-15T04:09:12+02:00",
+    "candidate_set_digest_sha256": "sha256:ba6b6c7b220f2410ff3fdde4601a023270d2cb0694ac70b68a03257594118e5f",
+    "candidate_command_manifest_digest_sha256": "sha256:8cd700ef80c8f8eb8063916db7f889dcfe679a0027bd6dce3c832b01734a4010",
+    "candidate_pytest_node_manifest_digest_sha256": "sha256:ba559adc0141cb5d964ce84f3bca0bb39f37bb0edfee7ca598dd07cab6158754"
    }
   ],
   "fca03_preclaim_handoff": {
@@ -16567,7 +16574,7 @@
       "scripts/validate_integration_spine_convergence.py": "b7633219b137bd24bce4cc993e9b5db6bbda2b48",
       "tests/test_integration_spine_convergence.py": "651e8be5492714a92ded48f457055861f9c5e244"
      },
-     "candidate_state": "not_frozen",
+     "candidate_state": "frozen_for_independent_qa",
      "claim_id": "ABC-R7-PYRUN01-REV300",
      "correction_limit": 1,
      "correction_used": 0,
@@ -16575,7 +16582,7 @@
      "live_actions": false,
      "owner": "root/Sol R7-PYRUN-01 tests-first writer",
      "slice_id": "R7-PYRUN-01-current-virtualenv-command-boundary-recovery",
-     "state": "running_tests_first",
+     "state": "frozen_for_independent_qa",
      "thread_id": "01a00308-ab0c-7393-acfd-b83c4c291819"
     }
    ],
@@ -22679,7 +22686,7 @@
     "started_at": "2026-08-13T22:43:20+02:00",
     "state": "verified_denominator_published_h1_29_claimed_tests_first"
    },
-   "next_action": "ABC-R7-PYRUN01-REV300 is the sole repo-only tests-first claim. The bound root/Sol writer must rebind the exact two materialized baselines and Rev300 tuple, add only the five named tests first, collect exact RED attributable to the launcher boundary, then implement only the two claimed paths. Stop on path, pin, lease, command, runtime-identity or authority drift; no stage, commit, push, deploy, provider, host, private-data or live action.",
+   "next_action": "ABC-R7-PYRUN01-REV300 is frozen for independent QA on exact candidate blobs b997cb1203e752d41721fc1aef442ac15f579bf4 and 33646ace370944bf53e21d2e7479483ab0f85073. Run the persisted focused, dependency, static and three central lanes, then fresh independent hostile QA and final Deep-Sol review; do not edit, stage, commit, push, deploy or use live actions.",
    "normalization_claim": {
     "acceptance": "Each source gains stable current IDs and explicit historical, repo-only, design or live-gate disposition; central mirrors agree; no unit becomes accepted or live-authorized by normalization.",
     "acquired_at": "2026-08-10T21:08:00+02:00",
@@ -29174,6 +29181,6 @@
   "docs/plans/lens-code-graph-roadmap.md",
   "docs/plans/agent-maintenance-safety-harness-roadmap.json"
  ],
- "status": "round5_accepted_released / repo_only / authority_revision300_verified_global_denominator_173_of_245 / R7_PYRUN_01_claimed_tests_first",
- "updated_at": "2026-08-15T03:31:32+02:00"
+ "status": "round5_accepted_released / repo_only / authority_revision300_verified_global_denominator_173_of_245 / R7_PYRUN_01_candidate_frozen_for_independent_qa",
+ "updated_at": "2026-08-15T04:09:12+02:00"
 }

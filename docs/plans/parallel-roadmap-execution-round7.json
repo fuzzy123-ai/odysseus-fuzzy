@@ -4888,8 +4888,11 @@
     "genesis_paths": [],
     "genesis_readback": "captured_absent_paths_exact_readback_pass"
    },
-   "candidate_blobs": {},
-   "candidate_evidence_manifest_blob": "bdf718c3a4292a4bbdfb8d07661ac27c38d2022a",
+   "candidate_blobs": {
+    "scripts/validate_integration_spine_convergence.py": "b997cb1203e752d41721fc1aef442ac15f579bf4",
+    "tests/test_integration_spine_convergence.py": "33646ace370944bf53e21d2e7479483ab0f85073"
+   },
+   "candidate_evidence_manifest_blob": "c860126588314b6a2d6c19d45be2dd0d9eab153d",
    "candidate_evidence_path": "docs/plans/evidence/abc-r7-pyrun01-rev300-registration.json",
    "candidate_pytest_node_ids": [
     "tests/test_integration_spine_convergence.py::test_command_spec_accepts_legacy_and_exact_current_virtualenv_executable",
@@ -4898,7 +4901,7 @@
     "tests/test_integration_spine_convergence.py::test_command_spec_rejects_relative_or_non_virtualenv_current_executable",
     "tests/test_integration_spine_convergence.py::test_command_spec_rejects_symlink_realpath_and_runtime_identity_drift"
    ],
-   "candidate_state": "not_frozen",
+   "candidate_state": "frozen_for_independent_qa",
    "claim_class": "repo_claim_v2",
    "claim_id": "ABC-R7-PYRUN01-REV300",
    "claim_transfer": {
@@ -4950,7 +4953,7 @@
    },
    "read_only_pins": {
     "docs/plans/abc-r7-current-virtualenv-command-boundary-recovery-architecture.json": "30f980c3f7e5b89b4486067597f27d9a631c11e9",
-    "docs/plans/evidence/abc-r7-pyrun01-rev300-registration.json": "bdf718c3a4292a4bbdfb8d07661ac27c38d2022a",
+    "docs/plans/evidence/abc-r7-pyrun01-rev300-registration.json": "c860126588314b6a2d6c19d45be2dd0d9eab153d",
     "docs/plans/multi-agent-execution-guidance.json": "71dcf844bba2778b5f7c0376759a8a2ec91d0b9f",
     "docs/plans/parallel-roadmap-execution-round6.json": "284dbe55bf6efac90fc606c29ce40a437875a9f8",
     "scripts/roadmap_multi_agent_guidance.py": "8973fbdcb9b7cb7eec5ae9f03dd8f9acffdd544c",
@@ -5044,7 +5047,11 @@
     "dependency": "integration-spine, Round6 and Guidance compatibility suites",
     "expensive_live": "not_run_user_gated",
     "focused": "five exact R7-PYRUN-01 nodes and the full integration-spine suite"
-   }
+   },
+   "candidate_frozen_at": "2026-08-15T04:09:12+02:00",
+   "candidate_set_digest_sha256": "sha256:ba6b6c7b220f2410ff3fdde4601a023270d2cb0694ac70b68a03257594118e5f",
+   "candidate_command_manifest_digest_sha256": "sha256:8cd700ef80c8f8eb8063916db7f889dcfe679a0027bd6dce3c832b01734a4010",
+   "candidate_pytest_node_manifest_digest_sha256": "sha256:ba559adc0141cb5d964ce84f3bca0bb39f37bb0edfee7ca598dd07cab6158754"
   }
  ],
  "external_lane_validator_claim": {
@@ -5338,7 +5345,7 @@
     "started_at": "2026-08-13T22:43:20+02:00",
     "state": "verified_denominator_published_reflecting_next_repo_only_frontier"
    },
-   "next_action": "ABC-H1-29-REV295 is terminally released_blocked after a frozen same-class hostile callback recurrence with correction 1/1. Preserve its two rejected candidate blobs and terminal Evidence; do not patch or publish them. Run a fresh evidence-based reflect and continue one disjoint dependency-ready repo-only slice or permitted architecture/recovery predecessor.",
+   "next_action": "ABC-R7-PYRUN01-REV300 is frozen for independent QA on exact candidate blobs b997cb1203e752d41721fc1aef442ac15f579bf4 and 33646ace370944bf53e21d2e7479483ab0f85073. Run the persisted focused, dependency, static and three central lanes, then fresh independent hostile QA and final Deep-Sol review; do not edit, stage, commit, push, deploy or use live actions.",
    "paused_repo_claims": [
     {
      "allowed_paths": [
@@ -6024,7 +6031,7 @@
   "predecessor_run_id": "ABC-R7-6H-20260808T171626+0200",
   "queue_path": "docs/plans/open-work-completion-master-roadmap.json",
   "queue_scope": "open_work",
-  "resume_cursor": "ABC-R7-PYRUN01-REV300-tests-first",
+  "resume_cursor": "ABC-R7-PYRUN01-REV300-independent-qa",
   "revision": 300,
   "run_id": "ABC-R7-12H-20260809T084440+0200",
   "sol_review_results": [
@@ -6150,7 +6157,7 @@
    }
   ],
   "started_at": "2026-08-09T08:44:40+02:00",
-  "state": "verified_denominator_published_r7_pyrun01_claimed_tests_first",
+  "state": "verified_denominator_published_r7_pyrun01_candidate_frozen_for_independent_qa",
   "worker_route": {
    "actuals": [
     {
@@ -6626,8 +6633,8 @@
   "docs/plans/project-versioning-forge-provider-roadmap.md",
   "docs/plans/code-intelligence-evaluation-protocol.md"
  ],
- "status": "round7_authority_revision300_verified_global_denominator_173_of_245_r7_pyrun01_claimed_tests_first",
- "updated_at": "2026-08-15T03:31:32+02:00",
+ "status": "round7_authority_revision300_verified_global_denominator_173_of_245_r7_pyrun01_candidate_frozen_for_independent_qa",
+ "updated_at": "2026-08-15T04:09:12+02:00",
  "waves": [
   {
    "depends_on": [
