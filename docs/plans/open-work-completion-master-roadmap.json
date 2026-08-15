@@ -15343,30 +15343,7 @@
   }
  ],
  "current_position": {
-  "active_claimed_slices": [
-   {
-    "allowed_paths": [
-     "src/harbor_planning_projection.py",
-     "tests/test_harbor_planning_projection.py"
-    ],
-    "architecture_revision": "H1-29-CANONICAL-PLANNING-PROJECTION-SOL-ARCH-v4",
-    "authority_revision": 296,
-    "baseline_blobs": {
-     "src/harbor_planning_projection.py": "absent",
-     "tests/test_harbor_planning_projection.py": "absent"
-    },
-    "candidate_state": "frozen_for_independent_qa",
-    "claim_id": "ABC-H1-29-REV295",
-    "correction_limit": 1,
-    "correction_used": 1,
-    "lease_expires_at": "2026-08-15T13:45:30+02:00",
-    "live_actions": false,
-    "owner": "Sol H1-29 critical closed-packet writer",
-    "slice_id": "H1-29-canonical-planning-projection",
-    "state": "frozen_for_independent_qa",
-    "thread_id": "01a002a8-fa7f-71b0-9b3a-1913d2258918"
-   }
-  ],
+  "active_claimed_slices": [],
   "cbm09_preclaim_handoff": {
    "audited_at": "2026-08-09T17:55:00+02:00",
    "blocker": "query_knowledge drops domain and lacks repository, revision, generation, coverage, intent and subject identity; CodeIntelligenceRetriever.query does not implement the FederatedQuery execution facade; read_file has no Forge locator contract",
@@ -15925,8 +15902,8 @@
     "architecture_digest_sha256": "sha256:9e0d34be3e3213fb9f340e242e37bd52442a190e73271c7768c0fe59dc5d986a",
     "architecture_revision": "H1-29-CANONICAL-PLANNING-PROJECTION-SOL-ARCH-v4",
     "authority_revision": {
-     "claimed_against_round7_revision": 295,
-     "registered_round7_revision": 296
+     "claimed_against_round7_revision": 296,
+     "registered_round7_revision": 297
     },
     "baseline_blobs": {
      "src/harbor_planning_projection.py": "absent",
@@ -15949,7 +15926,7 @@
      "tests/test_harbor_planning_projection.py::test_h1_29_public_api_and_exact_immutable_shapes_are_closed",
      "tests/test_harbor_planning_projection.py::test_h1_29_rejects_snapshot_splicing_stale_duplicate_and_cyclic_authority"
     ],
-    "candidate_state": "frozen_for_independent_qa",
+    "candidate_state": "rejected_frozen_candidate",
     "claim_class": "repo_claim_v2",
     "claim_id": "ABC-H1-29-REV295",
     "claim_transfer": {
@@ -16119,7 +16096,7 @@
      "read_only_pin_drift",
      "rolling_inventory_member_count_digest_or_denominator_drift"
     ],
-    "state": "running",
+    "state": "released_blocked",
     "thread_id": "01a002a8-fa7f-71b0-9b3a-1913d2258918",
     "verification_tiers": {
      "central": "Integration Spine, Round6 and Guidance validators",
@@ -16130,7 +16107,14 @@
     "candidate_frozen_at": "2026-08-15T02:15:34+02:00",
     "candidate_set_digest_sha256": "sha256:0109cde0cf5af7c323f9d32ea52b4b830ab4164049f93d83b592d190353fcc1d",
     "candidate_command_manifest_digest_sha256": "sha256:44e93df3436fdf409bb4638a6bbef90fa02da826b252b5e7403fc945f1ffcdd2",
-    "candidate_pytest_node_manifest_digest_sha256": "sha256:91c7f6cce23646cadf2fde52ef75503b1585eca03e23519d02e2317fd6b85f02"
+    "candidate_pytest_node_manifest_digest_sha256": "sha256:91c7f6cce23646cadf2fde52ef75503b1585eca03e23519d02e2317fd6b85f02",
+    "released_at": "2026-08-15T02:28:28+02:00",
+    "released_reason": "After the one allowed Planning-list correction, advisory_refs validates item['kind'] by executing != before proving an exact built-in string. A hostile str subclass therefore executes __ne__ callback code, violating the same exact-type, hostile-callback and zero-effect architecture class.",
+    "review_result": "terminal_deep_sol_fail_same_class_callback_effect_no_product_acceptance",
+    "release_outcome": "released_blocked_same_class_hostile_advisory_callback_recurrence_after_correction_1_of_1",
+    "terminal_evidence_path": "docs/plans/evidence/abc-h1-29-rev297-terminal-release.json",
+    "terminal_evidence_blob": "360c38d84cbfadb320a3e476a1a4fa1c2093b050",
+    "acceptance_evidence": "Valid tests-first 8/8 RED due only to absent source; focused 8/8, dependency 311/311, pycompile, diff-check and all three Rev296 central validators passed. Final fresh Deep-Sol found the terminal hostile str-subclass callback counterexample; no product accepted."
    }
   ],
   "fca03_preclaim_handoff": {
@@ -16148,30 +16132,7 @@
   },
   "full_goal_progress": {
    "accepted_count_status": "verified_current_authority_evidence_and_source_normalization",
-   "active_repo_claims": [
-    {
-     "allowed_paths": [
-      "src/harbor_planning_projection.py",
-      "tests/test_harbor_planning_projection.py"
-     ],
-     "architecture_revision": "H1-29-CANONICAL-PLANNING-PROJECTION-SOL-ARCH-v4",
-     "authority_revision": 296,
-     "baseline_blobs": {
-      "src/harbor_planning_projection.py": "absent",
-      "tests/test_harbor_planning_projection.py": "absent"
-     },
-     "candidate_state": "frozen_for_independent_qa",
-     "claim_id": "ABC-H1-29-REV295",
-     "correction_limit": 1,
-     "correction_used": 1,
-     "lease_expires_at": "2026-08-15T13:45:30+02:00",
-     "live_actions": false,
-     "owner": "Sol H1-29 critical closed-packet writer",
-     "slice_id": "H1-29-canonical-planning-projection",
-     "state": "frozen_for_independent_qa",
-     "thread_id": "01a002a8-fa7f-71b0-9b3a-1913d2258918"
-    }
-   ],
+   "active_repo_claims": [],
    "audit_counts": {
     "abc_execution_queue_rows": 132,
     "design_entries": 30,
@@ -22272,7 +22233,7 @@
     "started_at": "2026-08-13T22:43:20+02:00",
     "state": "verified_denominator_published_h1_29_claimed_tests_first"
    },
-   "next_action": "ABC-H1-29-REV295 is frozen on one exact two-blob candidate after tests-first RED, focused 8/8, dependency 311/311, static PASS and correction 1/1. Run fresh independent hostile QA and final Deep-Sol against only this frozen tuple; no product, router, commit, push, deploy or live mutation is authorized by the freeze.",
+   "next_action": "ABC-H1-29-REV295 is terminally released_blocked after a frozen same-class hostile callback recurrence with correction 1/1. Preserve its two rejected candidate blobs and terminal Evidence; do not patch or publish them. Run a fresh evidence-based reflect and continue one disjoint dependency-ready repo-only slice or permitted architecture/recovery predecessor.",
    "normalization_claim": {
     "acceptance": "Each source gains stable current IDs and explicit historical, repo-only, design or live-gate disposition; central mirrors agree; no unit becomes accepted or live-authorized by normalization.",
     "acquired_at": "2026-08-10T21:08:00+02:00",
@@ -28767,6 +28728,6 @@
   "docs/plans/lens-code-graph-roadmap.md",
   "docs/plans/agent-maintenance-safety-harness-roadmap.json"
  ],
- "status": "round5_accepted_released / repo_only / authority_revision296_verified_global_denominator_173_of_245 / H1_29_candidate_frozen_for_independent_qa",
- "updated_at": "2026-08-15T02:15:34+02:00"
+ "status": "round5_accepted_released / repo_only / authority_revision297_verified_global_denominator_173_of_245 / H1_29_released_blocked_same_class_recurrence",
+ "updated_at": "2026-08-15T02:28:28+02:00"
 }
