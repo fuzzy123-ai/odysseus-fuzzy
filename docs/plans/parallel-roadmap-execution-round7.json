@@ -4673,7 +4673,7 @@
     "tests/test_agent_maintenance_policy.py::test_runbook_never_grants_publication_or_live_authority",
     "tests/test_agent_maintenance_policy.py::test_runbook_uses_existing_authorities_and_has_a_complete_handoff"
    ],
-   "candidate_state": "not_frozen",
+   "candidate_state": "rejected_unfrozen",
    "claim_class": "repo_claim_v2",
    "claim_id": "ABC-AMH01-REV298",
    "claim_transfer": {
@@ -4816,14 +4816,20 @@
     "read_only_pin_drift",
     "rolling_inventory_member_count_digest_or_denominator_drift"
    ],
-   "state": "running",
+   "state": "released_blocked",
    "thread_id": "01a002e5-1968-76e3-b68f-2c91d8fcfdde",
    "verification_tiers": {
     "central": "Integration Spine, Round6 and Guidance validators",
     "dependency": "policy, Round6 and Guidance compatibility suites",
     "expensive_live": "not_run_user_gated",
     "focused": "five exact AMH-01 nodes and full policy suite"
-   }
+   },
+   "release_outcome": "released_blocked_before_freeze_declared_windows_runner_unavailable_and_foreign_dependency_test_failed",
+   "released_at": "2026-08-15T03:01:00+02:00",
+   "released_reason": "The exact persisted Windows pytest command could not start in the current WSL execution context. The existing Linux Python 3.11 route proved the five AMH policy tests green, but the pinned declared dependency set remained red because tests/test_parallel_roadmap_execution.py::test_validator_rejects_claimable_unresolved_dependency_and_missing_owner_authority failed on foreign current bytes. No claim path changed and no candidate was frozen.",
+   "review_result": "released_blocked_before_freeze_dependency_or_runner_failure",
+   "terminal_evidence_blob": "487f90171ac6c884cb84616ad833d9883f0f6eea",
+   "terminal_evidence_path": "docs/plans/evidence/abc-amh01-rev299-terminal-release.json"
   }
  ],
  "external_lane_validator_claim": {
@@ -4907,16 +4913,8 @@
  "goal": "Converge the already designed Harbor One coding, Planning, USI/Memory, worker and lifecycle capabilities into one evidence-bound local agent loop without reopening accepted domain architecture and without crossing a live gate.",
  "kind": "odysseus.integration_spine_execution_round",
  "long_run_state": {
-  "active_claims": [
-   "ABC-AMH01-REV298"
-  ],
-  "agent_leases": [
-   {
-    "claim_id": "ABC-AMH01-REV298",
-    "expires_at": "2026-08-15T23:45:00+02:00",
-    "owner": "Alice/Terra AMH-01 verification-first writer"
-   }
-  ],
+  "active_claims": [],
+  "agent_leases": [],
   "completed_slices": [
    "R7-P0-accepted-rejected-checkout-separation",
    "R7-P1-status-and-router-drift-normalization",
@@ -5785,9 +5783,9 @@
    "verified_complete": 2
   },
   "heartbeat_automation_id": "abc-round-7-open-work-10h",
-  "last_durable_progress_at": "2026-08-15T02:50:00+02:00",
+  "last_durable_progress_at": "2026-08-15T03:01:00+02:00",
   "last_heartbeat_at": "2026-08-15T02:28:28+02:00",
-  "last_reported_revision": 298,
+  "last_reported_revision": 299,
   "live_go_ledger": [],
   "master_route": {
    "actual": "surface_root_role_user_approved_alternate_architect",
@@ -5796,7 +5794,7 @@
   },
   "max_parallel_workers": 3,
   "next_runnable_slices": [
-   "ABC-AMH01-REV298 is the sole repo-only verification-first claim after explicit open_work_reprioritization_after_safe_handoff. The bound Terra writer must rebind the exact four materialized baselines, run the five named nodes and full declared lanes without editing if already green, and return one immutable candidate tuple for Root freeze. Stop on baseline, pin, lease, path, command, node or authority drift; no commit, push, deploy, provider, host, private-data or live action."
+   "ABC-AMH01-REV298 is released_blocked before freeze: its exact Windows runner did not start and its pinned broader dependency lane has one foreign Round6-test failure, while the five policy tests pass and no writer path changed. Preserve the architecture and terminal Evidence; do not manufacture acceptance. Run a fresh evidence-based reflect and continue one disjoint dependency-ready repo-only slice or permitted architecture/recovery predecessor."
   ],
   "pending_sol_reviews": [],
   "pending_user_requests": [],
@@ -5804,7 +5802,7 @@
   "queue_path": "docs/plans/open-work-completion-master-roadmap.json",
   "queue_scope": "open_work",
   "resume_cursor": "reflect_next_disjoint_dependency_ready_repo_only_frontier",
-  "revision": 298,
+  "revision": 299,
   "run_id": "ABC-R7-12H-20260809T084440+0200",
   "sol_review_results": [
    {
@@ -5929,7 +5927,7 @@
    }
   ],
   "started_at": "2026-08-09T08:44:40+02:00",
-  "state": "verified_denominator_published_amh01_claimed_verification_first",
+  "state": "verified_denominator_published_amh01_released_blocked_no_active_claim",
   "worker_route": {
    "actuals": [
     {
@@ -6405,8 +6403,8 @@
   "docs/plans/project-versioning-forge-provider-roadmap.md",
   "docs/plans/code-intelligence-evaluation-protocol.md"
  ],
- "status": "round7_authority_revision298_verified_global_denominator_173_of_245_amh01_claimed_verification_first",
- "updated_at": "2026-08-15T02:50:00+02:00",
+ "status": "round7_authority_revision299_verified_global_denominator_173_of_245_amh01_released_blocked_before_freeze",
+ "updated_at": "2026-08-15T03:01:00+02:00",
  "waves": [
   {
    "depends_on": [
