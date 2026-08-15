@@ -1,6 +1,6 @@
 # Odysseus Master Handoff
 
-Snapshot: 2026-08-15T04:42:00+02:00, Europe/Berlin
+Snapshot: 2026-08-15T06:04:31+02:00, Europe/Berlin
 Continuity deadline: 2026-08-16 00:00 Europe/Berlin
 Canonical authority at snapshot: Open Work / Round 7 Revision 301
 Verified progress: 173 accepted of 245 canonical units
@@ -62,14 +62,14 @@ Newer accepted/released records override stale earlier `planned`, `blocked`, or
 - Purpose: complete structured authority, accepted product work, foreign work,
   and historical evidence.
 - Branch at snapshot: `codex/implemenetaion`.
-- Authority snapshot HEAD before this handoff refresh:
-  `c2ddef7d81b55dccbf6eec85ae6bb72bbe84d9ed`. The handoff refresh commit is
-  expected to be newer; always run `git rev-parse HEAD` before mutation.
-- Latest R7-PYRUN-01 / TTD-07A6 continuation commits are: Rev301 TTD claim
-  registration `c2ddef7d`, TTD registration Evidence `2bddefd3`, corrected
-  TTD architecture `7e8de420`, PYRUN terminal release `ce7429f6`, PYRUN freeze
-  `66591faa`, PYRUN registration `4bcad088`, PYRUN registration Evidence
-  `762c4076`, and PYRUN architecture `88b21d4c`.
+- Authority snapshot HEAD: `672f7ef3d07e206ee28663997c6bab9ccf2fd137`.
+  The latest committed control-plane sequence is TTD-07A6 blocked release
+  `672f7ef3`, TTD candidate freeze `78bf3164`, prior context-free inventory
+  refresh `e077bb4b`, TTD claim registration `c2ddef7d`, TTD registration
+  Evidence `2bddefd3`, corrected TTD architecture `7e8de420`, PYRUN terminal
+  release `ce7429f6`, PYRUN freeze `66591faa`, PYRUN registration `4bcad088`,
+  registration Evidence `762c4076`, and PYRUN architecture `88b21d4c`. The
+  current terminal handoff refresh is intentionally uncommitted.
 - Latest AMH-01 lifecycle commits: Rev299 terminal router `c9d6f601`, terminal
   Evidence `2e68ebf7`, Rev298 claim registration `06f65fb4`, registration
   Evidence `7e91d2e5`, and closed materialized-genesis architecture `07715e94`.
@@ -285,17 +285,18 @@ Current external blockers:
   reviewed deterministic candidate. Do not recompute or replace the
   denominator from stale prose; re-open denominator work only if a current
   source or authority byte changes and the routers explicitly invalidate it.
-- There is exactly one active repo claim and one lease at Revision 301:
-  `ABC-TTD07A6-REV301`, state `running/not_frozen`, lease through
-  2026-08-15T23:50:00+02:00. It owns exactly `app.py`,
-  `src/telegram_context_policy.py`, `src/telegram_session_rollover.py`,
-  `tests/test_telegram_context_policy.py`, and
-  `tests/test_telegram_session_rollover.py`. Architecture blob is
-  `67ba11db3f1293fc3458bb5191515b3d99633c1f`; registration Evidence blob is
-  `612988ff91063f33471605a773193f26cd29f72e`; all five materialized baselines
-  match and all three central validators passed before worker start. The
-  feature is default-off and grants no send, provider, host, deploy or live
-  authority.
+- There are zero active repo claims and zero leases at Revision 301. The
+  non-denominator `ABC-TTD07A6-REV301` claim is terminally
+  `released_blocked` after correction 1/1. Terminal Evidence is
+  `docs/plans/evidence/abc-ttd07a6-rev301-terminal-release.json`, blob
+  `6c98365320916e382e8c24b4d860647c91a32793`. Independent QA and Deep-Sol
+  rejected the frozen tuple after finding workflow-ineligible consumption and
+  direct oversize-tail acceptance; the only correction then reproduced the
+  same body-budget versus projected-envelope-budget contradiction for a valid
+  exact-4000-body tail. Both the original frozen and corrected five-path
+  tuples are rejected. No product commit, product acceptance, publication or
+  live activation exists. Do not resume this lineage; a materially fresh
+  architecture must decide the budget contract before any successor claim.
 - `ABC-R7-PYRUN01-REV300` is terminally `released_blocked` at Revision 300.
   Its frozen source/test blobs are
   `b997cb1203e752d41721fc1aef442ac15f579bf4` and
@@ -407,12 +408,13 @@ Current external blockers:
   the full persisted dependency corridor, static checks, all three central
   validators, independent hostile QA, and Deep-Sol passed on the unchanged
   frozen tuple.
-- Revision 301 claim-registration raw `git hash-object --no-filters` readback:
-  Open Work `f80bc9b77d2fdf7ffff43e2e034fd6b286d15dab`, Round 6
+- Revision 301 terminal-release raw `git hash-object --no-filters` readback:
+  Open Work `6aab29830cf142bdf4de0efa78f259191450fd7e`, Round 6
   `284dbe55bf6efac90fc606c29ce40a437875a9f8`, Round 7
-  `8142f9f679918ee36320e72fe4b345e1c33a501d`, Guidance
+  `c8e47f34ee478e93d497cecf8082de063c180ddd`, Guidance
   `71dcf844bba2778b5f7c0376759a8a2ec91d0b9f`, continuation inventory
-  `b6ddc3b05263c7ab3b7d0ae0e87823a92755fa1f`, HWA2A-v5 packet
+  `2a14ea1b6cc6d578c3e6a123292b85052a70130f`, TTD terminal Evidence
+  `6c98365320916e382e8c24b4d860647c91a32793`, HWA2A-v5 packet
   `03cb39a51f8212b6f0581d0254b38ed804e7b00b`, Rev292 terminal Evidence
   `7f72ea51e5bcf6019b7cd4c026db7be53d1d83fe`, R7-A2 packet
   `c4d2974f7cef38c636c960b5e641a26202cf4345`, and freeze Evidence
@@ -571,7 +573,7 @@ a snapshot.
 | OWM-19 USI runtime | UIR core advanced; runtime default-off | UIR-03A Go-A R2 is accepted despite stale blocked prose. Reconcile the exact next UIR-03 hotfile handoff, then follow UIR-12 -> NMG-07 -> UIR-12A. Do not resurrect rejected UIR-03A candidates. |
 | OWM-20 Domain adapters | UDA-05 v4 and NMG-03 accepted; productive adapters off | Re-audit selected-scope adapter dependencies and continue only an exact fresh claim. Deferred communication domains and Obsidian remain excluded. |
 | OWM-21 Lifecycle/operations | ULO-00/01 accepted; later chain open | Continue the existing ULO dependency chain with synthetic owners and temporary databases. Serialize Auth/backup/wipe hotfiles; every productive lifecycle effect has its own gate. |
-| OWM-22 Telegram Todo truth | Through A5 accepted; A6 Rev301 active tests-first | Preserve Notes as Todo truth. `ABC-TTD07A6-REV301` is the sole active default-off repo claim on five exact paths. Complete tests-first, freeze, independent QA and Deep-Sol before any product commit; productive send and all live behavior remain disabled. |
+| OWM-22 Telegram Todo truth | Through A5 accepted; A6 Rev301 released blocked | Preserve Notes as Todo truth. `ABC-TTD07A6-REV301` is a terminal non-denominator release after correction 1/1; the original frozen and corrected tuples are rejected, with no product commit or acceptance. Require a materially fresh architecture before any successor; current safe repo-only next action is the AHE-GHISS01 fresh architecture precursor. |
 | OWM-23 Maintenance harness | AMH-01 verification claim terminally released blocked at Rev299; AMH-02/03 unselected | Do not repeat the old explicit-goal gate: the standing full-roadmap goal selected AMH-01. Before another AMH claim, fresh authority must repair or narrow the executable command/dependency contract that failed before freeze. Extend existing policy/gate/Planning authorities; no parallel state store. |
 | OWM-24 Local transcription | TRP-03..06 accepted; TRP-07 terminal; live off | Newer structured records accept TRP-05 (2026-08-02, independent QA and Deep-Sol) and TRP-06 (`released_accepted`, commit `871ffe64`), overriding the older deferral sentence. Publish only that accepted/default-off lineage plus the reviewed Python 3.11 repair. TRP-07 remained unaccepted after fresh architecture plus two recovery corrections; no third recovery without a new architecture and claim, and no live audio/deploy claim without exact evidence. |
 | OWM-25 Coding loop consolidation | Many CAO/NMG slices accepted | Do not blindly follow stale `ACPR-11 next` prose: current history already contains later ACPR-13D acceptance. Re-run the current frontier audit and claim only the first genuinely unaccepted disjoint predecessor. |
@@ -618,7 +620,7 @@ structured authority can open a writer claim.
 | `planning-definition-editor-roadmap.json` | `[22]` / `PDE-08-real-save-undo-smoke` | Planning UI | `waiting_on_user` | Wait for user authorization. |
 | `product-planning-skills-integration-roadmap.md` | `[23]` / `PPS-1-skill-import-compatibility` | Planning skills | `waiting_on_user` | Wait for user authorization. |
 | `privacy-safe-tool-analytics-roadmap.md` | `[24]` / `TUA4R-agent-streaming-regression-guard` | OWM-12 | `accepted_released_round6_b` | Preserve; keep capture/backfill disabled. |
-| `telegram-todo-domain-truth-roadmap.md` | `[25]` / `TTD-07A5-poll-webhook-sweep-and-turn-lease` | OWM-22 | `accepted_released_fd2340a6_live_default_off`; A6 active Rev301 | Preserve the accepted parent. The disjoint A6 successor is now tests-first under the exact five-path Rev301 claim; it is not a new denominator unit and must remain default-off until accepted. |
+| `telegram-todo-domain-truth-roadmap.md` | `[25]` / `TTD-07A5-poll-webhook-sweep-and-turn-lease` | OWM-22 | `accepted_released_fd2340a6_live_default_off`; A6 terminal Rev301 | Preserve the accepted parent. Rev301 terminally released the disjoint A6 successor after correction 1/1; both candidate tuples are rejected, no product commit or acceptance exists, and any successor requires materially fresh architecture. |
 | `faster-whisper-transcription-protocol-roadmap.json` | `[26]` / `TRP-07-offline-integration-backup-and-live-packet` | OWM-24 | `blocked_after_fresh_architecture_and_two_recovery_corrections_not_accepted` | Preserve TRP-03..06; do not revive TRP-07 without fresh architecture. |
 | `tool-taxonomy-registration-roadmap.md` | `[27]` / `TAX7-existing-admin-ui-consumes-the-catalog` | OWM-11 | `repo_implemented_automated_gates_pass_user_ui_acceptance_open` | Wait for user/UI acceptance; keep activation off. |
 | `lens-code-graph-roadmap.md` | `[28]` / `LCG-00-ux-truth-and-navigation-contract` | OWM-18 | `waiting_on_explicit_goal_and_ui_owner` | Wait for explicit goal and UI owner. |
@@ -636,8 +638,8 @@ blocked, design, live, or operator units to make the count close.
 
 The per-ID continuation ledger is
 `docs/plans/open-work-continuation-inventory.json`, raw Git blob
-`f643866d6de9fa61d27c9bb50acb984617efb0d1`, raw SHA-256
-`3937cef5b091b53276549f3f07f71dc0e3a0bd1f9571ffb5d7c8a69e350b335f`.
+`42fec8b766a55a5e8851667ec6b37082f19f8869`, raw SHA-256
+`3544e75c094ba98f2033f83706aeff9034b38606c8fe57b1f3cdbeaba4726d4e`.
 It accounts for all 72 IDs exactly once and gives every record its class,
 authority locator, current status, dependencies, concrete immediate action,
 hard stop, verification route, `writer_paths`, `tests`, `evidence`,
@@ -645,7 +647,7 @@ hard stop, verification route, `writer_paths`, `tests`, `evidence`,
 `unresolved` with the required fresh architecture or decision, never guessed.
 Design/live/operator records use `not_applicable` plus their exact decision,
 target or gate receipt. Its state is
-`context_free_continuation_enriched_revision301_ttd07a6_active_non_denominator_pyrun01_terminal_rejected_descriptive_only`.
+`context_free_continuation_enriched_revision301_ttd07a6_terminal_non_denominator_pyrun01_terminal_rejected_descriptive_only`.
 All 72 records are resolved and retain the exact 19 repo / 19 design / 30 live /
 4 operator split. Use the inventory to find current sources, never to
 manufacture a claim, gate approval, or live authority. Its top-level
@@ -923,8 +925,9 @@ Round 6 row, Open Work history, and any newer accepted record.
   `$.current_position.full_goal_progress.long_run_checkpoint` and Round 7
   `$.long_run_state.global_goal_progress.long_run_checkpoint` were normalized
   at Revision 286 to `173/245`, the current deadline, and the verified
-  denominator state. Current Rev301 authority has exactly the active TTD-07A6
-  claim and lease described in section 6. Its terminal history includes the
+  denominator state. Current Rev301 authority has zero active claims and zero
+  leases. TTD-07A6 is a terminal non-denominator released-blocked claim after
+  correction 1/1, as described in section 6. Its terminal history includes the
   blocked PYRUN frozen candidate, the blocked-before-freeze AMH-01 verification
   claim, the blocked H1-29 frozen candidate, the blocked
   AHE-GHISS01 candidate from Rev294,
@@ -960,17 +963,20 @@ baseline for a new claim without a materially fresh architecture transaction.
    checkout before any write.
 3. Recompute Open Work/Round 6/Round 7 raw blobs with `--no-filters`; filtered
    Round 6 hashes are invalid because of CRLF projection. Confirm Revision 301,
-   sole active claim `ABC-TTD07A6-REV301`, its one lease and exact five paths,
-   plus terminal PYRUN, AMH-01, H1-29, AHE-GHISS01 and HWA2A-v5 records and all
-   packet/Evidence identities from section 6 before worker work.
+   zero active claims and zero leases, plus terminal TTD-07A6, PYRUN, AMH-01,
+   H1-29, AHE-GHISS01 and HWA2A-v5 records and all packet/Evidence identities
+   from section 6 before any new writer work.
 4. Preserve accepted `ABC-RMT8-V2-REV278` exactly as frozen and released at
    Revision 279. Do not reopen its exhausted correction budget or reconstruct
    its product bytes from prose.
-5. Let only the bound fresh Sol worker execute TTD-07A6 tests-first on the five
-   claimed paths. Freeze one exact candidate tuple, then require independent
-   hostile QA and final Deep-Sol before a clean product commit. Preserve
-   terminal PYRUN, R7-A2 R3R1, HWA2A-v4/v5, AHE-GHISS01, H1-29 and AMH-01
-   evidence without another patch. Never revive an exhausted failure class.
+5. Do not resume TTD-07A6: its original frozen and corrected tuples are
+   terminally rejected after correction 1/1, with terminal Evidence blob
+   `6c98365320916e382e8c24b4d860647c91a32793` and no product acceptance. The
+   next safe repo-only action is the AHE-GHISS01 fresh architecture precursor:
+   independently close whole-sentence negation, mixed-clause attribution and
+   exact local content-free receipt binding before any new claim. Preserve
+   terminal PYRUN, R7-A2 R3R1, HWA2A-v4/v5, AHE-GHISS01, H1-29, AMH-01 and TTD
+   evidence without another patch or candidate reuse.
 6. The public independent scope review and one-parent/one-commit ancestry are
    complete. The exact remaining platform request is:
    `Push commit ea181f52e72a24d91480757c55a298fbb77249b1 nach fuzzy/dev.`
@@ -1043,12 +1049,12 @@ answer all of the following from repository files alone:
 - What exact redacted deployment, backup, rollback, and health route applies?
 - Which single external action, if any, is still awaiting platform approval?
 
-Current checklist status: **PASS for context-free Rev301 continuity while one
-feature claim is active**. The exact TTD-07A6 claim/lease is described above;
-the enriched 72-record inventory contains every required writer-path, test,
-evidence, authority and drift field, preserves all counts and IDs, and is
-canonical sorted-key JSON+LF. This handoff and inventory are descriptive
-continuity evidence; only OW/R7 register the active writer claim.
+Current checklist status: **PASS for context-free Rev301 continuity with zero
+active claims and leases**. The terminal TTD-07A6 Evidence and rejected frozen
+and corrected tuples are described above; the enriched 72-record inventory
+contains every required writer-path, test, evidence, authority and drift field,
+preserves all counts and IDs, and is canonical sorted-key JSON+LF. This handoff
+and inventory are descriptive continuity evidence; only OW/R7 register claims.
 
 When this snapshot changes, update the snapshot date, revision, workspace
 identities, release evidence, open-lane rows, immediate sequence, and
@@ -1088,7 +1094,11 @@ identities, release evidence, open-lane rows, immediate sequence, and
   189 dependency tests passed and one stale unowned Round6 assertion failed;
   satisfying the declared dependency tier requires a forbidden third path.
   No product commit, publication or live result exists.
-- TTD-07A6 product acceptance. Rev301 currently has a tests-first claim and
-  exact baselines only. Candidate freeze, complete test evidence, independent
-  QA, Deep-Sol acceptance, product commit, publication and live activation do
-  not yet exist.
+- TTD-07A6 product acceptance. Rev301 is terminally `released_blocked` after
+  correction 1/1. Terminal Evidence is
+  `docs/plans/evidence/abc-ttd07a6-rev301-terminal-release.json`, blob
+  `6c98365320916e382e8c24b4d860647c91a32793`. The original frozen and
+  corrected tuples were rejected for the workflow-eligibility and
+  body-budget/projected-envelope findings; no product commit, publication or
+  live activation exists. A materially fresh architecture is required before
+  any successor claim.
