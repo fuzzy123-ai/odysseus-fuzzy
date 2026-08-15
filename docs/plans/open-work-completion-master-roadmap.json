@@ -15343,7 +15343,34 @@
   }
  ],
  "current_position": {
-  "active_claimed_slices": [],
+  "active_claimed_slices": [
+   {
+    "allowed_paths": [
+     "AGENTS.md",
+     "CONTRIBUTING.md",
+     "docs/agent-maintenance-runbook.md",
+     "tests/test_agent_maintenance_policy.py"
+    ],
+    "architecture_revision": "AMH-01-ROOT-POLICY-AND-RUNBOOK-MATERIALIZED-GENESIS-SOL-ARCH-v1",
+    "authority_revision": 298,
+    "baseline_blobs": {
+     "AGENTS.md": "2b9458cc29501c95121fc342739df3563b6e63c0",
+     "CONTRIBUTING.md": "bbe8942d3c4f1af975693bdb4bfa77d895058aa2",
+     "docs/agent-maintenance-runbook.md": "2acc1eb2420b90bf5f1d609921ee09e78a15db74",
+     "tests/test_agent_maintenance_policy.py": "953be01dec324f2b0af97071570154bf42ead114"
+    },
+    "candidate_state": "not_frozen",
+    "claim_id": "ABC-AMH01-REV298",
+    "correction_limit": 1,
+    "correction_used": 0,
+    "lease_expires_at": "2026-08-15T23:45:00+02:00",
+    "live_actions": false,
+    "owner": "Alice/Terra AMH-01 verification-first writer",
+    "slice_id": "AMH-01-root-policy-and-runbook",
+    "state": "running_verification_first",
+    "thread_id": "01a002e5-1968-76e3-b68f-2c91d8fcfdde"
+   }
+  ],
   "cbm09_preclaim_handoff": {
    "audited_at": "2026-08-09T17:55:00+02:00",
    "blocker": "query_knowledge drops domain and lacks repository, revision, generation, coverage, intent and subject identity; CodeIntelligenceRetriever.query does not implement the FederatedQuery execution facade; read_file has no Forge locator contract",
@@ -16115,6 +16142,208 @@
     "terminal_evidence_path": "docs/plans/evidence/abc-h1-29-rev297-terminal-release.json",
     "terminal_evidence_blob": "360c38d84cbfadb320a3e476a1a4fa1c2093b050",
     "acceptance_evidence": "Valid tests-first 8/8 RED due only to absent source; focused 8/8, dependency 311/311, pycompile, diff-check and all three Rev296 central validators passed. Final fresh Deep-Sol found the terminal hostile str-subclass callback counterexample; no product accepted."
+   },
+   {
+    "acceptance": [
+     "The exact four materialized policy and runbook blobs pass the five named nodes, full policy suite, dependency, static and all three central lanes without a writer edit.",
+     "Stable policy contains no mutable task state, private path, credential, raw diagnostic or second planning authority.",
+     "Secret, foreign-work, destructive-Git, verification-limit and complete-handoff rules remain explicit and bounded.",
+     "The standing full-roadmap goal satisfies only open_work_reprioritization_after_safe_handoff for AMH-01; it grants no commit, push, deploy, provider, host, private-data, send or live authority.",
+     "One frozen four-blob tuple passes fresh independent hostile QA and final Root/Sol review before release_accepted."
+    ],
+    "acquired_at": "2026-08-15T02:50:00+02:00",
+    "allowed_paths": [
+     "AGENTS.md",
+     "CONTRIBUTING.md",
+     "docs/agent-maintenance-runbook.md",
+     "tests/test_agent_maintenance_policy.py"
+    ],
+    "architecture_digest_sha256": "sha256:d4cb61dd32cd4a5e63429c85d9d4e865c9b0acfd9bfbf5e84038c0cdb521a024",
+    "architecture_revision": "AMH-01-ROOT-POLICY-AND-RUNBOOK-MATERIALIZED-GENESIS-SOL-ARCH-v1",
+    "authority_revision": {
+     "claimed_against_round7_revision": 297,
+     "registered_round7_revision": 298
+    },
+    "baseline_blobs": {
+     "AGENTS.md": "2b9458cc29501c95121fc342739df3563b6e63c0",
+     "CONTRIBUTING.md": "bbe8942d3c4f1af975693bdb4bfa77d895058aa2",
+     "docs/agent-maintenance-runbook.md": "2acc1eb2420b90bf5f1d609921ee09e78a15db74",
+     "tests/test_agent_maintenance_policy.py": "953be01dec324f2b0af97071570154bf42ead114"
+    },
+    "baseline_readback": {
+     "schema_version": 1,
+     "mode": "materialized_repo_genesis_partition_v1",
+     "materialized_paths": [
+      "AGENTS.md",
+      "CONTRIBUTING.md",
+      "docs/agent-maintenance-runbook.md",
+      "tests/test_agent_maintenance_policy.py"
+     ],
+     "materialized_readback": "materialized_exact_binary_readback_pass",
+     "genesis_paths": [],
+     "genesis_readback": "captured_absent_paths_exact_readback_pass"
+    },
+    "candidate_blobs": {},
+    "candidate_evidence_manifest_blob": "957ff36b79f97b264d221dd723b2897ad1c42796",
+    "candidate_evidence_path": "docs/plans/evidence/abc-amh01-rev298-registration.json",
+    "candidate_pytest_node_ids": [
+     "tests/test_agent_maintenance_policy.py::test_contributing_links_policy_and_requires_verification_limits",
+     "tests/test_agent_maintenance_policy.py::test_root_policy_is_bounded_stable_and_actionable",
+     "tests/test_agent_maintenance_policy.py::test_root_policy_keeps_diagnostics_secret_safe_before_consumers",
+     "tests/test_agent_maintenance_policy.py::test_runbook_never_grants_publication_or_live_authority",
+     "tests/test_agent_maintenance_policy.py::test_runbook_uses_existing_authorities_and_has_a_complete_handoff"
+    ],
+    "candidate_state": "not_frozen",
+    "claim_class": "repo_claim_v2",
+    "claim_id": "ABC-AMH01-REV298",
+    "claim_transfer": {
+     "architecture_handoff": "AMH01_MATERIALIZED_GENESIS_REV298",
+     "from_claim_id": null,
+     "gap_preserved_no_writer": true,
+     "new_product_writer_paths": [],
+     "origin_mode": "materialized_repo_genesis",
+     "source_registry": null,
+     "source_released_at": null,
+     "transferred_at": "2026-08-15T02:50:00+02:00"
+    },
+    "correction_budget": {
+     "after_repeat": "stop_and_rearchitect",
+     "failure_class": "amh01_root_policy_runbook_and_non_authority_disclosure",
+     "limit_per_invariant": 1,
+     "used": 0
+    },
+    "dependencies": [
+     "AMH-00-roadmap-contract-and-registration done_in_source_roadmap",
+     "H1-29 terminally_released_blocked_authority_revision297",
+     "explicit_start_gate satisfied_by_open_work_reprioritization_after_safe_handoff"
+    ],
+    "forbidden": [
+     "A fifth writer path, mutable task state, credential, private path, raw diagnostic or second authority.",
+     "Weakening secret-safe diagnostics, foreign-work preservation, destructive-Git prohibitions, verification limits or complete handoff fields.",
+     "Router or Evidence mutation by the verification writer.",
+     "Stage, commit, push, deploy, network, provider, host, private-data, send, UI or live action."
+    ],
+    "hostile_matrix": [
+     "Mutable run identifiers, active-claim fields, heartbeat cursors, current task narration, credentials, private paths and raw diagnostics inserted into stable policy.",
+     "Credential value, prefix, suffix, length or hash disclosure; env, printenv, .env, container environment or unredacted compose output presented as diagnostic evidence.",
+     "Reset --hard, clean, checkout rewrite, force push, history rewrite, broad cleanup, foreign staged absorption or automatic conflict resolution presented as routine maintenance.",
+     "A weak, old, prose-only, revision-mismatched or agent-authored result presented as stronger machine verification.",
+     "Automation, a roadmap goal or an implementation claim presented as implicit commit, push, deployment, provider, host, send or live authority.",
+     "STATE.md, OWNER_QUEUE.md or another mutable maintenance store presented as the canonical continuation mechanism.",
+     "A handoff that omits goal, slice, claim, changed paths, tests, evidence, next action, blockers, Not verified or publication authority.",
+     "Foreign changes to CONTRIBUTING.md, baseline drift, path overlap, stale authority, expired lease or a fifth path before freeze."
+    ],
+    "hotfiles": [
+     "CONTRIBUTING.md"
+    ],
+    "lease_expires_at": "2026-08-15T23:45:00+02:00",
+    "live_actions": false,
+    "new_evidence_writer_paths": [],
+    "owner": "Alice/Terra AMH-01 verification-first writer",
+    "pytest_basetemp": {
+     "dependency": ".abc-test-tmp/ABC-AMH01-REV298/dependency",
+     "focused": ".abc-test-tmp/ABC-AMH01-REV298/focused"
+    },
+    "read_only_pins": {
+     "docs/plans/abc-amh01-root-policy-and-runbook-materialized-genesis-architecture.json": "c9b63a60f641b5ae827b1c6e6f555fdb43c842ef",
+     "docs/plans/agent-maintenance-safety-harness-roadmap.json": "4b8d36a7fbf3c5ae505aa43ed67b33786dbe6349",
+     "docs/plans/evidence/abc-amh01-rev298-registration.json": "957ff36b79f97b264d221dd723b2897ad1c42796",
+     "docs/plans/multi-agent-execution-guidance.json": "71dcf844bba2778b5f7c0376759a8a2ec91d0b9f",
+     "docs/plans/parallel-roadmap-execution-round6.json": "284dbe55bf6efac90fc606c29ce40a437875a9f8",
+     "scripts/roadmap_multi_agent_guidance.py": "8973fbdcb9b7cb7eec5ae9f03dd8f9acffdd544c",
+     "scripts/validate_integration_spine_convergence.py": "b7633219b137bd24bce4cc993e9b5db6bbda2b48",
+     "scripts/validate_parallel_roadmap_execution.py": "22d5be1db6f58906d9fa5132c46a5f358daae300",
+     "tests/test_integration_spine_convergence.py": "651e8be5492714a92ded48f457055861f9c5e244",
+     "tests/test_parallel_roadmap_execution.py": "1504f56759b71c69157dcfdadc5ca172d8cae9f1",
+     "tests/test_roadmap_multi_agent_guidance.py": "584c7a5635e0996e06b2c149f378239a3273ca7d"
+    },
+    "regression_tests": [
+     {
+      "argv": [
+       "venv\\Scripts\\python.exe",
+       "-B",
+       "-m",
+       "pytest",
+       "-q",
+       "-p",
+       "no:cacheprovider",
+       "tests\\test_agent_maintenance_policy.py",
+       "--basetemp",
+       ".abc-test-tmp/ABC-AMH01-REV298/focused"
+      ],
+      "id": "amh01-focused",
+      "tier": "focused"
+     },
+     {
+      "argv": [
+       "venv\\Scripts\\python.exe",
+       "-B",
+       "-m",
+       "pytest",
+       "-q",
+       "-p",
+       "no:cacheprovider",
+       "tests\\test_agent_maintenance_policy.py",
+       "tests\\test_parallel_roadmap_execution.py",
+       "tests\\test_roadmap_multi_agent_guidance.py",
+       "--basetemp",
+       ".abc-test-tmp/ABC-AMH01-REV298/dependency"
+      ],
+      "id": "amh01-dependency",
+      "tier": "dependency"
+     },
+     {
+      "argv": [
+       "venv\\Scripts\\python.exe",
+       "-B",
+       "scripts\\validate_integration_spine_convergence.py",
+       "--format",
+       "json"
+      ],
+      "id": "amh01-integration",
+      "tier": "central"
+     },
+     {
+      "argv": [
+       "venv\\Scripts\\python.exe",
+       "-B",
+       "scripts\\validate_parallel_roadmap_execution.py",
+       "--format",
+       "json"
+      ],
+      "id": "amh01-round6",
+      "tier": "central"
+     },
+     {
+      "argv": [
+       "venv\\Scripts\\python.exe",
+       "-B",
+       "scripts\\roadmap_multi_agent_guidance.py",
+       "--format",
+       "json"
+      ],
+      "id": "amh01-guidance",
+      "tier": "central"
+     }
+    ],
+    "run_id": "ABC-AMH01-REV298",
+    "slice_id": "AMH-01-root-policy-and-runbook",
+    "stale_invalidation": [
+     "authority_or_projection_revision_drift",
+     "candidate_writer_blob_drift",
+     "claim_lease_or_transfer_drift",
+     "command_contract_or_basetemp_drift",
+     "read_only_pin_drift",
+     "rolling_inventory_member_count_digest_or_denominator_drift"
+    ],
+    "state": "running",
+    "thread_id": "01a002e5-1968-76e3-b68f-2c91d8fcfdde",
+    "verification_tiers": {
+     "central": "Integration Spine, Round6 and Guidance validators",
+     "dependency": "policy, Round6 and Guidance compatibility suites",
+     "expensive_live": "not_run_user_gated",
+     "focused": "five exact AMH-01 nodes and full policy suite"
+    }
    }
   ],
   "fca03_preclaim_handoff": {
@@ -16132,7 +16361,34 @@
   },
   "full_goal_progress": {
    "accepted_count_status": "verified_current_authority_evidence_and_source_normalization",
-   "active_repo_claims": [],
+   "active_repo_claims": [
+    {
+     "allowed_paths": [
+      "AGENTS.md",
+      "CONTRIBUTING.md",
+      "docs/agent-maintenance-runbook.md",
+      "tests/test_agent_maintenance_policy.py"
+     ],
+     "architecture_revision": "AMH-01-ROOT-POLICY-AND-RUNBOOK-MATERIALIZED-GENESIS-SOL-ARCH-v1",
+     "authority_revision": 298,
+     "baseline_blobs": {
+      "AGENTS.md": "2b9458cc29501c95121fc342739df3563b6e63c0",
+      "CONTRIBUTING.md": "bbe8942d3c4f1af975693bdb4bfa77d895058aa2",
+      "docs/agent-maintenance-runbook.md": "2acc1eb2420b90bf5f1d609921ee09e78a15db74",
+      "tests/test_agent_maintenance_policy.py": "953be01dec324f2b0af97071570154bf42ead114"
+     },
+     "candidate_state": "not_frozen",
+     "claim_id": "ABC-AMH01-REV298",
+     "correction_limit": 1,
+     "correction_used": 0,
+     "lease_expires_at": "2026-08-15T23:45:00+02:00",
+     "live_actions": false,
+     "owner": "Alice/Terra AMH-01 verification-first writer",
+     "slice_id": "AMH-01-root-policy-and-runbook",
+     "state": "running_verification_first",
+     "thread_id": "01a002e5-1968-76e3-b68f-2c91d8fcfdde"
+    }
+   ],
    "audit_counts": {
     "abc_execution_queue_rows": 132,
     "design_entries": 30,
@@ -22233,7 +22489,7 @@
     "started_at": "2026-08-13T22:43:20+02:00",
     "state": "verified_denominator_published_h1_29_claimed_tests_first"
    },
-   "next_action": "ABC-H1-29-REV295 is terminally released_blocked after a frozen same-class hostile callback recurrence with correction 1/1. Preserve its two rejected candidate blobs and terminal Evidence; do not patch or publish them. Run a fresh evidence-based reflect and continue one disjoint dependency-ready repo-only slice or permitted architecture/recovery predecessor.",
+   "next_action": "ABC-AMH01-REV298 is the sole repo-only verification-first claim after explicit open_work_reprioritization_after_safe_handoff. The bound Terra writer must rebind the exact four materialized baselines, run the five named nodes and full declared lanes without editing if already green, and return one immutable candidate tuple for Root freeze. Stop on baseline, pin, lease, path, command, node or authority drift; no commit, push, deploy, provider, host, private-data or live action.",
    "normalization_claim": {
     "acceptance": "Each source gains stable current IDs and explicit historical, repo-only, design or live-gate disposition; central mirrors agree; no unit becomes accepted or live-authorized by normalization.",
     "acquired_at": "2026-08-10T21:08:00+02:00",
@@ -28728,6 +28984,6 @@
   "docs/plans/lens-code-graph-roadmap.md",
   "docs/plans/agent-maintenance-safety-harness-roadmap.json"
  ],
- "status": "round5_accepted_released / repo_only / authority_revision297_verified_global_denominator_173_of_245 / H1_29_released_blocked_same_class_recurrence",
- "updated_at": "2026-08-15T02:28:28+02:00"
+ "status": "round5_accepted_released / repo_only / authority_revision298_verified_global_denominator_173_of_245 / AMH_01_claimed_verification_first",
+ "updated_at": "2026-08-15T02:50:00+02:00"
 }
