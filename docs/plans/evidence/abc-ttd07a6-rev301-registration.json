@@ -1,0 +1,36 @@
+{
+  "architecture_digest_sha256": "sha256:8b7ed41636e7252d297791c5ed612ccc337b30a0e73b9238552e087c1e182a53",
+  "architecture_packet_blob": "67ba11db3f1293fc3458bb5191515b3d99633c1f",
+  "architecture_packet_path": "docs/plans/abc-ttd07a6-archived-session-tail-one-turn-architecture.json",
+  "authority_revision": 301,
+  "baseline_blobs": {
+    "app.py": "8206445d3140bc0b15c84511baf9e5b8b4ec9db1",
+    "src/telegram_context_policy.py": "9a2aae8f7b773295699019ca70db1a6a074712c6",
+    "src/telegram_session_rollover.py": "e0bebfd36b55329219a7a8a272959ccbff46fd4c",
+    "tests/test_telegram_context_policy.py": "8e95a4c3a91a68b78c583e0024cb70b563a93839",
+    "tests/test_telegram_session_rollover.py": "8ba8f732cfeda963936ed18ae670c2f15f85e672"
+  },
+  "candidate_blobs": {},
+  "candidate_state": "not_frozen",
+  "claim_id": "ABC-TTD07A6-REV301",
+  "inventory_receipt": {
+    "inventory_mode": "rolling_projection",
+    "member_count": 30,
+    "member_set_digest": "sha256:0f3bf8d41306facf635edd86a6c481cba702292994ab6c2e78937f86f9ec3bcf",
+    "scheduled_slice_count_unchanged": 7,
+    "terminal_waves_unchanged": true
+  },
+  "kind": "odysseus.abc_claim_evidence",
+  "live_actions": false,
+  "schema_version": 1,
+  "slice_id": "TTD-07A6-archived-session-tail-first-turn-carryover",
+  "state": "registered_tests_first_candidate_not_frozen",
+  "tests_first_nodes": [
+    "tests/test_telegram_context_policy.py::test_a6_tail_is_default_off_bounded_untrusted_and_consumed_once",
+    "tests/test_telegram_context_policy.py::test_a6_tail_excludes_system_summary_tool_results_and_domain_authority",
+    "tests/test_telegram_context_policy.py::test_a6_handler_injects_only_an_eligible_archived_tail_without_session_rewrite",
+    "tests/test_telegram_session_rollover.py::test_a6_tail_requires_exact_committed_archived_to_active_binding_fence",
+    "tests/test_telegram_session_rollover.py::test_a6_tail_refuses_stale_replayed_or_invalid_config_without_mutation"
+  ],
+  "thread_id": "01a0034a-4438-72a1-b1dc-e2b16dd3c00a"
+}
