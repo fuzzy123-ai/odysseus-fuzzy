@@ -1,8 +1,8 @@
 # Odysseus Master Handoff
 
-Snapshot: 2026-08-15T00:31:18+02:00, Europe/Berlin
+Snapshot: 2026-08-15T02:28:28+02:00, Europe/Berlin
 Continuity deadline: 2026-08-16 00:00 Europe/Berlin
-Canonical authority at snapshot: Open Work / Round 7 Revision 294
+Canonical authority at snapshot: Open Work / Round 7 Revision 297
 Verified progress: 173 accepted of 245 canonical units
 Open units: 72 (19 repo, 19 design, 30 live, 4 operator)
 
@@ -63,7 +63,13 @@ Newer accepted/released records override stale earlier `planned`, `blocked`, or
   and historical evidence.
 - Branch at snapshot: `codex/implemenetaion`.
 - Latest committed continuity artifacts before this Master Handoff update:
-  AHE-GHISS01 terminal-release Evidence and continuation-inventory commit
+  H1-29 Rev297 terminal-router commit `b9d8012c`, terminal-Evidence commit
+  `38b612b8`, Rev296 freeze-router commit `997edad7`, freeze-Evidence commit
+  `09b821cb`, Rev295 registration commit
+  `5f70e03eed20beeec14e8d1884e4fc6c456f6859`, registration-Evidence commit
+  `4c4216f7714ce400252611113ee5fcc4badfcd50`, closed architecture commit
+  `66fbab3e04fe2fc394525f0f978cbda9d02bb01a`, AHE-GHISS01 terminal-release
+  Evidence and continuation-inventory commit
   `4702a57f`, AHE-GHISS01 architecture commit
   `79e52bbcf92dd6860cc1334e8926b9b0a8e52c60`, Rev292 terminal-release
   Evidence commit `4efda592376080e8afd11709ab38e04db29a5ba5`, Rev291 native-execution
@@ -246,7 +252,7 @@ Current external blockers:
 
 ## 6. Global roadmap state
 
-- Open Work and Round 7 are at authority Revision 294.
+- Open Work and Round 7 are at authority Revision 297.
 - The canonical denominator is verified and published: 173 accepted of 245
   unique units, leaving 72 open (19 repo, 19 design, 30 live, 4 operator).
 - The published snapshot binds all 30 active source-roadmap blobs, the exact
@@ -254,12 +260,34 @@ Current external blockers:
   reviewed deterministic candidate. Do not recompute or replace the
   denominator from stale prose; re-open denominator work only if a current
   source or authority byte changes and the routers explicitly invalidate it.
-- There are no active repo claims or agent leases at Revision 294.
+- There are zero active repo claims and zero leases at Revision 297.
+  `ABC-H1-29-REV295` was terminally released blocked; its former scope was only
+  `src/harbor_planning_projection.py` and
+  `tests/test_harbor_planning_projection.py`, both absent at registration.
+  Revision 296 freezes the exact candidate blobs
+  `7aa96988a1860a3d95f93f273e041c10e0d70661` and
+  `ea6bdb3b3f6b5fff7533b48d45ab18af09aad545`, candidate-set digest
+  `sha256:0109cde0cf5af7c323f9d32ea52b4b830ab4164049f93d83b592d190353fcc1d`,
+  command digest `sha256:44e93df3436fdf409bb4638a6bbef90fa02da826b252b5e7403fc945f1ffcdd2`
+  and node digest `sha256:91c7f6cce23646cadf2fde52ef75503b1585eca03e23519d02e2317fd6b85f02`.
+  Tests-first RED was exact 8/8 due only to the absent module. Focused is 8/8,
+  dependencies 311/311, pycompile and diff-check pass. The one correction was
+  the Planning-JSON list-versus-execution-tuple boundary; no same-class
+  recurrence followed during writer verification. Final fresh Deep-Sol then
+  found a same-class recurrence: `advisory_refs[*].kind` is compared with `!=`
+  before exact built-in string validation, allowing a hostile `str` subclass
+  to execute `__ne__` callback code. Correction 1/1 was exhausted, so Revision
+  297 rejected the frozen pair and removed the claim and lease. Terminal
+  Evidence is `docs/plans/evidence/abc-h1-29-rev297-terminal-release.json`, blob
+  `360c38d84cbfadb320a3e476a1a4fa1c2093b050`. Never patch or publish the pair.
   `ABC-HWA2A-V5-REV290` is terminally `released_blocked` before freeze; no
-  candidate bytes were accepted. The rejected, recoverable two-path candidate
-  is source `f2b3e80e611fd64447b2829f5af77d36317a83d0` and test
+  candidate bytes were accepted. The rejected identity records source
+  `f2b3e80e611fd64447b2829f5af77d36317a83d0` and test
   `f2aff64152488f26d9a5ab0a650819fb30041161`, with dirty-diff SHA-256
   `3c19a8bf7f72d6d1868d220354fdc8f5479c9defc27a7098e5dfdb7840d1f6ce`.
+  The source blob is not present in the canonical Git object store and no
+  current worktree retains that exact pair; this is terminal identity evidence,
+  not a recoverable candidate. Never claim local recoverability or revive it.
   Its exact tests-first baseline produced 12/12 RED solely because the loader
   API was absent. The first source attempt produced 9 PASS / 3 FAIL; the single
   correction was consumed without a complete GREEN. Independent Deep-Sol
@@ -317,11 +345,10 @@ Current external blockers:
   the full persisted dependency corridor, static checks, all three central
   validators, independent hostile QA, and Deep-Sol passed on the unchanged
   frozen tuple.
-- Revision 294 AHE-GHISS01 terminal-release raw `git hash-object
-  --no-filters` readback: Open Work
-  `57b3b0b29bbaf1bafd2ec41ab0dbc08bed2f186d`, Round 6
+- Revision 297 terminal-release raw `git hash-object --no-filters` readback:
+  Open Work `2c9cb948b3696d47f0011bcaa9b92917dad5df15`, Round 6
   `284dbe55bf6efac90fc606c29ce40a437875a9f8`, Round 7
-  `9db93cabfc673476df446586cd26fe9ee7576cea`, Guidance
+  `e4c54f427d566d482e8597968275411f0302190a`, Guidance
   `71dcf844bba2778b5f7c0376759a8a2ec91d0b9f`, continuation inventory
   `b6ddc3b05263c7ab3b7d0ae0e87823a92755fa1f`, HWA2A-v5 packet
   `03cb39a51f8212b6f0581d0254b38ed804e7b00b`, Rev292 terminal Evidence
@@ -357,11 +384,15 @@ Current external blockers:
   Markdown anchors, 84 JSON pointers, two claim predicates and 26 direct file
   locators: 144/144 locators are valid. Independent privacy review of this
   handoff also passes.
-- Fresh native-Python readback on the current Revision 294 bytes passes all
-  three central validators: Integration Spine `ok:true`, Round 6 `valid:true`
+- Fresh native-Python readback on the pre-write Revision 295 registration bytes
+  passed all three central validators: Integration Spine `ok:true`, Round 6 `valid:true`
   with 30/30 rows and zero claimable frontiers, and Guidance `valid:true` with
-  139/139 inventory entries. This validates the terminal authority transaction,
-  not the rejected HWA product candidate. Direct Windows launch from the
+  139/139 inventory entries. Claim/Origin digest, 26/26 pins, Evidence, mirrors,
+  lease and both absent writer baselines also passed. After the tests-first
+  writer materializes either formerly absent path, Integration is expected to
+  fail the unfrozen absent-path binding until Root freezes the exact candidate;
+  Round6 and Guidance may remain green. This is the designed lifecycle, not a
+  product PASS or a new defect. Direct Windows launch from the
   sandboxed WSL path can still hit a local Vsock bridge error; this is an
   interpreter-launch limitation, not a product or validator PASS.
 - `$reflect` after the terminal HWA2A-v5 release selected exactly one disjoint
@@ -394,6 +425,21 @@ Current external blockers:
   terminal Evidence is `841a71e215471c33823dde2f22d8bbb8b48d14cd`.
   Never patch or publish these bytes. A future attempt requires materially fresh
   architecture for whole-sentence negation and mixed-clause attribution.
+- `$reflect` after AHE-GHISS01 selected H1-29. Its committed v4 architecture is
+  `docs/plans/abc-h1-29-canonical-planning-projection-architecture.json`, raw
+  blob `ba3ce9892c7bf5214b386bd7f45bd5798fb8c16e`, raw SHA-256
+  `d7ffc572ebe67753620ae6f6817588bfe59be928a1f96bd223c71eee2c93b6e4`,
+  semantic digest
+  `sha256:e793ab4c6f936e4413a5d920a4c34069dbf3bbe32fd5887660d0882e9f85f345`.
+  Independent Deep-Sol passed the exact 25,255-byte architecture packet,
+  26/26 pins, eight
+  nodes, reciprocal node/gate binding, snapshot/fact/policy digests, precedence,
+  detached output and zero-effect boundary. The Rev296 active freeze Evidence
+  is blob `a31ea3f7e658fb87d237d2985e82dd58ff1fc613`; the Rev295 origin digest is
+  `sha256:9e0d34be3e3213fb9f340e242e37bd52442a190e73271c7768c0fe59dc5d986a`.
+  The Rev296 freeze Evidence remains immutable, but Revision 297 terminally
+  rejected the candidate on the hostile `str.__ne__` callback counterexample.
+  No H1 product result was accepted.
 - Heartbeat automation `odysseus-open-work-continuous-abc-run` is ACTIVE every
   minute until `2026-08-16T00:00:00+02:00`. It names the canonical checkout and
   the public-safe projection clone identified by the exact branch/HEAD/base/
@@ -496,7 +542,7 @@ structured authority can open a writer claim.
 | `unified-source-index-data-lifecycle-operations-roadmap.md` | `[18]` / `ULO-01-stable-owner-scope-and-alias-contract` | OWM-21 | `accepted_released_round6_a` | Preserve; continue only through its dependency chain. |
 | `abc-frontpage-v2-build-plan.md` | `[19]` / `FRONTPAGE-V2-structured-slice-normalization` | OWM-8 | `needs_design_and_normalization` | Wait for approved UI/design structure. |
 | `ai-lens-design-roadmap.json` | `[20]` / `AIL-DESIGN-1-visual-system` | OWM-8 | `needs_design` | Wait for fixed UI paths and independent reviewer. |
-| `odysseus-harbor-one-autonomous-workspace-roadmap.md` | `[21]` / `H1-29-canonical-planning-projection` | OWM-28 | `normalization_blocked` | The denominator predecessor is complete at Rev286. H1-29 still lacks exact allowed paths, hotfiles, and tests; close those read-only before any claim. |
+| `odysseus-harbor-one-autonomous-workspace-roadmap.md` | `[21]` / `H1-29-canonical-planning-projection` | OWM-28 | `released_blocked_same_class_recurrence` | Rev297 rejected the frozen two-blob candidate after Deep-Sol proved a hostile `str.__ne__` callback before exact-type validation with correction 1/1. Preserve the bytes; require materially fresh architecture. |
 | `planning-definition-editor-roadmap.json` | `[22]` / `PDE-08-real-save-undo-smoke` | Planning UI | `waiting_on_user` | Wait for user authorization. |
 | `product-planning-skills-integration-roadmap.md` | `[23]` / `PPS-1-skill-import-compatibility` | Planning skills | `waiting_on_user` | Wait for user authorization. |
 | `privacy-safe-tool-analytics-roadmap.md` | `[24]` / `TUA4R-agent-streaming-regression-guard` | OWM-12 | `accepted_released_round6_b` | Preserve; keep capture/backfill disabled. |
@@ -531,7 +577,7 @@ from feature similarity. The current blob also contains the context-free
 continuation locators reviewed after Rev289.
 Its top-level `authority_revision: 294` is the descriptive continuation epoch,
 not mutation authority. Always re-read Open Work and Round 7 first; the current
-structured authority is also Revision 294 and wins if its bytes later drift.
+structured authority is Revision 297 and wins if its bytes later drift.
 
 Repo-local or repo-recovery candidates (19):
 
@@ -792,8 +838,9 @@ Round 6 row, Open Work history, and any newer accepted record.
   `$.current_position.full_goal_progress.long_run_checkpoint` and Round 7
   `$.long_run_state.global_goal_progress.long_run_checkpoint` were normalized
   at Revision 286 to `173/245`, the current deadline, and the verified
-  denominator state. Current Rev294 authority has no active claim or lease.
-  Its terminal history includes the blocked AHE-GHISS01 candidate from Rev294,
+  denominator state. Current Rev297 authority has zero claims and leases. Its
+  terminal history includes the blocked H1-29 frozen candidate, the blocked
+  AHE-GHISS01 candidate from Rev294,
   the blocked pre-write HWA2A-v4 claim, the
   blocked-before-freeze HWA2A-v5 claim, and the accepted RMT8-v2 claim from
   Revision 279 and the blocked R7-A2 R3R1 claim from Revision 283.
@@ -825,17 +872,17 @@ baseline for a new claim without a materially fresh architecture transaction.
 2. Read `git status --short` and the path-scoped staged/unstaged diff in every
    checkout before any write.
 3. Recompute Open Work/Round 6/Round 7 raw blobs with `--no-filters`; filtered
-   Round 6 hashes are invalid because of CRLF projection. Confirm Revision 294,
-   empty claim/lease arrays, terminal AHE-GHISS01 and HWA2A-v5 claims, and all
-   current packet/Evidence identities from section 6 before any worker action.
+   Round 6 hashes are invalid because of CRLF projection. Confirm Revision 297,
+   zero active claims/leases, terminal H1-29, AHE-GHISS01 and HWA2A-v5 claims,
+   and all current packet/Evidence identities from section 6 before worker work.
 4. Preserve accepted `ABC-RMT8-V2-REV278` exactly as frozen and released at
    Revision 279. Do not reopen its exhausted correction budget or reconstruct
    its product bytes from prose.
-5. Preserve terminal R7-A2 R3R1, HWA2A-v4/v5 and AHE-GHISS01 evidence without
-   another patch. Run `$reflect` and choose a disjoint dependency-ready repo-only
-   implementation or permitted architecture/recovery predecessor. Never treat
-   rejected HWA or AHE bytes as a baseline; any future AHE attempt requires a
-   fresh packet and correction class before registration.
+5. Preserve terminal R7-A2 R3R1, HWA2A-v4/v5, AHE-GHISS01 and H1-29 evidence
+   without another patch. Run `$reflect`, select only one disjoint current
+   dependency-ready repo-only claim or permitted architecture predecessor, and
+   register it through a fresh compare-before transaction. Never revive an
+   exhausted failure class.
 6. The public independent scope review and one-parent/one-commit ancestry are
    complete. The exact remaining platform request is:
    `Push commit ea181f52e72a24d91480757c55a298fbb77249b1 nach fuzzy/dev.`
@@ -908,8 +955,9 @@ answer all of the following from repository files alone:
 - What exact redacted deployment, backup, rollback, and health route applies?
 - Which single external action, if any, is still awaiting platform approval?
 
-Current checklist status: **PASS — independently read back after the Rev294
-AHE terminal lifecycle and bounded privacy/staleness corrections**. The
+Current checklist status: **PASS for context-free continuity — read back after
+the Rev297 H1-29 terminal release and bounded privacy/staleness corrections**.
+There is no active candidate or lease. The
 72-record inventory has complete continuation fields, 144/144 valid locators,
 and no private local-path or task/thread-identifier match. This PASS is
 descriptive continuity evidence; it does not register a writer claim.
@@ -938,3 +986,7 @@ identities, release evidence, open-lane rows, immediate sequence, and
   materialized four-blob candidate after a same-class negated-language
   recurrence with correction 1/1; no candidate freeze or final acceptance QA
   occurred. GitHub provider and live behavior remain deliberately outside scope.
+- H1-29 product acceptance. Rev297 terminally rejected the exact frozen
+  candidate after valid RED, focused 8/8, dependency 311/311, static and central
+  PASS because Deep-Sol proved same-class hostile callback execution with
+  correction 1/1. No product commit, publication or live result exists.
