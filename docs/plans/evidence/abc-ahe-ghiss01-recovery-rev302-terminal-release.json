@@ -1,0 +1,74 @@
+{
+  "acceptance_evidence": "Before independent review, the exact eight tests collected once and passed, the complete claim module passed 97/97, the dependency lane passed 175/175, pycompile and diff-check passed, and all three central validators passed on the frozen four-blob tuple. Independent QA and Deep-Sol rejected that tuple because a bare contracted contradiction after an exact positive clause remained supported. The single authorized correction produced the required RED in the existing mixed-clause node, but its first and only source patch misspelled the contraction grammar as did['’]t rather than didn['’]t; the same node remained RED. No product accepted.",
+  "architecture_digest_sha256": "sha256:d157e87b67c6474b5255bdc24df88b02f704e7cfe22809662b6992efb4e651ef",
+  "architecture_path": "docs/plans/abc-ahe-ghiss01-negated-evidence-attribution-recovery-architecture.json",
+  "architecture_raw_blob": "7164d0317f6bd2d280412af3513d9f52d21a9c44",
+  "authority_revision": 302,
+  "candidate_command_manifest_digest_sha256": "sha256:8303d3346f1b91541444b37740c3863a2d327ad27498868083cf7eff59e592a4",
+  "candidate_pytest_node_manifest_digest_sha256": "sha256:c7b0a720f0715a601f22f4dbd1c118ae60d57d06b46def03061bdb4db9e004ce",
+  "candidate_state": "rejected_corrected_candidate_after_same_class_recurrence",
+  "central_before_correction": {
+    "guidance": "pass",
+    "integration": "pass_after_freeze",
+    "round6": "pass"
+  },
+  "claim_id": "ABC-AHE-GHISS01-RECOVERY-REV302",
+  "corrected_candidate_blobs": {
+    "src/agent_loop.py": "36c47d2c1ce0d2414cefb47903ec92a6b72c5511",
+    "src/claim_evidence_gate.py": "0ae4198c3110e3aca14fe67e296cc8fd5b6210ca",
+    "src/tool_domains/github_issues.py": "db9e1a1df5a8b43019842a7e15ff0fbc43ddbdc6",
+    "tests/test_claim_evidence_gate.py": "f187c2628a02f7525baa9ea0abf0141846229ff1"
+  },
+  "corrected_candidate_set_digest_sha256": "sha256:d6146654c166679bcf1e6f4f2e182df34d7cf97b5a6f655ee5600fa64e13728f",
+  "corrected_diff_sha256": "sha256:8df08259ccc0868bd335ae72092b1a1f0e98480bed23bbce9c8a516b7c920023",
+  "correction_budget": {
+    "after_repeat": "stop_and_rearchitect",
+    "failure_class": "ahe_ghiss01_affirmative_self_performed_full_clause_attribution_and_receipt_binding",
+    "limit_per_invariant": 1,
+    "used": 1
+  },
+  "dependency_before_correction": "175_passed",
+  "final_deep_sol": {
+    "finding": "The frozen grammar recognizes the expanded short contradiction I did not but not the contracted I didn't or curly-apostrophe equivalent, so exact positive evidence remains supported after a response-level contradiction.",
+    "result": "fail"
+  },
+  "focused_before_correction": {
+    "complete_claim_module": "97_passed",
+    "exact_nodes": "8_passed"
+  },
+  "freeze_evidence_path": "docs/plans/evidence/abc-ahe-ghiss01-recovery-rev302-registration.json",
+  "freeze_evidence_raw_blob": "8f83136bdc4af6b2fac059e924776c2e329831e4",
+  "frozen_candidate_blobs": {
+    "src/agent_loop.py": "36c47d2c1ce0d2414cefb47903ec92a6b72c5511",
+    "src/claim_evidence_gate.py": "77c45db5d47d7a2ad2f55841c3072ee99de3d2b3",
+    "src/tool_domains/github_issues.py": "db9e1a1df5a8b43019842a7e15ff0fbc43ddbdc6",
+    "tests/test_claim_evidence_gate.py": "e42e36220f8d607a822cb2fbb4e6f5e0fd94994b"
+  },
+  "frozen_candidate_set_digest_sha256": "sha256:b90b8635ceba1c206e57be78b08b299b2e0b3cd722ffc4a9f8470bac3411bcda",
+  "independent_qa": {
+    "findings": [
+      "I checked GitHub issue duplicates locally. I didn't. returned supported with one exact valid local receipt",
+      "I checked GitHub issue duplicates locally, but I didn't. returned supported with one exact valid local receipt"
+    ],
+    "result": "fail"
+  },
+  "kind": "odysseus.abc_terminal_claim_evidence",
+  "live_actions": false,
+  "product_accepted": false,
+  "recovery": "Require materially fresh Root/Sol architecture and a new claim that freezes a complete contraction and response-level contradiction grammar before any new source write. Do not patch, accept, stage or publish either rejected tuple.",
+  "release_outcome": "released_blocked_same_class_recurrence_after_correction_1_of_1",
+  "released_at": "2026-08-15T07:19:00+02:00",
+  "schema_version": 1,
+  "slice_id": "AHE-GHISS-01-negated-evidence-attribution-recovery",
+  "state": "released_blocked",
+  "static_before_correction": {
+    "diff_check": "pass",
+    "pycompile": "pass"
+  },
+  "terminal_finding": "The sole correction attempted to close bare contracted first-person contradiction clauses, but the source expression omitted the letter n and therefore did not match didn't. The exact correction RED remained RED after the one source patch. This is a same-class response-level contradiction-closure recurrence after correction 1/1.",
+  "tests_first": {
+    "correction_red": "1_failed_existing_mixed_clause_node",
+    "initial": "8_failed_contract_only_then_8_passed_before_freeze",
+    "post_correction": "1_failed_same_class_recurrence"
+  }
+}
