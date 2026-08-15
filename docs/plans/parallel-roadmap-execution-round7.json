@@ -4384,16 +4384,19 @@
    "architecture_digest_sha256": "sha256:9e0d34be3e3213fb9f340e242e37bd52442a190e73271c7768c0fe59dc5d986a",
    "architecture_revision": "H1-29-CANONICAL-PLANNING-PROJECTION-SOL-ARCH-v4",
    "authority_revision": {
-    "claimed_against_round7_revision": 294,
-    "registered_round7_revision": 295
+    "claimed_against_round7_revision": 295,
+    "registered_round7_revision": 296
    },
    "baseline_blobs": {
     "src/harbor_planning_projection.py": "absent",
     "tests/test_harbor_planning_projection.py": "absent"
    },
    "baseline_readback": "captured_absent_paths_exact_readback_pass",
-   "candidate_blobs": {},
-   "candidate_evidence_manifest_blob": "3ff16487818b16a04ad9f26b2146ea618624ba40",
+   "candidate_blobs": {
+    "src/harbor_planning_projection.py": "7aa96988a1860a3d95f93f273e041c10e0d70661",
+    "tests/test_harbor_planning_projection.py": "ea6bdb3b3f6b5fff7533b48d45ab18af09aad545"
+   },
+   "candidate_evidence_manifest_blob": "a31ea3f7e658fb87d237d2985e82dd58ff1fc613",
    "candidate_evidence_path": "docs/plans/evidence/abc-h1-29-rev295-registration.json",
    "candidate_pytest_node_ids": [
     "tests/test_harbor_planning_projection.py::test_h1_29_advisory_graph_and_memory_context_cannot_change_planning_truth",
@@ -4405,7 +4408,7 @@
     "tests/test_harbor_planning_projection.py::test_h1_29_public_api_and_exact_immutable_shapes_are_closed",
     "tests/test_harbor_planning_projection.py::test_h1_29_rejects_snapshot_splicing_stale_duplicate_and_cyclic_authority"
    ],
-   "candidate_state": "not_frozen",
+   "candidate_state": "frozen_for_independent_qa",
    "claim_class": "repo_claim_v2",
    "claim_id": "ABC-H1-29-REV295",
    "claim_transfer": {
@@ -4425,7 +4428,7 @@
     "after_repeat": "stop_and_rearchitect",
     "failure_class": "h1_29_canonical_planning_projection_dag_and_authority_reconciliation",
     "limit_per_invariant": 1,
-    "used": 0
+    "used": 1
    },
    "dependencies": [
     "ACPR-11 accepted_round5",
@@ -4465,7 +4468,7 @@
    },
    "read_only_pins": {
     "docs/plans/abc-h1-29-canonical-planning-projection-architecture.json": "ba3ce9892c7bf5214b386bd7f45bd5798fb8c16e",
-    "docs/plans/evidence/abc-h1-29-rev295-registration.json": "3ff16487818b16a04ad9f26b2146ea618624ba40",
+    "docs/plans/evidence/abc-h1-29-rev295-registration.json": "a31ea3f7e658fb87d237d2985e82dd58ff1fc613",
     "docs/plans/multi-agent-execution-guidance.json": "71dcf844bba2778b5f7c0376759a8a2ec91d0b9f",
     "docs/plans/odysseus-harbor-one-autonomous-workspace-roadmap.md": "15442b09769e4832aa728bd568af5c44854bdc2f",
     "docs/plans/parallel-roadmap-execution-round6.json": "284dbe55bf6efac90fc606c29ce40a437875a9f8",
@@ -4582,7 +4585,11 @@
     "dependency": "Planning definition, projection, revision, lifecycle, context, project-scope and operation-projection compatibility",
     "expensive_live": "not_run_user_gated",
     "focused": "eight exact H1-29 named tests and full planning projection suite"
-   }
+   },
+   "candidate_frozen_at": "2026-08-15T02:15:34+02:00",
+   "candidate_set_digest_sha256": "sha256:0109cde0cf5af7c323f9d32ea52b4b830ab4164049f93d83b592d190353fcc1d",
+   "candidate_command_manifest_digest_sha256": "sha256:44e93df3436fdf409bb4638a6bbef90fa02da826b252b5e7403fc945f1ffcdd2",
+   "candidate_pytest_node_manifest_digest_sha256": "sha256:91c7f6cce23646cadf2fde52ef75503b1585eca03e23519d02e2317fd6b85f02"
   }
  ],
  "external_lane_validator_claim": {
@@ -4805,20 +4812,20 @@
       "tests/test_harbor_planning_projection.py"
      ],
      "architecture_revision": "H1-29-CANONICAL-PLANNING-PROJECTION-SOL-ARCH-v4",
-     "authority_revision": 295,
+     "authority_revision": 296,
      "baseline_blobs": {
       "src/harbor_planning_projection.py": "absent",
       "tests/test_harbor_planning_projection.py": "absent"
      },
-     "candidate_state": "not_frozen",
+     "candidate_state": "frozen_for_independent_qa",
      "claim_id": "ABC-H1-29-REV295",
      "correction_limit": 1,
-     "correction_used": 0,
+     "correction_used": 1,
      "lease_expires_at": "2026-08-15T13:45:30+02:00",
      "live_actions": false,
      "owner": "Sol H1-29 critical closed-packet writer",
      "slice_id": "H1-29-canonical-planning-projection",
-     "state": "running_tests_first",
+     "state": "frozen_for_independent_qa",
      "thread_id": "01a002a8-fa7f-71b0-9b3a-1913d2258918"
     }
    ],
@@ -4899,7 +4906,7 @@
     "started_at": "2026-08-13T22:43:20+02:00",
     "state": "verified_denominator_published_reflecting_next_repo_only_frontier"
    },
-   "next_action": "ABC-H1-29-REV295 is the sole repo-only claim. The bound fresh Sol writer must add exactly the eight registered tests first, prove valid RED caused only by the absent implementation, then implement only src/harbor_planning_projection.py and tests/test_harbor_planning_projection.py. Stop on pin, lease, path, command, node, authority, schema or effect drift; no commit, push, deploy or live action.",
+   "next_action": "ABC-H1-29-REV295 is frozen on one exact two-blob candidate after tests-first RED, focused 8/8, dependency 311/311, static PASS and correction 1/1. Run fresh independent hostile QA and final Deep-Sol against only this frozen tuple; no product, router, commit, push, deploy or live mutation is authorized by the freeze.",
    "paused_repo_claims": [
     {
      "allowed_paths": [
@@ -5567,9 +5574,9 @@
    "verified_complete": 2
   },
   "heartbeat_automation_id": "abc-round-7-open-work-10h",
-  "last_durable_progress_at": "2026-08-15T01:45:30+02:00",
-  "last_heartbeat_at": "2026-08-15T01:45:30+02:00",
-  "last_reported_revision": 295,
+  "last_durable_progress_at": "2026-08-15T02:15:34+02:00",
+  "last_heartbeat_at": "2026-08-15T02:15:34+02:00",
+  "last_reported_revision": 296,
   "live_go_ledger": [],
   "master_route": {
    "actual": "surface_root_role_user_approved_alternate_architect",
@@ -5586,7 +5593,7 @@
   "queue_path": "docs/plans/open-work-completion-master-roadmap.json",
   "queue_scope": "open_work",
   "resume_cursor": "reflect_next_disjoint_dependency_ready_repo_only_frontier",
-  "revision": 295,
+  "revision": 296,
   "run_id": "ABC-R7-12H-20260809T084440+0200",
   "sol_review_results": [
    {
@@ -5711,7 +5718,7 @@
    }
   ],
   "started_at": "2026-08-09T08:44:40+02:00",
-  "state": "verified_denominator_published_h1_29_claimed_tests_first",
+  "state": "verified_denominator_published_h1_29_candidate_frozen_for_independent_qa",
   "worker_route": {
    "actuals": [
     {
@@ -6187,8 +6194,8 @@
   "docs/plans/project-versioning-forge-provider-roadmap.md",
   "docs/plans/code-intelligence-evaluation-protocol.md"
  ],
- "status": "round7_authority_revision295_verified_global_denominator_173_of_245_h1_29_claimed_tests_first",
- "updated_at": "2026-08-15T01:45:30+02:00",
+ "status": "round7_authority_revision296_verified_global_denominator_173_of_245_h1_29_candidate_frozen_for_independent_qa",
+ "updated_at": "2026-08-15T02:15:34+02:00",
  "waves": [
   {
    "depends_on": [
