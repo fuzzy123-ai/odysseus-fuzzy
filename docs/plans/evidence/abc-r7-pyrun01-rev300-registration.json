@@ -1,0 +1,33 @@
+{
+  "architecture_digest_sha256": "sha256:1584c7f5bce8971a6a513eece9e6fc7a0c8350c297d496725d8deed7d9383f94",
+  "architecture_packet_blob": "30f980c3f7e5b89b4486067597f27d9a631c11e9",
+  "architecture_packet_path": "docs/plans/abc-r7-current-virtualenv-command-boundary-recovery-architecture.json",
+  "authority_revision": 300,
+  "baseline_blobs": {
+    "scripts/validate_integration_spine_convergence.py": "b7633219b137bd24bce4cc993e9b5db6bbda2b48",
+    "tests/test_integration_spine_convergence.py": "651e8be5492714a92ded48f457055861f9c5e244"
+  },
+  "candidate_blobs": {},
+  "candidate_state": "not_frozen",
+  "claim_id": "ABC-R7-PYRUN01-REV300",
+  "inventory_receipt": {
+    "inventory_mode": "rolling_projection",
+    "member_count": 30,
+    "member_set_digest": "sha256:0f3bf8d41306facf635edd86a6c481cba702292994ab6c2e78937f86f9ec3bcf",
+    "scheduled_slice_count_unchanged": 7,
+    "terminal_waves_unchanged": true
+  },
+  "kind": "odysseus.abc_claim_evidence",
+  "live_actions": false,
+  "schema_version": 1,
+  "slice_id": "R7-PYRUN-01-current-virtualenv-command-boundary-recovery",
+  "state": "registered_tests_first_candidate_not_frozen",
+  "tests_first_nodes": [
+    "tests/test_integration_spine_convergence.py::test_command_spec_accepts_legacy_and_exact_current_virtualenv_executable",
+    "tests/test_integration_spine_convergence.py::test_command_spec_preserves_shell_url_artifact_basetemp_and_digest_guards",
+    "tests/test_integration_spine_convergence.py::test_command_spec_rejects_path_alias_env_and_arbitrary_absolute_interpreters",
+    "tests/test_integration_spine_convergence.py::test_command_spec_rejects_relative_or_non_virtualenv_current_executable",
+    "tests/test_integration_spine_convergence.py::test_command_spec_rejects_symlink_realpath_and_runtime_identity_drift"
+  ],
+  "thread_id": "01a00308-ab0c-7393-acfd-b83c4c291819"
+}
