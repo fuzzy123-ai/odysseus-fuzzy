@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
   "kind": "odysseus.multi_agent_execution_guidance",
-  "updated_at": "2026-08-10T21:18:00+02:00",
+  "updated_at": "2026-08-15T07:57:50+02:00",
   "purpose": "Give an AI orchestrator an explicit execution policy for every roadmap-like artifact without rewriting historical evidence files; preserve terminal Round 6 and route Harbor One convergence through the current Round-7 integration spine.",
   "inventory": {
     "docs_plans_discovery": "Files directly under docs/plans with extension .md or .json and a name containing roadmap, masterplan, execution, build-plan, implementation, priority-process, or workplan.",
-    "docs_plans_count": 132,
+    "docs_plans_count": 133,
     "structured_specs_discovery": "All JSON files directly under specs/roadmaps.",
     "structured_specs_count": 7,
-    "total_count": 139,
+    "total_count": 140,
     "excluded": [
       "specs/roadmaps/odysseus-multiagent-start-2026-06-22.prompt.txt",
       "docs/plans/multi-agent-execution-guidance.json"
@@ -41,10 +41,11 @@
   "analysis_summary": {
     "profile_counts": {
       "active_parallel": 11,
-      "active_serial": 20,
+      "active_serial": 19,
       "canonical_router": 13,
-      "gate_only": 60,
-      "historical_done": 35
+      "gate_only": 61,
+      "historical_done": 35,
+      "needs_normalization": 1
     },
     "parallel_write_candidates": [
       "docs/plans/code-lineage-timeline-roadmap.md",
@@ -92,7 +93,7 @@
         "old_digest": "sha256:17cf68c5320ccb9aed72dce26f90404823e001db6f2d64e58f58a53da1145181",
         "new_digest": "sha256:0f3bf8d41306facf635edd86a6c481cba702292994ab6c2e78937f86f9ec3bcf",
         "old_round6_blob": "4b459ae502246df6a35aa42cb36db2d8337ed838",
-        "new_round6_blob": "a6cae9fd07f809ef4aec06b84a9b818f6166df05",
+        "new_round6_blob": "284dbe55bf6efac90fc606c29ce40a437875a9f8",
         "added": ["docs/plans/forge-usi-code-source-adapter-roadmap.md"],
         "removed": [],
         "scope": "inventory_membership_only_terminal_waves_and_seven_scheduled_slices_unchanged"
@@ -237,6 +238,12 @@
       "profile": "canonical_router",
       "state": "frozen_r7a2t_r3_exact_builtin_boundary_authority",
       "ai_hint": "Use only as the exact immutable R7-A2T R3 product contract. Do not execute or edit it from the worker; Revision 151 owns exactly the trust-authority source and focused test paths under tests-first, one-correction semantics."
+    },
+    {
+      "path": "docs/plans/abc-usi07a-generation-fenced-cancellable-query-execution-architecture.json",
+      "profile": "needs_normalization",
+      "state": "blocked_before_claim_missing_provider_and_runtime_context_lifecycle_dependency",
+      "ai_hint": "Architecture-only blocker: do not dispatch a USI product writer. First close and accept the serialized PRE1A cancellable CBM process-provider lifecycle and PRE1B immutable UIR context/provider-admission predecessors; then issue a fresh USI-07A sufficiency architecture against their accepted baselines."
     },
     {
       "path": "docs/plans/abc-roadmap-completion-handoff.md",
@@ -505,8 +512,8 @@
     {
       "path": "docs/plans/headless-write-agent-orchestration-roadmap.md",
       "profile": "active_serial",
-      "state": "hwa0_hwa1_complete_durable_state_next_live_actions_gated",
-      "ai_hint": "HWA0-HWA1 are complete. Claim the durable owner-scoped state, worktree-evidence and lease-fencing slice next with one scoped writer. Preserve commit_project as the only commit authority; provider delivery, merge and deploy are separate stages. Stop before real runner, scheduler, commit bridge, provider, merge or deploy actions without prerequisites and the exact named gate."
+      "state": "hwa_source_reconciled_hwa0_hwa1_hwa3a_hwa3b_and_temporal_aliases_accepted_hwa2_fresh_architecture_required",
+      "ai_hint": "The accepted source reconciliation defines HWA-2-canonical-subagent-commit-bridge as the one canonical unit; HWA2-canonical-subagent-commit-bridge is its non-counting historical spelling. HWA-0, HWA-1, HWA-3A and HWA-3B are accepted, and HWA-4/HWA-5A/HWA-5B/HWA-9A alias accepted TLR units. HWA-2 remains normalization-blocked and requires materially fresh Root/Sol architecture; do not revive terminal HWA2A v2 candidates. Provider delivery, merge, deploy and real commit remain separate gated stages."
     },
     {
       "path": "docs/plans/harbor-planning-integration-master-roadmap.json",
@@ -817,8 +824,8 @@
     {
       "path": "docs/plans/telegram-todo-domain-truth-roadmap.md",
       "profile": "active_serial",
-      "state": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a4_accepted_ttd07a5_gated_after_two_rejected_attempts_live_default_off",
-      "ai_hint": "TTD-04 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A4 are accepted. TTD-07A5 is gated after two rejected incomplete attempts; no active implementation claim remains. A fresh read-only architecture handoff and later durable reclaim must precede more writes. Preserve TTD-07A6, continuity, provider, productive enablement and live paths."
+      "state": "ttd00_through_ttd07_ttd08a_ttd08b_ttd07a0_through_ttd07a5_accepted_fd2340a6_ttd07a6_dependency_ready_unselected_live_default_off",
+      "ai_hint": "TTD-04 through TTD-07 plus TTD-08A, TTD-08B and TTD-07A0 through TTD-07A5 are accepted. After two rejected A5 attempts, the R0 architecture and A5A through A5C3 child releases completed the single canonical TTD-07A5 unit at fd2340a6; do not count the child slices separately. TTD-07A6 is dependency-ready but unselected and default-off. Preserve continuity, provider, productive enablement and all live gates."
     },
     {
       "path": "docs/plans/telegram-dual-session-router-hotfix-roadmap.md",
@@ -858,9 +865,9 @@
     },
     {
       "path": "docs/plans/telegram-windows-pc-control-roadmap.json",
-      "profile": "active_serial",
-      "state": "twp01_repo_claim_active_twp02_twp03_and_four_action_specific_live_gates_open_autologon_optional_deferred",
-      "ai_hint": "Treat TWP-01 as an existing same-checkout root claim and do not duplicate or overlap its fourteen writer paths. TWP-02/TWP-03 plus Windows install/wake and Debian deploy/Telegram smoke remain action-specific live gates. windows-autologon-go is deferred_not_recommended and outside the required default-safe goal unless the operator explicitly expands scope."
+      "profile": "gate_only",
+      "state": "twp01_repo_accepted_twp02_twp03_and_four_action_specific_live_gates_open_autologon_optional_deferred",
+      "ai_hint": "TWP-01 repo control plane and its TWP-01R1 dependency repair are accepted. Keep TWP-02/TWP-03 plus Windows install/wake and Debian deploy/Telegram smoke as action-specific live gates. windows-autologon-go remains deferred_not_recommended. Do not treat this roadmap as an active repo writer claim."
     },
     {
       "path": "docs/plans/faster-whisper-transcription-protocol-roadmap.json",
@@ -919,8 +926,8 @@
     {
       "path": "docs/plans/unified-source-index-runtime-integration-roadmap.md",
       "profile": "active_serial",
-      "state": "uir03a_uir03b_uir00r_uir04a_uir04b_uir04c_uir05a_uir05b_app_route_accepted_revision179",
-      "ai_hint": "UIR-05B freezes one admin-gated GET status endpoint on the exact accepted App scope; service-health aggregation, provider, I/O and live authority remain forbidden."
+      "state": "uir03a_go_a_r2_uir03b_r2_uir00r_uir04a_uir04b_uir04c_uir05a_uir05b_app_route_accepted_revision285",
+      "ai_hint": "The generic UIR-03 aggregate is superseded by exactly two accepted units: UIR-03A default-off knowledge runtime composition via Go-A R2 and UIR-03B application-state/shutdown wiring via R2. Recovery slice suffixes are historical claim identities, not extra denominator units. UIR-05B freezes one admin-gated GET status endpoint on the exact accepted App scope; service-health aggregation, provider, I/O and live authority remain forbidden."
     },
     {
       "path": "docs/plans/unified-source-index-domain-adapter-rollout-roadmap.md",
