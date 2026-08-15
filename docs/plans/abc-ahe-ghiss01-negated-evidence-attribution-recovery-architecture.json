@@ -1,0 +1,354 @@
+{
+  "acceptance": [
+    "Only a complete affirmative first-person clause that states a finished local GitHub issue duplicate search can request github_issue_duplicates_checked evidence; passive completion, attribution, negation, hypotheticals, questions, requests, future or conditional language never becomes supported.",
+    "The claim parser masks quoted spans, segments bounded clauses, classifies the entire unquoted evidence clause and uses anchored fullmatch forms; it never decides from a verb match plus a prefix-only scan.",
+    "A first-person contradiction or nonpositive GitHub duplicate-search clause anywhere in the same response prevents a supported duplicate-search finding, and one clause can never borrow claim authority from another clause.",
+    "A local manage_github_issues duplicate_search with persist=false, exit_code=0 and one exact bounded report snapshot emits one exact detached content-free receipt; generic exit zero, live-gate, blocked, persisted or provider packets remain unsupported.",
+    "create_triaged, set_fields and sync completion claims remain unsupported regardless of apparent success, and no callback, provider call, raw issue content, identifier, URL, path or exception text crosses the receipt or finding boundary.",
+    "All eight exact tests are newly authored from the clean accepted baselines, collect exactly once and fail in their test bodies solely because the recovery behavior is absent before the first source write; the rejected Rev294 test blob is never copied or rebound.",
+    "Focused, dependency, static, diff, all three central validators, independent hostile QA and fresh Deep-Sol review pass on one unchanged frozen four-blob candidate before acceptance.",
+    "This packet grants no writer, claim, lease, commit, push, deploy, provider, network, host, private-data, UI, send or live authority."
+  ],
+  "allowed_paths": [
+    "src/agent_loop.py",
+    "src/claim_evidence_gate.py",
+    "src/tool_domains/github_issues.py",
+    "tests/test_claim_evidence_gate.py"
+  ],
+  "architect": "fresh root/Sol AHE-GHISS01 negated-evidence attribution recovery",
+  "architecture_revision": "AHE-GHISS-01-NEGATED-EVIDENCE-ATTRIBUTION-RECOVERY-SOL-ARCH-v2",
+  "authority_observation": {
+    "active_claims": [],
+    "agent_leases": [],
+    "authority_revision": 301,
+    "observed_at": "2026-08-15T06:06:01+02:00",
+    "progress": "173/245",
+    "raw_no_filter_blobs": {
+      "docs/plans/evidence/abc-ttd07a6-rev301-terminal-release.json": "6c98365320916e382e8c24b4d860647c91a32793",
+      "docs/plans/multi-agent-execution-guidance.json": "71dcf844bba2778b5f7c0376759a8a2ec91d0b9f",
+      "docs/plans/open-work-completion-master-roadmap.json": "6aab29830cf142bdf4de0efa78f259191450fd7e",
+      "docs/plans/parallel-roadmap-execution-round6.json": "284dbe55bf6efac90fc606c29ce40a437875a9f8",
+      "docs/plans/parallel-roadmap-execution-round7.json": "c8e47f34ee478e93d497cecf8082de063c180ddd"
+    },
+    "writer_dispatch_authorized": false
+  },
+  "baseline_blobs": {
+    "src/agent_loop.py": "f05964f03c1280f51493300911cf0adbe434976d",
+    "src/claim_evidence_gate.py": "bc082142f8ac6dfe284f656f1392fd6219dca7b9",
+    "src/tool_domains/github_issues.py": "263ca48c8898133bed2515d85911938ba0fed68e",
+    "tests/test_claim_evidence_gate.py": "978f3907161f819ef353a8a17dcd253cfb391c4a"
+  },
+  "baseline_readback": "git ls-tree and git cat-file prove all four mode-100644 canonical blobs at accepted commit 4efda592; a future writer must use a fresh clean detached or standalone checkout with empty index and status and exact blob readback",
+  "command_manifest_digest_sha256": "sha256:e68ab9fa5efee321a382d396b0f52a4b628b9f1b43c014c6080e8f001e15c8ba",
+  "context_documents": {
+    "descriptive_only_not_pins": {
+      "docs/plans/MASTER-HANDOFF.md": "8817d929bbe9ae51f5200d94b82a66ce9ffb27d3",
+      "docs/plans/open-work-continuation-inventory.json": "42fec8b766a55a5e8851667ec6b37082f19f8869"
+    },
+    "interpretation": "The 72-record inventory and Master Handoff were read as context. They are descriptive, now reflect terminal TTD-07A6 with zero active claims and leases, and cannot override current Open Work/Round7 Revision 301 authority."
+  },
+  "control_plane": {
+    "custom_harness_required": false,
+    "decision_enabled": "permit or refuse later atomic claim registration for this exact four-path closed packet",
+    "existing_check_reused": "exact Git blob readback, pytest, py_compile, git diff --check and the three repository central validators",
+    "failure_action": "stop before registration on drift; after one target correction recurrence release blocked and require fresh architecture"
+  },
+  "correction_budget": {
+    "failure_class": "ahe_ghiss01_affirmative_self_performed_full_clause_attribution_and_receipt_binding",
+    "limit": 1,
+    "on_repeat": "release_blocked_and_require_materially_fresh_root_sol_architecture_without_a_second_product_patch",
+    "used": 0
+  },
+  "dependencies": [
+    "GHISS0 through GHISS8 remain repository-complete and local_and_readonly remains the safe default.",
+    "Revision 294 terminally released ABC-AHE-GHISS01-REV293 blocked after correction 1/1; its candidate and command contract are rejected evidence only.",
+    "Revision 301 has zero active claims and leases after terminal TTD-07A6 release; Open Work and Round7 select fresh-disjoint-architecture-recovery.",
+    "The accepted clean canonical four-path baseline at commit 4efda592 remains the only permitted implementation origin."
+  ],
+  "execution_baseline": {
+    "branch": "detached",
+    "canonical_commit": "4efda592376080e8afd11709ab38e04db29a5ba5",
+    "canonical_commit_blobs": {
+      "src/agent_loop.py": "f05964f03c1280f51493300911cf0adbe434976d",
+      "src/claim_evidence_gate.py": "bc082142f8ac6dfe284f656f1392fd6219dca7b9",
+      "src/tool_domains/github_issues.py": "263ca48c8898133bed2515d85911938ba0fed68e",
+      "tests/test_claim_evidence_gate.py": "978f3907161f819ef353a8a17dcd253cfb391c4a"
+    },
+    "primary_checkout_materialized_raw_no_filter_blobs": {
+      "src/agent_loop.py": "e6391ca2dd2b95e25023e0b1b0334a8294460978",
+      "src/claim_evidence_gate.py": "28432561a0b1489fff17f9a9b2e0316fb24b3d8e",
+      "src/tool_domains/github_issues.py": "263ca48c8898133bed2515d85911938ba0fed68e",
+      "tests/test_claim_evidence_gate.py": "be1255e7fb41e8a85d8bee55a20013d2f114c7f1"
+    },
+    "required_writer_checkout": "fresh clean detached worktree or fully standalone checkout at canonical_commit; empty index and status; exact canonical_commit_blobs; never the dirty canonical checkout or preserved Rev293 candidate worktree",
+    "semantics": "Three main-working paths are CRLF-projected despite a clean Git diff. They are observation-only and cannot replace the canonical commit blobs."
+  },
+  "forbidden": [
+    "reuse, copy, patch, freeze, accept or rebind rejected candidate blobs a0883f67b2ff3f98498d5d03316a7b4189f0f0ab, 69b3f1f43e0cb8f153e99437ce8bed54408e2c8e, 049ebfc51cc02743f8b9f07b8d00719eafe6702d or a3b81508251e6e635060d1d6225078257ce3a4de",
+    "prefix-only, suffix-only or verb-position-only nonpositive scanning; substring success; passive completion; third-party attribution; cross-clause evidence borrowing; a generic natural-language parser",
+    "fifth writer path, router edit by a product writer, validator edit, ledger/schema/store change, new persisted authority or custom validation harness",
+    "GitHub provider read or write, token access, sync, create, set_fields, persist=true, network call, callback invocation or raw provider/report forwarding",
+    "receipt or finding fields containing repository, owner, title, body, issue id, candidate id, URL, provider output, path, exception text or raw assistant clause",
+    "generic exit_code=0, tool success, confirmation_required, needs_live_go, blocked_by_duplicate_candidate or any live-gate packet as completion evidence",
+    "stage, commit, push, deploy, send, provider, host, private-data, UI or live action"
+  ],
+  "hostile_matrix": [
+    "Exact positive controls: I checked GitHub issue duplicates locally; We searched GitHub issues for duplicates locally; the exact receipt supports once and its absence yields one unsupported finding.",
+    "Exact terminal counterexample I checked no GitHub issue duplicates locally and direct variants I did not check, I never checked, I checked without searching and I checked zero/no duplicates locally never become supported.",
+    "Passive, attributed and reported forms including The search completed locally, The tool checked, The user said I checked and According to the report duplicates were checked never become supported.",
+    "Quoted, inline-code and nested-looking examples are masked before classification and cannot create or lend a claim.",
+    "If, when, would, could, should, might, maybe, can you, please, requested, future and intention clauses never become supported regardless of receipt.",
+    "Mixed clauses are independent and contradiction-closed: an exact positive followed by but I did not or maybe not is not supported; a quoted/reported positive cannot support a different first-person negative clause.",
+    "A reported negative followed by one exact unquoted first-person positive may use the receipt only for that positive clause; no actor or modality state crosses clause boundaries.",
+    "Noncanonical result narratives such as I checked locally and found no duplicates remain unsupported unless they exactly satisfy the closed full-clause grammar; no post-verb token can evade classification.",
+    "duplicate_search persist=false exact report/receipt snapshot, post-forward mutation, two detached receipts and candidate count boundaries 0 and 1000.",
+    "persist=true, missing/wrong action, wrong status/schema, bool-as-int, negative/1001 count, missing/extra/reordered fields, mapping subclasses and getters/iteration/comparison/repr/hash that raise fail closed without raw leakage.",
+    "needs_live_go, confirmation_required, blocked_by_duplicate_candidate and generic exit-zero packets remain unsupported; create_triaged, set_fields and sync claims remain unsupported for every success-looking packet.",
+    "Wrong tool, aliases, non-dict events/results, retained mutable aliases, repeated-read disagreement and callback-bearing scalar subclasses fail closed."
+  ],
+  "hotfiles": [
+    "src/agent_loop.py",
+    "src/claim_evidence_gate.py",
+    "src/tool_domains/github_issues.py",
+    "tests/test_claim_evidence_gate.py"
+  ],
+  "implementation_contract": {
+    "claim_language": {
+      "clause_boundary": "Mask quotes first, then segment on sentence terminators, semicolons, newlines and explicit contrast coordinators. Preserve clause-local actor and modality. Never search the whole response for an action verb and then inspect only one side of that match.",
+      "full_clause_disqualifiers": "Any first-person duplicate-search clause containing negation, uncertainty, request, hypothetical, conditional, future/intention or contradiction tokens anywhere in that clause is ineligible. Any contradictory first-person duplicate-search clause in the same response closes support for this claim type.",
+      "positive_fullmatch_forms": [
+        "I checked GitHub issue duplicates locally",
+        "I searched GitHub issues for duplicates locally",
+        "We checked GitHub issue duplicates locally",
+        "We searched GitHub issues for duplicates locally"
+      ],
+      "quoted_text": "Quoted and inline-code spans are replaced with same-length spaces before segmentation, so quoted punctuation or verbs cannot alter neighboring clause boundaries or create a claim.",
+      "result": "After built-in string and bounded normalization, only an anchored fullmatch of one positive form may emit github_issue_duplicates_checked. Exact receipt present means supported; absent/invalid receipt means unsupported. All other language produces no supported finding.",
+      "subject_and_attribution": "Only explicit first-person I or we is eligible. Passive, tool, user, report and other third-party subjects are never evidence of self-performed search.",
+      "type_boundary": "Operate only on exact built-in strings and locally reconstructed immutable tokens; reject subclass/callback-bearing values before comparison, normalization or regex use."
+    },
+    "event_forwarding": {
+      "copy": "reconstruct one exact built-in detached content-free receipt from one validated report snapshot; never retain the caller mapping, report, candidate list or scalar subclasses",
+      "source_action": "duplicate_search",
+      "source_tool": "manage_github_issues",
+      "wrong_tool_or_action": "emit no GitHub duplicate receipt"
+    },
+    "provider_claims": {
+      "always_unsupported": [
+        "github_issue_created",
+        "github_issue_fields_set",
+        "github_issue_synced"
+      ],
+      "rule": "No receipt, exit code, local report or live-gate packet can promote these claim types."
+    },
+    "receipt": {
+      "allowed_fields_in_order": [
+        "schema",
+        "action",
+        "status",
+        "persisted",
+        "candidate_count",
+        "blocks_auto_create",
+        "exit_code"
+      ],
+      "candidate_count": "exact built-in int, not bool, bounded 0 through 1000",
+      "exact_values": {
+        "action": "duplicate_search",
+        "exit_code": 0,
+        "persisted": false,
+        "schema": "odysseus.github_issue_duplicate_search_receipt.v1",
+        "status": "duplicates_checked_local"
+      },
+      "privacy": "content-free count and boolean only; no issue, repository, actor, path or provider identity",
+      "snapshot_binding": "candidate_count and blocks_auto_create are reconstructed once from the same exact built-in report snapshot before forwarding; supplied receipt and rebuilt receipt must be exact-equal after type checks"
+    },
+    "tests_first_red": "Add only the eight exact named tests to the clean baseline test file before source edits. Use module attribute lookup inside test bodies so all eight collect exactly once and fail in test bodies solely for absent recovery behavior; do not copy the rejected Rev294 test blob."
+  },
+  "kind": "odysseus.sol_closed_architecture",
+  "live_actions_authorized": false,
+  "named_tests": [
+    "tests/test_claim_evidence_gate.py::test_github_issue_claim_language_ignores_negated_hypothetical_and_quoted_text",
+    "tests/test_claim_evidence_gate.py::test_github_issue_create_set_fields_and_sync_claims_remain_unsupported",
+    "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_does_not_borrow_authority_across_mixed_clauses",
+    "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_rejects_generic_exit_zero_and_live_gate_packets",
+    "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_requires_affirmative_self_performed_full_clause",
+    "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_requires_exact_verified_receipt",
+    "tests/test_claim_evidence_gate.py::test_github_issue_event_forward_is_content_free_and_detached",
+    "tests/test_claim_evidence_gate.py::test_github_issue_receipt_rejects_hostile_mapping_wrong_types_extra_fields_and_mutation"
+  ],
+  "node_manifest_digest_sha256": "sha256:c7b0a720f0715a601f22f4dbd1c118ae60d57d06b46def03061bdb4db9e004ce",
+  "origin_mode": "fresh_root_sol_architecture_after_terminal_rev294_same_class_recurrence",
+  "packet_budget_bytes": 25600,
+  "packet_path": "docs/plans/abc-ahe-ghiss01-negated-evidence-attribution-recovery-architecture.json",
+  "phase": "claimable_architecture_precursor",
+  "read_only_pins": {
+    "docs/plans/abc-ahe-ghiss01-local-duplicate-search-evidence-architecture.json": "7925944f25a5764158f233312ab9ed4c273272a0",
+    "docs/plans/anti-hallucination-evidence-roadmap.md": "139d86394f16a6010bfa4f5c3a997d5fa3abf913",
+    "docs/plans/evidence/abc-ahe-ghiss01-rev294-terminal-release.json": "841a71e215471c33823dde2f22d8bbb8b48d14cd",
+    "docs/plans/evidence/abc-ttd07a6-rev301-terminal-release.json": "6c98365320916e382e8c24b4d860647c91a32793",
+    "docs/plans/github-issue-intelligence-roadmap.md": "e98a8d01adae0d864cc18c4659a39901f6e6589d",
+    "docs/plans/multi-agent-execution-guidance.json": "71dcf844bba2778b5f7c0376759a8a2ec91d0b9f",
+    "docs/plans/open-work-completion-master-roadmap.json": "6aab29830cf142bdf4de0efa78f259191450fd7e",
+    "docs/plans/parallel-roadmap-execution-round6.json": "284dbe55bf6efac90fc606c29ce40a437875a9f8",
+    "docs/plans/parallel-roadmap-execution-round7.json": "c8e47f34ee478e93d497cecf8082de063c180ddd",
+    "scripts/roadmap_multi_agent_guidance.py": "8973fbdcb9b7cb7eec5ae9f03dd8f9acffdd544c",
+    "scripts/validate_integration_spine_convergence.py": "b997cb1203e752d41721fc1aef442ac15f579bf4",
+    "scripts/validate_parallel_roadmap_execution.py": "22d5be1db6f58906d9fa5132c46a5f358daae300",
+    "src/tool_execution.py": "e3da7b5fcfa45d225f58815703de59ead48e043c",
+    "src/tool_transaction_ledger.py": "02d8b879f3500aabd8a1276654343d027c3fd35f",
+    "tests/test_agent_loop.py": "6c168f7c140037a8b646b6f0b681d1679339a479",
+    "tests/test_github_issue_tools.py": "0217fbfb41c8dd31f95d5556f73fdf6fd4ad9eec",
+    "tests/test_tool_transaction_ledger.py": "e695f8447d432d394076b42d5955c519f25b8a35"
+  },
+  "registration_requirements": [
+    "Fresh independent review of this exact packet raw blob, semantic seal digest, node digest, command digest and under-25-KiB canonical JSON form.",
+    "Fresh clean detached worktree or standalone checkout at commit 4efda592 with exact four canonical baseline blobs, empty status/index and no preserved Rev293 candidate bytes.",
+    "Compare-before readback of all current pins, zero active claims/leases, exact path/hotfile collision check and one unexpired repo-only claim with one correction budget.",
+    "One atomic serialized Root transaction registers this packet and claim; this architecture file itself grants no claim or writer authority.",
+    "All three central validators pass after registration and before tests-first writer dispatch."
+  ],
+  "rejected_lineage": {
+    "candidate_blobs_never_rebind": {
+      "src/agent_loop.py": "a0883f67b2ff3f98498d5d03316a7b4189f0f0ab",
+      "src/claim_evidence_gate.py": "69b3f1f43e0cb8f153e99437ce8bed54408e2c8e",
+      "src/tool_domains/github_issues.py": "049ebfc51cc02743f8b9f07b8d00719eafe6702d",
+      "tests/test_claim_evidence_gate.py": "a3b81508251e6e635060d1d6225078257ce3a4de"
+    },
+    "correction_used": "1/1",
+    "failure": "The prefix-only nonpositive scan accepted I checked no GitHub issue duplicates locally because no occurred after the completion verb.",
+    "terminal_evidence": "docs/plans/evidence/abc-ahe-ghiss01-rev294-terminal-release.json",
+    "terminal_evidence_blob": "841a71e215471c33823dde2f22d8bbb8b48d14cd"
+  },
+  "semantic_digest_sha256": "sha256:e2e3d22e3bce3a5fbff8e38980f0b32ba4416e009b5aecfac1647793e28f29d7",
+  "semantic_seal": "local_duplicate_search_only;affirmative_self_performed_full_clause_only;whole_clause_negation_hypothetical_quote_report_future_conditional_closed;no_cross_clause_evidence_borrowing;exact_detached_content_free_receipt;persist_false;create_set_fields_sync_unsupported;no_provider_live_or_raw_data;four_clean_baseline_writer_paths;rejected_rev294_never_rebound;one_correction_then_terminal",
+  "semantic_seal_bytes": 386,
+  "slice_id": "AHE-GHISS-01-negated-evidence-attribution-recovery",
+  "state": "claimable_architecture_precursor",
+  "stop_rule": "Stop before writer dispatch on packet, raw blob, semantic/node/command digest, authority, baseline, pin, checkout cleanliness, lease, reviewer, path or collision drift. Stop during implementation on rejected-blob reuse, a fifth path, router/validator/ledger edit, prefix-only or cross-clause claim inference, passive/attributed support, persist=true, provider/live behavior, callback execution, raw content or generic exit-code authority. Permit one bounded correction for the new full-clause attribution/receipt-binding invariant; any recurrence releases blocked and requires another materially fresh Root/Sol architecture.",
+  "target": {
+    "allowed_paths": [
+      "src/agent_loop.py",
+      "src/claim_evidence_gate.py",
+      "src/tool_domains/github_issues.py",
+      "tests/test_claim_evidence_gate.py"
+    ],
+    "outcome": "A local content-free GitHub duplicate-search receipt can support only a closed affirmative self-performed full-clause completion claim without provider or persistence authority."
+  },
+  "verification": {
+    "central": [
+      [
+        "venv\\Scripts\\python.exe",
+        "-B",
+        "scripts\\validate_integration_spine_convergence.py",
+        "--format",
+        "json"
+      ],
+      [
+        "venv\\Scripts\\python.exe",
+        "-B",
+        "scripts\\validate_parallel_roadmap_execution.py",
+        "--format",
+        "json"
+      ],
+      [
+        "venv\\Scripts\\python.exe",
+        "-B",
+        "scripts\\roadmap_multi_agent_guidance.py",
+        "--format",
+        "json"
+      ]
+    ],
+    "dependency": [
+      "venv\\Scripts\\python.exe",
+      "-B",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "tests\\test_claim_evidence_gate.py",
+      "tests\\test_github_issue_tools.py",
+      "tests\\test_agent_loop.py",
+      "tests\\test_tool_transaction_ledger.py",
+      "--basetemp",
+      ".abc-test-tmp\\ABC-AHE-GHISS01-RECOVERY\\dependency"
+    ],
+    "diff_check": [
+      "git",
+      "diff",
+      "--check",
+      "--",
+      "src/agent_loop.py",
+      "src/claim_evidence_gate.py",
+      "src/tool_domains/github_issues.py",
+      "tests/test_claim_evidence_gate.py"
+    ],
+    "focused": [
+      "venv\\Scripts\\python.exe",
+      "-B",
+      "-m",
+      "pytest",
+      "-q",
+      "-p",
+      "no:cacheprovider",
+      "tests/test_claim_evidence_gate.py::test_github_issue_claim_language_ignores_negated_hypothetical_and_quoted_text",
+      "tests/test_claim_evidence_gate.py::test_github_issue_create_set_fields_and_sync_claims_remain_unsupported",
+      "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_does_not_borrow_authority_across_mixed_clauses",
+      "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_rejects_generic_exit_zero_and_live_gate_packets",
+      "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_requires_affirmative_self_performed_full_clause",
+      "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_requires_exact_verified_receipt",
+      "tests/test_claim_evidence_gate.py::test_github_issue_event_forward_is_content_free_and_detached",
+      "tests/test_claim_evidence_gate.py::test_github_issue_receipt_rejects_hostile_mapping_wrong_types_extra_fields_and_mutation",
+      "--basetemp",
+      ".abc-test-tmp\\ABC-AHE-GHISS01-RECOVERY\\focused"
+    ],
+    "static": [
+      "venv\\Scripts\\python.exe",
+      "-B",
+      "-m",
+      "py_compile",
+      "src\\agent_loop.py",
+      "src\\claim_evidence_gate.py",
+      "src\\tool_domains\\github_issues.py",
+      "tests\\test_claim_evidence_gate.py"
+    ],
+    "tests_first": {
+      "collect": [
+        "venv\\Scripts\\python.exe",
+        "-B",
+        "-m",
+        "pytest",
+        "--collect-only",
+        "-q",
+        "tests/test_claim_evidence_gate.py::test_github_issue_claim_language_ignores_negated_hypothetical_and_quoted_text",
+        "tests/test_claim_evidence_gate.py::test_github_issue_create_set_fields_and_sync_claims_remain_unsupported",
+        "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_does_not_borrow_authority_across_mixed_clauses",
+        "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_rejects_generic_exit_zero_and_live_gate_packets",
+        "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_requires_affirmative_self_performed_full_clause",
+        "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_requires_exact_verified_receipt",
+        "tests/test_claim_evidence_gate.py::test_github_issue_event_forward_is_content_free_and_detached",
+        "tests/test_claim_evidence_gate.py::test_github_issue_receipt_rejects_hostile_mapping_wrong_types_extra_fields_and_mutation"
+      ],
+      "red": [
+        "venv\\Scripts\\python.exe",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "tests/test_claim_evidence_gate.py::test_github_issue_claim_language_ignores_negated_hypothetical_and_quoted_text",
+        "tests/test_claim_evidence_gate.py::test_github_issue_create_set_fields_and_sync_claims_remain_unsupported",
+        "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_does_not_borrow_authority_across_mixed_clauses",
+        "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_rejects_generic_exit_zero_and_live_gate_packets",
+        "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_requires_affirmative_self_performed_full_clause",
+        "tests/test_claim_evidence_gate.py::test_github_issue_duplicate_claim_requires_exact_verified_receipt",
+        "tests/test_claim_evidence_gate.py::test_github_issue_event_forward_is_content_free_and_detached",
+        "tests/test_claim_evidence_gate.py::test_github_issue_receipt_rejects_hostile_mapping_wrong_types_extra_fields_and_mutation",
+        "--basetemp",
+        ".abc-test-tmp\\ABC-AHE-GHISS01-RECOVERY\\tests-first"
+      ]
+    }
+  },
+  "writer_dispatch_authorized": false
+}
