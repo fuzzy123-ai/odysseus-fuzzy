@@ -1,0 +1,85 @@
+{
+  "acceptance": [
+    "Capture one immutable runtime identity tuple exactly once per complete claim parse, before parsing its first regression command: raw sys.executable, sys.prefix, sys.base_prefix and os.path.realpath(sys.executable). Pass that captured tuple unchanged into every _command_spec call for the claim; _command_spec must not recapture, discover or normalize runtime authority independently.",
+    "Immediately before every regression command is parsed and immediately after the final command has been parsed, compare the live sys.executable, sys.prefix, sys.base_prefix and os.path.realpath(sys.executable) values with the one captured tuple by exact string identity. Any difference fails the complete claim parse closed and returns no accepted command set.",
+    "Preserve the historical launcher literal venv\\Scripts\\python.exe. Additionally accept argv[0] only when it exactly equals the captured sys.executable string, os.path.isabs(captured sys.executable) is true, captured sys.prefix differs from captured sys.base_prefix and the captured realpath exactly equals the live realpath checks around each command.",
+    "Exact identity means no PATH lookup, environment launcher, basename match, case folding, separator normalization, normpath, resolve-only alias, samefile-only alias, prefix heuristic or arbitrary absolute interpreter. The original argv remains unchanged in CommandSpec and in every command-manifest digest.",
+    "The boundary guarantees runtime identity only during validation of the complete claim command list. It makes no execution-time identity guarantee after CommandSpec or the accepted command set is returned; execution-time integrity is outside this slice.",
+    "A monkeypatch or runtime mutation already present before the one capture is the captured authority and is not detectable as drift by this contract. Only changes after capture and through the mandatory post-final comparison are drift; tests and documentation must not claim stronger provenance.",
+    "All existing closed command shape, shell-token rejection, URL rejection, forbidden-tool rejection, allowlisted pytest/py_compile/validator grammar, tier-specific basetemp equality, artifact-scope containment and digest constraints remain byte-for-byte semantically unchanged after launcher acceptance.",
+    "Before a future writer starts, Root re-reads the exact two baselines and Rev299 pins: Open Work 3709e470a777da97943d3d00f95a6ac7219e8294; Round6 284dbe55bf6efac90fc606c29ce40a437875a9f8; Round7 93e1ca5129a07a2539a3ca1cf7f191c0a305d0f3; Guidance 71dcf844bba2778b5f7c0376759a8a2ec91d0b9f; guidance script 8973fbdcb9b7cb7eec5ae9f03dd8f9acffdd544c; parallel validator 22d5be1db6f58906d9fa5132c46a5f358daae300; parallel tests 1504f56759b71c69157dcfdadc5ca172d8cae9f1; guidance tests 584c7a5635e0996e06b2c149f378239a3273ca7d; AMH packet c9b63a60f641b5ae827b1c6e6f555fdb43c842ef; AMH terminal Evidence 487f90171ac6c884cb84616ad833d9883f0f6eea.",
+    "The five named tests are authored tests-first and the focused, full-module, dependency, central, static, independent-QA and Root/Sol tiers all pass on one frozen two-path candidate tuple. This packet grants neither writer nor live authority."
+  ],
+  "allowed_paths": [
+    "scripts/validate_integration_spine_convergence.py",
+    "tests/test_integration_spine_convergence.py"
+  ],
+  "architect": "root/Sol",
+  "architecture_revision": "R7-PYRUN-01-CURRENT-VIRTUALENV-COMMAND-BOUNDARY-RECOVERY-SOL-ARCH-v1",
+  "baseline_blobs": {
+    "scripts/validate_integration_spine_convergence.py": "b7633219b137bd24bce4cc993e9b5db6bbda2b48",
+    "tests/test_integration_spine_convergence.py": "651e8be5492714a92ded48f457055861f9c5e244"
+  },
+  "baseline_readback": {
+    "genesis_paths": [],
+    "genesis_readback": "captured_absent_paths_exact_readback_pass",
+    "materialized_paths": [
+      "scripts/validate_integration_spine_convergence.py",
+      "tests/test_integration_spine_convergence.py"
+    ],
+    "materialized_readback": "materialized_exact_binary_readback_pass",
+    "mode": "materialized_repo_genesis_partition_v1",
+    "schema_version": 1
+  },
+  "correction_budget": {
+    "failure_class": "r7_current_virtualenv_command_identity_and_legacy_compatibility",
+    "limit": 1,
+    "on_repeat": "release_blocked_and_require_fresh_root_sol_architecture",
+    "used": 0
+  },
+  "forbidden": [
+    "A third writer path, router change, Evidence change, policy change, product change or implementation before a separately persisted and validated claim.",
+    "Capturing sys.executable, sys.prefix, sys.base_prefix or realpath separately per command; mutating the captured tuple; omitting the comparison before any command; or omitting the comparison after the final command.",
+    "Claiming detection of a monkeypatch or mutation that existed before runtime identity capture, or claiming any execution-time identity guarantee after CommandSpec or the accepted command set is returned.",
+    "PATH search; environment lookup; env, /usr/bin/env or shell wrappers; interpreter discovery; executable-version probes; basename inference; case-folding; separator or dot-segment normalization; samefile-only identity; resolve-only identity; or arbitrary absolute-interpreter acceptance.",
+    "Changing the accepted command shapes, shell and URL rejection, forbidden-tool list, artifact boundary, persisted basetemp identity, original argv representation or command/candidate digest inputs.",
+    "Treating executable existence, an executable bit, a virtualenv-looking directory, successful subprocess output, a passing weak test or this architecture packet as writer, stage, commit, push, deploy, network, UI, provider, host, private-data, send or live authority."
+  ],
+  "hostile_matrix": [
+    "The exact historical venv\\Scripts\\python.exe literal remains accepted under every existing downstream command constraint.",
+    "The exact captured absolute sys.executable is accepted only while captured sys.prefix differs from captured sys.base_prefix and all before-command and post-final runtime identity comparisons remain exact.",
+    "python, python3, py, env, /usr/bin/env, command shims and PATH aliases are rejected even when they would execute the captured interpreter.",
+    "A different absolute interpreter, sibling virtualenv interpreter, same-basename interpreter, relative sys.executable, empty/non-string executable or base-environment prefix equality is rejected.",
+    "Case-only, separator-only, dot-segment, parent-segment, normalized, symlink, samefile and resolved-only aliases are rejected because argv[0] must exactly equal the captured raw sys.executable.",
+    "Changing raw sys.executable, sys.prefix, sys.base_prefix or realpath after capture but before any command, between commands or before the post-final comparison rejects the complete claim command set.",
+    "One capture is reused by object identity or immutable value identity across every _command_spec call; any per-command recapture test double fails.",
+    "A monkeypatch established before capture is not reported as drift, and a mutation after the post-final comparison is not claimed to be prevented by this validation-only boundary.",
+    "An accepted launcher combined with newline, carriage return, semicolon, &&, ||, pipe, redirection, URL text, a forbidden tool, a nonallowlisted script or malformed command shape remains rejected.",
+    "An accepted launcher with missing, duplicate, escaped or wrong-tier --basetemp, or with an artifact outside exact writer plus read-only-pin scope, remains rejected.",
+    "Changing only argv[0] changes command-manifest and candidate digest inputs; no compatibility rewrite collapses historical and current-runtime launcher identities.",
+    "Authority, packet, baseline, pin, claim, lease, test-node, candidate or runtime-capture drift before freeze invalidates the future implementation run."
+  ],
+  "kind": "odysseus.sol_materialized_repo_genesis_architecture",
+  "named_tests": [
+    "tests/test_integration_spine_convergence.py::test_command_spec_accepts_legacy_and_exact_current_virtualenv_executable",
+    "tests/test_integration_spine_convergence.py::test_command_spec_rejects_path_alias_env_and_arbitrary_absolute_interpreters",
+    "tests/test_integration_spine_convergence.py::test_command_spec_rejects_relative_or_non_virtualenv_current_executable",
+    "tests/test_integration_spine_convergence.py::test_command_spec_rejects_symlink_realpath_and_runtime_identity_drift",
+    "tests/test_integration_spine_convergence.py::test_command_spec_preserves_shell_url_artifact_basetemp_and_digest_guards"
+  ],
+  "origin_mode": "materialized_repo_genesis",
+  "published_round7_revision": 299,
+  "schema_version": 1,
+  "slice_id": "R7-PYRUN-01-current-virtualenv-command-boundary-recovery",
+  "state": "frozen",
+  "stop_rule": "Stop before claim registration or any writer edit on target collision; authority, architecture, baseline or Rev299 pin drift; overlapping paths; active-claim or lease conflict; a third path; unavailable tests-first lane; nonexact or mutable runtime capture; missing before-command or post-final comparison; shell, URL, artifact, basetemp or digest broadening; or any implied writer/live authority. After one correction in r7_current_virtualenv_command_identity_and_legacy_compatibility, release blocked and require fresh Root/Sol architecture.",
+  "threat_model": "A platform-specific historical Windows launcher can make valid local verification impossible, while an overbroad recovery could trust a PATH-controlled, environment-selected, symlink-substituted or arbitrary interpreter and could weaken command, artifact, basetemp or digest authority. Capture one validation-time runtime identity per complete claim parse, reuse it immutably across all command parsing, detect only post-capture drift through the final comparison, preserve the historical literal and admit the current absolute virtualenv executable only by exact identity. This architecture intentionally grants no implementation, publication or live authority and promises no execution-time interpreter integrity after validation returns.",
+  "verification_tiers": {
+    "central": "Run the Integration Spine, Parallel Roadmap and Multi-Agent Guidance validators after registration and after candidate freeze against the exact Rev299 pins; all three must pass.",
+    "dependency": "Run the complete tests/test_integration_spine_convergence.py module plus tests/test_parallel_roadmap_execution.py and tests/test_roadmap_multi_agent_guidance.py under exact persisted claim basetemps and read-only pins.",
+    "expensive_live": "not_run_not_required_not_authorized",
+    "focused": "Author the five named nodes tests-first, observe only the intended launcher-boundary RED state, then require all five nodes and the full integration-spine module to pass on the exact two candidate blobs.",
+    "independent_qa": "A fresh hostile reviewer exercises one-capture reuse, before-each and post-final comparisons, pre-capture monkeypatch limits, post-return guarantee limits, aliases, env wrappers, arbitrary absolutes, non-virtualenv state, symlink/realpath drift, shell/URL tokens, basetemp escape, artifact escape and digest substitution.",
+    "sol_review": "Root/Sol re-derives the two-launcher allowlist, validation-time-only identity guarantee, immutable per-claim capture, exact drift windows, unchanged downstream constraints, exact 19-field packet, two-path scope, 0/1 correction budget and zero writer/live authority; static checks require strict duplicate-free JSON, UTF-8 LF with final LF, less than 25600 bytes, py_compile for both writer paths and git diff --check."
+  }
+}
