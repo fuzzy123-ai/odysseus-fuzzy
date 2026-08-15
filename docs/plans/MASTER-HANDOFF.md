@@ -1,6 +1,6 @@
 # Odysseus Master Handoff
 
-Snapshot: 2026-08-15T06:38:09+02:00, Europe/Berlin
+Snapshot: 2026-08-15T07:19:00+02:00, Europe/Berlin
 Continuity deadline: 2026-08-16 00:00 Europe/Berlin
 Canonical authority at snapshot: Open Work / Round 7 Revision 302
 Verified progress: 173 accepted of 245 canonical units
@@ -62,11 +62,10 @@ Newer accepted/released records override stale earlier `planned`, `blocked`, or
 - Purpose: complete structured authority, accepted product work, foreign work,
   and historical evidence.
 - Branch at snapshot: `codex/implemenetaion`.
-- Authority snapshot HEAD: `553222ff7964bafae63ae8b885a1751cbc53433d`.
-  This snapshot includes the durable AHE-GHISS01-RECOVERY-REV302 registration;
-  the current writer claim is still uncommitted product work in its exact
-  detached checkout. The descriptive handoff refresh itself is intentionally
-  uncommitted.
+- Authority snapshot HEAD: `7d419494e99666ce20ecd87e9e28cc25150e6a24`.
+  This snapshot includes the terminal Rev302 AHE release Evidence; no active
+  claim or lease remains. The descriptive handoff refresh itself is
+  intentionally uncommitted.
 - Latest AMH-01 lifecycle commits: Rev299 terminal router `c9d6f601`, terminal
   Evidence `2e68ebf7`, Rev298 claim registration `06f65fb4`, registration
   Evidence `7e91d2e5`, and closed materialized-genesis architecture `07715e94`.
@@ -283,22 +282,34 @@ Current external blockers:
   reviewed deterministic candidate. Do not recompute or replace the
   denominator from stale prose; re-open denominator work only if a current
   source or authority byte changes and the routers explicitly invalidate it.
-- Exactly one repo claim and lease are active at Revision 302:
-  `ABC-AHE-GHISS01-RECOVERY-REV302`. It owns only
-  `src/agent_loop.py`, `src/claim_evidence_gate.py`,
-  `src/tool_domains/github_issues.py`, and
-  `tests/test_claim_evidence_gate.py`; its lease expires at
-  `2026-08-15T23:30:00+02:00`. The writer checkout is
-  `/mnt/c/Users/nkatz/Documents/odysseus-ahe-ghiss01-rev302`, detached at
-  execution baseline `4efda592376080e8afd11709ab38e04db29a5ba5`.
-  Architecture packet raw blob is
-  `7164d0317f6bd2d280412af3513d9f52d21a9c44`, semantic digest
-  `sha256:e2e3d22e3bce3a5fbff8e38980f0b32ba4416e009b5aecfac1647793e28f29d7`,
-  registration Evidence is `2f616d23fb60a8f9a745b44000edcd0d0e354916`, and
-  origin digest is
-  `sha256:d157e87b67c6474b5255bdc24df88b02f704e7cfe22809662b6992efb4e651ef`.
-  Integration, Round6 and Guidance validators are all PASS. No other record
-  receives writer authority at Rev302.
+- Zero active claims and zero leases remain at Revision 302. The terminal AHE
+  claim `ABC-AHE-GHISS01-RECOVERY-REV302` is evidence only; it grants no writer,
+  product, stage, commit, push, deploy, provider, host, UI, or live authority.
+  Terminal Evidence is
+  `docs/plans/evidence/abc-ahe-ghiss01-recovery-rev302-terminal-release.json`,
+  raw blob `d0e216ff5393d90cee275e1eb6feeda66a1ffcb4`, state
+  `released_blocked`, correction `1/1`, and product acceptance is false.
+  The frozen tuple is
+  `{src/agent_loop.py:36c47d2c1ce0d2414cefb47903ec92a6b72c5511,
+  src/claim_evidence_gate.py:77c45db5d47d7a2ad2f55841c3072ee99de3d2b3,
+  src/tool_domains/github_issues.py:db9e1a1df5a8b43019842a7e15ff0fbc43ddbdc6,
+  tests/test_claim_evidence_gate.py:e42e36220f8d607a822cb2fbb4e6f5e0fd94994b}`
+  with candidate-set digest
+  `sha256:b90b8635ceba1c206e57be78b08b299b2e0b3cd722ffc4a9f8470bac3411bcda`.
+  The corrected tuple is
+  `{src/agent_loop.py:36c47d2c1ce0d2414cefb47903ec92a6b72c5511,
+  src/claim_evidence_gate.py:0ae4198c3110e3aca14fe67e296cc8fd5b6210ca,
+  src/tool_domains/github_issues.py:db9e1a1df5a8b43019842a7e15ff0fbc43ddbdc6,
+  tests/test_claim_evidence_gate.py:f187c2628a02f7525baa9ea0abf0141846229ff1}`
+  with candidate-set digest
+  `sha256:d6146654c166679bcf1e6f4f2e182df34d7cf97b5a6f655ee5600fa64e13728f`
+  and corrected diff digest
+  `sha256:8df08259ccc0868bd335ae72092b1a1f0e98480bed23bbce9c8a516b7c920023`.
+  Independent QA and Deep-Sol found that the frozen grammar still supported a
+  bare contracted contradiction after an exact positive clause; the sole
+  correction misspelled the contraction as `did['’]t`, so the same class
+  remained RED. Preserve both tuples only at the preservation-only locator
+  `../Documents/odysseus-preserved-ahe-main-prefreeze-rev302`.
 - The non-denominator `ABC-TTD07A6-REV301` claim remains terminally
   `released_blocked` after correction 1/1. Terminal Evidence is
   `docs/plans/evidence/abc-ttd07a6-rev301-terminal-release.json`, blob
@@ -466,10 +477,16 @@ Current external blockers:
   historical evidence, but that blob is superseded by the enriched Rev302
   inventory identified in the canonical open-unit section below. Do not use
   the Rev289 blob for current continuation or claim decisions.
-- The durable Rev302 registration readback binds the exact four paths, clean
-  baseline, packet, Evidence, lease, router raws and origin digest above. The
-  writer is tests-first and candidate state is not yet frozen; no product
-  acceptance, commit, push, deploy or live authority follows from registration.
+- The durable Rev302 terminal readback binds the exact frozen and corrected
+  tuples, terminal Evidence, correction budget and no-product-acceptance state
+  above. Neither tuple may be resumed, patched, frozen, accepted, staged,
+  committed, pushed, deployed, or used as a product baseline.
+- The exact next permitted repo-only work is the disjoint Root/Sol architecture
+  precursor `USI-07A-generation-fenced-cancellable-query-execution` at
+  `docs/plans/abc-usi07a-generation-fenced-cancellable-query-execution-architecture.json`.
+  It is architecture-only and preclaim: runtime, lexical and SQLite owners
+  must freeze one generation-fenced cancellation and join-before-return
+  lifecycle plus exact paths, pins and tests before any USI product claim.
 - `$reflect` after the terminal HWA2A-v5 release selected exactly one disjoint
   repo-only architecture precursor: `AHE-GHISS-01-local-duplicate-search-evidence`.
   Its independently reviewed packet is
@@ -515,22 +532,17 @@ Current external blockers:
   The Rev296 freeze Evidence remains immutable, but Revision 297 terminally
   rejected the candidate on the hostile `str.__ne__` callback counterexample.
   No H1 product result was accepted.
-- A fresh Root/Sol AHE recovery architecture then closed the Rev294
-  whole-sentence negation and mixed-clause attribution failure. Rev302 is the
-  sole active repo-only claim on the four AHE paths. The old Rev294 candidate
+- A fresh Root/Sol AHE recovery architecture was attempted at Rev302, but its
+  terminal Evidence records the same-class contracted-contradiction recurrence
+  after correction 1/1. The four AHE paths are released and unowned. The old Rev294 candidate
   blobs `a0883f67b2ff3f98498d5d03316a7b4189f0f0ab`,
   `69b3f1f43e0cb8f153e99437ce8bed54408e2c8e`,
   `049ebfc51cc02743f8b9f07b8d00719eafe6702d`, and
   `a3b81508251e6e635060d1d6225078257ce3a4de` are permanently rejected and
   cannot be rebound. Rev302 allows only local/read-only evidence handling;
   provider, persistence, GitHub network and live actions remain outside scope.
-- Heartbeat automation `odysseus-open-work-continuous-abc-run` is ACTIVE every
-  minute until `2026-08-16T00:00:00+02:00`. It names the canonical checkout and
-  the public-safe projection clone identified by the exact branch/HEAD/base/
-  clean-status tuple in section 3, requires one bounded
-  progress unit or an evidence-backed no-op, invokes `$reflect` on ordinary
-  blockers, forbids identical retries, and keeps external-action approval
-  blockers from stopping disjoint safe work.
+- The time-bounded continuity monitor recorded by structured authority grants no
+  claim, lease, writer, push, deploy, provider, host, UI, or live authority.
 - The terminal HWA2A-v5 predecessor is
   `docs/plans/abc-hwa2a-typed-commit-authority-reconstruction-v5-architecture.json`,
   raw blob `03cb39a51f8212b6f0581d0254b38ed804e7b00b`, raw SHA-256
@@ -580,10 +592,10 @@ a snapshot.
 | OWM-16 Codebase Memory | CBM-08 accepted; CBM-09 blocked | Close the declared CBM-09 dependencies before a claim. Keep engine process, hooks, auto-config, productive projection, and direct upstream tools disabled. |
 | OWM-17 Code lineage | CLT-00 accepted; CLT-01 contract next | Use synthetic Git fixtures and read-only history. Preserve first-observable/uncertainty semantics and defer real backfill. |
 | OWM-18 Lens Code Graph | Waits on bounded graph API | Start LCG-00 only after the bounded CBM graph API and one UI-hotfile owner. Fixtures/backend first; no productive graph or placement. |
-| OWM-19 USI runtime | UIR core advanced; runtime default-off | UIR-03A Go-A R2 is accepted despite stale blocked prose. Reconcile the exact next UIR-03 hotfile handoff, then follow UIR-12 -> NMG-07 -> UIR-12A. Do not resurrect rejected UIR-03A candidates. |
+| OWM-19 USI runtime | UIR core advanced; runtime default-off | UIR-03A Go-A R2 is accepted despite stale blocked prose. The next permitted work is the Root/Sol USI-07A architecture precursor only; freeze generation-fenced cancellation and join-before-return owner/lifecycle contracts before any product claim. |
 | OWM-20 Domain adapters | UDA-05 v4 and NMG-03 accepted; productive adapters off | Re-audit selected-scope adapter dependencies and continue only an exact fresh claim. Deferred communication domains and Obsidian remain excluded. |
 | OWM-21 Lifecycle/operations | ULO-00/01 accepted; later chain open | Continue the existing ULO dependency chain with synthetic owners and temporary databases. Serialize Auth/backup/wipe hotfiles; every productive lifecycle effect has its own gate. |
-| OWM-22 Telegram Todo truth | Through A5 accepted; A6 Rev301 released blocked | Preserve Notes as Todo truth. `ABC-TTD07A6-REV301` is a terminal non-denominator release after correction 1/1; the original frozen and corrected tuples are rejected, with no product commit or acceptance. The current safe repo-only action is the active AHE-GHISS01 Rev302 tests-first claim on its four exact paths. |
+| OWM-22 Telegram Todo truth | Through A5 accepted; A6 Rev301 released blocked | Preserve Notes as Todo truth. `ABC-TTD07A6-REV301` is a terminal non-denominator release after correction 1/1; the original frozen and corrected tuples are rejected, with no product commit or acceptance. The current safe repo-only action is the disjoint USI-07A Root/Sol architecture precursor; no product claim is permitted. |
 | OWM-23 Maintenance harness | AMH-01 verification claim terminally released blocked at Rev299; AMH-02/03 unselected | Do not repeat the old explicit-goal gate: the standing full-roadmap goal selected AMH-01. Before another AMH claim, fresh authority must repair or narrow the executable command/dependency contract that failed before freeze. Extend existing policy/gate/Planning authorities; no parallel state store. |
 | OWM-24 Local transcription | TRP-03..06 accepted; TRP-07 terminal; live off | Newer structured records accept TRP-05 (2026-08-02, independent QA and Deep-Sol) and TRP-06 (`released_accepted`, commit `871ffe64`), overriding the older deferral sentence. Publish only that accepted/default-off lineage plus the reviewed Python 3.11 repair. TRP-07 remained unaccepted after fresh architecture plus two recovery corrections; no third recovery without a new architecture and claim, and no live audio/deploy claim without exact evidence. |
 | OWM-25 Coding loop consolidation | Many CAO/NMG slices accepted | Do not blindly follow stale `ACPR-11 next` prose: current history already contains later ACPR-13D acceptance. Re-run the current frontier audit and claim only the first genuinely unaccepted disjoint predecessor. |
@@ -612,7 +624,7 @@ structured authority can open a writer claim.
 | `headless-write-agent-orchestration-roadmap.md` | `[4]` / `HWA-2-canonical-subagent-commit-bridge` | OWM-3 support | `normalization_blocked_fresh_architecture_required` | `HWA2-...` is the non-counting historical spelling of this one unit. Any product recovery needs materially fresh architecture and must not revive HWA2A v2. |
 | `system-assurance-runtime-hardening-roadmap.json` | `[5]` / `SAR-02-fresh-release-evidence` | Assurance gate | `blocked_environment` | Wait for the required symlink-capable environment. |
 | `temporal-light-agent-execution-roadmap.json` | `[6]` / `TLR-10-12h-wall-clock-soak` | Temporal gate | `waiting_on_user` | Wait for exact workload, window, limits, and restart injection. |
-| `anti-hallucination-evidence-roadmap.md` | `[7]` / `ANTI-HALLUCINATION-next-domain-audit` | Evidence audit | `ABC-AHE-GHISS01-RECOVERY-REV302 active` | Continue tests-first only in the exact four claimed paths; keep every provider/live GitHub action unsupported. |
+| `anti-hallucination-evidence-roadmap.md` | `[7]` / `ANTI-HALLUCINATION-next-domain-audit` | Evidence audit | `Rev302 terminal released_blocked, correction 1/1` | Preserve the frozen/corrected tuples and terminal Evidence; permit only the disjoint USI-07A Root/Sol architecture precursor, never an AHE product claim. |
 | `live-contextual-layer-roadmap.json` | `[8]` / `LCL-01-observation-and-hypothesis-contract` | OWM-27 | `waiting_on_explicit_implementation_goal` | Wait for explicit implementation goal and claim. |
 | `gemma3-memory-ops-optimization-roadmap.md` | `[9]` / `GMI-LIVE-ACTIVATION` | OWM-13 | `waiting_on_user_live_gate` | Keep disabled; revalidate only against native UIR-13 evidence. |
 | `graphrag-raptor-observability-prometheus-grafana-roadmap.md` | `[10]` / `GRO-native-successor-routing` | OWM-14 | `superseded_no_repo_slice` | Preserve evidence; route reusable proof to native successors. |
@@ -836,7 +848,8 @@ impossible self-pin without mixing authority epochs.
   `$.roadmap_frontiers[8].slice`.
 - OWM-28: Round 7 `$.waves[0].slices[2].execution_claim` holds the terminal
   R7-A2 R3R1 release. At Revision 302 the long-run and Open Work projections
-  contain exactly the sole active AHE-GHISS01 recovery claim and lease;
+  contain zero active claims and zero leases; the AHE-GHISS01 recovery is
+  terminal Evidence only;
   `ABC-HWA2A-V5-REV290` is terminally released blocked and retained only as
   rejected evidence.
 
@@ -927,7 +940,8 @@ Round 6 row, Open Work history, and any newer accepted record.
   12-hour window, limits, restart injection, and evidence path are exact.
 - Open Work preclaim boundaries: FCA-03 needs an accepted resumable,
   revision-bound Forge content reader; UIR-06 needs generation-fenced
-  cancellable query execution and owner decisions; USI-07A needs owner and
+  cancellable query execution and owner decisions; USI-07A is the exact next
+  Root/Sol architecture precursor and needs runtime, lexical and SQLite owner
   lifecycle contracts; CBM-09 needs the runtime and generation contracts.
   Reconcile these read-only and never invent a parallel API or authority.
 - Historical `queue_status` fields may still carry older labels and
@@ -936,8 +950,9 @@ Round 6 row, Open Work history, and any newer accepted record.
   `$.current_position.full_goal_progress.long_run_checkpoint` and Round 7
   `$.long_run_state.global_goal_progress.long_run_checkpoint` were normalized
   at Revision 286 to `173/245`, the current deadline, and the verified
-  denominator state. Current Rev302 authority has exactly one active claim and
-  one lease, the AHE-GHISS01 recovery claim described in section 6. TTD-07A6 is a terminal non-denominator released-blocked claim after
+  denominator state. Current Rev302 authority has zero active claims and zero
+  leases. The AHE-GHISS01 recovery claim described in section 6 is terminal
+  evidence only. TTD-07A6 is a terminal non-denominator released-blocked claim after
   correction 1/1, as described in section 6. Its terminal history includes the
   blocked PYRUN frozen candidate, the blocked-before-freeze AMH-01 verification
   claim, the blocked H1-29 frozen candidate, the blocked
@@ -974,7 +989,8 @@ baseline for a new claim without a materially fresh architecture transaction.
    checkout before any write.
 3. Recompute Open Work/Round 6/Round 7 raw blobs with `--no-filters`; filtered
    Round 6 hashes are invalid because of CRLF projection. Confirm Revision 302,
-   exactly the sole AHE active claim and lease, plus terminal TTD-07A6, PYRUN, AMH-01,
+   zero active claims and zero leases, the terminal AHE Evidence and exact
+   frozen/corrected tuples, plus terminal TTD-07A6, PYRUN, AMH-01,
    H1-29, AHE-GHISS01 and HWA2A-v5 records and all packet/Evidence identities
    from section 6 before any new writer work.
 4. Preserve accepted `ABC-RMT8-V2-REV278` exactly as frozen and released at
@@ -983,10 +999,11 @@ baseline for a new claim without a materially fresh architecture transaction.
 5. Do not resume TTD-07A6: its original frozen and corrected tuples are
    terminally rejected after correction 1/1, with terminal Evidence blob
    `6c98365320916e382e8c24b4d860647c91a32793` and no product acceptance. The
-   current safe repo-only action is the already-registered AHE-GHISS01 Rev302
-   tests-first claim. Continue only on its four paths; preserve
-   terminal PYRUN, R7-A2 R3R1, HWA2A-v4/v5, AHE-GHISS01, H1-29, AMH-01 and TTD
-   evidence without another patch or candidate reuse.
+   current safe repo-only action is the disjoint Root/Sol USI-07A architecture
+   precursor; preserve terminal PYRUN, R7-A2 R3R1, HWA2A-v4/v5, AHE-GHISS01,
+   H1-29, AMH-01 and TTD evidence without another patch or candidate reuse.
+   Do not resume the AHE product mechanism, register a USI product claim, or
+   write product paths before its owner/lifecycle contract is accepted.
 6. The public independent scope review and one-parent/one-commit ancestry are
    complete. No exact action-specific push phrase is currently present, so
    keep push and CI-triggering publication closed.
@@ -1058,8 +1075,8 @@ answer all of the following from repository files alone:
 - What exact redacted deployment, backup, rollback, and health route applies?
 - Which single external action, if any, is still awaiting platform approval?
 
-Current checklist status: **PASS for context-free Rev302 continuity with one
-active AHE claim and lease**. The terminal TTD-07A6 Evidence and rejected frozen
+Current checklist status: **PASS for context-free Rev302 continuity with zero
+active claims and leases**. The terminal AHE Evidence and rejected frozen
 and corrected tuples are described above; the enriched 72-record inventory
 contains every required writer-path, test, evidence, authority and drift field,
 preserves all counts and IDs, and is canonical sorted-key JSON+LF. This handoff
@@ -1085,11 +1102,16 @@ identities, release evidence, open-lane rows, immediate sequence, and
   before freeze; no product bytes were accepted. Valid 12/12 tests-first RED,
   py_compile, diff-check and terminal Deep-Sol are verified. Complete focused
   GREEN, dependency, product-central and independent-QA evidence do not exist.
-- AHE-GHISS-01 product acceptance. Revision 294 terminally rejected the old
-  materialized four-blob candidate after a same-class negated-language
-  recurrence with correction 1/1. Rev302 is active tests-first on fresh
-  architecture and clean baselines; no candidate freeze or final acceptance QA
-  has occurred. GitHub provider, persistence and live behavior remain outside scope.
+- AHE-GHISS-01 product acceptance. Revision 302 terminally released the exact
+  frozen and corrected four-path tuples blocked after the same-class contracted
+  contradiction recurrence at correction 1/1. Terminal Evidence is
+  `docs/plans/evidence/abc-ahe-ghiss01-recovery-rev302-terminal-release.json`
+  with raw blob `d0e216ff5393d90cee275e1eb6feeda66a1ffcb4`; no product was
+  accepted. GitHub provider, persistence and live behavior remain outside scope.
+- USI-07A product acceptance. No product claim exists. Only a Root/Sol
+  architecture precursor is permitted, to freeze runtime, lexical and SQLite
+  owner/lifecycle contracts for generation-fenced cancellation and
+  join-before-return before any product path or claim is registered.
 - H1-29 product acceptance. Rev297 terminally rejected the exact frozen
   candidate after valid RED, focused 8/8, dependency 311/311, static and central
   PASS because Deep-Sol proved same-class hostile callback execution with
