@@ -19,7 +19,7 @@
   },
   "baseline_readback": "standalone_detached_commit_4efda592376080e8afd11709ab38e04db29a5ba5_exact_four_blobs_status_and_index_empty",
   "claim_id": "ABC-AHE-GHISS01-RECOVERY-REV302",
-  "continuation_inventory_blob": "42fec8b766a55a5e8851667ec6b37082f19f8869",
+  "continuation_inventory_blob": "b65a2c63cc1f217d955f99b7378cfd5b5bfadd7d",
   "correction_budget": {
     "after_repeat": "stop_and_rearchitect",
     "failure_class": "ahe_ghiss01_affirmative_self_performed_full_clause_attribution_and_receipt_binding",
