@@ -1,0 +1,79 @@
+{
+  "acceptance_evidence": "Pre-correction evidence: exact 5/5 contract RED, 5/5 focused, 63/63 complete claimed modules, 17/17 bounded transport, pycompile and all three post-freeze central validators passed. Independent QA and Deep-Sol rejected the frozen tuple. Correction tests were 2 failed/3 passed before source and 4 passed/1 failed after the only source correction. The complete declared dependency tier remained nonterminal due two controlled hangs. No product accepted.",
+  "architecture_digest_sha256": "sha256:8b7ed41636e7252d297791c5ed612ccc337b30a0e73b9238552e087c1e182a53",
+  "architecture_path": "docs/plans/abc-ttd07a6-archived-session-tail-one-turn-architecture.json",
+  "architecture_raw_blob": "67ba11db3f1293fc3458bb5191515b3d99633c1f",
+  "authority_revision": 301,
+  "bounded_transport_before_correction": "17_passed",
+  "candidate_command_manifest_digest_sha256": "sha256:a1c9199515a3ab5b2f1fa5f8a1d95cdcdd46b8b13337e7aa2a6b9c84a11e5f49",
+  "candidate_pytest_node_manifest_digest_sha256": "sha256:bbf866e2ebc1a313b7e8960e860fe36a82b3d47f420a3e89a2a83fb3424cecee",
+  "candidate_state": "rejected_corrected_candidate_after_same_class_recurrence",
+  "central_before_correction": {
+    "guidance": "pass",
+    "integration": "pass_after_freeze",
+    "round6": "pass"
+  },
+  "claim_id": "ABC-TTD07A6-REV301",
+  "corrected_candidate_blobs": {
+    "app.py": "fa29e0d397c0d6aef8d032ba6bdba08e07f3d5c2",
+    "src/telegram_context_policy.py": "0e54cb644ef445ba8c765a04645eebc038d7171d",
+    "src/telegram_session_rollover.py": "317941b4ac7e0abc8c7df6b5ed419a8ebcdded9c",
+    "tests/test_telegram_context_policy.py": "9ec066b5cb1fa35d1963530d07354ac7cb61171b",
+    "tests/test_telegram_session_rollover.py": "8437eb1c9556517a11ef76a6292ba7a22e829302"
+  },
+  "corrected_candidate_set_digest_sha256": "sha256:6ef57f5599a558064937ed3b8bcfc4cf3493ddb86e440725208cc82081a89bdf",
+  "corrected_diff_sha256": "sha256:fdacab3951ed6bb57dea7cff6fec7fbd6bdae618a335375ee89b6187641f0059",
+  "correction_budget": {
+    "after_repeat": "stop_and_rearchitect",
+    "failure_class": "ttd07a6_ephemeral_archived_tail_fence_and_one_turn_untrusted_carryover",
+    "limit_per_invariant": 1,
+    "used": 1
+  },
+  "dependency": {
+    "first_hang": "12 passed then test_status_route_returns_redacted_readiness; controlled exit 130",
+    "second_hang": "11 passed then test_polling_route_reads_rollover_runtime_from_app_context; controlled exit 130",
+    "state": "not_terminal_green"
+  },
+  "final_deep_sol": {
+    "finding": "same two pre-correction failures; static review otherwise confirmed commit publication, locking, generation fencing, restart loss and public API preservation",
+    "result": "fail"
+  },
+  "focused_before_correction": "5_passed",
+  "freeze_evidence_path": "docs/plans/evidence/abc-ttd07a6-rev301-registration.json",
+  "freeze_evidence_raw_blob": "3be921fb640642df177c067429c13ce8fd9badbc",
+  "frozen_candidate_blobs": {
+    "app.py": "06efd9bcbc953dbe724dcceaecd2afb9083adb67",
+    "src/telegram_context_policy.py": "5f8396f26b099563103baacf012f627abf41ede7",
+    "src/telegram_session_rollover.py": "317941b4ac7e0abc8c7df6b5ed419a8ebcdded9c",
+    "tests/test_telegram_context_policy.py": "8393bae12bb1b11018d4da1dfa6d8d290629efb6",
+    "tests/test_telegram_session_rollover.py": "8437eb1c9556517a11ef76a6292ba7a22e829302"
+  },
+  "frozen_candidate_set_digest_sha256": "sha256:8d5dd99cb635e46bf05a8d7226bf7e90e84461599155c837f725b8399454dd78",
+  "full_claim_modules_before_correction": "63_passed",
+  "independent_qa": {
+    "findings": [
+      "workflow-blocked turn consumed tail before eligibility",
+      "direct 4001-character tail emitted an oversized envelope"
+    ],
+    "result": "fail"
+  },
+  "kind": "odysseus.abc_terminal_claim_evidence",
+  "live_actions": false,
+  "product_accepted": false,
+  "recovery": "Fresh Root/Sol architecture must decide and test body-character versus projected-envelope accounting, then register a new claim. Do not patch or accept either rejected tuple.",
+  "release_outcome": "released_blocked_same_class_recurrence_after_correction_1_of_1",
+  "released_at": "2026-08-15T05:55:00+02:00",
+  "schema_version": 1,
+  "slice_id": "TTD-07A6-archived-session-tail-first-turn-carryover",
+  "state": "released_blocked",
+  "static_before_correction": {
+    "diff_check": "pass",
+    "pycompile": "pass"
+  },
+  "terminal_finding": "The single correction closed direct oversize input at the projected-string boundary, but the selector contract counts 4000 message-body characters before required role labels. A valid exact-4000-body six-message tail therefore exceeds 4000 after projection and is rejected. The packet does not decide body budget versus full projected-envelope budget consistently.",
+  "tests_first": {
+    "correction_red": "2_failed_3_passed_exact_review_findings",
+    "initial": "5_failed_0_passed_contract_only",
+    "post_correction": "4_passed_1_failed_same_class_recurrence"
+  }
+}
