@@ -4901,7 +4901,7 @@
     "tests/test_integration_spine_convergence.py::test_command_spec_rejects_relative_or_non_virtualenv_current_executable",
     "tests/test_integration_spine_convergence.py::test_command_spec_rejects_symlink_realpath_and_runtime_identity_drift"
    ],
-   "candidate_state": "frozen_for_independent_qa",
+   "candidate_state": "rejected_frozen_candidate",
    "claim_class": "repo_claim_v2",
    "claim_id": "ABC-R7-PYRUN01-REV300",
    "claim_transfer": {
@@ -5040,7 +5040,7 @@
     "read_only_pin_drift",
     "rolling_inventory_member_count_digest_or_denominator_drift"
    ],
-   "state": "running",
+   "state": "released_blocked",
    "thread_id": "01a00308-ab0c-7393-acfd-b83c4c291819",
    "verification_tiers": {
     "central": "Integration Spine, Round6 and Guidance validators",
@@ -5051,7 +5051,14 @@
    "candidate_frozen_at": "2026-08-15T04:09:12+02:00",
    "candidate_set_digest_sha256": "sha256:ba6b6c7b220f2410ff3fdde4601a023270d2cb0694ac70b68a03257594118e5f",
    "candidate_command_manifest_digest_sha256": "sha256:8cd700ef80c8f8eb8063916db7f889dcfe679a0027bd6dce3c832b01734a4010",
-   "candidate_pytest_node_manifest_digest_sha256": "sha256:ba559adc0141cb5d964ce84f3bca0bb39f37bb0edfee7ca598dd07cab6158754"
+   "candidate_pytest_node_manifest_digest_sha256": "sha256:ba559adc0141cb5d964ce84f3bca0bb39f37bb0edfee7ca598dd07cab6158754",
+   "released_at": "2026-08-15T04:32:23+02:00",
+   "released_reason": "The frozen source boundary passed focused, full Integration, static and central verification, but the declared three-file dependency tier still fails a stale unresolved-dependency assertion in tests/test_parallel_roadmap_execution.py. Repair requires a forbidden third writer path and mutation of a frozen read-only pin, so this two-path candidate cannot satisfy its acceptance contract.",
+   "review_result": "terminal_independent_qa_and_deep_sol_fail_dependency_scope_unsatisfiable_no_product_acceptance",
+   "release_outcome": "released_blocked_frozen_candidate_declared_dependency_requires_forbidden_third_path",
+   "terminal_evidence_path": "docs/plans/evidence/abc-r7-pyrun01-rev300-terminal-release.json",
+   "terminal_evidence_blob": "300b7518286be2f71ce4cf41025f06bdfddea791",
+   "acceptance_evidence": "Five exact nodes, the full 144-test Integration suite, pycompile, diff-check and all three central validators passed. The declared dependency tier was 189 passed and 1 failed on a stale foreign Round6 fixture; no product was accepted and correction remains unused 0/1."
   }
  ],
  "external_lane_validator_claim": {
@@ -5135,16 +5142,8 @@
  "goal": "Converge the already designed Harbor One coding, Planning, USI/Memory, worker and lifecycle capabilities into one evidence-bound local agent loop without reopening accepted domain architecture and without crossing a live gate.",
  "kind": "odysseus.integration_spine_execution_round",
  "long_run_state": {
-  "active_claims": [
-   "ABC-R7-PYRUN01-REV300"
-  ],
-  "agent_leases": [
-   {
-    "claim_id": "ABC-R7-PYRUN01-REV300",
-    "expires_at": "2026-08-15T23:45:00+02:00",
-    "owner": "root/Sol R7-PYRUN-01 tests-first writer"
-   }
-  ],
+  "active_claims": [],
+  "agent_leases": [],
   "completed_slices": [
    "R7-P0-accepted-rejected-checkout-separation",
    "R7-P1-status-and-router-drift-normalization",
@@ -5345,7 +5344,7 @@
     "started_at": "2026-08-13T22:43:20+02:00",
     "state": "verified_denominator_published_reflecting_next_repo_only_frontier"
    },
-   "next_action": "ABC-R7-PYRUN01-REV300 is frozen for independent QA on exact candidate blobs b997cb1203e752d41721fc1aef442ac15f579bf4 and 33646ace370944bf53e21d2e7479483ab0f85073. Run the persisted focused, dependency, static and three central lanes, then fresh independent hostile QA and final Deep-Sol review; do not edit, stage, commit, push, deploy or use live actions.",
+   "next_action": "ABC-R7-PYRUN01-REV300 is terminally released_blocked without product acceptance because its declared dependency tier requires a forbidden third writer path. Keep its frozen candidate rejected and correction unused; independently verify and persist the corrected TTD-07A6 architecture packet, then register only a fresh disjoint repo-only claim after central readback.",
    "paused_repo_claims": [
     {
      "allowed_paths": [
@@ -6633,8 +6632,8 @@
   "docs/plans/project-versioning-forge-provider-roadmap.md",
   "docs/plans/code-intelligence-evaluation-protocol.md"
  ],
- "status": "round7_authority_revision300_verified_global_denominator_173_of_245_r7_pyrun01_candidate_frozen_for_independent_qa",
- "updated_at": "2026-08-15T04:09:12+02:00",
+ "status": "round7_authority_revision300_verified_global_denominator_173_of_245_r7_pyrun01_released_blocked_dependency_scope_unsatisfiable",
+ "updated_at": "2026-08-15T04:32:23+02:00",
  "waves": [
   {
    "depends_on": [

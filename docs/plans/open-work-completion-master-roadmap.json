@@ -15343,30 +15343,7 @@
   }
  ],
  "current_position": {
-  "active_claimed_slices": [
-   {
-    "allowed_paths": [
-     "scripts/validate_integration_spine_convergence.py",
-     "tests/test_integration_spine_convergence.py"
-    ],
-    "architecture_revision": "R7-PYRUN-01-CURRENT-VIRTUALENV-COMMAND-BOUNDARY-RECOVERY-SOL-ARCH-v1",
-    "authority_revision": 300,
-    "baseline_blobs": {
-     "scripts/validate_integration_spine_convergence.py": "b7633219b137bd24bce4cc993e9b5db6bbda2b48",
-     "tests/test_integration_spine_convergence.py": "651e8be5492714a92ded48f457055861f9c5e244"
-    },
-    "candidate_state": "frozen_for_independent_qa",
-    "claim_id": "ABC-R7-PYRUN01-REV300",
-    "correction_limit": 1,
-    "correction_used": 0,
-    "lease_expires_at": "2026-08-15T23:45:00+02:00",
-    "live_actions": false,
-    "owner": "root/Sol R7-PYRUN-01 tests-first writer",
-    "slice_id": "R7-PYRUN-01-current-virtualenv-command-boundary-recovery",
-    "state": "frozen_for_independent_qa",
-    "thread_id": "01a00308-ab0c-7393-acfd-b83c4c291819"
-   }
-  ],
+  "active_claimed_slices": [],
   "cbm09_preclaim_handoff": {
    "audited_at": "2026-08-09T17:55:00+02:00",
    "blocker": "query_knowledge drops domain and lacks repository, revision, generation, coverage, intent and subject identity; CodeIntelligenceRetriever.query does not implement the FederatedQuery execution facade; read_file has no Forge locator contract",
@@ -16394,7 +16371,7 @@
      "tests/test_integration_spine_convergence.py::test_command_spec_rejects_relative_or_non_virtualenv_current_executable",
      "tests/test_integration_spine_convergence.py::test_command_spec_rejects_symlink_realpath_and_runtime_identity_drift"
     ],
-    "candidate_state": "frozen_for_independent_qa",
+    "candidate_state": "rejected_frozen_candidate",
     "claim_class": "repo_claim_v2",
     "claim_id": "ABC-R7-PYRUN01-REV300",
     "claim_transfer": {
@@ -16533,7 +16510,7 @@
      "read_only_pin_drift",
      "rolling_inventory_member_count_digest_or_denominator_drift"
     ],
-    "state": "running",
+    "state": "released_blocked",
     "thread_id": "01a00308-ab0c-7393-acfd-b83c4c291819",
     "verification_tiers": {
      "central": "Integration Spine, Round6 and Guidance validators",
@@ -16544,7 +16521,14 @@
     "candidate_frozen_at": "2026-08-15T04:09:12+02:00",
     "candidate_set_digest_sha256": "sha256:ba6b6c7b220f2410ff3fdde4601a023270d2cb0694ac70b68a03257594118e5f",
     "candidate_command_manifest_digest_sha256": "sha256:8cd700ef80c8f8eb8063916db7f889dcfe679a0027bd6dce3c832b01734a4010",
-    "candidate_pytest_node_manifest_digest_sha256": "sha256:ba559adc0141cb5d964ce84f3bca0bb39f37bb0edfee7ca598dd07cab6158754"
+    "candidate_pytest_node_manifest_digest_sha256": "sha256:ba559adc0141cb5d964ce84f3bca0bb39f37bb0edfee7ca598dd07cab6158754",
+    "released_at": "2026-08-15T04:32:23+02:00",
+    "released_reason": "The frozen source boundary passed focused, full Integration, static and central verification, but the declared three-file dependency tier still fails a stale unresolved-dependency assertion in tests/test_parallel_roadmap_execution.py. Repair requires a forbidden third writer path and mutation of a frozen read-only pin, so this two-path candidate cannot satisfy its acceptance contract.",
+    "review_result": "terminal_independent_qa_and_deep_sol_fail_dependency_scope_unsatisfiable_no_product_acceptance",
+    "release_outcome": "released_blocked_frozen_candidate_declared_dependency_requires_forbidden_third_path",
+    "terminal_evidence_path": "docs/plans/evidence/abc-r7-pyrun01-rev300-terminal-release.json",
+    "terminal_evidence_blob": "300b7518286be2f71ce4cf41025f06bdfddea791",
+    "acceptance_evidence": "Five exact nodes, the full 144-test Integration suite, pycompile, diff-check and all three central validators passed. The declared dependency tier was 189 passed and 1 failed on a stale foreign Round6 fixture; no product was accepted and correction remains unused 0/1."
    }
   ],
   "fca03_preclaim_handoff": {
@@ -16562,30 +16546,7 @@
   },
   "full_goal_progress": {
    "accepted_count_status": "verified_current_authority_evidence_and_source_normalization",
-   "active_repo_claims": [
-    {
-     "allowed_paths": [
-      "scripts/validate_integration_spine_convergence.py",
-      "tests/test_integration_spine_convergence.py"
-     ],
-     "architecture_revision": "R7-PYRUN-01-CURRENT-VIRTUALENV-COMMAND-BOUNDARY-RECOVERY-SOL-ARCH-v1",
-     "authority_revision": 300,
-     "baseline_blobs": {
-      "scripts/validate_integration_spine_convergence.py": "b7633219b137bd24bce4cc993e9b5db6bbda2b48",
-      "tests/test_integration_spine_convergence.py": "651e8be5492714a92ded48f457055861f9c5e244"
-     },
-     "candidate_state": "frozen_for_independent_qa",
-     "claim_id": "ABC-R7-PYRUN01-REV300",
-     "correction_limit": 1,
-     "correction_used": 0,
-     "lease_expires_at": "2026-08-15T23:45:00+02:00",
-     "live_actions": false,
-     "owner": "root/Sol R7-PYRUN-01 tests-first writer",
-     "slice_id": "R7-PYRUN-01-current-virtualenv-command-boundary-recovery",
-     "state": "frozen_for_independent_qa",
-     "thread_id": "01a00308-ab0c-7393-acfd-b83c4c291819"
-    }
-   ],
+   "active_repo_claims": [],
    "audit_counts": {
     "abc_execution_queue_rows": 132,
     "design_entries": 30,
@@ -22686,7 +22647,7 @@
     "started_at": "2026-08-13T22:43:20+02:00",
     "state": "verified_denominator_published_h1_29_claimed_tests_first"
    },
-   "next_action": "ABC-R7-PYRUN01-REV300 is frozen for independent QA on exact candidate blobs b997cb1203e752d41721fc1aef442ac15f579bf4 and 33646ace370944bf53e21d2e7479483ab0f85073. Run the persisted focused, dependency, static and three central lanes, then fresh independent hostile QA and final Deep-Sol review; do not edit, stage, commit, push, deploy or use live actions.",
+   "next_action": "ABC-R7-PYRUN01-REV300 is terminally released_blocked without product acceptance because its declared dependency tier requires a forbidden third writer path. Keep its frozen candidate rejected and correction unused; independently verify and persist the corrected TTD-07A6 architecture packet, then register only a fresh disjoint repo-only claim after central readback.",
    "normalization_claim": {
     "acceptance": "Each source gains stable current IDs and explicit historical, repo-only, design or live-gate disposition; central mirrors agree; no unit becomes accepted or live-authorized by normalization.",
     "acquired_at": "2026-08-10T21:08:00+02:00",
@@ -29181,6 +29142,6 @@
   "docs/plans/lens-code-graph-roadmap.md",
   "docs/plans/agent-maintenance-safety-harness-roadmap.json"
  ],
- "status": "round5_accepted_released / repo_only / authority_revision300_verified_global_denominator_173_of_245 / R7_PYRUN_01_candidate_frozen_for_independent_qa",
- "updated_at": "2026-08-15T04:09:12+02:00"
+ "status": "round5_accepted_released / repo_only / authority_revision300_verified_global_denominator_173_of_245 / R7_PYRUN_01_released_blocked_dependency_scope_unsatisfiable",
+ "updated_at": "2026-08-15T04:32:23+02:00"
 }
