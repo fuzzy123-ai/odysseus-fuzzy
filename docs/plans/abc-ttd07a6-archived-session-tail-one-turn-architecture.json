@@ -1,0 +1,104 @@
+{
+  "acceptance": [
+    "The feature remains strictly default-off. A continuity tail is eligible only when the existing rollover runtime is valid and enabled and TELEGRAM_SESSION_CONTINUITY_ENABLED parsed as the exact boolean true; absent, false, malformed or independently enabled continuity state yields no tail and no fallback reconstruction.",
+    "A tail capability is created only by the invocation that changes one exact owner-scoped binding from generation N and old_session_id to generation N+1 and new_session_id, archives that same old Session, and commits the matching rollover row with status committed. An already-committed row, replay, deferred or blocked result, import, bind, rebind, /new path or unrelated Session never creates a capability.",
+    "Only the existing TelegramRolloverRuntime._rotate_binding method owns publication. Its _operate operation closure captures the exact pre-transition row state, invokes AtomicTelegramSessionRolloverService.rotate_binding, re-reads and verifies the exact committed binding/rollover/archive fence, selects and filters the old Session history, and retains one unexported detached pending tail capability in a closure-local box. AtomicTelegramSessionRolloverService receives no holder or publication callback, a direct Atomic service call cannot publish, and AtomicRolloverResult gains no field or public API change.",
+    "TelegramRolloverRuntime._operate invokes the closure, calls database.commit(), and returns only after commit succeeds. Only after _operate returns successfully may _rotate_binding move the detached pending capability from the closure-local box into the process-local one-shot holder. Rollback, commit failure, closure exception or a crash before that post-return publication discards the pending value and performs no holder mutation; no content is written to a ledger, Session, message, summary, cache file or compatibility projection.",
+    "The process-local holder binds one capability to the exact new Session plus opaque binding identity, committed generation and owner_ref/scope fence. Consume runs under the exact shared TelegramRolloverRuntime lock used by both the runtime and binding-mutation coordinator. While holding that lock, consume opens one newly factory-created database Session and performs a fresh read-only binding lookup immediately before touching the holder; the lookup must match capability binding_id, owner_ref, scope, generation and active_session_id exactly, with active_session_id also equal to capability.new_session_id and the current handler Session. The database Session is closed without a write, then the holder pop remains under the same lock.",
+    "Only after the fresh binding readback succeeds may holder consumption occur atomically. At most one concurrent eligible turn receives the capability; a mismatch, stale generation, rebind or invalid Session refuses or discards it as no-tail without Session, message, provider or external mutation. Consumption occurs immediately before context assembly and before model execution, so retries cannot receive it again even when the model or reply later fails. A binding advanced to generation 8 cannot consume a capability fenced to generation 7.",
+    "Cold start and process restart begin with an empty holder. The implementation must never rebuild, infer or replay a capability from the committed rollover ledger, archived Session, active binding or message history. Losing a capability is the required fail-closed outcome and is safer than duplicate delivery.",
+    "The archived tail contains at most six complete historical messages and at most 4000 content characters total. Selection walks valid user/assistant text messages from newest to oldest, stops rather than skipping or truncating when the next complete message exceeds the remaining character budget, restores chronological order, and emits no tail when no complete eligible message fits.",
+    "System messages, persisted summaries, task-state artifacts, Tool messages, Tool results, tool-call structures, non-text blocks, caller metadata, protection flags, IDs, headers, endpoints, model/provider fields and malformed entries are excluded. Remaining historical prose is copied only as data and carries no original message role or metadata outside the guarded data body.",
+    "The complete selected tail is re-enveloped by the accepted prompt-security boundary as exactly one untrusted user message with fixed source labeling. It is never a system, trusted-runtime, protected, current-user or persisted message and cannot close or escape the untrusted guard markers.",
+    "The tail is continuity only. It is never evidence for Todo, calendar, file, send, provider, task-state or any other read or mutation claim; current domain reads and mutation success still require their canonical state, validated receipt and postcondition. False historical success prose cannot satisfy current authority.",
+    "The Telegram handler may request and inject only the one exact runtime-consumed envelope into the new Session's first eligible non-empty owner-matched turn after all existing session and provider gates pass. The runtime, not app.py, performs the locked fresh binding readback and holder consume. The handler continues to read the new Session's context and use build_telegram_turn_context; it does not read the archived Session directly, change session_id, replace messages, copy history into the new Session or add persistence beyond the existing current-user and assistant pair.",
+    "Before a future claim or writer starts, Root repeats git hash-object --no-filters for all five materialized paths and requires the exact baseline blobs in this packet, an empty index, no path-scoped working-tree changes and no overlap with active claims or leases. Filtered HEAD blobs are non-authoritative checkout projections for this packet.",
+    "The five named tests are authored tests-first and the focused, two-module, affected Telegram integration, central, static, independent-QA and Root/Sol tiers all pass on one frozen five-path candidate tuple. This packet grants neither writer nor live authority."
+  ],
+  "allowed_paths": [
+    "app.py",
+    "src/telegram_context_policy.py",
+    "src/telegram_session_rollover.py",
+    "tests/test_telegram_context_policy.py",
+    "tests/test_telegram_session_rollover.py"
+  ],
+  "architect": "root/Sol",
+  "architecture_revision": "TTD-07A6-ARCHIVED-SESSION-TAIL-ONE-TURN-SOL-ARCH-v1",
+  "baseline_blobs": {
+    "app.py": "8206445d3140bc0b15c84511baf9e5b8b4ec9db1",
+    "src/telegram_context_policy.py": "9a2aae8f7b773295699019ca70db1a6a074712c6",
+    "src/telegram_session_rollover.py": "e0bebfd36b55329219a7a8a272959ccbff46fd4c",
+    "tests/test_telegram_context_policy.py": "8e95a4c3a91a68b78c583e0024cb70b563a93839",
+    "tests/test_telegram_session_rollover.py": "8ba8f732cfeda963936ed18ae670c2f15f85e672"
+  },
+  "baseline_readback": {
+    "genesis_paths": [],
+    "genesis_readback": "captured_absent_paths_exact_readback_pass",
+    "materialized_paths": [
+      "app.py",
+      "src/telegram_context_policy.py",
+      "src/telegram_session_rollover.py",
+      "tests/test_telegram_context_policy.py",
+      "tests/test_telegram_session_rollover.py"
+    ],
+    "materialized_readback": "materialized_exact_binary_readback_pass",
+    "mode": "materialized_repo_genesis_partition_v1",
+    "schema_version": 1
+  },
+  "correction_budget": {
+    "failure_class": "ttd07a6_ephemeral_archived_tail_fence_and_one_turn_untrusted_carryover",
+    "limit": 1,
+    "on_repeat": "release_blocked_and_require_fresh_root_sol_architecture",
+    "used": 0
+  },
+  "forbidden": [
+    "A sixth writer path; any plugin, polling, webhook, route, store, database schema, migration, router, Evidence, policy, documentation or unrelated test edit under a future product claim.",
+    "Persisting tail text, a tail capability, consumption state or a continuity marker in a Session, ChatMessage, rollover or binding ledger, summary, Memory, RAG, file, cache, compatibility JSON, provider or other durable store.",
+    "Reconstructing or lazily discovering a tail from an existing committed row, archived Session, active binding, old_session_id, new_session_id or message history after startup, restart, capability loss or first consumption.",
+    "Publishing a tail inside AtomicTelegramSessionRolloverService, through AtomicRolloverResult or a direct Atomic call; adding a publication hook or public result field; publishing before TelegramRolloverRuntime._operate has returned after commit; publishing one for a historical committed replay; retaining it after an identity/configuration/fence refusal; or returning it to more than one concurrent or retried turn.",
+    "Consuming outside the exact shared runtime lock, consuming without a newly factory-created read-only binding lookup, trusting a cached binding, releasing the lock between binding readback and holder pop, or accepting any binding_id, owner_ref, scope, generation or active_session_id mismatch.",
+    "Reading the archived Session directly from the Telegram handler, changing the selected session_id, rewriting the new Session, replacing messages, persisting the envelope or copying the tail as individual original user/assistant roles.",
+    "Including system or summary content, task-state artifacts, Tool calls/results, non-text blocks, metadata, IDs, secrets, provider/model/header/endpoint data, caller trust flags or original protection markers.",
+    "Promoting any tail content to system, trusted-runtime, protected, canonical domain state, mutation evidence, a tool receipt or a postcondition; Todo, calendar, file, send, provider and all mutations remain independently evidenced.",
+    "Truncating an over-budget message, skipping a newer over-budget message to admit older text, exceeding six messages or 4000 characters, weakening untrusted guard escaping or accepting malformed limit/configuration values.",
+    "Treating green local tests or this packet as stage, commit, push, deploy, host, provider, private-data, Telegram send, productive activation, UI or live authority."
+  ],
+  "hostile_matrix": [
+    "Rollover disabled, continuity absent/false, continuity true with invalid rollover configuration, malformed booleans and a runtime that was never composed all produce no capability and no state mutation.",
+    "One newly committed old-to-new transition leaves one detached pending capability in the _rotate_binding closure and publishes it only after _operate returns from successful commit; rollback, commit failure, closure exception, deferred, blocked, disabled, imported, rebound, existing-committed and replayed transitions leave the holder unchanged.",
+    "A direct AtomicTelegramSessionRolloverService call can commit its existing public AtomicRolloverResult but has no holder, pending-box export, callback or publication side effect. AtomicRolloverResult retains its exact existing public shape.",
+    "A committed ledger row with mismatched binding, generation, owner, scope, old Session, new Session, archive state or active binding cannot create the pending capability, publish it or satisfy its later consume fence.",
+    "Two concurrent first turns race under the exact shared runtime lock. Each eligible consume uses a fresh factory-created read-only database Session; exactly one exact binding readback and atomic holder pop succeeds, while later retries, duplicate updates and a second normal turn receive none.",
+    "A model exception, reply failure or handler exception after consume does not restore the capability. A crash before commit, after commit but before _operate returns, after _operate returns but before process-local publication, and every process restart yields no tail rather than replay.",
+    "A different owner_ref, scope, binding_id, generation, current Session or stale new Session cannot consume the capability. In particular, a post-generation-8 rebind cannot consume a generation-7 tail even when the old capability remains in memory. Refusal performs no Session, message, ledger, provider or external mutation and may only discard the invalid ephemeral capability.",
+    "Six complete eligible messages totaling exactly 4000 characters are accepted; a seventh message, a character overrun, an oversized newest message, empty text and malformed blocks stay within the bound without truncation or older-message substitution.",
+    "System, summary, task-state, Tool and non-text records interleaved with eligible user/assistant prose are excluded before counting; stripped roles, metadata, IDs, trust flags and provider fields cannot reappear in the envelope or evidence.",
+    "Prompt-injection text and literal untrusted guard markers remain inside one escaped untrusted user envelope and never become a trusted or system instruction.",
+    "Historical prose claiming that a Todo was created, a calendar event was sent, a file changed or a provider mutation succeeded remains non-authoritative and cannot bypass canonical read, receipt or postcondition gates.",
+    "The handler consumes only after the existing non-empty prompt, Session, owner and provider gates pass; blocked or ineligible attempts do not receive a tail, mutate the selected Session or cause archived-history reads in app.py.",
+    "Baseline, architecture, active-claim, lease, path, test-node, candidate or configuration-contract drift before registration or freeze invalidates the future implementation run."
+  ],
+  "kind": "odysseus.sol_materialized_repo_genesis_architecture",
+  "named_tests": [
+    "tests/test_telegram_context_policy.py::test_a6_tail_is_default_off_bounded_untrusted_and_consumed_once",
+    "tests/test_telegram_context_policy.py::test_a6_tail_excludes_system_summary_tool_results_and_domain_authority",
+    "tests/test_telegram_context_policy.py::test_a6_handler_injects_only_an_eligible_archived_tail_without_session_rewrite",
+    "tests/test_telegram_session_rollover.py::test_a6_tail_requires_exact_committed_archived_to_active_binding_fence",
+    "tests/test_telegram_session_rollover.py::test_a6_tail_refuses_stale_replayed_or_invalid_config_without_mutation"
+  ],
+  "origin_mode": "materialized_repo_genesis",
+  "published_round7_revision": 300,
+  "schema_version": 1,
+  "slice_id": "TTD-07A6-archived-session-tail-first-turn-carryover",
+  "state": "frozen",
+  "stop_rule": "Stop before claim registration or any product/test edit on raw --no-filters baseline drift, path or active-claim collision, index changes, architecture or Rev300 authority drift, missing accepted TTD-07A5 predecessor, a sixth path, unavailable tests-first lane, persistence or restart reconstruction, Atomic-service publication or AtomicRolloverResult API expansion, publication before _operate returns from commit, pending-box escape, consume outside the exact shared lock, missing fresh factory-session binding readback, lock release before holder pop, stale generation/rebind acceptance, replayable or non-atomic consumption, identity-fence ambiguity, bounds or untrusted-envelope weakening, domain-authority promotion, or implied writer/live authority. After one correction in ttd07a6_ephemeral_archived_tail_fence_and_one_turn_untrusted_carryover, release blocked and require fresh Root/Sol architecture.",
+  "threat_model": "An optional continuity feature could replay private archived conversation after restart, duplicate it across concurrent turns, publish from a direct Atomic service call or before the enclosing runtime commit is known durable, race a binding rebind between cached validation and holder pop, smuggle system/tool/domain authority into model context, persist content into the replacement Session, or weaken the six-message/4000-character boundary. Keep AtomicTelegramSessionRolloverService and AtomicRolloverResult publication-free; retain only an unexported detached pending capability inside TelegramRolloverRuntime._rotate_binding's operation closure; publish only after _operate returns from successful commit. Under the exact shared binding-mutation lock, perform a fresh factory-session read-only binding lookup and require exact binding_id, owner_ref, scope, generation and active new Session before one atomic pop. Never reconstruct a tail, filter structural authority and metadata, re-envelope bounded prose as untrusted user data, preserve every canonical domain-evidence requirement, and prefer no tail on every rollback, commit failure, crash, restart, stale rebind, malformed or ambiguous state.",
+  "verification_tiers": {
+    "central": "After a separate future claim registration and after candidate freeze, run the Integration Spine, Parallel Roadmap and Multi-Agent Guidance validators against one unchanged authority tuple; all three must pass.",
+    "dependency": "Run the complete tests/test_telegram_context_policy.py and tests/test_telegram_session_rollover.py modules, then the affected Telegram transport/runtime corridors in tests/test_telegram_plugin.py and tests/test_telegram_webhook_service.py, with exact claim-scoped basetemps and unchanged read-only pins.",
+    "expensive_live": "not_run_not_required_not_authorized",
+    "focused": "Author exactly the five named nodes tests-first, collect all five, and observe RED only for the absent A6 one-shot continuity boundary. The two rollover nodes must prove direct Atomic calls cannot publish, _operate rollback/commit-failure leaves the holder unchanged, post-return publication works once, and a post-generation-8 rebind cannot consume a generation-7 tail. Then require all five and both complete claimed test modules to pass on the exact five candidate blobs.",
+    "independent_qa": "A fresh hostile reviewer exercises default-off parsing; closure-local pending capability isolation; direct Atomic no-publication and unchanged AtomicRolloverResult shape; successful post-_operate publication; rollback, commit-failure and crash windows; restart loss; exact shared-lock identity with binding mutations; fresh factory-session readback; generation-8 rebind rejection of generation-7 tail; atomic concurrent consumption; stale owner_ref/scope/binding/session fences; six/4000 bounds; malformed records; system/summary/tool exclusion; guard-marker injection; no persistence; and domain-authority non-escalation.",
+    "sol_review": "Root/Sol re-derives the publication-free Atomic boundary, unexported closure-local pending box, _operate commit-return publication point, no-holder-mutation failure windows, unchanged AtomicRolloverResult API, process-local-only representation, restart-no-tail rule, exact shared-lock fresh binding lookup, binding_id/owner_ref/scope/generation/active-session fence, generation-8 versus generation-7 refusal, atomic pre-model holder pop, structural filtering, one untrusted envelope, unchanged domain gates, exact 19-field packet, five-path scope and 0/1 product correction budget. Static checks require strict duplicate-free JSON, UTF-8 LF with final LF, less than 25600 bytes, py_compile for the three Python product paths and two test paths, and git diff --check."
+  }
+}
