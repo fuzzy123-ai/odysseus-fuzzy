@@ -5346,9 +5346,9 @@
     "run_id": "ABC-OPEN-WORK-GO-20260813T2243+0200",
     "snapshot_blob": "a678fd2290acf032ed5747e4fe424d5874bfc30b",
     "started_at": "2026-08-13T22:43:20+02:00",
-    "state": "verified_denominator_published_ttd07a6_released_blocked_same_class_recurrence_correction_1_of_1"
+    "state": "verified_denominator_published_usi07a_blocked_architecture_committed_pre1a_architecture_reviewed"
    },
-   "next_action": "ABC-AHE-GHISS01-RECOVERY-REV302 is terminally released_blocked after correction 1/1; accept, patch, stage or publish neither rejected tuple. Continue only with the disjoint Root/Sol architecture precursor USI-07A-generation-fenced-cancellable-query-execution at docs/plans/abc-usi07a-generation-fenced-cancellable-query-execution-architecture.json. No USI product writer may start until runtime, lexical and SQLite owners freeze one generation-fenced cancellation and join-before-return lifecycle plus exact paths, pins and tests.",
+   "next_action": "USI-07A blocker architecture is committed at 43859d4b53a9dc27c8c8ac3f6503d2c9e27678f0 (packet blob 79ceedc73cd38c136b031d73f61fb21263d3a55d) and independently PASS_AS_BLOCKED_ONLY; it grants no claim or writer authority. Continue serially with the independently reviewed architecture-only USI-07A-PRE1A cancellable CBM process-provider lifecycle at docs/plans/abc-usi07a-pre1a-cancellable-cbm-process-provider-lifecycle-architecture.json (blob d11cea61dc173ff35a61f4b4e2ea0ef54c312747), then PRE1B immutable UIR context/provider admission only after PRE1A is accepted. After both predecessors are accepted, issue a fresh six-path USI-07A sufficiency architecture. Do not write product paths or register a USI claim yet.",
    "paused_repo_claims": [
     {
      "allowed_paths": [
@@ -6007,7 +6007,7 @@
     "UIR-03A"
    ],
    "denominator_status": "verified_round7_local_two_unit_snapshot_not_global_open_work",
-   "scope_change": "Round7-local FCA-02 and UIR-03A are accepted; this 2/2 snapshot is not the full Open Work denominator. CBM-09, UIR-06, proposed USI-07A and UIR-03B remain preclaim-blocked.",
+   "scope_change": "Round7-local FCA-02 and UIR-03A are accepted; this 2/2 snapshot is not the full Open Work denominator. CBM-09, UIR-06, blocked USI-07A and UIR-03B remain preclaim-blocked. USI-07A now has a committed blocked architecture and an independently reviewed PRE1A architecture, but no claim or lease.",
    "scope_kind": "round7_local",
    "units": [
     "FCA-02",
@@ -6016,9 +6016,9 @@
    "verified_complete": 2
   },
   "heartbeat_automation_id": "abc-round-7-open-work-10h",
-  "last_durable_progress_at": "2026-08-15T06:30:00+02:00",
+  "last_durable_progress_at": "2026-08-15T08:10:07+02:00",
   "last_heartbeat_at": "2026-08-15T02:28:28+02:00",
-  "last_reported_revision": 302,
+  "last_reported_revision": 303,
   "live_go_ledger": [],
   "master_route": {
    "actual": "surface_root_role_user_approved_alternate_architect",
@@ -6026,14 +6026,14 @@
    "model": "gpt-5.6-sol"
   },
   "max_parallel_workers": 3,
-  "next_runnable_slices": ["ABC-AHE-GHISS01-RECOVERY-REV302 is terminally released_blocked after correction 1/1; accept, patch, stage or publish neither rejected tuple. Continue only with the disjoint Root/Sol architecture precursor USI-07A-generation-fenced-cancellable-query-execution at docs/plans/abc-usi07a-generation-fenced-cancellable-query-execution-architecture.json. No USI product writer may start until runtime, lexical and SQLite owners freeze one generation-fenced cancellation and join-before-return lifecycle plus exact paths, pins and tests."],
+  "next_runnable_slices": ["USI-07A blocker architecture is committed at 43859d4b53a9dc27c8c8ac3f6503d2c9e27678f0 (packet blob 79ceedc73cd38c136b031d73f61fb21263d3a55d) and independently PASS_AS_BLOCKED_ONLY; it grants no claim or writer authority. Continue serially with the independently reviewed architecture-only USI-07A-PRE1A cancellable CBM process-provider lifecycle at docs/plans/abc-usi07a-pre1a-cancellable-cbm-process-provider-lifecycle-architecture.json (blob d11cea61dc173ff35a61f4b4e2ea0ef54c312747), then PRE1B immutable UIR context/provider admission only after PRE1A is accepted. After both predecessors are accepted, issue a fresh six-path USI-07A sufficiency architecture. Do not write product paths or register a USI claim yet."],
   "pending_sol_reviews": [],
   "pending_user_requests": [],
   "predecessor_run_id": "ABC-R7-6H-20260808T171626+0200",
   "queue_path": "docs/plans/open-work-completion-master-roadmap.json",
   "queue_scope": "open_work",
-  "resume_cursor": "ABC-AHE-GHISS01-RECOVERY-REV302-tests-first",
-  "revision": 302,
+  "resume_cursor": "USI-07A-PRE1A-architecture-closed-awaiting-claim-registration",
+  "revision": 303,
   "run_id": "ABC-R7-12H-20260809T084440+0200",
   "sol_review_results": [
    {
@@ -6634,8 +6634,8 @@
   "docs/plans/project-versioning-forge-provider-roadmap.md",
   "docs/plans/code-intelligence-evaluation-protocol.md"
  ],
- "status": "round7_authority_revision302_verified_global_denominator_173_of_245_ahe_ghiss01_recovery_released_blocked_same_class_recurrence_after_correction_1_of_1",
- "updated_at": "2026-08-15T06:30:00+02:00",
+ "status": "round7_authority_revision303_verified_global_denominator_173_of_245_usi07a_blocked_architecture_committed_pre1a_architecture_closed_no_claim",
+ "updated_at": "2026-08-15T08:10:07+02:00",
  "waves": [
   {
    "depends_on": [

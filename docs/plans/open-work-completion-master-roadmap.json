@@ -22647,9 +22647,9 @@
     "run_id": "ABC-OPEN-WORK-GO-20260813T2243+0200",
     "snapshot_blob": "a678fd2290acf032ed5747e4fe424d5874bfc30b",
     "started_at": "2026-08-13T22:43:20+02:00",
-    "state": "verified_denominator_published_ahe_ghiss01_recovery_claimed_tests_first"
+    "state": "verified_denominator_published_usi07a_blocked_architecture_committed_pre1a_architecture_reviewed"
    },
-   "next_action": "ABC-AHE-GHISS01-RECOVERY-REV302 is terminally released_blocked after correction 1/1; accept, patch, stage or publish neither rejected tuple. Continue only with the disjoint Root/Sol architecture precursor USI-07A-generation-fenced-cancellable-query-execution at docs/plans/abc-usi07a-generation-fenced-cancellable-query-execution-architecture.json. No USI product writer may start until runtime, lexical and SQLite owners freeze one generation-fenced cancellation and join-before-return lifecycle plus exact paths, pins and tests.",
+   "next_action": "USI-07A blocker architecture is committed at 43859d4b53a9dc27c8c8ac3f6503d2c9e27678f0 (packet blob 79ceedc73cd38c136b031d73f61fb21263d3a55d) and independently PASS_AS_BLOCKED_ONLY; it grants no claim or writer authority. Continue serially with the independently reviewed architecture-only USI-07A-PRE1A cancellable CBM process-provider lifecycle at docs/plans/abc-usi07a-pre1a-cancellable-cbm-process-provider-lifecycle-architecture.json (blob d11cea61dc173ff35a61f4b4e2ea0ef54c312747), then PRE1B immutable UIR context/provider admission only after PRE1A is accepted. After both predecessors are accepted, issue a fresh six-path USI-07A sufficiency architecture. Do not write product paths or register a USI claim yet.",
    "normalization_claim": {
     "acceptance": "Each source gains stable current IDs and explicit historical, repo-only, design or live-gate disposition; central mirrors agree; no unit becomes accepted or live-authorized by normalization.",
     "acquired_at": "2026-08-10T21:08:00+02:00",
@@ -28394,9 +28394,18 @@
   "unique_design_gates": 29,
   "unique_live_gates": 62,
   "usi07a_preclaim_handoff": {
-   "audited_at": "2026-08-09T18:23:00+02:00",
+   "audited_at": "2026-08-15T08:10:07+02:00",
+   "blocked_architecture": {
+    "commit": "43859d4b53a9dc27c8c8ac3f6503d2c9e27678f0",
+    "independent_review": "PASS_AS_BLOCKED_ONLY",
+    "packet_path": "docs/plans/abc-usi07a-generation-fenced-cancellable-query-execution-architecture.json",
+    "raw_blob": "79ceedc73cd38c136b031d73f61fb21263d3a55d",
+    "raw_sha256": "sha256:e1e1257f3a0c1cd8d657bfa8313d71a34d8f187e5613378dd765800e8c23c35d",
+    "semantic_digest_sha256": "sha256:e91c23bcfce6505b1fff715dd56e878f7588ad003147b3c7f9e270798f6cb3e0",
+    "state": "blocked_before_claim_missing_provider_and_runtime_context_lifecycle_dependency"
+   },
    "blocker": "Opaque synchronous provider.query cannot be interrupted or joined by the planner; current timeout tests prove only late-result discard. RuntimeGeneration and SelectedScope do not mint an atomic owner/scope/generation/policy/request lease.",
-   "correction_budget": "1/1",
+   "correction_budget": "0/1",
    "correction_class_if_later_accepted": "usi07a_execution_fence_and_join",
    "live_actions": false,
    "minimum_cooperative_scope": [
@@ -28407,7 +28416,27 @@
     "src/unified_source_index_sqlite.py",
     "tests/test_unified_source_index_sqlite.py"
    ],
-   "next_action": "Do not register USI-07A yet. Generate a fresh UIR-03A architecture read-only while the query execution owner boundary remains blocked.",
+   "next_action": "USI-07A blocker architecture is committed at 43859d4b53a9dc27c8c8ac3f6503d2c9e27678f0 (packet blob 79ceedc73cd38c136b031d73f61fb21263d3a55d) and independently PASS_AS_BLOCKED_ONLY; it grants no claim or writer authority. Continue serially with the independently reviewed architecture-only USI-07A-PRE1A cancellable CBM process-provider lifecycle at docs/plans/abc-usi07a-pre1a-cancellable-cbm-process-provider-lifecycle-architecture.json (blob d11cea61dc173ff35a61f4b4e2ea0ef54c312747), then PRE1B immutable UIR context/provider admission only after PRE1A is accepted. After both predecessors are accepted, issue a fresh six-path USI-07A sufficiency architecture. Do not write product paths or register a USI claim yet.",
+   "predecessor_sequence": [
+    {
+     "architecture_path": "docs/plans/abc-usi07a-pre1a-cancellable-cbm-process-provider-lifecycle-architecture.json",
+     "independent_review": "PASS_AS_ARCHITECTURE_ONLY",
+     "raw_blob": "d11cea61dc173ff35a61f4b4e2ea0ef54c312747",
+     "semantic_digest_sha256": "sha256:3418a839f88db251aace961d22272b4252b34fb46a1bd76081627bf2b96b97e9",
+     "slice_id": "USI-07A-PRE1A-cancellable-cbm-process-provider-lifecycle",
+     "state": "closed_for_future_serialized_claim_registration"
+    },
+    {
+     "depends_on": "USI-07A-PRE1A-cancellable-cbm-process-provider-lifecycle released_accepted",
+     "slice_id": "USI-07A-PRE1B-immutable-uir-context-and-provider-admission",
+     "state": "architecture_required_after_pre1a_acceptance"
+    },
+    {
+     "depends_on": "PRE1A and PRE1B released_accepted",
+     "slice_id": "USI-07A-generation-fenced-cancellable-query-execution",
+     "state": "fresh_six_path_sufficiency_architecture_required"
+    }
+   ],
    "proposed_slice": "USI-07A-generation-fenced-cancellable-query-execution",
    "rejected_two_path_scope": [
     "src/unified_source_index_query.py",
@@ -28418,7 +28447,7 @@
     "Lexical and SQLite owners authorize cooperative deadline/cancellation propagation, bounded busy/progress interruption and join-before-return",
     "Otherwise define a separately supervised process-isolation lifecycle with serialization, termination and shutdown ownership"
    ],
-   "state": "blocked_not_claimable_missing_owner_and_lifecycle_contracts"
+   "state": "blocked_architecture_committed_pre1a_architecture_closed_no_claim"
   },
   "verification": {
    "audit_command": "python scripts/roadmap_safe_queue_audit.py --format json",
@@ -29144,6 +29173,6 @@
   "docs/plans/lens-code-graph-roadmap.md",
   "docs/plans/agent-maintenance-safety-harness-roadmap.json"
  ],
- "status": "round5_accepted_released / repo_only / authority_revision302_verified_global_denominator_173_of_245 / AHE_GHISS01_recovery_released_blocked_same_class_recurrence_after_correction_1_of_1",
- "updated_at": "2026-08-15T06:30:00+02:00"
+ "status": "round5_accepted_released / repo_only / authority_revision303_verified_global_denominator_173_of_245 / USI07A_blocked_architecture_committed_PRE1A_architecture_closed_no_claim",
+ "updated_at": "2026-08-15T08:10:07+02:00"
 }
