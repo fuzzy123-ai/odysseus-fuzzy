@@ -449,16 +449,13 @@ Current external blockers:
   `tests/test_claim_evidence_gate.py`
   `978f3907161f819ef353a8a17dcd253cfb391c4a`. Their later failed candidates
   remain rejected and must not replace these clean baselines.
-- The 72-record continuation inventory is now fully enriched at raw blob
-  `b6ddc3b05263c7ab3b7d0ae0e87823a92755fa1f`: 72/72 unique records have a
-  scalar status, dependencies, concrete safe next action, closed stop rule,
-  verification route and source authority; Markdown sources use real heading
-  anchors. It explicitly preserves terminal v4 and links the exact v5 packet.
-  The first independent audit found and drove the Rev289/HWA/anchor corrections;
-  a fresh independent readback of the final triad passes all 72 records, 32
-  Markdown anchors, 84 JSON pointers, two claim predicates and 26 direct file
-  locators: 144/144 locators are valid. Independent privacy review of this
-  handoff also passes.
+- The earlier Rev289 72-record continuation inventory at raw blob
+  `b6ddc3b05263c7ab3b7d0ae0e87823a92755fa1f` established the first complete
+  scalar-status, dependency, safe-action, stop-rule, verification-route and
+  source-authority ledger. Its 144/144 locator and privacy checks remain useful
+  historical evidence, but that blob is superseded by the enriched Rev301
+  inventory identified in the canonical open-unit section below. Do not use
+  the Rev289 blob for current continuation or claim decisions.
 - Fresh native-Python readback on the pre-write Revision 295 registration bytes
   passed all three central validators: Integration Spine `ok:true`, Round 6 `valid:true`
   with 30/30 rows and zero claimable frontiers, and Guidance `valid:true` with
@@ -639,21 +636,21 @@ blocked, design, live, or operator units to make the count close.
 
 The per-ID continuation ledger is
 `docs/plans/open-work-continuation-inventory.json`, raw Git blob
-`b6ddc3b05263c7ab3b7d0ae0e87823a92755fa1f`, raw SHA-256
-`fe3ba845cc032fb094eaff7988f321edd4b4ea0f7751947983a857f31004c2e5`,
-95,026 bytes. It accounts for all 72 IDs exactly once and gives each ID its
-class, authority locator, current status, concrete immediate action, hard stop,
-verification route, and dependencies. Its state is
-`context_free_continuation_enriched_revision294_terminal_ahe_ghiss01_same_class_recurrence_descriptive_only`:
-use it to find
-the current source, never to manufacture a claim, gate approval, or live
-authority. All 72 records are resolved; do not infer extra actions or gates
-from feature similarity. The current blob also contains the context-free
-continuation locators reviewed after Rev289.
-Its top-level `authority_revision: 294` is the old descriptive continuation
-epoch, not mutation authority. The inventory is being refreshed to Revision
-301. Always re-read Open Work and Round 7 first; current structured authority
-is Revision 301 and wins if its bytes later drift.
+`f643866d6de9fa61d27c9bb50acb984617efb0d1`, raw SHA-256
+`3937cef5b091b53276549f3f07f71dc0e3a0bd1f9571ffb5d7c8a69e350b335f`.
+It accounts for all 72 IDs exactly once and gives every record its class,
+authority locator, current status, dependencies, concrete immediate action,
+hard stop, verification route, `writer_paths`, `tests`, `evidence`,
+`authority_state`, and `drift_notes`. Unknown writer/test details are explicitly
+`unresolved` with the required fresh architecture or decision, never guessed.
+Design/live/operator records use `not_applicable` plus their exact decision,
+target or gate receipt. Its state is
+`context_free_continuation_enriched_revision301_ttd07a6_active_non_denominator_pyrun01_terminal_rejected_descriptive_only`.
+All 72 records are resolved and retain the exact 19 repo / 19 design / 30 live /
+4 operator split. Use the inventory to find current sources, never to
+manufacture a claim, gate approval, or live authority. Its top-level
+`authority_revision: 301` is descriptive evidence; current Open Work and Round
+7 still win if their bytes later drift.
 
 Repo-local or repo-recovery candidates (19):
 
@@ -1046,13 +1043,12 @@ answer all of the following from repository files alone:
 - What exact redacted deployment, backup, rollback, and health route applies?
 - Which single external action, if any, is still awaiting platform approval?
 
-Current checklist status: **IN PROGRESS for Rev301 continuity**. One exact
-TTD-07A6 claim/lease is active and the 72-record inventory is being enriched
-with explicit writer-path, test, evidence and drift fields. The previous
-72-record inventory has 144/144 valid locators and no private local-path or
-task/thread-identifier match, but its Rev294 descriptive epoch is stale. This
-handoff and inventory are descriptive continuity evidence; only OW/R7 register
-the active writer claim.
+Current checklist status: **PASS for context-free Rev301 continuity while one
+feature claim is active**. The exact TTD-07A6 claim/lease is described above;
+the enriched 72-record inventory contains every required writer-path, test,
+evidence, authority and drift field, preserves all counts and IDs, and is
+canonical sorted-key JSON+LF. This handoff and inventory are descriptive
+continuity evidence; only OW/R7 register the active writer claim.
 
 When this snapshot changes, update the snapshot date, revision, workspace
 identities, release evidence, open-lane rows, immediate sequence, and
