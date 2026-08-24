@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "architecture_id": "PPS-1A-V3-DIRECT-JSON-REBASE-REV378",
+  "created_at": "2026-08-24T12:43:16+02:00",
+  "architect": {
+    "role": "fresh independent gpt-5.6-sol architecture worker",
+    "agent_id": "01a03353-31a5-7840-81d4-8c377f527195",
+    "verdict": "PASS"
+  },
+  "authority": {
+    "roadmap": "docs/plans/product-planning-skills-integration-roadmap.md#pps-1-skill-import-compatibility",
+    "clean_origin": "docs/plans/evidence/abc-pps1a-rev370-clean-origin-recovery-complete.json",
+    "rejected_predecessor": "docs/plans/evidence/abc-pps1a-v2-rev374-terminal-architecture-release.json",
+    "acceptance_boundary": "PPS-1A is an internal checkpoint only; canonical PPS-1 requires accepted PPS-1A and serial PPS-1B"
+  },
+  "objective": "Parse the bounded direct-mapping Agent Skill block-scalar subset and safely rebase a unique root or nested SKILL.md bundle while preserving recursive list parsing, URL safety and owner isolation.",
+  "correction_budget": {
+    "failure_class": "pps1a_v3_direct_json_block_scalar_and_exact_rebased_bundle_plan",
+    "limit": 1,
+    "used": 1,
+    "correction": "Define rebased directory depth exactly and add the four-versus-five-level tests-first boundary.",
+    "on_repeat": "release terminal and require materially fresh Root/Sol architecture"
+  },
+  "scope": {
+    "writer_paths": [
+      "services/memory/skill_format.py",
+      "services/memory/skills.py",
+      "tests/test_skill_format.py",
+      "tests/test_skills_manager_owner_isolation.py"
+    ],
+    "read_only_regression_paths": [
+      "services/memory/skill_importer.py",
+      "tests/test_skill_importer.py"
+    ],
+    "baseline_blobs_git_no_filters": {
+      "services/memory/skill_format.py": "5297b03a3638e2375a36393614e87f9ece829189",
+      "services/memory/skill_importer.py": "9b3344a72469bfeac0c10e14520edbaefaa0deb6",
+      "services/memory/skills.py": "af27e8e241133a4804584f7d1fe954af0f635da4",
+      "tests/test_skill_importer.py": "ca562dc6f46818e3ebc10538d3651859d9fdfbb1",
+      "tests/test_skill_format.py": "ABSENT",
+      "tests/test_skills_manager_owner_isolation.py": "0a622972206a4da6bcdcbe341eea5cd0d78ba5d1"
+    }
+  },
+  "parser_and_emitter_contract": [
+    "Keep _parse_scalar, _split_top_level, _emit_scalar and every block-list and inline-list dispatch unchanged.",
+    "Only direct mapping values may enter the new block-header or canonical-JSON dispatch. Recursive list values beginning | or >, including |+ and >-, retain their exact clean-origin strings.",
+    "For a non-block direct mapping value that is a double-quoted canonical JSON string, json.loads may replace legacy parsing only when it yields an exact built-in string and json.dumps(decoded) exactly equals the trimmed source token. Invalid or noncanonical quoted tokens retain _parse_scalar behavior. This intentional direct-scalar compatibility takeover is required to reverse the existing _emit_scalar representation and round-trip arbitrary emitted multiline strings; it never applies inside lists.",
+    "At direct mapping dispatch, an unquoted value whose first non-space character is | or > is a block-header candidate. Exactly |, |-, > and >- are accepted. Unsupported direct candidates such as |+, >2, comments or duplicated markers raise bounded content-free ValueError; quoted markers remain ordinary strings.",
+    "Block content uses spaces only. The first nonblank content line establishes positive indentation; later nonblank lines must have at least that indentation and preserve any extra spaces. A tab or positive under-indentation is malformed. A column-zero key or comment terminates and is reprocessed; another column-zero nonblank line is malformed. Blank lines do not establish indentation; an empty or all-blank block yields an empty string.",
+    "Literal style preserves logical boundaries. Folded style replaces a boundary with one space only when both adjacent lines are nonblank and normally indented; blank boundaries and boundaries touching a more-indented line remain newlines. Clip adds exactly one terminal newline to nonempty content; strip adds none; trailing blank logical lines are removed before chomping.",
+    "Do not emit block syntax. Existing _emit_scalar JSON output stays byte-for-byte unchanged. Direct canonical JSON decoding supplies exact round-trip for changing-indentation multiline strings while noncanonical direct quoted escapes and all recursive quoted escapes remain legacy."
+  ],
+  "bundle_contract": [
+    "Implement the publication-plan validation inside SkillsManager.import_bundle_from_files without changing skill_importer.py. Require type(files) is dict and exact built-in str keys and values.",
+    "Before destination-specific mkdir or write, enforce existing MAX_FILES, MAX_FILE_BYTES, MAX_TOTAL_BYTES and text allowlist. After stripping the exact selected source root, define directory_depth as the number of parent components in the rebased destination path: accept directory_depth <= 4 and reject directory_depth > 4. The selected source-root components and final filename do not count. Reject empty, absolute, drive/colon, backslash, control, whitespace-altered, empty, dot and dot-dot path components instead of normalizing them.",
+    "Select exactly one path whose final component casefolds exactly to SKILL.md. Root SKILL.md has a valid zero-component source root. Missing, suffix-only and ambiguous candidates fail closed.",
+    "Preserve selected parent components exactly and require every entry to be the selected file or an exact-case descendant of that parent. Reject ancestors, siblings and case-mismatched pseudo-descendants. Strip the exact parent prefix so nested/SKILL.md becomes SKILL.md and nested/references/x.md becomes references/x.md.",
+    "Reject casefold-equivalent destination collisions and file/directory prefix collisions. Parse selected content, build canonical SKILL.md and every output in memory, and recheck budgets before destination mutation. Selection, path, parse and plan failures raise bounded content-free SkillImportError and leave no destination residue.",
+    "Use the parsed skill name or skill as the root-level fallback; never index a missing parent component. Choose a destination absent from loaded names and os.path.lexists. The selected raw SKILL.md is replaced once by canonical output rather than written then overwritten.",
+    "Force source imported, status draft and the supplied caller owner. References remain owner-scoped. Allowed text scripts may be stored but are never imported as code, invoked or executed. URL, redirect, fetch, file, depth and byte safety in skill_importer.py remain intact."
+  ],
+  "tests_first": {
+    "rule": "Materialize and run every named RED node before either source edit; compatibility nodes must already be green and remain green.",
+    "required_nodes": [
+      "test_direct_block_scalar_matrix",
+      "test_folded_block_preserves_blank_and_more_indented_boundaries",
+      "test_direct_block_rejects_unsupported_headers_and_bad_indentation",
+      "test_block_markers_remain_literal_in_block_and_inline_lists",
+      "test_direct_json_emission_round_trips_changing_indentation",
+      "test_noncanonical_direct_quoted_escapes_remain_legacy",
+      "test_skill_serialization_round_trips_multiline_description",
+      "test_import_accepts_root_skill_md_as_imported_draft_for_owner",
+      "test_import_rebases_nested_root_and_owner_scopes_view_ref",
+      "test_import_rejects_missing_or_ambiguous_skill_md_without_residue",
+      "test_import_rejects_sibling_ancestor_case_mismatch_and_case_collision_without_residue",
+      "test_import_rejects_hostile_paths_and_nonexact_types_without_residue",
+      "test_import_accepts_four_rebased_parent_levels_and_rejects_five_without_residue",
+      "test_import_rejects_file_directory_and_budget_collisions_without_residue",
+      "test_import_stores_install_script_without_executing_it"
+    ],
+    "red_shape": "Block, direct canonical JSON and bundle-plan nodes fail behaviorally at clean origin. The list-marker and noncanonical recursive-escape compatibility nodes pass before and after source edits."
+  },
+  "verification": {
+    "baseline": "15 passed, 2 warnings using Linux process-local services/services.memory/core namespace bootstrap",
+    "focused": "test_skill_format.py + test_skill_importer.py + test_skills_manager_owner_isolation.py under --noconftest",
+    "dependency": "test_workflow_skills.py + test_product_planning_skills.py",
+    "static": "py_compile plus scoped git diff --check",
+    "independent_gate": "Freeze exact four writer blobs and require fresh read-only gpt-5.6-sol terminal PASS before internal PPS-1A acceptance"
+  },
+  "deferred_to_pps1b": [
+    "full staging/directory-swap atomic publication and mid-write rollback",
+    "canonical credential-free provenance and source-kind distinction",
+    "complete Unicode, Windows-reserved and provider-payload normalization",
+    "post-serialization lifecycle and publication hardening beyond the bounded PPS-1A plan"
+  ],
+  "stop_rules": [
+    "Stop before writer dispatch on authority, baseline, pin, path, claim, lease, named-node or architecture-review drift.",
+    "Stop implementation on any _parse_scalar, _split_top_level, _emit_scalar, list-dispatch, skill_importer.py or test_skill_importer.py edit; JSON decoding outside direct mapping values; destination mutation before full planning; hostile-path normalization; sibling retention; script execution; existing-destination overwrite; fifth writer path; test weakening; external action; or canonical PPS-1 completion claim.",
+    "One bounded correction class maximum; any same-class recurrence after correction releases the candidate and restores exact clean origin before a fresh architecture."
+  ]
+}

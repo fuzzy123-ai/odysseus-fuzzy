@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.abc_architecture_acceptance",
+  "revision": 378,
+  "observed_at": "2026-08-24T12:56:38+02:00",
+  "slice_id": "PPS-1A-direct-json-block-scalar-and-safe-bundle-rebase",
+  "state": "architecture_accepted_no_product_claim",
+  "architecture": {
+    "path": "docs/plans/abc-pps1a-v3-direct-json-rebase-architecture.json",
+    "blob_git_no_filters": "069465cecf0853ad35ba72de6c0070846fbd3880",
+    "id": "PPS-1A-V3-DIRECT-JSON-REBASE-REV378"
+  },
+  "architecture_worker": {
+    "agent_id": "01a03353-31a5-7840-81d4-8c377f527195",
+    "route": "fresh gpt-5.6-sol xhigh",
+    "verdict": "PASS"
+  },
+  "independent_review": {
+    "agent_id": "01a0335f-a45b-7082-90f2-1c915a82294f",
+    "route": "fresh independent gpt-5.6-sol xhigh",
+    "initial_verdict": "FAIL",
+    "initial_counterexample": "rebased depth had no exact threshold or component-count basis",
+    "bounded_correction": "directory_depth is the count of rebased parent components; accept at most four and reject five or more before destination mutation; add the exact four-versus-five-level tests-first node",
+    "terminal_verdict": "PASS",
+    "correction_budget": "used_1_of_1"
+  },
+  "clean_origin_readback": {
+    "services/memory/skill_format.py": "5297b03a3638e2375a36393614e87f9ece829189",
+    "services/memory/skill_importer.py": "9b3344a72469bfeac0c10e14520edbaefaa0deb6",
+    "services/memory/skills.py": "af27e8e241133a4804584f7d1fe954af0f635da4",
+    "tests/test_skill_importer.py": "ca562dc6f46818e3ebc10538d3651859d9fdfbb1",
+    "tests/test_skill_format.py": "ABSENT",
+    "tests/test_skills_manager_owner_isolation.py": "0a622972206a4da6bcdcbe341eea5cd0d78ba5d1"
+  },
+  "baseline": {
+    "result": "15 passed, 2 existing warnings",
+    "bootstrap": "Linux process-local services, services.memory and core namespaces; pytest --noconftest"
+  },
+  "claim_preflight": {
+    "active_claim_count": 0,
+    "product_writer_dispatched": false,
+    "main_worktree_round6_blob": "e5f4e1a93c358874203cba3b00b9b9afc74e5b1f",
+    "required_canonical_round6_blob": "2b96aeb7510e59776b1bba42721804c0c3052dfe",
+    "counterevidence": "Removing exactly 1671 CR bytes from the foreign worktree file yields the required canonical blob; parsed JSON is identical.",
+    "disposition": "Do not overwrite foreign bytes and do not repeat the failed active-claim registration. Continue in an isolated worktree that preserves the same semantic authority with canonical LF bytes."
+  },
+  "acceptance_boundary": "Architecture acceptance authorizes only a later exact tests-first repo_claim_v2. PPS-1A remains incomplete, canonical PPS-1 still requires serial PPS-1B, and no push, deployment or live action is authorized."
+}
