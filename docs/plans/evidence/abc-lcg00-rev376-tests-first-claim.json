@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.repo_claim_v2",
+  "claim_id": "ABC-LCG00-REV376",
+  "run_id": "ABC-OPEN-WORK-12H-20260824T112034+0200",
+  "slice_id": "LCG-00-ux-truth-and-navigation-contract",
+  "state": "released_blocked_before_writer_dispatch",
+  "owner": "Luna LCG-00 tests-first contract writer",
+  "thread_id": "01a03336-0306-7d92-bc94-a1f6d9be2e2e",
+  "acquired_at": "2026-08-24T11:52:31+02:00",
+  "lease_expires_at": "2026-08-24T15:52:31+02:00",
+  "mutation_authority": "repo_only",
+  "live_actions": false,
+  "authority_revision": {
+    "claimed_against_round7_revision": 375,
+    "registered_round7_revision": 376
+  },
+  "architecture": {
+    "revision": "LCG-00-LENS-CODE-GRAPH-UX-CONTRACT-SOL-ARCH-v1",
+    "digest_sha256": "sha256:5218c65a6eee57960c0bfa184cfc99594bb629dbfc43135f10ef7bab6929c6a6",
+    "packet_path": "docs/plans/abc-lcg00-lens-code-graph-ux-contract-materialized-genesis-architecture.json",
+    "packet_blob": "46e93c933f17c158ed001d5f82ee77f2d5db6725"
+  },
+  "allowed_paths": [
+    "docs/plans/lens-code-graph-ux-contract.md",
+    "tests/test_lens_code_graph_contract.py"
+  ],
+  "baseline_blobs": {
+    "docs/plans/lens-code-graph-ux-contract.md": "absent",
+    "tests/test_lens_code_graph_contract.py": "absent"
+  },
+  "read_only_pins": {
+    "docs/plans/lens-code-graph-roadmap.md": "95bd85aebb921398ef2580676475f1454893eeac",
+    "docs/plans/codebase-memory-integration-roadmap.md": "75b713c6fe3a28efe5d6e7a500b60a86d8f51bd1",
+    "src/codebase_memory_graph_projection.py": "65fecfd198ec588f18d054b81d669c51858abd14",
+    "tests/test_codebase_memory_graph_projection.py": "8c6c9638b51cb77b18b1e7fed22c68b3200615c0",
+    "PRODUCT.md": "5f67e52f36cf1ecf2b4b88118302699e90f68448",
+    "DESIGN.md": "3a4f303ae3bd891914ce6b4750497297c1b271ad"
+  },
+  "dependency_readback": {
+    "product_goal": "accepted_by_operator_2026-08-22",
+    "bounded_cbm_graph_api": "CBM-08 accepted_2026-07-18; exact 31-test focused baseline passed at claim preflight",
+    "ui_owner": "Alice product owner with one Luna contract writer; no renderer or UI hotfile is claimed"
+  },
+  "tests_first": {
+    "required_order": [
+      "Create tests/test_lens_code_graph_contract.py first.",
+      "Run the complete focused test file and record RED only for the absent UX contract.",
+      "Create docs/plans/lens-code-graph-ux-contract.md only after valid RED.",
+      "Run focused, CBM-08 dependency, static contract and central router checks on unchanged candidate blobs."
+    ],
+    "focused": "PYTHONPATH=venv/Lib/site-packages python3 -B -m pytest --noconftest -q -p no:cacheprovider tests/test_lens_code_graph_contract.py",
+    "dependency": "process-local core namespace bootstrap; pytest --noconftest tests/test_lens_code_graph_contract.py tests/test_codebase_memory_graph_projection.py",
+    "cbm08_preflight_result": "31 passed in 8.85s"
+  },
+  "acceptance": [
+    "The contract places Code inside the existing Knowledge workspace and Lens shell; no new top-level application, duplicate navigation or CBM iframe is permitted.",
+    "Symbol Graph, Import Graph and Call Graph plus Overview, Impact, Dependencies, Timeline, Trace and Code Planet are named without collapsing topology, semantic proximity or runtime trace truth.",
+    "Every visible mode names its source, version/generation, locator, confidence and clipping/freshness semantics.",
+    "Desktop, mobile, keyboard, reduced-motion, loading, empty, error, disabled, stale, partial and clipped states are explicit and testable.",
+    "The contract consumes only bounded CBM-08 projection capabilities; it cannot control the engine, index a repository, expose raw IDs or request an unbounded graph.",
+    "No renderer, route, productive graph, source access, provider, network, stage, commit, push, deploy or live action is added by the writer."
+  ],
+  "preserved_foreign_work": [
+    "docs/plans/lens-code-graph-roadmap.md remains read-only because it already contains foreign uncommitted changes.",
+    "All existing UI, app, renderer, CBM, USI, lineage, router and release paths remain read-only to the product writer."
+  ],
+  "stop_rule": "Stop on a third writer path, roadmap/UI/source edit, source-before-valid-RED, dependency-pin drift, duplicate shell, truth-boundary collapse, unbounded payload, raw engine control, failed focused or dependency checks, residual write, stage/commit/push/deploy or live action."
+  ,"released_at": "2026-08-24T12:22:00+02:00"
+  ,"released_reason": "Integration registration could not bind the foreign dirty Round6 raw bytes to the canonical Guidance projection; no product writer was activated."
+  ,"terminal_evidence_path": "docs/plans/evidence/abc-lcg00-rev377-terminal-registration-release.json"
+  ,"terminal_evidence_blob": "83ff699c40e15ec4b6eceef3ea738090d60159ec"
+  ,"terminal_evidence_digest_sha256": "sha256:8e5c5148f07eeae30200bcb26d17aa3509c5ee2092002eeafe9a47668ebfb44e"
+}

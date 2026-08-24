@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.sol_materialized_repo_genesis_architecture",
+  "state": "frozen",
+  "architect": "root/Sol master",
+  "slice_id": "LCG-00-ux-truth-and-navigation-contract",
+  "origin_mode": "materialized_repo_genesis",
+  "architecture_revision": "LCG-00-LENS-CODE-GRAPH-UX-CONTRACT-SOL-ARCH-v1",
+  "published_round7_revision": 375,
+  "allowed_paths": [
+    "docs/plans/lens-code-graph-ux-contract.md",
+    "tests/test_lens_code_graph_contract.py"
+  ],
+  "baseline_blobs": {
+    "docs/plans/lens-code-graph-ux-contract.md": "absent",
+    "tests/test_lens_code_graph_contract.py": "absent"
+  },
+  "baseline_readback": {
+    "schema_version": 1,
+    "mode": "materialized_repo_genesis_partition_v1",
+    "materialized_paths": [],
+    "materialized_readback": "materialized_exact_binary_readback_pass",
+    "genesis_paths": [
+      "docs/plans/lens-code-graph-ux-contract.md",
+      "tests/test_lens_code_graph_contract.py"
+    ],
+    "genesis_readback": "captured_absent_paths_exact_readback_pass"
+  },
+  "acceptance": [
+    "The contract places Code inside the existing Knowledge workspace and Lens shell; no new top-level application, duplicate navigation or CBM iframe is permitted.",
+    "Symbol Graph, Import Graph and Call Graph plus Overview, Impact, Dependencies, Timeline, Trace and Code Planet are named without collapsing topology, semantic proximity or runtime trace truth.",
+    "Every visible mode names its source, version or generation, locator, confidence and clipping or freshness semantics.",
+    "Desktop, mobile, keyboard, reduced-motion, loading, empty, error, disabled, stale, partial and clipped states are explicit and testable.",
+    "The contract consumes only bounded CBM-08 projection capabilities; it cannot control the engine, index a repository, expose raw IDs or request an unbounded graph.",
+    "No renderer, route, productive graph, source access, provider, network, stage, commit, push, deploy or live action is added by the product writer."
+  ],
+  "forbidden": [
+    "a third writer path, roadmap edit, UI implementation, renderer, route or source edit",
+    "a new top-level application, duplicate navigation shell or embedded CBM iframe",
+    "unbounded graph payloads, raw engine control, repository indexing or raw internal identifiers",
+    "topology, semantic proximity and runtime trace presented as interchangeable truth",
+    "stage, commit, push, deploy, provider, network, host, private-data or live action by the product writer"
+  ],
+  "hostile_matrix": [
+    "Symbol, import and call views remain distinct from semantic Code Planet proximity and from runtime Trace evidence.",
+    "Each visible graph state binds source authority, version or generation, locator, confidence and stale, partial or clipped semantics.",
+    "Loading, empty, error, disabled, stale, partial and clipped states remain distinguishable and do not overclaim completeness.",
+    "Keyboard, mobile and reduced-motion behavior retains equivalent navigation and truth disclosure.",
+    "The contract never grants engine control, indexing, unbounded expansion, raw identifier exposure or live authority."
+  ],
+  "named_tests": [
+    "test_contract_reuses_existing_knowledge_lens_shell",
+    "test_contract_keeps_graph_truth_families_distinct",
+    "test_contract_requires_provenance_freshness_and_clipping_disclosures",
+    "test_contract_covers_interaction_and_failure_states",
+    "test_contract_is_bounded_to_cbm08_projection_capabilities",
+    "test_contract_grants_no_implementation_or_live_authority"
+  ],
+  "threat_model": "A Code Graph specification can accidentally create a second application, collapse static topology, semantic proximity and runtime traces into one false truth, hide stale or clipped data, omit accessible states, or imply unbounded CBM engine control. LCG-00 closes only the product truth and navigation contract inside the accepted Knowledge/Lens shell and leaves all renderer, route, source and live work outside this claim.",
+  "correction_budget": {
+    "failure_class": "lcg00_ux_truth_navigation_contract_and_existing_lens_reuse",
+    "limit": 1,
+    "used": 0,
+    "on_repeat": "release_blocked_and_require_fresh_root_sol_architecture"
+  },
+  "verification_tiers": {
+    "focused": "six exact tests-first contract nodes",
+    "dependency": "LCG-00 contract plus accepted CBM-08 graph projection suite",
+    "central": "Integration Spine, Round6 and Guidance validators",
+    "expensive_live": "not_run_user_gated",
+    "independent_qa": "fresh read-only hostile contract review",
+    "sol_review": "fresh independent Sol semantic review on frozen candidate"
+  },
+  "stop_rule": "Stop before registration or writer dispatch on authority, architecture, baseline, path, overlap, command, named-node, claim or lease drift. Stop implementation on a third writer path, source-before-valid-RED, roadmap or UI edit, duplicate shell, truth-boundary collapse, unbounded payload, raw engine control or any external action. After one same-class correction, release blocked and require fresh Root/Sol architecture."
+}

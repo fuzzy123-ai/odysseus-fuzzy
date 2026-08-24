@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.abc_terminal_registration_release",
+  "claim_id": "ABC-LCG00-REV376",
+  "slice_id": "LCG-00-ux-truth-and-navigation-contract",
+  "released_at": "2026-08-24T12:22:00+02:00",
+  "state": "released_blocked_before_writer_dispatch",
+  "product_paths": {
+    "docs/plans/lens-code-graph-ux-contract.md": "absent",
+    "tests/test_lens_code_graph_contract.py": "absent"
+  },
+  "registration_verification": {
+    "round7_external_projection_mirror": "pass_11_of_11",
+    "round6_validator": "pass_28_of_28_zero_claimable",
+    "guidance_validator": "pass_140_of_140",
+    "integration_spine": "fail_before_writer_dispatch"
+  },
+  "failure_class": "current_round6_raw_blob_and_guidance_projection_blob_divergence",
+  "counterevidence": {
+    "declared_round6_blob": "2b96aeb7510e59776b1bba42721804c0c3052dfe",
+    "current_raw_round6_blob": "e5f4e1a93c358874203cba3b00b9b9afc74e5b1f",
+    "other_claim_pins": "historical released claims use earlier materialized Round6 blobs; none establishes current raw-byte authority",
+    "inventory_receipt": "missing_from_initial_registration_evidence"
+  },
+  "decision": "Do not normalize, overwrite or rebind the foreign dirty Round6 or Guidance authority inside this feature claim. Release the claim before tests-first product work. After the foreign authority converges, the unchanged frozen product architecture may receive a fresh control-plane-safe registration because no product-invariant correction was consumed.",
+  "correction_budget": {
+    "limit_per_invariant": 1,
+    "used": 0,
+    "after_repeat": "stop_and_rearchitect"
+  },
+  "live_actions": false
+}

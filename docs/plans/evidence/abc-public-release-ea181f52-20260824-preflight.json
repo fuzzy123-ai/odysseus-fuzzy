@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.public_release_local_preflight",
+  "checked_at": "2026-08-24T12:27:00+02:00",
+  "checkout": "C:\\Users\\nkatz\\Documents\\odysseus-public-release",
+  "branch": "codex/public-release",
+  "commit": "ea181f52e72a24d91480757c55a298fbb77249b1",
+  "working_tree": "clean_before_and_after",
+  "runtime": {
+    "source": "existing local dependency runtime",
+    "repository_mutation": false,
+    "network": false
+  },
+  "verification_lanes": [
+    {
+      "id": "bounded-runtime-and-release-contracts",
+      "files": [
+        "tests/test_codebase_memory_graph_projection.py",
+        "tests/test_unified_source_index_runtime_status.py",
+        "tests/test_release_manifest.py",
+        "tests/test_ci_release_workflow_contract.py"
+      ],
+      "result": "52 passed in 38.76s"
+    },
+    {
+      "id": "ten-file-release-contract-lane",
+      "files": [
+        "tests/test_release_manifest.py",
+        "tests/test_release_status_markdown.py",
+        "tests/test_release_artifact_manifest.py",
+        "tests/test_release_readiness_report.py",
+        "tests/test_release_decision_bundle.py",
+        "tests/test_release_handoff_markdown.py",
+        "tests/test_release_followup_matrix.py",
+        "tests/test_release_orchestration_status.py",
+        "tests/test_release_evidence_snapshot.py",
+        "tests/test_release_slice_router.py"
+      ],
+      "result": "52 passed in 77.45s"
+    }
+  ],
+  "post_verification": {
+    "git_status_porcelain_v2": "clean",
+    "git_diff_check": "pass"
+  },
+  "not_verified": [
+    "full repository suite on the exact public commit",
+    "remote branch state or CI",
+    "push, deploy, backup, health readback or live behavior"
+  ],
+  "live_actions": false
+}
