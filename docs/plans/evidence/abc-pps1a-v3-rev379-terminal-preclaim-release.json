@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "kind": "odysseus.abc_terminal_architecture_release",
+  "revision": 379,
+  "observed_at": "2026-08-24T13:19:27+02:00",
+  "slice_id": "PPS-1A-direct-json-block-scalar-and-safe-bundle-rebase",
+  "state": "released_terminal_before_product_claim",
+  "accepted_product_change": false,
+  "active_product_claim": false,
+  "product_writer_dispatched": false,
+  "source_architecture": {
+    "path": "docs/plans/abc-pps1a-v3-direct-json-rebase-architecture.json",
+    "blob_git_no_filters": "069465cecf0853ad35ba72de6c0070846fbd3880",
+    "acceptance_evidence": "docs/plans/evidence/abc-pps1a-v3-rev378-architecture-acceptance.json",
+    "acceptance_evidence_blob": "9b432b5e60af93eb9621a7320f1052a62bad0bb3",
+    "correction_budget": "used_1_of_1"
+  },
+  "materialized_genesis_preflight": {
+    "isolated_branch": "codex/pps1a-v3",
+    "isolated_commit": "b2d00598",
+    "companion_path": "docs/plans/abc-pps1a-v3-direct-json-rebase-materialized-genesis-architecture.json",
+    "companion_blob_git_no_filters": "62620fde5487657f285fb68cbe752ae6c7ade3d9",
+    "companion_digest_sha256": "sha256:6081f2eb80245088b2bf7eb2fb7d9790ca8c58dd444b84c7dd5d01df78fab34a",
+    "control_plane": "Revision 378 projection validated in the isolated worktree with Integration Spine, Round6 and Guidance all green and zero active claims or leases.",
+    "product_baselines": "All four future writer paths remained exact clean HEAD; tests/test_skill_format.py remained absent."
+  },
+  "independent_terminal_review": {
+    "reviewer_agent_id": "01a0335f-a45b-7082-90f2-1c915a82294f",
+    "route": "fresh independent gpt-5.6-sol xhigh",
+    "verdict": "FAIL",
+    "counterexample": "The accepted source architecture requires tests/test_product_planning_skills.py in the dependency tier, but that path is absent from accepted HEAD. Its only local copy is an untracked PPS-2 candidate that remains preserved and unaccepted while PPS-2 waits on PPS-1 runtime acceptance.",
+    "impact": "The declared dependency tier is not runnable from accepted repository state. Importing the unaccepted PPS-2 candidate would violate candidate isolation and create a hidden PPS-1/PPS-2 dependency cycle."
+  },
+  "reflect_disposition": "Do not materialize, stage, commit or publish the unaccepted PPS-2 candidate; do not weaken the dependency tier; do not register a PPS-1A v3 claim. The source architecture already consumed its one correction on the exact rebased-depth boundary, so this later material dependency failure is terminal for v3.",
+  "clean_origin_readback": {
+    "services/memory/skill_format.py": "unchanged",
+    "services/memory/skill_importer.py": "unchanged",
+    "services/memory/skills.py": "unchanged",
+    "tests/test_skill_importer.py": "unchanged",
+    "tests/test_skill_format.py": "absent",
+    "tests/test_skills_manager_owner_isolation.py": "unchanged"
+  },
+  "next_action": "Any future PPS-1A attempt requires a materially fresh Root/Sol architecture whose dependency tier contains only accepted materialized HEAD tests, or an explicit prior acceptance of a separately claimed dependency test. Preserve PPS-2 candidate bytes without publication. Continue a disjoint dependency-ready feature lane now.",
+  "stage_commit_push_deploy_live": false
+}
