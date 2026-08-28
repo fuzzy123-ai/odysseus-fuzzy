@@ -1,5 +1,18 @@
 # SEC129 Predeploy Backup Creation Packet
 
+## SEC193 future incident-bound recovery readiness (2026-08-28)
+
+SEC192 recovered the exact known `561195...` incident with canonical evidence
+`f806b239c7b81a07af855e7f20eb91bce5c46cb26949c0936555fbf3bfe23991`.
+SEC193 now binds the same fail-closed recovery implementation only to the
+future helper `abf8f859384a9ab21d2c5fb682aabaaff522464eef5d035126065021de373d31`.
+Its recovery source SHA-256 is
+`3fdfd9a80511039bdf86ebde952001dc6a07f5177b4edfa3220e357f47d10a27`;
+the transport source pin and embedded bootstrap pin must match it exactly.
+Recovery, upgrade-new and action helper pins must remain equal. This readiness
+does not authorize the helper upgrade, another recovery invocation, backup or
+deployment; those remain separately gated after publication and green CI.
+
 ## SEC192 sequential incident-bound recovery correction (2026-08-28)
 
 The failed attempt identified by action provenance
