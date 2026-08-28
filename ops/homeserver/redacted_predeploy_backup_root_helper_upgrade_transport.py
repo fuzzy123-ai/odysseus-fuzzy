@@ -20,10 +20,10 @@ UPGRADE_PATH = "ops/homeserver/redacted_predeploy_backup_root_helper_upgrade.py"
 HELPER_PATH = "ops/homeserver/redacted_predeploy_backup_root_helper.py"
 READBACK_PATH = "ops/homeserver/redacted_predeploy_backup_root_helper_readback.py"
 INSTALL_READBACK_PATH = "ops/homeserver/redacted_predeploy_backup_root_helper_install_readback.py"
-PUBLISHED_UPGRADE_SHA256 = "004ac9ddd51bd0d37c6b3f852500b148ae2ef2dc429bd1972a6aa2bd6b5d46ce"
-PUBLISHED_HELPER_SHA256 = "9c9e6632be23a04d6c8d284b868b227b5576f35bb480208c1b4f7f0635f21032"
+PUBLISHED_UPGRADE_SHA256 = "c7b0e7ecc73395fa582bfe294e98b7c523d46abd1458a19493e3d7a9af875560"
+PUBLISHED_HELPER_SHA256 = "56119595274556615a3e83e1f637bd2035232180a0a0005aa3938d08ca3efb81"
 PUBLISHED_READBACK_SHA256 = "e647b6f1faa409f42cbeb80c74826b730695d9e0fad14cf47aa22c1a59a0a046"
-PUBLISHED_INSTALL_READBACK_SHA256 = "e960d6dac8892e8ed502aeb19d70f3ddd3d8c399f54d68c3ec5d4afdf200cff4"
+PUBLISHED_INSTALL_READBACK_SHA256 = "497c152c99ed992dbb4ba3db2ddc06a6e7200082cfdfaf8e37988c60fadcc83b"
 MAX_BLOB_BYTES = 400_000
 MAX_STDIN_BYTES = 1_800_000
 MAX_STDOUT_BYTES = 8_192
@@ -35,7 +35,7 @@ raw=sys.stdin.buffer.read(1800001)
 if not raw or len(raw)>1800000: raise SystemExit(70)
 try: bundle=json.loads(raw.decode("ascii"))
 except Exception: raise SystemExit(70)
-pins={"upgrade_sha256":"004ac9ddd51bd0d37c6b3f852500b148ae2ef2dc429bd1972a6aa2bd6b5d46ce","helper_sha256":"9c9e6632be23a04d6c8d284b868b227b5576f35bb480208c1b4f7f0635f21032","readback_sha256":"e647b6f1faa409f42cbeb80c74826b730695d9e0fad14cf47aa22c1a59a0a046","install_readback_sha256":"e960d6dac8892e8ed502aeb19d70f3ddd3d8c399f54d68c3ec5d4afdf200cff4"}
+pins={"upgrade_sha256":"c7b0e7ecc73395fa582bfe294e98b7c523d46abd1458a19493e3d7a9af875560","helper_sha256":"56119595274556615a3e83e1f637bd2035232180a0a0005aa3938d08ca3efb81","readback_sha256":"e647b6f1faa409f42cbeb80c74826b730695d9e0fad14cf47aa22c1a59a0a046","install_readback_sha256":"497c152c99ed992dbb4ba3db2ddc06a6e7200082cfdfaf8e37988c60fadcc83b"}
 expected={"execute","upgrade_sha256","upgrade_source","helper_sha256","helper_source","readback_sha256","readback_source","install_readback_sha256","install_readback_source"}
 if type(bundle) is not dict or set(bundle)!=expected or bundle.get("execute") is not True or any(bundle.get(k)!=v for k,v in pins.items()): raise SystemExit(70)
 decoded={}

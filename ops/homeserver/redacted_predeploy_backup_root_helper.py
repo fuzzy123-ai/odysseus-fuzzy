@@ -324,7 +324,7 @@ def _mount_setup(bound: Bound, *, syscall: Callable[..., int] | None = None, mou
     source_before, source_after = os.fstat(bound.source_fd), os.stat(SOURCE)
     repository_before, repository_after = os.fstat(bound.repository_fd), os.stat(REPOSITORY)
     if (source_before.st_dev, source_before.st_ino) != (source_after.st_dev, source_after.st_ino) or (repository_before.st_dev, repository_before.st_ino) != (repository_after.st_dev, repository_after.st_ino): raise Failure("preflight_failed")
-    if _filesystem_readonly(os.statvfs(VIEW_REPOSITORY)): raise Failure("preflight_failed")
+    if _filesystem_readonly(os.statvfs(REPOSITORY)): raise Failure("preflight_failed")
     invoke_mount(None, SOURCE, None, MS_BIND | MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV | MS_NOEXEC)
     if not _filesystem_readonly(os.statvfs(SOURCE)): raise Failure("preflight_failed")
     raw = _read_credential_from_start(bound.credential_fd, os.fstat(bound.credential_fd).st_size)

@@ -54,6 +54,8 @@ def test_private_mount_view_remains_traversable_after_uid_drop_and_uses_canonica
     assert "os.fchown(credential_directory_fd, bound.uid, bound.gid)" in mount_source
     assert "move(bound.source_fd, SOURCE)" in mount_source
     assert "move(bound.repository_fd, REPOSITORY)" in mount_source
+    assert "os.statvfs(REPOSITORY)" in mount_source
+    assert "VIEW_REPOSITORY" not in mount_source
     assert "VIEW_SOURCE" not in mount_source + execution_source
     assert '(RESTIC_BINARY, "-r", REPOSITORY, "backup", SOURCE' in execution_source
 
