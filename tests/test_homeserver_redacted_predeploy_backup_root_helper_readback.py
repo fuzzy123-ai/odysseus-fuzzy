@@ -13,7 +13,10 @@ def test_readback_projects_only_fixed_metadata() -> None:
     result = subject.collect_readback(reader=_ok)
     assert subject.validate_envelope(result) and result["status"] == "available" and result["result_status"] == "ok"
     assert result["paths_visible"] is False and result["secret_values_visible"] is False
-    assert open(subject.__file__, encoding="ascii").read().startswith("#!/usr/bin/python3\n")
+    source = open(subject.__file__, encoding="ascii").read()
+    assert source.startswith("#!/usr/bin/python3\n")
+    assert "stat.S_IMODE(info.st_mode) != 0o600" in source
+    assert "stat.S_IMODE(info.st_mode) != 0o644" not in source
 
 
 def test_unavailable_and_tampered_results_fail_closed() -> None:

@@ -34,8 +34,6 @@ ARM_NAME = "arm.json"
 USED_PREFIX = "used-"
 PUBLIC_RECEIPT_PATH = "/run/odysseus-predeploy-backup-root-helper/receipt.json"
 VIEW_ROOT = "/run/odysseus-predeploy-backup-root-helper/view"
-VIEW_SOURCE = VIEW_ROOT + "/source"
-VIEW_REPOSITORY = VIEW_ROOT + "/repository"
 VIEW_CREDENTIAL = VIEW_ROOT + "/credential/restic-password"
 BACKUP_TIMEOUT_SECONDS = 1800
 READBACK_TIMEOUT_SECONDS = 20
@@ -293,21 +291,42 @@ def _mount_setup(bound: Bound, *, syscall: Callable[..., int] | None = None, mou
     # This run directory is deliberately reusable across one-shot runs, but
     # never accepted through a symlink or with relaxed ownership.
     _open_reusable_view_anchor()
-    invoke_mount(b"tmpfs", VIEW_ROOT, b"tmpfs", MS_NOSUID | MS_NODEV | MS_NOEXEC, b"mode=0700,size=1048576")
-    os.mkdir(VIEW_SOURCE, 0o700); os.mkdir(VIEW_REPOSITORY, 0o700); os.mkdir(os.path.dirname(VIEW_CREDENTIAL), 0o700)
+    # The helper drops to ``homebase`` before exec.  The private tmpfs root
+    # therefore needs traverse-only access, while the credential directory is
+    # transferred to that exact uid and remains owner-only.  The previous
+    # 0700/root layout made every Restic invocation fail after the uid drop.
+    invoke_mount(b"tmpfs", VIEW_ROOT, b"tmpfs", MS_NOSUID | MS_NODEV | MS_NOEXEC, b"mode=0711,size=1048576")
+    credential_directory = os.path.dirname(VIEW_CREDENTIAL)
+    os.mkdir(credential_directory, 0o700)
+    credential_directory_fd = None
+    try:
+        credential_directory_fd = os.open(credential_directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        os.fchown(credential_directory_fd, bound.uid, bound.gid); os.fchmod(credential_directory_fd, 0o700)
+        credential_directory_info = os.fstat(credential_directory_fd)
+        if not (_safe_dir(credential_directory_info, bound.uid, 0o700) and credential_directory_info.st_gid == bound.gid): raise Failure("preflight_failed")
+    except Failure:
+        raise
+    except Exception:
+        raise Failure("preflight_failed") from None
+    finally:
+        if isinstance(credential_directory_fd, int): os.close(credential_directory_fd)
     def move(fd: int, target: str) -> None:
         tree = call(open_tree_nr, fd, ctypes.c_char_p(b""), AT_EMPTY_PATH | OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC | OPEN_TREE_RECURSIVE)
         if not isinstance(tree, int) or tree < 0: raise Failure("preflight_failed")
         try:
             if call(move_mount_nr, tree, ctypes.c_char_p(b""), AT_FDCWD, ctypes.c_char_p(target.encode("ascii")), MOVE_MOUNT_F_EMPTY_PATH) != 0: raise Failure("preflight_failed")
         finally: os.close(tree)
-    move(bound.source_fd, VIEW_SOURCE); move(bound.repository_fd, VIEW_REPOSITORY)
-    source_before, source_after = os.fstat(bound.source_fd), os.stat(VIEW_SOURCE)
-    repository_before, repository_after = os.fstat(bound.repository_fd), os.stat(VIEW_REPOSITORY)
+    # Attach retained descriptor identities at their canonical paths inside
+    # this child-only mount namespace.  Restic consequently records
+    # ``/opt/odysseus`` rather than an internal staging pathname, preserving
+    # the independent snapshot-observation contract.
+    move(bound.source_fd, SOURCE); move(bound.repository_fd, REPOSITORY)
+    source_before, source_after = os.fstat(bound.source_fd), os.stat(SOURCE)
+    repository_before, repository_after = os.fstat(bound.repository_fd), os.stat(REPOSITORY)
     if (source_before.st_dev, source_before.st_ino) != (source_after.st_dev, source_after.st_ino) or (repository_before.st_dev, repository_before.st_ino) != (repository_after.st_dev, repository_after.st_ino): raise Failure("preflight_failed")
     if _filesystem_readonly(os.statvfs(VIEW_REPOSITORY)): raise Failure("preflight_failed")
-    invoke_mount(None, VIEW_SOURCE, None, MS_BIND | MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV | MS_NOEXEC)
-    if not _filesystem_readonly(os.statvfs(VIEW_SOURCE)): raise Failure("preflight_failed")
+    invoke_mount(None, SOURCE, None, MS_BIND | MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV | MS_NOEXEC)
+    if not _filesystem_readonly(os.statvfs(SOURCE)): raise Failure("preflight_failed")
     raw = _read_credential_from_start(bound.credential_fd, os.fstat(bound.credential_fd).st_size)
     fd = None
     try:
@@ -321,8 +340,8 @@ def _mount_setup(bound: Bound, *, syscall: Callable[..., int] | None = None, mou
     finally:
         raw[:] = b"\x00" * len(raw)
         if isinstance(fd, int): os.close(fd)
-    invoke_mount(None, os.path.dirname(VIEW_CREDENTIAL), None, MS_BIND | MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV | MS_NOEXEC)
-    if not _filesystem_readonly(os.statvfs(os.path.dirname(VIEW_CREDENTIAL))): raise Failure("preflight_failed")
+    invoke_mount(None, credential_directory, None, MS_BIND | MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV | MS_NOEXEC)
+    if not _filesystem_readonly(os.statvfs(credential_directory)): raise Failure("preflight_failed")
 
 
 def _filesystem_readonly(info: Any) -> bool:
@@ -515,10 +534,10 @@ def _execute_under_lock(digest: str, now: Callable[[], float]) -> dict[str, Any]
         _invalidate_public_receipt()
         bound = _bind_identities()
         bound = Bound(bound.source_fd, bound.repository_fd, bound.credential_fd, bound.restic_fd, bound.uid, bound.gid, reference)
-        backup = _run_child(bound, (RESTIC_BINARY, "-r", VIEW_REPOSITORY, "backup", VIEW_SOURCE, "--exclude", "**/.git", "--exclude", "**/__pycache__", "--exclude", "**/.pytest_cache", "--exclude", "**/node_modules", "--exclude", "**/backups", "--exclude", "**/logs/*.log", "--exclude", "**/tmp", "--exclude", "**/.cache", "--exclude-caches", "--tag", "homeserver", "--tag", "pre-update", "--tag", "odysseus-pre-update"), BACKUP_TIMEOUT_SECONDS, False)
+        backup = _run_child(bound, (RESTIC_BINARY, "-r", REPOSITORY, "backup", SOURCE, "--exclude", "**/.git", "--exclude", "**/__pycache__", "--exclude", "**/.pytest_cache", "--exclude", "**/node_modules", "--exclude", "**/backups", "--exclude", "**/logs/*.log", "--exclude", "**/tmp", "--exclude", "**/.cache", "--exclude-caches", "--tag", "homeserver", "--tag", "pre-update", "--tag", "odysseus-pre-update"), BACKUP_TIMEOUT_SECONDS, False)
         if backup[0] is None: return _unknown("backup_timeout", reference)
         if backup[0] != 0: return _unknown("backup_failed", reference)
-        result, raw, overflow = _run_child(bound, (RESTIC_BINARY, "-r", VIEW_REPOSITORY, "--no-lock", "snapshots", "--tag", "odysseus-pre-update", "--latest", "1", "--json"), READBACK_TIMEOUT_SECONDS, True)
+        result, raw, overflow = _run_child(bound, (RESTIC_BINARY, "-r", REPOSITORY, "--no-lock", "snapshots", "--tag", "odysseus-pre-update", "--latest", "1", "--json"), READBACK_TIMEOUT_SECONDS, True)
         snapshot = None if overflow or result != 0 else _parse_snapshot(raw, started)
         if result is None: return _unknown("readback_timeout", reference)
         if snapshot is None: return _unknown("readback_invalid" if result == 0 else "readback_failed", reference)

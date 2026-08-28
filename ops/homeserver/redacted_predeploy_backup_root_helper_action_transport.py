@@ -18,7 +18,7 @@ from ops.homeserver import redacted_predeploy_backup_root_helper_action as actio
 
 PUBLISHED_REF = "refs/remotes/fuzzy/dev"
 ACTION_PATH = "ops/homeserver/redacted_predeploy_backup_root_helper_action.py"
-PUBLISHED_ACTION_SHA256 = "dd3ad1dcf0f50ca52bec638f2e002a8b6bd495881496662d4c21517a3f78e9ba"
+PUBLISHED_ACTION_SHA256 = "26f2b37f44a25ff29573de4012c4b24e16b857055deb56cc9d7e8a468410c3c0"
 MAX_SOURCE_BYTES = 400_000
 MAX_BUNDLE_BYTES = 600_000
 MAX_STDOUT_BYTES = 8_192
@@ -30,7 +30,7 @@ raw=sys.stdin.buffer.read(600001)
 if not raw or len(raw)>600000: raise SystemExit(70)
 try: bundle=json.loads(raw.decode("ascii"))
 except Exception: raise SystemExit(70)
-expected="dd3ad1dcf0f50ca52bec638f2e002a8b6bd495881496662d4c21517a3f78e9ba"
+expected="26f2b37f44a25ff29573de4012c4b24e16b857055deb56cc9d7e8a468410c3c0"
 if type(bundle) is not dict or set(bundle)!={"execute","packet","sha256","source"} or bundle.get("execute") is not True or bundle.get("sha256")!=expected: raise SystemExit(70)
 try: source=base64.b64decode(bundle["source"],validate=True)
 except Exception: raise SystemExit(70)

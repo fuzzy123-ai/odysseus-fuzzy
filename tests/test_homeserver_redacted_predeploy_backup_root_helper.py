@@ -47,6 +47,17 @@ def test_unit_contract_uses_one_fixed_python_exec_and_narrow_capabilities() -> N
     assert "StandardInput=null" in unit and "ProtectSystem=strict" in unit
 
 
+def test_private_mount_view_remains_traversable_after_uid_drop_and_uses_canonical_paths() -> None:
+    mount_source = inspect.getsource(subject._mount_setup)
+    execution_source = inspect.getsource(subject._execute_under_lock)
+    assert 'b"mode=0711,size=1048576"' in mount_source
+    assert "os.fchown(credential_directory_fd, bound.uid, bound.gid)" in mount_source
+    assert "move(bound.source_fd, SOURCE)" in mount_source
+    assert "move(bound.repository_fd, REPOSITORY)" in mount_source
+    assert "VIEW_SOURCE" not in mount_source + execution_source
+    assert '(RESTIC_BINARY, "-r", REPOSITORY, "backup", SOURCE' in execution_source
+
+
 def test_snapshot_parser_rejects_stale_or_unbound_content() -> None:
     assert subject._parse_snapshot(b"not-json", 0.0) is None
     assert subject._parse_snapshot(b"[]", 0.0) is None

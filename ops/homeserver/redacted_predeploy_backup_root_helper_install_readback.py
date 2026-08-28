@@ -18,8 +18,8 @@ MAX_ASSET_BYTES = 400_000
 SYSTEMCTL_TIMEOUT_SECONDS = 5
 SYSTEMCTL_OUTPUT_BYTES = 32
 ASSETS = (
-    ("/usr/local/libexec/odysseus-predeploy-backup-root-helper.py", "dbcbac4c5a4b65edcc4d4facd9204674a8e9114179f406c88d067c7f96185a97", 0o700),
-    ("/usr/local/libexec/odysseus-predeploy-backup-root-helper-readback.py", "8201653d392d1556a81f6ca236e9f5dd94b6d425dc03ae699f74280b4ae9b722", 0o700),
+    ("/usr/local/libexec/odysseus-predeploy-backup-root-helper.py", "9c9e6632be23a04d6c8d284b868b227b5576f35bb480208c1b4f7f0635f21032", 0o700),
+    ("/usr/local/libexec/odysseus-predeploy-backup-root-helper-readback.py", "e647b6f1faa409f42cbeb80c74826b730695d9e0fad14cf47aa22c1a59a0a046", 0o700),
     ("/etc/systemd/system/odysseus-predeploy-backup-root-helper.service", "466de2f889a00ee2759bd06380ddb213f8c0f4cee5644e3a2e27083863c1ab98", 0o644),
     ("/etc/sudoers.d/odysseus-predeploy-backup-root-helper", "1a6a7f1ec4d328c9fed20b758a87bb9905b68145122f6751fd5eeea748d5847d", 0o440),
 )

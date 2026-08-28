@@ -16,10 +16,10 @@ from typing import Any, Mapping
 
 
 SCHEMA_ID = "odysseus.predeploy_backup_root_helper_install.v1"
-HELPER_SHA256 = "dbcbac4c5a4b65edcc4d4facd9204674a8e9114179f406c88d067c7f96185a97"
+HELPER_SHA256 = "9c9e6632be23a04d6c8d284b868b227b5576f35bb480208c1b4f7f0635f21032"
 HELPER_PATH = "/usr/local/libexec/odysseus-predeploy-backup-root-helper.py"
 READBACK_PATH = "/usr/local/libexec/odysseus-predeploy-backup-root-helper-readback.py"
-READBACK_SHA256 = "8201653d392d1556a81f6ca236e9f5dd94b6d425dc03ae699f74280b4ae9b722"
+READBACK_SHA256 = "e647b6f1faa409f42cbeb80c74826b730695d9e0fad14cf47aa22c1a59a0a046"
 UNIT_PATH = "/etc/systemd/system/odysseus-predeploy-backup-root-helper.service"
 SUDOERS_PATH = "/etc/sudoers.d/odysseus-predeploy-backup-root-helper"
 STATE_DIR = "/var/lib/odysseus-predeploy-backup-root-helper"

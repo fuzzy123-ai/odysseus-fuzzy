@@ -54,7 +54,10 @@ def _read_fixed(path: str = RECEIPT_PATH) -> dict[str, Any] | None:
     try:
         fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
         info = os.fstat(fd)
-        if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_gid != 0 or stat.S_IMODE(info.st_mode) != 0o644 or not 0 < info.st_size <= MAX_RECEIPT_BYTES: return None
+        # The systemd unit deliberately runs with UMask=0077, so the helper's
+        # requested 0644 receipt is published as root-only 0600.  The reader is
+        # itself a fixed root command and must validate the effective mode.
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_gid != 0 or stat.S_IMODE(info.st_mode) != 0o600 or not 0 < info.st_size <= MAX_RECEIPT_BYTES: return None
         raw = bytearray()
         while len(raw) <= MAX_RECEIPT_BYTES:
             item = os.read(fd, min(4096, MAX_RECEIPT_BYTES + 1 - len(raw)))
