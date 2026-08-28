@@ -339,6 +339,24 @@
     "deployment_execution": false,
     "boundary": "The one result may guide a new code repair or a newly exact recovery scope; it has no mutation authority."
   },
+  "latest_sec200_corrected_incident_recovery_authorization": {
+    "recorded_at": "2026-08-28T20:46:06+02:00",
+    "baseline_head": "352e22c224635bd8da35437d85a976b5de30410e",
+    "status": "approved_exact_one_shot_corrected_recovery_pending_publication_and_required_ci",
+    "run_id": "ABC-SEC200-20260828-CORRECTED-ABF8-INCIDENT-RECOVERY-LIVE",
+    "live_go_id": "SEC200-CORRECTED-ABF8-INCIDENT-RECOVERY-20260828",
+    "owner_authorization": "freigabe erteilt; problem zu fixen und alles was bisher gemacht wurde live zu schalten",
+    "required_ci_run_id": 33200230901,
+    "required_ci_status": "success",
+    "recovery_source_sha256": "17165bcf718edc39886425be43194d35aaa73082ebab640b1786e869bb50ff8c",
+    "recovery_transport_sha256": "6023631f56160a5c81b13e038d6685c0610ff75e195831e9ef551ca71ae600dc",
+    "diagnostic_evidence_sha256": "a791da5add696f2efe455e4cb5ac47ace76524156cb85d66d677cce9afc13e97",
+    "retry_counter": 0,
+    "recovery_execution": false,
+    "backup_execution": false,
+    "deployment_execution": false,
+    "boundary": "This new one-use recovery is separate from SEC197 because it corrects a proven local mode-contract defect. It has no backup, retry, deployment or delivery authority."
+  },
   "file_sha256": {
     "docs/plans/multi-agent-execution-guidance.json": "4b75fab41f64b5b371dc66a05c7af5b065527aa354322e5c0f14edfa1955b128",
     "docs/plans/open-work-completion-master-roadmap.json": "0438c559db0866e95b968cb1bdd876ed7ded4056ddeff5372325c05ed2729987",
@@ -346,7 +364,7 @@
     "docs/plans/security-incident-response-backup-creation-packet.md": "78dc088e4212ab86a967b06905b7979f2e770ceb375395cef3a581ef22f8c7f7",
     "docs/plans/security-incident-response-backup-snapshot-observation-packet.md": "f5e9ef905e522c03175e6dae4d467e204f4ce73836ece6d7b5b66ecfa27450bf",
     "docs/plans/security-incident-response-live-observe-delivery-evidence.md": "a488e1970d63bdb99a3daabe4aeb3490574654de0fb61dcb545ded6f76486f67",
-    "docs/plans/security-incident-response-production-completion-roadmap.json": "b1ec39d5be39ca9c73cd520be06b999ce6ce36c7b95d1ab0d3d1f540bee6b7cb",
+    "docs/plans/security-incident-response-production-completion-roadmap.json": "61877d5136d7d66a55ebb372519e34fd89b62e429939839d5bd8f0a7bd1d475a",
     "docs/plans/security-incident-response-transactional-deploy-packet.md": "04881d0a642539bf32fd879b59e0a05618d108914e50d89de9be99f6db495047",
     "docs/runbooks/security-incident-response.md": "d9b62c8355783bca94de49137591bb4c5c94f6bdbe0000c7b7a24e1a7950149e",
     "ops/homeserver/redacted_backup_snapshot_observation.py": "d838a0a99310171c8ca08d1835527df9d8ac03b240d57b0bd1bbd745e949a95b",
@@ -365,9 +383,9 @@
     "tests/test_homeserver_redacted_predeploy_backup_root_helper_recovery_transport.py": "6b7ee7e87b414ed925c1eab233454899f1f3a0f251765e32c01f62349b050d8a",
     "tests/test_homeserver_redacted_predeploy_observation.py": "9c048fbc8a16d28450914c7d4c265e27ace9908189b14eaa49ca7047096d1f34",
     "tests/test_homeserver_redacted_podman_compose_capability_observation.py": "5e232816c72abfae75e892f07b19dbeeafa9fb29c4ceb5439a491ae3c6f26f2d",
-    "tests/test_security_incident_response_production_completion_roadmap.py": "6f0c4efab8f344c8ede9e0de7bb353188d8c5a72eee439263b5be3c29177e44d"
+    "tests/test_security_incident_response_production_completion_roadmap.py": "efde596f9347e15a6380a72f3d11f19ef1d1871cd5d2b3b71673418735f458b0"
   },
-  "aggregate_sha256": "0600894f106085afcb0c58b7c48377b583c30e9395ad6511ab8657dc2bb77f86",
+  "aggregate_sha256": "9d5b08c38a5dbb802230667663a05bf3257dbb46cca32735b3fc4422954f9b3b",
   "claim_state": "released",
   "remaining_frontier": "SEC197's exact recovery was terminal preflight-blocked before mutation. Stop without retry, backup or deployment. Implement and independently verify a new read-only redacted current-incident cause diagnostic; only its specific result may justify a newly scoped recovery or a repair of the recovery contract."
 }
