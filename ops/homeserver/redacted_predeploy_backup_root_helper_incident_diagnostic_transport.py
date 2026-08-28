@@ -16,7 +16,7 @@ from ops.homeserver import redacted_predeploy_backup_root_helper_incident_diagno
 
 PUBLISHED_REF = "refs/remotes/fuzzy/dev"
 DIAGNOSTIC_PATH = "ops/homeserver/redacted_predeploy_backup_root_helper_incident_diagnostic.py"
-PUBLISHED_DIAGNOSTIC_SHA256 = "05f039cdc44ad5407da766122135d3c2df0fd1b45032c582fae32d2afb85c1ee"
+PUBLISHED_DIAGNOSTIC_SHA256 = "d0d4202fd86dc155251a71d5091dcdd43fecbde40a8b167f8c0ee1eaabf5cca4"
 MAX_SOURCE_BYTES = 400_000
 MAX_BUNDLE_BYTES = 600_000
 MAX_STDOUT_BYTES = 8_192
@@ -28,7 +28,7 @@ raw=sys.stdin.buffer.read(600001)
 if not raw or len(raw)>600000: raise SystemExit(70)
 try: bundle=json.loads(raw.decode("ascii"))
 except Exception: raise SystemExit(70)
-expected="05f039cdc44ad5407da766122135d3c2df0fd1b45032c582fae32d2afb85c1ee"
+expected="d0d4202fd86dc155251a71d5091dcdd43fecbde40a8b167f8c0ee1eaabf5cca4"
 if type(bundle) is not dict or set(bundle)!={"execute","sha256","source"} or bundle.get("execute") is not True or bundle.get("sha256")!=expected: raise SystemExit(70)
 try: source=base64.b64decode(bundle["source"],validate=True)
 except Exception: raise SystemExit(70)

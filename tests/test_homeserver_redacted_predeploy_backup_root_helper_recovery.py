@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 
+from ops.homeserver import redacted_predeploy_backup_root_helper as helper
 from ops.homeserver import redacted_predeploy_backup_root_helper_recovery as subject
 from ops.homeserver import redacted_predeploy_backup_root_helper_action as action
 from ops.homeserver import redacted_predeploy_backup_root_helper_upgrade as upgrade
@@ -25,6 +27,11 @@ PACKET = {
 def test_recovery_is_bound_to_the_exact_current_incident_helper() -> None:
     expected = "abf8f859384a9ab21d2c5fb682aabaaff522464eef5d035126065021de373d31"
     assert subject.HELPER_SHA256 == upgrade.NEW_HELPER_SHA256 == action.HELPER_SHA256 == expected
+
+
+def test_recovery_accepts_only_the_helper_public_receipt_mode() -> None:
+    assert subject.RECEIPT_MODE == 0o644
+    assert "0o644" in inspect.getsource(helper._write_public_receipt)
 
 
 def _perform(**changes):

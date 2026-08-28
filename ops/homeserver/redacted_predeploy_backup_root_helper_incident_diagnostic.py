@@ -24,6 +24,7 @@ RESULT_SCHEMA_ID = "odysseus.redacted_predeploy_backup_creation.v1"
 STATE_DIR = "/var/lib/odysseus-predeploy-backup-root-helper"
 ARM_PATH = STATE_DIR + "/arm.json"
 RECEIPT_PATH = "/run/odysseus-predeploy-backup-root-helper/receipt.json"
+RECEIPT_MODE = 0o644
 UNIT = "odysseus-predeploy-backup-root-helper.service"
 HELPER_PATH = "/usr/local/libexec/odysseus-predeploy-backup-root-helper.py"
 READBACK_PATH = "/usr/local/libexec/odysseus-predeploy-backup-root-helper-readback.py"
@@ -144,7 +145,7 @@ def _used_marker(grant_id: str, *, api: Any = os) -> bool:
 
 
 def _receipt_matches(*, api: Any = os) -> bool:
-    raw = _read_regular(RECEIPT_PATH, 0o600, MAX_RECEIPT_BYTES, api=api)
+    raw = _read_regular(RECEIPT_PATH, RECEIPT_MODE, MAX_RECEIPT_BYTES, api=api)
     try:
         value = json.loads(raw.decode("ascii")) if raw is not None else None
     except Exception:

@@ -29,6 +29,7 @@ STATE_DIR = "/var/lib/odysseus-predeploy-backup-root-helper"
 ARM_NAME = "arm.json"
 USED_PREFIX = "used-"
 RECEIPT_PATH = "/run/odysseus-predeploy-backup-root-helper/receipt.json"
+RECEIPT_MODE = 0o644
 UNIT = "odysseus-predeploy-backup-root-helper.service"
 HELPER_PATH = "/usr/local/libexec/odysseus-predeploy-backup-root-helper.py"
 READBACK_PATH = "/usr/local/libexec/odysseus-predeploy-backup-root-helper-readback.py"
@@ -325,7 +326,7 @@ def _read_receipt(packet: Mapping[str, Any], *, api: Any = os) -> bool:
         parent, name = _open_parent(RECEIPT_PATH, api=api)
         descriptor = api.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=parent)
         info = api.fstat(descriptor)
-        if not _safe_file(info, 0o600, MAX_RECEIPT_BYTES): return False
+        if not _safe_file(info, RECEIPT_MODE, MAX_RECEIPT_BYTES): return False
         raw = bytearray()
         while len(raw) <= MAX_RECEIPT_BYTES:
             piece = api.read(descriptor, min(4096, MAX_RECEIPT_BYTES + 1 - len(raw)))

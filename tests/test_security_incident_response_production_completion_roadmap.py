@@ -1290,12 +1290,21 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         "b1da6fc5fe9c3f9ea7e2a1cedc57f797dce571e18bdff9d431484c4727fa4e6e"
     )
     sec199 = live_go_by_id["SEC199-CURRENT-INCIDENT-DIAGNOSTIC-20260828"]
-    assert sec199["status"] == "approved_unused"
-    assert sec199["consumption_status"] == "unconsumed"
-    assert sec199["consumed"] is False
+    assert sec199["status"] == "used_completed_receipt_mode_mismatch_diagnosed"
+    assert sec199["consumption_status"] == "consumed_terminal_read_only_diagnostic_completed"
+    assert sec199["consumed"] is True
     assert sec199["limits"]["maximum_invocations"] == 1
     assert sec199["limits"]["outer_timeout_seconds"] == 30
     assert sec199["limits"]["retries"] == 0
+    assert sec199["invocation_counter"] == 1
+    assert sec199["result_counter"] == 1
+    assert sec199["external_action_executed"] is True
+    assert sec199["terminal_result"]["status"] == "ok"
+    assert sec199["terminal_result"]["receipt_matches"] is False
+    assert sec199["terminal_result"]["recovery_preflight_ready"] is False
+    assert sec199["terminal_result"]["evidence_sha256"] == (
+        "a791da5add696f2efe455e4cb5ac47ace76524156cb85d66d677cce9afc13e97"
+    )
     assert sec199["current_incident_observation_authority"] is True
     assert sec199["incident_recovery_authority"] is False
     assert sec199["backup_authority"] is False

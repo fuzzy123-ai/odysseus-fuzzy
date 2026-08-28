@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import inspect
+
 from ops.homeserver import redacted_predeploy_backup_root_helper_incident_diagnostic as subject
+from ops.homeserver import redacted_predeploy_backup_root_helper as helper
 
 
 def _flags(**changes: bool) -> dict[str, bool]:
@@ -25,6 +28,11 @@ def test_each_failed_preflight_class_remains_visible_only_as_boolean() -> None:
     assert value["receipt_matches"] is False
     assert value["recovery_preflight_ready"] is False
     assert subject.validate_envelope(value)
+
+
+def test_diagnostic_checks_the_helper_public_receipt_mode() -> None:
+    assert subject.RECEIPT_MODE == 0o644
+    assert "0o644" in inspect.getsource(helper._write_public_receipt)
 
 
 def test_invalid_probe_values_or_failure_fail_closed_without_raw_data() -> None:
