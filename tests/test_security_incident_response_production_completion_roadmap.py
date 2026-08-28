@@ -1206,15 +1206,23 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         "f806b239c7b81a07af855e7f20eb91bce5c46cb26949c0936555fbf3bfe23991"
     )
     sec194 = live_go_by_id["SEC194-ROOT-HELPER-UPGRADE-20260828"]
-    assert sec194["status"] == "approved_unused"
-    assert sec194["consumption_status"] == "unconsumed"
-    assert sec194["consumed"] is False
+    assert sec194["status"] == "used_completed_upgraded"
+    assert sec194["consumption_status"] == "consumed_terminal_upgraded"
+    assert sec194["consumed"] is True
     assert sec194["limits"]["maximum_invocations"] == 1
     assert sec194["limits"]["retries"] == 0
     assert sec194["helper_upgrade_authority"] is True
     assert sec194["backup_authority"] is False
     assert sec194["snapshot_observation_authority"] is False
     assert sec194["deploy_authority"] is False
+    assert sec194["terminal_result"]["status"] == "upgraded"
+    assert sec194["terminal_result"]["helper_upgraded"] is True
+    assert sec194["terminal_result"]["readback_upgraded"] is True
+    assert sec194["terminal_result"]["rollback_attempted"] is False
+    assert sec194["terminal_result"]["retry_permitted"] is False
+    assert sec194["terminal_result"]["evidence_sha256"] == (
+        "99e4132115c0aad8e87d3b3f0c9f214e2897e99d74ef89419284a98fd740526b"
+    )
     sec195 = live_go_by_id["SEC195-ONE-SHOT-BACKUP-AND-SNAPSHOT-VERIFY-20260828"]
     assert sec195["status"] == "approved_unused"
     assert sec195["consumption_status"] == "unconsumed"
