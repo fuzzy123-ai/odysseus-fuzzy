@@ -174,8 +174,7 @@ def test_canonical_key_collapses_request_paths_but_keeps_endpoint_identity():
     second = canonical_local_model_key("http://ollama:11434/api/generate", "gemma3:4b")
     versioned = canonical_local_model_key("http://ollama:11434/v1/chat/completions", "gemma3:4b")
 
-    assert first == second == ("http://ollama:11434/api", "gemma3:4b")
-    assert versioned == ("http://ollama:11434/v1", "gemma3:4b")
+    assert first == second == versioned == ("http://ollama:11434", "gemma3:4b")
 
 
 def test_registry_serializes_same_key_and_parallelizes_disjoint_keys():

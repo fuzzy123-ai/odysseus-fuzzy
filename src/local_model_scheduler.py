@@ -661,13 +661,7 @@ def canonical_local_model_key(url: str, model: str) -> tuple[str, str]:
     default_port = 443 if scheme == "https" else 80
     port_part = "" if port in {None, default_port} else f":{port}"
     host_label = f"[{host}]" if ":" in host else host
-    path = (parsed.path or "").lower()
-    api_root = (
-        "/v1"
-        if path.startswith("/v1")
-        else ("/api" if not path or path.startswith("/api") else "")
-    )
-    return (f"{scheme}://{host_label}{port_part}{api_root}", str(model))
+    return (f"{scheme}://{host_label}{port_part}", str(model))
 
 
 def is_maintenance_model_eligible(
