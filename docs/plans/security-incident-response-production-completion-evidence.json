@@ -374,12 +374,12 @@
   },
   "current_receipt_class_diagnostic_repair": {
     "recorded_at": "2026-08-28T20:56:12+02:00",
-    "status": "local_verified_effective_mode_correction_pending_publication_and_required_ci",
+    "status": "published_ci_green_ready_for_separate_one_shot_read_only_diagnostic",
     "reason": "SEC201 proved that the 0644 reader contract cannot validate the receipt. The helper's requested 0644 creation mode is narrowed by the service's UMask=0077, yielding effective mode 0600. The corrected read-only diagnostic retains its fixed boolean receipt classes and now uses that effective mode; it exposes no raw receipt value.",
     "diagnostic_source_sha256": "21f27acffc488cd6bd7ddef9964d1d1b32f0db45b5f9fb6b6f0529f7c8e05ad2",
     "diagnostic_transport_sha256": "b87669cec82eff7da76a6c1729511a69646822e6711ca15415d10358c24cd1fc",
-    "published_revision": "5a2a082b7e8a05306851615bcce4e54ac01ae387",
-    "required_ci_run_id": 33202063344,
+    "published_revision": "2ae592d2b3b3dcf230be60df72d3bb59450cb58b",
+    "required_ci_run_id": 33203961634,
     "required_ci_status": "success",
     "server_execution": false,
     "boundary": "No server diagnostic or recovery is authorized by this code-repair record. A later separately published and one-use diagnostic authorization is required."
@@ -415,6 +415,22 @@
     "deployment_execution": false,
     "boundary": "The one result may guide a new code repair or a newly exact recovery scope; it has no mutation authority."
   },
+  "latest_sec202_effective_receipt_class_diagnostic_authorization": {
+    "recorded_at": "2026-08-28T21:35:48+02:00",
+    "baseline_head": "2ae592d2b3b3dcf230be60df72d3bb59450cb58b",
+    "status": "approved_exact_read_only_one_shot_pending_publication_and_required_ci",
+    "run_id": "ABC-SEC202-20260828-EFFECTIVE-RECEIPT-CLASS-DIAGNOSTIC-LIVE",
+    "live_go_id": "SEC202-EFFECTIVE-RECEIPT-CLASS-DIAGNOSTIC-20260828",
+    "owner_authorization": "freigabe erteilt; problem zu fixen und alles was bisher gemacht wurde live zu schalten",
+    "diagnostic_source_sha256": "21f27acffc488cd6bd7ddef9964d1d1b32f0db45b5f9fb6b6f0529f7c8e05ad2",
+    "diagnostic_transport_sha256": "b87669cec82eff7da76a6c1729511a69646822e6711ca15415d10358c24cd1fc",
+    "retry_counter": 0,
+    "diagnostic_execution": false,
+    "recovery_execution": false,
+    "backup_execution": false,
+    "deployment_execution": false,
+    "boundary": "The one result may guide a new code repair or a newly exact recovery scope; it has no mutation authority."
+  },
   "file_sha256": {
     "docs/plans/multi-agent-execution-guidance.json": "4b75fab41f64b5b371dc66a05c7af5b065527aa354322e5c0f14edfa1955b128",
     "docs/plans/open-work-completion-master-roadmap.json": "0438c559db0866e95b968cb1bdd876ed7ded4056ddeff5372325c05ed2729987",
@@ -422,7 +438,7 @@
     "docs/plans/security-incident-response-backup-creation-packet.md": "78dc088e4212ab86a967b06905b7979f2e770ceb375395cef3a581ef22f8c7f7",
     "docs/plans/security-incident-response-backup-snapshot-observation-packet.md": "f5e9ef905e522c03175e6dae4d467e204f4ce73836ece6d7b5b66ecfa27450bf",
     "docs/plans/security-incident-response-live-observe-delivery-evidence.md": "a488e1970d63bdb99a3daabe4aeb3490574654de0fb61dcb545ded6f76486f67",
-    "docs/plans/security-incident-response-production-completion-roadmap.json": "b522e00eb6ff3b6c60e16e79ae8ae8da4b9296a71a4a7a915453a5d051118667",
+    "docs/plans/security-incident-response-production-completion-roadmap.json": "2600c4418913c92d961e77c679fb8a7211253f8b0c43c79ad93e160edc1b4caa",
     "docs/plans/security-incident-response-transactional-deploy-packet.md": "04881d0a642539bf32fd879b59e0a05618d108914e50d89de9be99f6db495047",
     "docs/runbooks/security-incident-response.md": "d9b62c8355783bca94de49137591bb4c5c94f6bdbe0000c7b7a24e1a7950149e",
     "ops/homeserver/redacted_backup_snapshot_observation.py": "d838a0a99310171c8ca08d1835527df9d8ac03b240d57b0bd1bbd745e949a95b",
@@ -441,9 +457,9 @@
     "tests/test_homeserver_redacted_predeploy_backup_root_helper_recovery_transport.py": "6b7ee7e87b414ed925c1eab233454899f1f3a0f251765e32c01f62349b050d8a",
     "tests/test_homeserver_redacted_predeploy_observation.py": "9c048fbc8a16d28450914c7d4c265e27ace9908189b14eaa49ca7047096d1f34",
     "tests/test_homeserver_redacted_podman_compose_capability_observation.py": "5e232816c72abfae75e892f07b19dbeeafa9fb29c4ceb5439a491ae3c6f26f2d",
-    "tests/test_security_incident_response_production_completion_roadmap.py": "74bb2f16fea0e1e37e195c18ea910c5b7c856d4956ceecc9ad69fab0d21accd8"
+    "tests/test_security_incident_response_production_completion_roadmap.py": "b2efa089cea5a7137c6118ad32e93aa46ab3784de4ab698d2a27ca9a8593926d"
   },
-  "aggregate_sha256": "a273b8d95cd67dced51b66ef125c9c98fd57f1f3a5b70de50b83f46f1a16a412",
+  "aggregate_sha256": "31da218161d802b5ef547df2c70d52afaa36fa1c889eecc3c9321d7255ce4e24",
   "claim_state": "released",
   "remaining_frontier": "SEC197's exact recovery was terminal preflight-blocked before mutation. Stop without retry, backup or deployment. Implement and independently verify a new read-only redacted current-incident cause diagnostic; only its specific result may justify a newly scoped recovery or a repair of the recovery contract."
 }
