@@ -1307,9 +1307,9 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         "a791da5add696f2efe455e4cb5ac47ace76524156cb85d66d677cce9afc13e97"
     )
     sec200 = live_go_by_id["SEC200-CORRECTED-ABF8-INCIDENT-RECOVERY-20260828"]
-    assert sec200["status"] == "approved_unused"
-    assert sec200["consumption_status"] == "unconsumed"
-    assert sec200["consumed"] is False
+    assert sec200["status"] == "used_terminal_recovery_preflight_blocked"
+    assert sec200["consumption_status"] == "consumed_terminal_recovery_preflight_blocked"
+    assert sec200["consumed"] is True
     assert sec200["limits"]["maximum_invocations"] == 1
     assert sec200["limits"]["maximum_results"] == 1
     assert sec200["limits"]["outer_timeout_seconds"] == 45
@@ -1317,6 +1317,16 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     assert sec200["incident_recovery_authority"] is True
     assert sec200["backup_authority"] is False
     assert sec200["deploy_authority"] is False
+    assert sec200["invocation_counter"] == 1
+    assert sec200["result_counter"] == 1
+    assert sec200["external_action_executed"] is True
+    assert sec200["external_mutation_performed"] is False
+    assert sec200["terminal_result"]["status"] == "blocked"
+    assert sec200["terminal_result"]["error_code"] == "preflight_failed"
+    assert sec200["terminal_result"]["recovery_invoked"] is False
+    assert sec200["terminal_result"]["arm_removed"] is False
+    assert sec200["terminal_result"]["unit_reset"] is False
+    assert sec200["terminal_result"]["retry_permitted"] is False
     assert sec199["current_incident_observation_authority"] is True
     assert sec199["incident_recovery_authority"] is False
     assert sec199["backup_authority"] is False

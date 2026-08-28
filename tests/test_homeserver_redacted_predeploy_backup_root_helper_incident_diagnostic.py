@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 
 from ops.homeserver import redacted_predeploy_backup_root_helper_incident_diagnostic as subject
 from ops.homeserver import redacted_predeploy_backup_root_helper as helper
@@ -33,6 +34,35 @@ def test_each_failed_preflight_class_remains_visible_only_as_boolean() -> None:
 def test_diagnostic_checks_the_helper_public_receipt_mode() -> None:
     assert subject.RECEIPT_MODE == 0o644
     assert "0o644" in inspect.getsource(helper._write_public_receipt)
+
+
+def test_receipt_classes_expose_only_fixed_boolean_contract_differences(monkeypatch) -> None:
+    def receipt(error_code: str) -> bytes:
+        value = {
+            "schema_id": subject.RESULT_SCHEMA_ID,
+            "status": "unknown",
+            "error_code": error_code,
+            "effect_may_have_occurred": True,
+            "retry_permitted": False,
+            "manual_recovery_required": True,
+            "action_provenance_ref": subject.ACTION_PROVENANCE_REF,
+        }
+        value["evidence_sha256"] = subject._digest(value)
+        return json.dumps(value, sort_keys=True, separators=(",", ":")).encode("ascii")
+
+    valid = receipt("backup_failed")
+    monkeypatch.setattr(subject, "RESULT_EVIDENCE_SHA256", json.loads(valid)["evidence_sha256"])
+    monkeypatch.setattr(subject, "_read_regular", lambda *args, **kwargs: valid)
+    value = subject._receipt_flags()
+    assert all(value[key] is True for key in subject._RECEIPT_FLAGS)
+
+    different_error = receipt("backup_timeout")
+    monkeypatch.setattr(subject, "RESULT_EVIDENCE_SHA256", json.loads(different_error)["evidence_sha256"])
+    monkeypatch.setattr(subject, "_read_regular", lambda *args, **kwargs: different_error)
+    changed = subject._receipt_flags()
+    assert changed["receipt_error_backup_failed"] is False
+    assert changed["receipt_matches"] is False
+    assert all(changed[key] is True for key in subject._RECEIPT_FLAGS if key not in {"receipt_error_backup_failed", "receipt_matches"})
 
 
 def test_invalid_probe_values_or_failure_fail_closed_without_raw_data() -> None:

@@ -18,7 +18,7 @@ import subprocess
 from typing import Any, Callable, Mapping
 
 
-SCHEMA_ID = "odysseus.predeploy_backup_root_helper_incident_diagnostic.v1"
+SCHEMA_ID = "odysseus.predeploy_backup_root_helper_incident_diagnostic.v2"
 ARM_SCHEMA_ID = "odysseus.predeploy_backup_root_helper_arm.v1"
 RESULT_SCHEMA_ID = "odysseus.redacted_predeploy_backup_creation.v1"
 STATE_DIR = "/var/lib/odysseus-predeploy-backup-root-helper"
@@ -49,10 +49,17 @@ SHOW_COMMAND = (
 
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
 _VISIBILITY = frozenset({"raw_stdout_visible", "raw_stderr_visible", "environment_visible", "paths_visible", "hostnames_visible", "secret_values_visible"})
+_RECEIPT_FLAGS = (
+    "receipt_file_valid", "receipt_shape_valid", "receipt_schema_matches",
+    "receipt_status_unknown", "receipt_error_backup_failed",
+    "receipt_effect_may_have_occurred", "receipt_retry_disabled",
+    "receipt_manual_recovery_required", "receipt_provenance_matches",
+    "receipt_evidence_matches", "receipt_digest_matches", "receipt_matches",
+)
 _FLAGS = (
     "privilege_root", "assets_intact", "state_directory_accessible",
     "arm_present", "arm_shape_valid", "arm_expired", "arm_helper_matches",
-    "action_provenance_matches", "used_marker_present", "receipt_matches",
+    "action_provenance_matches", "used_marker_present", *_RECEIPT_FLAGS,
     "unit_terminal_failed", "recovery_preflight_ready",
 )
 _KEYS = frozenset({"schema_id", "status", "error_code", *_FLAGS, *_VISIBILITY, "evidence_sha256"})
@@ -144,13 +151,29 @@ def _used_marker(grant_id: str, *, api: Any = os) -> bool:
     return raw == b"used\n"
 
 
-def _receipt_matches(*, api: Any = os) -> bool:
+def _receipt_flags(*, api: Any = os) -> dict[str, bool]:
+    flags = {key: False for key in _RECEIPT_FLAGS}
     raw = _read_regular(RECEIPT_PATH, RECEIPT_MODE, MAX_RECEIPT_BYTES, api=api)
+    flags["receipt_file_valid"] = raw is not None
     try:
         value = json.loads(raw.decode("ascii")) if raw is not None else None
     except Exception:
-        return False
-    return bool(type(value) is dict and set(value) == {"schema_id", "status", "error_code", "effect_may_have_occurred", "retry_permitted", "manual_recovery_required", "action_provenance_ref", "evidence_sha256"} and value.get("schema_id") == RESULT_SCHEMA_ID and value.get("status") == "unknown" and value.get("error_code") == "backup_failed" and value.get("effect_may_have_occurred") is True and value.get("retry_permitted") is False and value.get("manual_recovery_required") is True and value.get("action_provenance_ref") == ACTION_PROVENANCE_REF and value.get("evidence_sha256") == RESULT_EVIDENCE_SHA256 and value.get("evidence_sha256") == _digest(value))
+        return flags
+    expected_keys = {"schema_id", "status", "error_code", "effect_may_have_occurred", "retry_permitted", "manual_recovery_required", "action_provenance_ref", "evidence_sha256"}
+    if not (type(value) is dict and set(value) == expected_keys):
+        return flags
+    flags["receipt_shape_valid"] = True
+    flags["receipt_schema_matches"] = value.get("schema_id") == RESULT_SCHEMA_ID
+    flags["receipt_status_unknown"] = value.get("status") == "unknown"
+    flags["receipt_error_backup_failed"] = value.get("error_code") == "backup_failed"
+    flags["receipt_effect_may_have_occurred"] = value.get("effect_may_have_occurred") is True
+    flags["receipt_retry_disabled"] = value.get("retry_permitted") is False
+    flags["receipt_manual_recovery_required"] = value.get("manual_recovery_required") is True
+    flags["receipt_provenance_matches"] = value.get("action_provenance_ref") == ACTION_PROVENANCE_REF
+    flags["receipt_evidence_matches"] = value.get("evidence_sha256") == RESULT_EVIDENCE_SHA256
+    flags["receipt_digest_matches"] = value.get("evidence_sha256") == _digest(value)
+    flags["receipt_matches"] = all(flags[key] is True for key in _RECEIPT_FLAGS[:-1])
+    return flags
 
 
 def _unit_terminal_failed(runner: Callable[..., Any] = subprocess.run) -> bool:
@@ -187,7 +210,7 @@ def probe(*, now_epoch: int, api: Any = os, runner: Callable[..., Any] = subproc
         reference = "predeploy_backup_root_helper_v1:" + hashlib.sha256((arm["grant_id"] + HELPER_SHA256).encode("ascii")).hexdigest()
         flags["action_provenance_matches"] = reference == ACTION_PROVENANCE_REF
         flags["used_marker_present"] = _used_marker(arm["grant_id"], api=api)
-    flags["receipt_matches"] = _receipt_matches(api=api)
+    flags.update(_receipt_flags(api=api))
     flags["unit_terminal_failed"] = _unit_terminal_failed(runner)
     flags["recovery_preflight_ready"] = all(flags[key] is True for key in _FLAGS[:-1])
     return flags
