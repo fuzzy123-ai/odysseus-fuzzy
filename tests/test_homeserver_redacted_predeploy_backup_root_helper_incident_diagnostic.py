@@ -5,6 +5,7 @@ import json
 
 from ops.homeserver import redacted_predeploy_backup_root_helper_incident_diagnostic as subject
 from ops.homeserver import redacted_predeploy_backup_root_helper as helper
+from ops.homeserver import redacted_predeploy_backup_root_helper_install as installer
 
 
 def _flags(**changes: bool) -> dict[str, bool]:
@@ -31,9 +32,10 @@ def test_each_failed_preflight_class_remains_visible_only_as_boolean() -> None:
     assert subject.validate_envelope(value)
 
 
-def test_diagnostic_checks_the_helper_public_receipt_mode() -> None:
-    assert subject.RECEIPT_MODE == 0o644
+def test_diagnostic_checks_the_helper_effective_public_receipt_mode() -> None:
+    assert subject.RECEIPT_MODE == 0o600
     assert "0o644" in inspect.getsource(helper._write_public_receipt)
+    assert "UMask=0077" in installer.SERVICE_TEXT
 
 
 def test_receipt_classes_expose_only_fixed_boolean_contract_differences(monkeypatch) -> None:

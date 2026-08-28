@@ -5,6 +5,7 @@ import inspect
 import json
 
 from ops.homeserver import redacted_predeploy_backup_root_helper as helper
+from ops.homeserver import redacted_predeploy_backup_root_helper_install as installer
 from ops.homeserver import redacted_predeploy_backup_root_helper_recovery as subject
 from ops.homeserver import redacted_predeploy_backup_root_helper_action as action
 from ops.homeserver import redacted_predeploy_backup_root_helper_upgrade as upgrade
@@ -29,9 +30,10 @@ def test_recovery_is_bound_to_the_exact_current_incident_helper() -> None:
     assert subject.HELPER_SHA256 == upgrade.NEW_HELPER_SHA256 == action.HELPER_SHA256 == expected
 
 
-def test_recovery_accepts_only_the_helper_public_receipt_mode() -> None:
-    assert subject.RECEIPT_MODE == 0o644
+def test_recovery_accepts_the_helper_effective_public_receipt_mode() -> None:
+    assert subject.RECEIPT_MODE == 0o600
     assert "0o644" in inspect.getsource(helper._write_public_receipt)
+    assert "UMask=0077" in installer.SERVICE_TEXT
 
 
 def _perform(**changes):
