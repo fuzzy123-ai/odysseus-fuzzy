@@ -4,6 +4,7 @@ import hashlib
 import json
 
 from ops.homeserver import redacted_predeploy_backup_root_helper_recovery as subject
+from ops.homeserver import redacted_predeploy_backup_root_helper_upgrade as upgrade
 
 
 NOW = 1_800_000_000
@@ -18,6 +19,11 @@ PACKET = {
     "snapshot_error_code": "snapshot_stale",
     "snapshot_evidence_sha256": "e" * 64,
 }
+
+
+def test_recovery_is_bound_to_the_exact_current_incident_helper() -> None:
+    expected = "56119595274556615a3e83e1f637bd2035232180a0a0005aa3938d08ca3efb81"
+    assert subject.HELPER_SHA256 == upgrade.OLD_HELPER_SHA256 == expected
 
 
 def _perform(**changes):

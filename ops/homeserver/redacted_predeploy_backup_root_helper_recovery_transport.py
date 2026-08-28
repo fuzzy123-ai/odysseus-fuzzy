@@ -19,7 +19,7 @@ from ops.homeserver import redacted_predeploy_backup_root_helper_recovery as rec
 
 PUBLISHED_REF = "refs/remotes/fuzzy/dev"
 RECOVERY_PATH = "ops/homeserver/redacted_predeploy_backup_root_helper_recovery.py"
-PUBLISHED_RECOVERY_SHA256 = "692323a09a9d760dd9925f5f6382f2dcdb1432afb8d26f16a85be84bbb587666"
+PUBLISHED_RECOVERY_SHA256 = "7a0ad0d10f561bc57d318a01171eecf577005acfb81efc3df81944f8963a1aa7"
 MAX_SOURCE_BYTES = 400_000
 MAX_BUNDLE_BYTES = 600_000
 MAX_STDOUT_BYTES = 8_192
@@ -31,7 +31,7 @@ raw=sys.stdin.buffer.read(600001)
 if not raw or len(raw)>600000: raise SystemExit(70)
 try: bundle=json.loads(raw.decode("ascii"))
 except Exception: raise SystemExit(70)
-expected="692323a09a9d760dd9925f5f6382f2dcdb1432afb8d26f16a85be84bbb587666"
+expected="7a0ad0d10f561bc57d318a01171eecf577005acfb81efc3df81944f8963a1aa7"
 if type(bundle) is not dict or set(bundle)!={"execute","packet","sha256","source"} or bundle.get("execute") is not True or bundle.get("sha256")!=expected: raise SystemExit(70)
 try: source=base64.b64decode(bundle["source"],validate=True)
 except Exception: raise SystemExit(70)

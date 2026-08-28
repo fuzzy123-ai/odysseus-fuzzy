@@ -3,7 +3,7 @@
   "kind": "odysseus.security_incident_response_production_completion_roadmap",
   "id": "SIRP",
   "title": "Security Incident Response Production Completion",
-  "updated_at": "2026-08-28T17:20:28+02:00",
+  "updated_at": "2026-08-28T17:49:00+02:00",
   "status": "ops_alert_c2_accepted_repo_only_d_transactional_executor_next",
   "mode": "safe_offline_dependency_ordered",
   "goal": "Close the explicit gap between prepare-only security incident contracts and a production-validated assisted response system with bounded evidence, durable incident and action state, operator-bound approvals, typed executors, independent effect readback and rollback.",
@@ -21,6 +21,51 @@
     "optional_separate_track": "Autonomous lockdown is out of denominator and can begin only after assisted response is operationally closed and lockdown-mode-go is approved for a separately defined design."
   },
   "claims": [
+    {
+      "run_id": "ABC-SEC192-20260828-CURRENT-INCIDENT-RECOVERY-PIN",
+      "thread_id": "/root/recovery_pin_writer",
+      "slice_id": "SEC192-current-backup-incident-recovery-pin",
+      "owner": "fresh Sol writer",
+      "allowed_paths": [
+        "ops/homeserver/redacted_predeploy_backup_root_helper_recovery.py",
+        "ops/homeserver/redacted_predeploy_backup_root_helper_recovery_transport.py",
+        "tests/test_homeserver_redacted_predeploy_backup_root_helper_recovery.py",
+        "tests/test_homeserver_redacted_predeploy_backup_root_helper_recovery_transport.py"
+      ],
+      "hotfiles": [
+        "ops/homeserver/redacted_predeploy_backup_root_helper_recovery.py",
+        "ops/homeserver/redacted_predeploy_backup_root_helper_recovery_transport.py"
+      ],
+      "baseline_head": "aad82d1d48dfae694e9f43b15b0827ebaa37d7f2",
+      "baseline_git_blobs": {
+        "ops/homeserver/redacted_predeploy_backup_root_helper_recovery.py": "b064f62cd32cd533fb90db729e0ed53b2d4480cd",
+        "ops/homeserver/redacted_predeploy_backup_root_helper_recovery_transport.py": "44e449b4afd4935b952889272089b8446c4a2f27",
+        "tests/test_homeserver_redacted_predeploy_backup_root_helper_recovery.py": "b4357f8bd1872a217575aa67161fc7a93dddc7b8",
+        "tests/test_homeserver_redacted_predeploy_backup_root_helper_recovery_transport.py": "f209cdd1196908fa14f9be4b62707c95b4981b8e"
+      },
+      "state": "released",
+      "acquired_at": "2026-08-28T17:39:00+02:00",
+      "lease_expires_at": "2026-08-28T19:39:00+02:00",
+      "handoff_required": true,
+      "phase": "repo_only_exact_current_incident_recovery_repin",
+      "write_authority": true,
+      "architecture_contract": "Sequential exact incident binding: repin recovery from the already recovered 9c9e helper only to the current failed 561195 helper; no dual allowlist. After live recovery a separate future claim must repin recovery to abf8 before any new backup action.",
+      "review": "independent_fresh_sol_required",
+      "correction_rounds": 0,
+      "released_at": "2026-08-28T17:49:00+02:00",
+      "release_reason": "The exact single-version recovery repin from the already recovered 9c9e helper to the current failed 561195 helper, its published-source transport pins and the new recovery-equals-upgrade-old invariant passed 11 focused tests, 127 adjacent root-helper/snapshot tests with 2 expected Windows POSIX skips, compile/diff/hash readback and an independent fresh Sol review with no findings. No live, Git publication, server, backup, restore or deployment action occurred.",
+      "accepted_incident_helper_sha256": "56119595274556615a3e83e1f637bd2035232180a0a0005aa3938d08ca3efb81",
+      "accepted_recovery_sha256": "7a0ad0d10f561bc57d318a01171eecf577005acfb81efc3df81944f8963a1aa7",
+      "independent_review": "fresh Sol PASS with no findings",
+      "mandatory_next_recovery_gate": "After this exact current-incident recovery succeeds, publish and CI-verify a separate single-version recovery repin to abf8f859384a9ab21d2c5fb682aabaaff522464eef5d035126065021de373d31 before the helper upgrade or any new backup action.",
+      "forbidden_actions": [
+        "editing outside the exact allowed paths",
+        "dual-version recovery allowlists or packet broadening",
+        "helper, action, install, upgrade, unit or sudoers changes",
+        "SSH, network, server, backup, restore, deploy or other live actions",
+        "stage, commit, push, fetch, merge or branch mutation"
+      ]
+    },
     {
       "run_id": "ABC-SEC191-20260828-BACKUP-ROOT-HELPER-CLASSIC-BIND",
       "thread_id": "/root/backup_helper_writer",

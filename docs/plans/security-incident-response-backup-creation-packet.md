@@ -1,5 +1,24 @@
 # SEC129 Predeploy Backup Creation Packet
 
+## SEC192 sequential incident-bound recovery correction (2026-08-28)
+
+The failed attempt identified by action provenance
+`predeploy_backup_root_helper_v1:cd1242db59361fc8fa7753d005bdce0b626f8154c6046290168b99e772556a64`
+was created by the installed helper with SHA-256
+`56119595274556615a3e83e1f637bd2035232180a0a0005aa3938d08ca3efb81`.
+The previously published recovery remained bound to an older, already recovered
+`9c9e...` incident and therefore would fail closed before mutation. SEC192
+repins the recovery to the exact current `561195...` incident only; no helper
+allowlist, packet broadening, retry, backup or deployment authority is added.
+
+The order is mandatory. Publish and CI-verify the `561195...` recovery, recover
+the current incident exactly once under a separate action-specific live Go,
+then publish and CI-verify a second single-version recovery repin to the new
+helper `abf8f859384a9ab21d2c5fb682aabaaff522464eef5d035126065021de373d31`.
+Only after that second recovery version is available may the helper upgrade and
+one new backup attempt begin. Any blocked or ambiguous result is terminal and
+does not authorize the next step.
+
 ## SEC191 frozen root-helper repair architecture (2026-08-28)
 
 The current published helper at revision
