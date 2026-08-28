@@ -1190,6 +1190,7 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         "SEC192-CURRENT-INCIDENT-RECOVERY-20260828",
         "SEC194-ROOT-HELPER-UPGRADE-20260828",
         "SEC195-ONE-SHOT-BACKUP-AND-SNAPSHOT-VERIFY-20260828",
+        "SEC196-CURRENT-INCIDENT-SNAPSHOT-PROOF-20260828",
         }
     sec192 = live_go_by_id["SEC192-CURRENT-INCIDENT-RECOVERY-20260828"]
     assert sec192["status"] == "used_completed_recovered"
@@ -1248,6 +1249,18 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     assert sec195["terminal_result"]["evidence_sha256"] == (
         "6da575cd40a5ea6bab45e2849893f2350fa33bee859429e43db18779eeec1cf1"
     )
+    sec196 = live_go_by_id["SEC196-CURRENT-INCIDENT-SNAPSHOT-PROOF-20260828"]
+    assert sec196["status"] == "approved_unused"
+    assert sec196["consumption_status"] == "unconsumed"
+    assert sec196["consumed"] is False
+    assert sec196["limits"]["maximum_invocations"] == 1
+    assert sec196["limits"]["outer_timeout_seconds"] == 30
+    assert sec196["limits"]["retries"] == 0
+    assert sec196["current_incident_observation_authority"] is True
+    assert sec196["snapshot_observation_authority"] is True
+    assert sec196["incident_recovery_authority"] is False
+    assert sec196["backup_authority"] is False
+    assert sec196["deploy_authority"] is False
     sec182 = live_go_by_id["SEC182-SOURCE-AST-REPAIR-PUBLISH-20260730"]
     assert sec182["status"] == "used_completed_remote_readback"
     assert sec182["consumed"] is True
