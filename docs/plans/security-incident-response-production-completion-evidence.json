@@ -262,7 +262,10 @@
   "latest_sec197_current_abf8_incident_recovery_authorization": {
     "recorded_at": "2026-08-28T19:48:30+02:00",
     "baseline_head": "9ea57c392a82ea9c70e0317fcb802aaef77f91d3",
-    "status": "approved_exact_one_shot_pending_publication_and_required_ci",
+    "status": "published_ci_green_consumed_terminal_recovery_preflight_blocked_no_mutation",
+    "authorization_ledger_revision": "b26a6a318baa75648593f12f9b070d95d38aaf11",
+    "required_ci_run_id": 33196550282,
+    "required_ci_status": "success",
     "run_id": "ABC-SEC197-20260828-CURRENT-ABF8-INCIDENT-RECOVERY-LIVE",
     "live_go_id": "SEC197-CURRENT-ABF8-INCIDENT-RECOVERY-20260828",
     "owner_authorization": "freigabe erteilt; problem zu fixen und alles was bisher gemacht wurde live zu schalten",
@@ -275,10 +278,18 @@
     "recovery_source_sha256": "3fdfd9a80511039bdf86ebde952001dc6a07f5177b4edfa3220e357f47d10a27",
     "recovery_transport_sha256": "6841f507aea24e08b4703a42a348201343ba00aca22f1a1c16388c7c5e940174",
     "retry_counter": 0,
-    "recovery_execution": false,
+    "recovery_execution": true,
+    "recovery_result_status": "blocked",
+    "recovery_result_error_code": "preflight_failed",
+    "recovery_result_evidence_sha256": "b1da6fc5fe9c3f9ea7e2a1cedc57f797dce571e18bdff9d431484c4727fa4e6e",
+    "recovery_invoked": false,
+    "arm_removed": false,
+    "unit_reset": false,
+    "unit_inactive": false,
+    "external_mutation_performed": false,
     "backup_execution": false,
     "deployment_execution": false,
-    "boundary": "SEC197 can recover only the exact current failed incident if all server-side provenance, expiry, receipt and unit preflight checks pass. It cannot retry the backup or deploy."
+    "boundary": "SEC197 can recover only the exact current failed incident if all server-side provenance, expiry, receipt and unit preflight checks pass. It returned preflight-blocked before recovery invocation, so it cannot be retried or broadened. The next safe step is a separately designed redacted read-only cause diagnosis."
   },
   "file_sha256": {
     "docs/plans/multi-agent-execution-guidance.json": "4b75fab41f64b5b371dc66a05c7af5b065527aa354322e5c0f14edfa1955b128",
@@ -287,7 +298,7 @@
     "docs/plans/security-incident-response-backup-creation-packet.md": "78dc088e4212ab86a967b06905b7979f2e770ceb375395cef3a581ef22f8c7f7",
     "docs/plans/security-incident-response-backup-snapshot-observation-packet.md": "f5e9ef905e522c03175e6dae4d467e204f4ce73836ece6d7b5b66ecfa27450bf",
     "docs/plans/security-incident-response-live-observe-delivery-evidence.md": "a488e1970d63bdb99a3daabe4aeb3490574654de0fb61dcb545ded6f76486f67",
-    "docs/plans/security-incident-response-production-completion-roadmap.json": "126c86e241258bd9dbf9722607be3907bc06d8c99633f028b890ab24a376d48d",
+    "docs/plans/security-incident-response-production-completion-roadmap.json": "283388fa8ef7d98504c61ef8bafd7a2a79ab34a7fb3cd7cafa3c2e52ae52dde2",
     "docs/plans/security-incident-response-transactional-deploy-packet.md": "04881d0a642539bf32fd879b59e0a05618d108914e50d89de9be99f6db495047",
     "docs/runbooks/security-incident-response.md": "d9b62c8355783bca94de49137591bb4c5c94f6bdbe0000c7b7a24e1a7950149e",
     "ops/homeserver/redacted_backup_snapshot_observation.py": "d838a0a99310171c8ca08d1835527df9d8ac03b240d57b0bd1bbd745e949a95b",
@@ -302,9 +313,9 @@
     "tests/test_homeserver_redacted_predeploy_backup_root_helper_recovery_transport.py": "6b7ee7e87b414ed925c1eab233454899f1f3a0f251765e32c01f62349b050d8a",
     "tests/test_homeserver_redacted_predeploy_observation.py": "9c048fbc8a16d28450914c7d4c265e27ace9908189b14eaa49ca7047096d1f34",
     "tests/test_homeserver_redacted_podman_compose_capability_observation.py": "5e232816c72abfae75e892f07b19dbeeafa9fb29c4ceb5439a491ae3c6f26f2d",
-    "tests/test_security_incident_response_production_completion_roadmap.py": "86dbe193df68d9c18e383fc52ebe2ca0dd1fefe451269d2ea48f8ffe278fc646"
+    "tests/test_security_incident_response_production_completion_roadmap.py": "334b949949f90aaa5ddcfafc84cf1f2025cd854f501ce3da7770955db9464945"
   },
-  "aggregate_sha256": "0c058137cf66686436a7fa76467b294d00be710bb9a44a47aad6faa6b9f6fbf4",
+  "aggregate_sha256": "571ca2c6b56e241f406b18f9af704a9a505909eff3929f828afb52300c6cf992",
   "claim_state": "released",
-  "remaining_frontier": "The single SEC195 backup action is terminal unknown with inactive and cleanup proof absent. Stop without retry, snapshot observation or deployment. A future recovery requires fresh read-only incident proof and a new exact action-specific recovery authorization; it must not reuse SEC192 or SEC195."
+  "remaining_frontier": "SEC197's exact recovery was terminal preflight-blocked before mutation. Stop without retry, backup or deployment. Implement and independently verify a new read-only redacted current-incident cause diagnostic; only its specific result may justify a newly scoped recovery or a repair of the recovery contract."
 }

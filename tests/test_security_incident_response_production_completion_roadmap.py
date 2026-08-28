@@ -1268,9 +1268,9 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         "7b0ff041c02d43c5ba331eb3e3b24e651df68dbbaee52adcd86df2399f8c32d1"
     )
     sec197 = live_go_by_id["SEC197-CURRENT-ABF8-INCIDENT-RECOVERY-20260828"]
-    assert sec197["status"] == "approved_unused"
-    assert sec197["consumption_status"] == "unconsumed"
-    assert sec197["consumed"] is False
+    assert sec197["status"] == "used_terminal_recovery_preflight_blocked"
+    assert sec197["consumption_status"] == "consumed_terminal_recovery_preflight_blocked"
+    assert sec197["consumed"] is True
     assert sec197["limits"]["maximum_invocations"] == 1
     assert sec197["limits"]["outer_timeout_seconds"] == 45
     assert sec197["limits"]["retries"] == 0
@@ -1278,6 +1278,16 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     assert sec197["backup_authority"] is False
     assert sec197["snapshot_observation_authority"] is False
     assert sec197["deploy_authority"] is False
+    assert sec197["external_mutation_performed"] is False
+    assert sec197["terminal_result"]["status"] == "blocked"
+    assert sec197["terminal_result"]["error_code"] == "preflight_failed"
+    assert sec197["terminal_result"]["recovery_invoked"] is False
+    assert sec197["terminal_result"]["arm_removed"] is False
+    assert sec197["terminal_result"]["unit_reset"] is False
+    assert sec197["terminal_result"]["retry_permitted"] is False
+    assert sec197["terminal_result"]["evidence_sha256"] == (
+        "b1da6fc5fe9c3f9ea7e2a1cedc57f797dce571e18bdff9d431484c4727fa4e6e"
+    )
     sec182 = live_go_by_id["SEC182-SOURCE-AST-REPAIR-PUBLISH-20260730"]
     assert sec182["status"] == "used_completed_remote_readback"
     assert sec182["consumed"] is True
