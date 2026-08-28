@@ -1187,7 +1187,18 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         "SEC184-OFFICIAL-GITHUB-SOURCE-READONLY-20260730",
         "SEC184-OFFICIAL-GITHUB-STRUCTURAL-PROJECTION-20260730",
         "SEC184-OFFICIAL-GITHUB-VERIFIED-SHALLOW-CHECKOUT-20260730",
+        "SEC192-CURRENT-INCIDENT-RECOVERY-20260828",
         }
+    sec192 = live_go_by_id["SEC192-CURRENT-INCIDENT-RECOVERY-20260828"]
+    assert sec192["status"] == "approved_unused"
+    assert sec192["consumption_status"] == "unconsumed"
+    assert sec192["consumed"] is False
+    assert sec192["limits"]["maximum_invocations"] == 1
+    assert sec192["limits"]["retries"] == 0
+    assert sec192["incident_recovery_authority"] is True
+    assert sec192["backup_authority"] is False
+    assert sec192["helper_upgrade_authority"] is False
+    assert sec192["deploy_authority"] is False
     sec182 = live_go_by_id["SEC182-SOURCE-AST-REPAIR-PUBLISH-20260730"]
     assert sec182["status"] == "used_completed_remote_readback"
     assert sec182["consumed"] is True
