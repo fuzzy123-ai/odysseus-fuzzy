@@ -35,6 +35,9 @@ def _ok() -> dict[str, object]:
 def test_pin_matches_current_action_source_and_default_is_inert() -> None:
     source = _source()
     assert hashlib.sha256(source).hexdigest() == transport.PUBLISHED_ACTION_SHA256
+    helper = (ROOT / "ops/homeserver/redacted_predeploy_backup_root_helper.py").read_bytes()
+    assert hashlib.sha256(helper).hexdigest() == action.HELPER_SHA256
+    assert transport.PUBLISHED_ACTION_SHA256 in transport._BOOTSTRAP
     value = transport.collect_published_root_helper_action()
     assert value["status"] == "blocked"
     assert value["error_code"] == "execution_disabled"
@@ -129,3 +132,4 @@ def test_remote_bootstrap_has_one_fixed_root_command_and_no_checkout_import() ->
     assert "cd /opt/odysseus" not in transport.REMOTE_COMMAND
     assert "subprocess" not in transport._BOOTSTRAP
     assert transport.PUBLISHED_ACTION_SHA256 in transport._BOOTSTRAP
+    assert "retry" not in transport._BOOTSTRAP.lower()

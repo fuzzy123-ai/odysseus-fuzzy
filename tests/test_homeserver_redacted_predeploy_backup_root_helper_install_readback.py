@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from types import SimpleNamespace
 import stat
@@ -34,6 +35,8 @@ def test_every_asset_or_state_failure_is_unknown(monkeypatch) -> None:
 
 def test_readback_has_descriptor_walk_exact_four_asset_pins_and_bounded_systemctl() -> None:
     assert len(subject.ASSETS) == 4
+    helper_path = Path(__file__).resolve().parents[1] / "ops/homeserver/redacted_predeploy_backup_root_helper.py"
+    assert subject.ASSETS[0][1] == hashlib.sha256(helper_path.read_bytes()).hexdigest()
     text = Path(subject.__file__).read_text(encoding="utf-8")
     assert "O_NOFOLLOW" in text and "dir_fd=current" in text and "before.st_nlink == 1" in text
     assert all(field in text for field in ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns", "api.read(fd, 1) == b\"\""))

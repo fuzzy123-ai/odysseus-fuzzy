@@ -16,7 +16,7 @@ from typing import Any, Mapping
 
 
 SCHEMA_ID = "odysseus.predeploy_backup_root_helper_install.v1"
-HELPER_SHA256 = "56119595274556615a3e83e1f637bd2035232180a0a0005aa3938d08ca3efb81"
+HELPER_SHA256 = "abf8f859384a9ab21d2c5fb682aabaaff522464eef5d035126065021de373d31"
 HELPER_PATH = "/usr/local/libexec/odysseus-predeploy-backup-root-helper.py"
 READBACK_PATH = "/usr/local/libexec/odysseus-predeploy-backup-root-helper-readback.py"
 READBACK_SHA256 = "e647b6f1faa409f42cbeb80c74826b730695d9e0fad14cf47aa22c1a59a0a046"

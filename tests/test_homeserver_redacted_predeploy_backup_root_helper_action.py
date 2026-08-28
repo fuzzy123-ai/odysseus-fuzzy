@@ -78,6 +78,8 @@ def test_default_and_invalid_packet_are_inert_and_redacted() -> None:
     assert subject.validate_envelope(default)
     assert subject.validate_envelope(invalid)
     assert all(default[key] is False for key in subject._VISIBILITY)
+    helper = open("ops/homeserver/redacted_predeploy_backup_root_helper.py", "rb").read()
+    assert hashlib.sha256(helper).hexdigest() == subject.HELPER_SHA256 == PACKET["helper_sha256"]
 
 
 def test_preflight_and_existing_arm_block_before_creation() -> None:

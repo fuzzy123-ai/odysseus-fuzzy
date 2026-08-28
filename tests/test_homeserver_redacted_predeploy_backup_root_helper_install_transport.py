@@ -78,6 +78,10 @@ def test_pins_and_bundle_are_exact_base64_and_pre_dispatch_failures_have_no_effe
     bundle = subject.prepare_published_install_bundle(runner=_bundle_runner)
     assert bundle and set(bundle) == {"installer_sha256", "installer_source", "helper_sha256", "helper_source", "readback_sha256", "readback_source", "install_readback_sha256", "install_readback_source"}
     assert bundle["installer_sha256"] == subject.PUBLISHED_INSTALLER_SHA256
+    for name, path in (("installer", subject.INSTALLER_PATH), ("helper", subject.HELPER_PATH), ("readback", subject.READBACK_PATH), ("install_readback", subject.INSTALL_READBACK_PATH)):
+        source = Path(path).read_bytes()
+        assert hashlib.sha256(source).hexdigest() == getattr(subject, "PUBLISHED_" + name.upper() + "_SHA256")
+        assert getattr(subject, "PUBLISHED_" + name.upper() + "_SHA256") in subject.STATIC_BOOTSTRAP
     calls = []
     monkeypatch.setattr(subject, "PUBLISHED_HELPER_SHA256", "0" * 64)
     value = subject.request_installation(execute=True, runner=_bundle_runner, popen=lambda *a, **k: calls.append(a))
@@ -151,3 +155,4 @@ def test_malformed_multiline_or_forged_install_receipt_never_becomes_success() -
 def test_transport_never_uses_shell_or_unbounded_communicate() -> None:
     text = Path(subject.__file__).read_text(encoding="utf-8")
     assert "shell=True" not in text and ".communicate(" not in text and "stderr=subprocess.DEVNULL" in text
+    assert "retry" not in subject.STATIC_BOOTSTRAP.lower()

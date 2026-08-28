@@ -73,6 +73,8 @@ def test_exact_upgrade_orders_compatible_readback_before_helper() -> None:
     assert [item[0] for item in memory.replacements] == [subject.READBACK_PATH, subject.HELPER_PATH]
     assert memory.values[subject.HELPER_PATH][0] == subject.NEW_HELPER_SHA256
     assert memory.values[subject.READBACK_PATH][0] == subject.NEW_READBACK_SHA256
+    assert hashlib.sha256(HELPER).hexdigest() == subject.NEW_HELPER_SHA256
+    assert subject.OLD_HELPER_SHA256 == "56119595274556615a3e83e1f637bd2035232180a0a0005aa3938d08ca3efb81"
     assert subject.validate_receipt(value)
 
 

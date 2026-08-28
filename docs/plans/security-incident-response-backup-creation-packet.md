@@ -1,5 +1,52 @@
 # SEC129 Predeploy Backup Creation Packet
 
+## SEC191 frozen root-helper repair architecture (2026-08-28)
+
+The current published helper at revision
+`8cc9a5572384151fe5415f1eb0c4aa5279691a46` reached its private tmpfs setup but
+failed before the first successful source `open_tree`. The bounded stage
+evidence is
+`d0e6f5929b51534ca848eda76c3c158b6846dc158917421c16d41363878d5e35`.
+This is the terminal diagnostic boundary: no additional diagnostic helper or
+diagnostic live run is permitted for this repair.
+
+The selected implementation replaces `open_tree`/`move_mount` only. The helper
+must retain its component-wise `O_NOFOLLOW` descriptor binding, fixed backup
+mount proof, private mount namespace, private tmpfs credential, identity drop,
+empty capability-set proof, fixed `execveat`, arm/lock/receipt contracts and
+terminal no-retry behavior. Inside the private namespace it must:
+
+1. create one fixed empty repository view below the root-owned tmpfs;
+2. bind the canonical source onto itself with classic `mount(2)` and compare
+   the post-bind visible `(st_dev, st_ino)` with the retained source descriptor;
+3. remount that source read-only with nosuid, nodev and noexec and prove the
+   read-only postcondition;
+4. bind the canonical repository onto the fixed private repository view and
+   compare the view's `(st_dev, st_ino)` with the retained repository
+   descriptor;
+5. prove the repository view remains writable and invoke Restic with that
+   fixed private repository argument while retaining `/opt/odysseus` as the
+   canonical backup source and snapshot path.
+
+The source parent must be root-owned and not group/world-writable. Source and
+repository roots must have the expected `homebase` identity and must not be
+group/world-writable. Nested mounts below either bound root are rejected before
+Restic. A path race, identity mismatch, mount failure, unsafe parent, unexpected
+nested mount, read-only repository view or writable source view fails closed
+before `execveat`. No procfs descriptor path, user namespace, alternate source,
+alternate repository, new environment input or persistent credential file may
+be introduced.
+
+The systemd unit, sudoers, root-helper readback, backup creation/observation
+wrappers, diagnostic helpers and recovery artifacts remain byte-identical.
+Offline acceptance requires adversarial tests for source/repository path swaps,
+unsafe parents, nested mounts, bind/remount failures, post-bind descriptor
+identity, source read-only state, repository write state, fixed Restic argv,
+credential wiping, descriptor close order, privilege/capability drop and the
+complete helper install/action/upgrade hash-pin cascade. Production use remains
+separately gated: exact-hash upgrade, install readback, one backup attempt,
+independent fresh snapshot observation, and only then transactional deployment.
+
 Status: contract only; no current Go and no action. This future packet is
 single-use and cannot authorize deploy, send, restore, restic check, SSH,
 network access, staging, commit, or push.

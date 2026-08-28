@@ -35,6 +35,7 @@ USED_PREFIX = "used-"
 PUBLIC_RECEIPT_PATH = "/run/odysseus-predeploy-backup-root-helper/receipt.json"
 VIEW_ROOT = "/run/odysseus-predeploy-backup-root-helper/view"
 VIEW_CREDENTIAL = VIEW_ROOT + "/credential/restic-password"
+VIEW_REPOSITORY = VIEW_ROOT + "/repository"
 BACKUP_TIMEOUT_SECONDS = 1800
 READBACK_TIMEOUT_SECONDS = 20
 MAX_OUTPUT_BYTES = 65536
@@ -44,9 +45,6 @@ MAX_ARM_FUTURE_SECONDS = 600
 CLONE_NEWNS = 0x00020000
 MS_RDONLY, MS_NOSUID, MS_NODEV, MS_NOEXEC = 1, 2, 4, 8
 MS_REMOUNT, MS_BIND, MS_REC, MS_PRIVATE = 32, 4096, 16384, 1 << 18
-AT_EMPTY_PATH, AT_FDCWD = 0x1000, -100
-OPEN_TREE_CLONE, OPEN_TREE_CLOEXEC, OPEN_TREE_RECURSIVE = 1, 0x80000, 0x8000
-MOVE_MOUNT_F_EMPTY_PATH = 0x00000004
 EXECVEAT_EMPTY_PATH = 0x1000
 _HEX = __import__("re").compile(r"^[0-9a-f]{64}$")
 _BLOCKED = frozenset({"not_armed", "arm_invalid", "arm_expired", "arm_replayed", "arm_contended", "identity_unavailable", "preflight_failed"})
@@ -86,6 +84,7 @@ def validate_envelope(value: Any) -> bool:
 
 @dataclass(frozen=True)
 class Bound:
+    source_parent_fd: int
     source_fd: int
     repository_fd: int
     credential_fd: int
@@ -109,6 +108,27 @@ def _safe_file(info: Any, uid: int, mode: int, maximum: int | None = None) -> bo
     try:
         return stat.S_ISREG(info.st_mode) and info.st_uid == uid and stat.S_IMODE(info.st_mode) == mode and info.st_nlink == 1 and (maximum is None or 0 < info.st_size <= maximum)
     except Exception: return False
+
+
+def _safe_root_parent(info: Any) -> bool:
+    try:
+        mode = stat.S_IMODE(info.st_mode)
+        return _safe_dir(info, 0) and info.st_gid == 0 and mode & 0o500 == 0o500 and mode & 0o022 == 0
+    except Exception:
+        return False
+
+
+def _safe_bound_root(info: Any, uid: int, gid: int, *, writable: bool = False) -> bool:
+    try:
+        mode = stat.S_IMODE(info.st_mode)
+        return bool(
+            _safe_dir(info, uid)
+            and info.st_gid == gid
+            and mode & (0o700 if writable else 0o500) == (0o700 if writable else 0o500)
+            and mode & 0o022 == 0
+        )
+    except Exception:
+        return False
 
 
 def _open_components(path: str) -> int:
@@ -175,12 +195,13 @@ def _close_owned_descriptor(descriptor: int | None, *, closer: Callable[[int], A
 
 
 def _bind_identities() -> Bound:
-    source = repository = credential_source = restic = credential_fd = mount = config = raw = None
+    source_parent = source = repository = credential_source = restic = credential_fd = mount = config = raw = None
     success = False
     try:
         import pwd
         owner = pwd.getpwnam(OWNER); uid, gid = int(owner.pw_uid), int(owner.pw_gid)
-        source = _open_components(SOURCE)
+        source_parent = _open_components(os.path.dirname(SOURCE))
+        source = os.open(os.path.basename(SOURCE), getattr(os, "O_PATH", os.O_RDONLY) | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=source_parent)
         mount = _open_components(BACKUP_MOUNT)
         _prove_fixed_mount(mount)
         repository = os.open("restic", getattr(os, "O_PATH", os.O_RDONLY) | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=mount)
@@ -188,7 +209,7 @@ def _bind_identities() -> Bound:
         config = _open_components(os.path.dirname(PASSWORD_FILE))
         credential_source = os.open(os.path.basename(PASSWORD_FILE), os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=config); config = _close_owned_descriptor(config)
         restic = os.open(RESTIC_BINARY, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
-        if not (_safe_dir(os.fstat(source), uid) and _safe_dir(os.fstat(repository), uid) and _safe_file(os.fstat(credential_source), uid, 0o600, MAX_CREDENTIAL_BYTES)):
+        if not (_safe_root_parent(os.fstat(source_parent)) and _safe_bound_root(os.fstat(source), uid, gid) and _safe_bound_root(os.fstat(repository), uid, gid, writable=True) and _safe_file(os.fstat(credential_source), uid, 0o600, MAX_CREDENTIAL_BYTES)):
             raise Failure("identity_unavailable")
         rinfo = os.fstat(restic)
         if not (stat.S_ISREG(rinfo.st_mode) and rinfo.st_uid == 0 and stat.S_IMODE(rinfo.st_mode) & 0o100 and not stat.S_IMODE(rinfo.st_mode) & 0o022): raise Failure("identity_unavailable")
@@ -196,7 +217,7 @@ def _bind_identities() -> Bound:
         if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns): raise Failure("identity_unavailable")
         credential_fd = _seal_credential(raw)
         os.close(credential_source); credential_source = None
-        result = Bound(source, repository, credential_fd, restic, uid, gid, "")
+        result = Bound(source_parent, source, repository, credential_fd, restic, uid, gid, "")
         success = True
         return result
     except Failure: raise
@@ -205,7 +226,7 @@ def _bind_identities() -> Bound:
         if isinstance(raw, bytearray):
             raw[:] = b"\x00" * len(raw)
         if not success:
-            for fd in (source, repository, credential_fd, restic):
+            for fd in (source_parent, source, repository, credential_fd, restic):
                 if isinstance(fd, int):
                     try: os.close(fd)
                     except Exception: pass
@@ -252,10 +273,10 @@ def _prove_fixed_mount(mount_fd: int) -> None:
     except Exception: raise Failure("identity_unavailable") from None
 
 
-def _syscalls() -> tuple[Callable[..., int], int, int, int] | None:
+def _execveat_syscall() -> tuple[Callable[..., int], int] | None:
     if os.name != "posix" or __import__("platform").machine().lower() not in {"x86_64", "amd64"}: return None
     libc = ctypes.CDLL(None, use_errno=True)
-    return libc.syscall, 428, 429, 322  # open_tree, move_mount, execveat on x86_64
+    return libc.syscall, 322  # execveat on x86_64
 
 
 def _open_reusable_view_anchor(*, opener: Callable[..., int] = os.open, statter: Callable[[int], Any] = os.fstat, closer: Callable[[int], Any] = os.close) -> None:
@@ -272,17 +293,85 @@ def _open_reusable_view_anchor(*, opener: Callable[..., int] = os.open, statter:
         if isinstance(descriptor, int): closer(descriptor)
 
 
-def _mount_setup(bound: Bound, *, syscall: Callable[..., int] | None = None, mount_call: Callable[..., int] | None = None) -> None:
-    native = _syscalls()
-    if native is None: raise Failure("preflight_failed")
-    call, open_tree_nr, move_mount_nr, _ = native
-    if syscall is not None: call = syscall
+def _same_identity(descriptor_info: Any, path_info: Any) -> bool:
+    try:
+        return (descriptor_info.st_dev, descriptor_info.st_ino) == (path_info.st_dev, path_info.st_ino)
+    except Exception:
+        return False
+
+
+def _reject_nested_mounts(*roots: str, reader: Callable[[str, int], bytes] = _read_proc_bounded) -> None:
+    try:
+        mountinfo = reader("/proc/self/mountinfo", 1048576).decode("ascii")
+        if not mountinfo or any(not root.startswith("/") or root.endswith("/") for root in roots): raise ValueError
+        for line in mountinfo.splitlines():
+            fields = line.split(" ")
+            if len(fields) < 10 or "-" not in fields or not fields[4].startswith("/"): raise ValueError
+            mountpoint = fields[4]
+            if any(mountpoint.startswith(root + "/") for root in roots): raise ValueError
+    except Exception:
+        raise Failure("preflight_failed") from None
+
+
+def _bind_private_views(
+    bound: Bound,
+    invoke_mount: Callable[[bytes | None, str, bytes | None, int, bytes | None], None],
+    *,
+    statter: Callable[[str], Any] = os.stat,
+    fstatter: Callable[[int], Any] = os.fstat,
+    statvfs: Callable[[str], Any] | None = None,
+    reject_nested: Callable[..., None] = _reject_nested_mounts,
+) -> None:
+    filesystem_stat = getattr(os, "statvfs", None) if statvfs is None else statvfs
+    if filesystem_stat is None: raise Failure("preflight_failed")
+    parent_info = fstatter(bound.source_parent_fd)
+    source_info = fstatter(bound.source_fd)
+    repository_info = fstatter(bound.repository_fd)
+    parent_path_info = statter(os.path.dirname(SOURCE))
+    source_path_info = statter(SOURCE)
+    repository_path_info = statter(REPOSITORY)
+    if not (
+        _safe_root_parent(parent_info)
+        and _safe_root_parent(parent_path_info)
+        and _safe_bound_root(source_info, bound.uid, bound.gid)
+        and _safe_bound_root(source_path_info, bound.uid, bound.gid)
+        and _safe_bound_root(repository_info, bound.uid, bound.gid, writable=True)
+        and _safe_bound_root(repository_path_info, bound.uid, bound.gid, writable=True)
+        and _same_identity(parent_info, parent_path_info)
+        and _same_identity(source_info, source_path_info)
+        and _same_identity(repository_info, repository_path_info)
+    ):
+        raise Failure("preflight_failed")
+    reject_nested(SOURCE, REPOSITORY)
+
+    # Classic non-recursive bind mounts keep the canonical source pathname for
+    # snapshot identity while the repository is exposed only through one
+    # fixed private tmpfs view.  Post-bind descriptor comparisons reject a
+    # pathname swap between descriptor binding and mount(2).
+    invoke_mount(SOURCE.encode("ascii"), SOURCE, None, MS_BIND, None)
+    if not _same_identity(source_info, statter(SOURCE)): raise Failure("preflight_failed")
+    invoke_mount(None, SOURCE, None, MS_BIND | MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV | MS_NOEXEC, None)
+    if not (_same_identity(source_info, statter(SOURCE)) and _filesystem_readonly(filesystem_stat(SOURCE))): raise Failure("preflight_failed")
+
+    invoke_mount(REPOSITORY.encode("ascii"), VIEW_REPOSITORY, None, MS_BIND, None)
+    repository_view_info = statter(VIEW_REPOSITORY)
+    if not (
+        _same_identity(repository_info, repository_view_info)
+        and _safe_bound_root(repository_view_info, bound.uid, bound.gid, writable=True)
+        and not _filesystem_readonly(filesystem_stat(VIEW_REPOSITORY))
+    ):
+        raise Failure("preflight_failed")
+    reject_nested(SOURCE, REPOSITORY, VIEW_REPOSITORY)
+
+
+def _mount_setup(bound: Bound, *, mount_call: Callable[..., int] | None = None, unshare_call: Callable[[int], int] | None = None) -> None:
     libc = ctypes.CDLL(None, use_errno=True)
     mount = libc.mount if mount_call is None else mount_call
     def invoke_mount(source: bytes | None, target: str, fs: bytes | None, flags: int, data: bytes | None = None) -> None:
         result = mount(source, target.encode("ascii"), fs, flags, data)
         if result != 0: raise Failure("preflight_failed")
-    if libc.unshare(CLONE_NEWNS) != 0: raise Failure("preflight_failed")
+    unshare = libc.unshare if unshare_call is None else unshare_call
+    if unshare(CLONE_NEWNS) != 0: raise Failure("preflight_failed")
     invoke_mount(None, "/", None, MS_REC | MS_PRIVATE)
     try:
         os.mkdir(VIEW_ROOT, 0o700)
@@ -296,6 +385,7 @@ def _mount_setup(bound: Bound, *, syscall: Callable[..., int] | None = None, mou
     # transferred to that exact uid and remains owner-only.  The previous
     # 0700/root layout made every Restic invocation fail after the uid drop.
     invoke_mount(b"tmpfs", VIEW_ROOT, b"tmpfs", MS_NOSUID | MS_NODEV | MS_NOEXEC, b"mode=0711,size=1048576")
+    os.mkdir(VIEW_REPOSITORY, 0o700)
     credential_directory = os.path.dirname(VIEW_CREDENTIAL)
     os.mkdir(credential_directory, 0o700)
     credential_directory_fd = None
@@ -310,23 +400,7 @@ def _mount_setup(bound: Bound, *, syscall: Callable[..., int] | None = None, mou
         raise Failure("preflight_failed") from None
     finally:
         if isinstance(credential_directory_fd, int): os.close(credential_directory_fd)
-    def move(fd: int, target: str) -> None:
-        tree = call(open_tree_nr, fd, ctypes.c_char_p(b""), AT_EMPTY_PATH | OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC | OPEN_TREE_RECURSIVE)
-        if not isinstance(tree, int) or tree < 0: raise Failure("preflight_failed")
-        try:
-            if call(move_mount_nr, tree, ctypes.c_char_p(b""), AT_FDCWD, ctypes.c_char_p(target.encode("ascii")), MOVE_MOUNT_F_EMPTY_PATH) != 0: raise Failure("preflight_failed")
-        finally: os.close(tree)
-    # Attach retained descriptor identities at their canonical paths inside
-    # this child-only mount namespace.  Restic consequently records
-    # ``/opt/odysseus`` rather than an internal staging pathname, preserving
-    # the independent snapshot-observation contract.
-    move(bound.source_fd, SOURCE); move(bound.repository_fd, REPOSITORY)
-    source_before, source_after = os.fstat(bound.source_fd), os.stat(SOURCE)
-    repository_before, repository_after = os.fstat(bound.repository_fd), os.stat(REPOSITORY)
-    if (source_before.st_dev, source_before.st_ino) != (source_after.st_dev, source_after.st_ino) or (repository_before.st_dev, repository_before.st_ino) != (repository_after.st_dev, repository_after.st_ino): raise Failure("preflight_failed")
-    if _filesystem_readonly(os.statvfs(REPOSITORY)): raise Failure("preflight_failed")
-    invoke_mount(None, SOURCE, None, MS_BIND | MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV | MS_NOEXEC)
-    if not _filesystem_readonly(os.statvfs(SOURCE)): raise Failure("preflight_failed")
+    _bind_private_views(bound, invoke_mount)
     raw = _read_credential_from_start(bound.credential_fd, os.fstat(bound.credential_fd).st_size)
     fd = None
     try:
@@ -340,12 +414,34 @@ def _mount_setup(bound: Bound, *, syscall: Callable[..., int] | None = None, mou
     finally:
         raw[:] = b"\x00" * len(raw)
         if isinstance(fd, int): os.close(fd)
-    invoke_mount(None, credential_directory, None, MS_BIND | MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV | MS_NOEXEC)
-    if not _filesystem_readonly(os.statvfs(credential_directory)): raise Failure("preflight_failed")
+    _make_credential_directory_readonly(credential_directory, invoke_mount)
 
 
 def _filesystem_readonly(info: Any) -> bool:
     return bool(getattr(info, "f_flag", 0) & getattr(os, "ST_RDONLY", 1))
+
+
+def _make_credential_directory_readonly(
+    credential_directory: str,
+    invoke_mount: Callable[[bytes | None, str, bytes | None, int, bytes | None], None],
+    *,
+    statvfs: Callable[[str], Any] | None = None,
+) -> None:
+    filesystem_stat = getattr(os, "statvfs", None) if statvfs is None else statvfs
+    if filesystem_stat is None: raise Failure("preflight_failed")
+    # MS_REMOUNT|MS_BIND is valid only after the directory is its own mount.
+    # Keep the self-bind and read-only remount adjacent and fail closed on
+    # either syscall before Restic can be dispatched.
+    invoke_mount(credential_directory.encode("ascii"), credential_directory, None, MS_BIND, None)
+    invoke_mount(None, credential_directory, None, MS_BIND | MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV | MS_NOEXEC, None)
+    if not _filesystem_readonly(filesystem_stat(credential_directory)): raise Failure("preflight_failed")
+
+
+def _prove_repository_access_after_drop(*, accessor: Callable[[str, int], bool] = os.access) -> None:
+    try:
+        if accessor(VIEW_REPOSITORY, os.R_OK | os.W_OK | os.X_OK) is not True: raise OSError()
+    except Exception:
+        raise Failure("preflight_failed") from None
 
 
 def _close_verified(fd: int) -> None:
@@ -479,13 +575,14 @@ def _run_child(bound: Bound, command: tuple[str, ...], timeout: int, capture: bo
                     null = os.open(os.devnull, os.O_WRONLY); os.dup2(null, 1); os.close(null)
                 null = os.open(os.devnull, os.O_WRONLY); os.dup2(null, 2); os.close(null)
                 _mount_setup(bound)
-                for descriptor in (bound.source_fd, bound.repository_fd, bound.credential_fd): _close_verified(descriptor)
+                for descriptor in (bound.source_parent_fd, bound.source_fd, bound.repository_fd, bound.credential_fd): _close_verified(descriptor)
                 _drop_identity(bound)
-                native = _syscalls()
+                _prove_repository_access_after_drop()
+                native = _execveat_syscall()
                 assert native is not None
                 argv = (ctypes.c_char_p * (len(command) + 1))(*[part.encode("ascii") for part in command], None)
                 env = (ctypes.c_char_p * 3)(b"PATH=/usr/bin:/bin", ("RESTIC_PASSWORD_FILE=" + VIEW_CREDENTIAL).encode("ascii"), None)
-                native[0](native[3], bound.restic_fd, ctypes.c_char_p(b""), argv, env, EXECVEAT_EMPTY_PATH)
+                native[0](native[1], bound.restic_fd, ctypes.c_char_p(b""), argv, env, EXECVEAT_EMPTY_PATH)
             except Exception: pass
             os._exit(125)
         if capture: os.close(write_fd); write_fd = None
@@ -533,11 +630,11 @@ def _execute_under_lock(digest: str, now: Callable[[], float]) -> dict[str, Any]
         reference = _consume_arm(started, digest)
         _invalidate_public_receipt()
         bound = _bind_identities()
-        bound = Bound(bound.source_fd, bound.repository_fd, bound.credential_fd, bound.restic_fd, bound.uid, bound.gid, reference)
-        backup = _run_child(bound, (RESTIC_BINARY, "-r", REPOSITORY, "backup", SOURCE, "--exclude", "**/.git", "--exclude", "**/__pycache__", "--exclude", "**/.pytest_cache", "--exclude", "**/node_modules", "--exclude", "**/backups", "--exclude", "**/logs/*.log", "--exclude", "**/tmp", "--exclude", "**/.cache", "--exclude-caches", "--tag", "homeserver", "--tag", "pre-update", "--tag", "odysseus-pre-update"), BACKUP_TIMEOUT_SECONDS, False)
+        bound = Bound(bound.source_parent_fd, bound.source_fd, bound.repository_fd, bound.credential_fd, bound.restic_fd, bound.uid, bound.gid, reference)
+        backup = _run_child(bound, (RESTIC_BINARY, "-r", VIEW_REPOSITORY, "backup", SOURCE, "--exclude", "**/.git", "--exclude", "**/__pycache__", "--exclude", "**/.pytest_cache", "--exclude", "**/node_modules", "--exclude", "**/backups", "--exclude", "**/logs/*.log", "--exclude", "**/tmp", "--exclude", "**/.cache", "--exclude-caches", "--tag", "homeserver", "--tag", "pre-update", "--tag", "odysseus-pre-update"), BACKUP_TIMEOUT_SECONDS, False)
         if backup[0] is None: return _unknown("backup_timeout", reference)
         if backup[0] != 0: return _unknown("backup_failed", reference)
-        result, raw, overflow = _run_child(bound, (RESTIC_BINARY, "-r", REPOSITORY, "--no-lock", "snapshots", "--tag", "odysseus-pre-update", "--latest", "1", "--json"), READBACK_TIMEOUT_SECONDS, True)
+        result, raw, overflow = _run_child(bound, (RESTIC_BINARY, "-r", VIEW_REPOSITORY, "--no-lock", "snapshots", "--tag", "odysseus-pre-update", "--latest", "1", "--json"), READBACK_TIMEOUT_SECONDS, True)
         snapshot = None if overflow or result != 0 else _parse_snapshot(raw, started)
         if result is None: return _unknown("readback_timeout", reference)
         if snapshot is None: return _unknown("readback_invalid" if result == 0 else "readback_failed", reference)
@@ -550,7 +647,7 @@ def _execute_under_lock(digest: str, now: Callable[[], float]) -> dict[str, Any]
         return _blocked("preflight_failed") if reference is None else _unknown("execution_ambiguous", reference)
     finally:
         if bound is not None:
-            for descriptor in (bound.source_fd, bound.repository_fd, bound.credential_fd, bound.restic_fd):
+            for descriptor in (bound.source_parent_fd, bound.source_fd, bound.repository_fd, bound.credential_fd, bound.restic_fd):
                 try: os.close(descriptor)
                 except Exception: pass
 

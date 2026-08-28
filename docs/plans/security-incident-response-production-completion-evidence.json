@@ -111,14 +111,38 @@
     "stage, commit or push",
     "SSH, either observation or backup creation"
   ],
+  "latest_sec191_root_helper_classic_bind_repair": {
+    "recorded_at": "2026-08-28T17:20:28+02:00",
+    "run_id": "ABC-SEC191-20260828-BACKUP-ROOT-HELPER-CLASSIC-BIND",
+    "status": "accepted_repo_only_ready_for_exact_publication",
+    "baseline_head": "8cc9a5572384151fe5415f1eb0c4aa5279691a46",
+    "architecture": "classic non-recursive source self-bind plus private repository bind view; descriptor, parent, nested-mount, read-only source and writable repository proofs; no open_tree, move_mount, procfs descriptor path or new diagnostic helper",
+    "accepted_helper_sha256": "abf8f859384a9ab21d2c5fb682aabaaff522464eef5d035126065021de373d31",
+    "focused_verification": "72 passed, 2 Windows-only POSIX fixture skips",
+    "adjacent_verification": "111 passed across backup creation, snapshot observation, diagnostics, recovery and transactional deploy",
+    "planning_verification": "8 passed after durable claim release",
+    "compile_and_diff": "30 relevant Python sources compiled in memory; git diff --check exit 0",
+    "review": "first independent fresh Sol review found one P1 credential-directory remount prerequisite; correction round 1 added the required self-bind and adversarial tests; second independent fresh Sol review passed with no findings",
+    "forbidden_path_readback": "service unit, sudoers, root-helper readback, creation, observation, diagnostic and recovery implementations remain byte-identical to HEAD",
+    "live_execution": false,
+    "git_publication": false,
+    "backup_execution": false,
+    "deployment_execution": false,
+    "remaining_live_gates": [
+      "publish exact reviewed candidate to fuzzy/dev and require green Required CI",
+      "separately authorize and read back exact-hash root-helper upgrade and current incident recovery",
+      "separately authorize exactly one backup attempt and independently verify a fresh snapshot",
+      "execute the already authorized exact transactional deployment only after all predeploy gates pass"
+    ]
+  },
   "file_sha256": {
     "docs/plans/multi-agent-execution-guidance.json": "4b75fab41f64b5b371dc66a05c7af5b065527aa354322e5c0f14edfa1955b128",
     "docs/plans/open-work-completion-master-roadmap.json": "0438c559db0866e95b968cb1bdd876ed7ded4056ddeff5372325c05ed2729987",
     "docs/plans/security-incident-response-activation-packet.md": "aadf92703a2131c256d1af79de063ba2fb4f21becd34d83b794bff15be97a83f",
-    "docs/plans/security-incident-response-backup-creation-packet.md": "6994b528b5d3de9c98809ae201423a8ef8acb86a604dc23912a9d93a622c62ec",
+    "docs/plans/security-incident-response-backup-creation-packet.md": "9fd897add1e2ce0b1dbbd660029408362253f2e211624816df2bf1dfa87c9e73",
     "docs/plans/security-incident-response-backup-snapshot-observation-packet.md": "f5e9ef905e522c03175e6dae4d467e204f4ce73836ece6d7b5b66ecfa27450bf",
     "docs/plans/security-incident-response-live-observe-delivery-evidence.md": "a488e1970d63bdb99a3daabe4aeb3490574654de0fb61dcb545ded6f76486f67",
-    "docs/plans/security-incident-response-production-completion-roadmap.json": "0121fe245e17e9b8788d68ae7b47087ece0f0b582d0b6052b7dd1a466378cb54",
+    "docs/plans/security-incident-response-production-completion-roadmap.json": "c1ce252098b3ca60784cd8d4cb758f873c2777d6c267b6af3eecab5af67629c9",
     "docs/plans/security-incident-response-transactional-deploy-packet.md": "04881d0a642539bf32fd879b59e0a05618d108914e50d89de9be99f6db495047",
     "docs/runbooks/security-incident-response.md": "d9b62c8355783bca94de49137591bb4c5c94f6bdbe0000c7b7a24e1a7950149e",
     "ops/homeserver/redacted_backup_snapshot_observation.py": "d838a0a99310171c8ca08d1835527df9d8ac03b240d57b0bd1bbd745e949a95b",
@@ -131,7 +155,7 @@
     "tests/test_homeserver_redacted_podman_compose_capability_observation.py": "5e232816c72abfae75e892f07b19dbeeafa9fb29c4ceb5439a491ae3c6f26f2d",
     "tests/test_security_incident_response_production_completion_roadmap.py": "30d32039d91f7cf64ae067fb4d43497e91d5015dad56140de435fe7f603bcf07"
   },
-  "aggregate_sha256": "a657fa55a6ab31b1a653000616eaa1ea22e4b0efb1655b52642caf58093c6f9f",
+  "aggregate_sha256": "46da7d5d20f6d7f679661f61a74dbc5367e97bd6339dbfe286e8d49b19e22eef",
   "claim_state": "released",
   "remaining_frontier": "Finish and read back the SEC131 deterministic semantic manifest, then request the exact SEC131 expanded single-use stage/commit/push Go only if publication is still desired. After publication, the exact capability observation remains separate and ungranted. Executor implementation, fresh D0/SEC129 evidence, owner-bound deploy authority, restore, restic check and delivery remain separate gates."
 }

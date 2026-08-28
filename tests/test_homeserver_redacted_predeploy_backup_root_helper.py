@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import json
 import inspect
+import stat
 from types import SimpleNamespace
+
+import pytest
 
 from ops.homeserver import redacted_predeploy_backup_root_helper as subject
 
@@ -18,14 +21,14 @@ def test_envelopes_are_fixed_and_redacted() -> None:
     assert not subject.validate_envelope(malformed)
 
 
-def test_tampering_rejected_and_no_user_namespace_or_procfs_bind_fallback() -> None:
+def test_tampering_rejected_and_no_user_namespace_or_descriptor_mount_fallback() -> None:
     value = subject._blocked("not_armed")
     value["backup_invoked"] = True
     value["evidence_sha256"] = subject._digest(value)
     assert not subject.validate_envelope(value)
     source = open(subject.__file__, encoding="utf-8").read()
     assert "CLONE_NEWUSER" not in source
-    assert "open_tree" in source and "move_mount" in source and "execveat" in source
+    assert "open_tree" not in source and "move_mount" not in source and "execveat" in source
     assert '"/proc/self/fd/' not in source
 
 
@@ -49,15 +52,155 @@ def test_unit_contract_uses_one_fixed_python_exec_and_narrow_capabilities() -> N
 
 def test_private_mount_view_remains_traversable_after_uid_drop_and_uses_canonical_paths() -> None:
     mount_source = inspect.getsource(subject._mount_setup)
+    bind_source = inspect.getsource(subject._bind_private_views)
     execution_source = inspect.getsource(subject._execute_under_lock)
     assert 'b"mode=0711,size=1048576"' in mount_source
     assert "os.fchown(credential_directory_fd, bound.uid, bound.gid)" in mount_source
-    assert "move(bound.source_fd, SOURCE)" in mount_source
-    assert "move(bound.repository_fd, REPOSITORY)" in mount_source
-    assert "os.statvfs(REPOSITORY)" in mount_source
-    assert "VIEW_REPOSITORY" not in mount_source
+    assert 'invoke_mount(SOURCE.encode("ascii"), SOURCE, None, MS_BIND, None)' in bind_source
+    assert 'invoke_mount(REPOSITORY.encode("ascii"), VIEW_REPOSITORY, None, MS_BIND, None)' in bind_source
+    assert "filesystem_stat(SOURCE)" in bind_source and "filesystem_stat(VIEW_REPOSITORY)" in bind_source
+    assert "os.mkdir(VIEW_REPOSITORY, 0o700)" in mount_source
     assert "VIEW_SOURCE" not in mount_source + execution_source
-    assert '(RESTIC_BINARY, "-r", REPOSITORY, "backup", SOURCE' in execution_source
+    assert '(RESTIC_BINARY, "-r", VIEW_REPOSITORY, "backup", SOURCE' in execution_source
+    assert '(RESTIC_BINARY, "-r", VIEW_REPOSITORY, "--no-lock", "snapshots"' in execution_source
+
+
+def _directory(device: int, inode: int, mode: int, uid: int, gid: int) -> SimpleNamespace:
+    return SimpleNamespace(st_mode=stat.S_IFDIR | mode, st_uid=uid, st_gid=gid, st_nlink=2, st_dev=device, st_ino=inode)
+
+
+def _bound_fixture() -> tuple[subject.Bound, dict[int, SimpleNamespace], dict[str, SimpleNamespace]]:
+    bound = subject.Bound(10, 11, 12, 13, 14, 1000, 1000, "")
+    descriptors = {
+        10: _directory(1, 1, 0o755, 0, 0),
+        11: _directory(2, 2, 0o750, 1000, 1000),
+        12: _directory(3, 3, 0o700, 1000, 1000),
+    }
+    paths = {
+        "/opt": descriptors[10],
+        subject.SOURCE: descriptors[11],
+        subject.REPOSITORY: descriptors[12],
+        subject.VIEW_REPOSITORY: descriptors[12],
+    }
+    return bound, descriptors, paths
+
+
+def test_classic_bind_sequence_proves_descriptor_identity_source_readonly_and_repository_writable() -> None:
+    bound, descriptors, paths = _bound_fixture()
+    mounts: list[tuple[bytes | None, str, bytes | None, int, bytes | None]] = []
+    nested_checks: list[tuple[str, ...]] = []
+    subject._bind_private_views(
+        bound,
+        lambda *args: mounts.append(args),
+        statter=paths.__getitem__,
+        fstatter=descriptors.__getitem__,
+        statvfs=lambda path: SimpleNamespace(f_flag=1 if path == subject.SOURCE else 0),
+        reject_nested=lambda *roots: nested_checks.append(roots),
+    )
+    assert mounts == [
+        (subject.SOURCE.encode("ascii"), subject.SOURCE, None, subject.MS_BIND, None),
+        (None, subject.SOURCE, None, subject.MS_BIND | subject.MS_REMOUNT | subject.MS_RDONLY | subject.MS_NOSUID | subject.MS_NODEV | subject.MS_NOEXEC, None),
+        (subject.REPOSITORY.encode("ascii"), subject.VIEW_REPOSITORY, None, subject.MS_BIND, None),
+    ]
+    assert nested_checks == [
+        (subject.SOURCE, subject.REPOSITORY),
+        (subject.SOURCE, subject.REPOSITORY, subject.VIEW_REPOSITORY),
+    ]
+
+
+def test_unsafe_opt_parent_and_source_or_repository_path_swaps_fail_before_mount() -> None:
+    for unsafe in ("parent", "source", "repository"):
+        bound, descriptors, paths = _bound_fixture()
+        if unsafe == "parent":
+            paths["/opt"] = _directory(1, 1, 0o775, 0, 0)
+        elif unsafe == "source":
+            paths[subject.SOURCE] = _directory(9, 9, 0o750, 1000, 1000)
+        else:
+            paths[subject.REPOSITORY] = _directory(9, 9, 0o700, 1000, 1000)
+        mounts: list[object] = []
+        with pytest.raises(subject.Failure):
+            subject._bind_private_views(
+                bound,
+                lambda *args: mounts.append(args),
+                statter=paths.__getitem__,
+                fstatter=descriptors.__getitem__,
+                statvfs=lambda path: SimpleNamespace(f_flag=0),
+                reject_nested=lambda *roots: None,
+            )
+        assert mounts == []
+
+
+def test_nested_mounts_below_either_bound_root_are_rejected_but_exact_roots_are_allowed() -> None:
+    exact = (
+        f"1 0 0:1 / {subject.SOURCE} rw - ext4 /dev/a rw\n"
+        f"2 0 0:2 / {subject.REPOSITORY} rw - ext4 /dev/b rw\n"
+        f"3 0 0:3 / {subject.VIEW_REPOSITORY} rw - ext4 /dev/c rw\n"
+    ).encode("ascii")
+    subject._reject_nested_mounts(subject.SOURCE, subject.REPOSITORY, subject.VIEW_REPOSITORY, reader=lambda path, maximum: exact)
+    for nested in (subject.SOURCE + "/nested", subject.REPOSITORY + "/nested", subject.VIEW_REPOSITORY + "/nested"):
+        raw = exact + f"4 0 0:4 / {nested} rw - ext4 /dev/d rw\n".encode("ascii")
+        with pytest.raises(subject.Failure):
+            subject._reject_nested_mounts(subject.SOURCE, subject.REPOSITORY, subject.VIEW_REPOSITORY, reader=lambda path, maximum, raw=raw: raw)
+
+
+def test_every_classic_bind_or_remount_failure_and_postcondition_failure_is_closed() -> None:
+    for failing_call in range(3):
+        bound, descriptors, paths = _bound_fixture()
+        calls = {"count": 0}
+        def mount(*args):
+            current = calls["count"]
+            calls["count"] += 1
+            if current == failing_call: raise subject.Failure("preflight_failed")
+        with pytest.raises(subject.Failure):
+            subject._bind_private_views(bound, mount, statter=paths.__getitem__, fstatter=descriptors.__getitem__, statvfs=lambda path: SimpleNamespace(f_flag=1 if path == subject.SOURCE else 0), reject_nested=lambda *roots: None)
+
+    bound, descriptors, paths = _bound_fixture()
+    with pytest.raises(subject.Failure):
+        subject._bind_private_views(bound, lambda *args: None, statter=paths.__getitem__, fstatter=descriptors.__getitem__, statvfs=lambda path: SimpleNamespace(f_flag=0), reject_nested=lambda *roots: None)
+    with pytest.raises(subject.Failure):
+        subject._bind_private_views(bound, lambda *args: None, statter=paths.__getitem__, fstatter=descriptors.__getitem__, statvfs=lambda path: SimpleNamespace(f_flag=1), reject_nested=lambda *roots: None)
+
+
+def test_credential_directory_self_bind_precedes_readonly_remount_and_both_fail_closed() -> None:
+    credential_directory = subject.os.path.dirname(subject.VIEW_CREDENTIAL)
+    mounts: list[tuple[bytes | None, str, bytes | None, int, bytes | None]] = []
+    subject._make_credential_directory_readonly(
+        credential_directory,
+        lambda *args: mounts.append(args),
+        statvfs=lambda path: SimpleNamespace(f_flag=1),
+    )
+    assert mounts == [
+        (credential_directory.encode("ascii"), credential_directory, None, subject.MS_BIND, None),
+        (None, credential_directory, None, subject.MS_BIND | subject.MS_REMOUNT | subject.MS_RDONLY | subject.MS_NOSUID | subject.MS_NODEV | subject.MS_NOEXEC, None),
+    ]
+
+    for failing_call in range(2):
+        calls: list[tuple[object, ...]] = []
+        def fail_one(*args):
+            calls.append(args)
+            if len(calls) - 1 == failing_call: raise subject.Failure("preflight_failed")
+        with pytest.raises(subject.Failure):
+            subject._make_credential_directory_readonly(credential_directory, fail_one, statvfs=lambda path: SimpleNamespace(f_flag=1))
+        assert len(calls) == failing_call + 1
+
+    with pytest.raises(subject.Failure):
+        subject._make_credential_directory_readonly(credential_directory, lambda *args: None, statvfs=lambda path: SimpleNamespace(f_flag=0))
+
+
+def test_post_bind_source_or_repository_identity_swap_fails_closed() -> None:
+    bound, descriptors, paths = _bound_fixture()
+    source_calls = {"count": 0}
+    def swapped_source(path):
+        if path == subject.SOURCE:
+            source_calls["count"] += 1
+            if source_calls["count"] > 1: return _directory(9, 9, 0o750, 1000, 1000)
+        return paths[path]
+    with pytest.raises(subject.Failure):
+        subject._bind_private_views(bound, lambda *args: None, statter=swapped_source, fstatter=descriptors.__getitem__, statvfs=lambda path: SimpleNamespace(f_flag=1 if path == subject.SOURCE else 0), reject_nested=lambda *roots: None)
+
+    paths[subject.VIEW_REPOSITORY] = _directory(9, 9, 0o700, 1000, 1000)
+    with pytest.raises(subject.Failure):
+        subject._bind_private_views(bound, lambda *args: None, statter=paths.__getitem__, fstatter=descriptors.__getitem__, statvfs=lambda path: SimpleNamespace(f_flag=1 if path == subject.SOURCE else 0), reject_nested=lambda *roots: None)
 
 
 def test_snapshot_parser_rejects_stale_or_unbound_content() -> None:
@@ -178,6 +321,15 @@ def test_arm_validation_is_exact_expiring_and_distinct_per_grant() -> None:
 def test_repository_mutability_and_all_capability_sets_are_required() -> None:
     assert subject._filesystem_readonly(SimpleNamespace(f_flag=1))
     assert not subject._filesystem_readonly(SimpleNamespace(f_flag=0))
+    assert subject._safe_root_parent(_directory(1, 1, 0o755, 0, 0))
+    assert not subject._safe_root_parent(_directory(1, 1, 0o775, 0, 0))
+    assert subject._safe_bound_root(_directory(1, 1, 0o700, 1000, 1000), 1000, 1000, writable=True)
+    assert not subject._safe_bound_root(_directory(1, 1, 0o500, 1000, 1000), 1000, 1000, writable=True)
+    access_calls: list[tuple[str, int]] = []
+    subject._prove_repository_access_after_drop(accessor=lambda path, mode: access_calls.append((path, mode)) or True)
+    assert access_calls == [(subject.VIEW_REPOSITORY, subject.os.R_OK | subject.os.W_OK | subject.os.X_OK)]
+    with pytest.raises(subject.Failure):
+        subject._prove_repository_access_after_drop(accessor=lambda path, mode: False)
     clear = [SimpleNamespace(effective=0, permitted=0, inheritable=0), SimpleNamespace(effective=0, permitted=0, inheritable=0)]
     assert subject._capability_sets_clear(clear)
     for field in ("effective", "permitted", "inheritable"):
@@ -192,3 +344,6 @@ def test_descriptor_close_precedes_rebinding_and_cannot_reuse_config_fd() -> Non
     assert closed == [41]
     # The returned sentinel makes accidental reuse as a dir_fd impossible.
     assert subject._close_owned_descriptor(None, closer=closed.append) is None
+    child_source = inspect.getsource(subject._run_child)
+    close = "for descriptor in (bound.source_parent_fd, bound.source_fd, bound.repository_fd, bound.credential_fd): _close_verified(descriptor)"
+    assert child_source.index(close) < child_source.index("_drop_identity(bound)") < child_source.index("_prove_repository_access_after_drop()") < child_source.index("_execveat_syscall()")

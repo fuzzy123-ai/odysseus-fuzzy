@@ -36,6 +36,8 @@ def test_all_pins_match_current_sources_and_default_is_inert() -> None:
     sources = _sources()
     specifications = ((transport.UPGRADE_PATH, transport.PUBLISHED_UPGRADE_SHA256), (transport.HELPER_PATH, transport.PUBLISHED_HELPER_SHA256), (transport.READBACK_PATH, transport.PUBLISHED_READBACK_SHA256), (transport.INSTALL_READBACK_PATH, transport.PUBLISHED_INSTALL_READBACK_SHA256))
     assert all(hashlib.sha256(sources[path]).hexdigest() == digest for path, digest in specifications)
+    assert all(digest in transport._BOOTSTRAP for _, digest in specifications)
+    assert upgrade.NEW_HELPER_SHA256 == transport.PUBLISHED_HELPER_SHA256
     value = transport.collect_published_root_helper_upgrade()
     assert value["status"] == "blocked" and value["error_code"] == "execution_disabled"
 

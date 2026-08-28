@@ -24,10 +24,10 @@ INSTALLER_PATH = "ops/homeserver/redacted_predeploy_backup_root_helper_install.p
 HELPER_PATH = "ops/homeserver/redacted_predeploy_backup_root_helper.py"
 READBACK_PATH = "ops/homeserver/redacted_predeploy_backup_root_helper_readback.py"
 INSTALL_READBACK_PATH = "ops/homeserver/redacted_predeploy_backup_root_helper_install_readback.py"
-PUBLISHED_INSTALLER_SHA256 = "ec4a143ba3f9f7439dd98fb0de903dc88750ffc4622784d18e9aa8d3c638c5b9"
-PUBLISHED_HELPER_SHA256 = "56119595274556615a3e83e1f637bd2035232180a0a0005aa3938d08ca3efb81"
+PUBLISHED_INSTALLER_SHA256 = "3ecd53a136afb9d7d0929850d6020deec92aadbb74b28ad13266d44faa8e2116"
+PUBLISHED_HELPER_SHA256 = "abf8f859384a9ab21d2c5fb682aabaaff522464eef5d035126065021de373d31"
 PUBLISHED_READBACK_SHA256 = "e647b6f1faa409f42cbeb80c74826b730695d9e0fad14cf47aa22c1a59a0a046"
-PUBLISHED_INSTALL_READBACK_SHA256 = "497c152c99ed992dbb4ba3db2ddc06a6e7200082cfdfaf8e37988c60fadcc83b"
+PUBLISHED_INSTALL_READBACK_SHA256 = "7fc22d16cd01dab1184e2cef4baa2751dd8338f5986ed063168d17795ceb3bff"
 MAX_BLOB_BYTES = 400_000
 MAX_STDIN_BYTES = 1_800_000
 MAX_STDOUT_BYTES = 8_192
@@ -39,7 +39,7 @@ SSH_PREFIX = ("ssh", "-F", "ops/homeserver/ssh_config", "odysseus-homeserver")
 # the reviewed no-start/no-enable contract.
 STATIC_BOOTSTRAP = r'''import base64,hashlib,json,os,sys,types
 MAX=400000
-PINS={"installer_sha256":"ec4a143ba3f9f7439dd98fb0de903dc88750ffc4622784d18e9aa8d3c638c5b9","helper_sha256":"56119595274556615a3e83e1f637bd2035232180a0a0005aa3938d08ca3efb81","readback_sha256":"e647b6f1faa409f42cbeb80c74826b730695d9e0fad14cf47aa22c1a59a0a046","install_readback_sha256":"497c152c99ed992dbb4ba3db2ddc06a6e7200082cfdfaf8e37988c60fadcc83b"}
+PINS={"installer_sha256":"3ecd53a136afb9d7d0929850d6020deec92aadbb74b28ad13266d44faa8e2116","helper_sha256":"abf8f859384a9ab21d2c5fb682aabaaff522464eef5d035126065021de373d31","readback_sha256":"e647b6f1faa409f42cbeb80c74826b730695d9e0fad14cf47aa22c1a59a0a046","install_readback_sha256":"7fc22d16cd01dab1184e2cef4baa2751dd8338f5986ed063168d17795ceb3bff"}
 KEYS=frozenset(("installer_sha256","installer_source","helper_sha256","helper_source","readback_sha256","readback_source","install_readback_sha256","install_readback_source"))
 def die(): raise SystemExit(70)
 def emit(v): sys.stdout.write(json.dumps(v,ensure_ascii=True,sort_keys=True,separators=(",",":"))+"\n")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import stat
 from types import SimpleNamespace
 
@@ -42,6 +43,8 @@ def test_installer_is_inert_default_and_assets_are_fixed() -> None:
     assert subject.SERVICE_TEXT == open("ops/homeserver/root-helper/odysseus-predeploy-backup-root-helper.service", encoding="ascii").read()
     assert subject.SUDOERS_TEXT == open("ops/homeserver/root-helper/odysseus-predeploy-backup-root-helper.sudoers", encoding="ascii").read()
     assert subject.READBACK_EXEC in subject.SUDOERS_TEXT and "/usr/bin/env" not in open("ops/homeserver/redacted_predeploy_backup_root_helper_readback.py", encoding="ascii").read()
+    helper = open("ops/homeserver/redacted_predeploy_backup_root_helper.py", "rb").read()
+    assert hashlib.sha256(helper).hexdigest() == subject.HELPER_SHA256
 
 
 def test_no_clobber_exact_baseline_and_rollback() -> None:
