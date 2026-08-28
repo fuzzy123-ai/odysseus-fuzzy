@@ -258,7 +258,6 @@ def _result_valid(value: Any, packet: Mapping[str, Any]) -> bool:
         and set(value) == _RESULT_KEYS
         and value.get("schema_id") == RESULT_SCHEMA_ID
         and value.get("status") == "unknown"
-        and value.get("error_code") == "backup_failed"
         and value.get("effect_may_have_occurred") is True
         and value.get("retry_permitted") is False
         and value.get("manual_recovery_required") is True

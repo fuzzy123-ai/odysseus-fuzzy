@@ -1349,9 +1349,9 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     assert sec201["terminal_result"]["receipt_matches"] is False
     assert sec201["terminal_result"]["recovery_preflight_ready"] is False
     sec202 = live_go_by_id["SEC202-EFFECTIVE-RECEIPT-CLASS-DIAGNOSTIC-20260828"]
-    assert sec202["status"] == "approved_unused"
-    assert sec202["consumption_status"] == "unconsumed"
-    assert sec202["consumed"] is False
+    assert sec202["status"] == "used_completed_unknown_receipt_class_diagnosed"
+    assert sec202["consumption_status"] == "consumed_terminal_read_only_diagnostic_completed"
+    assert sec202["consumed"] is True
     assert sec202["limits"]["maximum_invocations"] == 1
     assert sec202["limits"]["maximum_results"] == 1
     assert sec202["limits"]["outer_timeout_seconds"] == 30
@@ -1360,6 +1360,12 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     assert sec202["incident_recovery_authority"] is False
     assert sec202["backup_authority"] is False
     assert sec202["deploy_authority"] is False
+    assert sec202["invocation_counter"] == 1
+    assert sec202["result_counter"] == 1
+    assert sec202["external_action_executed"] is True
+    assert sec202["terminal_result"]["receipt_file_valid"] is True
+    assert sec202["terminal_result"]["receipt_error_backup_failed"] is False
+    assert sec202["terminal_result"]["receipt_evidence_matches"] is True
     assert sec199["current_incident_observation_authority"] is True
     assert sec199["incident_recovery_authority"] is False
     assert sec199["backup_authority"] is False

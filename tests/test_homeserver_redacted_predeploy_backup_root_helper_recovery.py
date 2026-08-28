@@ -108,7 +108,11 @@ def test_receipt_validation_is_incident_and_digest_bound() -> None:
     packet = {**PACKET, "result_evidence_sha256": receipt["evidence_sha256"]}
     assert subject._result_valid(receipt, packet)
     receipt["error_code"] = "execution_ambiguous"
-    assert not subject._result_valid(receipt, packet)
+    receipt["evidence_sha256"] = hashlib.sha256(json.dumps({key: value for key, value in receipt.items() if key != "evidence_sha256"}, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("ascii")).hexdigest()
+    assert subject._result_valid(receipt, {**PACKET, "result_evidence_sha256": receipt["evidence_sha256"]})
+    receipt["status"] = "blocked"
+    receipt["evidence_sha256"] = hashlib.sha256(json.dumps({key: value for key, value in receipt.items() if key != "evidence_sha256"}, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("ascii")).hexdigest()
+    assert not subject._result_valid(receipt, {**PACKET, "result_evidence_sha256": receipt["evidence_sha256"]})
 
 
 def test_terminal_unit_projection_requires_failed_state_without_processes(monkeypatch) -> None:
