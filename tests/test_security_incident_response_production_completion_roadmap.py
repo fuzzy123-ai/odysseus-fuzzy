@@ -1196,6 +1196,7 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         "SEC200-CORRECTED-ABF8-INCIDENT-RECOVERY-20260828",
         "SEC201-RECEIPT-CLASS-DIAGNOSTIC-20260828",
         "SEC202-EFFECTIVE-RECEIPT-CLASS-DIAGNOSTIC-20260828",
+        "SEC203-EXACT-UNKNOWN-RECEIPT-RECOVERY-20260828",
         }
     sec192 = live_go_by_id["SEC192-CURRENT-INCIDENT-RECOVERY-20260828"]
     assert sec192["status"] == "used_completed_recovered"
@@ -1366,6 +1367,14 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     assert sec202["terminal_result"]["receipt_file_valid"] is True
     assert sec202["terminal_result"]["receipt_error_backup_failed"] is False
     assert sec202["terminal_result"]["receipt_evidence_matches"] is True
+    sec203 = live_go_by_id["SEC203-EXACT-UNKNOWN-RECEIPT-RECOVERY-20260828"]
+    assert sec203["status"] == "approved_unused"
+    assert sec203["consumed"] is False
+    assert sec203["limits"]["maximum_invocations"] == 1
+    assert sec203["limits"]["retries"] == 0
+    assert sec203["incident_recovery_authority"] is True
+    assert sec203["backup_authority"] is False
+    assert sec203["deploy_authority"] is False
     assert sec199["current_incident_observation_authority"] is True
     assert sec199["incident_recovery_authority"] is False
     assert sec199["backup_authority"] is False

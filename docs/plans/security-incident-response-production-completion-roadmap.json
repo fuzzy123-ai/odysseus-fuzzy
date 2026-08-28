@@ -6090,6 +6090,20 @@
       "terminal_result": {"schema_id": "odysseus.predeploy_backup_root_helper_incident_diagnostic.v2", "status": "ok", "error_code": "none", "receipt_file_valid": true, "receipt_shape_valid": true, "receipt_schema_matches": true, "receipt_status_unknown": true, "receipt_error_backup_failed": false, "receipt_effect_may_have_occurred": true, "receipt_retry_disabled": true, "receipt_manual_recovery_required": true, "receipt_provenance_matches": true, "receipt_evidence_matches": true, "receipt_digest_matches": true, "receipt_matches": false, "recovery_preflight_ready": false, "evidence_sha256": "2facc63bbe0affd5a150899c234df458ef4c9c329abbbefd5397c377425c259b"}
     },
     {
+      "id": "SEC203-EXACT-UNKNOWN-RECEIPT-RECOVERY-20260828",
+      "run_id": "ABC-SEC203-20260828-EXACT-UNKNOWN-RECEIPT-RECOVERY-LIVE",
+      "action": "other/root_helper_incident_recovery",
+      "target_class": "exact current failed abf8 root-helper incident, limited to its expired inode-bound arm and named terminal failed unit; the receipt remains hash-, schema-, provenance- and no-retry-bound",
+      "artifact_or_inputs": "published fuzzy/dev revision ed87075bae832d09d5e6854646707511d9d0c196; required CI run 33205561822 success; recovery source sha256 aada592c55088d7b9d0f8c40e3633ca5f4b1747487f6b916db20b5b6f82d8a07; recovery transport sha256 9b874fed8dae9b6ad4079249a3cecbe099e6f501ac0328f7aa4f322fb2260f87; SEC202 evidence 2facc63bbe0affd5a150899c234df458ef4c9c329abbbefd5397c377425c259b",
+      "granted_by": "owner broad continuing authorization: freigabe erteilt; problem zu fixen und alles was bisher gemacht wurde live zu schalten, confirmed 2026-08-28",
+      "granted_at": "2026-08-28T21:57:37+02:00", "expires_at": "run_end",
+      "limits": {"maximum_invocations": 1, "maximum_results": 1, "outer_timeout_seconds": 45, "retries": 0, "arm_removals": 1, "unit_resets": 1, "backups": 0, "deployments": 0},
+      "rollback_or_recovery": "On any preflight failure it changes nothing. If invoked, it can remove only the exact expired arm and reset only the named failed unit; it cannot retry, back up, restore, deploy or deliver.",
+      "readback": "one strictly validated redacted recovery envelope and canonical evidence_sha256 only; no raw output or secret data",
+      "revocable": true, "consumed": false, "status": "approved_unused", "consumption_status": "unconsumed", "invocation_counter": 0, "result_counter": 0, "retry_counter": 0, "external_action_executed": false, "reuse_permitted": false,
+      "current_incident_observation_authority": false, "incident_recovery_authority": true, "backup_authority": false, "helper_upgrade_authority": false, "snapshot_observation_authority": false, "deploy_authority": false, "delivery_or_send_authority": false
+    },
+    {
       "id": "SEC182-SOURCE-AST-REPAIR-PUBLISH-20260730",
       "run_id": "ABC-SEC182-20260730-SOURCE-AST-REPAIR-PUBLICATION",
       "action": "git_commit_cherry_pick_and_push",
