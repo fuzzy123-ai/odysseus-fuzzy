@@ -1197,6 +1197,7 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         "SEC201-RECEIPT-CLASS-DIAGNOSTIC-20260828",
         "SEC202-EFFECTIVE-RECEIPT-CLASS-DIAGNOSTIC-20260828",
         "SEC203-EXACT-UNKNOWN-RECEIPT-RECOVERY-20260828",
+        "SEC204-FRESH-POST-RECOVERY-BACKUP-AND-SNAPSHOT-VERIFY-20260828",
         }
     sec192 = live_go_by_id["SEC192-CURRENT-INCIDENT-RECOVERY-20260828"]
     assert sec192["status"] == "used_completed_recovered"
@@ -1380,6 +1381,18 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     assert sec203["deploy_authority"] is False
     assert sec203["terminal_result"]["status"] == "recovered"
     assert sec203["terminal_result"]["retry_permitted"] is False
+    sec204 = live_go_by_id["SEC204-FRESH-POST-RECOVERY-BACKUP-AND-SNAPSHOT-VERIFY-20260828"]
+    assert sec204["status"] == "approved_unused_pending_publication_and_required_ci"
+    assert sec204["consumed"] is False
+    assert sec204["limits"]["maximum_backup_invocations"] == 1
+    assert sec204["limits"]["backup_timeout_seconds"] == 1860
+    assert sec204["limits"]["maximum_snapshot_observations"] == 1
+    assert sec204["limits"]["retries"] == 0
+    assert sec204["backup_authority"] is True
+    assert sec204["snapshot_observation_authority"] is True
+    assert sec204["incident_recovery_authority"] is False
+    assert sec204["helper_upgrade_authority"] is False
+    assert sec204["deploy_authority"] is False
     assert sec199["current_incident_observation_authority"] is True
     assert sec199["incident_recovery_authority"] is False
     assert sec199["backup_authority"] is False

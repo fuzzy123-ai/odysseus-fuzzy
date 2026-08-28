@@ -6105,6 +6105,20 @@
       "terminal_result": {"schema_id": "odysseus.predeploy_backup_root_helper_recovery.v1", "status": "recovered", "error_code": "none", "recovery_invoked": true, "arm_removed": true, "unit_reset": true, "unit_inactive": true, "effect_may_have_occurred": false, "retry_permitted": false, "manual_recovery_required": false, "environment_visible": false, "hostnames_visible": false, "paths_visible": false, "raw_stdout_visible": false, "raw_stderr_visible": false, "secret_values_visible": false, "evidence_preserved": true, "evidence_sha256": "f806b239c7b81a07af855e7f20eb91bce5c46cb26949c0936555fbf3bfe23991"}
     },
     {
+      "id": "SEC204-FRESH-POST-RECOVERY-BACKUP-AND-SNAPSHOT-VERIFY-20260828",
+      "run_id": "ABC-SEC204-20260828-FRESH-POST-RECOVERY-BACKUP-AND-SNAPSHOT-VERIFY-LIVE",
+      "action": "other/fresh_predeploy_backup_then_independent_snapshot_observation",
+      "target_class": "one fresh predeploy backup of the exact protected source with reviewed published creation code, followed only on an ok result by one independent read-only snapshot observation; SEC195 is excluded and cannot be retried or reused",
+      "artifact_or_inputs": "published fuzzy/dev revision 1c5cfdce14d001e93fb199bad3c7811227c3c3dc; required CI run 33211112230 success; installed helper sha256 abf8f859384a9ab21d2c5fb682aabaaff522464eef5d035126065021de373d31; creation source sha256 65044c06153b6a2b35f0cd734963781b5bbfb7519595924316714d23966bef0c; creation transport sha256 936a3665d37372246b07170431f2fef1312badf833d20be0a86b68432ef03fe1; independent observer source sha256 ce435c9f940722e40df51933beec2e4cd978dafe6aa9fe7418513077731081dd; independent observer transport sha256 0e366812bc27d072a0262e71684e303b8fcdec7d9e8effad4a6242a0b5335ea1",
+      "granted_by": "owner broad continuing authorization: freigabe erteilt; problem zu fixen und alles was bisher gemacht wurde live zu schalten, confirmed 2026-08-28; prior exact backup grant GO ABC-SEC129 PREDEPLOY BACKUP CREATE ONCE <=1860S EXPIRES RUN_END + SNAPSHOT VERIFY ONCE was already consumed terminally as SEC195 and is not reused",
+      "granted_at": "2026-08-28T23:15:53+02:00", "expires_at": "run_end",
+      "limits": {"maximum_backup_invocations": 1, "maximum_backup_results": 1, "backup_timeout_seconds": 1860, "maximum_snapshot_observations": 1, "maximum_snapshot_results": 1, "observation_timeout_seconds": 30, "retries": 0, "helper_upgrades": 0, "incident_recoveries": 0, "deployments": 0},
+      "rollback_or_recovery": "All preflight checks fail closed before dispatch. Once the backup dispatch begins, every non-ok or ambiguous result is terminal: no retry, snapshot observation, deployment, implicit recovery, cleanup, restore, deletion or delivery. The observer is strictly read-only and only permitted after one verified ok backup result.",
+      "readback": "one strictly validated redacted backup envelope and, only after an ok backup, one strictly validated independent snapshot-observation envelope with canonical evidence_sha256 values; no raw stdout, stderr, environment, path, hostname or secret output",
+      "revocable": true, "consumed": false, "status": "approved_unused_pending_publication_and_required_ci", "consumption_status": "not_consumed", "backup_invocation_counter": 0, "backup_result_counter": 0, "snapshot_observation_counter": 0, "snapshot_result_counter": 0, "retry_counter": 0, "external_action_executed": false, "reuse_permitted": false,
+      "incident_recovery_authority": false, "backup_authority": true, "helper_upgrade_authority": false, "snapshot_observation_authority": true, "deploy_authority": false, "delivery_or_send_authority": false
+    },
+    {
       "id": "SEC182-SOURCE-AST-REPAIR-PUBLISH-20260730",
       "run_id": "ABC-SEC182-20260730-SOURCE-AST-REPAIR-PUBLICATION",
       "action": "git_commit_cherry_pick_and_push",

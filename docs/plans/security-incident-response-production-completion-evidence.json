@@ -437,6 +437,9 @@
   "latest_sec203_exact_unknown_receipt_recovery_authorization": {
     "recorded_at": "2026-08-28T21:57:37+02:00", "baseline_head": "ed87075bae832d09d5e6854646707511d9d0c196", "status": "used_completed_recovered", "run_id": "ABC-SEC203-20260828-EXACT-UNKNOWN-RECEIPT-RECOVERY-LIVE", "live_go_id": "SEC203-EXACT-UNKNOWN-RECEIPT-RECOVERY-20260828", "owner_authorization": "freigabe erteilt; problem zu fixen und alles was bisher gemacht wurde live zu schalten", "required_ci_run_id": 33205561822, "required_ci_status": "success", "recovery_source_sha256": "aada592c55088d7b9d0f8c40e3633ca5f4b1747487f6b916db20b5b6f82d8a07", "recovery_transport_sha256": "9b874fed8dae9b6ad4079249a3cecbe099e6f501ac0328f7aa4f322fb2260f87", "diagnostic_evidence_sha256": "2facc63bbe0affd5a150899c234df458ef4c9c329abbbefd5397c377425c259b", "retry_counter": 0, "recovery_execution": true, "recovery_result_evidence_sha256": "f806b239c7b81a07af855e7f20eb91bce5c46cb26949c0936555fbf3bfe23991", "recovery_result": {"schema_id": "odysseus.predeploy_backup_root_helper_recovery.v1", "status": "recovered", "error_code": "none", "recovery_invoked": true, "arm_removed": true, "unit_reset": true, "unit_inactive": true, "effect_may_have_occurred": false, "retry_permitted": false, "manual_recovery_required": false, "environment_visible": false, "hostnames_visible": false, "paths_visible": false, "raw_stdout_visible": false, "raw_stderr_visible": false, "secret_values_visible": false, "evidence_preserved": true, "evidence_sha256": "f806b239c7b81a07af855e7f20eb91bce5c46cb26949c0936555fbf3bfe23991"}, "backup_execution": false, "deployment_execution": false, "boundary": "This separate one-use recovery is terminal. It had no backup, retry, deployment or delivery authority."
   },
+  "latest_sec204_fresh_post_recovery_backup_authorization": {
+    "recorded_at": "2026-08-28T23:15:53+02:00", "baseline_head": "1c5cfdce14d001e93fb199bad3c7811227c3c3dc", "status": "approved_unused_pending_publication_and_required_ci", "run_id": "ABC-SEC204-20260828-FRESH-POST-RECOVERY-BACKUP-AND-SNAPSHOT-VERIFY-LIVE", "live_go_id": "SEC204-FRESH-POST-RECOVERY-BACKUP-AND-SNAPSHOT-VERIFY-20260828", "owner_authorization": "freigabe erteilt; problem zu fixen und alles was bisher gemacht wurde live zu schalten", "required_ci_run_id": 33211112230, "required_ci_status": "success", "previous_sec195_status": "used_terminal_backup_unknown_snapshot_not_invoked", "previous_sec195_reuse_permitted": false, "installed_helper_sha256": "abf8f859384a9ab21d2c5fb682aabaaff522464eef5d035126065021de373d31", "creation_source_sha256": "65044c06153b6a2b35f0cd734963781b5bbfb7519595924316714d23966bef0c", "creation_transport_sha256": "936a3665d37372246b07170431f2fef1312badf833d20be0a86b68432ef03fe1", "snapshot_observer_source_sha256": "ce435c9f940722e40df51933beec2e4cd978dafe6aa9fe7418513077731081dd", "snapshot_observer_transport_sha256": "0e366812bc27d072a0262e71684e303b8fcdec7d9e8effad4a6242a0b5335ea1", "retry_counter": 0, "backup_execution": false, "snapshot_observation_execution": false, "deployment_execution": false, "boundary": "This is a new, one-use backup and conditional observation authorization. It does not authorize a retry of SEC195, recovery, helper upgrade, deployment or delivery."
+  },
   "file_sha256": {
     "docs/plans/multi-agent-execution-guidance.json": "4b75fab41f64b5b371dc66a05c7af5b065527aa354322e5c0f14edfa1955b128",
     "docs/plans/open-work-completion-master-roadmap.json": "0438c559db0866e95b968cb1bdd876ed7ded4056ddeff5372325c05ed2729987",
@@ -444,7 +447,7 @@
     "docs/plans/security-incident-response-backup-creation-packet.md": "78dc088e4212ab86a967b06905b7979f2e770ceb375395cef3a581ef22f8c7f7",
     "docs/plans/security-incident-response-backup-snapshot-observation-packet.md": "f5e9ef905e522c03175e6dae4d467e204f4ce73836ece6d7b5b66ecfa27450bf",
     "docs/plans/security-incident-response-live-observe-delivery-evidence.md": "a488e1970d63bdb99a3daabe4aeb3490574654de0fb61dcb545ded6f76486f67",
-    "docs/plans/security-incident-response-production-completion-roadmap.json": "591110a3b1af42e9fb84d0e565f837da71f807656d042ca2ea206877a10d4098",
+    "docs/plans/security-incident-response-production-completion-roadmap.json": "d893233c2682dfd8752fd0fc80e7efec56fdae05dd91d737baac746e5fdb85b3",
     "docs/plans/security-incident-response-transactional-deploy-packet.md": "04881d0a642539bf32fd879b59e0a05618d108914e50d89de9be99f6db495047",
     "docs/runbooks/security-incident-response.md": "d9b62c8355783bca94de49137591bb4c5c94f6bdbe0000c7b7a24e1a7950149e",
     "ops/homeserver/redacted_backup_snapshot_observation.py": "d838a0a99310171c8ca08d1835527df9d8ac03b240d57b0bd1bbd745e949a95b",
@@ -463,9 +466,9 @@
     "tests/test_homeserver_redacted_predeploy_backup_root_helper_recovery_transport.py": "6b7ee7e87b414ed925c1eab233454899f1f3a0f251765e32c01f62349b050d8a",
     "tests/test_homeserver_redacted_predeploy_observation.py": "9c048fbc8a16d28450914c7d4c265e27ace9908189b14eaa49ca7047096d1f34",
     "tests/test_homeserver_redacted_podman_compose_capability_observation.py": "5e232816c72abfae75e892f07b19dbeeafa9fb29c4ceb5439a491ae3c6f26f2d",
-    "tests/test_security_incident_response_production_completion_roadmap.py": "10683f23e0f8314c7097fcb968c0d6190db1c6ae5eaed53ae44f0d6d37cd7fb3"
+    "tests/test_security_incident_response_production_completion_roadmap.py": "6132a7a8f6f27507b122790419bb955186d2453daae3d2739f8fedcab95ef097"
   },
-  "aggregate_sha256": "7e266870b01765ab4a36eeae7aaccb4deb2c2288568b526d130bd37246f93827",
+  "aggregate_sha256": "e7c3b40eb8f65e2b56f4c1b1aa97e90a81215beb1a6206ec8ab5f1f30e596289",
   "claim_state": "released",
   "remaining_frontier": "SEC203 recovered the exact current unknown-receipt incident without retry, backup or deployment. The expired arm is removed and the terminal failed unit is inactive. A new backup must use a newly published, separately authorized one-shot action, then an independent snapshot observation must succeed before a separately authorized deployment."
 }
