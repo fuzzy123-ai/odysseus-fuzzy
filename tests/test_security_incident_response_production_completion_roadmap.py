@@ -1188,6 +1188,8 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         "SEC184-OFFICIAL-GITHUB-STRUCTURAL-PROJECTION-20260730",
         "SEC184-OFFICIAL-GITHUB-VERIFIED-SHALLOW-CHECKOUT-20260730",
         "SEC192-CURRENT-INCIDENT-RECOVERY-20260828",
+        "SEC194-ROOT-HELPER-UPGRADE-20260828",
+        "SEC195-ONE-SHOT-BACKUP-AND-SNAPSHOT-VERIFY-20260828",
         }
     sec192 = live_go_by_id["SEC192-CURRENT-INCIDENT-RECOVERY-20260828"]
     assert sec192["status"] == "used_completed_recovered"
@@ -1203,6 +1205,28 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     assert sec192["terminal_result"]["evidence_sha256"] == (
         "f806b239c7b81a07af855e7f20eb91bce5c46cb26949c0936555fbf3bfe23991"
     )
+    sec194 = live_go_by_id["SEC194-ROOT-HELPER-UPGRADE-20260828"]
+    assert sec194["status"] == "approved_unused"
+    assert sec194["consumption_status"] == "unconsumed"
+    assert sec194["consumed"] is False
+    assert sec194["limits"]["maximum_invocations"] == 1
+    assert sec194["limits"]["retries"] == 0
+    assert sec194["helper_upgrade_authority"] is True
+    assert sec194["backup_authority"] is False
+    assert sec194["snapshot_observation_authority"] is False
+    assert sec194["deploy_authority"] is False
+    sec195 = live_go_by_id["SEC195-ONE-SHOT-BACKUP-AND-SNAPSHOT-VERIFY-20260828"]
+    assert sec195["status"] == "approved_unused"
+    assert sec195["consumption_status"] == "unconsumed"
+    assert sec195["consumed"] is False
+    assert sec195["limits"]["maximum_backup_invocations"] == 1
+    assert sec195["limits"]["backup_timeout_seconds"] == 1860
+    assert sec195["limits"]["maximum_snapshot_observations"] == 1
+    assert sec195["limits"]["retries"] == 0
+    assert sec195["backup_authority"] is True
+    assert sec195["snapshot_observation_authority"] is True
+    assert sec195["helper_upgrade_authority"] is False
+    assert sec195["deploy_authority"] is False
     sec182 = live_go_by_id["SEC182-SOURCE-AST-REPAIR-PUBLISH-20260730"]
     assert sec182["status"] == "used_completed_remote_readback"
     assert sec182["consumed"] is True
