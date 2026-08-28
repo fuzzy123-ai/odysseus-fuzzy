@@ -114,7 +114,12 @@ def test_real_replacement_is_exact_atomic_and_preserves_foreign_temp(tmp_path) -
         def fchown(descriptor, uid, gid): return None
         @staticmethod
         def _root(info):
-            return SimpleNamespace(st_mode=info.st_mode, st_uid=0, st_gid=0, st_nlink=info.st_nlink, st_size=info.st_size, st_dev=info.st_dev, st_ino=info.st_ino, st_mtime_ns=info.st_mtime_ns, st_ctime_ns=info.st_ctime_ns)
+            # Pytest locates tmp_path below sticky world-writable /tmp.  The
+            # production targets have only root-owned 0755/0700 parents, so
+            # normalize directory permission bits in this root facade rather
+            # than weakening the production parent-walk contract.
+            mode = (stat.S_IFDIR | 0o755) if stat.S_ISDIR(info.st_mode) else info.st_mode
+            return SimpleNamespace(st_mode=mode, st_uid=0, st_gid=0, st_nlink=info.st_nlink, st_size=info.st_size, st_dev=info.st_dev, st_ino=info.st_ino, st_mtime_ns=info.st_mtime_ns, st_ctime_ns=info.st_ctime_ns)
         def fstat(self, descriptor): return self._root(os.fstat(descriptor))
         def stat(self, *args, **kwargs): return self._root(os.stat(*args, **kwargs))
 
