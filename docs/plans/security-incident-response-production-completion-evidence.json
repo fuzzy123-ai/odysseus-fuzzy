@@ -291,6 +291,20 @@
     "deployment_execution": false,
     "boundary": "SEC197 can recover only the exact current failed incident if all server-side provenance, expiry, receipt and unit preflight checks pass. It returned preflight-blocked before recovery invocation, so it cannot be retried or broadened. The next safe step is a separately designed redacted read-only cause diagnosis."
   },
+  "latest_sec198_current_incident_diagnostic": {
+    "recorded_at": "2026-08-28T20:07:07+02:00",
+    "baseline_head": "8068beb8bb5febde638d86e890131b74aa292695",
+    "status": "accepted_repo_only_pending_publication_and_required_ci",
+    "run_id": "ABC-SEC198-20260828-CURRENT-INCIDENT-DIAGNOSTIC",
+    "diagnostic_source_sha256": "05f039cdc44ad5407da766122135d3c2df0fd1b45032c582fae32d2afb85c1ee",
+    "diagnostic_transport_sha256": "c0fc12b871c8535f8877b351c262c33938647c32332400cadaf88308adfabe3c",
+    "current_helper_sha256": "abf8f859384a9ab21d2c5fb682aabaaff522464eef5d035126065021de373d31",
+    "current_action_provenance_ref": "predeploy_backup_root_helper_v1:d9c73a2cebba7209eb3342cf9ef749d0feed3e11f7c3c9d305ccc739cdf17a33",
+    "current_result_evidence_sha256": "76a2f37841b779b25b3e27b3862f5ebdcba20358e18d026edef28503c4abc05e",
+    "prior_recovery_result_evidence_sha256": "b1da6fc5fe9c3f9ea7e2a1cedc57f797dce571e18bdff9d431484c4727fa4e6e",
+    "verification": "17 focused diagnostic and recovery tests passed; compile and diff checks passed",
+    "boundary": "No server invocation is authorized by this repository change. A later one-use read-only diagnostic may expose only fixed booleans for root privilege, asset binding, state directory, arm, marker, receipt, exact unit-failed projection and recovery-preflight readiness; it cannot mutate the host or reveal raw data."
+  },
   "file_sha256": {
     "docs/plans/multi-agent-execution-guidance.json": "4b75fab41f64b5b371dc66a05c7af5b065527aa354322e5c0f14edfa1955b128",
     "docs/plans/open-work-completion-master-roadmap.json": "0438c559db0866e95b968cb1bdd876ed7ded4056ddeff5372325c05ed2729987",
@@ -304,18 +318,22 @@
     "ops/homeserver/redacted_backup_snapshot_observation.py": "d838a0a99310171c8ca08d1835527df9d8ac03b240d57b0bd1bbd745e949a95b",
     "ops/homeserver/redacted_podman_compose_capability_observation.py": "ba0bbaa530a0ec4a5f67a0328fe5156fe99306b8da8aeb764f9ea058b17da225",
     "ops/homeserver/redacted_predeploy_backup_creation.py": "cb035e480a0e860718d6df7cd4154c1bbce5545ff72c7f70fd8ac78d73d98837",
+    "ops/homeserver/redacted_predeploy_backup_root_helper_incident_diagnostic.py": "05f039cdc44ad5407da766122135d3c2df0fd1b45032c582fae32d2afb85c1ee",
+    "ops/homeserver/redacted_predeploy_backup_root_helper_incident_diagnostic_transport.py": "c0fc12b871c8535f8877b351c262c33938647c32332400cadaf88308adfabe3c",
     "ops/homeserver/redacted_predeploy_backup_root_helper_recovery.py": "3fdfd9a80511039bdf86ebde952001dc6a07f5177b4edfa3220e357f47d10a27",
     "ops/homeserver/redacted_predeploy_backup_root_helper_recovery_transport.py": "6841f507aea24e08b4703a42a348201343ba00aca22f1a1c16388c7c5e940174",
     "ops/homeserver/redacted_predeploy_observation.py": "2d19ef9c1834ea001e5fe683e1e1ec800da2c8fdbe6aec7a1e60e48f5ff3ec8b",
     "tests/test_homeserver_redacted_backup_snapshot_observation.py": "ca74ccea6c0e486b1b84efbc21f631832862297eaa8ac109d5ad10a94c8c0493",
     "tests/test_homeserver_redacted_predeploy_backup_creation.py": "a34e25b39d126f44562441ae359d06622d138f62cbd0b75f3466e177bb746433",
+    "tests/test_homeserver_redacted_predeploy_backup_root_helper_incident_diagnostic.py": "453afa536767f52089615941429b49eaa09676b55dcefaa6802332fa963a2a5f",
+    "tests/test_homeserver_redacted_predeploy_backup_root_helper_incident_diagnostic_transport.py": "84ed551cbf1d24051a5eb3f6d4690662503cb2618f3cf9cfa398a0782e0baa6f",
     "tests/test_homeserver_redacted_predeploy_backup_root_helper_recovery.py": "94128e6edcc8950919523b5ab2ef53b864f90945048172de3eb2c2fbf5df6044",
     "tests/test_homeserver_redacted_predeploy_backup_root_helper_recovery_transport.py": "6b7ee7e87b414ed925c1eab233454899f1f3a0f251765e32c01f62349b050d8a",
     "tests/test_homeserver_redacted_predeploy_observation.py": "9c048fbc8a16d28450914c7d4c265e27ace9908189b14eaa49ca7047096d1f34",
     "tests/test_homeserver_redacted_podman_compose_capability_observation.py": "5e232816c72abfae75e892f07b19dbeeafa9fb29c4ceb5439a491ae3c6f26f2d",
     "tests/test_security_incident_response_production_completion_roadmap.py": "334b949949f90aaa5ddcfafc84cf1f2025cd854f501ce3da7770955db9464945"
   },
-  "aggregate_sha256": "571ca2c6b56e241f406b18f9af704a9a505909eff3929f828afb52300c6cf992",
+  "aggregate_sha256": "71b9d47bd58933483e812e4b687b8f7995c78dc365970a9c28435f68413709cf",
   "claim_state": "released",
   "remaining_frontier": "SEC197's exact recovery was terminal preflight-blocked before mutation. Stop without retry, backup or deployment. Implement and independently verify a new read-only redacted current-incident cause diagnostic; only its specific result may justify a newly scoped recovery or a repair of the recovery contract."
 }
