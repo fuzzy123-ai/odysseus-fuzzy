@@ -6100,8 +6100,9 @@
       "limits": {"maximum_invocations": 1, "maximum_results": 1, "outer_timeout_seconds": 45, "retries": 0, "arm_removals": 1, "unit_resets": 1, "backups": 0, "deployments": 0},
       "rollback_or_recovery": "On any preflight failure it changes nothing. If invoked, it can remove only the exact expired arm and reset only the named failed unit; it cannot retry, back up, restore, deploy or deliver.",
       "readback": "one strictly validated redacted recovery envelope and canonical evidence_sha256 only; no raw output or secret data",
-      "revocable": true, "consumed": false, "status": "approved_unused", "consumption_status": "unconsumed", "invocation_counter": 0, "result_counter": 0, "retry_counter": 0, "external_action_executed": false, "reuse_permitted": false,
-      "current_incident_observation_authority": false, "incident_recovery_authority": true, "backup_authority": false, "helper_upgrade_authority": false, "snapshot_observation_authority": false, "deploy_authority": false, "delivery_or_send_authority": false
+      "revocable": true, "consumed": true, "consumed_at": "2026-08-28T22:06:00+02:00", "status": "used_completed_recovered", "consumption_status": "consumed_terminal_recovered", "invocation_counter": 1, "result_counter": 1, "retry_counter": 0, "external_action_executed": true, "reuse_permitted": false,
+      "current_incident_observation_authority": false, "incident_recovery_authority": false, "backup_authority": false, "helper_upgrade_authority": false, "snapshot_observation_authority": false, "deploy_authority": false, "delivery_or_send_authority": false,
+      "terminal_result": {"schema_id": "odysseus.predeploy_backup_root_helper_recovery.v1", "status": "recovered", "error_code": "none", "recovery_invoked": true, "arm_removed": true, "unit_reset": true, "unit_inactive": true, "effect_may_have_occurred": false, "retry_permitted": false, "manual_recovery_required": false, "environment_visible": false, "hostnames_visible": false, "paths_visible": false, "raw_stdout_visible": false, "raw_stderr_visible": false, "secret_values_visible": false, "evidence_preserved": true, "evidence_sha256": "f806b239c7b81a07af855e7f20eb91bce5c46cb26949c0936555fbf3bfe23991"}
     },
     {
       "id": "SEC182-SOURCE-AST-REPAIR-PUBLISH-20260730",
