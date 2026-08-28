@@ -1224,9 +1224,9 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         "99e4132115c0aad8e87d3b3f0c9f214e2897e99d74ef89419284a98fd740526b"
     )
     sec195 = live_go_by_id["SEC195-ONE-SHOT-BACKUP-AND-SNAPSHOT-VERIFY-20260828"]
-    assert sec195["status"] == "approved_unused"
-    assert sec195["consumption_status"] == "unconsumed"
-    assert sec195["consumed"] is False
+    assert sec195["status"] == "used_terminal_backup_unknown_snapshot_not_invoked"
+    assert sec195["consumption_status"] == "consumed_terminal_backup_unknown"
+    assert sec195["consumed"] is True
     assert sec195["limits"]["maximum_backup_invocations"] == 1
     assert sec195["limits"]["backup_timeout_seconds"] == 1860
     assert sec195["limits"]["maximum_snapshot_observations"] == 1
@@ -1235,6 +1235,19 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
     assert sec195["snapshot_observation_authority"] is True
     assert sec195["helper_upgrade_authority"] is False
     assert sec195["deploy_authority"] is False
+    assert sec195["snapshot_observation_status"] == "not_invoked_backup_not_completed"
+    assert sec195["terminal_result"]["status"] == "unknown"
+    assert sec195["terminal_result"]["error_code"] == "start_failed"
+    assert sec195["terminal_result"]["arm_created"] is True
+    assert sec195["terminal_result"]["unit_invoked"] is True
+    assert sec195["terminal_result"]["backup_succeeded"] is False
+    assert sec195["terminal_result"]["unit_inactive"] is False
+    assert sec195["terminal_result"]["arm_cleanup_succeeded"] is False
+    assert sec195["terminal_result"]["manual_recovery_required"] is True
+    assert sec195["terminal_result"]["retry_permitted"] is False
+    assert sec195["terminal_result"]["evidence_sha256"] == (
+        "6da575cd40a5ea6bab45e2849893f2350fa33bee859429e43db18779eeec1cf1"
+    )
     sec182 = live_go_by_id["SEC182-SOURCE-AST-REPAIR-PUBLISH-20260730"]
     assert sec182["status"] == "used_completed_remote_readback"
     assert sec182["consumed"] is True
