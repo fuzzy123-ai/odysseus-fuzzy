@@ -136,9 +136,9 @@
     ]
   },
   "latest_sec192_current_incident_recovery_pin": {
-    "recorded_at": "2026-08-28T18:04:00+02:00",
+    "recorded_at": "2026-08-28T18:16:00+02:00",
     "run_id": "ABC-SEC192-20260828-CURRENT-INCIDENT-RECOVERY-PIN",
-    "status": "published_ci_green_exact_live_recovery_authorized_unused",
+    "status": "published_ci_green_exact_live_recovery_consumed_terminal_recovered",
     "baseline_head": "aad82d1d48dfae694e9f43b15b0827ebaa37d7f2",
     "incident_action_provenance_ref": "predeploy_backup_root_helper_v1:cd1242db59361fc8fa7753d005bdce0b626f8154c6046290168b99e772556a64",
     "incident_result_evidence_sha256": "ecec9775ee109617ad881bcc4689e27e8cf8e283bde65282a2fc9d193097d5a6",
@@ -149,15 +149,22 @@
     "required_ci_run_id": 33187291759,
     "required_ci_status": "success",
     "live_go_id": "SEC192-CURRENT-INCIDENT-RECOVERY-20260828",
-    "authorization_status": "approved_unused",
+    "authorization_status": "used_consumed_terminal_recovered",
     "new_live_go_created": true,
+    "recovery_result_status": "recovered",
+    "recovery_result_evidence_sha256": "f806b239c7b81a07af855e7f20eb91bce5c46cb26949c0936555fbf3bfe23991",
+    "arm_removed": true,
+    "unit_reset": true,
+    "unit_inactive": true,
+    "evidence_preserved": true,
+    "retry_counter": 0,
     "focused_verification": "11 passed",
     "adjacent_verification": "127 passed, 2 expected Windows POSIX skips",
     "compile_and_diff": "4 claim paths compiled in memory; git diff --check exit 0",
     "review": "independent fresh Sol PASS with no findings",
     "architecture": "single-version exact incident binding; no dual allowlist or packet broadening",
     "mandatory_next_gate": "After exact current-incident recovery, publish and CI-verify a separate recovery repin to abf8f859384a9ab21d2c5fb682aabaaff522464eef5d035126065021de373d31 before helper upgrade or any new backup action.",
-    "live_execution": false,
+    "live_execution": true,
     "git_publication": true,
     "backup_execution": false,
     "deployment_execution": false
@@ -169,7 +176,7 @@
     "docs/plans/security-incident-response-backup-creation-packet.md": "a107d443f0c34600873e0bb4dda78735fcb6eeeac9b94fc76cbd4e213108ca56",
     "docs/plans/security-incident-response-backup-snapshot-observation-packet.md": "f5e9ef905e522c03175e6dae4d467e204f4ce73836ece6d7b5b66ecfa27450bf",
     "docs/plans/security-incident-response-live-observe-delivery-evidence.md": "a488e1970d63bdb99a3daabe4aeb3490574654de0fb61dcb545ded6f76486f67",
-    "docs/plans/security-incident-response-production-completion-roadmap.json": "d75f5ddf827dd744ba59b0a9012a01a8bdc2229ea6ad5ee6907fed9e10890c41",
+    "docs/plans/security-incident-response-production-completion-roadmap.json": "444ab0cc258a39820b460621d8565667841eef5d6fced23d04b5463e3dbb8f44",
     "docs/plans/security-incident-response-transactional-deploy-packet.md": "04881d0a642539bf32fd879b59e0a05618d108914e50d89de9be99f6db495047",
     "docs/runbooks/security-incident-response.md": "d9b62c8355783bca94de49137591bb4c5c94f6bdbe0000c7b7a24e1a7950149e",
     "ops/homeserver/redacted_backup_snapshot_observation.py": "d838a0a99310171c8ca08d1835527df9d8ac03b240d57b0bd1bbd745e949a95b",
@@ -184,9 +191,9 @@
     "tests/test_homeserver_redacted_predeploy_backup_root_helper_recovery_transport.py": "6b7ee7e87b414ed925c1eab233454899f1f3a0f251765e32c01f62349b050d8a",
     "tests/test_homeserver_redacted_predeploy_observation.py": "9c048fbc8a16d28450914c7d4c265e27ace9908189b14eaa49ca7047096d1f34",
     "tests/test_homeserver_redacted_podman_compose_capability_observation.py": "5e232816c72abfae75e892f07b19dbeeafa9fb29c4ceb5439a491ae3c6f26f2d",
-    "tests/test_security_incident_response_production_completion_roadmap.py": "74bfca895fea2c7c1750ac9a152481ec2a46f21a1ddca0e69afb14e9877cb983"
+    "tests/test_security_incident_response_production_completion_roadmap.py": "e103bd9a46c16d088d956eb68c3624cf0afe7636ff966bf3ee07a46d35c84fb7"
   },
-  "aggregate_sha256": "141afb21425540a3b6b7e2853d5fa0ff0777e8bd550386306288415c7f48fa71",
+  "aggregate_sha256": "e817d83816e1dd282cbe77a6b726a1ac1b37b46207fb642782f7f52d7c65698b",
   "claim_state": "released",
-  "remaining_frontier": "Consume the exact SEC192 current-incident recovery authorization once and validate its fixed-key terminal readback. On recovered only, publish and CI-verify a separate single-version recovery repin to abf8 before the helper upgrade, exactly one new backup action, independent fresh snapshot verification and the separately gated transactional deployment."
+  "remaining_frontier": "Publish and CI-verify a separate single-version recovery repin to abf8 before the helper upgrade. Only then may a separately authorized exact helper upgrade, exactly one new backup action, independent fresh snapshot verification and the exact transactional deployment proceed."
 }

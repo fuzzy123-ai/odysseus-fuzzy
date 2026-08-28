@@ -1190,15 +1190,19 @@ def test_sirp12_observe_packet_is_consumed_exactly_once_and_projection_is_bounde
         "SEC192-CURRENT-INCIDENT-RECOVERY-20260828",
         }
     sec192 = live_go_by_id["SEC192-CURRENT-INCIDENT-RECOVERY-20260828"]
-    assert sec192["status"] == "approved_unused"
-    assert sec192["consumption_status"] == "unconsumed"
-    assert sec192["consumed"] is False
+    assert sec192["status"] == "used_completed_recovered"
+    assert sec192["consumption_status"] == "consumed_terminal_recovered"
+    assert sec192["consumed"] is True
     assert sec192["limits"]["maximum_invocations"] == 1
     assert sec192["limits"]["retries"] == 0
     assert sec192["incident_recovery_authority"] is True
     assert sec192["backup_authority"] is False
     assert sec192["helper_upgrade_authority"] is False
     assert sec192["deploy_authority"] is False
+    assert sec192["terminal_result"]["status"] == "recovered"
+    assert sec192["terminal_result"]["evidence_sha256"] == (
+        "f806b239c7b81a07af855e7f20eb91bce5c46cb26949c0936555fbf3bfe23991"
+    )
     sec182 = live_go_by_id["SEC182-SOURCE-AST-REPAIR-PUBLISH-20260730"]
     assert sec182["status"] == "used_completed_remote_readback"
     assert sec182["consumed"] is True
