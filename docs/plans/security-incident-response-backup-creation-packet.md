@@ -1,5 +1,30 @@
 # SEC129 Predeploy Backup Creation Packet
 
+## SEC204 executor boundary and update rule (2026-08-29)
+
+The historical direct creation wrapper reached a user-and-mount-namespace
+executor from the application checkout. Its SEC204 result was terminal
+`unknown` with `backup_failed`; no retry or snapshot observation is permitted
+for that invocation. That mechanism is therefore retired for production:
+`redacted_predeploy_backup_creation.py` has an inert command-line entry point
+and `redacted_predeploy_backup_creation_transport.py` returns the canonical
+pre-dispatch block `legacy_executor_retired` without reading a blob or opening
+an SSH connection.
+
+The installed root-owned helper, its fixed systemd unit, and the pinned
+`redacted_predeploy_backup_root_helper_action_transport.py` arm/start/readback
+action are the only production backup executor. They never import application
+checkout code. A normal application update or deployment may neither install,
+upgrade, replace, arm, nor invoke that helper.
+
+Helper changes are a distinct platform-security release, never a by-product of
+an application update. Each such release needs its own reviewed helper version,
+asset-hash and ABI compatibility checks, installation/readback evidence, and a
+separate one-use backup authorization after publication and green CI. An
+unchanged helper version is reused across application updates. A backup or a
+deployment remains separately authorized, and a terminal/ambiguous backup
+result stops the chain.
+
 ## SEC193 future incident-bound recovery readiness (2026-08-28)
 
 SEC192 recovered the exact known `561195...` incident with canonical evidence
@@ -105,29 +130,22 @@ granted or satisfied by backup creation.
 
 - Repository: exactly `/mnt/backup/restic/homeserver`.
 - Protected source: exactly `/opt/odysseus`.
-- Fixed action command, no appended arguments, environment overrides,
-  redirection, alternate repository/source/binary, `--init-repo`, `--prune`,
-  `check`, `restore`, `unlock`, or deletion:
-
-```text
-cd /opt/odysseus && exec /usr/bin/timeout --signal=KILL 1860s /usr/bin/python3 ops/homeserver/redacted_predeploy_backup_creation.py
-```
-
-- Outer timeout is exactly 1860 seconds; maximum invocation/result/retry is
-  `1` / `1` / `0`.
-- A concurrent-backup lock is required before invocation and must be retained
-  through the fixed redacted post-backup readback. Existing or ambiguous lock
-  ownership blocks before invocation. Partial-snapshot/readback ambiguity
-  after dispatch is terminal `unknown`, not a pre-invocation block.
-
-The wrapper alone invokes the fixed absolute
-`/opt/odysseus/ops/homeserver/backup-homeserver.sh --mode pre-update`. It pins
-and validates the reviewed script's fixed configuration, rejects
-password-command use and all binary/repository/source/scope overrides, uses
-only a source-safe password-file configuration, and emits no raw process
-output. Its fixed environment pins the broader reviewed homeserver-script
-scope, while inclusion of the exact protected source remains mandatory.
-Without the published reviewed wrapper binding this packet remains blocked.
+- No command in the application checkout is a production backup command. In
+  particular, the retired direct wrapper and its transport may not be used,
+  even by a later packet revision.
+- The sole invocation is the fixed, published root-helper action transport. It
+  supplies only a fresh opaque grant ID, a five-minute expiry, and the exact
+  installed-helper hash; its server-side bootstrap invokes the fixed sudo
+  action, which arms one root-owned record, starts one fixed systemd unit, and
+  reads back its one redacted receipt.
+- The helper accepts no appended arguments, environment overrides, redirection,
+  alternate repository/source/binary, `--init-repo`, `--prune`, `check`,
+  `restore`, `unlock`, or deletion. Its outer unit timeout is exactly 1860
+  seconds; maximum invocation/result/retry is `1` / `1` / `0`.
+- A concurrent-backup arm and lock are required before invocation and retained
+  through fixed redacted readback. Existing or ambiguous ownership blocks
+  before invocation. Partial-snapshot/readback ambiguity after dispatch is
+  terminal `unknown`, not a pre-invocation block.
 
 ## Required preflight and provenance
 
