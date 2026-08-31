@@ -595,14 +595,25 @@ def _walk_items(value: Any, *, file_name: str, path: str = "") -> Iterable[Roadm
     if isinstance(value, dict):
         item_class = str(value.get("class") or "").strip()
         status = str(value.get("status") or "").strip()
+        explicit_item_id = next(
+            (
+                str(value.get(key) or "").strip()
+                for key in ("id", "slice", "title")
+                if str(value.get(key) or "").strip()
+            ),
+            "",
+        )
         raw_claimable = value.get("claimable")
         claimable = raw_claimable if isinstance(raw_claimable, bool) else None
         claim_blocker = str(value.get("claim_blocker") or "").strip()
-        if item_class or status:
+        suppress_metadata_only_safe = (
+            item_class.lower() in SAFE_CLASSES and not status and not explicit_item_id
+        )
+        if (item_class or status) and not suppress_metadata_only_safe:
             yield RoadmapAuditItem(
                 file=file_name,
                 path=path or "/",
-                item_id=str(value.get("id") or value.get("slice") or value.get("title") or path or file_name),
+                item_id=explicit_item_id or path or file_name,
                 item_class=item_class,
                 status=status,
                 reason=str(value.get("reason") or value.get("blocker") or claim_blocker or value.get("goal") or ""),

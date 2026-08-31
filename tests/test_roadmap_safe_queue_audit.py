@@ -437,3 +437,38 @@ def test_audit_does_not_treat_artifact_or_policy_gate_metadata_as_safe_slices(tm
     assert [item["id"] for item in report["live_gates"]] == ["APPLY-GO"]
     assert [item["id"] for item in report["design_gates"]] == ["UI-GO"]
     assert [item["id"] for item in report["other_open_items"]] == ["READONLY-POLICY-GO"]
+
+
+def test_audit_excludes_metadata_only_safe_object_without_identity(tmp_path):
+    plans = tmp_path / "plans"
+    plans.mkdir()
+    _write_json(
+        plans / "roadmap.json",
+        {
+            "metadata": {"class": "repo_only"},
+            "metadata_mixed_case": {"class": "Safe_Offline"},
+            "slice_queue": [{"class": "safe_offline", "id": "SAFE-1", "status": "open"}],
+        },
+    )
+
+    report = audit_plan_dir(plans, mvp_state_path=plans / "missing-mvp.json")
+
+    assert [item["id"] for item in report["safe_open_slices"]] == ["SAFE-1"]
+
+
+def test_audit_preserves_nested_genuine_child_under_metadata_only_safe_object(tmp_path):
+    plans = tmp_path / "plans"
+    plans.mkdir()
+    _write_json(
+        plans / "roadmap.json",
+        {
+            "metadata": {
+                "class": "safe_offline",
+                "children": [{"id": "SAFE-NESTED", "class": "repo_only", "status": "open"}],
+            }
+        },
+    )
+
+    report = audit_plan_dir(plans, mvp_state_path=plans / "missing-mvp.json")
+
+    assert [item["id"] for item in report["safe_open_slices"]] == ["SAFE-NESTED"]
