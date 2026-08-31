@@ -87,17 +87,28 @@ run_locked() {
   fi
 }
 
-compose_up() {
+compose() {
   local compose_args=(-f docker-compose.yml)
   if [ -f docker-compose.nextcloud.yml ]; then
     compose_args+=(-f docker-compose.nextcloud.yml)
     log "including nextcloud compose override"
   fi
   if podman compose version >/dev/null 2>&1; then
-    podman compose "${compose_args[@]}" up -d --build
+    podman compose "${compose_args[@]}" "$@"
   else
-    podman-compose "${compose_args[@]}" up -d --build
+    podman-compose "${compose_args[@]}" "$@"
   fi
+}
+
+build_app_image() {
+  # podman-compose 1.3.0 can continue after `up --build` logs a failed build.
+  # Build separately so the shell exits before a stale image can be started.
+  compose build odysseus
+}
+
+switch_to_built_app() {
+  # Update the app service only; dependency services and data volumes stay put.
+  compose up -d --no-deps --no-build --force-recreate odysseus
 }
 
 prepare_release_manifest() {
@@ -112,27 +123,27 @@ prepare_release_manifest() {
   export ODYSSEUS_RELEASE_REVISION="$revision"
 }
 
-runtime_release_manifest_ready() {
+runtime_release_manifest_matches() {
+  local expected_revision="$1"
   podman container exists odysseus_odysseus_1 >/dev/null 2>&1 || return 1
   podman exec odysseus_odysseus_1 python -c '
-import os
+import sys
 from src.constants import RELEASE_MANIFEST_FILE
 from src.release_manifest import read_release_manifest
 
-expected = os.getenv("ODYSSEUS_RELEASE_REVISION") or ""
+expected = sys.argv[1]
 document, state = read_release_manifest(
     RELEASE_MANIFEST_FILE,
-    expected_revision=expected or None,
+    expected_revision=expected,
 )
 raise SystemExit(
     0
-    if expected
-    and state == "ready"
+    if state == "ready"
     and document
     and document.get("revision") == expected
     else 1
 )
-' >/dev/null 2>&1
+' "$expected_revision" >/dev/null 2>&1
 }
 
 refresh_tool_capability_knowledge() {
@@ -180,7 +191,7 @@ if [[ "$local_commit" == "$remote_commit" ]]; then
   version_json="$(curl -fsS "$APP_URL/api/version" 2>/dev/null || true)"
   case "$version_json" in
     *"\"commit\":\"$short_commit\""*)
-      if runtime_release_manifest_ready; then
+      if runtime_release_manifest_matches "$local_commit"; then
         log "already current at $short_commit with a valid release manifest"
         exit 0
       fi
@@ -219,11 +230,11 @@ release_revision="$(git rev-parse HEAD)"
 log "generating revision-bound release manifest"
 prepare_release_manifest "$release_revision" "$current_branch"
 
-log "rebuilding podman deployment"
-compose_up
+log "building app image"
+build_app_image
 
-log "pruning dangling podman images"
-podman image prune -f
+log "switching to the verified app image"
+switch_to_built_app
 
 log "waiting for services"
 wait_http "$APP_URL/" "odysseus app"
@@ -236,6 +247,9 @@ case "$version_json" in
   *"\"commit\":\"$short_commit\""*) ;;
   *) die "version API does not report deployed commit $short_commit" ;;
 esac
+
+runtime_release_manifest_matches "$release_revision" \
+  || die "runtime release manifest does not match deployed commit"
 
 log "refreshing tool capability knowledge"
 refresh_tool_capability_knowledge "$short_commit"
